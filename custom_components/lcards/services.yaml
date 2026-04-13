@@ -1,12 +1,32 @@
 # LCARdS HA service (action) descriptions.
 # These appear in the HA Developer Tools → Actions panel and can be used
 # in automations and scripts.
+#
+# Targeting fields (optional, present on every service; any combination is valid):
+#
+#   target_device_ids    — list of browser device UUIDs (lcards_device_id from
+#                          each browser's localStorage).  Omit to target all.
+#   target_device_names  — list of device display names (set in the LCARdS
+#                          config panel or ?lcards_device= URL param).  Resolved
+#                          to UUIDs server-side.  Non-unique names match all
+#                          devices sharing that display name.
+#   target_user_ids      — list of HA user IDs.  Omit to target all.
+#   target_user_names    — list of HA user display names.  Resolved to user IDs
+#                          server-side.  Case-insensitive.
+#
+# Broadcast behaviour (omit all four fields) is the default and is fully
+# backward-compatible with existing automations.
+#
+# Alert services + targeting: the input_select helper is NOT written; the
+# alert is applied as a local, transient state change on matching devices only.
 
 set_alert_mode:
   name: Set Alert Mode
   description: >
-    Set the LCARdS alert mode. Requires the input_select.lcards_alert_mode
-    helper — create it from the Helpers tab in the LCARdS Config Panel.
+    Set the LCARdS alert mode. Without targeting, requires
+    input_select.lcards_alert_mode — create it from the Helpers tab in the
+    LCARdS Config Panel. With targeting, the alert is applied locally on
+    matching devices only (the global helper is not changed).
   fields:
     mode:
       name: Mode
@@ -27,44 +47,367 @@ set_alert_mode:
               label: "⬛ Black Alert"
             - value: green_alert
               label: "🟢 Green (Normal)"
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs (the lcards_device_id value
+        stored in each browser's localStorage). Leave empty to target all
+        devices. When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to specific HA user IDs. Leave empty to target all users.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name (set in the LCARdS
+        config panel or ?lcards_device= URL param). Resolved server-side.
+        Non-unique names match all devices sharing that name.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive. When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
 
 red_alert:
   name: Red Alert
-  description: Activate LCARdS red alert mode.
+  description: >
+    Activate LCARdS red alert mode. Without targeting, updates the global
+    input_select helper (affects all browsers). With targeting, applies the
+    alert locally on matching devices only.
+  fields:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty for all devices.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to specific HA user IDs. Leave empty for all users.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive. When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
 
 yellow_alert:
   name: Yellow Alert
-  description: Activate LCARdS yellow alert mode.
+  description: >
+    Activate LCARdS yellow alert mode. Without targeting, updates the global
+    input_select helper (affects all browsers). With targeting, applies the
+    alert locally on matching devices only.
+  fields:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty for all devices.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to specific HA user IDs. Leave empty for all users.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive. When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
 
 blue_alert:
   name: Blue Alert
-  description: Activate LCARdS blue alert mode.
+  description: >
+    Activate LCARdS blue alert mode. Without targeting, updates the global
+    input_select helper (affects all browsers). With targeting, applies the
+    alert locally on matching devices only.
+  fields:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty for all devices.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to specific HA user IDs. Leave empty for all users.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive. When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
 
 gray_alert:
   name: Gray Alert
-  description: Activate LCARdS gray alert mode.
+  description: >
+    Activate LCARdS gray alert mode. Without targeting, updates the global
+    input_select helper (affects all browsers). With targeting, applies the
+    alert locally on matching devices only.
+  fields:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty for all devices.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to specific HA user IDs. Leave empty for all users.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive. When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
 
 black_alert:
   name: Black Alert
-  description: Activate LCARdS black alert mode.
+  description: >
+    Activate LCARdS black alert mode. Without targeting, updates the global
+    input_select helper (affects all browsers). With targeting, applies the
+    alert locally on matching devices only.
+  fields:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty for all devices.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to specific HA user IDs. Leave empty for all users.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive. When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
 
 clear_alert:
   name: Clear Alert
-  description: Clear all alerts and return LCARdS to normal (green) mode.
+  description: >
+    Clear all alerts and return LCARdS to normal (green) mode. Without
+    targeting, updates the global input_select helper (affects all browsers).
+    With targeting, clears the alert locally on matching devices only.
+  fields:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty for all devices.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to specific HA user IDs. Leave empty for all users.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+        When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive. When set, the global input_select helper is NOT changed.
+      required: false
+      selector:
+        text:
+          multiple: true
 
 reload:
   name: Reload
   description: >
-    Fire a reload event to all active LCARdS frontends. Each connected browser
-    tab will perform a full page reload. Useful after config changes that require
-    a fresh JS bundle load.
+    Fire a reload event to active LCARdS frontends. Each connected browser
+    tab will perform a full page reload. Useful after config changes that
+    require a fresh JS bundle load. Supports targeting to reload only specific
+    devices or users.
+  fields:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to reload all
+        connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
 
 set_log_level:
   name: Set Log Level
   description: >
-    Change the LCARdS log verbosity at runtime. Updates both the Python backend
-    logger and pushes the new level to all connected JS frontends immediately —
-    no page reload required.
+    Change the LCARdS log verbosity at runtime. Always updates the Python
+    backend logger (process-wide). Also pushes the new level to connected
+    JS frontends — no page reload required. Supports targeting to change
+    log level only on specific devices or users.
   fields:
     level:
       name: Level
@@ -85,3 +428,38 @@ set_log_level:
               label: "Debug"
             - value: "trace"
               label: "Trace (verbose)"
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty for all connected
+        browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true

@@ -162,6 +162,17 @@ export class TriggerManager {
               // Full lifecycle: play while condition met, stop when it clears
               if (condMet) {
                 if (!isActive) {
+                  // oldState === null means this is the very first ingestHass on page
+                  // load: HA reports every entity as "changed" from nothing.  We
+                  // always suppress the direct subscription path here — the
+                  // check_on_load block below is the proper gate for initial-load
+                  // evaluation.  Default is to check on load (check_on_load: true);
+                  // set check_on_load: false to suppress animation until the next
+                  // real state transition.
+                  if (oldState === null) {
+                    lcardsLog.debug(`[TriggerManager] while-start suppressed on initial load for ${changedEntityId} — handled by check_on_load block`);
+                    return;
+                  }
                   // Respect from_state/to_state fire gates when starting for the first time
                   const fromOk = anim.from_state === undefined || String(oldValue) === String(anim.from_state);
                   const toOk   = anim.to_state   === undefined || String(newValue) === String(anim.to_state);
@@ -212,8 +223,35 @@ export class TriggerManager {
     });
 
     // check_on_load: evaluate against current state immediately
+    // Recreation re-seed: when the scope is being recreated (e.g. SVG re-rendered
+    // due to entity-state-driven style change), unconditionally restore any
+    // while+loop animation that was running before the old scope was torn down.
+    // This is intentionally separate from — and not gated by — check_on_load.
+    if (this._isRecreation) {
+      animations.forEach(anim => {
+        if (!anim.while) return;
+        const effectiveLoop = anim.loop ?? anim.params?.loop;
+        if (effectiveLoop !== true) return;
+        const entityId = anim.entity;
+        if (!entityId) return;
+        const currentState = systemsManager.getEntityState?.(entityId);
+        if (!currentState) return;
+        const currentValue = this._resolveEntityValue(anim, currentState);
+        const condMet = this._evaluateWhileCondition(anim, currentValue);
+        if (condMet && !this._whileActiveAnims.has(anim)) {
+          this._whileActiveAnims.add(anim);
+          lcardsLog.debug(`[TriggerManager] 🔄 Recreation re-seed: while condition met for ${entityId}, restarting animation`);
+          this.animationManager.playAnimation(this.overlayId, anim);
+        } else {
+          lcardsLog.debug(`[TriggerManager] 🔄 Recreation re-seed: while condition NOT met for ${entityId} — not starting`);
+        }
+      });
+    }
+
     animations.forEach(anim => {
-      if (!anim.check_on_load) return;
+      // Default is to check on load (check_on_load defaults to true).
+      // Only skip when the user has explicitly opted out with check_on_load: false.
+      if (anim.check_on_load === false) return;
 
       const entityId = anim.entity;
       if (!entityId) return;

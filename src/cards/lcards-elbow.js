@@ -1531,6 +1531,11 @@ export class LCARdSElbow extends LCARdSButton {
         const g = this._elbowGeometry;
         if (!g) return;
 
+        // 'full' zone — the entire card surface — emitted for every elbow type so
+        // that text fields using zone: full always have a well-defined target,
+        // regardless of which preset is active.
+        this._zones.set('full', { bounds: { x: 0, y: 0, width, height } });
+
         if (g.type === 'frame') {
             this._calculateFrameZones(width, height, g);
             return;
@@ -1551,20 +1556,56 @@ export class LCARdSElbow extends LCARdSButton {
 
     /**
      * Populate this._zones for a simple (L-shaped) elbow.
+     *
+     * Handles four distinct side values:
+     *   'left' / 'right' — standard L-corner elbows (one vertical bar)
+     *   'open'           — pure horizontal bar, no vertical bar
+     *   'contained'      — two symmetric vertical bars with a cap between them
+     *
      * @param {number} width
      * @param {number} height
      * @param {Object} g        - Simple elbow geometry
      * @param {string} position - 'header' | 'footer'
-     * @param {string} side     - 'left' | 'right'
+     * @param {string} side     - 'left' | 'right' | 'open' | 'contained'
      * @private
      */
     _calculateSimpleElbowZones(width, height, g, position, side) {
         const hw = g.horizontal; // sidebar / vertical bar width
         const bh = g.vertical;   // top/bottom bar height
 
-        // vertical_bar — the thick arm running the full card height
+        // ── Open preset: full-width horizontal bar, no vertical bar ──────────
+        // header-open / footer-open are pure horizontal rectangles.  Any hw
+        // offset would produce phantom zones that don't exist in the shape.
+        if (side === 'open') {
+            const hbY   = position === 'header' ? 0    : (height - bh);
+            const bodyY = position === 'header' ? bh   : 0;
+            this._zones.set('horizontal_bar', { bounds: { x: 0, y: hbY,   width,          height: bh          } });
+            this._zones.set('body',           { bounds: { x: 0, y: bodyY, width,          height: height - bh } });
+            return;
+        }
+
+        // ── Contained preset: two symmetric vertical bars + cap between them ─
+        // header-contained / footer-contained have identical left and right bars
+        // of thickness hw each.  A single 'vertical_bar' zone would be ambiguous;
+        // use explicit left_bar / right_bar instead.
+        if (side === 'contained') {
+            const innerW = Math.max(0, width - 2 * hw);
+            const hbY    = position === 'header' ? 0    : (height - bh);
+            const bodyY  = position === 'header' ? bh   : 0;
+            this._zones.set('left_bar',       { bounds: { x: 0,          y: 0,     width: hw,     height              } });
+            this._zones.set('right_bar',      { bounds: { x: width - hw, y: 0,     width: hw,     height              } });
+            this._zones.set('horizontal_bar', { bounds: { x: hw,         y: hbY,   width: innerW, height: bh          } });
+            this._zones.set('body',           { bounds: { x: hw,         y: bodyY, width: innerW, height: height - bh } });
+            return;
+        }
+
+        // ── Standard L-corner presets (side === 'left' or 'right') ───────────
+        // vertical_bar — the thick arm running the full card height.
+        // Also emit a directional alias (left_bar / right_bar) so users can use
+        // the more descriptive name without breaking existing vertical_bar configs.
         const vbX = side === 'left' ? 0 : (width - hw);
         this._zones.set('vertical_bar', { bounds: { x: vbX, y: 0, width: hw, height } });
+        this._zones.set(side === 'left' ? 'left_bar' : 'right_bar', { bounds: { x: vbX, y: 0, width: hw, height } });
 
         // horizontal_bar — the cap across the top or bottom
         const hbY = position === 'header' ? 0 : (height - bh);
@@ -1572,7 +1613,7 @@ export class LCARdSElbow extends LCARdSButton {
         this._zones.set('horizontal_bar', { bounds: { x: hbX, y: hbY, width: width - hw, height: bh } });
 
         // body — open content area (clear of bars)
-        const bodyX = side === 'left' ? hw  : 0;
+        const bodyX = side === 'left' ? hw : 0;
         const bodyY = position === 'header' ? bh : 0;
         this._zones.set('body', { bounds: { x: bodyX, y: bodyY, width: width - hw, height: height - bh } });
     }

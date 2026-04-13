@@ -288,8 +288,8 @@ export const animationSchema = {
         },
         check_on_load: {
             type: 'boolean',
-            default: false,
-            description: 'Also evaluate the condition when the card first loads. For while conditions, starts a looping animation if the condition is already met. For to_state/from_state, plays the animation if the entity is already in to_state. (on_entity_change only)'
+            default: true,
+            description: 'Evaluate the condition when the card first loads (default: true). For while conditions, starts a looping animation immediately if the condition is already met. For to_state/from_state, plays the animation if the entity is already in to_state. Set to false to suppress the initial evaluation and only react to state transitions. (on_entity_change only)'
         },
         while: {
             type: 'object',

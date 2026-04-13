@@ -63,7 +63,7 @@ animations:
 | `from_state` | string | — | **Fire-and-forget gate:** only trigger when transitioning FROM this value |
 | `to_state` | string | — | **Fire-and-forget gate:** only trigger when transitioning TO this value |
 | `while` | object | — | **Lifecycle condition** (`loop: true` required): plays while true, stops when false — see below |
-| `check_on_load` | boolean | `false` | Evaluate condition on card load too — starts immediately if already met |
+| `check_on_load` | boolean | `true` | Evaluate condition on card load. Starts a looping animation immediately if the `while` condition is already met, or fires once if already in `to_state`. Set to `false` to react only to state transitions after load. |
 
 ### `while` condition keys
 

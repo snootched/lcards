@@ -140,6 +140,110 @@ const store = await hass.connection.sendMessagePromise({
 
 ---
 
+## HA Service Targeting
+
+All nine `lcards.*` HA services accept four optional fields that limit which browser sessions act on the event.  Any combination may be used together.
+
+| Field | Type | Resolved by |
+|-------|------|-------------|
+| `target_device_ids` | `list[string]` | Used as-is — browser device UUIDs (`lcards_device_id` from `localStorage`) |
+| `target_device_names` | `list[string]` | Resolved server-side — matched case-insensitively against the device display name set in the LCARdS config panel or `?lcards_device=` URL param |
+| `target_user_ids` | `list[string]` | Used as-is — HA user IDs |
+| `target_user_names` | `list[string]` | Resolved server-side — matched case-insensitively against the HA user display name |
+
+Omitting all four fields produces a **broadcast** — identical to the existing behaviour before targeting was added. Fully backward-compatible.
+
+**Union semantics**: a session accepts the event if it appears in *any* of the resolved lists.
+
+**Non-unique device display names**: if two devices share the same display name, `target_device_names` will match both. This is intentional — it makes a useful grouping mechanism for identically-configured kiosk pairs.
+
+### Alert mode: global vs. local state
+
+This mirrors the sound system model. Without targeting, alert services write `input_select.lcards_alert_mode` — shared persistent state for everyone. With targeting, the `input_select` is **not written**; a `set_alert_mode` event is pushed directly to matching sessions as a transient, local-only state change.
+
+| Call | What changes |
+|------|-------------|
+| `lcards.red_alert` | `input_select.lcards_alert_mode` → all browsers in red alert |
+| `lcards.red_alert` + any target field | `input_select` untouched; only matching sessions enter red alert |
+
+### Finding IDs and names
+
+**Browser console** — run this on any target device or user session to get the exact values to paste into service calls:
+
+```javascript
+window.lcards.targeting.getMyIds()
+// → { deviceId: "a1b2c3d4-...", userId: "e71f94a8..." }
+```
+
+**Device display names** are set per-browser in the LCARdS Config Panel → **Device** tab, or by appending `?lcards_device=my-name` to any HA URL.
+
+**User display names** are the names shown in **HA → Settings → People → Users**.
+
+All registered device names are visible from the LCARdS Config Panel → **Users & Devices** tab (admin view).
+
+### Example: reload by device name
+
+```yaml
+action: lcards.reload
+data:
+  target_device_names:
+    - Kitchen Tablet
+    - Hallway Display
+```
+
+### Example: targeted alert by device name
+
+```yaml
+action: lcards.red_alert
+data:
+  target_device_names:
+    - Bedroom Kiosk
+```
+
+### Example: targeted alert by device UUID
+
+```yaml
+action: lcards.red_alert
+data:
+  target_device_ids:
+    - "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+```
+
+### Example: target by user name
+
+```yaml
+action: lcards.set_log_level
+data:
+  level: debug
+  target_user_names:
+    - john
+```
+
+### Example: target by user ID
+
+```yaml
+action: lcards.set_log_level
+data:
+  level: debug
+  target_user_ids:
+    - "e71f94a88e824b618761b22aec0cbcef"
+```
+
+### Example: combine name and ID targeting
+
+All four fields are merged with union semantics — useful when you want to target a named device group plus one extra device by ID:
+
+```yaml
+action: lcards.yellow_alert
+data:
+  target_device_names:
+    - Kitchen Tablet
+  target_user_names:
+    - jane
+```
+
+---
+
 ## Error Handling
 
 All commands reject if the integration is unavailable or the storage instance is not yet initialised. Always wrap calls:

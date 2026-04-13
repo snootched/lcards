@@ -118,7 +118,7 @@ The `while` block makes a looping animation **state-aware**: it plays while the 
   loop: true
 ```
 
-With `check_on_load: true` and no `to_state`, the animation starts immediately on card load if the condition is already met:
+With no `to_state`, the animation starts immediately on card load if the condition is already met (this is the default behaviour — `check_on_load` defaults to `true`):
 
 ```yaml
 - trigger: on_entity_change
@@ -127,7 +127,8 @@ With `check_on_load: true` and no `to_state`, the animation starts immediately o
     state: 'on'
   preset: pulse
   loop: true
-  check_on_load: true   # starts immediately if light is already on when page loads
+  # check_on_load: true  ← default, no need to set explicitly
+  # check_on_load: false ← set this to only react to transitions after load
 ```
 
 ### Attribute + while example
@@ -147,11 +148,13 @@ With `check_on_load: true` and no `to_state`, the animation starts immediately o
 
 ## `check_on_load`
 
-By default, `on_entity_change` only reacts to *changes*. Setting `check_on_load: true` also evaluates the current state when the card first renders:
+By default, `on_entity_change` evaluates the current entity state when the card first renders — `check_on_load` defaults to `true`:
 
 - **With `while`:** starts the looping animation immediately if the condition is already met.
 - **With `to_state` (no `while`):** plays once if the entity is already in `to_state`.
 - `from_state` is never checked on load (there is no previous state).
+
+Set `check_on_load: false` to suppress the initial evaluation — the animation will then only react to state *transitions* that happen after the card loads. This is useful when you want the animation to mark a change event rather than reflect ongoing state.
 
 ---
 
