@@ -39,10 +39,12 @@ from .const import (
     CONF_SIDEBAR_TITLE,
     CONF_SIDEBAR_ICON,
     CONF_LOG_LEVEL,
+    CONF_ENABLE_PREVIEWS,
     DEFAULT_SHOW_PANEL,
     DEFAULT_SIDEBAR_TITLE,
     DEFAULT_SIDEBAR_ICON,
     DEFAULT_LOG_LEVEL,
+    DEFAULT_ENABLE_PREVIEWS,
     STORAGE_NS_USER,
     STORAGE_NS_DEVICE,
 )
@@ -123,10 +125,11 @@ async def ws_lcards_info(
     if entries:
         entry_opts = entries[0].options
         options = {
-            CONF_SHOW_PANEL:    entry_opts.get(CONF_SHOW_PANEL,    DEFAULT_SHOW_PANEL),
-            CONF_SIDEBAR_TITLE: entry_opts.get(CONF_SIDEBAR_TITLE, DEFAULT_SIDEBAR_TITLE),
-            CONF_SIDEBAR_ICON:  entry_opts.get(CONF_SIDEBAR_ICON,  DEFAULT_SIDEBAR_ICON),
-            CONF_LOG_LEVEL:     entry_opts.get(CONF_LOG_LEVEL,     DEFAULT_LOG_LEVEL),
+            CONF_SHOW_PANEL:       entry_opts.get(CONF_SHOW_PANEL,       DEFAULT_SHOW_PANEL),
+            CONF_SIDEBAR_TITLE:    entry_opts.get(CONF_SIDEBAR_TITLE,    DEFAULT_SIDEBAR_TITLE),
+            CONF_SIDEBAR_ICON:     entry_opts.get(CONF_SIDEBAR_ICON,     DEFAULT_SIDEBAR_ICON),
+            CONF_LOG_LEVEL:        entry_opts.get(CONF_LOG_LEVEL,        DEFAULT_LOG_LEVEL),
+            CONF_ENABLE_PREVIEWS:  entry_opts.get(CONF_ENABLE_PREVIEWS,  DEFAULT_ENABLE_PREVIEWS),
         }
 
     connection.send_result(

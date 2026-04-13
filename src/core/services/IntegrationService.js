@@ -261,6 +261,34 @@ export class IntegrationService extends BaseService {
     // -----------------------------------------------------------------------
 
     /**
+     * Re-fetch the lcards/info response and update options, capabilities, and
+     * storage key count in place — without repeating the full init flow.
+     *
+     * Call this after the user saves integration options (e.g. toggling
+     * Enable Preview Features) so all UI that reads `this.options` picks up
+     * the latest values without a full page reload.
+     *
+     * Also exposed as `window.lcards.refreshOptions()` for console use.
+     *
+     * @returns {Promise<void>}
+     */
+    async refreshOptions() {
+        if (!this._hass?.connection) {
+            lcardsLog.warn('[IntegrationService] refreshOptions: no connection available');
+            return;
+        }
+        try {
+            const result = await this._hass.connection.sendMessagePromise({ type: 'lcards/info' });
+            this.options          = result?.options ?? null;
+            this.capabilities     = new Set(Array.isArray(result?.capabilities) ? result.capabilities : []);
+            this.storageKeyCount  = result?.storage_key_count ?? null;
+            lcardsLog.debug('[IntegrationService] Options refreshed →', this.options);
+        } catch (err) {
+            lcardsLog.warn('[IntegrationService] refreshOptions() failed:', err);
+        }
+    }
+
+    /**
      * Subscribe to `lcards_event` HA events fired by the Python backend.
      *
      * Called automatically after a successful `initialize()` probe.

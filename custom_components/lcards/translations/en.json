@@ -18,13 +18,15 @@
           "show_panel": "Show sidebar panel",
           "sidebar_title": "Sidebar title",
           "sidebar_icon": "Sidebar icon",
-          "log_level": "Log level"
+          "log_level": "Log level",
+          "enable_previews": "Enable Preview Features"
         },
         "data_description": {
           "show_panel": "Display the LCARdS Config panel in the Home Assistant sidebar.",
           "sidebar_title": "Label shown in the sidebar. Default: LCARdS Config",
           "sidebar_icon": "Material Design icon, e.g. mdi:space-invaders. Default: mdi:space-invaders",
-          "log_level": "Controls both frontend (browser console) and backend (HA logger) verbosity. The page URL parameter ?lcards_log_level= overrides this for the current session."
+          "log_level": "Controls both frontend (browser console) and backend (HA logger) verbosity. The page URL parameter ?lcards_log_level= overrides this for the current session.",
+          "enable_previews": "Unlocks features that are still under active development. These may change during development - Please provide your feedback, discuss or get help on GitHub Issues and Discussions."
         }
       }
     }

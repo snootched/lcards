@@ -137,6 +137,7 @@ export class LCARdSFormSection extends LitElement {
                         ${this.secondary ? html`<span slot="secondary">${this.secondary}</span>` : ''}
                     </div>
                 ` : ''}
+                <slot name="header-icons" slot="icons"></slot>
                 <div class="${contentClasses.join(' ')}"
                     @closed=${(e) => e.stopPropagation()}>
                     ${this.description ? html`

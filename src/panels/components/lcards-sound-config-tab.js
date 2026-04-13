@@ -18,6 +18,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { STORAGE_KEY_SOUND_VOLUME, STORAGE_KEY_SOUND_SCHEME, STORAGE_KEY_SOUND_ENABLED, STORAGE_KEY_SOUND_OVERRIDES } from '../../core/services/ScopedSettingsConstants.js';
 import '../../editor/components/shared/lcards-form-section.js';
 import '../../editor/components/shared/lcards-message.js';
+import './lcards-preview-chip.js';
 
 const CATEGORY_LABELS = {
   cards:  'Card Interactions',
@@ -623,6 +624,11 @@ export class LCARdSSoundConfigTab extends LitElement {
     return this.hass?.user?.is_admin === true;
   }
 
+  /** True when the user has opted into preview / experimental features. */
+  _isPreviewEnabled() {
+    return window.lcards?.core?.integrationService?.options?.enable_previews ?? false;
+  }
+
   // ============================================================================
   // SOUND CONTROL HELPERS
   // ============================================================================
@@ -966,8 +972,8 @@ export class LCARdSSoundConfigTab extends LitElement {
           </div><!-- /nested-sections -->
         </lcards-form-section><!-- /global-settings-group -->
 
-        <!-- ── SCOPED OVERRIDES (User / Device level) ── -->
-        ${this._renderScopedSection()}
+        <!-- ── SCOPED OVERRIDES (User / Device level) — preview feature ── -->
+        ${this._isPreviewEnabled() ? this._renderScopedSection() : ''}
 
         <!-- ── HELPER STATUS ── -->
         <lcards-form-section
@@ -1038,6 +1044,7 @@ export class LCARdSSoundConfigTab extends LitElement {
           icon="mdi:account-cog"
           ?expanded=${false}
           ?outlined=${true}>
+          <lcards-preview-chip slot="header-icons"></lcards-preview-chip>
           <lcards-message
             type="info"
             message="Requires the LCARdS integration v1.12+ with scoped storage support. Update the integration to use this feature."
@@ -1134,6 +1141,7 @@ export class LCARdSSoundConfigTab extends LitElement {
         description="Override sound settings for a specific user or device, without changing the global defaults."
         ?expanded=${false}
         ?outlined=${true}>
+        <lcards-preview-chip slot="header-icons"></lcards-preview-chip>
 
         <!-- ── SCOPE PILL SWITCHER ── -->
         <div class="scope-tabs">

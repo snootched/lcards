@@ -28,6 +28,7 @@ import './components/lcards-sound-config-tab.js';
 import './components/lcards-storage-explorer-tab.js';
 import './components/lcards-about-tab.js';
 import './components/lcards-users-devices-tab.js';
+import './components/lcards-preview-chip.js';
 
 export class LCARdSConfigPanel extends LitElement {
   static properties = {
@@ -522,6 +523,14 @@ export class LCARdSConfigPanel extends LitElement {
 
     this._loadHelperStatus();
     this._subscribeToHelperChanges();
+
+    // Refresh integration options on every panel connect so that settings
+    // changed since boot (e.g. toggling Enable Preview Features) are reflected
+    // immediately without a full page reload.
+    window.lcards?.core?.integrationService?.refreshOptions?.().then(() => {
+      this.requestUpdate();
+    });
+
     lcardsLog.debug('[ConfigPanel] Panel connected');
   }
 
@@ -787,18 +796,23 @@ export class LCARdSConfigPanel extends LitElement {
             <ha-icon icon="mdi:volume-high"></ha-icon>
             Sounds
           </ha-tab-group-tab>
+          ${this._isPreviewEnabled() ? html`
           <ha-tab-group-tab value="4" ?active=${this._selectedTab === 4}>
             <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
             Users & Devices
+            <lcards-preview-chip></lcards-preview-chip>
           </ha-tab-group-tab>
+          ` : ''}
           <ha-tab-group-tab value="5" ?active=${this._selectedTab === 5}>
             <ha-icon icon="mdi:package-variant"></ha-icon>
             Pack Explorer
           </ha-tab-group-tab>
+          ${this._isAdmin() ? html`
           <ha-tab-group-tab value="6" ?active=${this._selectedTab === 6}>
             <ha-icon icon="mdi:database-cog"></ha-icon>
             Storage
           </ha-tab-group-tab>
+          ` : ''}
         </ha-tab-group>
 
         <div class="tab-content">
@@ -817,6 +831,16 @@ export class LCARdSConfigPanel extends LitElement {
     }
   }
 
+  /** True if the current HA user is an administrator. */
+  _isAdmin() {
+    return this.hass?.user?.is_admin === true;
+  }
+
+  /** True when the user has opted into preview / experimental features. */
+  _isPreviewEnabled() {
+    return window.lcards?.core?.integrationService?.options?.enable_previews ?? false;
+  }
+
   _renderTabContent() {
     switch (this._selectedTab) {
       case 0:
@@ -828,11 +852,11 @@ export class LCARdSConfigPanel extends LitElement {
       case 3:
         return this._renderSoundTab();
       case 4:
-        return this._renderUsersDevicesTab();
+        return this._isPreviewEnabled() ? this._renderUsersDevicesTab() : html``;
       case 5:
         return this._renderPackExplorerTab();
       case 6:
-        return this._renderStorageTab();
+        return this._isAdmin() ? this._renderStorageTab() : html``;
       default:
         return html`<div>Unknown tab</div>`;
     }

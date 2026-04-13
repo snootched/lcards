@@ -20,6 +20,7 @@ from .const import (
     CONF_SIDEBAR_TITLE, DEFAULT_SIDEBAR_TITLE,
     CONF_SIDEBAR_ICON, DEFAULT_SIDEBAR_ICON,
     CONF_LOG_LEVEL, DEFAULT_LOG_LEVEL, LOG_LEVEL_OPTIONS,
+    CONF_ENABLE_PREVIEWS, DEFAULT_ENABLE_PREVIEWS,
 )
 
 
@@ -86,6 +87,10 @@ class LCARdSOptionsFlow(config_entries.OptionsFlow):
                         CONF_LOG_LEVEL,
                         default=opts.get(CONF_LOG_LEVEL, DEFAULT_LOG_LEVEL),
                     ): vol.In(LOG_LEVEL_OPTIONS),
+                    vol.Required(
+                        CONF_ENABLE_PREVIEWS,
+                        default=opts.get(CONF_ENABLE_PREVIEWS, DEFAULT_ENABLE_PREVIEWS),
+                    ): bool,
                 }
             ),
         )

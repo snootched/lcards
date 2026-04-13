@@ -19,6 +19,9 @@ CONF_LOG_LEVEL = "log_level"
 DEFAULT_LOG_LEVEL = "warn"
 LOG_LEVEL_OPTIONS = ["off", "error", "warn", "info", "debug", "trace"]
 
+CONF_ENABLE_PREVIEWS = "enable_previews"
+DEFAULT_ENABLE_PREVIEWS = False
+
 # Scoped storage namespace prefixes (used by websocket_api.py handlers and
 # referenced in the JS ScopedSettingsConstants.js).
 # Per-user flat keys: _user_<user_uuid>

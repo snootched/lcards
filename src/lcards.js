@@ -69,6 +69,7 @@ window.lcards.info = function () {
         buildDate: __LCARDS_BUILD_DATE__,
         homepage:  LCARdS.project_url,
         logLevel:  lcardsGetGlobalLogLevel(),
+        preview:   window.lcards?.core?.integrationService?.options?.enable_previews ?? false,
         cards: [
             'lcards-button',
             'lcards-elbow',
@@ -91,11 +92,24 @@ window.lcards.info = function () {
     console.log('Build    :', info.buildDate);
     console.log('Homepage :', info.homepage);
     console.log('Log level:', info.logLevel);
+    console.log('Preview  :', info.preview, info.preview === false ? '— call await window.lcards.refreshOptions() if you just changed this' : '');
     console.log('Cards    :', info.cards.join(', '));
     console.log('Core     :', info.core);
     console.groupEnd();
     return info;
 };
+
+/**
+ * window.lcards.refreshOptions()
+ * Re-fetches integration options from the backend (lcards/info) and updates
+ * the cached options object used by _isPreviewEnabled() and other checks.
+ * Useful after saving integration settings without doing a full page reload.
+ *
+ * Usage (browser console): await window.lcards.refreshOptions()
+ */
+window.lcards.refreshOptions = () =>
+    window.lcards?.core?.integrationService?.refreshOptions?.()
+    ?? Promise.resolve();
 
 
 async function initializeCustomCard() {

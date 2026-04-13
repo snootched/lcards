@@ -166,6 +166,10 @@ export class LCARdSStorageExplorerTab extends LitElement {
 
   _askDelete(key) {
     this._confirmDelete = key;
+    // Ensure the panel is expanded so the inline confirmation is visible
+    const s = new Set(this._expandedKeys);
+    s.add(key);
+    this._expandedKeys = s;
     this.requestUpdate();
   }
 

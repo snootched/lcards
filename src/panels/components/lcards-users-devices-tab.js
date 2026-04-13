@@ -486,9 +486,10 @@ export class LCARdsUsersDevicesTab extends LitElement {
                           `
                           : html`
                             <ha-icon-button
+                              class="danger-icon"
                               .label=${'Clear all overrides for this user'}
                               @click=${() => this._startDeleteUser(u.id)}
-                            ><ha-icon icon="mdi:delete-outline"></ha-icon></ha-icon-button>
+                            ><ha-icon icon="mdi:delete"></ha-icon></ha-icon-button>
                           `}
                       </td>
                     </tr>
@@ -591,9 +592,10 @@ export class LCARdsUsersDevicesTab extends LitElement {
                               @click=${() => this._startRenameDevice(d.id, name)}
                             ><ha-icon icon="mdi:pencil"></ha-icon></ha-icon-button>
                             <ha-icon-button
+                              class="danger-icon"
                               .label=${'Remove device record'}
                               @click=${() => this._startDeleteDevice(d.id)}
-                            ><ha-icon icon="mdi:delete-outline"></ha-icon></ha-icon-button>
+                            ><ha-icon icon="mdi:delete"></ha-icon></ha-icon-button>
                           `}
                       </td>
                     </tr>
@@ -811,6 +813,9 @@ export class LCARdsUsersDevicesTab extends LitElement {
       .confirm-actions {
         display: flex;
         gap: 6px;
+      }
+      .danger-icon {
+        color: var(--error-color, #f44336);
       }
       .danger-btn {
         --mdc-theme-primary: var(--error-color, #f44336);

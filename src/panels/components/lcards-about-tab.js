@@ -11,6 +11,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import './lcards-preview-chip.js';
 
 export class LCARdSAboutTab extends LitElement {
   static properties = {
@@ -145,6 +146,26 @@ export class LCARdSAboutTab extends LitElement {
             </div>
           `)}
         </div>
+      </div>
+
+      <!-- ── Preview Features ──────────────────────────────────── -->
+      <div class="section">
+        <div class="section-header">
+          <ha-icon icon="mdi:flask-outline"></ha-icon>
+          Preview Features
+          <lcards-preview-chip></lcards-preview-chip>
+        </div>
+        <p class="section-intro">
+          Preview features are still under active development. These may change during development - Please provide your feedback, discuss or get help on GitHub Issues and Discussions.
+        </p>
+        <p class="section-intro">
+          They are opt-in and disabled by default.
+          When enabled, extra tabs and settings appear throughout the UI.
+        </p>
+        <p class="section-intro" style="margin-bottom:0;">
+          To toggle, go to <strong>Settings → Devices &amp; Services → LCARdS → Configure</strong>
+          and enable <em>Enable Preview Features</em>.
+        </p>
       </div>
 
       <!-- ── Resources ─────────────────────────────────────────── -->
