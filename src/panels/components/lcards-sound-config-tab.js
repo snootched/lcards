@@ -19,6 +19,7 @@ import { STORAGE_KEY_SOUND_VOLUME, STORAGE_KEY_SOUND_SCHEME, STORAGE_KEY_SOUND_E
 import '../../editor/components/shared/lcards-form-section.js';
 import '../../editor/components/shared/lcards-message.js';
 import './lcards-preview-chip.js';
+import './shared/lcards-scope-selector.js';
 
 const CATEGORY_LABELS = {
   cards:  'Card Interactions',
@@ -62,12 +63,6 @@ export class LCARdSSoundConfigTab extends LitElement {
     _adminScopeUserId:  { type: String,   state: true },
     /** Admin: which device_id is being edited (null = own device) */
     _adminScopeDeviceId:{ type: String,   state: true },
-    /** Admin: list of { id, name } for user scope selector */
-    _adminUserList:     { type: Array,    state: true },
-    /** Admin: list of { id, name } for device scope selector */
-    _adminDeviceList:   { type: Array,    state: true },
-    /** True once admin lists have been loaded */
-    _adminListsLoaded:  { type: Boolean,  state: true },
     /** Admin: basic settings (volume/scheme/enabled) for the currently-viewed admin target; null = own */
     _adminTargetBasic:  { type: Object,   state: true },
   };
@@ -97,9 +92,6 @@ export class LCARdSSoundConfigTab extends LitElement {
     this._adminScopeUserId = null;
     /** @type {string|null} Admin: which device_id is being edited; null = own */
     this._adminScopeDeviceId = null;
-    this._adminUserList = [];
-    this._adminDeviceList = [];
-    this._adminListsLoaded = false;
     /** @type {Object|null} Basic settings for admin-selected target; null = own */
     this._adminTargetBasic = null;
   }
@@ -365,43 +357,29 @@ export class LCARdSSoundConfigTab extends LitElement {
   }
 
   /**
+   * Handle scope-changed event from <lcards-scope-selector>.
+   * Syncs local scope state and triggers a data reload.
+   */
+  _onScopeChanged(e) {
+    const { scope, userId, deviceId } = e.detail;
+    this._scopeTab           = scope;
+    this._adminScopeUserId   = userId   ?? null;
+    this._adminScopeDeviceId = deviceId ?? null;
+    // Reset loaded data so it reloads for the new scope subject
+    this._scopedValues     = null;
+    this._scopedOverrides  = null;
+    this._adminTargetBasic = null;
+    this._loadScopedValues();
+    this._loadScopedOverrides();
+  }
+
+  /**
    * Load admin user list (from users/list + config/auth/list for display names)
    * and device list (from devices/list).  Silently no-ops for non-admin.
+   * @deprecated Use <lcards-scope-selector> which handles this internally.
    */
   async _loadAdminLists() {
-    if (!this._isAdmin() || this._adminListsLoaded) return;
-    const conn = this.hass?.connection;
-    if (!conn) return;
-
-    try {
-      const [usersResult, devicesResult, authUsers] = await Promise.all([
-        conn.sendMessagePromise({ type: 'lcards/storage/users/list' }).catch(() => ({ users: {} })),
-        conn.sendMessagePromise({ type: 'lcards/storage/devices/list' }).catch(() => ({ devices: {} })),
-        conn.sendMessagePromise({ type: 'config/auth/list' }).catch(() => []),
-      ]);
-
-      // Build name map from HA auth list
-      const nameMap = {};
-      (Array.isArray(authUsers) ? authUsers : []).forEach(u => {
-        if (u?.id) nameMap[u.id] = u.name ?? u.id;
-      });
-
-      this._adminUserList = Object.entries(usersResult?.users ?? {}).map(([id]) => ({
-        id,
-        name: nameMap[id] ?? id,
-      }));
-
-      this._adminDeviceList = Object.entries(devicesResult?.devices ?? {}).map(([id, data]) => ({
-        id,
-        name: data?.display_name ?? id,
-      }));
-
-      this._adminListsLoaded = true;
-      lcardsLog.debug('[SoundConfigTab] Loaded admin lists', this._adminUserList, this._adminDeviceList);
-    } catch (err) {
-      lcardsLog.warn('[SoundConfigTab] Failed to load admin lists:', err);
-    }
-    this.requestUpdate();
+    // No-op: admin list loading is now owned by <lcards-scope-selector>.
   }
 
   /**
@@ -1062,25 +1040,14 @@ export class LCARdSSoundConfigTab extends LitElement {
     if (!this._scopedValues && !this._scopedLoading) {
       this._loadScopedValues();
     }
-    // Lazy-load admin lists for admins
-    if (isAdminUser && !this._adminListsLoaded) {
-      this._loadAdminLists();
-    }
     // Lazy-load per-event overrides on first render
     if (this._scopedOverrides === null && !this._scopedOverridesLoading) {
       this._loadScopedOverrides();
     }
 
     // ── ADMIN TARGET STATE ──────────────────────────────────────────────────
-    const adminTargetId   = scope === 'user' ? this._adminScopeUserId : this._adminScopeDeviceId;
-    const isAdminTarget   = isAdminUser && !!adminTargetId;
-    const adminTargetName = isAdminTarget ? (() => {
-      if (scope === 'user') {
-        return this._adminUserList.find(u => u.id === adminTargetId)?.name ?? adminTargetId;
-      } else {
-        return this._adminDeviceList.find(d => d.id === adminTargetId)?.name ?? adminTargetId;
-      }
-    })() : null;
+    const adminTargetId = scope === 'user' ? this._adminScopeUserId : this._adminScopeDeviceId;
+    const isAdminTarget = isAdminUser && !!adminTargetId;
 
     const sv = this._scopedValues;
 
@@ -1126,14 +1093,6 @@ export class LCARdSSoundConfigTab extends LitElement {
     };
     const hasAnyScopedOverride = Object.keys(this._scopedOverrides ?? {}).length > 0;
 
-    const reloadAll = (newScope) => {
-      this._scopedValues  = null;
-      this._scopedOverrides = null;
-      this._adminTargetBasic = null;
-      this._loadScopedValues();
-      this._loadScopedOverrides();
-    };
-
     return html`
       <lcards-form-section
         header="Per-User / Per-Device Overrides"
@@ -1143,73 +1102,12 @@ export class LCARdSSoundConfigTab extends LitElement {
         ?outlined=${true}>
         <lcards-preview-chip slot="header-icons"></lcards-preview-chip>
 
-        <!-- ── SCOPE PILL SWITCHER ── -->
-        <div class="scope-tabs">
-          <ha-button
-            appearance=${scope === 'user' ? 'filled' : 'plain'}
-            @click=${() => {
-              this._scopeTab = 'user';
-              this._adminScopeUserId = null;
-              reloadAll('user');
-            }}
-          >
-            <ha-icon icon="mdi:account" style="--mdc-icon-size:18px;margin-right:4px;vertical-align:middle;"></ha-icon>
-            User
-          </ha-button>
-          <ha-button
-            appearance=${scope === 'device' ? 'filled' : 'plain'}
-            @click=${() => {
-              this._scopeTab = 'device';
-              this._adminScopeDeviceId = null;
-              reloadAll('device');
-            }}
-          >
-            <ha-icon icon="mdi:laptop" style="--mdc-icon-size:18px;margin-right:4px;vertical-align:middle;"></ha-icon>
-            Device
-          </ha-button>
-        </div>
-
-        <!-- ── ADMIN SUBJECT SELECTOR ── -->
-        ${isAdminUser && this._adminListsLoaded ? html`
-          <div class="admin-selector-row">
-            <ha-icon icon="mdi:shield-account" style="color:var(--warning-color,#ff9800);flex-shrink:0;"></ha-icon>
-            <span class="admin-selector-label">Edit as admin:</span>
-            <ha-selector
-              class="admin-selector-input"
-              .hass=${this.hass}
-              .selector=${{ select: {
-                options: [
-                  { value: '__own__',
-                    label: scope === 'user' ? '👤 My User (own)' : '💻 This Device (own)' },
-                  ...(scope === 'user'
-                    ? this._adminUserList.map(u => ({ value: u.id, label: u.name || u.id }))
-                    : this._adminDeviceList.map(d => ({ value: d.id, label: d.name || d.id }))),
-                ],
-                mode: 'dropdown',
-              }}}
-              .value=${adminTargetId ?? '__own__'}
-              @value-changed=${(e) => {
-                const v = e.detail.value === '__own__' ? null : (e.detail.value || null);
-                if (scope === 'user') this._adminScopeUserId   = v;
-                else                  this._adminScopeDeviceId = v;
-                this._adminTargetBasic  = null;
-                this._scopedOverrides   = null;
-                this._loadScopedOverrides();
-              }}
-            ></ha-selector>
-          </div>
-        ` : ''}
-
-        <!-- ── SCOPE CONTEXT BANNER ── -->
-        <div class="scope-context-banner ${isAdminTarget ? 'admin' : 'own'}">
-          <ha-icon icon="${scope === 'user' ? 'mdi:account-circle' : 'mdi:laptop'}"></ha-icon>
-          <span>
-            ${isAdminTarget
-              ? html`Editing <strong>${scope}</strong> overrides for
-                     <strong>${adminTargetName}</strong>`
-              : html`Editing your own <strong>${scope}</strong> overrides`}
-          </span>
-        </div>
+        <!-- ── SCOPE SELECTOR (tabs + admin subject + context banner) ── -->
+        <lcards-scope-selector
+          .hass=${this.hass}
+          .showGlobal=${false}
+          @scope-changed=${this._onScopeChanged}
+        ></lcards-scope-selector>
 
         <!-- ── LOADING / SETTINGS BODY ── -->
         ${(this._scopedLoading && !isAdminTarget) || this._scopedOverridesLoading ? html`

@@ -43,6 +43,23 @@ export const STORAGE_KEY_SOUND_CATEGORY_ENABLED = 'sound_category_enabled';
 export const STORAGE_KEY_SOUND_SCHEME = 'sound_scheme';
 
 // ---------------------------------------------------------------------------
+// Theme settings storage keys (used by ThemeManager + ScopedSettingsService)
+// ---------------------------------------------------------------------------
+
+/**
+ * Backend key for theme token overrides.
+ * Flat map of { [tokenPath]: value } stored per scope.
+ * Merge order at runtime: { ...global, ...user, ...device } — device wins.
+ * Values are raw strings or numbers; CSS variables are supported and
+ * remain reactive to alert mode changes (recommended for colour tokens).
+ *
+ * @example
+ * // Global override stored value:
+ * { 'colors.card.button': 'var(--lcars-orange)', 'typography.fontSize.base': 16 }
+ */
+export const STORAGE_KEY_THEME_OVERRIDES = 'theme_overrides';
+
+// ---------------------------------------------------------------------------
 // Device identity keys (stored inside the device's namespaced object)
 // ---------------------------------------------------------------------------
 

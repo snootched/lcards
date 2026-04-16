@@ -24,8 +24,12 @@ import {
 import '../shared/lcards-collapsible-section.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-message.js';
+import '../shared/lcards-color-picker.js';
 import './alert-mode-color-wheel.js';
 import '../../dialogs/pack-explorer/lcards-pack-explorer-dialog.js';
+import '../../../panels/components/shared/lcards-scope-selector.js';
+import '../../../panels/components/lcards-preview-chip.js';
+import { STORAGE_KEY_THEME_OVERRIDES } from '../../../core/services/ScopedSettingsConstants.js';
 
 export class LCARdSThemeTokenBrowserTab extends LitElement {
   static get properties() {
@@ -59,7 +63,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       _showFullPreview: { type: Boolean, state: true }, // Toggle for full color grid
       _activeVizTab: { type: String, state: true }, // Active visualization tab (preview/wheel/comparison)
       _packExplorerOpen: { type: Boolean, state: true }, // Pack Explorer dialog state
-      _helperSaveMessage: { type: Object, state: true } // Message for helper save operations
+      _helperSaveMessage: { type: Object, state: true }, // Message for helper save operations
+      // Overrides view state
+      _overridesScopeInfo: { type: Object, state: true },  // { scope, userId, deviceId, isAdminTarget }
+      _overridesFilter: { type: String, state: true },     // search filter for overrides list
+      _activeEditToken: { type: String, state: true },     // tokenPath currently in edit panel
+      _editPendingValue: { type: String, state: true },    // value staged in the edit control
+      _scopeOverridesCache: { type: Object, state: true }, // flat map of overrides for selected scope
+      _overridesLoading: { type: Boolean, state: true }    // async load in progress
     };
   }
 
@@ -95,6 +106,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._activeVizTab = 'preview'; // Default to live preview tab
     this._packExplorerOpen = false; // Pack Explorer closed by default
     this._helperSaveMessage = null; // No message by default
+    // Overrides view state
+    this._overridesScopeInfo = { scope: 'user', userId: null, deviceId: null, isAdminTarget: false };
+    this._overridesFilter = '';
+    this._activeEditToken = null;
+    this._editPendingValue = '';
+    this._scopeOverridesCache = null;
+    this._overridesLoading = false;
     this._handleKeydown = this._handleKeydown.bind(this);
   }
 
@@ -1114,12 +1132,180 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           grid-template-columns: 1fr;
         }
       }
+
+      /* ── Overrides View ───────────────────────────────────────── */
+      .overrides-view {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 0;
+      }
+
+      .overrides-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+      }
+
+      .overrides-filter-wrapper {
+        flex: 1;
+      }
+
+      .overrides-summary {
+        font-size: 13px;
+        color: var(--secondary-text-color);
+        white-space: nowrap;
+      }
+
+      .overrides-load-hint {
+        padding: 0 16px;
+      }
+
+      .overrides-table-wrapper {
+        overflow-x: auto;
+        padding: 0 16px 16px;
+      }
+
+      .overrides-table {
+        width: 100%;
+      }
+
+      .override-token-row.has-override {
+        background: rgba(var(--rgb-accent-color, 3, 155, 229), 0.06);
+      }
+
+      .override-token-row.is-editing {
+        background: rgba(var(--rgb-accent-color, 3, 155, 229), 0.12);
+      }
+
+      .override-path-cell {
+        vertical-align: middle;
+      }
+
+      .override-token-path {
+        font-family: monospace;
+        font-size: 12px;
+      }
+
+      .override-origin-badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 6px;
+        border-radius: 10px;
+        background: var(--accent-color, #039be5);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 600;
+        vertical-align: middle;
+      }
+
+      .override-default-cell,
+      .override-value-cell {
+        vertical-align: middle;
+        max-width: 180px;
+      }
+
+      .override-color-swatch {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        border: 1px solid var(--divider-color, #ccc);
+        vertical-align: middle;
+        margin-right: 4px;
+      }
+
+      .override-value-text {
+        font-family: monospace;
+        font-size: 12px;
+        vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 160px;
+        display: inline-block;
+      }
+
+      .override-value-active {
+        color: var(--accent-color, #039be5);
+        font-weight: 600;
+      }
+
+      .override-value-empty {
+        color: var(--disabled-text-color, #888);
+      }
+
+      .override-actions-cell {
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+
+      .override-actions {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .override-edit-panel-row td {
+        padding: 0;
+      }
+
+      .override-edit-panel {
+        margin: 4px 8px 12px;
+        padding: 16px;
+        border: 1px solid var(--accent-color, #039be5);
+        border-radius: 6px;
+        background: var(--card-background-color);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .override-edit-panel-header {
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .override-edit-token-path {
+        font-family: monospace;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .override-edit-default {
+        font-size: 12px;
+        color: var(--secondary-text-color);
+      }
+
+      .override-edit-default code {
+        font-family: monospace;
+      }
+
+      .override-edit-control {
+        min-height: 40px;
+      }
+
+      .override-edit-actions {
+        display: flex;
+        gap: 8px;
+      }
       `
     ];
   }
 
   firstUpdated() {
     this._loadTokens();
+  }
+
+  /**
+   * Returns true when the HA integration has preview features enabled.
+   * The overrides view is gated behind this flag.
+   */
+  _isPreviewEnabled() {
+    return window.lcards?.core?.integrationService?.options?.enable_previews ?? false;
   }
 
   render() {
@@ -1243,6 +1429,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           <ha-tab-group-tab value="all-vars" ?active=${this._activeView === 'all-vars'}>
             All CSS Variables (${this._allCssVariables.length})
           </ha-tab-group-tab>
+          ${this._isPreviewEnabled() ? html`
+            <ha-tab-group-tab value="overrides" ?active=${this._activeView === 'overrides'}>
+              Token Overrides <lcards-preview-chip></lcards-preview-chip>
+            </ha-tab-group-tab>
+          ` : ''}
         </ha-tab-group>
         ${this._activeView === 'css-vars' ? html`
           <lcards-form-section
@@ -1274,7 +1465,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
             </div>
           </lcards-form-section>
         ` : ''}
-        ${this._activeView !== 'alert-lab' ? html`
+        ${this._activeView !== 'alert-lab' && this._activeView !== 'overrides' ? html`
           <div class="search-container">
             <div class="search-wrapper">
               <ha-textfield
@@ -1418,6 +1609,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     if (this._activeView === 'alert-lab') {
       return this._renderAlertLab();
+    }
+
+    if (this._activeView === 'overrides') {
+      return this._isPreviewEnabled()
+        ? this._renderOverridesView()
+        : html``;
     }
 
     // Default: tokens view
@@ -2504,6 +2701,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       this._applyCssVarFilters();
     } else if (view === 'all-vars') {
       this._applyAllVarsFilters();
+    } else if (view === 'overrides') {
+      // Load overrides for the current scope when first opening the view
+      if (this._scopeOverridesCache === null && !this._overridesLoading) {
+        this._loadScopeOverrides();
+      }
     }
     this.requestUpdate();
   }
@@ -3704,6 +3906,321 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       message: message
     };
     this.requestUpdate();
+  }
+
+  // ─── Theme Overrides View ────────────────────────────────────────────────
+
+  /**
+   * Handle scope change from the scope selector component.
+   * @param {CustomEvent} e
+   */
+  _onOverridesScopeChanged(e) {
+    this._overridesScopeInfo = e.detail;
+    this._activeEditToken = null;
+    this._editPendingValue = '';
+    this._scopeOverridesCache = null;
+    this._loadScopeOverrides();
+  }
+
+  /**
+   * Load the flat overrides map for the currently selected scope.
+   * Populates _scopeOverridesCache.
+   */
+  async _loadScopeOverrides() {
+    const sss = window.lcards?.core?.scopedSettingsService;
+    if (!sss) {
+      this._scopeOverridesCache = {};
+      return;
+    }
+    this._overridesLoading = true;
+    this.requestUpdate();
+    try {
+      const scope = this._overridesScopeInfo?.scope ?? 'user';
+      const data = await sss.read(STORAGE_KEY_THEME_OVERRIDES, [scope]) ?? {};
+      this._scopeOverridesCache = data;
+    } catch (err) {
+      lcardsLog.error('[ThemeTokenBrowser] Failed to load scope overrides:', err);
+      this._scopeOverridesCache = {};
+    } finally {
+      this._overridesLoading = false;
+      this.requestUpdate();
+    }
+  }
+
+  /** Open the inline edit panel for a token, seeding the pending value. */
+  _startEditOverride(tokenPath, currentOverride, defaultValue) {
+    const seed = currentOverride !== undefined ? String(currentOverride) : String(defaultValue ?? '');
+    this._activeEditToken = tokenPath;
+    this._editPendingValue = seed;
+    this.requestUpdate();
+  }
+
+  /** Close the inline edit panel without saving. */
+  _cancelEditOverride() {
+    this._activeEditToken = null;
+    this._editPendingValue = '';
+    this.requestUpdate();
+  }
+
+  /** Save the pending override value for the active token. */
+  async _saveOverride() {
+    const tokenPath = this._activeEditToken;
+    if (!tokenPath) return;
+
+    const themeManager = window.lcards?.core?.themeManager;
+    if (!themeManager) {
+      lcardsLog.error('[ThemeTokenBrowser] No themeManager available');
+      return;
+    }
+
+    const scope = this._overridesScopeInfo?.scope ?? 'user';
+    const rawValue = this._editPendingValue;
+
+    // Coerce numeric strings to numbers; keep everything else as a string
+    /** @type {string | number} */
+    const value = (rawValue !== '' && !isNaN(Number(rawValue)) && !rawValue.includes(' '))
+      ? Number(rawValue)
+      : rawValue;
+
+    try {
+      await themeManager.setOverride(tokenPath, value, scope);
+      this._activeEditToken = null;
+      this._editPendingValue = '';
+      await this._loadScopeOverrides();
+    } catch (err) {
+      lcardsLog.error('[ThemeTokenBrowser] Failed to save override:', err);
+    }
+  }
+
+  /** Clear the override for a token in the current scope. */
+  async _clearScopeOverride(tokenPath) {
+    const themeManager = window.lcards?.core?.themeManager;
+    if (!themeManager) return;
+
+    const scope = this._overridesScopeInfo?.scope ?? 'user';
+    try {
+      await themeManager.clearOverride(tokenPath, scope);
+      if (this._activeEditToken === tokenPath) {
+        this._activeEditToken = null;
+        this._editPendingValue = '';
+      }
+      await this._loadScopeOverrides();
+    } catch (err) {
+      lcardsLog.error('[ThemeTokenBrowser] Failed to clear override:', err);
+    }
+  }
+
+  /**
+   * Infer the right editor type for a token path.
+   * Returns one of: 'color', 'number', 'select-weight', 'select-transform', 'text'
+   */
+  _getTokenEditorType(tokenPath) {
+    if (tokenPath.startsWith('colors.')) return 'color';
+    if (/fontSize|radius|width|gap|height|padding|margin|size/i.test(tokenPath)) return 'number';
+    if (/fontWeight/i.test(tokenPath)) return 'select-weight';
+    if (/textTransform/i.test(tokenPath)) return 'select-transform';
+    return 'text';
+  }
+
+  /** Render the inline edit panel for the active token. */
+  _renderOverrideEditPanel(tokenPath, defaultValue) {
+    const editorType = this._getTokenEditorType(tokenPath);
+    const overrideValue = this._editPendingValue;
+    const isColor = editorType === 'color';
+    const isVarRef = typeof overrideValue === 'string' && overrideValue.trim().startsWith('var(');
+    const showAlertWarning = isColor && overrideValue && !isVarRef;
+
+    return html`
+      <tr class="override-edit-panel-row">
+        <td colspan="4">
+          <div class="override-edit-panel">
+            <div class="override-edit-panel-header">
+              <span class="override-edit-token-path">theme:${tokenPath}</span>
+              <span class="override-edit-default">Default: <code>${String(defaultValue ?? '—')}</code></span>
+            </div>
+
+            ${showAlertWarning ? html`
+              <lcards-message type="warning">
+                Using a fixed colour value (not <code>var(--lcars-…)</code>) will pin this token and it won't respond to Alert Mode transformations.
+              </lcards-message>
+            ` : ''}
+
+            <div class="override-edit-control">
+              ${editorType === 'color' ? html`
+                <lcards-color-picker
+                  .hass=${this.hass}
+                  .value=${overrideValue}
+                  showBuilder
+                  showPreview
+                  @value-changed=${(e) => { this._editPendingValue = e.detail.value; this.requestUpdate(); }}>
+                </lcards-color-picker>
+              ` : editorType === 'select-weight' ? html`
+                <ha-selector
+                  .hass=${this.hass}
+                  .selector=${{ select: { options: ['normal','bold','100','200','300','400','500','600','700','800','900'].map(v => ({ value: v, label: v })) } }}
+                  .value=${overrideValue}
+                  @value-changed=${(e) => { this._editPendingValue = e.detail.value; this.requestUpdate(); }}>
+                </ha-selector>
+              ` : editorType === 'select-transform' ? html`
+                <ha-selector
+                  .hass=${this.hass}
+                  .selector=${{ select: { options: ['none','uppercase','lowercase','capitalize'].map(v => ({ value: v, label: v })) } }}
+                  .value=${overrideValue}
+                  @value-changed=${(e) => { this._editPendingValue = e.detail.value; this.requestUpdate(); }}>
+                </ha-selector>
+              ` : editorType === 'number' ? html`
+                <ha-selector
+                  .hass=${this.hass}
+                  .selector=${{ number: { mode: 'box' } }}
+                  .value=${Number(overrideValue) || 0}
+                  @value-changed=${(e) => { this._editPendingValue = String(e.detail.value); this.requestUpdate(); }}>
+                </ha-selector>
+              ` : html`
+                <ha-textfield
+                  .value=${overrideValue}
+                  placeholder="Enter value (e.g. #93e1ff, var(--lcars-blue), 14px)"
+                  style="width: 100%"
+                  @input=${(e) => { this._editPendingValue = e.target.value; }}>
+                </ha-textfield>
+              `}
+            </div>
+
+            <div class="override-edit-actions">
+              <ha-button @click=${() => this._saveOverride()}>
+                <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
+                Save
+              </ha-button>
+              <ha-button @click=${() => this._cancelEditOverride()}>
+                Cancel
+              </ha-button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  /** Render a single row in the overrides token table. */
+  _renderOverrideTokenRow(token) {
+    const overrideValue = this._scopeOverridesCache?.[token.path];
+    const hasOverride = overrideValue !== undefined && overrideValue !== null;
+    const themeManager = window.lcards?.core?.themeManager;
+    const defaultValue = themeManager?.getThemeDefault(token.path, token.value ?? '');
+    const isEditing = this._activeEditToken === token.path;
+    const isColor = this._getTokenEditorType(token.path) === 'color';
+
+    return html`
+      <tr class="override-token-row ${hasOverride ? 'has-override' : ''} ${isEditing ? 'is-editing' : ''}">
+        <td class="override-path-cell">
+          <span class="override-token-path">theme:${token.path}</span>
+          ${hasOverride ? html`<span class="override-origin-badge">overridden</span>` : ''}
+        </td>
+        <td class="override-default-cell">
+          ${isColor ? html`
+            <span class="override-color-swatch" style="background:${defaultValue}"></span>
+          ` : ''}
+          <span class="override-value-text" title="${defaultValue}">${String(defaultValue ?? '—')}</span>
+        </td>
+        <td class="override-value-cell">
+          ${hasOverride ? html`
+            ${isColor ? html`
+              <span class="override-color-swatch" style="background:${overrideValue}"></span>
+            ` : ''}
+            <span class="override-value-text override-value-active" title="${overrideValue}">${String(overrideValue)}</span>
+          ` : html`<span class="override-value-empty">—</span>`}
+        </td>
+        <td class="override-actions-cell">
+          <div class="override-actions">
+            <ha-icon-button
+              @click=${() => isEditing ? this._cancelEditOverride() : this._startEditOverride(token.path, overrideValue, defaultValue)}
+              .label=${isEditing ? 'Cancel edit' : 'Edit override'}
+              .path=${"M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"}>
+            </ha-icon-button>
+            ${hasOverride ? html`
+              <ha-icon-button
+                @click=${() => this._clearScopeOverride(token.path)}
+                .label=${'Clear override'}
+                .path=${"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"}>
+              </ha-icon-button>
+            ` : ''}
+          </div>
+        </td>
+      </tr>
+      ${isEditing ? this._renderOverrideEditPanel(token.path, defaultValue) : ''}
+    `;
+  }
+
+  /**
+   * Main render method for the Token Overrides view.
+   * Preview-gated — only called when _isPreviewEnabled() is true.
+   */
+  _renderOverridesView() {
+    const filter = this._overridesFilter.toLowerCase();
+    const overridesCache = this._scopeOverridesCache ?? {};
+
+    // Filter tokens: show all matching the filter, or show only overridden if no filter
+    const tokensToShow = this._tokens.filter(t => {
+      if (filter) return t.path.toLowerCase().includes(filter);
+      return true;
+    });
+
+    const overriddenCount = Object.keys(overridesCache).length;
+
+    return html`
+      <div class="dialog-body overrides-view">
+        <!-- Scope selector -->
+        <lcards-scope-selector
+          .hass=${this.hass}
+          showGlobal
+          @scope-changed=${this._onOverridesScopeChanged}>
+        </lcards-scope-selector>
+
+        <!-- Filter + summary bar -->
+        <div class="overrides-toolbar">
+          <div class="overrides-filter-wrapper">
+            <ha-textfield
+              .value=${this._overridesFilter}
+              @input=${(e) => { this._overridesFilter = e.target.value; this.requestUpdate(); }}
+              placeholder="Filter tokens..."
+              label="Filter">
+              <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
+            </ha-textfield>
+          </div>
+          <div class="overrides-summary">
+            ${this._overridesLoading
+              ? html`<ha-circular-progress active indeterminate size="small"></ha-circular-progress>`
+              : html`<span>${overriddenCount} override${overriddenCount !== 1 ? 's' : ''} in this scope</span>`}
+          </div>
+        </div>
+
+        ${!this._scopeOverridesCache && !this._overridesLoading ? html`
+          <div class="overrides-load-hint">
+            <ha-button @click=${() => this._loadScopeOverrides()}>Load overrides</ha-button>
+          </div>
+        ` : ''}
+
+        <!-- Token table -->
+        <div class="overrides-table-wrapper">
+          <table class="token-table overrides-table">
+            <thead>
+              <tr>
+                <th>Token Path</th>
+                <th>Theme Default</th>
+                <th>Override (this scope)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tokensToShow.length === 0 ? html`
+                <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--secondary-text-color)">
+                  No tokens match your filter.
+                </td></tr>
+              ` : tokensToShow.map(token => this._renderOverrideTokenRow(token))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
   }
 
   /**

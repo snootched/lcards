@@ -35,6 +35,11 @@ export class ThemeTokenResolver {
 
     // Track circular reference detection
     this.resolutionStack = [];
+
+    // User/device/global token overrides — checked before the token tree.
+    // Set via setOverrides(); null when no overrides are active.
+    /** @type {Map<string,*>|null} */
+    this._overrides = null;
   }
 
   /**
@@ -67,6 +72,11 @@ export class ThemeTokenResolver {
     // Handle computed tokens directly (before trying to look up in token tree)
     if (typeof path === 'string' && this._isComputedToken(path)) {
       return this._resolveComputedToken(path, context);
+    }
+
+    // Check user/device/global overrides — these beat the token tree and cache.
+    if (this._overrides !== null && this._overrides.has(path)) {
+      return this._overrides.get(path);
     }
 
     // Check cache for non-context-dependent paths
@@ -126,6 +136,35 @@ export class ThemeTokenResolver {
     this.resolutionCache.clear();
     this.computedCache.clear();
     lcardsLog.debug('[ThemeTokenResolver] Cache cleared');
+  }
+
+  /**
+   * Set the active override map.
+   *
+   * The merged result of global + user + device scopes should be passed here
+   * (device wins).  Call clearCache() is handled internally.
+   *
+   * @param {Object|Map<string,*>|null} overrides - Flat token-path → value map, or null to clear.
+   */
+  setOverrides(overrides) {
+    if (overrides === null || overrides === undefined) {
+      this._overrides = null;
+    } else if (overrides instanceof Map) {
+      this._overrides = overrides;
+    } else {
+      this._overrides = new Map(Object.entries(overrides));
+    }
+    this.clearCache();
+    lcardsLog.debug('[ThemeTokenResolver] Overrides updated', { count: this._overrides?.size ?? 0 });
+  }
+
+  /**
+   * Remove all overrides and clear cache.
+   */
+  clearOverrides() {
+    this._overrides = null;
+    this.clearCache();
+    lcardsLog.debug('[ThemeTokenResolver] Overrides cleared');
   }
 
   /**

@@ -253,6 +253,11 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Reset patch snapshot so next rule cycle gets a fresh base
         this._baseConfig = null;
 
+        // Store the untouched HA-supplied config so the theme-override handler
+        // can re-run processConfig (which builds a fresh mergedConfig) without
+        // losing the original theme: token strings that were already resolved.
+        this._rawConfig = config;
+
         lcardsLog.trace(`[LCARdSCard] setConfig called`, {
             hasId: !!config.id,
             id: config.id,
@@ -821,6 +826,22 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Mark as initialized
         this._initialized = true;
+
+        // Subscribe to theme token override changes so the card re-renders when
+        // an admin or user applies/removes a global/user/device token override.
+        // Must re-run processConfig (not just requestUpdate) because processConfig
+        // bakes resolved theme: token values into this.config — a plain requestUpdate
+        // would re-render with the already-resolved (now-stale) cached values.
+        this._themeOverridesChangedHandler = () => {
+            if (this._rawConfig) {
+                this._processConfigAsync(this._rawConfig).catch(err => {
+                    lcardsLog.warn('[LCARdSCard] Theme override re-process failed:', err);
+                });
+            } else {
+                this.requestUpdate();
+            }
+        };
+        window.addEventListener('lcards:theme-overrides-changed', this._themeOverridesChangedHandler);
 
         // NOTE: Do NOT register rules callback here - subclasses should call
         // _registerOverlayForRules() in their own _handleFirstUpdate() hook
@@ -3055,6 +3076,12 @@ export class LCARdSCard extends LCARdSNativeCard {
         if (this._windowResizeHandler) {
             window.removeEventListener('resize', this._windowResizeHandler);
             this._windowResizeHandler = null;
+        }
+
+        // --- Theme overrides changed handler ---
+        if (this._themeOverridesChangedHandler) {
+            window.removeEventListener('lcards:theme-overrides-changed', this._themeOverridesChangedHandler);
+            this._themeOverridesChangedHandler = null;
         }
 
         // --- Core unregister (handles _cardInstances, _cardLoadOrder, SystemsManager) ---

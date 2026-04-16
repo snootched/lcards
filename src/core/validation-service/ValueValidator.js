@@ -634,7 +634,7 @@ export class ValueValidator {
       /^var\(--[\w-]+.*\)$/,  // CSS variable
       /^[a-z]+$/i,  // Named color
       /^match-light$/,  // LCARdS: match entity light colour
-      /^theme:/,  // LCARdS: theme token (e.g. theme:palette.moonlight)
+      /^theme:/,  // LCARdS: theme token (e.g. theme:colors.text.onDark)
       /^(lighten|darken|alpha|mix)\(/i,  // LCARdS: computed color functions
     ];
 

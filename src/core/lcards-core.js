@@ -276,6 +276,19 @@ class LCARdSCore {
             this.scopedSettingsService = new ScopedSettingsService();
             lcardsLog.debug('[LCARdSCore] ✅ ScopedSettingsService created');
 
+            // Once the integration probe completes (triggered by the first _updateHass
+            // call that carries a live WS connection), load token overrides and re-apply
+            // them to the resolver.  This is intentionally fire-and-forget so it does NOT
+            // block core initialisation — cards render with theme defaults first, then
+            // re-render via the lcards:theme-overrides-changed event once overrides arrive.
+            this.integrationService.onReady().then(() => {
+                return this.themeManager.loadOverrides();
+            }).then(() => {
+                lcardsLog.debug('[LCARdSCore] ✅ Theme overrides loaded from scoped storage');
+            }).catch(err => {
+                lcardsLog.warn('[LCARdSCore] Theme overrides load failed:', err);
+            });
+
             this._coreInitialized = true;
 
             // Mount global UI sound listener and alert subscription (after core is marked ready)

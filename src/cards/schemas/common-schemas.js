@@ -387,7 +387,7 @@ export const simpleColorSchema = {
     type: 'string',
     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
     description: 'Colour value (hex, rgb, theme token, or CSS variable)',
-    examples: ['#FF9900', 'transparent', 'theme:palette.moonlight', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
+    examples: ['#FF9900', 'transparent', 'theme:colors.text.onDark', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
 };
 
 /**

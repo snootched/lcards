@@ -1062,7 +1062,7 @@ export function getSliderSchema(options = {}) {
                                         type: 'string',
                                         description: 'Fill colour',
                                         default: '#93e1ff',
-                                        examples: ['#93e1ff', 'theme:palette.moonlight', 'var(--lcards-blue-light)']
+                                        examples: ['#93e1ff', 'theme:colors.text.onDark', 'var(--lcards-blue-light)']
                                     }
                                 }
                             },

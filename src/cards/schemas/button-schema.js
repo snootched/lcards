@@ -787,12 +787,12 @@ export function getButtonSchema(options = {}) {
                             shape: {
                                 type: 'string',
                                 description: 'Fill colour for the shield shape',
-                                examples: ['var(--lcards-orange)', '#ff9800', 'theme:palette.sunset']
+                                examples: ['var(--lcards-orange)', '#ff9800', 'theme:colors.ui.tertiary']
                             },
                             bars: {
                                 type: 'string',
                                 description: 'Stroke colour for the bar lines',
-                                examples: ['var(--lcards-orange)', '#ff9800', 'theme:palette.sunset']
+                                examples: ['var(--lcards-orange)', '#ff9800', 'theme:colors.ui.tertiary']
                             }
                         }
                     },

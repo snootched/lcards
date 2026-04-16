@@ -1330,4 +1330,13 @@ export class LCARdSColorPicker extends LitElement {
 // Static cache for CSS variables (shared across instances)
 LCARdSColorPicker._variablesCache = null;
 
+/**
+ * Invalidate the shared CSS variable cache.
+ * Call this after the palette changes (alert mode switch or theme override applied)
+ * so that freshly-opened picker instances show the current swatch colours.
+ */
+LCARdSColorPicker.invalidateCache = function() {
+  LCARdSColorPicker._variablesCache = null;
+};
+
 if (!customElements.get('lcards-color-picker')) customElements.define('lcards-color-picker', LCARdSColorPicker);

@@ -356,7 +356,7 @@ export function getElbowSchema(options = {}) {
                                 description: 'Segment colour (string or state-based object)',
                                 examples: [
                                     '#FF9900',
-                                    'theme:palette.moonlight',
+                                    'theme:colors.text.onDark',
                                     {
                                         default: '#888888',
                                         active: '#FF9900',

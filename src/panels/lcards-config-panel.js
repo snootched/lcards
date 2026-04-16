@@ -511,6 +511,17 @@ export class LCARdSConfigPanel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
 
+    // Re-render when the browser tab regains focus after being backgrounded.
+    // Without this, a WebSocket reconnect that happens while the tab is hidden
+    // (browser throttles keep-alives) leaves the panel black because no
+    // reactive property changes after the reconnect completes.
+    this._visibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        this.requestUpdate();
+      }
+    };
+    document.addEventListener('visibilitychange', this._visibilityHandler);
+
     // Check if LCARdS core is loaded
     if (!window.lcards?.core?.helperManager) {
       lcardsLog.warn('[ConfigPanel] LCARdS core not yet loaded');
@@ -536,6 +547,12 @@ export class LCARdSConfigPanel extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+
+    // Remove visibility handler
+    if (this._visibilityHandler) {
+      document.removeEventListener('visibilitychange', this._visibilityHandler);
+      this._visibilityHandler = null;
+    }
 
     // Cleanup all helper subscriptions
     this._helperSubscriptions.forEach(unsubscribe => unsubscribe());
