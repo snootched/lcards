@@ -1938,6 +1938,10 @@ export class LCARdSElbow extends LCARdSButton {
      * @private
      */
     _resolveColorValue(colorValue, currentState = 'default') {
+        // Substitute pre-evaluated Jinja2/JS template results before colour resolution.
+        // _preEvaluateStyleTemplates() populates the cache during _processCustomTemplates().
+        colorValue = this._resolveTemplateValue(colorValue);
+
         // Use base class method for state-based color resolution with theme token support
         // The base class method handles both state selection and theme token resolution
         const resolved = this._resolveEntityStateColor(colorValue, null);
@@ -1955,6 +1959,20 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Resolve match-light token → var(--lcards-light-color-{guid})
         return String(this._resolveMatchLightColor(resolved));
+    }
+
+    /**
+     * Override to also pre-evaluate Jinja2/JS templates in `config.elbow`.
+     * The button base covers `config.style`; this adds the elbow-specific sub-tree.
+     * @override
+     */
+    async _processCustomTemplates() {
+        // Pre-evaluate templates in elbow-specific config paths before the button's
+        // super call resolves colours synchronously.
+        if (this.config.elbow) {
+            await this._preEvaluateStyleTemplates(this.config.elbow);
+        }
+        await super._processCustomTemplates();
     }
 
     /**
