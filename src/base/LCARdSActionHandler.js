@@ -54,6 +54,7 @@ export class LCARdSActionHandler {
      * @param {Object} options.shadowRoot - Shadow root for element queries
      * @param {string} options.entity - Default entity ID for actions (fallback if action.entity not specified)
      * @param {Object} [options.soundOverride] - Per-event sound override config
+     * @param {boolean} [options.disableHover] - When true, suppresses pointer cursor and hover/leave animation handlers
      * @returns {Function} Cleanup function
      */
     setupActions(element, actions = {}, hass, options = /** @type {any} */ ({})) {
@@ -203,7 +204,8 @@ export class LCARdSActionHandler {
         };
 
         // Set cursor styling for actionable elements
-        if (hasActions) {
+        // Skip when the card is in non-interactive (decorative) mode.
+        if (hasActions && !options.disableHover) {
             element.style.cursor = 'pointer';
             cleanupFunctions.push(() => {
                 element.style.cursor = '';
@@ -386,7 +388,8 @@ export class LCARdSActionHandler {
         //  doesn't work on touch devices at all)
 
         // Hover animation support (desktop only)
-        if (elementId) {
+        // Skipped when disableHover is set (non-interactive / decorative mode).
+        if (elementId && !options.disableHover) {
             const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
             if (isDesktop) {

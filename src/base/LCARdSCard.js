@@ -3015,6 +3015,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @param {string} [options.entity] - Entity ID for context
      * @param {Array} [options.animations] - Animation configurations
      * @param {Object} [options.soundOverride] - Sound override configuration
+     * @param {boolean} [options.disableHover] - When true, suppresses pointer cursor and hover/leave animation handlers
      * @returns {Function} Cleanup function
      */
     setupActions(element, actions = {}, options = {}) {

@@ -74,6 +74,20 @@ export function getButtonSchema(options = {}) {
 
 
             // ============================================================================
+            // INTERACTIVE / DECORATIVE MODE
+            // ============================================================================
+
+            interactive: {
+                type: 'boolean',
+                default: true,
+                description: 'When false, hover colour changes and hover animations are suppressed. The cursor defaults to the arrow unless overridden via style.cursor. Tap/hold actions still fire if configured.',
+                'x-ui-hints': {
+                    label: 'Show hover effects',
+                    helper: 'Disable to suppress colour change and hover animations on mouse-over. Does not affect tap/hold actions.'
+                }
+            },
+
+            // ============================================================================
             // CONTROL BEHAVIOR
             // ============================================================================
 
@@ -374,6 +388,15 @@ export function getButtonSchema(options = {}) {
             style: {
                 type: 'object',
                 properties: {
+                    cursor: {
+                        type: 'string',
+                        description: 'CSS cursor style shown when hovering over the button. Overrides the automatic cursor derived from the interactive flag.',
+                        examples: ['pointer', 'default', 'none', 'not-allowed', 'crosshair', 'grab', 'zoom-in', 'help', 'wait', 'progress', 'move', 'copy', 'text'],
+                        'x-ui-hints': {
+                            label: 'Cursor style',
+                            helper: 'Any valid CSS cursor value. Leave unset to use the automatic default.'
+                        }
+                    },
                     card: {
                         type: 'object',
                         properties: {

@@ -33,6 +33,42 @@ LCARdS cards support actions `tap_action`, `hold_action`, and `double_tap_action
 
 ---
 
+## Hover Effects & Cursor
+
+Hover behaviour (visual feedback when the pointer is over the card) is configured directly on the button card, not on individual action objects.
+
+### `interactive`
+
+Controls whether the card shows visual hover feedback.
+
+| Value | Cursor | Hover colour change | Hover animations |
+|-------|--------|---------------------|------------------|
+| `true` (default) | pointer (hand) | Yes | Yes |
+| `false` | default (arrow) | No | No |
+
+Tap and hold actions are unaffected by this flag.
+
+```yaml
+type: custom:lcards-button
+interactive: false    # decorative — no hand cursor or hover effects
+tap_action:
+  action: toggle      # still fires on tap
+```
+
+### `style.cursor`
+
+Overrides the CSS cursor independently of `interactive`. Useful when you want hover effects but a non-standard cursor shape, or want to suppress the cursor without disabling all hover effects.
+
+```yaml
+type: custom:lcards-button
+style:
+  cursor: crosshair   # any valid CSS cursor value
+```
+
+Common cursor values: `pointer`, `default`, `none`, `not-allowed`, `crosshair`, `grab`, `zoom-in`, `help`, `wait`, `progress`, `move`, `copy`, `text`.
+
+---
+
 ## Double-Tap Disambiguation
 
 When `double_tap_action` is configured, a 300 ms window is used to distinguish a single tap from a double tap. If the second tap arrives within 300 ms, the double-tap action fires instead of the single-tap action.

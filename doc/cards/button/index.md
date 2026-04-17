@@ -46,6 +46,7 @@ The card operates in one of three modes, selected by which top-level key is pres
 | `filters` | list | CSS / SVG filters — see below |
 | `data_sources` | object | data source definitions — see [Data Sources](../../core/datasources/) |
 | `sounds` | object | Per-card sound overrides — see [Sound Effects](../../core/sounds.md) |
+| `interactive` | boolean | `true` by default. Set `false` to suppress hover colour changes and hover animations — useful for decorative buttons. Tap/hold actions still fire. |
 | `grid_options` | object | HA grid layout (`columns`, `rows`) |
 
 ---
@@ -57,6 +58,12 @@ The card operates in one of three modes, selected by which top-level key is pres
 | Field | Type | Description |
 |-------|------|-------------|
 | `color.background` | string / object | Card background — [state map](../../core/colours.md) supported |
+
+### `style.cursor`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `cursor` | string | CSS cursor shown on hover. Any valid CSS cursor value. Overrides the automatic cursor (which is `pointer` when `interactive: true`, `default` when `interactive: false`). Common values: `pointer`, `default`, `none`, `not-allowed`, `crosshair`, `grab`, `zoom-in`, `help`, `wait`, `progress`, `move`, `copy`, `text`. |
 
 ### `style.border`
 
@@ -374,6 +381,36 @@ background_animation:
     config:
       line_spacing: 40
       color: "alpha(var(--lcards-orange), 0.3)"
+```
+
+---
+
+## Decorative / Non-Interactive Buttons
+
+By default every button shows a pointer cursor and changes colour on hover. For purely decorative panels that should not signal interactivity, set `interactive: false`.
+
+| What changes | `interactive: true` (default) | `interactive: false` |
+|---|---|---|
+| Cursor on hover | `pointer` (hand) | `default` (arrow) |
+| Background colour on hover | Changes to hover colour from preset/style | No change |
+| Hover animations | Fire | Suppressed |
+| Tap / hold actions | Fire normally | Fire normally |
+
+```yaml
+type: custom:lcards-button
+entity: light.corridor
+preset: lozenge
+interactive: false          # decorative — no hand cursor or hover colour change
+tap_action:
+  action: toggle             # action still works if you want it
+```
+
+To keep hover effects but override only the cursor shape, use `style.cursor` independently:
+
+```yaml
+type: custom:lcards-button
+style:
+  cursor: crosshair          # any valid CSS cursor string
 ```
 
 ---
