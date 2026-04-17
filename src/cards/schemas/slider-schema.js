@@ -1061,8 +1061,8 @@ export function getSliderSchema(options = {}) {
                                     color: {
                                         type: 'string',
                                         description: 'Fill colour',
-                                        default: '#93e1ff',
-                                        examples: ['#93e1ff', 'theme:colors.text.onDark', 'var(--lcards-blue-light)']
+                                        default: 'theme:components.slider.shaped.fill.color',
+                                        examples: ['theme:components.slider.shaped.fill.color', '#93e1ff', 'theme:colors.text.onDark', 'var(--lcards-blue-light)']
                                     }
                                 }
                             },

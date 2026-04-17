@@ -1063,7 +1063,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Use base class method for state-based color resolution
         return this._resolveEntityStateColor(
             colorConfig,
-            'var(--lcars-color-secondary, #000000)'
+            'theme:components.slider.border.color.default'
         );
     }
 
@@ -1571,13 +1571,13 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: trackConfig?.gradient?.start,
-            fallback: 'var(--error-color, var(--lcars-orange-dark, #cc2200))'
+            fallback: 'theme:components.slider.pills.gradient.start'
         }) ?? ''));
         let gradientEnd = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: trackConfig?.gradient?.end,
-            fallback: 'var(--success-color, var(--lcars-green-medium, #33cc99))'
+            fallback: 'theme:components.slider.pills.gradient.end'
         }) ?? ''));
         // Reverse gradient direction when fill is inverted
         if (this._invertFill) {
@@ -1871,14 +1871,14 @@ export class LCARdSSlider extends LCARdSButton {
         // Extract all config parameters
         return {
             type: indicatorConfig.type || 'line',
-            color: this._resolveColorValue(indicatorConfig.color || 'var(--lcars-white, #ffffff)'),
+            color: this._resolveColorValue(indicatorConfig.color || 'theme:components.slider.indicator.color'),
             width: indicatorConfig.size?.width || 4,
             height: indicatorConfig.size?.height || 25,
             rotation: indicatorConfig.rotation || 0,
             offsetX: indicatorConfig.offset?.x || 0,
             offsetY: indicatorConfig.offset?.y || 0,
             borderEnabled: indicatorConfig.border?.enabled !== false,
-            borderColor: this._resolveColorValue(indicatorConfig.border?.color || 'var(--lcars-black, #000000)'),
+            borderColor: this._resolveColorValue(indicatorConfig.border?.color || 'theme:components.slider.indicator.border.color'),
             borderWidth: indicatorConfig.border?.width || 1
         };
     }
@@ -2058,7 +2058,7 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: tickConfig?.major?.color,
-            fallback: 'var(--lcars-card-button, #ff9966)'
+            fallback: 'theme:components.slider.gauge.tick.major.color.default'
         });
         const majorHeight = tickConfig?.major?.height; // undefined = full height
         const majorStrokeWidth = tickConfig?.major?.width || 2;
@@ -2070,7 +2070,7 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: tickConfig?.minor?.color,
-            fallback: 'var(--lcars-card-button, #ff9966)'
+            fallback: 'theme:components.slider.gauge.tick.minor.color.default'
         });
         const minorHeight = tickConfig?.minor?.height || 10;
         const minorStrokeWidth = tickConfig?.minor?.width || 1;
@@ -2089,7 +2089,7 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: labelConfig?.color,
-            fallback: 'var(--lcars-card-button, #ff9966)'
+            fallback: 'theme:components.slider.gauge.label.color.default'
         });
 
         // Progress bar configuration
@@ -2098,7 +2098,7 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: progressConfig?.color,
-            fallback: 'var(--lcars-blue-light)'
+            fallback: 'theme:components.slider.gauge.progress_bar.color.default'
         });
         const progressHeight = progressConfig?.height || 12;
         // Fill bar radius: uniform number (default 2) or per-end { start, end } object
@@ -2950,15 +2950,15 @@ export class LCARdSSlider extends LCARdSButton {
                 actualState: this._entity?.state,
                 classifiedState: this._getButtonState(),
                 colorConfig: this._sliderStyle?.gauge?.progress_bar?.color,
-                fallback: 'var(--lcars-blue-light)'
+                fallback: 'theme:components.slider.gauge.progress_bar.color.default'
             }),
             // Range frame and borders
-            rangeBorder: this._resolveColorValue(this._sliderStyle?.range?.border?.color) || '#000000',
+            rangeBorder: this._resolveColorValue(this._sliderStyle?.range?.border?.color || 'theme:components.slider.range.border.color'),
             rangeFrame: this._resolveColorValue(this._sliderStyle?.range?.frame?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Solid bar (defaults to same as top border)
             solidBar: this._resolveColorValue(this._sliderStyle?.solid_bar?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Animation indicator
-            animationIndicator: this._resolveColorValue(this._sliderStyle?.animation?.indicator?.color) || 'var(--lcards-blue)',
+            animationIndicator: this._resolveColorValue(this._sliderStyle?.animation?.indicator?.color || 'theme:components.slider.animation.indicator.color'),
             // Shaped component: track background (the "empty" portion inside the shape)
             trackBackground: this._resolveColorValue(
                 this._sliderStyle?.shaped?.track?.background
@@ -3291,7 +3291,7 @@ export class LCARdSSlider extends LCARdSButton {
         const fillColor = this._resolveColorValue(
             this._sliderStyle?.shaped?.fill?.color ||
             this._sliderStyle?.gauge?.fill?.color?.active ||
-            'var(--lcards-blue-light)'
+            'theme:components.slider.shaped.fill.color'
         );
 
         const progress = this._calculateValuePercent();
@@ -3482,7 +3482,7 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: progressBarConfig.color,
-            fallback: 'var(--lcars-blue-light)'
+            fallback: 'theme:components.slider.gauge.progress_bar.color.default'
         });
         // Radius: uniform number or per-end { start, end } object
         const _prRawZ = progressBarConfig.radius;
@@ -3659,7 +3659,7 @@ export class LCARdSSlider extends LCARdSButton {
             const presetMarker = gaugeConfig?.marker_indicator || {};
             // Color lives under indicator.color for value markers, not range.color
             // (range.color is the band fill — a separate concept)
-            const markerColor = this._resolveColorValue(riCfg.color || presetMarker.color || 'var(--lcars-white, #ffffff)');
+            const markerColor = this._resolveColorValue(riCfg.color || presetMarker.color || 'theme:components.slider.indicator.color');
             const markerIndicator = {
                 // type: per-range config first, then triangle default.
                 // Deliberately does NOT inherit globalIndicator.type — the main
@@ -3680,7 +3680,7 @@ export class LCARdSSlider extends LCARdSButton {
                 offsetX:       riCfg.offset?.x         ?? presetMarker.offset?.x         ?? 0,
                 offsetY:       riCfg.offset?.y         ?? presetMarker.offset?.y         ?? (isVertical ? 0 : 10),
                 borderEnabled: riCfg.border?.enabled   ?? presetMarker.border?.enabled   ?? false,
-                borderColor:   this._resolveColorValue(riCfg.border?.color ?? presetMarker.border?.color ?? 'var(--lcars-black, #000000)'),
+                borderColor:   this._resolveColorValue(riCfg.border?.color ?? presetMarker.border?.color ?? 'theme:components.slider.indicator.border.color'),
                 borderWidth:   riCfg.border?.width     ?? presetMarker.border?.width     ?? 1
             };
 
@@ -3754,7 +3754,7 @@ export class LCARdSSlider extends LCARdSButton {
                     const borderConfig = this._sliderStyle?.border?.[side];
                     const restoreColor = borderConfig ?
                         this._resolveStateBorderColor(borderConfig.color) :
-                        '#000000';
+                        'black';
                     element.style.fill = restoreColor;
                 }
             });

@@ -340,6 +340,30 @@ export const lcardsDefaultTokens = {
           }
         }
       },
+      // Shaped clip-path variant
+      shaped: {
+        fill: {
+          // Uses HA primary colour with LCARS blue-light as fallback — same as shipped preset default
+          color: 'var(--primary-color, var(--lcards-blue-light))'
+        }
+      },
+      // Range band / indicator defaults
+      range: {
+        border: { color: 'black' },          // SVG-safe 'black' ≡ #000000
+        color: 'var(--lcards-gray-medium, #cccccc)' // neutral fallback for unstyled ranges
+      },
+      // Gauge / value-marker indicator (arrow, dot, line on the gauge track)
+      // Intentionally at slider.indicator (not gauge.indicator) because these
+      // tokens are shared by the main gauge indicator, value-marker indicators,
+      // and the Picard animation dot — all three use the same visual language.
+      indicator: {
+        color: 'var(--lcars-white, var(--lcards-moonlight))',
+        border: { color: 'black' }
+      },
+      // Animated indicator (pulsing dot on Picard-style components)
+      animation: {
+        indicator: { color: 'var(--lcards-blue, var(--lcards-blue-medium))' }
+      },
       text: 'components.button.text'
     },
 

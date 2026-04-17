@@ -142,7 +142,7 @@ export function render(context) {
     // Track background (dark "empty" fill inside the shape)
     const trackBg = colors?.trackBackground
         ?? style?.shaped?.track?.background
-        ?? '#12121c';
+        ?? 'var(--lcards-gray-dark, #12121c)';
 
     const clipPathElement = buildClipPath(clipId, shapeType, bodyX, bodyY, bodyW, bodyH, shapeOptions);
 
@@ -239,7 +239,7 @@ export function getMetadata() {
                         color: {
                             description: 'Value fill colour',
                             type: 'string',
-                            default: '#93e1ff'
+                            default: 'theme:components.slider.shaped.fill.color'
                         }
                     },
                     text_bands: {

@@ -297,7 +297,7 @@ export const SLIDER_PRESETS = {
           left:   { size: 0 },
           right:  { size: 0 }
         },
-        fill: { color: 'var(--primary-color)' },
+        fill: { color: 'theme:components.slider.shaped.fill.color' },
         track: { background: 'alpha(colors.card.buttonOff,0.2)' }
       }
     },
@@ -356,7 +356,7 @@ export const SLIDER_PRESETS = {
           left:   { size: 60 },
           right:  { size: 60 }
         },
-        fill: { color: 'var(--primary-color)' },
+        fill: { color: 'theme:components.slider.shaped.fill.color' },
         track: { background: 'alpha(colors.card.buttonOff,0.2)' }
       }
     },
