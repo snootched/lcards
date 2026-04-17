@@ -144,3 +144,53 @@ When a value could match multiple syntaxes, evaluation proceeds in this order:
 3. `{ds:...}` / `{datasource:...}` — data source
 4. `{{...}}` — Jinja2 (HA server-evaluated, async)
 
+---
+
+## Entity Tracking & Reactivity
+
+LCARdS re-renders a card (and re-evaluates all its templates) whenever a relevant entity changes state.
+
+### Automatic tracking
+
+Entity references in **Jinja2** templates are detected automatically — no extra config needed:
+
+```yaml
+text:
+  label:
+    content: "{{ states('sensor.temperature') }}°C"   # ✅ auto-tracked
+  status:
+    content: >-
+      {% if is_state('binary_sensor.motion', 'on') %}
+        Motion detected
+      {% endif %}                                       # ✅ sensor tracked automatically
+```
+
+The following Jinja2 call patterns are scanned:
+`states()`, `state_attr()`, `is_state()`, `is_state_attr()`, `has_value()`
+
+### Manual tracking with `triggers_update`
+
+JavaScript templates (`[[[...]]]`) are opaque to static analysis — LCARdS cannot know which entities they reference. Declare them explicitly:
+
+```yaml
+type: custom:lcards-button
+entity: light.kitchen
+triggers_update:
+  - binary_sensor.desk_sensor_motion
+  - sensor.toronto_temperature
+
+text:
+  label:
+    content: |
+      [[[
+        const motion = hass.states['binary_sensor.desk_sensor_motion']?.state;
+        const temp   = hass.states['sensor.toronto_temperature']?.state;
+        return motion === 'on' ? `Motion (${temp}°)` : 'Clear';
+      ]]]
+```
+
+`triggers_update` also works for **token** or **data source** templates whose entity IDs are assembled dynamically and cannot be inferred at parse time.
+
+> [!NOTE]
+> `triggers_update` is additive — the card's primary `entity` is always tracked regardless.
+

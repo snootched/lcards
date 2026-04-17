@@ -1608,6 +1608,49 @@ export const cardMinHeightSchema = {
     }
 };
 
+// ============================================================================
+// TRIGGERS_UPDATE SCHEMA - Explicit entity tracking for JS / token templates
+// ============================================================================
+
+/**
+ * Declare extra entity IDs that should trigger a re-render (and re-evaluation
+ * of all templates) when their state changes.
+ *
+ * LCARdS auto-tracks entities referenced in Jinja2 templates (`{{states(...)}}`
+ * etc.) but cannot static-analyse JavaScript templates (`[[[...]]]`) or dynamic
+ * token expressions whose entity IDs are assembled at runtime.  Use
+ * `triggers_update` as the explicit escape-hatch for those cases.
+ *
+ * @example
+ * triggers_update:
+ *   - sensor.outdoor_temperature
+ *   - binary_sensor.motion_kitchen
+ */
+export const triggersUpdateSchema = {
+    type: 'array',
+    items: {
+        type: 'string',
+        format: 'entity',
+        pattern: '^[a-z_]+\\.[a-z0-9_]+$',
+        description: 'Entity ID whose state change should trigger a re-render',
+        examples: ['sensor.temperature', 'binary_sensor.motion']
+    },
+    description:
+        'Extra entity IDs to watch for state changes. When any listed entity changes, all templates on this card are re-evaluated. '
+        + 'Use this for JavaScript templates ([[[...]]]) that reference entities LCARdS cannot detect automatically via static analysis.',
+    examples: [
+        ['sensor.outdoor_temperature'],
+        ['binary_sensor.motion_kitchen', 'sensor.toronto_temperature']
+    ],
+    'x-ui-hints': {
+        label: 'Extra entity triggers',
+        helper:
+            'Entity IDs whose state changes should re-evaluate this card\'s templates. '
+            + 'Only needed for JS templates — Jinja2 entity references are tracked automatically.',
+        selector: { entity: {} }
+    }
+};
+
 export const cardMinWidthSchema = {
     oneOf: [
         {
