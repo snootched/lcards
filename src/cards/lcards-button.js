@@ -321,6 +321,26 @@ export class LCARdSButton extends LCARdSCard {
             }
         }
 
+        // Re-evaluate templates when any triggers_update / Jinja2-tracked entity changes,
+        // even if the primary entity did not change.
+        // _shouldUpdateOnHassChange already ensured requestUpdate() was called for these
+        // entities — here we also re-run style resolution and template processing so the
+        // rendered content reflects the new values in hass.states.
+        if (this._trackedEntities && this._trackedEntities.length > 0) {
+            const primaryEntity = this.config?.entity;
+            const hasTrackedChange = this._trackedEntities.some(entityId => {
+                // Skip primary entity — already handled in the block above
+                if (entityId === primaryEntity) return false;
+                return oldHass?.states?.[entityId] !== newHass?.states?.[entityId];
+            });
+
+            if (hasTrackedChange) {
+                lcardsLog.debug(`[LCARdSButton] Tracked entity changed — re-evaluating style and templates`);
+                this._resolveButtonStyleSync();
+                this._scheduleTemplateUpdate();
+            }
+        }
+
         // Propagate hass to background animation renderer so template-bound effect
         // params (fill_pct, wave_speed, scroll_speed_x, etc.) react to entity changes.
         if (this._backgroundRenderer) {
