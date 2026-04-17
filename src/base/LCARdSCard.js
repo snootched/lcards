@@ -185,6 +185,12 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Entity tracking for Jinja2 template updates
         this._trackedEntities = [];
 
+        // Pre-evaluated style template cache (template string → result).
+        // Populated by _preEvaluateStyleTemplates() during async _processCustomTemplates().
+        // Lets synchronous SVG / style generation consume Jinja2/JS template results
+        // via _resolveTemplateValue().
+        this._evaluatedStyleCache = new Map();
+
         // Config provenance tracking (from CoreConfigManager)
         this._provenance = null;
 
@@ -340,6 +346,11 @@ export class LCARdSCard extends LCARdSNativeCard {
 
                 // Update internal config
                 this.config = result.mergedConfig;
+
+                // Re-scan tracked entities now that we have the final merged config.
+                // This is the authoritative call for all card types — it covers primary
+                // entity, rules, animations, Jinja2 auto-scan, and triggers_update.
+                this._updateTrackedEntities();
 
                 // Allow subclasses to react to config changes before render
                 // (e.g., button card needs to re-resolve styles when config changes)
@@ -1859,6 +1870,51 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
+     * Pre-evaluate all Jinja2 and JS template strings found in a config object
+     * and cache the results in `_evaluatedStyleCache`.
+     *
+     * Call this from `_processCustomTemplates()` before any synchronous style
+     * resolution so that `_resolveTemplateValue()` can substitute the results
+     * during SVG/style generation.
+     *
+     * @param {*} obj - Config object subtree to scan (e.g. `this.config.style`)
+     * @protected
+     */
+    async _preEvaluateStyleTemplates(obj) {
+        const strings = this._extractAllConfigStrings(obj);
+        for (const str of strings) {
+            const isJinja2 = str.includes('{%') || str.includes('{{');
+            const isJs    = str.includes('[[[');
+            if (!isJinja2 && !isJs) continue;
+            try {
+                const result = await this.processTemplate(str);
+                this._evaluatedStyleCache.set(str, result);
+            } catch (e) {
+                lcardsLog.warn('[LCARdSCard] Failed to pre-evaluate style template:', e);
+            }
+        }
+    }
+
+    /**
+     * If `value` is a string that was pre-evaluated by `_preEvaluateStyleTemplates`,
+     * return the cached result; otherwise return `value` unchanged.
+     *
+     * Insert this call between `_resolveStateValue()` and any downstream color
+     * resolver (e.g. `_resolveMatchLightColor`) so that template strings never
+     * reach SVG attribute setters unevaluated.
+     *
+     * @param {*} value - Value to resolve
+     * @returns {*} Evaluated result or original value
+     * @protected
+     */
+    _resolveTemplateValue(value) {
+        if (typeof value !== 'string') return value;
+        return this._evaluatedStyleCache.has(value)
+            ? this._evaluatedStyleCache.get(value)
+            : value;
+    }
+
+    /**
      * Schedule a retry of template processing when DataSourceManager becomes available
      * @private
      */
@@ -1988,9 +2044,64 @@ export class LCARdSCard extends LCARdSNativeCard {
             });
         }
 
+        // Scan all string values in the config for Jinja2 entity references.
+        // This automatically tracks entities used in templates for colors, labels,
+        // or any other field — without requiring explicit user configuration.
+        // JS templates ([[[...]]]) are intentionally excluded: static analysis is
+        // unreliable for dynamic entity keys; use `triggers_update` instead.
+        this._extractAllConfigStrings(this.config).forEach(str => {
+            TemplateParser.extractJinja2Entities(str).forEach(entityId => {
+                trackedEntities.add(entityId);
+            });
+        });
+
+        // Explicit escape-hatch: user-defined entity list.
+        // Use this for JS/token templates that reference entities that cannot be
+        // auto-detected (e.g. `[[[return hass.states[myVar].state]]]`).
+        //
+        // config:
+        //   triggers_update:
+        //     - sensor.outdoor_temperature
+        //     - binary_sensor.motion_kitchen
+        if (this.config.triggers_update && Array.isArray(this.config.triggers_update)) {
+            this.config.triggers_update.forEach(entityId => {
+                if (typeof entityId === 'string' && entityId.trim()) {
+                    trackedEntities.add(entityId.trim());
+                }
+            });
+        }
+
         this._trackedEntities = Array.from(trackedEntities);
 
         lcardsLog.trace(`[LCARdSCard] Tracking ${this._trackedEntities.length} entities for ${this._cardGuid}:`, this._trackedEntities);
+    }
+
+    /**
+     * Recursively collect every string value from a config object.
+     * Skips the `type` key (card type string, never an entity reference).
+     * Used by `_updateTrackedEntities` to scan all template fields for
+     * Jinja2 entity dependencies without enumerating every possible field name.
+     *
+     * @private
+     * @param {*} node - Config node (object, array, or scalar)
+     * @param {Set<string>} [out] - Accumulator set
+     * @returns {Set<string>} Collected string values
+     */
+    _extractAllConfigStrings(node, out = new Set()) {
+        if (!node || typeof node !== 'object') {
+            if (typeof node === 'string') out.add(node);
+            return out;
+        }
+        if (Array.isArray(node)) {
+            node.forEach(item => this._extractAllConfigStrings(item, out));
+            return out;
+        }
+        for (const [key, value] of Object.entries(node)) {
+            // `type` is always the card type identifier (e.g. 'custom:lcards-button')
+            if (key === 'type') continue;
+            this._extractAllConfigStrings(value, out);
+        }
+        return out;
     }
 
     /**

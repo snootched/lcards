@@ -58,7 +58,6 @@ import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { escapeHtml } from '../utils/StringUtils.js';
-import { TemplateParser } from '../core/templates/TemplateParser.js';
 import { TemplateDetector } from '../core/templates/TemplateDetector.js';
 import { LCARdSCardTemplateEvaluator } from '../core/templates/LCARdSCardTemplateEvaluator.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
@@ -3036,6 +3035,13 @@ export class LCARdSButton extends LCARdSCard {
     async _processCustomTemplates() {
         lcardsLog.trace(`[LCARdSButton] _processCustomTemplates called for ${this._cardGuid}`);
 
+        // Pre-evaluate Jinja2/JS templates in the style config so that synchronous
+        // SVG generation (e.g. color fields like card.color.background.active) can
+        // use the result via _resolveTemplateValue().
+        if (this.config.style) {
+            await this._preEvaluateStyleTemplates(this.config.style);
+        }
+
         // Track if any templates changed to avoid unnecessary re-renders
         let hasChanges = false;
 
@@ -3148,10 +3154,12 @@ export class LCARdSButton extends LCARdSCard {
             fieldCount: this.config.text ? Object.keys(this.config.text).length : 0
         });
 
-        if (hasChanges) {
-            // Extract and track entities from templates for auto-updates
-            this._updateTrackedEntities();
+        // Always re-scan tracked entities after template processing.
+        // This ensures entities referenced in style templates (colors, etc.) or
+        // added via triggers_update are tracked even when no text content changed.
+        this._updateTrackedEntities();
 
+        if (hasChanges) {
             // Call subclass hook for style resolution after template changes
             if (typeof this._onTemplatesChanged === 'function') {
                 this._onTemplatesChanged();
@@ -3166,25 +3174,16 @@ export class LCARdSButton extends LCARdSCard {
      * @override
      */
     _updateTrackedEntities() {
-        // Call parent to get base tracking (primary entity)
+        // Base class now handles:
+        //   - primary entity
+        //   - animation/rules entities
+        //   - Jinja2 auto-scan across ALL config string values (including text fields)
+        //   - config.triggers_update explicit list
+        // This override adds datasource/token dependency names from text field
+        // content (non-Jinja2). Those are not entity IDs and are therefore not
+        // useful for _trackedEntities, but we keep the call for completeness and
+        // in case the semantics change in future.
         super._updateTrackedEntities();
-
-        const trackedEntities = new Set(this._trackedEntities || []);
-
-        // Add multi-text field templates
-        if (this.config.text && typeof this.config.text === 'object') {
-            for (const [fieldId, fieldConfig] of Object.entries(this.config.text)) {
-                if (fieldId === 'default' || !fieldConfig?.content) continue;
-
-                const template = fieldConfig.content;
-                if (typeof template === 'string') {
-                    const deps = TemplateParser.extractDependencies(template);
-                    deps.forEach(entityId => trackedEntities.add(entityId));
-                }
-            }
-        }
-
-        this._trackedEntities = Array.from(trackedEntities);
 
         lcardsLog.trace(`[LCARdSButton] Tracking ${this._trackedEntities.length} entities`, this._trackedEntities);
     }
@@ -4307,29 +4306,31 @@ export class LCARdSButton extends LCARdSCard {
         const actualEntityState = this._entity?.state;
 
         // Background color: card.color.background.{state}
-        // Try actual entity state first (e.g., "heat"), then fall back to classified state (e.g., "inactive")
-        const backgroundColor = this._resolveMatchLightColor(this._resolveStateValue({
+        // Try actual entity state first (e.g., "heat"), then fall back to classified state (e.g., "inactive").
+        // _resolveTemplateValue() substitutes pre-evaluated Jinja2/JS templates before
+        // _resolveMatchLightColor() attempts colour computation on the raw string.
+        const backgroundColor = this._resolveMatchLightColor(this._resolveTemplateValue(this._resolveStateValue({
             actualState: actualEntityState,
             classifiedState: buttonState,
             colorConfig: this._buttonStyle?.card?.color?.background,
             fallback: 'var(--lcars-orange, #FF9900)'
-        }));
+        })));
 
         // Text color: text.default.color.{state}
-        const textColor = this._resolveMatchLightColor(this._resolveStateValue({
+        const textColor = this._resolveMatchLightColor(this._resolveTemplateValue(this._resolveStateValue({
             actualState: actualEntityState,
             classifiedState: buttonState,
             colorConfig: this._buttonStyle?.text?.default?.color,
             fallback: 'var(--lcars-color-text, #FFFFFF)'
-        }));
+        })));
 
         // Border color: border.color.{state} or border.color (plain string)
-        const borderColor = this._resolveMatchLightColor(this._resolveStateValue({
+        const borderColor = this._resolveMatchLightColor(this._resolveTemplateValue(this._resolveStateValue({
             actualState: actualEntityState,
             classifiedState: buttonState,
             colorConfig: this._buttonStyle?.border?.color,
             fallback: 'var(--lcars-color-secondary, #000000)'
-        }));
+        })));
 
         // Resolve border configuration with per-corner support
         const border = this._resolveBorderConfiguration();
