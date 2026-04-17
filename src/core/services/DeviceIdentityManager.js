@@ -41,6 +41,41 @@ import {
     URL_PARAM_DEVICE_NAME,
 } from './ScopedSettingsConstants.js';
 
+/**
+ * Generate a RFC 4122 v4 UUID with multi-tier fallback.
+ *
+ * `crypto.randomUUID()` requires a **secure context** (HTTPS / localhost).
+ * When accessed over plain HTTP on a local network (common in Home Assistant
+ * setups) that function is `undefined` even in up-to-date browsers.
+ * `crypto.getRandomValues()` is available in non-secure contexts and is used
+ * as the preferred fallback.  `Math.random()` is the last-resort path for
+ * any exotic environment that strips the Crypto API entirely.
+ *
+ * @returns {string} UUID string, e.g. "550e8400-e29b-41d4-a716-446655440000"
+ */
+function generateUUID() {
+    // Tier 1: native — requires secure context (HTTPS / localhost)
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    // Tier 2: crypto.getRandomValues — available in non-secure contexts
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const buf = new Uint8Array(16);
+        crypto.getRandomValues(buf);
+        // Set version 4 and variant bits
+        buf[6] = (buf[6] & 0x0f) | 0x40;
+        buf[8] = (buf[8] & 0x3f) | 0x80;
+        const hex = Array.from(buf).map(b => b.toString(16).padStart(2, '0'));
+        return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
+    }
+    // Tier 3: Math.random — last resort; not cryptographically secure
+    lcardsLog.warn('[DeviceIdentityManager] crypto API unavailable — UUID generated with Math.random (not cryptographically secure)');
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+}
+
 export class DeviceIdentityManager extends BaseService {
 
     constructor() {
@@ -211,7 +246,7 @@ export class DeviceIdentityManager extends BaseService {
         try {
             let id = localStorage.getItem(LOCALSTORAGE_DEVICE_ID);
             if (!id) {
-                id = crypto.randomUUID();
+                id = generateUUID();
                 localStorage.setItem(LOCALSTORAGE_DEVICE_ID, id);
                 lcardsLog.info(`[DeviceIdentityManager] New device UUID generated → ${id}`);
             } else {
@@ -221,7 +256,7 @@ export class DeviceIdentityManager extends BaseService {
         } catch (err) {
             // localStorage may be unavailable in certain browser environments
             lcardsLog.warn('[DeviceIdentityManager] localStorage unavailable — using ephemeral UUID:', err);
-            return crypto.randomUUID();
+            return generateUUID();
         }
     }
 
