@@ -8,7 +8,7 @@
  * Editor UI is defined separately in lcards-slider-editor.js config.
  */
 
-import { dataSourcesSchema, simpleColorSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, actionSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, triggersUpdateSchema } from './common-schemas.js';
+import { dataSourcesSchema, simpleColorSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, actionSchema, animationSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, triggersUpdateSchema } from './common-schemas.js';
 
 /**
  * Get complete slider card schema
@@ -789,32 +789,6 @@ export function getSliderSchema(options = {}) {
                             }
                         }
                     },
-                    text: {
-                        type: 'object',
-                        description: 'Text label configuration',
-                        properties: {
-                            default: {
-                                type: 'object',
-                                properties: {
-                                    font_family: {
-                                        type: 'string',
-                                        format: 'font-family'
-                                    },
-                                    font_size: {
-                                        oneOf: [
-                                            { type: 'number' },
-                                            { type: 'string' }
-                                        ]
-                                    },
-                                    color: stateColorSchema
-                                }
-                            }
-                        },
-                        additionalProperties: {
-                            type: 'object',
-                            description: 'Named text field configuration'
-                        }
-                    },
                     border: {
                         type: 'object',
                         description: 'Per-side border configuration with optional corner radius',
@@ -1141,6 +1115,36 @@ export function getSliderSchema(options = {}) {
                     }
                 }
             },
+
+            // ============================================================================
+            // ACTIONS
+            // ============================================================================
+
+            tap_action: actionSchema,
+            hold_action: actionSchema,
+            double_tap_action: actionSchema,
+
+            // ============================================================================
+            // ANIMATIONS
+            // ============================================================================
+
+            animations: {
+                type: 'array',
+                description: 'Visual animations triggered by user interactions or entity state changes',
+                items: animationSchema
+            },
+
+            // ============================================================================
+            // BACKGROUND ANIMATION
+            // ============================================================================
+
+            background_animation: backgroundAnimationSchema,
+
+            // ============================================================================
+            // SOUNDS
+            // ============================================================================
+
+            sounds: soundsSchema,
 
             grid_options: gridOptionsSchema
         }

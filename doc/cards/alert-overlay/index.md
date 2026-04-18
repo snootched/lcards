@@ -395,7 +395,7 @@ conditions:
 ## Limitations
 
 - **No theme tokens in backdrop config** — `theme:palette.moonlight` and similar token paths are not evaluated for `backdrop.color`. Use explicit CSS values or `var(--lcards-*)` / `var(--lcars-*)` CSS variables instead.
-- **Single instance per dashboard** — each card element creates its own portal and overlay. If you add multiple instances to the same view you will get stacked overlays.
+- **Single instance per dashboard** — only the first instance connected to the DOM becomes active. Any additional instances are automatically suppressed: they have no visual presence in normal mode and show a "DUPLICATE — INACTIVE" warning placeholder in edit mode. Remove duplicate instances to avoid confusion.
 - **Not targetable by the rules engine** — the overlay does not extend `LCARdSCard` and has no card ID or tags. Rules cannot target it. The content card *inside* the overlay does support rules if it is an `lcards-*` card type.
 
 ---

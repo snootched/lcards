@@ -3398,12 +3398,8 @@ export class LCARdSElbow extends LCARdSButton {
                 type: 'header-left',
                 segment: {
                     bar_width: 90,
-                    bar_height: 20
-                },
-                radius: {
-                    outer: 'auto'
-                    // inner calculated automatically using LCARS formula (outer / 2)
-                    // or specify inner_factor for legacy behavior
+                    bar_height: 20,
+                    outer_curve: 'auto'
                 }
             }
         };

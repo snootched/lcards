@@ -24,30 +24,54 @@ The card operates in one of three modes, selected by which top-level key is pres
 |--------|------|-------------|
 | `type` | string | `custom:lcards-button` (required) |
 | `entity` | string | Entity to monitor and control |
-| `ranges_attribute` | string | Entity attribute used for `above:`/`below:`/`between:` range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
-| `id` | string | Custom card ID for rule targeting |
-| `tags` | list | Tags for rule targeting (e.g. `[nav, lights]`) |
-| `preset` | string | Button shape preset (preset mode) |
+| `preset` | string | Button shape preset — see [Presets](#presets) |
 | `component` | string | Component type: `dpad` or `alert` (component mode) |
-| `svg` | object | Custom SVG config (svg mode) |
-| `text` | object | Text field definitions — see [Text Fields](../../core/text-fields.md) |
-| `icon` | string | MDI icon (e.g. `mdi:lightbulb`) |
-| `icon_area` | string | Icon position: `left`, `right`, `top`, `bottom`, `none` |
-| `icon_area_size` | number | Icon area width/height in px (default: 60) |
-| `icon_style` | object | Advanced icon styling — see below |
-| `divider` | object | Divider between icon area and content area — see below |
-| `style` | object | Visual styles — see below |
-| `tap_action` | object | Tap action — see [Actions](../../core/actions.md) |
-| `hold_action` | object | Hold action |
-| `double_tap_action` | object | Double-tap action |
-| `animations` | list | Card animations — see [Animations](../../core/animations.md) |
-| `background_animation` | list / object | Canvas background animations — see [Background Animations](../../core/effects/background-animations.md) |
-| `shape_texture` | object | SVG texture inside the button fill — see below |
-| `filters` | list | CSS / SVG filters — see below |
-| `data_sources` | object | data source definitions — see [Data Sources](../../core/datasources/) |
-| `sounds` | object | Per-card sound overrides — see [Sound Effects](../../core/sounds.md) |
+| `svg` | object | Custom SVG config — see [Custom SVG Mode](#custom-svg-mode) |
+| `ranges_attribute` | string | Entity attribute used for `above:`/`below:`/`between:` range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
+| `ranges` | list | State-driven component preset switching — see [Component Mode: Alert](#component-mode-alert) |
 | `interactive` | boolean | `true` by default. Set `false` to suppress hover colour changes and hover animations — useful for decorative buttons. Tap/hold actions still fire. |
-| `grid_options` | object | HA grid layout (`columns`, `rows`) |
+| `control` | object | Control behaviour — see [Control](#control) |
+| `show_icon` | boolean | Show/hide the icon (default: `true`) |
+| `icon` | string | MDI icon (e.g. `mdi:lightbulb`) |
+| `icon_area` | string | Icon position: `left`, `right`, `top`, `bottom`, `none` (default: `left`) |
+| `icon_area_size` | number | Icon area width/height in px (default: `60`) |
+| `icon_area_background` | string / object | Icon area background colour — [state map](../../core/colours.md) supported (default: `transparent`) |
+| `icon_style` | object | Advanced icon styling — see [`icon_style` Object](#icon_style-object) |
+| `divider` | object | Divider between icon area and content area — see [`divider` Object](#divider-object) |
+| `dpad` | object | D-pad component config — see [Component Mode: D-pad](#component-mode-d-pad) |
+| `alert` | object | Alert component config — see [Component Mode: Alert](#component-mode-alert) |
+| `style` | object | Visual styles — see [`style` Object](#style-object) |
+| `shape_texture` | object | SVG texture inside the button fill — see [Shape Texture](#shape-texture) |
+| `filters` | list | CSS / SVG filters — see [`filters` List](#filters-list) |
+| `id` | string | Card ID for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
+| `tags` | list | Tags for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
+| `height` | number / string | Card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `width` | number / string | Card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `min_height` | number / string | Minimum card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `min_width` | number / string | Minimum card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `text` | object | Text label definitions — see [Text Fields](../../core/text-fields.md) |
+| `tap_action` | object | Tap action — see [Actions](../../core/actions.md) |
+| `hold_action` | object | Hold action — see [Actions](../../core/actions.md) |
+| `double_tap_action` | object | Double-tap action — see [Actions](../../core/actions.md) |
+| `animations` | list | Card animations — see [Animations](../../core/animations.md) |
+| `background_animation` | list / object | Canvas background — see [Background Animations](../../core/effects/background-animations.md) |
+| `data_sources` | object | Named data source definitions — see [Data Sources](../../core/datasources/) |
+| `sounds` | object | Per-card sound overrides — see [Sound Effects](../../core/sounds.md) |
+| `triggers_update` | list | Extra entity IDs that trigger re-render — see [Data Sources](../../core/datasources/) |
+| `grid_options` | object | HA grid layout — see [grid_options](../../cards/common.md#ha-grid-sizing-grid_options) |
+
+---
+
+## Control
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `control.attribute` | string | Entity attribute to control (leave blank to control entity state directly) |
+
+```yaml
+control:
+  attribute: brightness   # control light brightness directly
+```
 
 ---
 
@@ -70,9 +94,8 @@ The card operates in one of three modes, selected by which top-level key is pres
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `color` | string / object | theme | Border colour — [state map](../../core/colours.md) supported |
-| `width` | number | `0` | Border width in px |
-| `radius` | number / object | theme | Corner radius in px, or `{ top_left, top_right, bottom_left, bottom_right }` |
-| `style` | string | `solid` | CSS border-style (`solid`, `dashed`, `dotted`) |
+| `width` | number / string / object | `0` | Border width in px, a theme token string, or `{ top, right, bottom, left }` per-side |
+| `radius` | number / string / object | theme | Corner radius in px, a theme token string, or `{ top_left, top_right, bottom_right, bottom_left }` per-corner |
 
 ### `style.text.default` and `style.text.<field>`
 
@@ -112,20 +135,24 @@ style:
 
 Fine-grained control over the icon appearance and placement within its area.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `icon` | string / object | MDI icon name, or a [state map](../../core/colours.md) of icon names — overrides the top-level `icon` field |
-| `color` | string / object | Icon colour — [state map](../../core/colours.md) supported |
-| `size` | number | Icon size in px |
-| `area_size` | number | Width/height of the icon area in px |
-| `position` | string | Icon position within its area |
-| `x` | number | Absolute X offset in px (overrides `position`) |
-| `y` | number | Absolute Y offset in px (overrides `position`) |
-| `x_percent` | number | X as percentage of icon area width |
-| `y_percent` | number | Y as percentage of icon area height |
-| `rotation` | number | Icon rotation in degrees |
-| `padding` | number / object | Padding in px (number = all sides, or `{ top, right, bottom, left }`) |
-| `spacing` | number | Space between icon and text area (px) |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | string | `mdi` | Icon type: `mdi`, `si` (Simple Icons), or `entity` (entity state icon) |
+| `icon` | string / object | — | MDI icon name, or a [state map](../../core/colours.md) of icon names — overrides the top-level `icon` field |
+| `color` | string / object | theme | Icon colour — [state map](../../core/colours.md) supported |
+| `size` | number | `24` | Icon size in px |
+| `position` | string | `center` | Icon position within its area |
+| `x` | number | — | Absolute X offset in px (overrides `position`) |
+| `y` | number | — | Absolute Y offset in px (overrides `position`) |
+| `x_percent` | number | — | X as percentage of icon area width (0–100) |
+| `y_percent` | number | — | Y as percentage of icon area height (0–100) |
+| `rotation` | number | `0` | Icon rotation in degrees (-360 to 360) |
+| `padding` | number / object | — | Padding in px (number = all sides, or `{ top, right, bottom, left }`) |
+| `padding_left` | number | — | Left padding in px — overrides `padding` |
+| `padding_right` | number | — | Right padding in px — overrides `padding` |
+| `padding_top` | number | — | Top padding in px — overrides `padding` |
+| `padding_bottom` | number | — | Bottom padding in px — overrides `padding` |
+| `spacing` | number | `8` | Space between icon and text area in px |
 
 ```yaml
 icon: mdi:thermometer
@@ -224,11 +251,43 @@ text:
 
 ---
 
-## Preset Mode
+## Presets
 
-### Available Presets
+### Standard Buttons
 
-Common presets: `lozenge`, `bullet`, `capped`, `outline`, `pill`, `text`. Additional presets depend on installed packs — browse them in the card editor.
+| Preset | Description |
+|--------|-------------|
+| `lozenge` | Fully rounded on both ends, icon area on left |
+| `lozenge-right` | Fully rounded on both ends, icon area on right |
+| `bullet` | Rounded right end, flat left — icon area on left |
+| `bullet-right` | Rounded left end, flat right — icon area on right |
+| `capped` | Rounded left end, flat right — icon area on left |
+| `capped-right` | Rounded right end, flat left — icon area on right |
+| `barrel` | Flat corners, no border, icon area on left |
+| `barrel-right` | Flat corners, no border, icon area on right |
+| `filled` | Transparent border, large text label on right |
+| `filled-right` | Transparent border, large text label on left |
+| `outline` | Transparent background, border only — Picard style |
+| `outline-right` | Transparent background, border only, icon area on right |
+| `icon` | Square icon-only button with large rounded corners |
+| `text-only` | No background or border — pure text label |
+
+### Bar Labels
+
+Horizontal bars with an opaque text background that creates a "break" in the bar — classic LCARS header style.
+
+| Preset | Description |
+|--------|-------------|
+| `bar-label-base` | Bar label foundation — filled button, auto-scaling text, centered |
+| `bar-label-left` | Bar label with left-aligned text |
+| `bar-label-center` | Bar label with centered text |
+| `bar-label-right` | Bar label with right-aligned text |
+| `bar-label-square` | Bar label with square corners |
+| `bar-label-lozenge` | Bar label with fully rounded ends |
+| `bar-label-bullet-left` | Bar label with flat left, rounded right |
+| `bar-label-bullet-right` | Bar label with rounded left, flat right |
+| `bar-label-capped-left` | Bar label with rounded left, flat right |
+| `bar-label-capped-right` | Bar label with flat left, rounded right |
 
 ---
 
@@ -245,8 +304,9 @@ The `default` key under `segments` applies shared config to all segments.
 | `hold_action` | object | Action on hold |
 | `double_tap_action` | object | Action on double-tap |
 | `style.fill` | string / object | Segment fill colour — [state map](../../core/colours.md) supported |
-| `style.stroke` | string / object | Segment stroke colour |
-| `style.stroke_width` | number | Stroke width in px |
+| `style.stroke` | string / object | Segment stroke colour — [state map](../../core/colours.md) supported |
+| `style.stroke-width` | number / string / object | Stroke width in px, CSS string, or state-based map |
+| `style.opacity` | number / object | Segment opacity (0–1) or state-based map |
 | `text` | object | Per-segment text labels |
 | `icon` | string | MDI icon for this segment |
 | `animations` | list | Segment-specific animations |
@@ -288,6 +348,27 @@ dpad:
 
 The alert component displays a Starfleet alert symbol with animated bar elements.
 
+### `alert` Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `alert.color.shape` | string | Fill colour override for the shield shape |
+| `alert.color.bars` | string | Stroke colour override for the bar lines |
+| `alert.custom_presets` | object | Custom or override presets merged over built-ins (keyed by preset name) |
+| `alert.segments` | object | Per-segment fine-grained style overrides (`shape`, `bars`) |
+
+### `ranges` List (state-driven preset switching)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ranges[].preset` | string | Component preset name to apply when this range matches (required) |
+| `ranges[].attribute` | string | Override `ranges_attribute` for this entry only |
+| `ranges[].above` | number | Match when value is ≥ this threshold |
+| `ranges[].below` | number | Match when value is < this threshold |
+| `ranges[].equals` | string / number / boolean | Match when value equals this |
+| `ranges[].color.shape` | string | Transient shape fill override while this range is active |
+| `ranges[].color.bars` | string | Transient bars stroke override while this range is active |
+
 ```yaml
 type: custom:lcards-button
 component: alert
@@ -307,6 +388,18 @@ ranges:
 ---
 
 ## Custom SVG Mode
+
+### `svg` Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `svg.content` | string | Inline SVG markup |
+| `svg.src` | string | URL to an external SVG file |
+| `svg.viewBox` | string | Override the SVG `viewBox` attribute |
+| `svg.preserveAspectRatio` | string | SVG `preserveAspectRatio` value |
+| `svg.enable_tokens` | boolean | Resolve `{theme:...}` tokens inside the SVG markup |
+| `svg.allow_scripts` | boolean | Allow `<script>` elements inside the SVG (default: `false`) |
+| `svg.segments` | object | Interactive segment configs keyed by element `id` — use `default` for shared config |
 
 ```yaml
 type: custom:lcards-button
