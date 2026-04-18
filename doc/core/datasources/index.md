@@ -66,10 +66,10 @@ data_sources:
   my_source:
     entity: sensor.power_usage      # Required — entity to track
     attribute: current              # Optional — track attribute instead of state
-    update_interval: 500            # Throttle updates (ms, default: 100)
+    windowSeconds: 120              # Rolling buffer window size in seconds (default: 60)
+    minEmitMs: 500                  # Min ms between updates emitted downstream (default: 100)
     history:
-      hours: 24                     # Preload 24 hours of history
-      # days: 7                     # Or use days (1–7)
+      hours: 24                     # Preload history (1–168 hours)
     processing:
       # Named processors — each stores results in its own buffer
       kilowatts:
@@ -93,9 +93,9 @@ data_sources:
 |-------|------|-------------|
 | `entity` | string | Entity ID to subscribe to |
 | `attribute` | string | Attribute to track instead of state |
-| `update_interval` | number | Min ms between updates (throttle) |
+| `windowSeconds` | number | Rolling buffer window size in seconds (default: 60) |
+| `minEmitMs` | number | Min ms between downstream updates (throttle, default: 100) |
 | `history.hours` | number | Hours of history to preload (1–168) |
-| `history.days` | number | Days of history to preload (1–7) |
 | `processing` | object | Named processing pipeline steps |
 
 ---
@@ -115,7 +115,8 @@ Each processor transforms data and stores results under its name. Processors can
 | `rate` | Rate of change per unit time | `period` |
 | `trend` | Linear trend direction | — |
 | `delta` | Difference from previous value | — |
-| `statistics` | Min/max/avg/std | `window` |
+| `duration` | Time spent meeting a condition | `condition`, `reset_on` |
+| `statistics` | Min/max/avg/std over window | `window` |
 | `threshold` | On/off based on threshold | `above`, `below` |
 
 ```yaml
@@ -167,22 +168,4 @@ sources:
     buffer: smoothed       # From 'smoothed' processor
 ```
 
-For time-series aggregation (multiple historical stats), use `rolling_statistics_series`:
-
-```yaml
-data_sources:
-  power:
-    entity: sensor.power
-    processing:
-      hourly:
-        type: rolling_statistics_series
-        stats: [min, max, avg]
-        window: 1h
-        max_points: 24
-
-sources:
-  - datasource: power
-    buffer: aggregation.hourly
-```
-
----
+See the [Chart card](../../cards/chart/) for full `sources` configuration.

@@ -60,149 +60,55 @@ rules:
 
 ## Conditions (`when`)
 
-A `when` block evaluates to true or false. The simplest form is a single entity check; complex logic uses `all`/`any`/`not` to compose conditions.
+A `when` block evaluates to `true` or `false`. When it matches, the `apply` block fires; when it stops matching, the patch is removed.
 
-### Entity State
+**Quick reference — all condition types** (see [Conditions Reference](conditions.md) for full details):
+
+| Type | Key | Example |
+|------|-----|---------|
+| Entity state | `entity` | `entity: light.x` + `state: "on"` |
+| Entity attribute | `entity_attr` | `entity_attr: light.x` + `attribute: brightness` + `above: 128` |
+| Numeric range | `above` / `below` | `above: 18` (or combined: `above: 18` + `below: 26`) |
+| Not equal / in list | `not_equals`, `in`, `not_in` | `not_in: ["off", "unavailable"]` |
+| Regex | `regex` | `regex: "^heat"` |
+| Map range | `map_range_cond` | Map raw sensor value to a new scale, then compare |
+| Time range | `time_between` | `time_between: "22:00-06:00"` |
+| Day of week | `weekday_in` | `weekday_in: [mon, tue, wed, thu, fri]` |
+| Sun elevation | `sun_elevation` | `sun_elevation: { below: 0 }` |
+| Random chance | `random_chance` | `random_chance: 0.25` |
+| JavaScript | `condition` / `javascript` | `condition: "[[[return ...]]]"` |
+| Jinja2 | `condition` / `jinja2` | `condition: "{{ ... }}"` |
+| AND | `all` | `all: [...]` |
+| OR | `any` | `any: [...]` |
+| NOT | `not` | `not: { entity: ... }` |
+
+**Simple examples:**
 
 ```yaml
+# Entity state check
 when:
   entity: light.bedroom
   state: "on"
-```
 
-### Numeric Comparisons
-
-```yaml
-# Greater than
+# Numeric range
 when:
   entity: sensor.temperature
-  above: 25
+  above: 18
+  below: 26
 
-# Less than
-when:
-  entity: sensor.humidity
-  below: 30
-
-# Range (above AND below in one condition)
+# AND logic
 when:
   all:
-    - entity: sensor.temperature
-      above: 18
-    - entity: sensor.temperature
-      below: 26
-```
-
-### All Condition Operators
-
-| Operator | Type | Description |
-|----------|------|-------------|
-| `state` | string | Exact state match (`state: "on"`) — alias for `equals` |
-| `equals` | string/number | Exact equality |
-| `not_equals` | string/number | Inequality |
-| `above` | number | Numeric state strictly greater than value |
-| `below` | number | Numeric state strictly less than value |
-| `in` | array | State is one of the listed values |
-| `not_in` | array | State is none of the listed values |
-| `regex` | string | State matches regular expression |
-| `attribute` | string | Watch attribute instead of state (pair with an operator) |
-
-### Entity Attribute Check
-
-```yaml
-when:
-  entity: light.living_room
-  attribute: brightness
-  above: 128
-```
-
-### Logical Operators
-
-```yaml
-# AND — all must match
-when:
-  all:
-    - entity: binary_sensor.door
+    - entity: binary_sensor.motion
       state: "on"
-    - entity: input_boolean.night_mode
-      state: "on"
+    - time_between: "08:00-23:00"
 
-# OR — at least one must match
-when:
-  any:
-    - entity: sensor.temperature
-      above: 30
-    - entity: binary_sensor.alert
-      state: "on"
-
-# NOT — invert a condition
-when:
-  not:
-    entity: light.bedroom
-    state: "on"
-```
-
-Operators nest freely:
-
-```yaml
-when:
-  all:
-    - any:
-        - entity: sensor.indoor_temp
-          above: 25
-        - entity: sensor.outdoor_temp
-          above: 30
-    - not:
-        entity: climate.ac
-        state: "on"
-```
-
-### Template Conditions
-
-Use JavaScript (`[[[…]]]`) or Jinja2 (`{{…}}`) expressions for arbitrary logic. Return a truthy value to match.
-
-```yaml
-# JavaScript
+# Template (JavaScript)
 when:
   condition: "[[[return states['sensor.temperature'].state > 25]]]"
-
-# Jinja2
-when:
-  condition: "{{ states('sensor.temperature') | float > 25 }}"
-
-# Explicit keys (alternative to 'condition:')
-when:
-  javascript: "return states['light.bedroom'].state === 'on'"
-  # or
-  jinja2: "{{ states('light.bedroom') == 'on' }}"
 ```
 
-### Time Conditions
-
-```yaml
-# Time range — "HH:MM-HH:MM" (wraps past midnight automatically)
-when:
-  time_between: "22:00-06:00"
-
-# Day of week
-when:
-  weekday_in: [mon, tue, wed, thu, fri]   # sat, sun also valid
-
-# Combine with entity trigger so rules re-evaluate each minute
-when:
-  all:
-    - entity: sensor.time          # triggers on every minute change
-    - time_between: "22:00-06:00"
-```
-
-> **Note:** The Rules Engine is reactive — it only re-evaluates when an entity it references changes. Add `sensor.time` to purely time-based rules so they are checked every minute.
-
-### Sun Elevation
-
-```yaml
-when:
-  sun_elevation:
-    below: 0    # Below horizon (night)
-```
+> For the full condition reference — all operators, `map_range_cond`, `random_chance`, nested logic, template variables — see **[Conditions Reference](conditions.md)**.
 
 ---
 
@@ -384,7 +290,7 @@ tags: [nav, main-panel]
 
 ---
 
-## Complete Examples
+## Examples
 
 ### Temperature Alert
 
@@ -516,7 +422,8 @@ rm.getRuleTrace('my-rule-id', 20)    // history for one rule
 
 ## See Also
 
-- [Rule-Based Animations](../../architecture/animations/rule-based-animations.md)
+- [Conditions Reference](conditions.md) — all condition types, operators, `map_range_cond`, `random_chance`, template conditions
+- [Rule-Based Animations](../animations/rule-based-animations.md) — triggering animations across cards from rules
 - [Architecture: Rules Engine](../../architecture/subsystems/rules-engine.md)
 
 ---

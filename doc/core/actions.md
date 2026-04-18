@@ -15,6 +15,8 @@ LCARdS cards support actions `tap_action`, `hold_action`, and `double_tap_action
 | `target` | object | HA service target — `entity_id`, `device_id`, or `area_id` |
 | `navigation_path` | string | Dashboard path for `navigate` action, must start with `/` |
 | `url_path` | string | URL to open for `url` action |
+| `pipeline_id` | string | Assist pipeline ID to use (optional, `assist` action only) |
+| `start_listening` | boolean | Start the Assist pipeline in listening mode (optional, `assist` action only) |
 
 ---
 
@@ -35,7 +37,9 @@ LCARdS cards support actions `tap_action`, `hold_action`, and `double_tap_action
 
 ## Hover Effects & Cursor
 
-Hover behaviour (visual feedback when the pointer is over the card) is configured directly on the button card, not on individual action objects.
+Hover behaviour (visual feedback like colour changes and animations when the pointer is over the card) can be disabled when interactivy feedback is not desired (for instance using a button card as a decorative panel.)  You may also customize which cursor is shown on hover, should you desire.
+
+These options are configured directly on the card, and not on individual action objects.
 
 ### `interactive`
 

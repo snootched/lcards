@@ -6,7 +6,7 @@ Background animations provide dynamic visual effects rendered on HTML5 Canvas be
 
 ---
 
-## 🎯 Quick Start
+## Quick Start
 
 ### Basic Grid Animation
 
@@ -59,10 +59,9 @@ background_animation:
 
 ---
 
-## 📋 Schema Structure
+## Schema Structure
 
-Effects are rendered in order (first effect = bottom layer)
-Combine with canvas inset to create an envelope to constrain the animatin to a sub-area of the card
+Effects are rendered in order — first effect is the bottom layer. Combine with `inset` to constrain the animation canvas to a sub-area of the card.
 
 ```yaml
 background_animation:
@@ -120,654 +119,26 @@ The canvas minimum dimension is clamped to 1 px.
 | `config` | object | ✅ | Preset-specific configuration |
 | `zoom` | object | ❌ | Optional zoom wrapper configuration |
 
----
-
-## 🎨 Available Presets
-
-### `grid`
-
-Unified configurable grid with major/minor line divisions.
-- Standard orthoganal grid backgrounds
-- Both simple grids and enhanced grids with major line divisions
-- Scrolling effects
-
-<details>
-
-**Configuration:**
-
-```yaml
-preset: grid
-config:
-  # Sizing (choose one approach)
-  line_spacing: 40           # Spacing-based: pixels between lines
-  num_rows: 10              # Cell-based: number of rows
-  num_cols: 10              # Cell-based: number of columns
-
-  # Line Styling
-  line_width: 1             # Minor line width (default: 1)
-  line_width_minor: 1       # Explicit minor line width
-  line_width_major: 2       # Major line width (default: 2)
-  color: "rgba(255, 153, 102, 0.3)"        # Minor line color
-  color_major: "rgba(255, 153, 102, 0.6)"  # Major line color (defaults to color)
-
-  # Major Line Divisions (0 = disabled)
-  major_row_interval: 5     # Major line every N rows (0 = no major lines)
-  major_col_interval: 5     # Major line every N columns (0 = no major lines)
-
-  # Scrolling
-  scroll_speed_x: 20        # Horizontal scroll speed (px/sec)
-  scroll_speed_y: 20        # Vertical scroll speed (px/sec)
-
-  # Pattern
-  pattern: "both"           # "both", "horizontal", "vertical"
-  show_border_lines: true   # Draw lines at canvas edges
-  fill_color: ""            # Optional cell background fill (leave empty for transparent)
-```
-
-**Modes:**
-
-- **Simple Mode**: Set `major_row_interval: 0` and `major_col_interval: 0` for basic grid
-- **Enhanced Mode**: Set intervals > 0 to enable major line divisions
-- **Spacing-based**: Use `line_spacing` for uniform grid
-- **Cell-based**: Use `num_rows` and `num_cols` for exact cell count
-
-**Example - Simple Grid:**
-
-```yaml
-- preset: grid
-  config:
-    line_spacing: 50
-    color: "rgba(255, 153, 102, 0.3)"
-    major_row_interval: 0
-    major_col_interval: 0
-```
-
-**Example - Enhanced Grid with Divisions:**
-
-```yaml
-- preset: grid
-  config:
-    line_spacing: 40
-    color: "rgba(255, 153, 102, 0.3)"
-    color_major: "rgba(255, 153, 102, 0.8)"
-    major_row_interval: 5
-    major_col_interval: 5
-    line_width: 1
-    line_width_major: 2
-```
-
-**Example - Filled Grid:**
-
-```yaml
-- preset: grid
-  config:
-    line_spacing: 60
-    color: "rgba(102, 204, 255, 0.5)"
-    fill_color: "rgba(102, 204, 255, 0.08)"
-    line_width: 2
-```
-</details>
+Colour parameters in `config` accept all standard LCARdS colour formats — CSS variables, theme tokens, hex, rgba, and computed expressions (`darken()`, `alpha()`, etc.). See [Colours](../colours.md).
 
 ---
 
-### `grid-diagonal`
+## Available Presets
 
-Diagonal hatch pattern at 45° angle.
+Seven built-in presets are available. See the **[Preset Reference](background-animations/preset-reference.md)** for full configuration tables and examples for each.
 
-<details>
-
-**Configuration:**
-
-```yaml
-preset: grid-diagonal
-config:
-  line_spacing: 60          # Spacing between diagonal lines
-  line_width: 1             # Line width
-  color: "rgba(255, 153, 102, 0.4)"
-  scroll_speed_x: 30        # Horizontal scroll speed
-  scroll_speed_y: 0         # Vertical scroll speed
-  show_border_lines: true
-  fill_color: ""            # Optional background fill (leave empty for transparent)
-```
-
-**Example:**
-
-```yaml
-- preset: grid-diagonal
-  config:
-    line_spacing: 80
-    line_width: 2
-    color: "rgba(255, 153, 102, 0.5)"
-    scroll_speed_x: 40
-```
-
-**Example - Diagonal with fill:**
-
-```yaml
-- preset: grid-diagonal
-  config:
-    line_spacing: 60
-    color: "rgba(255, 153, 102, 0.4)"
-    fill_color: "rgba(255, 153, 102, 0.06)"
-```
-</details>
+| Preset | Description |
+|--------|-------------|
+| [`grid`](background-animations/preset-reference.md#grid) | Orthogonal grid with optional major/minor divisions |
+| [`grid-diagonal`](background-animations/preset-reference.md#grid-diagonal) | Diagonal hatch pattern at 45° |
+| [`grid-hexagonal`](background-animations/preset-reference.md#grid-hexagonal) | Honeycomb hexagonal pattern |
+| [`starfield`](background-animations/preset-reference.md#starfield) | Scrolling starfield with parallax depth layers |
+| [`nebula`](background-animations/preset-reference.md#nebula) | Organic Perlin-noise nebula clouds |
+| [`cascade`](background-animations/preset-reference.md#cascade) | LCARS data-waterfall colour-cycling background |
+| [`image`](background-animations/preset-reference.md#image) | Static or entity-driven image background |
 
 ---
-
-### `grid-hexagonal`
-
-Honeycomb hexagonal pattern with major/minor hex support.
-
-<details>
-
-**Configuration:**
-
-```yaml
-preset: grid-hexagonal
-config:
-  hex_radius: 30            # Radius of hexagons
-  line_width_minor: 1       # Minor hex line width
-  line_width_major: 2       # Major hex line width
-  color: "rgba(255, 153, 102, 0.3)"        # Minor hex color
-  color_major: "rgba(255, 153, 102, 0.6)"  # Major hex color
-  major_row_interval: 3     # Major hex every N rows (0 = disabled)
-  major_col_interval: 3     # Major hex every N columns (0 = disabled)
-  scroll_speed_x: 10        # Horizontal scroll speed
-  scroll_speed_y: 10        # Vertical scroll speed
-  show_border_lines: true
-  fill_color: ""            # Optional cell background fill (leave empty for transparent)
-```
-
-**Major/Minor Logic:**
-
-Major hexagons are determined by global tile position (row, column) modulo the interval. This creates a regular pattern of emphasized hexagons across the infinite scrolling canvas.
-
-**Example - Simple Honeycomb:**
-
-```yaml
-- preset: grid-hexagonal
-  config:
-    hex_radius: 40
-    color: "rgba(102, 204, 255, 0.4)"
-    major_row_interval: 0
-    major_col_interval: 0
-```
-
-**Example - Honeycomb with Major Hexes:**
-
-```yaml
-- preset: grid-hexagonal
-  config:
-    hex_radius: 35
-    color: "rgba(255, 153, 102, 0.3)"
-    color_major: "rgba(255, 153, 102, 0.8)"
-    major_row_interval: 4
-    major_col_interval: 4
-    line_width_minor: 1
-    line_width_major: 3
-```
-
-**Example - Filled Honeycomb:**
-
-```yaml
-- preset: grid-hexagonal
-  config:
-    hex_radius: 40
-    color: "rgba(102, 204, 255, 0.4)"
-    fill_color: "rgba(102, 204, 255, 0.07)"
-    major_row_interval: 0
-    major_col_interval: 0
-```
-
-</details>
-
----
-
-### `starfield`
-
-Scrolling starfield with parallax layers and multi-colour support.
-
-<details>
-**Configuration:**
-
-```yaml
-preset: starfield
-config:
-  count: 150                # Number of stars
-  min_radius: 0.5          # Minimum star radius in pixels
-  max_radius: 2            # Maximum star radius in pixels
-  min_opacity: 0.3         # Minimum star opacity (0-1)
-  max_opacity: 1.0         # Maximum star opacity (0-1)
-  colors:                  # Single color or array of colors
-    - "var(--lcards-blue-lightest)"
-    - "#4455ff"
-  scroll_speed_x: 30       # Horizontal scroll speed (px/sec)
-  scroll_speed_y: 0        # Vertical scroll speed (px/sec)
-  parallax_layers: 3       # Number of depth layers (1-5)
-  depth_factor: 0.5        # Speed variance between layers (0-1)
-  seed: 1                  # Random seed for star generation
-```
-
-**Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `count` | number | 150 | Total number of stars to generate |
-| `min_radius` | number | 0.5 | Minimum star size in pixels |
-| `max_radius` | number | 2 | Maximum star size in pixels |
-| `min_opacity` | number | 0.3 | Minimum star opacity (0-1) |
-| `max_opacity` | number | 1.0 | Maximum star opacity (0-1) |
-| `colors` | string \| array | "#ffffff" | Single color or array of colors. Each star randomly selects one color. Supports CSS variables. |
-| `scroll_speed_x` | number | 30 | Horizontal scroll speed in pixels/second |
-| `scroll_speed_y` | number | 0 | Vertical scroll speed in pixels/second |
-| `parallax_layers` | number | 3 | Number of depth layers for parallax effect (1-5) |
-| `depth_factor` | number | 0.5 | Speed multiplier between layers (0=all same speed, 1=max variance) |
-| `seed` | number | 1 | Random seed for reproducible star patterns |
-
-**Parallax Layers:**
-
-Stars are distributed across multiple depth layers, with farther layers moving slower:
-- Layer 0 (farthest): moves at `depth_factor` speed
-- Layer N-1 (closest): moves at full speed
-- Intermediate layers: interpolated speeds
-
-**Seeded Random:**
-
-Each starfield instance uses a seeded random number generator for reproducible patterns. When using zoom with multiple layers, each zoom layer receives a unique seed (incrementing from base seed), ensuring different star patterns per layer.
-
-**Example - Simple Starfield:**
-
-```yaml
-- preset: starfield
-  config:
-    count: 200
-    colors: "var(--lcards-blue-lightest)"
-    scroll_speed_x: 40
-```
-
-**Example - Multi-Colour Starfield:**
-
-```yaml
-- preset: starfield
-  config:
-    count: 250
-    min_radius: 0.8
-    max_radius: 2.5
-    colors:
-      - "var(--lcards-blue-lightest)"
-      - "var(--lcards-moonlight)"
-      - "#ffffff"
-    parallax_layers: 4
-    scroll_speed_x: 50
-```
-
-**Example - Starfield with Zoom (Recommended):**
-
-```yaml
-- preset: starfield
-  config:
-    count: 200
-    min_radius: 0.5
-    max_radius: 2
-    colors:
-      - "var(--lcards-blue-lightest)"
-      - "#4455ff"
-    scroll_speed_x: 0        # Stationary stars
-    scroll_speed_y: 0
-    parallax_layers: 4
-  zoom:
-    layers: 6
-    scale_from: 0.5
-    scale_to: 2.5
-    duration: 15
-    opacity_fade_in: 15
-    opacity_fade_out: 75
-```
-
-> **💡 Tip:** Starfield works exceptionally well with zoom effects. Each zoom layer gets a unique seed, creating 6 different star patterns that zoom independently, producing a compelling "flying through space" effect.
-
-</details>
-
----
-
-### `nebula`
-
-Layered nebula clouds with Perlin noise turbulence and organic movement.
-
-<details>
-
-**Configuration:**
-
-```yaml
-preset: nebula
-config:
-  cloud_count: 4           # Number of nebula clouds (1-10)
-  min_radius: 0.15         # Minimum cloud radius (0-1, fraction of canvas)
-  max_radius: 0.4          # Maximum cloud radius (0-1, fraction of canvas)
-  min_opacity: 0.3         # Minimum cloud opacity (0-1)
-  max_opacity: 0.8         # Maximum cloud opacity (0-1)
-  colors:                  # Single color or array of colors
-    - "var(--lcards-blue-medium)"
-    - "var(--lcards-orange)"
-    - "var(--lcards-blue-light)"
-  turbulence: 0.5          # Turbulence intensity (0-1)
-  noise_scale: 0.003       # Perlin noise scale (0.001-0.01)
-  scroll_speed_x: 5        # Horizontal scroll speed (px/sec)
-  scroll_speed_y: 5        # Vertical scroll speed (px/sec)
-  seed: 1                  # Random seed for cloud generation
-```
-
-**Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `cloud_count` | number | 4 | Number of nebula clouds to generate (1-10) |
-| `min_radius` | number | 0.15 | Minimum cloud radius as fraction of canvas size (0-1) |
-| `max_radius` | number | 0.4 | Maximum cloud radius as fraction of canvas size (0-1) |
-| `min_opacity` | number | 0.3 | Minimum cloud opacity (0-1) |
-| `max_opacity` | number | 0.8 | Maximum cloud opacity (0-1) |
-| `colors` | string \| array | ["#FF00FF"] | Single color or array of colors. Each cloud randomly selects one color. Supports CSS variables. |
-| `turbulence` | number | 0.5 | Turbulence displacement intensity (0=none, 1=maximum distortion) |
-| `noise_scale` | number | 0.003 | Perlin noise scale factor. Smaller values create larger noise features. |
-| `scroll_speed_x` | number | 5 | Horizontal scroll speed in pixels/second |
-| `scroll_speed_y` | number | 5 | Vertical scroll speed in pixels/second |
-| `seed` | number | 1 | Random seed for reproducible cloud patterns |
-
-**Perlin Noise Turbulence:**
-
-Nebula clouds use 2D Perlin noise to create organic, flowing patterns:
-- Each pixel's position is displaced based on noise value
-- `turbulence` controls displacement magnitude
-- `noise_scale` controls noise feature size (smaller = larger features)
-- Creates realistic cloud-like formations
-
-**Seeded Random:**
-
-Each nebula instance uses a seeded random number generator for reproducible cloud patterns. This ensures consistent placement and colours across sessions with the same seed.
-
-**Example - Simple Nebula:**
-
-```yaml
-- preset: nebula
-  config:
-    cloud_count: 3
-    colors: "var(--lcards-purple)"
-    scroll_speed_x: 10
-    scroll_speed_y: 10
-```
-
-**Example - Multi-Colour Cosmic Nebula:**
-
-```yaml
-- preset: nebula
-  config:
-    cloud_count: 6
-    min_radius: 0.2
-    max_radius: 0.5
-    min_opacity: 0.4
-    max_opacity: 0.9
-    colors:
-      - "var(--lcards-blue-medium)"
-      - "var(--lcards-orange)"
-      - "var(--lcards-purple)"
-      - "var(--lcards-blue-light)"
-    turbulence: 0.7
-    noise_scale: 0.002
-    scroll_speed_x: 3
-    scroll_speed_y: 3
-```
-
-**Example - Nebula with Zoom:**
-
-```yaml
-- preset: nebula
-  config:
-    cloud_count: 5
-    colors:
-      - "var(--lcards-blue-medium)"
-      - "var(--lcards-orange)"
-    turbulence: 0.6
-    scroll_speed_x: 0
-    scroll_speed_y: 0
-  zoom:
-    layers: 4
-    scale_from: 0.6
-    scale_to: 2.0
-    duration: 20
-    opacity_fade_in: 20
-    opacity_fade_out: 70
-```
-
-> **💡 Tip:** Nebula works beautifully with slow scroll speeds (3-10 px/sec) to create a drifting cosmic effect. Combine with zoom for mesmerizing depth.
-
-</details>
-
----
-
-### `cascade`
-
-LCARS data-waterfall colour-cycling background. Renders cascading rows of random data cells that cycle through three configurable colour stops, replicating the classic CB-LCARS `cb-lcars-animation-cascade` decorative background.
-
-<details>
-
-**Configuration:**
-
-```yaml
-preset: cascade
-config:
-  # Grid sizing (null = auto-size from canvas dimensions + font metrics)
-  num_rows: null           # Rows (omit for auto)
-  num_cols: null           # Columns (omit for auto)
-  gap: 4                   # Cell gap in pixels
-
-  # Data format
-  format: hex              # hex | digit | float | alpha | mixed
-  refresh_interval: 0      # ms between cell data refreshes (0 = static)
-
-  # Typography
-  font_size: 10            # Font size in pixels
-  font_family: "'Antonio', monospace"
-
-  # Colour cycling (start → text hold → end)
-  # Defaults match CB-LCARS: bright LCARS blue → dark navy snap → pale moonlight
-  colors:
-    start: "var(--lcars-blue, #2266ff)"       # Cycle start colour (bright dominant hold)
-    text:  "var(--lcards-blue-darkest, #112244)"  # Mid/text snap colour (dark navy)
-    end:   "var(--lcars-moonlight, #e7f3f7)"  # Cycle end colour (pale fade-out)
-
-  # Timing
-  pattern: default         # default | niagara | fast | custom
-  speed_multiplier: 1.0    # 2.0 = twice as fast, 0.5 = half speed
-  duration: null           # ms — override all row durations (null = use pattern)
-
-  opacity: 1.0             # Overall opacity (0-1)
-```
-
-**Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `num_rows` | number \| null | null | Number of rows. `null` = auto-derive from canvas height and font size. |
-| `num_cols` | number \| null | null | Number of columns. `null` = auto-derive from canvas width and font size. |
-| `gap` | number | 4 | Pixel gap between cells. |
-| `format` | string | `'hex'` | Cell data format: `hex`, `digit`, `float`, `alpha`, `mixed`. |
-| `refresh_interval` | number | 0 | Milliseconds between random data regeneration (0 = static). |
-| `font_size` | number | 10 | Font size in pixels. |
-| `font_family` | string | `"'Antonio', monospace"` | CSS font-family string. |
-| `colors.start` | string | `'var(--lcars-blue, #2266ff)'` | Colour at cycle start (hold phase, 0–75%). Supports CSS variables. |
-| `colors.text` | string | `'var(--lcards-blue-darkest, #112244)'` | Colour at mid-cycle snap (dark navy, 75–90%). Supports CSS variables. |
-| `colors.end` | string | `'var(--lcars-moonlight, #e7f3f7)'` | Colour at cycle end (90–100% fade). Supports CSS variables. |
-| `pattern` | string | `'default'` | Timing pattern: `default` (authentic LCARS rhythm), `niagara` (uniform waterfall), `fast` (rapid cycling), `custom` (user-supplied array). |
-| `timing` | array | — | Custom timing: array of `{ duration, delay }` objects (used when `pattern: custom`). |
-| `speed_multiplier` | number | 1.0 | Speed multiplier applied to all row durations (2.0 = twice as fast). |
-| `duration` | number \| null | null | Override all row durations in ms. Takes precedence over pattern and speed_multiplier when set. |
-| `opacity` | number | 1 | Overall effect opacity (0–1). Inherited from BaseEffect. |
-
-**Colour Cycle Keyframes:**
-
-The colour cycle for each row follows the CB-LCARS / data-grid keyframe structure:
-
-| Cycle position | Colour | Phase |
-|----------------|--------|-------|
-| 0%–75% | `colors.start` | Hold |
-| 75%–80% | `colors.start` → `colors.text` | Fast fade in |
-| 80%–90% | `colors.text` | Hold |
-| 90%–100% | `colors.text` → `colors.end` | Fast fade out (loops) |
-
-**Timing Patterns:**
-
-| Pattern | Duration | Delay | Description |
-|---------|----------|-------|-------------|
-| `default` | 2–4 s (varies per row) | 0.1–0.8 s | Authentic LCARS rhythm from CB-LCARS |
-| `niagara` | 2 s (all rows) | 0.1–0.8 s | Smooth uniform waterfall |
-| `fast` | 1 s (all rows) | 0–0.35 s | Rapid cycling |
-| `custom` | user-defined | user-defined | Supply `timing` array |
-
-**Example — Basic cascade background:**
-
-```yaml
-- preset: cascade
-  config:
-    format: hex
-    pattern: niagara
-    speed_multiplier: 1.2
-    colors:
-      start: "var(--lcars-blue-lightest)"
-      text: "var(--lcars-dark-blue)"
-      end: "var(--lcars-moonlight)"
-    opacity: 0.7
-```
-
-**Example — Cascade behind a grid:**
-
-```yaml
-- preset: cascade
-  config:
-    format: hex
-    pattern: default
-    colors:
-      start: "var(--lcars-blue, #2266ff)"
-      text: "var(--lcards-blue-darkest, #112244)"
-      end: "var(--lcars-moonlight, #e7f3f7)"
-    opacity: 0.5
-- preset: grid
-  config:
-    line_spacing: 40
-    color: "rgba(102, 204, 255, 0.15)"
-    scroll_speed_x: 5
-    scroll_speed_y: 5
-    opacity: 0.4
-```
-
-**Example — Fast cascade with data refresh:**
-
-```yaml
-- preset: cascade
-  config:
-    format: mixed
-    pattern: fast
-    speed_multiplier: 2.0
-    refresh_interval: 2000
-    font_size: 8
-    opacity: 0.6
-```
-
-> **💡 Tip:** Use `opacity: 0.4–0.7` for cascade backgrounds so card content remains readable. Combine with `grid` or `starfield` for layered depth effects.
-
-</details>
-
----
-
-### `image`
-
-User-supplied static image rendered as a full-bleed canvas background behind the card SVG. The image is drawn at `z-index: -1` and composited with any other effects in the stack.
-
-The `url` value supports all LCARdS template syntaxes, including `{entity.attributes.entity_picture}` — the background animation pipeline evaluates templates on every HASS update, so the displayed image automatically follows entity attribute changes.
-
-<details>
-
-**Configuration:**
-
-```yaml
-preset: image
-config:
-  url: '/local/images/bedroom.jpg'  # Required: /local/ path or https:// URL
-  size: 'cover'                      # 'cover' | 'contain' | 'fill' | '<n>px'
-  position: 'center'                 # CSS background-position string
-  opacity: 1                         # Composite opacity (0–1)
-  repeat: false                      # Tile the image instead of fitting it
-```
-
-| Config key | Default | Description |
-|---|---|---|
-| `url` | `''` | `/local/` path, `https://` URL, `builtin:<key>` reference, or a template (e.g. `'{entity.attributes.entity_picture}'`). |
-| `size` | `'cover'` | `'cover'` — scale to fill canvas (may crop)<br>`'contain'` — scale to fit canvas (may letterbox)<br>`'fill'` — stretch to exact canvas size<br>`'<n>px'` — explicit pixel size for the shorter axis |
-| `position` | `'center'` | CSS `background-position` string: keywords (`top left`, `bottom right`) or percentages (`50% 0%`) |
-| `opacity` | `1` | Composite opacity of this effect layer. Combine with other effects for overlay blending. |
-| `repeat` | `false` | Tile the image to fill the canvas. Useful for textures or patterns. |
-
-**Example — room area card:**
-
-```yaml
-background_animation:
-  effects:
-    - preset: image
-      config:
-        url: '/local/images/Areas/Bedroom.jpg'
-        size: cover
-        opacity: 0.85
-```
-
-**Example — entity thumbnail (e.g. camera or media player):**
-
-```yaml
-background_animation:
-  effects:
-    - preset: image
-      config:
-        url: '{entity.attributes.entity_picture}'
-        size: cover
-```
-
-**Example — image behind a grid overlay:**
-
-```yaml
-background_animation:
-  effects:
-    - preset: image
-      config:
-        url: '/local/backgrounds/lcars-panel.jpg'
-        size: cover
-        opacity: 0.6
-    - preset: grid
-      config:
-        color: 'rgba(255,153,102,0.25)'
-        line_spacing: 40
-```
-
-**Example — named image from the Asset Library:**
-
-```yaml
-background_animation:
-  effects:
-    - preset: image
-      config:
-        url: 'builtin:bedroom'   # key registered in lcards-images-pack or via Config Panel
-        size: cover
-        opacity: 0.8
-```
-
-> **SVG files**: `.svg` files work as image sources — they load via an `<img>` element and paint into Canvas2D just like raster images. SVG files must be self-contained (no external resource references) and work best with explicit `width`/`height` attributes; files without them will be rendered at canvas size automatically.
-
-> **⚠️ HTTP URLs**: Using an `http://` URL on an HTTPS dashboard will be blocked by the browser's mixed-content policy. The editor shows a warning in this case. Use `/local/` paths or `https://` URLs instead.
-
-> **💡 Tip:** Combine `image` with a `grid` or `scanlines` overlay at low opacity for a classic LCARS data-panel look.
-
-</details>
-
----
-
-## 🔍 Zoom Wrapper
+## Zoom Wrapper
 
 The zoom wrapper applies a **layered scaling effect** with opacity fades to any preset, creating a pseudo-3D depth illusion.
 
@@ -845,7 +216,7 @@ Progress 0% ──────► opacity_fade_in ──────► opacity_
 
 ---
 
-## 🎭 Effect Stacking
+## Effect Stacking
 
 Multiple effects can be stacked by providing an array. Effects render in order (first = bottom layer, last = top layer).
 
@@ -901,37 +272,7 @@ background_animation:
 
 ---
 
-## 🎨 Colour Configuration
-
-All colour parameters support multiple formats:
-
-### RGBA (Recommended)
-
-```yaml
-color: "rgba(255, 153, 102, 0.4)"  # Orange at 40% opacity
-```
-
-### Theme Variables
-
-```yaml
-color: "{theme:colors.text.onDark}"
-```
-
-### Hex Colours
-
-```yaml
-color: "#FF9966"
-```
-
-### Named Colours
-
-```yaml
-color: "orange"
-```
-
----
-
-## 🔗 Entity Binding
+## Entity Binding
 
 Effect config parameters can react to live HA entity state or attributes. Works identically in both `background_animation` and `shape_texture`.
 
@@ -1002,7 +343,7 @@ config:
 
 ---
 
-## �📐 Common Patterns
+## Examples
 
 ### LCARS Grid Background
 
@@ -1078,11 +419,11 @@ background_animation:
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Animation Not Visible
 
-- **Check opacity**: Ensure alpha channel > 0 (e.g., `rgba(255, 153, 102, 0.4)`)
+- **Check opacity**: Colour alpha channel must be > 0 (e.g., `rgba(255, 153, 102, 0.4)` or `alpha(var(--lcars-orange), 0.4)`)
 - **Check z-index**: Background renders behind card content
 - **Check canvas size**: Animation respects card `width` and `height` in style
 
@@ -1101,13 +442,13 @@ background_animation:
 
 ### Colours Not Resolving
 
-- **Theme tokens**: Verify token exists in current theme
-- **RGBA format**: Use quotes around RGBA strings
-- **Hex colours**: Include `#` prefix
+- **Theme tokens**: Verify token path exists in the active theme — see [Themes](../themes/)
+- **Quotes**: RGBA and computed expressions must be quoted in YAML
+- **Hex colours**: Include the `#` prefix
 
 ---
 
-## 🚀 Performance Considerations
+## Performance Considerations
 
 ### Canvas Rendering Optimization
 
@@ -1131,3 +472,10 @@ background_animation:
 | 3+ stacked effects + zoom | High | ❌ Avoid unless necessary |
 
 ---
+
+## See Also
+
+- [Preset Reference](background-animations/preset-reference.md) — full config tables and examples for all 7 presets
+- [Animations](../animations.md) — anime.js-powered card animations (different system)
+- [Filters](filters.md) — SVG filter effects
+

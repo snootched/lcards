@@ -27,23 +27,10 @@ text:
 | Token | Value |
 |-------|-------|
 | `{entity.state}` | Current entity state string |
-| `{entity.attributes.NAME}` | Any entity attribute |
+| `{entity.attributes.NAME}` | Any entity attribute by name |
 | `{theme:token.path}` | Theme token value — see [Themes](../themes/) |
-| `{ds:source_name}` | data source current value |
-| `{datasource:source:.2f}` | data source with format specifier |
-| `{datasource:source.processor:.0f}` | Specific processor buffer with format |
 
-**No format specifier** → HA-native display: locale-formatted number + unit from entity metadata (e.g. `4,73 °C`). Analogous to `haFormatEntityState()`.
-
-**With a format specifier** → you own the output. The number is formatted to spec and returned with **no auto-unit**. Analogous to `{{states('sensor.temp')}}` in Jinja2 — append any suffix you want.
-
-| Specifier | Example | Result (no auto-unit) |
-|-----------|---------|--------|
-| *(none)* | `{ds:temp}` | `4,73 °C` — HA-native, locale + unit |
-| `:.Nf` | `{ds:temp:.1f}` | `4,7` — N decimal places, locale-formatted |
-| `:int` | `{ds:temp:int}` | `5` — rounded integer, locale-formatted |
-| `:.N%` | `{ds:progress:.0%}` | `75%` — percentage |
-| `:str` | `{ds:label:str}` | raw string coercion |
+For DataSource values (`{ds:...}`), see [Section 4](#4-data-source-templates-ds--datasource) below.
 
 ---
 
@@ -100,7 +87,21 @@ text:
 
 ### 4. Data Source Templates `{ds:...}` / `{datasource:...}`
 
-For values from a named [data source](../datasources/). Supports format specifiers and processor buffer access.
+For values from a named [data source](../datasources/). The `{ds:name}` shorthand and the `{datasource:name}` long form are equivalent.
+
+**No format specifier** → HA-native display: locale-formatted number + unit from entity metadata (e.g. `4,73 °C`). Equivalent to HA's `haFormatEntityState()`.
+
+**With a format specifier** → you own the output. The number is formatted to the spec and returned with **no auto-unit** — append any suffix you want.
+
+| Specifier | Example | Result |
+|-----------|---------|--------|
+| *(none)* | `{ds:temp}` | `4,73 °C` — HA-native, locale-formatted + unit |
+| `:.Nf` | `{ds:temp:.1f}` | `4,7` — N decimal places, no unit |
+| `:int` | `{ds:temp:int}` | `5` — rounded integer, no unit |
+| `:.N%` | `{ds:progress:.0%}` | `75%` — percentage |
+| `:str` | `{ds:label:str}` | raw string coercion |
+
+To access a specific **processor buffer**, use the long form with a dotted path:
 
 ```yaml
 data_sources:
@@ -111,13 +112,12 @@ data_sources:
 
 text:
   value:
-    content: "{ds:temp}"                   # HA-native: locale-formatted + unit → "4,7 °C"
-    # Explicit precision (no auto-unit — you control the suffix):
-    # content: "{ds:temp:.2f} °C"          # → "4,73 °C"
-    # content: "{ds:temp:.1f}\'s temp"     # → "4,7's temp"
-    # Processor buffer:
-    # content: "{datasource:temp.f:.0f}"    # → "76" (Fahrenheit, no unit)
+    content: "{ds:temp}"                    # HA-native: "4,73 °C"
+    # content: "{ds:temp:.2f} °C"           # explicit precision: "4,73 °C" (no auto-unit)
+    # content: "{datasource:temp.f:.0f}"    # processor buffer: "76" (Fahrenheit, no unit)
 ```
+
+See [Data Sources](../datasources/) for declaring and configuring sources.
 
 ---
 
@@ -126,12 +126,12 @@ text:
 Templates are evaluated in most string-valued config properties:
 
 - `text.*.content` — label text
-- `style.*.color.*` — colour values when referencing theme tokens
+- `style.*` — style values, including colours and token references
 - `tap_action.service_data.*` — action parameters
 - `tap_action.navigation_path` — dashboard path
 - `tap_action.url_path` — URL
 - `icon` — icon name
-- `shape_texture.config.fill_pct` — numeric parameters
+- `rules.*.when.*.condition` — rule condition expressions (JS and Jinja2) — see [Rule Conditions](../rules/conditions.md)
 
 ---
 
