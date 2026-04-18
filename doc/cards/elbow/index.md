@@ -30,20 +30,20 @@ elbow:
 | `ranges_attribute` | string | Entity attribute used for `above:`/`below:`/`between:` range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
 | `id` | string | Card ID for rule targeting — see [Rules Engine](../../core/rules/index.md) |
 | `tags` | list | Tags for rule targeting — see [Rules Engine](../../core/rules/index.md) |
-| `height` | string / number | Card height — see [Sizing](../../core/sizing.md) |
-| `width` | string / number | Card width — see [Sizing](../../core/sizing.md) |
-| `min_height` | string / number | Minimum card height — see [Sizing](../../core/sizing.md) |
-| `min_width` | string / number | Minimum card width — see [Sizing](../../core/sizing.md) |
+| `height` | string / number | Card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `width` | string / number | Card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `min_height` | string / number | Minimum card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `min_width` | string / number | Minimum card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
 | `text` | object | Text labels — see [Text Fields](../../core/text-fields.md) |
 | `tap_action` | object | Tap action — see [Actions](../../core/actions.md) |
 | `hold_action` | object | Hold action — see [Actions](../../core/actions.md) |
 | `double_tap_action` | object | Double-tap action — see [Actions](../../core/actions.md) |
 | `animations` | list | Card animations — see [Animations](../../core/animations.md) |
-| `background_animation` | list / object | Canvas background animations — see [Background Animations](../../core/background-animations.md) |
+| `background_animation` | list / object | Canvas background animations — see [Background Animations](../../core/effects/background-animations.md) |
 | `shape_texture` | object | SVG texture inside the elbow shape fill |
-| `filters` | list | Visual filters (CSS / SVG filter primitives) — see [Filters](../../core/filters.md) |
+| `filters` | list | Visual filters (CSS / SVG filter primitives) — see [Filters](../../core/effects/filters.md) |
 | `sounds` | object | Per-card sound overrides — see [Sounds](../../core/sounds.md) |
-| `data_sources` | object | DataSource subscriptions — see [DataSources](../../core/data-sources.md) |
+| `data_sources` | object | DataSource subscriptions — see [Data Sources](../../core/datasources/) |
 | `triggers_update` | list | Extra entity IDs that force template re-evaluation |
 | `grid_options` | object | HA grid layout options (`columns`, `rows`, `min_columns`, `min_rows`) |
 

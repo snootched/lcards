@@ -457,7 +457,8 @@ shape_texture:
 | `flow` | Directional streaming currents | `wave_scale`, `scroll_speed_x` |
 | `level` | Fill bar with optional wave | `fill_pct`, `direction`, `wave_height` |
 | `pulse` | Breathing radial glow | `radius`, `min_size`, `speed` |
-| `scanlines` | CRT-style scan-line overlay | `line_spacing`, `direction` || `image` | User-supplied image clipped to shape | `url`, `size`, `position`, `repeat` |
+| `scanlines` | CRT-style scan-line overlay | `line_spacing`, `direction` |
+| `image` | User-supplied image clipped to shape | `url`, `size`, `position`, `repeat` |
 All `color` fields accept `var(--lcards-*)`, `{theme:...}`, `rgba()`, hex, or a state-based map.
 
 For full parameter reference see [Shape Texture System](../../../architecture/subsystems/shape-texture-system.md).

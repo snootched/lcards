@@ -54,10 +54,10 @@ Grid of option buttons built from `input_select`|`select` entities or custom opt
 
 - Creates a grid of buttons from an `input_select`|`select` entity for an easy to use options selector
 - Fully customizable layout with CSS grid
-- Ability to re-order options, customize labels, and even add additonal custom options to the list
-- Fully cuztomizable actions with per-entry overrides
+- Ability to re-order options, customize labels, and even add additional custom options to the list
+- Fully customizable actions with per-entry overrides
 
-[Selct Menu Documentation](select-menu/)
+[Select Menu Documentation](select-menu/)
 
 === Data Grid
 

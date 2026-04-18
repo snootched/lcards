@@ -41,10 +41,10 @@ series_names: [Temperature, Humidity]
 | `xaxis_type` | string | `datetime` | X-axis scale: `datetime`, `category`, or `numeric` |
 | `max_points` | number | `0` | Maximum history points to render; `0` = unlimited |
 | `show_legend` | boolean | `false` | **Deprecated** — use `style.legend.show` instead |
-| `height` | string/number | — | Card height — see [Sizing](../../configuration/sizing.md) |
-| `width` | string/number | — | Card width — see [Sizing](../../configuration/sizing.md) |
-| `min_height` | string/number | — | Minimum card height |
-| `min_width` | string/number | — | Minimum card width |
+| `height` | string/number | — | Card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `width` | string/number | — | Card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `min_height` | string/number | — | Minimum card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `min_width` | string/number | — | Minimum card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
 | `id` | string | — | Card ID for rule targeting — see [Rules Engine](../../core/rules/) |
 | `tags` | list | — | Tags for rule targeting — see [Rules Engine](../../core/rules/) |
 | `style` | object | — | All chart appearance config — see [style Object](#style-object) |
