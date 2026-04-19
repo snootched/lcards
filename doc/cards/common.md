@@ -123,3 +123,41 @@ These two systems operate independently and serve different purposes:
 | **Units** | Any CSS unit or bare integer (= px) | Whole numbers only |
 
 In most dashboard layouts you only need `grid_options`. Use the sizing properties when you need to override the rendered size independently of the grid slot — for example when a card is inside a fixed-size container that doesn't use the HA grid.
+
+---
+
+## Sizing inside `custom:layout-card`
+
+[`custom:layout-card`](https://github.com/thomasloven/lovelace-layout-card) arranges cards in a CSS Grid, Masonry, or other layout. By default it sets `--layout-height: auto` on the grid container, which means grid rows size to their content rather than stretching to fill the allocated height. LCARdS cards rely on `height: 100%` on their host element to fill the row — with `auto` height rows this collapses the card to its minimum height.
+
+### Symptom
+
+Cards inside a `custom:layout-card` grid shrink to their minimum height instead of filling the row.
+
+### Fix
+
+Add a `card_mod` entry to the **layout-card itself** (not the LCARdS card) to override the layout height variable:
+
+```yaml
+type: custom:layout-card
+layout_type: custom:grid-layout
+layout:
+  grid-template-columns: repeat(3, 1fr)
+  grid-template-rows: 200px
+card_mod:
+  style: |
+    grid-layout {
+      --layout-height: 100% !important;
+    }
+cards:
+  - type: custom:lcards-button
+    # ...
+```
+
+This forces the grid-layout shadow host to stretch its items to fill the row height rather than collapsing to content size.
+
+> **Note**: `card_mod` must target the `grid-layout` element, which is the shadow root of layout-card's internal renderer. The selector `grid-layout { ... }` is the correct target regardless of which `layout_type` you use with grid-based layouts.
+
+### `card_margin` and overflow
+
+If you use `card_margin` on your layout-card (a feature of custom patched versions), LCARdS automatically compensates for the vertical margin so cards do not overflow their row boundaries. No additional configuration is needed for margin handling.

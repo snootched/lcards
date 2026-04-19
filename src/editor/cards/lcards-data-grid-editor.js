@@ -133,6 +133,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
                     ${FormField.renderField(this, 'min_width')}
                 </div>
+                ${this._renderLayoutCardHint()}
             </lcards-form-section>
         `;
     }
