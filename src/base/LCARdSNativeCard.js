@@ -294,6 +294,16 @@ export class LCARdSNativeCard extends LitElement {
     updated(changedProperties) {
         super.updated(changedProperties);
 
+        // Re-apply margin-height compensation after every Lit render cycle.
+        // This handles the case where setConfig() (or any other code path) cleared
+        // `this.style.height` after the auto-sizing rAF had already installed
+        // `calc(100% - Npx)`.  `_parentMarginV` is the cached vertical-margin
+        // total computed by _setupAutoSizing; if it's > 0 and the inline height
+        // is gone, restore it so the card doesn't overflow its grid row.
+        if (this._parentMarginV > 0 && !this.style.height) {
+            this.style.height = `calc(100% - ${this._parentMarginV}px)`;
+        }
+
         if (changedProperties.has('config') || changedProperties.has('hass')) {
             this._onUpdated(changedProperties);
         }
@@ -381,7 +391,26 @@ export class LCARdSNativeCard extends LitElement {
         // Accepts a bare number (treated as px) or a CSS string with units.
         // Clears the inline style when the property is absent so the host
         // reverts to 100% × 100% of its grid/stack cell as normal.
-        this.style.height = _toCssLength(config.height ?? '');
+        //
+        // Important: if LCARdSCard._setupAutoSizing() has already applied a
+        // margin-compensation height (e.g. `calc(100% - 13px)` to account for
+        // layout-card card_margin), we must NOT clobber it here.  A config-height
+        // override takes absolute priority; absent that, preserve any live
+        // margin compensation that the auto-sizing rAF already installed.
+        const explicitH = _toCssLength(config.height ?? '');
+        if (explicitH) {
+            // Explicit config height wins; also clear any margin compensation state
+            // so auto-sizing won't re-apply calc() on the next reconnect.
+            this.style.height = explicitH;
+            this._parentMarginV = undefined;
+        } else if (this._parentMarginV > 0) {
+            // Re-apply active margin compensation — setConfig clears inline styles
+            // by default, but we must preserve/restore the layout-card correction.
+            this.style.height = `calc(100% - ${this._parentMarginV}px)`;
+        } else {
+            // No explicit height and no active compensation → clear inline style.
+            this.style.removeProperty('height');
+        }
         this.style.width  = _toCssLength(config.width  ?? '');
     }
 

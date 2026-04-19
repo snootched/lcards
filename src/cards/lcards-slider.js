@@ -152,8 +152,8 @@ export class LCARdSSlider extends LCARdSButton {
             css`
                 :host {
                     display: block;
-                    width: 100%;
-                    height: 100%;
+                    /* width: 100% omitted — see LCARdSCard base comment (overflows with card_margin).
+                     * height: 100% inherited from LCARdSCard base. */
                 }
 
                 .slider-container {

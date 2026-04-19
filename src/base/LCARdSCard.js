@@ -120,7 +120,17 @@ export class LCARdSCard extends LCARdSNativeCard {
             css`
                 :host {
                     display: block;
-                    width: 100%;
+                    /* NO width: 100% — in CSS Grid, explicit width: 100% resolves to
+                     * 100% of the grid area and ignores the item's own margins.  With
+                     * card_margin on the parent layout-card this makes the card wider
+                     * than its allocated space by 2×margin, causing visible overflow.
+                     * Grid's default justify-self: stretch sizes to (area − margins),
+                     * so we let it do its job on the width axis.
+                     *
+                     * height: 100% IS needed — HA sections view sets an explicit pixel
+                     * height on the hui-card wrapper (from grid_options.rows×row_height).
+                     * Without height: 100% the card collapses to min-height because the
+                     * SVG is position:absolute and contributes zero intrinsic height. */
                     height: 100%;
                     /* Allow CSS grid/flexbox to shrink below SVG intrinsic size */
                     min-width: 0;
@@ -937,6 +947,15 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._windowResizeHandler = null;
         }
 
+        // Reset the parent-margin height correction so the rAF first-measurement block
+        // re-detects the current layout context (the card may have moved from a
+        // layout-card context with card_margin to a sections view, or vice-versa).
+        this.style.removeProperty('height');
+        this._parentMarginV = undefined;
+        // Reset stored size so the first ResizeObserver callback takes the rAF path
+        // (margin re-detection) rather than the debounced update path.
+        this._containerSize = null;
+
         // Persist callback reference so it can be restored on reconnect
         this._autoSizingCallback = onResize;
         this._autoSizingEnabled = true;
@@ -987,14 +1006,101 @@ export class LCARdSCard extends LCARdSNativeCard {
                 }
             };
 
-            // First measurement: fire immediately so the initial render uses the real
-            // container size without a visible delay.
-            // Subsequent changes: debounce at 150 ms to absorb rapid viewport jitter
-            // (e.g. Android toolbar slide-in/out) that would otherwise produce a
-            // feedback loop of ever-shrinking re-renders.
+            // First measurement: defer by one animation frame, then re-measure fresh.
+            //
+            // Why rAF and not immediate?
+            // Some parent components (notably custom:layout-card in grid mode) inject
+            // a <style> block that sets CSS variables like --card-margin inside their
+            // own `firstUpdated()` lifecycle hook.  `firstUpdated()` fires as a
+            // microtask (via updateComplete) which runs BEFORE the first animation
+            // frame.  If we commit the first size synchronously in the ResizeObserver
+            // callback (which fires during the same layout pass as the initial render,
+            // before the microtask queue has fully drained for all ancestor components),
+            // we may capture the full un-margined track width/height.  When the parent
+            // then injects the margin style, the card has already baked over-sized pixel
+            // geometry into its SVG; because .button-container > svg has
+            // `overflow: visible`, that geometry paints outside the grid cell boundary.
+            //
+            // Deferring by one rAF guarantees:
+            //   1. All ancestor firstUpdated() microtasks have run and injected their
+            //      styles (--card-margin, gap, padding, etc.).
+            //   2. The browser has performed a layout pass with those styles applied.
+            //   3. We re-read the element's bounding rect FRESH at rAF time, so the
+            //      captured size from the ROb entry (which might be stale if a second
+            //      ROb fired in the same frame with a newer size) is not used.
+            //
+            // Trade-off: the initial render shows CSS fallback dimensions for ~16 ms.
+            // Cards that specify config.width / config.height are unaffected (they use
+            // those config values rather than _containerSize for SVG generation).
+            //
+            // Subsequent changes: debounce at 150 ms to absorb rapid viewport
+            // jitter (e.g. Android toolbar slide-in/out) without looping.
             if (!this._containerSize) {
                 clearTimeout(_roDebounceTimer);
-                applySize();
+                // Double-rAF: the first frame lets all ancestor `firstUpdated()`
+                // microtasks complete AND the browser recalculate styles (including
+                // injected --card-margin).  The second frame ensures the style
+                // recalculation has been fully committed before we call
+                // getComputedStyle — a single rAF can fire before CSSOM has
+                // propagated a dynamically-injected <style> block.
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    if (!this.isConnected) return;
+
+                    // ── Margin compensation ────────────────────────────────────────
+                    // Problem: our immediate DOM parent (typically HA's `hui-card`) has
+                    // `height: 100%` in its own shadow DOM, which makes its content-box
+                    // equal to the full grid-track height — ignoring its own CSS margins.
+                    // Our `:host { height: 100% }` then also resolves to that inflated
+                    // track height.  With `layout-card` card_margin applied, the card
+                    // visually overflows its grid row by 2 × vertical_margin.
+                    //
+                    // Fix: read OUR OWN computed margins (not the parent's).
+                    // layout-card applies card_margin via `#root > * { margin: ... }`
+                    // which targets the card element itself — so getComputedStyle(this)
+                    // is where the resolved margin values live, not on the parent div.
+                    // We then set `height: calc(100% - Npx)` on `:host` so the element
+                    // fills only the margin-adjusted space.  getBoundingClientRect()
+                    // below forces a synchronous layout flush so the measurement already
+                    // reflects the corrected height.
+                    //
+                    // Context breakdown:
+                    //  • sections view  → no margin on card element → subtract 0 → no change ✓
+                    //  • layout-card    → card_margin applied to us (e.g. 10px top, 30px bottom)
+                    //                     → height: calc(100% - 40px) → correct ✓
+                    //  • masonry/plain  → default HA margin ~4+8=12px on card, BUT parent
+                    //                     height is `auto`, so calc(100% - 12px) on an
+                    //                     auto-height parent resolves to `auto` →
+                    //                     min-height floor applies as before ✓
+                    const myStyle = window.getComputedStyle(this);
+                    const marginV = (parseFloat(myStyle.marginTop)    || 0)
+                                  + (parseFloat(myStyle.marginBottom) || 0);
+                    if (marginV > 0) {
+                        this.style.height = `calc(100% - ${marginV}px)`;
+                        this._parentMarginV = marginV; // cache for reconnect / window.resize
+                    } else {
+                        this.style.removeProperty('height');
+                        this._parentMarginV = 0;
+                    }
+
+                    // Re-read size after forcing layout (getBCR is synchronous flush).
+                    const freshRef = this.shadowRoot?.querySelector('.lcards-size-ref') ?? this;
+                    const cr = freshRef ? freshRef.getBoundingClientRect() : null;
+                    if (cr && (cr.width > 0 || cr.height > 0)) {
+                        const freshW = Math.round(cr.width);
+                        const freshH = Math.round(cr.height);
+                        this._containerSize = { width: freshW, height: freshH };
+                        lcardsLog.trace(`[LCARdSCard] First size (rAF): ${freshW}x${freshH} for ${this._getDisplayId()}`);
+                        if (onResize && typeof onResize === 'function') {
+                            onResize(freshW, freshH);
+                        } else {
+                            this.requestUpdate();
+                        }
+                    } else {
+                        // Element not yet visible (e.g. hidden tab, loading overlay).
+                        // Fall back to the ROb-captured value so we don't stay blank.
+                        applySize();
+                    }
+                }));
             } else {
                 clearTimeout(_roDebounceTimer);
                 _roDebounceTimer = setTimeout(applySize, 150);
@@ -1035,6 +1141,9 @@ export class LCARdSCard extends LCARdSNativeCard {
 
                 // Round to 1 decimal to absorb sub-pixel jitter while still
                 // detecting real layout shifts (matches browser rounding behaviour).
+                // Note: by the time window.resize fires, the rAF first-measurement
+                // block has already applied `height: calc(100% - Npx)` on :host to
+                // account for parent margins, so getBCR() here is already correct.
                 const w = Math.round(rect.width * 10) / 10;
                 const h = Math.round(rect.height * 10) / 10;
 
