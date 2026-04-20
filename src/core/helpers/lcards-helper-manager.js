@@ -254,7 +254,17 @@ export class LCARdSHelperManager extends BaseService {
         setAlertModeAvailable: !!window.lcards?.setAlertMode
       });
 
+      // Guard: validate currentMode before calling setAlertMode.
+      // The input_select may report an unexpected value on initial page load
+      // (e.g. 'off' from a misconfigured `initial:` in user YAML, or a stale
+      // HA state during early boot).  Passing that value would reach the
+      // callService write-back and cause an HA toast error.
+      const _VALID_ALERT_MODES = ['green_alert', 'red_alert', 'yellow_alert', 'blue_alert', 'gray_alert', 'black_alert'];
+
       if ((autoSwitchEnabled === 'on' || autoSwitchEnabled === true) && currentMode) {
+        if (!_VALID_ALERT_MODES.includes(currentMode)) {
+          lcardsLog.warn(`[HelperManager] Initial alert mode value from helper is not a recognised LCARdS mode: '${currentMode}' — skipping setAlertMode`);
+        } else {
         lcardsLog.info(`[HelperManager] ✓ Auto-switch is enabled on initial load, will apply mode: ${currentMode}`);
 
         // Ensure HASS is available (critical for green_alert)
@@ -272,6 +282,7 @@ export class LCARdSHelperManager extends BaseService {
         } else {
           lcardsLog.warn('[HelperManager] window.lcards.setAlertMode not yet available on initial load');
         }
+        } // end valid-mode guard
       } else {
         lcardsLog.debug('[HelperManager] Auto-switch not enabled or no current mode set, skipping initial application');
       }

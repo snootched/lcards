@@ -222,12 +222,21 @@ export class ThemeManager extends BaseService {
     this.activeThemeId = themeId;
     this.activeTheme = theme;
 
-    // Capture original --lcars-* colors for alert mode system
-    // This ensures we always have baseline colors to transform from
+    // Capture original --lcars-* colors for alert mode system.
+    //
+    // Pass 1 (synchronous): CSS vars written by initializeTokenResolver / injectPalette
+    // are applied via style.setProperty and are immediately available to getComputedStyle.
+    // Capturing here ensures a baseline is ALWAYS present before any setTimeout-based
+    // alert mode application runs (avoids the race with HelperManager._setupAlertModeAutoSwitch).
+    captureOriginalColors(rootElement);
+    lcardsLog.debug('[ThemeManager] Alert mode baseline colors captured (initial pass)');
+
+    // Pass 2 (deferred): a second capture after 150 ms lets any HA LCARS theme stylesheet
+    // rules that land asynchronously (e.g. lovelace panel CSS cascade) refine the snapshot.
     setTimeout(() => {
       captureOriginalColors(rootElement);
-      lcardsLog.debug('[ThemeManager] Alert mode baseline colors captured');
-    }, 100); // Small delay to ensure theme CSS is applied
+      lcardsLog.debug('[ThemeManager] Alert mode baseline colors re-captured (deferred pass)');
+    }, 150);
 
     lcardsLog.info('[ThemeManager] ✅ Theme activated:', {
       id: themeId,

@@ -1,6 +1,7 @@
 import { lcardsSetGlobalLogLevel, lcardsGetGlobalLogLevel, lcardsLog, lcardsLogBanner} from './utils/lcards-logging.js';
 import * as LCARdS from './lcards-vars.js'
 import { lcardsCore } from './core/lcards-core.js';
+import { ALERT_MODE_TRANSFORMS } from './core/themes/alertModeTransform.js';
 
 // 1. Integration-configured log level — baked into the script URL as ?log=<level>
 //    by frontend.py when the integration loads. Applies the persistent user preference
@@ -36,6 +37,9 @@ import * as anchorHelpers from './utils/lcards-anchor-helpers.js';
 
 // MSD system import
 import './msd/index.js';
+
+// LCARdS strategy imports
+import { LCARdSPanelViewStrategy, LCARdSPanelDashboardStrategy } from './strategies/index.js';
 
 // LCARdS card imports
 import { LCARdSButton } from './cards/lcards-button.js';
@@ -293,6 +297,17 @@ initializeCustomCard()
             if (LCARdSSelectMenu.registerSchema) LCARdSSelectMenu.registerSchema();
 
             lcardsLog.debug('[lcards.js] Card schemas registered');
+
+        // Register dashboard/view strategies as custom elements.
+        // Naming convention required by HA: ll-strategy-dashboard-{type} / ll-strategy-view-{type}
+        // https://developers.home-assistant.io/docs/frontend/custom-ui/custom-strategy/
+        if (!customElements.get('ll-strategy-dashboard-lcards-panel')) {
+            customElements.define('ll-strategy-dashboard-lcards-panel', LCARdSPanelDashboardStrategy);
+        }
+        if (!customElements.get('ll-strategy-view-lcards-panel')) {
+            customElements.define('ll-strategy-view-lcards-panel', LCARdSPanelViewStrategy);
+        }
+        lcardsLog.debug('[lcards.js] Dashboard/view strategies registered');
         } else {
             lcardsLog.error('[lcards.js] ❌ CoreConfigManager not available for schema registration');
         }
@@ -380,6 +395,16 @@ if (!window.customCards.some(c => c.type === 'lcards-button')) {
 window.lcards.setAlertMode = async (mode, opts = {}) => {
   if (!window.lcards?.core?.themeManager) {
     lcardsLog.warn('⚠️ [LCARdS] ThemeManager not initialized');
+    return;
+  }
+
+  // Validate mode early — ThemeManager.setAlertMode() returns *silently* (no throw)
+  // for unknown modes, so without this guard the code would fall through to the
+  // callService write-back and send an invalid option to HA (causing a UI toast).
+  // This protects against stale helper values, misconfigured input_select initial
+  // states, or any other source that could produce a non-LCARdS mode string.
+  if (!ALERT_MODE_TRANSFORMS[mode]) {
+    lcardsLog.warn(`⚠️ [LCARdS] setAlertMode called with unknown mode: '${mode}' — ignoring`);
     return;
   }
 
