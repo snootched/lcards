@@ -234,45 +234,70 @@ export class LCARdSHelperManager extends BaseService {
       }
     });
 
-    // Initial check: If auto-switch is already enabled on startup, apply current mode
-    // Use setTimeout to ensure HASS is ingested and helper states are populated
-    setTimeout(() => {
-      lcardsLog.debug('[HelperManager] Checking initial alert mode state...');
+    // Initial check: If auto-switch is already enabled on startup, apply current mode.
+    //
+    // HA input_select entities can briefly report a transient/non-LCARdS state (e.g. 'off')
+    // during early boot before the persisted value is loaded.  We use a retry loop with
+    // increasing delays (100 ms → 750 ms → 2 500 ms) so a transient value on the first
+    // attempt doesn't mean we give up entirely.
+    const _VALID_ALERT_MODES = ['green_alert', 'red_alert', 'yellow_alert', 'blue_alert', 'gray_alert', 'black_alert'];
+    const _RETRY_DELAYS = [100, 750, 2500];
 
-      // Read directly from HASS state (cached values may not be populated yet)
-      const autoSwitchEntity = this.hass?.states['input_boolean.lcards_alert_mode_auto_switch'];
-      const modeEntity = this.hass?.states['input_select.lcards_alert_mode'];
+    const _tryApplyInitialAlertMode = (attempt = 0) => {
+      setTimeout(() => {
+        lcardsLog.debug(`[HelperManager] Checking initial alert mode state (attempt ${attempt + 1}/${_RETRY_DELAYS.length})...`);
 
-      const autoSwitchEnabled = autoSwitchEntity?.state;
-      const currentMode = modeEntity?.state;
+        // Read directly from HASS state (cached values may not be populated yet)
+        const autoSwitchEntity = this.hass?.states['input_boolean.lcards_alert_mode_auto_switch'];
+        const modeEntity       = this.hass?.states['input_select.lcards_alert_mode'];
 
-      lcardsLog.info('[HelperManager] Initial state check:', {
-        autoSwitchEnabled,
-        currentMode,
-        hassAvailable: !!this.hass,
-        lcardsCoreAvailable: !!window.lcards?.core,
-        setAlertModeAvailable: !!window.lcards?.setAlertMode
-      });
+        const autoSwitchEnabled = autoSwitchEntity?.state;
+        const currentMode       = modeEntity?.state;
 
-      // Guard: validate currentMode before calling setAlertMode.
-      // The input_select may report an unexpected value on initial page load
-      // (e.g. 'off' from a misconfigured `initial:` in user YAML, or a stale
-      // HA state during early boot).  Passing that value would reach the
-      // callService write-back and cause an HA toast error.
-      const _VALID_ALERT_MODES = ['green_alert', 'red_alert', 'yellow_alert', 'blue_alert', 'gray_alert', 'black_alert'];
+        lcardsLog.info('[HelperManager] Initial state check:', {
+          attempt: attempt + 1,
+          autoSwitchEnabled,
+          currentMode,
+          hassAvailable: !!this.hass,
+          lcardsCoreAvailable: !!window.lcards?.core,
+          setAlertModeAvailable: !!window.lcards?.setAlertMode
+        });
 
-      if ((autoSwitchEnabled === 'on' || autoSwitchEnabled === true) && currentMode) {
+        if (!(autoSwitchEnabled === 'on' || autoSwitchEnabled === true)) {
+          lcardsLog.debug('[HelperManager] Auto-switch not enabled — skipping initial alert mode application');
+          return;
+        }
+
+        if (!currentMode) {
+          lcardsLog.debug('[HelperManager] No current mode set — skipping initial alert mode application');
+          return;
+        }
+
+        // If the mode is not a recognised LCARdS value the input_select is likely still
+        // settling from boot.  Retry with the next delay unless we've exhausted attempts.
         if (!_VALID_ALERT_MODES.includes(currentMode)) {
-          lcardsLog.warn(`[HelperManager] Initial alert mode value from helper is not a recognised LCARdS mode: '${currentMode}' — skipping setAlertMode`);
-        } else {
-        lcardsLog.info(`[HelperManager] ✓ Auto-switch is enabled on initial load, will apply mode: ${currentMode}`);
+          if (attempt + 1 < _RETRY_DELAYS.length) {
+            lcardsLog.warn(
+              `[HelperManager] Initial alert mode '${currentMode}' is not a recognised LCARdS mode ` +
+              `(transient HA state?). Retrying in ${_RETRY_DELAYS[attempt + 1]} ms…`
+            );
+            _tryApplyInitialAlertMode(attempt + 1);
+          } else {
+            lcardsLog.warn(
+              `[HelperManager] Initial alert mode '${currentMode}' is still unrecognised after ` +
+              `${_RETRY_DELAYS.length} attempts — giving up. Check input_select.lcards_alert_mode options.`
+            );
+          }
+          return;
+        }
+
+        lcardsLog.info(`[HelperManager] ✓ Auto-switch enabled on initial load, applying mode: ${currentMode}`);
 
         // Ensure HASS is available (critical for green_alert)
         if (this.hass && window.lcards?.core) {
           window.lcards.core.ingestHass(this.hass);
         }
 
-        // Apply the mode
         if (window.lcards?.setAlertMode) {
           lcardsLog.info(`[HelperManager] Calling setAlertMode('${currentMode}') on initial load (no transition)`);
           // Skip transition on initial load — there is nothing visible to transition from.
@@ -282,11 +307,10 @@ export class LCARdSHelperManager extends BaseService {
         } else {
           lcardsLog.warn('[HelperManager] window.lcards.setAlertMode not yet available on initial load');
         }
-        } // end valid-mode guard
-      } else {
-        lcardsLog.debug('[HelperManager] Auto-switch not enabled or no current mode set, skipping initial application');
-      }
-    }, 100);
+      }, _RETRY_DELAYS[attempt]);
+    };
+
+    _tryApplyInitialAlertMode(0);
   }
 
   // ===== PUBLIC API: LIFECYCLE =====
