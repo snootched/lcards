@@ -462,7 +462,7 @@ export function getButtonSchema(options = {}) {
                                                 theme: {
                                                     selector: {
                                                         text: {
-                                                            placeholder: '{theme:borders.radius.md}'
+                                                            placeholder: '{theme:borders.radius.base}'
                                                         }
                                                     }
                                                 },

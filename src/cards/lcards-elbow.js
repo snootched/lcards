@@ -2175,7 +2175,7 @@ export class LCARdSElbow extends LCARdSButton {
             actualState: actualEntityState,
             classifiedState: buttonState,
             colorConfig: this._buttonStyle?.text?.default?.color,
-            fallback: 'var(--lcars-color-text, #000000)'
+            fallback: 'var(--lcars-font-color, #000000)'
         });
 
         // Font properties

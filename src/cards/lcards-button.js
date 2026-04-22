@@ -2888,14 +2888,14 @@ export class LCARdSButton extends LCARdSCard {
             }
             // 5. Final hardcoded fallback
             else {
-                iconColor = 'var(--lcars-color-text, #FFFFFF)';
+                iconColor = 'var(--lcars-font-color, #FFFFFF)';
                 lcardsLog.warn('[LCARdSButton] Icon color using hardcoded fallback');
             }
 
             // Ensure iconColor is a string (not an object)
             if (typeof iconColor !== 'string') {
                 lcardsLog.warn('[LCARdSButton] ⚠️ Icon color resolved to non-string:', iconColor);
-                iconColor = 'var(--lcars-color-text, #FFFFFF)';
+                iconColor = 'var(--lcars-font-color, #FFFFFF)';
             }
 
             // Resolve match-light token → CSS variable
@@ -4387,7 +4387,7 @@ export class LCARdSButton extends LCARdSCard {
             actualState: actualEntityState,
             classifiedState: buttonState,
             colorConfig: this._buttonStyle?.text?.default?.color,
-            fallback: 'var(--lcars-color-text, #FFFFFF)'
+            fallback: 'var(--lcars-font-color, #FFFFFF)'
         })));
 
         // Border color: border.color.{state} or border.color (plain string)
@@ -4395,7 +4395,7 @@ export class LCARdSButton extends LCARdSCard {
             actualState: actualEntityState,
             classifiedState: buttonState,
             colorConfig: this._buttonStyle?.border?.color,
-            fallback: 'var(--lcars-color-secondary, #000000)'
+            fallback: 'var(--lcars-ui-secondary, #000000)'
         })));
 
         // Resolve border configuration with per-corner support
@@ -4707,7 +4707,7 @@ export class LCARdSButton extends LCARdSCard {
             actualState: actualEntityState,
             classifiedState: state,
             colorConfig: this._buttonStyle?.border?.color,
-            fallback: 'var(--lcars-color-secondary, #000000)'
+            fallback: 'var(--lcars-ui-secondary, #000000)'
         }));
 
         // Radius: border.radius (can be object for per-corner or single value)

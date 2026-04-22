@@ -1076,7 +1076,7 @@ export function getSliderSchema(options = {}) {
                                         type: 'string',
                                         description: 'Shape interior background colour (the “empty” portion)',
                                         default: 'theme:components.slider.track.background',
-                                        examples: ['#12121c', 'theme:components.slider.track.background', 'var(--lcards-black-medium)']
+                                        examples: ['#12121c', 'theme:components.slider.track.background', 'var(--lcards-gray-darkest)']
                                     }
                                 }
                             },

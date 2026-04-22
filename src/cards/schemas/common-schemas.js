@@ -311,7 +311,7 @@ export const animationSchema = {
             type: 'string',
             pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|theme:|rgb\\(|rgba\\(|var\\(--)',
             description: 'Animation colour (for glow/flash effects)',
-            examples: ['#FF9900', 'theme:color.ui.active', 'rgba(255, 153, 0, 0.5)']
+            examples: ['#FF9900', 'theme:colors.ui.active', 'rgba(255, 153, 0, 0.5)']
         },
         scale: {
             type: 'number',
@@ -400,7 +400,7 @@ export const stateColorSchema = {
             title: 'Simple Colour',
             pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
             description: 'Single colour value for all states (hex, rgb, theme token, or CSS variable)',
-            examples: ['#FF9900', 'transparent', 'theme:color.ui.active', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
+            examples: ['#FF9900', 'transparent', 'theme:colors.ui.active', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
         },
         {
             type: 'object',
@@ -416,49 +416,49 @@ export const stateColorSchema = {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Default colour (fallback)',
-                    examples: ['#888888', 'theme:color.ui.default']
+                    examples: ['#888888', 'theme:colors.ui.default']
                 },
                 active: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity is on/active',
-                    examples: ['#FF9900', 'theme:color.ui.active']
+                    examples: ['#FF9900', 'theme:colors.ui.active']
                 },
                 inactive: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity is off/inactive',
-                    examples: ['#444444', 'theme:color.ui.inactive']
+                    examples: ['#444444', 'theme:colors.ui.inactive']
                 },
                 unavailable: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity is unavailable',
-                    examples: ['#666666', 'theme:color.ui.unavailable']
+                    examples: ['#666666', 'theme:colors.ui.unavailable']
                 },
                 zero: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity state is numeric 0 (e.g. no lights on, zero count)',
-                    examples: ['var(--lcards-gray-dark)', 'theme:color.ui.inactive']
+                    examples: ['var(--lcards-gray-dark)', 'theme:colors.ui.inactive']
                 },
                 non_zero: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity state is a non-zero number (e.g. lights are on, count > 0)',
-                    examples: ['var(--lcards-green-tertiary)', 'theme:color.ui.active']
+                    examples: ['var(--lcards-green-medium-dark)', 'theme:colors.ui.active']
                 },
                 hover: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour on hover interaction',
-                    examples: ['var(--lcards-orange)', 'theme:color.ui.active']
+                    examples: ['var(--lcards-orange)', 'theme:colors.ui.active']
                 },
                 pressed: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour on press/tap interaction',
-                    examples: ['var(--lcards-orange-dark)', 'theme:color.ui.active']
+                    examples: ['var(--lcards-orange-dark)', 'theme:colors.ui.active']
                 }
             },
             additionalProperties: {
