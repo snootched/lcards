@@ -1176,14 +1176,19 @@ export class LCARdSConfigPanel extends LitElement {
 
   _renderValueControl(helper) {
     if (helper.domain === 'input_select') {
-      // Get fresh value from HASS state to ensure dropdown shows current selection
-      const currentValue = this.hass?.states?.[helper.entity_id]?.state || helper.currentValue;
+      // Get fresh value and current options from HASS state.
+      // attributes.options reflects the live HA options (updated by set_options calls,
+      // e.g. when sound packs register new schemes) — ws_create_params.options is only
+      // the initial registry default and must NOT be used as the dropdown source here.
+      const entityState  = this.hass?.states?.[helper.entity_id];
+      const currentValue = entityState?.state || helper.currentValue;
+      const liveOptions  = entityState?.attributes?.options ?? helper.ws_create_params.options ?? [];
 
       return html`
         <ha-selector
           .hass=${this.hass}
           .selector=${{ select: {
-            options: helper.ws_create_params.options.map(o => ({ value: o, label: o })),
+            options: liveOptions.map(o => ({ value: o, label: o })),
             mode: 'dropdown'
           }}}
           .value=${currentValue}

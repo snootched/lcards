@@ -675,11 +675,14 @@ export class LCARdSHelperManager extends BaseService {
       return false;
     }
 
-    // Capture current value before set_options resets it
-    const currentValue = this.hass.states?.[definition.entity_id]?.state;
+    // Snapshot the hass reference and current value before any async work.
+    // this.hass can be replaced by a HASS update between the two callService awaits,
+    // so we pin both once and use the snapshot throughout.
+    const hass = this.hass;
+    const currentValue = hass.states?.[definition.entity_id]?.state;
 
     try {
-      await this.hass.callService('input_select', 'set_options', {
+      await hass.callService('input_select', 'set_options', {
         entity_id: definition.entity_id,
         options: options
       });
@@ -688,7 +691,7 @@ export class LCARdSHelperManager extends BaseService {
       // Restore previous selection if it is still a valid option
       if (currentValue && options.includes(currentValue)) {
         try {
-          await this.hass.callService('input_select', 'select_option', {
+          await hass.callService('input_select', 'select_option', {
             entity_id: definition.entity_id,
             option: currentValue
           });

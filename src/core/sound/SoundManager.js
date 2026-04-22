@@ -150,6 +150,16 @@ export class SoundManager extends BaseService {
      */
     this._schemesOptionsSynced = false;
 
+    /** @type {boolean} Whether a _syncSchemeHelperOptions call is already in-flight.
+     * Prevents concurrent sync calls from racing and clobbering each other's restore.
+     */
+    this._syncInProgress = false;
+
+    /** @type {boolean} Whether a microtask-deferred sync has already been scheduled.
+     * Prevents multiple rapid registerSchemes() calls from each triggering a separate sync.
+     */
+    this._syncScheduled = false;
+
     /**
      * In-memory cache of per-event sound overrides for the current user (user scope).
      * Populated once by _ensureOverridesLoaded(). Remains null until the backend
@@ -213,7 +223,7 @@ export class SoundManager extends BaseService {
   updateHass(hass) {
     lcardsLog.trace('[SoundManager] updateHass received');
     if (!this._schemesOptionsSynced && this._soundSchemes.size > 0) {
-      this._syncSchemeHelperOptions();
+      this._scheduleSyncSchemeHelperOptions();
     }
     // One-shot: load overrides from backend once IntegrationService has probed
     this._ensureOverridesLoaded();
@@ -449,7 +459,22 @@ export class SoundManager extends BaseService {
       this._soundSchemes.set(name, schemes[name]);
       lcardsLog.debug(`[SoundManager] Registered sound scheme: ${name}`);
     });
-    this._syncSchemeHelperOptions();
+    // Defer the sync to the next microtask — if multiple packs register schemes in
+    // the same tick only a single sync fires after all of them have been added.
+    this._scheduleSyncSchemeHelperOptions();
+  }
+
+  /**
+   * Schedule a scheme-options sync for the next microtask, coalescing rapid calls.
+   * @private
+   */
+  _scheduleSyncSchemeHelperOptions() {
+    if (this._syncScheduled) return;
+    this._syncScheduled = true;
+    Promise.resolve().then(() => {
+      this._syncScheduled = false;
+      this._syncSchemeHelperOptions();
+    });
   }
 
   /**
@@ -907,7 +932,9 @@ export class SoundManager extends BaseService {
       schemeNames: this.getSchemeNames(),
       audioCacheSize: this._audioCache?.size || 0,
       userInteracted: this._userInteracted || false,
-      schemesOptionsSynced: this._schemesOptionsSynced || false
+      schemesOptionsSynced: this._schemesOptionsSynced || false,
+      syncInProgress: this._syncInProgress || false,
+      syncScheduled: this._syncScheduled || false
     };
   }
 
@@ -917,8 +944,18 @@ export class SoundManager extends BaseService {
    * @private
    */
   async _syncSchemeHelperOptions() {
+    // Prevent concurrent syncs — a second call while one is in-flight would read
+    // stale/reset HA state and clobber the restore from the first call.
+    if (this._syncInProgress) {
+      lcardsLog.debug('[SoundManager] _syncSchemeHelperOptions: sync already in progress, skipping');
+      return;
+    }
+    this._syncInProgress = true;
     const helperManager = this._core?.helperManager;
-    if (!helperManager) return;
+    if (!helperManager) {
+      this._syncInProgress = false;
+      return;
+    }
     try {
       const updated = await helperManager.updateSelectOptions('sound_scheme', this.getSchemeNames());
       if (updated) {
@@ -927,6 +964,8 @@ export class SoundManager extends BaseService {
       }
     } catch (e) {
       lcardsLog.debug('[SoundManager] Could not sync sound_scheme options:', e.message);
+    } finally {
+      this._syncInProgress = false;
     }
   }
 
