@@ -34,6 +34,8 @@ import { AnimationRegistry } from './animation/AnimationRegistry.js';
 import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';
 import { CoreConfigManager } from './config-manager/index.js';
 import { injectPalette } from './themes/paletteInjector.js';
+import { loadFont } from '../utils/lcards-theme.js';
+import { core_fonts } from '../lcards-vars.js';
 import { PackManager } from './PackManager.js';
 import { AssetManager } from './assets/AssetManager.js';
 import { DataSourceDebugAPI } from '../api/DataSourceDebugAPI.js';
@@ -141,6 +143,16 @@ class LCARdSCore {
             // This must happen BEFORE ThemeManager initialization so fallback colors are available
             injectPalette();
             lcardsLog.debug('[LCARdSCore] ✅ LCARdS palette injected as --lcards-* CSS variables');
+
+            // ✅ PHASE 1b: Load core fonts unconditionally at startup.
+            // This ensures Antonio (Google Fonts) and bundled LCARdS fonts are available
+            // in all contexts — including the Config Panel — regardless of whether any
+            // Lovelace cards are mounted or the HA-LCARS card-mod theme has loaded.
+
+            //TODO: discuss having 100..700 in HA-LCARS docs
+
+            //core_fonts.forEach(f => loadFont(f));
+            //lcardsLog.debug('[LCARdSCore] ✅ Core fonts loading initiated');
 
             // Initialize SystemsManager (Phase 1a)
             this.systemsManager = new CoreSystemsManager();

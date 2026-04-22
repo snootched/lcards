@@ -634,7 +634,7 @@ export class LCARdSAlertOverlay extends LitElement {
                 color: var(--lcards-moonlight, #dfe1e8);
             }
             .is-duplicate {
-                border-color: var(--lcards-alert-red, #ff4444);
+                border-color: var(--lcars-alert-red);
                 background: rgba(80,0,0,0.45);
             }
             .ep-header {
@@ -649,7 +649,7 @@ export class LCARdSAlertOverlay extends LitElement {
                 line-height: 1;
             }
             .is-duplicate .ep-icon {
-                color: var(--lcards-alert-red, #ff4444);
+                color: var(--lcars-alert-red);
             }
             .ep-title {
                 font-size: 0.85em;
@@ -666,8 +666,8 @@ export class LCARdSAlertOverlay extends LitElement {
                 padding: 2px 7px;
                 border-radius: 4px;
                 background: rgba(255,68,68,0.25);
-                color: var(--lcards-alert-red, #ff4444);
-                border: 1px solid var(--lcards-alert-red, #ff4444);
+                color: var(--lcars-alert-red);
+                border: 1px solid var(--lcars-alert-red);
             }
             .ep-badge--active {
                 background: rgba(255,119,0,0.2);
@@ -683,7 +683,7 @@ export class LCARdSAlertOverlay extends LitElement {
                 margin: 0 0 6px;
             }
             .ep-warn {
-                color: var(--lcards-alert-red, #ff4444);
+                color: var(--lcars-alert-red);
                 opacity: 1;
             }
             .ep-conditions {

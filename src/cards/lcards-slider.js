@@ -188,7 +188,7 @@ export class LCARdSSlider extends LCARdSButton {
                     font-family: var(--primary-font-family, 'Antonio', sans-serif);
                     font-size: 14px;
                     line-height: 1.2;
-                    color: var(--lcars-white, #ffffff);
+                    color: var(--lcars-text-light, #ffffff);
                     white-space: nowrap;
                 }
 
@@ -1523,7 +1523,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Get track zone bounds
         const trackZone = this._zones.get('track');
-        const width = trackZone?.bounds?.width || this._containerSize.width - 20;
+        const width = trackZone?.bounds?.width || (this._containerSize?.width ?? 200) - 20;
         const height = trackZone?.bounds?.height || 20;
 
         // Generate config hash for cache invalidation
@@ -1764,7 +1764,7 @@ export class LCARdSSlider extends LCARdSButton {
             const pillIdx = Math.max(0, Math.min(count - 1, Math.round(valuePercent * (count - 1))));
             const pillStyle = range.pill_style || {};
             markerPillMap.set(pillIdx, {
-                color: this._resolveRangeColor(range.color || 'var(--lcars-white, #ffffff)'),
+                color: this._resolveRangeColor(range.color || 'var(--lcars-text-light, #ffffff)'),
                 strokeEnabled: pillStyle.stroke !== false, // default true
                 strokeWidth: pillStyle.stroke_width ?? 2
             });
@@ -3997,8 +3997,8 @@ export class LCARdSSlider extends LCARdSButton {
     _renderCard() {
         // Prefer explicit config dimensions so text zones are correct even before the
         // ResizeObserver fires (which would otherwise give the HA default 56px row height).
-        const width  = this._configPx(this.config.width)  || this._containerSize.width  || 200;
-        const height = this._configPx(this.config.height) || this._containerSize.height || 60;
+        const width  = this._configPx(this.config.width)  || this._containerSize?.width  || 200;
+        const height = this._configPx(this.config.height) || this._containerSize?.height || 60;
 
         // Check if component is loaded
         if (this.config.component && !this._componentLoaded) {

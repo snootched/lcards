@@ -418,7 +418,7 @@ export class LCARdSAboutTab extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+      font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', sans-serif;
       letter-spacing: 0.05em;
       margin-top: 1px;
     }

@@ -552,9 +552,9 @@ export class RendererUtils {
       fontStyle: style.font_style || style.fontStyle || 'normal',
 
       // Text colors (flat format - backward compatibility)
-      textColor: style.text_color || style.textColor || style.color || 'var(--lcars-white, var(--lcards-moonlight, #ffffff))',
-      labelColor: style.label_color || style.labelColor || style.text_color || style.textColor || 'var(--lcars-white, var(--lcards-moonlight, #ffffff))',
-      valueColor: style.value_color || style.valueColor || style.text_color || style.textColor || 'var(--lcars-white, var(--lcards-moonlight, #ffffff))',
+      textColor: style.text_color || style.textColor || style.color || 'var(--lcars-text-light, var(--lcards-moonlight, #ffffff))',
+      labelColor: style.label_color || style.labelColor || style.text_color || style.textColor || 'var(--lcars-text-light, var(--lcards-moonlight, #ffffff))',
+      valueColor: style.value_color || style.valueColor || style.text_color || style.textColor || 'var(--lcars-text-light, var(--lcards-moonlight, #ffffff))',
 
       // Text alignment and positioning
       textAlign: style.text_align || style.textAlign || 'left',
@@ -654,7 +654,7 @@ export class RendererUtils {
       // Interactive states
       hoverColor: style.hover_color || style.hoverColor || 'var(--lcars-yellow, var(--lcards-yellow-medium, #ffcc33))',
       activeColor: style.active_color || style.activeColor || 'var(--lcars-cyan, var(--lcards-blue-light, #88ccff))',
-      focusColor: style.focus_color || style.focusColor || 'var(--lcars-white, var(--lcards-moonlight, #ffffff))',
+      focusColor: style.focus_color || style.focusColor || 'var(--lcars-text-light, var(--lcards-moonlight, #ffffff))',
       disabledColor: style.disabled_color || style.disabledColor || 'var(--lcars-gray, var(--lcards-gray-medium, #666688))',
 
       // Status colors

@@ -120,14 +120,15 @@ export const lcardsDefaultTokens = {
       ],
       grid: 'var(--lcars-gray, var(--lcards-gray-medium))',
       axis: 'var(--lcars-text-gray, var(--lcards-moonlight))',
-      stroke: 'var(--lcards-moonlight)'
+      stroke: 'var(--lcards-moonlight)',
+      background: '#000000'
     },
 
     // Alert colors (LCARS alert symbol component)
     alert: {
       red: 'var(--lcars-alert-red)',         // Critical/Emergency
       blue: 'var(--lcars-alert-blue)',       // Security/Tactical
-      green: 'var(--lcars-green-medium)',    // Normal/All Clear
+      green: 'var(--lcars-green, #33cc99)',    // Normal/All Clear
       yellow: 'var(--lcars-alert-yellow)', // Caution/Warning
       gray: 'var(--lcards-gray)',       // Standby/Inactive
       black: 'var(--lcards-blue-lightest)'        // System Critical
@@ -357,7 +358,7 @@ export const lcardsDefaultTokens = {
       // tokens are shared by the main gauge indicator, value-marker indicators,
       // and the Picard animation dot — all three use the same visual language.
       indicator: {
-        color: 'var(--lcars-white, var(--lcards-moonlight))',
+        color: 'var(--lcars-text-light, var(--lcards-moonlight))',
         border: { color: 'black' }
       },
       // Animated indicator (pulsing dot on Picard-style components)
@@ -425,10 +426,10 @@ export const lcardsDefaultTokens = {
             unknown: 'var(--lcards-gray-medium)'
           },
           stroke: {
-            active: 'var(--lcars-white, var(--lcards-moonlight))',
+            active: 'var(--lcars-text-light, var(--lcards-moonlight))',
             inactive: 'var(--lcars-orange, var(--lcards-orange-medium))',
-            hover: 'var(--lcars-white, var(--lcards-moonlight))',
-            pressed: 'var(--lcars-white, var(--lcards-moonlight))',
+            hover: 'var(--lcars-text-light, var(--lcards-moonlight))',
+            pressed: 'var(--lcars-text-light, var(--lcards-moonlight))',
             unavailable: 'var(--lcards-gray-medium)',
             unknown: 'var(--lcards-gray-medium)'
           },
@@ -451,10 +452,10 @@ export const lcardsDefaultTokens = {
             unknown: 'var(--lcards-gray-medium)'
           },
           stroke: {
-            active: 'var(--lcars-white, var(--lcards-moonlight))',
+            active: 'var(--lcars-text-light, var(--lcards-moonlight))',
             inactive: 'var(--lcars-blue, var(--lcards-blue-medium))',
-            hover: 'var(--lcars-white, var(--lcards-moonlight))',
-            pressed: 'var(--lcars-white, var(--lcards-moonlight))',
+            hover: 'var(--lcars-text-light, var(--lcards-moonlight))',
+            pressed: 'var(--lcars-text-light, var(--lcards-moonlight))',
             unavailable: 'var(--lcards-gray-medium)',
             unknown: 'var(--lcards-gray-medium)'
           },
@@ -477,10 +478,10 @@ export const lcardsDefaultTokens = {
             unknown: 'var(--lcards-gray-medium)'
           },
           stroke: {
-            active: 'var(--lcars-white, var(--lcards-moonlight))',
+            active: 'var(--lcars-text-light, var(--lcards-moonlight))',
             inactive: 'var(--lcards-blue-medium-light)',
-            hover: 'var(--lcars-white, var(--lcards-moonlight))',
-            pressed: 'var(--lcars-white, var(--lcards-moonlight))',
+            hover: 'var(--lcars-text-light, var(--lcards-moonlight))',
+            pressed: 'var(--lcars-text-light, var(--lcards-moonlight))',
             unavailable: 'var(--lcards-gray-medium)',
             unknown: 'var(--lcards-gray-medium)'
           },
@@ -534,7 +535,7 @@ export const lcardsDefaultTokens = {
           maxRadius: 2,
           minOpacity: 0.3,
           maxOpacity: 1.0,
-          color: 'var(--lcars-white, var(--lcards-moonlight))'
+          color: 'var(--lcars-text-light, var(--lcards-moonlight))'
         },
         scroll: {
           speedX: 30,

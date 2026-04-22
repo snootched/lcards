@@ -167,7 +167,7 @@ export class LCARdSConfigPanel extends LitElement {
       color: white;
       line-height: 1;
       text-transform: uppercase;
-      font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+      font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', sans-serif;
     }
 
     .banner-subtitle {
@@ -184,7 +184,7 @@ export class LCARdSConfigPanel extends LitElement {
       color: rgba(255,255,255,0.55);
       letter-spacing: 0.1em;
       white-space: nowrap;
-      font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+      font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', sans-serif;
     }
 
     /* HA Native Tab Styling */

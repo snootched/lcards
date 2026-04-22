@@ -1507,7 +1507,7 @@ export class AdvancedRenderer {
                       fill="none" stroke="${color}" stroke-width="2" rx="4"/>
                 <text x="${width / 2}" y="${height / 2}" text-anchor="middle"
                       fill="${color}" font-size="12" dominant-baseline="middle"
-                      font-family="var(--lcars-font-family, Antonio)">
+                      font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio))">
                   ${overlay.type} Error
                 </text>
               </g>

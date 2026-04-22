@@ -264,11 +264,11 @@ export const alertComponents = {
         presets: {
             default: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcars-alert-blue, #0000ff)', trail_color: 'var(--lcars-ui-quaternary, #2f3749)' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcars-alert-blue, #0000ff)', trail_color: 'var(--lcars-ui-quaternary, #2f3749)' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcars-alert-blue, #0000ff)', trail_color: 'var(--lcars-ui-quaternary, var(--lcards-gray-dark, #2f3749))' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcars-alert-blue, #0000ff)', trail_color: 'var(--lcars-ui-quaternary, var(--lcards-gray-dark, #2f3749))' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',     color: 'var(--lcards-alert-red, #ff0000)' },
+                    alert_text: { content: 'ALERT',     color: 'var(--lcars-alert-red)' },
                     sub_text:   { content: 'CONDITION', color: 'theme:colors.alert.gray' }
                 },
                 segments: {
@@ -279,8 +279,8 @@ export const alertComponents = {
 
             condition_red: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-orange-lightest, #ffb399)', trail_color: 'theme:colors.alert.red' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-orange-lightest, #ffb399)', trail_color: 'theme:colors.alert.red' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-orange-lightest, #ffb399)', trail_color: 'var(--lcars-alert-red, #cc0000)' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-orange-lightest, #ffb399)', trail_color: 'var(--lcars-alert-red, #cc0000)' } }
                 ],
                 text: {
                     alert_text: { content: 'ALERT',          color: 'theme:colors.alert.red' },
@@ -294,8 +294,8 @@ export const alertComponents = {
 
             condition_blue: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-blue-light, #93e1ff)', trail_color: 'theme:colors.alert.blue' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-blue-light, #93e1ff)', trail_color: 'theme:colors.alert.blue' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-blue-light, #93e1ff)', trail_color: 'var(--lcars-alert-blue, #0000ff)' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-blue-light, #93e1ff)', trail_color: 'var(--lcars-alert-blue, #0000ff)' } }
                 ],
                 text: {
                     alert_text: { content: 'ALERT',           color: 'theme:colors.alert.blue' },
@@ -309,8 +309,8 @@ export const alertComponents = {
 
             condition_yellow: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-yellow-lightest, #f5f5dc)', trail_color: 'theme:colors.alert.yellow' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-yellow-lightest, #f5f5dc)', trail_color: 'theme:colors.alert.yellow' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-yellow-lightest, #f5f5dc)', trail_color: 'var(--lcars-alert-yellow, #ffcc00)' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-yellow-lightest, #f5f5dc)', trail_color: 'var(--lcars-alert-yellow, #ffcc00)' } }
                 ],
                 text: {
                     alert_text: { content: 'ALERT', color: 'theme:colors.alert.yellow' },
@@ -324,8 +324,8 @@ export const alertComponents = {
 
             condition_green: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-green-lightest, #b8e0c1)', trail_color: 'theme:colors.alert.green' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-green-lightest, #b8e0c1)', trail_color: 'theme:colors.alert.green' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-green-lightest, #b8e0c1)', trail_color: 'var(--lcars-green, #33cc99)' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-green-lightest, #b8e0c1)', trail_color: 'var(--lcars-green, #33cc99)' } }
                 ],
                 text: {
                     alert_text: { content: 'ALERT', color: 'theme:colors.alert.green' },
@@ -339,8 +339,8 @@ export const alertComponents = {
 
             condition_gray: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-moonlight, #dfe1e8)', trail_color: 'theme:colors.alert.gray' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-moonlight, #dfe1e8)', trail_color: 'theme:colors.alert.gray' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-moonlight, #dfe1e8)', trail_color: 'var(--lcards-gray, #6d748c)' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-moonlight, #dfe1e8)', trail_color: 'var(--lcards-gray, #6d748c)' } }
                 ],
                 text: {
                     alert_text: { content: 'ALERT', color: 'theme:colors.alert.gray' },
@@ -354,8 +354,8 @@ export const alertComponents = {
 
             condition_black: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'black', trail_color: 'theme:colors.alert.black' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'black', trail_color: 'theme:colors.alert.black' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'black', trail_color: 'var(--lcards-blue-lightest, #d4eeff)' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'black', trail_color: 'var(--lcards-blue-lightest, #d4eeff)' } }
                 ],
                 text: {
                     alert_text: { content: 'ALERT', color: 'theme:colors.alert.black' },

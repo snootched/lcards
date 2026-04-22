@@ -1246,7 +1246,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     border-radius: 8px;
                     color: white;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                    font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+                    font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio', sans-serif));
                 ">
                     <!-- Header -->
                     <div style="

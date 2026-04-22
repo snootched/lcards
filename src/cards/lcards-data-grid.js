@@ -174,7 +174,7 @@ export class LCARdSDataGrid extends LCARdSCard {
           display: grid;
           width: 100%;
           height: 100%;
-          font-family: var(--lcars-font-family, 'Antonio', 'Helvetica Neue', sans-serif);
+          font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio', 'Helvetica Neue', sans-serif));
         }
 
         .grid-cell {
