@@ -90,6 +90,13 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
   const mergedConfig = fullConfig.msd || fullConfig; // Extract msd property or use full config if already flat
   const provenance = result.provenance;
 
+  // view_box is injected at the top level of enhancedConfig (alongside the msd sub-object)
+  // so it ends up in fullConfig.view_box but NOT in fullConfig.msd (mergedConfig).
+  // Carry it over explicitly so CardModel can find it.
+  if (!mergedConfig.view_box && fullConfig.view_box) {
+    mergedConfig.view_box = fullConfig.view_box;
+  }
+
   // Merge top-level anchors (extracted from SVG) with nested anchors (user-defined).
   // CoreConfigManager places extracted anchors at fullConfig.anchors (top-level)
   // but user-defined anchors are at fullConfig.msd.anchors (nested).

@@ -395,6 +395,19 @@ export const lcardsDefaultTokens = {
     },
 
     // ------------------------------------------------------------------------
+    // LINE OVERLAY COMPONENT
+    // Used by LineOverlay (MSD). Values reference the colors.* palette so that
+    // theme variants automatically apply without per-component overrides.
+    // ------------------------------------------------------------------------
+    line: {
+      defaultColor:   'colors.ui.tertiary',
+      defaultWidth:   2,
+      defaultOpacity: 1,
+      defaultLineCap:  'round',
+      defaultLineJoin: 'round'
+    },
+
+    // ------------------------------------------------------------------------
     // ALERT COMPONENT
     // Flat structure (v2): shape fill, bars stroke, text fills.
     // Color-keyed overrides come from the preset system (condition_red, etc.)
