@@ -35,9 +35,16 @@ permissions:
   contents: write
 
 jobs:
+  validate:
+    name: Validate
+    uses: ./.github/workflows/validate-integration.yml
+    permissions:
+      contents: read
+
   release:
     name: Build and Release
     runs-on: ubuntu-latest
+    needs: validate
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 

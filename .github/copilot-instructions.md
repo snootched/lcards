@@ -124,6 +124,23 @@ npm run analyze        # Bundle size analysis
 
 **Critical**: After code changes, ALWAYS run `npm run build` before testing in Home Assistant. The card loads from `dist/lcards.js`, not source files.
 
+### CSS Variable Governance
+
+All CSS variable references (`--lcars-*`, `--lcards-*`) and theme token paths (`theme:`) are validated by `scripts/validate-css-vars.js` (4-pass). The build is **gated** on this validator — a violation breaks `npm run build`.
+
+```bash
+npm run validate:css-vars          # Run the validator
+npm run validate:css-vars:verbose  # Show all valid refs alongside violations
+```
+
+**Rules for new CSS variable references**:
+- `--lcars-*` — must appear in `scripts/ha-lcars-theme-vars.js` allowlist
+- `--lcards-*` — must appear in `src/lcards-vars.js`
+- `theme:` paths — must start with a declared namespace: `colors.`, `typography.`, `borders.`, `effects.`, `components.`, `palette.`, `colors.grid.`, `colors.lcars.`, `colors.ui.`
+- Computed expressions in presets/config must carry the `theme:` prefix: `theme:lighten(...)`, `theme:alpha(...)`
+
+If you add a new `--lcars-*` or `--lcards-*` variable, add it to the appropriate allowlist file **before** referencing it in source. If you add a top-level token path prefix, add it to `THEME_PATH_ALLOWED_PREFIXES` in the validator.
+
 ### File Structure Conventions
 
 ```
@@ -163,86 +180,17 @@ Control level in HA dev console: `window.lcards.setGlobalLogLevel('debug')`
 
 ## 🎨 Template System
 
-### UnifiedTemplateEvaluator (Four Template Types)
+> Full evaluator API, token context keys, Jinja2 auto-tracking, and `_preEvaluateStyleTemplates` pattern: see `.github/instructions/templates.instructions.md`.
 
-LCARdS supports multiple template syntaxes evaluated in order:
-
-```javascript
-// 1. JavaScript templates
-'[[[return entity.state.toUpperCase()]]]'
-
-// 2. Token templates
-'{entity.state}'
-'{entity.attributes.brightness}'
-'{theme:palette.moonlight}'
-
-// 3. DataSource templates (explicit syntax)
-'{datasource:sensor_temp:.1f}°C'
-'{ds:cpu_usage}'
-
-// 4. Jinja2 templates (async, evaluated by HA)
-'{{states("sensor.temp")}}'
-'{% if is_state("light.kitchen", "on") %}ON{% endif %}'
-```
-
-**Creating evaluator**:
-
-```javascript
-import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvaluator.js';
-
-const evaluator = new UnifiedTemplateEvaluator({
-  hass: this.hass,
-  context: {
-    entity: this.hass.states['light.kitchen'],
-    config: this.config,
-    hass: this.hass,
-    theme: themeManager.getCurrentTheme()
-  },
-  dataSourceManager: window.lcards.core.dataSourceManager
-});
-
-const result = await evaluator.evaluateAsync(template);
-```
-
-**DataSource Resolution**: Waterfall pattern - live DataSource → mock fallback → error
+Four eval types in order: **JS** (`[[[...]]]`) → **Token** (`{entity.state}`) → **DataSource** (`{datasource:name}`) → **Jinja2** (`{{...}}`). Use `UnifiedTemplateEvaluator` — never tokenize manually.
 
 ---
 
 ## 📊 DataSource System
 
-### Creating DataSources in Cards
+> Full config schema, subscribe pattern, data shape `{ v, t, history }`, and programmatic creation: see `.github/instructions/datasources.instructions.md`.
 
-Cards can define `data_sources` in config which are automatically registered:
-
-```yaml
-type: custom:lcards-button
-data_sources:
-  sensor_temp:
-    entity_id: sensor.temperature
-    update_interval: 5
-    history_size: 100
-    transformations:
-      - type: moving_average
-        window: 10
-```
-
-**Access pattern**:
-
-```javascript
-const dsManager = window.lcards.core.dataSourceManager;
-const source = dsManager.getSource('sensor_temp');
-
-// Subscribe to updates
-const unsubscribe = source.subscribe((data) => {
-  console.log('New value:', data.v); // { v: value, t: timestamp }
-  this.requestUpdate();
-});
-
-// Cleanup on disconnect
-disconnectedCallback() {
-  if (this._unsubscribe) this._unsubscribe();
-}
-```
+Declare `data_sources:` in card config; subscriptions are auto-cleaned on disconnect. Access via `window.lcards.core.dataSourceManager.getSource(name)`.
 
 ---
 
@@ -287,19 +235,47 @@ _resolveStyle() {
 
 ## 🎨 Theme System
 
+### Token Namespaces
+
+The token tree has seven declared namespaces. Only the populated ones resolve at runtime; phantom namespaces silently fall through to the fallback value.
+
+| Namespace | Status | Notes |
+|-----------|--------|-------|
+| `colors` | ✅ Populated | Full palette, ui, text, status, chart, card, lcars, grid |
+| `typography` | ✅ Populated | Font families, sizes, weights |
+| `borders` | ✅ Populated | Radius values |
+| `effects` | ✅ Populated | Opacity levels (base, inactive, unavailable, disabled, overlay) |
+| `components` | ✅ Populated | button, elbow, slider, chart, alert, dpad, backgroundAnimation |
+| `spacing` | ❌ Phantom | Declared in resolver but no token entries — always returns fallback |
+| `animations` | ❌ Phantom | Declared in resolver but no token entries — always returns fallback |
+
 ### Theme Token Resolution
 
+Always access the live resolver via the singleton — **never** import `themeTokenResolver` at module level (it is an empty shell with no token tree).
+
 ```javascript
-const themeManager = window.lcards.core.themeManager;
-const currentTheme = themeManager.getCurrentTheme();
+// ✅ CORRECT — live resolver, picks up theme changes and user overrides
+const resolver = window.lcards?.core?.themeManager?.resolver;
+const color = resolver ? resolver.resolve('colors.ui.primary', fallback) : fallback;
 
-// Access theme values
-const color = currentTheme.palette.moonlight;  // Direct access
-const spacing = currentTheme.spacing.medium;
-
-// Use in templates
-'background: {theme:palette.alert-red}'
+// In templates (token syntax — theme: prefix required in config/preset data)
+'{theme:palette.alert-red}'
+'{theme:lighten(colors.card.button, 0.2)}'
 ```
+
+### `theme:` Prefix Convention
+
+The `theme:` prefix is **required** in any config value or preset that references a token path or computed token expression. `LCARdSCard._resolveThemeToken()` strips it before passing to the resolver.
+
+| Context | Correct form | Notes |
+|---------|-------------|-------|
+| Card config / preset value | `'theme:colors.ui.primary'` | Prefix required |
+| Card config / preset — computed | `'theme:lighten(colors.card.button, 0.2)'` | Prefix required |
+| Token file value (cross-reference) | `'darken(colors.card.button, 0.35)'` | No prefix — resolver receives bare string |
+| Template string | `'{theme:palette.moonlight}'` | Prefix required in the token syntax |
+
+❌ `'lighten(colors.card.button, 0.2)'` in a preset — missing `theme:` prefix; resolver never called, expression rendered as literal string
+❌ `'theme:darken(x, 0.3)'` inside `lcardsDefaultTokens.js` — double-prefix breaks resolution
 
 **Built-in themes**: `lcars-default`, `lcars-dark`, `cb-lcars` (retro LCARS)
 
@@ -307,202 +283,33 @@ const spacing = currentTheme.spacing.medium;
 
 ## 🎬 Animation System
 
-### anime.js v4 (Breaking Changes from v3)
+> anime.js v4 API diff table, AnimationManager/Registry usage, trigger routing, `prefers-reduced-motion` guard, and alert mode: see `.github/instructions/animation.instructions.md`.
 
-LCARdS uses **anime.js v4** which has a **different API signature** than v3:
-
-```javascript
-import anime from 'animejs';
-
-// ✅ CORRECT: anime.js v4 syntax
-anime({
-  targets: '.my-element',
-  translateX: [0, 100],
-  duration: 1000,
-  easing: 'easeInOutQuad'
-});
-
-// ❌ WRONG: anime.js v3 syntax (will fail)
-anime.timeline()
-  .add({ targets: '.my-element', translateX: 100 });
-```
-
-**Key v4 Changes**:
-- Timeline API has changed - check v4 docs
-- Some easing function names differ
-- `anime.timeline()` syntax updated
-- Better TypeScript support
-
-### AnimationManager Singleton
-
-Coordinates animations across all cards:
-
-```javascript
-const animManager = window.lcards.core.animationManager;
-
-// Register animation
-animManager.registerAnimation('my-card-pulse', {
-  targets: '#my-element',
-  scale: [1, 1.1, 1],
-  duration: 800,
-  loop: true
-});
-
-// Play animation
-animManager.play('my-card-pulse');
-
-// Stop animation
-animManager.stop('my-card-pulse');
-```
-
-### AnimationRegistry
-
-Caches animation instances to avoid re-parsing:
-
-```javascript
-const registry = window.lcards.core.animationRegistry;
-
-// Get cached animation (or create if new)
-const animation = registry.getOrCreate('button-pulse', () => ({
-  targets: '.button',
-  scale: [1, 1.05, 1],
-  duration: 600,
-  easing: 'easeInOutQuad'
-}));
-
-animation.play();
-```
-
-### Alert Mode Animations
-
-Special animation presets for red/yellow alert states:
-
-```javascript
-// Trigger alert mode (activates across all registered cards)
-window.lcards.alert.red();   // Red alert
-window.lcards.alert.yellow(); // Yellow alert
-window.lcards.alert.off();    // Clear alert
-
-// Cards listen for alert events and apply preset animations
-```
-
-**MSD Animation Presets**: Located in `src/msd/presets/alert-mode/` with specific timelines for overlay pulsing, color shifts, and line animations.
+**Critical**: LCARdS uses **anime.js v4** — API differs from v3. Use `anime.createTimeline()` not `anime.timeline()`, `anime.animate(targets, props)` not `anime({targets, ...props})`, easing `'inOutQuad'` not `'easeInOutQuad'`. Alert mode: `window.lcards.alert.red/yellow/off()`.
 
 ---
 
 ## 🖼️ Visual Editor System
 
-### Editor Base Class Pattern
+> Approved HA elements, `FormField.renderField()` API, `editorStyles` requirement, shared components, and `_updateConfig()` rules: see `.github/instructions/editor.instructions.md`.
 
-All card editors extend `LCARdSBaseEditor` and use declarative tab configuration:
-
-```javascript
-import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
-
-export class MyCardEditor extends LCARdSBaseEditor {
-  constructor() {
-    super();
-    this.cardType = 'my-card';
-  }
-
-  _getTabDefinitions() {
-    return [
-      { label: 'Config', content: () => this._renderFromConfig(this._getConfigTabConfig()) },
-      { label: 'YAML', content: () => this._renderYamlTab() }
-    ];
-  }
-
-  _getConfigTabConfig() {
-    return [
-      {
-        type: 'section',
-        title: 'Basic Settings',
-        fields: [
-          { type: 'entity', path: 'entity_id', label: 'Entity' },
-          { type: 'text', path: 'name', label: 'Name' }
-        ]
-      }
-    ];
-  }
-}
-```
-
-**Available field types**: `entity`, `text`, `number`, `color`, `select`, `checkbox`, `custom`
+All editors extend `LCARdSBaseEditor`. Use `FormField.renderField(this, 'path', options)` for all fields — never raw `<input>`/`<select>`. Always commit via `this._updateConfig(partial)`.
 
 ---
 
 ## 🔄 Card Lifecycle
 
-### LCARdSCard Lifecycle Hooks
+> Full lifecycle hook docs, `super` call requirements, and integration with rules/DataSources: see `.github/instructions/cards.instructions.md`.
 
-```javascript
-export class MyCard extends LCARdSCard {
-
-  // 1. Called once on first render
-  _handleFirstUpdate(changedProps) {
-    super._handleFirstUpdate(changedProps);
-    // Setup: register with RulesEngine, subscribe to DataSources
-  }
-
-  // 2. Called on HASS updates
-  _handleHassUpdate(newHass, oldHass) {
-    super._handleHassUpdate(newHass, oldHass);
-    // Update entity references, recompute state
-  }
-
-  // 3. Called on every render
-  _renderCard() {
-    return html`<div>Card content</div>`;
-  }
-
-  // 4. Called when rule patches change
-  _onRulePatchesChanged(patches) {
-    this._resolveStyle(); // Must call requestUpdate()
-  }
-}
-```
+Hooks in order: `_handleFirstUpdate` (setup, once) → `_handleHassUpdate` (HASS changes) → `_renderCard` (every render) → `_onRulePatchesChanged` (style patches). Always call `super` first.
 
 ---
 
-## 🏷️ Required Card Properties
+## 🏷️ Required Card Properties & Card Size
 
-Every card class **must** declare these two static members:
+Every card **must** declare `static CARD_TYPE = 'my-card'` (matches CoreConfigManager schema key) and `static getStubConfig()` (minimum viable config for the card picker). Override `_getCardSize()` using `this._pxToGridUnits(h) ?? 3` — returning `1` for a taller card causes HA layout clipping.
 
-```javascript
-export class MyCard extends LCARdSCard {
-
-  /** Used by CoreConfigManager for schema lookup & config processing */
-  static CARD_TYPE = 'my-card';
-
-  /** Returns a minimal config shown in the HA card picker */
-  static getStubConfig() {
-    return {
-      type: 'custom:lcards-my-card',
-      entity: 'light.example'
-    };
-  }
-}
-```
-
-**`CARD_TYPE`** must match the key registered in `CoreConfigManager`'s schema map. If absent, `processConfig()` cannot find the schema and silently skips validation and preset merging.
-
-**`getStubConfig()`** should return the *minimum viable config* for the card to render meaningfully in the card picker gallery. Always include `type` and `entity` if the card needs one.
-
----
-
-## 📐 Card Size
-
-Override `_getCardSize()` to return the card's height in HA grid rows. Use the inherited `_pxToGridUnits()` helper for pixel-based configs:
-
-```javascript
-_getCardSize() {
-  const h = this.config.style?.height;
-  // _pxToGridUnits returns null for non-px values (%, em, etc.) → fall back to default
-  return this._pxToGridUnits(h) ?? 3;
-}
-```
-
-Returning the default `1` when a card is taller causes HA to clip the card in dashboard layout mode.
+> Full details and examples: see `.github/instructions/cards.instructions.md`.
 
 ---
 
@@ -560,94 +367,17 @@ this._color = ColorUtils.resolveCssVariable(
 
 ## 🎮 Action Handling
 
-### setupActions()
+Use `this.setupActions(el, { tap_action, hold_action, double_tap_action })` for all interactions — never raw click/pointer listeners. Use `this.callService(domain, service, data)` — never `this.hass.callService()` directly.
 
-Use the inherited `setupActions()` for all tap/hold/double-tap interactions — never bind raw click/pointer listeners for HA actions.
-
-```javascript
-_handleFirstUpdate() {
-  super._handleFirstUpdate();
-
-  const el = this.shadowRoot.querySelector('.interactive');
-  if (el) {
-    // Returns cleanup function; base also cleans up on disconnect
-    this._actionsCleanup = this.setupActions(el, {
-      tap_action: this.config.tap_action,
-      hold_action: this.config.hold_action,
-      double_tap_action: this.config.double_tap_action
-    });
-  }
-}
-```
-
-`setupActions()` automatically handles HA actions (navigate, call-service, more-info, toggle, url, fire-event, assist), integrates card-level `sounds` config, and supports anime.js animation triggers.
-
-### callService()
-
-Use the inherited `callService()` helper — do **not** call `this.hass.callService()` directly:
-
-```javascript
-// ✅ CORRECT — wrapped with error handling and logging
-await this.callService('light', 'turn_on', {
-  entity_id: this.config.entity,
-  brightness: 255
-});
-
-// ❌ AVOID — bypasses base-class error handling
-await this.hass.callService('light', 'turn_on', { entity_id: ... });
-```
+> Full examples and cleanup behaviour: see `.github/instructions/cards.instructions.md`.
 
 ---
 
-## 👁️ Preview Mode Guard
+## 👁️ Preview Mode Guard & 🧹 Cleanup
 
-`isPreviewMode()` returns `false`, `'editor'`, or `'picker'`. The `'picker'` state means the card is in the HA card picker gallery — skip any expensive initialisation.
+Guard expensive init with `if (this.isPreviewMode() === 'picker') return` — do **not** guard `'editor'`. The base `_onDisconnected()` auto-cleans: core registration, overlay, entity subscriptions, DataSources, ResizeObserver, actions handler. Only override `_onDisconnected()` for card-specific teardown (timers, AbortControllers); always call `super._onDisconnected()` last.
 
-```javascript
-_handleFirstUpdate() {
-  super._handleFirstUpdate();
-
-  if (this.isPreviewMode() === 'picker') {
-    // Skip: SVG loading, DataSource subscriptions, animations, ResizeObservers
-    return;
-  }
-
-  // Full init — runs when live on dashboard or in the editor panel
-  this._initExpensiveSetup();
-}
-```
-
-**Do NOT** guard against `'editor'` — the editor preview should render normally so designers see live changes.
-
----
-
-## 🧹 Disconnection & Cleanup
-
-`LCARdSCard._onDisconnected()` automatically handles all standard cleanup:
-
-| What | How it's cleaned up |
-|------|---------------------|
-| Core registration | `core.unregisterCard()` |
-| SystemsManager overlay | `systemsManager.unregisterOverlay()` |
-| `subscribeToEntity()` calls | Auto-tracked set, fully cleared |
-| Registered DataSources | Auto-deregistered |
-| ResizeObserver | Disconnected |
-| `setupActions()` handler | Cleanup fn called |
-
-**Cards must NOT duplicate these cleanup calls.** Only add an `_onDisconnected()` override for card-specific teardown:
-
-```javascript
-_onDisconnected() {
-  // Cancel own timers / abort controllers / 3rd-party instances
-  if (this._myInterval) {
-    clearInterval(this._myInterval);
-    this._myInterval = null;
-  }
-  super._onDisconnected(); // Always call super last
-}
-```
-
-**Key rule**: If you subscribed via `this.subscribeToEntity()`, do NOT also manually unsubscribe — that is double-cleanup.
+> Full cleanup table and examples: see `.github/instructions/cards.instructions.md`.
 
 ---
 
@@ -673,47 +403,9 @@ View provenance in editor's "Provenance" tab.
 
 ### Entity State Access
 
-`LCARdSCard` provides two first-class entity access helpers. Prefer them over direct `this.hass.states` access.
+Use `this.subscribeToEntity(id, cb)` (event-driven, auto-unsubscribed on disconnect) or `this.getEntityState(id?)` (synchronous snapshot). Never access `this.hass.states` directly on render, and never call `systemsManager.subscribeToEntity()` from a card — it won't auto-track.
 
-#### Event-driven (preferred) — `subscribeToEntity()`
-
-Fires a callback whenever the entity changes. Subscriptions are **automatically unsubscribed** when the card disconnects — no manual cleanup needed.
-
-```javascript
-_handleFirstUpdate() {
-  super._handleFirstUpdate();
-
-  // Callback fires on initial load and on every state change
-  this.subscribeToEntity(this.config.entity, (entityId, newState, oldState) => {
-    this._entity = newState;
-    this.requestUpdate();
-  });
-}
-```
-
-#### Synchronous snapshot — `getEntityState()`
-
-Returns the current cached state without subscribing. Useful for one-time reads or after a `subscribeToEntity` callback already fired.
-
-```javascript
-const state = this.getEntityState('sensor.temperature');
-// or use the card's own entity:
-const state = this.getEntityState();
-```
-
-#### Anti-pattern — raw HASS access
-
-```javascript
-// ❌ BAD: bypasses caching, no auto-cleanup event-driven updates
-render() {
-  const state = this.hass.states[this.config.entity_id];
-  return html`${state.state}`;
-}
-
-// ❌ BAD: manual systemsManager.subscribeToEntity() is not auto-tracked
-const unsub = this._singletons.systemsManager.subscribeToEntity(id, cb);
-// (you'd have to manually call unsub() in _onDisconnected)
-```
+> Full examples: see `.github/instructions/cards.instructions.md`.
 
 ---
 
@@ -743,19 +435,26 @@ import { fireEvent } from 'custom-card-helpers';
 fireEvent(this, 'config-changed', { config: this.config });
 ```
 
-### Editor Field Types
+### Editor Field Rendering
 
-`LCARdSBaseEditor._getConfigTabConfig()` accepts these field types:
+Use `LCARdSFormFieldHelper.renderField(editor, configPath, options?)` — the canonical field API. Do **not** render raw `<input>`, `<select>`, or bare `ha-selector` elements.
 
-| Type | Use Case |
-|------|----------|
-| `entity` | Entity ID picker |
-| `text` | Free-form text input |
-| `number` | Numeric with optional min/max/step |
-| `color` | Color picker (supports `var()` and computed expressions) |
-| `select` | Dropdown — pair with `options: [{ value, label }]` |
-| `checkbox` | Boolean toggle |
-| `custom` | Inject any Lit `html` template via `render` callback |
+```javascript
+import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
+
+// In a _renderConfig() method:
+FormField.renderField(this, 'entity')
+FormField.renderField(this, 'style.primary_color', { type: 'color', label: 'Primary Color' })
+FormField.renderField(this, 'preset', {
+  type: 'select',
+  label: 'Preset',
+  options: [{ value: 'default', label: 'Default' }]
+})
+```
+
+**Available field types:** `entity`, `text`, `number`, `color`, `select`, `checkbox`
+
+See `.github/instructions/editor.instructions.md` for the complete editor reference (approved HA elements, shared components, required styles).
 
 ---
 
@@ -906,7 +605,11 @@ $0._singletons.rulesManager  // From any card element
 ❌ **Don't** update editor config with direct assignment — use `this._updateConfig(partial)` in editors
 ❌ **Don't** call `ColorUtils.resolveCssVariable()` alone on color values — use the two-step resolver pattern for Canvas2D/SVG/anime.js contexts
 ❌ **Don't** use bare `customElements.define('name', Class)` — always guard with `if (!customElements.get('name'))` to prevent double-registration errors when the module is evaluated more than once (e.g. HMR, panel re-mount)
+❌ **Don't** `import { themeTokenResolver } from '...ThemeTokenResolver.js'` — that module-level instance has no token tree and silently returns all fallbacks; always use `window.lcards.core.themeManager.resolver`
+❌ **Don't** write computed token expressions in presets/config without the `theme:` prefix — `'lighten(colors.x, 0.2)'` is treated as a literal string, not a token expression
+❌ **Don't** use phantom token namespaces (`spacing.*`, `animations.*`) — they are declared in the resolver but have no entries in the token file and always produce the fallback value
+❌ **Don't** add new `--lcars-*` or `--lcards-*` CSS variable references without first adding them to the allowlist in `scripts/ha-lcars-theme-vars.js` or `src/lcards-vars.js` — the build will fail validation
 
 ---
 
-*Last Updated: March 2026 | LCARdS v1.12.01*
+*Last Updated: April 2026 | LCARdS v1.12.01*
