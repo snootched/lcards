@@ -633,7 +633,7 @@ export class ThemeManager extends BaseService {
     // Invalidate LCARdSColorPicker CSS variable cache so freshly-opened
     // picker instances show the transformed swatch colours.
     try {
-      const LCARdSColorPicker = customElements.get('lcards-color-picker');
+      const LCARdSColorPicker = /** @type {any} */ (customElements.get('lcards-color-picker'));
       if (LCARdSColorPicker?.invalidateCache) LCARdSColorPicker.invalidateCache();
     } catch (_) { /* safe to ignore */ }
 
@@ -715,7 +715,7 @@ export class ThemeManager extends BaseService {
     }
     // Invalidate LCARdSColorPicker static variable cache
     try {
-      const LCARdSColorPicker = customElements.get('lcards-color-picker');
+      const LCARdSColorPicker = /** @type {any} */ (customElements.get('lcards-color-picker'));
       if (LCARdSColorPicker?.invalidateCache) LCARdSColorPicker.invalidateCache();
     } catch (_) { /* safe to ignore */ }
   }
