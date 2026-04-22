@@ -9,8 +9,9 @@ import { resolveThemeTokensRecursive } from '../../utils/lcards-theme.js';
  * StylePresets are named style bundles that can be applied to overlays.
  *
  * Usage:
- *   stylePresetManager.getPreset('status_grid', 'lozenge')
- *   // Returns: { cell_radius: 12, text_padding: 10, ... }
+ *   stylePresetManager.getPreset('button', 'lozenge')
+ *   stylePresetManager.getPreset('select-menu', 'filled')
+ *   // Returns: { style: { ... } }
  */
 export class StylePresetManager {
   constructor() {
@@ -18,13 +19,9 @@ export class StylePresetManager {
     this.presetCache = new Map();
     this.initialized = false;
 
-    // CSS utilities (migrated from CoreStyleLibrary)
-    this.generatedClasses = new Set();
-    this.styleElement = null;
     this.stats = {
       presetsUsed: 0,
       tokensResolved: 0,
-      classesGenerated: 0,
       cacheHits: 0
     };
   }
@@ -40,17 +37,13 @@ export class StylePresetManager {
     this.presetCache.clear();
     this.initialized = true;
 
-    // Initialize CSS utilities for dynamic class generation
-    this.initializeCSSUtilities();
-
     // Build cache for faster lookups
     this._buildPresetCache();
 
     lcardsLog.debug('[StylePresetManager] ✅ Initialized with preset cache:', {
       packCount: this.loadedPacks.length,
       cacheSize: this.presetCache.size,
-      availableTypes: this._getAvailableOverlayTypes(),
-      cssUtilitiesReady: !!this.styleElement
+      availableTypes: this._getAvailableOverlayTypes()
     });
   }
 
@@ -79,7 +72,7 @@ export class StylePresetManager {
 
   /**
    * Get a style preset for a specific overlay type with hierarchical lookup
-   * @param {string} overlayType - Type of overlay (e.g., 'status_grid', 'button')
+   * @param {string} overlayType - Type of overlay (e.g., 'button', 'select-menu')
    * @param {string} presetName - Name of the preset (e.g., 'lozenge', 'bullet')
    * @param {Object} themeManager - Optional theme manager for token resolution
    * @returns {Object|null} Preset configuration or null if not found
@@ -96,10 +89,7 @@ export class StylePresetManager {
       `${overlayType}.${presetName}`,
 
       // 2. Universal button preset: button.presetName (for button-like overlays)
-      ...(this._isButtonLikeOverlay(overlayType) ? [`button.${presetName}`] : []),
-
-      // 3. Universal presets: any universal category that might apply
-      ...this._getUniversalPresetCandidates(overlayType, presetName)
+      ...(this._isButtonLikeOverlay(overlayType) ? [`button.${presetName}`] : [])
     ];
 
     for (const cacheKey of lookupStrategies) {
@@ -449,28 +439,10 @@ export class StylePresetManager {
   _isButtonLikeOverlay(overlayType) {
     const buttonLikeTypes = [
       'button',
-      'status_grid',  // Status grid uses button-like cells
-      'control_panel', // If we add this later
-      'action_bar'     // If we add this later
+      'select-menu'  // select-menu preset is a shortcut applied to embedded lcards-button cards
     ];
 
     return buttonLikeTypes.includes(overlayType);
-  }
-
-  /**
-   * Get universal preset candidates for fallback lookup
-   * @private
-   * @param {string} overlayType - Overlay type
-   * @param {string} presetName - Preset name
-   * @returns {Array} Array of candidate cache keys
-   */
-  _getUniversalPresetCandidates(overlayType, presetName) {
-    const candidates = [];
-
-    // Future: Add more universal categories as we create them
-    // e.g., 'text.presetName', 'chart.presetName', etc.
-
-    return candidates;
   }
 
   /**
@@ -551,126 +523,6 @@ export class StylePresetManager {
   }
 
   // ========================================
-  // CSS Utilities (migrated from CoreStyleLibrary)
-  // ========================================
-
-  /**
-   * Initialize CSS utilities (create style element)
-   */
-  initializeCSSUtilities() {
-    if (!this.styleElement && typeof document !== 'undefined') {
-      this.styleElement = document.createElement('style');
-      this.styleElement.id = 'lcards-dynamic-styles';
-      document.head.appendChild(this.styleElement);
-      lcardsLog.debug('[StylePresetManager] CSS utilities initialized');
-    }
-  }
-
-  /**
-   * Create CSS class from style object
-   * @param {string} className - CSS class name
-   * @param {Object} styles - Style object
-   * @param {boolean} addToDOM - Whether to add to DOM immediately
-   * @returns {string} CSS class rule
-   */
-  createCSSClass(className, styles, addToDOM = true) {
-    const cssRules = [];
-
-    for (const [property, value] of Object.entries(styles)) {
-      // Convert camelCase to kebab-case
-      const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
-      cssRules.push(`  ${cssProperty}: ${value};`);
-    }
-
-    const cssRule = `.${className} {\n${cssRules.join('\n')}\n}`;
-
-    if (addToDOM && this.styleElement) {
-      this.styleElement.textContent += cssRule + '\n';
-      this.generatedClasses.add(className);
-      this.stats.classesGenerated++;
-    }
-
-    return cssRule;
-  }
-
-  /**
-   * Generate CSS class from preset
-   * @param {string} overlayType - Overlay type
-   * @param {string} presetName - Preset name
-   * @param {Object} themeManager - Theme manager for token resolution
-   * @returns {string|null} Generated CSS class name
-   */
-  generatePresetClass(overlayType, presetName, themeManager = null) {
-    const preset = this.getPreset(overlayType, presetName, themeManager);
-    if (!preset) return null;
-
-    const className = `lcards-${overlayType}-${presetName}`;
-    if (this.generatedClasses.has(className)) {
-      this.stats.cacheHits++;
-      return className;
-    }
-
-    this.createCSSClass(className, preset);
-    return className;
-  }
-
-  /**
-   * Resolve theme tokens in style object
-   * @param {Object} styles - Style object with potential theme tokens
-   * @param {Object} themeManager - Theme manager instance
-   * @returns {Object} Resolved style object
-   */
-  resolveTokensInStyles(styles, themeManager = null) {
-    if (!styles || !themeManager) return styles;
-
-    const resolved = {};
-    for (const [key, value] of Object.entries(styles)) {
-      if (typeof value === 'string' && value.startsWith('theme:')) {
-        const tokenPath = value.substring(6); // Remove 'theme:' prefix
-        resolved[key] = themeManager.getToken(tokenPath, value);
-        this.stats.tokensResolved++;
-      } else {
-        resolved[key] = value;
-      }
-    }
-    return resolved;
-  }
-
-  /**
-   * Get CSS utilities statistics
-   * @returns {Object} Statistics object
-   */
-  getCSSStats() {
-    return {
-      ...this.stats,
-      generatedClasses: this.generatedClasses.size,
-      hasStyleElement: !!this.styleElement
-    };
-  }
-
-  /**
-   * Clear generated CSS classes
-   */
-  clearGeneratedCSS() {
-    if (this.styleElement) {
-      this.styleElement.textContent = '';
-    }
-    this.generatedClasses.clear();
-    this.stats.classesGenerated = 0;
-    lcardsLog.debug('[StylePresetManager] Generated CSS cleared');
-  }
-
-  /**
-   * Destroy CSS utilities and clean up
-   */
-  destroyCSSUtilities() {
-    if (this.styleElement) {
-      this.styleElement.remove();
-      this.styleElement = null;
-    }
-    this.generatedClasses.clear();
-    lcardsLog.debug('[StylePresetManager] CSS utilities destroyed');
-  }
 }
 
 // Make StylePresetManager globally accessible for debugging

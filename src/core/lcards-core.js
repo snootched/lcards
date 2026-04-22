@@ -191,10 +191,8 @@ class LCARdSCore {
             lcardsLog.debug('[LCARdSCore] ✅ ConfigManager initialized (early - before cards need it)');
 
             // Initialize StylePresetManager (Phase 2b) - ✅ Unified style system (replaces CoreStyleLibrary)
-            // This now includes both preset management AND CSS utilities
             // Note: Presets will be loaded by PackManager, not here
             this.stylePresetManager = new StylePresetManager();
-            this.stylePresetManager.initializeCSSUtilities(); // Initialize CSS utilities now
             lcardsLog.debug('[LCARdSCore] ✅ StylePresetManager created (awaiting pack loading)');
 
             // Initialize AnimationRegistry (Phase 2b) - ✅ Real MSD AnimationRegistry as singleton
@@ -748,7 +746,6 @@ class LCARdSCore {
         }
 
         if (this.stylePresetManager) {
-            this.stylePresetManager.destroyCSSUtilities();
             this.stylePresetManager = null;
         }
 

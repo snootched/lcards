@@ -410,7 +410,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         const dataSourceManager = this._singletons?.dataSourceManager;
         if (!dataSourceManager) {
-            lcardsLog.warn(`[LCARdSCard] Cannot process data_sources: DataSourceManager not available`);
+            lcardsLog.debug(`[LCARdSCard] Cannot process data_sources yet: DataSourceManager not available (will retry after connectedCallback)`);
             return;
         }
 
@@ -804,6 +804,16 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Now that singletons are initialized, register datasource dependencies from templates
         if (this._singletons?.dataSourceManager && this.config) {
             this._registerTemplateDatasourceDependencies();
+        }
+
+        // Re-run data_sources processing if it was skipped during setConfig (singletons not ready yet)
+        if (this._singletons?.dataSourceManager && this.config?.data_sources && !this._registeredDataSources?.size) {
+            lcardsLog.debug(`[LCARdSCard] Re-processing data_sources after singletons available: ${this._getDisplayId()}`);
+            // Chain onto _configProcessingPromise so subclasses that await it (e.g. lcards-chart) get sources ready
+            const retryPromise = this._processDataSourcesConfig(this.config.data_sources).catch(err => {
+                lcardsLog.error(`[LCARdSCard] data_sources re-processing failed:`, err);
+            });
+            this._configProcessingPromise = Promise.resolve(this._configProcessingPromise).then(() => retryPromise);
         }
 
         // Now that singletons are initialized, load rules from config
