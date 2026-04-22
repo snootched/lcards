@@ -5,7 +5,7 @@
  * Architecture:
  * - Extends OverlayBase for lifecycle management
  * - One instance per line overlay (not shared)
- * - Caches styles and path data for efficient updates
+ * - Resolves styles fresh on each render (ensures theme token changes are always applied)
  * - Delegates to RouterCore for path computation
  * - Manages marker, gradient, and pattern definitions
  *
@@ -19,7 +19,6 @@
 
 import { OverlayBase } from './OverlayBase.js';
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
-import { themeTokenResolver } from '../../core/themes/ThemeTokenResolver.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 /**
@@ -43,7 +42,7 @@ export class LineOverlay extends OverlayBase {
     this.routerCore = routerCore;
 
     // Caching for efficient updates
-    this._cachedLineStyle = null;
+
     this._cachedPathResult = null;
     this._cachedAnchors = null;
 
@@ -60,7 +59,7 @@ export class LineOverlay extends OverlayBase {
 
   /**
    * Initialize line overlay
-   * Pre-resolves styles for efficient rendering
+   * Validates RouterCore availability; style resolution happens fresh on each render.
    *
    * @param {Element} mountEl - Mount element for the overlay
    * @returns {Promise<void>}
@@ -74,14 +73,8 @@ export class LineOverlay extends OverlayBase {
         throw new Error('RouterCore not available');
       }
 
-      // Pre-resolve line styles
-      const viewBox = (/** @type {any} */ (this)).systemsManager?.rendererSystem?.viewBox || [0, 0, 800, 600];
-      const style = this.overlay.finalStyle || this.overlay.style || {};
-      this._cachedLineStyle = this._resolveLineStyles(style, this.overlay.id, viewBox);
-
       lcardsLog.trace(`[LineOverlay] Initialized overlay ${this.overlay.id}:`, {
-        hasStyle: !!this._cachedLineStyle,
-        features: this._cachedLineStyle?.features?.length || 0,
+        hasRouterCore: !!this.routerCore,
         routingStrategy: this.overlay.routing_strategy
       });
     } catch (error) {
@@ -214,8 +207,8 @@ export class LineOverlay extends OverlayBase {
       // Cache path result for updates
       this._cachedPathResult = pathResult;
 
-      // Use cached styles or resolve fresh
-      const lineStyle = this._cachedLineStyle || this._resolveLineStyles(
+      // Always resolve fresh — ensures theme token changes are always reflected
+      const lineStyle = this._resolveLineStyles(
         overlay.finalStyle || overlay.style || {},
         overlay.id,
         viewBox
@@ -323,7 +316,6 @@ export class LineOverlay extends OverlayBase {
     lcardsLog.trace(`[LineOverlay] Destroying overlay ${this.overlay.id}`);
 
     // Clear caches
-    this._cachedLineStyle = null;
     this._cachedPathResult = null;
     this._cachedAnchors = null;
     this.markerCache.clear();
@@ -349,9 +341,10 @@ export class LineOverlay extends OverlayBase {
    * @returns {Object} Resolved line styles
    */
   _resolveLineStyles(style, overlayId, viewBox) {
-    // Create component-scoped token resolver
-    const resolveToken = (themeTokenResolver && typeof themeTokenResolver.forComponent === 'function')
-      ? themeTokenResolver.forComponent('line')
+    // Create component-scoped token resolver using the live singleton (not a stale module import)
+    const _resolver = window.lcards?.core?.themeManager?.resolver;
+    const resolveToken = (_resolver && typeof _resolver.forComponent === 'function')
+      ? _resolver.forComponent('line')
       : null;
     const scalingContext = this._getScalingContext(viewBox);
 
@@ -454,17 +447,6 @@ export class LineOverlay extends OverlayBase {
     }
 
     return fallback;
-  }
-
-  /**
-   * Check if a value is a token reference
-   *
-   * @private
-   */
-  _isTokenReference(value) {
-    if (typeof value !== 'string') return false;
-    const tokenCategories = ['colors', 'typography', 'spacing', 'borders', 'effects', 'animations', 'components'];
-    return tokenCategories.some(category => value.startsWith(`${category}.`));
   }
 
   /**

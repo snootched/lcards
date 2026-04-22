@@ -101,13 +101,13 @@ export class AdvancedRenderer {
           overlayId: result?.overlayId
         });
 
-        // CHANGED: Handle new return structure
+        // Handle new return structure
         if (typeof result === 'string') {
           // Backward compatibility - old renderers return strings
           svgMarkupAccum += result;
         } else if (result && result.markup) {
-          // New structure - extract markup
-          svgMarkupAccum += result;
+          // New structure - extract markup string from result object
+          svgMarkupAccum += result.markup ?? '';
 
           // Collect provenance if available
           if (result.provenance) {
@@ -357,6 +357,28 @@ export class AdvancedRenderer {
       errors: overlays.length - processedCount,
       provenance
     };
+  }
+
+  /**
+   * Destroy this renderer and all cached overlay instances.
+   * Called by MsdCardCoordinator.destroy() during card teardown.
+   */
+  destroy() {
+    for (const [id, renderer] of this.overlayRenderers) {
+      try {
+        if (typeof renderer.destroy === 'function') {
+          renderer.destroy();
+        }
+      } catch (e) {
+        lcardsLog.warn(`[AdvancedRenderer] Error destroying overlay renderer ${id}:`, e);
+      }
+    }
+    this.overlayRenderers.clear();
+    this.overlayElementCache.clear();
+    this.overlayElements.clear();
+    this.attachmentManager = null;
+    this.lastRenderArgs = null;
+    lcardsLog.debug('[AdvancedRenderer] Destroyed — all overlay renderers cleaned up');
   }
 
   /**

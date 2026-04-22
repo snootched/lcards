@@ -448,20 +448,6 @@ export class BaseRenderer {
   }
 
   /**
-   * Check if a value is a token reference
-   *
-   * @private
-   * @param {*} value - Value to check
-   * @returns {boolean} True if value is a token reference
-   */
-  // @ts-ignore - first definition; duplicate below overrides at runtime
-  _isTokenReference(value) {
-    if (typeof value !== 'string') return false;
-    const tokenCategories = ['colors', 'typography', 'spacing', 'borders', 'effects', 'animations', 'components'];
-    return tokenCategories.some(category => value.startsWith(`${category}.`));
-  }
-
-  /**
    * Manually resolve a token (fallback when StyleResolver not available)
    *
    * @private
@@ -542,7 +528,6 @@ export class BaseRenderer {
    * this._isTokenReference('#FF9900'); // false
    * this._isTokenReference(16); // false
    */
-  // @ts-ignore - TS2393: duplicate implementation; this overrides at runtime
   _isTokenReference(value) {
     if (typeof value !== 'string') return false;
     const tokenCategories = ['colors', 'typography', 'spacing', 'borders', 'effects', 'animations', 'components'];
