@@ -99,6 +99,7 @@ export class LCARdSAlertOverlay extends LitElement {
         this._editMode         = false;
         this._editModePoller   = null;
         this._portalEl         = null;
+        this._portalStyleEl    = null;
         this._blurEl           = null;
         this._tintEl           = null;
         this._wrapperEl        = null;
@@ -329,6 +330,9 @@ export class LCARdSAlertOverlay extends LitElement {
         this._contentElement = el;
 
         if (this._contentContainer) {
+            // Mark the element so the portal stylesheet can override its inline
+            // aspect-ratio with !important (lcards-button re-applies it every render).
+            el.setAttribute('data-lcards-overlay-content', '');
             this._contentContainer.appendChild(el);
         }
 
@@ -472,7 +476,31 @@ export class LCARdSAlertOverlay extends LitElement {
         });
 
         this._contentContainer = document.createElement('div');
-        this._contentContainer.style.pointerEvents = 'auto';
+        // Display as flex so the mounted card child stretches to fill the explicit
+        // width/height set on this container.  Without this, a block-level child
+        // with aspect-ratio (set by lcards-button) ignores the container height and
+        // computes its own height from the aspect-ratio × width, causing overflow.
+        Object.assign(this._contentContainer.style, {
+            pointerEvents: 'auto',
+            display:       'flex',
+            alignItems:    'stretch',
+        });
+
+        // Inject a stylesheet rule that beats any inline `aspect-ratio` the
+        // mounted card sets on its own host element (lcards-button does this
+        // on every render after resolving the SVG viewBox).  Using !important
+        // from a <style> tag beats inline styles without JS intervention on
+        // every render cycle.  Cards target via data-lcards-overlay-content.
+        this._portalStyleEl = document.createElement('style');
+        this._portalStyleEl.textContent = [
+            '[data-lcards-overlay-content] {',
+            '  aspect-ratio: unset !important;',
+            '  width:        100%   !important;',
+            '  height:       100%   !important;',
+            '  min-height:   0      !important;',
+            '}',
+        ].join('\n');
+        document.head.appendChild(this._portalStyleEl);
 
         this._wrapperEl.appendChild(this._contentContainer);
         this._portalEl.appendChild(this._blurEl);
@@ -485,7 +513,9 @@ export class LCARdSAlertOverlay extends LitElement {
 
     _removePortal() {
         this._portalEl?.remove();
+        this._portalStyleEl?.remove();
         this._portalEl         = null;
+        this._portalStyleEl    = null;
         this._blurEl           = null;
         this._tintEl           = null;
         this._wrapperEl        = null;
