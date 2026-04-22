@@ -130,7 +130,9 @@ In most dashboard layouts you only need `grid_options`. Use the sizing propertie
 
 [`custom:layout-card`](https://github.com/thomasloven/lovelace-layout-card) arranges cards in a CSS Grid, Masonry, or other layout. By default it sets `--layout-height: auto` on the grid container, which means grid rows size to their content rather than stretching to fill the allocated height. LCARdS cards rely on `height: 100%` on their host element to fill the row — with `auto` height rows this collapses the card to its minimum height.
 
-### Symptom
+There also exists a bug (unpatched, PR pending) that fixes the `card_margin` configuration on grid layouts.  Currently, this option is ignored and hard coded margins are applied causing undesired offsets.  See below.
+
+### 1. Symptom
 
 Cards inside a `custom:layout-card` grid shrink to their minimum height instead of filling the row.
 
@@ -143,7 +145,7 @@ type: custom:layout-card
 layout_type: custom:grid-layout
 layout:
   grid-template-columns: repeat(3, 1fr)
-  grid-template-rows: 200px
+  grid-template-rows: 1fr
 card_mod:
   style: |
     grid-layout {
@@ -158,6 +160,12 @@ This forces the grid-layout shadow host to stretch its items to fill the row hei
 
 > **Note**: `card_mod` must target the `grid-layout` element, which is the shadow root of layout-card's internal renderer. The selector `grid-layout { ... }` is the correct target regardless of which `layout_type` you use with grid-based layouts.
 
-### `card_margin` and overflow
 
-If you use `card_margin` on your layout-card (a feature of custom patched versions), LCARdS automatically compensates for the vertical margin so cards do not overflow their row boundaries. No additional configuration is needed for margin handling.
+### 2. Symptom
+
+Cards inside `custom:layout-card` that uses `grid-layout` - `card_margin` option is broken due to hard-coded margins applied.
+
+### Fix
+
+Until bug is resolved upstream, you can use a patched version of `custom:layout-card` from this repo: https:///github.com/snootched/lovelace-layout-card
+Uninstall the official `custom-layout-card` and you can install this patched version either as a HACS custom repo, or manually.
