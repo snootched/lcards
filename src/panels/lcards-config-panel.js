@@ -28,6 +28,7 @@ import './components/lcards-sound-config-tab.js';
 import './components/lcards-storage-explorer-tab.js';
 import './components/lcards-about-tab.js';
 import './components/lcards-users-devices-tab.js';
+import './components/lcards-layouts-tab.js';
 import './components/lcards-preview-chip.js';
 
 export class LCARdSConfigPanel extends LitElement {
@@ -830,6 +831,10 @@ export class LCARdSConfigPanel extends LitElement {
             Storage
           </ha-tab-group-tab>
           ` : ''}
+          <ha-tab-group-tab value="7" ?active=${this._selectedTab === 7}>
+            <ha-icon icon="mdi:view-grid-plus-outline"></ha-icon>
+            Layouts
+          </ha-tab-group-tab>
         </ha-tab-group>
 
         <div class="tab-content">
@@ -874,6 +879,8 @@ export class LCARdSConfigPanel extends LitElement {
         return this._renderPackExplorerTab();
       case 6:
         return this._isAdmin() ? this._renderStorageTab() : html``;
+      case 7:
+        return this._renderLayoutsTab();
       default:
         return html`<div>Unknown tab</div>`;
     }
@@ -1262,6 +1269,14 @@ export class LCARdSConfigPanel extends LitElement {
         .hass=${this.hass}
         ._inlineMode=${true}
       ></lcards-pack-explorer-tab>
+    `;
+  }
+
+  _renderLayoutsTab() {
+    return html`
+      <lcards-layouts-tab
+        .hass=${this.hass}
+      ></lcards-layouts-tab>
     `;
   }
 
