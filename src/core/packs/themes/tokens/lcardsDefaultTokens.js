@@ -52,6 +52,20 @@ export const lcardsDefaultTokens = {
   },
 
   // ==========================================================================
+  // EFFECTS
+  // Opacity and visual effect scales. Referenced by overlay/animation components.
+  // ==========================================================================
+  effects: {
+    opacity: {
+      base:        1,    // fully opaque — explicit no-dimming sentinel
+      inactive:    0.7,  // entity off/inactive state
+      unavailable: 0.5,  // entity unavailable state
+      disabled:    0.3,  // UI element disabled
+      overlay:     0.8,  // overlay/modal backdrops
+    }
+  },
+
+  // ==========================================================================
   // BORDERS
   // ==========================================================================
   borders: {
@@ -121,7 +135,7 @@ export const lcardsDefaultTokens = {
       grid: 'var(--lcars-gray, var(--lcards-gray-medium))',
       axis: 'var(--lcars-text-gray, var(--lcards-moonlight))',
       stroke: 'var(--lcards-moonlight)',
-      background: '#000000'
+      background: 'black'          // SVG/canvas-safe named colour ≡ #000000
     },
 
     // Alert colors (LCARS alert symbol component)
@@ -444,6 +458,7 @@ export const lcardsDefaultTokens = {
         },
         diagonal: {
           fill: {
+            default: 'darken(colors.card.buttonOff, 0.35)',    // at-rest = inactive
             active: 'var(--lcars-blue, var(--lcards-blue-medium))',
             inactive: 'darken(colors.card.buttonOff, 0.35)',
             hover: 'lighten(colors.card.button, 0.15)',
@@ -470,6 +485,7 @@ export const lcardsDefaultTokens = {
         },
         center: {
           fill: {
+            default: 'darken(colors.card.button, 0.35)',       // at-rest = inactive
             active: 'var(--lcards-blue-medium-light)',
             inactive: 'darken(colors.card.button, 0.35)',
             hover: 'lighten(colors.card.button, 0.15)',

@@ -4047,13 +4047,13 @@ export class LCARdSSlider extends LCARdSButton {
                 grid_columns:     go.columns     ?? 1,
                 grid_rows:        go.rows,
                 grid_min_columns: go.min_columns ?? 1,
-                grid_min_rows:    go.min_rows    ?? 4
+                grid_min_rows:    go.min_rows    ?? 1
             };
         } else {
             return {
                 grid_columns:     go.columns,
                 grid_rows:        go.rows        ?? 1,
-                grid_min_columns: go.min_columns ?? 4,
+                grid_min_columns: go.min_columns ?? 1,
                 grid_min_rows:    go.min_rows    ?? 1
             };
         }

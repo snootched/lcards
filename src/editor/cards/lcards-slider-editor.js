@@ -1628,15 +1628,24 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         })}
                     </lcards-grid-layout>
                 `}
+
+                <lcards-message type="info"
+                    message="These sizes reserve pixel space outside the shape body and automatically create named zones (${isVertical ? 'top / bottom' : 'left / right'}) that text fields are routed to by default. To place a field <em>inside</em> the shape instead, go to the <strong>Text Fields</strong> tab, add the field, and set its zone to <strong>Track (inner)</strong>.">
+                </lcards-message>
             </lcards-form-section>
         `;
     }
 
     /**
      * Text Tab - Standard multi-text editor with dynamic text area dropdown.
-     * Each enabled border (left/right/top/bottom) and the inner track are offered
-     * as named text areas in the per-field dropdown so users can route individual
-     * text fields to the appropriate visual zone.
+     *
+     * For the default component: each enabled border (left/right/top/bottom) and
+     * the inner track are offered as named zones in the per-field dropdown.
+     *
+     * For the shaped component: the non-zero text bands (top/bottom for vertical,
+     * left/right for horizontal) are offered instead of border zones, plus
+     * 'track' for placing text inside the shape body.
+     *
      * @returns {TemplateResult}
      * @private
      */
@@ -1650,10 +1659,28 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const borderCfg = this.config?.style?.border || {};
         const getBorderSize = (b) => b?.size ?? b?.width ?? 0;
         const availableZones = {};
-        if (borderCfg.left?.enabled   && getBorderSize(borderCfg.left)   > 0) availableZones.left   = 'Left Border';
-        if (borderCfg.right?.enabled  && getBorderSize(borderCfg.right)  > 0) availableZones.right  = 'Right Border';
-        if (borderCfg.top?.enabled    && getBorderSize(borderCfg.top)    > 0) availableZones.top    = 'Top Border';
-        if (borderCfg.bottom?.enabled && getBorderSize(borderCfg.bottom) > 0) availableZones.bottom = 'Bottom Border';
+
+        const componentName = this.config?.component || 'default';
+
+        if (componentName === 'shaped') {
+            // Shaped component: expose text band zones instead of border zones.
+            // A band is only a valid target when its size is non-zero.
+            const bands     = this.config?.style?.shaped?.text_bands || {};
+            const orientation = this.config?.style?.track?.orientation ?? 'vertical';
+            if (orientation === 'horizontal') {
+                if ((bands.left?.size  ?? 60) > 0) availableZones.left  = 'Left Band';
+                if ((bands.right?.size ?? 60) > 0) availableZones.right = 'Right Band';
+            } else {
+                if ((bands.top?.size    ?? 36) > 0) availableZones.top    = 'Top Band';
+                if ((bands.bottom?.size ?? 36) > 0) availableZones.bottom = 'Bottom Band';
+            }
+        } else {
+            if (borderCfg.left?.enabled   && getBorderSize(borderCfg.left)   > 0) availableZones.left   = 'Left Border';
+            if (borderCfg.right?.enabled  && getBorderSize(borderCfg.right)  > 0) availableZones.right  = 'Right Border';
+            if (borderCfg.top?.enabled    && getBorderSize(borderCfg.top)    > 0) availableZones.top    = 'Top Border';
+            if (borderCfg.bottom?.enabled && getBorderSize(borderCfg.bottom) > 0) availableZones.bottom = 'Bottom Border';
+        }
+
         availableZones.track = 'Track (inner)';
         // Always merge user-defined config.zones so any custom zones appear in the selector.
         for (const name of Object.keys(this.config?.zones || {})) {

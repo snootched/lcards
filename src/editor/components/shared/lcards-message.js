@@ -13,6 +13,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 export class LCARdSMessage extends LitElement {
 
@@ -48,7 +49,7 @@ export class LCARdSMessage extends LitElement {
         return html`
             <div class="form-control">
                 <ha-alert alert-type="${this.type}" .title="${this.title || ''}">
-                    ${this.message}
+                    ${unsafeHTML(this.message)}
                     <slot></slot>
                 </ha-alert>
             </div>
