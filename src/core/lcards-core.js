@@ -45,6 +45,7 @@ import { SoundManager } from './sound/SoundManager.js';
 import { IntegrationService } from './services/IntegrationService.js';
 import { DeviceIdentityManager } from './services/DeviceIdentityManager.js';
 import { ScopedSettingsService } from './services/ScopedSettingsService.js';
+import { ScreenEffectManager } from './screen-effects/ScreenEffectManager.js';
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -75,6 +76,7 @@ class LCARdSCore {
         this.componentManager = null;    // Component registry (Phase 4)
         this.helperManager = null;       // Helper management system (Phase 5)
         this.soundManager = null;         // Sound management system (Phase 2g)
+        this.screenEffectManager = null;  // Full-screen composited effect layer
         this.integrationService = null;   // HA integration probe (available / version)
         this.deviceIdentityManager = null; // Per-browser stable UUID + display name
         this.scopedSettingsService = null; // Per-user / per-device settings waterfall
@@ -272,6 +274,12 @@ class LCARdSCore {
                 window.lcards.debug.singletons = coreDebug.singletons;
                 lcardsLog.debug('[LCARdSCore] ✅ Core debug API attached at window.lcards.debug.core/singleton/singletons');
             }
+
+            // Initialize ScreenEffectManager — full-screen composited effect layer.
+            // The portal is lazily appended to document.body on first use so it is safe
+            // to construct here before the document is fully interactive.
+            this.screenEffectManager = new ScreenEffectManager();
+            lcardsLog.debug('[LCARdSCore] ✅ ScreenEffectManager initialized');
 
             // Create IntegrationService — it self-probes on the first _updateHass
             // call where hass.connection is available, so no initialize() call here.

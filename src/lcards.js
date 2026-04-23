@@ -575,6 +575,68 @@ window.lcards.alert = {
   config: window.lcards.alertConfig,
 };
 
+// === SCREEN EFFECT NAMESPACE ===
+// Full-screen composited effect layer accessible from the browser console or
+// tests.  All methods delegate to the ScreenEffectManager singleton.
+//
+// Usage examples:
+//   window.lcards.screenEffect.play('pixelate', { duration: 1500 })
+//   window.lcards.screenEffect.apply('blur', { amount: '12px' })
+//   window.lcards.screenEffect.clearSlot('backdrop')
+//   window.lcards.screenEffect.clear()
+//   window.lcards.screenEffect.list()
+window.lcards.screenEffect = {
+  /**
+   * Apply a named effect persistently (until `clearSlot` or `clear` is called).
+   * @param {string} presetName
+   * @param {Object} [params]
+   * @returns {boolean} true if activated successfully
+   */
+  apply(presetName, params = {}) {
+    return window.lcards?.core?.screenEffectManager?.apply(presetName, params) ?? false;
+  },
+
+  /**
+   * Apply a named effect that auto-dismisses after `params.duration` ms (default 1000).
+   * @param {string} presetName
+   * @param {Object} [params]
+   * @returns {Promise<void>}
+   */
+  play(presetName, params = {}) {
+    return window.lcards?.core?.screenEffectManager?.play(presetName, params) ?? Promise.resolve();
+  },
+
+  /**
+   * Remove the active effect on a specific slot.
+   * @param {'backdrop'|'canvas'|'color'} slot
+   */
+  clearSlot(slot) {
+    window.lcards?.core?.screenEffectManager?.clearSlot(slot);
+  },
+
+  /** Remove all active screen effects. */
+  clear() {
+    window.lcards?.core?.screenEffectManager?.clear();
+  },
+
+  /**
+   * Register a custom preset at runtime.
+   * @param {string} name
+   * @param {Object} preset
+   */
+  registerPreset(name, preset) {
+    window.lcards?.core?.screenEffectManager?.registerPreset(name, preset);
+  },
+
+  /** List all registered preset names. */
+  list() {
+    const names = window.lcards?.core?.screenEffectManager?.listPresets() ?? [];
+    console.info('[LCARdS] Screen effect presets:', names);
+    return names;
+  },
+};
+lcardsLog.debug('[lcards.js] screenEffect console API attached');
+
 // === SOUND DEBUG API ===
 // Exposes sound system controls for debugging and testing in the HA developer console.
 // Example usage:

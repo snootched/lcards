@@ -11,6 +11,7 @@ Provides the lcards.* action namespace:
   lcards.clear_alert      — return to normal (green_alert)
   lcards.reload           — fire a reload event to all connected frontends
   lcards.set_log_level    — change JS frontend log level at runtime
+  lcards.trigger_effect   — fire a named screen effect on target devices/users
 
 All services accept four optional targeting fields (all may be combined):
 
@@ -164,6 +165,8 @@ SERVICE_BLACK_ALERT    = "black_alert"
 SERVICE_CLEAR_ALERT    = "clear_alert"
 SERVICE_RELOAD         = "reload"
 SERVICE_SET_LOG_LEVEL  = "set_log_level"
+SERVICE_TRIGGER_EFFECT = "trigger_effect"
+SERVICE_CLEAR_EFFECT   = "clear_effect"
 
 _ALL_SERVICES = [
     SERVICE_SET_ALERT_MODE,
@@ -175,6 +178,8 @@ _ALL_SERVICES = [
     SERVICE_CLEAR_ALERT,
     SERVICE_RELOAD,
     SERVICE_SET_LOG_LEVEL,
+    SERVICE_TRIGGER_EFFECT,
+    SERVICE_CLEAR_EFFECT,
 ]
 
 
@@ -273,6 +278,37 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         # Push to connected JS frontends via the lcards_event channel
         device_ids, user_ids = await _async_resolve_targets(hass, call)
         _fire_targeted_event(hass, "set_log_level", {"level": level}, device_ids, user_ids)
+    async def handle_trigger_effect(call: ServiceCall) -> None:
+        """Fire a named screen effect on target LCARdS frontends.
+
+        The ``effect`` field maps to a registered preset name in the JS
+        ``ScreenEffectPresetRegistry`` (e.g. 'pixelate', 'static', 'blur').
+        The optional ``params`` dict is forwarded verbatim to the preset's
+        ``enter()`` function — see the preset defaults for valid keys.
+        """
+        effect = call.data["effect"]
+        params = call.data.get("params") or {}
+        _LOGGER.info("LCARdS service: triggering screen effect %r (params=%r)", effect, params)
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        _fire_targeted_event(
+            hass,
+            "trigger_effect",
+            {"effect": effect, "params": params},
+            device_ids,
+            user_ids,
+        )
+    async def handle_clear_effect(call: ServiceCall) -> None:
+        """Clear screen effects on target LCARdS frontends.
+
+        ``slot`` (optional) — if provided, clears only that slot
+        (``'backdrop'``, ``'canvas'``, or ``'color'``).  Omit to clear all
+        active screen effects.
+        """
+        slot = call.data.get("slot") or None
+        _LOGGER.info("LCARdS service: clearing screen effect (slot=%r)", slot)
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        payload = {"slot": slot} if slot else {}
+        _fire_targeted_event(hass, "clear_effect", payload, device_ids, user_ids)
 
     # --- Register all services ---
 
@@ -311,6 +347,21 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN, SERVICE_SET_LOG_LEVEL, handle_set_log_level,
         schema=vol.Schema({vol.Required("level"): vol.In(LOG_LEVEL_OPTIONS), **_TARGET_FIELDS}),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_TRIGGER_EFFECT, handle_trigger_effect,
+        schema=vol.Schema({
+            vol.Required("effect"): vol.All(str, vol.Length(min=1)),
+            vol.Optional("params"): dict,
+            **_TARGET_FIELDS,
+        }),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_CLEAR_EFFECT, handle_clear_effect,
+        schema=vol.Schema({
+            vol.Optional("slot"): vol.In(["backdrop", "canvas", "color"]),
+            **_TARGET_FIELDS,
+        }),
     )
 
     _LOGGER.debug(

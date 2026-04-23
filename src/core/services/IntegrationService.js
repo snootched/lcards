@@ -299,6 +299,7 @@ export class IntegrationService extends BaseService {
      *   reload           — perform a full page reload
      *   set_log_level    — update JS log verbosity via window.lcards.setGlobalLogLevel
      *   set_alert_mode   — apply alert mode locally (used for targeted alerts only)
+     *   trigger_effect   — fire a named screen effect via window.lcards.screenEffect.play()
      *
      * All actions support optional targeting via ``target_device_ids`` /
      * ``target_user_ids`` payload fields.  Events whose target lists do not
@@ -378,6 +379,48 @@ export class IntegrationService extends BaseService {
                     window.lcards.setAlertMode(payload.mode, { skipHelperSync: true });
                 }
                 break;
+
+            case 'clear_effect': {
+                // Clear screen effects on this device.
+                // payload.slot (optional) — clears only that slot, or all if omitted.
+                const api = window.lcards?.screenEffect;
+                if (api) {
+                    if (payload.slot) {
+                        lcardsLog.info(`[IntegrationService] Clearing screen effect slot '${payload.slot}' (backend request)`);
+                        api.clearSlot(payload.slot);
+                    } else {
+                        lcardsLog.info('[IntegrationService] Clearing all screen effects (backend request)');
+                        api.clear();
+                    }
+                } else {
+                    lcardsLog.warn('[IntegrationService] clear_effect: screenEffect API unavailable');
+                }
+                break;
+            }
+
+            case 'trigger_effect': {
+                // Fire a named screen effect on this device.
+                // payload.effect  — preset name (required)
+                // payload.params  — optional params object forwarded to the preset
+                //
+                // Routing: if params contains a `duration` key use play()
+                // (auto-dismiss after that many ms); otherwise use apply()
+                // so the effect persists until explicitly cleared.
+                const effectName = payload.effect;
+                const effectParams = payload.params ?? {};
+                const api = window.lcards?.screenEffect;
+                if (effectName && api) {
+                    lcardsLog.info(`[IntegrationService] Screen effect triggered by backend: '${effectName}'`);
+                    if ('duration' in effectParams) {
+                        api.play(effectName, effectParams);
+                    } else {
+                        api.apply(effectName, effectParams);
+                    }
+                } else {
+                    lcardsLog.warn('[IntegrationService] trigger_effect: missing effect name or screenEffect API unavailable');
+                }
+                break;
+            }
 
             default:
                 lcardsLog.debug('[IntegrationService] Unknown lcards_event action:', payload.action);

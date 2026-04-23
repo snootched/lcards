@@ -180,6 +180,7 @@ export default withMermaid(defineConfig({
               { text: 'Animations',            link: '/core/animations' },
               { text: 'Background Animations', link: '/core/effects/background-animations' },
               { text: 'Filters',               link: '/core/effects/filters' },
+              { text: 'Screen Effects',        link: '/core/effects/screen-effects' },
             ],
           },
         ],
@@ -255,6 +256,7 @@ export default withMermaid(defineConfig({
             { text: 'Actions',               link: '/core/actions' },
             { text: 'Animations',             link: '/core/animations' },
             { text: 'Background Animations',  link: '/core/effects/background-animations' },
+            { text: 'Screen Effects',         link: '/core/effects/screen-effects' },
             { text: 'Colours',               link: '/core/colours' },
             { text: 'Data Sources',          link: '/core/datasources/' },
             { text: 'Presets',               link: '/core/presets' },
@@ -377,6 +379,7 @@ export default withMermaid(defineConfig({
               ],
             },
             { text: 'Filters',               link: '/core/effects/filters' },
+            { text: 'Screen Effects',        link: '/core/effects/screen-effects' },
             {
               text: 'Background Animations',
               collapsed: true,

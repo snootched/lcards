@@ -463,3 +463,161 @@ set_log_level:
       selector:
         text:
           multiple: true
+
+trigger_effect:
+  name: Trigger Screen Effect
+  description: >
+    Play a named full-screen visual effect on LCARdS-enabled browsers.
+    Effects are rendered by the ScreenEffectManager and auto-dismiss after
+    the configured duration (default 1000 ms). Supports optional per-device
+    and per-user targeting. Requires the LCARdS custom integration.
+  fields:
+    effect:
+      name: Effect
+      description: >
+        Preset name from the ScreenEffectPresetRegistry.
+        Built-in presets: blur, pixelate, static, glitch, scanlines,
+        grayscale, saturate, hue-rotate, contrast, vignette,
+        alert-red, alert-yellow, alert-blue, alert-gray, alert-black.
+        Custom presets registered via window.lcards.screenEffect.registerPreset()
+        are also accepted.
+      required: true
+      selector:
+        select:
+          custom_value: true
+          options:
+            - value: blur
+              label: "Blur (backdrop-filter)"
+            - value: pixelate
+              label: "Pixelate (mosaic blocks)"
+            - value: static
+              label: "Static (TV noise)"
+            - value: glitch
+              label: "Glitch (scanline shifts)"
+            - value: scanlines
+              label: "Scanlines (CRT overlay)"
+            - value: grayscale
+              label: "Grayscale"
+            - value: saturate
+              label: "Saturate"
+            - value: hue-rotate
+              label: "Hue Rotate"
+            - value: contrast
+              label: "Contrast"
+            - value: vignette
+              label: "Vignette (dark edges)"
+            - value: alert-red
+              label: "Alert Red (blur + tint)"
+            - value: alert-yellow
+              label: "Alert Yellow (blur + tint)"
+            - value: alert-blue
+              label: "Alert Blue (blur + tint)"
+    params:
+      name: Effect Parameters
+      description: >
+        Optional parameters forwarded to the preset. Common keys vary by effect:
+          duration   — auto-dismiss delay in ms (default 1000; omit for persistent)
+          amount     — backdrop-filter intensity e.g. "12px" (blur) or "200%" (saturate)
+          angle      — rotation angle for hue-rotate e.g. "180deg"
+          opacity    — canvas overlay opacity 0–1 (static, pixelate, glitch, scanlines)
+          intensity  — glitch scanline coverage fraction 0–1
+          pixelSize  — mosaic block size in px for pixelate (default 24)
+          scale      — noise down-sample factor for static (default 4; higher = chunkier)
+          color      — base tint colour hex for pixelate e.g. "#cc0000"
+      required: false
+      selector:
+        object:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs (the lcards_device_id value
+        stored in each browser's localStorage). Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
+
+clear_effect:
+  name: Clear Screen Effect
+  description: >
+    Clear one or all active screen effects on target LCARdS frontends.
+    Omit `slot` to clear every active effect at once.
+  fields:
+    slot:
+      name: Slot
+      description: >
+        Which effect slot to clear: `backdrop`, `canvas`, or `color`.
+        Leave empty to clear all slots simultaneously.
+      required: false
+      selector:
+        select:
+          options:
+            - label: All slots
+              value: ""
+            - label: Backdrop (blur / filter)
+              value: backdrop
+            - label: Canvas (static / pixelate / glitch / scanlines)
+              value: canvas
+            - label: Color (tint / vignette)
+              value: color
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
