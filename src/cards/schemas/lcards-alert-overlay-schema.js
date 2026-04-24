@@ -18,9 +18,22 @@ export const alertOverlaySchema = {
         },
         dismiss_mode: {
             type: 'string',
-            enum: ['dismiss', 'reset'],
-            description: 'dismiss = hide overlay only; reset = also set alert_mode back to green_alert',
+            enum: ['dismiss', 'reset', 'auto-dismiss', 'auto-reset'],
+            description:
+                'dismiss = hide overlay only; ' +
+                'reset = hide + set alert_mode back to green_alert; ' +
+                'auto-dismiss = automatically hide after auto_dismiss_seconds; ' +
+                'auto-reset = automatically hide and reset alert_mode after auto_dismiss_seconds',
             default: 'dismiss',
+        },
+        auto_dismiss_seconds: {
+            type: 'number',
+            minimum: 1,
+            description:
+                'Seconds before the overlay auto-dismisses. ' +
+                'Required when dismiss_mode is auto-dismiss or auto-reset. ' +
+                'Can be overridden per condition under conditions.<key>.auto_dismiss_seconds.',
+            examples: [10, 30, 60],
         },
         backdrop: {
             type: 'object',
@@ -166,6 +179,14 @@ export const alertOverlaySchema = {
                     },
                     width:  { type: 'string', description: 'Per-condition content card width' },
                     height: { type: 'string', description: 'Per-condition content card height' },
+                    auto_dismiss_seconds: {
+                        type: 'number',
+                        minimum: 1,
+                        description:
+                            'Override auto-dismiss duration for this specific condition. ' +
+                            'Only relevant when the global dismiss_mode is auto-dismiss or auto-reset.',
+                        examples: [10, 30, 60],
+                    },
                 },
                 additionalProperties: false,
             },

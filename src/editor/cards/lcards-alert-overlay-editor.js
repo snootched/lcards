@@ -192,6 +192,8 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
 
     _renderConfigTab() {
         const dismissMode = this.config?.dismiss_mode ?? 'dismiss';
+        const isAuto      = dismissMode === 'auto-dismiss' || dismissMode === 'auto-reset';
+        const autoDismissSeconds = this.config?.auto_dismiss_seconds ?? '';
         const position    = this.config?.position    ?? 'center';
         const width       = this.config?.width       ?? '';
         const height      = this.config?.height      ?? '';
@@ -220,16 +222,32 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Dismiss Mode'}
-                        .helper=${dismissMode === 'reset'
-                            ? 'Reset: hides the overlay AND sets input_select back to green_alert'
-                            : 'Dismiss: hides the overlay only — the input_select is not changed'}
+                        .helper=${{
+                            'dismiss':      'Dismiss: hides the overlay only — the input_select is not changed',
+                            'reset':        'Reset: hides the overlay AND sets input_select back to green_alert',
+                            'auto-dismiss': 'Auto-Dismiss: overlay hides automatically after the configured timeout',
+                            'auto-reset':   'Auto-Reset: overlay hides automatically AND resets alert_mode after the configured timeout',
+                        }[dismissMode] ?? ''}
                         .selector=${{ select: { mode: 'dropdown', options: [
-                            { value: 'dismiss', label: 'Dismiss (hide overlay only)' },
-                            { value: 'reset',   label: 'Reset (hide + set alert_mode to green_alert)' },
+                            { value: 'dismiss',      label: 'Dismiss (hide overlay only)' },
+                            { value: 'reset',        label: 'Reset (hide + set alert_mode to green_alert)' },
+                            { value: 'auto-dismiss', label: 'Auto-Dismiss (hide after timeout)' },
+                            { value: 'auto-reset',   label: 'Auto-Reset (hide + reset alert_mode after timeout)' },
                         ]}}}
                         .value=${dismissMode}
                         @value-changed=${(e) => this._setConfigValue('dismiss_mode', e.detail.value)}>
                     </ha-selector>
+
+                    ${isAuto ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Auto-Dismiss After (seconds)'}
+                            .helper=${'Overlay will dismiss automatically after this many seconds. Individual conditions can override this value in the Conditions tab.'}
+                            .selector=${{ number: { min: 1, step: 1, mode: 'box' } }}
+                            .value=${autoDismissSeconds !== '' ? Number(autoDismissSeconds) : undefined}
+                            @value-changed=${(e) => this._setConfigValue('auto_dismiss_seconds', e.detail.value ? Number(e.detail.value) : undefined)}>
+                        </ha-selector>
+                    ` : ''}
                 </lcards-form-section>
 
                 <!-- Global Position & Size (defaults, overridable per condition) -->
@@ -350,6 +368,11 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         const width  = condCfg.width    ?? '';
         const height = condCfg.height   ?? '';
 
+        // Auto-dismiss per-condition override (only relevant when global mode is auto-*)
+        const globalDismissMode = this.config?.dismiss_mode ?? 'dismiss';
+        const isAutoMode        = globalDismissMode === 'auto-dismiss' || globalDismissMode === 'auto-reset';
+        const condAutoSeconds   = condCfg.auto_dismiss_seconds ?? '';
+
         return html`
             <lcards-form-section
                 header="${cond.label}"
@@ -455,7 +478,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     header="Layout Overrides"
                     description="Override content position or size for this condition only. Leave blank to use global defaults."
                     icon="mdi:move-resize"
-                    ?expanded=${!!(pos || width || height)}
+                    ?expanded=${!!(pos || width || height || condAutoSeconds)}
                     ?outlined=${true}>
 
                     <ha-selector
@@ -489,6 +512,17 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                             @value-changed=${(e) => this._setConditionProp(condKey, 'height', e.detail.value || undefined)}>
                         </ha-selector>
                     </lcards-grid-layout>
+
+                    ${isAutoMode ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Auto-Dismiss Override (seconds)'}
+                            .helper=${'Override the global auto-dismiss timeout for this condition only. Leave blank to use the global value.'}
+                            .selector=${{ number: { min: 1, step: 1, mode: 'box' } }}
+                            .value=${condAutoSeconds !== '' ? Number(condAutoSeconds) : undefined}
+                            @value-changed=${(e) => this._setConditionProp(condKey, 'auto_dismiss_seconds', e.detail.value ? Number(e.detail.value) : undefined)}>
+                        </ha-selector>
+                    ` : ''}
                 </lcards-form-section>
 
             </lcards-form-section>
