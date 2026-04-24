@@ -45,9 +45,11 @@ export function GlitchEffect(canvas, params = {}) {
 
     function draw(now) {
         if (!running) return;
-        rafId = requestAnimationFrame(draw);
 
-        if (now - lastFrame < frameMs) return;
+        if (now - lastFrame < frameMs) {
+            rafId = requestAnimationFrame(draw);
+            return;
+        }
         lastFrame = now;
 
         const pw = canvas.parentElement?.offsetWidth  || window.innerWidth;
@@ -88,6 +90,8 @@ export function GlitchEffect(canvas, params = {}) {
             ctx.fillStyle = `rgba(255,255,255,${0.08 + Math.random() * 0.15})`;
             ctx.fillRect(0, y, pw, h);
         }
+
+        rafId = requestAnimationFrame(draw);
     }
 
     rafId = requestAnimationFrame(draw);

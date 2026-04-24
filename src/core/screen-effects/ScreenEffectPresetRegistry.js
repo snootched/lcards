@@ -104,100 +104,57 @@ export const screenEffectPresetRegistry = new ScreenEffectPresetRegistry();
 
 // ── Backdrop (CSS backdrop-filter) ───────────────────────────────────────────
 
-screenEffectPresetRegistry.register('blur', {
-    label:  'Blur',
-    slot:   'backdrop',
-    defaults: { amount: '8px' },
-    params_schema: [
-        { key: 'amount', type: 'text', label: 'Blur Amount', placeholder: '8px',
-          helper: 'CSS blur value — e.g. 4px (subtle), 8px (standard), 20px (heavy)' },
-    ],
-    enter(el, params) {
-        const val = `blur(${params.amount ?? '8px'})`;
-        el.style.backdropFilter       = val;
-        el.style.webkitBackdropFilter = val;
-        return () => {
-            el.style.backdropFilter       = '';
-            el.style.webkitBackdropFilter = '';
-        };
-    },
-});
+/**
+ * Build a single-param backdrop-filter preset.
+ *
+ * All five simple filters (blur, saturate, grayscale, contrast, hue-rotate)
+ * share identical `enter` / cleanup logic — only the CSS function name, param
+ * key, and default value differ.  This factory eliminates the boilerplate.
+ *
+ * @param {string} label       - Human-readable label shown in the editor.
+ * @param {string} cssFn       - CSS function name (e.g. 'blur', 'saturate').
+ * @param {string} paramKey    - Key in `params` that holds the value (usually 'amount').
+ * @param {string} defaultVal  - Default value string (e.g. '8px', '200%').
+ * @param {string} schemaLabel - Field label in the params_schema.
+ * @param {string} helper      - Helper text shown beneath the editor field.
+ * @returns {Object} Preset definition ready for `screenEffectPresetRegistry.register()`.
+ */
+function _backdropFilterPreset(label, cssFn, paramKey, defaultVal, schemaLabel, helper) {
+    return {
+        label,
+        slot:     'backdrop',
+        defaults: { [paramKey]: defaultVal },
+        params_schema: [
+            { key: paramKey, type: 'text', label: schemaLabel,
+              placeholder: defaultVal, helper },
+        ],
+        enter(el, params) {
+            const val = `${cssFn}(${params[paramKey] ?? defaultVal})`;
+            el.style.backdropFilter = el.style.webkitBackdropFilter = val;
+            return () => { el.style.backdropFilter = el.style.webkitBackdropFilter = ''; };
+        },
+    };
+}
 
-screenEffectPresetRegistry.register('saturate', {
-    label:  'Saturate',
-    slot:   'backdrop',
-    defaults: { amount: '200%' },
-    params_schema: [
-        { key: 'amount', type: 'text', label: 'Amount', placeholder: '200%',
-          helper: 'CSS saturate value — e.g. 150%, 200%, 300%' },
-    ],
-    enter(el, params) {
-        const val = `saturate(${params.amount ?? '200%'})`;
-        el.style.backdropFilter       = val;
-        el.style.webkitBackdropFilter = val;
-        return () => {
-            el.style.backdropFilter       = '';
-            el.style.webkitBackdropFilter = '';
-        };
-    },
-});
+screenEffectPresetRegistry.register('blur',
+    _backdropFilterPreset('Blur',       'blur',       'amount', '8px',   'Blur Amount',
+        'CSS blur value — e.g. 4px (subtle), 8px (standard), 20px (heavy)'));
 
-screenEffectPresetRegistry.register('grayscale', {
-    label:  'Grayscale',
-    slot:   'backdrop',
-    defaults: { amount: '100%' },
-    params_schema: [
-        { key: 'amount', type: 'text', label: 'Amount', placeholder: '100%',
-          helper: 'CSS grayscale amount — 100% = full grayscale, 0% = no effect' },
-    ],
-    enter(el, params) {
-        const val = `grayscale(${params.amount ?? '100%'})`;
-        el.style.backdropFilter       = val;
-        el.style.webkitBackdropFilter = val;
-        return () => {
-            el.style.backdropFilter       = '';
-            el.style.webkitBackdropFilter = '';
-        };
-    },
-});
+screenEffectPresetRegistry.register('saturate',
+    _backdropFilterPreset('Saturate',   'saturate',   'amount', '200%',  'Amount',
+        'CSS saturate value — e.g. 150%, 200%, 300%'));
 
-screenEffectPresetRegistry.register('contrast', {
-    label:  'Contrast',
-    slot:   'backdrop',
-    defaults: { amount: '200%' },
-    params_schema: [
-        { key: 'amount', type: 'text', label: 'Amount', placeholder: '200%',
-          helper: 'CSS contrast value — e.g. 150%, 200%' },
-    ],
-    enter(el, params) {
-        const val = `contrast(${params.amount ?? '200%'})`;
-        el.style.backdropFilter       = val;
-        el.style.webkitBackdropFilter = val;
-        return () => {
-            el.style.backdropFilter       = '';
-            el.style.webkitBackdropFilter = '';
-        };
-    },
-});
+screenEffectPresetRegistry.register('grayscale',
+    _backdropFilterPreset('Grayscale',  'grayscale',  'amount', '100%',  'Amount',
+        'CSS grayscale amount — 100% = full grayscale, 0% = no effect'));
 
-screenEffectPresetRegistry.register('hue-rotate', {
-    label:  'Hue Rotate',
-    slot:   'backdrop',
-    defaults: { angle: '180deg' },
-    params_schema: [
-        { key: 'angle', type: 'text', label: 'Angle', placeholder: '180deg',
-          helper: 'CSS hue-rotate angle — e.g. 90deg, 180deg, 270deg' },
-    ],
-    enter(el, params) {
-        const val = `hue-rotate(${params.angle ?? '180deg'})`;
-        el.style.backdropFilter       = val;
-        el.style.webkitBackdropFilter = val;
-        return () => {
-            el.style.backdropFilter       = '';
-            el.style.webkitBackdropFilter = '';
-        };
-    },
-});
+screenEffectPresetRegistry.register('contrast',
+    _backdropFilterPreset('Contrast',   'contrast',   'amount', '200%',  'Amount',
+        'CSS contrast value — e.g. 150%, 200%'));
+
+screenEffectPresetRegistry.register('hue-rotate',
+    _backdropFilterPreset('Hue Rotate', 'hue-rotate', 'angle',  '180deg', 'Angle',
+        'CSS hue-rotate angle — e.g. 90deg, 180deg, 270deg'));
 
 // ── Color tint overlay ────────────────────────────────────────────────────────
 

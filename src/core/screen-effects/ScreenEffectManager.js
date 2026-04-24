@@ -57,9 +57,13 @@ export class ScreenEffectManager extends BaseService {
          *   cleanup:  (() => void)|null,
          *   active:   boolean,
          *   timer:    ReturnType<typeof setTimeout>|null,
+         *   resolve:  (() => void)|null,
          * }>}
          */
         this._slots = new Map();
+
+        /** @type {boolean} True while the alert overlay has elements in the portal. */
+        this._overlayOccupied = false;
 
     }
 
@@ -90,6 +94,7 @@ export class ScreenEffectManager extends BaseService {
                 cleanup: null,
                 active:  false,
                 timer:   null,
+                resolve: null,
             });
         }
 
@@ -226,6 +231,11 @@ export class ScreenEffectManager extends BaseService {
             clearTimeout(slotState.timer);
             slotState.timer = null;
         }
+        // Resolve any pending play() promise so callers don't hang.
+        if (typeof slotState.resolve === 'function') {
+            slotState.resolve();
+            slotState.resolve = null;
+        }
         if (typeof slotState.cleanup === 'function') {
             try { slotState.cleanup(); } catch (e) { /* ignore */ }
             slotState.cleanup = null;
@@ -300,11 +310,6 @@ export class ScreenEffectManager extends BaseService {
     }
 
     /**
-     * Remove the active effect on one slot.
-     *
-     * @param {string} slot - Slot name ('backdrop' | 'canvas' | 'color').
-     */
-    /**
      * Resolve any `color-text` params in a preset's params_schema to concrete
      * CSS colour strings before they are handed to `el.style.*`.
      *
@@ -363,6 +368,11 @@ export class ScreenEffectManager extends BaseService {
         return out;
     }
 
+    /**
+     * Remove the active effect on one slot.
+     *
+     * @param {string} slot - Slot name ('backdrop' | 'canvas' | 'color').
+     */
     clearSlot(slot) {
         this._releaseSlot(slot);
         this._syncPortalVisibility();
@@ -395,23 +405,27 @@ export class ScreenEffectManager extends BaseService {
         const ok = this.apply(presetName, params);
         if (!ok) return Promise.resolve();
 
-        // Determine which slot to auto-dismiss.
+        // Determine which slot holds this preset.
         const preset = screenEffectPresetRegistry.get(presetName);
-        const slotsToDispose = [preset?.slot].filter(Boolean);
+        const targetSlot = preset?.slot;
 
         return new Promise(resolve => {
             const timer = setTimeout(() => {
-                for (const slot of slotsToDispose) this._releaseSlot(slot);
+                if (targetSlot) this._releaseSlot(targetSlot);
                 this._syncPortalVisibility();
-                lcardsLog.debug(`[ScreenEffectManager] playTransition '${presetName}' auto-dismissed after ${duration}ms`);
+                lcardsLog.debug(`[ScreenEffectManager] play() '${presetName}' auto-dismissed after ${duration}ms`);
                 resolve();
             }, duration);
 
-            // Store timer on first affected slot so clearSlot() can cancel it.
-            const firstSlot = slotsToDispose[0];
-            if (firstSlot) {
-                const state = this._slots.get(firstSlot);
-                if (state) state.timer = timer;
+            // Store timer AND resolve on the slot so clearSlot() can cancel the
+            // timeout and resolve the promise immediately instead of leaving it
+            // pending forever.
+            if (targetSlot) {
+                const state = this._slots.get(targetSlot);
+                if (state) {
+                    state.timer   = timer;
+                    state.resolve = resolve;
+                }
             }
         });
     }

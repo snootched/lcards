@@ -31,6 +31,9 @@ export function ScanlineEffect(canvas, params = {}) {
     let offset = 0;
     let last   = performance.now();
     let running = true;
+    let drawnOnce = false;
+    let lastPw = 0;
+    let lastPh = 0;
 
     function draw(now) {
         if (!running) return;
@@ -43,10 +46,16 @@ export function ScanlineEffect(canvas, params = {}) {
 
         const pw = canvas.parentElement?.offsetWidth  || window.innerWidth;
         const ph = canvas.parentElement?.offsetHeight || window.innerHeight;
+
+        // Skip redraw when static (scroll=0) and canvas size hasn't changed.
+        if (scroll === 0 && drawnOnce && pw === lastPw && ph === lastPh) return;
+
         if (canvas.width !== pw || canvas.height !== ph) {
             canvas.width  = pw;
             canvas.height = ph;
         }
+        lastPw = pw;
+        lastPh = ph;
 
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, pw, ph);
@@ -58,6 +67,7 @@ export function ScanlineEffect(canvas, params = {}) {
         for (let y = start; y < ph; y += period) {
             ctx.fillRect(0, y, pw, lineHeight);
         }
+        drawnOnce = true;
     }
 
     rafId = requestAnimationFrame(draw);

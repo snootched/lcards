@@ -25,7 +25,8 @@ const ALERT_ACCENT_COLORS = {
     blue_alert:   '#1e90ff',
     black_alert:  '#0d0d0d',
     gray_alert:   '#888888',
-    green_alert:  '#44cc88',
+    // green_alert is the 'off' state — transitions never run toward it, so no
+    // accent colour entry is needed here.
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -314,7 +315,6 @@ export async function runTransitionEffect(style, mainView, mode, applyColorsFn) 
         _mainViewEl.style.filter     = '';
         _mainViewEl.style.opacity    = '';
         _mainViewEl.style.transition = '';
-        _mainViewEl.style.animation  = '';
         await applyColorsFn();
     }
 

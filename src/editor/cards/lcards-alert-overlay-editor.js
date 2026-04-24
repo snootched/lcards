@@ -40,7 +40,6 @@ const ALERT_CONDITIONS = [
 const POSITION_OPTIONS = [
     { value: 'top-left',      label: 'Top Left' },
     { value: 'top',           label: 'Top Center' },
-    { value: 'top-center',    label: 'Top Center (alias)' },
     { value: 'top-right',     label: 'Top Right' },
     { value: 'left',          label: 'Left' },
     { value: 'left-center',   label: 'Left Center' },
@@ -49,13 +48,25 @@ const POSITION_OPTIONS = [
     { value: 'right-center',  label: 'Right Center' },
     { value: 'bottom-left',   label: 'Bottom Left' },
     { value: 'bottom',        label: 'Bottom Center' },
-    { value: 'bottom-center', label: 'Bottom Center (alias)' },
     { value: 'bottom-right',  label: 'Bottom Right' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Editor
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Recursively test whether an object has at least one non-empty leaf value.
+ * Used to detect whether alert_button overrides or similar nested config
+ * objects carry any meaningful data vs. being empty shell objects left over
+ * after individual leaf removals.
+ *
+ * @param {*} o
+ * @returns {boolean}
+ */
+const _hasLeaf = (o) => o && typeof o === 'object'
+    ? Object.values(o).some(_hasLeaf)
+    : (o !== undefined && o !== '' && o !== null);
 
 // @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
@@ -329,9 +340,6 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
 
         // Determine whether any alert_button override leaf values exist so we can
         // mutually hide the Content Card and Alert Button Overrides sections.
-        const _hasLeaf = (o) => o && typeof o === 'object'
-            ? Object.values(o).some(_hasLeaf)
-            : (o !== undefined && o !== '' && o !== null);
         const hasAlertButtonOverrides = _hasLeaf(condCfg.alert_button ?? {});
 
         // Per-condition layer overrides
@@ -513,9 +521,6 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         const subTextMode = isEntityMode ? 'entity' : 'static';
         // Recursively check for non-empty leaf values — avoids false positives from
         // empty ancestor objects left behind after individual leaf removals.
-        const _hasLeaf = (o) => o && typeof o === 'object'
-            ? Object.values(o).some(_hasLeaf)
-            : (o !== undefined && o !== '' && o !== null);
         const hasOverrides = _hasLeaf(ab);
 
         /** Default entity for the alert message helper */
@@ -693,7 +698,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
      * @param {string|null}  [opts.condKey]        - Set for condition sections.
      * @param {Object|null}  [opts.condLayersObj]  - The full condition layers object (or null).
      */
-    _renderSlotSection({ slot, slotLabel, slotIcon, layerCfg = undefined, condKey = null, condLayersObj = null } = {}) {
+    _renderSlotSection({ slot, slotLabel, slotIcon, layerCfg = undefined, condKey = null, condLayersObj = null }) {
         const isCondition  = !!condKey;
         const slotInCond   = isCondition && condLayersObj != null && (slot in condLayersObj);
         const slotPresets  = this._getSlotPresets(slot);

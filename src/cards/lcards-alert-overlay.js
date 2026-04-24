@@ -315,6 +315,15 @@ export class LCARdSAlertOverlay extends LitElement {
             return;
         }
 
+        // Guard: portal may have been removed during the async await above
+        // (e.g. condition changed, overlay dismissed, or card disconnected).
+        // The element was created but cannot be mounted — destroy it to avoid a leak.
+        if (!this._contentContainer) {
+            el.remove();
+            lcardsLog.debug('[LCARdSAlertOverlay] Portal gone during card creation — element discarded');
+            return;
+        }
+
         // ── Attach to DOM BEFORE setConfig ────────────────────────────────────
         // LCARdS cards initialize their singletons and set _initialized = true
         // only after connectedCallback / firstUpdated. If setConfig is called
@@ -515,6 +524,7 @@ export class LCARdSAlertOverlay extends LitElement {
         if (sem) {
             sem.clearSlot('backdrop');
             sem.clearSlot('color');
+            sem.clearSlot('canvas');
             sem.setOverlayOccupied(false);
         }
         this._dismissEl?.remove();

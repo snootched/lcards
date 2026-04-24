@@ -660,7 +660,7 @@ window.lcards.screenEffect = {
   /** List all registered preset names. */
   list() {
     const names = window.lcards?.core?.screenEffectManager?.listPresets() ?? [];
-    console.info('[LCARdS] Screen effect presets:', names);
+    lcardsLog.info('[LCARdS] Screen effect presets:', names);
     return names;
   },
 };

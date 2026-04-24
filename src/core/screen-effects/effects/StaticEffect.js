@@ -36,10 +36,13 @@ export function StaticEffect(canvas, params = {}) {
     canvas.style.mixBlendMode   = 'overlay';
 
     // Parse hex colour into RGB components for per-pixel tinting.
+    // Use isNaN-safe parsing so that a component of 0 (e.g. #000000) is not
+    // misread as 255 by the || operator (parseInt('00',16) === 0 which is falsy).
     const hex = color.replace('#', '');
-    const tr  = parseInt(hex.slice(0, 2), 16) || 255;
-    const tg  = parseInt(hex.slice(2, 4), 16) || 255;
-    const tb  = parseInt(hex.slice(4, 6), 16) || 255;
+    const _h  = (s) => { const v = parseInt(s, 16); return isNaN(v) ? 255 : v; };
+    const tr  = _h(hex.slice(0, 2));
+    const tg  = _h(hex.slice(2, 4));
+    const tb  = _h(hex.slice(4, 6));
 
     let rafId = null;
     let running = true;
