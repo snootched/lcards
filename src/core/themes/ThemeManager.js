@@ -112,6 +112,14 @@ export class ThemeManager extends BaseService {
      * @type {Set<Function>}
      */
     this._overrideSubscribers = new Set();
+
+    /**
+     * Pending setTimeout ID for the debounced `lcards:theme-overrides-changed`
+     * window event.  Prevents N cards each launching a full config re-process
+     * when rapid successive override writes occur (e.g. dragging a token slider).
+     * @type {ReturnType<typeof setTimeout>|null}
+     */
+    this._overridesChangedTimer = null;
   }
 
   /**
@@ -709,9 +717,18 @@ export class ThemeManager extends BaseService {
         lcardsLog.warn('[ThemeManager] Override subscriber threw:', e);
       }
     });
-    // Broadcast to all LCARdSCard base instances via window event
+    // Broadcast to all LCARdSCard base instances via a debounced window event.
+    // Debouncing collapses rapid successive calls (e.g. dragging a token-override
+    // slider) into a single dispatch, preventing N cards from each launching a
+    // full async config re-process simultaneously.
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('lcards:theme-overrides-changed'));
+      if (this._overridesChangedTimer !== null) {
+        clearTimeout(this._overridesChangedTimer);
+      }
+      this._overridesChangedTimer = setTimeout(() => {
+        this._overridesChangedTimer = null;
+        window.dispatchEvent(new CustomEvent('lcards:theme-overrides-changed'));
+      }, 50);
     }
     // Invalidate LCARdSColorPicker static variable cache
     try {

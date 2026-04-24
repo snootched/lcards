@@ -207,6 +207,20 @@ export class LCARdSChart extends LCARdSCard {
   }
 
   /**
+   * Pre-evaluate Jinja2/JS templates found in the style config so that
+   * synchronous chart colour resolution can call `_resolveTemplateValue()`
+   * and get the already-resolved result from `_evaluatedStyleCache`.
+   * @protected
+   * @override
+   */
+  async _processCustomTemplates() {
+    if (this.config.style) {
+      await this._preEvaluateStyleTemplates(this.config.style);
+    }
+    await super._processCustomTemplates();
+  }
+
+  /**
    * Called after every render - initialize chart when container is ready
    * @public
    */

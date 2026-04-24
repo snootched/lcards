@@ -199,7 +199,15 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Populated by _preEvaluateStyleTemplates() during async _processCustomTemplates().
         // Lets synchronous SVG / style generation consume Jinja2/JS template results
         // via _resolveTemplateValue().
+        // Cleared at the start of every _processTemplates() cycle so removed keys
+        // don't accumulate indefinitely (particularly in the editor).
         this._evaluatedStyleCache = new Map();
+
+        // Monotonically increasing run-ID for _processConfigAsync.
+        // Incremented on every entry; the committing write checks the current ID
+        // so in-flight stale runs triggered by theme-override events abandon
+        // instead of overwriting the result of the most-recent run.
+        this._configRunId = 0;
 
         // Config provenance tracking (from CoreConfigManager)
         this._provenance = null;
@@ -299,6 +307,12 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @private
      */
     async _processConfigAsync(rawConfig) {
+        // Capture a run-ID on entry.  If a newer run starts before this one
+        // reaches its first await checkpoint, the newer run will have already
+        // incremented _configRunId; we check before committing results so the
+        // stale (older) run silently abandons rather than overwriting.
+        const runId = ++this._configRunId;
+
         const core = window.lcards?.core || window.lcardsCore;
 
         if (!core?.configManager?.initialized) {
@@ -353,6 +367,14 @@ export class LCARdSCard extends LCARdSNativeCard {
                     cardType: /** @type {any} */(this.constructor).CARD_TYPE,
                     valid: result.valid
                 });
+
+                // Guard: if a newer _processConfigAsync run has started since this
+                // one was launched, discard results rather than overwriting the
+                // in-progress run's eventual write.
+                if (runId !== this._configRunId) {
+                    lcardsLog.trace(`[LCARdSCard] Stale config run ${runId} superseded by ${this._configRunId} — discarding`);
+                    return;
+                }
 
                 // Update internal config
                 this.config = result.mergedConfig;
@@ -865,6 +887,11 @@ export class LCARdSCard extends LCARdSNativeCard {
         // would re-render with the already-resolved (now-stale) cached values.
         this._themeOverridesChangedHandler = () => {
             if (this._rawConfig) {
+                // Supersede any in-flight config run before launching a new one.
+                // _processConfigAsync increments _configRunId on entry, but preemptively
+                // bumping it here means an already-running run will see a mismatch
+                // at its next await checkpoint and abort before we even start.
+                this._configRunId++;
                 this._processConfigAsync(this._rawConfig).catch(err => {
                     lcardsLog.warn('[LCARdSCard] Theme override re-process failed:', err);
                 });
@@ -2113,6 +2140,11 @@ export class LCARdSCard extends LCARdSNativeCard {
     async _processTemplates() {
         // Process icon configuration
         await this._processIcon();
+
+        // Clear the style-template cache before each config cycle so that keys
+        // removed between renders don't accumulate as stale entries indefinitely.
+        // _preEvaluateStyleTemplates() re-populates only the keys still present.
+        this._evaluatedStyleCache.clear();
 
         // Call subclass-specific template processing hook
         if (typeof this._processCustomTemplates === 'function') {
