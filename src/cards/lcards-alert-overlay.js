@@ -103,6 +103,11 @@ export class LCARdSAlertOverlay extends LitElement {
         this._wrapperEl        = null;
         this._contentContainer = null;
         this._autoDismissTimer = null;
+        // True only while *this overlay* is the entity that applied the current
+        // SEM slots.  When false (alert inactive or trigger_effect owns the
+        // slots) we must not call clearSlot — that would wipe effects we don't
+        // own.  See _updatePortalStyles / _removePortal.
+        this._ownsSemSlots = false;
     }
 
     // -------------------------------------------------------------------------
@@ -556,11 +561,12 @@ export class LCARdSAlertOverlay extends LitElement {
 
     _removePortal() {
         const sem = window.lcards?.core?.screenEffectManager;
-        if (sem) {
+        if (sem && this._ownsSemSlots) {
             sem.clearSlot('backdrop');
             sem.clearSlot('color');
             sem.clearSlot('canvas');
             sem.setOverlayOccupied(false);
+            this._ownsSemSlots = false;
         }
         this._dismissEl?.remove();
         this._wrapperEl?.remove();
@@ -579,12 +585,14 @@ export class LCARdSAlertOverlay extends LitElement {
         const visible = this._isActive && !this._isDismissed && !this._isInEditMode();
 
         if (!visible) {
-            if (sem) {
-                // Clear all three possible overlay slots — canvas is used by static/glitch/etc.
+            if (sem && this._ownsSemSlots) {
+                // Only clear slots we applied — never touch slots set by
+                // trigger_effect or other external callers.
                 sem.clearSlot('backdrop');
                 sem.clearSlot('color');
                 sem.clearSlot('canvas');
                 sem.setOverlayOccupied(false);
+                this._ownsSemSlots = false;
             }
             this._dismissEl.style.display = 'none';
             this._wrapperEl.style.display  = 'none';
@@ -609,6 +617,8 @@ export class LCARdSAlertOverlay extends LitElement {
                     sem.applySlot(slot, preset, params);
                 }
             }
+            // We are now the owner of whatever slots we've applied.
+            this._ownsSemSlots = true;
         }
 
         // Backdrop clicks always allowed to dismiss (pointer-events: auto).

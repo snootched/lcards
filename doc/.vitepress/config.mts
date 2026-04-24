@@ -104,6 +104,7 @@ export default withMermaid(defineConfig({
           { text: 'Helpers',           link: '/configuration/persistent-helpers' },
           { text: 'Sounds',            link: '/configuration/sounds' },
           { text: 'Users & Devices',   link: '/configuration/users-devices' },
+          { text: 'Using browser_mod', link: '/configuration/browser-mod' },
         ],
       },
       {
@@ -303,6 +304,7 @@ export default withMermaid(defineConfig({
             { text: 'Helpers',           link: '/configuration/persistent-helpers' },
             { text: 'Sounds',            link: '/configuration/sounds' },
             { text: 'Users & Devices',   link: '/configuration/users-devices' },
+            { text: 'Using browser_mod', link: '/configuration/browser-mod' },
           ],
         },
       ],
