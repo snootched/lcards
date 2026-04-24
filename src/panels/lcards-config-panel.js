@@ -814,13 +814,10 @@ export class LCARdSConfigPanel extends LitElement {
             <ha-icon icon="mdi:volume-high"></ha-icon>
             Sounds
           </ha-tab-group-tab>
-          ${this._isPreviewEnabled() ? html`
           <ha-tab-group-tab value="4" ?active=${this._selectedTab === 4}>
             <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
             Users & Devices
-            <lcards-preview-chip></lcards-preview-chip>
           </ha-tab-group-tab>
-          ` : ''}
           <ha-tab-group-tab value="5" ?active=${this._selectedTab === 5}>
             <ha-icon icon="mdi:package-variant"></ha-icon>
             Pack Explorer
@@ -831,10 +828,12 @@ export class LCARdSConfigPanel extends LitElement {
             Storage
           </ha-tab-group-tab>
           ` : ''}
+          ${this._isDevFeaturesEnabled() ? html`
           <ha-tab-group-tab value="7" ?active=${this._selectedTab === 7}>
             <ha-icon icon="mdi:view-grid-plus-outline"></ha-icon>
             Layouts
           </ha-tab-group-tab>
+          ` : ''}
         </ha-tab-group>
 
         <div class="tab-content">
@@ -863,6 +862,11 @@ export class LCARdSConfigPanel extends LitElement {
     return window.lcards?.core?.integrationService?.options?.enable_previews ?? false;
   }
 
+  /** True when the dev-only features URL parameter is present (?lcards_dev_features=true). */
+  _isDevFeaturesEnabled() {
+    return new URLSearchParams(window.location.search).get('lcards_dev_features') === 'true';
+  }
+
   _renderTabContent() {
     switch (this._selectedTab) {
       case 0:
@@ -874,13 +878,13 @@ export class LCARdSConfigPanel extends LitElement {
       case 3:
         return this._renderSoundTab();
       case 4:
-        return this._isPreviewEnabled() ? this._renderUsersDevicesTab() : html``;
+        return this._renderUsersDevicesTab();
       case 5:
         return this._renderPackExplorerTab();
       case 6:
         return this._isAdmin() ? this._renderStorageTab() : html``;
       case 7:
-        return this._renderLayoutsTab();
+        return this._isDevFeaturesEnabled() ? this._renderLayoutsTab() : html``;
       default:
         return html`<div>Unknown tab</div>`;
     }

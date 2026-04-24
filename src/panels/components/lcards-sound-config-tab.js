@@ -950,8 +950,8 @@ export class LCARdSSoundConfigTab extends LitElement {
           </div><!-- /nested-sections -->
         </lcards-form-section><!-- /global-settings-group -->
 
-        <!-- ── SCOPED OVERRIDES (User / Device level) — preview feature ── -->
-        ${this._isPreviewEnabled() ? this._renderScopedSection() : ''}
+        <!-- ── SCOPED OVERRIDES (User / Device level) ── -->
+        ${this._renderScopedSection()}
 
         <!-- ── HELPER STATUS ── -->
         <lcards-form-section
@@ -1022,7 +1022,6 @@ export class LCARdSSoundConfigTab extends LitElement {
           icon="mdi:account-cog"
           ?expanded=${false}
           ?outlined=${true}>
-          <lcards-preview-chip slot="header-icons"></lcards-preview-chip>
           <lcards-message
             type="info"
             message="Requires the LCARdS integration v1.12+ with scoped storage support. Update the integration to use this feature."
@@ -1100,7 +1099,6 @@ export class LCARdSSoundConfigTab extends LitElement {
         description="Override sound settings for a specific user or device, without changing the global defaults."
         ?expanded=${false}
         ?outlined=${true}>
-        <lcards-preview-chip slot="header-icons"></lcards-preview-chip>
 
         <!-- ── SCOPE SELECTOR (tabs + admin subject + context banner) ── -->
         <lcards-scope-selector
