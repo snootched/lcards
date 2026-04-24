@@ -7,7 +7,7 @@ LCARdS accepts several colour formats wherever a colour value is expected. You c
 ## Colour Value Formats
 
 :::tip
-Using CSS colour vars `--lcars-*` and `--lcards-*` will automatically be mutated by the Alert system.  Hard-coded colour definitions will remain static (useful when you don't want a specific colour to change on Alert mode changes)
+Using CSS colour vars `--lcars-*` and `--lcards-*` will automatically be mutated by the Alert system.  Hard-coded colour definitions will remain static (useful when you don't want a specific colour to change on Alert mode changes). You can also use the `base()` computed function to reference a theme token or CSS variable but always receive its pre-alert, green-alert baseline value — see [Computed Colour Tokens](#computed-colour-tokens) below.
 :::
 
 | Format | Example | Notes |
@@ -59,6 +59,27 @@ color: "darken(var(--lcards-orange), 0.2)"    # Darken by 20%
 color: "lighten(var(--lcards-blue), 0.15)"    # Lighten by 15%
 color: "alpha(var(--lcards-orange), 0.6)"     # Set opacity to 60%
 ```
+
+#### `base()` — Alert-Mode-Immune Colours
+
+By default, any colour referencing a `--lcars-*` or `--lcards-*` CSS variable will be shifted to the active alert mode's hue (red, yellow, etc.). Use `base()` when you want a token or CSS variable to **always resolve to its green-alert (unmutated) baseline value**, regardless of the active alert mode.
+
+```yaml
+# Always shows the original blue, even during red_alert
+color: "theme:base(colors.ui.primary)"
+
+# Composable with other functions — 50% alpha of the baseline blue
+color: "theme:alpha(base(colors.ui.primary), 0.5)"
+
+# Passing a bare CSS variable name
+color: "theme:base(--lcards-blue-lightest)"
+```
+
+`base()` looks up the green-alert snapshot captured at theme load time for `--lcars-*` variables, and uses the `GREEN_ALERT_PALETTE` for `--lcards-*` variables. If the snapshot has not been captured yet it falls back to the live DOM value.
+
+:::note
+`base()` only protects values going through `ThemeTokenResolver` (style fields, token config values). Animation params that are bare `var()` strings (e.g. `lead_color` / `trail_color` in stagger-flash) read the live CSS variable directly — use a hard-coded hex for those if alert-mode immunity is required.
+:::
 
 ---
 

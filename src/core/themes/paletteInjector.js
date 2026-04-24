@@ -236,6 +236,18 @@ function restoreOriginalColors(root, colors) {
 let originalLcarsColors = null;
 
 /**
+ * Return the currently-captured pre-alert-mutation color snapshot.
+ * Used by ThemeTokenResolver to implement the base() computed token function,
+ * which resolves a token/var to its green_alert (baseline) value regardless
+ * of the active alert mode.
+ *
+ * @returns {Object|null} Map of CSS variable names → hex values, or null if not yet captured
+ */
+export function getBaselineColors() {
+  return originalLcarsColors;
+}
+
+/**
  * Capture and store original --lcars-* color values from current theme
  * Should be called after theme is loaded to capture baseline colors
  *

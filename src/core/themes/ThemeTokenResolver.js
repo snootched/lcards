@@ -14,6 +14,7 @@
 
 import { ColorUtils } from './ColorUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { getBaselineColors, GREEN_ALERT_PALETTE } from './paletteInjector.js';
 
 /**
  * ThemeTokenResolver - Resolves design tokens to values
@@ -274,7 +275,7 @@ export class ThemeTokenResolver {
     if (typeof value !== 'string') return true;
 
     // Check for computed tokens first (they may contain var() but need processing)
-    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix'];
+    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
     if (computedFunctions.some(fn => value.startsWith(`${fn}(`))) {
       return false; // Not a direct value - needs computed token processing
     }
@@ -317,7 +318,7 @@ export class ThemeTokenResolver {
    */
   _isComputedToken(value) {
     // Computed tokens look like: 'darken(colors.accent.primary, 0.2)'
-    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix'];
+    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
     return computedFunctions.some(fn => value.startsWith(`${fn}(`));
   }
 
@@ -349,6 +350,50 @@ export class ThemeTokenResolver {
       }
 
       const [, functionName, argsStr] = match;
+
+      // -----------------------------------------------------------------------
+      // base() — resolve a token/var to its pre-alert-mutation (green_alert)
+      // baseline value.  Handled here specifically to bypass the standard arg-
+      // resolution path, which calls resolveCssVariable() and would read the
+      // live (potentially mutated) DOM value instead of the captured snapshot.
+      // -----------------------------------------------------------------------
+      if (functionName === 'base') {
+        const arg = argsStr.trim();
+        let cssVarName = null;
+
+        if (this._isTokenReference(arg)) {
+          // Resolve the token path to a CSS var string without materialising it.
+          const tokenVal = this.resolve(arg, arg, context);
+          const vm = typeof tokenVal === 'string' ? tokenVal.match(/var\((--[\w-]+)/) : null;
+          if (vm) {
+            cssVarName = vm[1];
+          } else {
+            // Token resolved to a concrete hex/rgb — already unambiguous.
+            return tokenVal;
+          }
+        } else if (arg.startsWith('var(')) {
+          const vm = arg.match(/var\((--[\w-]+)/);
+          if (vm) cssVarName = vm[1];
+        } else if (arg.startsWith('--')) {
+          cssVarName = arg;
+        }
+
+        if (cssVarName) {
+          const baseline = getBaselineColors();
+          if (cssVarName.startsWith('--lcars-') && baseline?.[cssVarName]) {
+            return baseline[cssVarName];
+          }
+          if (cssVarName.startsWith('--lcards-')) {
+            const key = cssVarName.slice('--lcards-'.length);
+            if (GREEN_ALERT_PALETTE[key]) return GREEN_ALERT_PALETTE[key];
+          }
+        }
+
+        // Fallback: materialise via live DOM (better than returning the expression literal).
+        lcardsLog.debug(`[ThemeTokenResolver] base(): no baseline snapshot found for '${arg}' — falling back to live DOM value`);
+        const fallbackArg = arg.includes('var(') ? arg : (arg.startsWith('--') ? `var(${arg})` : arg);
+        return ColorUtils.resolveCssVariable(fallbackArg, fallbackArg);
+      }
 
       // Parse arguments (handle nested parentheses for token references)
       const args = this._parseComputedArgs(argsStr);

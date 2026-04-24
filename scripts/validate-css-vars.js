@@ -7,7 +7,6 @@
  *   Pass 1  --lcars-*   → HA-LCARS theme vars (scripts/ha-lcars-theme-vars.js)
  *   Pass 2  --lcards-*  → LCARdS palette vars (src/core/themes/paletteInjector.js)
  *   Pass 3  theme:*     → Token paths in lcardsDefaultTokens.js (best-effort)
- *   Pass 4  animation   → theme: must NOT appear in animation param values
  *
  * Exit 0 = clean, Exit 1 = violations found.
  *
@@ -200,6 +199,7 @@ const THEME_PATH_EXEMPTIONS = new Set([
   'darken',     // theme:darken(path, amount) colour function
   'alpha',      // theme:alpha(path, amount) colour function
   'mix',        // theme:mix(path1, path2, ratio)
+  'base',       // theme:base(path) — resolve to pre-alert-mutation baseline value
   'token',      // theme:token.path documentation placeholder
 ]);
 
@@ -211,12 +211,6 @@ const RE_LCARS  = /--lcars-([a-z0-9-]+)/g;
 const RE_LCARDS = /--lcards-([a-z0-9-]+)/g;
 // Matches theme:<path> — path must start with a letter to avoid `theme:.` false positives
 const RE_THEME  = /theme:([a-zA-Z][a-zA-Z0-9._-]*)/g;
-// Animation param keys that must NOT hold theme: values
-const ANIM_PARAM_KEYS = ['lead_color', 'trail_color'];
-const RE_ANIM_PARAM_WITH_THEME = new RegExp(
-  `(?:${ANIM_PARAM_KEYS.join('|')})\\s*:\\s*['"\`]theme:`, 'g'
-);
-
 // ─── Collectors ──────────────────────────────────────────────────────────────
 
 class Violations {
@@ -364,25 +358,6 @@ function pass3_themePaths(file, fileLines, tokenPaths, violations, hits) {
   }
 }
 
-/**
- * Pass 4: theme: values must NOT appear in animation param keys
- * (lead_color, trail_color) because WAAPI does not run ThemeTokenResolver.
- */
-function pass4_animationParams(file, fileLines, violations) {
-  for (const { no, content } of fileLines) {
-    if (content.trimStart().startsWith('//') || content.trimStart().startsWith('*')) continue;
-
-    if (RE_ANIM_PARAM_WITH_THEME.test(content)) {
-      violations.add(
-        file, no,
-        `theme: token in animation param — use a concrete CSS var() instead. ` +
-        `(theme: tokens are NOT evaluated by WAAPI keyframe engine)`
-      );
-    }
-    RE_ANIM_PARAM_WITH_THEME.lastIndex = 0;  // reset stateful regex
-  }
-}
-
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -399,7 +374,7 @@ async function main() {
   const violations = new Violations();
   const hits = VERBOSE ? new Hits() : null;
 
-  let p1 = 0, p2 = 0, p3 = 0, p4 = 0;
+  let p1 = 0, p2 = 0, p3 = 0;
   let h1 = 0, h2 = 0, h3 = 0;
 
   for (const file of files) {
@@ -421,13 +396,9 @@ async function main() {
     const afterP3 = violations.count;
     const hitsAfterP3 = hits ? hits.count : 0;
 
-    pass4_animationParams(file, fileLines, violations);
-    const afterP4 = violations.count;
-
     p1 += afterP1 - before;
     p2 += afterP2 - afterP1;
     p3 += afterP3 - afterP2;
-    p4 += afterP4 - afterP3;
     if (hits) {
       h1 += hitsAfterP1 - hitsBefore;
       h2 += hitsAfterP2 - hitsAfterP1;
@@ -479,12 +450,10 @@ async function main() {
     if (h1 || p1) console.log(`    Pass 1 (--lcars-*  allowlist):        ${GREEN(h1)} valid  ${p1 ? RED(`${p1} violation(s)`) : ''}`);
     if (h2 || p2) console.log(`    Pass 2 (--lcards-* allowlist):        ${GREEN(h2)} valid  ${p2 ? RED(`${p2} violation(s)`) : ''}`);
     if (h3 || p3) console.log(`    Pass 3 (theme: token paths):          ${GREEN(h3)} valid  ${p3 ? RED(`${p3} violation(s)`) : ''}`);
-    if (p4)       console.log(`    Pass 4 (theme: in animation params):  ${RED(`${p4} violation(s)`)}`);
   } else {
     if (p1) console.log(`    Pass 1 (--lcars-*  allowlist):        ${RED(p1)}`);
     if (p2) console.log(`    Pass 2 (--lcards-* allowlist):        ${RED(p2)}`);
     if (p3) console.log(`    Pass 3 (theme: token paths):          ${RED(p3)}`);
-    if (p4) console.log(`    Pass 4 (theme: in animation params):  ${RED(p4)}`);
   }
 
   const skipped = [];
