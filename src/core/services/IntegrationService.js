@@ -399,25 +399,34 @@ export class IntegrationService extends BaseService {
             }
 
             case 'trigger_effect': {
-                // Fire a named screen effect on this device.
-                // payload.effect  — preset name (required)
-                // payload.params  — optional params object forwarded to the preset
+                // Fire screen effects on this device.
                 //
-                // Routing: if params contains a `duration` key use play()
-                // (auto-dismiss after that many ms); otherwise use apply()
-                // so the effect persists until explicitly cleared.
-                const effectName = payload.effect;
-                const effectParams = payload.params ?? {};
-                const api = window.lcards?.screenEffect;
-                if (effectName && api) {
-                    lcardsLog.info(`[IntegrationService] Screen effect triggered by backend: '${effectName}'`);
-                    if ('duration' in effectParams) {
-                        api.play(effectName, effectParams);
-                    } else {
-                        api.apply(effectName, effectParams);
+                // New API (Option A): payload.layers — explicit per-slot config:
+                //   { backdrop: { preset, ...params }, color: { preset, ...params }, canvas: { preset, ...params } }
+                //   Absent slot = not touched. null value = clear that slot.
+                //
+                // Legacy API removed — only layers is accepted.
+                //   payload.params.duration — auto-clear after N ms.
+                //
+                // Backward compat: both APIs can coexist; layers takes precedence when present.
+                const sem = window.lcards?.core?.screenEffectManager;
+
+                if (sem && payload.layers) {
+                    lcardsLog.info('[IntegrationService] Screen effect (layers) triggered by backend');
+                    sem.clearSlot('backdrop');
+                    sem.clearSlot('color');
+                    sem.clearSlot('canvas');
+                    for (const [slot, layerCfg] of Object.entries(payload.layers)) {
+                        if (layerCfg?.preset) {
+                            const { preset, ...params } = layerCfg;
+                            sem.applySlot(slot, preset, params);
+                        }
+                    }
+                    if (payload.duration) {
+                        setTimeout(() => { sem.clear(); }, payload.duration);
                     }
                 } else {
-                    lcardsLog.warn('[IntegrationService] trigger_effect: missing effect name or screenEffect API unavailable');
+                    lcardsLog.warn('[IntegrationService] trigger_effect: missing layers or screenEffectManager unavailable');
                 }
                 break;
             }

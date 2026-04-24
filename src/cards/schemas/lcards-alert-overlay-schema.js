@@ -24,33 +24,59 @@ export const alertOverlaySchema = {
         },
         backdrop: {
             type: 'object',
-            description: 'Global backdrop styling defaults (can be overridden per condition)',
+            description: '[DEPRECATED] Migrated at runtime to layers.backdrop + layers.color. Still accepted for backward compatibility.',
             properties: {
-                blur: {
-                    type: 'string',
-                    description: 'CSS backdrop-filter blur value',
-                    default: '8px',
-                    examples: ['4px', '8px', '16px'],
-                },
-                opacity: {
-                    type: 'number',
-                    minimum: 0,
-                    maximum: 1,
-                    description: 'Backdrop opacity (0–1)',
-                    default: 0.6,
+                blur:    { type: 'string',  description: 'CSS backdrop-filter blur value', default: '8px' },
+                opacity: { type: 'number',  minimum: 0, maximum: 1, description: 'Backdrop opacity (0–1)', default: 0.6 },
+                color:   { type: 'string',  description: 'Backdrop background colour (CSS colour value)', default: 'rgba(0,0,0,0.5)' },
+            },
+            additionalProperties: false,
+        },
+        layers: {
+            type: 'object',
+            description: 'Screen effect layers applied independently behind the overlay. Absent slot = disabled; null value = explicitly cleared for per-condition overrides.',
+            properties: {
+                backdrop: {
+                    oneOf: [
+                        { type: 'null', description: 'Explicitly disable this layer for a condition override' },
+                        {
+                            type: 'object',
+                            description: 'CSS backdrop-filter layer. Preset: blur | grayscale | saturate | contrast | hue-rotate',
+                            properties: { preset: { type: 'string', examples: ['blur', 'grayscale', 'saturate', 'contrast', 'hue-rotate'] } },
+                            required: ['preset'],
+                            additionalProperties: true,
+                        },
+                    ],
                 },
                 color: {
-                    type: 'string',
-                    description: 'Backdrop background colour (CSS colour value)',
-                    default: 'rgba(0,0,0,0.5)',
-                    examples: ['rgba(0,0,0,0.5)', 'rgba(180,0,0,0.4)'],
+                    oneOf: [
+                        { type: 'null', description: 'Explicitly disable this layer for a condition override' },
+                        {
+                            type: 'object',
+                            description: 'Colour overlay layer. Preset: color-tint | vignette',
+                            properties: { preset: { type: 'string', examples: ['color-tint', 'vignette'] } },
+                            required: ['preset'],
+                            additionalProperties: true,
+                        },
+                    ],
+                },
+                canvas: {
+                    oneOf: [
+                        { type: 'null', description: 'Explicitly disable this layer for a condition override' },
+                        {
+                            type: 'object',
+                            description: 'Canvas animation layer. Preset: static | pixelate | glitch | scanlines',
+                            properties: { preset: { type: 'string', examples: ['static', 'pixelate', 'glitch', 'scanlines'] } },
+                            required: ['preset'],
+                            additionalProperties: true,
+                        },
+                    ],
                 },
             },
             additionalProperties: false,
         },
         position: {
             type: 'string',
-            description: 'Where to position the content card within the overlay',
             enum: [
                 'top-left', 'top', 'top-center', 'top-right',
                 'left', 'left-center',
@@ -110,7 +136,7 @@ export const alertOverlaySchema = {
                     },
                     backdrop: {
                         type: 'object',
-                        description: 'Per-condition backdrop overrides (merged with global backdrop)',
+                        description: '[DEPRECATED] Migrated at runtime to layers. Still accepted for backward compatibility.',
                         properties: {
                             blur:    { type: 'string' },
                             opacity: { type: 'number', minimum: 0, maximum: 1 },
@@ -118,9 +144,18 @@ export const alertOverlaySchema = {
                         },
                         additionalProperties: false,
                     },
+                    layers: {
+                        type: 'object',
+                        description: 'Per-condition screen effect layer overrides. Unset slots inherit from the global layers config. null = explicitly disable that slot.',
+                        properties: {
+                            backdrop: { oneOf: [{ type: 'null' }, { type: 'object', properties: { preset: { type: 'string' } }, required: ['preset'], additionalProperties: true }] },
+                            color:    { oneOf: [{ type: 'null' }, { type: 'object', properties: { preset: { type: 'string' } }, required: ['preset'], additionalProperties: true }] },
+                            canvas:   { oneOf: [{ type: 'null' }, { type: 'object', properties: { preset: { type: 'string' } }, required: ['preset'], additionalProperties: true }] },
+                        },
+                        additionalProperties: false,
+                    },
                     position: {
                         type: 'string',
-                        description: 'Per-condition position override',
                         enum: [
                             'top-left', 'top', 'top-center', 'top-right',
                             'left', 'left-center',

@@ -279,24 +279,21 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         device_ids, user_ids = await _async_resolve_targets(hass, call)
         _fire_targeted_event(hass, "set_log_level", {"level": level}, device_ids, user_ids)
     async def handle_trigger_effect(call: ServiceCall) -> None:
-        """Fire a named screen effect on target LCARdS frontends.
+        """Fire layered screen effects on target LCARdS frontends.
 
-        The ``effect`` field maps to a registered preset name in the JS
-        ``ScreenEffectPresetRegistry`` (e.g. 'pixelate', 'static', 'blur').
-        The optional ``params`` dict is forwarded verbatim to the preset's
-        ``enter()`` function — see the preset defaults for valid keys.
+        ``layers`` — per-slot effect config dict (required):
+          { backdrop: { preset, ...params }, color: { preset, ...params }, canvas: { preset, ...params } }
+
+        ``duration`` (optional int ms) auto-clears all effects after that delay.
         """
-        effect = call.data["effect"]
-        params = call.data.get("params") or {}
-        _LOGGER.info("LCARdS service: triggering screen effect %r (params=%r)", effect, params)
+        layers   = call.data.get("layers") or {}
+        duration = call.data.get("duration") or None
+        _LOGGER.info("LCARdS service: triggering screen effect layers %r", layers)
+        payload: dict = {"layers": layers}
+        if duration:
+            payload["duration"] = duration
         device_ids, user_ids = await _async_resolve_targets(hass, call)
-        _fire_targeted_event(
-            hass,
-            "trigger_effect",
-            {"effect": effect, "params": params},
-            device_ids,
-            user_ids,
-        )
+        _fire_targeted_event(hass, "trigger_effect", payload, device_ids, user_ids)
     async def handle_clear_effect(call: ServiceCall) -> None:
         """Clear screen effects on target LCARdS frontends.
 
@@ -351,8 +348,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN, SERVICE_TRIGGER_EFFECT, handle_trigger_effect,
         schema=vol.Schema({
-            vol.Required("effect"): vol.All(str, vol.Length(min=1)),
-            vol.Optional("params"): dict,
+            vol.Required("layers"):   dict,
+            vol.Optional("duration"): vol.All(int, vol.Range(min=100)),
             **_TARGET_FIELDS,
         }),
     )

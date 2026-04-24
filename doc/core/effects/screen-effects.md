@@ -12,8 +12,9 @@ Screen effects cover the entire viewport with composited overlays — blur, colo
 // Browser console — play for 2 seconds then auto-dismiss
 window.lcards.screenEffect.play('static', { duration: 2000 })
 
-// Apply persistently (stays until cleared)
-window.lcards.screenEffect.apply('alert-red')
+// Apply slot effects persistently (stays until cleared)
+window.lcards.screenEffect.applySlot('backdrop', 'blur', { amount: '12px' })
+window.lcards.screenEffect.applySlot('color', 'color-tint', { color: 'rgba(180,0,0,0.35)' })
 window.lcards.screenEffect.clear()
 ```
 
@@ -21,9 +22,10 @@ window.lcards.screenEffect.clear()
 # HA automation
 service: lcards.trigger_effect
 data:
-  effect: glitch
-  params:
-    duration: 1500
+  layers:
+    canvas:
+      preset: glitch
+  duration: 1500
 ```
 
 ---
@@ -45,10 +47,11 @@ Applies a Gaussian blur to everything behind the overlay.
 ```yaml
 service: lcards.trigger_effect
 data:
-  effect: blur
-  params:
-    amount: "12px"
-    duration: 3000
+  layers:
+    backdrop:
+      preset: blur
+      amount: "12px"
+  duration: 3000
 ```
 
 ---
@@ -108,10 +111,11 @@ Semi-transparent colour flood over the entire screen.
 ```yaml
 service: lcards.trigger_effect
 data:
-  effect: color-tint
-  params:
-    color: "rgba(180, 0, 0, 0.4)"
-    duration: 2000
+  layers:
+    color:
+      preset: color-tint
+      color: "rgba(180, 0, 0, 0.4)"
+  duration: 2000
 ```
 
 ---
@@ -148,11 +152,12 @@ TV static noise. Chunky random pixel noise scaled up with `image-rendering: pixe
 ```yaml
 service: lcards.trigger_effect
 data:
-  effect: static
-  params:
-    duration: 800
-    scale: 6
-    opacity: 0.7
+  layers:
+    canvas:
+      preset: static
+      scale: 6
+      opacity: 0.7
+  duration: 800
 ```
 
 ---
@@ -171,11 +176,12 @@ Mosaic of small dark blocks with subtle lightness variance. Simulates low-resolu
 ```yaml
 service: lcards.trigger_effect
 data:
-  effect: pixelate
-  params:
-    duration: 2000
-    pixelSize: 12
-    opacity: 0.6
+  layers:
+    canvas:
+      preset: pixelate
+      pixelSize: 12
+      opacity: 0.6
+  duration: 2000
 ```
 
 ---
@@ -195,11 +201,12 @@ Sparse horizontal displacement bands with thin chroma-aberration edge lines. Use
 ```yaml
 service: lcards.trigger_effect
 data:
-  effect: glitch
-  params:
-    duration: 1000
-    intensity: 0.12
-    maxShift: 60
+  layers:
+    canvas:
+      preset: glitch
+      intensity: 0.12
+      maxShift: 60
+  duration: 1000
 ```
 
 ---
@@ -217,44 +224,13 @@ CRT-style horizontal line overlay. Optionally scrolls vertically.
 ```yaml
 service: lcards.trigger_effect
 data:
-  effect: scanlines
-  params:
-    lineHeight: 3
-    opacity: 0.35
-    scroll: 40
+  layers:
+    canvas:
+      preset: scanlines
+      lineHeight: 3
+      opacity: 0.35
+      scroll: 40
 ```
-
----
-
-### Compound presets
-
-Compound presets apply multiple slots simultaneously. They are built-in shortcuts for common alert states — each combines a `blur` backdrop with a `color-tint` overlay.
-
-| Preset | Blur | Tint |
-|--------|------|------|
-| `alert-red` | `10px` | `rgba(180,0,0,0.35)` |
-| `alert-yellow` | `8px` | `rgba(200,160,0,0.35)` |
-| `alert-blue` | `8px` | `rgba(0,80,200,0.35)` |
-| `alert-gray` | `6px` | `rgba(80,80,80,0.40)` |
-| `alert-black` | `4px` | `rgba(0,0,0,0.60)` |
-
-```yaml
-service: lcards.trigger_effect
-data:
-  effect: alert-red
-  params:
-    duration: 5000
-```
-
----
-
-## Common parameters
-
-These parameters work with **every** preset:
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `duration` | number | — | Auto-dismiss after this many ms. **Omit entirely for a persistent effect** that stays until manually cleared (e.g. via `lcards.clear_alert` or a followup service call). Including `duration: 0` is treated as persistent. |
 
 ---
 
@@ -262,20 +238,77 @@ These parameters work with **every** preset:
 
 ### `lcards.trigger_effect`
 
-Fire a screen effect from an automation, script, or developer tools.
+Fire one or more layered screen effects from an automation, script, or developer tools. Each of the three **slots** is configured independently — include only the slots you want.
 
 ```yaml
+# Full red alert — blur + red tint + TV static
 service: lcards.trigger_effect
 data:
-  effect: <preset name>
-  params:             # optional — preset-specific params
-    duration: 2000
-    # ... effect params ...
-  target_device_ids:  # optional — list of browser device UUIDs
-    - "abc123def456"
-  target_user_ids:    # optional — list of HA user UUIDs
+  layers:
+    backdrop:
+      preset: blur
+      amount: "12px"
+    color:
+      preset: color-tint
+      color: "rgba(180, 0, 0, 0.35)"
+    canvas:
+      preset: static
+      opacity: 0.3
+  duration: 5000              # auto-clear after 5 s
+```
+
+```yaml
+# Canvas-only effect, broadcast to all browsers
+service: lcards.trigger_effect
+data:
+  layers:
+    canvas:
+      preset: glitch
+      intensity: 0.15
+  duration: 1200
+```
+
+```yaml
+# Persistent blur on a specific user — stays until lcards.clear_effect
+service: lcards.trigger_effect
+data:
+  layers:
+    backdrop:
+      preset: blur
+      amount: "16px"
+  target_user_ids:
     - "a1b2c3d4e5f6"
-  # omit both target fields to broadcast to all connected browsers
+```
+
+```yaml
+# Target a specific browser device by UUID
+service: lcards.trigger_effect
+data:
+  layers:
+    color:
+      preset: vignette
+      opacity: 0.8
+  duration: 3000
+  target_device_ids:
+    - "abc123def456"
+```
+
+#### Slots
+
+| Slot | Presets | Rendering |
+|------|---------|-----------|
+| `backdrop` | `blur`, `grayscale`, `saturate`, `contrast`, `hue-rotate` | CSS `backdrop-filter` |
+| `color` | `color-tint`, `vignette` | Transparent `<div>` overlay |
+| `canvas` | `static`, `pixelate`, `glitch`, `scanlines` | Canvas2D rAF loop |
+
+Omit a slot to leave it unchanged. Set a slot to `null` to explicitly clear it:
+
+```yaml
+# Clear only the canvas slot, leave blur alone
+service: lcards.trigger_effect
+data:
+  layers:
+    canvas: null
 ```
 
 ### `lcards.clear_effect`
@@ -312,10 +345,15 @@ window.lcards.targeting.getMyIds()
 All methods are also available on `window.lcards.screenEffect`:
 
 ```js
-// Persistent effect — stays until clear() or clearSlot()
+// Apply a single slot persistently (stays until clear)
+window.lcards.screenEffect.applySlot('backdrop', 'blur', { amount: '12px' })
+window.lcards.screenEffect.applySlot('color', 'color-tint', { color: 'rgba(180,0,0,0.35)' })
+window.lcards.screenEffect.applySlot('canvas', 'static', { opacity: 0.3 })
+
+// apply() is a shorthand for single-slot presets by name
 window.lcards.screenEffect.apply('blur', { amount: '12px' })
 
-// Transient effect — auto-dismisses after duration ms
+// Transient single-slot effect — auto-dismisses after duration ms
 window.lcards.screenEffect.play('static', { duration: 2000, scale: 6 })
 
 // Remove effects

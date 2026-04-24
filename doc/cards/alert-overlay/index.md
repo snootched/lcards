@@ -58,29 +58,82 @@ views:
 | `position` | string | `center` | Where to place the content card within the overlay — see [Position](#position) |
 | `width` | string | `auto` | Global content card width (CSS value, e.g. `400px`, `50vw`). For the default alert button and other SVG component cards, width alone is sufficient — height is computed automatically from the SVG's aspect ratio. |
 | `height` | string | `auto` | Global content card height (CSS value). Only needed when the content card cannot determine its own height from width (e.g. custom cards that don't embed a component SVG). |
-| `backdrop` | object | — | Global backdrop styling — see [Backdrop](#backdrop) |
+| `layers` | object | — | Per-slot screen effect configuration — see [Layers](#layers) |
 | `conditions` | object | — | Per-condition overrides — see [Conditions](#conditions) |
 
 ---
 
-## Backdrop
+## Layers
 
-Controls the visual treatment applied over the dashboard when the overlay is active. The backdrop is rendered in two layers: a `backdrop-filter` blur layer (which blurs what's behind) and a separate tint layer (which applies a translucent colour wash). This split is required so that blur and opacity don't interact in a way that defeats both effects.
+The `layers` key configures the screen effects shown behind the overlay content when the alert is active. It maps three independent **slots** — each slot corresponds to a rendering layer:
+
+| Slot | Presets | Effect |
+|------|---------|--------|
+| `backdrop` | `blur`, `grayscale`, `saturate`, `contrast`, `hue-rotate` | CSS `backdrop-filter` — filters the dashboard behind the overlay |
+| `color` | `color-tint`, `vignette` | Transparent colour overlay rendered above the blur |
+| `canvas` | `static`, `pixelate`, `glitch`, `scanlines` | Canvas2D animation rendered above the colour layer |
+
+Configure only the slots you need — omit a slot to leave it inactive:
 
 ```yaml
-backdrop:
-  blur: 8px               # CSS length — how much to blur the content behind the overlay
-  opacity: 0.6            # 0–1 — opacity of the colour tint layer
-  color: rgba(0,0,0,0.5)  # Background colour of the tint layer
+# Default-like setup: blur + red tint (no canvas)
+layers:
+  backdrop:
+    preset: blur
+    amount: 8px
+  color:
+    preset: color-tint
+    color: rgba(0, 0, 0, 0.5)
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `blur` | string | `8px` | CSS `backdrop-filter: blur()` value |
-| `opacity` | number | `0.6` | Tint layer opacity (0–1) |
-| `color` | string | `rgba(0,0,0,0.5)` | Tint layer background colour |
+```yaml
+# Full red alert: blur + red tint + TV static
+layers:
+  backdrop:
+    preset: blur
+    amount: 10px
+  color:
+    preset: color-tint
+    color: rgba(180, 0, 0, 0.35)
+  canvas:
+    preset: static
+    opacity: 0.3
+```
 
-> **Color values**: Only CSS values work here — hex, `rgb()`, `rgba()`, or `var(--css-variable)`. Theme tokens (`theme:palette.moonlight`) are not supported for backdrop config because the overlay is rendered outside the LCARdS card hierarchy. Use `var(--lcards-*)` variables for alert-mode-aware colours.
+```yaml
+# Disable all screen effects (content card only, no overlay treatment)
+layers: null
+```
+
+### Slot option reference
+
+**`backdrop` slot presets**
+
+| Preset | Parameter | Default | Description |
+|--------|-----------|---------|-------------|
+| `blur` | `amount` | `8px` | CSS blur radius |
+| `grayscale` | `amount` | `100%` | Colour desaturation |
+| `saturate` | `amount` | `200%` | Saturation boost |
+| `contrast` | `amount` | `200%` | Contrast increase |
+| `hue-rotate` | `angle` | `180deg` | Hue rotation |
+
+**`color` slot presets**
+
+| Preset | Parameter | Default | Description |
+|--------|-----------|---------|-------------|
+| `color-tint` | `color` | `rgba(0,0,0,0.5)` | Flat colour flood — any CSS color |
+| `vignette` | `opacity` | `0.7` | Dark radial fade at screen edges |
+
+**`canvas` slot presets**
+
+| Preset | Parameters | Description |
+|--------|------------|-------------|
+| `static` | `opacity`, `scale`, `color`, `tintStrength` | TV static noise |
+| `pixelate` | `pixelSize`, `opacity`, `variance`, `baseLight` | Mosaic blocks |
+| `glitch` | `intensity`, `maxShift`, `bandHeight`, `opacity`, `fps` | Horizontal displacement bands |
+| `scanlines` | `lineHeight`, `opacity`, `scroll` | CRT horizontal lines |
+
+> **Color values**: Use explicit CSS values — hex, `rgb()`, `rgba()`, or `var(--css-variable)`. Theme tokens (`theme:palette.moonlight`) are not resolved in overlay config because the effect layers are rendered outside the LCARdS card shadow DOM. Use `var(--lcards-*)` or `var(--lcars-*)` variables for alert-mode-aware colours.
 
 ---
 
@@ -167,7 +220,7 @@ Condition keys: `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_
 |--------|------|-------------|
 | `content` | object | Full HA card config to render inside the overlay. Any card type works. Overrides `alert_button` entirely. |
 | `alert_button` | object | Patch merged onto the default alert button — override only the fields you need. See [Default Alert Button Overrides](#default-alert-button-overrides). |
-| `backdrop` | object | Backdrop overrides merged on top of the global `backdrop` setting |
+| `layers` | object | Per-slot effect overrides merged on top of the global `layers`. Only slots present in the condition override are applied — absent slots inherit global. Set a slot to `null` to explicitly clear it for this condition. |
 | `position` | string | Position override for this condition |
 | `width` | string | Content card width override. SVG component cards (e.g. the default alert button) derive their height from this automatically. |
 | `height` | string | Content card height override, for custom cards that cannot self-size from width alone. |
@@ -294,10 +347,13 @@ type: custom:lcards-alert-overlay
 ```yaml
 type: custom:lcards-alert-overlay
 dismiss_mode: reset
-backdrop:
-  blur: 12px
-  opacity: 0.65
-  color: rgba(0,0,0,0.4)
+layers:
+  backdrop:
+    preset: blur
+    amount: 12px
+  color:
+    preset: color-tint
+    color: rgba(0, 0, 0, 0.4)
 ```
 
 ---
@@ -308,10 +364,7 @@ backdrop:
 type: custom:lcards-alert-overlay
 position: top-right
 width: 380px
-backdrop:
-  blur: 0px
-  opacity: 0
-  color: transparent
+layers: null
 conditions:
   red_alert:
     content:
@@ -327,7 +380,7 @@ conditions:
               default: var(--lcards-orange-dark)
 ```
 
-Note: Setting `opacity: 0` and `color: transparent` disables the tint. Setting `blur: 0px` disables the blur. This gives a pure notification card in a corner with no overlay treatment on the rest of the dashboard.
+Note: Setting `layers: null` disables all screen effects. This gives a pure notification card in a corner with no overlay treatment on the rest of the dashboard.
 
 ---
 
@@ -337,18 +390,24 @@ Note: Setting `opacity: 0` and `color: transparent` disables the tint. Setting `
 type: custom:lcards-alert-overlay
 dismiss_mode: reset
 position: center
-backdrop:
-  blur: 8px
-  opacity: 0.6
-  color: rgba(0,0,0,0.5)
+layers:
+  backdrop:
+    preset: blur
+    amount: 8px
+  color:
+    preset: color-tint
+    color: rgba(0, 0, 0, 0.5)
 
 conditions:
   red_alert:
     width: 500px
-    backdrop:
-      blur: 16px
-      opacity: 0.75
-      color: rgba(180,0,0,0.35)
+    layers:
+      backdrop:
+        preset: blur
+        amount: 16px
+      color:
+        preset: color-tint
+        color: rgba(180, 0, 0, 0.35)
     content:
       type: custom:lcards-button
       component: alert
@@ -361,8 +420,10 @@ conditions:
 
   yellow_alert:
     width: 500px
-    backdrop:
-      color: rgba(180,160,0,0.3)
+    layers:
+      color:
+        preset: color-tint
+        color: rgba(180, 160, 0, 0.3)
     content:
       type: custom:lcards-button
       component: alert
@@ -375,10 +436,13 @@ conditions:
 
   black_alert:
     width: 500px
-    backdrop:
-      blur: 20px
-      opacity: 0.85
-      color: rgba(0,0,0,0.7)
+    layers:
+      backdrop:
+        preset: blur
+        amount: 20px
+      color:
+        preset: color-tint
+        color: rgba(0, 0, 0, 0.7)
     content:
       type: custom:lcards-button
       component: alert
@@ -394,7 +458,7 @@ conditions:
 
 ## Limitations
 
-- **No theme tokens in backdrop config** — `theme:palette.moonlight` and similar token paths are not evaluated for `backdrop.color`. Use explicit CSS values or `var(--lcards-*)` / `var(--lcars-*)` CSS variables instead.
+- **No theme tokens in `layers` color values** — `theme:palette.moonlight` and similar token paths are not evaluated in `layers.color.color` or any other effect parameter. The effect layers are rendered outside the LCARdS card shadow DOM. Use explicit CSS values, `var(--lcards-*)`, or `var(--lcars-*)` CSS variables instead.
 - **Single instance per dashboard** — only the first instance connected to the DOM becomes active. Any additional instances are automatically suppressed: they have no visual presence in normal mode and show a "DUPLICATE — INACTIVE" warning placeholder in edit mode. Remove duplicate instances to avoid confusion.
 - **Not targetable by the rules engine** — the overlay does not extend `LCARdSCard` and has no card ID or tags. Rules cannot target it. The content card *inside* the overlay does support rules if it is an `lcards-*` card type.
 

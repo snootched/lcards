@@ -33,6 +33,7 @@
 import { BaseService                } from '../BaseService.js';
 import { screenEffectPresetRegistry } from './ScreenEffectPresetRegistry.js';
 import { lcardsLog                  } from '../../utils/lcards-logging.js';
+import { ColorUtils                 } from '../themes/ColorUtils.js';
 
 // Ordered slot names — the portal creates them in this order so z-index follows
 // document order naturally.  Each slot is a direct child of the portal div.
@@ -60,8 +61,6 @@ export class ScreenEffectManager extends BaseService {
          */
         this._slots = new Map();
 
-        /** Tracks compound-preset slots so `clear()` knows which slots to release. */
-        this._compoundActive = new Map(); // presetName → slot[]
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -127,8 +126,36 @@ export class ScreenEffectManager extends BaseService {
     /** Update portal display based on whether any slot is active. */
     _syncPortalVisibility() {
         if (!this._portal) return;
-        const anyActive = [...this._slots.values()].some(s => s.active);
+        const anyActive = this._overlayOccupied || [...this._slots.values()].some(s => s.active);
         this._portal.style.display = anyActive ? '' : 'none';
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Portal access for trusted consumers (alert overlay)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns the portal element, creating it if needed.
+     * The alert overlay uses this to append its own content elements
+     * directly into the shared portal stack.
+     *
+     * @returns {HTMLDivElement}
+     */
+    get portal() {
+        this._ensurePortal();
+        return this._portal;
+    }
+
+    /**
+     * Notify the manager that the alert overlay has appended elements into
+     * (or removed them from) the portal.  Keeps the portal visible while
+     * the overlay is active even if no effect slots are running.
+     *
+     * @param {boolean} occupied
+     */
+    setOverlayOccupied(occupied) {
+        this._overlayOccupied = !!occupied;
+        this._syncPortalVisibility();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -152,11 +179,6 @@ export class ScreenEffectManager extends BaseService {
             lcardsLog.warn(`[ScreenEffectManager] Unknown preset: '${presetName}'`);
             return false;
         }
-        if (preset.compound) {
-            lcardsLog.warn(`[ScreenEffectManager] _applySlot() called on compound preset '${presetName}' — use apply() instead`);
-            return false;
-        }
-
         const slotState = this._slots.get(slot);
         if (!slotState) {
             lcardsLog.warn(`[ScreenEffectManager] Unknown slot: '${slot}'`);
@@ -168,6 +190,9 @@ export class ScreenEffectManager extends BaseService {
 
         // Merge caller params with preset defaults.
         const resolved = { ...(preset.defaults ?? {}), ...params };
+        // Resolve theme tokens and CSS variables in color-typed params so the
+        // browser can apply them (el.style.background cannot consume var() strings).
+        const finalParams = this._resolveColorParams(preset, resolved);
 
         // Activate — show portal first so offsetWidth/offsetHeight resolve
         // correctly when the effect's enter() function measures the slot element.
@@ -176,7 +201,7 @@ export class ScreenEffectManager extends BaseService {
         this._syncPortalVisibility();
 
         try {
-            slotState.cleanup = preset.enter(slotState.el, resolved) ?? null;
+            slotState.cleanup = preset.enter(slotState.el, finalParams) ?? null;
         } catch (err) {
             lcardsLog.error(`[ScreenEffectManager] Error entering preset '${presetName}':`, err);
             slotState.el.style.display = 'none';
@@ -214,14 +239,53 @@ export class ScreenEffectManager extends BaseService {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Apply a named effect persistently.
+     * Apply a preset to a specific slot.
      *
-     * Handles both standard (single-slot) and compound presets.
-     * Replaces any currently-active effect on the affected slot(s).
+     * @param {string} slot       - Slot name ('backdrop' | 'canvas' | 'color').
+     * @param {string} presetName - A registered preset name.
+     * @param {Object} [params]   - Parameters merged with preset defaults.
+     * @returns {boolean} `true` if activated successfully.
+     */
+    applySlot(slot, presetName, params = {}) {
+        return this._applySlot(slot, presetName, params);
+    }
+
+    /**
+     * Retrieve the full definition of a registered preset.
+     * Useful for the visual editor to read label, params_schema, etc.
+     *
+     * @param {string} name
+     * @returns {Object|undefined}
+     */
+    getPreset(name) {
+        return screenEffectPresetRegistry.get(name);
+    }
+
+    /**
+     * Return a catalog of all registered presets suitable for the visual editor.
+     * Each entry contains: name, label, slot, params_schema.
+     *
+     * @returns {Array<Object>}
+     */
+    catalog() {
+        return screenEffectPresetRegistry.list().map(name => {
+            const p = screenEffectPresetRegistry.get(name);
+            return {
+                name,
+                label:        p.label ?? name,
+                slot:         p.slot,
+                params_schema: p.params_schema ?? [],
+            };
+        });
+    }
+
+    /**
+     * Apply a named effect persistently (single-slot preset shorthand).
+     * Replaces any currently-active effect on the preset's slot.
      *
      * @param {string} presetName - Registered preset name.
      * @param {Object} [params]   - Override preset defaults.
-     * @returns {boolean} `true` if at least one slot was activated.
+     * @returns {boolean} `true` if activated successfully.
      */
     apply(presetName, params = {}) {
         this._ensurePortal();
@@ -232,21 +296,6 @@ export class ScreenEffectManager extends BaseService {
             return false;
         }
 
-        if (preset.compound) {
-            const appliedSlots = [];
-            for (const layer of (preset.layers ?? [])) {
-                const sub = screenEffectPresetRegistry.get(layer.preset);
-                if (!sub || sub.compound) {
-                    lcardsLog.warn(`[ScreenEffectManager] Compound preset '${presetName}': invalid layer '${layer.preset}' — skipped`);
-                    continue;
-                }
-                const ok = this._applySlot(sub.slot, layer.preset, { ...(layer.params ?? {}), ...params });
-                if (ok) appliedSlots.push(sub.slot);
-            }
-            this._compoundActive.set(presetName, appliedSlots);
-            return appliedSlots.length > 0;
-        }
-
         return this._applySlot(preset.slot, presetName, params);
     }
 
@@ -255,6 +304,65 @@ export class ScreenEffectManager extends BaseService {
      *
      * @param {string} slot - Slot name ('backdrop' | 'canvas' | 'color').
      */
+    /**
+     * Resolve any `color-text` params in a preset's params_schema to concrete
+     * CSS colour strings before they are handed to `el.style.*`.
+     *
+     * ### Why the two-step approach matters
+     * `ThemeTokenResolver.computedCache` stores results keyed by the raw
+     * expression string.  If an expression like `alpha(var(--foo), 0.3)` is
+     * resolved while the CSS var is not yet committed to the DOM (e.g. in the
+     * same microtask flush as `setAlertMode()`), the cache is poisoned with a
+     * wrong value for the duration of the alert cycle.
+     *
+     * By calling `ColorUtils.resolveCssVariable()` **first** we substitute all
+     * `var()` references with live-DOM values and feed the resolver a concrete
+     * expression such as `alpha(#93e1ff, 0.3)`.  The cache key then contains
+     * the concrete colour — it expires naturally when the var value changes
+     * and can never carry a stale "pre-theme-load" value.
+     *
+     * @param {Object} preset   - Preset definition (may include params_schema).
+     * @param {Object} params   - Already-merged param object.
+     * @returns {Object} New object with color-text keys resolved.
+     */
+    _resolveColorParams(preset, params) {
+        const schema = preset.params_schema;
+        if (!schema?.length) return params;
+        const colorKeys = schema.filter(s => s.type === 'color-text').map(s => s.key);
+        if (!colorKeys.length) return params;
+        const _resolver = window.lcards?.core?.themeManager?.resolver;
+
+        const resolve = (raw) => {
+            if (typeof raw !== 'string') return raw;
+
+            // Step 1 — Substitute CSS var() refs from live computed style BEFORE
+            // the resolver.  Prevents stale computedCache poisoning: the resolver
+            // would otherwise cache the whole `alpha(var(...), 0.3)` expression
+            // keyed by the raw var string; if that key was populated before the
+            // LCARS theme committed its CSS vars it stays wrong for the cycle.
+            // After substitution the cache key is a concrete expression such as
+            // `alpha(#93e1ff, 0.3)` which cannot be poisoned by var timing.
+            let val = raw.includes('var(') ? ColorUtils.resolveCssVariable(raw, raw) : raw;
+
+            // Step 2 — Route through the resolver for computed expressions
+            // (alpha/darken/lighten/…) and token paths.
+            if (_resolver) val = _resolver.resolve(val, val);
+
+            // Step 3 — Materialise any var() the resolver itself emitted
+            // (e.g. from a token whose value is a CSS variable reference).
+            if (typeof val === 'string' && val.includes('var(')) {
+                val = ColorUtils.resolveCssVariable(val, raw);
+            }
+            return val;
+        };
+
+        const out = { ...params };
+        for (const key of colorKeys) {
+            if (out[key] !== undefined) out[key] = resolve(out[key]);
+        }
+        return out;
+    }
+
     clearSlot(slot) {
         this._releaseSlot(slot);
         this._syncPortalVisibility();
@@ -266,7 +374,6 @@ export class ScreenEffectManager extends BaseService {
      */
     clear() {
         for (const slot of SLOT_ORDER) this._releaseSlot(slot);
-        this._compoundActive.clear();
         this._syncPortalVisibility();
         lcardsLog.debug('[ScreenEffectManager] All effects cleared');
     }
@@ -288,16 +395,13 @@ export class ScreenEffectManager extends BaseService {
         const ok = this.apply(presetName, params);
         if (!ok) return Promise.resolve();
 
-        // Determine which slot(s) to auto-dismiss.
+        // Determine which slot to auto-dismiss.
         const preset = screenEffectPresetRegistry.get(presetName);
-        const slotsToDispose = preset?.compound
-            ? (this._compoundActive.get(presetName) ?? [])
-            : [preset?.slot].filter(Boolean);
+        const slotsToDispose = [preset?.slot].filter(Boolean);
 
         return new Promise(resolve => {
             const timer = setTimeout(() => {
                 for (const slot of slotsToDispose) this._releaseSlot(slot);
-                if (preset?.compound) this._compoundActive.delete(presetName);
                 this._syncPortalVisibility();
                 lcardsLog.debug(`[ScreenEffectManager] playTransition '${presetName}' auto-dismissed after ${duration}ms`);
                 resolve();

@@ -12,7 +12,7 @@ The Screen Effect System provides a full-screen composited effect layer that sit
 
 Effects are declaratively registered as named **presets** in a shared registry. The same preset name works consistently across all consumers:
 
-- Alert overlay backdrop (`backdrop_effect` config key — Phase 2)
+- Alert overlay backdrop (via `layers` config in card config and per-condition overrides)
 - Console API (`window.lcards.screenEffect.play('pixelate')`)
 - HA automation service (`lcards.trigger_effect`)
 
@@ -44,20 +44,7 @@ Z-index 9100 places the portal above the alert overlay portal (9000) and all HA 
     return () => { /* cleanup */ };
   },
 }
-
-// Compound preset (multiple slots activated together)
-{
-  compound: true,
-  layers: [
-    { preset: 'blur',       params: { amount: '8px' } },
-    { preset: 'color-tint', params: { color: 'rgba(200,0,0,0.35)' } },
-  ],
-}
 ```
-
-`enter()` must return a cleanup function. The manager stores it and calls it when the effect is removed.
-
----
 
 ## Built-in Presets
 
@@ -87,16 +74,6 @@ Z-index 9100 places the portal above the alert overlay portal (9000) and all HA 
 | `glitch` | `intensity: 0.08, maxShift: 40, bandHeight: 4, opacity: 0.85, fps: 20` | Sparse horizontal displacement bands + thin chroma edges; `overlay` blend |
 | `scanlines` | `lineHeight: 4, opacity: 0.25, scroll: 0` | CRT horizontal line overlay; `scroll` px/s for animation |
 
-### Compound
-
-| Preset | Composed from |
-|---|---|
-| `alert-red` | `blur` (10px) + `color-tint` (rgba 180,0,0,0.35) |
-| `alert-yellow` | `blur` (8px) + `color-tint` (rgba 200,160,0,0.35) |
-| `alert-blue` | `blur` (8px) + `color-tint` (rgba 0,80,200,0.35) |
-| `alert-gray` | `blur` (6px) + `color-tint` (rgba 80,80,80,0.40) |
-| `alert-black` | `blur` (4px) + `color-tint` (rgba 0,0,0,0.60) |
-
 ---
 
 ## Console API
@@ -105,9 +82,12 @@ Z-index 9100 places the portal above the alert overlay portal (9000) and all HA 
 // Play a transient effect (auto-dismisses after duration ms, default 1000)
 window.lcards.screenEffect.play('pixelate', { duration: 2000, pixelSize: 32 })
 window.lcards.screenEffect.play('static',   { duration: 800, scale: 6 })
-window.lcards.screenEffect.play('alert-red',{ duration: 1500 })
 
-// Apply a persistent effect (stays until explicitly removed)
+// Apply persistent slot effects (stay until explicitly removed)
+window.lcards.screenEffect.applySlot('backdrop', 'blur',       { amount: '12px' })
+window.lcards.screenEffect.applySlot('color',    'color-tint', { color: 'rgba(180,0,0,0.35)' })
+
+// apply() is a per-name shorthand for single-slot presets
 window.lcards.screenEffect.apply('blur',   { amount: '12px' })
 window.lcards.screenEffect.apply('vignette')
 
@@ -133,56 +113,49 @@ window.lcards.screenEffect.list()
 
 ## HA Service: `lcards.trigger_effect`
 
-Fire a screen effect from an automation or script, with optional per-device / per-user targeting:
+Fire one or more layered screen effects from an automation or script. Effects are specified per **slot** (`backdrop`, `color`, `canvas`), each independently.
 
 ```yaml
+# Red alert — blur + red tint + static noise
 service: lcards.trigger_effect
 data:
-  effect: pixelate
-  params:
-    duration: 1500
-    pixelSize: 32
+  layers:
+    backdrop:
+      preset: blur
+      amount: "12px"
+    color:
+      preset: color-tint
+      color: "rgba(180, 0, 0, 0.35)"
+    canvas:
+      preset: static
+      opacity: 0.3
+  duration: 5000          # auto-clear after 5 s
   target_device_ids:
-    - "abc123def456"     # specific browser UUID
+    - "abc123def456"      # specific browser UUID
 ```
 
 ```yaml
-# Broadcast to all connected browsers
+# Just a canvas effect broadcast to all browsers
 service: lcards.trigger_effect
 data:
-  effect: static
-  params:
-    duration: 600
-    scale: 8
+  layers:
+    canvas:
+      preset: glitch
+      intensity: 0.15
+  duration: 1000
 ```
 
 ```yaml
-# Target a specific user
+# Persistent blur targeting a user — must be cleared manually
 service: lcards.trigger_effect
 data:
-  effect: glitch
-  params:
-    duration: 1000
-    intensity: 0.8
+  layers:
+    backdrop:
+      preset: blur
+      amount: "16px"
   target_user_ids:
     - "a1b2c3d4e5f6"
 ```
-
-### Common params by effect
-
-| Effect | Key params |
-|---|---|
-| `blur` | `amount` (e.g. `"12px"`) |
-| `pixelate` | `pixelSize` (default 8), `opacity`, `variance`, `baseLight` |
-| `static` | `scale` (default 4), `opacity`, `tintStrength`, `color` |
-| `glitch` | `intensity` (0–1, default 0.08), `maxShift` (px, default 40), `bandHeight`, `opacity`, `fps` |
-| `scanlines` | `lineHeight`, `opacity`, `scroll` (px/s) |
-| `saturate` | `amount` (e.g. `"300%"`) |
-| `grayscale` | `amount` (e.g. `"80%"`) |
-| `hue-rotate` | `angle` (e.g. `"90deg"`) |
-| `contrast` | `amount` (e.g. `"150%"`) |
-| `vignette` | `opacity` (0–1) |
-| All | `duration` — auto-dismiss ms. **Omit entirely** for a persistent effect (no auto-clear). Including `duration` routes through `play()`; omitting it routes through `apply()`. |
 
 To find device and user IDs for targeting:
 
@@ -198,10 +171,14 @@ window.lcards.targeting.getMyIds()
 ```js
 const sem = window.lcards.core.screenEffectManager;
 
-// Returns true if activated
-sem.apply('blur', { amount: '16px' })
+// Apply individual slots (preferred for multi-slot combos)
+sem.applySlot('backdrop', 'blur',       { amount: '16px' })
+sem.applySlot('color',    'color-tint', { color: 'rgba(180,0,0,0.35)' })
 
-// Returns Promise<void> that resolves when effect auto-dismisses
+// apply() is a shorthand for single-slot presets by name
+sem.apply('blur', { amount: '16px' })   // returns true if activated
+
+// Transient effect — Returns Promise<void> that resolves when auto-dismissed
 await sem.play('glitch', { duration: 800 })
 
 // Remove a slot or all slots
@@ -271,7 +248,7 @@ npm run build
 
 | System | Relationship |
 |---|---|
-| **Alert overlay** (`lcards-alert-overlay`) | Currently owns its own portal (blur + tint + content). Phase 2 refactor: will delegate portal DOM to `ScreenEffectManager`. Config authority stays in the card. |
+| **Alert overlay** (`lcards-alert-overlay`) | Delegates its blur/tint backdrop to `ScreenEffectManager` via `applySlot()`. Card config uses `layers: { backdrop, color, canvas }`. Config authority stays in the card; SEM owns the DOM. |
 | **Alert transitions** (`alertTransitions.js`) | Separate system — animates `home-assistant-main` during the CSS variable swap that changes the global theme colour. Not screen-level compositing. |
 | **Background animations** | Card-scoped Canvas2D renders on the card element. No relationship to the screen-level portal. |
 | **Animation system** (`AnimationManager`) | Element-scoped anime.js animations. Not suitable for screen-wide effects. |

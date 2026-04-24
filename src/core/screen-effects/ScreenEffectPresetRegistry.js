@@ -5,9 +5,8 @@
  * (`core/animation/presets.js`) but targets full-screen overlay slots managed
  * by `ScreenEffectManager`.
  *
- * ## Preset shapes
+ * ## Preset shape
  *
- * ### Standard preset
  * ```js
  * {
  *   slot:     'canvas' | 'backdrop' | 'color',
@@ -18,19 +17,6 @@
  *   },
  * }
  * ```
- *
- * ### Compound preset
- * ```js
- * {
- *   compound: true,
- *   layers: [
- *     { preset: 'blur',       params: { amount: '8px' } },
- *     { preset: 'color-tint', params: { color: 'rgba(200,0,0,0.35)' } },
- *   ],
- * }
- * ```
- * Compound presets apply multiple single-slot presets simultaneously.
- * The `ScreenEffectManager` resolves them recursively before activation.
  *
  * @module core/screen-effects/ScreenEffectPresetRegistry
  */
@@ -107,13 +93,25 @@ export const screenEffectPresetRegistry = new ScreenEffectPresetRegistry();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Built-in presets
+//
+// Each preset may optionally declare:
+//   label         — human-readable name shown in the visual editor dropdown.
+//   params_schema — array of param field specs consumed by the editor:
+//                   { key, type, label, [placeholder], [helper],
+//                     [min], [max], [step] }
+//                   type values: 'text' | 'color-text' | 'number'
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Backdrop (CSS backdrop-filter) ───────────────────────────────────────────
 
 screenEffectPresetRegistry.register('blur', {
-    slot: 'backdrop',
+    label:  'Blur',
+    slot:   'backdrop',
     defaults: { amount: '8px' },
+    params_schema: [
+        { key: 'amount', type: 'text', label: 'Blur Amount', placeholder: '8px',
+          helper: 'CSS blur value — e.g. 4px (subtle), 8px (standard), 20px (heavy)' },
+    ],
     enter(el, params) {
         const val = `blur(${params.amount ?? '8px'})`;
         el.style.backdropFilter       = val;
@@ -126,8 +124,13 @@ screenEffectPresetRegistry.register('blur', {
 });
 
 screenEffectPresetRegistry.register('saturate', {
-    slot: 'backdrop',
+    label:  'Saturate',
+    slot:   'backdrop',
     defaults: { amount: '200%' },
+    params_schema: [
+        { key: 'amount', type: 'text', label: 'Amount', placeholder: '200%',
+          helper: 'CSS saturate value — e.g. 150%, 200%, 300%' },
+    ],
     enter(el, params) {
         const val = `saturate(${params.amount ?? '200%'})`;
         el.style.backdropFilter       = val;
@@ -140,8 +143,13 @@ screenEffectPresetRegistry.register('saturate', {
 });
 
 screenEffectPresetRegistry.register('grayscale', {
-    slot: 'backdrop',
+    label:  'Grayscale',
+    slot:   'backdrop',
     defaults: { amount: '100%' },
+    params_schema: [
+        { key: 'amount', type: 'text', label: 'Amount', placeholder: '100%',
+          helper: 'CSS grayscale amount — 100% = full grayscale, 0% = no effect' },
+    ],
     enter(el, params) {
         const val = `grayscale(${params.amount ?? '100%'})`;
         el.style.backdropFilter       = val;
@@ -154,8 +162,13 @@ screenEffectPresetRegistry.register('grayscale', {
 });
 
 screenEffectPresetRegistry.register('contrast', {
-    slot: 'backdrop',
+    label:  'Contrast',
+    slot:   'backdrop',
     defaults: { amount: '200%' },
+    params_schema: [
+        { key: 'amount', type: 'text', label: 'Amount', placeholder: '200%',
+          helper: 'CSS contrast value — e.g. 150%, 200%' },
+    ],
     enter(el, params) {
         const val = `contrast(${params.amount ?? '200%'})`;
         el.style.backdropFilter       = val;
@@ -168,8 +181,13 @@ screenEffectPresetRegistry.register('contrast', {
 });
 
 screenEffectPresetRegistry.register('hue-rotate', {
-    slot: 'backdrop',
+    label:  'Hue Rotate',
+    slot:   'backdrop',
     defaults: { angle: '180deg' },
+    params_schema: [
+        { key: 'angle', type: 'text', label: 'Angle', placeholder: '180deg',
+          helper: 'CSS hue-rotate angle — e.g. 90deg, 180deg, 270deg' },
+    ],
     enter(el, params) {
         const val = `hue-rotate(${params.angle ?? '180deg'})`;
         el.style.backdropFilter       = val;
@@ -184,8 +202,13 @@ screenEffectPresetRegistry.register('hue-rotate', {
 // ── Color tint overlay ────────────────────────────────────────────────────────
 
 screenEffectPresetRegistry.register('color-tint', {
-    slot: 'color',
+    label:  'Color Tint',
+    slot:   'color',
     defaults: { color: 'rgba(0,0,0,0.5)' },
+    params_schema: [
+        { key: 'color', type: 'color-text', label: 'Tint Color', placeholder: 'rgba(0,0,0,0.5)',
+          helper: 'CSS colour — use rgba() to control opacity via the alpha channel, e.g. rgba(180,0,0,0.4)' },
+    ],
     enter(el, params) {
         el.style.background = params.color ?? 'rgba(0,0,0,0.5)';
         return () => { el.style.background = ''; };
@@ -193,8 +216,13 @@ screenEffectPresetRegistry.register('color-tint', {
 });
 
 screenEffectPresetRegistry.register('vignette', {
-    slot: 'color',
+    label:  'Vignette',
+    slot:   'color',
     defaults: { opacity: 0.7 },
+    params_schema: [
+        { key: 'opacity', type: 'number', label: 'Opacity', min: 0, max: 1, step: 0.05,
+          helper: 'Edge darkness strength (0–1)' },
+    ],
     enter(el, params) {
         const op = params.opacity ?? 0.7;
         el.style.background = `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${op}) 100%)`;
@@ -205,67 +233,66 @@ screenEffectPresetRegistry.register('vignette', {
 // ── Canvas effects ────────────────────────────────────────────────────────────
 
 screenEffectPresetRegistry.register('static', {
-    slot: 'canvas',
+    label:  'Static (TV Noise)',
+    slot:   'canvas',
     defaults: { opacity: 0.55, scale: 4 },
+    params_schema: [
+        { key: 'opacity', type: 'number', label: 'Opacity',    min: 0, max: 1,  step: 0.05,
+          helper: 'Overall effect opacity (0–1)' },
+        { key: 'scale',   type: 'number', label: 'Grain Scale', min: 1, max: 16, step: 1,
+          helper: 'Pixel grain size — larger = chunkier noise' },
+    ],
     enter: StaticEffect,
 });
 
 screenEffectPresetRegistry.register('pixelate', {
-    slot: 'canvas',
+    label:  'Pixelate',
+    slot:   'canvas',
     defaults: { pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80 },
+    params_schema: [
+        { key: 'pixelSize',  type: 'number', label: 'Pixel Size',      min: 2,   max: 64,  step: 2,
+          helper: 'Size of each mosaic pixel block' },
+        { key: 'opacity',    type: 'number', label: 'Opacity',          min: 0,   max: 1,   step: 0.05,
+          helper: 'Overall effect opacity' },
+        { key: 'variance',   type: 'number', label: 'Light Variance',   min: 0,   max: 1,   step: 0.05,
+          helper: 'Brightness variation between blocks (0 = uniform)' },
+        { key: 'baseLight',  type: 'number', label: 'Base Lightness',   min: 0,   max: 255, step: 5,
+          helper: 'Base gray level (0 = black, 255 = white, 80 ≈ dark gray)' },
+    ],
     enter: PixelateEffect,
 });
 
 screenEffectPresetRegistry.register('glitch', {
-    slot: 'canvas',
+    label:  'Glitch',
+    slot:   'canvas',
     defaults: { intensity: 0.08, maxShift: 40, bandHeight: 4, opacity: 0.85, fps: 20 },
+    params_schema: [
+        { key: 'intensity',  type: 'number', label: 'Intensity',   min: 0.01, max: 0.5,  step: 0.01,
+          helper: 'Fraction of lines displaced per frame (0.01–0.5)' },
+        { key: 'maxShift',   type: 'number', label: 'Max Shift',   min: 1,    max: 200,  step: 1,
+          helper: 'Maximum horizontal displacement in pixels' },
+        { key: 'bandHeight', type: 'number', label: 'Band Height', min: 1,    max: 32,   step: 1,
+          helper: 'Height of each glitch strip in pixels' },
+        { key: 'opacity',    type: 'number', label: 'Opacity',     min: 0,    max: 1,    step: 0.05,
+          helper: 'Overall effect opacity' },
+        { key: 'fps',        type: 'number', label: 'FPS',         min: 1,    max: 60,   step: 1,
+          helper: 'Animation frame rate' },
+    ],
     enter: GlitchEffect,
 });
 
 screenEffectPresetRegistry.register('scanlines', {
-    slot: 'canvas',
+    label:  'Scanlines',
+    slot:   'canvas',
     defaults: { lineHeight: 4, opacity: 0.25, scroll: 0 },
+    params_schema: [
+        { key: 'lineHeight', type: 'number', label: 'Line Height', min: 1, max: 20, step: 1,
+          helper: 'Height of each scanline in pixels' },
+        { key: 'opacity',    type: 'number', label: 'Opacity',     min: 0, max: 1,  step: 0.05,
+          helper: 'Darkness of the scanline bands (0–1)' },
+        { key: 'scroll',     type: 'number', label: 'Scroll Speed', min: 0, max: 10, step: 0.5,
+          helper: 'Scroll speed — 0 = static lines' },
+    ],
     enter: ScanlineEffect,
 });
 
-// ── Compound presets ──────────────────────────────────────────────────────────
-
-screenEffectPresetRegistry.register('alert-red', {
-    compound: true,
-    layers: [
-        { preset: 'blur',       params: { amount: '10px' } },
-        { preset: 'color-tint', params: { color: 'rgba(180,0,0,0.35)' } },
-    ],
-});
-
-screenEffectPresetRegistry.register('alert-yellow', {
-    compound: true,
-    layers: [
-        { preset: 'blur',       params: { amount: '8px' } },
-        { preset: 'color-tint', params: { color: 'rgba(200,160,0,0.35)' } },
-    ],
-});
-
-screenEffectPresetRegistry.register('alert-blue', {
-    compound: true,
-    layers: [
-        { preset: 'blur',       params: { amount: '8px' } },
-        { preset: 'color-tint', params: { color: 'rgba(0,80,200,0.35)' } },
-    ],
-});
-
-screenEffectPresetRegistry.register('alert-gray', {
-    compound: true,
-    layers: [
-        { preset: 'blur',       params: { amount: '6px' } },
-        { preset: 'color-tint', params: { color: 'rgba(80,80,80,0.40)' } },
-    ],
-});
-
-screenEffectPresetRegistry.register('alert-black', {
-    compound: true,
-    layers: [
-        { preset: 'blur',       params: { amount: '4px' } },
-        { preset: 'color-tint', params: { color: 'rgba(0,0,0,0.60)' } },
-    ],
-});

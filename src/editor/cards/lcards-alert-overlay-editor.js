@@ -42,9 +42,11 @@ const POSITION_OPTIONS = [
     { value: 'top',           label: 'Top Center' },
     { value: 'top-center',    label: 'Top Center (alias)' },
     { value: 'top-right',     label: 'Top Right' },
-    { value: 'left',          label: 'Left Center' },
+    { value: 'left',          label: 'Left' },
+    { value: 'left-center',   label: 'Left Center' },
     { value: 'center',        label: 'Center' },
-    { value: 'right',         label: 'Right Center' },
+    { value: 'right',         label: 'Right' },
+    { value: 'right-center',  label: 'Right Center' },
     { value: 'bottom-left',   label: 'Bottom Left' },
     { value: 'bottom',        label: 'Bottom Center' },
     { value: 'bottom-center', label: 'Bottom Center (alias)' },
@@ -72,6 +74,66 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
 
         /** Debounce timers for per-condition YAML code editors */
         this._yamlDebounceTimers = {};
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Config lifecycle
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Strip legacy keys that were removed in the layers refactor before
+     * handing config to the base editor for cloning and validation.
+     * Prevents bogus validation errors when HA loads an old stored config.
+     * @param {Object} config
+     * @override
+     */
+    setConfig(config) {
+        const migrated = this._stripLegacyKeys(config);
+        super.setConfig(migrated);
+    }
+
+    /**
+     * Remove keys that no longer exist in the schema from top-level config
+     * and from each per-condition object, returning a clean copy.
+     * @param {Object} config
+     * @returns {Object}
+     * @private
+     */
+    _stripLegacyKeys(config) {
+        if (!config || typeof config !== 'object') return config;
+
+        // Keys that were removed from the schema in the layers refactor
+        const REMOVED_KEYS = ['backdrop_effect', 'backdrop_params'];
+
+        const clean = { ...config };
+        for (const key of REMOVED_KEYS) delete clean[key];
+
+        // `backdrop` is deprecated but the schema still accepts it as an object.
+        // If it was stored as a non-object (e.g. a string or boolean from old code),
+        // strip it to prevent a type-mismatch validation error.
+        if ('backdrop' in clean && (typeof clean.backdrop !== 'object' || clean.backdrop === null)) {
+            delete clean.backdrop;
+        }
+
+        // Also strip from per-condition objects
+        if (clean.conditions && typeof clean.conditions === 'object') {
+            const conditions = {};
+            for (const [condKey, condVal] of Object.entries(clean.conditions)) {
+                if (condVal && typeof condVal === 'object') {
+                    const c = { ...condVal };
+                    for (const key of REMOVED_KEYS) delete c[key];
+                    if ('backdrop' in c && (typeof c.backdrop !== 'object' || c.backdrop === null)) {
+                        delete c.backdrop;
+                    }
+                    conditions[condKey] = c;
+                } else {
+                    conditions[condKey] = condVal;
+                }
+            }
+            clean.conditions = conditions;
+        }
+
+        return clean;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -206,67 +268,22 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
     // ─────────────────────────────────────────────────────────────────────────
 
     _renderBackdropTab() {
-        const backdrop = this.config?.backdrop ?? {};
-        const blur    = backdrop.blur    ?? '8px';
-        const opacity = backdrop.opacity ?? 0.6;
-        const color   = backdrop.color   ?? 'rgba(0,0,0,0.5)';
+        const globalLayers = this.config?.layers ?? {};
 
         return html`
             <div class="tab-content-container">
 
                 <lcards-message type="info">
-                    <strong>Backdrop defaults</strong>
+                    <strong>Global Screen Effect Layers</strong>
                     <p style="margin:8px 0 0 0; font-size:13px; line-height:1.4;">
-                        These values apply to <em>all</em> alert conditions unless overridden in the
-                        <strong>Conditions</strong> tab.
-                        <br><br>
-                        The blur and the tint are rendered on separate layers — changing the tint
-                        opacity will not weaken the blur effect.
+                        Configure each effect layer independently. Applied to all alert
+                        conditions unless overridden per-condition.
                     </p>
                 </lcards-message>
 
-                <lcards-form-section
-                    header="Blur"
-                    description="Frosted-glass blur applied behind the overlay"
-                    icon="mdi:blur"
-                    ?expanded=${true}
-                    ?outlined=${true}>
-
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Blur Amount'}
-                        .helper=${'CSS blur value — e.g. 4px (subtle), 8px (standard), 20px (heavy)'}
-                        .selector=${{ text: {} }}
-                        .value=${blur}
-                        @value-changed=${(e) => this._setConfigValue('backdrop.blur', e.detail.value || '8px')}>
-                    </ha-selector>
-                </lcards-form-section>
-
-                <lcards-form-section
-                    header="Tint"
-                    description="Semi-transparent colour layer on top of the blurred background"
-                    icon="mdi:palette"
-                    ?expanded=${true}
-                    ?outlined=${true}>
-
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Tint Color'}
-                        .helper=${'Background color for the tint overlay. Use rgba() for control over alpha separately from the Opacity slider below. Examples: rgba(0,0,0,0.5)  rgba(180,0,0,0.4)'}
-                        .selector=${{ text: {} }}
-                        .value=${color}
-                        @value-changed=${(e) => this._setConfigValue('backdrop.color', e.detail.value || 'rgba(0,0,0,0.5)')}>
-                    </ha-selector>
-
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Tint Opacity'}
-                        .helper=${'Overall opacity of the tint layer (0 = invisible, 1 = fully opaque). Set to 0 to show blur only with no color tint.'}
-                        .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' }}}
-                        .value=${opacity}
-                        @value-changed=${(e) => this._setConfigValue('backdrop.opacity', e.detail.value)}>
-                    </ha-selector>
-                </lcards-form-section>
+                ${this._renderSlotSection({ slot: 'backdrop', slotLabel: 'Backdrop Filter',  slotIcon: 'mdi:blur',           layerCfg: globalLayers.backdrop })}
+                ${this._renderSlotSection({ slot: 'color',    slotLabel: 'Color Overlay',     slotIcon: 'mdi:palette',        layerCfg: globalLayers.color    })}
+                ${this._renderSlotSection({ slot: 'canvas',   slotLabel: 'Canvas Effect',     slotIcon: 'mdi:image-multiple', layerCfg: globalLayers.canvas   })}
 
             </div>
         `;
@@ -317,11 +334,8 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
             : (o !== undefined && o !== '' && o !== null);
         const hasAlertButtonOverrides = _hasLeaf(condCfg.alert_button ?? {});
 
-        // Per-condition backdrop overrides
-        const bd      = condCfg.backdrop ?? {};
-        const bdBlur  = bd.blur    ?? '';
-        const bdOpacity = typeof bd.opacity === 'number' ? bd.opacity : '';
-        const bdColor = bd.color   ?? '';
+        // Per-condition layer overrides
+        const condLayers = condCfg.layers;  // undefined = no condition override at all
 
         // Per-condition layout overrides
         const pos    = condCfg.position ?? '';
@@ -414,47 +428,18 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 <!-- ── Default Alert Button Overrides ── -->
                 ${!hasContent ? this._renderAlertButtonOverridesSection(condKey, condCfg) : ''}
 
-                <!-- ── Backdrop Overrides ── -->
+                <!-- ── Screen Effect Overrides ── -->
                 <lcards-form-section
-                    header="Backdrop Overrides"
-                    description="Override the global backdrop settings for this condition only. Leave fields blank to use global defaults."
+                    header="Screen Effect Overrides"
+                    description="Override individual effect layers for this condition. Unset slots inherit the global default."
                     icon="mdi:blur"
-                    ?expanded=${!!(bdBlur || typeof bd.opacity === 'number' || bdColor)}
+                    ?expanded=${!!condLayers}
                     ?outlined=${true}>
 
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Blur Amount (override)'}
-                        .helper=${'CSS blur override for this condition, e.g. 12px — leave blank to use global default'}
-                        .selector=${{ text: {} }}
-                        .value=${bdBlur}
-                        @value-changed=${(e) => this._setConditionBackdrop(condKey, 'blur', e.detail.value || undefined)}>
-                    </ha-selector>
+                    ${this._renderSlotSection({ slot: 'backdrop', slotLabel: 'Backdrop Filter',  slotIcon: 'mdi:blur',           condKey, condLayersObj: condLayers ?? null })}
+                    ${this._renderSlotSection({ slot: 'color',    slotLabel: 'Color Overlay',     slotIcon: 'mdi:palette',        condKey, condLayersObj: condLayers ?? null })}
+                    ${this._renderSlotSection({ slot: 'canvas',   slotLabel: 'Canvas Effect',     slotIcon: 'mdi:image-multiple', condKey, condLayersObj: condLayers ?? null })}
 
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Tint Color (override)'}
-                        .helper=${'CSS color override — e.g. rgba(200,0,0,0.3) — leave blank to use global default'}
-                        .selector=${{ text: {} }}
-                        .value=${bdColor}
-                        @value-changed=${(e) => this._setConditionBackdrop(condKey, 'color', e.detail.value || undefined)}>
-                    </ha-selector>
-
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Tint Opacity (override)'}
-                        .helper=${'Opacity 0–1, overrides global value for this condition. Set to 0 to hide tint. Leave empty for global default.'}
-                        .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' }}}
-                        .value=${typeof bd.opacity === 'number' ? bd.opacity : (this.config?.backdrop?.opacity ?? 0.6)}
-                        @value-changed=${(e) => this._setConditionBackdrop(condKey, 'opacity', e.detail.value)}>
-                    </ha-selector>
-
-                    ${typeof bd.opacity === 'number' || bdBlur || bdColor ? html`
-                        <ha-button @click=${() => this._clearConditionBackdrop(condKey)}>
-                            <ha-icon icon="mdi:restore" slot="start"></ha-icon>
-                            Clear backdrop overrides (use global)
-                        </ha-button>
-                    ` : ''}
                 </lcards-form-section>
 
                 <!-- ── Layout Overrides ── -->
@@ -675,44 +660,252 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
      * Set a backdrop sub-property on a per-condition block.
      * @private
      */
-    _setConditionBackdrop(condKey, prop, value) {
-        const conditions = JSON.parse(JSON.stringify(this.config?.conditions ?? {}));
-        conditions[condKey] = conditions[condKey] ?? {};
-        conditions[condKey].backdrop = conditions[condKey].backdrop ?? {};
+    // ─────────────────────────────────────────────────────────────────────
+    // Screen effect layer helpers
+    // ─────────────────────────────────────────────────────────────────────
 
-        if (value === undefined || value === null) {
-            delete conditions[condKey].backdrop[prop];
-        } else {
-            conditions[condKey].backdrop[prop] = value;
-        }
-
-        // Prune empty backdrop
-        if (Object.keys(conditions[condKey].backdrop).length === 0) {
-            delete conditions[condKey].backdrop;
-        }
-        // Prune empty condition objects
-        if (Object.keys(conditions[condKey]).length === 0) {
-            delete conditions[condKey];
-        }
-        if (Object.keys(conditions).length === 0) {
-            this._updateConfig({ conditions: undefined });
-        } else {
-            this._updateConfig({ conditions });
-        }
+    /**
+     * Return SEM presets compatible with a given slot.
+     * @param {'backdrop'|'color'|'canvas'} slot
+     * @returns {Array<Object>}
+     */
+    _getSlotPresets(slot) {
+        return (window.lcards?.screenEffect?.catalog() ?? [])
+            .filter(p => p.slot === slot);
     }
 
     /**
-     * Remove all backdrop overrides for a condition.
+     * Render a single effect slot section with preset dropdown + param fields.
+     *
+     * For global sections pass `layerCfg` and no `condKey`.
+     * For condition sections pass `condKey` and `condLayersObj`; `layerCfg` is ignored.
+     *
+     * Dropdown values:
+     *   '__inherit__' — slot not overridden for this condition (inherit global)
+     *   '__none__'    — slot explicitly disabled
+     *   '<preset>'    — that preset is active
+     *
+     * @param {Object} opts
+     * @param {'backdrop'|'color'|'canvas'} opts.slot
+     * @param {string}       opts.slotLabel
+     * @param {string}       opts.slotIcon
+     * @param {Object|null}  [opts.layerCfg]      - For global sections: the current slot config.
+     * @param {string|null}  [opts.condKey]        - Set for condition sections.
+     * @param {Object|null}  [opts.condLayersObj]  - The full condition layers object (or null).
+     */
+    _renderSlotSection({ slot, slotLabel, slotIcon, layerCfg = undefined, condKey = null, condLayersObj = null } = {}) {
+        const isCondition  = !!condKey;
+        const slotInCond   = isCondition && condLayersObj != null && (slot in condLayersObj);
+        const slotPresets  = this._getSlotPresets(slot);
+
+        let dropdownValue;
+        let activeLayerCfg;
+        if (isCondition) {
+            if (!slotInCond)                      { dropdownValue = '__inherit__'; activeLayerCfg = null; }
+            else if (!condLayersObj[slot]?.preset) { dropdownValue = '__none__';    activeLayerCfg = null; }
+            else                                   { dropdownValue = condLayersObj[slot].preset; activeLayerCfg = condLayersObj[slot]; }
+        } else {
+            dropdownValue  = layerCfg?.preset ?? '__none__';
+            activeLayerCfg = layerCfg ?? null;
+        }
+
+        const options = [
+            ...(isCondition ? [{ value: '__inherit__', label: '— Inherit global —' }] : []),
+            { value: '__none__', label: 'None (disabled)' },
+            ...slotPresets.map(p => ({ value: p.name, label: p.label ?? p.name })),
+        ];
+
+        const presetDef = slotPresets.find(p => p.name === dropdownValue);
+
+        return html`
+            <lcards-form-section
+                header="${slotLabel}"
+                icon="${slotIcon}"
+                ?expanded=${!!presetDef}
+                ?outlined=${true}>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Effect Preset'}
+                    .selector=${{ select: { mode: 'dropdown', options }}}
+                    .value=${dropdownValue}
+                    @value-changed=${(e) => {
+                        if (isCondition) this._setConditionLayerPreset(condKey, slot, e.detail.value);
+                        else             this._setGlobalLayerPreset(slot, e.detail.value);
+                    }}>
+                </ha-selector>
+
+                ${presetDef?.params_schema?.length ? html`
+                    ${presetDef.params_schema.map(spec => this._renderParamField({
+                        spec,
+                        value:    activeLayerCfg?.[spec.key],
+                        fallback: presetDef.defaults?.[spec.key] ?? spec.placeholder,
+                        onChange: (val) => isCondition
+                            ? this._setConditionLayerParam(condKey, slot, spec.key, val)
+                            : this._setGlobalLayerParam(slot, spec.key, val),
+                    }))}
+                ` : ''}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Render one param field from a params_schema spec.
+     */
+    _renderParamField({ spec, value, fallback, onChange }) {
+        if (spec.type === 'number') {
+            const numVal = typeof value    === 'number' ? value
+                         : typeof fallback === 'number' ? fallback
+                         : (spec.min ?? 0);
+            return html`
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${spec.label}
+                    .helper=${spec.helper ?? ''}
+                    .selector=${{ number: {
+                        min: spec.min ?? 0, max: spec.max ?? 1,
+                        step: spec.step ?? 0.1, mode: 'slider',
+                    }}}
+                    .value=${numVal}
+                    @value-changed=${(e) => onChange(e.detail.value)}>
+                </ha-selector>
+            `;
+        }
+        const strVal = value    !== undefined ? String(value)
+                     : fallback !== undefined ? String(fallback)
+                     : '';
+        if (spec.type === 'color-text') {
+            return html`
+                <div style="margin-bottom:4px;">
+                    <div style="font-size:12px;font-weight:500;color:var(--secondary-text-color);margin-bottom:4px;padding:0 2px;">
+                        ${spec.label}
+                    </div>
+                    <lcards-color-picker
+                        .hass=${this.hass}
+                        .value=${strVal}
+                        .showPreview=${true}
+                        @value-changed=${(e) => onChange(e.detail.value || undefined)}>
+                    </lcards-color-picker>
+                    ${spec.helper ? html`
+                        <div style="font-size:11px;color:var(--secondary-text-color);margin-top:2px;padding:0 2px;">
+                            ${spec.helper}
+                        </div>` : ''}
+                </div>
+            `;
+        }
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .label=${spec.label}
+                .helper=${spec.helper ?? (spec.placeholder ? `e.g. ${spec.placeholder}` : '')}
+                .selector=${{ text: {} }}
+                .value=${strVal}
+                @value-changed=${(e) => onChange(e.detail.value || undefined)}>
+            </ha-selector>
+        `;
+    }
+
+    // ── Global backdrop setters ─────────────────────────────────────────────────────────
+
+    _setGlobalLayerPreset(slot, presetOrSpecial) {
+        const layers = { ...this._getMigratedLayers() };
+        if (presetOrSpecial === '__none__') {
+            delete layers[slot];
+        } else {
+            const existing = layers[slot];
+            layers[slot] = (existing?.preset === presetOrSpecial) ? existing : { preset: presetOrSpecial };
+        }
+        this._updateConfig({ layers, backdrop_effect: undefined, backdrop_params: undefined, backdrop: undefined });
+    }
+
+    _setGlobalLayerParam(slot, key, value) {
+        const layers = { ...this._getMigratedLayers() };
+        if (!layers[slot]) layers[slot] = {};
+        if (value !== undefined && value !== '') {
+            layers[slot] = { ...layers[slot], [key]: value };
+        } else {
+            const { [key]: _, ...rest } = layers[slot];
+            layers[slot] = rest;
+        }
+        this._updateConfig({ layers });
+    }
+
+    /**
+     * Build a starting `layers` object from whatever schema is currently in config,
+     * migrating legacy keys in one shot before any global layer mutation.
      * @private
      */
-    _clearConditionBackdrop(condKey) {
-        const conditions = JSON.parse(JSON.stringify(this.config?.conditions ?? {}));
-        if (!conditions[condKey]) return;
-        delete conditions[condKey].backdrop;
-        if (Object.keys(conditions[condKey]).length === 0) {
-            delete conditions[condKey];
+    _getMigratedLayers() {
+        if (this.config?.layers) return JSON.parse(JSON.stringify(this.config.layers));
+        const cfg = this.config ?? {};
+        if (cfg.backdrop) {
+            const bd = cfg.backdrop;
+            const layers = {};
+            if (bd.blur) layers.backdrop = { preset: 'blur', amount: bd.blur };
+            if (bd.color || bd.opacity !== undefined) {
+                const opacity = typeof bd.opacity === 'number' ? bd.opacity : 0.6;
+                layers.color  = { preset: 'color-tint', color: this._promotedColor(bd.color ?? 'rgba(0,0,0,0.5)', opacity) };
+            }
+            return layers;
         }
+        return { backdrop: { preset: 'blur', amount: '8px' } };
+    }
+
+    // ── Per-condition backdrop setters ───────────────────────────────────────────────
+
+    _setConditionLayerPreset(condKey, slot, presetOrSpecial) {
+        const conditions = JSON.parse(JSON.stringify(this.config?.conditions ?? {}));
+        conditions[condKey] = conditions[condKey] ?? {};
+        // Remove any stale per-condition backdrop keys.
+        delete conditions[condKey].backdrop;
+        delete conditions[condKey].backdrop_effect;
+        delete conditions[condKey].backdrop_params;
+
+        if (presetOrSpecial === '__inherit__') {
+            if (conditions[condKey].layers) {
+                delete conditions[condKey].layers[slot];
+                if (Object.keys(conditions[condKey].layers).length === 0) delete conditions[condKey].layers;
+            }
+        } else if (presetOrSpecial === '__none__') {
+            conditions[condKey].layers = conditions[condKey].layers ?? {};
+            conditions[condKey].layers[slot] = null;
+        } else {
+            conditions[condKey].layers = conditions[condKey].layers ?? {};
+            const existing = conditions[condKey].layers[slot];
+            conditions[condKey].layers[slot] = (existing?.preset === presetOrSpecial) ? existing : { preset: presetOrSpecial };
+        }
+        if (Object.keys(conditions[condKey]).length === 0) delete conditions[condKey];
         this._updateConfig({ conditions: Object.keys(conditions).length ? conditions : undefined });
+    }
+
+    _setConditionLayerParam(condKey, slot, key, value) {
+        const conditions = JSON.parse(JSON.stringify(this.config?.conditions ?? {}));
+        conditions[condKey] = conditions[condKey] ?? {};
+        conditions[condKey].layers = conditions[condKey].layers ?? {};
+        conditions[condKey].layers[slot] = conditions[condKey].layers[slot] ?? {};
+        if (value !== undefined && value !== '') {
+            conditions[condKey].layers[slot][key] = value;
+        } else {
+            delete conditions[condKey].layers[slot][key];
+        }
+        this._updateConfig({ conditions });
+    }
+
+    /**
+     * Fold a separate opacity into rgba() alpha. Used when migrating old backdrop schema.
+     * @param {string} color
+     * @param {number} opacity
+     * @returns {string}
+     */
+    _promotedColor(color, opacity) {
+        const m = color.match(
+            /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/
+        );
+        if (m) {
+            const a = parseFloat(m[4] ?? '1') * opacity;
+            return `rgba(${m[1]},${m[2]},${m[3]},${Math.min(1, a).toFixed(2)})`;
+        }
+        return color;
     }
 
     /**

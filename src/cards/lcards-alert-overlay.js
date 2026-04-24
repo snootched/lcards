@@ -98,10 +98,8 @@ export class LCARdSAlertOverlay extends LitElement {
         this._isSuppressed     = false;
         this._editMode         = false;
         this._editModePoller   = null;
-        this._portalEl         = null;
         this._portalStyleEl    = null;
-        this._blurEl           = null;
-        this._tintEl           = null;
+        this._dismissEl        = null;
         this._wrapperEl        = null;
         this._contentContainer = null;
     }
@@ -443,34 +441,37 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     _createPortal() {
-        if (this._portalEl) return;
+        if (this._wrapperEl) return;
 
-        this._portalEl = document.createElement('div');
-        this._portalEl.setAttribute('data-lcards-alert-portal', '');
-        Object.assign(this._portalEl.style, {
-            position: 'fixed',
-            inset:    '0',
-            zIndex:   '9000',
-            display:  'none',
+        const sem = window.lcards?.core?.screenEffectManager;
+        if (!sem) {
+            lcardsLog.error('[LCARdSAlertOverlay] ScreenEffectManager unavailable — portal creation aborted');
+            return;
+        }
+
+        // Claim the SEM portal; ensures the portal div is visible when overlay is active.
+        sem.setOverlayOccupied(true);
+        const portal = sem.portal;
+
+        // Dismiss click-catcher — sits above SE effect slots (z:10), transparent,
+        // receives backdrop clicks so the content wrapper (z:11, pointerEvents:none)
+        // does not block them.
+        this._dismissEl = document.createElement('div');
+        Object.assign(this._dismissEl.style, {
+            position:      'absolute',
+            inset:         '0',
+            zIndex:        '10',
+            pointerEvents: 'none',   // toggled to 'auto' when dismiss is allowed
+            cursor:        'pointer',
         });
+        this._dismissEl.addEventListener('click', () => this._handleDismiss());
 
-        // Layer 1: blur-only (backdrop-filter creates its own stacking context)
-        this._blurEl = document.createElement('div');
-        Object.assign(this._blurEl.style, { position: 'absolute', inset: '0', zIndex: '1' });
-
-        // Layer 2: tint (color + opacity, click-to-dismiss)
-        this._tintEl = document.createElement('div');
-        Object.assign(this._tintEl.style, {
-            position: 'absolute', inset: '0', zIndex: '2', cursor: 'pointer',
-        });
-        this._tintEl.addEventListener('click', () => this._handleDismiss());
-
-        // Layer 3: content wrapper (flex layout for positioning)
+        // Content wrapper — flex positioner, above dismiss layer.
         this._wrapperEl = document.createElement('div');
         Object.assign(this._wrapperEl.style, {
             position:      'absolute',
             inset:         '0',
-            zIndex:        '3',
+            zIndex:        '11',
             display:       'flex',
             pointerEvents: 'none',
         });
@@ -503,42 +504,74 @@ export class LCARdSAlertOverlay extends LitElement {
         document.head.appendChild(this._portalStyleEl);
 
         this._wrapperEl.appendChild(this._contentContainer);
-        this._portalEl.appendChild(this._blurEl);
-        this._portalEl.appendChild(this._tintEl);
-        this._portalEl.appendChild(this._wrapperEl);
-        document.body.appendChild(this._portalEl);
+        portal.appendChild(this._dismissEl);
+        portal.appendChild(this._wrapperEl);
 
-        lcardsLog.debug('[LCARdSAlertOverlay] Portal created on document.body');
+        lcardsLog.debug('[LCARdSAlertOverlay] Portal attached to ScreenEffectManager');
     }
 
     _removePortal() {
-        this._portalEl?.remove();
+        const sem = window.lcards?.core?.screenEffectManager;
+        if (sem) {
+            sem.clearSlot('backdrop');
+            sem.clearSlot('color');
+            sem.setOverlayOccupied(false);
+        }
+        this._dismissEl?.remove();
+        this._wrapperEl?.remove();
         this._portalStyleEl?.remove();
-        this._portalEl         = null;
-        this._portalStyleEl    = null;
-        this._blurEl           = null;
-        this._tintEl           = null;
+        this._dismissEl        = null;
         this._wrapperEl        = null;
         this._contentContainer = null;
-        lcardsLog.debug('[LCARdSAlertOverlay] Portal removed');
+        this._portalStyleEl    = null;
+        lcardsLog.debug('[LCARdSAlertOverlay] Portal detached from ScreenEffectManager');
     }
 
     _updatePortalStyles() {
-        if (!this._portalEl) return;
+        if (!this._wrapperEl) return;
 
+        const sem     = window.lcards?.core?.screenEffectManager;
         const visible = this._isActive && !this._isDismissed && !this._isInEditMode();
-        this._portalEl.style.display = visible ? '' : 'none';
-        if (!visible) return;
 
-        const backdrop = this._getEffectiveBackdrop();
-        const size     = this._getEffectiveSize();
-        const pos      = this._getEffectivePosition();
+        if (!visible) {
+            if (sem) {
+                // Clear all three possible overlay slots — canvas is used by static/glitch/etc.
+                sem.clearSlot('backdrop');
+                sem.clearSlot('color');
+                sem.clearSlot('canvas');
+                sem.setOverlayOccupied(false);
+            }
+            this._dismissEl.style.display = 'none';
+            this._wrapperEl.style.display  = 'none';
+            return;
+        }
 
-        this._blurEl.style.backdropFilter       = `blur(${backdrop.blur})`;
-        /** @type {any} */ (this._blurEl.style).webkitBackdropFilter = `blur(${backdrop.blur})`;
+        sem?.setOverlayOccupied(true);
+        this._dismissEl.style.display = '';
+        this._wrapperEl.style.display  = 'flex';
 
-        this._tintEl.style.background = backdrop.color;
-        this._tintEl.style.opacity    = String(backdrop.opacity);
+        // Apply each slot layer independently.  Clear all three slots first so
+        // that disabling or switching a single-slot preset never leaves stale
+        // effects from a previous activation on the other slots.
+        if (sem) {
+            const layers = this._resolveBackdropLayers();
+            sem.clearSlot('backdrop');
+            sem.clearSlot('color');
+            sem.clearSlot('canvas');
+            for (const [slot, layerCfg] of Object.entries(layers)) {
+                if (layerCfg?.preset) {
+                    const { preset, ...params } = layerCfg;
+                    sem.applySlot(slot, preset, params);
+                }
+            }
+        }
+
+        // Allow backdrop clicks to dismiss when dismiss is not disabled.
+        const canDismiss = this.config?.dismiss !== false;
+        this._dismissEl.style.pointerEvents = canDismiss ? 'auto' : 'none';
+
+        const size = this._getEffectiveSize();
+        const pos  = this._getEffectivePosition();
 
         this._wrapperEl.style.alignItems     = pos.alignItems;
         this._wrapperEl.style.justifyContent = pos.justifyContent;
@@ -551,14 +584,88 @@ export class LCARdSAlertOverlay extends LitElement {
     // Style / layout helpers
     // -------------------------------------------------------------------------
 
-    _getEffectiveBackdrop() {
-        const global  = this.config?.backdrop ?? {};
-        const perCond = this.config?.conditions?.[this._activeCondition]?.backdrop ?? {};
+    /**
+     * Resolve the final per-slot layer configuration by merging global `layers`
+     * with per-condition overrides.  Each slot in the returned object is either
+     * `{ preset, ...params }` or `null` (slot explicitly disabled).
+     *
+     * Priority: per-condition layer slot > global layer slot > legacy migration > default.
+     *
+     * @returns {{ backdrop: Object|null, color: Object|null, canvas: Object|null }}
+     */
+    _resolveBackdropLayers() {
+        const globalLayers  = this._getConfiguredLayers(this.config ?? {});
+        const condLayersRaw = this.config?.conditions?.[this._activeCondition]?.layers ?? null;
+        if (!condLayersRaw) return globalLayers;
+
+        // Per-condition: only override slots explicitly present (key exists).
         return {
-            blur:    perCond.blur    ?? global.blur    ?? '8px',
-            opacity: perCond.opacity ?? global.opacity ?? 0.6,
-            color:   perCond.color   ?? global.color   ?? 'rgba(0,0,0,0.5)',
+            backdrop: 'backdrop' in condLayersRaw ? condLayersRaw.backdrop : globalLayers.backdrop,
+            color:    'color'    in condLayersRaw ? condLayersRaw.color    : globalLayers.color,
+            canvas:   'canvas'   in condLayersRaw ? condLayersRaw.canvas   : globalLayers.canvas,
         };
+    }
+
+    /**
+     * Extract { backdrop, color, canvas } slot configs from a config object,
+     * migrating legacy schemas automatically.
+     * @private
+     */
+    _getConfiguredLayers(cfg) {
+        // Current schema: layers key.
+        if (cfg.layers) {
+            return {
+                backdrop: cfg.layers.backdrop ?? null,
+                color:    cfg.layers.color    ?? null,
+                canvas:   cfg.layers.canvas   ?? null,
+            };
+        }
+
+        // Legacy schema: backdrop.blur / opacity / color.
+        if (cfg.backdrop) {
+            return this._promoteLegacyBackdrop(cfg.backdrop);
+        }
+
+        // Default: blur-only, no color or canvas overlay.
+        return { backdrop: { preset: 'blur', amount: '8px' }, color: null, canvas: null };
+    }
+
+    /**
+     * Promote the legacy `backdrop.{blur, opacity, color}` object to per-slot layers.
+     * Opacity is folded into the color alpha to preserve the visual result.
+     * @private
+     */
+    _promoteLegacyBackdrop(backdrop) {
+        const result = { backdrop: null, color: null, canvas: null };
+        if (backdrop.blur) {
+            result.backdrop = { preset: 'blur', amount: backdrop.blur };
+        }
+        if (backdrop.color || backdrop.opacity !== undefined) {
+            const opacity = typeof backdrop.opacity === 'number' ? backdrop.opacity : 0.6;
+            const color   = backdrop.color ?? 'rgba(0,0,0,0.5)';
+            result.color  = { preset: 'color-tint', color: this._promoteColorWithOpacity(color, opacity) };
+        }
+        return result;
+    }
+
+    /**
+     * Fold a separate opacity multiplier into the alpha channel of a CSS rgba() colour.
+     * Used when promoting old `backdrop.color` + `backdrop.opacity` values.
+     *
+     * @param {string} color   - CSS colour string, ideally rgba().
+     * @param {number} opacity - Multiplier (0–1).
+     * @returns {string}
+     * @private
+     */
+    _promoteColorWithOpacity(color, opacity) {
+        const m = color.match(
+            /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/
+        );
+        if (m) {
+            const a = parseFloat(m[4] ?? '1') * opacity;
+            return `rgba(${m[1]},${m[2]},${m[3]},${Math.min(1, a).toFixed(2)})`;
+        }
+        return color;
     }
 
     _getEffectiveSize() {
@@ -747,10 +854,8 @@ export class LCARdSAlertOverlay extends LitElement {
             dismiss_mode: 'dismiss',
             height:       '33%',
             width:        '50%',
-            backdrop: {
-                blur:    '8px',
-                opacity: 0.6,
-                color:   'rgba(0,0,0,0.5)',
+            layers: {
+                backdrop: { preset: 'blur', amount: '8px' },
             },
             position: 'center',
         };

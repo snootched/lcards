@@ -580,8 +580,9 @@ window.lcards.alert = {
 // tests.  All methods delegate to the ScreenEffectManager singleton.
 //
 // Usage examples:
-//   window.lcards.screenEffect.play('pixelate', { duration: 1500 })
-//   window.lcards.screenEffect.apply('blur', { amount: '12px' })
+//   window.lcards.screenEffect.applySlot('backdrop', 'blur', { amount: '12px' })
+//   window.lcards.screenEffect.applySlot('color', 'color-tint', { color: 'rgba(180,0,0,0.35)' })
+//   window.lcards.screenEffect.play('static', { duration: 1500 })
 //   window.lcards.screenEffect.clearSlot('backdrop')
 //   window.lcards.screenEffect.clear()
 //   window.lcards.screenEffect.list()
@@ -607,6 +608,16 @@ window.lcards.screenEffect = {
   },
 
   /**
+   * Apply a preset to a specific slot directly (single-slot presets only).
+   * @param {'backdrop'|'canvas'|'color'} slot
+   * @param {string} presetName
+   * @param {Object} [params]
+   * @returns {boolean} true if activated successfully
+   */
+  applySlot(slot, presetName, params = {}) {
+    return window.lcards?.core?.screenEffectManager?.applySlot(slot, presetName, params) ?? false;
+  },
+  /**
    * Remove the active effect on a specific slot.
    * @param {'backdrop'|'canvas'|'color'} slot
    */
@@ -626,6 +637,24 @@ window.lcards.screenEffect = {
    */
   registerPreset(name, preset) {
     window.lcards?.core?.screenEffectManager?.registerPreset(name, preset);
+  },
+
+  /**
+   * Get the full preset definition for a registered preset.
+   * Useful for the visual editor to read label, params_schema, slot, etc.
+   * @param {string} name
+   * @returns {Object|undefined}
+   */
+  getPreset(name) {
+    return window.lcards?.core?.screenEffectManager?.getPreset(name);
+  },
+
+  /**
+   * Return a catalog of all registered presets (name, label, slot, params_schema, …).
+   * @returns {Array<Object>}
+   */
+  catalog() {
+    return window.lcards?.core?.screenEffectManager?.catalog() ?? [];
   },
 
   /** List all registered preset names. */

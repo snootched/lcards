@@ -330,8 +330,13 @@ export class ThemeTokenResolver {
    * @returns {string} Resolved color
    */
   _resolveComputedToken(expression, context) {
-    // Check computed cache
-    if (this.computedCache.has(expression)) {
+    // Do not cache expressions that contain var() references: the underlying
+    // CSS variable may change between calls (theme application, alert mode
+    // switches) and a stale cached result would produce the wrong colour.
+    // Concrete expressions (no var()) are safe to cache as usual.
+    const isCacheable = !expression.includes('var(');
+
+    if (isCacheable && this.computedCache.has(expression)) {
       return this.computedCache.get(expression);
     }
 
@@ -407,8 +412,9 @@ export class ThemeTokenResolver {
           return expression;
       }
 
-      // Cache result
-      this.computedCache.set(expression, result);
+      // Cache result — only for concrete expressions (no var() refs).
+      // See the isCacheable guard at the top of this method.
+      if (isCacheable) this.computedCache.set(expression, result);
 
       return result;
 
