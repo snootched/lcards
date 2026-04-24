@@ -241,7 +241,19 @@ export class ThemeManager extends BaseService {
 
     // Pass 2 (deferred): a second capture after 150 ms lets any HA LCARS theme stylesheet
     // rules that land asynchronously (e.g. lovelace panel CSS cascade) refine the snapshot.
+    //
+    // GUARD: if a non-green alert mode is already active by the time this fires
+    // (e.g. _tryApplyInitialAlertMode ran at ~100 ms and the lazy baseline
+    // capture inside setAlertMode already populated originalLcarsColors) then
+    // the --lcars-* vars are now transformed.  Re-capturing them here would
+    // store the alert-shifted colours as the "original" baseline, causing
+    // permanent colour drift for all subsequent mode switches.
     setTimeout(() => {
+      const activeModeNow = this.currentAlertMode ?? 'green_alert';
+      if (activeModeNow !== 'green_alert') {
+        lcardsLog.debug(`[ThemeManager] Skipping deferred baseline recapture — non-green mode already active: ${activeModeNow}`);
+        return;
+      }
       captureOriginalColors(rootElement);
       lcardsLog.debug('[ThemeManager] Alert mode baseline colors re-captured (deferred pass)');
     }, 150);
