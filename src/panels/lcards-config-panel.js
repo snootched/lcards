@@ -28,6 +28,7 @@ import './components/lcards-sound-config-tab.js';
 import './components/lcards-storage-explorer-tab.js';
 import './components/lcards-about-tab.js';
 import './components/lcards-users-devices-tab.js';
+import './components/lcards-layouts-tab.js';
 import './components/lcards-preview-chip.js';
 
 export class LCARdSConfigPanel extends LitElement {
@@ -166,7 +167,7 @@ export class LCARdSConfigPanel extends LitElement {
       color: white;
       line-height: 1;
       text-transform: uppercase;
-      font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+      font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', sans-serif;
     }
 
     .banner-subtitle {
@@ -183,7 +184,7 @@ export class LCARdSConfigPanel extends LitElement {
       color: rgba(255,255,255,0.55);
       letter-spacing: 0.1em;
       white-space: nowrap;
-      font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+      font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', sans-serif;
     }
 
     /* HA Native Tab Styling */
@@ -511,6 +512,17 @@ export class LCARdSConfigPanel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
 
+    // Re-render when the browser tab regains focus after being backgrounded.
+    // Without this, a WebSocket reconnect that happens while the tab is hidden
+    // (browser throttles keep-alives) leaves the panel black because no
+    // reactive property changes after the reconnect completes.
+    this._visibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        this.requestUpdate();
+      }
+    };
+    document.addEventListener('visibilitychange', this._visibilityHandler);
+
     // Check if LCARdS core is loaded
     if (!window.lcards?.core?.helperManager) {
       lcardsLog.warn('[ConfigPanel] LCARdS core not yet loaded');
@@ -536,6 +548,12 @@ export class LCARdSConfigPanel extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+
+    // Remove visibility handler
+    if (this._visibilityHandler) {
+      document.removeEventListener('visibilitychange', this._visibilityHandler);
+      this._visibilityHandler = null;
+    }
 
     // Cleanup all helper subscriptions
     this._helperSubscriptions.forEach(unsubscribe => unsubscribe());
@@ -796,13 +814,10 @@ export class LCARdSConfigPanel extends LitElement {
             <ha-icon icon="mdi:volume-high"></ha-icon>
             Sounds
           </ha-tab-group-tab>
-          ${this._isPreviewEnabled() ? html`
           <ha-tab-group-tab value="4" ?active=${this._selectedTab === 4}>
             <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
             Users & Devices
-            <lcards-preview-chip></lcards-preview-chip>
           </ha-tab-group-tab>
-          ` : ''}
           <ha-tab-group-tab value="5" ?active=${this._selectedTab === 5}>
             <ha-icon icon="mdi:package-variant"></ha-icon>
             Pack Explorer
@@ -811,6 +826,12 @@ export class LCARdSConfigPanel extends LitElement {
           <ha-tab-group-tab value="6" ?active=${this._selectedTab === 6}>
             <ha-icon icon="mdi:database-cog"></ha-icon>
             Storage
+          </ha-tab-group-tab>
+          ` : ''}
+          ${this._isDevFeaturesEnabled() ? html`
+          <ha-tab-group-tab value="7" ?active=${this._selectedTab === 7}>
+            <ha-icon icon="mdi:view-grid-plus-outline"></ha-icon>
+            Layouts
           </ha-tab-group-tab>
           ` : ''}
         </ha-tab-group>
@@ -841,6 +862,11 @@ export class LCARdSConfigPanel extends LitElement {
     return window.lcards?.core?.integrationService?.options?.enable_previews ?? false;
   }
 
+  /** True when the dev-only features URL parameter is present (?lcards_dev_features=true). */
+  _isDevFeaturesEnabled() {
+    return new URLSearchParams(window.location.search).get('lcards_dev_features') === 'true';
+  }
+
   _renderTabContent() {
     switch (this._selectedTab) {
       case 0:
@@ -852,11 +878,13 @@ export class LCARdSConfigPanel extends LitElement {
       case 3:
         return this._renderSoundTab();
       case 4:
-        return this._isPreviewEnabled() ? this._renderUsersDevicesTab() : html``;
+        return this._renderUsersDevicesTab();
       case 5:
         return this._renderPackExplorerTab();
       case 6:
         return this._isAdmin() ? this._renderStorageTab() : html``;
+      case 7:
+        return this._isDevFeaturesEnabled() ? this._renderLayoutsTab() : html``;
       default:
         return html`<div>Unknown tab</div>`;
     }
@@ -1152,14 +1180,19 @@ export class LCARdSConfigPanel extends LitElement {
 
   _renderValueControl(helper) {
     if (helper.domain === 'input_select') {
-      // Get fresh value from HASS state to ensure dropdown shows current selection
-      const currentValue = this.hass?.states?.[helper.entity_id]?.state || helper.currentValue;
+      // Get fresh value and current options from HASS state.
+      // attributes.options reflects the live HA options (updated by set_options calls,
+      // e.g. when sound packs register new schemes) — ws_create_params.options is only
+      // the initial registry default and must NOT be used as the dropdown source here.
+      const entityState  = this.hass?.states?.[helper.entity_id];
+      const currentValue = entityState?.state || helper.currentValue;
+      const liveOptions  = entityState?.attributes?.options ?? helper.ws_create_params.options ?? [];
 
       return html`
         <ha-selector
           .hass=${this.hass}
           .selector=${{ select: {
-            options: helper.ws_create_params.options.map(o => ({ value: o, label: o })),
+            options: liveOptions.map(o => ({ value: o, label: o })),
             mode: 'dropdown'
           }}}
           .value=${currentValue}
@@ -1245,6 +1278,14 @@ export class LCARdSConfigPanel extends LitElement {
         .hass=${this.hass}
         ._inlineMode=${true}
       ></lcards-pack-explorer-tab>
+    `;
+  }
+
+  _renderLayoutsTab() {
+    return html`
+      <lcards-layouts-tab
+        .hass=${this.hass}
+      ></lcards-layouts-tab>
     `;
   }
 

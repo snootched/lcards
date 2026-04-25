@@ -80,8 +80,8 @@ export class LCARdSChart extends LCARdSCard {
       css`
         :host {
           display: block;
-          width: 100%;
-          height: 100%;
+          /* width: 100% omitted — see LCARdSCard base comment (overflows with card_margin).
+           * height: 100% inherited from LCARdSCard base. */
           min-height: 200px;
         }
 
@@ -204,6 +204,20 @@ export class LCARdSChart extends LCARdSCard {
     this._subscribeToAlertMode();
 
     // Note: Chart initialization now happens in updated() after container is rendered
+  }
+
+  /**
+   * Pre-evaluate Jinja2/JS templates found in the style config so that
+   * synchronous chart colour resolution can call `_resolveTemplateValue()`
+   * and get the already-resolved result from `_evaluatedStyleCache`.
+   * @protected
+   * @override
+   */
+  async _processCustomTemplates() {
+    if (this.config.style) {
+      await this._preEvaluateStyleTemplates(this.config.style);
+    }
+    await super._processCustomTemplates();
   }
 
   /**

@@ -54,10 +54,10 @@ Grid of option buttons built from `input_select`|`select` entities or custom opt
 
 - Creates a grid of buttons from an `input_select`|`select` entity for an easy to use options selector
 - Fully customizable layout with CSS grid
-- Ability to re-order options, customize labels, and even add additonal custom options to the list
-- Fully cuztomizable actions with per-entry overrides
+- Ability to re-order options, customize labels, and even add additional custom options to the list
+- Fully customizable actions with per-entry overrides
 
-[Selct Menu Documentation](select-menu/)
+[Select Menu Documentation](select-menu/)
 
 === Data Grid
 
@@ -115,12 +115,12 @@ Create your own Master Systems Display with controls and routable lines
 
 ## Common Card Features
 
-Features and concepts shared across all cards.
+Features and concepts shared across the card system:
 
 | Topic | What it covers |
 |-------|---------------|
-| [Common Card Properties](cards/common.md) | `id`, `tags`, `height`, `width`, `grid_options` — properties shared by every card |
-| [Colours](../core/colours.md) | All accepted colour formats, state-based colour maps, resolution order |
+| [Common Card Properties](common.md) | `id`, `tags`, `height`, `width`, `grid_options` — properties shared by all cards |
+| [Colours](../core/colours.md) | Colour formats, state-based colour system, resolution order |
 | [Actions](../core/actions.md) | `tap_action`, `hold_action`, `double_tap_action` — all action types and options |
 | [Text Fields](../core/text-fields.md) | Multi-field text system — placement, fonts, colour, templates |
 | [Templates](../core/templates/) | Dynamic content: JS, Jinja2, LCARdS token data source templates |

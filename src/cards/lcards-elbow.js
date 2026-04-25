@@ -101,8 +101,8 @@ export class LCARdSElbow extends LCARdSButton {
                 /* Elbow-specific styling */
                 :host {
                     display: block;
-                    width: 100%;
-                    height: 100%;
+                    /* width: 100% omitted — see LCARdSCard base comment (overflows with card_margin).
+                     * height: 100% inherited from LCARdSCard base. */
                 }
 
                 .elbow-container {
@@ -1938,6 +1938,10 @@ export class LCARdSElbow extends LCARdSButton {
      * @private
      */
     _resolveColorValue(colorValue, currentState = 'default') {
+        // Substitute pre-evaluated Jinja2/JS template results before colour resolution.
+        // _preEvaluateStyleTemplates() populates the cache during _processCustomTemplates().
+        colorValue = this._resolveTemplateValue(colorValue);
+
         // Use base class method for state-based color resolution with theme token support
         // The base class method handles both state selection and theme token resolution
         const resolved = this._resolveEntityStateColor(colorValue, null);
@@ -1955,6 +1959,20 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Resolve match-light token → var(--lcards-light-color-{guid})
         return String(this._resolveMatchLightColor(resolved));
+    }
+
+    /**
+     * Override to also pre-evaluate Jinja2/JS templates in `config.elbow`.
+     * The button base covers `config.style`; this adds the elbow-specific sub-tree.
+     * @override
+     */
+    async _processCustomTemplates() {
+        // Pre-evaluate templates in elbow-specific config paths before the button's
+        // super call resolves colours synchronously.
+        if (this.config.elbow) {
+            await this._preEvaluateStyleTemplates(this.config.elbow);
+        }
+        await super._processCustomTemplates();
     }
 
     /**
@@ -2157,7 +2175,7 @@ export class LCARdSElbow extends LCARdSButton {
             actualState: actualEntityState,
             classifiedState: buttonState,
             colorConfig: this._buttonStyle?.text?.default?.color,
-            fallback: 'var(--lcars-color-text, #000000)'
+            fallback: 'var(--lcars-font-color, #000000)'
         });
 
         // Font properties
@@ -3380,12 +3398,8 @@ export class LCARdSElbow extends LCARdSButton {
                 type: 'header-left',
                 segment: {
                     bar_width: 90,
-                    bar_height: 20
-                },
-                radius: {
-                    outer: 'auto'
-                    // inner calculated automatically using LCARS formula (outer / 2)
-                    // or specify inner_factor for legacy behavior
+                    bar_height: 20,
+                    outer_curve: 'auto'
                 }
             }
         };

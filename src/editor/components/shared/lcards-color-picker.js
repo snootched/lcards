@@ -392,7 +392,7 @@ export class LCARdSColorPicker extends LitElement {
         const resolvedValue = this._resolveMatchLightForPreview(this.value);
 
         // Check if value is a computed token expression
-        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix'];
+        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
         const isComputedToken = validFunctions.some(fn => resolvedValue.startsWith(`${fn}(`));
 
         if (isComputedToken) {
@@ -482,7 +482,7 @@ export class LCARdSColorPicker extends LitElement {
         colorValue = this._resolveMatchLightForPreview(colorValue);
 
         // Check if it's a computed token
-        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix'];
+        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
         const isComputedToken = validFunctions.some(fn => colorValue.startsWith(`${fn}(`));
 
         if (isComputedToken) {
@@ -659,7 +659,8 @@ export class LCARdSColorPicker extends LitElement {
                             { value: 'alpha', label: 'Transparency' },
                             { value: 'saturate', label: 'Saturate' },
                             { value: 'desaturate', label: 'Desaturate' },
-                            { value: 'mix', label: 'Mix Colours' }
+                            { value: 'mix', label: 'Mix Colours' },
+                            { value: 'base', label: 'Alert-Immune Baseline' }
                         ]}}}
                         .value=${this._selectedFunction}
                         .disabled=${this.disabled}
@@ -695,7 +696,8 @@ export class LCARdSColorPicker extends LitElement {
                     </div>
                 ` : ''}
 
-                <!-- Amount Slider -->
+                <!-- Amount Slider (hidden for base() which takes no amount argument) -->
+                ${this._selectedFunction !== 'base' ? html`
                 <div class="builder-row">
                     <label>${this._getAmountLabel()}: ${this._amount}%</label>
                     <ha-selector
@@ -707,6 +709,11 @@ export class LCARdSColorPicker extends LitElement {
                         @value-changed=${this._onAmountChange}>
                     </ha-selector>
                 </div>
+                ` : html`
+                <div class="builder-row" style="font-size:12px; color: var(--secondary-text-color); padding: 4px 0;">
+                    Returns the colour’s pre-alert, green-alert baseline value — immune to alert-mode hue shifts.
+                </div>
+                `}
 
                 <!-- Generated Expression -->
                 <div class="builder-result">
@@ -1022,13 +1029,23 @@ export class LCARdSColorPicker extends LitElement {
         // Split arguments (handle nested parentheses for var())
         const args = this._splitArguments(argsStr);
 
-        if (!args || args.length < 2) return null;
+        // base() takes 1 arg; all other functions take 2+
+        const minArgs = funcName === 'base' ? 1 : 2;
+        if (!args || args.length < minArgs) return null;
 
-        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix'];
+        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
         if (!validFunctions.includes(funcName)) return null;
 
         // Parse based on function type
-        if (funcName === 'mix') {
+        if (funcName === 'base') {
+            // base() takes exactly one argument — no amount
+            if (args.length !== 1) return null;
+            return {
+                function: funcName,
+                baseColor: args[0].trim(),
+                amount: 0
+            };
+        } else if (funcName === 'mix') {
             if (args.length !== 3) return null;
             return {
                 function: funcName,
@@ -1091,7 +1108,10 @@ export class LCARdSColorPicker extends LitElement {
 
         const amount = this._amount / 100; // Convert percentage to decimal
 
-        if (this._selectedFunction === 'mix') {
+        if (this._selectedFunction === 'base') {
+            // base() takes only the colour argument — no amount
+            return `base(${this._baseColor})`;
+        } else if (this._selectedFunction === 'mix') {
             if (!this._baseColor2) return '';
             return `${this._selectedFunction}(${this._baseColor}, ${this._baseColor2}, ${amount})`;
         } else {
@@ -1108,7 +1128,7 @@ export class LCARdSColorPicker extends LitElement {
     _validateExpression(expression) {
         if (!expression) return false;
 
-        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix'];
+        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
         const regex = new RegExp(`^(${validFunctions.join('|')})\\(.+\\)$`);
 
         if (!regex.test(expression)) return false;
@@ -1137,6 +1157,8 @@ export class LCARdSColorPicker extends LitElement {
                 return 'Saturation Decrease';
             case 'mix':
                 return 'Mix Ratio';
+            case 'base':
+                return 'Amount'; // hidden for base(), but guard in case
             default:
                 return 'Amount';
         }
@@ -1158,6 +1180,8 @@ export class LCARdSColorPicker extends LitElement {
                 this._amount = 50; // 50% opacity is common
             } else if (this._selectedFunction === 'mix') {
                 this._amount = 50; // 50/50 mix
+            } else if (this._selectedFunction === 'base') {
+                this._amount = 0; // unused, but keep clean
             } else {
                 this._amount = 20; // 20% adjustment
             }
@@ -1317,6 +1341,17 @@ export class LCARdSColorPicker extends LitElement {
                     if (!color2) return '';
                     return ColorUtils.mix(baseColor, color2, amount);
                 }
+                case 'base': {
+                    // Resolve via the ThemeTokenResolver baseline snapshot (same logic as ThemeTokenResolver._resolveComputedToken).
+                    // Fall back to the live-DOM resolved colour if the snapshot isn’t available yet.
+                    const resolver = window.lcards?.core?.themeManager?.resolver;
+                    if (resolver) {
+                        const resolved = resolver.resolve(`base(${parsed.baseColor})`, null);
+                        if (resolved && resolved !== `base(${parsed.baseColor})`) return resolved;
+                    }
+                    // Fallback: materialise via live DOM (will be the mutated value, but better than nothing)
+                    return baseColor;
+                }
                 default:
                     return '';
             }
@@ -1329,5 +1364,14 @@ export class LCARdSColorPicker extends LitElement {
 
 // Static cache for CSS variables (shared across instances)
 LCARdSColorPicker._variablesCache = null;
+
+/**
+ * Invalidate the shared CSS variable cache.
+ * Call this after the palette changes (alert mode switch or theme override applied)
+ * so that freshly-opened picker instances show the current swatch colours.
+ */
+LCARdSColorPicker.invalidateCache = function() {
+  LCARdSColorPicker._variablesCache = null;
+};
 
 if (!customElements.get('lcards-color-picker')) customElements.define('lcards-color-picker', LCARdSColorPicker);

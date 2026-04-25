@@ -8,7 +8,7 @@
  * Editor UI is defined separately in lcards-button-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, triggersUpdateSchema } from './common-schemas.js';
 
 /**
  * Get complete button card schema
@@ -48,6 +48,8 @@ export function getButtonSchema(options = {}) {
 
             data_sources: dataSourcesSchema,
 
+            triggers_update: triggersUpdateSchema,
+
             // ============================================================================
             // CORE PROPERTIES
             // ============================================================================
@@ -70,6 +72,20 @@ export function getButtonSchema(options = {}) {
 
             min_width: cardMinWidthSchema,
 
+
+            // ============================================================================
+            // INTERACTIVE / DECORATIVE MODE
+            // ============================================================================
+
+            interactive: {
+                type: 'boolean',
+                default: true,
+                description: 'When false, hover colour changes and hover animations are suppressed. The cursor defaults to the arrow unless overridden via style.cursor. Tap/hold actions still fire if configured.',
+                'x-ui-hints': {
+                    label: 'Show hover effects',
+                    helper: 'Disable to suppress colour change and hover animations on mouse-over. Does not affect tap/hold actions.'
+                }
+            },
 
             // ============================================================================
             // CONTROL BEHAVIOR
@@ -372,6 +388,15 @@ export function getButtonSchema(options = {}) {
             style: {
                 type: 'object',
                 properties: {
+                    cursor: {
+                        type: 'string',
+                        description: 'CSS cursor style shown when hovering over the button. Overrides the automatic cursor derived from the interactive flag.',
+                        examples: ['pointer', 'default', 'none', 'not-allowed', 'crosshair', 'grab', 'zoom-in', 'help', 'wait', 'progress', 'move', 'copy', 'text'],
+                        'x-ui-hints': {
+                            label: 'Cursor style',
+                            helper: 'Any valid CSS cursor value. Leave unset to use the automatic default.'
+                        }
+                    },
                     card: {
                         type: 'object',
                         properties: {
@@ -437,7 +462,7 @@ export function getButtonSchema(options = {}) {
                                                 theme: {
                                                     selector: {
                                                         text: {
-                                                            placeholder: '{theme:borders.radius.md}'
+                                                            placeholder: '{theme:borders.radius.base}'
                                                         }
                                                     }
                                                 },
@@ -787,12 +812,12 @@ export function getButtonSchema(options = {}) {
                             shape: {
                                 type: 'string',
                                 description: 'Fill colour for the shield shape',
-                                examples: ['var(--lcards-orange)', '#ff9800', 'theme:palette.sunset']
+                                examples: ['var(--lcards-orange)', '#ff9800', 'theme:colors.ui.tertiary']
                             },
                             bars: {
                                 type: 'string',
                                 description: 'Stroke colour for the bar lines',
-                                examples: ['var(--lcards-orange)', '#ff9800', 'theme:palette.sunset']
+                                examples: ['var(--lcards-orange)', '#ff9800', 'theme:colors.ui.tertiary']
                             }
                         }
                     },

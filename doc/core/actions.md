@@ -15,6 +15,8 @@ LCARdS cards support actions `tap_action`, `hold_action`, and `double_tap_action
 | `target` | object | HA service target — `entity_id`, `device_id`, or `area_id` |
 | `navigation_path` | string | Dashboard path for `navigate` action, must start with `/` |
 | `url_path` | string | URL to open for `url` action |
+| `pipeline_id` | string | Assist pipeline ID to use (optional, `assist` action only) |
+| `start_listening` | boolean | Start the Assist pipeline in listening mode (optional, `assist` action only) |
 
 ---
 
@@ -30,6 +32,44 @@ LCARdS cards support actions `tap_action`, `hold_action`, and `double_tap_action
 | `url` | Open a URL |
 | `assist` | Open the HA Assist dialog |
 | `none` | Do nothing — suppresses the default action |
+
+---
+
+## Hover Effects & Cursor
+
+Hover behaviour (visual feedback like colour changes and animations when the pointer is over the card) can be disabled when interactivy feedback is not desired (for instance using a button card as a decorative panel.)  You may also customize which cursor is shown on hover, should you desire.
+
+These options are configured directly on the card, and not on individual action objects.
+
+### `interactive`
+
+Controls whether the card shows visual hover feedback.
+
+| Value | Cursor | Hover colour change | Hover animations |
+|-------|--------|---------------------|------------------|
+| `true` (default) | pointer (hand) | Yes | Yes |
+| `false` | default (arrow) | No | No |
+
+Tap and hold actions are unaffected by this flag.
+
+```yaml
+type: custom:lcards-button
+interactive: false    # decorative — no hand cursor or hover effects
+tap_action:
+  action: toggle      # still fires on tap
+```
+
+### `style.cursor`
+
+Overrides the CSS cursor independently of `interactive`. Useful when you want hover effects but a non-standard cursor shape, or want to suppress the cursor without disabling all hover effects.
+
+```yaml
+type: custom:lcards-button
+style:
+  cursor: crosshair   # any valid CSS cursor value
+```
+
+Common cursor values: `pointer`, `default`, `none`, `not-allowed`, `crosshair`, `grab`, `zoom-in`, `help`, `wait`, `progress`, `move`, `copy`, `text`.
 
 ---
 

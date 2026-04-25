@@ -32,11 +32,7 @@ export class DataSourceValidator {
     this.dataSourceManager = dataSourceManager;
 
     // Card/overlay types that can use data sources
-    // Note: apexchart is deprecated, use lcards-chart instead
     this.dataSourceTypes = [
-      'sparkline',
-      'gauge',
-      'metric',
       'lcards-chart',
       'chart'
     ];

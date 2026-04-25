@@ -297,14 +297,15 @@ export const SLIDER_PRESETS = {
           left:   { size: 0 },
           right:  { size: 0 }
         },
-        fill: { color: 'var(--primary-color)' },
-        track: { background: 'alpha(colors.card.buttonOff,0.2)' }
+        fill: { color: 'theme:components.slider.shaped.fill.color' },
+        track: { background: 'theme:alpha(colors.card.buttonOff, 0.2)' }
       }
     },
 
     text: {
       name:  {
-        position: 'bottom-center',
+        zone: 'bottom',
+        position: 'center',
         show: true,
         font_size: 'theme:typography.fontSize.2xl',
         padding: 0,
@@ -316,7 +317,8 @@ export const SLIDER_PRESETS = {
         }
       },
       state: {
-        position: 'top-center',
+        zone: 'top',
+        position: 'center',
         show: true,
         font_size: 'theme:typography.fontSize.2xl',
         padding: 0,
@@ -356,14 +358,15 @@ export const SLIDER_PRESETS = {
           left:   { size: 60 },
           right:  { size: 60 }
         },
-        fill: { color: 'var(--primary-color)' },
-        track: { background: 'alpha(colors.card.buttonOff,0.2)' }
+        fill: { color: 'theme:components.slider.shaped.fill.color' },
+        track: { background: 'theme:alpha(colors.card.buttonOff, 0.2)' }
       }
     },
 
     text: {
       name:  {
-        position: 'left-center',
+        zone: 'left',
+        position: 'center',
         show: true,
         font_size: 'theme:typography.fontSize.2xl',
         padding: 0,
@@ -375,7 +378,8 @@ export const SLIDER_PRESETS = {
         }
       },
       state: {
-        position: 'right-center',
+        zone: 'right',
+        position: 'center',
         show: true,
         font_size: 'theme:typography.fontSize.2xl',
         padding: 0,

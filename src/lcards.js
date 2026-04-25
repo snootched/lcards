@@ -1,6 +1,7 @@
 import { lcardsSetGlobalLogLevel, lcardsGetGlobalLogLevel, lcardsLog, lcardsLogBanner} from './utils/lcards-logging.js';
 import * as LCARdS from './lcards-vars.js'
 import { lcardsCore } from './core/lcards-core.js';
+import { ALERT_MODE_TRANSFORMS } from './core/themes/alertModeTransform.js';
 
 // 1. Integration-configured log level — baked into the script URL as ?log=<level>
 //    by frontend.py when the integration loads. Applies the persistent user preference
@@ -36,6 +37,9 @@ import * as anchorHelpers from './utils/lcards-anchor-helpers.js';
 
 // MSD system import
 import './msd/index.js';
+
+// LCARdS strategy imports
+import { LCARdSPanelViewStrategy, LCARdSPanelDashboardStrategy } from './strategies/index.js';
 
 // LCARdS card imports
 import { LCARdSButton } from './cards/lcards-button.js';
@@ -293,6 +297,17 @@ initializeCustomCard()
             if (LCARdSSelectMenu.registerSchema) LCARdSSelectMenu.registerSchema();
 
             lcardsLog.debug('[lcards.js] Card schemas registered');
+
+        // Register dashboard/view strategies as custom elements.
+        // Naming convention required by HA: ll-strategy-dashboard-{type} / ll-strategy-view-{type}
+        // https://developers.home-assistant.io/docs/frontend/custom-ui/custom-strategy/
+        if (!customElements.get('ll-strategy-dashboard-lcards-panel')) {
+            customElements.define('ll-strategy-dashboard-lcards-panel', LCARdSPanelDashboardStrategy);
+        }
+        if (!customElements.get('ll-strategy-view-lcards-panel')) {
+            customElements.define('ll-strategy-view-lcards-panel', LCARdSPanelViewStrategy);
+        }
+        lcardsLog.debug('[lcards.js] Dashboard/view strategies registered');
         } else {
             lcardsLog.error('[lcards.js] ❌ CoreConfigManager not available for schema registration');
         }
@@ -380,6 +395,16 @@ if (!window.customCards.some(c => c.type === 'lcards-button')) {
 window.lcards.setAlertMode = async (mode, opts = {}) => {
   if (!window.lcards?.core?.themeManager) {
     lcardsLog.warn('⚠️ [LCARdS] ThemeManager not initialized');
+    return;
+  }
+
+  // Validate mode early — ThemeManager.setAlertMode() returns *silently* (no throw)
+  // for unknown modes, so without this guard the code would fall through to the
+  // callService write-back and send an invalid option to HA (causing a UI toast).
+  // This protects against stale helper values, misconfigured input_select initial
+  // states, or any other source that could produce a non-LCARdS mode string.
+  if (!ALERT_MODE_TRANSFORMS[mode]) {
+    lcardsLog.warn(`⚠️ [LCARdS] setAlertMode called with unknown mode: '${mode}' — ignoring`);
     return;
   }
 
@@ -549,6 +574,97 @@ window.lcards.alert = {
   off:    () => window.lcards.setAlertMode('green_alert'),  // reset to normal
   config: window.lcards.alertConfig,
 };
+
+// === SCREEN EFFECT NAMESPACE ===
+// Full-screen composited effect layer accessible from the browser console or
+// tests.  All methods delegate to the ScreenEffectManager singleton.
+//
+// Usage examples:
+//   window.lcards.screenEffect.applySlot('backdrop', 'blur', { amount: '12px' })
+//   window.lcards.screenEffect.applySlot('color', 'color-tint', { color: 'rgba(180,0,0,0.35)' })
+//   window.lcards.screenEffect.play('static', { duration: 1500 })
+//   window.lcards.screenEffect.clearSlot('backdrop')
+//   window.lcards.screenEffect.clear()
+//   window.lcards.screenEffect.list()
+window.lcards.screenEffect = {
+  /**
+   * Apply a named effect persistently (until `clearSlot` or `clear` is called).
+   * @param {string} presetName
+   * @param {Object} [params]
+   * @returns {boolean} true if activated successfully
+   */
+  apply(presetName, params = {}) {
+    return window.lcards?.core?.screenEffectManager?.apply(presetName, params) ?? false;
+  },
+
+  /**
+   * Apply a named effect that auto-dismisses after `params.duration` ms (default 1000).
+   * @param {string} presetName
+   * @param {Object} [params]
+   * @returns {Promise<void>}
+   */
+  play(presetName, params = {}) {
+    return window.lcards?.core?.screenEffectManager?.play(presetName, params) ?? Promise.resolve();
+  },
+
+  /**
+   * Apply a preset to a specific slot directly (single-slot presets only).
+   * @param {'backdrop'|'canvas'|'color'} slot
+   * @param {string} presetName
+   * @param {Object} [params]
+   * @returns {boolean} true if activated successfully
+   */
+  applySlot(slot, presetName, params = {}) {
+    return window.lcards?.core?.screenEffectManager?.applySlot(slot, presetName, params) ?? false;
+  },
+  /**
+   * Remove the active effect on a specific slot.
+   * @param {'backdrop'|'canvas'|'color'} slot
+   */
+  clearSlot(slot) {
+    window.lcards?.core?.screenEffectManager?.clearSlot(slot);
+  },
+
+  /** Remove all active screen effects. */
+  clear() {
+    window.lcards?.core?.screenEffectManager?.clear();
+  },
+
+  /**
+   * Register a custom preset at runtime.
+   * @param {string} name
+   * @param {Object} preset
+   */
+  registerPreset(name, preset) {
+    window.lcards?.core?.screenEffectManager?.registerPreset(name, preset);
+  },
+
+  /**
+   * Get the full preset definition for a registered preset.
+   * Useful for the visual editor to read label, params_schema, slot, etc.
+   * @param {string} name
+   * @returns {Object|undefined}
+   */
+  getPreset(name) {
+    return window.lcards?.core?.screenEffectManager?.getPreset(name);
+  },
+
+  /**
+   * Return a catalog of all registered presets (name, label, slot, params_schema, …).
+   * @returns {Array<Object>}
+   */
+  catalog() {
+    return window.lcards?.core?.screenEffectManager?.catalog() ?? [];
+  },
+
+  /** List all registered preset names. */
+  list() {
+    const names = window.lcards?.core?.screenEffectManager?.listPresets() ?? [];
+    lcardsLog.info('[LCARdS] Screen effect presets:', names);
+    return names;
+  },
+};
+lcardsLog.debug('[lcards.js] screenEffect console API attached');
 
 // === SOUND DEBUG API ===
 // Exposes sound system controls for debugging and testing in the HA developer console.

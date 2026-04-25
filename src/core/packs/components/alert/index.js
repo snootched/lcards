@@ -264,106 +264,106 @@ export const alertComponents = {
         presets: {
             default: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcars-alert-blue, #0000ff)', trail_color: 'var(--lcars-ui-quaternary, #2f3749)' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcars-alert-blue, #0000ff)', trail_color: 'var(--lcars-ui-quaternary, #2f3749)' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'base(var(--lcars-alert-blue, #0000ff))', trail_color: 'base(var(--lcars-ui-quaternary, var(--lcards-gray-dark, #2f3749)))' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'base(var(--lcars-alert-blue, #0000ff))', trail_color: 'base(var(--lcars-ui-quaternary, var(--lcards-gray-dark, #2f3749)))' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',     color: 'var(--lcards-alert-red, #ff0000)' },
-                    sub_text:   { content: 'CONDITION', color: 'theme:colors.alert.gray' }
+                    alert_text: { content: 'ALERT',     color: 'base(var(--lcars-alert-red, #cc0000))' },
+                    sub_text:   { content: 'CONDITION', color: 'theme:base(colors.alert.gray)' }
                 },
                 segments: {
-                    shape: { style: { fill: 'theme:colors.alert.gray' } },
-                    bars:  { style: { stroke: 'theme:colors.alert.gray' } }
+                    shape: { style: { fill: 'theme:base(colors.alert.gray)' } },
+                    bars:  { style: { stroke: 'theme:base(colors.alert.gray)' } }
                 }
             },
 
             condition_red: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-orange-lightest, #ffb399)', trail_color: 'theme:colors.alert.red' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-orange-lightest, #ffb399)', trail_color: 'theme:colors.alert.red' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'base(var(--lcards-orange-lightest, #ffb399))', trail_color: 'base(var(--lcars-alert-red, #cc0000))' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'base(var(--lcards-orange-lightest, #ffb399))', trail_color: 'base(var(--lcars-alert-red, #cc0000))' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',          color: 'theme:colors.alert.red' },
-                    sub_text:   { content: 'CONDITION: RED', color: 'theme:colors.alert.red' }
+                    alert_text: { content: 'ALERT',          color: 'theme:base(colors.alert.red)' },
+                    sub_text:   { content: 'CONDITION: RED', color: 'theme:base(colors.alert.red)' }
                 },
                 segments: {
-                    shape: { style: { fill: 'theme:colors.alert.red' } },
-                    bars:  { style: { stroke: 'theme:colors.alert.red' } }
+                    shape: { style: { fill: 'theme:base(colors.alert.red)' } },
+                    bars:  { style: { stroke: 'theme:base(colors.alert.red)' } }
                 }
             },
 
             condition_blue: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-blue-light, #93e1ff)', trail_color: 'theme:colors.alert.blue' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-blue-light, #93e1ff)', trail_color: 'theme:colors.alert.blue' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'base(var(--lcards-blue-light, #93e1ff))', trail_color: 'base(var(--lcars-alert-blue, #0000ff))' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'base(var(--lcards-blue-light, #93e1ff))', trail_color: 'base(var(--lcars-alert-blue, #0000ff))' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT',           color: 'theme:colors.alert.blue' },
-                    sub_text:   { content: 'CONDITION: BLUE', color: 'theme:colors.alert.blue' }
+                    alert_text: { content: 'ALERT',           color: 'theme:base(colors.alert.blue)' },
+                    sub_text:   { content: 'CONDITION: BLUE', color: 'theme:base(colors.alert.blue)' }
                 },
                 segments: {
-                    shape: { style: { fill: 'theme:colors.alert.blue' } },
-                    bars:  { style: { stroke: 'theme:colors.alert.blue' } }
+                    shape: { style: { fill: 'theme:base(colors.alert.blue)' } },
+                    bars:  { style: { stroke: 'theme:base(colors.alert.blue)' } }
                 }
             },
 
             condition_yellow: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-yellow-lightest, #f5f5dc)', trail_color: 'theme:colors.alert.yellow' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-yellow-lightest, #f5f5dc)', trail_color: 'theme:colors.alert.yellow' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'base(var(--lcards-yellow-lightest, #f5f5dc))', trail_color: 'base(var(--lcars-alert-yellow, #ffcc00))' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'base(var(--lcards-yellow-lightest, #f5f5dc))', trail_color: 'base(var(--lcars-alert-yellow, #ffcc00))' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT', color: 'theme:colors.alert.yellow' },
-                    sub_text:   { content: 'CONDITION: YELLOW', color: 'theme:colors.alert.yellow' }
+                    alert_text: { content: 'ALERT', color: 'theme:base(colors.alert.yellow)' },
+                    sub_text:   { content: 'CONDITION: YELLOW', color: 'theme:base(colors.alert.yellow)' }
                 },
                 segments: {
-                    shape: { style: { fill: 'theme:colors.alert.yellow' } },
-                    bars:  { style: { stroke: 'theme:colors.alert.yellow' } }
+                    shape: { style: { fill: 'theme:base(colors.alert.yellow)' } },
+                    bars:  { style: { stroke: 'theme:base(colors.alert.yellow)' } }
                 }
             },
 
             condition_green: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-green-lightest, #b8e0c1)', trail_color: 'theme:colors.alert.green' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-green-lightest, #b8e0c1)', trail_color: 'theme:colors.alert.green' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'base(var(--lcards-green-lightest, #b8e0c1))', trail_color: 'base(var(--lcars-green, #33cc99))' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'base(var(--lcards-green-lightest, #b8e0c1))', trail_color: 'base(var(--lcars-green, #33cc99))' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT', color: 'theme:colors.alert.green' },
-                    sub_text:   { content: 'CONDITION: GREEN', color: 'theme:colors.alert.green' }
+                    alert_text: { content: 'ALERT', color: 'theme:base(colors.alert.green)' },
+                    sub_text:   { content: 'CONDITION: GREEN', color: 'theme:base(colors.alert.green)' }
                 },
                 segments: {
-                    shape: { style: { fill: 'theme:colors.alert.green' } },
-                    bars:  { style: { stroke: 'theme:colors.alert.green' } }
+                    shape: { style: { fill: 'theme:base(colors.alert.green)' } },
+                    bars:  { style: { stroke: 'theme:base(colors.alert.green)' } }
                 }
             },
 
             condition_gray: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'var(--lcards-moonlight, #dfe1e8)', trail_color: 'theme:colors.alert.gray' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'var(--lcards-moonlight, #dfe1e8)', trail_color: 'theme:colors.alert.gray' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'base(var(--lcards-moonlight, #dfe1e8))', trail_color: 'base(var(--lcards-gray, #6d748c))' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'base(var(--lcards-moonlight, #dfe1e8))', trail_color: 'base(var(--lcards-gray, #6d748c))' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT', color: 'theme:colors.alert.gray' },
-                    sub_text:   { content: 'CONDITION: GRAY', color: 'theme:colors.alert.gray' }
+                    alert_text: { content: 'ALERT', color: 'theme:base(colors.alert.gray)' },
+                    sub_text:   { content: 'CONDITION: GRAY', color: 'theme:base(colors.alert.gray)' }
                 },
                 segments: {
-                    shape: { style: { fill: 'theme:colors.alert.gray' } },
-                    bars:  { style: { stroke: 'theme:colors.alert.gray' } }
+                    shape: { style: { fill: 'theme:base(colors.alert.gray)' } },
+                    bars:  { style: { stroke: 'theme:base(colors.alert.gray)' } }
                 }
             },
 
             condition_black: {
                 animations: [
-                    { id: 'bars-top-sweep',    params: { lead_color: 'black', trail_color: 'theme:colors.alert.black' } },
-                    { id: 'bars-bottom-sweep', params: { lead_color: 'black', trail_color: 'theme:colors.alert.black' } }
+                    { id: 'bars-top-sweep',    params: { lead_color: 'black', trail_color: 'theme:base(colors.alert.black)' } },
+                    { id: 'bars-bottom-sweep', params: { lead_color: 'black', trail_color: 'theme:base(colors.alert.black)' } }
                 ],
                 text: {
-                    alert_text: { content: 'ALERT', color: 'theme:colors.alert.black' },
-                    sub_text:   { content: 'CONDITION: BLACK', color: 'theme:colors.alert.black' }
+                    alert_text: { content: 'ALERT', color: 'theme:base(colors.alert.black)' },
+                    sub_text:   { content: 'CONDITION: BLACK', color: 'theme:base(colors.alert.black)' }
                 },
                 segments: {
-                    shape: { style: { fill: 'theme:colors.alert.black' } },
-                    bars:  { style: { stroke: 'theme:colors.alert.black' } }
+                    shape: { style: { fill: 'theme:base(colors.alert.black)' } },
+                    bars:  { style: { stroke: 'theme:base(colors.alert.black)' } }
                 }
             }
         },

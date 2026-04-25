@@ -57,8 +57,8 @@ export class LCARdSSelectMenu extends LCARdSCard {
             css`
                 :host {
                     display: block;
-                    width: 100%;
-                    height: 100%;
+                    /* width: 100% omitted — see LCARdSCard base comment (overflows with card_margin).
+                     * height: 100% inherited from LCARdSCard base. */
                 }
 
                 .sm-grid {
@@ -114,7 +114,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
                     justify-content: center;
                     width: 100%;
                     height: 100%;
-                    color: var(--lcars-text, #CCCCCC);
+                    color: var(--lcars-font-color, #CCCCCC);
                     font-family: var(--lcars-font, 'Antonio', sans-serif);
                     font-size: 12px;
                     letter-spacing: 0.05em;
@@ -351,7 +351,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
                     || 'var(--lcars-orange, #FF9900)';
             } else {
                 bgColor = this.getThemeToken('components.button.background.inactive')
-                    || 'var(--lcars-dark, #4D4D4D)';
+                    || 'var(--lcars-dark-gray, #4D4D4D)';
             }
         }
 

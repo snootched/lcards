@@ -67,16 +67,21 @@ options:
 | `type` | string | `custom:lcards-select-menu` (required) |
 | `entity` | string | `input_select.*` or `select.*` entity to monitor and control |
 | `preset` | string | Button shape preset applied to every option button (e.g. `lozenge`, `bullet`) |
-| `id` | string | Card ID for rule targeting |
-| `tags` | list | Tags for rule targeting (e.g. `[nav, scenes]`) |
 | `grid` | object | Layout grid — see [`grid`](#grid-object) below |
 | `options` | object / list | Option overrides — see [`options`](#options) below |
 | `style` | object | Visual style overrides for all buttons — see [`style`](#style-object) below |
 | `button_template` | object | Advanced base `lcards-button` config applied to every option — see [`button_template`](#button_template) below |
-| `tap_action` | object | Card-level tap action fallback — see [Actions](../../../core/actions.md) |
-| `hold_action` | object | Card-level hold action fallback |
-| `double_tap_action` | object | Card-level double-tap action fallback |
-| `grid_options` | object | HA grid layout (`columns`, `rows`) |
+| `id` | string | Card ID for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
+| `tags` | list | Tags for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
+| `height` | number / string | Card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `width` | number / string | Card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `min_height` | number / string | Minimum card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `min_width` | number / string | Minimum card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `tap_action` | object | Tap action — see [Actions](../../core/actions.md) |
+| `hold_action` | object | Hold action — see [Actions](../../core/actions.md) |
+| `double_tap_action` | object | Double-tap action — see [Actions](../../core/actions.md) |
+| `data_sources` | object | Named data source definitions — see [Data Sources](../../core/datasources/) |
+| `grid_options` | object | HA grid layout — see [grid_options](../../cards/common.md#ha-grid-sizing-grid_options) |
 
 ---
 
@@ -87,12 +92,15 @@ Controls how the option buttons are arranged.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `columns` | number / string | `1` | Number of equal-width columns, or any valid CSS `grid-template-columns` string |
+| `rows` | number / string | — | Number of rows or CSS `grid-template-rows` value |
 | `grid-template-columns` | string | — | Raw CSS value — overrides `columns` when set |
 | `gap` | string | `4px` | Gap applied to both rows and columns |
-| `row_gap` / `row-gap` | string | `gap` | Row gap override |
-| `column_gap` / `column-gap` | string | `gap` | Column gap override |
-| `grid-auto-rows` | string | `56px` | Height of each row |
-| `grid-auto-flow` | string | `row` | CSS `grid-auto-flow` value |
+| `row-gap` | string | — | Row gap override |
+| `column-gap` | string | — | Column gap override |
+| `grid-auto-rows` | string | — | CSS `grid-auto-rows` for implicit row height (e.g. `56px`, `auto`) |
+| `grid-auto-flow` | string | `row` | CSS `grid-auto-flow` value: `row`, `column`, `dense`, `row dense`, `column dense` |
+| `justify-items` | string | — | CSS `justify-items` for cell alignment: `stretch`, `start`, `end`, `center` |
+| `align-items` | string | — | CSS `align-items` for cell alignment: `stretch`, `start`, `end`, `center` |
 
 ```yaml
 grid:
@@ -145,9 +153,7 @@ options:
 | `label` | string | Display text. Defaults to `value` |
 | `icon` | string | MDI icon (e.g. `mdi:home`). Sets `show_icon: true` automatically |
 | `style` | object | Per-option style overrides — same structure as card-level [`style`](#style-object) |
-| `tap_action` | object | Per-option tap action — see [Actions](../../../core/actions.md) |
-| `hold_action` | object | Per-option hold action |
-| `double_tap_action` | object | Per-option double-tap action |
+| `tap_action` | object | Per-option tap action — see [Actions](../../core/actions.md) |
 
 ---
 
@@ -156,6 +162,19 @@ options:
 Applies to every option button. Same structure as the button card's [`style`](../button/#style-object).
 
 The style resolves in this order (last wins): preset defaults → `button_template.style` → card-level `style` → per-option `style`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `style.card.color.background` | string / object | theme | Button background — [state map](../../core/colours.md) supported (`active` = selected, `inactive` = unselected) |
+| `style.text.default.color` | string / object | theme | Text colour — [state map](../../core/colours.md) supported |
+| `style.text.default.font_size` | number / string | theme | Font size in px or CSS value |
+| `style.text.default.font_weight` | number / string | theme | CSS font-weight |
+| `style.text.default.text_transform` | string | theme | `uppercase`, `lowercase`, `capitalize`, or `none` |
+| `style.text.default.letter_spacing` | string | — | CSS letter-spacing value |
+| `style.border.radius` | number / string / object | theme | Corner radius in px, CSS string, or `{ top_left, top_right, bottom_right, bottom_left }` |
+| `style.border.width` | number / string | theme | Border width in px |
+| `style.border.color` | string / object | theme | Border colour — [state map](../../core/colours.md) supported |
+| `style.opacity` | number | `0.9` | Base opacity for unselected options (0–1) |
 
 ```yaml
 style:
@@ -222,19 +241,19 @@ The **Style tab** in the visual editor opens a full `lcards-button` sub-editor t
 Actions follow a waterfall priority — the first value found in this chain wins:
 
 ```
-per-option action → card-level action → button_template action → built-in default
+per-option tap_action → card-level action → button_template action → built-in default
 ```
 
 **Default tap action** calls `input_select.select_option` (or `select.select_option` for `select.*` entities) with the option's value.
 
-**Hold and double-tap** default to `{ action: none }` so they do not fall through to the tap action unintentionally. Set them explicitly at card-level or per-option to add behaviour.
+**Hold and double-tap** default to `{ action: none }` so they do not fall through to the tap action unintentionally. Set them explicitly at card-level to add behaviour. Note: per-option `hold_action` and `double_tap_action` are not supported — only `tap_action` can be overridden per option.
 
 ```yaml
 # Card-level hold opens more-info for all options
 hold_action:
   action: more-info
 
-# Per-option override for one specific option
+# Per-option tap_action override for one specific option
 options:
   - value: settings
     label: SETTINGS

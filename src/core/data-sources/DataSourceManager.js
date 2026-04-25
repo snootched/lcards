@@ -13,7 +13,6 @@ export class DataSourceManager extends BaseService {
     super();
     this.hass = hass;
     this.sources = new Map();
-    this.overlaySubscriptions = new Map();
 
     // NEW: Entity runtime compatibility
     this.entityIndex = new Map(); // entityId -> dataSource
@@ -416,117 +415,6 @@ export class DataSourceManager extends BaseService {
     });
   }
 
-  /**
-   * Subscribe an overlay to data source updates
-   * Enhanced for sparkline real-time updates
-   * @param {Object} overlay - Overlay configuration with source property
-   * @param {Function} callback - Callback function for updates
-   */
-  subscribeOverlay(overlay, callback) {
-    if (!overlay.source) {
-      lcardsLog.warn('[DataSourceManager] ⚠️ subscribeOverlay: No source specified for overlay', overlay.id);
-      return;
-    }
-
-    const source = this.sources.get(overlay.source);
-    if (!source) {
-      lcardsLog.warn('[DataSourceManager] ⚠️ subscribeOverlay: Source not found:', overlay.source);
-      return;
-    }
-
-    lcardsLog.debug(`[DataSourceManager] 🔗 Setting up subscription for ${overlay.id} to ${overlay.source}`);
-
-    // Subscribe to the data source with enhanced data for sparklines
-    const unsubscribe = source.subscribeWithMetadata?.((data) => {
-      // Enhanced callback data for sparklines
-      const enhancedData = {
-        ...data,
-        sourceId: overlay.source,
-        overlayId: overlay.id,
-        overlayType: overlay.type,
-        // Include buffer reference for sparklines
-        buffer: overlay.type === 'sparkline' ? data.buffer : undefined,
-        // Include historical data if available
-        historicalData: overlay.type === 'sparkline' && data.buffer ?
-          data.buffer.getAll().map(point => ({ timestamp: point.t, value: point.v })) : undefined
-      };
-
-      // Reduced debug logging for callback data
-
-      // Call the callback with overlay and enhanced update data
-      callback(overlay, enhancedData);
-    }, {
-      // ADDED: Pass overlay metadata to the subscription
-      overlayId: overlay.id,
-      overlayType: overlay.type,
-      component: 'OverlayManager'
-    }) || source.subscribe((data) => {
-      // Fallback if subscribeWithMetadata not available
-      const enhancedData = {
-        ...data,
-        sourceId: overlay.source,
-        overlayId: overlay.id,
-        overlayType: overlay.type,
-        buffer: overlay.type === 'sparkline' ? data.buffer : undefined,
-        historicalData: overlay.type === 'sparkline' && data.buffer ?
-          data.buffer.getAll().map(point => ({ timestamp: point.t, value: point.v })) : undefined
-      };
-
-      callback(overlay, enhancedData);
-    });
-
-    // CRITICAL: Provide immediate callback if data already exists
-    // This fixes the timing issue where overlays subscribe after data is ready
-    const currentData = source.getCurrentData();
-    if (currentData && (currentData.buffer?.size?.() > 0 || currentData.v !== undefined)) {
-      lcardsLog.debug(`[DataSourceManager] 🔄 Providing immediate data for ${overlay.id}`);
-
-      const immediateData = {
-        ...currentData,
-        sourceId: overlay.source,
-        overlayId: overlay.id,
-        overlayType: overlay.type,
-        buffer: overlay.type === 'sparkline' ? currentData.buffer : undefined,
-        historicalData: overlay.type === 'sparkline' && currentData.buffer ?
-          currentData.buffer.getAll().map(point => ({ timestamp: point.t, value: point.v })) : undefined
-      };
-
-      // Use setTimeout to avoid blocking the subscription setup
-      setTimeout(() => {
-        callback(overlay, immediateData);
-      }, 0);
-    }
-
-
-
-    // Store the unsubscribe function
-    if (!this.overlaySubscriptions.has(overlay.id)) {
-      this.overlaySubscriptions.set(overlay.id, []);
-    }
-    this.overlaySubscriptions.get(overlay.id).push(unsubscribe);
-    this._stats.subscriptionsActive++;
-
-    lcardsLog.debug(`[DataSourceManager] ✅ Subscribed ${overlay.type} overlay ${overlay.id} to source ${overlay.source} (${source.subscribers?.size || 0} total subscribers)`);
-
-    return unsubscribe;
-  }
-
-  unsubscribeOverlay(overlayId) {
-    const subscriptions = this.overlaySubscriptions.get(overlayId);
-    if (subscriptions) {
-      subscriptions.forEach(unsubscribe => {
-        try {
-          unsubscribe();
-        } catch (error) {
-          lcardsLog.warn(`[DataSourceManager] ⚠️ Error unsubscribing overlay ${overlayId}:`, error);
-          this._stats.errors++;
-        }
-      });
-      this.overlaySubscriptions.delete(overlayId);
-      this._stats.subscriptionsActive--;
-    }
-  }
-
   getSource(name) {
     return this.sources.get(name);
   }
@@ -565,15 +453,6 @@ export class DataSourceManager extends BaseService {
     }
   }
 
-  /**
-   * Get a specific data source by ID
-   * @param {string} id - Data source ID
-   * @returns {DataSource|null} The data source or null if not found
-   */
-  getDataSource(id) {
-    return (/** @type {any} */ (this))._dataSources?.get(id) || null;
-  }
-
   getStats() {
     const sourceStats = {};
     for (const [name, source] of this.sources) {
@@ -593,7 +472,6 @@ export class DataSourceManager extends BaseService {
       sources: sourceStats,
       summary: {
         totalSources: this.sources.size,
-        activeSubscriptions: this.overlaySubscriptions.size,
         entityCount: this.entityIndex.size,
         destroyed: this._destroyed,
         cardDependencies: this._sourceToCards.size
@@ -664,11 +542,6 @@ export class DataSourceManager extends BaseService {
     if (this._destroyed) return;
     this._destroyed = true;
 
-    // Unsubscribe all overlays
-    for (const overlayId of this.overlaySubscriptions.keys()) {
-      this.unsubscribeOverlay(overlayId);
-    }
-
     // Stop all data sources
     const stopPromises = [];
     for (const [name, source] of this.sources) {
@@ -686,7 +559,6 @@ export class DataSourceManager extends BaseService {
     await Promise.all(stopPromises);
 
     this.sources.clear();
-    this.overlaySubscriptions.clear();
     this.entityIndex.clear();
     this.globalEntityChangeListeners.clear();
   }
@@ -695,7 +567,6 @@ export class DataSourceManager extends BaseService {
   debugDump() {
     return {
       sources: Array.from(this.sources.keys()),
-      subscriptions: Array.from(this.overlaySubscriptions.keys()),
       entities: Array.from(this.entityIndex.keys()),
       stats: this.getStats()
     };

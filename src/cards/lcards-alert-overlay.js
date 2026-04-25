@@ -98,11 +98,16 @@ export class LCARdSAlertOverlay extends LitElement {
         this._isSuppressed     = false;
         this._editMode         = false;
         this._editModePoller   = null;
-        this._portalEl         = null;
-        this._blurEl           = null;
-        this._tintEl           = null;
+        this._portalStyleEl    = null;
+        this._dismissEl        = null;
         this._wrapperEl        = null;
         this._contentContainer = null;
+        this._autoDismissTimer = null;
+        // True only while *this overlay* is the entity that applied the current
+        // SEM slots.  When false (alert inactive or trigger_effect owns the
+        // slots) we must not call clearSlot — that would wipe effects we don't
+        // own.  See _updatePortalStyles / _removePortal.
+        this._ownsSemSlots = false;
     }
 
     // -------------------------------------------------------------------------
@@ -231,6 +236,8 @@ export class LCARdSAlertOverlay extends LitElement {
         // After releasing, fire a synthetic event so any suppressed sibling
         // instance that was created while we were still alive (race window)
         // can retry claiming ownership.
+        this._clearAutoDismissTimer();
+
         if (_activeOverlay === this) {
             _activeOverlay = null;
             window.dispatchEvent(new CustomEvent('lcards-alert-overlay-released'));
@@ -285,14 +292,17 @@ export class LCARdSAlertOverlay extends LitElement {
         const isInactive = !newMode || newMode === 'green_alert' || newMode === 'default';
 
         if (isInactive) {
+            this._clearAutoDismissTimer();
             this._isActive        = false;
             this._isDismissed     = false;
             this._unmountContentCard();
         } else {
+            this._clearAutoDismissTimer();
             this._activeCondition = newMode;
             this._isDismissed     = false;
             this._isActive        = true;
             this._mountContentCard(newMode);
+            this._startAutoDismissTimer(newMode);
         }
     }
 
@@ -316,6 +326,15 @@ export class LCARdSAlertOverlay extends LitElement {
             return;
         }
 
+        // Guard: portal may have been removed during the async await above
+        // (e.g. condition changed, overlay dismissed, or card disconnected).
+        // The element was created but cannot be mounted — destroy it to avoid a leak.
+        if (!this._contentContainer) {
+            el.remove();
+            lcardsLog.debug('[LCARdSAlertOverlay] Portal gone during card creation — element discarded');
+            return;
+        }
+
         // ── Attach to DOM BEFORE setConfig ────────────────────────────────────
         // LCARdS cards initialize their singletons and set _initialized = true
         // only after connectedCallback / firstUpdated. If setConfig is called
@@ -329,6 +348,9 @@ export class LCARdSAlertOverlay extends LitElement {
         this._contentElement = el;
 
         if (this._contentContainer) {
+            // Mark the element so the portal stylesheet can override its inline
+            // aspect-ratio with !important (lcards-button re-applies it every render).
+            el.setAttribute('data-lcards-overlay-content', '');
             this._contentContainer.appendChild(el);
         }
 
@@ -341,6 +363,13 @@ export class LCARdSAlertOverlay extends LitElement {
         // Pre-evaluate any Jinja2 templates in text content fields using the
         // overlay's own hass connection (more reliable than evaluating inside
         // the newly-mounted child card whose websocket path may not be settled).
+        //
+        // Why only Jinja2? JS ([[[...]]]) and token ({entity.state}) templates
+        // are synchronous and do not depend on a settled websocket — lcards-button's
+        // own template pipeline handles those safely after mount.  Jinja2 requires
+        // a websocket round-trip, which can race against a fresh card element's
+        // connection setup, so we resolve it here via the overlay's already-stable
+        // HASS connection before handing the config to the child card.
         const resolvedConfig = await this._resolveTextTemplates(cardConfig);
         await applyCardConfig(el, resolvedConfig, 'alert-overlay');
 
@@ -348,8 +377,13 @@ export class LCARdSAlertOverlay extends LitElement {
     }
 
     /**
-     * Walk the text fields of a card config, evaluate any Jinja2 content
-     * strings using this overlay's hass, and return an updated config copy.
+     * Walk all text fields in a card config, evaluate any Jinja2 content
+     * strings ({{ ... }} / {% ... %}) using this overlay's settled HASS
+     * websocket, and return an updated config copy.
+     *
+     * JS ([[[...]]]) and token ({entity.state}) templates are intentionally
+     * NOT resolved here — they are synchronous and handled by lcards-button's
+     * own template pipeline after the card is mounted.
      *
      * @param {Object} cardConfig
      * @returns {Promise<Object>}
@@ -416,14 +450,31 @@ export class LCARdSAlertOverlay extends LitElement {
         // Text values are resolved HERE so the button receives final strings
         // directly in its text config — bypassing any post-setConfig injection
         // from the component preset system that could overwrite them.
+        //
+        // Build text dynamically: start with built-in defaults for the two
+        // standard fields, then overlay ALL keys from alert_button.text so
+        // any additional text field supported by the button component is
+        // forwarded rather than silently dropped.
+        const defaultText = {
+            alert_text: { content: def.alertText },
+            sub_text:   { content: def.subText   },
+        };
+        const overrideText = ab.text ?? {};
+        // Merge: for the two standard keys use the override's .content value if
+        // present; for any other keys pass the override field object through as-is.
+        const mergedText = { ...defaultText };
+        for (const [fieldId, fieldCfg] of Object.entries(overrideText)) {
+            if (fieldId in mergedText && fieldCfg?.content !== undefined) {
+                mergedText[fieldId] = { ...mergedText[fieldId], content: fieldCfg.content };
+            } else {
+                mergedText[fieldId] = fieldCfg;
+            }
+        }
         const card = {
             type:      'custom:lcards-button',
             component: 'alert',
             preset:    def.preset,
-            text: {
-                alert_text: { content: ab.text?.alert_text?.content ?? def.alertText },
-                sub_text:   { content: ab.text?.sub_text?.content   ?? def.subText   },
-            },
+            text:      mergedText,
         };
 
         // Forward component-level color overrides if present (e.g. alert.color.shape)
@@ -439,76 +490,142 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     _createPortal() {
-        if (this._portalEl) return;
+        if (this._wrapperEl) return;
 
-        this._portalEl = document.createElement('div');
-        this._portalEl.setAttribute('data-lcards-alert-portal', '');
-        Object.assign(this._portalEl.style, {
-            position: 'fixed',
-            inset:    '0',
-            zIndex:   '9000',
-            display:  'none',
+        const sem = window.lcards?.core?.screenEffectManager;
+        if (!sem) {
+            lcardsLog.error('[LCARdSAlertOverlay] ScreenEffectManager unavailable — portal creation aborted');
+            return;
+        }
+
+        // Claim the SEM portal; ensures the portal div is visible when overlay is active.
+        sem.setOverlayOccupied(true);
+        const portal = sem.portal;
+
+        // Dismiss click-catcher — sits above SE effect slots (z:10), transparent,
+        // receives backdrop clicks so the content wrapper (z:11, pointerEvents:none)
+        // does not block them.
+        this._dismissEl = document.createElement('div');
+        Object.assign(this._dismissEl.style, {
+            position:      'absolute',
+            inset:         '0',
+            zIndex:        '10',
+            pointerEvents: 'none',   // toggled to 'auto' when dismiss is allowed
+            cursor:        'pointer',
         });
+        this._dismissEl.addEventListener('click', () => this._handleDismiss());
 
-        // Layer 1: blur-only (backdrop-filter creates its own stacking context)
-        this._blurEl = document.createElement('div');
-        Object.assign(this._blurEl.style, { position: 'absolute', inset: '0', zIndex: '1' });
-
-        // Layer 2: tint (color + opacity, click-to-dismiss)
-        this._tintEl = document.createElement('div');
-        Object.assign(this._tintEl.style, {
-            position: 'absolute', inset: '0', zIndex: '2', cursor: 'pointer',
-        });
-        this._tintEl.addEventListener('click', () => this._handleDismiss());
-
-        // Layer 3: content wrapper (flex layout for positioning)
+        // Content wrapper — flex positioner, above dismiss layer.
         this._wrapperEl = document.createElement('div');
         Object.assign(this._wrapperEl.style, {
             position:      'absolute',
             inset:         '0',
-            zIndex:        '3',
+            zIndex:        '11',
             display:       'flex',
             pointerEvents: 'none',
         });
 
         this._contentContainer = document.createElement('div');
-        this._contentContainer.style.pointerEvents = 'auto';
+        // Display as flex so the mounted card child stretches to fill the explicit
+        // width/height set on this container.  Without this, a block-level child
+        // with aspect-ratio (set by lcards-button) ignores the container height and
+        // computes its own height from the aspect-ratio × width, causing overflow.
+        Object.assign(this._contentContainer.style, {
+            pointerEvents: 'auto',
+            display:       'flex',
+            alignItems:    'stretch',
+        });
+
+        // Inject a stylesheet rule that beats any inline `aspect-ratio` the
+        // mounted card sets on its own host element (lcards-button does this
+        // on every render after resolving the SVG viewBox).  Using !important
+        // from a <style> tag beats inline styles without JS intervention on
+        // every render cycle.  Cards target via data-lcards-overlay-content.
+        this._portalStyleEl = document.createElement('style');
+        this._portalStyleEl.textContent = [
+            '[data-lcards-overlay-content] {',
+            '  aspect-ratio: unset !important;',
+            '  width:        100%   !important;',
+            '  height:       100%   !important;',
+            '  min-height:   0      !important;',
+            '}',
+        ].join('\n');
+        document.head.appendChild(this._portalStyleEl);
 
         this._wrapperEl.appendChild(this._contentContainer);
-        this._portalEl.appendChild(this._blurEl);
-        this._portalEl.appendChild(this._tintEl);
-        this._portalEl.appendChild(this._wrapperEl);
-        document.body.appendChild(this._portalEl);
+        portal.appendChild(this._dismissEl);
+        portal.appendChild(this._wrapperEl);
 
-        lcardsLog.debug('[LCARdSAlertOverlay] Portal created on document.body');
+        lcardsLog.debug('[LCARdSAlertOverlay] Portal attached to ScreenEffectManager');
     }
 
     _removePortal() {
-        this._portalEl?.remove();
-        this._portalEl         = null;
-        this._blurEl           = null;
-        this._tintEl           = null;
+        const sem = window.lcards?.core?.screenEffectManager;
+        if (sem && this._ownsSemSlots) {
+            sem.clearSlot('backdrop');
+            sem.clearSlot('color');
+            sem.clearSlot('canvas');
+            sem.setOverlayOccupied(false);
+            this._ownsSemSlots = false;
+        }
+        this._dismissEl?.remove();
+        this._wrapperEl?.remove();
+        this._portalStyleEl?.remove();
+        this._dismissEl        = null;
         this._wrapperEl        = null;
         this._contentContainer = null;
-        lcardsLog.debug('[LCARdSAlertOverlay] Portal removed');
+        this._portalStyleEl    = null;
+        lcardsLog.debug('[LCARdSAlertOverlay] Portal detached from ScreenEffectManager');
     }
 
     _updatePortalStyles() {
-        if (!this._portalEl) return;
+        if (!this._wrapperEl) return;
 
+        const sem     = window.lcards?.core?.screenEffectManager;
         const visible = this._isActive && !this._isDismissed && !this._isInEditMode();
-        this._portalEl.style.display = visible ? '' : 'none';
-        if (!visible) return;
 
-        const backdrop = this._getEffectiveBackdrop();
-        const size     = this._getEffectiveSize();
-        const pos      = this._getEffectivePosition();
+        if (!visible) {
+            if (sem && this._ownsSemSlots) {
+                // Only clear slots we applied — never touch slots set by
+                // trigger_effect or other external callers.
+                sem.clearSlot('backdrop');
+                sem.clearSlot('color');
+                sem.clearSlot('canvas');
+                sem.setOverlayOccupied(false);
+                this._ownsSemSlots = false;
+            }
+            this._dismissEl.style.display = 'none';
+            this._wrapperEl.style.display  = 'none';
+            return;
+        }
 
-        this._blurEl.style.backdropFilter       = `blur(${backdrop.blur})`;
-        /** @type {any} */ (this._blurEl.style).webkitBackdropFilter = `blur(${backdrop.blur})`;
+        sem?.setOverlayOccupied(true);
+        this._dismissEl.style.display = '';
+        this._wrapperEl.style.display  = 'flex';
 
-        this._tintEl.style.background = backdrop.color;
-        this._tintEl.style.opacity    = String(backdrop.opacity);
+        // Apply each slot layer independently.  Clear all three slots first so
+        // that disabling or switching a single-slot preset never leaves stale
+        // effects from a previous activation on the other slots.
+        if (sem) {
+            const layers = this._resolveBackdropLayers();
+            sem.clearSlot('backdrop');
+            sem.clearSlot('color');
+            sem.clearSlot('canvas');
+            for (const [slot, layerCfg] of Object.entries(layers)) {
+                if (layerCfg?.preset) {
+                    const { preset, ...params } = layerCfg;
+                    sem.applySlot(slot, preset, params);
+                }
+            }
+            // We are now the owner of whatever slots we've applied.
+            this._ownsSemSlots = true;
+        }
+
+        // Backdrop clicks always allowed to dismiss (pointer-events: auto).
+        this._dismissEl.style.pointerEvents = 'auto';
+
+        const size = this._getEffectiveSize();
+        const pos  = this._getEffectivePosition();
 
         this._wrapperEl.style.alignItems     = pos.alignItems;
         this._wrapperEl.style.justifyContent = pos.justifyContent;
@@ -521,14 +638,88 @@ export class LCARdSAlertOverlay extends LitElement {
     // Style / layout helpers
     // -------------------------------------------------------------------------
 
-    _getEffectiveBackdrop() {
-        const global  = this.config?.backdrop ?? {};
-        const perCond = this.config?.conditions?.[this._activeCondition]?.backdrop ?? {};
+    /**
+     * Resolve the final per-slot layer configuration by merging global `layers`
+     * with per-condition overrides.  Each slot in the returned object is either
+     * `{ preset, ...params }` or `null` (slot explicitly disabled).
+     *
+     * Priority: per-condition layer slot > global layer slot > legacy migration > default.
+     *
+     * @returns {{ backdrop: Object|null, color: Object|null, canvas: Object|null }}
+     */
+    _resolveBackdropLayers() {
+        const globalLayers  = this._getConfiguredLayers(this.config ?? {});
+        const condLayersRaw = this.config?.conditions?.[this._activeCondition]?.layers ?? null;
+        if (!condLayersRaw) return globalLayers;
+
+        // Per-condition: only override slots explicitly present (key exists).
         return {
-            blur:    perCond.blur    ?? global.blur    ?? '8px',
-            opacity: perCond.opacity ?? global.opacity ?? 0.6,
-            color:   perCond.color   ?? global.color   ?? 'rgba(0,0,0,0.5)',
+            backdrop: 'backdrop' in condLayersRaw ? condLayersRaw.backdrop : globalLayers.backdrop,
+            color:    'color'    in condLayersRaw ? condLayersRaw.color    : globalLayers.color,
+            canvas:   'canvas'   in condLayersRaw ? condLayersRaw.canvas   : globalLayers.canvas,
         };
+    }
+
+    /**
+     * Extract { backdrop, color, canvas } slot configs from a config object,
+     * migrating legacy schemas automatically.
+     * @private
+     */
+    _getConfiguredLayers(cfg) {
+        // Current schema: layers key.
+        if (cfg.layers) {
+            return {
+                backdrop: cfg.layers.backdrop ?? null,
+                color:    cfg.layers.color    ?? null,
+                canvas:   cfg.layers.canvas   ?? null,
+            };
+        }
+
+        // Legacy schema: backdrop.blur / opacity / color.
+        if (cfg.backdrop) {
+            return this._promoteLegacyBackdrop(cfg.backdrop);
+        }
+
+        // Default: blur-only, no color or canvas overlay.
+        return { backdrop: { preset: 'blur', amount: '8px' }, color: null, canvas: null };
+    }
+
+    /**
+     * Promote the legacy `backdrop.{blur, opacity, color}` object to per-slot layers.
+     * Opacity is folded into the color alpha to preserve the visual result.
+     * @private
+     */
+    _promoteLegacyBackdrop(backdrop) {
+        const result = { backdrop: null, color: null, canvas: null };
+        if (backdrop.blur) {
+            result.backdrop = { preset: 'blur', amount: backdrop.blur };
+        }
+        if (backdrop.color || backdrop.opacity !== undefined) {
+            const opacity = typeof backdrop.opacity === 'number' ? backdrop.opacity : 0.6;
+            const color   = backdrop.color ?? 'rgba(0,0,0,0.5)';
+            result.color  = { preset: 'color-tint', color: this._promoteColorWithOpacity(color, opacity) };
+        }
+        return result;
+    }
+
+    /**
+     * Fold a separate opacity multiplier into the alpha channel of a CSS rgba() colour.
+     * Used when promoting old `backdrop.color` + `backdrop.opacity` values.
+     *
+     * @param {string} color   - CSS colour string, ideally rgba().
+     * @param {number} opacity - Multiplier (0–1).
+     * @returns {string}
+     * @private
+     */
+    _promoteColorWithOpacity(color, opacity) {
+        const m = color.match(
+            /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/
+        );
+        if (m) {
+            const a = parseFloat(m[4] ?? '1') * opacity;
+            return `rgba(${m[1]},${m[2]},${m[3]},${Math.min(1, a).toFixed(2)})`;
+        }
+        return color;
     }
 
     _getEffectiveSize() {
@@ -552,16 +743,70 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     _handleDismiss() {
+        this._clearAutoDismissTimer();
         this._isDismissed = true;
         this._isActive    = false;
         this._unmountContentCard();
 
-        if (this.config?.dismiss_mode === 'reset') {
+        if (this.config?.dismiss_mode === 'reset' || this.config?.dismiss_mode === 'auto-reset') {
             this._hass?.callService('input_select', 'select_option', {
                 entity_id: 'input_select.lcards_alert_mode',
                 option:    'green_alert',
             });
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Auto-dismiss timer
+    // -------------------------------------------------------------------------
+
+    /**
+     * Start an auto-dismiss countdown for the given condition if the
+     * effective dismiss_mode is `auto-dismiss` or `auto-reset`.
+     * Any previously running timer is cleared first.
+     *
+     * @param {string} condition — active condition key (e.g. 'red_alert')
+     */
+    _startAutoDismissTimer(condition) {
+        this._clearAutoDismissTimer();
+
+        const mode = this.config?.dismiss_mode;
+        if (mode !== 'auto-dismiss' && mode !== 'auto-reset') return;
+
+        const seconds = this._getEffectiveAutoDismissSeconds(condition);
+        if (!seconds || seconds <= 0) {
+            lcardsLog.warn('[LCARdSAlertOverlay] auto-dismiss mode active but auto_dismiss_seconds is unset or invalid — timer not started');
+            return;
+        }
+
+        lcardsLog.debug(`[LCARdSAlertOverlay] Auto-dismiss timer started: ${seconds}s for condition ${condition}`);
+        this._autoDismissTimer = setTimeout(() => {
+            lcardsLog.debug(`[LCARdSAlertOverlay] Auto-dismiss timer fired for condition ${condition}`);
+            this._handleDismiss();
+        }, seconds * 1000);
+    }
+
+    /** Cancel any running auto-dismiss timer. */
+    _clearAutoDismissTimer() {
+        if (this._autoDismissTimer !== null) {
+            clearTimeout(this._autoDismissTimer);
+            this._autoDismissTimer = null;
+        }
+    }
+
+    /**
+     * Resolve the effective auto-dismiss duration (seconds) for a condition.
+     * Per-condition `auto_dismiss_seconds` takes precedence over the global value.
+     *
+     * @param {string} condition
+     * @returns {number|null}
+     */
+    _getEffectiveAutoDismissSeconds(condition) {
+        return (
+            this.config?.conditions?.[condition]?.auto_dismiss_seconds ??
+            this.config?.auto_dismiss_seconds ??
+            null
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -634,7 +879,7 @@ export class LCARdSAlertOverlay extends LitElement {
                 color: var(--lcards-moonlight, #dfe1e8);
             }
             .is-duplicate {
-                border-color: var(--lcards-alert-red, #ff4444);
+                border-color: var(--lcars-alert-red);
                 background: rgba(80,0,0,0.45);
             }
             .ep-header {
@@ -649,7 +894,7 @@ export class LCARdSAlertOverlay extends LitElement {
                 line-height: 1;
             }
             .is-duplicate .ep-icon {
-                color: var(--lcards-alert-red, #ff4444);
+                color: var(--lcars-alert-red);
             }
             .ep-title {
                 font-size: 0.85em;
@@ -666,8 +911,8 @@ export class LCARdSAlertOverlay extends LitElement {
                 padding: 2px 7px;
                 border-radius: 4px;
                 background: rgba(255,68,68,0.25);
-                color: var(--lcards-alert-red, #ff4444);
-                border: 1px solid var(--lcards-alert-red, #ff4444);
+                color: var(--lcars-alert-red);
+                border: 1px solid var(--lcars-alert-red);
             }
             .ep-badge--active {
                 background: rgba(255,119,0,0.2);
@@ -683,7 +928,7 @@ export class LCARdSAlertOverlay extends LitElement {
                 margin: 0 0 6px;
             }
             .ep-warn {
-                color: var(--lcards-alert-red, #ff4444);
+                color: var(--lcars-alert-red);
                 opacity: 1;
             }
             .ep-conditions {
@@ -717,10 +962,8 @@ export class LCARdSAlertOverlay extends LitElement {
             dismiss_mode: 'dismiss',
             height:       '33%',
             width:        '50%',
-            backdrop: {
-                blur:    '8px',
-                opacity: 0.6,
-                color:   'rgba(0,0,0,0.5)',
+            layers: {
+                backdrop: { preset: 'blur', amount: '8px' },
             },
             position: 'center',
         };

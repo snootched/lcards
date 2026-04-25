@@ -78,7 +78,7 @@ export class OverlayUtils {
 
     return {
       fontSize: style.font_size || style.fontSize || 16,
-      fill: style.color || style.fill || 'var(--lcars-white, var(--lcards-moonlight, #ffffff))',
+      fill: style.color || style.fill || 'var(--lcars-text-light, var(--lcards-moonlight, #ffffff))',
       fontFamily: style.font_family || style.fontFamily || 'Antonio, sans-serif',
       stroke: style.stroke || 'none',
       strokeWidth: style.stroke_width || style.strokeWidth || 1,

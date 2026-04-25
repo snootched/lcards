@@ -46,12 +46,12 @@ Semantic colours that map to UI roles.  In the default theme, prefer HA-LCARS th
 
 ---
 
-## LCARdS CSS Color Palette
+## LCARdS CSS Colour Palette
 
-LCARdS injects a complete set of `--lcards-<color>-<shade>` CSS variables at startup.
+LCARdS injects a complete set of `--lcards-<colour>-<shade>` CSS variables at startup.
 These colours can be used anywhere and do not need to be in your HA-LCARS theme file.
 
-> **Note:** Colors shown are the **green_alert (normal) mode** baseline values.
+> **Note:** Colours shown are the **green_alert (normal) mode** baseline values.
 > When an alert mode is active (e.g. `red_alert`, `blue_alert`), all variables are
 > HSL-transformed automatically — you never need to change your references.
 
@@ -135,14 +135,14 @@ These colours can be used anywhere and do not need to be in your HA-LCARS theme 
 
 ### Shade Scale
 
-Each color family (except gray/moonlight) follows the same 8-step scale:
+Each colour family (except gray/moonlight) follows the same 8-step scale:
 
 | Shade | Description |
 |---|---|
 | `-darkest` | Deepest / near-black tone |
 | `-dark` | Dark variant |
 | `-medium-dark` | Between dark and mid |
-| *(base / `-medium`)* | Core reference color — both `--lcards-<color>` and `--lcards-<color>-medium` resolve to the same value |
+| *(base / `-medium`)* | Core reference colour — both `--lcards-<colour>` and `--lcards-<colour>-medium` resolve to the same value |
 | `-medium-light` | Between mid and light |
 | `-light` | Light variant |
 | `-lightest` | Palest / near-white tone |

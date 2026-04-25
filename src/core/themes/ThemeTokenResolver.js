@@ -14,6 +14,7 @@
 
 import { ColorUtils } from './ColorUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { getBaselineColors, GREEN_ALERT_PALETTE } from './paletteInjector.js';
 
 /**
  * ThemeTokenResolver - Resolves design tokens to values
@@ -35,6 +36,11 @@ export class ThemeTokenResolver {
 
     // Track circular reference detection
     this.resolutionStack = [];
+
+    // User/device/global token overrides — checked before the token tree.
+    // Set via setOverrides(); null when no overrides are active.
+    /** @type {Map<string,*>|null} */
+    this._overrides = null;
   }
 
   /**
@@ -67,6 +73,11 @@ export class ThemeTokenResolver {
     // Handle computed tokens directly (before trying to look up in token tree)
     if (typeof path === 'string' && this._isComputedToken(path)) {
       return this._resolveComputedToken(path, context);
+    }
+
+    // Check user/device/global overrides — these beat the token tree and cache.
+    if (this._overrides !== null && this._overrides.has(path)) {
+      return this._overrides.get(path);
     }
 
     // Check cache for non-context-dependent paths
@@ -126,6 +137,35 @@ export class ThemeTokenResolver {
     this.resolutionCache.clear();
     this.computedCache.clear();
     lcardsLog.debug('[ThemeTokenResolver] Cache cleared');
+  }
+
+  /**
+   * Set the active override map.
+   *
+   * The merged result of global + user + device scopes should be passed here
+   * (device wins).  Call clearCache() is handled internally.
+   *
+   * @param {Object|Map<string,*>|null} overrides - Flat token-path → value map, or null to clear.
+   */
+  setOverrides(overrides) {
+    if (overrides === null || overrides === undefined) {
+      this._overrides = null;
+    } else if (overrides instanceof Map) {
+      this._overrides = overrides;
+    } else {
+      this._overrides = new Map(Object.entries(overrides));
+    }
+    this.clearCache();
+    lcardsLog.debug('[ThemeTokenResolver] Overrides updated', { count: this._overrides?.size ?? 0 });
+  }
+
+  /**
+   * Remove all overrides and clear cache.
+   */
+  clearOverrides() {
+    this._overrides = null;
+    this.clearCache();
+    lcardsLog.debug('[ThemeTokenResolver] Overrides cleared');
   }
 
   /**
@@ -235,7 +275,7 @@ export class ThemeTokenResolver {
     if (typeof value !== 'string') return true;
 
     // Check for computed tokens first (they may contain var() but need processing)
-    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix'];
+    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
     if (computedFunctions.some(fn => value.startsWith(`${fn}(`))) {
       return false; // Not a direct value - needs computed token processing
     }
@@ -278,7 +318,7 @@ export class ThemeTokenResolver {
    */
   _isComputedToken(value) {
     // Computed tokens look like: 'darken(colors.accent.primary, 0.2)'
-    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix'];
+    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
     return computedFunctions.some(fn => value.startsWith(`${fn}(`));
   }
 
@@ -291,8 +331,13 @@ export class ThemeTokenResolver {
    * @returns {string} Resolved color
    */
   _resolveComputedToken(expression, context) {
-    // Check computed cache
-    if (this.computedCache.has(expression)) {
+    // Do not cache expressions that contain var() references: the underlying
+    // CSS variable may change between calls (theme application, alert mode
+    // switches) and a stale cached result would produce the wrong colour.
+    // Concrete expressions (no var()) are safe to cache as usual.
+    const isCacheable = !expression.includes('var(');
+
+    if (isCacheable && this.computedCache.has(expression)) {
       return this.computedCache.get(expression);
     }
 
@@ -305,6 +350,50 @@ export class ThemeTokenResolver {
       }
 
       const [, functionName, argsStr] = match;
+
+      // -----------------------------------------------------------------------
+      // base() — resolve a token/var to its pre-alert-mutation (green_alert)
+      // baseline value.  Handled here specifically to bypass the standard arg-
+      // resolution path, which calls resolveCssVariable() and would read the
+      // live (potentially mutated) DOM value instead of the captured snapshot.
+      // -----------------------------------------------------------------------
+      if (functionName === 'base') {
+        const arg = argsStr.trim();
+        let cssVarName = null;
+
+        if (this._isTokenReference(arg)) {
+          // Resolve the token path to a CSS var string without materialising it.
+          const tokenVal = this.resolve(arg, arg, context);
+          const vm = typeof tokenVal === 'string' ? tokenVal.match(/var\((--[\w-]+)/) : null;
+          if (vm) {
+            cssVarName = vm[1];
+          } else {
+            // Token resolved to a concrete hex/rgb — already unambiguous.
+            return tokenVal;
+          }
+        } else if (arg.startsWith('var(')) {
+          const vm = arg.match(/var\((--[\w-]+)/);
+          if (vm) cssVarName = vm[1];
+        } else if (arg.startsWith('--')) {
+          cssVarName = arg;
+        }
+
+        if (cssVarName) {
+          const baseline = getBaselineColors();
+          if (cssVarName.startsWith('--lcars-') && baseline?.[cssVarName]) {
+            return baseline[cssVarName];
+          }
+          if (cssVarName.startsWith('--lcards-')) {
+            const key = cssVarName.slice('--lcards-'.length);
+            if (GREEN_ALERT_PALETTE[key]) return GREEN_ALERT_PALETTE[key];
+          }
+        }
+
+        // Fallback: materialise via live DOM (better than returning the expression literal).
+        lcardsLog.debug(`[ThemeTokenResolver] base(): no baseline snapshot found for '${arg}' — falling back to live DOM value`);
+        const fallbackArg = arg.includes('var(') ? arg : (arg.startsWith('--') ? `var(${arg})` : arg);
+        return ColorUtils.resolveCssVariable(fallbackArg, fallbackArg);
+      }
 
       // Parse arguments (handle nested parentheses for token references)
       const args = this._parseComputedArgs(argsStr);
@@ -368,8 +457,9 @@ export class ThemeTokenResolver {
           return expression;
       }
 
-      // Cache result
-      this.computedCache.set(expression, result);
+      // Cache result — only for concrete expressions (no var() refs).
+      // See the isCacheable guard at the top of this method.
+      if (isCacheable) this.computedCache.set(expression, result);
 
       return result;
 

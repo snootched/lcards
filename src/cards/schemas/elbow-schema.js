@@ -11,7 +11,7 @@
  * Editor UI is defined separately in lcards-elbow-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, triggersUpdateSchema } from './common-schemas.js';
 import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
 /**
@@ -356,7 +356,7 @@ export function getElbowSchema(options = {}) {
                                 description: 'Segment colour (string or state-based object)',
                                 examples: [
                                     '#FF9900',
-                                    'theme:palette.moonlight',
+                                    'theme:colors.text.onDark',
                                     {
                                         default: '#888888',
                                         active: '#FF9900',
@@ -562,6 +562,8 @@ export function getElbowSchema(options = {}) {
 
             data_sources: dataSourcesSchema,
 
+            triggers_update: triggersUpdateSchema,
+
             // ============================================================================
             // ANIMATIONS & FILTERS
             // ============================================================================
@@ -577,6 +579,8 @@ export function getElbowSchema(options = {}) {
             // ============================================================================
 
             background_animation: backgroundAnimationSchema,
+
+            sounds: soundsSchema,
 
             // ============================================================================
             // SHAPE TEXTURE

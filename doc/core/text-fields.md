@@ -1,45 +1,31 @@
 # Text Fields
 
-Most LCARdS cards support a flexible `text` object that lets you place any number of labelled text fields anywhere on the card. Fields inherit from a shared `default` block so you only need to set what differs per field.
+Most LCARdS cards support a `text` object that lets you place any number of labelled text fields anywhere on the card. Fields inherit from a shared `default` block so you only need to set what differs per field.
 
 ---
 
-## Structure
+## How it works
 
-```yaml
+```
 text:
-  default:                  # Shared defaults — not rendered as text
-    font_size: 12
-    font_family: "Antonio, sans-serif"
-    color: "var(--lcards-moonlight)"
-
-  label:                    # Arbitrary field name — renders as text
-    content: "Temperature"
-    position: top-left
-
-  value:                    # Another field
-    content: "{entity.state}°C"
-    position: center
-    font_size: 28
-    font_weight: bold
+  default:              ← Shared styles — never rendered itself
+  │  font_size: 12
+  │  color: "var(--lcars-moonlight)"
+  │
+  label:                ← Named field (name is arbitrary) — rendered as text
+  │  content: "Temperature"
+  │  position: top-left     ← inherits font_size, color from default
+  │
+  value:                ← Another field — only set what differs
+     content: "{entity.state}°C"
+     zone: body         ← which card zone to render inside
+     font_size: 28      ← overrides default
+     font_weight: bold
 ```
 
-Field names are arbitrary. Use any name that is meaningful to you. The special key `default` is never rendered — it only provides default styles inherited by all other fields.
+Every named key except `default` is rendered as an SVG `<text>` element. Fields go into **zones** — named rectangular regions on the card's SVG surface (e.g. `body`, `track`, `horizontal_bar`). Without a `zone:` key a field goes to the card's primary zone.
 
----
-
-## `text.default` Options
-
-Shared defaults applied to all text fields. Any option listed in the per-field table below is valid here.
-
-```yaml
-text:
-  default:
-    font_size: 12
-    font_family: "Antonio, sans-serif"
-    color: "var(--lcards-moonlight)"
-    position: center
-```
+All options in the per-field table below are also valid in `text.default` as shared defaults.
 
 ---
 
@@ -52,10 +38,10 @@ text:
 | `position` | string | from `default` | Grid position — see Position Values below |
 | `x` | number | — | Absolute X in pixels (overrides `position`) |
 | `y` | number | — | Absolute Y in pixels (overrides `position`) |
-| `x_percent` | number | — | X as percentage of card width (0–100) |
-| `y_percent` | number | — | Y as percentage of card height (0–100) |
+| `x_percent` | number | — | X as percentage of the **zone width** (0–100) — `0` = left edge, `100` = right edge of the zone |
+| `y_percent` | number | — | Y as percentage of the **zone height** (0–100) — `0` = top edge, `100` = bottom edge of the zone |
 | `font_size` | number / string | from `default` | Size in px, or CSS value (`14px`, `1.2rem`, `var(--lcars-text-size)`) |
-| `font_size_percent` | number | — | Font size as a percentage of the **zone height** (1–100+); overrides `font_size` when set. 100 = full zone height. See [Zones](#zones). |
+| `font_size_percent` | number | — | Font size as a percentage of the **zone height** (1–100); overrides `font_size` when set. 100 = full zone height. See [Zones](#zones). |
 | `font_weight` | string / number | `"normal"` | CSS font-weight keyword (`normal`, `bold`) or numeric (100–900) |
 | `font_family` | string | from `default` | CSS font-family or variable, e.g. `"Antonio, sans-serif"` or `var(--lcars-font)` |
 | `text_transform` | string | `"none"` | `none`, `uppercase`, `lowercase`, `capitalize` |
@@ -66,24 +52,57 @@ text:
 | `padding` | number / object | — | Offset in px: single number (all sides) or `{ top, right, bottom, left }` |
 | `stretch` | boolean / number | — | Stretch/compress glyph spacing to fill a fraction of the **zone width** using SVG `textLength`. `true` = 100%, `0.8` = 80%. Pairs naturally with `font_size_percent` to fill both axes independently. |
 | `zone` | string | auto | Named zone to render this field inside. Defaults to the card's primary zone (`body`, `track`, first border, etc.). See [Zones](#zones). |
-| `template` | boolean | `false` | Enable legacy template evaluation for `content` |
+| `template` | boolean | `false` | *(Legacy)* Enable legacy template evaluation for `content` — not needed with current template syntaxes |
 | `display_format` | string | `"friendly"` | How to format entity state/attribute tokens — see [Display Format](#display-format) below |
 
 ### Position Values
 
 ```
-top-left      top-center      top-right
-center-left   center          center-right
-bottom-left   bottom-center   bottom-right
+┌──────────────┬──────────────┬──────────────┐
+│   top-left   │  top-center  │   top-right  │
+├──────────────┼──────────────┼──────────────┤
+│  center-left │    center    │ center-right │
+├──────────────┼──────────────┼──────────────┤
+│ bottom-left  │bottom-center │ bottom-right │
+└──────────────┴──────────────┴──────────────┘
 ```
+
+Shorthand aliases: `top` → `top-center`, `bottom` → `bottom-center`, `left` → `center-left`, `right` → `center-right`.
 
 Absolute positioning with `x`/`y` or `x_percent`/`y_percent` overrides `position`.
 
 ---
 
+## Preset-Defined Fields
+
+Many card presets pre-define a set of named text fields as part of the preset's styling. These fields have sensible defaults so they work out of the box, but you can override any property in your card config.
+
+The built-in button presets define three standard fields:
+
+| Field | Default `content` | Default visibility | Notes |
+|-------|-------------------|--------------------|-------|
+| `label` | `"LCARdS"` | `show: false` | General-purpose label; most bar/lozenge presets show this by default |
+| `name` | `"{entity.attributes.friendly_name}"` | `show: false` | Entity friendly name |
+| `state` | `"{entity.state}"` | `show: false` | Raw entity state value |
+
+These originate from the cb-lcars / custom-button-card heritage. To use them, just add the field to your `text:` config — the preset's positioning and styling are already in place:
+
+```yaml
+text:
+  label:
+    content: "Bedroom"   # override the default placeholder text
+    show: true            # override the preset's show: false
+  name:
+    show: true            # switch on with preset defaults intact
+```
+
+You can always define completely new field names (e.g. `value`, `subtitle`, `unit`) — these are entirely independent of the preset-defined fields.
+
+---
+
 ## Inheritance
 
-Fields inherit every property from `text.default`. Only set what differs per field:
+Fields inherit every property from `text.default`. Only set what differs:
 
 ```yaml
 text:
@@ -100,11 +119,41 @@ text:
   value:
     content: "[[[return Math.round(entity.attributes.brightness / 255 * 100) + '%']]]"
     position: center
-    font_size: 28          # overrides the default 12
+    font_size: 28          # overrides default
+    font_weight: bold
+    color:                 # state-reactive colour overrides default plain string
+      default: "var(--lcars-moonlight)"
+      active: "var(--lcars-orange)"
+```
+
+---
+
+## Example
+
+```yaml
+type: custom:lcards-button
+entity: sensor.outdoor_temperature
+preset: lozenge
+
+text:
+  default:
+    font_family: "Antonio, sans-serif"
+    color: "var(--lcars-moonlight)"
+
+  label:
+    content: "Outdoor"
+    position: top-left
+    font_size: 11
+    text_transform: uppercase
+
+  value:
+    content: "[[[return parseFloat(entity.state).toFixed(1) + '\u00b0C']]]"
+    position: center
+    font_size: 32
     font_weight: bold
     color:
-      default: "var(--lcards-moonlight)"
-      active: "var(--lcards-orange)"
+      default: "var(--lcars-moonlight)"
+      unavailable: "var(--lcars-alert-red)"
 ```
 
 ---
@@ -131,7 +180,7 @@ background:
 |---|---|---|---|
 | `background` | state-map | — | Background rect colour — must be a state-map object (`{ default: 'black' }`). Supports all states used by text `color`. |
 | `background_padding` | number (px) | `8` | Horizontal space between glyphs and box edges |
-| `background_radius` | number (px) | `4` | Corner radius of the background rect |
+| `background_radius` | number (px) | `4` | Corner radius of the background rect — `0` = sharp, higher values round the corners |
 | `background_width` | number (px) | auto | **Fixed** explicit width. Overrides auto-sizing — text overflows if content is wider |
 | `background_min_width` | number (px) | — | **Minimum** width. Auto-sizes from text but never shrinks below this value |
 
@@ -152,6 +201,7 @@ text:
 > **Note on `background_width` + `anchor`:** when a fixed width is set, `background_padding` no longer controls box _width_ — it still controls the anchor offset so the text sits `background_padding` px from the box's anchored edge. Extra space accumulates on the opposite side. With `anchor: end` this means the right edge stays pinned and extra space grows leftward, which is usually the desired alignment behaviour.
 
 ---
+
 ## Colour in Text Fields
 
 The `color` field accepts both a plain colour string and a [state-based colour map](colours.md):
@@ -161,11 +211,10 @@ text:
   status:
     content: "{entity.state}"
     color:
-      default: "var(--lcards-moonlight)"
-      active: "var(--lcards-orange)"
-      inactive: "var(--lcards-gray)"
-      unavailable: "var(--lcards-alert-red)"
-      heat: "var(--lcards-alert-red)"
+      default: "var(--lcars-moonlight)"
+      active: "var(--lcars-orange)"
+      inactive: "var(--lcars-gray)"
+      unavailable: "var(--lcars-alert-red)"
 ```
 
 ---
@@ -189,46 +238,10 @@ content: "{{ states('sensor.temperature') }}°C"
 # DataSource — HA-native (locale-formatted + unit)
 content: "{ds:temp}"
 # DataSource — explicit precision (no auto-unit, you control the suffix)
-# content: "{ds:temp:.1f} °C"
+content: "{ds:temp:.1f} °C"
 ```
 
 See [Templates](templates/) for full details.
-
----
-
-## Comprehensive Example
-
-```yaml
-type: custom:lcards-button
-entity: sensor.outdoor_temperature
-preset: lozenge
-
-text:
-  default:
-    font_family: "Antonio, sans-serif"
-    color: "var(--lcards-moonlight)"
-
-  label:
-    content: "Outdoor"
-    position: top-left
-    font_size: 11
-    text_transform: uppercase
-
-  value:
-    content: "[[[return parseFloat(entity.state).toFixed(1) + '°C']]]"
-    position: center
-    font_size: 32
-    font_weight: bold
-    color:
-      default: "var(--lcards-moonlight)"
-      unavailable: "var(--lcards-alert-red)"
-
-  sub:
-    content: "{{ state_attr('sensor.outdoor_temperature', 'friendly_name') }}"
-    position: bottom-center
-    font_size: 10
-    color: "var(--lcards-gray)"
-```
 
 ---
 
@@ -238,18 +251,21 @@ Every card automatically divides its SVG surface into named **zones** — rectan
 
 ### Auto-calculated zones per card type
 
+<!-- TODO: Insert raster images here showing each card type with its zones labelled -->
+<!-- One image per card variant (button preset, button component, slider, elbow simple/segmented/frame) -->
+
 | Card | Auto zones |
 |------|------------|
-| **Button** (preset mode, no icon) | `body` = full card area · `full` = full card area (always) |
-| **Button** (preset mode, area icon) | `body` = card area excluding icon strip · `full` = full card area · `icon` = icon strip only |
-| **Button** (component mode) | Named zones sourced from the SVG component's internal `zones` definition — these are declared by the component pack, not by your card config |
-| **Slider** | `track` (inner track bounds) + one zone per enabled border: `left`, `right`, `top`, `bottom` |
-| **Elbow** (simple, L-corner left) | `vertical_bar` · `left_bar` *(alias for `vertical_bar`)* · `horizontal_bar` · `body` · `full` |
-| **Elbow** (simple, L-corner right) | `vertical_bar` · `right_bar` *(alias for `vertical_bar`)* · `horizontal_bar` · `body` · `full` |
-| **Elbow** (simple, open) | `horizontal_bar` · `body` · `full` — no vertical bar zone |
-| **Elbow** (simple, contained) | `left_bar` · `right_bar` · `horizontal_bar` · `body` · `full` |
-| **Elbow** (segmented) | `outer_vertical_bar` · `inner_vertical_bar` · `outer_horizontal_bar` · `inner_horizontal_bar` · `body` · `full` |
-| **Elbow** (frame) | `top` · `bottom` · `left` · `right` · `body` · `full` |
+| **Button** (preset mode, no icon) | `body` = full card area · `full` = full card area (always)<br/> ![Button zones](../public/img/zones-button.png) |
+| **Button** (preset mode, area icon) | `body` = card area excluding icon strip · `full` = full card area · `icon` = icon strip only <br/> ![Button zones with icon](../public/img/zones-button-icon.png)|
+| **Button** (component mode) | Named zones sourced from the SVG component's internal `zones` definition — these are declared by the component pack, not by your card config.  You can add additional custom zones if desired. <br/><br/> ![Button component DPAD](../public/img/zones-button-dpad.png) ![Button component ALERT](../public/img/zones-button-alert.png) |
+| **Slider** | `track` (inner track bounds) + one zone per enabled border: `left`, `right`, `top`, `bottom` <br/> ![Slider zones](../public/img/zones-slider.png)|
+| **Elbow** (simple, L-corner left) | `vertical_bar` · `left_bar` *(alias for `vertical_bar`)* · `horizontal_bar` · `body` · `full` <br/> ![Elbow Left](../public/img/zones-elbow-left.png)|
+| **Elbow** (simple, L-corner right) | `vertical_bar` · `right_bar` *(alias for `vertical_bar`)* · `horizontal_bar` · `body` · `full` <br/> ![Elbow Right](../public/img/zones-elbow-right.png)|
+| **Elbow** (simple, open) | `horizontal_bar` · `body` · `full` — no vertical bar zone <br/> ![Elbow Open](../public/img/zones-elbow-open.png)|
+| **Elbow** (simple, contained) | `left_bar` · `right_bar` · `horizontal_bar` · `body` · `full` <br/> ![Elbow Contained](../public/img/zones-elbow-contained.png)|
+| **Elbow** (segmented) | `outer_vertical_bar` · `inner_vertical_bar` · `outer_horizontal_bar` · `inner_horizontal_bar` · `body` · `full` <br/> ![Elbow Segmented](../public/img/zones-elbow-segmented.png)|
+| **Elbow** (frame) | `top` · `bottom` · `left` · `right` · `body` · `full` <br/> ![Elbow Frame](../public/img/zones-elbow-frame.png) |
 
 ### Routing a field to a zone
 
@@ -267,6 +283,8 @@ Fields without a `zone:` key fall back to the card's primary zone (`body`, `trac
 ### Custom zones (config.zones)
 
 You can define additional zones or override auto-calculated ones with `config.zones`.  Values accept pixels, percent, or a mix per axis:
+
+![Elbow Frame](../public/img/zones-custom.png)
 
 ```yaml
 zones:
@@ -294,7 +312,7 @@ zones:
 | `width_percent` | number (0–100) | Width as % of card width |
 | `height_percent` | number (0–100) | Height as % of card height |
 
-Px takes precedence over percent when both are present on the same axis.  Percent values are resolved against the card's actual rendered pixel dimensions at rebuild time, so they are responsive to card size changes.
+`px` dimensinos takes precedence over `percent` when both are present on the same axis.  Percent values are resolved against the card's actual rendered pixel dimensions at rebuild time, so they are responsive to card size changes.
 
 Custom zone names that match an auto-calculated zone (e.g. `body`) **replace** the auto-calculated bounds entirely.
 

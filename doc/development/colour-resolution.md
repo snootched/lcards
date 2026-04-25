@@ -11,8 +11,9 @@ LCARdS supports three forms of colour expression throughout the theming, rules, 
 | Concrete value | `#93e1ff`, `rgba(0,200,255,0.7)` | Passed through unchanged |
 | CSS variable | `var(--lcars-blue-light, #93e1ff)` | Resolved via `getComputedStyle` |
 | Computed expression | `darken(var(--lcars-blue), 0.3)` | Requires two-step resolution |
+| Alert-immune baseline | `base(colors.ui.primary)` | Always resolves to green-alert snapshot |
 
-Supported computed functions: `lighten`, `darken`, `alpha`, `saturate`, `desaturate`, `mix`
+Supported computed functions: `lighten`, `darken`, `alpha`, `saturate`, `desaturate`, `mix`, `base`
 
 ---
 
@@ -152,7 +153,8 @@ ctx.fillStyle = ColorUtils.resolveCssVariable(resolver.resolve(config.color, '#0
 
 | API | File | Handles |
 |-----|------|---------|
-| `ThemeTokenResolver.resolve()` | `src/core/themes/ThemeTokenResolver.js` | Computed expressions, token references, CSS var passthrough |
+| `ThemeTokenResolver.resolve()` | `src/core/themes/ThemeTokenResolver.js` | Computed expressions (`darken`, `lighten`, `alpha`, `mix`, `base`), token references, CSS var passthrough |
+| `getBaselineColors()` | `src/core/themes/paletteInjector.js` | Returns the `--lcars-*` green-alert snapshot used by `base()` |
 | `ColorUtils.resolveCssVariable()` | `src/core/themes/ColorUtils.js` | CSS var materialisation |
 | `ColorUtils.darken/lighten/alpha/etc.` | `src/core/themes/ColorUtils.js` | Colour math on concrete values |
 | `resolveStateColor()` | `src/utils/state-color-resolver.js` | State-based colour lookup with full resolution chain |

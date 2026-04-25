@@ -588,7 +588,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         { type: 'field', path: 'min_height', label: 'Min Height', helper: 'Floor height. Overrides --lcards-button-min-height token.' },
                         { type: 'field', path: 'min_width',  label: 'Min Width',  helper: 'Floor width. Overrides --lcards-button-min-width token.' }
                     ]
-                }
+                },
+                { type: 'custom', render: () => this._renderLayoutCardHint() }
             ]
         });
 
@@ -741,7 +742,56 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * Actions tab - uses multi-action editor
      */
     _renderActionsTab() {
+        const isInteractive = this.config.interactive !== false;
+        const cursorOptions = [
+            { value: 'pointer',      label: 'Pointer (hand) — default' },
+            { value: 'default',      label: 'Default (arrow)' },
+            { value: 'none',         label: 'None (hidden)' },
+            { value: 'not-allowed',  label: 'Not allowed' },
+            { value: 'crosshair',    label: 'Crosshair' },
+            { value: 'grab',         label: 'Grab' },
+            { value: 'zoom-in',      label: 'Zoom in' },
+            { value: 'help',         label: 'Help' },
+            { value: 'wait',         label: 'Wait' },
+            { value: 'progress',     label: 'Progress' },
+            { value: 'move',         label: 'Move' },
+            { value: 'copy',         label: 'Copy' },
+            { value: 'text',         label: 'Text' },
+        ];
         return html`
+            <lcards-form-section
+                header="Hover &amp; Cursor"
+                icon="mdi:cursor-default-click"
+                ?expanded=${true}>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Show hover effects (colour change & hover animations)'}
+                    .helper=${'When off, mouse-over does not change the button colour or trigger hover animations. Tap/hold actions are unaffected.'}
+                    .selector=${{ boolean: {} }}
+                    .value=${isInteractive}
+                    @value-changed=${(e) => {
+                        this._updateConfig({ interactive: e.detail.value !== false });
+                    }}>
+                </ha-selector>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Cursor style'}
+                    .helper=${'CSS cursor shown when hovering over the button. Leave blank to use the default (pointer when interactive, arrow when hover effects are off).'}
+                    .selector=${{ select: { mode: 'dropdown', custom_value: true, options: cursorOptions } }}
+                    .value=${this.config.style?.cursor ?? ''}
+                    @value-changed=${(e) => {
+                        const val = e.detail.value;
+                        if (val) {
+                            this._updateConfig({ style: { cursor: val } });
+                        } else {
+                            // Remove the key so the automatic default takes over
+                            const style = { ...(this.config.style || {}) };
+                            delete style.cursor;
+                            this._updateConfig({ style });
+                        }
+                    }}>
+                </ha-selector>
+            </lcards-form-section>
             <lcards-multi-action-editor
                 .hass=${this.hass}
                 .actions=${{

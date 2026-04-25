@@ -32,36 +32,41 @@ rows:
 # Decorative cascade display
 type: custom:lcards-data-grid
 data_mode: decorative
-format: hex
+format: mixed
 grid:
-  grid-template-rows: repeat(8, auto)
-  grid-template-columns: repeat(12, 1fr)
-  gap: 6px
-animation:
-  type: cascade
-  pattern: default
-  colors:
-    start: "var(--lcards-blue-light)"
-    text: "var(--lcards-blue-darkest)"
-    end: "var(--lcards-moonlight)"
+  grid-template-rows: repeat(6, auto)
+  grid-template-columns: repeat(6, minmax(60px, 1fr))
+  gap: 0px
+style:
+  font_size: 22px
+animations:
+  - trigger: on_load
+    preset: cascade-color
 ```
 
 ---
 
 ## Top-Level Options
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `type` | string | `custom:lcards-data-grid` (required) |
-| `data_mode` | string | `data` or `decorative` (required) |
-| `rows` | list | Row definitions (data mode) |
-| `format` | string | Random data format (decorative mode) |
-| `refresh_interval` | number | Auto-refresh interval in ms (decorative mode, 0 = off) |
-| `grid` | object | CSS Grid layout config |
-| `style` | object | Cell and header row styles — see below |
-| `animation` | object | Cascade and change animations — see below |
-| `id` | string | Card ID for rule targeting |
-| `tags` | list | Tags for rule targeting |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `type` | string | — | `custom:lcards-data-grid` (required) |
+| `data_mode` | string | `decorative` | `decorative` or `data` (required). Legacy values `random`, `template`, `datasource` are auto-migrated. |
+| `rows` | list | — | Row definitions — data mode only; see [Data Mode: Rows](#data-mode-rows) |
+| `format` | string | `mixed` | Random data format for decorative mode: `digit`, `float`, `alpha`, `hex`, `mixed` |
+| `refresh_interval` | number | `0` | Auto-refresh interval in ms for decorative mode (`0` = disabled) |
+| `grid` | object | — | CSS Grid layout config — see [Grid Layout](#grid-layout) |
+| `style` | object | — | Grid-wide cell styles — see [`style` Object](#style-object) |
+| `header_style` | object | — | Style overrides for header rows — same fields as `style`; see [`header_style`](#header_style) |
+| `columns` | list | — | Per-column style overrides — see [Column Styles](#column-styles) |
+| `animations` | list | — | Card animations — see [Animations](../../core/animations.md) |
+| `filters` | list | — | Visual filters applied to the entire grid — see [Filters](../../core/effects/filters.md) |
+| `height` | number / string | — | Card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `width` | number / string | — | Card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `min_height` | number / string | — | Minimum card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `min_width` | number / string | — | Minimum card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
+| `id` | string | — | Card ID for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
+| `tags` | list | — | Tags for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
 
 ---
 
@@ -101,7 +106,22 @@ rows:
 
 ## Grid Layout
 
-Uses CSS Grid — any valid CSS Grid values work:
+Uses CSS Grid. Specify any valid CSS Grid values:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `grid-template-columns` | string | — | CSS columns definition, e.g. `"repeat(12, 1fr)"` or `"100px 1fr 2fr"` |
+| `grid-template-rows` | string | — | CSS rows definition, e.g. `"repeat(8, auto)"` |
+| `gap` | string | — | Uniform cell gap, e.g. `"8px"` |
+| `row-gap` | string | — | Vertical gap between rows |
+| `column-gap` | string | — | Horizontal gap between columns |
+| `grid-auto-flow` | string | `row` | Auto-placement algorithm: `row`, `column`, `dense`, `row dense`, `column dense` |
+| `justify-items` | string | `stretch` | Horizontal alignment of cells in their areas: `stretch`, `start`, `end`, `center` |
+| `align-items` | string | `stretch` | Vertical alignment of cells in their areas: `stretch`, `start`, `end`, `center` |
+| `justify-content` | string | — | Horizontal alignment of the grid within the card: `start`, `end`, `center`, `space-between`, `space-around`, `space-evenly` |
+| `align-content` | string | — | Vertical alignment of the grid within the card: `start`, `end`, `center`, `space-between`, `space-around`, `space-evenly` |
+| `grid-auto-columns` | string | — | Width of implicit columns, e.g. `"1fr"` |
+| `grid-auto-rows` | string | — | Height of implicit rows, e.g. `"auto"` |
 
 ```yaml
 grid:
@@ -110,6 +130,7 @@ grid:
   gap: "8px"
   column-gap: "12px"
   row-gap: "6px"
+  justify-items: start
 ```
 
 ---
@@ -130,64 +151,78 @@ grid:
 
 ## `style` Object
 
-### `style.cell`
+Applied grid-wide to every cell. All fields are optional.
 
-Applied to every data cell:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `background` | string | Cell background colour |
-| `color` | string | Text colour |
-| `font_size` | number | Font size in px |
-| `font_family` | string | CSS font family |
-| `padding` | string | CSS padding shorthand, e.g. `"4px 8px"` |
-| `border_radius` | number | Corner radius in px |
-| `text_align` | string | `left`, `center`, `right` |
-
-### `style.header_row`
-
-Applied to the first row when it is used as a header:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `background` | string | Header row background colour |
-| `color` | string | Header text colour |
-| `font_weight` | string / number | CSS font-weight (`bold`, `700`, etc.) |
-| `font_size` | number | Header font size in px |
-| `text_align` | string | `left`, `center`, `right` |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `color` | string | theme default | Cell text colour (supports theme tokens) |
+| `background` | string | `transparent` | Cell background colour |
+| `font_size` | number / string | `24` | Font size in px or with unit, e.g. `"18px"`, `"1.2rem"` |
+| `font_family` | string | `"Antonio, sans-serif"` | CSS font family |
+| `font_weight` | number / string | `400` | CSS font-weight, e.g. `bold`, `700` |
+| `align` | string | `right` | Text alignment: `left`, `center`, `right` |
+| `padding` | number / string | `"4px"` | Cell padding in px or with unit |
+| `border_width` | number | -- | Cell border width in px |
+| `border_color` | string | -- | Cell border colour (supports theme tokens) |
+| `border_style` | string | `solid` | Cell border style: `solid`, `dashed`, `dotted`, `double`, `groove`, `ridge`, `inset`, `outset` |
 
 ```yaml
 style:
-  cell:
-    background: "var(--ha-card-background)"
-    color: "var(--lcards-moonlight)"
-    font_size: 12
-    font_family: "Antonio, sans-serif"
-    padding: "4px 8px"
-    border_radius: 4
-    text_align: left
-  header_row:
-    background: "alpha(var(--lcards-orange), 0.08)"
-    color: "var(--lcards-orange)"
-    font_weight: bold
-    font_size: 13
+  background: "var(--ha-card-background)"
+  color: "var(--lcars-moonlight)"
+  font_size: 12
+  font_family: "Antonio, sans-serif"
+  padding: "4px 8px"
+  align: left
+```
+
+---
+
+## `header_style`
+
+Style overrides applied to header rows. Accepts the same fields as [`style`](#style-object).
+
+```yaml
+header_style:
+  background: "alpha(var(--lcars-orange), 0.08)"
+  color: "var(--lcars-orange)"
+  font_weight: bold
+  font_size: 13
+```
+
+---
+
+## Column Styles
+
+Per-column style overrides. Each entry in the `columns` list corresponds to a column index (0-based) and may contain a `style` object with the same fields as [`style`](#style-object).
+
+```yaml
+columns:
+  - style:
+      color: "var(--lcars-orange)"
+      font_weight: bold
+  - style: {}
+  - style:
+      align: center
 ```
 
 ---
 
 ## Cascade Animation
 
-The cascade effect cycles colours through each row in sequence, creating a waterfall effect.
+The cascade effect cycles colours through each row in sequence, creating a waterfall effect. Use the standard `animations:` array with `preset: cascade-color`:
 
 ```yaml
-animation:
-  type: cascade
-  pattern: default       # default | niagara | fast | custom
-  speed_multiplier: 1.5  # Multiply speed (1.0 = normal)
-  colors:
-    start: "var(--lcards-blue-light)"
-    text: "var(--lcards-blue-darkest)"
-    end: "var(--lcards-moonlight)"
+animations:
+  - trigger: on_load
+    preset: cascade-color
+    params:
+      pattern: default       # default | niagara | fast | custom
+      speed_multiplier: 1.5  # Multiply speed (1.0 = normal)
+      colors:
+        start: "var(--lcars-blue-light)"
+        text: "var(--lcars-blue-darkest)"
+        end: "var(--lcars-moonlight)"
 ```
 
 ### Patterns
@@ -202,17 +237,19 @@ animation:
 ### Custom Timing
 
 ```yaml
-animation:
-  type: cascade
-  pattern: custom
-  timing:
-    - { duration: 3000, delay: 0.1 }   # Row 0
-    - { duration: 2000, delay: 0.2 }   # Row 1
-    - { duration: 4000, delay: 0.3 }   # Row 2 (repeats)
-  colors:
-    start: "var(--lcards-blue-light)"
-    text: "var(--lcards-blue-darkest)"
-    end: "var(--lcards-moonlight)"
+animations:
+  - trigger: on_load
+    preset: cascade-color
+    params:
+      pattern: custom
+      timing:
+        - { duration: 3000, delay: 0.1 }   # Row 0
+        - { duration: 2000, delay: 0.2 }   # Row 1
+        - { duration: 4000, delay: 0.3 }   # Row 2 (repeats)
+      colors:
+        start: "var(--lcars-blue-light)"
+        text: "var(--lcars-blue-darkest)"
+        end: "var(--lcars-moonlight)"
 ```
 
 ---
@@ -222,14 +259,17 @@ animation:
 Highlight cells that have just changed — draws attention to live data updates.
 
 ```yaml
-animation:
-  highlight_changes: true
-  change_preset: pulse     # pulse | glow
-  change_duration: 500
-  change_params:
-    max_scale: 1.08        # For pulse
-    # color: "var(--lcards-orange)"   # For glow
-    # blur_max: 12                    # For glow
+animations:
+  - trigger: on_load
+    preset: cascade-color
+    params:
+      highlight_changes: true
+      change_preset: pulse     # pulse | glow
+      change_duration: 500
+      change_params:
+        max_scale: 1.08        # For pulse
+        # color: "var(--lcars-orange)"   # For glow
+        # blur_max: 12                    # For glow
 ```
 
 ---
@@ -243,7 +283,7 @@ type: custom:lcards-data-grid
 data_mode: data
 
 rows:
-  # Header row — styled via style.header_row
+  # Header row — styled via header_style
   - values: [SUBSYSTEM, VALUE, STATUS]
 
   # Entity cells — auto-subscribed live values
@@ -253,8 +293,8 @@ rows:
   # Template cell
   - [Disk, sensor.disk_use_percent, "{{ states('sensor.disk_use_percent') }}%"]
 
-  # DataSource cell with format specifier (note: datasource template syntax for dynamic values)
-  - [Net TX, "{datasource:net_tx:.1f} MB/s", "var(--lcards-moonlight)"]
+  # DataSource cell with format specifier
+  - [Net TX, "{datasource:net_tx:.1f} MB/s", "--"]
 
 data_sources:
   net_tx:
@@ -270,30 +310,32 @@ grid:
   gap: 6px
 
 style:
-  cell:
-    background: "var(--ha-card-background)"
-    color: "var(--lcards-moonlight)"
-    font_size: 12
-    font_family: "Antonio, sans-serif"
-    padding: "4px 8px"
-  header_row:
-    background: "alpha(var(--lcards-orange), 0.08)"
-    color: "var(--lcards-orange)"
-    font_weight: bold
-    text_align: center
+  background: "var(--ha-card-background)"
+  color: "var(--lcars-moonlight)"
+  font_size: 12
+  font_family: "Antonio, sans-serif"
+  padding: "4px 8px"
 
-animation:
-  type: cascade
-  pattern: niagara
-  colors:
-    start: "var(--lcards-blue-light)"
-    text: "var(--lcards-blue-darkest)"
-    end: "var(--lcards-moonlight)"
-  highlight_changes: true
-  change_preset: glow
-  change_params:
-    color: "var(--lcards-orange)"
-    blur_max: 8
+header_style:
+  background: "alpha(var(--lcars-orange), 0.08)"
+  color: "var(--lcars-orange)"
+  font_weight: bold
+  align: center
+
+animations:
+  - trigger: on_load
+    preset: cascade-color
+    params:
+      pattern: niagara
+      colors:
+        start: "var(--lcars-blue-light)"
+        text: "var(--lcars-blue-darkest)"
+        end: "var(--lcars-moonlight)"
+      highlight_changes: true
+      change_preset: glow
+      change_params:
+        color: "var(--lcars-orange)"
+        blur_max: 8
 ```
 
 ---

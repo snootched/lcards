@@ -503,16 +503,16 @@ export const BUTTON_PRESETS = {
       }
     },
 
-    // Text styling with theme token references
+    // Text styling — mirrors button background state colors (active color on text, off/unavailable muted)
     text: {
       default: {
         font_size: 16,
         font_weight: 'normal',
         color: {
-          active: 'theme:colors.ui.foreground',
-          inactive: 'theme:colors.ui.disabled',
-          unavailable: 'theme:colors.ui.disabled',
-          default: 'theme:colors.ui.foreground'
+          active: 'theme:components.button.background.active',
+          inactive: 'theme:components.button.background.inactive',
+          unavailable: 'theme:components.button.background.unavailable',
+          default: 'theme:components.button.background.active'
         }
       },
       label: {
@@ -574,7 +574,7 @@ export const BUTTON_PRESETS = {
           default: 'var(--lcards-yellow, #FFCC99)',  // LCARS yellow for labels
           active: 'var(--lcards-yellow, #FFCC99)',
           inactive: 'var(--lcards-yellow, #FFCC99)',
-          unavailable: 'var(--lcars-ui-red, #CC6666)'
+          unavailable: 'theme:colors.status.error'
         },
         // Opaque background creates the bar "break" effect
         background: { default: 'black' },

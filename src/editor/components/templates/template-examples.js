@@ -82,14 +82,14 @@ export const EXAMPLE_TEMPLATES = {
 
   'theme-token': {
     name: 'Theme Token',
-    template: 'Color: {theme:colors.accent.primary}',
+    template: 'Color: {theme:colors.ui.primary}',
     description: 'Access theme tokens for styling',
     mockEntity: 'light.kitchen'
   },
 
   'theme-multiple': {
     name: 'Multiple Theme Tokens',
-    template: 'Primary: {theme:colors.primary}, Accent: {theme:colors.accent.primary}',
+    template: 'Primary: {theme:colors.ui.primary}, Text: {theme:colors.text.onDark}',
     description: 'Use multiple theme tokens in one template',
     mockEntity: 'light.kitchen'
   },
@@ -105,7 +105,7 @@ export const EXAMPLE_TEMPLATES = {
 
   'mixed-entity-theme': {
     name: 'Mixed: Entity + Theme',
-    template: 'Status: {entity.state} (Color: {theme:colors.primary})',
+    template: 'Status: {entity.state} (Color: {theme:colors.ui.primary})',
     description: 'Combine entity tokens and theme tokens',
     mockEntity: 'light.kitchen',
     mockState: { state: 'on', attributes: {} }

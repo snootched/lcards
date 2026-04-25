@@ -14,11 +14,6 @@ export const msdStudioStyles = css`
         display: block;
     }
 
-    /* Override HA button fonts to use theme font */
-    ha-button {
-        font-family: var(--lcars-font-family, 'Antonio', sans-serif);
-    }
-
     /* ha-dialog Sizing - Web Awesome ha-dialog uses --ha-dialog-* CSS properties */
     ha-dialog {
         --ha-dialog-width-md: min(95vw, 95vw);
@@ -131,7 +126,7 @@ export const msdStudioStyles = css`
         min-width: 52px;
         text-align: center;
         user-select: none;
-        font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+        font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio', sans-serif));
         letter-spacing: 0.5px;
     }
 
@@ -179,25 +174,47 @@ export const msdStudioStyles = css`
         display: flex;
         gap: 8px;
         align-items: center;
-        background: rgba(0, 0, 0, 0.85);
+        background: rgba(30, 40, 60, 0.82);
         backdrop-filter: blur(8px);
         border-radius: 24px;
         padding: 8px 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
         z-index: 1000;
     }
 
-    .zoom-controls ha-icon-button {
-        --mdc-icon-button-size: 36px;
-        color: white;
+    .zoom-control-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: transparent;
+        border: 1px solid transparent;
+        cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
+        transition: all 0.15s;
+        flex-shrink: 0;
+        padding: 0;
+        color: white;
+        --mdc-icon-size: 18px;
     }
 
-    .zoom-controls ha-icon-button:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 50%;
+    .zoom-control-btn ha-icon {
+        --mdc-icon-size: 18px;
+        color: white;
+    }
+
+    .zoom-control-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: var(--primary-color);
+    }
+
+    .zoom-control-divider {
+        width: 1px;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.2);
+        margin: 0 2px;
     }
 
     .zoom-level {
@@ -275,7 +292,7 @@ export const msdStudioStyles = css`
 
     .preview-scroll-container {
         flex: 1;
-        overflow: auto;
+        overflow: hidden;   /* d3-zoom owns pan — native scroll would fight the CSS transform */
         position: relative;
         padding-top: 48px;  /* Push content down below action bar */
     }
@@ -283,6 +300,16 @@ export const msdStudioStyles = css`
     /* Cursor feedback based on mode */
     .preview-panel.mode-view {
         cursor: default;
+    }
+
+    /* Grab cursor hints that the canvas can be panned by dragging */
+    .preview-panel.mode-view .preview-scroll-container {
+        cursor: grab;
+    }
+
+    /* Grabbing cursor while a pan drag is in progress (class added by d3-zoom start/end) */
+    .preview-panel.mode-view .preview-scroll-container.panning {
+        cursor: grabbing !important;
     }
 
     .preview-panel.mode-view.dragging {

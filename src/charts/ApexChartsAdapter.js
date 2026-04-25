@@ -362,7 +362,7 @@ export class ApexChartsAdapter {
 
     // Background & foreground (these are single values, not arrays - no normalization)
     const backgroundColor = style.colors?.background ?? 'transparent';
-    const foregroundColor = style.colors?.foreground ?? 'var(--lcars-white, #FFFFFF)';
+    const foregroundColor = style.colors?.foreground ?? 'var(--lcars-text-light, #FFFFFF)';
 
     // Grid colors
     const gridColor = style.colors?.grid ?? 'var(--lcars-gray, #999999)';
@@ -951,7 +951,7 @@ export class ApexChartsAdapter {
                 background: 'transparent'
               },
               track: {
-                background: resolveToken('colors.ui.disabled', 'var(--lcars-gray, #999999)'),
+                background: resolveToken('colors.chart.grid', 'var(--lcars-gray, #999999)'),
                 strokeWidth: '100%',
                 opacity: 0.3
               },
@@ -960,7 +960,7 @@ export class ApexChartsAdapter {
                   show: true,
                   fontSize: resolveToken('typography.fontSize.sm', '12px'),
                   fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
-                  color: resolveToken('colors.ui.foreground', 'var(--lcars-white, #FFFFFF)'),
+                  color: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'),
                   offsetY: -10
                 },
                 value: {
@@ -978,7 +978,7 @@ export class ApexChartsAdapter {
                   label: 'TOTAL',
                   fontSize: resolveToken('typography.fontSize.sm', '12px'),
                   fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
-                  color: resolveToken('colors.ui.foreground', 'var(--lcars-white, #FFFFFF)'),
+                  color: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'),
                   formatter: (w) => {
                     const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
                     return style.value_format === 'percent' ? `${Math.round(total)}%` : total;
@@ -1006,7 +1006,7 @@ export class ApexChartsAdapter {
             labels: {
               datetimeUTC: false,
               style: {
-                colors: resolveToken('colors.ui.foreground', 'var(--lcars-white, #FFFFFF)'),
+                colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'),
                 fontSize: resolveToken('typography.fontSize.xs', '10px'),
                 fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif')
               }
@@ -1015,7 +1015,7 @@ export class ApexChartsAdapter {
           yaxis: {
             labels: {
               style: {
-                colors: resolveToken('colors.ui.foreground', 'var(--lcars-white, #FFFFFF)'),
+                colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'),
                 fontSize: resolveToken('typography.fontSize.xs', '10px'),
                 fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif')
               }
@@ -1036,17 +1036,17 @@ export class ApexChartsAdapter {
             polarArea: {
               rings: {
                 strokeWidth: 1,
-                strokeColor: resolveToken('colors.ui.border', 'var(--lcars-gray, #999999)')
+                strokeColor: resolveToken('colors.chart.grid', 'var(--lcars-gray, #999999)')
               },
               spokes: {
                 strokeWidth: 1,
-                connectorColors: resolveToken('colors.ui.border', 'var(--lcars-gray, #999999)')
+                connectorColors: resolveToken('colors.chart.grid', 'var(--lcars-gray, #999999)')
               }
             }
           },
           stroke: {
             width: 2,
-            colors: [resolveToken('colors.ui.background', 'var(--lcars-black, #000000)')]
+            colors: [resolveToken('colors.chart.background', '#000000')]
           },
           fill: {
             opacity: 0.8
@@ -1056,7 +1056,7 @@ export class ApexChartsAdapter {
             fontSize: resolveToken('typography.fontSize.sm', '12px'),
             fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
             labels: {
-              colors: resolveToken('colors.ui.foreground', 'var(--lcars-white, #FFFFFF)')
+              colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))')
             }
           }
         };
@@ -1130,7 +1130,7 @@ export class ApexChartsAdapter {
             fontSize: resolveToken('typography.fontSize.sm', '12px'),
             fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
             labels: {
-              colors: resolveToken('colors.ui.foreground', 'var(--lcars-white, #FFFFFF)')
+              colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))')
             }
           }
         };
@@ -1145,7 +1145,7 @@ export class ApexChartsAdapter {
             }
           },
           grid: {
-            borderColor: resolveToken('colors.ui.border', 'var(--lcars-gray, #999999)'),
+            borderColor: resolveToken('colors.chart.grid', 'var(--lcars-gray, #999999)'),
             strokeDashArray: 4,
             xaxis: {
               lines: { show: style.grid?.show !== false }
@@ -1162,7 +1162,7 @@ export class ApexChartsAdapter {
             fontSize: resolveToken('typography.fontSize.sm', '12px'),
             fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
             labels: {
-              colors: resolveToken('colors.ui.foreground', 'var(--lcars-white, #FFFFFF)')
+              colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))')
             }
           }
         };
@@ -1185,7 +1185,7 @@ export class ApexChartsAdapter {
             labels: {
               datetimeUTC: false,
               style: {
-                colors: resolveToken('colors.ui.foreground', 'var(--lcars-white, #FFFFFF)'),
+                colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'),
                 fontSize: resolveToken('typography.fontSize.xs', '10px'),
                 fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif')
               }
@@ -1205,7 +1205,7 @@ export class ApexChartsAdapter {
           },
           stroke: {
             width: 2,
-            colors: [resolveToken('colors.ui.foreground', 'var(--lcars-white, #FFFFFF)')]
+            colors: [resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))')]
           }
         };
 
@@ -1508,7 +1508,7 @@ static _getRawData(dataSource, config) {
               color: '#fff',
               background: threshold.color || 'var(--lcars-red, var(--lcards-orange-dark, #dd4444))',
               fontSize: '10px',
-              fontFamily: 'var(--lcars-font-family, Antonio)'
+              fontFamily: 'var(--lcars-font, var(--lcars-fallback-font, Antonio))'
             },
             position: 'right',
             offsetX: 0,

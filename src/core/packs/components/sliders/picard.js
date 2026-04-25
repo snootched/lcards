@@ -84,7 +84,7 @@ function renderRangeSegments(zoneSpec, colors, style, config) {
     const displayMax = config.max ?? 100;
     const displayRange = displayMax - displayMin;
 
-    const borderColor = style?.range?.border?.color || '#000000';
+    const borderColor = colors?.rangeBorder || style?.range?.border?.color || 'black';
     const borderGap = style?.range?.border?.gap ?? 2;
 
     const height = zoneSpec.height;
@@ -95,7 +95,7 @@ function renderRangeSegments(zoneSpec, colors, style, config) {
     ranges.forEach((range, index) => {
         const rangeMin = range.min ?? displayMin;
         const rangeMax = range.max ?? displayMax;
-        const rangeColor = range.color || '#CCCCCC';
+        const rangeColor = range.color || 'var(--lcards-gray-medium, #cccccc)';
 
         const startPercent = (rangeMin - displayMin) / displayRange;
         const endPercent = (rangeMax - displayMin) / displayRange;

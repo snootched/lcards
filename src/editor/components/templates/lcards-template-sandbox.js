@@ -1063,7 +1063,7 @@ export class LCARdSTemplateSandbox extends LitElement {
           <div style="margin-bottom: 12px; padding: 12px; background: var(--card-background-color); border-left: 3px solid var(--primary-color); border-radius: 4px;">
             <strong style="color: var(--primary-color); font-size: 14px;">2. Token Templates</strong><br>
             <code style="background: var(--code-background-color); padding: 3px 8px; border-radius: 3px; margin: 8px 0; display: inline-block;">{entity.state}</code>
-            <code style="background: var(--code-background-color); padding: 3px 8px; border-radius: 3px; margin: 8px 0; display: inline-block;">{theme:palette.moonlight}</code><br>
+            <code style="background: var(--code-background-color); padding: 3px 8px; border-radius: 3px; margin: 8px 0; display: inline-block;">{theme:colors.text.onDark}</code><br>
             <span style="color: var(--secondary-text-color); font-size: 12px;">Simple property access with dot notation</span>
             <div style="margin-top: 8px; font-size: 12px;">
               <strong>Examples:</strong> {entity.attributes.brightness}, {config.name}

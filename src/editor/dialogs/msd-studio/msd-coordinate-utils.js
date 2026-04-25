@@ -72,15 +72,14 @@ export function getPreviewCoordinatesFromMouseEvent(event, dialogShadowRoot, con
     // Convert to SVG pixel coordinates
     const svgLeft = rect.left - panelRect.left;
     const svgTop = rect.top - panelRect.top;
-    let svgPixelX = mouseX - svgLeft - offsetX;
-    let svgPixelY = mouseY - svgTop - offsetY;
+    const svgPixelX = mouseX - svgLeft - offsetX;
+    const svgPixelY = mouseY - svgTop - offsetY;
 
-    // ✨ ZOOM INTEGRATION: Apply inverse zoom transform
-    // This converts screen coordinates back to pre-zoom SVG coordinates
-    if (zoomTransform?.k && zoomTransform.k !== 1) {
-        svgPixelX = (svgPixelX - zoomTransform.x) / zoomTransform.k;
-        svgPixelY = (svgPixelY - zoomTransform.y) / zoomTransform.k;
-    }
+    // NOTE: No manual zoom-transform correction needed here.
+    // svg.getBoundingClientRect() already returns post-CSS-transform coordinates,
+    // so svgLeft/Top account for the d3-zoom translate and rect.width/height already
+    // reflect the zoom scale — which means `scale` above already inverts it implicitly.
+    // Applying the zoom transform again would double-count it and cause coordinates to jump.
 
     // Convert to ViewBox coordinates
     const x = svgPixelX * scale + viewBoxX;

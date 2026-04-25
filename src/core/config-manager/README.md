@@ -16,7 +16,7 @@ Card defaults registered in CoreConfigManager should **only** contain behavioral
 
 ```javascript
 // ✅ CORRECT: Behavioral defaults
-configManager.registerCardDefaults('simple-button', {
+configManager.registerCardDefaults('button', {
   show_label: true,           // Whether to display label
   show_icon: false,           // Whether to display icon
   enable_hold_action: true,   // Whether hold action is enabled
@@ -30,7 +30,7 @@ Style defaults belong in Theme or Presets, **not** card defaults:
 
 ```javascript
 // ❌ WRONG: Don't put styles in card defaults
-configManager.registerCardDefaults('simple-button', {
+configManager.registerCardDefaults('button', {
   style: {
     height: 45,        // ← Should be in theme or preset
     fontSize: 20       // ← Should be in theme or preset
@@ -89,7 +89,7 @@ Process card configuration with four-layer merge.
 
 **Parameters:**
 - `userConfig` (Object) - Raw config from YAML/UI
-- `cardType` (string) - Card type identifier ('simple-button', 'msd', etc.)
+- `cardType` (string) - Card type identifier ('button', 'msd', etc.)
 - `context` (Object) - Additional context `{ hass, entity, ... }`
 
 **Returns:** `Promise<ConfigResult>`
@@ -113,7 +113,7 @@ const result = await core.configManager.processConfig(
     entity: 'light.bedroom',
     style: { color: 'red' }
   },
-  'simple-button',
+  'button',
   { hass: this.hass }
 );
 
@@ -139,14 +139,14 @@ Register behavioral defaults for a card type.
 
 ```javascript
 // ✅ CORRECT
-configManager.registerCardDefaults('simple-button', {
+configManager.registerCardDefaults('button', {
   show_label: true,
   show_icon: false,
   enable_hold_action: true
 });
 
 // ❌ WRONG - Styles not allowed
-configManager.registerCardDefaults('simple-button', {
+configManager.registerCardDefaults('button', {
   style: { height: 45 }  // Will be ignored with warning
 });
 ```
@@ -164,7 +164,7 @@ Register JSON schema for validation.
 **Example:**
 
 ```javascript
-configManager.registerCardSchema('simple-button', {
+configManager.registerCardSchema('button', {
   type: 'object',
   properties: {
     entity: { type: 'string' },
@@ -193,8 +193,8 @@ Get debug information about registered cards and processing stats.
     tokensResolved: 25
   },
   registeredCards: {
-    schemas: ['simple-button', 'simple-label'],
-    defaults: ['simple-button', 'simple-label']
+    schemas: ['button', 'label'],
+    defaults: ['button', 'label']
   },
   dependencies: {
     hasValidationService: true,
@@ -213,7 +213,7 @@ Get debug information about registered cards and processing stats.
 ```javascript
 // Card self-registers at module load
 if (window.lcardsCore?.configManager) {
-  window.lcardsCore.configManager.registerCardDefaults('simple-button', {
+  window.lcardsCore.configManager.registerCardDefaults('button', {
     show_label: true,
     show_icon: false
   });
@@ -231,7 +231,7 @@ async setConfig(config) {
   // Process with CoreConfigManager
   const result = await core.configManager.processConfig(
     config,
-    'simple-button',
+    'button',
     { hass: this.hass }
   );
 
@@ -287,7 +287,7 @@ style:
 
 ```javascript
 {
-  card_type: 'simple-button',
+  card_type: 'button',
   merge_order: ['card_defaults', 'theme_defaults', 'preset_lozenge', 'user_config'],
   field_sources: {
     'show_label': 'card_defaults',
@@ -383,7 +383,7 @@ Tokens are resolved **after** four-layer merge but **before** validation.
 ### Validation Errors
 
 ```javascript
-const result = await configManager.processConfig(config, 'simple-button', {});
+const result = await configManager.processConfig(config, 'button', {});
 
 if (!result.valid) {
   result.errors.forEach(error => {

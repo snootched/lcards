@@ -91,6 +91,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // Base SVG Tab Properties
             _viewBoxMode: { type: String, state: true }, // 'auto' or 'custom'
             _svgSourceMode: { type: String, state: true }, // 'asset', 'custom', or 'none'
+            _extractedViewBox: { type: Array, state: true }, // viewBox auto-extracted from SVG (not in user config)
             _customFiltersEnabled: { type: Boolean, state: true },
             // Anchors Tab Properties
             _showAnchorForm: { type: Boolean, state: true },
@@ -207,6 +208,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Base SVG Tab State
         this._viewBoxMode = 'auto';
+        this._extractedViewBox = null;
         this._svgSourceMode = 'asset'; // Default to asset library
         this._customFiltersEnabled = false;
 
@@ -236,6 +238,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._zoomBehavior = null;
         this._zoomContainer = null;  // The preview-scroll-container element
         this._zoomWrapper = null;     // The zoomable wrapper div
+        this._zoomBaseWidth = 0;      // Natural (unscaled) wrapper width, set from viewBox
+        this._zoomBaseHeight = 0;     // Natural (unscaled) wrapper height, set from viewBox
+        this._fitPending = false;     // Guard: fit-to-viewport scheduled but not yet applied
+        this._panJustEnded = false;   // True for one tick after a pan drag, suppresses click deselect
 
         // Controls Tab State
         this._showControlForm = false;
@@ -567,11 +573,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
         lcardsLog.debug('[MSDStudio][ZOOM] Found zoomable wrapper');
 
-        // Store original wrapper dimensions before any transformations
-        // @ts-ignore - TS2339: auto-suppressed
-        const baseWidth = zoomableWrapper.offsetWidth;
-        // @ts-ignore - TS2339: auto-suppressed
-        const baseHeight = zoomableWrapper.offsetHeight;
+        // Seed natural dimensions from the viewBox (not from DOM offsetWidth/Height
+        // which races with the 300ms live-preview debounce and reads 0).
+        const { width: natW, height: natH } = this._previewNaturalSize;
+        this._zoomBaseWidth = natW;
+        this._zoomBaseHeight = natH;
 
         // Create zoom behavior with constraints
         this._zoomBehavior = zoom()
@@ -589,9 +595,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 // Allow pinch-to-zoom
                 if (event.type === 'touchstart' && event.touches?.length === 2) return true;
 
-                // Allow pan with Shift+Drag or Middle-mouse button
+                // Allow pan:
+                //   - Middle mouse button (always)
+                //   - Shift + left drag (always, legacy shortcut kept)
+                //   - Bare left drag in view mode on canvas background
                 if (event.type === 'mousedown') {
-                    return event.button === 1 || (event.button === 0 && event.shiftKey);
+                    if (event.button === 1) return true;
+                    if (event.button === 0 && event.shiftKey) return true;
+                    // In view mode allow a bare left-drag to pan.
+                    // The target check is best-effort: interactive overlays (anchor markers,
+                    // control handles, line endpoints) are rendered outside the scroll
+                    // container so they won't reach this filter in the first place.
+                    if (event.button === 0 && this._activeMode === MODES.VIEW) return true;
+                    return false;
                 }
 
                 return false;
@@ -605,26 +621,30 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 // @ts-ignore - TS2339: auto-suppressed
                 zoomableWrapper.style.transformOrigin = 'top left';
 
-                // Update wrapper dimensions to match scaled size for proper scrollbar sizing
-                // Use stored base dimensions, not current scrollWidth (which changes with each zoom)
-                const marginX = Math.abs(Math.min(0, t.x));
-                const marginY = Math.abs(Math.min(0, t.y));
-                // @ts-ignore - TS2339: auto-suppressed
-                zoomableWrapper.style.width = `${baseWidth * t.k + marginX}px`;
-                // @ts-ignore - TS2339: auto-suppressed
-                zoomableWrapper.style.height = `${baseHeight * t.k + marginY}px`;
-                // @ts-ignore - TS2339: auto-suppressed
-                zoomableWrapper.style.marginLeft = `${marginX}px`;
-                // @ts-ignore - TS2339: auto-suppressed
-                zoomableWrapper.style.marginTop = `${marginY}px`;
-
                 // Store full transform object (not just scale)
                 this._currentZoom = { x: t.x, y: t.y, k: t.k };
                 this.requestUpdate(); // Updates studio overlays
 
                 lcardsLog.trace('[MSDStudio][ZOOM] Transform applied:', { x: t.x, y: t.y, k: t.k });
             })
+            .on('start', () => {
+                // Add panning class to the container for grab cursor feedback.
+                // d3-zoom fires start for both scroll-zoom and drag-pan; the CSS
+                // rule only shows grabbing when the cursor would be grab (view mode).
+                if (this._zoomContainer) {
+                    this._zoomContainer.classList.add('panning');
+                }
+            })
             .on('end', () => {
+                if (this._zoomContainer) {
+                    this._zoomContainer.classList.remove('panning');
+                }
+                // Signal to _handlePreviewClick that a pan just finished so it
+                // does not deselect the current line. d3-zoom suppresses clicks
+                // after a drag via stopImmediatePropagation, but defensively guard
+                // here too in case the suppression is bypassed.
+                this._panJustEnded = true;
+                setTimeout(() => { this._panJustEnded = false; }, 0);
                 // Request update after pan/zoom ends to refresh overlay positions
                 // Fixes issue where anchors/controls stay in old position after shift+drag
                 this.requestUpdate();
@@ -636,18 +656,62 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._zoomContainer = container;
         this._zoomWrapper = zoomableWrapper;
 
-        // Add scroll event listener to sync scrollbar with overlays
-        // Scrollbar moves viewport, but wrapper has CSS transform
-        // Overlays are siblings and need to account for scroll offset
-        container.addEventListener('scroll', () => {
-            lcardsLog.trace('[MSDStudio][ZOOM] Scroll detected, refreshing overlays');
-            // Just refresh - overlays use getBoundingClientRect which accounts for scroll
-            this.requestUpdate();
-        });
-
         lcardsLog.debug('[MSDStudio][ZOOM] Zoom initialization complete with scroll sync');
-
         lcardsLog.info('[MSDStudio] 🔍 Zoom behavior initialized on preview container');
+
+        // Schedule fit-to-viewport after the live-preview 300ms debounce has fired
+        // and the card has had a chance to render and establish real dimensions.
+        if (!this._fitPending) {
+            this._fitPending = true;
+            setTimeout(() => {
+                this._fitPending = false;
+                this._fitToViewport();
+            }, 400);
+        }
+    }
+
+    /**
+     * Returns the natural (unscaled) pixel size for the wrapper, derived from the
+     * config viewBox.  This gives the wrapper a concrete height so that the
+     * height:100% chain inside lcards-msd-live-preview resolves correctly.
+     * @returns {{ width: number, height: number }}
+     * @private
+     */
+    get _previewNaturalSize() {
+        const vb = this._workingConfig?.msd?.view_box || this._extractedViewBox;
+        const vbW = (Array.isArray(vb) && vb.length >= 4 && vb[2] > 0) ? vb[2] : 1920;
+        const vbH = (Array.isArray(vb) && vb.length >= 4 && vb[3] > 0) ? vb[3] : 1080;
+        return { width: vbW, height: vbH };
+    }
+
+    /**
+     * Compute and apply a d3-zoom transform that fits the wrapper inside the
+     * visible scroll container area.  Called after init and after SVG changes.
+     * @private
+     */
+    _fitToViewport() {
+        if (!this._zoomBehavior || !this._zoomContainer) return;
+        const containerRect = this._zoomContainer.getBoundingClientRect();
+        const availW = containerRect.width;
+        const availH = containerRect.height;
+        if (!availW || !availH) return;
+
+        // Always re-read from viewBox so a SVG change is picked up immediately
+        const { width: natW, height: natH } = this._previewNaturalSize;
+        this._zoomBaseWidth = natW;
+        this._zoomBaseHeight = natH;
+
+        // Scale to fit with 32px padding on each axis; never zoom beyond 1:1
+        const k = Math.min(1, (availW - 32) / natW, (availH - 32) / natH);
+        const tx = (availW - natW * k) / 2;
+        const ty = Math.max(16, (availH - natH * k) / 2);
+
+        select(this._zoomContainer).call(
+            this._zoomBehavior.transform,
+            zoomIdentity.translate(tx, ty).scale(k)
+        );
+        this.requestUpdate();
+        lcardsLog.debug('[MSDStudio][ZOOM] Fit to viewport applied:', { k, tx, ty, natW, natH, availW, availH });
     }
 
     /**
@@ -1246,7 +1310,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     border-radius: 8px;
                     color: white;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                    font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+                    font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio', sans-serif));
                 ">
                     <!-- Header -->
                     <div style="
@@ -1482,6 +1546,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         const extracted = await this._extractViewBoxFromSvg();
         if (extracted && this._viewBoxMode === 'auto') {
+            // Store for _previewNaturalSize so the wrapper gets correct pixel dimensions
+            this._extractedViewBox = extracted;
+            // Refit the viewport now that we know the real SVG dimensions
+            setTimeout(() => this._fitToViewport(), 50);
             // Temporarily set viewBox for preview, but don't persist to config
             // The card will extract it during render
             lcardsLog.trace('[MSDStudio] Auto-extracted viewBox for preview:', extracted);
@@ -2381,6 +2449,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
             // If in VIEW mode and clicked background, deselect
             if (this._activeMode === MODES.VIEW) {
+                // Don't deselect if the click was the tail of a pan drag
+                if (this._panJustEnded) return;
                 this._selectedLineId = null;
                 this.requestUpdate();
                 return;
@@ -12259,7 +12329,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                  @mouseleave=${this._handlePreviewMouseLeave}>
 
                                 <!-- Zoomable preview container (d3-zoom applies transform dynamically) -->
-                                <div class="msd-zoom-wrapper" style="transform-origin: top left;">
+                                <!-- Explicit px dimensions from viewBox are required: lcards-msd-live-preview
+                                     uses height:100% throughout, so without a concrete parent height the
+                                     entire chain collapses to 0 and the SVG renders as a tiny dot. -->
+                                <div class="msd-zoom-wrapper" style="transform-origin: top left; width: ${this._previewNaturalSize.width}px; height: ${this._previewNaturalSize.height}px;">
                                     <lcards-msd-live-preview
                                         .hass=${this.hass}
                                         .config=${this._workingConfig}
@@ -12293,22 +12366,28 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                             <!-- Zoom Controls (outside scroll) -->
                             <div class="zoom-controls">
-                                <ha-icon-button
+                                <button class="zoom-control-btn"
                                     @click=${(e) => { e.stopPropagation(); this._zoom(0.9); }}
                                     title="Zoom Out">
                                     <ha-icon icon="mdi:magnify-minus"></ha-icon>
-                                </ha-icon-button>
+                                </button>
                                 <span class="zoom-level">${Math.round((this._currentZoom?.k || 1) * 100)}%</span>
-                                <ha-icon-button
+                                <button class="zoom-control-btn"
                                     @click=${(e) => { e.stopPropagation(); this._zoom(1.1); }}
                                     title="Zoom In">
                                     <ha-icon icon="mdi:magnify-plus"></ha-icon>
-                                </ha-icon-button>
-                                <ha-icon-button
+                                </button>
+                                <div class="zoom-control-divider"></div>
+                                <button class="zoom-control-btn"
+                                    @click=${(e) => { e.stopPropagation(); this._fitToViewport(); }}
+                                    title="Fit to viewport">
+                                    <ha-icon icon="mdi:fit-to-page-outline"></ha-icon>
+                                </button>
+                                <button class="zoom-control-btn"
                                     @click=${(e) => { e.stopPropagation(); this._resetZoom(); }}
-                                    title="Reset Zoom (100%)">
-                                    <ha-icon icon="mdi:fit-to-page"></ha-icon>
-                                </ha-icon-button>
+                                    title="Reset to 100%">
+                                    <ha-icon icon="mdi:restore"></ha-icon>
+                                </button>
                             </div>
 
                             <!-- Grid Settings Popup (when opened) -->

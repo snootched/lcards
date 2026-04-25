@@ -18,23 +18,19 @@ hero:
       link: https://github.com/snootched/lcards
 
 features:
-  - icon: 🖖
-    title: Getting Started
+  - title: Getting Started
     details: Install LCARdS, understand how it works, and migrate from CB-LCARS.
     link: /getting-started/what-is-lcards
     linkText: What is LCARdS?
-  - icon: 🃏
-    title: The Cards
+  - title: The Cards
     details: Buttons, elbows, sliders, charts, data grids, MSD, and more — all themeable and reactive.
     link: /cards/
     linkText: Browse the cards
-  - icon: ⚙️
-    title: Core Concepts
+  - title: Core Concepts
     details: Templates, data sources, rules engine, themes, and action handling.
     link: /core/
     linkText: Explore core concepts
-  - icon: 🗺️
-    title: Architecture
+  - title: Architecture
     details: Rendering pipeline, singleton services, subsystems, and design patterns.
     link: /architecture/systems-arch
     linkText: Systems overview

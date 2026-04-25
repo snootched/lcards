@@ -463,3 +463,162 @@ set_log_level:
       selector:
         text:
           multiple: true
+
+trigger_effect:
+  name: Trigger Screen Effect
+  description: >
+    Play one or more layered screen effects on LCARdS-enabled browsers.
+    Each slot (backdrop, color, canvas) is configured independently via the
+    `layers` field. Supports optional per-device and per-user targeting.
+    Requires the LCARdS custom integration.
+  fields:
+    layers:
+      name: Effect Layers
+      description: >
+        Independent per-slot effect configuration. Omit a slot to leave it
+        unchanged; set a slot to null to explicitly clear it.
+        Each slot object must contain a `preset` key plus any preset-specific
+        parameter overrides.
+
+        Backdrop slot presets (CSS backdrop-filter):
+          blur        — blur(amount)     — amount: "8px"
+          grayscale   — grayscale()      — amount: "100%"
+          saturate    — saturate()       — amount: "200%"
+          contrast    — contrast()       — amount: "200%"
+          hue-rotate  — hue-rotate()     — angle: "90deg"
+
+        Color slot presets (SVG/div colour overlay):
+          color-tint  — solid tint       — color: "rgba(200,0,0,0.35)"
+          vignette    — dark-edge fade   — opacity: 0.7
+
+        Canvas slot presets (animated canvas):
+          static      — TV static noise  — opacity: 0.4, scale: 4
+          pixelate    — mosaic blocks    — opacity: 0.6, pixelSize: 24
+          glitch      — scanline shifts  — opacity: 0.8, intensity: 0.3
+          scanlines   — CRT lines        — opacity: 0.4
+
+        Example:
+          layers:
+            backdrop: { preset: blur, amount: "12px" }
+            color:    { preset: color-tint, color: "rgba(180,0,0,0.35)" }
+            canvas:   { preset: static, opacity: 0.3 }
+      required: true
+      example:
+        backdrop:
+          preset: blur
+          amount: "12px"
+        color:
+          preset: color-tint
+          color: "rgba(180, 0, 0, 0.35)"
+        canvas:
+          preset: static
+          opacity: 0.3
+      selector:
+        object:
+    duration:
+      name: Duration (ms)
+      description: >
+        Auto-clear all effects after this many milliseconds. Omit for a
+        persistent effect that must be cleared manually via lcards.clear_effect.
+      required: false
+      example: 5000
+      selector:
+        number:
+          min: 100
+          max: 300000
+          step: 100
+          unit_of_measurement: ms
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs (the lcards_device_id value
+        stored in each browser's localStorage). Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
+
+clear_effect:
+  name: Clear Screen Effect
+  description: >
+    Clear one or all active screen effects on target LCARdS frontends.
+    Omit `slot` to clear every active effect at once.
+  fields:
+    slot:
+      name: Slot
+      description: >
+        Which effect slot to clear: `backdrop`, `canvas`, or `color`.
+        Leave empty to clear all slots simultaneously.
+      required: false
+      selector:
+        select:
+          options:
+            - label: All slots
+              value: ""
+            - label: Backdrop (blur / filter)
+              value: backdrop
+            - label: Canvas (static / pixelate / glitch / scanlines)
+              value: canvas
+            - label: Color (tint / vignette)
+              value: color
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true

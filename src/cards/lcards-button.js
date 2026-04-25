@@ -58,7 +58,6 @@ import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { escapeHtml } from '../utils/StringUtils.js';
-import { TemplateParser } from '../core/templates/TemplateParser.js';
 import { TemplateDetector } from '../core/templates/TemplateDetector.js';
 import { LCARdSCardTemplateEvaluator } from '../core/templates/LCARdSCardTemplateEvaluator.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
@@ -97,8 +96,8 @@ export class LCARdSButton extends LCARdSCard {
             css`
                 :host {
                     display: block;
-                    width: 100%;
-                    height: 100%;
+                    /* width: 100% omitted — see LCARdSCard base comment (overflows with card_margin).
+                     * height: 100% inherited from LCARdSCard base. */
                 }
 
                 .button-container {
@@ -319,6 +318,26 @@ export class LCARdSButton extends LCARdSCard {
                     this._processSvgConfig();
                     this.requestUpdate();
                 }
+            }
+        }
+
+        // Re-evaluate templates when any triggers_update / Jinja2-tracked entity changes,
+        // even if the primary entity did not change.
+        // _shouldUpdateOnHassChange already ensured requestUpdate() was called for these
+        // entities — here we also re-run style resolution and template processing so the
+        // rendered content reflects the new values in hass.states.
+        if (this._trackedEntities && this._trackedEntities.length > 0) {
+            const primaryEntity = this.config?.entity;
+            const hasTrackedChange = this._trackedEntities.some(entityId => {
+                // Skip primary entity — already handled in the block above
+                if (entityId === primaryEntity) return false;
+                return oldHass?.states?.[entityId] !== newHass?.states?.[entityId];
+            });
+
+            if (hasTrackedChange) {
+                lcardsLog.debug(`[LCARdSButton] Tracked entity changed — re-evaluating style and templates`);
+                this._resolveButtonStyleSync();
+                this._scheduleTemplateUpdate();
             }
         }
 
@@ -1833,9 +1852,11 @@ export class LCARdSButton extends LCARdSCard {
             handleMouseLeave(e);
         };
 
-        // Attach listeners
-        element.addEventListener('mouseenter', handleMouseEnter);
-        element.addEventListener('mouseleave', handleMouseLeaveWhilePressed);
+        // Attach listeners — skip hover visual listeners in non-interactive (decorative) mode
+        if (this.config.interactive !== false) {
+            element.addEventListener('mouseenter', handleMouseEnter);
+            element.addEventListener('mouseleave', handleMouseLeaveWhilePressed);
+        }
         element.addEventListener('mousedown', handleMouseDown);
         element.addEventListener('mouseup', handleMouseUp);
         element.addEventListener('click', handleClick);
@@ -1851,7 +1872,10 @@ export class LCARdSButton extends LCARdSCard {
 
         // Make element pointer-interactive
         element.style.pointerEvents = 'all';
-        element.style.cursor = 'pointer';
+        // Only show pointer cursor when the card is interactive
+        if (this.config.interactive !== false) {
+            element.style.cursor = 'pointer';
+        }
 
         // Mark as segment for button-level action filtering
         element.setAttribute('data-lcards-segment', segment.id);
@@ -2394,6 +2418,9 @@ export class LCARdSButton extends LCARdSCard {
             this._setupButtonInteractivity();
         }
 
+        // Apply cursor CSS custom property (interactive flag + style.cursor override)
+        this._applyButtonCursor();
+
         // Sync canvas texture overlay (create or hot-update after each render)
         this._syncCanvasTexture();
     }
@@ -2590,6 +2617,14 @@ export class LCARdSButton extends LCARdSCard {
      * @returns {Object} { hover: { backgroundColor }, pressed: { backgroundColor } }
      */
     _extractInteractionStyles(resolvedStyle, buttonState, actualEntityState) {
+        // When the button is in non-interactive (decorative) mode, suppress all
+        // hover and pressed visual feedback so colour never changes on mouse-over.
+        if (this.config.interactive === false) {
+            this._buttonHoverStyle = null;
+            this._buttonPressedStyle = null;
+            return { hover: null, pressed: null };
+        }
+
         const themeManager = this._singletons?.themeManager;
 
         // Extract hover background color directly from nested path
@@ -2853,14 +2888,14 @@ export class LCARdSButton extends LCARdSCard {
             }
             // 5. Final hardcoded fallback
             else {
-                iconColor = 'var(--lcars-color-text, #FFFFFF)';
+                iconColor = 'var(--lcars-font-color, #FFFFFF)';
                 lcardsLog.warn('[LCARdSButton] Icon color using hardcoded fallback');
             }
 
             // Ensure iconColor is a string (not an object)
             if (typeof iconColor !== 'string') {
                 lcardsLog.warn('[LCARdSButton] ⚠️ Icon color resolved to non-string:', iconColor);
-                iconColor = 'var(--lcars-color-text, #FFFFFF)';
+                iconColor = 'var(--lcars-font-color, #FFFFFF)';
             }
 
             // Resolve match-light token → CSS variable
@@ -3036,6 +3071,13 @@ export class LCARdSButton extends LCARdSCard {
     async _processCustomTemplates() {
         lcardsLog.trace(`[LCARdSButton] _processCustomTemplates called for ${this._cardGuid}`);
 
+        // Pre-evaluate Jinja2/JS templates in the style config so that synchronous
+        // SVG generation (e.g. color fields like card.color.background.active) can
+        // use the result via _resolveTemplateValue().
+        if (this.config.style) {
+            await this._preEvaluateStyleTemplates(this.config.style);
+        }
+
         // Track if any templates changed to avoid unnecessary re-renders
         let hasChanges = false;
 
@@ -3148,10 +3190,12 @@ export class LCARdSButton extends LCARdSCard {
             fieldCount: this.config.text ? Object.keys(this.config.text).length : 0
         });
 
-        if (hasChanges) {
-            // Extract and track entities from templates for auto-updates
-            this._updateTrackedEntities();
+        // Always re-scan tracked entities after template processing.
+        // This ensures entities referenced in style templates (colors, etc.) or
+        // added via triggers_update are tracked even when no text content changed.
+        this._updateTrackedEntities();
 
+        if (hasChanges) {
             // Call subclass hook for style resolution after template changes
             if (typeof this._onTemplatesChanged === 'function') {
                 this._onTemplatesChanged();
@@ -3166,25 +3210,16 @@ export class LCARdSButton extends LCARdSCard {
      * @override
      */
     _updateTrackedEntities() {
-        // Call parent to get base tracking (primary entity)
+        // Base class now handles:
+        //   - primary entity
+        //   - animation/rules entities
+        //   - Jinja2 auto-scan across ALL config string values (including text fields)
+        //   - config.triggers_update explicit list
+        // This override adds datasource/token dependency names from text field
+        // content (non-Jinja2). Those are not entity IDs and are therefore not
+        // useful for _trackedEntities, but we keep the call for completeness and
+        // in case the semantics change in future.
         super._updateTrackedEntities();
-
-        const trackedEntities = new Set(this._trackedEntities || []);
-
-        // Add multi-text field templates
-        if (this.config.text && typeof this.config.text === 'object') {
-            for (const [fieldId, fieldConfig] of Object.entries(this.config.text)) {
-                if (fieldId === 'default' || !fieldConfig?.content) continue;
-
-                const template = fieldConfig.content;
-                if (typeof template === 'string') {
-                    const deps = TemplateParser.extractDependencies(template);
-                    deps.forEach(entityId => trackedEntities.add(entityId));
-                }
-            }
-        }
-
-        this._trackedEntities = Array.from(trackedEntities);
 
         lcardsLog.trace(`[LCARdSButton] Tracking ${this._trackedEntities.length} entities`, this._trackedEntities);
     }
@@ -3245,6 +3280,33 @@ export class LCARdSButton extends LCARdSCard {
      * Uses base class shadow-DOM-aware action system
      * @private
      */
+    /**
+     * Apply the correct CSS cursor to the button surface.
+     *
+     * Priority (highest → lowest):
+     * 1. `style.cursor` explicit override in config
+     * 2. `interactive: false` → 'default'
+     * 3. Falls back to 'pointer' (the CSS var default)
+     *
+     * Applies the correct cursor to the interactive group element already in the DOM.
+     * The `gAttrs` in `_renderCard` already bakes the right cursor into the markup;
+     * this method handles live updates between renders (e.g. config changed via editor).
+     * @private
+     */
+    _applyButtonCursor() {
+        const cursor = this.config.style?.cursor
+            ?? (this.config.interactive === false ? 'default' : 'pointer');
+        const groupEl = /** @type {HTMLElement|null} */ (this.shadowRoot?.querySelector('[data-overlay-id="button"]'));
+        if (groupEl) {
+            groupEl.style.cursor = cursor;
+        }
+        // Also update the SVG background element cursor so it stays in sync
+        const svgEl = /** @type {HTMLElement|null} */ (this.shadowRoot?.querySelector('.button-container > svg'));
+        if (svgEl) {
+            svgEl.style.cursor = cursor;
+        }
+    }
+
     _setupButtonActions() {
         if (!this.hass) {
             lcardsLog.trace(`[LCARdSButton] HASS not available yet, deferring action setup`);
@@ -3295,7 +3357,10 @@ export class LCARdSButton extends LCARdSCard {
                 getAnimationManager,
                 elementId: elementId,
                 entity: this.config.entity,
-                animations: this.config.animations
+                animations: this.config.animations,
+                // In non-interactive (decorative) mode, suppress pointer cursor and
+                // hover/leave animation triggers in the action handler.
+                disableHover: this.config.interactive === false
             }
         );
 
@@ -4307,29 +4372,31 @@ export class LCARdSButton extends LCARdSCard {
         const actualEntityState = this._entity?.state;
 
         // Background color: card.color.background.{state}
-        // Try actual entity state first (e.g., "heat"), then fall back to classified state (e.g., "inactive")
-        const backgroundColor = this._resolveMatchLightColor(this._resolveStateValue({
+        // Try actual entity state first (e.g., "heat"), then fall back to classified state (e.g., "inactive").
+        // _resolveTemplateValue() substitutes pre-evaluated Jinja2/JS templates before
+        // _resolveMatchLightColor() attempts colour computation on the raw string.
+        const backgroundColor = this._resolveMatchLightColor(this._resolveTemplateValue(this._resolveStateValue({
             actualState: actualEntityState,
             classifiedState: buttonState,
             colorConfig: this._buttonStyle?.card?.color?.background,
             fallback: 'var(--lcars-orange, #FF9900)'
-        }));
+        })));
 
         // Text color: text.default.color.{state}
-        const textColor = this._resolveMatchLightColor(this._resolveStateValue({
+        const textColor = this._resolveMatchLightColor(this._resolveTemplateValue(this._resolveStateValue({
             actualState: actualEntityState,
             classifiedState: buttonState,
             colorConfig: this._buttonStyle?.text?.default?.color,
-            fallback: 'var(--lcars-color-text, #FFFFFF)'
-        }));
+            fallback: 'var(--lcars-font-color, #FFFFFF)'
+        })));
 
         // Border color: border.color.{state} or border.color (plain string)
-        const borderColor = this._resolveMatchLightColor(this._resolveStateValue({
+        const borderColor = this._resolveMatchLightColor(this._resolveTemplateValue(this._resolveStateValue({
             actualState: actualEntityState,
             classifiedState: buttonState,
             colorConfig: this._buttonStyle?.border?.color,
-            fallback: 'var(--lcars-color-secondary, #000000)'
-        }));
+            fallback: 'var(--lcars-ui-secondary, #000000)'
+        })));
 
         // Resolve border configuration with per-corner support
         const border = this._resolveBorderConfiguration();
@@ -4526,7 +4593,9 @@ export class LCARdSButton extends LCARdSCard {
         // preserveAspectRatio="none" maps the viewBox 1:1 to the CSS-sized viewport so
         // re-computing geometry at the measured container dimensions produces no distortion.
         const svgAttrs = `width="100%" viewBox="${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"`;
-        const gAttrs   = `data-button-id="button" data-overlay-id="button" class="button-group" style="pointer-events: visiblePainted; cursor: pointer;"`;
+        const _btnCursor = this.config.style?.cursor
+            ?? (this.config.interactive === false ? 'default' : 'pointer');
+        const gAttrs   = `data-button-id="button" data-overlay-id="button" class="button-group" style="pointer-events: visiblePainted; cursor: ${_btnCursor};"`;
 
         // Debug zone overlay — only present when config.debug_zones is true.
         // In component mode the overlay is already injected inside the nested <svg>
@@ -4638,7 +4707,7 @@ export class LCARdSButton extends LCARdSCard {
             actualState: actualEntityState,
             classifiedState: state,
             colorConfig: this._buttonStyle?.border?.color,
-            fallback: 'var(--lcars-color-secondary, #000000)'
+            fallback: 'var(--lcars-ui-secondary, #000000)'
         }));
 
         // Radius: border.radius (can be object for per-corner or single value)

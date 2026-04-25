@@ -34,6 +34,8 @@ import { AnimationRegistry } from './animation/AnimationRegistry.js';
 import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';
 import { CoreConfigManager } from './config-manager/index.js';
 import { injectPalette } from './themes/paletteInjector.js';
+import { loadFont } from '../utils/lcards-theme.js';
+import { core_fonts } from '../lcards-vars.js';
 import { PackManager } from './PackManager.js';
 import { AssetManager } from './assets/AssetManager.js';
 import { DataSourceDebugAPI } from '../api/DataSourceDebugAPI.js';
@@ -43,6 +45,7 @@ import { SoundManager } from './sound/SoundManager.js';
 import { IntegrationService } from './services/IntegrationService.js';
 import { DeviceIdentityManager } from './services/DeviceIdentityManager.js';
 import { ScopedSettingsService } from './services/ScopedSettingsService.js';
+import { ScreenEffectManager } from './screen-effects/ScreenEffectManager.js';
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -73,6 +76,7 @@ class LCARdSCore {
         this.componentManager = null;    // Component registry (Phase 4)
         this.helperManager = null;       // Helper management system (Phase 5)
         this.soundManager = null;         // Sound management system (Phase 2g)
+        this.screenEffectManager = null;  // Full-screen composited effect layer
         this.integrationService = null;   // HA integration probe (available / version)
         this.deviceIdentityManager = null; // Per-browser stable UUID + display name
         this.scopedSettingsService = null; // Per-user / per-device settings waterfall
@@ -142,6 +146,16 @@ class LCARdSCore {
             injectPalette();
             lcardsLog.debug('[LCARdSCore] ✅ LCARdS palette injected as --lcards-* CSS variables');
 
+            // ✅ PHASE 1b: Load core fonts unconditionally at startup.
+            // This ensures Antonio (Google Fonts) and bundled LCARdS fonts are available
+            // in all contexts — including the Config Panel — regardless of whether any
+            // Lovelace cards are mounted or the HA-LCARS card-mod theme has loaded.
+
+            //TODO: discuss having 100..700 in HA-LCARS docs
+
+            //core_fonts.forEach(f => loadFont(f));
+            //lcardsLog.debug('[LCARdSCore] ✅ Core fonts loading initiated');
+
             // Initialize SystemsManager (Phase 1a)
             this.systemsManager = new CoreSystemsManager();
             this.systemsManager.initialize(hass);
@@ -191,10 +205,8 @@ class LCARdSCore {
             lcardsLog.debug('[LCARdSCore] ✅ ConfigManager initialized (early - before cards need it)');
 
             // Initialize StylePresetManager (Phase 2b) - ✅ Unified style system (replaces CoreStyleLibrary)
-            // This now includes both preset management AND CSS utilities
             // Note: Presets will be loaded by PackManager, not here
             this.stylePresetManager = new StylePresetManager();
-            this.stylePresetManager.initializeCSSUtilities(); // Initialize CSS utilities now
             lcardsLog.debug('[LCARdSCore] ✅ StylePresetManager created (awaiting pack loading)');
 
             // Initialize AnimationRegistry (Phase 2b) - ✅ Real MSD AnimationRegistry as singleton
@@ -263,6 +275,12 @@ class LCARdSCore {
                 lcardsLog.debug('[LCARdSCore] ✅ Core debug API attached at window.lcards.debug.core/singleton/singletons');
             }
 
+            // Initialize ScreenEffectManager — full-screen composited effect layer.
+            // The portal is lazily appended to document.body on first use so it is safe
+            // to construct here before the document is fully interactive.
+            this.screenEffectManager = new ScreenEffectManager();
+            lcardsLog.debug('[LCARdSCore] ✅ ScreenEffectManager initialized');
+
             // Create IntegrationService — it self-probes on the first _updateHass
             // call where hass.connection is available, so no initialize() call here.
             this.integrationService = new IntegrationService();
@@ -275,6 +293,19 @@ class LCARdSCore {
             // Create ScopedSettingsService — depends on integration + device identity.
             this.scopedSettingsService = new ScopedSettingsService();
             lcardsLog.debug('[LCARdSCore] ✅ ScopedSettingsService created');
+
+            // Once the integration probe completes (triggered by the first _updateHass
+            // call that carries a live WS connection), load token overrides and re-apply
+            // them to the resolver.  This is intentionally fire-and-forget so it does NOT
+            // block core initialisation — cards render with theme defaults first, then
+            // re-render via the lcards:theme-overrides-changed event once overrides arrive.
+            this.integrationService.onReady().then(() => {
+                return this.themeManager.loadOverrides();
+            }).then(() => {
+                lcardsLog.debug('[LCARdSCore] ✅ Theme overrides loaded from scoped storage');
+            }).catch(err => {
+                lcardsLog.warn('[LCARdSCore] Theme overrides load failed:', err);
+            });
 
             this._coreInitialized = true;
 
@@ -735,7 +766,6 @@ class LCARdSCore {
         }
 
         if (this.stylePresetManager) {
-            this.stylePresetManager.destroyCSSUtilities();
             this.stylePresetManager = null;
         }
 

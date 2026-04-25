@@ -152,8 +152,8 @@ export class LCARdSSlider extends LCARdSButton {
             css`
                 :host {
                     display: block;
-                    width: 100%;
-                    height: 100%;
+                    /* width: 100% omitted — see LCARdSCard base comment (overflows with card_margin).
+                     * height: 100% inherited from LCARdSCard base. */
                 }
 
                 .slider-container {
@@ -188,7 +188,7 @@ export class LCARdSSlider extends LCARdSButton {
                     font-family: var(--primary-font-family, 'Antonio', sans-serif);
                     font-size: 14px;
                     line-height: 1.2;
-                    color: var(--lcars-white, #ffffff);
+                    color: var(--lcars-text-light, #ffffff);
                     white-space: nowrap;
                 }
 
@@ -512,6 +512,20 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Subscribe to alert mode changes so hue-shifts bust the memoization cache
         this._subscribeToAlertMode();
+    }
+
+    /**
+     * Pre-evaluate Jinja2/JS templates found in the style config so that
+     * synchronous SVG generation can call `_resolveTemplateValue()` and get
+     * the already-resolved result from `_evaluatedStyleCache`.
+     * @protected
+     * @override
+     */
+    async _processCustomTemplates() {
+        if (this.config.style) {
+            await this._preEvaluateStyleTemplates(this.config.style);
+        }
+        await super._processCustomTemplates();
     }
 
     /**
@@ -1063,7 +1077,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Use base class method for state-based color resolution
         return this._resolveEntityStateColor(
             colorConfig,
-            'var(--lcars-color-secondary, #000000)'
+            'theme:components.slider.border.color.default'
         );
     }
 
@@ -1523,7 +1537,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Get track zone bounds
         const trackZone = this._zones.get('track');
-        const width = trackZone?.bounds?.width || this._containerSize.width - 20;
+        const width = trackZone?.bounds?.width || (this._containerSize?.width ?? 200) - 20;
         const height = trackZone?.bounds?.height || 20;
 
         // Generate config hash for cache invalidation
@@ -1571,13 +1585,13 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: trackConfig?.gradient?.start,
-            fallback: 'var(--error-color, var(--lcars-orange-dark, #cc2200))'
+            fallback: 'theme:components.slider.pills.gradient.start'
         }) ?? ''));
         let gradientEnd = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: trackConfig?.gradient?.end,
-            fallback: 'var(--success-color, var(--lcars-green-medium, #33cc99))'
+            fallback: 'theme:components.slider.pills.gradient.end'
         }) ?? ''));
         // Reverse gradient direction when fill is inverted
         if (this._invertFill) {
@@ -1764,7 +1778,7 @@ export class LCARdSSlider extends LCARdSButton {
             const pillIdx = Math.max(0, Math.min(count - 1, Math.round(valuePercent * (count - 1))));
             const pillStyle = range.pill_style || {};
             markerPillMap.set(pillIdx, {
-                color: this._resolveRangeColor(range.color || 'var(--lcars-white, #ffffff)'),
+                color: this._resolveRangeColor(range.color || 'var(--lcars-text-light, #ffffff)'),
                 strokeEnabled: pillStyle.stroke !== false, // default true
                 strokeWidth: pillStyle.stroke_width ?? 2
             });
@@ -1871,14 +1885,14 @@ export class LCARdSSlider extends LCARdSButton {
         // Extract all config parameters
         return {
             type: indicatorConfig.type || 'line',
-            color: this._resolveColorValue(indicatorConfig.color || 'var(--lcars-white, #ffffff)'),
+            color: this._resolveColorValue(indicatorConfig.color || 'theme:components.slider.indicator.color'),
             width: indicatorConfig.size?.width || 4,
             height: indicatorConfig.size?.height || 25,
             rotation: indicatorConfig.rotation || 0,
             offsetX: indicatorConfig.offset?.x || 0,
             offsetY: indicatorConfig.offset?.y || 0,
             borderEnabled: indicatorConfig.border?.enabled !== false,
-            borderColor: this._resolveColorValue(indicatorConfig.border?.color || 'var(--lcars-black, #000000)'),
+            borderColor: this._resolveColorValue(indicatorConfig.border?.color || 'theme:components.slider.indicator.border.color'),
             borderWidth: indicatorConfig.border?.width || 1
         };
     }
@@ -2058,7 +2072,7 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: tickConfig?.major?.color,
-            fallback: 'var(--lcars-card-button, #ff9966)'
+            fallback: 'theme:components.slider.gauge.tick.major.color.default'
         });
         const majorHeight = tickConfig?.major?.height; // undefined = full height
         const majorStrokeWidth = tickConfig?.major?.width || 2;
@@ -2070,7 +2084,7 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: tickConfig?.minor?.color,
-            fallback: 'var(--lcars-card-button, #ff9966)'
+            fallback: 'theme:components.slider.gauge.tick.minor.color.default'
         });
         const minorHeight = tickConfig?.minor?.height || 10;
         const minorStrokeWidth = tickConfig?.minor?.width || 1;
@@ -2089,7 +2103,7 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: labelConfig?.color,
-            fallback: 'var(--lcars-card-button, #ff9966)'
+            fallback: 'theme:components.slider.gauge.label.color.default'
         });
 
         // Progress bar configuration
@@ -2098,7 +2112,7 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: progressConfig?.color,
-            fallback: 'var(--lcars-blue-light)'
+            fallback: 'theme:components.slider.gauge.progress_bar.color.default'
         });
         const progressHeight = progressConfig?.height || 12;
         // Fill bar radius: uniform number (default 2) or per-end { start, end } object
@@ -2950,15 +2964,15 @@ export class LCARdSSlider extends LCARdSButton {
                 actualState: this._entity?.state,
                 classifiedState: this._getButtonState(),
                 colorConfig: this._sliderStyle?.gauge?.progress_bar?.color,
-                fallback: 'var(--lcars-blue-light)'
+                fallback: 'theme:components.slider.gauge.progress_bar.color.default'
             }),
             // Range frame and borders
-            rangeBorder: this._resolveColorValue(this._sliderStyle?.range?.border?.color) || '#000000',
+            rangeBorder: this._resolveColorValue(this._sliderStyle?.range?.border?.color || 'theme:components.slider.range.border.color'),
             rangeFrame: this._resolveColorValue(this._sliderStyle?.range?.frame?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Solid bar (defaults to same as top border)
             solidBar: this._resolveColorValue(this._sliderStyle?.solid_bar?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Animation indicator
-            animationIndicator: this._resolveColorValue(this._sliderStyle?.animation?.indicator?.color) || 'var(--lcards-blue)',
+            animationIndicator: this._resolveColorValue(this._sliderStyle?.animation?.indicator?.color || 'theme:components.slider.animation.indicator.color'),
             // Shaped component: track background (the "empty" portion inside the shape)
             trackBackground: this._resolveColorValue(
                 this._sliderStyle?.shaped?.track?.background
@@ -3291,7 +3305,7 @@ export class LCARdSSlider extends LCARdSButton {
         const fillColor = this._resolveColorValue(
             this._sliderStyle?.shaped?.fill?.color ||
             this._sliderStyle?.gauge?.fill?.color?.active ||
-            'var(--lcards-blue-light)'
+            'theme:components.slider.shaped.fill.color'
         );
 
         const progress = this._calculateValuePercent();
@@ -3482,7 +3496,7 @@ export class LCARdSSlider extends LCARdSButton {
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: progressBarConfig.color,
-            fallback: 'var(--lcars-blue-light)'
+            fallback: 'theme:components.slider.gauge.progress_bar.color.default'
         });
         // Radius: uniform number or per-end { start, end } object
         const _prRawZ = progressBarConfig.radius;
@@ -3659,7 +3673,7 @@ export class LCARdSSlider extends LCARdSButton {
             const presetMarker = gaugeConfig?.marker_indicator || {};
             // Color lives under indicator.color for value markers, not range.color
             // (range.color is the band fill — a separate concept)
-            const markerColor = this._resolveColorValue(riCfg.color || presetMarker.color || 'var(--lcars-white, #ffffff)');
+            const markerColor = this._resolveColorValue(riCfg.color || presetMarker.color || 'theme:components.slider.indicator.color');
             const markerIndicator = {
                 // type: per-range config first, then triangle default.
                 // Deliberately does NOT inherit globalIndicator.type — the main
@@ -3680,7 +3694,7 @@ export class LCARdSSlider extends LCARdSButton {
                 offsetX:       riCfg.offset?.x         ?? presetMarker.offset?.x         ?? 0,
                 offsetY:       riCfg.offset?.y         ?? presetMarker.offset?.y         ?? (isVertical ? 0 : 10),
                 borderEnabled: riCfg.border?.enabled   ?? presetMarker.border?.enabled   ?? false,
-                borderColor:   this._resolveColorValue(riCfg.border?.color ?? presetMarker.border?.color ?? 'var(--lcars-black, #000000)'),
+                borderColor:   this._resolveColorValue(riCfg.border?.color ?? presetMarker.border?.color ?? 'theme:components.slider.indicator.border.color'),
                 borderWidth:   riCfg.border?.width     ?? presetMarker.border?.width     ?? 1
             };
 
@@ -3754,7 +3768,7 @@ export class LCARdSSlider extends LCARdSButton {
                     const borderConfig = this._sliderStyle?.border?.[side];
                     const restoreColor = borderConfig ?
                         this._resolveStateBorderColor(borderConfig.color) :
-                        '#000000';
+                        'black';
                     element.style.fill = restoreColor;
                 }
             });
@@ -3997,8 +4011,8 @@ export class LCARdSSlider extends LCARdSButton {
     _renderCard() {
         // Prefer explicit config dimensions so text zones are correct even before the
         // ResizeObserver fires (which would otherwise give the HA default 56px row height).
-        const width  = this._configPx(this.config.width)  || this._containerSize.width  || 200;
-        const height = this._configPx(this.config.height) || this._containerSize.height || 60;
+        const width  = this._configPx(this.config.width)  || this._containerSize?.width  || 200;
+        const height = this._configPx(this.config.height) || this._containerSize?.height || 60;
 
         // Check if component is loaded
         if (this.config.component && !this._componentLoaded) {
@@ -4047,13 +4061,13 @@ export class LCARdSSlider extends LCARdSButton {
                 grid_columns:     go.columns     ?? 1,
                 grid_rows:        go.rows,
                 grid_min_columns: go.min_columns ?? 1,
-                grid_min_rows:    go.min_rows    ?? 4
+                grid_min_rows:    go.min_rows    ?? 1
             };
         } else {
             return {
                 grid_columns:     go.columns,
                 grid_rows:        go.rows        ?? 1,
-                grid_min_columns: go.min_columns ?? 4,
+                grid_min_columns: go.min_columns ?? 1,
                 grid_min_rows:    go.min_rows    ?? 1
             };
         }

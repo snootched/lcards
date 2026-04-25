@@ -311,7 +311,7 @@ export const animationSchema = {
             type: 'string',
             pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|theme:|rgb\\(|rgba\\(|var\\(--)',
             description: 'Animation colour (for glow/flash effects)',
-            examples: ['#FF9900', 'theme:color.ui.active', 'rgba(255, 153, 0, 0.5)']
+            examples: ['#FF9900', 'theme:colors.ui.active', 'rgba(255, 153, 0, 0.5)']
         },
         scale: {
             type: 'number',
@@ -387,7 +387,7 @@ export const simpleColorSchema = {
     type: 'string',
     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
     description: 'Colour value (hex, rgb, theme token, or CSS variable)',
-    examples: ['#FF9900', 'transparent', 'theme:palette.moonlight', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
+    examples: ['#FF9900', 'transparent', 'theme:colors.text.onDark', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
 };
 
 /**
@@ -400,7 +400,7 @@ export const stateColorSchema = {
             title: 'Simple Colour',
             pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
             description: 'Single colour value for all states (hex, rgb, theme token, or CSS variable)',
-            examples: ['#FF9900', 'transparent', 'theme:color.ui.active', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
+            examples: ['#FF9900', 'transparent', 'theme:colors.ui.active', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
         },
         {
             type: 'object',
@@ -416,49 +416,49 @@ export const stateColorSchema = {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Default colour (fallback)',
-                    examples: ['#888888', 'theme:color.ui.default']
+                    examples: ['#888888', 'theme:colors.ui.default']
                 },
                 active: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity is on/active',
-                    examples: ['#FF9900', 'theme:color.ui.active']
+                    examples: ['#FF9900', 'theme:colors.ui.active']
                 },
                 inactive: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity is off/inactive',
-                    examples: ['#444444', 'theme:color.ui.inactive']
+                    examples: ['#444444', 'theme:colors.ui.inactive']
                 },
                 unavailable: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity is unavailable',
-                    examples: ['#666666', 'theme:color.ui.unavailable']
+                    examples: ['#666666', 'theme:colors.ui.unavailable']
                 },
                 zero: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity state is numeric 0 (e.g. no lights on, zero count)',
-                    examples: ['var(--lcards-gray-dark)', 'theme:color.ui.inactive']
+                    examples: ['var(--lcards-gray-dark)', 'theme:colors.ui.inactive']
                 },
                 non_zero: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour when entity state is a non-zero number (e.g. lights are on, count > 0)',
-                    examples: ['var(--lcards-green-tertiary)', 'theme:color.ui.active']
+                    examples: ['var(--lcards-green-medium-dark)', 'theme:colors.ui.active']
                 },
                 hover: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour on hover interaction',
-                    examples: ['var(--lcards-orange)', 'theme:color.ui.active']
+                    examples: ['var(--lcards-orange)', 'theme:colors.ui.active']
                 },
                 pressed: {
                     type: 'string',
                     pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
                     description: 'Colour on press/tap interaction',
-                    examples: ['var(--lcards-orange-dark)', 'theme:color.ui.active']
+                    examples: ['var(--lcards-orange-dark)', 'theme:colors.ui.active']
                 }
             },
             additionalProperties: {
@@ -1605,6 +1605,49 @@ export const cardMinHeightSchema = {
         label: 'Min Height',
         helper: 'Floor height (e.g. 40). Overrides --lcards-button-min-height token.',
         selector: { text: {} }
+    }
+};
+
+// ============================================================================
+// TRIGGERS_UPDATE SCHEMA - Explicit entity tracking for JS / token templates
+// ============================================================================
+
+/**
+ * Declare extra entity IDs that should trigger a re-render (and re-evaluation
+ * of all templates) when their state changes.
+ *
+ * LCARdS auto-tracks entities referenced in Jinja2 templates (`{{states(...)}}`
+ * etc.) but cannot static-analyse JavaScript templates (`[[[...]]]`) or dynamic
+ * token expressions whose entity IDs are assembled at runtime.  Use
+ * `triggers_update` as the explicit escape-hatch for those cases.
+ *
+ * @example
+ * triggers_update:
+ *   - sensor.outdoor_temperature
+ *   - binary_sensor.motion_kitchen
+ */
+export const triggersUpdateSchema = {
+    type: 'array',
+    items: {
+        type: 'string',
+        format: 'entity',
+        pattern: '^[a-z_]+\\.[a-z0-9_]+$',
+        description: 'Entity ID whose state change should trigger a re-render',
+        examples: ['sensor.temperature', 'binary_sensor.motion']
+    },
+    description:
+        'Extra entity IDs to watch for state changes. When any listed entity changes, all templates on this card are re-evaluated. '
+        + 'Use this for JavaScript templates ([[[...]]]) that reference entities LCARdS cannot detect automatically via static analysis.',
+    examples: [
+        ['sensor.outdoor_temperature'],
+        ['binary_sensor.motion_kitchen', 'sensor.toronto_temperature']
+    ],
+    'x-ui-hints': {
+        label: 'Extra entity triggers',
+        helper:
+            'Entity IDs whose state changes should re-evaluate this card\'s templates. '
+            + 'Only needed for JS templates — Jinja2 entity references are tracked automatically.',
+        selector: { entity: {} }
     }
 };
 

@@ -236,6 +236,18 @@ function restoreOriginalColors(root, colors) {
 let originalLcarsColors = null;
 
 /**
+ * Return the currently-captured pre-alert-mutation color snapshot.
+ * Used by ThemeTokenResolver to implement the base() computed token function,
+ * which resolves a token/var to its green_alert (baseline) value regardless
+ * of the active alert mode.
+ *
+ * @returns {Object|null} Map of CSS variable names → hex values, or null if not yet captured
+ */
+export function getBaselineColors() {
+  return originalLcarsColors;
+}
+
+/**
  * Capture and store original --lcars-* color values from current theme
  * Should be called after theme is loaded to capture baseline colors
  *
@@ -273,10 +285,18 @@ export function captureOriginalColors(root = null) {
     }
   }
 
-  // Store internally for alert mode system
-  originalLcarsColors = colors;
+  // Store internally for alert mode system.
+  // IMPORTANT: Only overwrite if we actually found colours — the HA LCARS theme
+  // stylesheet is injected asynchronously and may not be ready yet when this is
+  // called early in the LCARdS init cycle.  Storing an empty map would erase
+  // a previously-valid baseline captured by a later lazy call inside setAlertMode.
+  if (colorCount > 0) {
+    originalLcarsColors = colors;
+    lcardsLog.debug(`[PaletteInjector] Captured ${colorCount} original color values (--lcars-* + HA state colors)`);
+  } else {
+    lcardsLog.debug('[PaletteInjector] Captured 0 original color values (--lcars-* + HA state colors) — HA theme may not be ready yet; previous baseline preserved');
+  }
 
-  lcardsLog.debug(`[PaletteInjector] Captured ${colorCount} original color values (--lcars-* + HA state colors)`);
   return colors;
 }
 
@@ -305,6 +325,23 @@ export async function setAlertMode(mode, hass, rootElement = null, opts = {}) {
   // Wrap all colour-variable work in a callback so each transition effect
   // can call it at the moment the screen is most obscured.
   const colorApplyFn = async () => {
+    // Lazy baseline capture: if originalLcarsColors is still empty it means
+    // captureOriginalColors() was called before the HA LCARS theme stylesheet
+    // had landed in the DOM (a common timing race on page load).  By the time
+    // setAlertMode() is first invoked (typically ~100 ms after init) the theme
+    // IS applied, so we can capture the true green-alert baseline right here.
+    // For non-green modes the DOM is still in its unmodified LCARS/green state
+    // because we haven't written anything to --lcars-* yet, so this is safe.
+    if (!originalLcarsColors || Object.keys(originalLcarsColors).length === 0) {
+      lcardsLog.debug('[PaletteInjector] Baseline empty — performing lazy --lcars-* capture before transform');
+      captureOriginalColors(root);
+      if (!originalLcarsColors || Object.keys(originalLcarsColors).length === 0) {
+        lcardsLog.warn('[PaletteInjector] Lazy capture still returned 0 --lcars-* colors — HA LCARS theme vars may not be in the DOM yet. Palette transform for --lcars-* will be skipped.');
+      } else {
+        lcardsLog.debug(`[PaletteInjector] Lazy capture succeeded: ${Object.keys(originalLcarsColors).length} --lcars-* colors captured`);
+      }
+    }
+
     if (mode === 'green_alert') {
         // Restore HA-LCARS theme variables (--lcars-*) from the captured snapshot.
         // This avoids the admin-only frontend/reload_themes service call entirely.

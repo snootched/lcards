@@ -124,7 +124,7 @@ export class CoreConfigManager {
    * Then: Resolve theme tokens → Validate → Return result
    *
    * @param {Object} userConfig - Raw config from YAML/UI
-   * @param {string} cardType - Card type identifier ('simple-button', 'msd', etc.)
+ * @param {string} cardType - Card type identifier ('button', 'elbow', 'slider', 'msd', etc.)
    * @param {Object} context - Additional context { hass, entity, ... }
    * @returns {Promise<Object>} Result with merged config, validation, provenance
    *
@@ -132,14 +132,14 @@ export class CoreConfigManager {
    * // With preset
    * const result = await configManager.processConfig(
    *   { preset: 'lozenge', entity: 'light.bedroom' },
-   *   'simple-button',
+   *   'button',
    *   { hass: this.hass }
    * );
    *
    * // With component (mutually exclusive)
    * const result = await configManager.processConfig(
    *   { component: 'dpad', entity: 'media_player.tv' },
-   *   'simple-button',
+   *   'button',
    *   { hass: this.hass }
    * );
    */
@@ -321,14 +321,14 @@ export class CoreConfigManager {
    *
    * @example
    * // ✅ CORRECT: Behavioral defaults
-   * configManager.registerCardDefaults('simple-button', {
+   * configManager.registerCardDefaults('button', {
    *   show_label: true,
    *   show_icon: false,
    *   enable_hold_action: true
    * });
    *
    * // ❌ WRONG: Don't put styles in card defaults
-   * configManager.registerCardDefaults('simple-button', {
+   * configManager.registerCardDefaults('button', {
    *   style: { height: 45 }  // NO! Use theme/preset instead
    * });
    */
@@ -550,8 +550,7 @@ export class CoreConfigManager {
       return {};
     }
 
-    const componentType = this._mapCardTypeToComponent(cardType);
-    const themeDef = this.themeManager.getDefault(componentType, 'base');
+    const themeDef = this.themeManager.getDefault(cardType, 'base');
 
     if (!themeDef) {
       return {};
@@ -570,9 +569,8 @@ export class CoreConfigManager {
       return {};
     }
 
-    const overlayType = this._mapCardTypeToOverlay(cardType);
     const preset = this.stylePresetManager.getPreset(
-      overlayType,
+      cardType,
       userConfig.preset,
       this.themeManager
     );
@@ -584,11 +582,11 @@ export class CoreConfigManager {
       // Log at trace so as not to alarm users; the preset will work correctly.
       if (userConfig.component) {
         lcardsLog.trace(
-          `[CoreConfigManager] Preset '${userConfig.preset}' not in StylePresetManager for ${overlayType} — will be resolved as component preset`
+          `[CoreConfigManager] Preset '${userConfig.preset}' not in StylePresetManager for ${cardType} — will be resolved as component preset`
         );
       } else {
         lcardsLog.warn(
-          `[CoreConfigManager] Preset '${userConfig.preset}' not found for ${overlayType}`
+          `[CoreConfigManager] Preset '${userConfig.preset}' not found for ${cardType}`
         );
       }
       return {};
@@ -654,8 +652,7 @@ export class CoreConfigManager {
       return;
     }
 
-    const componentType = this._mapCardTypeToComponent(cardType);
-    const resolveToken = this.themeManager.resolver.forComponent(componentType);
+    const resolveToken = this.themeManager.resolver.forComponent(cardType);
 
     this._walkAndResolveTokens(config, resolveToken);
   }
@@ -781,37 +778,6 @@ export class CoreConfigManager {
     // All packs loaded globally by PackManager, not per-card
     // MSD now uses standard four-layer merge like other LCARdS cards
     return false;
-  }
-
-  /**
-   * Map card type to theme component type
-   * @private
-   */
-  /**
-   * Map legacy card type names to component type
-   * @private
-   */
-  _mapCardTypeToComponent(cardType) {
-    const mapping = {
-      'simple-button': 'button',  // Legacy alias
-      'simple-label': 'text',     // Legacy alias
-      'simple-gauge': 'gauge',    // Legacy alias
-      'msd': 'msd'
-    };
-    return mapping[cardType] || cardType;
-  }
-
-  /**
-   * Map legacy card type to preset overlay type
-   * @private
-   */
-  _mapCardTypeToOverlay(cardType) {
-    const mapping = {
-      'simple-button': 'button',  // Legacy alias
-      'simple-label': 'text',     // Legacy alias
-      'simple-gauge': 'gauge',    // Legacy alias
-    };
-    return mapping[cardType] || cardType;
   }
 
   /**

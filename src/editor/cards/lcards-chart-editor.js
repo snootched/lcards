@@ -114,6 +114,7 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
 
                     ${FormField.renderField(this, 'min_width', { label: 'Min Width' })}
                 </div>
+                ${this._renderLayoutCardHint()}
             </lcards-form-section>
         `;
     }

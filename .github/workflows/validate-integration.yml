@@ -8,6 +8,7 @@ on:
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
+  workflow_call:  # allow release.yml (and others) to call this as a gate
 
 jobs:
   validate-hassfest:
@@ -33,9 +34,34 @@ jobs:
         with:
           category: "integration"
 
+  validate-css-vars:
+    name: Validate CSS Variables
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run CSS variable validator
+        run: npm run validate:css-vars
+
   validate-build:
     name: Validate Build
     runs-on: ubuntu-latest
+    needs:
+      - validate-css-vars
+      - validate-version
+      - validate-structure
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:

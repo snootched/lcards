@@ -80,6 +80,21 @@ export function calculateZones(width, height, context) {
     // bottom on a lozenge because the fill rect can't reach the clip edge).
     const bodyZone = { x: bodyX, y: bodyY, width: bodyW, height: bodyH };
 
+    // Named band zones — only emitted when a band has non-zero size so that
+    // zero-size bands don't accidentally become targetable text zones.
+    const bandZones = {};
+    if (orientation === 'horizontal') {
+        const leftW  = shapedStyle?.text_bands?.left?.size  ?? 60;
+        const rightW = shapedStyle?.text_bands?.right?.size ?? 60;
+        if (leftW  > 0) bandZones.left  = { x: 0,             y: 0, width: leftW,  height };
+        if (rightW > 0) bandZones.right = { x: width - rightW, y: 0, width: rightW, height };
+    } else {
+        const topH = shapedStyle?.text_bands?.top?.size    ?? 36;
+        const botH = shapedStyle?.text_bands?.bottom?.size ?? 36;
+        if (topH > 0) bandZones.top    = { x: 0, y: 0,             width, height: topH };
+        if (botH > 0) bandZones.bottom = { x: 0, y: height - botH, width, height: botH };
+    }
+
     return {
         track:    { ...bodyZone },
         control:  { ...bodyZone },
@@ -87,7 +102,9 @@ export function calculateZones(width, height, context) {
         // No range zone — ranges are embedded in track content
         text:     { x: 0, y: 0, width, height },
         // Internal hint for render() — body bounds
-        _shaped:  { ...bodyZone }
+        _shaped:  { ...bodyZone },
+        // Named band zones for text field routing (top/bottom or left/right)
+        ...bandZones
     };
 }
 
@@ -142,7 +159,7 @@ export function render(context) {
     // Track background (dark "empty" fill inside the shape)
     const trackBg = colors?.trackBackground
         ?? style?.shaped?.track?.background
-        ?? '#12121c';
+        ?? 'var(--lcards-gray-dark, #12121c)';
 
     const clipPathElement = buildClipPath(clipId, shapeType, bodyX, bodyY, bodyW, bodyH, shapeOptions);
 
@@ -239,7 +256,7 @@ export function getMetadata() {
                         color: {
                             description: 'Value fill colour',
                             type: 'string',
-                            default: '#93e1ff'
+                            default: 'theme:components.slider.shaped.fill.color'
                         }
                     },
                     text_bands: {

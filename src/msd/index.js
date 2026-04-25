@@ -145,11 +145,11 @@ export { initMsdPipelineCore as initMsdPipeline, processMsdConfig };
 
       // Keep console.table for this debug helper - it's a user-facing debug function
       console.table(status);
-      console.log('💡 Get all cards: window.lcards.cards.msd.getAll()');
-      console.log('💡 Get card by ID: window.lcards.cards.msd.getById("bridge")');
-      console.log('💡 Get provenance: window.lcards.debug.msd.getProvenance()');
-      console.log('💡 Debug provenance: window.lcards.debug.msd.debugProvenance()');
-      console.log('💡 Inspect cards: Use browser DevTools Elements tab');
+      lcardsLog.debug('[MSD Debug] 💡 Get all cards: window.lcards.cards.msd.getAll()');
+      lcardsLog.debug('[MSD Debug] 💡 Get card by ID: window.lcards.cards.msd.getById("bridge")');
+      lcardsLog.debug('[MSD Debug] 💡 Get provenance: window.lcards.debug.msd.getProvenance()');
+      lcardsLog.debug('[MSD Debug] 💡 Debug provenance: window.lcards.debug.msd.debugProvenance()');
+      lcardsLog.debug('[MSD Debug] 💡 Inspect cards: Use browser DevTools Elements tab');
       return status;
     };
   }

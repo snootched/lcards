@@ -589,7 +589,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         { type: 'field', path: 'min_height' },
                         { type: 'field', path: 'min_width' }
                     ]
-                }
+                },
+                { type: 'custom', render: () => this._renderLayoutCardHint() }
             ]
         }
         ];

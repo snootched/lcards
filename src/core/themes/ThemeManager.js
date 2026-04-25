@@ -19,6 +19,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../../core/BaseService.js';
 import { setAlertMode as injectAlertMode, ALERT_MODE_TRANSFORMS, captureOriginalColors } from './paletteInjector.js';
 import { loadAlertTransformsFromHelpers } from './alertModeTransform.js';
+import { STORAGE_KEY_THEME_OVERRIDES } from '../services/ScopedSettingsConstants.js';
 
 /**
  * Built-in filter presets for base SVG
@@ -104,6 +105,21 @@ export class ThemeManager extends BaseService {
      * @type {Set<Function>}
      */
     this._alertModeSubscribers = new Set();
+
+    /**
+     * Subscribers notified after theme token overrides change.
+     * Fires after overrides are merged and applied to the resolver.
+     * @type {Set<Function>}
+     */
+    this._overrideSubscribers = new Set();
+
+    /**
+     * Pending setTimeout ID for the debounced `lcards:theme-overrides-changed`
+     * window event.  Prevents N cards each launching a full config re-process
+     * when rapid successive override writes occur (e.g. dragging a token slider).
+     * @type {ReturnType<typeof setTimeout>|null}
+     */
+    this._overridesChangedTimer = null;
   }
 
   /**
@@ -204,6 +220,9 @@ export class ThemeManager extends BaseService {
       this.resolver.clearCache();
     }
 
+    // Load and apply scoped overrides for the new theme
+    await this.loadOverrides();
+
     // Load theme CSS file if specified
     // (Reserved for future theme CSS override support - no themes currently ship cssFiles)
     // if (theme.cssFile) { this._loadThemeCss(theme.cssFile, themeId); }
@@ -211,12 +230,33 @@ export class ThemeManager extends BaseService {
     this.activeThemeId = themeId;
     this.activeTheme = theme;
 
-    // Capture original --lcars-* colors for alert mode system
-    // This ensures we always have baseline colors to transform from
+    // Capture original --lcars-* colors for alert mode system.
+    //
+    // Pass 1 (synchronous): CSS vars written by initializeTokenResolver / injectPalette
+    // are applied via style.setProperty and are immediately available to getComputedStyle.
+    // Capturing here ensures a baseline is ALWAYS present before any setTimeout-based
+    // alert mode application runs (avoids the race with HelperManager._setupAlertModeAutoSwitch).
+    captureOriginalColors(rootElement);
+    lcardsLog.debug('[ThemeManager] Alert mode baseline colors captured (initial pass)');
+
+    // Pass 2 (deferred): a second capture after 150 ms lets any HA LCARS theme stylesheet
+    // rules that land asynchronously (e.g. lovelace panel CSS cascade) refine the snapshot.
+    //
+    // GUARD: if a non-green alert mode is already active by the time this fires
+    // (e.g. _tryApplyInitialAlertMode ran at ~100 ms and the lazy baseline
+    // capture inside setAlertMode already populated originalLcarsColors) then
+    // the --lcars-* vars are now transformed.  Re-capturing them here would
+    // store the alert-shifted colours as the "original" baseline, causing
+    // permanent colour drift for all subsequent mode switches.
     setTimeout(() => {
+      const activeModeNow = this.currentAlertMode ?? 'green_alert';
+      if (activeModeNow !== 'green_alert') {
+        lcardsLog.debug(`[ThemeManager] Skipping deferred baseline recapture — non-green mode already active: ${activeModeNow}`);
+        return;
+      }
       captureOriginalColors(rootElement);
-      lcardsLog.debug('[ThemeManager] Alert mode baseline colors captured');
-    }, 100); // Small delay to ensure theme CSS is applied
+      lcardsLog.debug('[ThemeManager] Alert mode baseline colors re-captured (deferred pass)');
+    }, 150);
 
     lcardsLog.info('[ThemeManager] ✅ Theme activated:', {
       id: themeId,
@@ -610,6 +650,13 @@ export class ThemeManager extends BaseService {
       this.resolver.clearCache();
     }
 
+    // Invalidate LCARdSColorPicker CSS variable cache so freshly-opened
+    // picker instances show the transformed swatch colours.
+    try {
+      const LCARdSColorPicker = /** @type {any} */ (customElements.get('lcards-color-picker'));
+      if (LCARdSColorPicker?.invalidateCache) LCARdSColorPicker.invalidateCache();
+    } catch (_) { /* safe to ignore */ }
+
     // Notify subscribers — everything is ready: CSS vars written, cache cleared,
     // currentAlertMode updated.  Safe for components to re-render immediately.
     if (this._alertModeSubscribers.size > 0) {
@@ -651,6 +698,151 @@ export class ThemeManager extends BaseService {
     return this.currentAlertMode;
   }
 
+  // ==========================================================================
+  // TOKEN OVERRIDES — scoped per global / user / device
+  // ==========================================================================
+
+  /**
+   * Subscribe to token override changes.
+   *
+   * The callback is fired after overrides are merged from all scopes and
+   * applied to the resolver cache.  Safe to call requestUpdate() directly.
+   *
+   * @param {Function} callback - Called with no arguments on every change
+   * @returns {Function} Unsubscribe function
+   */
+  subscribeToOverridesChanged(callback) {
+    this._overrideSubscribers.add(callback);
+    return () => this._overrideSubscribers.delete(callback);
+  }
+
+  /**
+   * Notify all override subscribers and dispatch a window event so that
+   * LCARdSCard base instances can call requestUpdate() cheaply.
+   * Also invalidates the LCARdSColorPicker CSS variable cache so freshly-opened
+   * pickers show the current values.
+   * @private
+   */
+  _notifyOverridesChanged() {
+    this._overrideSubscribers.forEach(cb => {
+      try { cb(); } catch (e) {
+        lcardsLog.warn('[ThemeManager] Override subscriber threw:', e);
+      }
+    });
+    // Broadcast to all LCARdSCard base instances via a debounced window event.
+    // Debouncing collapses rapid successive calls (e.g. dragging a token-override
+    // slider) into a single dispatch, preventing N cards from each launching a
+    // full async config re-process simultaneously.
+    if (typeof window !== 'undefined') {
+      if (this._overridesChangedTimer !== null) {
+        clearTimeout(this._overridesChangedTimer);
+      }
+      this._overridesChangedTimer = setTimeout(() => {
+        this._overridesChangedTimer = null;
+        window.dispatchEvent(new CustomEvent('lcards:theme-overrides-changed'));
+      }, 50);
+    }
+    // Invalidate LCARdSColorPicker static variable cache
+    try {
+      const LCARdSColorPicker = /** @type {any} */ (customElements.get('lcards-color-picker'));
+      if (LCARdSColorPicker?.invalidateCache) LCARdSColorPicker.invalidateCache();
+    } catch (_) { /* safe to ignore */ }
+  }
+
+  /**
+   * Load and apply token overrides from all three scopes (global, user, device).
+   * Device-scope values win when the same token path is set in multiple scopes.
+   *
+   * Safe to call at any time; no-ops gracefully when ScopedSettingsService is
+   * unavailable (e.g. integration not loaded yet).
+   *
+   * @returns {Promise<void>}
+   */
+  async loadOverrides() {
+    const sss = window.lcards?.core?.scopedSettingsService;
+    if (!sss || !this.resolver) return;
+
+    try {
+      const allScopes = await sss.readAllScopes(STORAGE_KEY_THEME_OVERRIDES);
+      // Merge: global first, user next, device last (device wins)
+      const merged = {
+        ...(allScopes.global  ?? {}),
+        ...(allScopes.user    ?? {}),
+        ...(allScopes.device  ?? {}),
+      };
+      this.resolver.setOverrides(Object.keys(merged).length ? merged : null);
+      lcardsLog.info('[ThemeManager] Token overrides loaded', { count: Object.keys(merged).length });
+    } catch (e) {
+      lcardsLog.warn('[ThemeManager] Failed to load token overrides:', e);
+      this.resolver.clearOverrides();
+    }
+
+    this._notifyOverridesChanged();
+  }
+
+  /**
+   * Set a single token override for a given scope and persist it.
+   *
+   * @param {string} tokenPath - Dot-notation token path, e.g. 'colors.card.button'
+   * @param {string|number} value - New value (CSS var, hex, or number)
+   * @param {'global'|'user'|'device'} scope
+   * @returns {Promise<void>}
+   */
+  async setOverride(tokenPath, value, scope) {
+    const sss = window.lcards?.core?.scopedSettingsService;
+    if (!sss) return;
+
+    // Read the current overrides for this scope only so we deep-merge correctly
+    const current = await sss.read(STORAGE_KEY_THEME_OVERRIDES, [scope]) ?? {};
+    const updated = { ...current, [tokenPath]: value };
+    await sss.write(STORAGE_KEY_THEME_OVERRIDES, updated, scope);
+    lcardsLog.info(`[ThemeManager] Override set: ${tokenPath}=${value} (${scope})`);
+    await this.loadOverrides();
+  }
+
+  /**
+   * Remove a single token override from a scope.
+   *
+   * @param {string} tokenPath
+   * @param {'global'|'user'|'device'} scope
+   * @returns {Promise<void>}
+   */
+  async clearOverride(tokenPath, scope) {
+    const sss = window.lcards?.core?.scopedSettingsService;
+    if (!sss) return;
+
+    const current = await sss.read(STORAGE_KEY_THEME_OVERRIDES, [scope]) ?? {};
+    const updated = { ...current };
+    delete updated[tokenPath];
+
+    if (Object.keys(updated).length === 0) {
+      await sss.clear(STORAGE_KEY_THEME_OVERRIDES, scope);
+    } else {
+      await sss.write(STORAGE_KEY_THEME_OVERRIDES, updated, scope);
+    }
+
+    lcardsLog.info(`[ThemeManager] Override cleared: ${tokenPath} (${scope})`);
+    await this.loadOverrides();
+  }
+
+  /**
+   * Returns the raw (un-overridden) resolved value for a token path.
+   * Useful for showing "theme default" in the override editor UI.
+   *
+   * @param {string} tokenPath
+   * @param {*} [fallback=null]
+   * @returns {*}
+   */
+  getThemeDefault(tokenPath, fallback = null) {
+    if (!this.resolver) return fallback;
+    // Temporarily bypass by checking the token tree directly
+    const savedOverrides = this.resolver._overrides;
+    this.resolver._overrides = null;
+    const value = this.resolver.resolve(tokenPath, fallback);
+    this.resolver._overrides = savedOverrides;
+    return value;
+  }
+
   /**
    * Destroy theme manager and clean up resources
    */
@@ -661,6 +853,7 @@ export class ThemeManager extends BaseService {
     this.resolver = null;
     this.initialized = false;
     this._alertModeSubscribers.clear();
+    this._overrideSubscribers.clear();
 
     lcardsLog.debug('[ThemeManager] Destroyed');
   }

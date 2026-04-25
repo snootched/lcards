@@ -21,23 +21,6 @@
 
 <br>
 
-> [!WARNING]
-> ## ⚠️ Breaking Change — Integration replaces Frontend Plugin
->
-> LCARdS has moved from a **HACS Frontend Plugin** to a **HACS Integration**.
-> This is a one-time migration that must be done manually on existing installs.
->
-> **If you have an existing LCARdS installation you must:**
-> 1. Remove the old **LCARdS** HACS Frontend Plugin (HACS → Frontend → LCARdS → Remove)
-> 2. If you added LCARdS as a custom HACS repository, remove that entry too
-> 3. Remove the `panel_custom:` block from `configuration.yaml` if you added one
-> 4. Restart Home Assistant
-> 5. Install **LCARdS** from HACS **Integrations** (not Frontend)
-> 6. Go to **Settings → Integrations → Add Integration → LCARdS** to activate it
->
-> → **[Full migration instructions](https://lcards.unimatrix01.ca/getting-started/installation)**
-
-<br>
 
 > [!NOTE]
 > **LCARdS** is a work in progress and not a fully commissioned Starfleet product — expect some tribbles!

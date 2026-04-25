@@ -39,6 +39,9 @@ export class TriggerManager {
     // Tracks looping animations with a 'while' condition that are currently playing
     this._whileActiveAnims = new Set(); // Set<animDef references>
 
+    /** @type {boolean} Set by AnimationManager when recreating a scope that had active while-animations */
+    this._isRecreation = false;
+
     lcardsLog.debug(`[TriggerManager] Created for overlay: ${overlayId}`);
   }
 

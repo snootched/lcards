@@ -478,8 +478,8 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
     if (/\{theme\./.test(str)) {
       errors.push({
         pattern: /\{theme\.[^}]+\}/g,
-        message: 'Wrong syntax: {theme.colors} should be {theme:colors} (colon, not dot)',
-        suggestion: 'Use colon after prefix: {theme:colors.primary}'
+        message: 'Wrong syntax: {theme.colors.text.onDark} should be {theme:colors.text.onDark} (colon, not dot)',
+        suggestion: 'Use colon after prefix: {theme:colors.text.onDark}'
       });
     }
 
@@ -498,7 +498,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
       errors.push({
         pattern: /\{(colors|spacing|typography|borders|effects|animations|components)\.[^}]+\}/g,
         message: 'Ambiguous syntax: missing theme: prefix',
-        suggestion: 'Add theme: prefix for clarity: {theme:colors.primary}'
+        suggestion: 'Add theme: prefix for clarity: {theme:colors.ui.primary}'
       });
     }
 

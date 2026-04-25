@@ -120,7 +120,17 @@ export class LCARdSCard extends LCARdSNativeCard {
             css`
                 :host {
                     display: block;
-                    width: 100%;
+                    /* NO width: 100% — in CSS Grid, explicit width: 100% resolves to
+                     * 100% of the grid area and ignores the item's own margins.  With
+                     * card_margin on the parent layout-card this makes the card wider
+                     * than its allocated space by 2×margin, causing visible overflow.
+                     * Grid's default justify-self: stretch sizes to (area − margins),
+                     * so we let it do its job on the width axis.
+                     *
+                     * height: 100% IS needed — HA sections view sets an explicit pixel
+                     * height on the hui-card wrapper (from grid_options.rows×row_height).
+                     * Without height: 100% the card collapses to min-height because the
+                     * SVG is position:absolute and contributes zero intrinsic height. */
                     height: 100%;
                     /* Allow CSS grid/flexbox to shrink below SVG intrinsic size */
                     min-width: 0;
@@ -184,6 +194,20 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Entity tracking for Jinja2 template updates
         this._trackedEntities = [];
+
+        // Pre-evaluated style template cache (template string → result).
+        // Populated by _preEvaluateStyleTemplates() during async _processCustomTemplates().
+        // Lets synchronous SVG / style generation consume Jinja2/JS template results
+        // via _resolveTemplateValue().
+        // Cleared at the start of every _processTemplates() cycle so removed keys
+        // don't accumulate indefinitely (particularly in the editor).
+        this._evaluatedStyleCache = new Map();
+
+        // Monotonically increasing run-ID for _processConfigAsync.
+        // Incremented on every entry; the committing write checks the current ID
+        // so in-flight stale runs triggered by theme-override events abandon
+        // instead of overwriting the result of the most-recent run.
+        this._configRunId = 0;
 
         // Config provenance tracking (from CoreConfigManager)
         this._provenance = null;
@@ -253,6 +277,11 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Reset patch snapshot so next rule cycle gets a fresh base
         this._baseConfig = null;
 
+        // Store the untouched HA-supplied config so the theme-override handler
+        // can re-run processConfig (which builds a fresh mergedConfig) without
+        // losing the original theme: token strings that were already resolved.
+        this._rawConfig = config;
+
         lcardsLog.trace(`[LCARdSCard] setConfig called`, {
             hasId: !!config.id,
             id: config.id,
@@ -278,6 +307,12 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @private
      */
     async _processConfigAsync(rawConfig) {
+        // Capture a run-ID on entry.  If a newer run starts before this one
+        // reaches its first await checkpoint, the newer run will have already
+        // incremented _configRunId; we check before committing results so the
+        // stale (older) run silently abandons rather than overwriting.
+        const runId = ++this._configRunId;
+
         const core = window.lcards?.core || window.lcardsCore;
 
         if (!core?.configManager?.initialized) {
@@ -333,8 +368,21 @@ export class LCARdSCard extends LCARdSNativeCard {
                     valid: result.valid
                 });
 
+                // Guard: if a newer _processConfigAsync run has started since this
+                // one was launched, discard results rather than overwriting the
+                // in-progress run's eventual write.
+                if (runId !== this._configRunId) {
+                    lcardsLog.trace(`[LCARdSCard] Stale config run ${runId} superseded by ${this._configRunId} — discarding`);
+                    return;
+                }
+
                 // Update internal config
                 this.config = result.mergedConfig;
+
+                // Re-scan tracked entities now that we have the final merged config.
+                // This is the authoritative call for all card types — it covers primary
+                // entity, rules, animations, Jinja2 auto-scan, and triggers_update.
+                this._updateTrackedEntities();
 
                 // Allow subclasses to react to config changes before render
                 // (e.g., button card needs to re-resolve styles when config changes)
@@ -384,7 +432,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         const dataSourceManager = this._singletons?.dataSourceManager;
         if (!dataSourceManager) {
-            lcardsLog.warn(`[LCARdSCard] Cannot process data_sources: DataSourceManager not available`);
+            lcardsLog.debug(`[LCARdSCard] Cannot process data_sources yet: DataSourceManager not available (will retry after connectedCallback)`);
             return;
         }
 
@@ -780,6 +828,16 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._registerTemplateDatasourceDependencies();
         }
 
+        // Re-run data_sources processing if it was skipped during setConfig (singletons not ready yet)
+        if (this._singletons?.dataSourceManager && this.config?.data_sources && !this._registeredDataSources?.size) {
+            lcardsLog.debug(`[LCARdSCard] Re-processing data_sources after singletons available: ${this._getDisplayId()}`);
+            // Chain onto _configProcessingPromise so subclasses that await it (e.g. lcards-chart) get sources ready
+            const retryPromise = this._processDataSourcesConfig(this.config.data_sources).catch(err => {
+                lcardsLog.error(`[LCARdSCard] data_sources re-processing failed:`, err);
+            });
+            this._configProcessingPromise = Promise.resolve(this._configProcessingPromise).then(() => retryPromise);
+        }
+
         // Now that singletons are initialized, load rules from config
         if (this._hasRulesToLoad && this.config.rules) {
             this._loadRulesFromConfig(this.config.rules);
@@ -821,6 +879,27 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Mark as initialized
         this._initialized = true;
+
+        // Subscribe to theme token override changes so the card re-renders when
+        // an admin or user applies/removes a global/user/device token override.
+        // Must re-run processConfig (not just requestUpdate) because processConfig
+        // bakes resolved theme: token values into this.config — a plain requestUpdate
+        // would re-render with the already-resolved (now-stale) cached values.
+        this._themeOverridesChangedHandler = () => {
+            if (this._rawConfig) {
+                // Supersede any in-flight config run before launching a new one.
+                // _processConfigAsync increments _configRunId on entry, but preemptively
+                // bumping it here means an already-running run will see a mismatch
+                // at its next await checkpoint and abort before we even start.
+                this._configRunId++;
+                this._processConfigAsync(this._rawConfig).catch(err => {
+                    lcardsLog.warn('[LCARdSCard] Theme override re-process failed:', err);
+                });
+            } else {
+                this.requestUpdate();
+            }
+        };
+        window.addEventListener('lcards:theme-overrides-changed', this._themeOverridesChangedHandler);
 
         // NOTE: Do NOT register rules callback here - subclasses should call
         // _registerOverlayForRules() in their own _handleFirstUpdate() hook
@@ -905,6 +984,15 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._windowResizeHandler = null;
         }
 
+        // Reset the parent-margin height correction so the rAF first-measurement block
+        // re-detects the current layout context (the card may have moved from a
+        // layout-card context with card_margin to a sections view, or vice-versa).
+        this.style.removeProperty('height');
+        this._parentMarginV = undefined;
+        // Reset stored size so the first ResizeObserver callback takes the rAF path
+        // (margin re-detection) rather than the debounced update path.
+        this._containerSize = null;
+
         // Persist callback reference so it can be restored on reconnect
         this._autoSizingCallback = onResize;
         this._autoSizingEnabled = true;
@@ -955,14 +1043,101 @@ export class LCARdSCard extends LCARdSNativeCard {
                 }
             };
 
-            // First measurement: fire immediately so the initial render uses the real
-            // container size without a visible delay.
-            // Subsequent changes: debounce at 150 ms to absorb rapid viewport jitter
-            // (e.g. Android toolbar slide-in/out) that would otherwise produce a
-            // feedback loop of ever-shrinking re-renders.
+            // First measurement: defer by one animation frame, then re-measure fresh.
+            //
+            // Why rAF and not immediate?
+            // Some parent components (notably custom:layout-card in grid mode) inject
+            // a <style> block that sets CSS variables like --card-margin inside their
+            // own `firstUpdated()` lifecycle hook.  `firstUpdated()` fires as a
+            // microtask (via updateComplete) which runs BEFORE the first animation
+            // frame.  If we commit the first size synchronously in the ResizeObserver
+            // callback (which fires during the same layout pass as the initial render,
+            // before the microtask queue has fully drained for all ancestor components),
+            // we may capture the full un-margined track width/height.  When the parent
+            // then injects the margin style, the card has already baked over-sized pixel
+            // geometry into its SVG; because .button-container > svg has
+            // `overflow: visible`, that geometry paints outside the grid cell boundary.
+            //
+            // Deferring by one rAF guarantees:
+            //   1. All ancestor firstUpdated() microtasks have run and injected their
+            //      styles (--card-margin, gap, padding, etc.).
+            //   2. The browser has performed a layout pass with those styles applied.
+            //   3. We re-read the element's bounding rect FRESH at rAF time, so the
+            //      captured size from the ROb entry (which might be stale if a second
+            //      ROb fired in the same frame with a newer size) is not used.
+            //
+            // Trade-off: the initial render shows CSS fallback dimensions for ~16 ms.
+            // Cards that specify config.width / config.height are unaffected (they use
+            // those config values rather than _containerSize for SVG generation).
+            //
+            // Subsequent changes: debounce at 150 ms to absorb rapid viewport
+            // jitter (e.g. Android toolbar slide-in/out) without looping.
             if (!this._containerSize) {
                 clearTimeout(_roDebounceTimer);
-                applySize();
+                // Double-rAF: the first frame lets all ancestor `firstUpdated()`
+                // microtasks complete AND the browser recalculate styles (including
+                // injected --card-margin).  The second frame ensures the style
+                // recalculation has been fully committed before we call
+                // getComputedStyle — a single rAF can fire before CSSOM has
+                // propagated a dynamically-injected <style> block.
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    if (!this.isConnected) return;
+
+                    // ── Margin compensation ────────────────────────────────────────
+                    // Problem: our immediate DOM parent (typically HA's `hui-card`) has
+                    // `height: 100%` in its own shadow DOM, which makes its content-box
+                    // equal to the full grid-track height — ignoring its own CSS margins.
+                    // Our `:host { height: 100% }` then also resolves to that inflated
+                    // track height.  With `layout-card` card_margin applied, the card
+                    // visually overflows its grid row by 2 × vertical_margin.
+                    //
+                    // Fix: read OUR OWN computed margins (not the parent's).
+                    // layout-card applies card_margin via `#root > * { margin: ... }`
+                    // which targets the card element itself — so getComputedStyle(this)
+                    // is where the resolved margin values live, not on the parent div.
+                    // We then set `height: calc(100% - Npx)` on `:host` so the element
+                    // fills only the margin-adjusted space.  getBoundingClientRect()
+                    // below forces a synchronous layout flush so the measurement already
+                    // reflects the corrected height.
+                    //
+                    // Context breakdown:
+                    //  • sections view  → no margin on card element → subtract 0 → no change ✓
+                    //  • layout-card    → card_margin applied to us (e.g. 10px top, 30px bottom)
+                    //                     → height: calc(100% - 40px) → correct ✓
+                    //  • masonry/plain  → default HA margin ~4+8=12px on card, BUT parent
+                    //                     height is `auto`, so calc(100% - 12px) on an
+                    //                     auto-height parent resolves to `auto` →
+                    //                     min-height floor applies as before ✓
+                    const myStyle = window.getComputedStyle(this);
+                    const marginV = (parseFloat(myStyle.marginTop)    || 0)
+                                  + (parseFloat(myStyle.marginBottom) || 0);
+                    if (marginV > 0) {
+                        this.style.height = `calc(100% - ${marginV}px)`;
+                        this._parentMarginV = marginV; // cache for reconnect / window.resize
+                    } else {
+                        this.style.removeProperty('height');
+                        this._parentMarginV = 0;
+                    }
+
+                    // Re-read size after forcing layout (getBCR is synchronous flush).
+                    const freshRef = this.shadowRoot?.querySelector('.lcards-size-ref') ?? this;
+                    const cr = freshRef ? freshRef.getBoundingClientRect() : null;
+                    if (cr && (cr.width > 0 || cr.height > 0)) {
+                        const freshW = Math.round(cr.width);
+                        const freshH = Math.round(cr.height);
+                        this._containerSize = { width: freshW, height: freshH };
+                        lcardsLog.trace(`[LCARdSCard] First size (rAF): ${freshW}x${freshH} for ${this._getDisplayId()}`);
+                        if (onResize && typeof onResize === 'function') {
+                            onResize(freshW, freshH);
+                        } else {
+                            this.requestUpdate();
+                        }
+                    } else {
+                        // Element not yet visible (e.g. hidden tab, loading overlay).
+                        // Fall back to the ROb-captured value so we don't stay blank.
+                        applySize();
+                    }
+                }));
             } else {
                 clearTimeout(_roDebounceTimer);
                 _roDebounceTimer = setTimeout(applySize, 150);
@@ -1003,6 +1178,9 @@ export class LCARdSCard extends LCARdSNativeCard {
 
                 // Round to 1 decimal to absorb sub-pixel jitter while still
                 // detecting real layout shifts (matches browser rounding behaviour).
+                // Note: by the time window.resize fires, the rAF first-measurement
+                // block has already applied `height: calc(100% - Npx)` on :host to
+                // account for parent margins, so getBCR() here is already correct.
                 const w = Math.round(rect.width * 10) / 10;
                 const h = Math.round(rect.height * 10) / 10;
 
@@ -1838,6 +2016,51 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
+     * Pre-evaluate all Jinja2 and JS template strings found in a config object
+     * and cache the results in `_evaluatedStyleCache`.
+     *
+     * Call this from `_processCustomTemplates()` before any synchronous style
+     * resolution so that `_resolveTemplateValue()` can substitute the results
+     * during SVG/style generation.
+     *
+     * @param {*} obj - Config object subtree to scan (e.g. `this.config.style`)
+     * @protected
+     */
+    async _preEvaluateStyleTemplates(obj) {
+        const strings = this._extractAllConfigStrings(obj);
+        for (const str of strings) {
+            const isJinja2 = str.includes('{%') || str.includes('{{');
+            const isJs    = str.includes('[[[');
+            if (!isJinja2 && !isJs) continue;
+            try {
+                const result = await this.processTemplate(str);
+                this._evaluatedStyleCache.set(str, result);
+            } catch (e) {
+                lcardsLog.warn('[LCARdSCard] Failed to pre-evaluate style template:', e);
+            }
+        }
+    }
+
+    /**
+     * If `value` is a string that was pre-evaluated by `_preEvaluateStyleTemplates`,
+     * return the cached result; otherwise return `value` unchanged.
+     *
+     * Insert this call between `_resolveStateValue()` and any downstream color
+     * resolver (e.g. `_resolveMatchLightColor`) so that template strings never
+     * reach SVG attribute setters unevaluated.
+     *
+     * @param {*} value - Value to resolve
+     * @returns {*} Evaluated result or original value
+     * @protected
+     */
+    _resolveTemplateValue(value) {
+        if (typeof value !== 'string') return value;
+        return this._evaluatedStyleCache.has(value)
+            ? this._evaluatedStyleCache.get(value)
+            : value;
+    }
+
+    /**
      * Schedule a retry of template processing when DataSourceManager becomes available
      * @private
      */
@@ -1918,6 +2141,11 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Process icon configuration
         await this._processIcon();
 
+        // Clear the style-template cache before each config cycle so that keys
+        // removed between renders don't accumulate as stale entries indefinitely.
+        // _preEvaluateStyleTemplates() re-populates only the keys still present.
+        this._evaluatedStyleCache.clear();
+
         // Call subclass-specific template processing hook
         if (typeof this._processCustomTemplates === 'function') {
             await this._processCustomTemplates();
@@ -1967,9 +2195,64 @@ export class LCARdSCard extends LCARdSNativeCard {
             });
         }
 
+        // Scan all string values in the config for Jinja2 entity references.
+        // This automatically tracks entities used in templates for colors, labels,
+        // or any other field — without requiring explicit user configuration.
+        // JS templates ([[[...]]]) are intentionally excluded: static analysis is
+        // unreliable for dynamic entity keys; use `triggers_update` instead.
+        this._extractAllConfigStrings(this.config).forEach(str => {
+            TemplateParser.extractJinja2Entities(str).forEach(entityId => {
+                trackedEntities.add(entityId);
+            });
+        });
+
+        // Explicit escape-hatch: user-defined entity list.
+        // Use this for JS/token templates that reference entities that cannot be
+        // auto-detected (e.g. `[[[return hass.states[myVar].state]]]`).
+        //
+        // config:
+        //   triggers_update:
+        //     - sensor.outdoor_temperature
+        //     - binary_sensor.motion_kitchen
+        if (this.config.triggers_update && Array.isArray(this.config.triggers_update)) {
+            this.config.triggers_update.forEach(entityId => {
+                if (typeof entityId === 'string' && entityId.trim()) {
+                    trackedEntities.add(entityId.trim());
+                }
+            });
+        }
+
         this._trackedEntities = Array.from(trackedEntities);
 
         lcardsLog.trace(`[LCARdSCard] Tracking ${this._trackedEntities.length} entities for ${this._cardGuid}:`, this._trackedEntities);
+    }
+
+    /**
+     * Recursively collect every string value from a config object.
+     * Skips the `type` key (card type string, never an entity reference).
+     * Used by `_updateTrackedEntities` to scan all template fields for
+     * Jinja2 entity dependencies without enumerating every possible field name.
+     *
+     * @private
+     * @param {*} node - Config node (object, array, or scalar)
+     * @param {Set<string>} [out] - Accumulator set
+     * @returns {Set<string>} Collected string values
+     */
+    _extractAllConfigStrings(node, out = new Set()) {
+        if (!node || typeof node !== 'object') {
+            if (typeof node === 'string') out.add(node);
+            return out;
+        }
+        if (Array.isArray(node)) {
+            node.forEach(item => this._extractAllConfigStrings(item, out));
+            return out;
+        }
+        for (const [key, value] of Object.entries(node)) {
+            // `type` is always the card type identifier (e.g. 'custom:lcards-button')
+            if (key === 'type') continue;
+            this._extractAllConfigStrings(value, out);
+        }
+        return out;
     }
 
     /**
@@ -2883,6 +3166,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @param {string} [options.entity] - Entity ID for context
      * @param {Array} [options.animations] - Animation configurations
      * @param {Object} [options.soundOverride] - Sound override configuration
+     * @param {boolean} [options.disableHover] - When true, suppresses pointer cursor and hover/leave animation handlers
      * @returns {Function} Cleanup function
      */
     setupActions(element, actions = {}, options = {}) {
@@ -3055,6 +3339,12 @@ export class LCARdSCard extends LCARdSNativeCard {
         if (this._windowResizeHandler) {
             window.removeEventListener('resize', this._windowResizeHandler);
             this._windowResizeHandler = null;
+        }
+
+        // --- Theme overrides changed handler ---
+        if (this._themeOverridesChangedHandler) {
+            window.removeEventListener('lcards:theme-overrides-changed', this._themeOverridesChangedHandler);
+            this._themeOverridesChangedHandler = null;
         }
 
         // --- Core unregister (handles _cardInstances, _cardLoadOrder, SystemsManager) ---

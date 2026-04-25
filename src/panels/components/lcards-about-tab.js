@@ -153,8 +153,7 @@ export class LCARdSAboutTab extends LitElement {
               <ha-icon icon="mdi:arrow-right" class="tab-guide-arrow"></ha-icon>
             </div>
           `)}
-          ${this._isPreviewEnabled() ? html`
-            <div
+          <div
               class="tab-guide-card"
               role="button"
               tabindex="0"
@@ -165,15 +164,11 @@ export class LCARdSAboutTab extends LitElement {
                 <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
               </div>
               <div class="tab-guide-body">
-                <span class="tab-guide-title">
-                  Users &amp; Devices
-                  <lcards-preview-chip></lcards-preview-chip>
-                </span>
+                <span class="tab-guide-title">Users &amp; Devices</span>
                 <span class="tab-guide-desc">Manage registered devices and users with stored per-user / per-device overrides. Edit or clear scoped settings centrally (admin only).</span>
               </div>
               <ha-icon icon="mdi:arrow-right" class="tab-guide-arrow"></ha-icon>
             </div>
-          ` : ''}
         </div>
       </div>
 
@@ -199,31 +194,10 @@ export class LCARdSAboutTab extends LitElement {
 
         <ul class="preview-features-list">
           <li>
-            <ha-icon icon="mdi:account-cog-outline"></ha-icon>
+            <ha-icon icon="mdi:tune"></ha-icon>
             <div>
-              <span class="pf-title">Per-Device &amp; Per-User Sound Settings</span>
-              <span class="pf-desc">Three-tier hierarchy (global → user → device) for sound volume, scheme, enable/disable, and per-event overrides. Configurable centrally without needing to be on the target device.</span>
-            </div>
-          </li>
-          <li>
-            <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
-            <div>
-              <span class="pf-title">Users &amp; Devices Management Tab</span>
-              <span class="pf-desc">Admin-only tab in the Config Panel listing all registered devices and users with stored scoped settings. Edit or clear overrides for any session from one place.</span>
-            </div>
-          </li>
-          <li>
-            <ha-icon icon="mdi:bullseye-arrow"></ha-icon>
-            <div>
-              <span class="pf-title">Targeted HA Services</span>
-              <span class="pf-desc">All <code>lcards.*</code> services (alert modes, reload, log level) can target specific devices or users by ID or friendly name instead of broadcasting to everyone.</span>
-            </div>
-          </li>
-          <li>
-            <ha-icon icon="mdi:alert-decagram-outline"></ha-icon>
-            <div>
-              <span class="pf-title">Targeted Alert Modes</span>
-              <span class="pf-desc">Trigger red/yellow/blue alert on individual devices or users without changing the global alert state. Clears locally too.</span>
+              <span class="pf-title">Token Overrides (Alert Lab)</span>
+              <span class="pf-desc">A dedicated <em>Token Overrides</em> tab in the Alert Lab allowing you to create scoped or global token overrides that persist as part of your LCARdS configuration.</span>
             </div>
           </li>
         </ul>
@@ -418,7 +392,7 @@ export class LCARdSAboutTab extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--lcars-font-family, 'Antonio', sans-serif);
+      font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', sans-serif;
       letter-spacing: 0.05em;
       margin-top: 1px;
     }

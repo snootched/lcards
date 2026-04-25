@@ -52,6 +52,20 @@ export const lcardsDefaultTokens = {
   },
 
   // ==========================================================================
+  // EFFECTS
+  // Opacity and visual effect scales. Referenced by overlay/animation components.
+  // ==========================================================================
+  effects: {
+    opacity: {
+      base:        1,    // fully opaque — explicit no-dimming sentinel
+      inactive:    0.7,  // entity off/inactive state
+      unavailable: 0.5,  // entity unavailable state
+      disabled:    0.3,  // UI element disabled
+      overlay:     0.8,  // overlay/modal backdrops
+    }
+  },
+
+  // ==========================================================================
   // BORDERS
   // ==========================================================================
   borders: {
@@ -120,14 +134,15 @@ export const lcardsDefaultTokens = {
       ],
       grid: 'var(--lcars-gray, var(--lcards-gray-medium))',
       axis: 'var(--lcars-text-gray, var(--lcards-moonlight))',
-      stroke: 'var(--lcards-moonlight)'
+      stroke: 'var(--lcards-moonlight)',
+      background: 'black'          // SVG/canvas-safe named colour ≡ #000000
     },
 
     // Alert colors (LCARS alert symbol component)
     alert: {
       red: 'var(--lcars-alert-red)',         // Critical/Emergency
       blue: 'var(--lcars-alert-blue)',       // Security/Tactical
-      green: 'var(--lcars-green-medium)',    // Normal/All Clear
+      green: 'var(--lcars-green, #33cc99)',    // Normal/All Clear
       yellow: 'var(--lcars-alert-yellow)', // Caution/Warning
       gray: 'var(--lcards-gray)',       // Standby/Inactive
       black: 'var(--lcards-blue-lightest)'        // System Critical
@@ -340,6 +355,30 @@ export const lcardsDefaultTokens = {
           }
         }
       },
+      // Shaped clip-path variant
+      shaped: {
+        fill: {
+          // Uses HA primary colour with LCARS blue-light as fallback — same as shipped preset default
+          color: 'var(--primary-color, var(--lcards-blue-light))'
+        }
+      },
+      // Range band / indicator defaults
+      range: {
+        border: { color: 'black' },          // SVG-safe 'black' ≡ #000000
+        color: 'var(--lcards-gray-medium, #cccccc)' // neutral fallback for unstyled ranges
+      },
+      // Gauge / value-marker indicator (arrow, dot, line on the gauge track)
+      // Intentionally at slider.indicator (not gauge.indicator) because these
+      // tokens are shared by the main gauge indicator, value-marker indicators,
+      // and the Picard animation dot — all three use the same visual language.
+      indicator: {
+        color: 'var(--lcars-text-light, var(--lcards-moonlight))',
+        border: { color: 'black' }
+      },
+      // Animated indicator (pulsing dot on Picard-style components)
+      animation: {
+        indicator: { color: 'var(--lcards-blue, var(--lcards-blue-medium))' }
+      },
       text: 'components.button.text'
     },
 
@@ -353,6 +392,19 @@ export const lcardsDefaultTokens = {
       axisColor: 'colors.chart.axis',
       fontFamily: 'typography.fontFamily.primary',
       fontSize: 'typography.fontSize.sm'
+    },
+
+    // ------------------------------------------------------------------------
+    // LINE OVERLAY COMPONENT
+    // Used by LineOverlay (MSD). Values reference the colors.* palette so that
+    // theme variants automatically apply without per-component overrides.
+    // ------------------------------------------------------------------------
+    line: {
+      defaultColor:   'colors.ui.tertiary',
+      defaultWidth:   2,
+      defaultOpacity: 1,
+      defaultLineCap:  'round',
+      defaultLineJoin: 'round'
     },
 
     // ------------------------------------------------------------------------
@@ -401,10 +453,10 @@ export const lcardsDefaultTokens = {
             unknown: 'var(--lcards-gray-medium)'
           },
           stroke: {
-            active: 'var(--lcars-white, var(--lcards-moonlight))',
+            active: 'var(--lcars-text-light, var(--lcards-moonlight))',
             inactive: 'var(--lcars-orange, var(--lcards-orange-medium))',
-            hover: 'var(--lcars-white, var(--lcards-moonlight))',
-            pressed: 'var(--lcars-white, var(--lcards-moonlight))',
+            hover: 'var(--lcars-text-light, var(--lcards-moonlight))',
+            pressed: 'var(--lcars-text-light, var(--lcards-moonlight))',
             unavailable: 'var(--lcards-gray-medium)',
             unknown: 'var(--lcards-gray-medium)'
           },
@@ -419,6 +471,7 @@ export const lcardsDefaultTokens = {
         },
         diagonal: {
           fill: {
+            default: 'darken(colors.card.buttonOff, 0.35)',    // at-rest = inactive
             active: 'var(--lcars-blue, var(--lcards-blue-medium))',
             inactive: 'darken(colors.card.buttonOff, 0.35)',
             hover: 'lighten(colors.card.button, 0.15)',
@@ -427,10 +480,10 @@ export const lcardsDefaultTokens = {
             unknown: 'var(--lcards-gray-medium)'
           },
           stroke: {
-            active: 'var(--lcars-white, var(--lcards-moonlight))',
+            active: 'var(--lcars-text-light, var(--lcards-moonlight))',
             inactive: 'var(--lcars-blue, var(--lcards-blue-medium))',
-            hover: 'var(--lcars-white, var(--lcards-moonlight))',
-            pressed: 'var(--lcars-white, var(--lcards-moonlight))',
+            hover: 'var(--lcars-text-light, var(--lcards-moonlight))',
+            pressed: 'var(--lcars-text-light, var(--lcards-moonlight))',
             unavailable: 'var(--lcards-gray-medium)',
             unknown: 'var(--lcards-gray-medium)'
           },
@@ -445,6 +498,7 @@ export const lcardsDefaultTokens = {
         },
         center: {
           fill: {
+            default: 'darken(colors.card.button, 0.35)',       // at-rest = inactive
             active: 'var(--lcards-blue-medium-light)',
             inactive: 'darken(colors.card.button, 0.35)',
             hover: 'lighten(colors.card.button, 0.15)',
@@ -453,10 +507,10 @@ export const lcardsDefaultTokens = {
             unknown: 'var(--lcards-gray-medium)'
           },
           stroke: {
-            active: 'var(--lcars-white, var(--lcards-moonlight))',
+            active: 'var(--lcars-text-light, var(--lcards-moonlight))',
             inactive: 'var(--lcards-blue-medium-light)',
-            hover: 'var(--lcars-white, var(--lcards-moonlight))',
-            pressed: 'var(--lcars-white, var(--lcards-moonlight))',
+            hover: 'var(--lcars-text-light, var(--lcards-moonlight))',
+            pressed: 'var(--lcars-text-light, var(--lcards-moonlight))',
             unavailable: 'var(--lcards-gray-medium)',
             unknown: 'var(--lcards-gray-medium)'
           },
@@ -510,7 +564,7 @@ export const lcardsDefaultTokens = {
           maxRadius: 2,
           minOpacity: 0.3,
           maxOpacity: 1.0,
-          color: 'var(--lcars-white, var(--lcards-moonlight))'
+          color: 'var(--lcars-text-light, var(--lcards-moonlight))'
         },
         scroll: {
           speedX: 30,

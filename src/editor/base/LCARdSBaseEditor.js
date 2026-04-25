@@ -1265,6 +1265,39 @@ export class LCARdSBaseEditor extends LitElement {
      */
 
     /**
+     * Render a compact info hint for the Sizing section explaining the
+     * card-mod workaround required when this card lives inside a
+     * `custom:layout-card` grid with `layout-height: auto` (the default).
+     *
+     * Called as the last child of every card's Sizing section so users
+     * see it without needing to open docs.
+     *
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderLayoutCardHint() {
+        return html`
+            <lcards-message type="info" style="margin-top:4px;">
+                <strong>Inside a <code>custom:layout-card</code>?</strong><br>
+                Cards may collapse to minimum height in a layout-card grid.
+                Add this <code>card_mod</code> to the <strong>layout-card itself</strong>
+                to restore full-height sizing:
+                <pre style="margin:6px 0 0;padding:6px 8px;background:rgba(0,0,0,0.15);border-radius:3px;font-size:12px;white-space:pre;font-family:monospace;">card_mod:
+  style: |
+    grid-layout {
+      --layout-height: 100% !important;
+    }</pre>
+                <div style="margin-top:6px;">
+                    <a href="http://lcards.unimatrix01.ca/cards/common.html#sizing-inside-custom-layout-card"
+                       target="_blank" rel="noopener noreferrer" style="font-size:12px;">
+                        Documentation ↗
+                    </a>
+                </div>
+            </lcards-message>
+        `;
+    }
+
+    /**
      * Render Data Sources tab
      * @returns {TemplateResult}
      * @protected

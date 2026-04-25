@@ -195,7 +195,7 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
     // This evaluates token templates like:
     // - {entity.state}
     // - {config.name}
-    // - {theme:palette.moonlight}
+    // - {theme:colors.text.onDark}
     const tokenRegex = /\{(?!\{)(?!%)(?!#)(?!datasource:)(?!ds:)([^{}]+)\}/g;
 
     return content.replace(tokenRegex, (match, token) => {
