@@ -298,6 +298,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
 
     _renderBackdropTab() {
         const globalLayers = this.config?.layers ?? {};
+        const hasLegacyBackdrop = !!(this.config?.backdrop && !this.config?.layers);
 
         return html`
             <div class="tab-content-container">
@@ -309,6 +310,13 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         conditions unless overridden per-condition.
                     </p>
                 </lcards-message>
+
+                ${hasLegacyBackdrop ? html`
+                <lcards-message type="warning">
+                    This card is using the legacy <code>backdrop:</code> config format. Your settings are still applied correctly.
+                    Change any layer option below and save to migrate to the updated format.
+                </lcards-message>
+                ` : ''}
 
                 ${this._renderSlotSection({ slot: 'backdrop', slotLabel: 'Backdrop Filter',  slotIcon: 'mdi:blur',           layerCfg: globalLayers.backdrop })}
                 ${this._renderSlotSection({ slot: 'color',    slotLabel: 'Color Overlay',     slotIcon: 'mdi:palette',        layerCfg: globalLayers.color    })}
