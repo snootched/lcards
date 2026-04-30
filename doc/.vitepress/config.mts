@@ -225,6 +225,12 @@ export default withMermaid(defineConfig({
               { text: 'Helpers API',      link: '/development/helpers-api' },
             ],
           },
+          {
+            text: 'Internals',
+            items: [
+              { text: 'Codebase Review', link: '/dev/codebase-review' },
+            ],
+          },
         ],
       },
       { text: 'About', link: '/credits' },
@@ -448,7 +454,7 @@ export default withMermaid(defineConfig({
           collapsed: false,
           items: [
             { text: 'Background Animations',  link: '/architecture/internals/background-animation-system' },
-            { text: 'DataSource Buffers',     link: '/architecture/internals/datasource-buffers' },
+            { text: 'DataSource Buffers',     link: '/architecture/animations/datasource-buffers' },
             { text: 'HA Entity Display',      link: '/architecture/internals/ha-entity-display' },
             { text: 'HA Services',            link: '/architecture/internals/ha-services' },
             { text: 'Persistent Storage',     link: '/architecture/internals/storage' },
@@ -478,6 +484,22 @@ export default withMermaid(defineConfig({
             { text: 'Backend WS API',   link: '/development/backend-api' },
             { text: 'Debug API',        link: '/development/debug-api' },
             { text: 'Helpers API',      link: '/development/helpers-api' },
+          ],
+        },
+        {
+          text: 'Internals',
+          collapsed: false,
+          items: [
+            { text: 'Codebase Review',  link: '/dev/codebase-review' },
+          ],
+        },
+      ],
+
+      '/dev/': [
+        {
+          text: 'Internals',
+          items: [
+            { text: 'Codebase Review', link: '/dev/codebase-review' },
           ],
         },
       ],

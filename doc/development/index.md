@@ -25,3 +25,21 @@ Documentation for developers extending LCARdS — building custom cards, editors
 | Page | Description |
 |---|---|
 | [Changelog](changelog.md) | Release notes and breaking changes |
+
+## Internals
+
+| Page | Description |
+|---|---|
+| [Codebase Review](/dev/codebase-review) | Architecture findings, duplication hotspots, and prioritized follow-up PR slices |
+
+## Repository validation commands
+
+These run in CI and are safe to run locally before opening a PR:
+
+| Command | What it does |
+|---|---|
+| `npm run validate:css-vars` | Audits every `--lcars-*`, `--lcards-*`, and `theme:` reference against the allowlists in `scripts/ha-lcars-theme-vars.js` and `src/lcards-vars.js`. Gates `npm run build`. |
+| `npm run validate:doc-examples` | Parses every fenced `yaml`/`yml` block in `doc/**.md` and checks that any `type: custom:lcards-*` value matches a real custom element registered in `src/lcards.js`. Add `--strict` to fail on parse warnings, or `--verbose` for per-block output. Use the meta hint ` ```yaml no-validate ` to opt a snippet-style block out. |
+| `npm run typecheck` | Runs `tsc` against the JSDoc-typed sources. |
+| `npm run docs:build` | Builds the VitePress site. |
+
