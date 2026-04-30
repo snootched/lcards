@@ -132,6 +132,85 @@ Once applied, verbose log output appears immediately in the browser console — 
 
 ---
 
+### Portal Overlay Services
+
+These services display or clear a custom HA card (or text message) over the full-screen SEM portal on connected browser tabs. They use the same **Python → JS push channel** as the frontend control services and support per-device and per-user targeting.
+
+Cards are mounted via `PortalOverlayManager` under the named slot `'ha-service'`, which is independent of the `'alert-overlay'` and `'connection-overlay'` slots.
+
+#### `lcards.show_portal_card`
+
+Displays a card or message in the portal overlay on connected browser tabs.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `content` | `object` | ✅ | HA card config (`type`, `entity`, etc.) |
+| `layers` | `object` | | SEM effect layers — same shape as `lcards.trigger_effect` |
+| `position` | `select` | | Content anchor; default `center`. Options: `center`, `top`, `top-left`, `top-right`, `bottom`, `bottom-left`, `bottom-right`, `left`, `right` |
+| `width` | `string` | | CSS width for the content container, e.g. `'400px'` |
+| `height` | `string` | | CSS height for the content container |
+| `duration` | `number` | | Auto-dismiss after this many milliseconds (100–300000) |
+| `dismiss` | `boolean` | | Whether clicking the backdrop dismisses the overlay |
+| `target_device_ids` | `list` | | Target specific browser UUIDs |
+| `target_device_names` | `list` | | Target by friendly display name |
+| `target_user_ids` | `list` | | Target specific HA user UUIDs |
+| `target_user_names` | `list` | | Target by HA username |
+
+```yaml
+action: lcards.show_portal_card
+data:
+  content:
+    type: custom:lcards-button
+    entity: light.bridge
+  position: center
+  width: "360px"
+  duration: 10000
+  dismiss: true
+  layers:
+    backdrop:
+      preset: blur
+      amount: "8px"
+    color:
+      preset: color-tint
+      color: "rgba(0,0,0,0.5)"
+```
+
+```yaml
+# Target a specific device
+action: lcards.show_portal_card
+data:
+  content:
+    type: markdown
+    content: "# Alert!\nDoor opened."
+  target_device_names:
+    - Kitchen Tablet
+```
+
+#### `lcards.clear_portal_card`
+
+Hides the portal card shown by `show_portal_card`. Only clears the `'ha-service'` slot — alert and connection overlays are unaffected.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `target_device_ids` | `list` | | Target specific browser UUIDs |
+| `target_device_names` | `list` | | Target by friendly display name |
+| `target_user_ids` | `list` | | Target specific HA user UUIDs |
+| `target_user_names` | `list` | | Target by HA username |
+
+```yaml
+action: lcards.clear_portal_card
+```
+
+```yaml
+# Clear on a specific device only
+action: lcards.clear_portal_card
+data:
+  target_device_names:
+    - Kitchen Tablet
+```
+
+---
+
 ## Automation Examples
 
 ### Trigger red alert on a motion sensor

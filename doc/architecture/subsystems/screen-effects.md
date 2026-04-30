@@ -30,7 +30,7 @@ On first use `ScreenEffectManager` appends a single `position:fixed; inset:0; z-
 | `canvas` | `<canvas>` | Canvas2D rAF loop — draws directly above all content |
 | `color` | `<div>` | CSS `background` — semi-transparent colour overlay |
 
-Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-alert-overlay`) and `ConnectionOverlayService` both inject their own content elements **into this shared portal** rather than creating separate portals — there is only one portal div on the page at any given time.
+Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-alert-overlay`), `ConnectionOverlayService`, and the `show_portal_card` HA service all inject content into this shared portal via `PortalOverlayManager` — there is only one portal div on the page at any given time. Each consumer owns an independent named slot (`'alert-overlay'`, `'connection-overlay'`, `'ha-service'`) so their DOM subtrees are separate and can coexist.
 
 ### Preset API shape
 

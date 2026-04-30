@@ -47,6 +47,7 @@ import { DeviceIdentityManager } from './services/DeviceIdentityManager.js';
 import { ScopedSettingsService } from './services/ScopedSettingsService.js';
 import { ScreenEffectManager } from './screen-effects/ScreenEffectManager.js';
 import { ConnectionOverlayService } from './services/ConnectionOverlayService.js';
+import { PortalOverlayManager } from './services/PortalOverlayManager.js';
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -82,6 +83,7 @@ class LCARdSCore {
         this.deviceIdentityManager = null; // Per-browser stable UUID + display name
         this.scopedSettingsService = null; // Per-user / per-device settings waterfall
         this.connectionOverlayService = null; // Connection-lost overlay (Phase 2h)
+        this.portalOverlayManager     = null;  // Shared portal overlay lifecycle engine
 
         // ===== REGISTRIES =====
         this._cardInstances = new Map();     // Map<cardId, CardContext>
@@ -295,6 +297,13 @@ class LCARdSCore {
             // Create ScopedSettingsService — depends on integration + device identity.
             this.scopedSettingsService = new ScopedSettingsService();
             lcardsLog.debug('[LCARdSCore] ✅ ScopedSettingsService created');
+
+            // Create PortalOverlayManager — shared portal overlay lifecycle engine.
+            // Provides named-slot show/hide API consumed by ConnectionOverlayService,
+            // lcards-alert-overlay, and the show_portal_card HA service.
+            this.portalOverlayManager = new PortalOverlayManager();
+            window.lcards.core.portalOverlayManager = this.portalOverlayManager;
+            lcardsLog.debug('[LCARdSCore] ✅ PortalOverlayManager created');
 
             // Create ConnectionOverlayService — monitors hass connection state and
             // injects a full-screen overlay into the SEM portal when disconnected.
@@ -536,6 +545,10 @@ class LCARdSCore {
 
         if (this.scopedSettingsService) {
             this.scopedSettingsService.updateHass(hass);
+        }
+
+        if (this.portalOverlayManager) {
+            this.portalOverlayManager.updateHass(hass);
         }
 
         if (this.connectionOverlayService) {

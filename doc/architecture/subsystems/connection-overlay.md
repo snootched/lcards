@@ -19,7 +19,7 @@ Key capabilities:
 - **Two display modes** — simple text message or a full custom HA card
 - **Optional reconnection banner** — brief confirmation overlay that auto-dismisses after reconnection
 - **SEM integration** — backdrop, canvas, and colour effect layers via `ScreenEffectManager`
-- **Alert overlay co-existence** — automatically suppressed when a non-default alert mode is active
+- **Stackable with alert overlay** — both overlays can be visible simultaneously; the connection overlay renders on top when both are active
 
 ---
 
@@ -35,13 +35,8 @@ ConnectionOverlayService (BaseService singleton)
     ├─ Config waterfall (ScopedSettingsService)
     │   device scope → user scope → global scope → localStorage cache → built-in defaults
     │
-    ├─ Portal (inside ScreenEffectManager's position:fixed div, z-index:9100)
-    │   ├─ dismissEl   (z:10)  — click-catcher for user dismiss
-    │   └─ wrapperEl   (z:11)  — flex container for content card / text message
-    │       └─ contentContainer — mounts the card element or text div
-    │
-    └─ SEM slot ownership
-        backdrop / canvas / color slots acquired on show, released on hide
+    └─ Portal (delegated to PortalOverlayManager, slot 'connection-overlay')
+        └─ PortalOverlayManager → ScreenEffectManager portal (position:fixed, z:9100)
 ```
 
 ### Key Files
@@ -49,6 +44,7 @@ ConnectionOverlayService (BaseService singleton)
 | File | Purpose |
 |------|---------|
 | `src/core/services/ConnectionOverlayService.js` | Core singleton service |
+| `src/core/services/PortalOverlayManager.js` | Shared portal DOM lifecycle engine |
 | `src/core/services/ScopedSettingsConstants.js` | Flat storage key constants (`CONN_OVERLAY_*`) |
 | `src/panels/components/lcards-connectivity-tab.js` | Config Panel UI |
 | `src/lcards.js` | `window.lcards.connectionOverlay` console API shim |
@@ -171,34 +167,42 @@ The localStorage cache (key: `lcards_connection_overlay_config`) is written ever
 
 ## Portal Structure
 
-The overlay injects directly into `ScreenEffectManager`'s shared `position:fixed` portal (`z-index:9100`, appended to `document.body`). This makes the overlay visible on any page — no Lovelace card is needed.
+The overlay is managed entirely by `PortalOverlayManager` (POM) under the named slot `'connection-overlay'`. `ConnectionOverlayService` calls `pom.show('connection-overlay', options)` and `pom.hide('connection-overlay')` — it does not manage any DOM directly.
+
+POM injects the following structure into `ScreenEffectManager`'s shared `position:fixed` portal (`z-index:9100`, appended to `document.body`):
 
 ```
 ScreenEffectManager portal  (position:fixed, inset:0, z:9100)
-  ├─ SEM slot elements      (backdrop, canvas, color)
-  ├─ dismissEl              (position:absolute, inset:0, z:10)  — click-to-dismiss target
-  └─ wrapperEl              (position:absolute, inset:0, z:11, display:flex)
-      └─ contentContainer   (flex child — width/height from config)
-          └─ content card element  OR  text <div>
+  ├─ SEM slot elements          (backdrop, canvas, color)
+  │
+  ├─ [slot: 'alert-overlay']    ← when alert overlay is also active
+  │   ├─ dismissEl  (z:10)
+  │   └─ wrapperEl  (z:11)
+  │
+  └─ [slot: 'connection-overlay']
+      ├─ dismissEl              (position:absolute, inset:0, z:10)  — click-to-dismiss
+      └─ wrapperEl              (position:absolute, inset:0, z:11, display:flex)
+          └─ contentContainer   (flex child — width/height from config)
+              └─ content card element  OR  text <div>
 ```
 
-The portal and its content elements are created on first show (`_createPortal()`) and removed on hide (`_removePortal()`). Portal creation is idempotent — a second call while already shown is a no-op.
+Slots are independent DOM subtrees. When both overlays are active, the connection overlay renders on top because its elements are appended after the alert overlay's elements.
 
 ---
 
 ## SEM Layer Ownership
 
-When the overlay is visible, `ConnectionOverlayService` acquires the `backdrop`, `canvas`, and `color` slots from `ScreenEffectManager` by calling `sem.applySlot()` for each non-null layer in `config.layers`. All three slots are explicitly cleared on hide — even if only some were occupied — to avoid leaving stale effects.
+When the overlay is visible with `layers` configured, `PortalOverlayManager` acquires the `backdrop`, `canvas`, and `color` SEM slots on behalf of the `'connection-overlay'` slot. Only one POM slot can own the SEM effect slots at a time (last-in-wins). All three slots are explicitly cleared when the slot is hidden — even if only some were occupied — to avoid leaving stale effects.
 
-The service sets `sem.setOverlayOccupied(true)` while visible, which signals to other consumers (such as the screen effect console API) that the portal is in use.
+POM calls `sem.setOverlayOccupied(true)` as soon as any slot is shown, and `sem.setOverlayOccupied(false)` when all slots have been hidden.
 
 ---
 
 ## Alert Overlay Co-existence
 
-When a non-default alert mode is active (`window.lcards.core.themeManager.currentAlertMode !== 'green_alert'`), `_onDisconnected()` suppresses the connection overlay — the alert overlay takes priority. The connection overlay will show on the next `_onDisconnected()` evaluation once the alert clears.
+Both the connection overlay and the alert overlay use `PortalOverlayManager` with independent named slots (`'connection-overlay'` and `'alert-overlay'`). They stack freely — there is no suppression logic. If an alert is active and HA disconnects, the connection overlay appears on top of the alert overlay (last `appendChild` wins at equal z-index).
 
-If the connection drops *during* an active alert, the disconnect is silently ignored until the alert clears and the next disconnect event is received.
+The SEM effect slots are shared (last-in-wins): the connection overlay's `layers` config will evict the alert overlay's SEM effects if both are active simultaneously. If the connection overlay is configured without `layers` (text or card mode only), the alert backdrop effects are unaffected.
 
 ---
 
@@ -210,7 +214,7 @@ When `config.reconnected.enabled` is `true`, a brief confirmation overlay is sho
 2. Either a custom card (`config.reconnected.content`) or a plain text `<div>` is rendered
 3. A timer fires after `auto_dismiss_seconds` and calls `_removePortal()`
 
-The banner uses the same portal and SEM slots as the disconnect overlay — no additional DOM elements are created.
+The banner uses `PortalOverlayManager` under the `'connection-overlay'` slot — the existing slot is replaced (last-in-wins). No additional DOM elements are created.
 
 ---
 
@@ -267,9 +271,9 @@ await window.lcards.connectionOverlay.loadConfig()
 
 | System | Relationship |
 |--------|-------------|
-| **ScreenEffectManager** | Provides the shared `position:fixed` portal and named effect slots. `ConnectionOverlayService` injects its content into the portal and acquires backdrop/canvas/color slots while visible. |
+| **PortalOverlayManager** | Owns all portal DOM for the connection overlay. `ConnectionOverlayService` calls `pom.show/hide('connection-overlay')` and has no direct DOM dependencies. |
+| **ScreenEffectManager** | Provides the shared `position:fixed` portal and named effect slots. POM acquires/releases SEM slots on behalf of the connection overlay. |
 | **ScopedSettingsService** | Stores the 23 flat config keys at device/user/global scope. Waterfall resolution is done in `loadConfig()` via parallel `sss.read()` calls. |
-| **Alert overlay** (`lcards-alert-overlay`) | Alert takes priority — connection overlay is suppressed when `currentAlertMode !== 'green_alert'`. Both systems use the same SEM portal; they do not run simultaneously. |
-| **ThemeManager** | Checked for `currentAlertMode` to implement alert co-existence. No theming dependency — all text styles use explicit inline values to remain functional while disconnected. |
+| **Alert overlay** (`lcards-alert-overlay`) | Both overlays use POM and stack independently. The connection overlay renders on top when both are active. SEM effect slots are last-in-wins. |
 | **AssetManager** | Font keys in config (e.g. `'Antonio'`) are resolved to CSS `font-family` strings via `assetManager.getRegistry('font')`. Falls back to `<key>, sans-serif` if the registry is unavailable. |
 | **Config Panel** (`lcards-connectivity-tab`) | UI tab that reads/writes config via the `window.lcards.connectionOverlay` API. Supports scope switching (device/user/global) and per-field override badges. Includes "Simulate Disconnect" and "Clear Test" buttons that call `showWith()` / `hide()`. |

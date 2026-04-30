@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.04.25.1",
+  "version": "2026.04.30.0",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",

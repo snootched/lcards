@@ -35,17 +35,19 @@
  *
  * ## Portal injection
  *
- * The overlay injects directly into the ScreenEffectManager's shared
- * `position:fixed` portal div (`z-index:9100`, appended to `document.body`).
- * This makes it visible on any page the module is loaded — no card placement
- * required.  The pattern mirrors `lcards-alert-overlay` exactly.
+ * The overlay is managed via `PortalOverlayManager` under the named slot
+ * `'connection-overlay'`.  POM injects content into the ScreenEffectManager's
+ * shared `position:fixed` portal div (`z-index:9100`, appended to
+ * `document.body`).  This makes it visible on any page the module is loaded —
+ * no card placement required.
  *
  * ## Alert overlay co-existence
  *
- * When a non-default alert mode is active (`currentAlertMode !== 'green_alert'`)
- * the connection overlay is suppressed — the alert overlay takes priority.
- * When the alert clears (or if the connection also drops during an active alert)
- * the connection overlay will show on the next `_onDisconnected()` evaluation.
+ * Both overlays use `PortalOverlayManager` with independent named slots.  They
+ * stack freely — there is no suppression logic.  The connection overlay renders
+ * on top when both are active (last `appendChild` wins at equal z-index).  SEM
+ * effect slots are last-in-wins; the connection overlay's `layers` config will
+ * evict the alert overlay's SEM effects if both are active simultaneously.
  *
  * @module core/services/ConnectionOverlayService
  */
@@ -78,27 +80,6 @@ import {
     CONN_OVERLAY_RECON_CONTENT,
     CONN_OVERLAY_ALL_KEYS,
 } from './ScopedSettingsConstants.js';
-import { createCardElement, applyHassToCard, applyCardConfig } from '../../utils/ha-card-factory.js';
-
-// ---------------------------------------------------------------------------
-// Position → flex alignment mapping (mirrors lcards-alert-overlay)
-// ---------------------------------------------------------------------------
-
-const POSITION_MAP = {
-    'top-left':      { alignItems: 'flex-start', justifyContent: 'flex-start' },
-    'top':           { alignItems: 'flex-start', justifyContent: 'center' },
-    'top-center':    { alignItems: 'flex-start', justifyContent: 'center' },
-    'top-right':     { alignItems: 'flex-start', justifyContent: 'flex-end' },
-    'left':          { alignItems: 'center',     justifyContent: 'flex-start' },
-    'left-center':   { alignItems: 'center',     justifyContent: 'flex-start' },
-    'center':        { alignItems: 'center',     justifyContent: 'center' },
-    'right':         { alignItems: 'center',     justifyContent: 'flex-end' },
-    'right-center':  { alignItems: 'center',     justifyContent: 'flex-end' },
-    'bottom-left':   { alignItems: 'flex-end',   justifyContent: 'flex-start' },
-    'bottom':        { alignItems: 'flex-end',   justifyContent: 'center' },
-    'bottom-center': { alignItems: 'flex-end',   justifyContent: 'center' },
-    'bottom-right':  { alignItems: 'flex-end',   justifyContent: 'flex-end' },
-};
 
 // ---------------------------------------------------------------------------
 // Built-in defaults
@@ -181,17 +162,8 @@ export class ConnectionOverlayService extends BaseService {
         this._isReconnectedActive = false;
         /** True if the user has dismissed the overlay for this disconnection event. */
         this._isDismissed = false;
-        /** Whether we currently own the SEM effect slots. */
-        this._ownsSemSlots = false;
         /** Timer handle for auto-dismissing the reconnected confirmation banner. */
         this._reconnectedTimer = null;
-
-        // ── Portal elements ───────────────────────────────────────────────
-        this._dismissEl        = null;
-        this._wrapperEl        = null;
-        this._contentContainer = null;
-        this._contentElement   = null;
-        this._portalStyleEl    = null;
 
         // ── HASS ──────────────────────────────────────────────────────────
         this._hass = null;
@@ -223,11 +195,6 @@ export class ConnectionOverlayService extends BaseService {
         // it fires immediately on WS close regardless of dashboard activity.
         if (hass.connection && hass.connection !== this._subscribedConnection) {
             this._subscribeConnectionEvents(hass.connection);
-        }
-
-        // Propagate updated hass to any mounted content card.
-        if (this._contentElement) {
-            applyHassToCard(this._contentElement, this._hass, 'connection-overlay-hass');
         }
 
         // ── Belt-and-suspenders: hass.connected flag ──────────────────────
@@ -397,10 +364,10 @@ export class ConnectionOverlayService extends BaseService {
         // Re-read the full waterfall to get the resolved effective config.
         await this.loadConfig();
 
-        // If the overlay is currently visible, apply the new config immediately
-        // so changes take effect without requiring a hide/show cycle.
-        if ((this._isActive || this._isReconnectedActive) && this._wrapperEl) {
-            this._updatePortalStyles();
+        // If the disconnect overlay is currently visible, refresh it with the
+        // new config immediately so changes take effect without a hide/show cycle.
+        if (this._isActive && window.lcards?.core?.portalOverlayManager?.has('connection-overlay')) {
+            this._showDisconnectOverlay();
         }
 
         lcardsLog.info(`[ConnectionOverlayService] Config saved to scope "${scope}"`);
@@ -440,11 +407,7 @@ export class ConnectionOverlayService extends BaseService {
         this._isReconnectedActive = false;
         this._isDismissed = false;
         this._isActive    = true;
-        if (!this._wrapperEl) {
-            this._createPortal();
-        }
-        this._updatePortalStyles();
-        this._mountContentCard();
+        this._showDisconnectOverlay();
     }
 
     /**
@@ -473,7 +436,7 @@ export class ConnectionOverlayService extends BaseService {
         this._isReconnectedActive = false;
         this._isActive    = false;
         this._isDismissed = false;
-        this._removePortal();
+        window.lcards?.core?.portalOverlayManager?.hide('connection-overlay');
         // Restore config that was active before any showWith() preview.
         if (this._previewConfig) {
             this._config       = this._previewConfig;
@@ -488,7 +451,7 @@ export class ConnectionOverlayService extends BaseService {
     destroy() {
         this._clearReconnectedTimer();
         this._unsubscribeConnectionEvents();
-        this._removePortal();
+        window.lcards?.core?.portalOverlayManager?.hide('connection-overlay');
         lcardsLog.debug('[ConnectionOverlayService] Destroyed');
     }
 
@@ -504,20 +467,11 @@ export class ConnectionOverlayService extends BaseService {
         if (!this._config.enabled) return;
         if (this._isActive) return;  // already showing
 
-        // Yield to alert overlay — if a non-default alert is active, suppress.
-        const alertMode = window.lcards?.core?.themeManager?.currentAlertMode ?? 'green_alert';
-        if (alertMode !== 'green_alert') {
-            lcardsLog.debug('[ConnectionOverlayService] Alert active — suppressing connection overlay');
-            return;
-        }
-
         lcardsLog.info('[ConnectionOverlayService] Connection lost — activating overlay');
         this._isActive    = true;
         this._isDismissed = false;
 
-        this._createPortal();
-        this._updatePortalStyles();
-        this._mountContentCard();
+        this._showDisconnectOverlay();
     }
 
     _onReconnected() {
@@ -527,23 +481,33 @@ export class ConnectionOverlayService extends BaseService {
         this._isActive    = false;
         this._isDismissed = false;
 
+        const pom = window.lcards?.core?.portalOverlayManager;
         if (this._config.reconnected?.enabled) {
             // Show a brief "reconnected" confirmation overlay, then auto-dismiss.
             this._isReconnectedActive = true;
-            if (!this._wrapperEl) {
-                this._createPortal();
-            }
-            this._updatePortalStyles();
-            this._unmountContentCard();
-            if (this._config.message?.mode === 'card' && this._config.reconnected?.content) {
-                this._mountReconnectedCard();
-            } else {
-                this._renderReconnectedMessage();
-            }
+
+            const cfg   = this._config;
+            const recon = cfg.reconnected;
+            // Card mode: show card if message mode is 'card' and a reconnected card is configured.
+            // Text mode: pass the reconnected config as the text fallback.
+            const reconContent = (cfg.message?.mode === 'card' && recon?.content) ? recon.content : null;
+            const reconText    = reconContent ? null : recon;
+
+            pom?.show('connection-overlay', {
+                position:  cfg.position ?? 'center',
+                width:     cfg.width    ?? 'auto',
+                height:    cfg.height   ?? 'auto',
+                dismiss:   false,
+                onDismiss: null,
+                content:   reconContent,
+                text:      reconText,
+                layers:    cfg.layers,
+            });
+
             this._startReconnectedTimer();
         } else {
             this._isReconnectedActive = false;
-            this._removePortal();
+            pom?.hide('connection-overlay');
         }
     }
 
@@ -552,7 +516,7 @@ export class ConnectionOverlayService extends BaseService {
         this._reconnectedTimer = setTimeout(() => {
             this._reconnectedTimer    = null;
             this._isReconnectedActive = false;
-            this._removePortal();
+            window.lcards?.core?.portalOverlayManager?.hide('connection-overlay');
         }, seconds * 1000);
     }
 
@@ -563,33 +527,40 @@ export class ConnectionOverlayService extends BaseService {
         }
     }
 
-    _renderReconnectedMessage() {
-        if (!this._contentContainer) return;
-        this._contentContainer.innerHTML = '';
-        const cfg = this._config.reconnected ?? DEFAULT_CONFIG.reconnected;
-        const msg = document.createElement('div');
-        Object.assign(msg.style, {
-            color:         cfg.color     || '#4caf50',
-            fontFamily:    this._resolveFontCssFamily(cfg.font),
-            fontSize:      cfg.size ? `${cfg.size}px` : '26px',
-            fontWeight:    cfg.weight    || '400',
-            letterSpacing: '0.12em',
-            textTransform: cfg.transform || 'uppercase',
-            padding:       '2rem',
-            userSelect:    'none',
-        });
-        msg.textContent = cfg.text || 'Connection Restored';
-        this._contentContainer.appendChild(msg);
-    }
-
     _handleDismiss() {
-        if (!this._config.dismiss) return;
-
         lcardsLog.debug('[ConnectionOverlayService] Overlay dismissed by user');
         this._isDismissed = true;
-        this._updatePortalStyles();
+        // PortalOverlayManager calls hide('connection-overlay') after this callback returns.
         // Notify UI components (e.g. config-panel tab) so they can reset test-state buttons.
         document.dispatchEvent(new CustomEvent('lcards-connection-overlay-dismissed', { bubbles: false }));
+    }
+
+    // -------------------------------------------------------------------------
+    // Portal overlay helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Show the disconnect overlay via PortalOverlayManager using the current
+     * effective config.  Called from show(), showWith(), and _onDisconnected().
+     * @private
+     */
+    _showDisconnectOverlay() {
+        const pom = window.lcards?.core?.portalOverlayManager;
+        if (!pom) {
+            lcardsLog.warn('[ConnectionOverlayService] PortalOverlayManager unavailable — cannot show overlay');
+            return;
+        }
+        const cfg = this._config;
+        pom.show('connection-overlay', {
+            position:  cfg.position ?? 'center',
+            width:     cfg.width    ?? 'auto',
+            height:    cfg.height   ?? 'auto',
+            dismiss:   cfg.dismiss  ?? true,
+            onDismiss: () => this._handleDismiss(),
+            content:   cfg.content,
+            text:      cfg.message,
+            layers:    cfg.layers,
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -647,280 +618,8 @@ export class ConnectionOverlayService extends BaseService {
     }
 
     // -------------------------------------------------------------------------
-    // Portal management (mirrors lcards-alert-overlay pattern)
-    // -------------------------------------------------------------------------
-
-    _createPortal() {
-        if (this._wrapperEl) return;
-
-        const sem = window.lcards?.core?.screenEffectManager;
-        if (!sem) {
-            lcardsLog.error('[ConnectionOverlayService] ScreenEffectManager unavailable — portal creation aborted');
-            return;
-        }
-
-        sem.setOverlayOccupied(true);
-        const portal = sem.portal;
-
-        // Dismiss click-catcher (z:10)
-        this._dismissEl = document.createElement('div');
-        Object.assign(this._dismissEl.style, {
-            position:      'absolute',
-            inset:         '0',
-            zIndex:        '10',
-            pointerEvents: this._config.dismiss ? 'auto' : 'none',
-            cursor:        this._config.dismiss ? 'pointer' : 'default',
-        });
-        this._dismissEl.addEventListener('click', () => this._handleDismiss());
-
-        // Content wrapper (z:11)
-        this._wrapperEl = document.createElement('div');
-        Object.assign(this._wrapperEl.style, {
-            position:      'absolute',
-            inset:         '0',
-            zIndex:        '11',
-            display:       'flex',
-            alignItems:    'center',
-            justifyContent:'center',
-            pointerEvents: 'none',
-        });
-
-        // Content container
-        this._contentContainer = document.createElement('div');
-        Object.assign(this._contentContainer.style, {
-            pointerEvents: 'auto',
-            display:       'flex',
-            alignItems:    'stretch',
-        });
-
-        // Style override for mounted cards (same pattern as alert-overlay)
-        this._portalStyleEl = document.createElement('style');
-        this._portalStyleEl.textContent = [
-            '[data-lcards-conn-overlay-content] {',
-            '  aspect-ratio: unset !important;',
-            '  width:        100%   !important;',
-            '  height:       100%   !important;',
-            '  min-height:   0      !important;',
-            '}',
-        ].join('\n');
-        document.head.appendChild(this._portalStyleEl);
-
-        this._wrapperEl.appendChild(this._contentContainer);
-        portal.appendChild(this._dismissEl);
-        portal.appendChild(this._wrapperEl);
-
-        lcardsLog.debug('[ConnectionOverlayService] Portal attached to ScreenEffectManager');
-    }
-
-    _removePortal() {
-        const sem = window.lcards?.core?.screenEffectManager;
-        if (sem && this._ownsSemSlots) {
-            sem.clearSlot('backdrop');
-            sem.clearSlot('color');
-            sem.clearSlot('canvas');
-            sem.setOverlayOccupied(false);
-            this._ownsSemSlots = false;
-        }
-        this._unmountContentCard();
-        this._dismissEl?.remove();
-        this._wrapperEl?.remove();
-        this._portalStyleEl?.remove();
-        this._dismissEl        = null;
-        this._wrapperEl        = null;
-        this._contentContainer = null;
-        this._portalStyleEl    = null;
-        lcardsLog.debug('[ConnectionOverlayService] Portal detached from ScreenEffectManager');
-    }
-
-    _updatePortalStyles() {
-        if (!this._wrapperEl) return;
-
-        const sem     = window.lcards?.core?.screenEffectManager;
-        const visible = (this._isActive || this._isReconnectedActive) && !this._isDismissed;
-
-        if (!visible) {
-            if (sem && this._ownsSemSlots) {
-                sem.clearSlot('backdrop');
-                sem.clearSlot('color');
-                sem.clearSlot('canvas');
-                sem.setOverlayOccupied(false);
-                this._ownsSemSlots = false;
-            }
-            if (this._dismissEl) this._dismissEl.style.display = 'none';
-            if (this._wrapperEl) this._wrapperEl.style.display  = 'none';
-            return;
-        }
-
-        sem?.setOverlayOccupied(true);
-        if (this._dismissEl) this._dismissEl.style.display = '';
-        if (this._wrapperEl) this._wrapperEl.style.display  = 'flex';
-
-        if (sem) {
-            const layers = this._config.layers ?? {};
-            sem.clearSlot('backdrop');
-            sem.clearSlot('color');
-            sem.clearSlot('canvas');
-            for (const [slot, layerCfg] of Object.entries(layers)) {
-                if (layerCfg?.preset) {
-                    const { preset, ...params } = layerCfg;
-                    sem.applySlot(slot, preset, params);
-                }
-            }
-            this._ownsSemSlots = true;
-        }
-
-        // Dismiss is only available for the disconnect overlay, not the reconnected banner.
-        const allowDismiss = this._isActive && this._config.dismiss;
-        if (this._dismissEl) {
-            this._dismissEl.style.pointerEvents = allowDismiss ? 'auto' : 'none';
-            this._dismissEl.style.cursor        = allowDismiss ? 'pointer' : 'default';
-        }
-
-        // Apply position and explicit content size.
-        const pos = POSITION_MAP[this._config.position ?? 'center'] ?? POSITION_MAP['center'];
-        if (this._wrapperEl) {
-            this._wrapperEl.style.alignItems     = pos.alignItems;
-            this._wrapperEl.style.justifyContent = pos.justifyContent;
-        }
-        if (this._contentContainer) {
-            this._contentContainer.style.width  = this._config.width  ?? 'auto';
-            this._contentContainer.style.height = this._config.height ?? 'auto';
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Content card mounting
-    // -------------------------------------------------------------------------
-
-    async _mountContentCard() {
-        this._unmountContentCard();
-
-        const cardConfig = this._config.content;
-        if (!cardConfig) {
-            this._renderFallbackMessage();
-            return;
-        }
-
-        const el = await createCardElement(cardConfig.type, 'connection-overlay');
-        if (!el) {
-            lcardsLog.warn('[ConnectionOverlayService] Failed to create card element for type:', cardConfig.type);
-            this._renderFallbackMessage();
-            return;
-        }
-
-        // Guard: portal may have been torn down during the async await.
-        if (!this._contentContainer) {
-            el.remove();
-            lcardsLog.debug('[ConnectionOverlayService] Portal gone during card creation — element discarded');
-            return;
-        }
-
-        this._contentElement = el;
-        el.setAttribute('data-lcards-conn-overlay-content', '');
-        this._contentContainer.appendChild(el);
-
-        if (this._hass) {
-            applyHassToCard(el, this._hass, 'connection-overlay-mount');
-        }
-
-        await applyCardConfig(el, cardConfig, 'connection-overlay');
-    }
-
-    _unmountContentCard() {
-        if (this._contentElement) {
-            this._contentElement.remove();
-            this._contentElement = null;
-        }
-        // Clear fallback message if present
-        if (this._contentContainer) {
-            this._contentContainer.innerHTML = '';
-        }
-    }
-
-    /**
-     * Mount the reconnected custom card (card mode only).
-     * Falls back to _renderReconnectedMessage() if the card element cannot be created.
-     */
-    async _mountReconnectedCard() {
-        this._unmountContentCard();
-
-        const cardConfig = this._config.reconnected?.content;
-        if (!cardConfig) {
-            this._renderReconnectedMessage();
-            return;
-        }
-
-        const el = await createCardElement(cardConfig.type, 'connection-overlay-reconnected');
-        if (!el) {
-            lcardsLog.warn('[ConnectionOverlayService] Failed to create reconnected card element for type:', cardConfig.type);
-            this._renderReconnectedMessage();
-            return;
-        }
-
-        if (!this._contentContainer) {
-            el.remove();
-            lcardsLog.debug('[ConnectionOverlayService] Portal gone during reconnected card creation — element discarded');
-            return;
-        }
-
-        this._contentElement = el;
-        el.setAttribute('data-lcards-conn-overlay-content', '');
-        this._contentContainer.appendChild(el);
-
-        if (this._hass) {
-            applyHassToCard(el, this._hass, 'connection-overlay-reconnect-mount');
-        }
-
-        await applyCardConfig(el, cardConfig, 'connection-overlay-reconnected');
-    }
-
-    /**
-     * Render a plain text fallback message when no content card is configured.
-     * Uses only inline styles — no CSS vars needed (works while disconnected).
-     */
-    _renderFallbackMessage() {
-        if (!this._contentContainer) return;
-
-        this._contentContainer.innerHTML = '';
-        const msg    = document.createElement('div');
-        const msgCfg = this._config.message ?? DEFAULT_CONFIG.message;
-        Object.assign(msg.style, {
-            color:         msgCfg.color     || '#93e1ff',
-            fontFamily:    this._resolveFontCssFamily(msgCfg.font),
-            fontSize:      msgCfg.size ? `${msgCfg.size}px` : '26px',
-            fontWeight:    msgCfg.weight    || '400',
-            letterSpacing: '0.12em',
-            textTransform: msgCfg.transform || 'uppercase',
-            padding:       '2rem',
-            userSelect:    'none',
-        });
-        msg.textContent = msgCfg.text || 'Connection Lost';
-        this._contentContainer.appendChild(msg);
-    }
-
-    // -------------------------------------------------------------------------
     // Config helpers
     // -------------------------------------------------------------------------
-
-    /**
-     * Resolve a font key (as stored in config) to a CSS font-family string.
-     * Fonts are already loaded by AssetManager at startup, so they remain
-     * available in the browser's font-face registry during disconnection.
-     * Falls back to "<key>, sans-serif" if the key is not in the registry.
-     *
-     * @param {string} fontKey - font key (e.g. 'Antonio', 'lcards_borg')
-     * @returns {string} CSS font-family value
-     */
-    _resolveFontCssFamily(fontKey) {
-        if (!fontKey) return 'Antonio, sans-serif';
-        try {
-            const asset = window.lcards?.core?.assetManager
-                              ?.getRegistry('font')?.assets?.get(fontKey);
-            return asset?.metadata?.family ?? `${fontKey}, sans-serif`;
-        } catch {
-            return `${fontKey}, sans-serif`;
-        }
-    }
 
     _applyPartialConfig(partial) {
         if (!partial || typeof partial !== 'object') return;

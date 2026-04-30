@@ -431,6 +431,32 @@ export class IntegrationService extends BaseService {
                 break;
             }
 
+            case 'show_portal_card': {
+                const pom = window.lcards?.core?.portalOverlayManager;
+                if (pom && payload.content) {
+                    lcardsLog.info('[IntegrationService] show_portal_card received — showing portal card');
+                    pom.show('ha-service', {
+                        content:  payload.content,
+                        layers:   payload.layers   ?? null,
+                        position: payload.position ?? 'center',
+                        width:    payload.width    ?? 'auto',
+                        height:   payload.height   ?? 'auto',
+                        duration: payload.duration ?? null,
+                        dismiss:  payload.dismiss  ?? true,
+                    });
+                } else {
+                    lcardsLog.warn('[IntegrationService] show_portal_card: content required or portalOverlayManager unavailable');
+                }
+                break;
+            }
+
+            case 'clear_portal_card': {
+                const pom = window.lcards?.core?.portalOverlayManager;
+                pom?.hide('ha-service');
+                lcardsLog.info('[IntegrationService] clear_portal_card received — hiding portal card');
+                break;
+            }
+
             default:
                 lcardsLog.debug('[IntegrationService] Unknown lcards_event action:', payload.action);
         }

@@ -167,6 +167,8 @@ SERVICE_RELOAD         = "reload"
 SERVICE_SET_LOG_LEVEL  = "set_log_level"
 SERVICE_TRIGGER_EFFECT = "trigger_effect"
 SERVICE_CLEAR_EFFECT   = "clear_effect"
+SERVICE_SHOW_PORTAL_CARD  = "show_portal_card"
+SERVICE_CLEAR_PORTAL_CARD = "clear_portal_card"
 
 _ALL_SERVICES = [
     SERVICE_SET_ALERT_MODE,
@@ -180,6 +182,8 @@ _ALL_SERVICES = [
     SERVICE_SET_LOG_LEVEL,
     SERVICE_TRIGGER_EFFECT,
     SERVICE_CLEAR_EFFECT,
+    SERVICE_SHOW_PORTAL_CARD,
+    SERVICE_CLEAR_PORTAL_CARD,
 ]
 
 
@@ -307,6 +311,27 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         payload = {"slot": slot} if slot else {}
         _fire_targeted_event(hass, "clear_effect", payload, device_ids, user_ids)
 
+    async def handle_show_portal_card(call: ServiceCall) -> None:
+        """Show a portal card overlay on target LCARdS frontends."""
+        _LOGGER.info("LCARdS service: show_portal_card")
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        payload = {
+            "content":  call.data.get("content"),
+            "layers":   call.data.get("layers"),
+            "position": call.data.get("position", "center"),
+            "width":    call.data.get("width", "auto"),
+            "height":   call.data.get("height", "auto"),
+            "duration": call.data.get("duration"),
+            "dismiss":  call.data.get("dismiss", True),
+        }
+        _fire_targeted_event(hass, "show_portal_card", payload, device_ids, user_ids)
+
+    async def handle_clear_portal_card(call: ServiceCall) -> None:
+        """Clear the portal card overlay on target LCARdS frontends."""
+        _LOGGER.info("LCARdS service: clear_portal_card")
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        _fire_targeted_event(hass, "clear_portal_card", {}, device_ids, user_ids)
+
     # --- Register all services ---
 
     hass.services.async_register(
@@ -359,6 +384,27 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("slot"): vol.In(["backdrop", "canvas", "color"]),
             **_TARGET_FIELDS,
         }),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_SHOW_PORTAL_CARD, handle_show_portal_card,
+        schema=vol.Schema({
+            vol.Required("content"): dict,
+            vol.Optional("layers"):  dict,
+            vol.Optional("position"): vol.In([
+                "top-left", "top", "top-right",
+                "left", "center", "right",
+                "bottom-left", "bottom", "bottom-right",
+            ]),
+            vol.Optional("width"):    str,
+            vol.Optional("height"):   str,
+            vol.Optional("duration"): vol.All(int, vol.Range(min=100)),
+            vol.Optional("dismiss"):  bool,
+            **_TARGET_FIELDS,
+        }),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_CLEAR_PORTAL_CARD, handle_clear_portal_card,
+        schema=vol.Schema(_TARGET_FIELDS),
     )
 
     _LOGGER.debug(

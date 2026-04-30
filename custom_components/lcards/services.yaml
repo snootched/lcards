@@ -622,3 +622,152 @@ clear_effect:
       selector:
         text:
           multiple: true
+
+show_portal_card:
+  name: Show Portal Card
+  description: >
+    Display an HA card in the LCARdS screen-effect portal overlay on target
+    browsers. The card is rendered above all other content. Optionally apply
+    screen effect layers and auto-dismiss after a duration.
+  fields:
+    content:
+      name: Card Config
+      description: HA card YAML configuration object (required).
+      required: true
+      example:
+        type: "custom:lcards-button"
+      selector:
+        object:
+    layers:
+      name: Effect Layers
+      description: >
+        Per-slot screen effect config (same schema as trigger_effect layers).
+        Omit to show the card without a backdrop effect.
+      required: false
+      selector:
+        object:
+    position:
+      name: Position
+      description: Where to anchor the card within the portal.
+      required: false
+      default: center
+      selector:
+        select:
+          options:
+            - top-left
+            - top
+            - top-right
+            - left
+            - center
+            - right
+            - bottom-left
+            - bottom
+            - bottom-right
+    width:
+      name: Width
+      description: CSS width string for the card container (e.g. "400px", "40vw", "auto").
+      required: false
+      default: auto
+      selector:
+        text:
+    height:
+      name: Height
+      description: CSS height string for the card container (e.g. "300px", "30vh", "auto").
+      required: false
+      default: auto
+      selector:
+        text:
+    duration:
+      name: Duration (ms)
+      description: >
+        Auto-dismiss after this many milliseconds. Omit for a persistent
+        overlay that must be cleared with lcards.clear_portal_card.
+      required: false
+      selector:
+        number:
+          min: 100
+          max: 300000
+          step: 100
+          unit_of_measurement: ms
+    dismiss:
+      name: Allow Dismiss
+      description: Allow the user to click the backdrop to close the overlay.
+      required: false
+      default: true
+      selector:
+        boolean:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
+
+clear_portal_card:
+  name: Clear Portal Card
+  description: >
+    Remove the portal card overlay shown by lcards.show_portal_card on
+    target browsers.
+  fields:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
