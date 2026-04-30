@@ -3465,13 +3465,20 @@ export class LCARdSButton extends LCARdSCard {
             // centred inside the taller HA grid-row cell (~56 px by default).
             // Without this, `height: 100%` on .button-container fills the grid
             // row and the bar-label bg rect / text appear offset (issue #318).
-            const configuredHeight = this._configPx(this.config.height);
-            // config.min_height / config.min_width override the CSS custom properties
-            // (--lcards-button-min-height / --lcards-button-min-width) on a per-card
-            // basis without touching CSS vars or the global token.
-            const configuredMinHeight = this._configPx(this.config.min_height);
-            const configuredWidth     = this._configPx(this.config.width);
-            const configuredMinWidth  = this._configPx(this.config.min_width);
+            // _configPx() returns null for non-px units (vh, vw, %, clamp, etc.).
+            // For CSS styling we need the raw value as a CSS string, not just integers.
+            // toCssVal converts: number/px-string → "Npx", other strings → passthrough,
+            // absent values → null (so we can distinguish "not set" from "0").
+            const toCssVal = (val) => {
+                if (val === null || val === undefined || val === '') return null;
+                const n = Number(val);
+                return Number.isFinite(n) ? `${n}px` : String(val);
+            };
+            // CSS string — used for inline style assignment (handles vh/vw/clamp/etc.).
+            const cssHeight    = toCssVal(this.config.height);
+            const cssMinHeight = toCssVal(this.config.min_height);
+            const cssWidth     = toCssVal(this.config.width);
+            const cssMinWidth  = toCssVal(this.config.min_width);
             // Precedence rules for height vs min_height:
             //   1. config.height is set  → exact height; min-height forced to 0 so that a
             //      preset-injected or user-set min_height (e.g. the theme default of 56px)
@@ -3481,17 +3488,17 @@ export class LCARdSButton extends LCARdSCard {
             //   2. config.height absent, config.min_height set → apply as CSS floor.
             //   3. Both absent → static CSS var(--lcars-button-min-height, 40px) takes over.
             const containerStyleParts = [];
-            if (configuredHeight) {
-                containerStyleParts.push(`height: ${configuredHeight}px`);
+            if (cssHeight) {
+                containerStyleParts.push(`height: ${cssHeight}`);
                 containerStyleParts.push(`min-height: 0px`);
-            } else if (configuredMinHeight) {
-                containerStyleParts.push(`min-height: ${configuredMinHeight}px`);
+            } else if (cssMinHeight) {
+                containerStyleParts.push(`min-height: ${cssMinHeight}`);
             }
-            if (configuredWidth)    containerStyleParts.push(`width: ${configuredWidth}px`);
-            if (configuredMinWidth) containerStyleParts.push(`min-width: ${configuredMinWidth}px`);
+            if (cssWidth)    containerStyleParts.push(`width: ${cssWidth}`);
+            if (cssMinWidth) containerStyleParts.push(`min-width: ${cssMinWidth}`);
             const containerStyle = containerStyleParts.join('; ');
-            if (configuredHeight) {
-                this.style.height = `${configuredHeight}px`;
+            if (cssHeight) {
+                this.style.height = cssHeight;
             } else {
                 this.style.removeProperty('height');
             }

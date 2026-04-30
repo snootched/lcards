@@ -66,6 +66,7 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { isCssLengthString, measureCssLength } from '../utils/css-length-utils.js';
 import { getElbowSchema } from './schemas/elbow-schema.js';
 import {
     normalizeHACardType,
@@ -175,6 +176,10 @@ export class LCARdSElbow extends LCARdSButton {
         this._elbowInnerHoverStyle = null;
         this._elbowInnerPressedStyle = null;
         this._elbowInnerInteractivityCleanup = null;
+
+        // CSS unit dimension tracking (vw/vh/clamp/calc etc.)
+        this._hasCssUnitDimensions = false;
+        this._cssUnitResizeHandler = null;
     }
 
     /**
@@ -206,6 +211,15 @@ export class LCARdSElbow extends LCARdSButton {
             lcardsLog.warn(`[LCARdSElbow] No elbow config provided - using defaults`);
             this._elbowConfig = this._getDefaultElbowConfig();
             this._elbowGeometry = this._calculateSimpleElbowGeometry(this._elbowConfig);
+        }
+
+        // Manage viewport resize listener for CSS unit dimensions (vw/vh/clamp/calc)
+        if (this._hasCssUnitDimensions && !this._cssUnitResizeHandler) {
+            this._cssUnitResizeHandler = () => this.requestUpdate();
+            window.addEventListener('resize', this._cssUnitResizeHandler, { passive: true });
+        } else if (!this._hasCssUnitDimensions && this._cssUnitResizeHandler) {
+            window.removeEventListener('resize', this._cssUnitResizeHandler);
+            this._cssUnitResizeHandler = null;
         }
 
         // Adjust text positioning based on elbow type
@@ -928,6 +942,12 @@ export class LCARdSElbow extends LCARdSButton {
     disconnectedCallback() {
         this._unsubscribeThemeEntities();
 
+        // Clean up viewport resize listener
+        if (this._cssUnitResizeHandler) {
+            window.removeEventListener('resize', this._cssUnitResizeHandler);
+            this._cssUnitResizeHandler = null;
+        }
+
         // Unmount symbiont card
         this._unmountSymbiontCard();
 
@@ -1029,6 +1049,9 @@ export class LCARdSElbow extends LCARdSButton {
      * @private
      */
     _validateElbowConfig(elbowConfig) {
+        // Reset CSS unit flag — will be set if any CSS length string is found below
+        this._hasCssUnitDimensions = false;
+
         // Get valid types from core component registry
         const validTypes = this._getElbowTypeNames();
         const type = validTypes.includes(elbowConfig.type)
@@ -1170,7 +1193,7 @@ export class LCARdSElbow extends LCARdSButton {
             // Simple style: single segment
             const segment = elbowConfig.segment || {};
 
-            // Parse bar dimensions - support 'theme' keyword
+            // Parse bar dimensions - support 'theme' keyword and CSS unit strings
             let bar_width = segment.bar_width;
             let bar_height = segment.bar_height;
 
@@ -1178,6 +1201,9 @@ export class LCARdSElbow extends LCARdSButton {
             if (bar_width === 'theme' || bar_width === 'input_number.lcars_vertical') {
                 // Will be resolved dynamically from HASS state
                 bar_width = 'theme';
+            } else if (isCssLengthString(bar_width)) {
+                // CSS length expression (vw/vh/clamp/calc/etc.) — preserve for runtime resolution
+                this._hasCssUnitDimensions = true;
             } else {
                 bar_width = this._parseUnit(bar_width ?? 90);
             }
@@ -1185,17 +1211,21 @@ export class LCARdSElbow extends LCARdSButton {
             if (bar_height === 'theme' || bar_height === 'input_number.lcars_horizontal') {
                 // Will be resolved dynamically from HASS state
                 bar_height = 'theme';
+            } else if (isCssLengthString(bar_height)) {
+                this._hasCssUnitDimensions = true;
             } else if (bar_height !== undefined) {
                 bar_height = this._parseUnit(bar_height);
             } else {
-                // Default: same as bar_width (if bar_width is not 'theme')
-                bar_height = bar_width === 'theme' ? 'theme' : bar_width;
+                // Default: same as bar_width
+                bar_height = bar_width;
             }
 
             // Parse outer curve - 'auto' means use bar_width / 2
             let outer_curve = segment.outer_curve;
             if (outer_curve === 'auto' || outer_curve === undefined) {
                 outer_curve = 'auto'; // Will be resolved in geometry calculation
+            } else if (isCssLengthString(outer_curve)) {
+                this._hasCssUnitDimensions = true;
             } else {
                 outer_curve = this._parseUnit(outer_curve);
             }
@@ -1203,7 +1233,12 @@ export class LCARdSElbow extends LCARdSButton {
             // Parse inner curve - defaults to LCARS formula (outer_curve / 2)
             let inner_curve;
             if (segment.inner_curve !== undefined) {
-                inner_curve = this._parseUnit(segment.inner_curve);
+                if (isCssLengthString(segment.inner_curve)) {
+                    this._hasCssUnitDimensions = true;
+                    inner_curve = segment.inner_curve;
+                } else {
+                    inner_curve = this._parseUnit(segment.inner_curve);
+                }
             } else {
                 // LCARS formula: inner = outer / 2 (will be calculated)
                 inner_curve = undefined;
@@ -1234,13 +1269,13 @@ export class LCARdSElbow extends LCARdSButton {
 
                 // Outer segment (the frame)
                 outer_segment: elbowConfig.segments?.outer_segment ? {
-                    bar_width: this._parseUnit(elbowConfig.segments.outer_segment.bar_width),
+                    bar_width: this._parseDimPreservingCss(elbowConfig.segments.outer_segment.bar_width),
                     bar_height: elbowConfig.segments.outer_segment.bar_height ?
-                        this._parseUnit(elbowConfig.segments.outer_segment.bar_height) : undefined,
+                        this._parseDimPreservingCss(elbowConfig.segments.outer_segment.bar_height) : undefined,
                     outer_curve: elbowConfig.segments.outer_segment.outer_curve ?
-                        this._parseUnit(elbowConfig.segments.outer_segment.outer_curve) : undefined,
+                        this._parseDimPreservingCss(elbowConfig.segments.outer_segment.outer_curve) : undefined,
                     inner_curve: elbowConfig.segments.outer_segment.inner_curve ?
-                        this._parseUnit(elbowConfig.segments.outer_segment.inner_curve) : undefined,
+                        this._parseDimPreservingCss(elbowConfig.segments.outer_segment.inner_curve) : undefined,
                     diagonal_angle: (elbowConfig.segments.outer_segment.diagonal_angle === 'theme' ||
                                     elbowConfig.segments.outer_segment.diagonal_angle === 'input_number.lcars_elbow_angle') ? 'theme' :
                                    (elbowConfig.segments.outer_segment.diagonal_angle !== undefined ?
@@ -1250,13 +1285,13 @@ export class LCARdSElbow extends LCARdSButton {
 
                 // Inner segment (the content area)
                 inner_segment: elbowConfig.segments?.inner_segment ? {
-                    bar_width: this._parseUnit(elbowConfig.segments.inner_segment.bar_width),
+                    bar_width: this._parseDimPreservingCss(elbowConfig.segments.inner_segment.bar_width),
                     bar_height: elbowConfig.segments.inner_segment.bar_height ?
-                        this._parseUnit(elbowConfig.segments.inner_segment.bar_height) : undefined,
+                        this._parseDimPreservingCss(elbowConfig.segments.inner_segment.bar_height) : undefined,
                     outer_curve: elbowConfig.segments.inner_segment.outer_curve ?
-                        this._parseUnit(elbowConfig.segments.inner_segment.outer_curve) : undefined,
+                        this._parseDimPreservingCss(elbowConfig.segments.inner_segment.outer_curve) : undefined,
                     inner_curve: elbowConfig.segments.inner_segment.inner_curve ?
-                        this._parseUnit(elbowConfig.segments.inner_segment.inner_curve) : undefined,
+                        this._parseDimPreservingCss(elbowConfig.segments.inner_segment.inner_curve) : undefined,
                     diagonal_angle: (elbowConfig.segments.inner_segment.diagonal_angle === 'theme' ||
                                     elbowConfig.segments.inner_segment.diagonal_angle === 'input_number.lcars_elbow_angle') ? 'theme' :
                                    (elbowConfig.segments.inner_segment.diagonal_angle !== undefined ?
@@ -1528,7 +1563,7 @@ export class LCARdSElbow extends LCARdSButton {
      * @protected
      */
     _calculateZones(width, height) {
-        const g = this._elbowGeometry;
+        const g = this._getResolvedGeometry(width, height);
         if (!g) return;
 
         // 'full' zone — the entire card surface — emitted for every elbow type so
@@ -1840,6 +1875,92 @@ export class LCARdSElbow extends LCARdSButton {
     }
 
     /**
+     * Parse a dimension value, preserving CSS length strings for deferred runtime resolution.
+     * Sets _hasCssUnitDimensions if a CSS length string is detected.
+     * @param {number|string} value
+     * @returns {number|string}
+     * @private
+     */
+    _parseDimPreservingCss(value) {
+        if (isCssLengthString(value)) {
+            this._hasCssUnitDimensions = true;
+            return value;
+        }
+        return this._parseUnit(value);
+    }
+
+    /**
+     * Resolve a dimension value at render time.
+     * CSS length strings are measured via a DOM probe; other values pass through unchanged
+     * (numbers stay numbers; 'theme'/'auto' are left for geometry functions to handle).
+     * @param {number|string} value
+     * @returns {number|string}
+     * @private
+     */
+    _resolveDimForGeometry(value) {
+        if (isCssLengthString(value)) return measureCssLength(value);
+        return value;
+    }
+
+    /**
+     * Return geometry for the current elbow, resolving any CSS unit dimensions to pixels.
+     * When no CSS unit dimensions are present this is a cheap identity return.
+     * When CSS unit dimensions are present the appropriate geometry function is re-called
+     * with all CSS strings replaced by measured pixel values so the rendered path is
+     * always correct regardless of viewport size.
+     *
+     * Note: frame-style CSS unit support is deferred; frame elbows always use the cached
+     * _elbowGeometry (computed at setConfig time).
+     *
+     * @param {number} _width  - Card render width (unused; reserved for future container-query support)
+     * @param {number} _height - Card render height (unused; reserved for future container-query support)
+     * @returns {Object|null}
+     * @private
+     */
+    _getResolvedGeometry(_width, _height) {
+        if (!this._hasCssUnitDimensions) return this._elbowGeometry;
+        if (!this._elbowConfig) return this._elbowGeometry;
+
+        if (this._elbowConfig.style === 'segmented') {
+            const resolveSegment = (seg) => {
+                if (!seg) return null;
+                return {
+                    ...seg,
+                    bar_width:   this._resolveDimForGeometry(seg.bar_width),
+                    bar_height:  seg.bar_height  !== undefined ? this._resolveDimForGeometry(seg.bar_height)  : undefined,
+                    outer_curve: seg.outer_curve !== undefined ? this._resolveDimForGeometry(seg.outer_curve) : undefined,
+                    inner_curve: seg.inner_curve !== undefined ? this._resolveDimForGeometry(seg.inner_curve) : undefined
+                };
+            };
+            const resolvedConfig = {
+                ...this._elbowConfig,
+                segments: {
+                    ...this._elbowConfig.segments,
+                    outer_segment: resolveSegment(this._elbowConfig.segments?.outer_segment),
+                    inner_segment: resolveSegment(this._elbowConfig.segments?.inner_segment)
+                }
+            };
+            return this._calculateSegmentedGeometry(resolvedConfig);
+        }
+
+        if (this._elbowConfig.style === 'simple' || !this._elbowConfig.style) {
+            const seg = this._elbowConfig.segment;
+            if (!seg) return this._elbowGeometry;
+            const resolvedSeg = {
+                ...seg,
+                bar_width:   this._resolveDimForGeometry(seg.bar_width),
+                bar_height:  seg.bar_height  !== undefined ? this._resolveDimForGeometry(seg.bar_height)  : undefined,
+                outer_curve: seg.outer_curve !== undefined ? this._resolveDimForGeometry(seg.outer_curve) : seg.outer_curve,
+                inner_curve: seg.inner_curve !== undefined ? this._resolveDimForGeometry(seg.inner_curve) : undefined
+            };
+            return this._calculateSimpleElbowGeometry({ ...this._elbowConfig, segment: resolvedSeg });
+        }
+
+        // Frame style: CSS unit dimensions not yet supported; return cached geometry
+        return this._elbowGeometry;
+    }
+
+    /**
      * Setup elbow interactivity for hover and pressed states
      * Uses base class method for consistent interaction handling
      * @private
@@ -2102,8 +2223,12 @@ export class LCARdSElbow extends LCARdSButton {
         const maxOuterRadius = Math.min(width, height);
         const clampedOuterRadius = Math.max(0, Math.min(outerRadius, maxOuterRadius));
 
-        // Inner radius should be smaller than outer, with minimum 1px gap
-        const clampedInnerRadius = Math.max(0, Math.min(innerRadius, clampedOuterRadius - 1));
+        // Preserve the bar-width gap (outer_curve − inner_curve) when the outer radius is
+        // clamped.  Simply clamping innerRadius to outerRadius-1 breaks concentric arcs:
+        // the inner arc tangent point moves to (horizontal + innerRadius) which no longer
+        // coincides with the clamped outer arc tangent, producing a visible kink.
+        const barWidthGap = outerRadius - innerRadius;  // e.g. 160 - 115 = 45 (= bar_width)
+        const clampedInnerRadius = Math.max(0, clampedOuterRadius - barWidthGap);
 
         // Get component from registry using the full type
         const elbowType = g.type;
@@ -2154,8 +2279,25 @@ export class LCARdSElbow extends LCARdSButton {
         // Get elbow color (state-aware)
         const backgroundColor = this._getElbowColor();
 
-        // Generate the elbow path
-        const elbowPath = this._generateElbowPath(width, height);
+        // Generate the elbow path.
+        // When CSS unit dimensions are present (vw/vh/clamp/calc), resolve them to pixels
+        // at render time via _generateSegmentPath's temp-geometry pattern, which matches
+        // how _generateSegmentedElbowSVG already handles this for segmented elbows.
+        let elbowPath;
+        if (this._hasCssUnitDimensions) {
+            const rg = this._getResolvedGeometry(width, height);
+            elbowPath = rg
+                ? this._generateSegmentPath(
+                    width, height,
+                    rg.horizontal, rg.vertical,
+                    rg.outerRadius, rg.innerRadius,
+                    rg.diagonalAngle,
+                    rg.type
+                  )
+                : this._generateElbowPath(width, height);
+        } else {
+            elbowPath = this._generateElbowPath(width, height);
+        }
 
         if (!elbowPath) {
             // Fallback to parent rendering if no elbow geometry
@@ -2233,8 +2375,10 @@ export class LCARdSElbow extends LCARdSButton {
      * @private
      */
     _generateSegmentedElbowSVG(width, height, config) {
-        // Calculate segmented geometry
-        const segmentGeom = this._calculateSegmentedGeometry(this._elbowConfig);
+        // Calculate segmented geometry (resolving any CSS unit dimensions at render time)
+        const segmentGeom = this._hasCssUnitDimensions
+            ? this._getResolvedGeometry(width, height)
+            : this._calculateSegmentedGeometry(this._elbowConfig);
 
         if (!segmentGeom) {
             lcardsLog.error(`[LCARdSElbow] Failed to calculate segmented geometry`);
