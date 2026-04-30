@@ -9,7 +9,7 @@ Master Systems Display — a zoomable SVG canvas on which you position any Home 
 ## Quick Start
 
 ```yaml
-type: custom:lcards-msd
+type: custom:lcards-msd-card
 msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
@@ -241,7 +241,7 @@ See [Rules Engine](../../core/rules/) for the full condition and apply reference
 An MSD card with three anchors, a control overlay, a line, and a rule that changes the base SVG filter on alert:
 
 ```yaml
-type: custom:lcards-msd
+type: custom:lcards-msd-card
 msd:
   base_svg:
     source: builtin:ncc-1701-a-blue

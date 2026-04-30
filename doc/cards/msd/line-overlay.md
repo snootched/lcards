@@ -57,7 +57,7 @@ overlays:
     position: [100, 100]
     size: [120, 40]
     card:
-      type: custom:lcards-button-card
+      type: custom:lcards-button
       entity: light.living_room
 
   - id: control2
@@ -65,7 +65,7 @@ overlays:
     position: [300, 100]
     size: [120, 40]
     card:
-      type: custom:lcards-button-card
+      type: custom:lcards-button
       entity: light.kitchen
 
   - id: line1
