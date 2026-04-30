@@ -54,12 +54,16 @@ const VERBOSE = args.has('--verbose');
 const QUIET   = args.has('--quiet');
 const STRICT  = args.has('--strict');
 
+// Directories under doc/ that should not be scanned for prose markdown.
+const SKIP_DOC_DIRS = new Set(['.vitepress', 'public', 'node_modules']);
+
 // ── Discover real LCARdS custom element names from src/lcards.js ─────────────
 function discoverRegisteredElements() {
   const lcardsEntry = path.join(SRC_ROOT, 'lcards.js');
   const text = fs.readFileSync(lcardsEntry, 'utf8');
-  // Match: customElements.define('lcards-foo', SomeClass)
-  const re = /customElements\.define\(\s*['"`](lcards-[a-z0-9-]+)['"`]/g;
+  // Match: customElements.define('lcards-foo', SomeClass) or "lcards-foo".
+  // (Backticks are not used for these registrations in the codebase.)
+  const re = /customElements\.define\(\s*['"](lcards-[a-z0-9-]+)['"]/g;
   const found = new Set();
   let m;
   while ((m = re.exec(text)) !== null) found.add(m[1]);
@@ -71,8 +75,7 @@ function walkDocs(dir, out = []) {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, ent.name);
     if (ent.isDirectory()) {
-      // Skip VitePress build artifacts and theme assets
-      if (ent.name === '.vitepress' || ent.name === 'public' || ent.name === 'node_modules') continue;
+      if (SKIP_DOC_DIRS.has(ent.name)) continue;
       walkDocs(p, out);
     } else if (ent.isFile() && /\.mdx?$/.test(ent.name)) {
       out.push(p);
@@ -171,8 +174,7 @@ function main() {
         // Common typo: lcards-X-card / lcards-X — give specific guidance
         const candidates = [...registered].filter(r =>
           r === tag.replace(/-card$/, '') ||
-          `${r}-card` === tag ||
-          r === tag.replace(/^lcards-/, 'lcards-')
+          `${r}-card` === tag
         );
         const hint = candidates.length
           ? ` (did you mean: custom:${candidates[0]}?)`
