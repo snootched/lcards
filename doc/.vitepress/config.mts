@@ -101,6 +101,7 @@ export default withMermaid(defineConfig({
         items: [
           { text: 'Overview & Setup',  link: '/configuration/' },
           { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
+          { text: 'Connectivity',      link: '/configuration/connectivity' },
           { text: 'Helpers',           link: '/configuration/persistent-helpers' },
           { text: 'Sounds',            link: '/configuration/sounds' },
           { text: 'Users & Devices',   link: '/configuration/users-devices' },
@@ -301,6 +302,7 @@ export default withMermaid(defineConfig({
           items: [
             { text: 'Overview & Setup',  link: '/configuration/' },
             { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
+            { text: 'Connectivity',      link: '/configuration/connectivity' },
             { text: 'Helpers',           link: '/configuration/persistent-helpers' },
             { text: 'Sounds',            link: '/configuration/sounds' },
             { text: 'Users & Devices',   link: '/configuration/users-devices' },
@@ -424,6 +426,7 @@ export default withMermaid(defineConfig({
             { text: 'Animation Manager',    link: '/architecture/subsystems/animation-manager' },
             { text: 'Asset Manager',        link: '/architecture/subsystems/asset-manager' },
             { text: 'Component Manager',    link: '/architecture/subsystems/component-manager' },
+            { text: 'Connection Overlay',   link: '/architecture/subsystems/connection-overlay' },
             { text: 'DataSource System',    link: '/architecture/subsystems/datasource-system' },
             { text: 'Device Identity',      link: '/architecture/subsystems/device-identity' },
             { text: 'Helper Manager',       link: '/architecture/subsystems/helper-manager' },
@@ -431,6 +434,7 @@ export default withMermaid(defineConfig({
             { text: 'Pack System',          link: '/architecture/subsystems/pack-system' },
             { text: 'Rules Engine',         link: '/architecture/subsystems/rules-engine' },
             { text: 'Scoped Settings',      link: '/architecture/subsystems/scoped-settings' },
+            { text: 'Screen Effect System', link: '/architecture/subsystems/screen-effects' },
             { text: 'Sound System',         link: '/architecture/subsystems/sound-system' },
             { text: 'Style Preset Manager', link: '/architecture/subsystems/style-preset-manager' },
             { text: 'Systems Manager',      link: '/architecture/subsystems/systems-manager' },

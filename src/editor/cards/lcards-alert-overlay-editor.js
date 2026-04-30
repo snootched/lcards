@@ -12,6 +12,7 @@
  */
 
 import { html } from 'lit';
+import { keyed } from 'lit/directives/keyed.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { editorComponentStyles } from '../base/editor-component-styles.js';
@@ -771,6 +772,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 ?expanded=${!!presetDef}
                 ?outlined=${true}>
 
+                ${keyed(dropdownValue, html`
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Effect Preset'}
@@ -781,6 +783,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         else             this._setGlobalLayerPreset(slot, e.detail.value);
                     }}>
                 </ha-selector>
+                `)}
 
                 ${presetDef?.params_schema?.length ? html`
                     ${presetDef.params_schema.map(spec => this._renderParamField({
@@ -857,7 +860,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
     _setGlobalLayerPreset(slot, presetOrSpecial) {
         const layers = { ...this._getMigratedLayers() };
         if (presetOrSpecial === '__none__') {
-            delete layers[slot];
+            layers[slot] = null;
         } else {
             const existing = layers[slot];
             layers[slot] = (existing?.preset === presetOrSpecial) ? existing : { preset: presetOrSpecial };

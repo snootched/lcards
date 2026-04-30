@@ -30,7 +30,7 @@ On first use `ScreenEffectManager` appends a single `position:fixed; inset:0; z-
 | `canvas` | `<canvas>` | Canvas2D rAF loop — draws directly above all content |
 | `color` | `<div>` | CSS `background` — semi-transparent colour overlay |
 
-Z-index 9100 places the portal above the alert overlay portal (9000) and all HA UI.
+Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-alert-overlay`) and `ConnectionOverlayService` both inject their own content elements **into this shared portal** rather than creating separate portals — there is only one portal div on the page at any given time.
 
 ### Preset API shape
 
@@ -38,13 +38,29 @@ Z-index 9100 places the portal above the alert overlay portal (9000) and all HA 
 // Standard preset (single slot)
 {
   slot:     'canvas' | 'backdrop' | 'color',
+  label:    'Human-readable name',        // shown in the visual editor dropdown
   defaults: { /* default param values */ },
+  params_schema: [                         // optional — drives the editor UI
+    {
+      key:         'amount',              // param key in resolvedParams
+      type:        'text' | 'number' | 'color-text',
+      label:       'Field Label',
+      placeholder: '8px',                 // shown as hint text in editor
+      helper:      'Blur radius in px',   // help text below field
+      // number only:
+      min: 0, max: 1, step: 0.05,
+    },
+  ],
   enter(slotEl, resolvedParams) {
     // activate: set CSS, start rAF loop, etc.
+    // slotEl is the slot's <div>/<canvas> — EXCEPT for 'backdrop' presets
+    // where slotEl is the portal element itself (see Implementation Notes).
     return () => { /* cleanup */ };
   },
 }
 ```
+
+`color-text` params automatically go through three-step color resolution before `enter()` is called — see Implementation Notes.
 
 ## Built-in Presets
 
@@ -188,9 +204,32 @@ sem.clear()
 // Register or replace a preset
 sem.registerPreset('my-fx', { ... })
 
-// List registered presets
+// List registered preset names
 sem.listPresets()
 // → ['blur', 'static', 'pixelate', 'glitch', ...]
+
+// Retrieve a single preset definition (label, slot, params_schema, defaults)
+sem.getPreset('blur')
+
+// Return a catalog array for all presets — used by the visual editor
+sem.catalog()
+// → [ { name, label, slot, params_schema }, ... ]
+```
+
+### Trusted Consumer API (for overlay systems)
+
+The alert overlay and connection overlay inject their own DOM elements directly into the shared portal rather than using slots. Two methods support this pattern:
+
+```js
+// Get (and lazily create) the portal element.
+// Alert overlay and ConnectionOverlayService use this to appendChild their wrappers.
+const portal = sem.portal;
+
+// Notify SEM that the portal is in use even when no effect slots are active.
+// Prevents _syncPortalVisibility() from hiding the portal while overlay content is showing.
+sem.setOverlayOccupied(true);
+// … overlay removed …
+sem.setOverlayOccupied(false);
 ```
 
 ---
@@ -257,7 +296,9 @@ npm run build
 
 ## Implementation Notes
 
-**`backdrop-filter` stacking context**: The `backdrop` slot div creates its own stacking context. Elements behind the portal are filtered; elements above (other portal slots) are not. This is the desired behaviour — the `canvas` slot draws above the blurred content.
+**Color resolution for `color-text` params**: Before `enter()` is called, `ScreenEffectManager` resolves all `color-text` params through a three-step process: (1) substitute `var()` references from live computed DOM style; (2) route through `ThemeTokenResolver` for computed expressions (`alpha()`, `darken()`, token paths); (3) materialise any `var()` the resolver itself emits. This order prevents cache-poisoning — the resolver's cache key becomes a concrete colour string rather than a raw `var()` reference that could be stale from before the LCARS theme committed its CSS variables.
+
+**`backdrop-filter` and `mix-blend-mode` compositing**: Canvas presets that set `mix-blend-mode` (`static`, `glitch`, `pixelate`) cause the browser to promote the portal into its own compositing layer. When this happens, a `backdrop-filter` applied to a *child element inside the portal* cannot reach through to the content behind the portal — the filter is resolved against an already-composited surface. To avoid this, `ScreenEffectManager` applies the backdrop-filter from the `backdrop` slot **directly on the portal element itself** rather than on the slot's child `<div>`. The portal-level filter is resolved before child compositing, so canvas blend-modes render correctly on top of the already-filtered background. The `scanlines` preset does not set `mix-blend-mode` and is not affected by this constraint.
 
 **Canvas security**: Canvas2D cannot call `ctx.drawWindow()` or sample arbitrary DOM content in the browser for security reasons. The `pixelate` preset therefore generates synthetic colour blocks rather than true pixel-sampling of the viewport content. The visual result is an obscuring mosaic overlay, which is consistent with what the alert transition system already does.
 

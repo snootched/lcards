@@ -206,7 +206,17 @@ export class ScreenEffectManager extends BaseService {
         this._syncPortalVisibility();
 
         try {
-            slotState.cleanup = preset.enter(slotState.el, finalParams) ?? null;
+            // Backdrop presets apply CSS `backdrop-filter` to whichever element
+            // they receive as `el`.  If a canvas slot sibling uses `mix-blend-mode`
+            // (static, glitch, pixelate) the browser isolates the portal into its
+            // own compositing layer, which prevents any child element's
+            // `backdrop-filter` from reaching through to the dashboard behind the
+            // portal.  Applying the filter directly on the portal element itself
+            // sidesteps the stacking-context isolation: the portal-level filter
+            // is resolved before compositing children, so canvas blend-modes work
+            // correctly on top of the already-filtered surface.
+            const enterEl = slot === 'backdrop' ? this._portal : slotState.el;
+            slotState.cleanup = preset.enter(enterEl, finalParams) ?? null;
         } catch (err) {
             lcardsLog.error(`[ScreenEffectManager] Error entering preset '${presetName}':`, err);
             slotState.el.style.display = 'none';

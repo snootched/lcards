@@ -60,7 +60,11 @@ export class LCARdSScopeSelector extends LitElement {
    */
   willUpdate(changedProps) {
     if (changedProps.has('showGlobal')) {
-      if (!this.showGlobal && this._scopeTab === 'global') {
+      if (this.showGlobal) {
+        // When the Global tab is shown, default to it.
+        this._scopeTab = 'global';
+      } else if (this._scopeTab === 'global') {
+        // Global tab hidden — fall back to user.
         this._scopeTab = 'user';
       }
     }

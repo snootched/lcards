@@ -666,6 +666,69 @@ window.lcards.screenEffect = {
 };
 lcardsLog.debug('[lcards.js] screenEffect console API attached');
 
+// === CONNECTION OVERLAY API ===
+// Full-screen overlay displayed when the frontend loses contact with the HA server.
+// Works on any page the module is loaded — no card placement required.
+//
+// Usage examples:
+//   window.lcards.connectionOverlay.show()                  // Force-show (simulate disconnect)
+//   window.lcards.connectionOverlay.hide()                  // Force-hide (clear test)
+//   window.lcards.connectionOverlay.getConfig()             // Read active config
+//   window.lcards.connectionOverlay.saveConfig({...})       // Save to global scope
+//   window.lcards.connectionOverlay.saveConfig({...}, 'device')  // Save to device scope
+//   window.lcards.connectionOverlay.clearConfig('device')   // Remove device override
+//   window.lcards.connectionOverlay.loadConfig()            // Reload from scoped settings
+window.lcards.connectionOverlay = {
+  /** Force-show the overlay (useful for testing config changes). */
+  show() {
+    window.lcards?.core?.connectionOverlayService?.show();
+  },
+  /**
+   * Show the overlay using a temporary preview config (not persisted).
+   * Original config is restored on hide().  Used by the config panel preview.
+   * @param {Object} previewConfig
+   */
+  showWith(previewConfig) {
+    window.lcards?.core?.connectionOverlayService?.showWith(previewConfig);
+  },
+  /** Force-hide the overlay. */
+  hide() {
+    window.lcards?.core?.connectionOverlayService?.hide();
+  },
+  /** Return the currently active (resolved) config object. */
+  getConfig() {
+    return window.lcards?.core?.connectionOverlayService?.getConfig() ?? null;
+  },
+  /**
+   * Save config to a specific scope (default: 'global').
+   * @param {Object} config
+   * @param {'device'|'user'|'global'} [scope='global']
+   * @returns {Promise<void>}
+   */
+  saveConfig(config, scope = 'global') {
+    return window.lcards?.core?.connectionOverlayService?.saveConfig(config, scope)
+        ?? Promise.resolve();
+  },
+  /**
+   * Remove config from a specific scope (falls back to next tier).
+   * @param {'device'|'user'|'global'} [scope='global']
+   * @returns {Promise<void>}
+   */
+  clearConfig(scope = 'global') {
+    return window.lcards?.core?.connectionOverlayService?.clearConfig(scope)
+        ?? Promise.resolve();
+  },
+  /**
+   * Reload config from the ScopedSettings waterfall and refresh the overlay.
+   * @returns {Promise<Object>} Resolved config
+   */
+  loadConfig() {
+    return window.lcards?.core?.connectionOverlayService?.loadConfig()
+        ?? Promise.resolve(null);
+  },
+};
+lcardsLog.debug('[lcards.js] connectionOverlay console API attached');
+
 // === SOUND DEBUG API ===
 // Exposes sound system controls for debugging and testing in the HA developer console.
 // Example usage:

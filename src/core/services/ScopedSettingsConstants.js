@@ -91,3 +91,88 @@ export const URL_PARAM_DEVICE_NAME = 'lcards_device';
 
 /** localStorage key storing this browser's stable device UUID. */
 export const LOCALSTORAGE_DEVICE_ID = 'lcards_device_id';
+
+// ---------------------------------------------------------------------------
+// Connection overlay settings — flat scalar keys (one per independently
+// overridable field).  Device scope wins over user scope wins over global
+// at the individual field level, so a device-scoped colour does NOT clobber
+// a global-scoped text value.
+// Used by ConnectionOverlayService + lcards-connectivity-tab.
+// ---------------------------------------------------------------------------
+
+/** Whether the disconnect overlay is enabled. */
+export const CONN_OVERLAY_ENABLED            = 'conn_overlay_enabled';
+/** Whether the user can dismiss the overlay by clicking the backdrop. */
+export const CONN_OVERLAY_DISMISS            = 'conn_overlay_dismiss';
+/** Position of the content card within the overlay (e.g. 'center', 'top-left'). */
+export const CONN_OVERLAY_POSITION           = 'conn_overlay_position';
+/** CSS width for the content container ('auto' or explicit CSS value). */
+export const CONN_OVERLAY_WIDTH              = 'conn_overlay_width';
+/** CSS height for the content container ('auto' or explicit CSS value). */
+export const CONN_OVERLAY_HEIGHT             = 'conn_overlay_height';
+/** Optional HA card config object shown in card mode (null = use text message). */
+export const CONN_OVERLAY_CONTENT            = 'conn_overlay_content';
+/** SEM effect layers config object { backdrop, color, canvas }. */
+export const CONN_OVERLAY_SEM               = 'conn_overlay_sem';
+/** Message display mode: 'text' | 'card'. */
+export const CONN_OVERLAY_MSG_MODE           = 'conn_overlay_msg_mode';
+/** Disconnect message text. */
+export const CONN_OVERLAY_MSG_TEXT           = 'conn_overlay_msg_text';
+/** Disconnect message text colour. */
+export const CONN_OVERLAY_MSG_COLOR          = 'conn_overlay_msg_color';
+/** Disconnect message font family key. */
+export const CONN_OVERLAY_MSG_FONT           = 'conn_overlay_msg_font';
+/** Disconnect message font size (px). */
+export const CONN_OVERLAY_MSG_SIZE           = 'conn_overlay_msg_size';
+/** Disconnect message font weight (e.g. '400', '700'). */
+export const CONN_OVERLAY_MSG_WEIGHT         = 'conn_overlay_msg_weight';
+/** Disconnect message text transform. */
+export const CONN_OVERLAY_MSG_TRANSFORM      = 'conn_overlay_msg_transform';
+/** Whether to show a "connection restored" confirmation banner. */
+export const CONN_OVERLAY_RECON_ENABLED      = 'conn_overlay_recon_enabled';
+/** Connection-restored message text. */
+export const CONN_OVERLAY_RECON_TEXT         = 'conn_overlay_recon_text';
+/** Connection-restored message text colour. */
+export const CONN_OVERLAY_RECON_COLOR        = 'conn_overlay_recon_color';
+/** Seconds before the reconnected confirmation auto-dismisses. */
+export const CONN_OVERLAY_RECON_DISMISS_SECS = 'conn_overlay_recon_dismiss_secs';
+/** Connection-restored message font family key. */
+export const CONN_OVERLAY_RECON_FONT         = 'conn_overlay_recon_font';
+/** Connection-restored message font size (px). */
+export const CONN_OVERLAY_RECON_SIZE         = 'conn_overlay_recon_size';
+/** Connection-restored message font weight. */
+export const CONN_OVERLAY_RECON_WEIGHT       = 'conn_overlay_recon_weight';
+/** Connection-restored message text transform. */
+export const CONN_OVERLAY_RECON_TRANSFORM    = 'conn_overlay_recon_transform';
+/** Optional HA card config shown in card mode for the reconnect banner (null = use text). */
+export const CONN_OVERLAY_RECON_CONTENT      = 'conn_overlay_recon_content';
+
+/**
+ * All 23 connection-overlay flat keys in a stable array.
+ * Used for bulk operations (loadConfig, clearConfig, readAllScopesFull).
+ */
+export const CONN_OVERLAY_ALL_KEYS = [
+    CONN_OVERLAY_ENABLED,
+    CONN_OVERLAY_DISMISS,
+    CONN_OVERLAY_POSITION,
+    CONN_OVERLAY_WIDTH,
+    CONN_OVERLAY_HEIGHT,
+    CONN_OVERLAY_CONTENT,
+    CONN_OVERLAY_SEM,
+    CONN_OVERLAY_MSG_MODE,
+    CONN_OVERLAY_MSG_TEXT,
+    CONN_OVERLAY_MSG_COLOR,
+    CONN_OVERLAY_MSG_FONT,
+    CONN_OVERLAY_MSG_SIZE,
+    CONN_OVERLAY_MSG_WEIGHT,
+    CONN_OVERLAY_MSG_TRANSFORM,
+    CONN_OVERLAY_RECON_ENABLED,
+    CONN_OVERLAY_RECON_TEXT,
+    CONN_OVERLAY_RECON_COLOR,
+    CONN_OVERLAY_RECON_DISMISS_SECS,
+    CONN_OVERLAY_RECON_FONT,
+    CONN_OVERLAY_RECON_SIZE,
+    CONN_OVERLAY_RECON_WEIGHT,
+    CONN_OVERLAY_RECON_TRANSFORM,
+    CONN_OVERLAY_RECON_CONTENT,
+];

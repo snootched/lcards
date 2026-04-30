@@ -60,6 +60,22 @@ Two tools in one tab:
 
 ---
 
+### Connectivity
+
+Configure a full-screen overlay displayed when Home Assistant loses its WebSocket connection — ideal for kiosk installs where you always want to know when the dashboard is offline.
+
+- **Enable / disable** the overlay globally, per user, or per device
+- **Simple text** — styled message with colour, font, size, weight, and casing controls
+- **Custom card** — replace the text with any HA card defined in YAML, with position and size controls
+- **Connection Restored banner** — optional auto-dismissing confirmation shown on reconnect
+- **Effect layers** — independently configure the canvas animation, colour overlay, and backdrop filter applied behind the message
+- **Test Controls** — simulate a disconnect live in the browser to preview the overlay before saving
+- **Per-device / per-user overrides** — scope settings to specific browsers or HA accounts
+
+→ [Connectivity](connectivity.md)
+
+---
+
 ### Sounds
 
 Configure LCARS-style audio feedback for card interactions and alert events:
@@ -119,6 +135,7 @@ Typical use cases: debugging unexpected behaviour, recovering from a corrupt con
 - [Persistent Helpers](persistent-helpers.md) — full helper reference and manual YAML setup
 - [Alert Mode Lab](alert-mode-lab.md) — colour palette customisation
 - [Alert Mode](../core/alert-mode.md) — how alert mode works and how to trigger it
+- [Connectivity](connectivity.md) — connection overlay reference
 - [Sounds](sounds.md) — sound system reference
 - [Users & Devices](users-devices.md) — scoped settings management
 

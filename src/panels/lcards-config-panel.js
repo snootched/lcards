@@ -30,6 +30,7 @@ import './components/lcards-about-tab.js';
 import './components/lcards-users-devices-tab.js';
 import './components/lcards-layouts-tab.js';
 import './components/lcards-preview-chip.js';
+import './components/lcards-connectivity-tab.js';
 
 export class LCARdSConfigPanel extends LitElement {
   static properties = {
@@ -834,6 +835,10 @@ export class LCARdSConfigPanel extends LitElement {
             Layouts
           </ha-tab-group-tab>
           ` : ''}
+          <ha-tab-group-tab value="8" ?active=${this._selectedTab === 8}>
+            <ha-icon icon="mdi:wifi-off"></ha-icon>
+            Connectivity
+          </ha-tab-group-tab>
         </ha-tab-group>
 
         <div class="tab-content">
@@ -885,9 +890,19 @@ export class LCARdSConfigPanel extends LitElement {
         return this._isAdmin() ? this._renderStorageTab() : html``;
       case 7:
         return this._isDevFeaturesEnabled() ? this._renderLayoutsTab() : html``;
+      case 8:
+        return this._renderConnectivityTab();
       default:
         return html`<div>Unknown tab</div>`;
     }
+  }
+
+  _renderConnectivityTab() {
+    return html`
+      <lcards-connectivity-tab
+        .hass=${this.hass}
+      ></lcards-connectivity-tab>
+    `;
   }
 
   _renderAboutTab() {
@@ -1238,9 +1253,11 @@ export class LCARdSConfigPanel extends LitElement {
 
   _renderSoundTab() {
     return html`
-      <lcards-sound-config-tab
-        .hass=${this.hass}
-      ></lcards-sound-config-tab>
+      <div class="studio-layout">
+        <lcards-sound-config-tab
+          .hass=${this.hass}
+        ></lcards-sound-config-tab>
+      </div>
     `;
   }
 
