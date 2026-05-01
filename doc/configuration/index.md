@@ -33,7 +33,7 @@ The first tab when opening the Config Panel:
 ### Helpers
 
 ::: tip First launch
-Open the **Helpers** tab and click **Create All Helpers** before using anything else. This creates every HA input helper LCARdS needs for alert mode, sounds, and sizing in one step.
+Open the **Helpers** tab and click **Create All Helpers** before using anything else. This creates any missing HA input helper LCARdS uses for alert mode, sounds, and sizing in one step.  HA-LCARS theme helpers can also be created here.
 :::
 
 Shows all LCARdS HA input helpers, their current values, and creation status:
@@ -62,15 +62,13 @@ Two tools in one tab:
 
 ### Connectivity
 
-Configure a full-screen overlay displayed when Home Assistant loses its WebSocket connection — ideal for kiosk installs where you always want to know when the dashboard is offline.
+Configure a full-screen overlay displayed when connection to Home Assistant is lost — ideal for kiosk installs where you always want to know when the dashboard is offline.
 
 - **Enable / disable** the overlay globally, per user, or per device
-- **Simple text** — styled message with colour, font, size, weight, and casing controls
-- **Custom card** — replace the text with any HA card defined in YAML, with position and size controls
-- **Connection Restored banner** — optional auto-dismissing confirmation shown on reconnect
+- **Simple text** — configure stylized messages
+- **Custom card** — replace the simple text message with any HA card(s)
+- **Connection Restored** — optional auto-dismissing confirmation shown on reconnect
 - **Effect layers** — independently configure the canvas animation, colour overlay, and backdrop filter applied behind the message
-- **Test Controls** — simulate a disconnect live in the browser to preview the overlay before saving
-- **Per-device / per-user overrides** — scope settings to specific browsers or HA accounts
 
 → [Connectivity](connectivity.md)
 
@@ -84,15 +82,15 @@ Configure LCARS-style audio feedback for card interactions and alert events:
 - Select the active sound scheme
 - Set per-event overrides — change or mute individual sound events
 - Control master volume
-- **Per-user / per-device overrides** *(preview)* — set different sound preferences for your own browser session without changing global defaults
+- **Per-user / per-device overrides** — set different sound preferences for your own browser session without changing global defaults
 
 → [Sounds](./sounds.md)
 
 ---
 
-### Users & Devices *(preview)*
+### Users & Devices
 
-Manage devices and users that have stored per-device or per-user setting overrides. Requires LCARdS integration v2026.3.0+ with `scoped_storage` capability.
+Manage devices and users that have stored per-device or per-user setting overrides (introduced in LCARdS v2026.3.0)
 
 - **Current Session** (all users) — view your device identity, set a display name for this browser
 - **Users** (admin only) — list users with stored overrides; clear overrides for a user
@@ -115,13 +113,15 @@ Built-in packs (core, buttons, sliders, effects, themes) are always shown. User-
 
 ---
 
-### Storage
+### Storage [advanced]
 
-> **Advanced — use with caution.** This tab exposes the raw key/value store the LCARdS integration uses for persistent configuration. Requires the LCARdS integration to be installed and connected.
+:::warning **Advanced — use with caution.**
+This tab exposes the raw key/value store on the backend integration.  LCARdS uses this for persistent configuration settings that are not controlled with helpers.
+:::
 
 - **Live key list** — all keys currently stored
 - **Expandable JSON viewer** — inspect the value of any key
-- **Inline JSON editor** — edit a value directly; syntax errors are caught before saving
+- **Inline JSON editor** — edit a value directly
 - **Per-key delete** — remove a single key with confirmation
 - **Reset All** — wipe the entire LCARdS store (requires explicit confirmation)
 
