@@ -102,7 +102,7 @@ Multiple SVG filter primitives in the same `filters:` array are chained in seque
 
 ### SVG examples
 
-```yaml
+```yaml alternatives
 # Subtle colour shift
 filters:
   - mode: svg

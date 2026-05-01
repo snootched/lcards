@@ -24,7 +24,7 @@ Using CSS colour vars `--lcars-*` and `--lcards-*` will automatically be mutated
 
 The `--lcards-*` variables are defined by the active theme pack. Common ones:
 
-```yaml
+```yaml alternatives
 var(--lcards-orange)
 var(--lcards-orange-medium)
 var(--lcards-blue)
@@ -41,7 +41,7 @@ See [LCARdS CSS Colour Palette]](themes/#lcards-css-colour-palette) for the defa
 
 Use `{theme:path.to.token}` to reference a value from the active theme's token tree:
 
-```yaml
+```yaml alternatives
 color: "{theme:colors.text.onDark}"
 color: "{theme:colors.ui.primary}"
 color: "{theme:colors.ui.secondary}"
@@ -54,7 +54,7 @@ See [Themes](themes/) for available token paths.
 
 The ThemeTokenResolver supports derived colours:
 
-```yaml
+```yaml alternatives
 color: "darken(var(--lcards-orange), 0.2)"    # Darken by 20%
 color: "lighten(var(--lcards-blue), 0.15)"    # Lighten by 15%
 color: "alpha(var(--lcards-orange), 0.6)"     # Set opacity to 60%
@@ -64,7 +64,7 @@ color: "alpha(var(--lcards-orange), 0.6)"     # Set opacity to 60%
 
 By default, any colour referencing a `--lcars-*` or `--lcards-*` CSS variable will be shifted to the active alert mode's hue (red, yellow, etc.). Use `base()` when you want a token or CSS variable to **always resolve to its green-alert (unmutated) baseline value**, regardless of the active alert mode.
 
-```yaml
+```yaml alternatives
 # Always shows the original blue, even during red_alert
 color: "theme:base(colors.ui.primary)"
 
@@ -218,7 +218,7 @@ Range keys (`above:N`, `below:N`, `between:N:M`) compare against the **numeric f
 
 For these, `ranges_attribute` tells LCARdS to compare range conditions against a named entity attribute instead of the entity state string. This affects **all** state maps on the card simultaneously — colours, borders, icons, and text. Exact-state matching and classified-state matching are unaffected; only steps 2–4 of the [resolution order](#resolution-order) (zero, ranges, non\_zero) use the attribute value.
 
-```yaml
+```yaml alternatives
 ranges_attribute: brightness_pct   # special virtual attribute (see below)
 ranges_attribute: color_temp       # any real attribute name works
 ranges_attribute: current_position # e.g. cover position 0–100

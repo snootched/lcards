@@ -663,7 +663,7 @@ style:
 ```
 
 #### Dashed Lines
-```yaml
+```yaml alternatives
 style:
   stroke-dasharray: "5,5"        # 5px dash, 5px gap
   # or
@@ -750,7 +750,7 @@ style:
 
 ### Colors
 
-```yaml
+```yaml alternatives
 style:
   # LCARS theme colors
   stroke: var(--lcars-orange)
@@ -989,7 +989,7 @@ overlays:
 
 ### Available Sides
 
-```yaml
+```yaml alternatives
 # Standard sides
 anchor_side: left
 anchor_side: right
@@ -1006,7 +1006,7 @@ anchor_side: bottom-right
 
 ### Routing Modes
 
-```yaml
+```yaml alternatives
 route: auto          # Smart pathfinding (default)
 route: direct        # Straight line
 route: orthogonal    # Right-angle turns
@@ -1390,7 +1390,7 @@ console.log('Stroke-width:', line?.getAttribute('stroke-width'));
 3. ✅ Ensure gap value is greater than 0
 4. ✅ Verify attachment side is not `center` (gaps don't apply to center)
 
-```yaml
+```yaml alternatives
 # Correct
 anchor_gap: 20
 
@@ -1466,7 +1466,7 @@ console.log('Attachment points:', apm?.getAllAttachmentPoints());
 3. ✅ Test with simple colors first (`"#FF0000"`)
 4. ✅ Check for CSS conflicts or overrides
 
-```yaml
+```yaml alternatives
 # Correct color syntax
 stroke: "var(--lcars-orange)"
 

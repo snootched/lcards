@@ -343,7 +343,7 @@ All `config` string values support synchronous JS templates (`[[[…]]]`) and `{
 
 The `fill_pct` field additionally supports two template syntaxes:
 
-```yaml
+```yaml alternatives
 # Form 1 — direct string template (evaluated as a numeric value)
 shape_texture:
   preset: level

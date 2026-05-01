@@ -454,7 +454,7 @@ export default withMermaid(defineConfig({
           collapsed: false,
           items: [
             { text: 'Background Animations',  link: '/architecture/internals/background-animation-system' },
-            { text: 'DataSource Buffers',     link: '/architecture/animations/datasource-buffers' },
+            { text: 'DataSource Buffers',     link: '/architecture/internals/datasource-buffers' },
             { text: 'HA Entity Display',      link: '/architecture/internals/ha-entity-display' },
             { text: 'HA Services',            link: '/architecture/internals/ha-services' },
             { text: 'Persistent Storage',     link: '/architecture/internals/storage' },

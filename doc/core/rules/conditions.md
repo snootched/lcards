@@ -130,7 +130,7 @@ when:
 
 ### Examples
 
-```yaml
+```yaml alternatives
 # Exact state match
 when:
   entity: input_select.mode
@@ -186,7 +186,7 @@ Valid values: `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`.
 
 ### Sun elevation
 
-```yaml
+```yaml alternatives
 # Night — sun below horizon
 when:
   sun_elevation:

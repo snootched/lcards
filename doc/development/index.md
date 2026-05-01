@@ -39,7 +39,7 @@ These run in CI and are safe to run locally before opening a PR:
 | Command | What it does |
 |---|---|
 | `npm run validate:css-vars` | Audits every `--lcars-*`, `--lcards-*`, and `theme:` reference against the allowlists in `scripts/ha-lcars-theme-vars.js` and `src/lcards-vars.js`. Gates `npm run build`. |
-| `npm run validate:doc-examples` | Parses every fenced `yaml`/`yml` block in `doc/**.md` and checks that any `type: custom:lcards-*` value matches a real custom element registered in `src/lcards.js`. Add `--strict` to fail on parse warnings, or `--verbose` for per-block output. Use the meta hint ` ```yaml no-validate ` to opt a snippet-style block out. |
+| `npm run validate:doc-examples` | Parses every fenced `yaml`/`yml` block in `doc/**.md`, checks that any `type: custom:lcards-*` value matches a registered element, and validates parsed card configs against the real JSON Schemas from `src/cards/schemas/` (7 card types covered; lcards-msd-card excluded). Add `--strict` to promote schema and parse warnings to errors. Two fence meta hints: ` ```yaml alternatives ` skips YAML parsing but still checks type refs; ` ```yaml no-validate ` skips the block entirely. |
 | `npm run typecheck` | Runs `tsc` against the JSDoc-typed sources. |
 | `npm run docs:build` | Builds the VitePress site. |
 

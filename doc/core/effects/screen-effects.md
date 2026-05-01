@@ -315,7 +315,7 @@ data:
 
 Clear one or all active screen effects.
 
-```yaml
+```yaml alternatives
 # Clear everything on all browsers
 service: lcards.clear_effect
 

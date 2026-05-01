@@ -164,7 +164,7 @@ Adding a `background` color to a text field draws an opaque rectangle behind the
 
 `background` accepts the same state-map object as text `color` — a plain string is **not** supported; always use object form:
 
-```yaml
+```yaml alternatives
 # Single colour (all states)
 background:
   default: black
@@ -223,7 +223,7 @@ text:
 
 The `content` field supports all four template syntaxes:
 
-```yaml
+```yaml alternatives
 # Token substitution
 content: "{entity.state}"
 content: "{entity.attributes.brightness}"

@@ -18,7 +18,7 @@
     "Star Trek"
   ],
   "scripts": {
-    "build": "node scripts/validate-css-vars.js && node scripts/set-version.js && vite build --mode integration && node scripts/copy-assets.js",
+    "build": "node scripts/validate-doc-examples.js --strict && node scripts/validate-css-vars.js && node scripts/set-version.js && vite build --mode integration && node scripts/copy-assets.js",
     "validate:css-vars": "node scripts/validate-css-vars.js",
     "validate:css-vars:verbose": "node scripts/validate-css-vars.js --verbose",
     "validate:doc-examples": "node scripts/validate-doc-examples.js",
@@ -35,6 +35,7 @@
     "docs:preview": "vitepress preview doc"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
     "inquirer": "^13.1.0",
     "js-yaml": "^4.1.0",
     "jsdom": "^29.0.1",

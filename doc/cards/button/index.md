@@ -549,7 +549,7 @@ style:
     color:
       default: "var(--lcards-gray)"
       active: "var(--lcards-orange)"
-    width: 2
+    width2: 2
 
 tap_action:
   action: toggle

@@ -63,7 +63,7 @@ graph LR
 
 ### Minimal Example
 
-```yaml
+```yaml alternatives
 type: custom:lcards-msd-card
   msd:
     overlays:
@@ -357,7 +357,7 @@ graph TD
 
 ### Position Guidelines
 
-```yaml
+```yaml alternatives
 # Top area
 position: [100, 100]    # Top-left
 position: [960, 100]    # Top-center

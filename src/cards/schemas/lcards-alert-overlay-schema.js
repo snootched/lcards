@@ -46,47 +46,52 @@ export const alertOverlaySchema = {
             additionalProperties: false,
         },
         layers: {
-            type: 'object',
-            description: 'Screen effect layers applied independently behind the overlay. Absent slot = disabled; null value = explicitly cleared for per-condition overrides.',
-            properties: {
-                backdrop: {
-                    oneOf: [
-                        { type: 'null', description: 'Explicitly disable this layer for a condition override' },
-                        {
-                            type: 'object',
-                            description: 'CSS backdrop-filter layer. Preset: blur | grayscale | saturate | contrast | hue-rotate',
-                            properties: { preset: { type: 'string', examples: ['blur', 'grayscale', 'saturate', 'contrast', 'hue-rotate'] } },
-                            required: ['preset'],
-                            additionalProperties: true,
+            oneOf: [
+                { type: 'null', description: 'null — explicitly disables all screen effect layers (useful as a per-condition override).' },
+                {
+                    type: 'object',
+                    description: 'Screen effect layers applied independently behind the overlay. Absent slot = disabled; null slot = explicitly cleared.',
+                    properties: {
+                        backdrop: {
+                            oneOf: [
+                                { type: 'null', description: 'Explicitly disable this layer for a condition override' },
+                                {
+                                    type: 'object',
+                                    description: 'CSS backdrop-filter layer. Preset: blur | grayscale | saturate | contrast | hue-rotate',
+                                    properties: { preset: { type: 'string', examples: ['blur', 'grayscale', 'saturate', 'contrast', 'hue-rotate'] } },
+                                    required: ['preset'],
+                                    additionalProperties: true,
+                                },
+                            ],
                         },
-                    ],
-                },
-                color: {
-                    oneOf: [
-                        { type: 'null', description: 'Explicitly disable this layer for a condition override' },
-                        {
-                            type: 'object',
-                            description: 'Colour overlay layer. Preset: color-tint | vignette',
-                            properties: { preset: { type: 'string', examples: ['color-tint', 'vignette'] } },
-                            required: ['preset'],
-                            additionalProperties: true,
+                        color: {
+                            oneOf: [
+                                { type: 'null', description: 'Explicitly disable this layer for a condition override' },
+                                {
+                                    type: 'object',
+                                    description: 'Colour overlay layer. Preset: color-tint | vignette',
+                                    properties: { preset: { type: 'string', examples: ['color-tint', 'vignette'] } },
+                                    required: ['preset'],
+                                    additionalProperties: true,
+                                },
+                            ],
                         },
-                    ],
-                },
-                canvas: {
-                    oneOf: [
-                        { type: 'null', description: 'Explicitly disable this layer for a condition override' },
-                        {
-                            type: 'object',
-                            description: 'Canvas animation layer. Preset: static | pixelate | glitch | scanlines',
-                            properties: { preset: { type: 'string', examples: ['static', 'pixelate', 'glitch', 'scanlines'] } },
-                            required: ['preset'],
-                            additionalProperties: true,
+                        canvas: {
+                            oneOf: [
+                                { type: 'null', description: 'Explicitly disable this layer for a condition override' },
+                                {
+                                    type: 'object',
+                                    description: 'Canvas animation layer. Preset: static | pixelate | glitch | scanlines',
+                                    properties: { preset: { type: 'string', examples: ['static', 'pixelate', 'glitch', 'scanlines'] } },
+                                    required: ['preset'],
+                                    additionalProperties: true,
+                                },
+                            ],
                         },
-                    ],
+                    },
+                    additionalProperties: false,
                 },
-            },
-            additionalProperties: false,
+            ],
         },
         position: {
             type: 'string',

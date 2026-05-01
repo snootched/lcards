@@ -117,7 +117,7 @@ Parameters that accept a number (`duration`, `delay`, any `params` field) can in
 
 LCARdS uses **anime.js v4** easing names (without the `ease` prefix used in v3):
 
-```yaml
+```yaml alternatives
 ease: "inOutQuad"       # Standard in-out (v4) — was easeInOutQuad in v3
 ease: "outElastic"      # Elastic bounce out
 ease: "inOutSine"       # Smooth sine curve

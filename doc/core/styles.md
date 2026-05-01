@@ -68,7 +68,7 @@ Controls the border drawn around the card.
 
 ### Border radius
 
-```yaml
+```yaml alternatives
 style:
   border:
     radius: 8                # Uniform — all four corners

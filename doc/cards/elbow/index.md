@@ -396,7 +396,7 @@ LCARdS handles this automatically: when the requested type is not yet registered
 
 ### Standard header cap pair
 
-```yaml
+```yaml alternatives
 # Left cap
 type: custom:lcards-elbow
 elbow:

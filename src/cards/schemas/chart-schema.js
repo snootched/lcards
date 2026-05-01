@@ -157,7 +157,7 @@ export function getChartSchema(options = {}) {
 
             // Level 2: Multiple sources
             sources: {
-                oneOf: [
+                anyOf: [
                     {
                         type: 'array',
                         items: { type: 'string' },

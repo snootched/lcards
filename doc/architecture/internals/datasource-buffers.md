@@ -48,7 +48,7 @@ Processor buffers are named outputs from data processors. Each processor has a u
 
 Reference buffers using dot notation:
 
-```yaml
+```yaml alternatives
 # Main buffer — no format spec: HA-native (locale-formatted + unit, e.g. "23,4 °C")
 text: "{datasource:temp_sensor}"        # Uses .v
 text: "{ds:temp_sensor}"                # Short form

@@ -469,7 +469,7 @@ msd:
 
 Remove all filtering by using the `none` preset or empty filters:
 
-```yaml
+```yaml alternatives
 rules:
   # Apply filter when alert is active
   - id: alert_active

@@ -7,6 +7,49 @@
  */
 
 // ============================================================================
+// COLOR VALUE PRIMITIVES
+// ============================================================================
+
+/**
+ * Regex pattern that matches every string the LCARdS colour resolution pipeline accepts:
+ *   - Hex:      #RGB · #RGBA · #RRGGBB · #RRGGBBAA
+ *   - CSS:      rgb( · rgba( · hsl( · hsla(
+ *   - Variable: var(--name)
+ *   - Keywords: transparent · match-light
+ *   - Token:    theme:path  (includes theme:expr(…))
+ *   - Computed: alpha( · darken( · lighten( · saturate( · desaturate( · base(
+ *               (functions accepted by ThemeTokenResolver / ColorUtils)
+ */
+const COLOR_VALUE_PATTERN =
+    '^(#[0-9A-Fa-f]{3,8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|hsla\\(|var\\(--|alpha\\(|darken\\(|lighten\\(|saturate\\(|desaturate\\(|base\\()';
+
+/**
+ * Reusable schema for a single colour value string.
+ * Referenced throughout stateColorSchema for all per-state properties.
+ */
+const colorValueSchema = {
+    type: 'string',
+    pattern: COLOR_VALUE_PATTERN,
+    description:
+        'Colour value: hex (#RRGGBB / #RRGGBBAA), rgb/rgba/hsl/hsla(), CSS variable (var(--name)), ' +
+        'theme token (theme:colors.ui.primary), or computed expression ' +
+        '(alpha(…,opacity), darken(…,amount), lighten(…,amount), saturate(…,amount), desaturate(…,amount), base(…))',
+    examples: [
+        '#FF9900',
+        '#FF990080',
+        'transparent',
+        'match-light',
+        'theme:colors.ui.active',
+        'var(--lcars-orange)',
+        'alpha(var(--lcards-orange), 0.08)',
+        'darken(theme:colors.ui.primary, 0.2)',
+        'lighten(#FF9900, 0.15)',
+        'saturate(var(--lcars-blue), 0.3)',
+        'base(colors.ui.primary)',
+    ],
+};
+
+// ============================================================================
 // DATA SOURCES SCHEMA - Historical data queries and processing pipeline
 // ============================================================================
 
@@ -249,9 +292,12 @@ export const animationSchema = {
             examples: ['inOutQuad', 'outElastic', 'linear', { type: 'spring', params: { stiffness: 150 } }]
         },
         loop: {
-            type: 'boolean',
+            oneOf: [
+                { type: 'boolean', description: 'true = loop infinitely, false = play once' },
+                { type: 'integer', minimum: 1, description: 'Number of additional times to loop (1 = play twice total)' },
+            ],
             default: false,
-            description: 'Whether animation should loop continuously'
+            description: 'Loop the animation. true = infinite, false = play once, N = loop N times',
         },
         alternate: {
             type: 'boolean',
@@ -396,78 +442,35 @@ export const simpleColorSchema = {
 export const stateColorSchema = {
     oneOf: [
         {
-            type: 'string',
+            ...colorValueSchema,
             title: 'Simple Colour',
-            pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-            description: 'Single colour value for all states (hex, rgb, theme token, or CSS variable)',
-            examples: ['#FF9900', 'transparent', 'theme:colors.ui.active', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
+            description: 'Single colour value applied to all entity states',
         },
         {
             type: 'object',
             title: 'State-Dependent Colours',
-            description: 'Different colours for different entity states',
+            description: 'Map of entity state names to colour values. Well-known keys: default, active, inactive, unavailable, zero, non_zero, hover, pressed. Any custom state name (e.g. "heating", "above:90") is also accepted.',
             examples: [{
                 default: '#888888',
-                active: '#FF9900',
-                inactive: '#444444'
+                active: 'alpha(var(--lcards-orange), 0.08)',
+                inactive: '#444444',
             }],
             properties: {
-                default: {
-                    type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                    description: 'Default colour (fallback)',
-                    examples: ['#888888', 'theme:colors.ui.default']
-                },
-                active: {
-                    type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                    description: 'Colour when entity is on/active',
-                    examples: ['#FF9900', 'theme:colors.ui.active']
-                },
-                inactive: {
-                    type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                    description: 'Colour when entity is off/inactive',
-                    examples: ['#444444', 'theme:colors.ui.inactive']
-                },
-                unavailable: {
-                    type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                    description: 'Colour when entity is unavailable',
-                    examples: ['#666666', 'theme:colors.ui.unavailable']
-                },
-                zero: {
-                    type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                    description: 'Colour when entity state is numeric 0 (e.g. no lights on, zero count)',
-                    examples: ['var(--lcards-gray-dark)', 'theme:colors.ui.inactive']
-                },
-                non_zero: {
-                    type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                    description: 'Colour when entity state is a non-zero number (e.g. lights are on, count > 0)',
-                    examples: ['var(--lcards-green-medium-dark)', 'theme:colors.ui.active']
-                },
-                hover: {
-                    type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                    description: 'Colour on hover interaction',
-                    examples: ['var(--lcards-orange)', 'theme:colors.ui.active']
-                },
-                pressed: {
-                    type: 'string',
-                    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                    description: 'Colour on press/tap interaction',
-                    examples: ['var(--lcards-orange-dark)', 'theme:colors.ui.active']
-                }
+                default:     { ...colorValueSchema, description: 'Fallback colour when no other state key matches' },
+                active:      { ...colorValueSchema, description: 'Colour when entity is on/active' },
+                inactive:    { ...colorValueSchema, description: 'Colour when entity is off/inactive' },
+                unavailable: { ...colorValueSchema, description: 'Colour when entity is unavailable' },
+                zero:        { ...colorValueSchema, description: 'Colour when entity state is numeric 0' },
+                non_zero:    { ...colorValueSchema, description: 'Colour when entity state is a non-zero number' },
+                hover:       { ...colorValueSchema, description: 'Colour on hover interaction' },
+                pressed:     { ...colorValueSchema, description: 'Colour on press/tap interaction' },
             },
             additionalProperties: {
-                type: 'string',
-                pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-                description: 'Custom state colour (e.g., "heating", "cooling")'
-            }
-        }
-    ]
+                ...colorValueSchema,
+                description: 'Colour for a custom state key (e.g. "heating", "cooling", "above:90", "below:20")',
+            },
+        },
+    ],
 };
 
 /**
@@ -762,9 +765,12 @@ export const rulesSchema = {
                                     description: 'Animation duration in milliseconds. Also accepts a map_range descriptor for entity-driven dynamic duration.'
                                 },
                                 loop: {
-                                    type: 'boolean',
+                                    oneOf: [
+                                        { type: 'boolean', description: 'true = loop infinitely, false = play once' },
+                                        { type: 'integer', minimum: 1, description: 'Number of additional times to loop' },
+                                    ],
                                     default: false,
-                                    description: 'Loop animation (automatically stops when rule unmatches)'
+                                    description: 'Loop animation. Automatically stops when the rule unmatches. true = infinite, N = loop N times',
                                 },
                                 delay: {
                                     type: ['number', 'object'],
