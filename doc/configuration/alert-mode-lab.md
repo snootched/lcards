@@ -1,6 +1,6 @@
 # Alert Mode Lab
 
-The **Alert Mode Lab** is a tab in the [LCARdS Config Panel](config-panel.md) for customising the colour palette applied to each alert level. Changes can be previewed live before saving.
+The **Alert Mode Lab** is a tab in the [LCARdS Config Panel](./index.md) for customising the colour palette applied to each alert level. Changes can be previewed live before saving.
 
 ---
 

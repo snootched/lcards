@@ -287,7 +287,7 @@ Browser tabs subscribe using the `lcards/subscribe` WS command (not the HA-nativ
 
 This is a **broadcast** — all connected browser tabs receive the event simultaneously. There is no targeted delivery to a single tab.
 
-→ See [Integration Service — Push Channel](integration-service#push-channel) for the JS-side implementation details.
+→ See [Integration Service — Push Channel](../subsystems/integration-service#push-channel) for the JS-side implementation details.
 
 ---
 
@@ -319,5 +319,5 @@ If the integration entry is not active, the `lcards.*` services are not register
 ## Related
 
 - [HA Integration Architecture](../ha-integration) — boot sequence, unload, Python component files
-- [Integration Service](integration-service) — JS-side probe and push channel subscription
-- [Helper Manager](helper-manager) — how `input_select.lcards_alert_mode` changes are consumed by the JS side
+- [Integration Service](../subsystems/integration-service) — JS-side probe and push channel subscription
+- [Helper Manager](../subsystems/helper-manager) — how `input_select.lcards_alert_mode` changes are consumed by the JS side

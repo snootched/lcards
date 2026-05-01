@@ -158,7 +158,7 @@ hass.bus.async_fire("lcards_event", {"action": "set_log_level", "level": level})
 
 The event is a **broadcast by default** — every browser tab with an active `IntegrationService` subscription receives it simultaneously. Services that support targeting fields (`target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names`) filter delivery on the Python side so only matching sessions act on the event.
 
-→ See [HA Services](ha-services) for the full Python action reference and automation examples.
+→ See [HA Services](../internals/ha-services) for the full Python action reference and automation examples.
 → See [HA Integration Architecture](../ha-integration#python--js-push-channel) for the sequence diagram.
 
 ---

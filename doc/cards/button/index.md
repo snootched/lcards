@@ -461,7 +461,7 @@ shape_texture:
 | `image` | User-supplied image clipped to shape | `url`, `size`, `position`, `repeat` |
 All `color` fields accept `var(--lcards-*)`, `{theme:...}`, `rgba()`, hex, or a state-based map.
 
-For full parameter reference see [Shape Texture System](../../../architecture/subsystems/shape-texture-system.md).
+For full parameter reference see [Shape Texture System](../../architecture/internals/shape-texture-system.md).
 
 ---
 

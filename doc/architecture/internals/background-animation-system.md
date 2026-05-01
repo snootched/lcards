@@ -392,6 +392,6 @@ Threshold changes via `setThresholds()` are session-only — they reset on page 
 
 ## See Also
 
-- [Pack System](pack-system.md)
-- [Animation Manager](animation-manager.md)
-- [DataSource System](datasource-system.md)
+- [Pack System](../subsystems/pack-system.md)
+- [Animation Manager](../subsystems/animation-manager.md)
+- [DataSource System](../subsystems/datasource-system.md)

@@ -51,9 +51,7 @@ export default withMermaid(defineConfig({
   // Custom domain (lcards.unimatrix01.ca) — GitHub Pages serves from root, no subpath needed
   base: '/',
 
-  // Same pre-existing broken cross-references that MkDocs tolerates.
-  // Track and fix separately; don't block CI.
-  ignoreDeadLinks: true,
+  ignoreDeadLinks: false,
 
   // Default to dark mode (matches LCARS aesthetic)
   appearance: 'dark',
@@ -169,7 +167,6 @@ export default withMermaid(defineConfig({
           {
             text: 'Core Services',
             items: [
-              { text: 'Alert Mode',   link: '/core/alert-mode' },
               { text: 'Data Sources', link: '/core/datasources/' },
               { text: 'Rules Engine', link: '/core/rules/' },
               { text: 'Templates',    link: '/core/templates/' },
@@ -179,8 +176,10 @@ export default withMermaid(defineConfig({
           {
             text: 'Effects',
             items: [
+              { text: 'Alert Mode',            link: '/core/alert-mode' },
               { text: 'Animations',            link: '/core/animations' },
               { text: 'Background Animations', link: '/core/effects/background-animations' },
+              { text: 'Borg Assimilation',     link: '/core/borg' },
               { text: 'Filters',               link: '/core/effects/filters' },
               { text: 'Screen Effects',        link: '/core/effects/screen-effects' },
             ],
@@ -210,7 +209,6 @@ export default withMermaid(defineConfig({
               { text: 'Overview',         link: '/development/' },
               { text: 'Custom Card',      link: '/development/custom-card' },
               { text: 'Colour Resolution',        link: '/development/colour-resolution' },
-              { text: 'Creating a Theme', link: '/core/themes/creating-themes' },
               { text: 'Building an Editor', link: '/development/building-an-editor' },
               { text: 'Building a Pack',  link: '/development/building-a-pack' },
             ],
@@ -341,7 +339,6 @@ export default withMermaid(defineConfig({
           text: 'Core Services',
           collapsed: false,
           items: [
-            { text: 'Alert Mode',   link: '/core/alert-mode' },
             {
               text: 'Data Sources',
               collapsed: true,
@@ -376,8 +373,9 @@ export default withMermaid(defineConfig({
         },
         {
           text: 'Effects',
-          collapsed: true,
+          collapsed: false,
           items: [
+            { text: 'Alert Mode',        link: '/core/alert-mode' },
             {
               text: 'Animations',
               collapsed: true,
@@ -388,8 +386,6 @@ export default withMermaid(defineConfig({
                 { text: 'Rule-based Animations',  link: '/core/animations/rule-based-animations' },
               ],
             },
-            { text: 'Filters',               link: '/core/effects/filters' },
-            { text: 'Screen Effects',        link: '/core/effects/screen-effects' },
             {
               text: 'Background Animations',
               collapsed: true,
@@ -398,6 +394,9 @@ export default withMermaid(defineConfig({
                 { text: 'Preset Reference',  link: '/core/effects/background-animations/preset-reference' },
               ],
             },
+            { text: 'Borg Assimilation',  link: '/core/borg' },
+            { text: 'Filters',            link: '/core/effects/filters' },
+            { text: 'Screen Effects',     link: '/core/effects/screen-effects' },
           ],
         },
       ],
@@ -470,7 +469,6 @@ export default withMermaid(defineConfig({
             { text: 'Overview',           link: '/development/' },
             { text: 'Custom Card',        link: '/development/custom-card' },
             { text: 'Colour Resolution',  link: '/development/colour-resolution' },
-            { text: 'Creating a Theme',   link: '/core/themes/creating-themes' },
             { text: 'Building an Editor', link: '/development/building-an-editor' },
             { text: 'Building a Pack',    link: '/development/building-a-pack' },
           ],

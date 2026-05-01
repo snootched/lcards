@@ -79,12 +79,7 @@ rules:
 Targets all overlays of a specific type.
 
 **Available Types:**
-- `type:text:` - All text overlays
-- `type:apexchart:` - All ApexChart overlays
-- `type:sparkline:` - All sparkline overlays
-- `type:status_grid:` - All status grid overlays
 - `type:line:` - All line overlays
-- `type:button:` - All button overlays
 - `type:control:` - All control overlays
 
 **Example:**
@@ -95,20 +90,18 @@ rules:
     when: {entity: input_select.alert, state: "blue_alert"}
     apply:
       overlays:
-        type:apexchart:  # All charts turn blue
+        type:control:  # All controls turn blue
           style:
             color: "var(--lcars-blue)"
 
-        type:text:  # All text gets blue border
+        type:line:  # All lines get blue color
           style:
-            border_color: "var(--lcars-blue)"
-            border_width: 2
+            color: "var(--lcars-blue)"
 ```
 
 **Use Cases:**
-- Style all charts consistently
-- Add borders to all text elements
-- Change button states globally
+- Style all controls consistently
+- Change line colors globally
 
 ---
 
@@ -264,34 +257,7 @@ rules:
 
 ---
 
-### Pattern 2: Type-Specific Responses
-
-Different overlay types respond differently:
-
-```yaml
-rules:
-  - id: night_mode
-    when: {entity: sun.sun, state: "below_horizon"}
-    apply:
-      overlays:
-        type:apexchart:
-          style:
-            color: "var(--lcars-dark-blue)"
-            opacity: 0.6
-
-        type:text:
-          style:
-            color: "var(--lcars-gray)"
-            font_size: 14
-
-        type:button:
-          style:
-            opacity: 0.8
-```
-
----
-
-### Pattern 3: Conditional Tag Targeting
+### Pattern 2: Conditional Tag Targeting
 
 Combine entity conditions with tag targeting:
 
@@ -331,17 +297,17 @@ Complete implementation of canonical LCARS alert system:
 overlays:
   # Tag your overlays
   - id: warp_core_temp
-    type: apexchart
+    type: control
     tags: ["critical", "engineering", "alert-sensitive"]
     # ... config
 
   - id: shields
-    type: status_grid
+    type: control
     tags: ["critical", "tactical", "alert-sensitive"]
     # ... config
 
   - id: crew_roster
-    type: text
+    type: control
     tags: ["informational"]
     # ... config
 
@@ -388,12 +354,11 @@ rules:
     when: {entity: input_select.ship_alert_status, state: "blue_alert"}
     apply:
       overlays:
-        type:apexchart:
+        type:control:
           style: {color: "var(--lcars-blue)"}
-        type:text:
+        type:line:
           style:
-            border_color: "var(--lcars-blue)"
-            border_width: 2
+            color: "var(--lcars-blue)"
 ```
 
 ---
@@ -578,140 +543,7 @@ rules:
 
 ---
 
-## Cell-Level Tags (Status Grid)
 
-**NEW:** Tags can also be applied at the **cell level** within Status Grid overlays, enabling fine-grained control over individual cells.
-
-### Basic Cell Tagging
-
-```yaml
-overlays:
-  - id: ship_systems
-    type: status_grid
-    cells:
-      - position: [0, 0]
-        label: "Warp Core"
-        tags: ["critical", "propulsion", "engineering"]  # ✨ Cell-level tags
-
-      - position: [0, 1]
-        label: "Life Support"
-        tags: ["critical", "environment"]  # ✨ Different tags
-
-      - position: [1, 0]
-        label: "Sensors"
-        tags: ["secondary", "tactical"]  # ✨ Non-critical
-```
-
-### Cell Tag Targeting in Rules
-
-**Single Tag:**
-```yaml
-rules:
-  - when: {entity: input_select.alert, state: "yellow_alert"}
-    apply:
-      overlays:
-        ship_systems:             # Overlay ID as object key
-          cell_target:
-            tag: "critical"       # ✨ Target cells with "critical" tag
-          style:
-            color: "var(--lcars-yellow)"
-```
-
-**Multiple Tags (OR Logic - Default):**
-```yaml
-rules:
-  - when: {entity: input_select.alert, state: "engineering_alert"}
-    apply:
-      overlays:
-        ship_systems:             # Overlay ID as object key
-          cell_target:
-            tags: ["engineering", "propulsion"]  # ✨ Match cells with ANY tag
-          style:
-            color: "var(--lcars-orange)"
-```
-
-**Multiple Tags (AND Logic):**
-```yaml
-rules:
-  - when: {entity: input_select.alert, state: "warp_failure"}
-    apply:
-      overlays:
-        ship_systems:             # Overlay ID as object key
-          cell_target:
-            tags: ["critical", "propulsion"]  # ✨ Match cells with BOTH tags
-            match_all: true       # ✨ AND logic
-          style:
-            color: "var(--lcars-red)"
-```
-
-### Cell Tag Behaviors
-
-| Syntax | Behavior | Example |
-|--------|----------|---------|
-| `tag: "X"` | Match cells with tag X | `tag: "critical"` |
-| `tags: ["X", "Y"]` | Match cells with X OR Y (default) | `tags: ["engineering", "tactical"]` |
-| `tags: ["X", "Y"]`<br>`match_all: true` | Match cells with X AND Y | Critical propulsion systems only |
-
-### Common Cell Tag Patterns
-
-**By Criticality:**
-- `critical` - Essential systems
-- `secondary` - Important but non-critical
-- `informational` - Display only
-
-**By Department:**
-- `engineering` - Engineering systems
-- `tactical` - Tactical/weapons systems
-- `medical` - Medical/life support
-- `communications` - Comms systems
-
-**By Function:**
-- `propulsion` - Movement systems
-- `defense` - Shields/armor
-- `weapons` - Offensive systems
-- `environment` - Life support/atmosphere
-
-**Example: Department-Based Alerts**
-```yaml
-cells:
-  - label: "Warp Core"
-    tags: ["critical", "engineering", "propulsion"]
-  - label: "Shields"
-    tags: ["critical", "tactical", "defense"]
-  - label: "Transporters"
-    tags: ["secondary", "engineering"]
-  - label: "Phasers"
-    tags: ["secondary", "tactical", "weapons"]
-
-rules:
-  # Red Alert: Only critical systems
-  - when: {state: "red_alert"}
-    apply:
-      overlays:
-        ship_systems:             # Overlay ID as object key
-          cell_target: {tag: "critical"}
-          style: {color: "red"}
-
-  # Engineering Alert: Engineering department only
-  - when: {state: "engineering_alert"}
-    apply:
-      overlays:
-        ship_systems:             # Overlay ID as object key
-          cell_target: {tag: "engineering"}
-          style: {color: "orange"}
-```
-
-**See Test Configuration:** [test-status-grid-cell-tags.yaml](../../src/test-status-grid-cell-tags.yaml)
-
----
-
-## See Also
-
-- [Rules Engine Documentation](../architecture/subsystems/rules-engine.md)
-- [Status Grid Overlay Guide](./overlays/status-grid-overlay.md)
-- [Overlay Configuration Guide](./overlays/README.md)
-- [Design Tokens](./design-tokens.md)
-- [Test Configuration (Overlay Tags)](../../src/test-bulk-selectors-red-alert.yaml)
 ## Summary
 
 The Bulk Overlay Selector System provides:
@@ -724,13 +556,9 @@ The Bulk Overlay Selector System provides:
 
 **Perfect for:** Alert systems, theme switches, department dashboards, responsive layouts, and any scenario requiring bulk overlay updates.
 
----
 
 ## See Also
 
-
-- [Rules System](../../guides/rules.md) - Rules engine guide
-
----
-
-[← Back to Reference](../README.md) | [User Guide →](../../README.md)
+- [Rules Engine](../../core/rules/)
+- [Line Overlay](./line-overlay.md)
+- [Control Overlay](./control-overlay.md)

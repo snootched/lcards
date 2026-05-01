@@ -174,7 +174,7 @@ Persistent key/value store — registered in `async_setup()`, but requires the s
 | `lcards/storage/reset` | — | `{ ok: true }` |
 | `lcards/storage/dump` | — | `{ version: 1, data: { ... } }` |
 
-→ Full reference including browser console test snippets: [Persistent Storage](subsystems/storage).
+→ Full reference including browser console test snippets: [Persistent Storage](internals/storage).
 
 ---
 
@@ -226,7 +226,7 @@ Alert mode services delegate to `input_select.select_option` on `input_select.lc
 
 Schema validation is handled by `voluptuous`; invalid values are rejected before the handler fires. If `input_select.lcards_alert_mode` doesn't exist, a `WARNING` is logged and the service exits without raising.
 
-→ Full reference including automation examples: [HA Services](subsystems/ha-services)
+→ Full reference including automation examples: [HA Services](internals/ha-services)
 
 ---
 

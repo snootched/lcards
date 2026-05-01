@@ -4,7 +4,7 @@
 The **Users & Devices** tab requires the LCARdS HA integration (v2026.3.0+) with the `scoped_storage` capability. If the integration is absent or on an older version, the tab is hidden.
 :::
 
-The **Users & Devices** tab in the [LCARdS Config Panel](config-panel.md) is the central place to view and manage the devices and users that have stored per-device or per-user setting overrides.
+The **Users & Devices** tab in the [LCARdS Config Panel](./index.md) is the central place to view and manage the devices and users that have stored per-device or per-user setting overrides.
 
 It has three sections. Non-admin users see only **Current Session**. HA admins see all three.
 

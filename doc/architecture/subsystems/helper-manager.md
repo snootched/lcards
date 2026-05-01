@@ -88,4 +88,4 @@ await hm.getMissingHelpers()          // list helpers not yet created
 
 - [Configuration — Helpers](../../configuration/persistent-helpers.md)
 - [Alert Mode](../../core/alert-mode.md)
-- [Config Panel](../../configuration/config-panel.md)
+- [Config Panel](../../configuration/index.md)

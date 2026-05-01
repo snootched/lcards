@@ -202,6 +202,6 @@ See [Pack System](subsystems/pack-system.md) for the full developer reference.
 - [HA Integration Architecture](ha-integration.md)
 - [Integration Service](subsystems/integration-service.md)
 - [Pack System](subsystems/pack-system.md)
-- [Background Animation System](subsystems/background-animation-system.md)
-- [Shape Texture System](subsystems/shape-texture-system.md)
+- [Background Animation System](internals/background-animation-system.md)
+- [Shape Texture System](internals/shape-texture-system.md)
 - [Sound System](subsystems/sound-system.md)

@@ -10,7 +10,7 @@ To complement the HA-LCARS system theme - LCARdS adds a token-based theme system
 |-------|-------------|
 | `lcards-default` | Standard LCARS look |
 
-Themes are provided by content packs. See the [Config Panel](../../configuration/config-panel.md) Pack Explorer to view all the tokens that theme provides.
+Themes are provided by content packs. See the [Config Panel](../../configuration/index.md) Pack Explorer to view all the tokens that theme provides.
 
 ---
 
@@ -31,7 +31,7 @@ style:
 
 ## Token Namespaces
 
-Tokens are organized into namespaces. Browse all available tokens in the [Config Panel](../../configuration/config-panel.md) Theme Browser tab.
+Tokens are organized into namespaces. Browse all available tokens in the [Config Panel](../../configuration/index.md) Theme Browser tab.
 
 ### Example: `colors.ui.*`
 

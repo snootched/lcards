@@ -258,7 +258,3 @@ waypoints:
 
 **Cause 2**: Waypoints array empty.
 **Fix**: Add waypoints by clicking canvas in ADD_WAYPOINT mode.
-
----
-
-*For more routing options, see [Intelligent Routing Guide](../architecture/subsystems/intelligent-routing.md)*

@@ -417,5 +417,5 @@ Because `_resolveShapeTextureConfig()` reads directly from `this.config` at ever
 
 ## See Also
 
-- [Pack System](pack-system.md)
-- [Asset Manager](asset-manager.md)
+- [Pack System](../subsystems/pack-system.md)
+- [Asset Manager](../subsystems/asset-manager.md)

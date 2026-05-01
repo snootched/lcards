@@ -891,10 +891,4 @@ Start with simple button cards, then progress to graphs, entities, and complex l
 
 **Related Documentation:**
 - [Line Overlay](line-overlay.md) - Connecting overlays with lines
-- [Button Overlay](button-overlay.md) - Native MSD buttons
-- [Text Overlay](text-overlay.md) - Labels and indicators
-- [Architecture: Control System](../../architecture/subsystems/control-overlay-system.md) - Technical details
-
----
-
-[← Back to Overlays](./README.md) | [Configuration →](../README.md)
+- [Manual Routing](manual-routing.md) - Explicit waypoint routing

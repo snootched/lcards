@@ -380,4 +380,4 @@ window.lcards.screenEffect.registerPreset('my-green', {
 
 - [Background Animations](./background-animations.md) — card-scoped canvas animations
 - [Card Animations](../animations.md) — anime.js per-element animations
-- [Alert Overlay](../../cards/lcards-alert-overlay.md) — full-screen alert card that uses screen effects for its backdrop
+- [Alert Overlay](../../cards/alert-overlay/) — full-screen alert card that uses screen effects for its backdrop

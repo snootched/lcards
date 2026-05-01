@@ -271,9 +271,7 @@ screenEffectPresetRegistry.register('my-effect', {
 });
 ```
 
-3. If the effect introduces new CSS variables, add them to the allowlist first (see [CSS variable governance](../../development/css-variable-governance.md)).
-
-4. Build and test:
+3. Build and test:
 
 ```bash
 npm run build

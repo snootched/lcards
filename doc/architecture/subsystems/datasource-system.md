@@ -186,5 +186,5 @@ ds.showProcessorGraph('sensor_temp')                 // logs + returns { nodes, 
 
 ## See Also
 
-- [DataSource Buffer Reference](../animations/datasource-buffers.md)
+- [DataSource Buffer Reference](../internals/datasource-buffers.md)
 - [Template System](template-system.md)

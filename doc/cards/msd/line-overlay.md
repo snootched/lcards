@@ -28,7 +28,7 @@ The **Line Overlay** connects other overlays with visual lines, creating diagram
 ✅ **Flexible attachment** - Connect to any side of any overlay
 ✅ **Automatic routing** - Smart pathfinding around obstacles
 ✅ **Gap system** - Precise control over line offsets (anchor_gap, attach_gap)
-✅ **Multiple routing modes** - Auto, direct, orthogonal, curved
+✅ **Multiple routing modes** - Auto, direct, manhattan, smart, grid, manual
 ✅ **Rich styling** - Colors, widths, dashes, arrows, animations
 ✅ **Data Source integration** - Dynamic styling based on data
 ✅ **Auto-attach** - Automatically determines best attachment sides
@@ -506,7 +506,7 @@ graph TD
         A1[A] ---|Straight line| B1[B]
     end
 
-    subgraph "Orthogonal"
+    subgraph "Manhattan"
         A2[A] -->|Right angle| Mid1[ ]
         Mid1 -->|Right angle| B2[B]
     end
@@ -516,8 +516,8 @@ graph TD
         Avoid -.-> B3[B]
     end
 
-    subgraph "Curved"
-        A4[A] ~~~|Smooth bezier| B4[B]
+    subgraph "Smart"
+        A4[A] ~~~|Multi-bend path| B4[B]
     end
 
     style A1 fill:#4d94ff,stroke:#0066cc,color:#fff
@@ -536,8 +536,10 @@ graph TD
 |------|-------------|----------|
 | `auto` | Smart pathfinding with obstacle avoidance | General connections |
 | `direct` | Straight line between points | Simple, clear relationships |
-| `orthogonal` | Right-angle turns only | Flowcharts, diagrams |
-| `curved` | Smooth bezier curves | Organic, flowing connections |
+| `manhattan` | L-shaped single bend | Flowcharts, diagrams |
+| `smart` | Multi-bend pathfinding | Complex routing |
+| `grid` | Grid-constrained routing | Grid-based layouts |
+| `manual` | Explicit waypoints | Full control over path |
 
 ### Auto Routing (Default)
 
@@ -566,12 +568,12 @@ route: direct
 - When no obstacles between points
 - Emphasizing direct relationships
 
-### Orthogonal Routing
+### Manhattan Routing
 
-Right-angle (90°) turns only:
+L-shaped path with a single bend:
 
 ```yaml
-route: orthogonal
+route: manhattan
 ```
 
 **Best for:**
@@ -580,18 +582,41 @@ route: orthogonal
 - Circuit-like layouts
 - Clean, professional appearance
 
-### Curved Routing
+### Smart Routing
 
-Smooth bezier curves:
+Multi-bend pathfinding for complex layouts:
 
 ```yaml
-route: curved
+route: smart
 ```
 
 **Best for:**
-- Organic, flowing designs
-- Reducing visual clutter
-- Artistic layouts
+- Complex routing scenarios
+- Dense overlay layouts
+- When auto doesn't produce desired results
+
+### Grid Routing
+
+Grid-constrained routing that snaps to grid lines:
+
+```yaml
+route: grid
+```
+
+**Best for:**
+- Grid-based dashboard layouts
+- Uniform, aligned connections
+
+### Manual Routing
+
+Explicit waypoints for full control. See [Manual Routing](./manual-routing.md) for details.
+
+```yaml
+route: manual
+waypoints:
+  - [200, 100]
+  - [200, 300]
+```
 
 ### Routing Examples
 
@@ -617,22 +642,22 @@ overlays:
       stroke: var(--lcars-orange)
       stroke-width: 2
 
-  # Orthogonal (right angles)
-  - id: ortho_line
+  # Manhattan (L-shaped bend)
+  - id: manhattan_line
     type: line
     anchor: button5
     attach_to: button6
-    route: orthogonal
+    route: manhattan
     style:
       stroke: var(--lcars-green)
       stroke-width: 2
 
-  # Curved (bezier)
-  - id: curved_line
+  # Smart (multi-bend pathfinding)
+  - id: smart_line
     type: line
     anchor: button7
     attach_to: button8
-    route: curved
+    route: smart
     style:
       stroke: var(--lcars-purple)
       stroke-width: 2
@@ -956,7 +981,7 @@ overlays:
 
     # Routing
     route: string                 # Optional: Routing mode (default: "auto")
-                                  # Options: auto, direct, orthogonal, curved
+                                  # Options: auto, direct, manhattan, smart, grid, manual
 
     # Styling
     style:                        # Optional styling
@@ -1009,8 +1034,10 @@ anchor_side: bottom-right
 ```yaml alternatives
 route: auto          # Smart pathfinding (default)
 route: direct        # Straight line
-route: orthogonal    # Right-angle turns
-route: curved        # Bezier curves
+route: manhattan     # L-shaped single bend
+route: smart         # Multi-bend pathfinding
+route: grid          # Grid-constrained routing
+route: manual        # Explicit waypoints
 ```
 
 ---
@@ -1316,7 +1343,7 @@ overlays:
       stroke-width: 3
       marker-end: url(#arrow)
 
-  # Device connections (orthogonal routing)
+  # Device connections (manhattan routing)
   - id: switch_pc
     type: line
     anchor: switch
@@ -1325,7 +1352,7 @@ overlays:
     attach_to: device1
     attach_side: top
     attach_gap: 10
-    route: orthogonal
+    route: manhattan
     style:
       stroke: var(--lcars-green)
       stroke-width: 2
@@ -1338,7 +1365,7 @@ overlays:
     attach_to: device2
     attach_side: top
     attach_gap: 10
-    route: orthogonal
+    route: manhattan
     style:
       stroke: var(--lcars-green)
       stroke-width: 2
@@ -1351,7 +1378,7 @@ overlays:
     attach_to: device3
     attach_side: top
     attach_gap: 10
-    route: orthogonal
+    route: manhattan
     style:
       stroke: var(--lcars-green)
       stroke-width: 2
@@ -1522,8 +1549,4 @@ console.log('Line config:', {
 ## Related Documentation
 
 - **[Control Overlay](control-overlay.md)** - Connect control overlays with lines
-- **[Overlay System Guide](README.md)** - Overview of all overlay types
-
----
-
-[← Back to Overlays](./README.md) | [Configuration →](../README.md)
+- **[Manual Routing](manual-routing.md)** - Explicit waypoint routing

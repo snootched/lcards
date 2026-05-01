@@ -45,6 +45,4 @@ Every card shares a common set of core features — you get these without any ex
 
 → **[Installation](installation.md)** — install via HACS in under a minute
 
-→ **[Quick Start](quick-start.md)** — add your first card and explore the editors
-
 → **[Coming from CB-LCARS?](cb-lcars-migration.md)** — feature mapping table
