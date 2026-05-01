@@ -17,7 +17,7 @@ LCARdS originates from, and supersedes, the [CB-LCARS](https://github.com/snootc
 
 ## What Makes It Different
 
-[LCARdS Cards](../cards) share a common set of core features, allowing for consistent features and interactivity across the system.
+[LCARdS Cards](../cards/) share a common set of core features, allowing for consistent features and interactivity across the system.
 
 **State-aware styling** — cards change colour and style in response to HA entity state, individually or in coordinated groups via the [Rules Engine](../core/rules/).
 
