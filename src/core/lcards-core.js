@@ -46,6 +46,7 @@ import { IntegrationService } from './services/IntegrationService.js';
 import { DeviceIdentityManager } from './services/DeviceIdentityManager.js';
 import { ScopedSettingsService } from './services/ScopedSettingsService.js';
 import { ScreenEffectManager } from './screen-effects/ScreenEffectManager.js';
+import { BorgAssimilationManager } from './borg/BorgAssimilationManager.js';
 import { ConnectionOverlayService } from './services/ConnectionOverlayService.js';
 import { PortalOverlayManager } from './services/PortalOverlayManager.js';
 
@@ -78,8 +79,9 @@ class LCARdSCore {
         this.componentManager = null;    // Component registry (Phase 4)
         this.helperManager = null;       // Helper management system (Phase 5)
         this.soundManager = null;         // Sound management system (Phase 2g)
-        this.screenEffectManager = null;  // Full-screen composited effect layer
-        this.integrationService = null;   // HA integration probe (available / version)
+        this.screenEffectManager = null;       // Full-screen composited effect layer
+        this.borgAssimilationManager = null;    // Borg assimilation Easter egg orchestrator
+        this.integrationService = null;         // HA integration probe (available / version)
         this.deviceIdentityManager = null; // Per-browser stable UUID + display name
         this.scopedSettingsService = null; // Per-user / per-device settings waterfall
         this.connectionOverlayService = null; // Connection-lost overlay (Phase 2h)
@@ -284,6 +286,12 @@ class LCARdSCore {
             // to construct here before the document is fully interactive.
             this.screenEffectManager = new ScreenEffectManager();
             lcardsLog.debug('[LCARdSCore] ✅ ScreenEffectManager initialized');
+
+            // Create BorgAssimilationManager — Easter egg orchestrator.
+            // Depends on screenEffectManager and themeManager, both ready at this point.
+            this.borgAssimilationManager = new BorgAssimilationManager();
+            window.lcards.core.borgAssimilationManager = this.borgAssimilationManager;
+            lcardsLog.debug('[LCARdSCore] ✅ BorgAssimilationManager created');
 
             // Create IntegrationService — it self-probes on the first _updateHass
             // call where hass.connection is available, so no initialize() call here.

@@ -771,3 +771,287 @@ clear_portal_card:
       selector:
         text:
           multiple: true
+
+# ── Easter egg services ────────────────────────────────────────────────────────
+
+borg_assimilate:
+  name: Borg Assimilate
+  description: >
+    Trigger the Borg assimilation Easter egg on LCARdS-enabled browsers.
+    Plays a full-screen canvas intro animation, shifts the entire UI palette to
+    Borg yellow-green, swaps fonts to the Borg typeface, and applies persistent
+    scanline + colour-tint effects after the intro resolves.
+    Supports targeting — omit all target fields to assimilate all connected browsers.
+    Resistance is futile.
+  fields:
+    intro_duration:
+      name: Intro Duration (ms)
+      description: >
+        Optional auto-dismiss timeout for the canvas intro, in milliseconds.
+        If omitted, the intro stays on screen until the user clicks anywhere on
+        the canvas (click-to-dismiss).  If provided, the intro auto-dismisses
+        after this delay — the user can still click to dismiss earlier.
+      required: false
+      selector:
+        number:
+          min: 1000
+          max: 60000
+          step: 500
+          unit_of_measurement: ms
+    site_count:
+      name: Injection Sites
+      description: >
+        Number of Borg injection points that appear on screen during the intro.
+        Each site pulses with a breathing glow and sprouts Bézier tendrils
+        spreading across the viewport. Default: 7.
+      required: false
+      default: 7
+      selector:
+        number:
+          min: 1
+          max: 20
+          step: 1
+    tendrils_per_site:
+      name: Tendrils Per Site
+      description: >
+        Number of Bézier tendrils grown from each injection site.
+        Higher values create a denser lattice. Default: 8.
+      required: false
+      default: 8
+      selector:
+        number:
+          min: 1
+          max: 20
+          step: 1
+    transition_style:
+      name: Palette Transition Style
+      description: >
+        Visual transition played when the UI palette switches to Borg yellow-green.
+        `flash` — a bright colour burst floods the screen then fades (default).
+        `fade_only` — a gentle cross-fade, GPU-light.
+        `blur_fade` — screen blurs and dims while colours swap.
+        `off` — instant switch with no transition.
+      required: false
+      default: flash
+      selector:
+        select:
+          options:
+            - flash
+            - fade_only
+            - blur_fade
+            - "off"
+    suppress_persistent:
+      name: Suppress Persistent Effects
+      description: >
+        If enabled, no persistent screen effects (scanlines, colour tint) are
+        applied after the intro is dismissed — only the palette and font remain
+        assimilated. Ignored if Persistent Layers (Advanced) is also provided.
+      required: false
+      default: false
+      selector:
+        boolean:
+    intro_layers:
+      name: Intro Layers (Advanced)
+      description: |-
+        Full per-slot layers dict for the intro. Provides expert control over
+        all three intro SEM slots. Keys in intro_layers.canvas take precedence
+        over the Injection Sites / Tendrils Per Site shortcuts above; any
+        missing keys fall back to the flat values.
+
+        canvas  — always the borg-assimilation effect, params:
+          siteCount:       7       # injection sites (1–20)
+          tendrilsPerSite: 8       # Bézier tendrils per site (1–24)
+          color:    "#00cc44"      # tendril / site colour
+          glowColor: "#00ff66"     # inner glow colour at each site
+
+        backdrop  — optional layer behind the canvas (e.g. blur):
+          preset: blur
+          amount: "8px"            # CSS blur value
+
+        color  — optional colour overlay over the canvas:
+          preset: color-tint
+          color: "rgba(0,40,0,0.2)"
+
+        All intro layers are cleared when the intro is dismissed.
+      required: false
+      example:
+        canvas:
+          siteCount: 7
+          tendrilsPerSite: 8
+          color: "#00cc44"
+          glowColor: "#00ff66"
+        backdrop:
+          preset: blur
+          amount: "8px"
+        color:
+          preset: color-tint
+          color: "rgba(0, 40, 0, 0.2)"
+      selector:
+        object:
+    persistent_layers:
+      name: Persistent Layers (Advanced)
+      description: |-
+        Full per-slot layers dict applied after the intro is dismissed and held
+        until deassimilation. When provided, overrides the Suppress Persistent
+        Effects toggle above.
+        Omit entirely to use the defaults; pass an empty object to suppress all.
+
+        canvas  — scanlines (CRT effect):
+          preset: scanlines
+          lineHeight: 3   # px height of each scanline band (1–20)
+          opacity:    0.15 # darkness of bands (0–1)
+          scroll:     2    # scroll speed, 0 = static (0–10)
+
+        color  — colour overlay:
+          preset: color-tint
+          color: "rgba(0, 40, 0, 0.10)"
+      required: false
+      example:
+        canvas:
+          preset: scanlines
+          lineHeight: 3
+          opacity: 0.15
+          scroll: 2
+        color:
+          preset: color-tint
+          color: "rgba(0, 40, 0, 0.10)"
+      selector:
+        object:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs (the lcards_device_id value stored
+        in each browser's localStorage). Leave empty to assimilate all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
+
+borg_deassimilate:
+  name: Borg Deassimilate
+  description: >
+    Reverse the Borg assimilation on LCARdS-enabled browsers. Plays a brief
+    glitch outro (optional), reverts the UI palette to normal, restores the
+    standard font, and clears all persistent screen effects.
+    Supports targeting — omit all target fields to restore all connected browsers.
+  fields:
+    with_outro:
+      name: Play Outro Effect
+      description: >
+        Play a short SEM effect before reverting. Set to false for an
+        immediate silent revert.
+      required: false
+      default: true
+      selector:
+        boolean:
+    outro_layers:
+      name: Outro Layers
+      description: |-
+        Per-slot layers played as the outro before palette revert.
+        The `duration` key in any layer's params controls how long the manager
+        waits before reverting; the longest duration wins. Falls back to 1200 ms.
+
+        canvas  — glitch effect (default outro):
+          preset: glitch
+          duration:   1200  # ms to wait before palette revert
+          intensity:  0.4   # fraction of lines displaced per frame (0.01–0.5)
+          maxShift:   40    # maximum horizontal displacement in px
+          bandHeight: 4     # height of each glitch strip in px
+          opacity:    0.7   # overall effect opacity (0–1)
+          fps:        20    # animation frame rate
+
+        color  — optional colour flash alongside the glitch:
+          preset: color-tint
+          color: "rgba(0,255,80,0.4)"
+          duration: 1200
+      required: false
+      example:
+        canvas:
+          preset: glitch
+          duration: 1200
+          intensity: 0.4
+          maxShift: 40
+          bandHeight: 4
+          opacity: 0.7
+          fps: 20
+        color:
+          preset: color-tint
+          color: "rgba(0, 255, 80, 0.3)"
+          duration: 1200
+      selector:
+        object:
+    revert_transition_style:
+      name: Palette Revert Transition
+      description: >
+        Visual transition played when the UI palette reverts to normal.
+        `fade_only` (default) \u2014 gentle cross-fade.
+        `flash` \u2014 bright burst then fade.
+        `blur_fade` \u2014 screen blurs while colours swap.
+        `off` \u2014 instant switch.
+      required: false
+      default: fade_only
+      selector:
+        select:
+          options:
+            - flash
+            - fade_only
+            - blur_fade
+            - "off"
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to restore all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+        Non-unique names match all devices sharing that name.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true

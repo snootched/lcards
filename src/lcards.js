@@ -572,7 +572,21 @@ window.lcards.alert = {
   black:  () => window.lcards.setAlertMode('black_alert'),
   green:  () => window.lcards.setAlertMode('green_alert'),
   off:    () => window.lcards.setAlertMode('green_alert'),  // reset to normal
+  borg:   (opts) => window.lcards.borg.assimilate(opts),    // Easter egg shortcut
   config: window.lcards.alertConfig,
+};
+
+// === BORG ASSIMILATION NAMESPACE ===
+// Easter egg console API.  Triggers the full Borg assimilation sequence.
+//
+// Usage:
+//   window.lcards.borg.assimilate()          // begin assimilation
+//   window.lcards.borg.deassimilate()        // revert everything
+//   window.lcards.borg.status                // true while assimilated
+window.lcards.borg = {
+  assimilate:   (opts) => window.lcards?.core?.borgAssimilationManager?.assimilate(opts),
+  deassimilate: (opts) => window.lcards?.core?.borgAssimilationManager?.deassimilate(opts),
+  get status()  { return window.lcards?.core?.borgAssimilationManager?.isAssimilated ?? false; },
 };
 
 // === SCREEN EFFECT NAMESPACE ===

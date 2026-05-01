@@ -169,6 +169,8 @@ SERVICE_TRIGGER_EFFECT = "trigger_effect"
 SERVICE_CLEAR_EFFECT   = "clear_effect"
 SERVICE_SHOW_PORTAL_CARD  = "show_portal_card"
 SERVICE_CLEAR_PORTAL_CARD = "clear_portal_card"
+SERVICE_BORG_ASSIMILATE   = "borg_assimilate"    # Easter egg
+SERVICE_BORG_DEASSIMILATE = "borg_deassimilate"  # Easter egg — restores normal state
 
 _ALL_SERVICES = [
     SERVICE_SET_ALERT_MODE,
@@ -184,6 +186,8 @@ _ALL_SERVICES = [
     SERVICE_CLEAR_EFFECT,
     SERVICE_SHOW_PORTAL_CARD,
     SERVICE_CLEAR_PORTAL_CARD,
+    SERVICE_BORG_ASSIMILATE,
+    SERVICE_BORG_DEASSIMILATE,
 ]
 
 
@@ -332,6 +336,69 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         device_ids, user_ids = await _async_resolve_targets(hass, call)
         _fire_targeted_event(hass, "clear_portal_card", {}, device_ids, user_ids)
 
+    async def handle_borg_assimilate(call: ServiceCall) -> None:
+        """Trigger the Borg assimilation Easter egg on target LCARdS frontends.
+
+        Fires a ``borg_assimilate`` lcards_event which the JS
+        BorgAssimilationManager picks up and orchestrates into the full
+        palette-swap + canvas intro + persistent effects sequence.
+        """
+        _LOGGER.info("LCARdS service: borg_assimilate — resistance is futile")
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        payload: dict = {}
+
+        if call.data.get("intro_duration")   is not None:
+            payload["intro_duration"]   = call.data["intro_duration"]
+        if call.data.get("transition_style") is not None:
+            payload["transition_style"] = call.data["transition_style"]
+
+        # Flat shortcuts → canvas params; intro_layers object wins on overlap.
+        site_count = call.data.get("site_count")
+        tendrils   = call.data.get("tendrils_per_site")
+        canvas_overrides: dict = {}
+        if site_count is not None:
+            canvas_overrides["siteCount"] = site_count
+        if tendrils is not None:
+            canvas_overrides["tendrilsPerSite"] = tendrils
+
+        intro_layers = call.data.get("intro_layers")
+        if canvas_overrides:
+            if intro_layers is not None:
+                # Flat fields are the base; intro_layers.canvas keys override.
+                merged_canvas = {**canvas_overrides, **(intro_layers.get("canvas") or {})}
+                payload["intro_layers"] = {**intro_layers, "canvas": merged_canvas}
+            else:
+                payload["intro_layers"] = {"canvas": canvas_overrides}
+        elif intro_layers is not None:
+            payload["intro_layers"] = intro_layers
+
+        # suppress_persistent is ignored when persistent_layers is explicitly set.
+        persistent_layers = call.data.get("persistent_layers")
+        if persistent_layers is not None:
+            payload["persistent_layers"] = persistent_layers
+        elif call.data.get("suppress_persistent"):
+            payload["persistent_layers"] = {}
+
+        _fire_targeted_event(hass, "borg_assimilate", payload, device_ids, user_ids)
+
+    async def handle_borg_deassimilate(call: ServiceCall) -> None:
+        """Reverse the Borg assimilation on target LCARdS frontends.
+
+        Fires a ``borg_deassimilate`` lcards_event which BorgAssimilationManager
+        handles by playing an optional glitch outro, reverting the palette and
+        font, and clearing all persistent screen effects.
+        """
+        _LOGGER.info("LCARdS service: borg_deassimilate — systems restoring")
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        payload: dict = {}
+        if call.data.get("with_outro") is not None:
+            payload["with_outro"] = call.data["with_outro"]
+        if call.data.get("outro_layers") is not None:
+            payload["outro_layers"] = call.data["outro_layers"]
+        if call.data.get("revert_transition_style") is not None:
+            payload["revert_transition_style"] = call.data["revert_transition_style"]
+        _fire_targeted_event(hass, "borg_deassimilate", payload, device_ids, user_ids)
+
     # --- Register all services ---
 
     hass.services.async_register(
@@ -405,6 +472,28 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN, SERVICE_CLEAR_PORTAL_CARD, handle_clear_portal_card,
         schema=vol.Schema(_TARGET_FIELDS),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_BORG_ASSIMILATE, handle_borg_assimilate,
+        schema=vol.Schema({
+            vol.Optional("intro_duration"):    vol.All(int, vol.Range(min=1000, max=60000)),
+            vol.Optional("transition_style"):  vol.In(["flash", "fade_only", "blur_fade", "off"]),
+            vol.Optional("site_count"):        vol.All(int, vol.Range(min=1, max=20)),
+            vol.Optional("tendrils_per_site"): vol.All(int, vol.Range(min=1, max=20)),
+            vol.Optional("suppress_persistent"): bool,
+            vol.Optional("intro_layers"):      dict,
+            vol.Optional("persistent_layers"): dict,
+            **_TARGET_FIELDS,
+        }),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_BORG_DEASSIMILATE, handle_borg_deassimilate,
+        schema=vol.Schema({
+            vol.Optional("with_outro"):             bool,
+            vol.Optional("outro_layers"):           dict,
+            vol.Optional("revert_transition_style"): vol.In(["flash", "fade_only", "blur_fade", "off"]),
+            **_TARGET_FIELDS,
+        }),
     )
 
     _LOGGER.debug(

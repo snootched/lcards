@@ -25,6 +25,7 @@ const ALERT_ACCENT_COLORS = {
     blue_alert:   '#1e90ff',
     black_alert:  '#0d0d0d',
     gray_alert:   '#888888',
+    borg_alert:   '#00cc44',
     // green_alert is the 'off' state — transitions never run toward it, so no
     // accent colour entry is needed here.
 };
