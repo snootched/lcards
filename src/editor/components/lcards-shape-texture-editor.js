@@ -187,9 +187,7 @@ export class LCARdSShapeTextureEditor extends LitElement {
                                 // Completely replace config with new preset defaults — no key pollution
                                 this._emit({
                                     preset:        newPreset,
-                                    // @ts-ignore - TS2339: auto-suppressed
                                     opacity:       this.config?.opacity       ?? 0.3,
-                                    // @ts-ignore - TS2339: auto-suppressed
                                     mix_blend_mode: this.config?.mix_blend_mode ?? 'normal',
                                     config:        { ...(newDef?.defaults || {}) }
                                 });
@@ -326,7 +324,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
         switch (preset) {
             case 'grid':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_x ?? defaults.scroll_speed_x ?? 20}
@@ -334,7 +331,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Negative = reverse direction · 0 = static'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_x', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_y ?? defaults.scroll_speed_y ?? 0}
@@ -345,7 +341,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'diagonal':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_x ?? defaults.scroll_speed_x ?? 20}
@@ -353,7 +348,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Negative = reverse direction · 0 = static'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_x', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_y ?? defaults.scroll_speed_y ?? 20}
@@ -364,7 +358,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'hexagonal':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_x ?? defaults.scroll_speed_x ?? 15}
@@ -372,7 +365,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Negative = reverse direction · 0 = static'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_x', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_y ?? defaults.scroll_speed_y ?? 0}
@@ -383,7 +375,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'dots':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_x ?? defaults.scroll_speed_x ?? 15}
@@ -391,7 +382,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Negative = reverse direction · 0 = static'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_x', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_y ?? defaults.scroll_speed_y ?? 0}
@@ -402,7 +392,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'fluid':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_x ?? defaults.scroll_speed_x ?? 7}
@@ -410,7 +399,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Negative = reverse direction'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_x', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_y ?? defaults.scroll_speed_y ?? 10}
@@ -421,7 +409,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'plasma':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_x ?? defaults.scroll_speed_x ?? 8}
@@ -429,7 +416,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Negative = reverse direction'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_x', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_y ?? defaults.scroll_speed_y ?? 5}
@@ -440,7 +426,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'level':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -120, max: 120, step: 1, mode: 'slider' } }}
                         .value=${cfg.wave_speed ?? defaults.wave_speed ?? 20}
@@ -448,7 +433,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Phase rate · negative = reverse direction'}
                         @value-changed=${(e) => this._updatePresetConfig('wave_speed', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -120, max: 120, step: 1, mode: 'slider' } }}
                         .value=${cfg.wave2_speed ?? defaults.wave2_speed ?? -15}
@@ -459,7 +443,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'flow':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_x ?? defaults.scroll_speed_x ?? 50}
@@ -467,7 +450,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Horizontal stream speed · negative = reverse · 0 = static'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_x', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_y ?? defaults.scroll_speed_y ?? 0}
@@ -478,7 +460,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'shimmer':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 0.1, max: 20, step: 0.1, mode: 'slider' } }}
                         .value=${cfg.speed ?? defaults.speed ?? 2.5}
@@ -490,7 +471,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
             case 'scanlines': {
                 const scanDir = cfg.direction ?? defaults.direction ?? 'horizontal';
                 return scanDir === 'vertical'
-                    // @ts-ignore - TS2339: auto-suppressed
                     ? html`<div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_x ?? defaults.scroll_speed_x ?? 0}
@@ -498,7 +478,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Horizontal scroll speed \u00b7 negative = reverse \u00b7 0 = static'}
                         @value-changed=${(e) => this._updatePresetConfig('scroll_speed_x', e.detail.value)}
                     ></ha-selector></div>`
-                    // @ts-ignore - TS2339: auto-suppressed
                     : html`<div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -200, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.scroll_speed_y ?? defaults.scroll_speed_y ?? 0}
@@ -519,21 +498,18 @@ export class LCARdSShapeTextureEditor extends LitElement {
         switch (preset) {
             case 'grid':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 1, max: 10, step: 0.5, mode: 'slider' } }}
                         .value=${cfg.line_width ?? defaults.line_width ?? 1}
                         .label=${'Line Width'}
                         @value-changed=${(e) => this._updatePresetConfig('line_width', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 5, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.line_spacing ?? defaults.line_spacing ?? 40}
                         .label=${'Grid Cell Size (px)'}
                         @value-changed=${(e) => this._updatePresetConfig('line_spacing', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ select: { options: [
                             { value: 'both',       label: 'Grid (both axes)' },
@@ -547,14 +523,12 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'diagonal':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 1, max: 10, step: 0.5, mode: 'slider' } }}
                         .value=${cfg.line_width ?? defaults.line_width ?? 1}
                         .label=${'Line Width'}
                         @value-changed=${(e) => this._updatePresetConfig('line_width', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 5, max: 200, step: 1, mode: 'slider' } }}
                         .value=${cfg.line_spacing ?? defaults.line_spacing ?? 40}
@@ -564,14 +538,12 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'hexagonal':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 1, max: 10, step: 0.5, mode: 'slider' } }}
                         .value=${cfg.line_width ?? defaults.line_width ?? 1}
                         .label=${'Line Width'}
                         @value-changed=${(e) => this._updatePresetConfig('line_width', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 5, max: 100, step: 1, mode: 'slider' } }}
                         .value=${cfg.hex_radius ?? defaults.hex_radius ?? 20}
@@ -581,14 +553,12 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'dots':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 0.5, max: 20, step: 0.5, mode: 'slider' } }}
                         .value=${cfg.dot_radius ?? defaults.dot_radius ?? 2}
                         .label=${'Dot Radius (px)'}
                         @value-changed=${(e) => this._updatePresetConfig('dot_radius', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 5, max: 100, step: 1, mode: 'slider' } }}
                         .value=${cfg.spacing ?? defaults.spacing ?? 20}
@@ -599,7 +569,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
             case 'fluid':
             case 'plasma':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 0.004, max: 0.08, step: 0.001, mode: 'slider' } }}
                         .value=${cfg.base_frequency ?? defaults.base_frequency ?? 0.018}
@@ -607,7 +576,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Lower = larger blobs, higher = finer noise'}
                         @value-changed=${(e) => this._updatePresetConfig('base_frequency', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 1, max: 8, step: 1, mode: 'slider' } }}
                         .value=${cfg.num_octaves ?? defaults.num_octaves ?? 3}
@@ -618,7 +586,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'flow':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 2, max: 24, step: 1, mode: 'slider' } }}
                         .value=${cfg.num_streaks ?? defaults.num_streaks ?? 8}
@@ -626,7 +593,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'More bands = denser parallel streaks'}
                         @value-changed=${(e) => this._updatePresetConfig('num_streaks', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 0.1, max: 2.0, step: 0.05, mode: 'slider' } }}
                         .value=${cfg.streak_width ?? defaults.streak_width ?? 0.8}
@@ -634,7 +600,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Fraction of band slot filled · >1.0 = bands overlap and blend'}
                         @value-changed=${(e) => this._updatePresetConfig('streak_width', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 0, max: 20, step: 0.5, mode: 'slider' } }}
                         .value=${cfg.blur ?? defaults.blur ?? 0}
@@ -642,7 +607,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Gaussian softness on band edges · 0 = crisp'}
                         @value-changed=${(e) => this._updatePresetConfig('blur', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 0.004, max: 0.08, step: 0.001, mode: 'slider' } }}
                         .value=${cfg.base_frequency ?? defaults.base_frequency ?? 0.015}
@@ -650,7 +614,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Lower = longer, lazier streak shapes'}
                         @value-changed=${(e) => this._updatePresetConfig('base_frequency', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 5, max: 80, step: 1, mode: 'slider' } }}
                         .value=${cfg.wave_scale ?? defaults.wave_scale ?? 8}
@@ -661,7 +624,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'shimmer':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 0.05, max: 0.8, step: 0.05, mode: 'slider' } }}
                         .value=${cfg.highlight_width ?? defaults.highlight_width ?? 0.35}
@@ -669,7 +631,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'Fraction of the sweep tile covered by the bright band'}
                         @value-changed=${(e) => this._updatePresetConfig('highlight_width', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: -90, max: 90, step: 5, mode: 'slider' } }}
                         .value=${cfg.angle ?? defaults.angle ?? 30}
@@ -680,7 +641,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'level':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider' } }}
                         .value=${cfg.fill_pct ?? defaults.fill_pct ?? 50}
@@ -688,7 +648,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .helper=${'0 = empty · 100 = full · supports state-based values via rules engine'}
                         @value-changed=${(e) => this._updatePresetConfig('fill_pct', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ select: { options: [
                             { value: 'up',    label: 'Fill upward (bottom → top)' },
@@ -700,7 +659,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                     ></ha-selector></div>
 
                     <lcards-form-section header="Primary Wave" ?expanded=${true} .nested=${true}>
-                        // @ts-ignore - TS2339: auto-suppressed
                         <div class="row"><ha-selector .hass=${this.hass}
                             .selector=${{ number: { min: 0, max: 20, step: 0.5, mode: 'slider' } }}
                             .value=${cfg.wave_height ?? defaults.wave_height ?? 4}
@@ -708,7 +666,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                             .helper=${'0 = flat fill edge'}
                             @value-changed=${(e) => this._updatePresetConfig('wave_height', e.detail.value)}
                         ></ha-selector></div>
-                        // @ts-ignore - TS2339: auto-suppressed
                         <div class="row"><ha-selector .hass=${this.hass}
                             .selector=${{ number: { min: 1, max: 16, step: 1, mode: 'slider' } }}
                             .value=${cfg.wave_count ?? defaults.wave_count ?? 4}
@@ -723,7 +680,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                             Adds a second harmonic to the <em>same</em> fill surface — not a separate layer or colour.
                             Set Height to 0 to disable.
                         </div>
-                        // @ts-ignore - TS2339: auto-suppressed
                         <div class="row"><ha-selector .hass=${this.hass}
                             .selector=${{ number: { min: 0, max: 12, step: 0.5, mode: 'slider' } }}
                             .value=${cfg.wave2_height ?? defaults.wave2_height ?? 0}
@@ -731,7 +687,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                             .helper=${'0 = disabled'}
                             @value-changed=${(e) => this._updatePresetConfig('wave2_height', e.detail.value)}
                         ></ha-selector></div>
-                        // @ts-ignore - TS2339: auto-suppressed
                         <div class="row"><ha-selector .hass=${this.hass}
                             .selector=${{ number: { min: 1, max: 20, step: 1, mode: 'slider' } }}
                             .value=${cfg.wave2_count ?? defaults.wave2_count ?? 5}
@@ -741,7 +696,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                     </lcards-form-section>
 
                     <lcards-form-section header="Sloshing" ?expanded=${false} .nested=${true}>
-                        // @ts-ignore - TS2339: auto-suppressed
                         <div class="row"><ha-selector .hass=${this.hass}
                             .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
                             .value=${cfg.slosh_amount ?? defaults.slosh_amount ?? 0}
@@ -749,7 +703,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                             .helper=${'0 = disabled · fluid tilts side-to-side as if in a vessel'}
                             @value-changed=${(e) => this._updatePresetConfig('slosh_amount', e.detail.value)}
                         ></ha-selector></div>
-                        // @ts-ignore - TS2339: auto-suppressed
                         <div class="row"><ha-selector .hass=${this.hass}
                             .selector=${{ number: { min: 0.5, max: 10, step: 0.5, mode: 'slider' } }}
                             .value=${cfg.slosh_period ?? defaults.slosh_period ?? 3}
@@ -760,7 +713,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
                     </lcards-form-section>
 
                     <lcards-form-section header="Edge Glow" ?expanded=${false} .nested=${true}>
-                        // @ts-ignore - TS2339: auto-suppressed
                         <div class="row"><ha-selector .hass=${this.hass}
                             .selector=${{ boolean: {} }}
                             .value=${cfg.edge_glow ?? defaults.edge_glow ?? true}
@@ -768,13 +720,11 @@ export class LCARdSShapeTextureEditor extends LitElement {
                             @value-changed=${(e) => this._updatePresetConfig('edge_glow', e.detail.value)}
                         ></ha-selector></div>
                         <div class="row">
-                            // @ts-ignore - TS2339: auto-suppressed
                             <lcards-color-picker .hass=${this.hass} .label=${'Glow Colour'}
                                 .value=${cfg.edge_glow_color ?? defaults.edge_glow_color ?? 'rgba(255,255,255,0.7)'}
                                 @value-changed=${(e) => this._updatePresetConfig('edge_glow_color', e.detail.value)}
                             ></lcards-color-picker>
                         </div>
-                        // @ts-ignore - TS2339: auto-suppressed
                         <div class="row"><ha-selector .hass=${this.hass}
                             .selector=${{ number: { min: 1, max: 24, step: 0.5, mode: 'slider' } }}
                             .value=${cfg.edge_glow_width ?? defaults.edge_glow_width ?? 6}
@@ -786,7 +736,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'scanlines':
                 return html`
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ select: { options: [
                             { value: 'horizontal', label: 'Horizontal (lines run left\u2194right, scroll vertically)' },
@@ -796,14 +745,12 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .label=${'Line Direction'}
                         @value-changed=${(e) => this._updatePresetConfig('direction', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 2, max: 20, step: 0.5, mode: 'slider' } }}
                         .value=${cfg.line_spacing ?? defaults.line_spacing ?? 4}
                         .label=${'Line Spacing (px)'}
                         @value-changed=${(e) => this._updatePresetConfig('line_spacing', e.detail.value)}
                     ></ha-selector></div>
-                    // @ts-ignore - TS2339: auto-suppressed
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ number: { min: 0.5, max: 8, step: 0.5, mode: 'slider' } }}
                         .value=${cfg.line_width ?? defaults.line_width ?? 1.5}
