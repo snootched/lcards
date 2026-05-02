@@ -6,7 +6,7 @@ The Borg Assimilation mode uses LCARdS core systems to tranform the entire dashb
 - **Font swap** — all LCARS text switches to the `lcards_borg` typeface
 - **Canvas intro** — a full-screen Borg lattice animation plays: signal corruption flicker, glowing injection sites with a gentle breathing pulse, and growing Bézier tendrils spreading across the viewport
 - **Click-to-dismiss** — the intro stays on screen until the user clicks anywhere on the canvas (or until an optional timeout expires). After dismissal, persistent layers activate.
-- **Persistent layers** — after the intro is dismissed, zero or more SEM presets remain active per slot (default: CRT scanlines on `canvas` + subtle green colour tint on `color`)
+- **Persistent layers** — after the intro is dismissed, zero or more SEM presets remain active per slot (default: glitch on `canvas` + subtle green colour tint on `color` + saturation boost on `backdrop`)
 
 Calling `deassimilate()` plays a brief glitch outro, then cleanly reverts palette, font, and all screen effects.
 
@@ -98,18 +98,18 @@ window.lcards.alert.borg()
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `duration` | `number` (ms) | `0` | Auto-dismiss the intro after this many ms. `0` (default) = click-to-dismiss only. |
-| `transitionStyle` | `string` | `'flash'` | Palette transition style — `'flash'`, `'fade_only'`, `'blur_fade'`, or `'off'` |
-| `intro` | `Object` (layers dict) | `{ canvas: { siteCount: 7, tendrilsPerSite: 8 } }` | Layers shown during the intro. Per-slot merged with defaults. `intro.canvas` params override the `borg-assimilation` effect (see [`intro.canvas` params](#introchavas-params-borg-assimilation-effect) below); `intro.backdrop` and `intro.color` are optional extra layers applied alongside the canvas and cleared on dismiss. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params. |
-| `persistentLayers` | `Object` (layers dict) | scanlines on `canvas` + color-tint on `color` | Layers applied after the intro is dismissed and held until `deassimilate()`. Omit to use defaults; pass `{}` to suppress all persistent effects. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params. |
+| `transitionStyle` | `string` | `'blur_fade'` | Palette transition style — `'blur_fade'`, `'flash'`, `'fade_only'`, or `'off'` |
+| `intro` | `Object` (layers dict) | `{ canvas: { siteCount: 16, tendrilsPerSite: 16, color: '#00cc44', glowColor: '#e7442a' }, backdrop: { preset: 'saturate', amount: '200%' }, color: { preset: 'color-tint', color: 'rgba(0,60,0,0.25)' } }` | Layers shown during the intro. Per-slot merged with defaults. `intro.canvas` params override the `borg-assimilation` effect (see [`intro.canvas` params](#introchavas-params-borg-assimilation-effect) below); `intro.backdrop` and `intro.color` are optional extra layers applied alongside the canvas and cleared on dismiss. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params. |
+| `persistentLayers` | `Object` (layers dict) | glitch on `canvas` + color-tint on `color` + saturate on `backdrop` | Layers applied after the intro is dismissed and held until `deassimilate()`. Omit to use defaults; pass `{}` to suppress all persistent effects. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params. |
 
 #### `intro.canvas` params (`borg-assimilation` effect)
 
 | Param | Default | Description |
 |-------|---------|-------------|
-| `siteCount` | `7` | Number of Borg injection sites on screen (1–20) |
-| `tendrilsPerSite` | `8` | Bézier tendrils grown from each injection site (1–24) |
+| `siteCount` | `16` | Number of Borg injection sites on screen (1–20) |
+| `tendrilsPerSite` | `16` | Bézier tendrils grown from each injection site (1–24) |
 | `color` | `'#00cc44'` | Tendril and injection site colour (any CSS colour string) |
-| `glowColor` | `'#00ff66'` | Inner glow colour at each injection site |
+| `glowColor` | `'#e7442a'` | Inner glow colour at each injection site |
 
 ### `deassimilate(opts?)` options
 
@@ -154,9 +154,9 @@ Trigger the Borg assimilation on one or all connected browsers.
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `intro_duration` | No | — | Auto-dismiss the intro after this many ms (1000–60000). **Omit** to use click-to-dismiss. |
-| `site_count` | No | `7` | Number of injection sites on screen (1–20) |
-| `tendrils_per_site` | No | `8` | Bézier tendrils per injection site (1–20) |
-| `transition_style` | No | `flash` | Palette transition: `flash`, `fade_only`, `blur_fade`, `off` |
+| `site_count` | No | `16` | Number of injection sites on screen (1–20) |
+| `tendrils_per_site` | No | `16` | Bézier tendrils per injection site (1–20) |
+| `transition_style` | No | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only`, `off` |
 | `suppress_persistent` | No | `false` | Suppress all persistent effects after intro. Ignored if `persistent_layers` is also set. |
 | `intro_layers` | No | — | **Advanced.** Full per-slot layers dict. `intro_layers.canvas` keys override `site_count`/`tendrils_per_site`; missing keys fall back to the flat values. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params per slot. |
 | `persistent_layers` | No | — | **Advanced.** Full per-slot layers dict. Overrides `suppress_persistent` when set. Pass `{}` to suppress all. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params per slot. |

@@ -36,7 +36,9 @@ const DEFAULTS = {
      * supplementary effects shown alongside the intro and cleared on dismiss.
      */
     intro: {
-        canvas: { siteCount: 7, tendrilsPerSite: 8 },
+        canvas: { siteCount: 16, tendrilsPerSite: 16, color: '#00cc44', glowColor: '#e7442a' },
+        backdrop: { preset: 'saturate', amount: '200%' },
+        color:    { preset: 'color-tint', color: 'rgba(0,60,0,0.25)' },
     },
 
     /**
@@ -56,8 +58,9 @@ const DEFAULTS = {
      * Same format as trigger_effect layers: { slot: { preset, ...params } }
      */
     persistentLayers: {
-        canvas: { preset: 'scanlines',  lineHeight: 3, opacity: 0.15, scroll: 2 },
-        color:  { preset: 'color-tint', color: 'rgba(0, 40, 0, 0.10)' },
+        canvas:   { preset: 'glitch',      intensity: 0.08, maxShift: 400, bandHeight: 3, fps: 20 },
+        color:    { preset: 'color-tint',  color: 'rgba(0, 60, 0, 0.10)' },
+        backdrop: { preset: 'saturate',    amount: '200%' },
     },
 };
 
@@ -113,7 +116,7 @@ export class BorgAssimilationManager extends BaseService {
     async assimilate(opts = {}) {
         const {
             duration         = 0,
-            transitionStyle  = 'flash',
+            transitionStyle  = 'blur_fade',
             intro,                       // undefined → use DEFAULTS.intro
             persistentLayers,            // undefined → use DEFAULTS.persistentLayers
         } = opts;

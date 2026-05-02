@@ -827,12 +827,12 @@ borg_assimilate:
       name: Palette Transition Style
       description: >
         Visual transition played when the UI palette switches to Borg yellow-green.
-        `flash` — a bright colour burst floods the screen then fades (default).
+        `blur_fade` — screen blurs and dims while colours swap (default).
+        `flash` — a bright colour burst floods the screen then fades.
         `fade_only` — a gentle cross-fade, GPU-light.
-        `blur_fade` — screen blurs and dims while colours swap.
         `off` — instant switch with no transition.
       required: false
-      default: flash
+      default: blur_fade
       selector:
         select:
           options:
