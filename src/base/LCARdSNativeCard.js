@@ -411,7 +411,9 @@ export class LCARdSNativeCard extends LitElement {
             // No explicit height and no active compensation → clear inline style.
             this.style.removeProperty('height');
         }
-        this.style.width  = _toCssLength(config.width  ?? '');
+        this.style.width      = _toCssLength(config.width      ?? '');
+        this.style.maxHeight   = _toCssLength(config.max_height ?? '');
+        this.style.maxWidth    = _toCssLength(config.max_width  ?? '');
     }
 
     /**

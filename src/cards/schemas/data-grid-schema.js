@@ -12,7 +12,7 @@
  * @see doc/user/configuration/cards/data-grid.md
  */
 
-import { animationSchema, filterSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema } from './common-schemas.js';
+import { animationSchema, filterSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema } from './common-schemas.js';
 
 export const dataGridSchema = {
     "type": "object",
@@ -649,6 +649,10 @@ export const dataGridSchema = {
 
         min_height: cardMinHeightSchema,
 
-        min_width: cardMinWidthSchema
+        min_width: cardMinWidthSchema,
+
+        max_height: cardMaxHeightSchema,
+
+        max_width: cardMaxWidthSchema
     }
 };

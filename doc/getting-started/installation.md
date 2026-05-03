@@ -8,6 +8,8 @@
 
 :::tip HA-LCARS Theme Integration
 LCARdS supports and integrates well with [**HA-LCARS themes**](https://github.com/th3jesta/ha-lcars).  Use these two together for the best experience.
+
+Once HA-LCARS is installed, append the **LCARdS theme profiles** to your `themes.yaml` to map the full LCARdS colour palette to the HA-LCARS chrome and HA core colour tokens in one step — see [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles.md).
 :::
 
 ## 1. Install via HACS

@@ -2413,8 +2413,9 @@ export class LCARdSButton extends LCARdSCard {
             this._setupComponentAnimations();
         }
 
-        // Setup base button interactivity (hover/pressed states)
-        if (this._buttonHoverStyle || this._buttonPressedStyle) {
+        // Setup base button interactivity (hover/pressed states, background and border)
+        if (this._buttonHoverStyle || this._buttonPressedStyle ||
+            this._buttonBorderHoverStyle || this._buttonBorderPressedStyle) {
             this._setupButtonInteractivity();
         }
 
@@ -2608,7 +2609,7 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Extract hover and pressed interaction styles from resolved style
-     * Stores background colors for dynamic application during mouse events
+     * Stores background and border colors for dynamic application during mouse events
      * Priority: hover/pressed > entity state > default
      * @private
      * @param {Object} resolvedStyle - Resolved button style
@@ -2622,6 +2623,8 @@ export class LCARdSButton extends LCARdSCard {
         if (this.config.interactive === false) {
             this._buttonHoverStyle = null;
             this._buttonPressedStyle = null;
+            this._buttonBorderHoverStyle = null;
+            this._buttonBorderPressedStyle = null;
             return { hover: null, pressed: null };
         }
 
@@ -2632,26 +2635,38 @@ export class LCARdSButton extends LCARdSCard {
         let hoverBgColor = resolvedStyle.card?.color?.background?.hover;
         let pressedBgColor = resolvedStyle.card?.color?.background?.pressed;
 
-        // Resolve theme tokens if present
-        if (hoverBgColor && typeof hoverBgColor === 'string' && hoverBgColor.startsWith('theme:')) {
-            const tokenPath = hoverBgColor.substring(6);
-            hoverBgColor = themeManager?.getToken(tokenPath) || hoverBgColor;
-        }
+        // Extract hover/pressed border colors from border.color.hover / border.color.pressed
+        let hoverBorderColor = resolvedStyle.border?.color?.hover;
+        let pressedBorderColor = resolvedStyle.border?.color?.pressed;
 
-        if (pressedBgColor && typeof pressedBgColor === 'string' && pressedBgColor.startsWith('theme:')) {
-            const tokenPath = pressedBgColor.substring(6);
-            pressedBgColor = themeManager?.getToken(tokenPath) || pressedBgColor;
-        }
+        // Resolve theme tokens if present
+        const resolveToken = (value) => {
+            if (value && typeof value === 'string' && value.startsWith('theme:')) {
+                return themeManager?.getToken(value.substring(6)) || value;
+            }
+            return value;
+        };
+
+        hoverBgColor = resolveToken(hoverBgColor);
+        pressedBgColor = resolveToken(pressedBgColor);
+        hoverBorderColor = resolveToken(hoverBorderColor);
+        pressedBorderColor = resolveToken(pressedBorderColor);
 
         // Store interaction styles if defined
         this._buttonHoverStyle = hoverBgColor ? { backgroundColor: hoverBgColor } : null;
         this._buttonPressedStyle = pressedBgColor ? { backgroundColor: pressedBgColor } : null;
+        this._buttonBorderHoverStyle = hoverBorderColor ? { borderColor: hoverBorderColor } : null;
+        this._buttonBorderPressedStyle = pressedBorderColor ? { borderColor: pressedBorderColor } : null;
 
         lcardsLog.trace('[LCARdSButton] Extracted interaction styles', {
             hasHover: !!this._buttonHoverStyle,
             hasPressed: !!this._buttonPressedStyle,
             hoverColor: hoverBgColor,
             pressedColor: pressedBgColor,
+            hasBorderHover: !!this._buttonBorderHoverStyle,
+            hasBorderPressed: !!this._buttonBorderPressedStyle,
+            borderHoverColor: hoverBorderColor,
+            borderPressedColor: pressedBorderColor,
             backgroundObject: resolvedStyle.card?.color?.background
         });
 
@@ -3244,6 +3259,9 @@ export class LCARdSButton extends LCARdSCard {
         // Find the button background element (rect or path)
         const buttonBg = this.shadowRoot?.querySelector('.button-bg');
 
+        // Find all border path elements (may be 0 if no border is configured)
+        const borderElements = Array.from(this.shadowRoot?.querySelectorAll('.button-border') ?? []);
+
         // Clean up previous listeners
         if (this._buttonInteractivityCleanup) {
             this._buttonInteractivityCleanup();
@@ -3253,8 +3271,26 @@ export class LCARdSButton extends LCARdSCard {
         this._buttonInteractivityCleanup = this._setupBaseInteractivity(/** @type {HTMLElement} */(buttonBg), {
             hoverStyle: this._buttonHoverStyle,
             pressedStyle: this._buttonPressedStyle,
-            getRestoreColor: () => this._getCurrentEntityStateColor()
+            getRestoreColor: () => this._getCurrentEntityStateColor(),
+            borderElements,
+            borderHoverStyle: this._buttonBorderHoverStyle,
+            borderPressedStyle: this._buttonBorderPressedStyle,
+            getRestoreBorderColor: () => this._getCurrentEntityStateBorderColor()
         });
+    }
+
+    /**
+     * Get current entity state border color (dynamically calculated)
+     * Used when returning from hover/pressed states to restore the correct border colour
+     * @private
+     * @returns {string|null} Current border color based on entity state
+     */
+    _getCurrentEntityStateBorderColor() {
+        const color = this._resolveEntityStateColor(
+            this._buttonStyle?.border?.color,
+            null
+        );
+        return color ? /** @type {string} */ (this._resolveMatchLightColor(color)) : null;
     }
 
     /**
@@ -3479,6 +3515,8 @@ export class LCARdSButton extends LCARdSCard {
             const cssMinHeight = toCssVal(this.config.min_height);
             const cssWidth     = toCssVal(this.config.width);
             const cssMinWidth  = toCssVal(this.config.min_width);
+            const cssMaxHeight = toCssVal(this.config.max_height);
+            const cssMaxWidth  = toCssVal(this.config.max_width);
             // Precedence rules for height vs min_height:
             //   1. config.height is set  → exact height; min-height forced to 0 so that a
             //      preset-injected or user-set min_height (e.g. the theme default of 56px)
@@ -3496,6 +3534,8 @@ export class LCARdSButton extends LCARdSCard {
             }
             if (cssWidth)    containerStyleParts.push(`width: ${cssWidth}`);
             if (cssMinWidth) containerStyleParts.push(`min-width: ${cssMinWidth}`);
+            if (cssMaxHeight) containerStyleParts.push(`max-height: ${cssMaxHeight}`);
+            if (cssMaxWidth)  containerStyleParts.push(`max-width: ${cssMaxWidth}`);
             const containerStyle = containerStyleParts.join('; ');
             if (cssHeight) {
                 this.style.height = cssHeight;

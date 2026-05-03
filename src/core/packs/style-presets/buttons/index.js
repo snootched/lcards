@@ -31,7 +31,7 @@ export const BUTTON_PRESETS = {
     card: {
       color: {
         background: {
-          default: 'theme:components.button.background.active',
+          default: 'theme:components.button.background.default',
           active: 'theme:components.button.background.active',
           inactive: 'theme:components.button.background.inactive',
           unavailable: 'theme:components.button.background.unavailable',
@@ -363,7 +363,9 @@ export const BUTTON_PRESETS = {
           default: 'theme:components.button.background.transparent',
           active: 'theme:components.button.background.transparent',
           inactive: 'theme:components.button.background.transparent',
-          unavailable: 'theme:components.button.background.transparent'
+          unavailable: 'theme:components.button.background.transparent',
+          hover: 'theme:components.button.background.transparent',
+          pressed: 'theme:components.button.background.transparent'
         }
       }
     },
@@ -373,10 +375,12 @@ export const BUTTON_PRESETS = {
       width: 'theme:components.button.border.width',
       radius: 'theme:components.button.radius.none',
       color: {
-        default: 'theme:components.button.border.color.active',
+        default: 'theme:components.button.border.color.default',
         active: 'theme:components.button.border.color.active',
         inactive: 'theme:components.button.border.color.inactive',
-        unavailable: 'theme:components.button.border.color.unavailable'
+        unavailable: 'theme:components.button.border.color.unavailable',
+        hover: 'theme:components.button.border.color.hover',
+        pressed: 'theme:components.button.border.color.pressed'
       }
     },
 
@@ -813,6 +817,48 @@ export const BUTTON_PRESETS = {
         show: true,
         position: 'right-center'
       }
+    }
+  },
+
+
+  'panel-light': {
+    extends: 'button.barrel',
+    description: 'non-interactive square-cornered panel with LCARS random label',
+    text: {
+      label: {
+        show: true,
+        position: 'bottom-right'
+      },
+    },
+    interactive: false,
+    style: {
+      card: {
+        color: {
+          background: {
+            default: 'var(--lcars-ui-primary)'
+           }
+         }
+       }
+    }
+  },
+  'panel-dark': {
+    extends: 'button.barrel',
+    description: 'non-interactive square-cornered panel with LCARS random label',
+    text: {
+      label: {
+        show: true,
+        position: 'bottom-right'
+      },
+    },
+    interactive: false,
+    style: {
+      card: {
+        color: {
+          background: {
+            default: 'var(--lcars-ui-quaternary)'
+           }
+         }
+       }
     }
   },
 

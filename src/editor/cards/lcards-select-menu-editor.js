@@ -412,6 +412,8 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                     ${FormField.renderField(this, 'width')}
                     ${FormField.renderField(this, 'min_height')}
                     ${FormField.renderField(this, 'min_width')}
+                    ${FormField.renderField(this, 'max_height')}
+                    ${FormField.renderField(this, 'max_width')}
                 </div>
                 ${this._renderLayoutCardHint()}
             </lcards-form-section>

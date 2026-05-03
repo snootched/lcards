@@ -129,6 +129,18 @@ Typical use cases: debugging unexpected behaviour, recovering from a corrupt con
 
 ---
 
+---
+
+## HA-LCARS Theme Profiles
+
+LCARdS ships custom theme profiles designed to extend [HA-LCARS](https://github.com/th3jesta/ha-lcars).  They map the LCARdS colour palette to both the HA-LCARS chrome variables and the core HA colour token scale, so stock HA components, LCARdS cards, and the HA-LCARS chrome all share the same palette — including alert-mode hue rotations.
+
+The profiles are appended to the end of your existing HA-LCARS `themes.yaml`.
+
+→ [HA-LCARS Theme Profiles](ha-lcars-theme-profiles.md)
+
+---
+
 ## Related
 
 - [Installation](../getting-started/installation.md) — how the panel is registered via the integration
@@ -138,4 +150,5 @@ Typical use cases: debugging unexpected behaviour, recovering from a corrupt con
 - [Connectivity](connectivity.md) — connection overlay reference
 - [Sounds](sounds.md) — sound system reference
 - [Users & Devices](users-devices.md) — scoped settings management
+- [HA-LCARS Theme Profiles](ha-lcars-theme-profiles.md) — LCARdS palette ↔ HA-LCARS theme integration
 

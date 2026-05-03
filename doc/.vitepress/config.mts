@@ -98,6 +98,7 @@ export default withMermaid(defineConfig({
         activeMatch: '/configuration/',
         items: [
           { text: 'Overview & Setup',  link: '/configuration/' },
+          { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
           { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
           { text: 'Connectivity',      link: '/configuration/connectivity' },
           { text: 'Helpers',           link: '/configuration/persistent-helpers' },
@@ -305,6 +306,7 @@ export default withMermaid(defineConfig({
           text: 'Configuration',
           items: [
             { text: 'Overview & Setup',  link: '/configuration/' },
+            { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
             { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
             { text: 'Connectivity',      link: '/configuration/connectivity' },
             { text: 'Helpers',           link: '/configuration/persistent-helpers' },
@@ -367,6 +369,7 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview', link: '/core/themes/' },
+                { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
               ],
             },
           ],

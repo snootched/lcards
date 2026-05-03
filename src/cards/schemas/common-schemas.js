@@ -1677,3 +1677,45 @@ export const cardMinWidthSchema = {
         selector: { text: {} }
     }
 };
+
+export const cardMaxHeightSchema = {
+    oneOf: [
+        {
+            type: 'number',
+            minimum: 1,
+            description: 'Maximum card height in pixels (bare integer, e.g. 400 = 400px)'
+        },
+        {
+            type: 'string',
+            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
+            description: 'Maximum card height with CSS unit (e.g. 400px, 80vh, 20em)'
+        }
+    ],
+    description: 'Maximum card height ceiling. Bare integer = px (e.g. 400 = 400px). CSS units accepted: 400px, 80vh, 10em.',
+    'x-ui-hints': {
+        label: 'Max Height',
+        helper: 'Ceiling height (e.g. 400). Bare integer = px, or CSS units (400px, 80vh, etc).',
+        selector: { text: {} }
+    }
+};
+
+export const cardMaxWidthSchema = {
+    oneOf: [
+        {
+            type: 'number',
+            minimum: 1,
+            description: 'Maximum card width in pixels (bare integer, e.g. 600 = 600px)'
+        },
+        {
+            type: 'string',
+            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
+            description: 'Maximum card width with CSS unit (e.g. 600px, 80vw, 20em)'
+        }
+    ],
+    description: 'Maximum card width ceiling. Bare integer = px (e.g. 600 = 600px). CSS units accepted: 600px, 80vw, 10em.',
+    'x-ui-hints': {
+        label: 'Max Width',
+        helper: 'Ceiling width (e.g. 600). Bare integer = px, or CSS units (600px, 80vw, etc).',
+        selector: { text: {} }
+    }
+};

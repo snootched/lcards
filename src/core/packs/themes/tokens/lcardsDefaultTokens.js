@@ -107,8 +107,9 @@ export const lcardsDefaultTokens = {
     // Card-specific colors (HA-LCARS variables with LCARdS fallbacks)
     // Note: HA-LCARS 25C themes + Picard provide button-off/unavailable explicitly
     card: {
-      button: 'var(--lcars-card-button, var(--lcards-gray-medium-light))',
-      buttonOff: 'var(--lcars-card-button-off, var(--lcards-gray-medium))',
+      button: 'var(--lcars-card-button, var(--lcards-gray-medium))',
+      buttonOn: 'var(--lcars-ui-tertiary, var(--lcards-gray-medium-light))',
+      buttonOff: 'var(--lcars-card-button-off, var(--lcards-gray-medium-dark))',
       buttonUnavailable: 'var(--lcars-card-button-unavailable, var(--lcards-gray-dark))',
       topColor: 'var(--lcars-card-top-color, var(--lcards-gray-dark))',
       bottomColor: 'var(--lcars-card-bottom-color, var(--lcards-gray-dark))'
@@ -165,10 +166,12 @@ export const lcardsDefaultTokens = {
     // ------------------------------------------------------------------------
     // BUTTON COMPONENT
     // ------------------------------------------------------------------------
+    //  active: 'lighten(colors.card.button, 0.1)',
+
     button: {
       background: {
         default: 'colors.card.button',
-        active: 'lighten(colors.card.button, 0.1)',
+        active: 'colors.card.buttonOn',
         inactive: 'colors.card.buttonOff',
         unavailable: 'colors.card.buttonUnavailable',
         hover: 'lighten(colors.card.button, 0.15)',
@@ -180,9 +183,9 @@ export const lcardsDefaultTokens = {
         radius: 'borders.radius.lg',
         color: {
           default: 'colors.card.button',
-          active: 'lighten(colors.card.button, 0.1)',
-          inactive: 'darken(colors.card.button, 0.25)',
-          unavailable: 'darken(colors.card.button, 0.45)',
+          active: 'colors.card.buttonOn',
+          inactive: 'colors.card.buttonOff',
+          unavailable: 'colors.card.buttonUnavailable',
           hover: 'lighten(colors.card.button, 0.15)',
           pressed: 'darken(colors.card.button, 0.1)'
         }
