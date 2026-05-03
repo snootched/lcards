@@ -733,7 +733,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                 defaultContent = '{entity.state}';
                 break;
             case 'label':
-                defaultContent = 'LCARdS';
+                defaultContent = '[[[ return (((Math.floor(Math.random() * 256).toString(16).padStart(2, \'0\')) + "-" + (Math.floor(Math.random() * 4096).toString(16).padStart(3, \'0\')))) ]]]';
                 break;
             default:
                 defaultContent = fieldName; // Fallback to field name

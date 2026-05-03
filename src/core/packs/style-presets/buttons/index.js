@@ -75,7 +75,7 @@ export const BUTTON_PRESETS = {
       label: {
         // State-specific overrides (if any)
         position: 'center',
-        content: "LCARdS",
+        content: '[[[ return (((Math.floor(Math.random() * 256).toString(16).padStart(2, \'0\')) + "-" + (Math.floor(Math.random() * 4096).toString(16).padStart(3, \'0\')))) ]]]',
         show: false
        }
     },
