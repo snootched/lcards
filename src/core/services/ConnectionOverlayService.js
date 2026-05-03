@@ -446,6 +446,68 @@ export class ConnectionOverlayService extends BaseService {
     }
 
     /**
+     * Simulate the reconnection sequence for live preview.
+     * Can be called standalone or after a showWith() test-disconnect.
+     * If `previewConfig` is supplied, it is applied as the active preview config
+     * before running the sequence (the same way showWith() works for the disconnect test).
+     * Fires `lcards-connection-overlay-dismissed` so the UI can reset test-state buttons.
+     * @param {Object|null} [previewConfig]
+     */
+    simulateReconnect(previewConfig = null) {
+        lcardsLog.debug('[ConnectionOverlayService] simulateReconnect() called (preview)');
+        this._clearReconnectedTimer();
+        this._isActive    = false;
+        this._isDismissed = false;
+
+        // Apply the supplied preview config (if any), preserving the original for cleanup.
+        if (previewConfig) {
+            if (!this._previewConfig) {
+                this._previewConfig = this._config;
+            }
+            this._applyPartialConfig(previewConfig);
+        }
+
+        const pom = window.lcards?.core?.portalOverlayManager;
+        const cfg = this._config;
+
+        const cleanup = () => {
+            if (this._previewConfig) {
+                this._config       = this._previewConfig;
+                this._previewConfig = null;
+                lcardsLog.debug('[ConnectionOverlayService] Preview config cleared; original config restored.');
+            }
+            document.dispatchEvent(new CustomEvent('lcards-connection-overlay-dismissed', { bubbles: false }));
+        };
+
+        if (cfg.reconnected?.enabled) {
+            this._isReconnectedActive = true;
+            const recon        = cfg.reconnected;
+            const reconContent = (cfg.message?.mode === 'card' && recon?.content) ? recon.content : null;
+            const reconText    = reconContent ? null : recon;
+            pom?.show('connection-overlay', {
+                position:  cfg.position ?? 'center',
+                width:     cfg.width    ?? 'auto',
+                height:    cfg.height   ?? 'auto',
+                dismiss:   false,
+                onDismiss: null,
+                content:   reconContent,
+                text:      reconText,
+                layers:    cfg.layers,
+            });
+            const seconds = recon.auto_dismiss_seconds ?? 3;
+            this._reconnectedTimer = setTimeout(() => {
+                this._reconnectedTimer    = null;
+                this._isReconnectedActive = false;
+                pom?.hide('connection-overlay');
+                cleanup();
+            }, seconds * 1000);
+        } else {
+            pom?.hide('connection-overlay');
+            cleanup();
+        }
+    }
+
+    /**
      * Destroy the service: unsubscribe connection events, tear down portal.
      */
     destroy() {
@@ -467,10 +529,17 @@ export class ConnectionOverlayService extends BaseService {
         if (!this._config.enabled) return;
         if (this._isActive) return;  // already showing
 
-        lcardsLog.info('[ConnectionOverlayService] Connection lost — activating overlay');
         this._isActive    = true;
         this._isDismissed = false;
 
+        // Borg mode: assimilation replaces the standard overlay.
+        if (this._config.message?.mode === 'borg') {
+            lcardsLog.info('[ConnectionOverlayService] Connection lost — activating Borg assimilation');
+            window.lcards?.core?.borgAssimilationManager?.assimilate();
+            return;
+        }
+
+        lcardsLog.info('[ConnectionOverlayService] Connection lost — activating overlay');
         this._showDisconnectOverlay();
     }
 
@@ -480,6 +549,16 @@ export class ConnectionOverlayService extends BaseService {
         lcardsLog.info('[ConnectionOverlayService] Connection restored — clearing disconnect overlay');
         this._isActive    = false;
         this._isDismissed = false;
+
+        // Borg mode: deassimilation replaces the standard reconnect overlay.
+        if (this._config.message?.mode === 'borg') {
+            const borgMgr = window.lcards?.core?.borgAssimilationManager;
+            if (borgMgr?.isAssimilated) {
+                lcardsLog.info('[ConnectionOverlayService] Connection restored — deassimilating');
+                borgMgr.deassimilate();
+            }
+            return;
+        }
 
         const pom = window.lcards?.core?.portalOverlayManager;
         if (this._config.reconnected?.enabled) {

@@ -686,6 +686,7 @@ lcardsLog.debug('[lcards.js] screenEffect console API attached');
 //
 // Usage examples:
 //   window.lcards.connectionOverlay.show()                  // Force-show (simulate disconnect)
+//   window.lcards.connectionOverlay.simulateReconnect()      // Simulate reconnection sequence
 //   window.lcards.connectionOverlay.hide()                  // Force-hide (clear test)
 //   window.lcards.connectionOverlay.getConfig()             // Read active config
 //   window.lcards.connectionOverlay.saveConfig({...})       // Save to global scope
@@ -708,6 +709,15 @@ window.lcards.connectionOverlay = {
   /** Force-hide the overlay. */
   hide() {
     window.lcards?.core?.connectionOverlayService?.hide();
+  },
+  /**
+   * Simulate the reconnection sequence for live preview.
+   * Transitions from the disconnect overlay to the "connection restored" banner
+   * (if enabled), auto-dismisses, then restores the original config.
+   * @param {Object|null} [previewConfig]
+   */
+  simulateReconnect(previewConfig = null) {
+    window.lcards?.core?.connectionOverlayService?.simulateReconnect(previewConfig);
   },
   /** Return the currently active (resolved) config object. */
   getConfig() {

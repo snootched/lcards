@@ -61,6 +61,7 @@ import '../../editor/components/editors/lcards-position-picker.js';
 const MODE_OPTIONS = [
     { value: 'text', label: 'Simple text' },
     { value: 'card', label: 'Custom card (YAML)' },
+    { value: 'borg', label: 'Borg assimilation 👾' },
 ];
 
 const TRANSFORM_OPTIONS = [
@@ -360,20 +361,20 @@ export class LCARdSConnectivityTab extends LitElement {
             height:   'auto',
             message: {
                 text:      'Connection Lost',
-                color:     '#93e1ff',
+                color:     'var(--error-color)',
                 mode:      'text',
                 font:      'Antonio',
-                size:      26,
+                size:      32,
                 weight:    '400',
                 transform: 'uppercase',
             },
             reconnected: {
-                enabled:              false,
-                text:                 'Connection Restored',
-                color:                '#4caf50',
+                enabled:              true,
+                text:                 'Connection Established',
+                color:                'var(--primary-color)',
                 auto_dismiss_seconds: 3,
                 font:      'Antonio',
-                size:      26,
+                size:      32,
                 weight:    '400',
                 transform: 'uppercase',
                 content:   null,
@@ -410,7 +411,12 @@ export class LCARdSConnectivityTab extends LitElement {
     // -------------------------------------------------------------------------
 
     _handleTestShow() {
-        const mode              = this._editConfig?.message?.mode ?? 'text';
+        const mode = this._editConfig?.message?.mode ?? 'text';
+        if (mode === 'borg') {
+            window.lcards?.core?.borgAssimilationManager?.assimilate();
+            this._testActive = true;
+            return;
+        }
         const content           = mode === 'card' ? this._parseYamlContent() : null;
         const reconnectedContent = mode === 'card' ? this._parseReconnectedYamlContent() : null;
         const previewConfig = {
@@ -426,8 +432,35 @@ export class LCARdSConnectivityTab extends LitElement {
     }
 
     _handleTestHide() {
+        const mode = this._editConfig?.message?.mode ?? 'text';
+        if (mode === 'borg') {
+            window.lcards?.core?.borgAssimilationManager?.deassimilate();
+            this._testActive = false;
+            return;
+        }
         window.lcards?.connectionOverlay?.hide();
         this._testActive = false;
+    }
+
+    _handleTestReconnect() {
+        const mode = this._editConfig?.message?.mode ?? 'text';
+        if (mode === 'borg') {
+            window.lcards?.core?.borgAssimilationManager?.deassimilate();
+            this._testActive = false;
+            return;
+        }
+        const content          = mode === 'card' ? this._parseYamlContent() : null;
+        const reconnectedContent = mode === 'card' ? this._parseReconnectedYamlContent() : null;
+        const previewConfig = {
+            ...this._editConfig,
+            content,
+            reconnected: {
+                ...(this._editConfig?.reconnected ?? {}),
+                content: reconnectedContent,
+            },
+        };
+        window.lcards?.connectionOverlay?.simulateReconnect(previewConfig);
+        // _testActive resets via the 'lcards-connection-overlay-dismissed' event listener
     }
 
     // -------------------------------------------------------------------------
@@ -588,14 +621,25 @@ export class LCARdSConnectivityTab extends LitElement {
                 <ha-selector
                   .hass=${this.hass}
                   .label=${'Display style'}
-                  .helper=${'Simple text uses built-in styling controls; Custom card renders any HA card YAML'}
+                  .helper=${'Simple text uses built-in styling controls; Custom card renders any HA card YAML; Borg mode triggers the assimilation easter egg instead of the standard overlay'}
                   .selector=${{ select: { mode: 'dropdown', options: MODE_OPTIONS } }}
                   .value=${messageMode}
                   @value-changed=${(e) => this._set('message.mode', e.detail.value)}>
                 </ha-selector>
               </div>
 
-              ${messageMode === 'text' ? html`
+              ${messageMode === 'borg' ? html`
+
+                <lcards-message type="info">
+                  <strong>Borg Assimilation Mode</strong>
+                  <p style="margin:8px 0 0 0; font-size:13px; line-height:1.4;">
+                    On disconnect, the full Borg assimilation sequence will run instead of the standard overlay.
+                    On reconnect, deassimilation is triggered automatically.
+                    Text, card, and effect layer settings are not used in this mode.
+                  </p>
+                </lcards-message>
+
+              ` : messageMode === 'text' ? html`
 
                 <!-- Text mode: Connection Lost subsection -->
                 <lcards-form-section
@@ -744,6 +788,7 @@ export class LCARdSConnectivityTab extends LitElement {
             </lcards-form-section>
 
             <!-- ── Effect Layers ──────────────────────────────────────── -->
+            ${messageMode !== 'borg' ? html`
             <lcards-form-section
               header="Effect Layers"
               icon="mdi:layers-triple"
@@ -761,6 +806,7 @@ export class LCARdSConnectivityTab extends LitElement {
               ${this._renderSlotPanel('color',    'Colour Overlay',   'mdi:palette')}
               ${this._renderSlotPanel('backdrop', 'Backdrop Filter',  'mdi:blur')}
             </lcards-form-section>
+            ` : ''}
 
             <!-- ── Test Controls ──────────────────────────────────────── -->
             <lcards-form-section
@@ -777,7 +823,11 @@ export class LCARdSConnectivityTab extends LitElement {
                   Simulate Disconnect
                 </ha-button>
                 <ha-button
-                  ?disabled=${!this._testActive}
+                  @click=${this._handleTestReconnect}>
+                  <ha-icon slot="icon" icon="mdi:wifi"></ha-icon>
+                  Simulate Reconnect
+                </ha-button>
+                <ha-button
                   @click=${this._handleTestHide}>
                   <ha-icon slot="icon" icon="mdi:close-circle-outline"></ha-icon>
                   Clear Test

@@ -235,7 +235,7 @@ LCARS Picard [LCARdS Blue Accent]:
       # HA-LCARS UI colors
       lcars-ui-primary: var(--lcards-gray-medium-light)
       lcars-ui-secondary: var(--lcards-gray-light)
-      lcars-ui-tertiary: var(--lcards-blue-medium-light)
+      lcars-ui-tertiary: var(--lcards-blue-medium)
       lcars-ui-quaternary: var(--lcards-gray-medium-dark)
       lcars-alert-color: var(--lcards-orange-medium-dark)
 
@@ -243,7 +243,7 @@ LCARS Picard [LCARdS Blue Accent]:
       #lcars-ui-app-header-background-color: "#272727"
       lcars-ui-app-header-background-color: "var(lcars-ui-primary)"
       lcars-ui-app-header-text-color: var(--lcards-gray-lightest)
-      lcars-ui-app-header-clock: var(--lcards-blue-medium-light)
+      lcars-ui-app-header-clock: var(--lcards-blue-medium)
       lcars-ui-sidebar-icon: var(--lcars-ui-secondary)
       lcars-ui-config-button: var(--lcards-orange-lightest)
       lcars-ui-config-icon: var(--lcards-orange-lightest)
@@ -268,7 +268,7 @@ LCARS Picard [LCARdS Blue Accent]:
       # HA-LCARS UI colors
       lcars-ui-primary: var(--lcards-gray-medium)
       lcars-ui-secondary: var(--lcards-gray-medium-light)
-      lcars-ui-tertiary: var(--lcards-blue-medium-light)
+      lcars-ui-tertiary: var(--lcards-blue-medium)
       lcars-ui-quaternary: var(--lcards-gray-dark)
       lcars-alert-color: var(--lcards-orange-medium-dark)
 
@@ -276,7 +276,7 @@ LCARS Picard [LCARdS Blue Accent]:
       #lcars-ui-app-header-background-color: "#272727"
       lcars-ui-app-header-background-color: "var(lcars-ui-primary)"
       lcars-ui-app-header-text-color: var(--lcards-gray-lightest)
-      lcars-ui-app-header-clock: var(--lcards-blue-medium-light)
+      lcars-ui-app-header-clock: var(--lcards-blue-medium)
       lcars-ui-sidebar-icon: var(--lcars-ui-secondary)
       lcars-ui-config-button: var(--lcards-orange-lightest)
       lcars-ui-config-icon: var(--lcards-orange-lightest)
@@ -293,7 +293,7 @@ LCARS Picard [LCARdS Blue Accent]:
       # Misc
       success-color: var(--lcards-green)
       warning-color: var(--lcards-orange)
-      error-color: var(--lcards-dark-orange)
+      error-color: var(--lcards-orange-dark)
 
       #Inline SVGs to get around stupid limitations of Keyframe definitions
       lcars-tab-selected-bg: >

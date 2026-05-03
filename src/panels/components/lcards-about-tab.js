@@ -47,18 +47,24 @@ export class LCARdSAboutTab extends LitElement {
       },
       {
         index: 3,
+        icon: 'mdi:wifi-off',
+        label: 'Connectivity',
+        desc: 'Configure the connection-lost overlay — what is shown when HA loses its WebSocket connection, and the "connection restored" confirmation banner',
+      },
+      {
+        index: 4,
         icon: 'mdi:volume-high',
         label: 'Sounds',
         desc: 'Select sound schemes and customize/preview sounds for alert modes and interactions types',
       },
       {
-        index: 5,
+        index: 6,
         icon: 'mdi:package-variant',
         label: 'Pack Explorer',
         desc: 'Browse the pre-built content packs that add cards styles, fonts, sounds, images and more',
       },
       {
-        index: 6,
+        index: 7,
         icon: 'mdi:database-cog',
         label: 'Storage',
         desc: 'Advanced: Inspect and manage the raw key/value data LCARdS stores for persistent configuration (data that is not stored in HA helpers - use with caution)',
@@ -157,8 +163,8 @@ export class LCARdSAboutTab extends LitElement {
               class="tab-guide-card"
               role="button"
               tabindex="0"
-              @click=${() => this._navigateToTab(4)}
-              @keydown=${(e) => e.key === 'Enter' && this._navigateToTab(4)}
+              @click=${() => this._navigateToTab(5)}
+              @keydown=${(e) => e.key === 'Enter' && this._navigateToTab(5)}
             >
               <div class="tab-guide-icon">
                 <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
