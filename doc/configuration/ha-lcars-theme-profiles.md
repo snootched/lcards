@@ -18,7 +18,7 @@ You need **HA-LCARS** installed before applying these profiles.  Follow the inst
 
 Download or copy from the file below and paste at the end of your `themes.yaml`:
 
-→ **[ha-lcars-lcards-themes.yaml](./ha-lcars-lcards-themes.yaml)**
+→ **[ha-lcars-lcards-themes.yaml](https://github.com/snootched/lcards/tree/main/yaml/theme/ha-lcars-lcards-themes.yaml)**
 
 ---
 
