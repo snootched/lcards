@@ -168,7 +168,20 @@ export class LCARdSSlider extends LCARdSButton {
                     /* CSS borders applied via inline styles from config */
                 }
 
+                /* The SVG is positioned absolute so it fills the container without
+                 * participating in flow layout. This is the critical break in the
+                 * height feedback loop:
+                 *   flow SVG → container content height → host height → size-ref → loop
+                 * With position:absolute the SVG has zero flow contribution. The
+                 * container height is determined entirely by CSS/grid (height:100%
+                 * resolves from the grid track), the SVG silently fills it.
+                 * NOTE: The SVG is injected via unsafeHTML() so it has no class; the
+                 * child selector (.slider-container > svg) is required to reach it.
+                 * .slider-svg is kept as a fallback for any direct SVG element usage. */
+                .slider-container > svg,
                 .slider-svg {
+                    position: absolute;
+                    inset: 0;
                     display: block;
                     width: 100%;
                     height: 100%;
