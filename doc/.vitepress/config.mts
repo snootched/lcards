@@ -65,6 +65,28 @@ export default withMermaid(defineConfig({
       rel: 'stylesheet',
       href: 'https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&display=swap'
     }],
+    // Plausible init block
+    [
+      'script',
+      {
+        async: '',
+        src: 'https://plausible.io/js/pa-78zuO-ZL5IQCS6WOAhRja.js'
+      }
+    ],
+    // Plausible init block
+    [
+      'script',
+      {},
+      `
+        window.plausible = window.plausible || function() {
+          (plausible.q = plausible.q || []).push(arguments)
+        };
+        plausible.init = plausible.init || function(i) {
+          plausible.o = i || {};
+        };
+        plausible.init();
+      `
+    ]
   ],
 
   // ── Mermaid config ────────────────────────────────────────────────────────
