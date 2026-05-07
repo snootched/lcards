@@ -2,6 +2,7 @@ import { lcardsSetGlobalLogLevel, lcardsGetGlobalLogLevel, lcardsLog, lcardsLogB
 import * as LCARdS from './lcards-vars.js'
 import { lcardsCore } from './core/lcards-core.js';
 import { ALERT_MODE_TRANSFORMS } from './core/themes/alertModeTransform.js';
+import { injectPalette } from './core/themes/paletteInjector.js';
 
 // 1. Integration-configured log level — baked into the script URL as ?log=<level>
 //    by frontend.py when the integration loads. Applies the persistent user preference
@@ -55,6 +56,14 @@ import { LCARdSConfigPanel } from './panels/lcards-config-panel.js';
 
 // Ensure global namespace
 window.lcards = window.lcards || {};
+
+// Inject --lcards-* palette vars synchronously at module evaluation time.
+// This must happen before initializeCustomCard() (which is async) so that
+// any HA theme variables that reference var(--lcards-*) can resolve correctly
+// in the main document even before the WebSocket connection is established.
+// Note: iframes (e.g. HACS) have their own document and require the vars to
+// be defined in the HA theme YAML to receive them.
+injectPalette();
 
 // Version is available immediately at module load (before async init)
 window.lcards.version = LCARdS.LCARdS_VERSION;
