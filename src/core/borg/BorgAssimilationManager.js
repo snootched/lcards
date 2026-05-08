@@ -18,6 +18,11 @@
 import { BaseService      } from '../BaseService.js';
 import { lcardsLog        } from '../../utils/lcards-logging.js';
 import { injectBorgFont, revertBorgFont } from '../themes/borgFontAssimilation.js';
+import {
+    setAlertModeTransformParameter,
+    getAlertModeTransform,
+    resetAlertModeTransform,
+} from '../themes/alertModeTransform.js';
 
 /**
  * Default layers for each stage of the assimilation/deassimilation sequence.
@@ -36,7 +41,7 @@ const DEFAULTS = {
      * supplementary effects shown alongside the intro and cleared on dismiss.
      */
     intro: {
-        canvas: { siteCount: 8, tendrilsPerSite: 5, color: 'var(--lcars-martian)', glowColor: 'var(--lcards-yellow)' },
+        canvas: { siteCount: 8, tendrilsPerSite: 5, tendrilLength: 600, particleCount: 2, color: 'var(--lcars-martian)', glowColor: 'var(--lcards-yellow)' },
         backdrop: { preset: 'saturate', amount: '200%' },
         color:    { preset: 'color-tint', color: 'rgba(0,60,0,0.25)' },
     },
@@ -77,6 +82,12 @@ export class BorgAssimilationManager extends BaseService {
          * @type {(() => void)|null}
          */
         this._introDismiss = null;
+        /**
+         * Tracks whether the font was actually swapped so deassimilate() knows
+         * whether to call revertBorgFont().
+         * @type {boolean}
+         */
+        this._fontWasSwapped = false;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -111,6 +122,11 @@ export class BorgAssimilationManager extends BaseService {
      *                                                          Omit to use DEFAULTS.persistentLayers;
      *                                                          pass {} to suppress all persistent effects.
      *                                                          e.g. { color: { preset: 'color-tint', color: '...' } }
+     * @param {number|null} [opts.paletteHue=null]              Override the borg_alert palette hue (0–359°).
+     *                                                          null = use the built-in default (110 = yellow-green).
+     * @param {boolean}     [opts.fontSwap=true]                Whether to inject the Borg typeface.
+     *                                                          Set to `false` to keep the existing dashboard font
+     *                                                          while all other assimilation effects still run.
      * @returns {Promise<void>}
      */
     async assimilate(opts = {}) {
@@ -119,6 +135,8 @@ export class BorgAssimilationManager extends BaseService {
             transitionStyle  = 'blur_fade',
             intro,                       // undefined → use DEFAULTS.intro
             persistentLayers,            // undefined → use DEFAULTS.persistentLayers
+            paletteHue       = null,     // null → use alertModeTransform default (110°)
+            fontSwap         = true,     // false = skip font injection
         } = opts;
 
         if (this._assimilated) {
@@ -132,11 +150,22 @@ export class BorgAssimilationManager extends BaseService {
         const tm  = window.lcards?.core?.themeManager;
         const sem = window.lcards?.core?.screenEffectManager;
 
+        // ── Apply palette hue override before the swap so it takes effect immediately ─
+        if (paletteHue != null) {
+            const existing = getAlertModeTransform('borg_alert') ?? {};
+            setAlertModeTransformParameter('borg_alert', 'hueShift', paletteHue);
+            setAlertModeTransformParameter('borg_alert', 'hueAnchor', {
+                ...(existing.hueAnchor ?? {}),
+                centerHue: paletteHue,
+            });
+        }
+
         // ── Step 1 & 2: palette swap + font (fire-and-forget, run in parallel) ─
         const palettePromise = tm
             ? tm.setAlertMode('borg_alert', { transitionStyle })
             : Promise.resolve();
-        const fontPromise = injectBorgFont();
+        this._fontWasSwapped = fontSwap;
+        const fontPromise = fontSwap ? injectBorgFont() : Promise.resolve();
 
         // ── Step 3: intro layers (persistent — awaited until click or timeout) ─
         if (sem) {
@@ -276,10 +305,15 @@ export class BorgAssimilationManager extends BaseService {
         }
 
         // ── Revert palette → font → SEM (in that order to minimise FOUC) ─────
+        // Reset any runtime hue override so the next assimilation starts clean.
+        resetAlertModeTransform('borg_alert');
         if (tm) {
             await tm.setAlertMode('green_alert', { transitionStyle: revertTransitionStyle });
         }
-        revertBorgFont();
+        if (this._fontWasSwapped) {
+            revertBorgFont();
+            this._fontWasSwapped = false;
+        }
         if (sem) {
             sem.clear();
         }

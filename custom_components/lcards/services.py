@@ -401,6 +401,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         elif call.data.get("suppress_persistent"):
             payload["persistent_layers"] = {}
 
+        font_swap = call.data.get("font_swap")
+        if font_swap is not None:
+            payload["fontSwap"] = font_swap
+
         _fire_targeted_event(hass, "borg_assimilate", payload, device_ids, user_ids)
 
     async def handle_borg_deassimilate(call: ServiceCall) -> None:
@@ -505,6 +509,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("tendril_length"):    vol.All(int, vol.Range(min=100, max=1200)),
             vol.Optional("particle_count"):    vol.All(int, vol.Range(min=0, max=6)),
             vol.Optional("suppress_persistent"): bool,
+            vol.Optional("font_swap"):         bool,
             vol.Optional("intro_layers"):      dict,
             vol.Optional("persistent_layers"): dict,
             **_TARGET_FIELDS,

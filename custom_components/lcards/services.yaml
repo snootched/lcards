@@ -876,6 +876,17 @@ borg_assimilate:
       default: false
       selector:
         boolean:
+    font_swap:
+      name: Font Swap
+      description: >
+        Whether to inject the Borg typeface across all dashboard text during
+        assimilation. Set to false to keep the existing dashboard font while
+        all other assimilation effects (palette, canvas intro, persistent
+        layers) still run. Default: true.
+      required: false
+      default: true
+      selector:
+        boolean:
     intro_layers:
       name: Intro Layers (Advanced)
       description: |-

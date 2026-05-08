@@ -154,6 +154,31 @@ function _drawParticles(ctx, sx, sy, cp1x, cp1y, cp2x, cp2y, ex, ey,
     });
 }
 
+// ─── Hex-morph ring ───────────────────────────────────────────────────────────
+// Draws a ring that starts as a hexagon (t=0) and morphs to a circle (t=1).
+// Uses the hex radius formula r(θ) = R·cos(π/6)/cos((θ mod π/3)−π/6) and
+// lerps it toward the constant circle radius R.
+
+function _drawHexMorphRing(ctx, cx, cy, R, t, strokeStyle, lineWidth) {
+    const N      = 60;
+    const sector = Math.PI / 3;      // 60° per hex face
+    const offset = -Math.PI / 6;     // pointy-top, matches the spawn hex ring
+    ctx.beginPath();
+    for (let i = 0; i <= N; i++) {
+        const theta    = (i / N) * Math.PI * 2;
+        const adjusted = ((theta - offset) % sector + sector) % sector;
+        const rHex     = R * Math.cos(sector / 2) / Math.cos(adjusted - sector / 2);
+        const r        = rHex + t * (R - rHex);   // lerp hex → circle
+        const x        = cx + r * Math.cos(theta);
+        const y        = cy + r * Math.sin(theta);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth   = lineWidth;
+    ctx.stroke();
+}
+
 // ─── Worker-scoped state ──────────────────────────────────────────────────────
 // One effect instance runs at a time — module-level vars allow the stop
 // handler to cancel the rAF and clear the canvas from outside the closure.
@@ -205,7 +230,8 @@ function _runEffect(canvas, params) {
             const angle     = (i / tendrilsPerSite) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
             const length    = tendrilLength * 0.2 + Math.random() * tendrilLength * 0.8;
             const hueShift  = (Math.random() - 0.5) * 24;
-            const baseWidth = 1.5 + Math.random() * 3.5;
+            //const baseWidth = 1.5 + Math.random() * 3.5;
+            const baseWidth = 3.5 + Math.random() * 5.5;
 
             const cp1x = sx + Math.cos(angle + 0.65) * length * 0.4;
             const cp1y = sy + Math.sin(angle + 0.65) * length * 0.4;
@@ -346,16 +372,16 @@ function _runEffect(canvas, params) {
         // ── Phase 1: scan bar sweep + faint flicker (0–600 ms) ───────────────
         if (elapsed < 600) {
             if (Math.random() > 0.5) {
-                ctx.fillStyle = `rgba(0, ${Math.floor(Math.random() * 60)}, 0, 0.15)`;
+                ctx.fillStyle = _alpha(color, 0.15);
                 ctx.fillRect(0, 0, W, H);
             }
             scanBars.forEach(bar => {
                 const y = bar.y0 + bar.speed * elapsed;
                 const g = ctx.createLinearGradient(0, y - 8, 0, y + 20);
-                g.addColorStop(0.0, 'rgba(0,255,80,0)');
-                g.addColorStop(0.4, 'rgba(0,255,80,0.6)');
-                g.addColorStop(0.7, 'rgba(0,200,60,0.4)');
-                g.addColorStop(1.0, 'rgba(0,255,80,0)');
+                g.addColorStop(0.0, _alpha(glowColor, 0));
+                g.addColorStop(0.4, _alpha(glowColor, 0.6));
+                g.addColorStop(0.7, _alpha(color,     0.4));
+                g.addColorStop(1.0, _alpha(glowColor, 0));
                 ctx.fillStyle = g;
                 ctx.fillRect(0, y - 8, W, 28);
             });
@@ -462,11 +488,10 @@ function _runEffect(canvas, params) {
             site.pulseRings = site.pulseRings.filter(ring => {
                 const ringProg = (elapsed - ring.startT) / 1500;
                 if (ringProg >= 1) return false;
-                ctx.beginPath();
-                ctx.arc(site.x, site.y, ringProg * 80, 0, Math.PI * 2);
-                ctx.strokeStyle = _alpha(glowColor, 0.5 * (1 - ringProg));
-                ctx.lineWidth   = 1;
-                ctx.stroke();
+                _drawHexMorphRing(
+                    ctx, site.x, site.y, ringProg * 80, ringProg,
+                    _alpha(glowColor, 0.5 * (1 - ringProg)), 3
+                );
                 return true;
             });
         });

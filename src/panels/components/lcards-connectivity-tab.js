@@ -44,6 +44,7 @@ import {
     CONN_OVERLAY_RECON_WEIGHT,
     CONN_OVERLAY_RECON_TRANSFORM,
     CONN_OVERLAY_RECON_CONTENT,
+    CONN_OVERLAY_BORG_SEM,
     CONN_OVERLAY_ALL_KEYS,
 } from '../../core/services/ScopedSettingsConstants.js';
 import { originBadge } from './shared/scoped-field-helpers.js';
@@ -61,7 +62,7 @@ import '../../editor/components/editors/lcards-position-picker.js';
 const MODE_OPTIONS = [
     { value: 'text', label: 'Simple text' },
     { value: 'card', label: 'Custom card (YAML)' },
-    { value: 'borg', label: 'Borg assimilation 👾' },
+    { value: 'borg', label: '👽 Resistance is Futile' },
 ];
 
 const TRANSFORM_OPTIONS = [
@@ -209,6 +210,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 size:      r(CONN_OVERLAY_MSG_SIZE,      D.message.size),
                 weight:    r(CONN_OVERLAY_MSG_WEIGHT,    D.message.weight),
                 transform: r(CONN_OVERLAY_MSG_TRANSFORM, D.message.transform),
+                borgLayers: r(CONN_OVERLAY_BORG_SEM, D.message.borgLayers),
             },
             reconnected: {
                 enabled:              r(CONN_OVERLAY_RECON_ENABLED,       D.reconnected.enabled),
@@ -367,6 +369,14 @@ export class LCARdSConnectivityTab extends LitElement {
                 size:      32,
                 weight:    '400',
                 transform: 'uppercase',
+                // Borg SEM layers — defaults match borg-assimilation canvas + standard backdrop/tint.
+                borgLayers: {
+                    canvas:   { preset: 'borg-assimilation', siteCount: 8, tendrilsPerSite: 5, tendrilLength: 600, particleCount: 2, color: 'var(--lcars-martian)', glowColor: 'var(--lcards-yellow)' },
+                    backdrop: { preset: 'saturate', amount: '200%' },
+                    color:    { preset: 'color-tint', color: 'rgba(0,60,0,0.25)' },
+                    paletteHue: 110,
+                    fontSwap:   true,
+                },
             },
             reconnected: {
                 enabled:              true,
@@ -413,7 +423,14 @@ export class LCARdSConnectivityTab extends LitElement {
     _handleTestShow() {
         const mode = this._editConfig?.message?.mode ?? 'text';
         if (mode === 'borg') {
-            window.lcards?.core?.borgAssimilationManager?.assimilate();
+            const borgLayers = this._editConfig?.message?.borgLayers ?? null;
+            const { paletteHue = null, fontSwap = true, ...introLayers } = borgLayers ?? {};
+            const borgOpts = {
+                ...(Object.keys(introLayers).length ? { intro: introLayers } : {}),
+                ...(paletteHue != null ? { paletteHue } : {}),
+                fontSwap,
+            };
+            window.lcards?.core?.borgAssimilationManager?.assimilate(borgOpts);
             this._testActive = true;
             return;
         }
@@ -481,27 +498,32 @@ export class LCARdSConnectivityTab extends LitElement {
         this._editConfig = cfg;
     }
 
-    _getLayerPreset(slot) {
-        return this._editConfig?.layers?.[slot]?.preset ?? '__none__';
+    /** Resolve a dot-notation path on _editConfig (e.g. 'message.borgLayers'). */
+    _resolvePath(path) {
+        return path.split('.').reduce((node, k) => (node == null ? undefined : node[k]), this._editConfig);
     }
 
-    _getLayerParam(slot, param) {
-        return this._editConfig?.layers?.[slot]?.[param] ?? '';
+    _getLayerPreset(slot, layersPath = 'layers') {
+        return this._resolvePath(layersPath)?.[slot]?.preset ?? '__none__';
     }
 
-    _setLayerPreset(slot, preset) {
+    _getLayerParam(slot, param, layersPath = 'layers') {
+        return this._resolvePath(layersPath)?.[slot]?.[param] ?? '';
+    }
+
+    _setLayerPreset(slot, preset, layersPath = 'layers') {
         if (preset === '__none__') {
-            this._set(`layers.${slot}`, null);
+            this._set(`${layersPath}.${slot}`, null);
         } else {
-            const existing = this._editConfig?.layers?.[slot] ?? {};
+            const existing = this._resolvePath(layersPath)?.[slot] ?? {};
             // Reset to bare { preset } when switching presets; keep params only if same preset.
-            this._set(`layers.${slot}`, existing.preset === preset ? existing : { preset });
+            this._set(`${layersPath}.${slot}`, existing.preset === preset ? existing : { preset });
         }
     }
 
-    _setLayerParam(slot, param, value) {
-        const existing = this._editConfig?.layers?.[slot] ?? {};
-        this._set(`layers.${slot}`, { ...existing, [param]: value });
+    _setLayerParam(slot, param, value, layersPath = 'layers') {
+        const existing = this._resolvePath(layersPath)?.[slot] ?? {};
+        this._set(`${layersPath}.${slot}`, { ...existing, [param]: value });
     }
 
     // -------------------------------------------------------------------------
@@ -609,9 +631,9 @@ export class LCARdSConnectivityTab extends LitElement {
               </div>
             </lcards-form-section>
 
-            <!-- ── Messages ────────────────────────────────────────────── -->
+            <!-- ── Screen Overlay ────────────────────────────────────────────── -->
             <lcards-form-section
-              header="Messages"
+              header="Screen Overlay"
               icon="mdi:message-text-outline"
               ?expanded=${false}
               ?outlined=${true}>
@@ -621,7 +643,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 <ha-selector
                   .hass=${this.hass}
                   .label=${'Display style'}
-                  .helper=${'Simple text uses built-in styling controls; Custom card renders any HA card YAML; Borg mode triggers the assimilation easter egg instead of the standard overlay'}
+                  .helper=${'Simple text with basic styling controls; Custom card renders any HA card YAML'}
                   .selector=${{ select: { mode: 'dropdown', options: MODE_OPTIONS } }}
                   .value=${messageMode}
                   @value-changed=${(e) => this._set('message.mode', e.detail.value)}>
@@ -635,9 +657,49 @@ export class LCARdSConnectivityTab extends LitElement {
                   <p style="margin:8px 0 0 0; font-size:13px; line-height:1.4;">
                     On disconnect, the full Borg assimilation sequence will run instead of the standard overlay.
                     On reconnect, deassimilation is triggered automatically.
-                    Text, card, and effect layer settings are not used in this mode.
+                    Text messages and custom cards are not used in this mode.
                   </p>
                 </lcards-message>
+
+                ${this._renderSlotPanel('canvas',   'Canvas Effect',   'mdi:monitor-shimmer', 'message.borgLayers', { lockPreset: true })}
+                ${this._renderSlotPanel('backdrop', 'Backdrop Filter', 'mdi:image-filter',    'message.borgLayers')}
+                ${this._renderSlotPanel('color',    'Colour Tint',     'mdi:palette',         'message.borgLayers')}
+
+                <lcards-form-section
+                  header="Palette Hue"
+                  icon="mdi:palette-swatch"
+                  description="The UI colour palette is shifted toward this hue when assimilation is active. Default is 110° (Borg yellow-green)."
+                  ?expanded=${true}
+                  ?outlined=${true}>
+                  <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Palette hue (degrees)'}
+                    .helper=${'0° = red · 60° = yellow · 110° = Borg green (default) · 180° = cyan · 240° = blue · 300° = magenta'}
+                    .selector=${{ number: { min: 0, max: 359, step: 1, mode: 'slider' } }}
+                    .value=${this._editConfig?.message?.borgLayers?.paletteHue ?? 110}
+                    @value-changed=${(e) => {
+                        this._set('message.borgLayers.paletteHue', e.detail.value);
+                    }}>
+                  </ha-selector>
+                </lcards-form-section>
+
+                <lcards-form-section
+                  header="Font Swap"
+                  icon="mdi:format-font"
+                  description="Replace the dashboard font with the Borg typeface during assimilation."
+                  ?expanded=${true}
+                  ?outlined=${true}>
+                  <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Enable Borg font replacement'}
+                    .helper=${'When disabled, all other assimilation effects still run — only the font stays unchanged'}
+                    .selector=${{ boolean: {} }}
+                    .value=${this._editConfig?.message?.borgLayers?.fontSwap ?? true}
+                    @value-changed=${(e) => {
+                        this._set('message.borgLayers.fontSwap', e.detail.value);
+                    }}>
+                  </ha-selector>
+                </lcards-form-section>
 
               ` : messageMode === 'text' ? html`
 
@@ -715,6 +777,12 @@ export class LCARdSConnectivityTab extends LitElement {
                       @value-changed=${(e) => this._set('position', e.detail.value)}>
                     </lcards-position-picker>
                   </div>
+                  <lcards-message type="info">
+                    <strong>Card Sizing</strong>
+                    <p style="margin:8px 0 0 0; font-size:13px; line-height:1.4;">
+                      You may need to specify sizing for the card(s) rendering area in order for them to properly display.  Especially true for dimensionless cards like grids, stacks, and other layout cards. Use CSS units (e.g. 400px, 30vw, auto) to set the width and height of the area the card can use within the overlay.
+                    </p>
+                  </lcards-message>
                   <div class="control-row">
                     <ha-selector
                       .hass=${this.hass}
@@ -859,9 +927,9 @@ export class LCARdSConnectivityTab extends LitElement {
         return (window.lcards?.screenEffect?.catalog() ?? []).filter(p => p.slot === slot);
     }
 
-    _renderSlotPanel(slot, label, slotIcon) {
+    _renderSlotPanel(slot, label, slotIcon, layersPath = 'layers', { lockPreset = false } = {}) {
         const presets      = this._getSlotPresets(slot);
-        const activePreset = this._getLayerPreset(slot);
+        const activePreset = this._getLayerPreset(slot, layersPath);
         const presetDef    = presets.find(p => p.name === activePreset);
 
         const options = [
@@ -875,22 +943,28 @@ export class LCARdSConnectivityTab extends LitElement {
             icon=${slotIcon}
             ?expanded=${!!activePreset && activePreset !== '__none__'}
             ?outlined=${true}>
-            ${keyed(activePreset, html`
-              <ha-selector
-                .hass=${this.hass}
-                .label=${'Effect Preset'}
-                .selector=${{ select: { mode: 'dropdown', options }}}
-                .value=${activePreset}
-                @value-changed=${(e) => this._setLayerPreset(slot, e.detail.value)}>
-              </ha-selector>
-            `)}
+            ${lockPreset ? html`
+              <lcards-message type="info">
+                Configure settings for the <strong>${activePreset}</strong> screen effect.  Lower settings may be required for some devices.
+              </lcards-message>
+            ` : html`
+              ${keyed(activePreset, html`
+                <ha-selector
+                  .hass=${this.hass}
+                  .label=${'Effect Preset'}
+                  .selector=${{ select: { mode: 'dropdown', options }}}
+                  .value=${activePreset}
+                  @value-changed=${(e) => this._setLayerPreset(slot, e.detail.value, layersPath)}>
+                </ha-selector>
+              `)}
+            `}
 
             ${presetDef?.params_schema?.length ? html`
               ${presetDef.params_schema.map(spec => this._renderParamField({
                 spec,
-                value:    this._getLayerParam(slot, spec.key),
+                value:    this._getLayerParam(slot, spec.key, layersPath),
                 fallback: presetDef.defaults?.[spec.key] ?? spec.placeholder,
-                onChange: (val) => this._setLayerParam(slot, spec.key, val),
+                onChange: (val) => this._setLayerParam(slot, spec.key, val, layersPath),
               }))}
             ` : ''}
 
@@ -917,8 +991,8 @@ export class LCARdSConnectivityTab extends LitElement {
               </ha-selector>
             `;
         }
-        const strVal = value    !== undefined ? String(value)
-                     : fallback !== undefined ? String(fallback)
+        const strVal = (value != null && value !== undefined) ? String(value)
+                     : (fallback != null && fallback !== undefined) ? String(fallback)
                      : '';
         if (spec.type === 'color-text') {
             return html`

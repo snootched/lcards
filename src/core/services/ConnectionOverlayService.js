@@ -78,6 +78,7 @@ import {
     CONN_OVERLAY_RECON_WEIGHT,
     CONN_OVERLAY_RECON_TRANSFORM,
     CONN_OVERLAY_RECON_CONTENT,
+    CONN_OVERLAY_BORG_SEM,
     CONN_OVERLAY_ALL_KEYS,
 } from './ScopedSettingsConstants.js';
 
@@ -252,6 +253,7 @@ export class ConnectionOverlayService extends BaseService {
             msgMode, msgText, msgColor, msgFont, msgSize, msgWeight, msgTransform,
             reconEnabled, reconText, reconColor, reconDismissSecs, reconFont, reconSize,
             reconWeight, reconTransform, reconContent,
+            borgSem,
         ] = await Promise.all([
             sss.read(CONN_OVERLAY_ENABLED,            SCOPES, () => D.enabled),
             sss.read(CONN_OVERLAY_DISMISS,             SCOPES, () => D.dismiss),
@@ -276,6 +278,7 @@ export class ConnectionOverlayService extends BaseService {
             sss.read(CONN_OVERLAY_RECON_WEIGHT,        SCOPES, () => D.reconnected.weight),
             sss.read(CONN_OVERLAY_RECON_TRANSFORM,     SCOPES, () => D.reconnected.transform),
             sss.read(CONN_OVERLAY_RECON_CONTENT,       SCOPES, () => D.reconnected.content),
+            sss.read(CONN_OVERLAY_BORG_SEM,             SCOPES, () => null),
         ]);
 
         const resolved = {
@@ -294,6 +297,7 @@ export class ConnectionOverlayService extends BaseService {
                 size:      msgSize      ?? D.message.size,
                 weight:    msgWeight    ?? D.message.weight,
                 transform: msgTransform ?? D.message.transform,
+                borgLayers: borgSem ?? null,
             },
             reconnected: {
                 enabled:              reconEnabled     ?? D.reconnected.enabled,
@@ -347,6 +351,8 @@ export class ConnectionOverlayService extends BaseService {
         if ('size'      in msg) writes.push(sss.write(CONN_OVERLAY_MSG_SIZE,      msg.size,      scope));
         if ('weight'    in msg) writes.push(sss.write(CONN_OVERLAY_MSG_WEIGHT,    msg.weight,    scope));
         if ('transform' in msg) writes.push(sss.write(CONN_OVERLAY_MSG_TRANSFORM, msg.transform, scope));
+
+        if ('borgLayers' in msg) writes.push(sss.write(CONN_OVERLAY_BORG_SEM, msg.borgLayers, scope));
 
         const rec = config.reconnected ?? {};
         if ('enabled'              in rec) writes.push(sss.write(CONN_OVERLAY_RECON_ENABLED,      rec.enabled,              scope));
@@ -535,7 +541,13 @@ export class ConnectionOverlayService extends BaseService {
         // Borg mode: assimilation replaces the standard overlay.
         if (this._config.message?.mode === 'borg') {
             lcardsLog.info('[ConnectionOverlayService] Connection lost — activating Borg assimilation');
-            window.lcards?.core?.borgAssimilationManager?.assimilate();
+            const borgLayers = this._config.message?.borgLayers ?? null;
+            const { paletteHue = null, ...introLayers } = borgLayers ?? {};
+            const borgOpts = {
+                ...(Object.keys(introLayers).length ? { intro: introLayers } : {}),
+                ...(paletteHue != null ? { paletteHue } : {}),
+            };
+            window.lcards?.core?.borgAssimilationManager?.assimilate(borgOpts);
             return;
         }
 

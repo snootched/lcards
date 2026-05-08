@@ -147,8 +147,11 @@ export const CONN_OVERLAY_RECON_TRANSFORM    = 'conn_overlay_recon_transform';
 /** Optional HA card config shown in card mode for the reconnect banner (null = use text). */
 export const CONN_OVERLAY_RECON_CONTENT      = 'conn_overlay_recon_content';
 
+/** Full 3-slot SEM layers config for borg assimilation mode (canvas/backdrop/color). Null = use defaults. */
+export const CONN_OVERLAY_BORG_SEM = 'conn_overlay_borg_sem';
+
 /**
- * All 23 connection-overlay flat keys in a stable array.
+ * All 24 connection-overlay flat keys in a stable array.
  * Used for bulk operations (loadConfig, clearConfig, readAllScopesFull).
  */
 export const CONN_OVERLAY_ALL_KEYS = [
@@ -175,4 +178,5 @@ export const CONN_OVERLAY_ALL_KEYS = [
     CONN_OVERLAY_RECON_WEIGHT,
     CONN_OVERLAY_RECON_TRANSFORM,
     CONN_OVERLAY_RECON_CONTENT,
+    CONN_OVERLAY_BORG_SEM,
 ];
