@@ -89,6 +89,7 @@ Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-
 | `pixelate` | `pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80` | Mosaic dark blocks; `multiply` blend — simulates low-res signal degradation |
 | `glitch` | `intensity: 0.08, maxShift: 40, bandHeight: 4, opacity: 0.85, fps: 20` | Sparse horizontal displacement bands + thin chroma edges; `overlay` blend |
 | `scanlines` | `lineHeight: 4, opacity: 0.25, scroll: 0` | CRT horizontal line overlay; `scroll` px/s for animation |
+| `borg-assimilation` | `siteCount: 7, tendrilsPerSite: 8, tendrilLength: 600, particleCount: 2, color: '#00cc44', glowColor: '#00ff66'` | Borg nano-tube assimilation lattice — tapered gradient tendrils branch outward from staggered injection sites, interconnect via cross-bridge arcs with junction nodes, and carry nano-probe particles; runs indefinitely until dismissed |
 
 ---
 
@@ -159,6 +160,20 @@ data:
       preset: glitch
       intensity: 0.15
   duration: 1000
+```
+
+```yaml
+# Borg assimilation — persistent until manually cleared (no duration)
+service: lcards.trigger_effect
+data:
+  layers:
+    canvas:
+      preset: borg-assimilation
+      siteCount: 9
+      tendrilLength: 800
+      particleCount: 3
+      color: "#00cc44"
+      glowColor: "#00ff66"
 ```
 
 ```yaml

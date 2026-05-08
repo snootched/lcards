@@ -823,6 +823,32 @@ borg_assimilate:
           min: 1
           max: 20
           step: 1
+    tendril_length:
+      name: Tendril Length (px)
+      description: >
+        Maximum reach of each tendril in pixels. Longer tendrils span more of
+        the screen; shorter tendrils create a tighter, more localised lattice.
+        Default: 600.
+      required: false
+      default: 600
+      selector:
+        number:
+          min: 100
+          max: 1200
+          step: 50
+          unit_of_measurement: px
+    particle_count:
+      name: Particles Per Tendril
+      description: >
+        Number of nano-probe particles that continuously travel along each
+        tendril and branch. Set to 0 to disable particles entirely. Default: 2.
+      required: false
+      default: 2
+      selector:
+        number:
+          min: 0
+          max: 6
+          step: 1
     transition_style:
       name: Palette Transition Style
       description: >
@@ -861,6 +887,8 @@ borg_assimilate:
         canvas  — always the borg-assimilation effect, params:
           siteCount:       7       # injection sites (1–20)
           tendrilsPerSite: 8       # Bézier tendrils per site (1–24)
+          tendrilLength:   600     # max tendril reach in px (100–1200)
+          particleCount:   2       # nano-probe particles per tendril (0–6)
           color:    "#00cc44"      # tendril / site colour
           glowColor: "#00ff66"     # inner glow colour at each site
 
@@ -878,6 +906,8 @@ borg_assimilate:
         canvas:
           siteCount: 7
           tendrilsPerSite: 8
+          tendrilLength: 600
+          particleCount: 2
           color: "#00cc44"
           glowColor: "#00ff66"
         backdrop:

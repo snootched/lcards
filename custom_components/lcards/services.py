@@ -353,13 +353,15 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             payload["transition_style"] = call.data["transition_style"]
 
         # Flat shortcuts → canvas params; intro_layers object wins on overlap.
-        site_count = call.data.get("site_count")
-        tendrils   = call.data.get("tendrils_per_site")
+        site_count      = call.data.get("site_count")
+        tendrils        = call.data.get("tendrils_per_site")
+        tendril_length  = call.data.get("tendril_length")
+        particle_count  = call.data.get("particle_count")
         canvas_overrides: dict = {}
-        if site_count is not None:
-            canvas_overrides["siteCount"] = site_count
-        if tendrils is not None:
-            canvas_overrides["tendrilsPerSite"] = tendrils
+        if site_count     is not None: canvas_overrides["siteCount"]       = site_count
+        if tendrils       is not None: canvas_overrides["tendrilsPerSite"] = tendrils
+        if tendril_length is not None: canvas_overrides["tendrilLength"]   = tendril_length
+        if particle_count is not None: canvas_overrides["particleCount"]   = particle_count
 
         intro_layers = call.data.get("intro_layers")
         if canvas_overrides:
@@ -480,6 +482,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("transition_style"):  vol.In(["flash", "fade_only", "blur_fade", "off"]),
             vol.Optional("site_count"):        vol.All(int, vol.Range(min=1, max=20)),
             vol.Optional("tendrils_per_site"): vol.All(int, vol.Range(min=1, max=20)),
+            vol.Optional("tendril_length"):    vol.All(int, vol.Range(min=100, max=1200)),
+            vol.Optional("particle_count"):    vol.All(int, vol.Range(min=0, max=6)),
             vol.Optional("suppress_persistent"): bool,
             vol.Optional("intro_layers"):      dict,
             vol.Optional("persistent_layers"): dict,

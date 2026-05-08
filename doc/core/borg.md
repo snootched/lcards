@@ -56,7 +56,7 @@ window.lcards.borg.assimilate({
 
   // Intro layers — shown during the canvas animation, cleared on dismiss
   intro: {
-    canvas:   { siteCount: 12, tendrilsPerSite: 10 }, // params for the borg-assimilation effect
+    canvas:   { siteCount: 12, tendrilsPerSite: 10, tendrilLength: 800, particleCount: 3 }, // params for the borg-assimilation effect
     backdrop: { preset: 'blur', amount: '6px' },       // optional extra layer behind the canvas
     color:    { preset: 'color-tint', color: 'rgba(0,60,0,0.15)' }, // optional colour overlay
   },
@@ -108,8 +108,10 @@ window.lcards.alert.borg()
 |-------|---------|-------------|
 | `siteCount` | `16` | Number of Borg injection sites on screen (1–20) |
 | `tendrilsPerSite` | `16` | Bézier tendrils grown from each injection site (1–24) |
-| `color` | `'#00cc44'` | Tendril and injection site colour (any CSS colour string) |
-| `glowColor` | `'#e7442a'` | Inner glow colour at each injection site |
+| `tendrilLength` | `600` | Maximum tendril reach in pixels — longer tendrils span more of the screen (100–1200) |
+| `particleCount` | `2` | Nano-probe particles travelling each tendril and branch continuously. Set to `0` to disable (0–6) |
+| `color` | `'#00cc44'` | Tendril and injection site colour (any CSS colour string, supports CSS variables and token expressions) |
+| `glowColor` | `'#e7442a'` | Inner glow colour at each injection site and nano-probe particle halos |
 
 ### `deassimilate(opts?)` options
 
@@ -155,7 +157,9 @@ Trigger the Borg assimilation on one or all connected browsers.
 |-------|----------|---------|-------------|
 | `intro_duration` | No | — | Auto-dismiss the intro after this many ms (1000–60000). **Omit** to use click-to-dismiss. |
 | `site_count` | No | `16` | Number of injection sites on screen (1–20) |
-| `tendrils_per_site` | No | `16` | Bézier tendrils per injection site (1–20) |
+| `tendrils_per_site` | No | `16` | Bézier tendrils per injection site (1–24) |
+| `tendril_length` | No | `600` | Maximum tendril reach in pixels (100–1200) |
+| `particle_count` | No | `2` | Nano-probe particles per tendril (0–6); `0` disables particles |
 | `transition_style` | No | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only`, `off` |
 | `suppress_persistent` | No | `false` | Suppress all persistent effects after intro. Ignored if `persistent_layers` is also set. |
 | `intro_layers` | No | — | **Advanced.** Full per-slot layers dict. `intro_layers.canvas` keys override `site_count`/`tendrils_per_site`; missing keys fall back to the flat values. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params per slot. |
@@ -180,13 +184,15 @@ data:
   transition_style: fade_only
 ```
 
-**More injection sites, denser tendrils:**
+**More injection sites, denser tendrils, longer reach:**
 
 ```yaml
 service: lcards.borg_assimilate
 data:
   site_count: 12
   tendrils_per_site: 14
+  tendril_length: 900
+  particle_count: 3
 ```
 
 **Custom intro — flat shortcuts + blur backdrop via advanced object:**
