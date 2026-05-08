@@ -292,7 +292,7 @@ function _runEffect(canvas, params) {
             y:                 sy,
             radius:            0,
             maxR:              20 + Math.random() * 30,
-            spawnAt:           500 + Math.random() * 3000,
+            spawnAt:           600 + Math.random() * 4200,
             tendrils,
             pulseRings:        [],
             lastPulseAt:       0,
