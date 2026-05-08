@@ -165,7 +165,7 @@ export class LCARdSConfigPanel extends LitElement {
       font-size: 2em;
       font-weight: 700;
       letter-spacing: 0.12em;
-      color: white;
+      color: var(--lcards-moonlight);
       line-height: 1;
       text-transform: uppercase;
       font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', sans-serif;
@@ -173,7 +173,7 @@ export class LCARdSConfigPanel extends LitElement {
 
     .banner-subtitle {
       font-size: 0.82em;
-      color: rgba(255,255,255,0.72);
+      color: var(--secondary-text-color);
       margin-top: 3px;
       letter-spacing: 0.04em;
     }
@@ -182,7 +182,7 @@ export class LCARdSConfigPanel extends LitElement {
       padding: 0 20px;
       font-size: 0.95em;
       font-weight: 600;
-      color: rgba(255,255,255,0.55);
+      color: var(--secondary-text-color);
       letter-spacing: 0.1em;
       white-space: nowrap;
       font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', sans-serif;
