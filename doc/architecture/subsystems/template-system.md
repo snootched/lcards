@@ -27,7 +27,7 @@ All dynamic text in LCARdS is processed by `UnifiedTemplateEvaluator`. It orches
 
 ### 1 — JavaScript `[[[...]]]`
 
-```yaml
+```yaml alternatives
 text: "[[[return entity.state.toUpperCase()]]]"
 text: "[[[return Math.round(entity.attributes.brightness / 2.55) + '%']]]"
 ```
@@ -36,7 +36,7 @@ Evaluation context includes: `entity`, `hass`, `config`, `theme`, `states`.
 
 ### 2 — LCARdS Tokens `{...}`
 
-```yaml
+```yaml alternatives
 text: "{entity.state}"
 text: "{entity.attributes.friendly_name}"
 text: "{theme:palette.moonlight}"
@@ -45,7 +45,7 @@ text: "{config.name}"
 
 ### 3 — DataSource `{ds:...}`
 
-```yaml
+```yaml alternatives
 text: "{ds:sensor_name}"                    # HA-native: locale-formatted + unit
 text: "{ds:sensor_name.celsius:.1f}"        # processor buffer: 1 decimal, no auto-unit
 text: "{ds:sensor_name.celsius:.1f} °C"    # manual unit suffix
@@ -56,7 +56,7 @@ text: "{datasource:temp.rolling_avg}"       # explicit long prefix
 
 ### 4 — Jinja2 `{{...}}` / `{% %}`
 
-```yaml
+```yaml alternatives
 text: "{{states('sensor.temp')}} °C"
 text: "{% if is_state('light.kitchen','on') %}On{% else %}Off{% endif %}"
 ```

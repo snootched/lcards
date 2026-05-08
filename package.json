@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.04.25.1",
+  "version": "2026.05.08.2",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -18,9 +18,11 @@
     "Star Trek"
   ],
   "scripts": {
-    "build": "node scripts/validate-css-vars.js && node scripts/set-version.js && vite build --mode integration && node scripts/copy-assets.js",
+    "build": "node scripts/validate-doc-examples.js --strict && node scripts/validate-css-vars.js && node scripts/set-version.js && vite build --mode integration && node scripts/copy-assets.js",
     "validate:css-vars": "node scripts/validate-css-vars.js",
     "validate:css-vars:verbose": "node scripts/validate-css-vars.js --verbose",
+    "validate:doc-examples": "node scripts/validate-doc-examples.js",
+    "validate:doc-examples:strict": "node scripts/validate-doc-examples.js --strict",
     "build:dev": "vite build --mode development",
     "build:integration": "vite build --mode integration && node scripts/copy-assets.js",
     "set-version": "node scripts/set-version.js",
@@ -33,6 +35,7 @@
     "docs:preview": "vitepress preview doc"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
     "inquirer": "^13.1.0",
     "js-yaml": "^4.1.0",
     "jsdom": "^29.0.1",

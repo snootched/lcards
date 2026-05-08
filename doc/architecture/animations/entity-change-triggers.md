@@ -74,7 +74,7 @@ Use `attribute` to compare against an entity attribute rather than the raw state
 
 Lights expose raw brightness as a 0–255 number. `brightness_pct` computes `Math.round(brightness / 2.55)` automatically, giving a clean 0–100 percentage without manual conversion.
 
-```yaml
+```yaml alternatives
   attribute: brightness_pct   # ✅ 0-100
   attribute: brightness       # ⚠️ 0-255 raw
 ```

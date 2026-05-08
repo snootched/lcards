@@ -6,8 +6,10 @@
 2. Add LCARdS integration to HA
 3. Initialize and Configure LCARdS from LCARdS Config Panel
 
-:::tip
-For the best visual experience, use [**HA-LCARS themes**](https://github.com/th3jesta/ha-lcars).
+:::tip HA-LCARS Theme Integration
+LCARdS supports and integrates well with [**HA-LCARS themes**](https://github.com/th3jesta/ha-lcars).  Use these two together for the best experience.
+
+Once HA-LCARS is installed, append the **LCARdS theme profiles** to your `themes.yaml` to map the full LCARdS colour palette to the HA-LCARS chrome and HA core colour tokens in one step — see [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles.md).
 :::
 
 ## 1. Install via HACS
@@ -38,6 +40,13 @@ No `configuration.yaml` changes are required.
 
 </details>
 
+::: info `lovelace-layout-card` compatibility
+LCARdS works well with [`lovelace-layout-card`](https://github.com/thomasloven/lovelace-layout-card)
+There are some quirks to be aware of when using `grid-layout` - we have a patched version that fixes the issue and will remain available until fixed upstream.
+
+Please see [Sizing Inside Custom Layout](../cards/common.md#sizing-inside-custom-layout-card) for details.
+:::
+
 ## 2. Configuration (Integration)
 
 After installation, LCARdS integration options can be configured from the integration configuration:
@@ -56,7 +65,7 @@ Changes take effect immediately — no restart required.
 
 ## 3. LCARdS Configuarion - Config Panel
 
-The **LCARdS Config Panel** is registered automatically by the integration.
+The [**LCARdS Config Panel**](../configuration/) is registered automatically by the integration.
 Access it via the **LCARdS Config** entry in the Home Assistant sidebar.
 
 From the Config Panel you can:

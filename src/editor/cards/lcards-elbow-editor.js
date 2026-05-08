@@ -587,7 +587,9 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         { type: 'field', path: 'height' },
                         { type: 'field', path: 'width' },
                         { type: 'field', path: 'min_height' },
-                        { type: 'field', path: 'min_width' }
+                        { type: 'field', path: 'min_width' },
+                        { type: 'field', path: 'max_height' },
+                        { type: 'field', path: 'max_width' }
                     ]
                 },
                 { type: 'custom', render: () => this._renderLayoutCardHint() }
@@ -875,6 +877,53 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Returns true when a dimension value is a CSS expression (clamp/calc/vw/vh/etc.)
+     * set via YAML — distinct from 'theme', 'auto', or plain numbers.
+     * @param {*} val
+     * @returns {boolean}
+     * @private
+     */
+    _isCssExpr(val) {
+        if (typeof val !== 'string' || val === '') return false;
+        if (val === 'theme' || val === 'auto') return false;
+        if (/^\s*-?\d+(\.\d+)?\s*(px)?\s*$/.test(val)) return false;
+        return true;
+    }
+
+    /**
+     * Render a read-only banner for a CSS expression value set via YAML.
+     * Provides a 'Clear' button that reverts the field to a plain numeric default
+     * so the user can switch back to the slider UI without hand-editing YAML.
+     *
+     * @param {string} label       - Field label
+     * @param {string} cssValue    - The CSS expression string to display
+     * @param {string} configPath  - Dot-path to pass to _setConfigValue when clearing
+     * @param {*}      clearValue  - Value to set when the user clears the expression
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderCssField(label, cssValue, configPath, clearValue) {
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .label=${label}
+                .helper=${'CSS length: vw, vh, clamp(), calc(), etc. Switch mode dropdown to revert to slider.'}
+                .selector=${{ text: {} }}
+                .value=${cssValue || ''}
+                @value-changed=${(e) => {
+                    const v = (e.detail.value || '').trim();
+                    // If user blanks the field, revert to the numeric/string fallback
+                    if (v === '') {
+                        this._setConfigValue(configPath, clearValue);
+                    } else {
+                        this._setConfigValue(configPath, v);
+                    }
+                }}>
+            </ha-selector>
+        `;
+    }
+
+    /**
      * Render simple style design section
      * @returns {TemplateResult}
      * @private
@@ -888,11 +937,17 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const isOuterAuto = outerCurve === 'auto';
         const innerCurve = segment.inner_curve;
 
+        // Detect CSS expressions so the UI never clobbers them
+        const isCssBarWidth   = this._isCssExpr(barWidth);
+        const isCssBarHeight  = this._isCssExpr(barHeight);
+        const isCssOuterCurve = this._isCssExpr(outerCurve);
+        const isCssInnerCurve = this._isCssExpr(innerCurve);
+
         // Calculate auto values for helper text (handle 'theme' case)
         const numericBarWidth = typeof barWidth === 'number' ? barWidth : 90;
         const numericBarHeight = typeof barHeight === 'number' ? barHeight : 90;
         const calculatedOuterCurve = numericBarWidth / 2;
-        const calculatedInnerCurve = (isOuterAuto ? calculatedOuterCurve : outerCurve) / 2;
+        const calculatedInnerCurve = (isOuterAuto ? calculatedOuterCurve : (typeof outerCurve === 'number' ? outerCurve : calculatedOuterCurve)) / 2;
 
         return html`
             <lcards-message
@@ -994,88 +1049,98 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Bar Width Mode (Vertical)'}
-                    .helper=${barWidth === 'theme'
-                        ? '🎨 Dynamic: Binds to input_number.lcars_vertical helper'
-                        : '📏 Static: Fixed pixel value'}
+                    .helper=${isCssBarWidth
+                        ? '📐 CSS expression — set via YAML (use YAML tab to edit)'
+                        : barWidth === 'theme'
+                            ? '🎨 Dynamic: Binds to input_number.lcars_vertical helper'
+                            : '📏 Static: Fixed pixel value'}
                     .selector=${{
                         select: {
                             mode: 'dropdown',
                             options: [
                                 { value: 'static', label: 'Static Value' },
-                                { value: 'theme', label: 'Theme Binding (input_number.lcars_vertical)' }
+                                { value: 'theme',  label: 'Theme Binding (input_number.lcars_vertical)' },
+                                { value: 'css',    label: 'CSS Expression (YAML only)' }
                             ]
                         }
                     }}
-                    .value=${barWidth === 'theme' ? 'theme' : 'static'}
+                    .value=${isCssBarWidth ? 'css' : barWidth === 'theme' ? 'theme' : 'static'}
                     @value-changed=${(e) => this._handleBarWidthModeChange(e)}>
                 </ha-selector>
 
-                ${barWidth !== 'theme' ? html`
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Bar Width (Vertical)'}
-                        .helper=${'Thickness of the vertical sidebar'}
-                        .selector=${{
-                            number: {
-                                min: 10,
-                                max: 500,
-                                step: 5,
-                                mode: 'slider',
-                                unit_of_measurement: 'px'
-                            }
-                        }}
-                        .value=${typeof barWidth === 'number' ? barWidth : 90}
-                        @value-changed=${(e) => this._setConfigValue('elbow.segment.bar_width', e.detail.value)}>
-                    </ha-selector>
-                ` : html`
-                    <lcards-message type="info" title="Theme Integration">
-                        Bar width will dynamically follow <code>input_number.lcars_vertical</code> entity state.
-                        Create this helper in Home Assistant configuration to enable theme integration.
-                    </lcards-message>
-                `}
+                ${isCssBarWidth
+                    ? this._renderCssField('Bar Width (Vertical)', barWidth, 'elbow.segment.bar_width', 90)
+                    : barWidth !== 'theme' ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Width (Vertical)'}
+                            .helper=${'Thickness of the vertical sidebar'}
+                            .selector=${{
+                                number: {
+                                    min: 10,
+                                    max: 500,
+                                    step: 5,
+                                    mode: 'slider',
+                                    unit_of_measurement: 'px'
+                                }
+                            }}
+                            .value=${typeof barWidth === 'number' ? barWidth : 90}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segment.bar_width', e.detail.value)}>
+                        </ha-selector>
+                    ` : html`
+                        <lcards-message type="info" title="Theme Integration">
+                            Bar width will dynamically follow <code>input_number.lcars_vertical</code> entity state.
+                            Create this helper in Home Assistant configuration to enable theme integration.
+                        </lcards-message>
+                    `}
 
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Bar Height Mode (Horizontal)'}
-                    .helper=${barHeight === 'theme'
-                        ? '🎨 Dynamic: Binds to input_number.lcars_horizontal helper'
-                        : '📏 Static: Fixed pixel value'}
+                    .helper=${isCssBarHeight
+                        ? '📐 CSS expression — set via YAML (use YAML tab to edit)'
+                        : barHeight === 'theme'
+                            ? '🎨 Dynamic: Binds to input_number.lcars_horizontal helper'
+                            : '📏 Static: Fixed pixel value'}
                     .selector=${{
                         select: {
                             mode: 'dropdown',
                             options: [
                                 { value: 'static', label: 'Static Value' },
-                                { value: 'theme', label: 'Theme Binding (input_number.lcars_horizontal)' }
+                                { value: 'theme',  label: 'Theme Binding (input_number.lcars_horizontal)' },
+                                { value: 'css',    label: 'CSS Expression (YAML only)' }
                             ]
                         }
                     }}
-                    .value=${barHeight === 'theme' ? 'theme' : 'static'}
+                    .value=${isCssBarHeight ? 'css' : barHeight === 'theme' ? 'theme' : 'static'}
                     @value-changed=${(e) => this._handleBarHeightModeChange(e)}>
                 </ha-selector>
 
-                ${barHeight !== 'theme' ? html`
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Bar Height (Horizontal)'}
-                        .helper=${'Thickness of the horizontal bar'}
-                        .selector=${{
-                            number: {
-                                min: 10,
-                                max: 500,
-                                step: 5,
-                                mode: 'slider',
-                                unit_of_measurement: 'px'
-                            }
-                        }}
-                        .value=${typeof barHeight === 'number' ? barHeight : 90}
-                        @value-changed=${(e) => this._setConfigValue('elbow.segment.bar_height', e.detail.value)}>
-                    </ha-selector>
-                ` : html`
-                    <lcards-message type="info" title="Theme Integration">
-                        Bar height will dynamically follow <code>input_number.lcars_horizontal</code> entity state.
-                        Create this helper in Home Assistant configuration to enable theme integration.
-                    </lcards-message>
-                `}
+                ${isCssBarHeight
+                    ? this._renderCssField('Bar Height (Horizontal)', barHeight, 'elbow.segment.bar_height', 90)
+                    : barHeight !== 'theme' ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Height (Horizontal)'}
+                            .helper=${'Thickness of the horizontal bar'}
+                            .selector=${{
+                                number: {
+                                    min: 10,
+                                    max: 500,
+                                    step: 5,
+                                    mode: 'slider',
+                                    unit_of_measurement: 'px'
+                                }
+                            }}
+                            .value=${typeof barHeight === 'number' ? barHeight : 90}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segment.bar_height', e.detail.value)}>
+                        </ha-selector>
+                    ` : html`
+                        <lcards-message type="info" title="Theme Integration">
+                            Bar height will dynamically follow <code>input_number.lcars_horizontal</code> entity state.
+                            Create this helper in Home Assistant configuration to enable theme integration.
+                        </lcards-message>
+                    `}
             </lcards-form-section>
 
             <lcards-form-section
@@ -1089,52 +1154,60 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Outer Curve Radius - Enable Manual Mode'}
-                        .helper=${isOuterAuto
-                            ? `Auto mode active: Outer radius = bar_width ÷ 2 = ${calculatedOuterCurve.toFixed(1)}px (LCARS formula)`
-                            : 'Manual mode: Set custom outer curve radius below'}
+                        .helper=${isCssOuterCurve
+                            ? '📐 CSS expression — set via YAML; clear it to switch back to auto/manual'
+                            : isOuterAuto
+                                ? `Auto mode active: Outer radius = bar_width ÷ 2 = ${calculatedOuterCurve.toFixed(1)}px (LCARS formula)`
+                                : 'Manual mode: Set custom outer curve radius below'}
                         .selector=${{ boolean: {} }}
-                        .value=${!isOuterAuto}
+                        .value=${!isOuterAuto && !isCssOuterCurve ? true : isCssOuterCurve ? true : false}
                         @value-changed=${this._handleOuterCurveModeChange}>
                     </ha-selector>
                 </div>
 
-                ${!isOuterAuto ? html`
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Outer Curve Radius'}
-                        .helper=${'Controls the depth/scale of the diagonal cut. Increase for deeper "bite" into corner (independent of bar thickness)'}
-                        .selector=${{
-                            number: {
-                                min: 0,
-                                max: 250,
-                                step: 5,
-                                mode: 'slider',
-                                unit_of_measurement: 'px'
-                            }
-                        }}
-                        .value=${typeof outerCurve === 'number' ? outerCurve : calculatedOuterCurve}
-                        @value-changed=${(e) => this._setConfigValue('elbow.segment.outer_curve', e.detail.value)}>
-                    </ha-selector>
-                ` : ''}
+                ${isCssOuterCurve
+                    ? this._renderCssField('Outer Curve Radius', outerCurve, 'elbow.segment.outer_curve', 'auto')
+                    : !isOuterAuto ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Outer Curve Radius'}
+                            .helper=${'Controls the depth/scale of the diagonal cut. Increase for deeper "bite" into corner (independent of bar thickness)'}
+                            .selector=${{
+                                number: {
+                                    min: 0,
+                                    max: 250,
+                                    step: 5,
+                                    mode: 'slider',
+                                    unit_of_measurement: 'px'
+                                }
+                            }}
+                            .value=${typeof outerCurve === 'number' ? outerCurve : calculatedOuterCurve}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segment.outer_curve', e.detail.value)}>
+                        </ha-selector>
+                    ` : ''}
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Inner Curve Radius'}
-                    .helper=${innerCurve !== undefined
-                        ? `Current: ${innerCurve}px (controls inner cut depth - default would be ${calculatedInnerCurve.toFixed(1)}px using LCARS formula)`
-                        : `Using LCARS formula: outer_curve ÷ 2 = ${calculatedInnerCurve.toFixed(1)}px (controls inner cut depth)`}
-                    .selector=${{
-                        number: {
-                            min: 0,
-                            max: 250,
-                            step: 5,
-                            mode: 'slider',
-                            unit_of_measurement: 'px'
-                        }
-                    }}
-                    .value=${innerCurve ?? calculatedInnerCurve}
-                    @value-changed=${(e) => this._setConfigValue('elbow.segment.inner_curve', e.detail.value)}>
-                </ha-selector>
+                ${isCssInnerCurve
+                    ? this._renderCssField('Inner Curve Radius', innerCurve, 'elbow.segment.inner_curve', Math.round(calculatedInnerCurve))
+                    : html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Inner Curve Radius'}
+                            .helper=${innerCurve !== undefined
+                                ? `Current: ${innerCurve}px (controls inner cut depth - default would be ${calculatedInnerCurve.toFixed(1)}px using LCARS formula)`
+                                : `Using LCARS formula: outer_curve ÷ 2 = ${calculatedInnerCurve.toFixed(1)}px (controls inner cut depth)`}
+                            .selector=${{
+                                number: {
+                                    min: 0,
+                                    max: 250,
+                                    step: 5,
+                                    mode: 'slider',
+                                    unit_of_measurement: 'px'
+                                }
+                            }}
+                            .value=${typeof innerCurve === 'number' ? innerCurve : calculatedInnerCurve}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segment.inner_curve', e.detail.value)}>
+                        </ha-selector>
+                    `}
 
                 ${this._isDiagonalCapType() ? html`
                     <ha-selector
@@ -1295,73 +1368,177 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     ?expanded=${false}>
                 </lcards-color-section-v2>
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Bar Width'}
-                    .helper=${'Vertical bar thickness'}
-                    .selector=${{
-                        number: {
-                            min: 10,
-                            max: 500,
-                            step: 5,
-                            mode: 'slider',
-                            unit_of_measurement: 'px'
-                        }
-                    }}
-                    .value=${outerSegment.bar_width ?? 90}
-                    @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.bar_width', e.detail.value)}>
-                </ha-selector>
+                ${this._isCssExpr(outerSegment.bar_width)
+                    ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Width Mode'}
+                            .helper=${'📐 CSS expression active'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'css'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_width', 90, 'clamp(60px, 8vw, 120px)')}>
+                        </ha-selector>
+                        ${this._renderCssField('Bar Width', outerSegment.bar_width, 'elbow.segments.outer_segment.bar_width', 90)}
+                    `
+                    : html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Width Mode'}
+                            .helper=${'📏 Static: Fixed pixel value'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'static'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_width', 90, 'clamp(60px, 8vw, 120px)')}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Width'}
+                            .helper=${'Vertical bar thickness'}
+                            .selector=${{
+                                number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' }
+                            }}
+                            .value=${typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.bar_width', e.detail.value)}>
+                        </ha-selector>
+                    `}
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Bar Height'}
-                    .helper=${'Horizontal bar thickness'}
-                    .selector=${{
-                        number: {
-                            min: 10,
-                            max: 500,
-                            step: 5,
-                            mode: 'slider',
-                            unit_of_measurement: 'px'
-                        }
-                    }}
-                    .value=${outerSegment.bar_height ?? outerSegment.bar_width ?? 90}
-                    @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.bar_height', e.detail.value)}>
-                </ha-selector>
+                ${this._isCssExpr(outerSegment.bar_height)
+                    ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Height Mode'}
+                            .helper=${'📐 CSS expression active'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'css'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_height', 90, 'clamp(40px, 6vh, 90px)')}>
+                        </ha-selector>
+                        ${this._renderCssField('Bar Height', outerSegment.bar_height, 'elbow.segments.outer_segment.bar_height', 90)}
+                    `
+                    : html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Height Mode'}
+                            .helper=${'📏 Static: Fixed pixel value'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'static'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_height', 90, 'clamp(40px, 6vh, 90px)')}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Height'}
+                            .helper=${'Horizontal bar thickness'}
+                            .selector=${{
+                                number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' }
+                            }}
+                            .value=${typeof outerSegment.bar_height === 'number' ? outerSegment.bar_height : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90)}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.bar_height', e.detail.value)}>
+                        </ha-selector>
+                    `}
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Outer Curve'}
-                    .helper=${'Outer corner radius'}
-                    .selector=${{
-                        number: {
-                            min: 0,
-                            max: 250,
-                            step: 5,
-                            mode: 'slider',
-                            unit_of_measurement: 'px'
-                        }
-                    }}
-                    .value=${outerSegment.outer_curve ?? (outerSegment.bar_width ?? 90) / 2}
-                    @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.outer_curve', e.detail.value)}>
-                </ha-selector>
+                ${this._isCssExpr(outerSegment.outer_curve)
+                    ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Outer Curve Mode'}
+                            .helper=${'📐 CSS expression active'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'css'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.outer_curve', Math.round((typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2), 'clamp(30px, 4vw, 60px)')}>
+                        </ha-selector>
+                        ${this._renderCssField('Outer Curve', outerSegment.outer_curve, 'elbow.segments.outer_segment.outer_curve', Math.round((typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2))}
+                    `
+                    : html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Outer Curve Mode'}
+                            .helper=${'📏 Static: Fixed pixel value'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'static'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.outer_curve', Math.round((typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2), 'clamp(30px, 4vw, 60px)')}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Outer Curve'}
+                            .helper=${'Outer corner radius'}
+                            .selector=${{
+                                number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' }
+                            }}
+                            .value=${typeof outerSegment.outer_curve === 'number' ? outerSegment.outer_curve : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.outer_curve', e.detail.value)}>
+                        </ha-selector>
+                    `}
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Inner Curve'}
-                    .helper=${'Inner corner radius'}
-                    .selector=${{
-                        number: {
-                            min: 0,
-                            max: 250,
-                            step: 5,
-                            mode: 'slider',
-                            unit_of_measurement: 'px'
-                        }
-                    }}
-                    .value=${outerSegment.inner_curve ?? (outerSegment.outer_curve ?? (outerSegment.bar_width ?? 90) / 2) / 2}
-                    @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.inner_curve', e.detail.value)}>
-                </ha-selector>
+                ${this._isCssExpr(outerSegment.inner_curve)
+                    ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Inner Curve Mode'}
+                            .helper=${'📐 CSS expression active'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'css'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.inner_curve', Math.round((typeof outerSegment.outer_curve === 'number' ? outerSegment.outer_curve : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2) / 2), 'clamp(15px, 2vw, 30px)')}>
+                        </ha-selector>
+                        ${this._renderCssField('Inner Curve', outerSegment.inner_curve, 'elbow.segments.outer_segment.inner_curve', Math.round((typeof outerSegment.outer_curve === 'number' ? outerSegment.outer_curve : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2) / 2))}
+                    `
+                    : html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Inner Curve Mode'}
+                            .helper=${'📏 Static: Fixed pixel value'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'static'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.inner_curve', Math.round((typeof outerSegment.outer_curve === 'number' ? outerSegment.outer_curve : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2) / 2), 'clamp(15px, 2vw, 30px)')}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Inner Curve'}
+                            .helper=${'Inner corner radius'}
+                            .selector=${{
+                                number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' }
+                            }}
+                            .value=${typeof outerSegment.inner_curve === 'number' ? outerSegment.inner_curve : (typeof outerSegment.outer_curve === 'number' ? outerSegment.outer_curve : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2) / 2}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.inner_curve', e.detail.value)}>
+                        </ha-selector>
+                    `}
 
                 ${this._isDiagonalCapType() ? html`
                     <ha-selector
@@ -1448,75 +1625,179 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     </ha-selector>
                 </div>
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Bar Width'}
-                    .helper=${'Vertical bar thickness'}
-                    .selector=${{
-                        number: {
-                            min: 10,
-                            max: 500,
-                            step: 5,
-                            mode: 'slider',
-                            unit_of_measurement: 'px'
-                        }
-                    }}
-                    .value=${innerSegment.bar_width ?? 60}
-                    @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.bar_width', e.detail.value)}>
-                </ha-selector>
+                ${this._isCssExpr(innerSegment.bar_width)
+                    ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Width Mode'}
+                            .helper=${'📐 CSS expression active'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'css'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_width', 60, 'clamp(40px, 5vw, 80px)')}>
+                        </ha-selector>
+                        ${this._renderCssField('Bar Width', innerSegment.bar_width, 'elbow.segments.inner_segment.bar_width', 60)}
+                    `
+                    : html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Width Mode'}
+                            .helper=${'📏 Static: Fixed pixel value'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'static'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_width', 60, 'clamp(40px, 5vw, 80px)')}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Width'}
+                            .helper=${'Vertical bar thickness'}
+                            .selector=${{
+                                number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' }
+                            }}
+                            .value=${typeof innerSegment.bar_width === 'number' ? innerSegment.bar_width : 60}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.bar_width', e.detail.value)}>
+                        </ha-selector>
+                    `}
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Bar Height'}
-                    .helper=${'Horizontal bar thickness'}
-                    .selector=${{
-                        number: {
-                            min: 10,
-                            max: 500,
-                            step: 5,
-                            mode: 'slider',
-                            unit_of_measurement: 'px'
-                        }
-                    }}
-                    .value=${innerSegment.bar_height ?? innerSegment.bar_width ?? 60}
-                    @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.bar_height', e.detail.value)}>
-                </ha-selector>
+                ${this._isCssExpr(innerSegment.bar_height)
+                    ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Height Mode'}
+                            .helper=${'📐 CSS expression active'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'css'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_height', 60, 'clamp(30px, 4vh, 60px)')}>
+                        </ha-selector>
+                        ${this._renderCssField('Bar Height', innerSegment.bar_height, 'elbow.segments.inner_segment.bar_height', 60)}
+                    `
+                    : html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Height Mode'}
+                            .helper=${'📏 Static: Fixed pixel value'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'static'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_height', 60, 'clamp(30px, 4vh, 60px)')}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Bar Height'}
+                            .helper=${'Horizontal bar thickness'}
+                            .selector=${{
+                                number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' }
+                            }}
+                            .value=${typeof innerSegment.bar_height === 'number' ? innerSegment.bar_height : (typeof innerSegment.bar_width === 'number' ? innerSegment.bar_width : 60)}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.bar_height', e.detail.value)}>
+                        </ha-selector>
+                    `}
 
-                ${isInnerOuterCurveManual ? html`
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Outer Curve'}
-                        .helper=${'Outer corner radius'}
-                        .selector=${{
-                            number: {
-                                min: 0,
-                                max: 250,
-                                step: 5,
-                                mode: 'slider',
-                                unit_of_measurement: 'px'
-                            }
-                        }}
-                        .value=${innerSegment.outer_curve ?? this._calculateInnerOuterCurveAuto()}
-                        @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.outer_curve', e.detail.value)}>
-                    </ha-selector>
-                ` : ''}
+                ${isInnerOuterCurveManual
+                    ? this._isCssExpr(innerSegment.outer_curve)
+                        ? html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Outer Curve Mode'}
+                                .helper=${'📐 CSS expression active'}
+                                .selector=${{
+                                    select: { mode: 'dropdown', options: [
+                                        { value: 'static', label: 'Static Value' },
+                                        { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                    ]}
+                                }}
+                                .value=${'css'}
+                                @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.outer_curve', Math.round(this._calculateInnerOuterCurveAuto()), 'clamp(20px, 3vw, 45px)')}>
+                            </ha-selector>
+                            ${this._renderCssField('Outer Curve', innerSegment.outer_curve, 'elbow.segments.inner_segment.outer_curve', Math.round(this._calculateInnerOuterCurveAuto()))}
+                        `
+                        : html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Outer Curve Mode'}
+                                .helper=${'📏 Static: Fixed pixel value'}
+                                .selector=${{
+                                    select: { mode: 'dropdown', options: [
+                                        { value: 'static', label: 'Static Value' },
+                                        { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                    ]}
+                                }}
+                                .value=${'static'}
+                                @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.outer_curve', Math.round(this._calculateInnerOuterCurveAuto()), 'clamp(20px, 3vw, 45px)')}>
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Outer Curve'}
+                                .helper=${'Outer corner radius'}
+                                .selector=${{
+                                    number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' }
+                                }}
+                                .value=${typeof innerSegment.outer_curve === 'number' ? innerSegment.outer_curve : this._calculateInnerOuterCurveAuto()}
+                                @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.outer_curve', e.detail.value)}>
+                            </ha-selector>
+                        `
+                    : ''}
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Inner Curve'}
-                    .helper=${'Inner corner radius'}
-                    .selector=${{
-                        number: {
-                            min: 0,
-                            max: 250,
-                            step: 5,
-                            mode: 'slider',
-                            unit_of_measurement: 'px'
-                        }
-                    }}
-                    .value=${innerSegment.inner_curve ?? (innerSegment.outer_curve ?? this._calculateInnerOuterCurveAuto()) / 2}
-                    @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.inner_curve', e.detail.value)}>
-                </ha-selector>
+                ${this._isCssExpr(innerSegment.inner_curve)
+                    ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Inner Curve Mode'}
+                            .helper=${'📐 CSS expression active'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'css'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.inner_curve', Math.round((typeof innerSegment.outer_curve === 'number' ? innerSegment.outer_curve : this._calculateInnerOuterCurveAuto()) / 2), 'clamp(10px, 1.5vw, 22px)')}>
+                        </ha-selector>
+                        ${this._renderCssField('Inner Curve', innerSegment.inner_curve, 'elbow.segments.inner_segment.inner_curve', Math.round((typeof innerSegment.outer_curve === 'number' ? innerSegment.outer_curve : this._calculateInnerOuterCurveAuto()) / 2))}
+                    `
+                    : html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Inner Curve Mode'}
+                            .helper=${'📏 Static: Fixed pixel value'}
+                            .selector=${{
+                                select: { mode: 'dropdown', options: [
+                                    { value: 'static', label: 'Static Value' },
+                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
+                                ]}
+                            }}
+                            .value=${'static'}
+                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.inner_curve', Math.round((typeof innerSegment.outer_curve === 'number' ? innerSegment.outer_curve : this._calculateInnerOuterCurveAuto()) / 2), 'clamp(10px, 1.5vw, 22px)')}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Inner Curve'}
+                            .helper=${'Inner corner radius'}
+                            .selector=${{
+                                number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' }
+                            }}
+                            .value=${typeof innerSegment.inner_curve === 'number' ? innerSegment.inner_curve : (typeof innerSegment.outer_curve === 'number' ? innerSegment.outer_curve : this._calculateInnerOuterCurveAuto()) / 2}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.inner_curve', e.detail.value)}>
+                        </ha-selector>
+                    `}
 
                 ${this._isDiagonalCapType() ? html`
                     <ha-selector
@@ -2074,11 +2355,20 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      */
     _handleOuterCurveModeChange(event) {
         const isManual = event.detail.value;
+        const currentOuter = this.config.elbow?.segment?.outer_curve;
+
+        // If the current value is a CSS expression, the toggle is in 'read-only CSS' state.
+        // Toggling it off should clear to auto; toggling on is a no-op (use YAML tab to set CSS).
+        if (this._isCssExpr(currentOuter)) {
+            if (!isManual) this._setConfigValue('elbow.segment.outer_curve', 'auto');
+            this.requestUpdate();
+            return;
+        }
 
         if (isManual) {
             // Switch to manual mode - set a numeric value
             const barWidth = this.config.elbow?.segment?.bar_width;
-            // Handle 'theme' - use default numeric value for calculation
+            // Handle 'theme'/'css' - use default numeric value for calculation
             const numericBarWidth = typeof barWidth === 'number' ? barWidth : 90;
             const calculatedValue = numericBarWidth / 2;
             this._setConfigValue('elbow.segment.outer_curve', calculatedValue);
@@ -2091,6 +2381,26 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Generic dimension mode change handler for segmented fields.
+     * Switching to 'css' seeds a starter expression so the text input appears immediately.
+     * Switching to 'static' reverts to a plain numeric default.
+     *
+     * @param {string} newMode       - 'static' | 'css'
+     * @param {string} configPath    - Dot-path to update via _setConfigValue
+     * @param {number} defaultNumber - Numeric value to use when reverting to static
+     * @param {string} starterCss    - Starter CSS expression to seed on 'css' selection
+     * @private
+     */
+    _handleDimModeChange(newMode, configPath, defaultNumber, starterCss) {
+        if (newMode === 'css') {
+            this._setConfigValue(configPath, starterCss);
+        } else {
+            this._setConfigValue(configPath, defaultNumber);
+        }
+        this.requestUpdate();
+    }
+
+    /**
      * Handle bar width mode change (static vs theme)
      * @param {CustomEvent} event
      * @private
@@ -2098,7 +2408,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     _handleBarWidthModeChange(event) {
         const newMode = event.detail.value;
 
-        if (newMode === 'theme') {
+        if (newMode === 'css') {
+            // Switch to CSS expression mode — seed with a starter expression so
+            // the text input appears immediately for the user to edit.
+            this._setConfigValue('elbow.segment.bar_width', 'clamp(60px, 8vw, 120px)');
+        } else if (newMode === 'theme') {
             // Switch to theme mode
             this._setConfigValue('elbow.segment.bar_width', 'theme');
         } else {
@@ -2119,6 +2433,12 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     _handleBarHeightModeChange(event) {
         const newMode = event.detail.value;
 
+        if (newMode === 'css') {
+            // Switch to CSS expression mode — seed with a starter expression.
+            this._setConfigValue('elbow.segment.bar_height', 'clamp(40px, 6vh, 90px)');
+            this.requestUpdate();
+            return;
+        }
         if (newMode === 'theme') {
             // Switch to theme mode
             this._setConfigValue('elbow.segment.bar_height', 'theme');

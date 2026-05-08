@@ -2900,9 +2900,13 @@ export class LCARdSCard extends LCARdSNativeCard {
      *
      * @param {HTMLElement} targetElement - Element to attach listeners to (e.g., .button-bg)
      * @param {Object} options - Configuration options
-     * @param {Object} options.hoverStyle - Hover style object with backgroundColor
-     * @param {Object} options.pressedStyle - Pressed style object with backgroundColor
+     * @param {Object} [options.hoverStyle] - Hover style object with backgroundColor
+     * @param {Object} [options.pressedStyle] - Pressed style object with backgroundColor
      * @param {Function} options.getRestoreColor - Function that returns color to restore on leave
+     * @param {Element[]} [options.borderElements] - Border path elements to apply stroke colour to
+     * @param {Object} [options.borderHoverStyle] - Hover style object with borderColor
+     * @param {Object} [options.borderPressedStyle] - Pressed style object with borderColor
+     * @param {Function} [options.getRestoreBorderColor] - Function returning border colour to restore on leave
      * @returns {Function} Cleanup function to remove all listeners
      * @protected
      *
@@ -2919,15 +2923,22 @@ export class LCARdSCard extends LCARdSNativeCard {
      *     )
      * });
      */
-    _setupBaseInteractivity(targetElement, { hoverStyle, pressedStyle, getRestoreColor }) {
-        // Skip if no interaction styles defined
-        if (!hoverStyle && !pressedStyle) {
+    _setupBaseInteractivity(targetElement, {
+        hoverStyle, pressedStyle, getRestoreColor,
+        borderElements = [], borderHoverStyle = null, borderPressedStyle = null,
+        getRestoreBorderColor = null
+    }) {
+        const hasBgInteraction = !!(hoverStyle || pressedStyle);
+        const hasBorderInteraction = !!(borderHoverStyle || borderPressedStyle) && borderElements.length > 0;
+
+        // Skip if no interaction styles defined anywhere
+        if (!hasBgInteraction && !hasBorderInteraction) {
             lcardsLog.trace('[LCARdSCard] No interaction styles defined, skipping interactivity setup');
             return () => {};
         }
 
-        // Skip if target element not found (common during initial render cycles)
-        if (!targetElement) {
+        // Skip if background target element not found when bg interaction is needed
+        if (hasBgInteraction && !targetElement) {
             lcardsLog.trace('[LCARdSCard] Target element not found for interactivity setup (likely not rendered yet)');
             return () => {};
         }
@@ -2937,7 +2948,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         let isPressed = false;
 
         /**
-         * Apply color to target element
+         * Apply fill color to background element
          * Uses style.fill for SVG elements (higher specificity than setAttribute)
          */
         const applyColor = (color) => {
@@ -2959,14 +2970,30 @@ export class LCARdSCard extends LCARdSNativeCard {
             });
         };
 
+        /**
+         * Apply stroke color to all border path elements
+         */
+        const applyBorderColor = (color) => {
+            if (!color || !borderElements.length) return;
+            for (const el of borderElements) {
+                /** @type {HTMLElement} */ (el).style.stroke = color;
+            }
+            lcardsLog.trace('[LCARdSCard] Applied border interaction color', { color });
+        };
+
         // Event handlers
         const handleMouseEnter = (e) => {
-            if (hoverStyle && !isPressed) {
+            if (!isPressed) {
                 isHovering = true;
-                lcardsLog.trace('[LCARdSCard] Applying hover style', {
-                    backgroundColor: hoverStyle.backgroundColor
-                });
-                applyColor(hoverStyle.backgroundColor);
+                if (hoverStyle) {
+                    lcardsLog.trace('[LCARdSCard] Applying hover style', {
+                        backgroundColor: hoverStyle.backgroundColor
+                    });
+                    applyColor(hoverStyle.backgroundColor);
+                }
+                if (borderHoverStyle) {
+                    applyBorderColor(borderHoverStyle.borderColor);
+                }
             }
             e.stopPropagation(); // Prevent button-level hover interference
         };
@@ -2980,6 +3007,9 @@ export class LCARdSCard extends LCARdSNativeCard {
                     restoreColor
                 });
                 applyColor(restoreColor);
+                if (hasBorderInteraction) {
+                    applyBorderColor(getRestoreBorderColor?.() ?? null);
+                }
             }
             e.stopPropagation();
         };
@@ -2988,6 +3018,11 @@ export class LCARdSCard extends LCARdSNativeCard {
             if (pressedStyle) {
                 isPressed = true;
                 applyColor(pressedStyle.backgroundColor);
+            } else if (hasBorderInteraction) {
+                isPressed = true;
+            }
+            if (borderPressedStyle) {
+                applyBorderColor(borderPressedStyle.borderColor);
             }
             e.stopPropagation();
         };
@@ -3001,18 +3036,33 @@ export class LCARdSCard extends LCARdSNativeCard {
                 const restoreColor = getRestoreColor();
                 applyColor(restoreColor);
             }
+            if (hasBorderInteraction) {
+                if (isHovering && borderHoverStyle) {
+                    applyBorderColor(borderHoverStyle.borderColor);
+                } else {
+                    applyBorderColor(getRestoreBorderColor?.() ?? null);
+                }
+            }
             e.stopPropagation();
         };
 
-        // Attach listeners
-        targetElement.addEventListener('mouseenter', handleMouseEnter);
-        targetElement.addEventListener('mouseleave', handleMouseLeave);
-        targetElement.addEventListener('mousedown', handleMouseDown);
-        targetElement.addEventListener('mouseup', handleMouseUp);
+        // Collect all elements that should receive pointer listeners.
+        // The background element is the primary target; border paths are siblings
+        // in the SVG and need their own listeners so hovering the stroke region also fires.
+        const listenerTargets = [
+            ...(targetElement ? [targetElement] : []),
+            ...borderElements
+        ];
 
-        // Touch support
-        targetElement.addEventListener('touchstart', handleMouseDown, { passive: true });
-        targetElement.addEventListener('touchend', handleMouseUp);
+        // Attach listeners to all targets
+        for (const el of listenerTargets) {
+            el.addEventListener('mouseenter', handleMouseEnter);
+            el.addEventListener('mouseleave', handleMouseLeave);
+            el.addEventListener('mousedown', handleMouseDown);
+            el.addEventListener('mouseup', handleMouseUp);
+            el.addEventListener('touchstart', handleMouseDown, { passive: true });
+            el.addEventListener('touchend', handleMouseUp);
+        }
 
         // Pre-set style.fill immediately so it wins over the SVG attribute from
         // the very first render. Without this, a prior hover cycle's style.fill
@@ -3022,21 +3072,33 @@ export class LCARdSCard extends LCARdSNativeCard {
         if (initialRestoreColor) {
             applyColor(initialRestoreColor);
         }
+        // Similarly pre-set border stroke to the current entity-state border color.
+        if (hasBorderInteraction) {
+            const initialBorderColor = getRestoreBorderColor?.();
+            if (initialBorderColor) {
+                applyBorderColor(initialBorderColor);
+            }
+        }
 
         lcardsLog.debug('[LCARdSCard] Interaction listeners attached', {
             hasHover: !!hoverStyle,
             hasPressed: !!pressedStyle,
-            element: targetElement.className
+            hasBorderHover: !!borderHoverStyle,
+            hasBorderPressed: !!borderPressedStyle,
+            borderElementCount: borderElements.length,
+            element: targetElement?.className
         });
 
         // Return cleanup function
         return () => {
-            targetElement.removeEventListener('mouseenter', handleMouseEnter);
-            targetElement.removeEventListener('mouseleave', handleMouseLeave);
-            targetElement.removeEventListener('mousedown', handleMouseDown);
-            targetElement.removeEventListener('mouseup', handleMouseUp);
-            targetElement.removeEventListener('touchstart', handleMouseDown);
-            targetElement.removeEventListener('touchend', handleMouseUp);
+            for (const el of listenerTargets) {
+                el.removeEventListener('mouseenter', handleMouseEnter);
+                el.removeEventListener('mouseleave', handleMouseLeave);
+                el.removeEventListener('mousedown', handleMouseDown);
+                el.removeEventListener('mouseup', handleMouseUp);
+                el.removeEventListener('touchstart', handleMouseDown);
+                el.removeEventListener('touchend', handleMouseUp);
+            }
 
             lcardsLog.trace('[LCARdSCard] Interaction listeners removed');
         };

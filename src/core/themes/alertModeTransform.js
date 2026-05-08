@@ -94,6 +94,20 @@ const DEFAULT_ALERT_MODE_TRANSFORMS = {
       darkMultiplier: 0.6,          // Make dark colors even darker (below threshold)
       lightMultiplier: 1.4          // Make light colors lighter (above threshold)
     }
+  },
+
+  borg_alert: {
+    // Shift everything toward Borg yellow-green (~110°)
+    // Resistance is futile — the palette will be assimilated.
+    hueShift:             110,
+    hueStrength:          0.95,       // Aggressive pull
+    saturationMultiplier: 0.65,       // Slightly desaturated — clinical, cold
+    lightnessMultiplier:  0.72,       // Darker overall
+    hueAnchor: {
+      centerHue: 110,                 // Yellow-green
+      range:     35,                  // Tight band — very cohesive
+      strength:  0.95                 // Maximum personality enforcement
+    }
   }
 };
 

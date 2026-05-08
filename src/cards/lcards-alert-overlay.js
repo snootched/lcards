@@ -16,7 +16,6 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { createCardElement, applyHassToCard, applyCardConfig } from '../utils/ha-card-factory.js';
 import { HATemplateEvaluator } from '../core/templates/HATemplateEvaluator.js';
 import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js';
 
@@ -50,22 +49,6 @@ const CONDITION_DEFAULTS = {
     gray_alert:   { preset: 'condition_gray',   alertText: 'ALERT', subText: 'CONDITION: GRAY' },
 };
 
-const POSITION_MAP = {
-    'top-left':      { alignItems: 'flex-start', justifyContent: 'flex-start' },
-    'top':           { alignItems: 'flex-start', justifyContent: 'center' },
-    'top-center':    { alignItems: 'flex-start', justifyContent: 'center' },
-    'top-right':     { alignItems: 'flex-start', justifyContent: 'flex-end' },
-    'left':          { alignItems: 'center',     justifyContent: 'flex-start' },
-    'left-center':   { alignItems: 'center',     justifyContent: 'flex-start' },
-    'center':        { alignItems: 'center',     justifyContent: 'center' },
-    'right':         { alignItems: 'center',     justifyContent: 'flex-end' },
-    'right-center':  { alignItems: 'center',     justifyContent: 'flex-end' },
-    'bottom-left':   { alignItems: 'flex-end',   justifyContent: 'flex-start' },
-    'bottom':        { alignItems: 'flex-end',   justifyContent: 'center' },
-    'bottom-center': { alignItems: 'flex-end',   justifyContent: 'center' },
-    'bottom-right':  { alignItems: 'flex-end',   justifyContent: 'flex-end' },
-};
-
 export class LCARdSAlertOverlay extends LitElement {
 
     // -------------------------------------------------------------------------
@@ -90,7 +73,6 @@ export class LCARdSAlertOverlay extends LitElement {
     constructor() {
         super();
         this._hass             = null;
-        this._contentElement   = null;
         this._alertUnsubscribe = null;
         this._isActive         = false;
         this._activeCondition  = null;
@@ -98,16 +80,7 @@ export class LCARdSAlertOverlay extends LitElement {
         this._isSuppressed     = false;
         this._editMode         = false;
         this._editModePoller   = null;
-        this._portalStyleEl    = null;
-        this._dismissEl        = null;
-        this._wrapperEl        = null;
-        this._contentContainer = null;
         this._autoDismissTimer = null;
-        // True only while *this overlay* is the entity that applied the current
-        // SEM slots.  When false (alert inactive or trigger_effect owns the
-        // slots) we must not call clearSlot — that would wipe effects we don't
-        // own.  See _updatePortalStyles / _removePortal.
-        this._ownsSemSlots = false;
     }
 
     // -------------------------------------------------------------------------
@@ -116,9 +89,6 @@ export class LCARdSAlertOverlay extends LitElement {
 
     set hass(value) {
         this._hass = value;
-        if (this._contentElement) {
-            applyHassToCard(this._contentElement, value, 'alert-overlay-hass');
-        }
         // Detect edit mode changes reactively via the hass setter — HA calls
         // this on every state update so it catches enter/exit of edit mode.
         const inEdit = this._isInEditMode();
@@ -203,7 +173,6 @@ export class LCARdSAlertOverlay extends LitElement {
         _activeOverlay     = this;
         this._isSuppressed = false;
 
-        this._createPortal();
         this._subscribeToAlertMode();
 
         // Replay current mode in case alert was already active when we connected
@@ -229,8 +198,7 @@ export class LCARdSAlertOverlay extends LitElement {
 
         this._alertUnsubscribe?.();
         this._alertUnsubscribe = null;
-        this._unmountContentCard();
-        this._removePortal();
+        window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
 
         // Release module-level ownership only if we hold it.
         // After releasing, fire a synthetic event so any suppressed sibling
@@ -295,7 +263,7 @@ export class LCARdSAlertOverlay extends LitElement {
             this._clearAutoDismissTimer();
             this._isActive        = false;
             this._isDismissed     = false;
-            this._unmountContentCard();
+            window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
         } else {
             this._clearAutoDismissTimer();
             this._activeCondition = newMode;
@@ -311,8 +279,6 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     async _mountContentCard(condition) {
-        this._unmountContentCard();
-
         const cardConfig = this._buildCardConfig(condition);
 
         if (!cardConfig) {
@@ -320,58 +286,38 @@ export class LCARdSAlertOverlay extends LitElement {
             return;
         }
 
-        const el = await createCardElement(cardConfig.type, 'alert-overlay');
-        if (!el) {
-            lcardsLog.warn(`[LCARdSAlertOverlay] Failed to create card element for type: ${cardConfig.type}`);
-            return;
-        }
-
-        // Guard: portal may have been removed during the async await above
-        // (e.g. condition changed, overlay dismissed, or card disconnected).
-        // The element was created but cannot be mounted — destroy it to avoid a leak.
-        if (!this._contentContainer) {
-            el.remove();
-            lcardsLog.debug('[LCARdSAlertOverlay] Portal gone during card creation — element discarded');
-            return;
-        }
-
-        // ── Attach to DOM BEFORE setConfig ────────────────────────────────────
-        // LCARdS cards initialize their singletons and set _initialized = true
-        // only after connectedCallback / firstUpdated. If setConfig is called
-        // while the element is detached (as createCardElement's temp-div
-        // upgrade strategy leaves it), CoreConfigManager processes correctly
-        // but _rawUserComponentText may be stale and template processing may
-        // run against incomplete singletons.
-        //
-        // Attaching first means connectedCallback fires, singletons are wired
-        // up, and t setConfig call lands on a fully-initialised card.
-        this._contentElement = el;
-
-        if (this._contentContainer) {
-            // Mark the element so the portal stylesheet can override its inline
-            // aspect-ratio with !important (lcards-button re-applies it every render).
-            el.setAttribute('data-lcards-overlay-content', '');
-            this._contentContainer.appendChild(el);
-        }
-
-        // Apply HASS first (required before setConfig on some card types)
-        if (this._hass) {
-            applyHassToCard(el, this._hass, 'alert-overlay-mount');
-        }
-
-        // Now configure — card is in the real DOM, singletons available.
-        // Pre-evaluate any Jinja2 templates in text content fields using the
-        // overlay's own hass connection (more reliable than evaluating inside
-        // the newly-mounted child card whose websocket path may not be settled).
-        //
-        // Why only Jinja2? JS ([[[...]]]) and token ({entity.state}) templates
-        // are synchronous and do not depend on a settled websocket — lcards-button's
-        // own template pipeline handles those safely after mount.  Jinja2 requires
-        // a websocket round-trip, which can race against a fresh card element's
-        // connection setup, so we resolve it here via the overlay's already-stable
-        // HASS connection before handing the config to the child card.
+        // Pre-evaluate Jinja2 templates in text fields using the overlay's settled
+        // HASS connection before handing the config to POM.
+        // JS ([[[...]]]) and token ({entity.state}) templates are synchronous and
+        // are handled by lcards-button's own pipeline after mount.
         const resolvedConfig = await this._resolveTextTemplates(cardConfig);
-        await applyCardConfig(el, resolvedConfig, 'alert-overlay');
+
+        // Guard: condition or active state may have changed during async resolution.
+        if (!this._isActive || this._isSuppressed || this._activeCondition !== condition) {
+            lcardsLog.debug('[LCARdSAlertOverlay] Condition changed during template resolution — mount aborted');
+            return;
+        }
+
+        const pom = window.lcards?.core?.portalOverlayManager;
+        if (!pom) {
+            lcardsLog.warn('[LCARdSAlertOverlay] PortalOverlayManager unavailable');
+            return;
+        }
+
+        const size     = this._getEffectiveSize();
+        const layers   = this._resolveBackdropLayers();
+        const position = this.config?.conditions?.[this._activeCondition]?.position
+                         ?? this.config?.position ?? 'center';
+
+        pom.show('alert-overlay', {
+            position,
+            width:     size.width,
+            height:    size.height,
+            dismiss:   true,
+            onDismiss: () => this._handleDismiss(),
+            content:   resolvedConfig,
+            layers,
+        });
 
         this.requestUpdate();
     }
@@ -414,10 +360,8 @@ export class LCARdSAlertOverlay extends LitElement {
     }
 
     _unmountContentCard() {
-        if (this._contentElement) {
-            this._contentElement.remove();
-            this._contentElement = null;
-        }
+        // No-op: card unmounting is now handled by PortalOverlayManager.hide().
+        // Kept for any external callers; will be removed in a future cleanup pass.
     }
 
     // -------------------------------------------------------------------------
@@ -483,155 +427,6 @@ export class LCARdSAlertOverlay extends LitElement {
         }
 
         return card;
-    }
-
-    // -------------------------------------------------------------------------
-    // Portal management
-    // -------------------------------------------------------------------------
-
-    _createPortal() {
-        if (this._wrapperEl) return;
-
-        const sem = window.lcards?.core?.screenEffectManager;
-        if (!sem) {
-            lcardsLog.error('[LCARdSAlertOverlay] ScreenEffectManager unavailable — portal creation aborted');
-            return;
-        }
-
-        // Claim the SEM portal; ensures the portal div is visible when overlay is active.
-        sem.setOverlayOccupied(true);
-        const portal = sem.portal;
-
-        // Dismiss click-catcher — sits above SE effect slots (z:10), transparent,
-        // receives backdrop clicks so the content wrapper (z:11, pointerEvents:none)
-        // does not block them.
-        this._dismissEl = document.createElement('div');
-        Object.assign(this._dismissEl.style, {
-            position:      'absolute',
-            inset:         '0',
-            zIndex:        '10',
-            pointerEvents: 'none',   // toggled to 'auto' when dismiss is allowed
-            cursor:        'pointer',
-        });
-        this._dismissEl.addEventListener('click', () => this._handleDismiss());
-
-        // Content wrapper — flex positioner, above dismiss layer.
-        this._wrapperEl = document.createElement('div');
-        Object.assign(this._wrapperEl.style, {
-            position:      'absolute',
-            inset:         '0',
-            zIndex:        '11',
-            display:       'flex',
-            pointerEvents: 'none',
-        });
-
-        this._contentContainer = document.createElement('div');
-        // Display as flex so the mounted card child stretches to fill the explicit
-        // width/height set on this container.  Without this, a block-level child
-        // with aspect-ratio (set by lcards-button) ignores the container height and
-        // computes its own height from the aspect-ratio × width, causing overflow.
-        Object.assign(this._contentContainer.style, {
-            pointerEvents: 'auto',
-            display:       'flex',
-            alignItems:    'stretch',
-        });
-
-        // Inject a stylesheet rule that beats any inline `aspect-ratio` the
-        // mounted card sets on its own host element (lcards-button does this
-        // on every render after resolving the SVG viewBox).  Using !important
-        // from a <style> tag beats inline styles without JS intervention on
-        // every render cycle.  Cards target via data-lcards-overlay-content.
-        this._portalStyleEl = document.createElement('style');
-        this._portalStyleEl.textContent = [
-            '[data-lcards-overlay-content] {',
-            '  aspect-ratio: unset !important;',
-            '  width:        100%   !important;',
-            '  height:       100%   !important;',
-            '  min-height:   0      !important;',
-            '}',
-        ].join('\n');
-        document.head.appendChild(this._portalStyleEl);
-
-        this._wrapperEl.appendChild(this._contentContainer);
-        portal.appendChild(this._dismissEl);
-        portal.appendChild(this._wrapperEl);
-
-        lcardsLog.debug('[LCARdSAlertOverlay] Portal attached to ScreenEffectManager');
-    }
-
-    _removePortal() {
-        const sem = window.lcards?.core?.screenEffectManager;
-        if (sem && this._ownsSemSlots) {
-            sem.clearSlot('backdrop');
-            sem.clearSlot('color');
-            sem.clearSlot('canvas');
-            sem.setOverlayOccupied(false);
-            this._ownsSemSlots = false;
-        }
-        this._dismissEl?.remove();
-        this._wrapperEl?.remove();
-        this._portalStyleEl?.remove();
-        this._dismissEl        = null;
-        this._wrapperEl        = null;
-        this._contentContainer = null;
-        this._portalStyleEl    = null;
-        lcardsLog.debug('[LCARdSAlertOverlay] Portal detached from ScreenEffectManager');
-    }
-
-    _updatePortalStyles() {
-        if (!this._wrapperEl) return;
-
-        const sem     = window.lcards?.core?.screenEffectManager;
-        const visible = this._isActive && !this._isDismissed && !this._isInEditMode();
-
-        if (!visible) {
-            if (sem && this._ownsSemSlots) {
-                // Only clear slots we applied — never touch slots set by
-                // trigger_effect or other external callers.
-                sem.clearSlot('backdrop');
-                sem.clearSlot('color');
-                sem.clearSlot('canvas');
-                sem.setOverlayOccupied(false);
-                this._ownsSemSlots = false;
-            }
-            this._dismissEl.style.display = 'none';
-            this._wrapperEl.style.display  = 'none';
-            return;
-        }
-
-        sem?.setOverlayOccupied(true);
-        this._dismissEl.style.display = '';
-        this._wrapperEl.style.display  = 'flex';
-
-        // Apply each slot layer independently.  Clear all three slots first so
-        // that disabling or switching a single-slot preset never leaves stale
-        // effects from a previous activation on the other slots.
-        if (sem) {
-            const layers = this._resolveBackdropLayers();
-            sem.clearSlot('backdrop');
-            sem.clearSlot('color');
-            sem.clearSlot('canvas');
-            for (const [slot, layerCfg] of Object.entries(layers)) {
-                if (layerCfg?.preset) {
-                    const { preset, ...params } = layerCfg;
-                    sem.applySlot(slot, preset, params);
-                }
-            }
-            // We are now the owner of whatever slots we've applied.
-            this._ownsSemSlots = true;
-        }
-
-        // Backdrop clicks always allowed to dismiss (pointer-events: auto).
-        this._dismissEl.style.pointerEvents = 'auto';
-
-        const size = this._getEffectiveSize();
-        const pos  = this._getEffectivePosition();
-
-        this._wrapperEl.style.alignItems     = pos.alignItems;
-        this._wrapperEl.style.justifyContent = pos.justifyContent;
-
-        this._contentContainer.style.width  = size.width;
-        this._contentContainer.style.height = size.height;
     }
 
     // -------------------------------------------------------------------------
@@ -730,14 +525,6 @@ export class LCARdSAlertOverlay extends LitElement {
         };
     }
 
-    _getEffectivePosition() {
-        const position =
-            this.config?.conditions?.[this._activeCondition]?.position ??
-            this.config?.position ??
-            'center';
-        return POSITION_MAP[position] ?? POSITION_MAP['center'];
-    }
-
     // -------------------------------------------------------------------------
     // Dismiss handling
     // -------------------------------------------------------------------------
@@ -746,7 +533,9 @@ export class LCARdSAlertOverlay extends LitElement {
         this._clearAutoDismissTimer();
         this._isDismissed = true;
         this._isActive    = false;
-        this._unmountContentCard();
+        // PortalOverlayManager calls hide('alert-overlay') after this callback returns
+        // when triggered via the dismiss button.  The auto-dismiss timer path
+        // calls pom.hide() explicitly after this method.
 
         if (this.config?.dismiss_mode === 'reset' || this.config?.dismiss_mode === 'auto-reset') {
             this._hass?.callService('input_select', 'select_option', {
@@ -783,6 +572,7 @@ export class LCARdSAlertOverlay extends LitElement {
         this._autoDismissTimer = setTimeout(() => {
             lcardsLog.debug(`[LCARdSAlertOverlay] Auto-dismiss timer fired for condition ${condition}`);
             this._handleDismiss();
+            window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
         }, seconds * 1000);
     }
 
@@ -821,7 +611,14 @@ export class LCARdSAlertOverlay extends LitElement {
         } else {
             this.removeAttribute('data-edit-mode');
         }
-        this._updatePortalStyles();
+        // Only sync overlay visibility on edit mode transitions — not on every render.
+        if (changedProps.has('_editMode')) {
+            if (this._editMode) {
+                window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
+            } else if (this._isActive && !this._isDismissed && this._activeCondition) {
+                this._mountContentCard(this._activeCondition);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------

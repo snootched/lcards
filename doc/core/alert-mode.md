@@ -61,7 +61,7 @@ Use the dedicated `lcards.*` services to get **per-device or per-user targeting*
 When targeting fields are present the `input_select` helper is **not** written — the
 alert is applied as a local, transient change on matching sessions only.
 
-```yaml
+```yaml alternatives
 # All devices (same as input_select route, but via the lcards service)
 action: lcards.red_alert
 

@@ -190,4 +190,4 @@ User IDs are always derived **server-side** from the authenticated WebSocket con
 - [Device Identity Manager](device-identity.md)
 - [Sound System](sound-system.md)
 - [Integration Service](integration-service.md)
-- [Storage (Python backend)](storage.md)
+- [Storage (Python backend)](../internals/storage.md)

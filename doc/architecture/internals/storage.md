@@ -236,4 +236,4 @@ cat /config/.storage/lcards | python3 -m json.tool
 
 A separate `user/` subdirectory inside `custom_components/lcards/` is planned for user-installed content packs (extra fonts, SVGs, sounds distributed outside the core LCARdS release). HACS's `persistent_directory` option will protect this directory from being wiped on upgrades. This is a different concern from the JSON Store and will be implemented as a separate phase.
 
-→ See [Pack System](pack-system) for the planned content pack architecture.
+→ See [Pack System](../subsystems/pack-system) for the planned content pack architecture.

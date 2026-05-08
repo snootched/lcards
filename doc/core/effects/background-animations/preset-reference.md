@@ -503,7 +503,7 @@ config:
 
 **Examples:**
 
-```yaml
+```yaml alternatives
 # Room area card
 background_animation:
   effects:

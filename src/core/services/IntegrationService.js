@@ -431,6 +431,63 @@ export class IntegrationService extends BaseService {
                 break;
             }
 
+            case 'show_portal_card': {
+                const pom = window.lcards?.core?.portalOverlayManager;
+                if (pom && payload.content) {
+                    lcardsLog.info('[IntegrationService] show_portal_card received — showing portal card');
+                    pom.show('ha-service', {
+                        content:  payload.content,
+                        layers:   payload.layers   ?? null,
+                        position: payload.position ?? 'center',
+                        width:    payload.width    ?? 'auto',
+                        height:   payload.height   ?? 'auto',
+                        duration: payload.duration ?? null,
+                        dismiss:  payload.dismiss  ?? true,
+                    });
+                } else {
+                    lcardsLog.warn('[IntegrationService] show_portal_card: content required or portalOverlayManager unavailable');
+                }
+                break;
+            }
+
+            case 'clear_portal_card': {
+                const pom = window.lcards?.core?.portalOverlayManager;
+                pom?.hide('ha-service');
+                lcardsLog.info('[IntegrationService] clear_portal_card received — hiding portal card');
+                break;
+            }
+
+            case 'borg_assimilate': {
+                const bam = window.lcards?.core?.borgAssimilationManager;
+                if (bam) {
+                    lcardsLog.info('[IntegrationService] borg_assimilate event — initiating assimilation');
+                    const opts = {};
+                    if (payload.intro_duration    != null) opts.duration         = payload.intro_duration;
+                    if (payload.transition_style  != null) opts.transitionStyle  = payload.transition_style;
+                    if (payload.intro_layers      != null) opts.intro            = payload.intro_layers;
+                    if (payload.persistent_layers != null) opts.persistentLayers = payload.persistent_layers;
+                    bam.assimilate(opts);
+                } else {
+                    lcardsLog.warn('[IntegrationService] borg_assimilate: BorgAssimilationManager unavailable');
+                }
+                break;
+            }
+
+            case 'borg_deassimilate': {
+                const bam = window.lcards?.core?.borgAssimilationManager;
+                if (bam) {
+                    lcardsLog.info('[IntegrationService] borg_deassimilate event — reverting assimilation');
+                    const opts = {};
+                    if (payload.with_outro              != null) opts.withOutro             = payload.with_outro;
+                    if (payload.outro_layers            != null) opts.outroLayers           = payload.outro_layers;
+                    if (payload.revert_transition_style != null) opts.revertTransitionStyle = payload.revert_transition_style;
+                    bam.deassimilate(opts);
+                } else {
+                    lcardsLog.warn('[IntegrationService] borg_deassimilate: BorgAssimilationManager unavailable');
+                }
+                break;
+            }
+
             default:
                 lcardsLog.debug('[IntegrationService] Unknown lcards_event action:', payload.action);
         }

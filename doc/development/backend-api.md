@@ -24,7 +24,7 @@ if (integration.available) {
 }
 ```
 
-For one-off calls from the browser console (debugging / testing), use `window.hassConnection` instead — see [browser console testing](../architecture/subsystems/storage#browser-console-testing).
+For one-off calls from the browser console (debugging / testing), use `window.hassConnection` instead — see [browser console testing](../architecture/internals/storage#browser-console-testing).
 
 ---
 
@@ -47,7 +47,7 @@ const result = await hass.connection.sendMessagePromise({
 
 All storage commands are under `lcards/storage/*`. The store is a flat key/value namespace persisted to `.storage/lcards` in the HA config directory — survives HA restarts and HACS upgrades.
 
-→ Full schema reference: [Persistent Storage](../architecture/subsystems/storage).
+→ Full schema reference: [Persistent Storage](../architecture/internals/storage).
 
 ### `lcards/storage/get`
 

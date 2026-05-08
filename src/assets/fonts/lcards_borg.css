@@ -3,4 +3,5 @@
     src: url('/hacsfiles/lcards/fonts/borg_normal.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
+    size-adjust: 240%;
 }

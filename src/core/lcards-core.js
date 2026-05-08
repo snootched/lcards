@@ -46,6 +46,9 @@ import { IntegrationService } from './services/IntegrationService.js';
 import { DeviceIdentityManager } from './services/DeviceIdentityManager.js';
 import { ScopedSettingsService } from './services/ScopedSettingsService.js';
 import { ScreenEffectManager } from './screen-effects/ScreenEffectManager.js';
+import { BorgAssimilationManager } from './borg/BorgAssimilationManager.js';
+import { ConnectionOverlayService } from './services/ConnectionOverlayService.js';
+import { PortalOverlayManager } from './services/PortalOverlayManager.js';
 
 /**
  * LCARdSCore - Central coordinator for all LCARdS infrastructure
@@ -76,10 +79,13 @@ class LCARdSCore {
         this.componentManager = null;    // Component registry (Phase 4)
         this.helperManager = null;       // Helper management system (Phase 5)
         this.soundManager = null;         // Sound management system (Phase 2g)
-        this.screenEffectManager = null;  // Full-screen composited effect layer
-        this.integrationService = null;   // HA integration probe (available / version)
+        this.screenEffectManager = null;       // Full-screen composited effect layer
+        this.borgAssimilationManager = null;    // Borg assimilation Easter egg orchestrator
+        this.integrationService = null;         // HA integration probe (available / version)
         this.deviceIdentityManager = null; // Per-browser stable UUID + display name
         this.scopedSettingsService = null; // Per-user / per-device settings waterfall
+        this.connectionOverlayService = null; // Connection-lost overlay (Phase 2h)
+        this.portalOverlayManager     = null;  // Shared portal overlay lifecycle engine
 
         // ===== REGISTRIES =====
         this._cardInstances = new Map();     // Map<cardId, CardContext>
@@ -281,6 +287,12 @@ class LCARdSCore {
             this.screenEffectManager = new ScreenEffectManager();
             lcardsLog.debug('[LCARdSCore] ✅ ScreenEffectManager initialized');
 
+            // Create BorgAssimilationManager — Easter egg orchestrator.
+            // Depends on screenEffectManager and themeManager, both ready at this point.
+            this.borgAssimilationManager = new BorgAssimilationManager();
+            window.lcards.core.borgAssimilationManager = this.borgAssimilationManager;
+            lcardsLog.debug('[LCARdSCore] ✅ BorgAssimilationManager created');
+
             // Create IntegrationService — it self-probes on the first _updateHass
             // call where hass.connection is available, so no initialize() call here.
             this.integrationService = new IntegrationService();
@@ -294,6 +306,20 @@ class LCARdSCore {
             this.scopedSettingsService = new ScopedSettingsService();
             lcardsLog.debug('[LCARdSCore] ✅ ScopedSettingsService created');
 
+            // Create PortalOverlayManager — shared portal overlay lifecycle engine.
+            // Provides named-slot show/hide API consumed by ConnectionOverlayService,
+            // lcards-alert-overlay, and the show_portal_card HA service.
+            this.portalOverlayManager = new PortalOverlayManager();
+            window.lcards.core.portalOverlayManager = this.portalOverlayManager;
+            lcardsLog.debug('[LCARdSCore] ✅ PortalOverlayManager created');
+
+            // Create ConnectionOverlayService — monitors hass connection state and
+            // injects a full-screen overlay into the SEM portal when disconnected.
+            // Config is seeded from localStorage on construction (offline-first);
+            // scoped settings are loaded after integrationService.onReady().
+            this.connectionOverlayService = new ConnectionOverlayService();
+            lcardsLog.debug('[LCARdSCore] ✅ ConnectionOverlayService created');
+
             // Once the integration probe completes (triggered by the first _updateHass
             // call that carries a live WS connection), load token overrides and re-apply
             // them to the resolver.  This is intentionally fire-and-forget so it does NOT
@@ -305,6 +331,15 @@ class LCARdSCore {
                 lcardsLog.debug('[LCARdSCore] ✅ Theme overrides loaded from scoped storage');
             }).catch(err => {
                 lcardsLog.warn('[LCARdSCore] Theme overrides load failed:', err);
+            });
+
+            // Load connection overlay config from scoped settings (fire-and-forget).
+            // The service starts with built-in defaults / localStorage cache so cards
+            // are never blocked on this.
+            this.integrationService.onReady().then(() => {
+                return this.connectionOverlayService.initialize();
+            }).catch(err => {
+                lcardsLog.warn('[LCARdSCore] ConnectionOverlayService config load failed:', err);
             });
 
             this._coreInitialized = true;
@@ -518,6 +553,14 @@ class LCARdSCore {
 
         if (this.scopedSettingsService) {
             this.scopedSettingsService.updateHass(hass);
+        }
+
+        if (this.portalOverlayManager) {
+            this.portalOverlayManager.updateHass(hass);
+        }
+
+        if (this.connectionOverlayService) {
+            this.connectionOverlayService.updateHass(hass);
         }
     }
 

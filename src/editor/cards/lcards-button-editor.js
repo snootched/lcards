@@ -586,7 +586,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         { type: 'field', path: 'height',     label: 'Height',     helper: 'Fixed height (e.g. 56px). Overrides grid row height.' },
                         { type: 'field', path: 'width',      label: 'Width',      helper: 'Fixed width (e.g. 200px). Overrides grid column width.' },
                         { type: 'field', path: 'min_height', label: 'Min Height', helper: 'Floor height. Overrides --lcards-button-min-height token.' },
-                        { type: 'field', path: 'min_width',  label: 'Min Width',  helper: 'Floor width. Overrides --lcards-button-min-width token.' }
+                        { type: 'field', path: 'min_width',  label: 'Min Width',  helper: 'Floor width. Overrides --lcards-button-min-width token.' },
+                        { type: 'field', path: 'max_height', label: 'Max Height', helper: 'Ceiling height. Bare integer = px, or CSS units (400px, 80vh, etc).' },
+                        { type: 'field', path: 'max_width',  label: 'Max Width',  helper: 'Ceiling width. Bare integer = px, or CSS units (600px, 80vw, etc).' }
                     ]
                 },
                 { type: 'custom', render: () => this._renderLayoutCardHint() }

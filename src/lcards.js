@@ -2,6 +2,7 @@ import { lcardsSetGlobalLogLevel, lcardsGetGlobalLogLevel, lcardsLog, lcardsLogB
 import * as LCARdS from './lcards-vars.js'
 import { lcardsCore } from './core/lcards-core.js';
 import { ALERT_MODE_TRANSFORMS } from './core/themes/alertModeTransform.js';
+import { injectPalette } from './core/themes/paletteInjector.js';
 
 // 1. Integration-configured log level — baked into the script URL as ?log=<level>
 //    by frontend.py when the integration loads. Applies the persistent user preference
@@ -55,6 +56,14 @@ import { LCARdSConfigPanel } from './panels/lcards-config-panel.js';
 
 // Ensure global namespace
 window.lcards = window.lcards || {};
+
+// Inject --lcards-* palette vars synchronously at module evaluation time.
+// This must happen before initializeCustomCard() (which is async) so that
+// any HA theme variables that reference var(--lcards-*) can resolve correctly
+// in the main document even before the WebSocket connection is established.
+// Note: iframes (e.g. HACS) have their own document and require the vars to
+// be defined in the HA theme YAML to receive them.
+injectPalette();
 
 // Version is available immediately at module load (before async init)
 window.lcards.version = LCARdS.LCARdS_VERSION;
@@ -572,7 +581,21 @@ window.lcards.alert = {
   black:  () => window.lcards.setAlertMode('black_alert'),
   green:  () => window.lcards.setAlertMode('green_alert'),
   off:    () => window.lcards.setAlertMode('green_alert'),  // reset to normal
+  borg:   (opts) => window.lcards.borg.assimilate(opts),    // Easter egg shortcut
   config: window.lcards.alertConfig,
+};
+
+// === BORG ASSIMILATION NAMESPACE ===
+// Easter egg console API.  Triggers the full Borg assimilation sequence.
+//
+// Usage:
+//   window.lcards.borg.assimilate()          // begin assimilation
+//   window.lcards.borg.deassimilate()        // revert everything
+//   window.lcards.borg.status                // true while assimilated
+window.lcards.borg = {
+  assimilate:   (opts) => window.lcards?.core?.borgAssimilationManager?.assimilate(opts),
+  deassimilate: (opts) => window.lcards?.core?.borgAssimilationManager?.deassimilate(opts),
+  get status()  { return window.lcards?.core?.borgAssimilationManager?.isAssimilated ?? false; },
 };
 
 // === SCREEN EFFECT NAMESPACE ===
@@ -665,6 +688,79 @@ window.lcards.screenEffect = {
   },
 };
 lcardsLog.debug('[lcards.js] screenEffect console API attached');
+
+// === CONNECTION OVERLAY API ===
+// Full-screen overlay displayed when the frontend loses contact with the HA server.
+// Works on any page the module is loaded — no card placement required.
+//
+// Usage examples:
+//   window.lcards.connectionOverlay.show()                  // Force-show (simulate disconnect)
+//   window.lcards.connectionOverlay.simulateReconnect()      // Simulate reconnection sequence
+//   window.lcards.connectionOverlay.hide()                  // Force-hide (clear test)
+//   window.lcards.connectionOverlay.getConfig()             // Read active config
+//   window.lcards.connectionOverlay.saveConfig({...})       // Save to global scope
+//   window.lcards.connectionOverlay.saveConfig({...}, 'device')  // Save to device scope
+//   window.lcards.connectionOverlay.clearConfig('device')   // Remove device override
+//   window.lcards.connectionOverlay.loadConfig()            // Reload from scoped settings
+window.lcards.connectionOverlay = {
+  /** Force-show the overlay (useful for testing config changes). */
+  show() {
+    window.lcards?.core?.connectionOverlayService?.show();
+  },
+  /**
+   * Show the overlay using a temporary preview config (not persisted).
+   * Original config is restored on hide().  Used by the config panel preview.
+   * @param {Object} previewConfig
+   */
+  showWith(previewConfig) {
+    window.lcards?.core?.connectionOverlayService?.showWith(previewConfig);
+  },
+  /** Force-hide the overlay. */
+  hide() {
+    window.lcards?.core?.connectionOverlayService?.hide();
+  },
+  /**
+   * Simulate the reconnection sequence for live preview.
+   * Transitions from the disconnect overlay to the "connection restored" banner
+   * (if enabled), auto-dismisses, then restores the original config.
+   * @param {Object|null} [previewConfig]
+   */
+  simulateReconnect(previewConfig = null) {
+    window.lcards?.core?.connectionOverlayService?.simulateReconnect(previewConfig);
+  },
+  /** Return the currently active (resolved) config object. */
+  getConfig() {
+    return window.lcards?.core?.connectionOverlayService?.getConfig() ?? null;
+  },
+  /**
+   * Save config to a specific scope (default: 'global').
+   * @param {Object} config
+   * @param {'device'|'user'|'global'} [scope='global']
+   * @returns {Promise<void>}
+   */
+  saveConfig(config, scope = 'global') {
+    return window.lcards?.core?.connectionOverlayService?.saveConfig(config, scope)
+        ?? Promise.resolve();
+  },
+  /**
+   * Remove config from a specific scope (falls back to next tier).
+   * @param {'device'|'user'|'global'} [scope='global']
+   * @returns {Promise<void>}
+   */
+  clearConfig(scope = 'global') {
+    return window.lcards?.core?.connectionOverlayService?.clearConfig(scope)
+        ?? Promise.resolve();
+  },
+  /**
+   * Reload config from the ScopedSettings waterfall and refresh the overlay.
+   * @returns {Promise<Object>} Resolved config
+   */
+  loadConfig() {
+    return window.lcards?.core?.connectionOverlayService?.loadConfig()
+        ?? Promise.resolve(null);
+  },
+};
+lcardsLog.debug('[lcards.js] connectionOverlay console API attached');
 
 // === SOUND DEBUG API ===
 // Exposes sound system controls for debugging and testing in the HA developer console.

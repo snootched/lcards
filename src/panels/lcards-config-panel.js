@@ -30,6 +30,7 @@ import './components/lcards-about-tab.js';
 import './components/lcards-users-devices-tab.js';
 import './components/lcards-layouts-tab.js';
 import './components/lcards-preview-chip.js';
+import './components/lcards-connectivity-tab.js';
 
 export class LCARdSConfigPanel extends LitElement {
   static properties = {
@@ -164,7 +165,7 @@ export class LCARdSConfigPanel extends LitElement {
       font-size: 2em;
       font-weight: 700;
       letter-spacing: 0.12em;
-      color: white;
+      color: var(--lcards-moonlight);
       line-height: 1;
       text-transform: uppercase;
       font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', sans-serif;
@@ -172,7 +173,7 @@ export class LCARdSConfigPanel extends LitElement {
 
     .banner-subtitle {
       font-size: 0.82em;
-      color: rgba(255,255,255,0.72);
+      color: var(--secondary-text-color);
       margin-top: 3px;
       letter-spacing: 0.04em;
     }
@@ -181,7 +182,7 @@ export class LCARdSConfigPanel extends LitElement {
       padding: 0 20px;
       font-size: 0.95em;
       font-weight: 600;
-      color: rgba(255,255,255,0.55);
+      color: var(--secondary-text-color);
       letter-spacing: 0.1em;
       white-space: nowrap;
       font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', sans-serif;
@@ -811,25 +812,29 @@ export class LCARdSConfigPanel extends LitElement {
             Alert Lab & Theme Browser
           </ha-tab-group-tab>
           <ha-tab-group-tab value="3" ?active=${this._selectedTab === 3}>
+            <ha-icon icon="mdi:wifi-off"></ha-icon>
+            Connectivity
+          </ha-tab-group-tab>
+          <ha-tab-group-tab value="4" ?active=${this._selectedTab === 4}>
             <ha-icon icon="mdi:volume-high"></ha-icon>
             Sounds
           </ha-tab-group-tab>
-          <ha-tab-group-tab value="4" ?active=${this._selectedTab === 4}>
+          <ha-tab-group-tab value="5" ?active=${this._selectedTab === 5}>
             <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
             Users & Devices
           </ha-tab-group-tab>
-          <ha-tab-group-tab value="5" ?active=${this._selectedTab === 5}>
+          <ha-tab-group-tab value="6" ?active=${this._selectedTab === 6}>
             <ha-icon icon="mdi:package-variant"></ha-icon>
             Pack Explorer
           </ha-tab-group-tab>
           ${this._isAdmin() ? html`
-          <ha-tab-group-tab value="6" ?active=${this._selectedTab === 6}>
+          <ha-tab-group-tab value="7" ?active=${this._selectedTab === 7}>
             <ha-icon icon="mdi:database-cog"></ha-icon>
             Storage
           </ha-tab-group-tab>
           ` : ''}
           ${this._isDevFeaturesEnabled() ? html`
-          <ha-tab-group-tab value="7" ?active=${this._selectedTab === 7}>
+          <ha-tab-group-tab value="8" ?active=${this._selectedTab === 8}>
             <ha-icon icon="mdi:view-grid-plus-outline"></ha-icon>
             Layouts
           </ha-tab-group-tab>
@@ -876,18 +881,28 @@ export class LCARdSConfigPanel extends LitElement {
       case 2:
         return this._renderThemeBrowserTab();
       case 3:
-        return this._renderSoundTab();
+        return this._renderConnectivityTab();
       case 4:
-        return this._renderUsersDevicesTab();
+        return this._renderSoundTab();
       case 5:
-        return this._renderPackExplorerTab();
+        return this._renderUsersDevicesTab();
       case 6:
-        return this._isAdmin() ? this._renderStorageTab() : html``;
+        return this._renderPackExplorerTab();
       case 7:
+        return this._isAdmin() ? this._renderStorageTab() : html``;
+      case 8:
         return this._isDevFeaturesEnabled() ? this._renderLayoutsTab() : html``;
       default:
         return html`<div>Unknown tab</div>`;
     }
+  }
+
+  _renderConnectivityTab() {
+    return html`
+      <lcards-connectivity-tab
+        .hass=${this.hass}
+      ></lcards-connectivity-tab>
+    `;
   }
 
   _renderAboutTab() {
@@ -1238,9 +1253,11 @@ export class LCARdSConfigPanel extends LitElement {
 
   _renderSoundTab() {
     return html`
-      <lcards-sound-config-tab
-        .hass=${this.hass}
-      ></lcards-sound-config-tab>
+      <div class="studio-layout">
+        <lcards-sound-config-tab
+          .hass=${this.hass}
+        ></lcards-sound-config-tab>
+      </div>
     `;
   }
 

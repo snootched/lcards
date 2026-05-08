@@ -484,7 +484,7 @@ conditions:
 
 LCARdS exposes shorthand services for every alert mode. These are the recommended way to trigger alerts from automations and scripts:
 
-```yaml
+```yaml alternatives
 # Shorthand services — broadcast to all dashboards (writes input_select)
 service: lcards.red_alert
 service: lcards.yellow_alert

@@ -113,6 +113,10 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
                     ${FormField.renderField(this, 'min_height', { label: 'Min Height' })}
 
                     ${FormField.renderField(this, 'min_width', { label: 'Min Width' })}
+
+                    ${FormField.renderField(this, 'max_height', { label: 'Max Height' })}
+
+                    ${FormField.renderField(this, 'max_width', { label: 'Max Width' })}
                 </div>
                 ${this._renderLayoutCardHint()}
             </lcards-form-section>

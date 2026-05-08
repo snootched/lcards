@@ -71,7 +71,7 @@ Rendered card (Shadow DOM updated)
 The MSD card renders a base SVG as its background. Named anchor points embedded in the SVG (`id="anchor__name"`) are extracted by `AnchorProcessor` and made available for overlay `position` config so overlays can snap to SVG geometry.
 
 ```yaml
-type: custom:lcards-msd
+type: custom:lcards-msd-card
 svg: /local/lcards/assets/my-ship.svg
 overlays:
   - id: warp_status

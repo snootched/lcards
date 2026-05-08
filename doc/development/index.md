@@ -16,12 +16,24 @@ Documentation for developers extending LCARdS — building custom cards, editors
 |---|---|
 | [Animation API](anim-api.md) | `window.lcards.anim.*` — anime.js v4 access, helpers, presets, scopes |
 | [Assets & SVG API](assets-api.md) | Font loading, SVG cache, SVG/anchor helpers, text measure cache |
-| [Color Resolution](color-resolution.md) | Correct patterns for resolving CSS vars, computed expressions (`darken`, `lighten`, `alpha`, etc.) in all contexts |
+| [Color Resolution](colour-resolution.md) | Correct patterns for resolving CSS vars, computed expressions (`darken`, `lighten`, `alpha`, etc.) in all contexts |
 | [Debug API](debug-api.md) | Console introspection: log level, core singletons, MSD cards, data sources |
 | [Helpers API](helpers-api.md) | WebSocket-based HA helper management — create, read, update, delete |
 
-## Release Notes
+## Internals
 
 | Page | Description |
 |---|---|
-| [Changelog](changelog.md) | Release notes and breaking changes |
+| [Codebase Review](/dev/codebase-review) | Architecture findings, duplication hotspots, and prioritized follow-up PR slices |
+
+## Repository validation commands
+
+These run in CI and are safe to run locally before opening a PR:
+
+| Command | What it does |
+|---|---|
+| `npm run validate:css-vars` | Audits every `--lcars-*`, `--lcards-*`, and `theme:` reference against the allowlists in `scripts/ha-lcars-theme-vars.js` and `src/lcards-vars.js`. Gates `npm run build`. |
+| `npm run validate:doc-examples` | Parses every fenced `yaml`/`yml` block in `doc/**.md`, checks that any `type: custom:lcards-*` value matches a registered element, and validates parsed card configs against the real JSON Schemas from `src/cards/schemas/` (7 card types covered; lcards-msd-card excluded). Add `--strict` to promote schema and parse warnings to errors. Two fence meta hints: ` ```yaml alternatives ` skips YAML parsing but still checks type refs; ` ```yaml no-validate ` skips the block entirely. |
+| `npm run typecheck` | Runs `tsc` against the JSDoc-typed sources. |
+| `npm run docs:build` | Builds the VitePress site. |
+

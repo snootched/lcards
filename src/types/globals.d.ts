@@ -4,6 +4,12 @@
  * doesn't flag every access as an error.
  */
 
+// Vite ?raw imports — used by Blob-worker pattern to inline worker source at build time.
+declare module '*?raw' {
+    const content: string;
+    export default content;
+}
+
 declare global {
     // Vite define() substitutions injected at build time
     const __LCARDS_VERSION__: string;

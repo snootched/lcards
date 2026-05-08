@@ -14,7 +14,7 @@ LCARdS works fully without browser_mod installed. Everything here is optional.
 
 Use browser_mod for the information/button layer; LCARdS for the visual atmosphere:
 
-```yaml
+```yaml alternatives
 action:
   - service: browser_mod.popup
     data:
@@ -70,7 +70,7 @@ action:
 `?lcards_device=kitchen-tablet&BrowserID=kitchen-tablet`
 :::
 
-```yaml
+```yaml alternatives
 action:
   - service: lcards.trigger_effect
     data:
@@ -119,7 +119,7 @@ action:
 
 No server round-trip — runs entirely in the browser:
 
-```yaml
+```yaml alternatives
 service: browser_mod.javascript
 data:
   code: window.lcards?.screenEffect?.play('static', { duration: 2000, opacity: 0.4 })
@@ -127,7 +127,7 @@ data:
 
 As a card `tap_action`:
 
-```yaml
+```yaml alternatives
 tap_action:
   action: fire-dom-event
   browser_mod:
@@ -138,7 +138,7 @@ tap_action:
 
 Persistent slot effect (stays until cleared):
 
-```yaml
+```yaml alternatives
 service: browser_mod.javascript
 data:
   code: window.lcards?.core?.screenEffectManager?.applySlot('canvas', 'scanlines', { opacity: 0.2 })

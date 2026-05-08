@@ -139,7 +139,7 @@ processing:
 
 ## Accessing Values in Templates
 
-```yaml
+```yaml alternatives
 # No format spec — HA-native: locale-formatted number + unit from entity metadata
 "{ds:temp}"                          # → "4,73 °C"  (locale + unit)
 

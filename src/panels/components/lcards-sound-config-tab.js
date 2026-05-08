@@ -16,6 +16,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { STORAGE_KEY_SOUND_VOLUME, STORAGE_KEY_SOUND_SCHEME, STORAGE_KEY_SOUND_ENABLED, STORAGE_KEY_SOUND_OVERRIDES } from '../../core/services/ScopedSettingsConstants.js';
+import { originBadge } from './shared/scoped-field-helpers.js';
 import '../../editor/components/shared/lcards-form-section.js';
 import '../../editor/components/shared/lcards-message.js';
 import './lcards-preview-chip.js';
@@ -611,42 +612,6 @@ export class LCARdSSoundConfigTab extends LitElement {
   // SOUND CONTROL HELPERS
   // ============================================================================
 
-  /**
-   * Return a small ha-assist-chip showing whether a scoped setting has an
-   * active override (user/device) or is inheriting from the global default.
-   * @param {boolean}         hasOverride
-   * @param {'user'|'device'} scope
-   * @param {boolean}         isAdminTarget
-   */
-  _originBadge(hasOverride, scope, isAdminTarget) {
-    if (hasOverride) {
-      const label  = isAdminTarget ? 'override' : scope;
-      const bg     = scope === 'user'
-        ? 'color-mix(in srgb, var(--info-color, #03a9f4) 25%, transparent)'
-        : 'color-mix(in srgb, var(--success-color, #4caf50) 25%, transparent)';
-      const fg     = scope === 'user'
-        ? 'var(--info-color, #03a9f4)'
-        : 'var(--success-color, #4caf50)';
-      return html`<ha-assist-chip
-        .filled=${true}
-        .label=${label}
-        style="--ha-assist-chip-filled-container-color:${bg};--md-assist-chip-label-text-color:${fg};--md-sys-color-on-surface:${fg};--ha-assist-chip-container-height:22px;--md-assist-chip-label-text-font-size:0.7rem;"
-      ></ha-assist-chip>`;
-    }
-    // "global" — filled chip with a clearly visible (but not loud) accent tint
-    return html`<ha-assist-chip
-      .filled=${true}
-      .label=${'global'}
-      style="
-        --ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color, #7b6ff0) 30%, transparent);
-        --md-assist-chip-label-text-color: var(--primary-color, #7b6ff0);
-        --md-sys-color-on-surface: var(--primary-color, #7b6ff0);
-        --ha-assist-chip-container-height: 22px;
-        --md-assist-chip-label-text-font-size: 0.7rem;
-      "
-    ></ha-assist-chip>`;
-  }
-
   _getHelperValue(key) {
     return this._helpers.find(h => h.key === key)?.currentValue;
   }
@@ -1120,7 +1085,7 @@ export class LCARdSSoundConfigTab extends LitElement {
           <div class="scoped-row">
             <div class="scoped-label">
               <span>Sound Effects Enabled</span>
-              ${this._originBadge(basicHasOverride(STORAGE_KEY_SOUND_ENABLED), scope, isAdminTarget)}
+              ${originBadge(basicHasOverride(STORAGE_KEY_SOUND_ENABLED) ? scope : 'global', isAdminTarget)}
             </div>
             <div class="scoped-control">
               <ha-selector
@@ -1144,7 +1109,7 @@ export class LCARdSSoundConfigTab extends LitElement {
           <div class="scoped-row">
             <div class="scoped-label">
               <span>Volume</span>
-              ${this._originBadge(basicHasOverride(STORAGE_KEY_SOUND_VOLUME), scope, isAdminTarget)}
+              ${originBadge(basicHasOverride(STORAGE_KEY_SOUND_VOLUME) ? scope : 'global', isAdminTarget)}
             </div>
             <div class="scoped-control">
               <ha-selector
@@ -1168,7 +1133,7 @@ export class LCARdSSoundConfigTab extends LitElement {
           <div class="scoped-row">
             <div class="scoped-label">
               <span>Sound Scheme</span>
-              ${this._originBadge(basicHasOverride(STORAGE_KEY_SOUND_SCHEME), scope, isAdminTarget)}
+              ${originBadge(basicHasOverride(STORAGE_KEY_SOUND_SCHEME) ? scope : 'global', isAdminTarget)}
             </div>
             <div class="scoped-control">
               <ha-selector

@@ -84,7 +84,7 @@ A `when` block evaluates to `true` or `false`. When it matches, the `apply` bloc
 
 **Simple examples:**
 
-```yaml
+```yaml alternatives
 # Entity state check
 when:
   entity: light.bedroom

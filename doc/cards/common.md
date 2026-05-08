@@ -167,5 +167,10 @@ Cards inside `custom:layout-card` that uses `grid-layout` - `card_margin` option
 
 ### Fix
 
-Until bug is resolved upstream, you can use a patched version of `custom:layout-card` from this repo: https:///github.com/snootched/lovelace-layout-card
-Uninstall the official `custom-layout-card` and you can install this patched version either as a HACS custom repo, or manually.
+Until bug is resolved upstream, you can use a patched version of `custom:layout-card` from this repo: [patched custom-layout-card](https:///github.com/snootched/lovelace-layout-card)
+1. Uninstall the official `custom-layout-card`
+2. If exists: remove the cached gzip file from the original install `www/community/lovelace-layout-card/layout-card.js.gz`
+3. Add as a custom repo in HACS: `https:///github.com/snootched/lovelace-layout-card`
+4. Install the patched version per normal.
+
+This will be maintained until upstream project resolves the issue.

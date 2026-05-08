@@ -143,6 +143,10 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
                     ${FormField.renderField(this, 'min_height')}
 
                     ${FormField.renderField(this, 'min_width')}
+
+                    ${FormField.renderField(this, 'max_height')}
+
+                    ${FormField.renderField(this, 'max_width')}
                 </div>
             </lcards-form-section>
         `;

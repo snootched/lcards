@@ -33,7 +33,7 @@ The first tab when opening the Config Panel:
 ### Helpers
 
 ::: tip First launch
-Open the **Helpers** tab and click **Create All Helpers** before using anything else. This creates every HA input helper LCARdS needs for alert mode, sounds, and sizing in one step.
+Open the **Helpers** tab and click **Create All Helpers** before using anything else. This creates any missing HA input helper LCARdS uses for alert mode, sounds, and sizing in one step.  HA-LCARS theme helpers can also be created here.
 :::
 
 Shows all LCARdS HA input helpers, their current values, and creation status:
@@ -60,6 +60,20 @@ Two tools in one tab:
 
 ---
 
+### Connectivity
+
+Configure a full-screen overlay displayed when connection to Home Assistant is lost — ideal for kiosk installs where you always want to know when the dashboard is offline.
+
+- **Enable / disable** the overlay globally, per user, or per device
+- **Simple text** — configure stylized messages
+- **Custom card** — replace the simple text message with any HA card(s)
+- **Connection Restored** — optional auto-dismissing confirmation shown on reconnect
+- **Effect layers** — independently configure the canvas animation, colour overlay, and backdrop filter applied behind the message
+
+→ [Connectivity](connectivity.md)
+
+---
+
 ### Sounds
 
 Configure LCARS-style audio feedback for card interactions and alert events:
@@ -68,15 +82,15 @@ Configure LCARS-style audio feedback for card interactions and alert events:
 - Select the active sound scheme
 - Set per-event overrides — change or mute individual sound events
 - Control master volume
-- **Per-user / per-device overrides** *(preview)* — set different sound preferences for your own browser session without changing global defaults
+- **Per-user / per-device overrides** — set different sound preferences for your own browser session without changing global defaults
 
 → [Sounds](./sounds.md)
 
 ---
 
-### Users & Devices *(preview)*
+### Users & Devices
 
-Manage devices and users that have stored per-device or per-user setting overrides. Requires LCARdS integration v2026.3.0+ with `scoped_storage` capability.
+Manage devices and users that have stored per-device or per-user setting overrides (introduced in LCARdS v2026.3.0)
 
 - **Current Session** (all users) — view your device identity, set a display name for this browser
 - **Users** (admin only) — list users with stored overrides; clear overrides for a user
@@ -99,17 +113,31 @@ Built-in packs (core, buttons, sliders, effects, themes) are always shown. User-
 
 ---
 
-### Storage
+### Storage [advanced]
 
-> **Advanced — use with caution.** This tab exposes the raw key/value store the LCARdS integration uses for persistent configuration. Requires the LCARdS integration to be installed and connected.
+:::warning **Advanced — use with caution.**
+This tab exposes the raw key/value store on the backend integration.  LCARdS uses this for persistent configuration settings that are not controlled with helpers.
+:::
 
 - **Live key list** — all keys currently stored
 - **Expandable JSON viewer** — inspect the value of any key
-- **Inline JSON editor** — edit a value directly; syntax errors are caught before saving
+- **Inline JSON editor** — edit a value directly
 - **Per-key delete** — remove a single key with confirmation
 - **Reset All** — wipe the entire LCARdS store (requires explicit confirmation)
 
 Typical use cases: debugging unexpected behaviour, recovering from a corrupt config value, or inspecting stored scoped settings.
+
+---
+
+---
+
+## HA-LCARS Theme Profiles
+
+LCARdS ships custom theme profiles designed to extend [HA-LCARS](https://github.com/th3jesta/ha-lcars).  They map the LCARdS colour palette to both the HA-LCARS chrome variables and the core HA colour token scale, so stock HA components, LCARdS cards, and the HA-LCARS chrome all share the same palette — including alert-mode hue rotations.
+
+The profiles are appended to the end of your existing HA-LCARS `themes.yaml`.
+
+→ [HA-LCARS Theme Profiles](ha-lcars-theme-profiles.md)
 
 ---
 
@@ -119,6 +147,8 @@ Typical use cases: debugging unexpected behaviour, recovering from a corrupt con
 - [Persistent Helpers](persistent-helpers.md) — full helper reference and manual YAML setup
 - [Alert Mode Lab](alert-mode-lab.md) — colour palette customisation
 - [Alert Mode](../core/alert-mode.md) — how alert mode works and how to trigger it
+- [Connectivity](connectivity.md) — connection overlay reference
 - [Sounds](sounds.md) — sound system reference
 - [Users & Devices](users-devices.md) — scoped settings management
+- [HA-LCARS Theme Profiles](ha-lcars-theme-profiles.md) — LCARdS palette ↔ HA-LCARS theme integration
 

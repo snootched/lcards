@@ -51,9 +51,7 @@ export default withMermaid(defineConfig({
   // Custom domain (lcards.unimatrix01.ca) — GitHub Pages serves from root, no subpath needed
   base: '/',
 
-  // Same pre-existing broken cross-references that MkDocs tolerates.
-  // Track and fix separately; don't block CI.
-  ignoreDeadLinks: true,
+  ignoreDeadLinks: false,
 
   // Default to dark mode (matches LCARS aesthetic)
   appearance: 'dark',
@@ -67,6 +65,28 @@ export default withMermaid(defineConfig({
       rel: 'stylesheet',
       href: 'https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&display=swap'
     }],
+    // Plausible init block
+    [
+      'script',
+      {
+        async: '',
+        src: 'https://plausible.io/js/pa-78zuO-ZL5IQCS6WOAhRja.js'
+      }
+    ],
+    // Plausible init block
+    [
+      'script',
+      {},
+      `
+        window.plausible = window.plausible || function() {
+          (plausible.q = plausible.q || []).push(arguments)
+        };
+        plausible.init = plausible.init || function(i) {
+          plausible.o = i || {};
+        };
+        plausible.init();
+      `
+    ]
   ],
 
   // ── Mermaid config ────────────────────────────────────────────────────────
@@ -100,10 +120,13 @@ export default withMermaid(defineConfig({
         activeMatch: '/configuration/',
         items: [
           { text: 'Overview & Setup',  link: '/configuration/' },
+          { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
           { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
+          { text: 'Connectivity',      link: '/configuration/connectivity' },
           { text: 'Helpers',           link: '/configuration/persistent-helpers' },
           { text: 'Sounds',            link: '/configuration/sounds' },
           { text: 'Users & Devices',   link: '/configuration/users-devices' },
+          { text: 'HA Actions',         link: '/configuration/ha-actions' },
           { text: 'Using browser_mod', link: '/configuration/browser-mod' },
         ],
       },
@@ -120,6 +143,19 @@ export default withMermaid(defineConfig({
             ],
           },
           {
+            text: 'Card Reference',
+            items: [
+              { text: 'Alert Overlay', link: '/cards/alert-overlay/' },
+              { text: 'Button',        link: '/cards/button/' },
+              { text: 'Chart',         link: '/cards/chart/' },
+              { text: 'Data Grid',     link: '/cards/data-grid/' },
+              { text: 'Elbow',         link: '/cards/elbow/' },
+              { text: 'MSD',           link: '/cards/msd/' },
+              { text: 'Select Menu',   link: '/cards/select-menu/' },
+              { text: 'Slider',        link: '/cards/slider-card/' },
+            ],
+          },
+          {
             text: 'Card Features',
             items: [
               { text: 'Actions',           link: '/core/actions' },
@@ -132,19 +168,6 @@ export default withMermaid(defineConfig({
               { text: 'Styles',            link: '/core/styles' },
               { text: 'Templates',         link: '/core/templates/' },
               { text: 'Text Fields',       link: '/core/text-fields' },
-            ],
-          },
-          {
-            text: 'Card Reference',
-            items: [
-              { text: 'Alert Overlay', link: '/cards/alert-overlay/' },
-              { text: 'Button',        link: '/cards/button/' },
-              { text: 'Chart',         link: '/cards/chart/' },
-              { text: 'Data Grid',     link: '/cards/data-grid/' },
-              { text: 'Elbow',         link: '/cards/elbow/' },
-              { text: 'MSD',           link: '/cards/msd/' },
-              { text: 'Select Menu',   link: '/cards/select-menu/' },
-              { text: 'Slider',        link: '/cards/slider-card/' },
             ],
           },
         ],
@@ -168,7 +191,6 @@ export default withMermaid(defineConfig({
           {
             text: 'Core Services',
             items: [
-              { text: 'Alert Mode',   link: '/core/alert-mode' },
               { text: 'Data Sources', link: '/core/datasources/' },
               { text: 'Rules Engine', link: '/core/rules/' },
               { text: 'Templates',    link: '/core/templates/' },
@@ -178,8 +200,10 @@ export default withMermaid(defineConfig({
           {
             text: 'Effects',
             items: [
+              { text: 'Alert Mode',            link: '/core/alert-mode' },
               { text: 'Animations',            link: '/core/animations' },
               { text: 'Background Animations', link: '/core/effects/background-animations' },
+              { text: 'Borg Assimilation',     link: '/core/borg' },
               { text: 'Filters',               link: '/core/effects/filters' },
               { text: 'Screen Effects',        link: '/core/effects/screen-effects' },
             ],
@@ -209,7 +233,6 @@ export default withMermaid(defineConfig({
               { text: 'Overview',         link: '/development/' },
               { text: 'Custom Card',      link: '/development/custom-card' },
               { text: 'Colour Resolution',        link: '/development/colour-resolution' },
-              { text: 'Creating a Theme', link: '/core/themes/creating-themes' },
               { text: 'Building an Editor', link: '/development/building-an-editor' },
               { text: 'Building a Pack',  link: '/development/building-a-pack' },
             ],
@@ -222,6 +245,12 @@ export default withMermaid(defineConfig({
               { text: 'Backend WS API',   link: '/development/backend-api' },
               { text: 'Debug API',        link: '/development/debug-api' },
               { text: 'Helpers API',      link: '/development/helpers-api' },
+            ],
+          },
+          {
+            text: 'Internals',
+            items: [
+              { text: 'Codebase Review', link: '/dev/codebase-review' },
             ],
           },
         ],
@@ -251,24 +280,6 @@ export default withMermaid(defineConfig({
           ],
         },
         {
-          text: 'Card Features',
-          collapsed: false,
-          items: [
-            { text: 'Actions',               link: '/core/actions' },
-            { text: 'Animations',             link: '/core/animations' },
-            { text: 'Background Animations',  link: '/core/effects/background-animations' },
-            { text: 'Screen Effects',         link: '/core/effects/screen-effects' },
-            { text: 'Colours',               link: '/core/colours' },
-            { text: 'Data Sources',          link: '/core/datasources/' },
-            { text: 'Presets',               link: '/core/presets' },
-            { text: 'Rules Engine',          link: '/core/rules/' },
-            { text: 'Sounds',                link: '/core/sounds' },
-            { text: 'Styles',                link: '/core/styles' },
-            { text: 'Templates',             link: '/core/templates/' },
-            { text: 'Text Fields',           link: '/core/text-fields' },
-          ],
-        },
-        {
           text: 'Card Reference',
           collapsed: false,
           items: [
@@ -293,6 +304,24 @@ export default withMermaid(defineConfig({
             { text: 'Alert Overlay',  link: '/cards/alert-overlay/' },
           ],
         },
+        {
+          text: 'Card Features',
+          collapsed: false,
+          items: [
+            { text: 'Actions',               link: '/core/actions' },
+            { text: 'Animations',             link: '/core/animations' },
+            { text: 'Background Animations',  link: '/core/effects/background-animations' },
+            { text: 'Screen Effects',         link: '/core/effects/screen-effects' },
+            { text: 'Colours',               link: '/core/colours' },
+            { text: 'Data Sources',          link: '/core/datasources/' },
+            { text: 'Presets',               link: '/core/presets' },
+            { text: 'Rules Engine',          link: '/core/rules/' },
+            { text: 'Sounds',                link: '/core/sounds' },
+            { text: 'Styles',                link: '/core/styles' },
+            { text: 'Templates',             link: '/core/templates/' },
+            { text: 'Text Fields',           link: '/core/text-fields' },
+          ],
+        },
       ],
 
       '/configuration/': [
@@ -300,10 +329,13 @@ export default withMermaid(defineConfig({
           text: 'Configuration',
           items: [
             { text: 'Overview & Setup',  link: '/configuration/' },
+            { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
             { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
+            { text: 'Connectivity',      link: '/configuration/connectivity' },
             { text: 'Helpers',           link: '/configuration/persistent-helpers' },
             { text: 'Sounds',            link: '/configuration/sounds' },
             { text: 'Users & Devices',   link: '/configuration/users-devices' },
+            { text: 'HA Actions',         link: '/configuration/ha-actions' },
             { text: 'Using browser_mod', link: '/configuration/browser-mod' },
           ],
         },
@@ -333,7 +365,6 @@ export default withMermaid(defineConfig({
           text: 'Core Services',
           collapsed: false,
           items: [
-            { text: 'Alert Mode',   link: '/core/alert-mode' },
             {
               text: 'Data Sources',
               collapsed: true,
@@ -362,14 +393,16 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview', link: '/core/themes/' },
+                { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
               ],
             },
           ],
         },
         {
           text: 'Effects',
-          collapsed: true,
+          collapsed: false,
           items: [
+            { text: 'Alert Mode',        link: '/core/alert-mode' },
             {
               text: 'Animations',
               collapsed: true,
@@ -380,8 +413,6 @@ export default withMermaid(defineConfig({
                 { text: 'Rule-based Animations',  link: '/core/animations/rule-based-animations' },
               ],
             },
-            { text: 'Filters',               link: '/core/effects/filters' },
-            { text: 'Screen Effects',        link: '/core/effects/screen-effects' },
             {
               text: 'Background Animations',
               collapsed: true,
@@ -390,6 +421,9 @@ export default withMermaid(defineConfig({
                 { text: 'Preset Reference',  link: '/core/effects/background-animations/preset-reference' },
               ],
             },
+            { text: 'Borg Assimilation',  link: '/core/borg' },
+            { text: 'Filters',            link: '/core/effects/filters' },
+            { text: 'Screen Effects',     link: '/core/effects/screen-effects' },
           ],
         },
       ],
@@ -424,6 +458,7 @@ export default withMermaid(defineConfig({
             { text: 'Animation Manager',    link: '/architecture/subsystems/animation-manager' },
             { text: 'Asset Manager',        link: '/architecture/subsystems/asset-manager' },
             { text: 'Component Manager',    link: '/architecture/subsystems/component-manager' },
+            { text: 'Connection Overlay',   link: '/architecture/subsystems/connection-overlay' },
             { text: 'DataSource System',    link: '/architecture/subsystems/datasource-system' },
             { text: 'Device Identity',      link: '/architecture/subsystems/device-identity' },
             { text: 'Helper Manager',       link: '/architecture/subsystems/helper-manager' },
@@ -431,6 +466,7 @@ export default withMermaid(defineConfig({
             { text: 'Pack System',          link: '/architecture/subsystems/pack-system' },
             { text: 'Rules Engine',         link: '/architecture/subsystems/rules-engine' },
             { text: 'Scoped Settings',      link: '/architecture/subsystems/scoped-settings' },
+            { text: 'Screen Effect System', link: '/architecture/subsystems/screen-effects' },
             { text: 'Sound System',         link: '/architecture/subsystems/sound-system' },
             { text: 'Style Preset Manager', link: '/architecture/subsystems/style-preset-manager' },
             { text: 'Systems Manager',      link: '/architecture/subsystems/systems-manager' },
@@ -446,7 +482,7 @@ export default withMermaid(defineConfig({
             { text: 'Background Animations',  link: '/architecture/internals/background-animation-system' },
             { text: 'DataSource Buffers',     link: '/architecture/internals/datasource-buffers' },
             { text: 'HA Entity Display',      link: '/architecture/internals/ha-entity-display' },
-            { text: 'HA Services',            link: '/architecture/internals/ha-services' },
+            { text: 'HA Services (internals)', link: '/architecture/internals/ha-services' },
             { text: 'Persistent Storage',     link: '/architecture/internals/storage' },
             { text: 'Shape & Texture System', link: '/architecture/internals/shape-texture-system' },
           ],
@@ -460,7 +496,6 @@ export default withMermaid(defineConfig({
             { text: 'Overview',           link: '/development/' },
             { text: 'Custom Card',        link: '/development/custom-card' },
             { text: 'Colour Resolution',  link: '/development/colour-resolution' },
-            { text: 'Creating a Theme',   link: '/core/themes/creating-themes' },
             { text: 'Building an Editor', link: '/development/building-an-editor' },
             { text: 'Building a Pack',    link: '/development/building-a-pack' },
           ],
@@ -474,6 +509,22 @@ export default withMermaid(defineConfig({
             { text: 'Backend WS API',   link: '/development/backend-api' },
             { text: 'Debug API',        link: '/development/debug-api' },
             { text: 'Helpers API',      link: '/development/helpers-api' },
+          ],
+        },
+        {
+          text: 'Internals',
+          collapsed: false,
+          items: [
+            { text: 'Codebase Review',  link: '/dev/codebase-review' },
+          ],
+        },
+      ],
+
+      '/dev/': [
+        {
+          text: 'Internals',
+          items: [
+            { text: 'Codebase Review', link: '/dev/codebase-review' },
           ],
         },
       ],

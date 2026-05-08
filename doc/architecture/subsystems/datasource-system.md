@@ -98,7 +98,7 @@ if (this._unsubscribe) this._unsubscribe();
 
 ## Template Access
 
-```yaml
+```yaml alternatives
 text: "{ds:temp_sensor}"                   # HA-native: locale-formatted + unit
 text: "{ds:temp_sensor.celsius:.1f}"       # processor buffer: 1 decimal, no auto-unit
 text: "{ds:temp_sensor.celsius:.1f} °C"   # explicit unit suffix
@@ -186,5 +186,5 @@ ds.showProcessorGraph('sensor_temp')                 // logs + returns { nodes, 
 
 ## See Also
 
-- [DataSource Buffer Reference](../animations/datasource-buffers.md)
+- [DataSource Buffer Reference](../internals/datasource-buffers.md)
 - [Template System](template-system.md)

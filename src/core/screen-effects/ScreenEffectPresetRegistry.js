@@ -21,11 +21,12 @@
  * @module core/screen-effects/ScreenEffectPresetRegistry
  */
 
-import { StaticEffect   } from './effects/StaticEffect.js';
-import { PixelateEffect } from './effects/PixelateEffect.js';
-import { GlitchEffect   } from './effects/GlitchEffect.js';
-import { ScanlineEffect } from './effects/ScanlineEffect.js';
-import { lcardsLog      } from '../../utils/lcards-logging.js';
+import { StaticEffect            } from './effects/StaticEffect.js';
+import { PixelateEffect          } from './effects/PixelateEffect.js';
+import { GlitchEffect            } from './effects/GlitchEffect.js';
+import { ScanlineEffect          } from './effects/ScanlineEffect.js';
+import { BorgAssimilationEffect  } from './effects/BorgAssimilationEffect.js';
+import { lcardsLog               } from '../../utils/lcards-logging.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Registry implementation
@@ -251,5 +252,37 @@ screenEffectPresetRegistry.register('scanlines', {
           helper: 'Scroll speed — 0 = static lines' },
     ],
     enter: ScanlineEffect,
+});
+
+// ── Easter egg: Borg Assimilation ─────────────────────────────────────────────
+
+screenEffectPresetRegistry.register('borg-assimilation', {
+    label:  'Borg Assimilation',
+    slot:   'canvas',
+    defaults: {
+        siteCount:       7,
+        tendrilsPerSite: 8,
+        tendrilLength:   600,
+        particleCount:   2,
+        color:           '#00cc44',
+        glowColor:       '#00ff66',
+    },
+    params_schema: [
+        { key: 'siteCount',       type: 'number',     label: 'Injection Sites',      min: 1,   max: 20,   step: 1,
+          helper: 'Number of Borg injection points on the screen' },
+        { key: 'tendrilsPerSite', type: 'number',     label: 'Tendrils per Site',    min: 1,   max: 24,   step: 1,
+          helper: 'Bézier tendrils grown from each injection site' },
+        { key: 'tendrilLength',   type: 'number',     label: 'Tendril Length',       min: 100, max: 1200, step: 50,
+          helper: 'Maximum tendril reach in pixels — longer tendrils span more of the screen' },
+        { key: 'particleCount',   type: 'number',     label: 'Particles per Tendril', min: 0,  max: 6,    step: 1,
+          helper: 'Nano-probe particles travelling each tendril continuously (0 = disabled)' },
+        { key: 'color',           type: 'color-text', label: 'Tendril Color',        placeholder: '#00cc44',
+          helper: 'Primary colour for tendrils, branches, and injection sites — supports hex, CSS variables, and computed expressions' },
+        { key: 'glowColor',       type: 'color-text', label: 'Glow Color',           placeholder: '#00ff66',
+          helper: 'Inner glow colour at each injection site and nano-probe particle halos' },
+    ],
+    // The effect runs until BorgAssimilationManager dismisses it (click or timeout).
+    // Do not pass a duration here — use sem.apply() not sem.play() for this preset.
+    enter: BorgAssimilationEffect,
 });
 

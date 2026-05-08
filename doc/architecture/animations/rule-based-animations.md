@@ -151,7 +151,7 @@ Rule-based animations enable powerful multi-card coordination through tags:
 
 **Bridge MSD Card:**
 ```yaml
-type: custom:lcards-msd
+type: custom:lcards-msd-card
 id: bridge
 overlays:
   - id: cpu_temp_display
@@ -163,7 +163,7 @@ overlays:
 
 **Engineering MSD Card:**
 ```yaml
-type: custom:lcards-msd
+type: custom:lcards-msd-card
 id: engineering
 overlays:
   - id: cpu_gauge

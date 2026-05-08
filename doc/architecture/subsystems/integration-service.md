@@ -141,6 +141,8 @@ The subscription is cleaned up automatically when the WebSocket connection close
 |---------------------|-------------|
 | `reload` | `window.location.reload()` — immediate, unconditional |
 | `set_log_level` | `window.lcards.setGlobalLogLevel(data.level)` if available |
+| `show_portal_card` | `pom.show('ha-service', options)` — displays a card/message via `PortalOverlayManager` |
+| `clear_portal_card` | `pom.hide('ha-service')` — clears the `'ha-service'` POM slot |
 | anything else | `lcardsLog.debug` — logged and ignored |
 
 Note: with `subscribeMessage`, the payload is delivered directly as `data` — it is not wrapped in an event envelope (no `event.data` unwrapping needed).
@@ -154,9 +156,9 @@ hass.bus.async_fire("lcards_event", {"action": "reload"})
 hass.bus.async_fire("lcards_event", {"action": "set_log_level", "level": level})
 ```
 
-The event is a **broadcast** — every browser tab with an active `IntegrationService` subscription receives it simultaneously.
+The event is a **broadcast by default** — every browser tab with an active `IntegrationService` subscription receives it simultaneously. Services that support targeting fields (`target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names`) filter delivery on the Python side so only matching sessions act on the event.
 
-→ See [HA Services](ha-services) for the full Python action reference and automation examples.
+→ See [HA Services](../internals/ha-services) for the full Python action reference and automation examples.
 → See [HA Integration Architecture](../ha-integration#python--js-push-channel) for the sequence diagram.
 
 ---

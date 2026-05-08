@@ -1,5 +1,9 @@
 # MSD Card
 
+::: warning Under Construction
+The MSD card and its documentation are under active development. This system was the original basis for LCARdS and is under refactoring to fit better with the rest of the system.  Features and stability should improve over time.
+:::
+
 `custom:lcards-msd`
 
 Master Systems Display — a zoomable SVG canvas on which you position any Home Assistant card as an overlay. Lines (routes) connect anchors across the canvas. Supports rules-based automation of both overlay styles and base SVG filters.
@@ -9,7 +13,7 @@ Master Systems Display — a zoomable SVG canvas on which you position any Home 
 ## Quick Start
 
 ```yaml
-type: custom:lcards-msd
+type: custom:lcards-msd-card
 msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
@@ -66,7 +70,7 @@ msd:
 |-------|------|-------------|
 | `source` | string | SVG source — `builtin:<name>`, `/local/path.svg`, or `none` |
 | `filter_preset` | string | Named filter preset — see table below |
-| `filters` | list | Additional CSS/SVG filters — see [Button card — Filters](../button/#filters-list) |
+| `filters` | list | Additional CSS/SVG filters — see [Base SVG Filters](./base-svg-filters.md) |
 
 ### Filter Presets
 
@@ -241,13 +245,11 @@ See [Rules Engine](../../core/rules/) for the full condition and apply reference
 An MSD card with three anchors, a control overlay, a line, and a rule that changes the base SVG filter on alert:
 
 ```yaml
-type: custom:lcards-msd
+type: custom:lcards-msd-card
 msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
     filter_preset: dimmed
-
-  view_box: auto
 
   anchors:
     bridge: [520, 380]

@@ -11,7 +11,7 @@
  * Editor UI is defined separately in lcards-elbow-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, triggersUpdateSchema } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, triggersUpdateSchema } from './common-schemas.js';
 import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
 /**
@@ -122,6 +122,10 @@ export function getElbowSchema(options = {}) {
 
             min_width: cardMinWidthSchema,
 
+            max_height: cardMaxHeightSchema,
+
+            max_width: cardMaxWidthSchema,
+
 
             preset: {
                 type: 'string',
@@ -204,9 +208,8 @@ export function getElbowSchema(options = {}) {
                                     },
                                     {
                                         type: 'string',
-                                        enum: ['theme'],
-                                        description: "Use 'theme' to dynamically bind to input_number.lcars_vertical from HA-LCARS theme",
-                                        examples: ['theme']
+                                        description: "Use 'theme' to bind to input_number.lcars_vertical, or a CSS length expression (e.g. 'clamp(60px, 8vw, 120px)')",
+                                        examples: ['theme', 'clamp(60px, 8vw, 120px)']
                                     }
                                 ],
                                 default: 90,
@@ -259,9 +262,8 @@ export function getElbowSchema(options = {}) {
                                     },
                                     {
                                         type: 'string',
-                                        enum: ['theme'],
-                                        description: "Use 'theme' to dynamically bind to input_number.lcars_horizontal from HA-LCARS theme",
-                                        examples: ['theme']
+                                        description: "Use 'theme' to bind to input_number.lcars_horizontal, or a CSS length expression (e.g. 'clamp(20px, 4vh, 60px)')",
+                                        examples: ['theme', 'clamp(20px, 4vh, 60px)']
                                     }
                                 ],
                                 description: 'Height of horizontal bar. Use number for static value or "theme" for dynamic binding to HA-LCARS input_number.lcars_horizontal. Defaults to bar_width if not specified.',
@@ -312,8 +314,8 @@ export function getElbowSchema(options = {}) {
                                     },
                                     {
                                         type: 'string',
-                                        const: 'auto',
-                                        description: 'Auto-calculate using LCARS formula: bar_width / 2'
+                                        description: "Use 'auto' for LCARS formula (bar_width / 2), or a CSS length expression (e.g. 'clamp(30px, 4vw, 60px)')",
+                                        examples: ['auto', 'clamp(30px, 4vw, 60px)']
                                     }
                                 ],
                                 default: 'auto',
@@ -333,11 +335,20 @@ export function getElbowSchema(options = {}) {
                                 }
                             },
                             inner_curve: {
-                                type: 'number',
-                                minimum: 0,
-                                maximum: 500,
-                                description: 'Inner corner radius (pixels, defaults to outer_curve / 2 using LCARS formula)',
-                                examples: [22.5, 37.5, 50],
+                                oneOf: [
+                                    {
+                                        type: 'number',
+                                        minimum: 0,
+                                        maximum: 500,
+                                        description: 'Inner corner radius (pixels, defaults to outer_curve / 2 using LCARS formula)',
+                                        examples: [22.5, 37.5, 50]
+                                    },
+                                    {
+                                        type: 'string',
+                                        description: 'CSS length expression for inner corner radius (e.g. \'clamp(10px, 2vw, 30px)\')',
+                                        examples: ['clamp(10px, 2vw, 30px)']
+                                    }
+                                ],
                                 $comment: 'LCARS formula: inner_curve = outer_curve / 2 for authentic concentric geometry',
                                 'x-ui-hints': {
                                     label: 'Inner Curve',
@@ -433,32 +444,36 @@ export function getElbowSchema(options = {}) {
                                         examples: ['light.outer_frame', 'switch.outer_power']
                                     },
                                     bar_width: {
-                                        type: 'number',
-                                        minimum: 1,
-                                        maximum: 500,
-                                        description: 'Vertical bar thickness (pixels) - REQUIRED',
-                                        examples: [90, 120, 150]
+                                        oneOf: [
+                                            { type: 'number', minimum: 1, maximum: 500 },
+                                            { type: 'string', description: 'CSS length expression (e.g. \'clamp(60px, 8vw, 120px)\')' }
+                                        ],
+                                        description: 'Vertical bar thickness (pixels or CSS length) - REQUIRED',
+                                        examples: [90, 120, 150, 'clamp(60px, 8vw, 120px)']
                                     },
                                     bar_height: {
-                                        type: 'number',
-                                        minimum: 1,
-                                        maximum: 500,
-                                        description: 'Horizontal bar thickness (pixels, defaults to bar_width)',
-                                        examples: [20, 90, 150]
+                                        oneOf: [
+                                            { type: 'number', minimum: 1, maximum: 500 },
+                                            { type: 'string', description: 'CSS length expression (e.g. \'clamp(20px, 4vh, 60px)\')' }
+                                        ],
+                                        description: 'Horizontal bar thickness (pixels or CSS length, defaults to bar_width)',
+                                        examples: [20, 90, 150, 'clamp(20px, 4vh, 60px)']
                                     },
                                     outer_curve: {
-                                        type: 'number',
-                                        minimum: 0,
-                                        maximum: 500,
-                                        description: 'Outer corner radius (pixels, defaults to bar_width / 2)',
-                                        examples: [45, 60, 75]
+                                        oneOf: [
+                                            { type: 'number', minimum: 0, maximum: 500 },
+                                            { type: 'string', description: 'CSS length expression (e.g. \'clamp(30px, 4vw, 60px)\')' }
+                                        ],
+                                        description: 'Outer corner radius (pixels or CSS length, defaults to bar_width / 2)',
+                                        examples: [45, 60, 75, 'clamp(30px, 4vw, 60px)']
                                     },
                                     inner_curve: {
-                                        type: 'number',
-                                        minimum: 0,
-                                        maximum: 500,
-                                        description: 'Inner corner radius (pixels, defaults to outer_curve / 2)',
-                                        examples: [22.5, 30, 37.5]
+                                        oneOf: [
+                                            { type: 'number', minimum: 0, maximum: 500 },
+                                            { type: 'string', description: 'CSS length expression (e.g. \'clamp(15px, 2vw, 30px)\')' }
+                                        ],
+                                        description: 'Inner corner radius (pixels or CSS length, defaults to outer_curve / 2)',
+                                        examples: [22.5, 30, 37.5, 'clamp(15px, 2vw, 30px)']
                                     },
                                     color: stateColorSchema,
                                     tap_action: actionSchema,
@@ -490,32 +505,36 @@ export function getElbowSchema(options = {}) {
                                         examples: ['light.inner_zone', 'switch.inner_power']
                                     },
                                     bar_width: {
-                                        type: 'number',
-                                        minimum: 1,
-                                        maximum: 500,
-                                        description: 'Vertical bar thickness (pixels) - REQUIRED',
-                                        examples: [60, 80, 100]
+                                        oneOf: [
+                                            { type: 'number', minimum: 1, maximum: 500 },
+                                            { type: 'string', description: 'CSS length expression (e.g. \'clamp(40px, 6vw, 80px)\')' }
+                                        ],
+                                        description: 'Vertical bar thickness (pixels or CSS length) - REQUIRED',
+                                        examples: [60, 80, 100, 'clamp(40px, 6vw, 80px)']
                                     },
                                     bar_height: {
-                                        type: 'number',
-                                        minimum: 1,
-                                        maximum: 500,
-                                        description: 'Horizontal bar thickness (pixels, defaults to bar_width)',
-                                        examples: [20, 60, 100]
+                                        oneOf: [
+                                            { type: 'number', minimum: 1, maximum: 500 },
+                                            { type: 'string', description: 'CSS length expression (e.g. \'clamp(20px, 4vh, 60px)\')' }
+                                        ],
+                                        description: 'Horizontal bar thickness (pixels or CSS length, defaults to bar_width)',
+                                        examples: [20, 60, 100, 'clamp(20px, 4vh, 60px)']
                                     },
                                     outer_curve: {
-                                        type: 'number',
-                                        minimum: 0,
-                                        maximum: 500,
-                                        description: 'Outer corner radius (pixels, auto-calculated for concentricity if not specified)',
+                                        oneOf: [
+                                            { type: 'number', minimum: 0, maximum: 500 },
+                                            { type: 'string', description: 'CSS length expression for outer corner radius' }
+                                        ],
+                                        description: 'Outer corner radius (pixels or CSS length, auto-calculated for concentricity if not specified)',
                                         examples: [18, 30, 40],
                                         $comment: 'Auto-calculation: outer_segment.inner_curve - gap'
                                     },
                                     inner_curve: {
-                                        type: 'number',
-                                        minimum: 0,
-                                        maximum: 500,
-                                        description: 'Inner corner radius (pixels, defaults to outer_curve / 2)',
+                                        oneOf: [
+                                            { type: 'number', minimum: 0, maximum: 500 },
+                                            { type: 'string', description: 'CSS length expression for inner corner radius' }
+                                        ],
+                                        description: 'Inner corner radius (pixels or CSS length, defaults to outer_curve / 2)',
                                         examples: [9, 15, 20]
                                     },
                                     color: stateColorSchema,
