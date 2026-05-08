@@ -363,16 +363,36 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         if tendril_length is not None: canvas_overrides["tendrilLength"]   = tendril_length
         if particle_count is not None: canvas_overrides["particleCount"]   = particle_count
 
+        # Mapping from snake_case YAML keys → camelCase JS params.
+        # Allows intro_layers.canvas to use either convention in YAML.
+        _CANVAS_KEY_MAP: dict = {
+            "site_count":        "siteCount",
+            "tendrils_per_site": "tendrilsPerSite",
+            "tendril_length":    "tendrilLength",
+            "particle_count":    "particleCount",
+            "glow_color":        "glowColor",
+        }
+
+        def _norm_canvas(d: dict) -> dict:
+            """Normalise snake_case canvas param keys to camelCase."""
+            return {_CANVAS_KEY_MAP.get(k, k): v for k, v in d.items()}
+
         intro_layers = call.data.get("intro_layers")
         if canvas_overrides:
             if intro_layers is not None:
-                # Flat fields are the base; intro_layers.canvas keys override.
-                merged_canvas = {**canvas_overrides, **(intro_layers.get("canvas") or {})}
+                # Flat fields are the base; intro_layers.canvas keys override (normalised first).
+                raw_canvas = intro_layers.get("canvas") or {}
+                merged_canvas = {**canvas_overrides, **_norm_canvas(raw_canvas)}
                 payload["intro_layers"] = {**intro_layers, "canvas": merged_canvas}
             else:
                 payload["intro_layers"] = {"canvas": canvas_overrides}
         elif intro_layers is not None:
-            payload["intro_layers"] = intro_layers
+            # No flat overrides, but still normalise any snake_case canvas keys.
+            raw_canvas = intro_layers.get("canvas")
+            if raw_canvas:
+                payload["intro_layers"] = {**intro_layers, "canvas": _norm_canvas(raw_canvas)}
+            else:
+                payload["intro_layers"] = intro_layers
 
         # suppress_persistent is ignored when persistent_layers is explicitly set.
         persistent_layers = call.data.get("persistent_layers")

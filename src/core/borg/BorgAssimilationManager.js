@@ -36,7 +36,7 @@ const DEFAULTS = {
      * supplementary effects shown alongside the intro and cleared on dismiss.
      */
     intro: {
-        canvas: { siteCount: 16, tendrilsPerSite: 8, color: '#00cc44', glowColor: '#e7442a' },
+        canvas: { siteCount: 8, tendrilsPerSite: 5, color: 'var(--lcars-martian)', glowColor: 'var(--lcards-yellow)' },
         backdrop: { preset: 'saturate', amount: '200%' },
         color:    { preset: 'color-tint', color: 'rgba(0,60,0,0.25)' },
     },
