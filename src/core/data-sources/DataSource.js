@@ -1333,28 +1333,6 @@ export class DataSource {
   }
 
   /**
-   * Get historical data for a specific processor
-   * @param {string} processorName - Name of the processor
-   * @param {number} count - Number of recent points to get (default: 100)
-   * @returns {Array} Historical processor data [{t, v}, ...] or empty array
-   */
-  // @ts-ignore - first definition; second definition below overrides at runtime
-  getProcessorHistory(processorName, count = 100) {
-    const buffer = this.getProcessorBuffer(processorName);
-    if (!buffer) {
-      lcardsLog.warn(`[DataSource] No buffer found for processor: ${processorName}`);
-      return [];
-    }
-
-    try {
-      return buffer.getRecent(count) || [];
-    } catch (error) {
-      lcardsLog.error(`[DataSource] Error getting history for processor ${processorName}:`, error);
-      return [];
-    }
-  }
-
-  /**
    * Stop the data source and release resources
    */
   async stop() {
@@ -1534,7 +1512,6 @@ export class DataSource {
    * @param {number} count - Number of recent points to get (default: 100)
    * @returns {Array} Historical processor data [{t, v}, ...] or empty array
    */
-  // @ts-ignore - duplicate method; second definition overrides first at runtime
   getProcessorHistory(processorName, count = 100) {
     const buffer = this.getProcessorBuffer(processorName);
     if (!buffer) {

@@ -395,13 +395,18 @@ export class AnimationRegistry {
       usageStats: this.usageStats?.size || 0
     };
   }
+
+  destroy() {
+    this.cache.clear();
+    this.usageStats.clear();
+  }
 }
 
 // Create global registry instance
 const globalAnimationRegistry = new AnimationRegistry();
 
 // Debug exposure
-const debugNamespace = (typeof window !== 'undefined') ? window : global;
+const debugNamespace = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : null);
 if (debugNamespace) {
   debugNamespace.__msdAnimRegistry = {
     registry: globalAnimationRegistry,

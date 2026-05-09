@@ -222,4 +222,9 @@ export class ComponentManager {
 
         lcardsLog.debug(`[ComponentManager] Registered ${registeredCount} components from pack: ${pack.id}`);
     }
+
+    destroy() {
+        this.components.clear();
+        this.componentsByType.clear();
+    }
 }

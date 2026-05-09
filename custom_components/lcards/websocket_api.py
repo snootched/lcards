@@ -52,9 +52,37 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+_STORAGE_UNAVAILABLE = "storage_unavailable"
+_STORAGE_UNAVAILABLE_MSG = "LCARdS storage is not initialised"
+_UNAUTHORIZED = "unauthorized"
+_UNAUTHORIZED_MSG = "Admin access required"
+
+
 def _get_storage(hass: HomeAssistant):
     """Return the LCARdSStorage instance from hass.data, or None."""
     return hass.data.get(DOMAIN, {}).get("storage")
+
+
+def _check_storage(hass: HomeAssistant, connection, msg: dict):
+    """Get storage and send an error if it is not yet initialised.
+
+    Returns the storage instance, or None if unavailable (error already sent).
+    """
+    storage = _get_storage(hass)
+    if storage is None:
+        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
+    return storage
+
+
+def _require_admin(connection, msg: dict) -> bool:
+    """Check that the caller is an admin; send an error if not.
+
+    Returns True when the caller is authorised, False when the error was sent.
+    """
+    if not connection.user.is_admin:
+        connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
+        return False
+    return True
 
 
 def async_setup_ws(hass: HomeAssistant) -> None:
@@ -150,10 +178,6 @@ async def ws_lcards_info(
 # Storage commands
 # ---------------------------------------------------------------------------
 
-_STORAGE_UNAVAILABLE = "storage_unavailable"
-_STORAGE_UNAVAILABLE_MSG = "LCARdS storage is not initialised"
-
-
 @websocket_api.websocket_command(
     {
         vol.Required("type"): f"{DOMAIN}/storage/get",
@@ -170,9 +194,8 @@ async def ws_storage_get(
 
     Returns the value for *key*, or the full data dict if key is omitted.
     """
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
     key = msg.get("key")
     value = await storage.async_get(key)
@@ -195,9 +218,8 @@ async def ws_storage_set(
 
     Shallow-merges *data* (a dict of key→value pairs) into the store.
     """
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
     await storage.async_set(msg["data"])
     connection.send_result(msg["id"], {"ok": True, "keys": list(msg["data"].keys())})
@@ -219,9 +241,8 @@ async def ws_storage_delete(
 
     Deletes *key* from the store. Responds with existed=True/False.
     """
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
     existed = await storage.async_delete(msg["key"])
     connection.send_result(msg["id"], {"ok": True, "existed": existed})
@@ -242,9 +263,8 @@ async def ws_storage_reset(
 
     Wipes the entire LCARdS store. Irreversible.
     """
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
     await storage.async_reset()
     connection.send_result(msg["id"], {"ok": True})
@@ -266,9 +286,8 @@ async def ws_storage_dump(
     Returns the full store contents including the schema version.
     Intended for debugging and dev-tools inspection.
     """
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
     connection.send_result(msg["id"], storage.dump())
 
@@ -314,10 +333,6 @@ async def ws_subscribe(
 # user_id is ALWAYS derived from connection.user.id (server-side, unforgeable)
 # ---------------------------------------------------------------------------
 
-_UNAUTHORIZED = "unauthorized"
-_UNAUTHORIZED_MSG = "Admin access required"
-
-
 @websocket_api.websocket_command(
     {
         vol.Required("type"): f"{DOMAIN}/storage/user/get",
@@ -336,9 +351,8 @@ async def ws_storage_user_get(
     sub-key if *key* is supplied.  user_id is taken from the authenticated
     connection — the client cannot supply or spoof it.
     """
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     user_id = connection.user.id
@@ -366,9 +380,8 @@ async def ws_storage_user_set(
     Deep-merges *data* into the caller's user-scoped storage object.
     Existing sub-keys not present in *data* are preserved.
     """
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     user_id = connection.user.id
@@ -393,9 +406,8 @@ async def ws_storage_user_delete(
     Removes a single sub-key from the caller's user-scoped storage object.
     Responds with existed=True/False.
     """
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     user_id = connection.user.id
@@ -423,13 +435,11 @@ async def ws_storage_users_list(
     Returns a mapping of user_id \u2192 sub-key count for all users with stored data.
     Requires admin.
     """
-    if not connection.user.is_admin:
-        connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
+    if not _require_admin(connection, msg):
         return
 
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     entities = storage.get_namespaced_entities(STORAGE_NS_USER)
@@ -454,13 +464,11 @@ async def ws_storage_users_get(
 
     Returns the full data dict for any user.  Requires admin.
     """
-    if not connection.user.is_admin:
-        connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
+    if not _require_admin(connection, msg):
         return
 
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     user_id = msg["user_id"]
@@ -486,13 +494,11 @@ async def ws_storage_users_set(
     Deep-merges *data* into any user's scoped storage.  Requires admin.
     Useful for copying global settings to a specific user from the panel.
     """
-    if not connection.user.is_admin:
-        connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
+    if not _require_admin(connection, msg):
         return
 
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     user_id = msg["user_id"]
@@ -524,9 +530,8 @@ async def ws_storage_device_get(
     Returns the device-scoped data dict (or a single sub-key) for the given
     device_id.  Any authenticated user may read their own device data.
     """
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     device_id = msg["device_id"]
@@ -557,9 +562,8 @@ async def ws_storage_device_set(
     browsers call it on load with ``display_name``, ``last_seen``, and
     ``user_agent`` so the device appears in the admin panel automatically.
     """
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     device_id = msg["device_id"]
@@ -587,13 +591,11 @@ async def ws_storage_users_clear(
 
     Deletes the entire scoped-storage entry for *user_id*.  Requires admin.
     """
-    if not connection.user.is_admin:
-        connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
+    if not _require_admin(connection, msg):
         return
 
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     removed = await storage.async_clear_entity(STORAGE_NS_USER, msg["user_id"])
@@ -616,13 +618,11 @@ async def ws_storage_devices_clear(
 
     Deletes the entire scoped-storage entry for *device_id*.  Requires admin.
     """
-    if not connection.user.is_admin:
-        connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
+    if not _require_admin(connection, msg):
         return
 
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     removed = await storage.async_clear_entity(STORAGE_NS_DEVICE, msg["device_id"])
@@ -648,13 +648,11 @@ async def ws_storage_devices_list(
     Returns all registered device IDs with display_name, last_seen summary.
     Requires admin.
     """
-    if not connection.user.is_admin:
-        connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
+    if not _require_admin(connection, msg):
         return
 
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     entities = storage.get_namespaced_entities(STORAGE_NS_DEVICE)
@@ -686,13 +684,11 @@ async def ws_storage_devices_get(
 
     Returns the full data dict for any device.  Requires admin.
     """
-    if not connection.user.is_admin:
-        connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
+    if not _require_admin(connection, msg):
         return
 
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     device_id = msg["device_id"]
@@ -718,13 +714,11 @@ async def ws_storage_devices_set(
     Deep-merges *data* into any device's scoped storage.  Requires admin.
     Useful for renaming a device or copying settings from the admin panel.
     """
-    if not connection.user.is_admin:
-        connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
+    if not _require_admin(connection, msg):
         return
 
-    storage = _get_storage(hass)
+    storage = _check_storage(hass, connection, msg)
     if storage is None:
-        connection.send_error(msg["id"], _STORAGE_UNAVAILABLE, _STORAGE_UNAVAILABLE_MSG)
         return
 
     device_id = msg["device_id"]

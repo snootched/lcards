@@ -4432,7 +4432,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             const handler = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                this._actionHandler.handleAction(segment.tap_action, this.hass, this.config, segment.entity);
+                this._actionHandler.handleAction(element, this.hass, segment.tap_action, 'tap');
             };
             element.addEventListener('click', handler);
             listeners.push(() => element.removeEventListener('click', handler));

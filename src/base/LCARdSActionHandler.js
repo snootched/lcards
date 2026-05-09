@@ -29,7 +29,6 @@ import { TriggerManager } from '../core/animation/TriggerManager.js';
 export class LCARdSActionHandler {
 
     constructor() {
-        this._registeredElements = new WeakMap();
         this._activeHandlers = new Set();
     }
 
@@ -790,5 +789,9 @@ export class LCARdSActionHandler {
 
         lcardsLog.debug(`[LCARdSActionHandler] Opening URL ${url}`);
         window.open(url, '_blank');
+    }
+
+    destroy() {
+        this._activeHandlers.clear();
     }
 }

@@ -809,7 +809,33 @@ class LCARdSCore {
         }
 
         if (this.stylePresetManager) {
+            this.stylePresetManager.destroy();
             this.stylePresetManager = null;
+        }
+
+        if (this.animationRegistry) {
+            this.animationRegistry.destroy();
+            this.animationRegistry = null;
+        }
+
+        if (this.actionHandler) {
+            this.actionHandler.destroy();
+            this.actionHandler = null;
+        }
+
+        if (this.assetManager) {
+            this.assetManager.destroy();
+            this.assetManager = null;
+        }
+
+        if (this.configManager) {
+            this.configManager.destroy();
+            this.configManager = null;
+        }
+
+        if (this.componentManager) {
+            this.componentManager.destroy();
+            this.componentManager = null;
         }
 
         if (this.soundManager) {

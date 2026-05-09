@@ -132,12 +132,11 @@ export class CoreSystemsManager {
     if (changedEntities.size > 0) {
       this._notifyEntityChanges(Array.from(changedEntities));
 
-      // Clear old states after notification to avoid memory leak
-      setTimeout(() => {
-        changedEntities.forEach(entityId => {
-          this._oldEntityStates.delete(entityId);
-        });
-      }, 100);
+      // All subscriber callbacks are synchronous, so old states can be
+      // released immediately — no timer needed.
+      changedEntities.forEach(entityId => {
+        this._oldEntityStates.delete(entityId);
+      });
     }
 
     lcardsLog.debug(`[CoreSystemsManager] HASS updated, ${changedEntities.size} entities changed`);
