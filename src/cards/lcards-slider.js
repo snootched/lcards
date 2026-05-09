@@ -166,6 +166,11 @@ export class LCARdSSlider extends LCARdSButton {
                     box-sizing: border-box;
                     overflow: visible;
                     /* CSS borders applied via inline styles from config */
+                    /* Floor matches .button-container in lcards-button.js so the slider
+                     * is visible in auto-height grid rows (height:100% collapses to 0
+                     * when the grid track has no explicit minimum). Overridden at runtime
+                     * by config.min_height / config.height inline styles. */
+                    min-height: var(--lcards-button-min-height, 56px);
                 }
 
                 /* The SVG is positioned absolute so it fills the container without
@@ -2907,7 +2912,7 @@ export class LCARdSSlider extends LCARdSButton {
      * @returns {TemplateResult} Rendered template
      * @private
      */
-    _renderWithRenderer(width, height) {
+    _renderWithRenderer(width, height, containerStyle = '') {
         lcardsLog.debug(`[LCARdSSlider] _renderWithRenderer(${width}, ${height})`);
 
         // Step 1: Get raw component zones for the render pipeline.
@@ -3144,7 +3149,7 @@ export class LCARdSSlider extends LCARdSButton {
             const overlayTop    = controlZone.y + (1 - ctrlEndFrac)   * controlZone.height;
             const overlayHeight = (ctrlEndFrac - ctrlStartFrac) * controlZone.height;
             return html`
-                <div class="slider-container">
+                <div class="slider-container" style="${containerStyle}">
                     ${unsafeHTML(finalSvg)}
                     ${!this._controlConfig.locked ? html`
                         <div
@@ -3180,7 +3185,7 @@ export class LCARdSSlider extends LCARdSButton {
             : String(this._sliderValue);
 
         return html`
-            <div class="slider-container">
+            <div class="slider-container" style="${containerStyle}">
                 ${unsafeHTML(finalSvg)}
                 ${!this._controlConfig.locked ? html`
                     <input
@@ -4027,10 +4032,26 @@ export class LCARdSSlider extends LCARdSButton {
         const width  = this._configPx(this.config.width)  || this._containerSize?.width  || 200;
         const height = this._configPx(this.config.height) || this._containerSize?.height || 60;
 
+        // Build inline container styles — mirrors button's containerStyleParts logic:
+        //   config.height set    → exact height + min-height: 0 (suppress CSS-var floor)
+        //   config.min_height set → min-height floor (CSS-var floor still applies if absent)
+        //   neither              → no inline styles; CSS var(--lcards-button-min-height,40px) wins
+        const toCssVal = val => { const n = Number(val); return Number.isFinite(n) ? `${n}px` : String(val); };
+        const cssHeight    = this.config.height     ? toCssVal(this.config.height)     : '';
+        const cssMinHeight = this.config.min_height ? toCssVal(this.config.min_height) : '';
+        const containerStyleParts = [];
+        if (cssHeight) {
+            containerStyleParts.push(`height: ${cssHeight}`);
+            containerStyleParts.push('min-height: 0px');
+        } else if (cssMinHeight) {
+            containerStyleParts.push(`min-height: ${cssMinHeight}`);
+        }
+        const containerStyle = containerStyleParts.join('; ');
+
         // Check if component is loaded
         if (this.config.component && !this._componentLoaded) {
             return html`
-                <div class="slider-container">
+                <div class="slider-container" style="${containerStyle}">
                     <div class="slider-loading">Loading component...</div>
                 </div>
             `;
@@ -4038,13 +4059,13 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Component uses render function (new architecture)
         if (this._componentRenderer) {
-            return this._renderWithRenderer(width, height);
+            return this._renderWithRenderer(width, height, containerStyle);
         }
 
         // Fallback: no component loaded
         lcardsLog.warn('[LCARdSSlider] No component renderer available, showing error');
         return html`
-            <div class="slider-container">
+            <div class="slider-container" style="${containerStyle}">
                 <div class="slider-loading">Component not loaded</div>
             </div>
         `;

@@ -414,6 +414,20 @@ export class LCARdSNativeCard extends LitElement {
         this.style.width      = _toCssLength(config.width      ?? '');
         this.style.maxHeight   = _toCssLength(config.max_height ?? '');
         this.style.maxWidth    = _toCssLength(config.max_width  ?? '');
+        // Apply min-height/min-width to the host element — suppressed when the
+        // corresponding exact dimension is also set (config.height/config.width wins;
+        // CSS min-* always overrides height/width when larger, so we clear it).
+        if (explicitH) {
+            this.style.removeProperty('min-height');
+        } else {
+            this.style.minHeight = _toCssLength(config.min_height ?? '');
+        }
+        const explicitW = _toCssLength(config.width ?? '');
+        if (explicitW) {
+            this.style.removeProperty('min-width');
+        } else {
+            this.style.minWidth = _toCssLength(config.min_width ?? '');
+        }
     }
 
     /**
