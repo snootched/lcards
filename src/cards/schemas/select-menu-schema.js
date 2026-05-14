@@ -22,6 +22,10 @@ import {
     cardMinWidthSchema,
     cardMaxHeightSchema,
     cardMaxWidthSchema,
+    cardOverflowSchema,
+    cardOverflowXSchema,
+    cardOverflowYSchema,
+    cardZIndexSchema,
 } from './common-schemas.js';
 
 /**
@@ -268,6 +272,10 @@ export function getSelectMenuSchema(options = {}) {
             min_width:  cardMinWidthSchema,
             max_height: cardMaxHeightSchema,
             max_width:  cardMaxWidthSchema,
+            overflow:   cardOverflowSchema,
+            overflow_x: cardOverflowXSchema,
+            overflow_y: cardOverflowYSchema,
+            z_index:    cardZIndexSchema,
 
             // ── Appearance ────────────────────────────────────────────────
             preset: {

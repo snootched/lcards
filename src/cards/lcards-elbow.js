@@ -3109,12 +3109,16 @@ export class LCARdSElbow extends LCARdSButton {
         const left   = baseLeft   + (pos.left   ?? 0);
 
         // Use CSS inset shorthand: top right bottom left
+        const s = this.config.symbiont;
+        const baseOverflow = s?.overflow ?? 'hidden';
+        const overflowX = s?.overflow_x ?? baseOverflow;
+        const overflowY = s?.overflow_y ?? baseOverflow;
         return html`
             <div class="lcards-symbiont-wrapper">
                 ${parentContent}
                 <div class="lcards-symbiont-container"
                      id="lcards-symbiont-host"
-                     style="inset: ${top}px ${right}px ${bottom}px ${left}px;">
+                     style="inset: ${top}px ${right}px ${bottom}px ${left}px; overflow-x: ${overflowX}; overflow-y: ${overflowY};">
                 </div>
             </div>
         `;

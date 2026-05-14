@@ -558,7 +558,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                             { type: 'field', path: 'min_height' },
                             { type: 'field', path: 'min_width' },
                             { type: 'field', path: 'max_height' },
-                            { type: 'field', path: 'max_width' }
+                            { type: 'field', path: 'max_width' },
+                            { type: 'field', path: 'overflow' },
+                            { type: 'field', path: 'z_index' },
+                            { type: 'field', path: 'overflow_x' },
+                            { type: 'field', path: 'overflow_y' },
                         ]
                     },
                     { type: 'custom', render: () => this._renderLayoutCardHint() }

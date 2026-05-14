@@ -3346,6 +3346,8 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @protected
      */
     _onDisconnected() {
+        super._onDisconnected();
+
         // --- Datasource subscriptions ---
         if (this._datasourceSubscriptions && this._datasourceSubscriptions.size > 0) {
             this._datasourceSubscriptions.forEach((unsubscribe, sourceId) => {
@@ -3423,8 +3425,6 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Action handler cleanup is handled by setupActions() cleanup function
 
         lcardsLog.trace(`[LCARdSCard] Disconnected and cleaned up: ${this._getDisplayId()}`);
-
-        super._onDisconnected();
     }
 
     /**

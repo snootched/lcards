@@ -428,6 +428,12 @@ export class LCARdSNativeCard extends LitElement {
         } else {
             this.style.minWidth = _toCssLength(config.min_width ?? '');
         }
+
+        const validOverflow = ['visible', 'hidden', 'clip', 'scroll', 'auto'];
+        this.style.overflow  = validOverflow.includes(config.overflow)   ? config.overflow   : '';
+        this.style.overflowX = validOverflow.includes(config.overflow_x) ? config.overflow_x : '';
+        this.style.overflowY = validOverflow.includes(config.overflow_y) ? config.overflow_y : '';
+        this.style.zIndex    = config.z_index != null ? String(config.z_index) : '';
     }
 
     /**

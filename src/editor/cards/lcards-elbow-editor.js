@@ -589,7 +589,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         { type: 'field', path: 'min_height' },
                         { type: 'field', path: 'min_width' },
                         { type: 'field', path: 'max_height' },
-                        { type: 'field', path: 'max_width' }
+                        { type: 'field', path: 'max_width' },
+                        { type: 'field', path: 'overflow' },
+                        { type: 'field', path: 'z_index' },
+                        { type: 'field', path: 'overflow_x' },
+                        { type: 'field', path: 'overflow_y' },
                     ]
                 },
                 { type: 'custom', render: () => this._renderLayoutCardHint() }
@@ -1957,6 +1961,62 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                 }}>
                             </ha-code-editor>
                         ` : ''}
+                    </lcards-form-section>
+
+                    <!-- Container Behavior -->
+                    <lcards-form-section
+                        header="Container"
+                        description="Overflow and scrolling behavior for the symbiont content area"
+                        icon="mdi:scroll-horizontal-variant"
+                        ?expanded=${false}
+                        ?outlined=${true}>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Overflow'}
+                            .helper=${'Sets both axes unless overridden below. Default: hidden (clips content).'}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'hidden',  label: 'Hidden — clips content (default)' },
+                                { value: 'visible', label: 'Visible — content paints outside' },
+                                { value: 'clip',    label: 'Clip — hard clip, no scroll' },
+                                { value: 'scroll',  label: 'Scroll — always shows scrollbar' },
+                                { value: 'auto',    label: 'Auto — scrollbar only when needed' },
+                            ] } }}
+                            .value=${symbiont.overflow ?? 'hidden'}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.overflow', e.detail.value === 'hidden' ? undefined : e.detail.value)}>
+                        </ha-selector>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Overflow X (horizontal)'}
+                            .helper=${'Overrides the Overflow setting for the horizontal axis only.'}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: '',        label: '— inherit from Overflow —' },
+                                { value: 'hidden',  label: 'Hidden' },
+                                { value: 'visible', label: 'Visible' },
+                                { value: 'clip',    label: 'Clip' },
+                                { value: 'scroll',  label: 'Scroll' },
+                                { value: 'auto',    label: 'Auto' },
+                            ] } }}
+                            .value=${symbiont.overflow_x ?? ''}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.overflow_x', e.detail.value || undefined)}>
+                        </ha-selector>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Overflow Y (vertical)'}
+                            .helper=${'Overrides the Overflow setting for the vertical axis only.'}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: '',        label: '— inherit from Overflow —' },
+                                { value: 'hidden',  label: 'Hidden' },
+                                { value: 'visible', label: 'Visible' },
+                                { value: 'clip',    label: 'Clip' },
+                                { value: 'scroll',  label: 'Scroll' },
+                                { value: 'auto',    label: 'Auto' },
+                            ] } }}
+                            .value=${symbiont.overflow_y ?? ''}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.overflow_y', e.detail.value || undefined)}>
+                        </ha-selector>
                     </lcards-form-section>
 
                     <!-- Position / Padding -->

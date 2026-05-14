@@ -33,6 +33,14 @@ import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
 
 // @ts-ignore - TS2417: static side extends - getConfigElement signature
+const _overflowOpts = [
+    { value: 'visible', label: 'Visible — content paints outside the box' },
+    { value: 'hidden',  label: 'Hidden — clips without scroll' },
+    { value: 'clip',    label: 'Clip — hard clip, no programmatic scroll' },
+    { value: 'scroll',  label: 'Scroll — always shows scrollbar' },
+    { value: 'auto',    label: 'Auto — scrollbar only when needed' },
+];
+
 export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
 
     static get properties() {
@@ -414,6 +422,10 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                     ${FormField.renderField(this, 'min_width')}
                     ${FormField.renderField(this, 'max_height')}
                     ${FormField.renderField(this, 'max_width')}
+                    ${FormField.renderField(this, 'overflow')}
+                    ${FormField.renderField(this, 'z_index')}
+                    ${FormField.renderField(this, 'overflow_x')}
+                    ${FormField.renderField(this, 'overflow_y')}
                 </div>
                 ${this._renderLayoutCardHint()}
             </lcards-form-section>

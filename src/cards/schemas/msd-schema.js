@@ -19,7 +19,11 @@ import {
     cardMinHeightSchema,
     cardMinWidthSchema,
     cardMaxHeightSchema,
-    cardMaxWidthSchema
+    cardMaxWidthSchema,
+    cardOverflowSchema,
+    cardOverflowXSchema,
+    cardOverflowYSchema,
+    cardZIndexSchema,
 } from './common-schemas.js';
 
 /**
@@ -641,6 +645,11 @@ export function getMsdSchema(options = {}) {
       max_height: cardMaxHeightSchema,
 
       max_width: cardMaxWidthSchema,
+
+      overflow:   cardOverflowSchema,
+      overflow_x: cardOverflowXSchema,
+      overflow_y: cardOverflowYSchema,
+      z_index:    cardZIndexSchema,
 
       msd: msdConfigSchema,
 
