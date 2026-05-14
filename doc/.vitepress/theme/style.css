@@ -23,10 +23,10 @@
   --vp-c-brand-soft: #ff675320;
 
   /* Default backgrounds — LCARS cool grays (palette-aligned) */
-  --vp-c-bg:         #e8eaef;
-  --vp-c-bg-soft:    #dfe1e8;
-  --vp-c-bg-mute:    #d2d5df;
-  --vp-c-bg-elv:     #f0f2f7;
+  --vp-c-bg:         #f2f4f8;
+  --vp-c-bg-soft:    #e8ebf2;
+  --vp-c-bg-mute:    #dde1eb;
+  --vp-c-bg-elv:     #f8f9fc;
 
   /* Text */
   --vp-c-text-1:     #1e2229;
@@ -64,6 +64,7 @@
   --vp-c-info-2:     #37a6d1;
   --vp-c-info-3:     #6bbfdf;
   --vp-c-info-soft:  #37a6d118;
+
 }
 
 /* --------------------------------------------------------------------------
@@ -119,6 +120,7 @@
   /* Code block */
   --vp-code-bg:      #000000;
   --vp-code-color:   #d2d5df;
+
 }
 
 /* --------------------------------------------------------------------------
@@ -301,6 +303,18 @@ dialog.mz-svg-lightbox .mz-svg-inner {
 /* --------------------------------------------------------------------------
    Home page hero — suppress if needed for custom layout
    -------------------------------------------------------------------------- */
+/*
+.VPHero .image-container {
+  width: 100%;
+}
+
+.VPHero .image-src {
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+}
+*/
+
 .VPHero .name {
   font-family: 'Antonio', sans-serif;
   letter-spacing: 0.06em;

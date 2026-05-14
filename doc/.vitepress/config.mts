@@ -2,6 +2,8 @@ import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
 
+const SITE_URL = 'https://lcards.unimatrix01.ca'
+
 /**
  * markdown-it core rule: wrap {{ ... }} in <span v-pre> so Vue's
  * template compiler doesn't try to interpret them as interpolations.
@@ -58,6 +60,9 @@ export default withMermaid(defineConfig({
 
   // Output goes to doc/.vitepress/dist (VitePress default — consistent across environments)
 
+  sitemap: {
+    hostname: SITE_URL,
+  },
 
   head: [
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
