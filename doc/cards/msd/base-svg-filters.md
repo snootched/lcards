@@ -194,28 +194,27 @@ filters:
 **Best for**: Minimal aesthetic, reduced visual clutter.
 
 ### `red-alert`
-Brightened with warm hue shift for alert state.
+Full opacity with slight warm hue rotation for alert state.
 
 ```yaml
 # Equivalent to:
 filters:
-  opacity: 0.7
+  opacity: 1.0
   brightness: 1.2
-  hue_rotate: -30
-  saturate: 1.5
+  hue_rotate: 10
 ```
 
 **Best for**: Alert states, emergency displays.
 
 ### `monochrome`
-Full grayscale with enhanced contrast.
+Full grayscale with reduced contrast.
 
 ```yaml
 # Equivalent to:
 filters:
+  opacity: 0.6
   grayscale: 1.0
-  contrast: 1.2
-  brightness: 0.9
+  contrast: 0.8
 ```
 
 **Best for**: Professional displays, reduced color distraction.
@@ -277,44 +276,6 @@ base_svg:
 ```
 
 **Priority**: Theme presets override built-in presets, explicit filters override everything.
-
----
-
-## Technical Details
-
-### Filter Isolation
-
-Filters apply **only to base SVG content**, not to overlays. This is achieved by wrapping base SVG content in an internal group:
-
-```html
-<svg viewBox="0 0 1920 1200">
-  <g id="__msd-base-content" style="filter: blur(3px)">
-    <!-- Base SVG ship template - FILTERED -->
-  </g>
-  <g id="msd-overlay-container">
-    <!-- Overlays - NOT filtered, remain crisp -->
-  </g>
-</svg>
-```
-
-**Result**: Base artwork is filtered while overlays remain sharp and clear.
-
-### Reserved IDs
-
-IDs starting with `__` (double underscore) or `msd-internal-` are reserved for internal MSD use:
-- `__msd-base-content` - Base SVG content wrapper (for filter isolation)
-- Not extracted as anchors
-- Not validated as user anchors
-- Invisible to anchor system
-
-**User anchors**: Can use any ID except those starting with `__` or `msd-internal-`.
-
-### Performance
-
-- **GPU-accelerated**: CSS filters use hardware acceleration
-- **Single application**: Filters applied once after initial render
-- **No overhead**: No ongoing performance impact
-- **Optional transitions**: CSS-based animations available
 
 ---
 

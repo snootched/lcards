@@ -24,7 +24,7 @@ Once HA-LCARS is installed, append the **LCARdS theme profiles** to your `themes
 6. Click through the setup (configuration options below)
 
 LCARdS is now active. It automatically:
-- Loads `lcards.js` on every Home Assistant page
+- Module `lcards.js` is available on page load and across every Home Assistant page
 - Registers the **LCARdS Config** sidebar panel
 
 ### Manual Installation
@@ -35,14 +35,13 @@ LCARdS is now active. It automatically:
 2. Extract the contents into `config/custom_components/lcards/`
    (the directory should contain `manifest.json` and `__init__.py` directly — not a nested `lcards/lcards/` folder)
 3. **Restart Home Assistant**
-No `configuration.yaml` changes are required.
 4. Go to **Settings → Integrations → Add Integration → LCARdS**
 
 </details>
 
 ::: info `lovelace-layout-card` compatibility
 LCARdS works well with [`lovelace-layout-card`](https://github.com/thomasloven/lovelace-layout-card)
-There are some quirks to be aware of when using `grid-layout` - we have a patched version that fixes the issue and will remain available until fixed upstream.
+There are some quirks to be aware of when using `grid-layout` - we have a patched version that fixes the margin issue and will remain available until fixed upstream.
 
 Please see [Sizing Inside Custom Layout](../cards/common.md#sizing-inside-custom-layout-card) for details.
 :::
@@ -68,12 +67,10 @@ Changes take effect immediately — no restart required.
 The [**LCARdS Config Panel**](../configuration/) is registered automatically by the integration.
 Access it via the **LCARdS Config** entry in the Home Assistant sidebar.
 
-From the Config Panel you can:
+Follow the setup flow in the Config Panel, and explore other options like:
 - **Create all required helpers** in one click (alert mode, sounds, sizing)
-- Customise Alert Mode colour palettes per alert level
-- Configure sound schemes and per-event overrides
-- Browse theme tokens and CSS variables live
-- Explore installed packs
+- Customise Alert Mode colour palettes
+- Configure sound schemes and overrides
 
 After setup, if you don't want it visible all the time, toggle **Show sidebar panel** off in the integration options — it can be re-enabled at any time.
 

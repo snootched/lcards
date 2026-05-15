@@ -1,10 +1,6 @@
 # MSD Card
 
-::: warning Under Construction
-The MSD card and its documentation are under active development. This system was the original basis for LCARdS and is under refactoring to fit better with the rest of the system.  Features and stability should improve over time.
-:::
-
-`custom:lcards-msd`
+`custom:lcards-msd-card`
 
 Master Systems Display — a zoomable SVG canvas on which you position any Home Assistant card as an overlay. Lines (routes) connect anchors across the canvas. Supports rules-based automation of both overlay styles and base SVG filters.
 
@@ -32,8 +28,8 @@ msd:
     - id: engineering-line
       type: line
       route: auto
-      from: bridge
-      to: engineering
+      anchor: bridge
+      attach_to: engineering
 ```
 
 ---
@@ -147,8 +143,8 @@ Routes a line between two anchors on the canvas.
 |-------|------|-------------|
 | `id` | string | Line ID (required) |
 | `type` | string | `line` |
-| `from` | string | Source anchor name |
-| `to` | string | Target anchor name |
+| `anchor` | string | Source anchor name |
+| `attach_to` | string | Target anchor name |
 | `route` | string | Routing algorithm — see table below |
 | `waypoints` | list | Intermediate `[x, y]` points or anchor names |
 | `route_hint` | string | Initial segment direction: `xy` (horizontal first) or `yx` |
@@ -171,8 +167,8 @@ Routes a line between two anchors on the canvas.
 ```yaml
 - id: power-line
   type: line
-  from: engineering
-  to: bridge
+  anchor: engineering
+  attach_to: bridge
   route: manhattan
   route_hint: yx
   corner_style: round
@@ -201,7 +197,6 @@ Visualisation aids — useful while building your layout:
 |-------|------|---------|-------------|
 | `enabled` | boolean | `false` | Enable debug overlays |
 | `show_anchors` | boolean | `false` | Show anchor points as circles |
-| `show_grid` | boolean | `false` | Show routing grid |
 | `show_routing` | boolean | `false` | Show line routing paths |
 
 ```yaml
@@ -274,8 +269,8 @@ msd:
 
     - id: power-line
       type: line
-      from: engineering
-      to: bridge
+      anchor: engineering
+      attach_to: bridge
       route: manhattan
       route_hint: yx
       corner_style: round

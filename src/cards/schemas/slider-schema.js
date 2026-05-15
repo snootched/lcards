@@ -445,14 +445,6 @@ export function getSliderSchema(options = {}) {
                         type: 'object',
                         description: 'Gauge-specific configuration (for type: gauge)',
                         properties: {
-                            color: {
-                                ...stateColorSchema,
-                                description: 'Primary gauge fill/progress-bar colour. Supports state-based maps ({ default, active, inactive, unavailable, ... }). Takes priority over progress_bar.color.',
-                                'x-ui-hints': {
-                                    label: 'Gauge Colour',
-                                    helper: 'Main colour for the filled portion of the gauge (progress bar). Supports state-reactive values.'
-                                }
-                            },
                             progress_bar: {
                                 type: 'object',
                                 description: 'Progress indicator bar',
@@ -1063,7 +1055,7 @@ export function getSliderSchema(options = {}) {
                                     bottom: {
                                         type: 'object',
                                         description: 'Bottom band (vertical mode only)',
-                                        properties: { size: { type: 'number', default: 28, 'x-ui-hints': { selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } } } } }
+                                        properties: { size: { type: 'number', default: 36, 'x-ui-hints': { selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } } } } }
                                     },
                                     left: {
                                         type: 'object',

@@ -43,10 +43,6 @@ The profiles are appended to the end of your existing HA-LCARS `themes.yaml` fil
 4. Reload themes in Home Assistant:  **Developer Tools → YAML → Reload Themes**, or call the `frontend.reload_themes` service.
 5. Select the profile in **Profile → Theme** in the HA frontend.
 
-::: tip Anchor dependencies
-The profiles use YAML anchors (`<<: *lcars-variables`, `<<: *base`, `<<: *card-mod-css`) that are defined in the main HA-LCARS file.  They **must** be appended to the same file — they cannot be used as standalone theme files.
-:::
-
 ---
 
 ## How the Colour Mapping Works

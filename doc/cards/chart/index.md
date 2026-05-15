@@ -27,7 +27,80 @@ series_names: [Temperature, Humidity]
 
 ---
 
-## Top-Level Options
+## Common Properties
+
+The following properties are shared across all LCARdS cards. See [Common Card Properties](../common.md) for full details.
+
+| Category | Config keys | Reference |
+|----------|-------------|-----------|
+| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min_height-min_width-max_height-max_width) |
+| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow_x-overflow_y) |
+| Stacking | `z_index` | [Stacking](../common.md#stacking-z_index) |
+| Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
+| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
+| Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
+| Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
+| Animations | `animations` | [Animations](../../core/animations.md) |
+| Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |
+
+---
+
+## Config Structure
+
+Annotated map of all top-level keys.
+
+```yaml
+type: custom:lcards-chart
+
+# ── Data source(s) ────────────────────────────────────────────────────────────────
+source: sensor.temperature       # simple single-entity mode
+attribute: current_temperature   # entity attribute to track (with source)
+sources:                         # multi-entity mode
+  - sensor.temperature
+  - sensor.humidity
+data_sources:                    # named data source definitions (for history / processing)
+  climate:
+    entity: sensor.temperature
+    history:
+      hours: 24
+
+# ── Chart type & axes ───────────────────────────────────────────────────────────
+chart_type: line               # line | area | bar | column | scatter | pie | donut | ...
+xaxis_type: datetime           # datetime | category | numeric
+series_names: [Temperature, Humidity]
+max_points: 0                  # max history points to render (0 = unlimited)
+
+# ── Appearance ─────────────────────────────────────────────────────────────────
+style:
+  colors:
+    series:
+      - "var(--lcars-orange)"
+  stroke:
+    curve: smooth
+    width: 2
+  legend:
+    show: true
+  animation:
+    preset: lcars_standard
+
+# ── Layout ─────────────────────────────────────────────────────────────────────
+height: 200
+width: 400
+min_height: 100
+max_height: 400
+overflow: hidden
+z_index: 0
+grid_options:
+  columns: 6
+  rows: 4
+id: my-chart
+tags: [charts]
+triggers_update: []
+```
+
+---
+
+## Card Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -41,12 +114,6 @@ series_names: [Temperature, Humidity]
 | `xaxis_type` | string | `datetime` | X-axis scale: `datetime`, `category`, or `numeric` |
 | `max_points` | number | `0` | Maximum history points to render; `0` = unlimited |
 | `show_legend` | boolean | `false` | **Deprecated** — use `style.legend.show` instead |
-| `height` | string/number | — | Card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `width` | string/number | — | Card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `min_height` | string/number | — | Minimum card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `min_width` | string/number | — | Minimum card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `id` | string | — | Card ID for rule targeting — see [Rules Engine](../../core/rules/) |
-| `tags` | list | — | Tags for rule targeting — see [Rules Engine](../../core/rules/) |
 | `style` | object | — | All chart appearance config — see [style Object](#style-object) |
 
 ---
@@ -266,7 +333,7 @@ style:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `style.yaxis.labels.show` | boolean | `true` | Show/hide axis labels |
-| `style.yaxis.decimals` | number | — | Decimal places on labels |
+| `style.yaxis.decimals` | number | — | Round displayed values to N decimal places (axis labels, tooltips, and data labels) |
 | `style.yaxis.border.show` | boolean | `false` | Show/hide axis border line |
 | `style.yaxis.ticks.show` | boolean | `false` | Show/hide tick marks |
 
@@ -310,13 +377,24 @@ Controls ApexCharts' built-in theme/palette engine. Takes lower precedence than 
 
 ### `style.formatters`
 
-Template strings evaluated by LCARdS' [Template Engine](../../core/templates/) to format axis labels and tooltip values.
+Custom format strings for axis labels and tooltips. These use a lightweight chart-specific syntax — they are **not** evaluated by the LCARdS template engine.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `style.formatters.xaxis_label` | string | Template for x-axis label text |
-| `style.formatters.yaxis_label` | string | Template for y-axis label text |
-| `style.formatters.tooltip` | string | Template for tooltip value text |
+**Axis label format strings** (`xaxis_label`, `yaxis_label`) work in two modes:
+- **Date format** (no `{` in string): formats x-axis timestamps using tokens — `HH:mm`, `MMM DD`, `YYYY-MM-DD`, `ddd`, etc. Only meaningful for `xaxis_label` on `datetime` axes.
+- **Value template** (contains `{value}`): replaces `{value}` with the axis value — e.g. `{value}°C`, `{value}%`.
+
+**Tooltip format strings** (`tooltip`) support:
+- `{x|format}` — x value formatted as a date using the given tokens (e.g. `{x|MMM DD HH:mm}`)
+- `{x}` — x value formatted as a date with the default format (`MMM DD HH:mm`)
+- `{y}` — y value
+
+| Field | Type | Examples |
+|-------|------|----------|
+| `style.formatters.xaxis_label` | string | `HH:mm` · `MMM DD` · `{value}°C` |
+| `style.formatters.yaxis_label` | string | `{value}°C` · `{value}%` · `{value} kWh` |
+| `style.formatters.tooltip` | string | `{x\|MMM DD HH:mm}: {y}°C` · `{x}: {y}` |
+
+> **Note**: `style.formatters.yaxis_label` sets a single formatter for all y-axes. For per-axis formatting on multi-axis charts, use `style.chart_options` (see below) — but be aware that `formatter` must be a JavaScript function and cannot be expressed in YAML. Use `decimalsInFloat` in `chart_options.yaxis[*]` for decimal precision per axis instead.
 
 ---
 
@@ -432,14 +510,11 @@ style:
         min: 15
         max: 30
         decimalsInFloat: 1
-        labels:
-          formatter: "{value}°C"
       - seriesName: Humidity
         min: 0
         max: 100
         opposite: true
-        labels:
-          formatter: "{value}%"
+        decimalsInFloat: 0
 ```
 
 ---

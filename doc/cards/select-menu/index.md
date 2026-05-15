@@ -60,7 +60,93 @@ options:
 
 ---
 
-## Top-Level Options
+## Common Properties
+
+The following properties are shared across all LCARdS cards. See [Common Card Properties](../common.md) for full details.
+
+| Category | Config keys | Reference |
+|----------|-------------|-----------|
+| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min_height-min_width-max_height-max_width) |
+| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow_x-overflow_y) |
+| Stacking | `z_index` | [Stacking](../common.md#stacking-z_index) |
+| Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
+| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
+| Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
+| Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
+| Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |
+
+---
+
+## Config Structure
+
+Annotated map of all top-level keys.
+
+```yaml
+type: custom:lcards-select-menu
+
+# ── Entity ─────────────────────────────────────────────────────────────────────
+entity: input_select.view_selector
+
+# ── Preset ─────────────────────────────────────────────────────────────────────
+preset: lozenge              # button shape preset — see Presets
+
+# ── Grid layout ────────────────────────────────────────────────────────────────
+grid:
+  columns: 3
+  gap: 6px
+  grid-auto-rows: 48px
+
+# ── Options ────────────────────────────────────────────────────────────────────
+options:                     # object or array form — see Options
+  Bridge:
+    label: BRIDGE
+    icon: mdi:bridge
+  Engineering:
+    label: ENGINEERING
+    icon: mdi:engine
+
+# ── Style (applied to all option buttons) ──────────────────────────────────────
+style:
+  card:
+    color:
+      background:            # string or state-based object (active = selected)
+        default: "transparent"
+        active: "var(--lcars-orange)"
+  text:
+    default:
+      color:                 # string or state-based object
+        default: "var(--lcars-moonlight)"
+        active: "var(--lcars-black)"
+      font_size: 11
+      text_transform: uppercase
+  border:
+    radius: 14
+    width: 0
+    color:                   # string or state-based object
+      default: "var(--lcars-orange)"
+  opacity: 0.9               # base opacity for unselected options
+
+# ── Advanced button template ─────────────────────────────────────────────────
+button_template:
+  min_height: 40
+
+# ── Layout ─────────────────────────────────────────────────────────────────────
+height: 200
+width: 400
+min_height: 100
+max_height: 400
+overflow: hidden
+z_index: 0
+grid_options:
+  columns: 6
+  rows: 4
+id: my-select
+tags: [nav]
+```
+
+---
+
+## Card Options
 
 | Option | Type | Description |
 |--------|------|-------------|
@@ -71,17 +157,6 @@ options:
 | `options` | object / list | Option overrides — see [`options`](#options) below |
 | `style` | object | Visual style overrides for all buttons — see [`style`](#style-object) below |
 | `button_template` | object | Advanced base `lcards-button` config applied to every option — see [`button_template`](#button_template) below |
-| `id` | string | Card ID for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
-| `tags` | list | Tags for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
-| `height` | number / string | Card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `width` | number / string | Card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `min_height` | number / string | Minimum card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `min_width` | number / string | Minimum card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `tap_action` | object | Tap action — see [Actions](../../core/actions.md) |
-| `hold_action` | object | Hold action — see [Actions](../../core/actions.md) |
-| `double_tap_action` | object | Double-tap action — see [Actions](../../core/actions.md) |
-| `data_sources` | object | Named data source definitions — see [Data Sources](../../core/datasources/) |
-| `grid_options` | object | HA grid layout — see [grid_options](../../cards/common.md#ha-grid-sizing-grid_options) |
 
 ---
 
@@ -154,6 +229,8 @@ options:
 | `icon` | string | MDI icon (e.g. `mdi:home`). Sets `show_icon: true` automatically |
 | `style` | object | Per-option style overrides — same structure as card-level [`style`](#style-object) |
 | `tap_action` | object | Per-option tap action — see [Actions](../../core/actions.md) |
+| `hold_action` | object | Per-option hold action — see [Actions](../../core/actions.md) |
+| `double_tap_action` | object | Per-option double-tap action — see [Actions](../../core/actions.md) |
 
 ---
 
@@ -174,7 +251,7 @@ The style resolves in this order (last wins): preset defaults → `button_templa
 | `style.border.radius` | number / string / object | theme | Corner radius in px, CSS string, or `{ top_left, top_right, bottom_right, bottom_left }` |
 | `style.border.width` | number / string | theme | Border width in px |
 | `style.border.color` | string / object | theme | Border colour — [state map](../../core/colours.md) supported |
-| `style.opacity` | number | `0.9` | Base opacity for unselected options (0–1) |
+| `style.opacity` | number | `0.88` | Base opacity for unselected options (0–1) |
 
 ```yaml
 style:
@@ -238,15 +315,15 @@ The **Style tab** in the visual editor opens a full `lcards-button` sub-editor t
 
 ## Actions
 
-Actions follow a waterfall priority — the first value found in this chain wins:
+Actions follow a waterfall priority — the first value found in this chain wins (independently for each action type):
 
 ```
-per-option tap_action → card-level action → button_template action → built-in default
+per-option action → card-level action → button_template action → built-in default
 ```
 
 **Default tap action** calls `input_select.select_option` (or `select.select_option` for `select.*` entities) with the option's value.
 
-**Hold and double-tap** default to `{ action: none }` so they do not fall through to the tap action unintentionally. Set them explicitly at card-level to add behaviour. Note: per-option `hold_action` and `double_tap_action` are not supported — only `tap_action` can be overridden per option.
+**Hold and double-tap** default to `{ action: none }` so they do not fall through to the tap action unintentionally. All three action types (`tap_action`, `hold_action`, `double_tap_action`) can be overridden both at the card level and per option.
 
 ```yaml
 # Card-level hold opens more-info for all options
@@ -343,14 +420,4 @@ options:
   - value: science
     label: SCIENCE
     icon: mdi:flask
-
-tap_action:
-  action: perform-action
-  perform_action: input_select.select_option
-  target:
-    entity_id: input_select.deck_view
-hold_action:
-  action: more-info
-double_tap_action:
-  action: none
 ```

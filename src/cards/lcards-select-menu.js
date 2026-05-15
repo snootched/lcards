@@ -619,9 +619,12 @@ export class LCARdSSelectMenu extends LCARdSCard {
 
         // button_template: full lcards-button config set via Style-tab sub-editor.
         // Everything in it becomes the base; card-level and option-specific values override.
-        const template = this.config.button_template
-            ? { ...this.config.button_template }
-            : {};
+        // id and tags are stripped — the card manages them (per-button ids cause rules collision).
+        const {
+            id:   _tplId,
+            tags: _tplTags,
+            ...template
+        } = this.config.button_template || {};
 
         // Style merge: template.style → card config.style → per-option opt.style
         const templateStyle = template.style;

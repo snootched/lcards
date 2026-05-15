@@ -70,7 +70,9 @@ export function getSelectMenuSchema(options = {}) {
                 },
                 additionalProperties: true
             },
-            tap_action: actionSchema
+            tap_action:        actionSchema,
+            hold_action:       actionSchema,
+            double_tap_action: actionSchema
         },
         additionalProperties: false
     };
@@ -221,7 +223,7 @@ export function getSelectMenuSchema(options = {}) {
                 type: 'number',
                 minimum: 0,
                 maximum: 1,
-                description: 'Base opacity for unselected options (0-1). Defaults to 0.9 if not specified.'
+                description: 'Base opacity for unselected options (0-1). Defaults to 0.88 if not specified.'
             }
         },
         additionalProperties: true

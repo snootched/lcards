@@ -301,7 +301,6 @@ export default withMermaid(defineConfig({
                 { text: 'Control Overlay',  link: '/cards/msd/control-overlay' },
                 { text: 'Line Overlay',     link: '/cards/msd/line-overlay' },
                 { text: 'Manual Routing',   link: '/cards/msd/manual-routing' },
-                { text: 'Bulk Selectors',   link: '/cards/msd/bulk-selectors' },
                 { text: 'Base SVG Filters', link: '/cards/msd/base-svg-filters' },
               ],
             },

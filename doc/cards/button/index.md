@@ -2,7 +2,156 @@
 
 `custom:lcards-button`
 
-The Button card covers everything from simple labels and toggle buttons to complex interactive components like D-pads and multi-segment SVG controls. Elbows use the same base so every feature here is also available in the [Elbow card](../elbow/).
+The Button card covers everything from simple labels and toggle buttons to complex interactive components like D-pads and multi-segment SVG controls. Elbows are derived from the same base - most features here are also available in the [Elbow card](../elbow/).
+
+---
+
+## Quick Start
+
+```yaml
+# Lozenge button — entity toggle
+type: custom:lcards-button
+entity: light.living_room
+preset: lozenge
+tap_action:
+  action: toggle
+```
+
+```yaml
+# Bar-label section header (decorative)
+type: custom:lcards-button
+preset: bar-label-left
+interactive: false
+text:
+  label:
+    content: NAVIGATION
+```
+
+---
+
+## Common Properties
+
+The following properties are shared across LCARdS cards. See [Common Card Properties](../common.md) for full details.
+
+| Category | Config keys | Reference |
+|----------|-------------|-----------|
+| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min_height-min_width-max_height-max_width) |
+| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow_x-overflow_y) |
+| Stacking | `z_index` | [Stacking](../common.md#stacking-z_index) |
+| Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
+| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
+| Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
+| Text labels | `text` | [Text Fields](../../core/text-fields.md) |
+| Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
+| Animations | `animations`, `background_animation` | [Animations](../../core/animations.md) |
+| Sounds | `sounds` | [Sounds](../../core/sounds.md) |
+| Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |
+
+---
+
+## Config Structure
+
+Annotated map of all top-level keys. You only need the keys relevant to your use case — everything else has sensible defaults.
+
+```yaml
+type: custom:lcards-button
+
+# ── Identity & entity ──────────────────────────────────────────────────────────
+entity: light.living_room   # entity to monitor / control (optional for decorative)
+id: my-button               # rules engine targeting (unique per dashboard)
+tags: [nav, lights]         # group tags for rules engine
+
+# ── Mode (choose one) ──────────────────────────────────────────────────────────
+preset: lozenge             # preset mode  ← most common
+component: dpad             # component mode: 'dpad' or 'alert'
+svg:                        # custom SVG mode
+  content: "<svg>...</svg>"
+
+# ── Core display ───────────────────────────────────────────────────────────────
+interactive: true           # false = suppress hover effects (actions still fire)
+icon: mdi:lightbulb
+icon_area: left             # left | right | top | bottom | none
+icon_area_size: 60
+icon_area_background:           # string or state-based: default | active | inactive | hover | pressed | unavailable
+  default: transparent
+  active: "var(--lcars-orange)"
+icon_style: {}              # colour, size, position, rotation — see icon_style
+divider: {}                 # line between icon area and content
+
+# ── Appearance ─────────────────────────────────────────────────────────────────
+style:
+  card:
+    color:
+      background:               # string or state-based object
+        default: "var(--ha-card-background)"
+        active: "alpha(var(--lcars-orange), 0.15)"
+  border:
+    color:                      # string or state-based object
+      default: "var(--lcars-orange)"
+      inactive: "alpha(var(--lcars-orange), 0.3)"
+    width: 2
+    radius: 8
+  text:
+    default:
+      color:                    # string or state-based object
+        default: "var(--lcars-moonlight)"
+shape_texture:
+  preset: fluid
+filters: []
+
+# ── Text labels ────────────────────────────────────────────────────────────────
+text:
+  default:
+    font_family: "Antonio, sans-serif"
+  label:
+    content: "My Label"
+    position: top-left
+
+# ── Actions ────────────────────────────────────────────────────────────────────
+tap_action:
+  action: toggle
+hold_action:
+  action: more-info
+double_tap_action:
+  action: navigate
+  navigation_path: /lights
+
+# ── Animations & effects ───────────────────────────────────────────────────────
+animations: []
+background_animation: []
+sounds: {}
+
+# ── Component-specific (only needed for the chosen component mode) ─────────────
+dpad:
+  segments:
+    default:                    # shared properties inherited by all segments
+      style:
+        fill:                   # stateColorSchema
+          default: "var(--lcars-orange)"
+          inactive: "alpha(var(--lcars-orange), 0.3)"
+    center:                     # per-segment override (up/down/left/right/center)
+      tap_action:
+        action: toggle
+alert:
+  color:                        # fill/stroke shorthand — plain strings, not state-based
+    shape: "var(--lcars-orange)"    # fill colour for the shield shape
+    bars: "var(--lcars-moonlight)"  # stroke colour for the bar lines
+ranges: []
+ranges_attribute: ""
+
+# ── Layout ─────────────────────────────────────────────────────────────────────
+height: 60
+width: 200
+min_height: 40
+max_height: 200
+overflow: hidden
+z_index: 0
+grid_options:
+  columns: 4
+  rows: 1
+data_sources: {}
+triggers_update: []
+```
 
 ---
 
@@ -18,47 +167,71 @@ The card operates in one of three modes, selected by which top-level key is pres
 
 ---
 
-## Top-Level Options
+## Presets
+
+### Standard Buttons
+
+| Preset | Description |
+|--------|-----------|
+| `lozenge` | Fully rounded on both ends, icon area on left |
+| `lozenge-right` | Fully rounded on both ends, icon area on right |
+| `bullet` | Rounded right end, flat left — icon area on left |
+| `bullet-right` | Rounded left end, flat right — icon area on right |
+| `capped` | Rounded left end, flat right — icon area on left |
+| `capped-right` | Rounded right end, flat left — icon area on right |
+| `barrel` | Flat corners, no border, icon area on left |
+| `barrel-right` | Flat corners, no border, icon area on right |
+| `filled` | Transparent border, large text label on right |
+| `filled-right` | Transparent border, large text label on left |
+| `outline` | Transparent background, border only — Picard style |
+| `outline-right` | Transparent background, border only, icon area on right |
+| `icon` | Square icon-only button with large rounded corners |
+| `text-only` | No background or border — pure text label |
+
+### Bar Labels
+
+Horizontal bars with an opaque text background that creates a "break" in the bar — classic LCARS header style.
+
+| Preset | Description |
+|--------|-----------|
+| `bar-label-base` | Bar label foundation — filled button, auto-scaling text, centered |
+| `bar-label-left` | Bar label with left-aligned text |
+| `bar-label-center` | Bar label with centered text |
+| `bar-label-right` | Bar label with right-aligned text |
+| `bar-label-square` | Bar label with square corners |
+| `bar-label-lozenge` | Bar label with fully rounded ends |
+| `bar-label-bullet-left` | Bar label with flat left, rounded right |
+| `bar-label-bullet-right` | Bar label with rounded left, flat right |
+| `bar-label-capped-left` | Bar label with rounded left, flat right |
+| `bar-label-capped-right` | Bar label with flat left, rounded right |
+
+---
+
+## Card Options
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `type` | string | `custom:lcards-button` (required) |
 | `entity` | string | Entity to monitor and control |
 | `preset` | string | Button shape preset — see [Presets](#presets) |
-| `component` | string | Component type: `dpad` or `alert` (component mode) |
+| `component` | string | Component type: `dpad` or `alert` — see [Component Mode: D-pad](#component-mode-d-pad) |
 | `svg` | object | Custom SVG config — see [Custom SVG Mode](#custom-svg-mode) |
-| `ranges_attribute` | string | Entity attribute used for `above:`/`below:`/`between:` range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
-| `ranges` | list | State-driven component preset switching — see [Component Mode: Alert](#component-mode-alert) |
-| `interactive` | boolean | `true` by default. Set `false` to suppress hover colour changes and hover animations — useful for decorative buttons. Tap/hold actions still fire. |
+| `interactive` | boolean | `true` by default. Set `false` to suppress hover effects — see [Decorative Buttons](#decorative--non-interactive-buttons) |
+| `ranges_attribute` | string | Entity attribute for range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
+| `ranges` | list | State-driven preset switching — see [Component Mode: Alert](#component-mode-alert) |
 | `control` | object | Control behaviour — see [Control](#control) |
 | `show_icon` | boolean | Show/hide the icon (default: `true`) |
 | `icon` | string | MDI icon (e.g. `mdi:lightbulb`) |
 | `icon_area` | string | Icon position: `left`, `right`, `top`, `bottom`, `none` (default: `left`) |
 | `icon_area_size` | number | Icon area width/height in px (default: `60`) |
-| `icon_area_background` | string / object | Icon area background colour — [state map](../../core/colours.md) supported (default: `transparent`) |
+| `icon_area_background` | string / object | Icon area background — [state map](../../core/colours.md) supported |
 | `icon_style` | object | Advanced icon styling — see [`icon_style` Object](#icon_style-object) |
-| `divider` | object | Divider between icon area and content area — see [`divider` Object](#divider-object) |
-| `dpad` | object | D-pad component config — see [Component Mode: D-pad](#component-mode-d-pad) |
+| `divider` | object | Divider between icon area and content — see [`divider` Object](#divider-object) |
+| `dpad` | object | D-pad segment config — see [Component Mode: D-pad](#component-mode-d-pad) |
 | `alert` | object | Alert component config — see [Component Mode: Alert](#component-mode-alert) |
 | `style` | object | Visual styles — see [`style` Object](#style-object) |
-| `shape_texture` | object | SVG texture inside the button fill — see [Shape Texture](#shape-texture) |
+| `shape_texture` | object | SVG texture inside the button shape — see [Shape Texture](#shape-texture) |
 | `filters` | list | CSS / SVG filters — see [`filters` List](#filters-list) |
-| `id` | string | Card ID for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
-| `tags` | list | Tags for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
-| `height` | number / string | Card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `width` | number / string | Card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `min_height` | number / string | Minimum card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `min_width` | number / string | Minimum card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `text` | object | Text label definitions — see [Text Fields](../../core/text-fields.md) |
-| `tap_action` | object | Tap action — see [Actions](../../core/actions.md) |
-| `hold_action` | object | Hold action — see [Actions](../../core/actions.md) |
-| `double_tap_action` | object | Double-tap action — see [Actions](../../core/actions.md) |
-| `animations` | list | Card animations — see [Animations](../../core/animations.md) |
-| `background_animation` | list / object | Canvas background — see [Background Animations](../../core/effects/background-animations.md) |
-| `data_sources` | object | Named data source definitions — see [Data Sources](../../core/datasources/) |
-| `sounds` | object | Per-card sound overrides — see [Sound Effects](../../core/sounds.md) |
-| `triggers_update` | list | Extra entity IDs that trigger re-render — see [Data Sources](../../core/datasources/) |
-| `grid_options` | object | HA grid layout — see [grid_options](../../cards/common.md#ha-grid-sizing-grid_options) |
 
 ---
 
@@ -97,19 +270,6 @@ control:
 | `width` | number / string / object | `0` | Border width in px, a theme token string, or `{ top, right, bottom, left }` per-side |
 | `radius` | number / string / object | theme | Corner radius in px, a theme token string, or `{ top_left, top_right, bottom_right, bottom_left }` per-corner |
 
-### `style.text.default` and `style.text.<field>`
-
-Shorthand for setting text styles inside the style block (equivalent to top-level `text.default.*`):
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `color` | string / object | Text colour — [state map](../../core/colours.md) supported |
-| `font_size` | number / string | Font size in px or CSS value |
-| `font_weight` | string / number | CSS font-weight |
-| `font_family` | string | CSS font-family |
-
-See [Text Fields](../../core/text-fields.md) for the full per-field options table.
-
 ```yaml
 style:
   card:
@@ -123,10 +283,6 @@ style:
       active: "var(--lcards-orange)"
     width: 2
     radius: 12          # or per-corner: { top_left: 20, top_right: 4, bottom_left: 4, bottom_right: 20 }
-  text:
-    default:
-      color: "var(--lcards-moonlight)"
-      font_size: 13
 ```
 
 ---
@@ -248,46 +404,6 @@ text:
       default: "var(--lcards-moonlight)"
       unavailable: "var(--lcards-alert-red)"
 ```
-
----
-
-## Presets
-
-### Standard Buttons
-
-| Preset | Description |
-|--------|-------------|
-| `lozenge` | Fully rounded on both ends, icon area on left |
-| `lozenge-right` | Fully rounded on both ends, icon area on right |
-| `bullet` | Rounded right end, flat left — icon area on left |
-| `bullet-right` | Rounded left end, flat right — icon area on right |
-| `capped` | Rounded left end, flat right — icon area on left |
-| `capped-right` | Rounded right end, flat left — icon area on right |
-| `barrel` | Flat corners, no border, icon area on left |
-| `barrel-right` | Flat corners, no border, icon area on right |
-| `filled` | Transparent border, large text label on right |
-| `filled-right` | Transparent border, large text label on left |
-| `outline` | Transparent background, border only — Picard style |
-| `outline-right` | Transparent background, border only, icon area on right |
-| `icon` | Square icon-only button with large rounded corners |
-| `text-only` | No background or border — pure text label |
-
-### Bar Labels
-
-Horizontal bars with an opaque text background that creates a "break" in the bar — classic LCARS header style.
-
-| Preset | Description |
-|--------|-------------|
-| `bar-label-base` | Bar label foundation — filled button, auto-scaling text, centered |
-| `bar-label-left` | Bar label with left-aligned text |
-| `bar-label-center` | Bar label with centered text |
-| `bar-label-right` | Bar label with right-aligned text |
-| `bar-label-square` | Bar label with square corners |
-| `bar-label-lozenge` | Bar label with fully rounded ends |
-| `bar-label-bullet-left` | Bar label with flat left, rounded right |
-| `bar-label-bullet-right` | Bar label with rounded left, flat right |
-| `bar-label-capped-left` | Bar label with rounded left, flat right |
-| `bar-label-capped-right` | Bar label with flat left, rounded right |
 
 ---
 
