@@ -2036,6 +2036,55 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         </lcards-padding-editor>
                     </lcards-form-section>
 
+                    <!-- Size & Anchor -->
+                    <lcards-form-section
+                        header="Size & Anchor"
+                        description="Constrain the symbiont to an explicit size and anchor it within the content area"
+                        icon="mdi:arrow-expand-all"
+                        ?expanded=${false}
+                        ?outlined=${true}>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Width'}
+                            .helper=${'CSS width of the symbiont container — e.g. "50%" or "200px". Leave blank to fill the available area.'}
+                            .selector=${{ text: {} }}
+                            .value=${symbiont.size?.width ?? ''}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.size.width', e.detail.value || null)}>
+                        </ha-selector>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Height'}
+                            .helper=${'CSS height of the symbiont container — e.g. "50%" or "150px". Leave blank to fill the available area.'}
+                            .selector=${{ text: {} }}
+                            .value=${symbiont.size?.height ?? ''}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.size.height', e.detail.value || null)}>
+                        </ha-selector>
+
+                        ${(symbiont.size?.width != null || symbiont.size?.height != null) ? html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Anchor'}
+                                .helper=${'Where to place the sized container within the content area'}
+                                .selector=${{ select: { mode: 'dropdown', options: [
+                                    { value: 'top-left',      label: 'Top Left'      },
+                                    { value: 'top-center',    label: 'Top Center'    },
+                                    { value: 'top-right',     label: 'Top Right'     },
+                                    { value: 'middle-left',   label: 'Middle Left'   },
+                                    { value: 'center',        label: 'Center'        },
+                                    { value: 'middle-right',  label: 'Middle Right'  },
+                                    { value: 'bottom-left',   label: 'Bottom Left'   },
+                                    { value: 'bottom-center', label: 'Bottom Center' },
+                                    { value: 'bottom-right',  label: 'Bottom Right'  },
+                                ] } }}
+                                .value=${symbiont.anchor ?? 'top-left'}
+                                @value-changed=${(e) => this._setConfigValue('symbiont.anchor', e.detail.value)}>
+                            </ha-selector>
+                        ` : ''}
+
+                    </lcards-form-section>
+
                     <!-- Imprint -->
                     <lcards-form-section
                         header="Imprint"

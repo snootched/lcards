@@ -137,7 +137,6 @@ export class LCARdSElbow extends LCARdSButton {
                 }
 
                 .lcards-symbiont-container {
-                    position: absolute;
                     overflow: hidden;
                     pointer-events: auto;
                 }
@@ -3108,17 +3107,52 @@ export class LCARdSElbow extends LCARdSButton {
         const bottom = baseBottom + (pos.bottom ?? 0);
         const left   = baseLeft   + (pos.left   ?? 0);
 
-        // Use CSS inset shorthand: top right bottom left
         const s = this.config.symbiont;
         const baseOverflow = s?.overflow ?? 'hidden';
         const overflowX = s?.overflow_x ?? baseOverflow;
         const overflowY = s?.overflow_y ?? baseOverflow;
+
+        const symSize = s?.size ?? {};
+        const anchor  = s?.anchor ?? 'top-left';
+        const ANCHOR_FLEX = {
+            'top-left':      { h: 'flex-start', v: 'flex-start' },
+            'top-center':    { h: 'center',     v: 'flex-start' },
+            'top-right':     { h: 'flex-end',   v: 'flex-start' },
+            'middle-left':   { h: 'flex-start', v: 'center'     },
+            'center':        { h: 'center',     v: 'center'     },
+            'middle-right':  { h: 'flex-end',   v: 'center'     },
+            'bottom-left':   { h: 'flex-start', v: 'flex-end'   },
+            'bottom-center': { h: 'center',     v: 'flex-end'   },
+            'bottom-right':  { h: 'flex-end',   v: 'flex-end'   },
+        };
+
+        const isSized = symSize.width != null || symSize.height != null;
+
+        if (isSized) {
+            const flex = ANCHOR_FLEX[anchor] ?? ANCHOR_FLEX['top-left'];
+            const w = symSize.width  != null ? (typeof symSize.width  === 'number' ? `${symSize.width}px`  : symSize.width)  : '100%';
+            const h = symSize.height != null ? (typeof symSize.height === 'number' ? `${symSize.height}px` : symSize.height) : '100%';
+            // Wrapper keeps its position:relative role so parentContent renders normally.
+            // A separate absolutely-positioned flex div provides the anchor bounding box.
+            return html`
+                <div class="lcards-symbiont-wrapper">
+                    ${parentContent}
+                    <div style="position: absolute; inset: ${top}px ${right}px ${bottom}px ${left}px; display: flex; align-items: ${flex.v}; justify-content: ${flex.h};">
+                        <div class="lcards-symbiont-container"
+                             id="lcards-symbiont-host"
+                             style="position: relative; width: ${w}; height: ${h}; overflow-x: ${overflowX}; overflow-y: ${overflowY}; flex-shrink: 0;">
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         return html`
             <div class="lcards-symbiont-wrapper">
                 ${parentContent}
                 <div class="lcards-symbiont-container"
                      id="lcards-symbiont-host"
-                     style="inset: ${top}px ${right}px ${bottom}px ${left}px; overflow-x: ${overflowX}; overflow-y: ${overflowY};">
+                     style="position: absolute; inset: ${top}px ${right}px ${bottom}px ${left}px; overflow-x: ${overflowX}; overflow-y: ${overflowY};">
                 </div>
             </div>
         `;
