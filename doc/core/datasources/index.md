@@ -78,12 +78,12 @@ data_sources:
         output_range: [0, 1]
       smoothed:
         type: smooth
-        from: kilowatts             # Chain from previous processor
+        input_source: kilowatts     # Chain from previous processor
         method: exponential
         alpha: 0.3
       rounded:
         type: round
-        from: smoothed
+        input_source: smoothed
         precision: 2
 ```
 
@@ -102,7 +102,7 @@ data_sources:
 
 ## Processors
 
-Each processor transforms data and stores results under its name. Processors can be chained with `from`.
+Each processor transforms data and stores results under its name. Processors can be chained with `input_source`.
 
 | Processor | Purpose | Key params |
 |-----------|---------|------------|
@@ -130,7 +130,7 @@ processing:
   # Smooth the converted value
   smooth_f:
     type: smooth
-    from: fahrenheit
+    input_source: fahrenheit
     method: exponential
     alpha: 0.2
 ```
