@@ -42,45 +42,22 @@ def _get_lovelace_resources(hass: HomeAssistant):
 async def async_register_static_path(hass: HomeAssistant) -> None:
     """Register static HTTP paths for LCARdS.
 
-    Two paths are registered:
+    A single /{DOMAIN}/ directory registration serves the entire integration
+    directory, covering the main JS bundle, source map, and all asset
+    subdirectories (fonts/, sounds/, msd/, images/, brand/).
 
-    1. /{DOMAIN}/lcards.js  — the main JS bundle served by the integration.
-
-    2. /hacsfiles/lcards/   — alias pointing at the same custom_components dir.
-       All hardcoded asset URLs in the LCARdS JS bundle reference
-       /hacsfiles/lcards/fonts/*, /hacsfiles/lcards/msd/*, etc.
-       By serving that prefix from the integration directory, fonts, SVGs
-       and sounds all resolve correctly without any JS changes.
-
-    Called from async_setup() so both paths are available from HA start,
+    Called from async_setup() so all paths are available from HA start,
     even before a config entry exists.
     """
     integration_dir = hass.config.path(f"custom_components/{DOMAIN}")
     try:
         await hass.http.async_register_static_paths(
             [
-                # Main JS bundle
+                # Serve the entire integration directory under /{DOMAIN}/.
+                # Covers lcards.js, lcards.js.map, fonts/, sounds/, msd/,
+                # images/, and brand/ in one registration.
                 StaticPathConfig(
-                    f"/{DOMAIN}/{FRONTEND_SCRIPT_URL}",
-                    hass.config.path(
-                        f"custom_components/{DOMAIN}/{FRONTEND_SCRIPT_URL}"
-                    ),
-                    # cache=True — browser caches; HA appends ?v= to bust on upgrade
-                    True,
-                ),
-                # Source map — served alongside lcards.js so browser devtools
-                # can map the bundle back to original source files.
-                StaticPathConfig(
-                    f"/{DOMAIN}/{FRONTEND_SCRIPT_URL}.map",
-                    hass.config.path(
-                        f"custom_components/{DOMAIN}/{FRONTEND_SCRIPT_URL}.map"
-                    ),
-                    True,
-                ),
-                # Asset alias — /hacsfiles/lcards/* → custom_components/lcards/*
-                # Keeps all existing font/SVG/sound URL references working.
-                StaticPathConfig(
-                    "/hacsfiles/lcards",
+                    f"/{DOMAIN}",
                     integration_dir,
                     True,
                 ),

@@ -20,7 +20,7 @@ const font_assets = {};
 Object.entries(coreFontsJson.fonts).forEach(([key, fontMeta]) => {
   const fm = /** @type {any} */ (fontMeta);
   font_assets[key] = {
-    url:         fm.external ? fm.url : `/hacsfiles/lcards/fonts/${fm.cssFile}`,
+    url:         fm.external ? fm.url : `/lcards/fonts/${fm.cssFile}`,
     displayName: fm.displayName,
     category:    fm.category,
     legacyName:  fm.legacyName,

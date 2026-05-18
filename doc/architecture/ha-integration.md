@@ -76,10 +76,8 @@ HA calls the integration in two phases:
 
 Runs at HA startup before any config entry is loaded. Registers infrastructure that must be available immediately:
 
-1. **Static paths** (via `frontend.py`) — three paths registered:
-   - `/lcards/lcards.js` → `custom_components/lcards/lcards.js`
-   - `/lcards/lcards.js.map` → `custom_components/lcards/lcards.js.map`
-   - `/hacsfiles/lcards/` → `custom_components/lcards/` (alias for asset URLs)
+1. **Static paths** (via `frontend.py`) — single directory registration:
+   - `/lcards/` → `custom_components/lcards/` (serves bundle, source map, and all asset subdirectories)
 2. **WebSocket commands** — `lcards/info` registered so the JS probe works even before setup
 
 ### Phase 2 — `async_setup_entry()` (config entry active)
@@ -109,15 +107,19 @@ Called on HA restart, explicit reload (triggered by options change), or removal:
 
 ## Static Paths
 
-Three paths are served from the same `custom_components/lcards/` directory:
+A single directory registration serves the entire `custom_components/lcards/` directory:
 
 | URL path | Serves | Purpose |
 |----------|--------|---------|
 | `/lcards/lcards.js` | `lcards.js` | Main JS bundle — loaded by `add_extra_js_url` |
 | `/lcards/lcards.js.map` | `lcards.js.map` | Source map for browser devtools stack traces |
-| `/hacsfiles/lcards/*` | Whole `custom_components/lcards/` dir | Asset alias — all hardcoded font/SVG/sound URLs in the JS bundle reference this prefix |
+| `/lcards/fonts/*` | `fonts/` | LCARS typography assets |
+| `/lcards/sounds/*` | `sounds/` | Bundled audio packs |
+| `/lcards/msd/*` | `msd/` | Ship SVG files for MSD cards |
+| `/lcards/images/*` | `images/` | Built-in image library |
+| `/lcards/brand/*` | `brand/` | Brand icons and graphics |
 
-The `/hacsfiles/lcards/` alias means the JS bundle's asset URLs (`/hacsfiles/lcards/fonts/...`, `/hacsfiles/lcards/msd/...`, `/hacsfiles/lcards/sounds/...`) resolve without any JS changes, regardless of whether HACS itself is installed.
+All asset URLs in the JS bundle reference the `/lcards/` prefix, which maps directly to `custom_components/lcards/` via the integration's static path registration.
 
 ---
 

@@ -122,14 +122,14 @@ export class LCARdSNativeCard extends LitElement {
             /* LCARS font loading */
             @font-face {
                 font-family: 'lcards_jeffries';
-                src: url('/hacsfiles/lcards/fonts/jeffries.woff2') format('woff2'),
-                     url('/hacsfiles/lcards/fonts/jeffries.woff') format('woff');
+                src: url('/lcards/fonts/jeffries.woff2') format('woff2'),
+                     url('/lcards/fonts/jeffries.woff') format('woff');
             }
 
             @font-face {
                 font-family: 'lcards_microgramma';
-                src: url('/hacsfiles/lcards/fonts/microgramma.woff2') format('woff2'),
-                     url('/hacsfiles/lcards/fonts/microgramma.woff') format('woff');
+                src: url('/lcards/fonts/microgramma.woff2') format('woff2'),
+                     url('/lcards/fonts/microgramma.woff') format('woff');
             }
         `;
     }

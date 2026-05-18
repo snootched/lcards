@@ -242,7 +242,7 @@ export const MY_SOUND_PACK = {
   // Registered with AssetManager
   audio_assets: {
     my_tap: {
-      url: '/hacsfiles/lcards/sounds/my_pack/tap.mp3',
+      url: '/hacsfiles/my-sound-pack/tap.mp3',
       description: 'Tap beep',
     },
   },

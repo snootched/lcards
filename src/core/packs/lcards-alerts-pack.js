@@ -7,7 +7,7 @@
  * in the Config Panel Sound tab.
  *
  * File layout on disk (relative to the HA www root):
- *   /hacsfiles/lcards/sounds/lcards_alerts/<asset>.mp3
+ *   /lcards/sounds/lcards_alerts/<asset>.mp3
  *
  * Asset key conventions:
  *   alerts_<descriptor>   e.g. alerts_red, alerts_blue
@@ -21,7 +21,7 @@
  * available in the override picker without forming a named scheme.
  */
 
-const BASE_URL = '/hacsfiles/lcards/sounds/lcards_alerts';
+const BASE_URL = '/lcards/sounds/lcards_alerts';
 
 // ──────────────────────────────────────────────────────────────
 // AUDIO ASSET REGISTRY

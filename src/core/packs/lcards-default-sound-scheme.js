@@ -4,7 +4,7 @@
  * Provides the default "lcards_default" audio scheme and associated audio assets.
  *
  * File layout on disk (relative to the HA www root):
- *   /hacsfiles/lcards/sounds/lcards_default/<asset>.mp3
+ *   /lcards/sounds/lcards_default/<asset>.mp3
  *
  * Asset key conventions:
  *   lcards_default_<event>   e.g. lcards_default_tap, lcards_default_nav
@@ -23,7 +23,7 @@
  *   { assetKey: { url: string, description: string } }
  */
 
-const BASE_URL = '/hacsfiles/lcards/sounds/lcards_default';
+const BASE_URL = '/lcards/sounds/lcards_default';
 
 // ──────────────────────────────────────────────────────────────
 // AUDIO ASSET REGISTRY

@@ -3,8 +3,8 @@
  * copy-assets.js — Copy src/assets/* into custom_components/lcards/
  *
  * Mirrors the three asset directories (fonts, msd, sounds) alongside lcards.js
- * so that the /hacsfiles/lcards/* static path alias served by frontend.py can
- * resolve all font, SVG, and sound URLs that are hardcoded in the JS bundle.
+ * so that the /lcards/* static path served by frontend.py can resolve all font,
+ * SVG, and sound URLs that are hardcoded in the JS bundle.
  *
  * Run automatically as part of build:integration:
  *   npm run build:integration
