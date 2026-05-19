@@ -105,6 +105,13 @@ export class LCARdSButton extends LCARdSCard {
                     height: 100%;
                     position: relative;
                     overflow: visible;
+                    /* Establish a local stacking context so that the background-animation
+                     * layer (position:absolute; z-index:-1) is contained within this
+                     * element's compositing group.  Without this, z-index:-1 propagates to
+                     * the nearest ancestor stacking context (e.g. the editor dialog which has
+                     * an opaque background), causing the canvas to render invisibly behind it.
+                     * isolation:isolate has no effect on pointer events or child rendering order. */
+                    isolation: isolate;
                     /* --lcards-button-min-height / --lcards-button-min-width control the
                      * visible floor/minimum in edge cases where the height/width 100% chain
                      * collapses (e.g. card-mod height:auto override via shadow DOM).
@@ -6665,14 +6672,6 @@ export class LCARdSButton extends LCARdSCard {
             return;
         }
 
-        // Log container state
-        lcardsLog.debug('[LCARdSButton] Container dimensions:', {
-            clientWidth: container.clientWidth,
-            clientHeight: container.clientHeight,
-            offsetWidth: container.offsetWidth,
-            offsetHeight: container.offsetHeight
-        });
-
         // Create a wrapper div for the background layer
         const backgroundLayer = document.createElement('div');
         backgroundLayer.style.position = 'absolute';
@@ -6685,14 +6684,6 @@ export class LCARdSButton extends LCARdSCard {
 
         // Insert at the beginning of container
         container.insertBefore(backgroundLayer, container.firstChild);
-
-        // Log background layer dimensions after insertion
-        lcardsLog.debug('[LCARdSButton] Background layer dimensions:', {
-            clientWidth: backgroundLayer.clientWidth,
-            clientHeight: backgroundLayer.clientHeight,
-            offsetWidth: backgroundLayer.offsetWidth,
-            offsetHeight: backgroundLayer.offsetHeight
-        });
 
         // Resolve canvas inset from config.
         // Explicit inset objects are applied by _resolveConfig() inside init() — only

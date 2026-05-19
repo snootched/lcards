@@ -885,32 +885,6 @@ export class LCARdSMSDCard extends LCARdSCard {
         `;
     }
 
-    // ============================================================================
-    // Legacy Support Methods (for compatibility)
-    // ============================================================================
-
-    /**
-     * Check for ancestor element, traversing shadow DOM boundaries
-     * Required for detecting studio dialogs which may be in shadow DOM
-     * @private
-     */
-    _checkForAncestor(selectors) {
-        let current = /** @type {Element | null} */ (this);
-        const maxLevels = 20;
-
-        for (let i = 0; i < maxLevels && current; i++) {
-            for (const selector of selectors) {
-                if (current.tagName?.toLowerCase() === selector.toLowerCase()) {
-                    return true;
-                }
-            }
-            // Traverse shadow DOM boundaries: try parentElement, then host
-            current = current.parentElement || /** @type {ShadowRoot} */ (current.parentNode)?.host || /** @type {ShadowRoot} */ (current.getRootNode())?.host;
-        }
-
-        return false;
-    }
-
     /**
      * Detect if running in preview mode with tiered strategy
      * Returns: false (full render), 'picker' (Tier 3), 'editor' (Tier 2)
