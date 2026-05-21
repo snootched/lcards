@@ -257,12 +257,20 @@ export class LCARdSNativeCard extends LitElement {
 
         lcardsLog.debug(`[LCARdSNativeCard] Connected: ${this._cardGuid}`);
 
-        // Re-detect preview mode now that the card is in the DOM. setConfig() runs
-        // before connectedCallback() (HA inserts the element after configuration),
-        // so the first detection always returns false ("no parent element"). By
-        // refreshing here we ensure _isPreviewMode is correct before firstUpdated
-        // fires and any background animations are initialised.
-        this._isPreviewMode = this._detectPreviewMode();
+        // Re-detect whether we're inside the card editor dialog now that the card
+        // is in the DOM. setConfig() runs before connectedCallback() (HA inserts the
+        // element after configuration), so shadow-DOM-piercing ancestor checks always
+        // return false at setConfig() time. We only need to catch the editor dialog
+        // case here — dashboard edit mode and card-picker detection are handled by
+        // _detectPreviewMode() (called from setConfig()) once the card is placed in
+        // its final context, and by each card's _handleFirstUpdate() override.
+        // NOTE: intentionally does NOT call the full _detectPreviewMode() to avoid
+        // falsely setting _isPreviewMode=true for dashboard edit mode, which would
+        // break cards that use _isPreviewMode to decide whether to render a placeholder.
+        if (this._checkForAncestor(['hui-dialog-edit-card'])) {
+            lcardsLog.debug(`[LCARdSNativeCard] Preview detection: card editor dialog detected (connectedCallback)`);
+            this._isPreviewMode = true;
+        }
 
         // Load fonts if needed
         this._loadFonts();
