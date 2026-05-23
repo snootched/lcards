@@ -461,7 +461,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             // Sound tab: per-card mute + slider & action event overrides
             { label: 'Sound', content: () => this._renderSoundTab([
                 'slider_drag_start', 'slider_change', 'slider_drag_end',
-                'card_tap', 'card_hold', 'card_double_tap'
+                'card_tap', 'card_hold', 'card_double_tap', 'toggle_on', 'toggle_off'
             ]) }
         );
 

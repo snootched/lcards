@@ -1794,7 +1794,12 @@ export class LCARdSButton extends LCARdSCard {
                         this._triggerSegmentAnimation(segment.id, 'on_hold');
                     }
 
-                    this._playSound('card_hold');
+                    const _holdEntityId = segment.entity || this.config.entity;
+                    const _holdState = _holdEntityId && this.hass?.states?.[_holdEntityId]?.state;
+                    const _holdSoundEvent = segment.hold_action?.action === 'toggle' && _holdState !== undefined
+                        ? (_holdState === 'on' ? 'toggle_off' : 'toggle_on')
+                        : 'card_hold';
+                    this._playSound(_holdSoundEvent);
                     this._executeSegmentAction(segment.hold_action, segment);
                     holdTimer = null;
                 }, 500); // 500ms hold threshold
@@ -1845,7 +1850,12 @@ export class LCARdSButton extends LCARdSCard {
                 this._triggerSegmentAnimation(segment.id, 'on_tap');
             }
 
-            this._playSound('card_tap');
+            const _tapEntityId = segment.entity || this.config.entity;
+            const _tapState = _tapEntityId && this.hass?.states?.[_tapEntityId]?.state;
+            const _tapSoundEvent = segment.tap_action?.action === 'toggle' && _tapState !== undefined
+                ? (_tapState === 'on' ? 'toggle_off' : 'toggle_on')
+                : 'card_tap';
+            this._playSound(_tapSoundEvent);
             if (segment.tap_action) {
                 this._executeSegmentAction(segment.tap_action, segment);
             }

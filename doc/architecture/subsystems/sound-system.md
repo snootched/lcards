@@ -18,7 +18,7 @@ SoundManager (BaseService singleton)
     │       calls soundManager.play(eventType, { cardOverride })
     │
     ├─ Tier 2 — Global HA UI listeners (document-level)
-    │   ├─ click (capture)          → nav_sidebar, menu_expand
+    │   ├─ hass-toggle-menu         → menu_expand
     │   ├─ location-changed         → nav_page
     │   ├─ hass-action              → card_tap / card_hold / card_double_tap
     │   ├─ show-dialog              → dialog_open
@@ -68,8 +68,7 @@ Event types are grouped into three categories, each controlled by an independent
 
 | Event | Trigger |
 |-------|---------|
-| `nav_sidebar` | Sidebar navigation item click |
-| `menu_expand` | Hamburger / expand icon click |
+| `menu_expand` | Hamburger / sidebar toggle (`hass-toggle-menu`) |
 | `nav_page` | `location-changed` event (view/page navigation) |
 | `dialog_open` | Any HA dialog opens (except more-info) |
 | `dialog_close` | Any HA dialog dismissed (save or cancel) |
@@ -80,9 +79,12 @@ Event types are grouped into three categories, each controlled by an independent
 
 | Event | Trigger |
 |-------|---------|
-| `alert_activate` | Alert mode set to red / yellow / blue |
-| `alert_clear` | Alert mode set to green (cleared) |
-| `alert_escalate` | Alert escalation (reserved) |
+| `alert_red` | Alert mode set to `red_alert` |
+| `alert_yellow` | Alert mode set to `yellow_alert` |
+| `alert_blue` | Alert mode set to `blue_alert` |
+| `alert_gray` | Alert mode set to `gray_alert` |
+| `alert_black` | Alert mode set to `black_alert` |
+| `alert_clear` | Alert mode cleared (back to normal) |
 | `system_ready` | LCARdS initialization complete |
 | `error` | System error condition |
 | `notification` | General notification event |
@@ -95,14 +97,16 @@ Six input helpers store the **global** sound configuration. They are created via
 
 | Helper key | Entity ID | Type | Purpose |
 |---|---|---|---|
-| `sound_enabled` | `input_boolean.lcards_sound_enabled` | boolean | Master on/off (default **off** — opt-in) |
+| `sound_enabled` | `input_boolean.lcards_sound_enabled` | boolean | Master on/off |
 | `sound_cards_enabled` | `input_boolean.lcards_sound_cards` | boolean | Card interaction category |
 | `sound_ui_enabled` | `input_boolean.lcards_sound_ui` | boolean | UI navigation category |
 | `sound_alerts_enabled` | `input_boolean.lcards_sound_alerts` | boolean | Alerts category |
 | `sound_volume` | `input_number.lcards_sound_volume` | number 0–1 | Master volume |
 | `sound_scheme` | `input_select.lcards_sound_scheme` | select | Active scheme name |
 
-**Category opt-out model**: If a category helper doesn't exist yet, `_isCategoryEnabled()` returns `true` (play sounds). The master `sound_enabled` helper defaults to `false` (opt-in — no sounds until explicitly turned on).
+**Enable model**: The master toggle (`sound_enabled`) uses **opt-in** — if the helper entity doesn't exist, `_isEnabled()` returns `false` and all sounds are silent. The user must explicitly create the helper and set it to `on`. Category toggles use **opt-out from master** — if a category helper doesn't exist, that category is on as long as the master is. Only an explicit `'off'` state on a category helper disables it. This split means sounds are silent by default on a fresh install, and users get full category control once they've deliberately enabled the system.
+
+**Scheme fallback**: `_getActiveScheme()` treats both a missing entity and the `'none'` sentinel as "not yet configured" and falls back to the first registered scheme. The `'none'` option in the UI scheme picker means "use the default scheme", not "silence all sounds". To silence all sounds, use the master `sound_enabled` toggle.
 
 **Scheme options sync**: When packs register schemes via `registerSchemes()`, SoundManager calls `helperManager.updateSelectOptions('sound_scheme', schemeNames)` to keep the input_select options in sync with loaded packs. This is non-fatal if the helper doesn't exist yet.
 
@@ -184,13 +188,16 @@ For a complete reference see the [Scoped Settings Service](scoped-settings.md) a
 
 `mountGlobalUIListener()` attaches all Tier 2 listeners. It is idempotent (safe to call multiple times; exits early if already mounted). Called by `LCARdSCore` after initialization.
 
-### Browser Autoplay Guard
+### Browser Autoplay Policy
 
-A one-shot capture-phase `click` listener sets `_userInteracted = true`. Until this fires, all `_playAsset()` calls are silently dropped (browser autoplay policy). `preview()` bypasses this guard via `force=true`.
+Modern browsers block audio playback until the user has interacted with the page. SoundManager does not implement its own interaction guard — it relies on the browser's native policy. Practically this means:
 
-### Click Handler (sidebar sounds)
+- Card tap / hold / navigation sounds work immediately after any first user touch or click.
+- The `system_ready` startup sound requires the HA dashboard URL to be added to the browser's "allowed to autoplay" list (see [Sound Effects → Browser Audio Policy](../../configuration/sounds#browser-audio-policy) for per-browser instructions).
 
-Capture-phase `click` on `document`. Checks `composedPath()` for `HA-SIDEBAR` or `role="navigation"`, then discriminates between hamburger buttons (`HA-ICON-BUTTON`) → `menu_expand` and nav items (`PAPER-ICON-ITEM`, `role=option/menuitem`) → `nav_sidebar`.
+### Sidebar Menu Toggle Handler
+
+Listens for `hass-toggle-menu` on `window`. HA's `ha-menu-button` dispatches this event when the hamburger is tapped. Some HA versions dispatch it twice per click (button + host component), so the handler deduplicates events within a 200 ms window — only the first firing plays `menu_expand`. This approach is more reliable than click-path detection, which would also fire for icon buttons inside sidebar navigation links and cause double sounds.
 
 ### `hass-action` Handler
 
@@ -250,8 +257,8 @@ export const MY_SOUND_PACK = {
   // Registered with SoundManager
   sound_schemes: {
     my_scheme: {
-      card_tap:   'my_tap',
-      nav_sidebar: 'my_tap',
+      card_tap:    'my_tap',
+      menu_expand: 'my_tap',
       card_hover:  null,    // Silence this event in this scheme
       // Omitted events → silence
     },
@@ -288,6 +295,28 @@ User-scope overrides win on a per-event basis (individual events can be user-ove
 
 ---
 
+## Startup Sound Sequencing
+
+`system_ready` and `error` are fired by `LCARdSCore._performInitialization()` at the end of the core init sequence. Because overrides and scoped settings are loaded asynchronously (they depend on the integration probe completing after HASS is distributed), `play()` must not be called until that load finishes — otherwise per-event overrides and scoped scheme selections are not yet in memory.
+
+The solution is a non-blocking fire-and-forget:
+
+```javascript
+// In LCARdSCore._performInitialization():
+this.soundManager.ensureReady().then(() => {
+    if (!window._lcardsSystemReadyPlayed) {
+        window._lcardsSystemReadyPlayed = true;
+        this.soundManager.play('system_ready');
+    }
+});
+```
+
+**`ensureReady()`** returns the promise from `_ensureOverridesLoaded()`. If `updateHass()` already triggered the load earlier, the same in-flight or completed promise is returned — no duplicate load. The `.then()` chain is non-blocking, so core init completes immediately and cards mount normally.
+
+**`window._lcardsSystemReadyPlayed`** is a page-load flag. `window` is completely reset on any true page load (including hard refresh), so the sound plays once per load. It survives SPA navigation and module re-initialization, preventing `system_ready` from replaying when LCARdS re-inits mid-session (e.g. navigating to the Config Panel).
+
+---
+
 ## Public API
 
 ```javascript
@@ -315,6 +344,9 @@ await sm.clearAllOverrides('device');                    // clear all device ove
 // Cache invalidation — call after any external storage write
 await sm.refreshScopedCache();                     // re-reads all 5 caches from backend
 
+// Startup sequencing — await before playing sounds that must respect overrides
+await sm.ensureReady();                            // resolves when overrides/scoped settings are loaded
+
 // Scheme introspection
 const names = sm.getSchemeNames();                 // ['none', 'lcards_default', ...]
 const events = sm.getEventTypes();                 // [{ key, label, category }, ...]
@@ -323,6 +355,9 @@ const events = sm.getEventTypes();                 // [{ key, label, category },
 sm.mountGlobalUIListener();                        // called by LCARdSCore
 sm.subscribeToAlertMode();                         // called by LCARdSCore
 sm.destroy();                                      // cleanup
+
+// Diagnostics — dumps enable/category state, helper cache contents, computed results
+sm.diagnose()
 ```
 
 ---
@@ -339,6 +374,7 @@ const sm = window.lcards.core.soundManager
 
 sm.play('card_tap')                                      // fire an event
 sm.preview('my_asset')                                   // play a specific asset directly
+sm.previewEvent('system_ready')                          // preview event (bypasses enable checks)
 sm.getSchemeNames()                                      // ['none', 'lcards_default', ...]
 sm.getEventTypes()                                       // [{ key, label, category }, ...]
 sm.getOverrides('global')                                // global per-event overrides
@@ -347,5 +383,6 @@ await sm.setOverride('card_tap', 'my', 'global')         // set global persisten
 await sm.setOverride('card_tap', 'my', 'user')           // set user-scoped override
 await sm.clearAllOverrides('global')                     // wipe all global overrides
 await sm.refreshScopedCache()                            // force cache reload after admin writes
+await sm.ensureReady()                                   // wait for overrides to be fully loaded
 ```
 :::

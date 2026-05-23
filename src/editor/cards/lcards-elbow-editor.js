@@ -202,7 +202,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             { label: 'Symbiont', content: () => this._renderSymbiontTab() },
             { label: 'Actions', content: () => this._renderActionsTab() },
             { label: 'Effects', content: () => this._renderEffectsTab() },
-            { label: 'Sound', content: () => this._renderSoundTab() },
+            { label: 'Sound', content: () => this._renderSoundTab(['card_tap', 'card_hold', 'card_double_tap', 'card_hover', 'toggle_on', 'toggle_off']) },
             ...this._getUtilityTabs()
         ];
     }
@@ -1967,7 +1967,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <lcards-form-section
                         header="Container"
                         description="Overflow and scrolling behavior for the symbiont content area"
-                        icon="mdi:scroll-horizontal-variant"
+                        icon="mdi:dock-window"
                         ?expanded=${false}
                         ?outlined=${true}>
 

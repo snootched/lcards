@@ -3238,7 +3238,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Build card-level sound overrides from config.sounds
         const sounds = this.config?.sounds ?? {};
-        const CARD_SOUND_EVENTS = ['card_tap', 'card_hold', 'card_double_tap', 'card_hover'];
+        const CARD_SOUND_EVENTS = ['card_tap', 'card_hold', 'card_double_tap', 'card_hover', 'toggle_on', 'toggle_off'];
         const soundOverride = {};
         if (sounds.enabled === false) {
             for (const evt of CARD_SOUND_EVENTS) soundOverride[evt] = null;
@@ -3255,6 +3255,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             getAnimationSetup: () => this._getAnimationSetup(),
             shadowRoot: this.shadowRoot,
             entity: this.config.entity, // Pass card's entity as default for actions
+            getHass: () => this.hass,
             ...(Object.keys(soundOverride).length > 0 && { soundOverride })
         };
 

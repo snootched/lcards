@@ -3,16 +3,16 @@
  *
  * Provides the default "lcards_default" audio scheme and associated audio assets.
  *
- * File layout on disk (relative to the HA www root):
- *   /lcards/sounds/lcards_default/<asset>.mp3
+ * Source audio files live in src/assets/sounds/lcards_default/ and are copied to
+ * custom_components/lcards/sounds/lcards_default/ by the build's copy-assets step.
+ * Served at runtime from /lcards/sounds/lcards_default/<asset>.mp3
  *
  * Asset key conventions:
  *   lcards_default_<event>   e.g. lcards_default_tap, lcards_default_nav
  *
- * To add real audio files:
- *   1. Place .mp3 files in hacsfiles/lcards/sounds/lcards_default/
- *   2. Update the `url` fields below to match the actual filenames.
- *   3. Rebuild (npm run build) and hard-refresh HA.
+ * To replace a placeholder with real audio:
+ *   1. Drop the .mp3 into src/assets/sounds/lcards_default/ (same filename)
+ *   2. Run npm run build:integration and hard-refresh HA.
  *
  * Sound scheme format (sound_schemes):
  *   { schemeName: { eventKey: assetKey | null } }
@@ -69,11 +69,27 @@ const AUDIO_ASSETS = {
   // ── Navigation ──
   lcards_default_nav: {
     url: `${BASE_URL}/nav.mp3`,
-    description: 'Navigation beep for sidebar / page changes',
+    description: 'Page / view navigation',
+  },
+  lcards_default_menu_expand: {
+    url: `${BASE_URL}/menu_expand.mp3`,
+    description: 'Sidebar hamburger expand / collapse',
   },
   lcards_default_dialog_open: {
     url: `${BASE_URL}/dialog_open.mp3`,
-    description: 'Short opening chime for dialogs',
+    description: 'Dialog open chime',
+  },
+  lcards_default_dialog_close: {
+    url: `${BASE_URL}/dialog_close.mp3`,
+    description: 'Dialog close / dismiss',
+  },
+  lcards_default_dashboard_edit_start: {
+    url: `${BASE_URL}/dashboard_edit_start.mp3`,
+    description: 'Dashboard edit mode entered',
+  },
+  lcards_default_dashboard_edit_save: {
+    url: `${BASE_URL}/dashboard_edit_save.mp3`,
+    description: 'Dashboard edit mode saved / exited',
   },
 
   // ── Alerts ──
@@ -109,6 +125,10 @@ const AUDIO_ASSETS = {
     url: `${BASE_URL}/error.mp3`,
     description: 'System error tone',
   },
+  lcards_default_notification: {
+    url: `${BASE_URL}/notification.mp3`,
+    description: 'General notification tone',
+  },
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -133,11 +153,11 @@ const LCARDS_DEFAULT_SCHEME = {
 
   // UI navigation
   nav_page:             'lcards_default_nav',
-  menu_expand:          'lcards_default_nav',
+  menu_expand:          'lcards_default_menu_expand',
   dialog_open:          'lcards_default_dialog_open',
-  dashboard_edit_start: 'lcards_default_nav',
-  dashboard_edit_save:  'lcards_default_nav',
-  dialog_close:         'lcards_default_nav',
+  dialog_close:         'lcards_default_dialog_close',
+  dashboard_edit_start: 'lcards_default_dashboard_edit_start',
+  dashboard_edit_save:  'lcards_default_dashboard_edit_save',
 
   // Alerts & system — per alert level
   alert_red:         'lcards_default_alert_red',
@@ -148,7 +168,7 @@ const LCARDS_DEFAULT_SCHEME = {
   alert_clear:       'lcards_default_alert_clear',
   system_ready:      'lcards_default_system_ready',
   error:             'lcards_default_error',
-  notification:      'lcards_default_nav',
+  notification:      'lcards_default_notification',
 };
 
 // ──────────────────────────────────────────────────────────────

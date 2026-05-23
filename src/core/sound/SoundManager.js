@@ -112,14 +112,12 @@ export class SoundManager extends BaseService {
     /** @type {Map<string, HTMLAudioElement>} Cached Audio elements by asset key */
     this._audioCache = new Map();
 
-    /** @type {EventListener|null} Bound global click handler (for cleanup) */
-    this._globalClickHandler = null;
+    /** @type {EventListener|null} hass-toggle-menu handler for sidebar expand/collapse */
+    this._menuToggleHandler = null;
 
     /** @type {EventListener|null} Bound location-changed handler (for cleanup) */
     this._navHandler = null;
 
-    /** @type {EventListener|null} First-interaction tracker (for cleanup) */
-    this._interactionHandler = null;
 
     /** @type {EventListener|null} hass-action event listener (for non-LCARdS HA cards) */
     this._hassActionHandler = null;
@@ -138,9 +136,6 @@ export class SoundManager extends BaseService {
 
     /** @type {EventListener|null} dialog-closed listener (dialog save/cancel sounds) */
     this._dialogClosedHandler = null;
-
-    /** @type {boolean} Whether the user has interacted (browser autoplay policy) */
-    this._userInteracted = false;
 
     /** @type {Object|null} Reference to LCARdSCore */
     this._core = null;
@@ -186,6 +181,14 @@ export class SoundManager extends BaseService {
 
     /** @type {boolean} True once the backend load has completed (or was attempted) */
     this._overridesLoaded = false;
+
+    /**
+     * Promise that resolves when overrides and scoped settings have been fully loaded.
+     * Set on the first call to _ensureOverridesLoaded() that finds a valid integration.
+     * Subsequent callers (including ensureReady()) await this same promise.
+     * @type {Promise<void>|null}
+     */
+    this._overridesLoadPromise = null;
 
     /**
      * Scoped-settings cache fields.
@@ -234,38 +237,17 @@ export class SoundManager extends BaseService {
    * Safe to call multiple times — only mounts once.
    */
   mountGlobalUIListener() {
-    if (this._globalClickHandler) return; // Already mounted
+    if (this._menuToggleHandler) return; // Already mounted
 
-    // Track first user interaction (browser autoplay policy guard)
-    this._interactionHandler = () => {
-      this._userInteracted = true;
-      lcardsLog.debug('[SoundManager] User interaction detected — audio playback enabled');
-      // Once we have interaction, remove this one-time listener
-      document.removeEventListener('click', this._interactionHandler, { capture: true });
-      this._interactionHandler = null;
-    };
-    document.addEventListener('click', this._interactionHandler, { capture: true, passive: true });
-
-    // Global click handler — handles sidebar hamburger/menu expand only.
-    // Navigation sounds (sidebar items, view changes) are handled by location-changed below.
-    this._globalClickHandler = (e) => {
-      if (!this._isCategoryEnabled('ui')) return;
-      const path = /** @type {any[]} */ (e.composedPath());
-      if (!path || path.length === 0) return;
-
-      const inSidebar = path.some(el =>
-        el?.tagName === 'HA-SIDEBAR' ||
-        el?.getAttribute?.('role') === 'navigation'
-      );
-      if (!inSidebar) return;
-
-      const isHamburger = path.some(el =>
-        el?.tagName === 'HA-ICON-BUTTON' ||
-        el?.tagName === 'PAPER-ICON-BUTTON'
-      );
-      if (isHamburger) {
-        this.play('menu_expand');
-      }
+    // Sidebar hamburger expand/collapse — HA's ha-menu-button dispatches this event
+    // on window when the hamburger is tapped. Some HA versions dispatch it twice per
+    // click (button + host component), so dedup within a 200 ms window.
+    let _lastMenuToggle = 0;
+    this._menuToggleHandler = () => {
+      const now = Date.now();
+      if (now - _lastMenuToggle < 200) return;
+      _lastMenuToggle = now;
+      this.play('menu_expand');
     };
 
     // Page / view navigation handler — fires for all location changes including sidebar nav.
@@ -273,7 +255,7 @@ export class SoundManager extends BaseService {
       if (this._isCategoryEnabled('ui')) this.play('nav_page');
     };
 
-    document.addEventListener('click', this._globalClickHandler, { capture: true, passive: true });
+    window.addEventListener('hass-toggle-menu', this._menuToggleHandler);
     window.addEventListener('location-changed', this._navHandler);
 
     // hass-action listener — catches taps/holds on any standard HA card that fires
@@ -396,13 +378,9 @@ export class SoundManager extends BaseService {
    * Destroy SoundManager — unmounts listeners, clears cache, unsubscribes.
    */
   destroy() {
-    if (this._interactionHandler) {
-      document.removeEventListener('click', this._interactionHandler, { capture: true });
-      this._interactionHandler = null;
-    }
-    if (this._globalClickHandler) {
-      document.removeEventListener('click', this._globalClickHandler, { capture: true });
-      this._globalClickHandler = null;
+    if (this._menuToggleHandler) {
+      window.removeEventListener('hass-toggle-menu', this._menuToggleHandler);
+      this._menuToggleHandler = null;
     }
     if (this._navHandler) {
       window.removeEventListener('location-changed', this._navHandler);
@@ -449,7 +427,7 @@ export class SoundManager extends BaseService {
    * soundManager.registerSchemes({
    *   'lcars_classic': {
    *     card_tap:    'btn_beep',
-   *     nav_sidebar: 'beep_nav',
+   *     menu_expand: 'beep_nav',
    *     card_hover:  null,  // null = silence this event in this scheme
    *   }
    * });
@@ -524,15 +502,15 @@ export class SoundManager extends BaseService {
 
     // 1. Card-level override
     if ('cardOverride' in context) {
-      if (context.cardOverride === null) return; // Explicitly silenced
+      if (context.cardOverride === null) return;
       assetKey = context.cardOverride;
     }
 
-    // 2. Per-event override (user beats global; null = explicit mute)
+    // 2. Per-event override (device beats user beats global; null = explicit mute)
     if (!assetKey) {
       const overrides = this._getOverrides();
       if (eventType in overrides) {
-        if (overrides[eventType] === null) return; // Explicitly silenced — do not fall through
+        if (overrides[eventType] === null) return;
         assetKey = overrides[eventType] || null;
       }
     }
@@ -541,7 +519,7 @@ export class SoundManager extends BaseService {
     if (!assetKey) {
       const scheme = this._getActiveScheme();
       const schemeValue = scheme[eventType];
-      if (schemeValue === null) return; // Scheme explicitly silences this event
+      if (schemeValue === null) return;
       assetKey = schemeValue || null;
     }
 
@@ -555,7 +533,7 @@ export class SoundManager extends BaseService {
    * @param {string} assetKey - Asset key to preview
    */
   preview(assetKey) {
-    this._playAsset(assetKey, true);
+    this._playAsset(assetKey);
   }
 
   /**
@@ -567,7 +545,7 @@ export class SoundManager extends BaseService {
     const name = schemeName || this._core?.helperManager?.getHelperValue('sound_scheme') || 'none';
     const scheme = this._soundSchemes.get(name) || {};
     const assetKey = scheme[eventType] || null;
-    if (assetKey) this._playAsset(assetKey, true);
+    if (assetKey) this._playAsset(assetKey);
   }
 
   /**
@@ -592,7 +570,7 @@ export class SoundManager extends BaseService {
       assetKey = scheme[eventType] || null;
     }
 
-    if (assetKey) this._playAsset(assetKey, true);
+    if (assetKey) this._playAsset(assetKey);
     else lcardsLog.debug(`[SoundManager] previewEvent: no asset found for "${eventType}"`);
   }
 
@@ -716,10 +694,11 @@ export class SoundManager extends BaseService {
    * @private
    */
   _isEnabled() {
-    // Synchronous path: use cached scoped value if we have it, else fall back to helper
     if (this._cachedEnabled !== undefined) return this._cachedEnabled;
     const val = this._core?.helperManager?.getHelperValue('sound_enabled');
-    return val === true || val === 'on';
+    // Opt-in for master: only 'on' enables sounds. Missing entity (boolean false sentinel) → off.
+    // Categories are opt-out from master — their default_value=true means "on if master is on".
+    return val === 'on';
   }
 
   /**
@@ -732,8 +711,8 @@ export class SoundManager extends BaseService {
     if (!category) return true;
     const key = `sound_${category}_enabled`;
     const val = this._core?.helperManager?.getHelperValue(key);
-    // Default to true if helper doesn't exist (category opt-out model)
-    return val !== false && val !== 'off';
+    // Opt-out: missing entity (boolean true sentinel) → category on. Only 'off' disables.
+    return val !== 'off';
   }
 
   /**
@@ -744,9 +723,11 @@ export class SoundManager extends BaseService {
    */
   _getActiveScheme() {
     const name = this._cachedScheme
-      ?? this._core?.helperManager?.getHelperValue('sound_scheme')
-      ?? 'none';
-    return this._soundSchemes.get(name) || {};
+      ?? this._core?.helperManager?.getHelperValue('sound_scheme');
+    // 'none' = not yet configured (same as missing entity) → fall through to first scheme
+    // Explicit silence is done via the master sound_enabled toggle, not the scheme picker
+    if (name && name !== 'none') return this._soundSchemes.get(name) || {};
+    return this._soundSchemes.values().next().value || {};
   }
 
   /**
@@ -769,44 +750,47 @@ export class SoundManager extends BaseService {
    * @returns {Promise<void>}
    * @private
    */
-  async _ensureOverridesLoaded() {
-    if (this._overridesLoaded) return;
+  /**
+   * Trigger overrides/settings load if not already started, and return the promise.
+   * Safe to call multiple times — always returns the same in-flight or completed promise.
+   * Returns a resolved promise immediately if the integration isn't available yet
+   * (updateHass will retry on the next HASS update).
+   * @returns {Promise<void>}
+   * @private
+   */
+  _ensureOverridesLoaded() {
+    if (this._overridesLoadPromise) return this._overridesLoadPromise;
     const integration = this._core?.integrationService;
-    if (!integration) return; // Core not ready yet — will retry on next updateHass()
+    if (!integration) return Promise.resolve(); // Core not ready yet — will retry on next updateHass()
+    this._overridesLoadPromise = this._doLoadOverrides(integration);
+    return this._overridesLoadPromise;
+  }
 
-    // Wait for the probe to complete via the public API rather than accessing
-    // the private _probed flag directly.
+  /**
+   * Perform the actual overrides/scoped-settings load. Called once via _ensureOverridesLoaded().
+   * @param {Object} integration
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _doLoadOverrides(integration) {
     await integration.onReady();
+    this._overridesLoaded = true;
 
-    this._overridesLoaded = true; // Claim the slot to prevent concurrent loads
-
-    // Load scoped sound settings (async, cached in _cached* fields for sync access)
     const sss = this._core?.scopedSettingsService;
 
     if (sss) {
-      // Volume: device > user only — no 'global' tier here so the cache is only
-      // populated when there is an actual scoped override.  When no override
-      // exists (null result) _cachedVolume stays undefined, and _getVolume()
-      // falls through to the live HA helper on every call, picking up any
-      // changes made through the global volume slider without a page reload.
       const vol = await sss.read(STORAGE_KEY_SOUND_VOLUME, ['device', 'user']);
       if (vol !== null && vol !== undefined) this._cachedVolume = parseFloat(vol);
 
-      // Scheme: same rationale — only cache when a real scoped override exists.
       const scheme = await sss.read(STORAGE_KEY_SOUND_SCHEME, ['device', 'user']);
       if (scheme !== null && scheme !== undefined) this._cachedScheme = scheme;
 
-      // Enabled: device > user — same rationale as volume/scheme. Only cache when
-      // a real scoped override exists so changes to the global helper are picked up
-      // via the live fallback in _isEnabled() when no scoped override is set.
       const enabled = await sss.read(STORAGE_KEY_SOUND_ENABLED, ['device', 'user']);
       if (enabled !== null && enabled !== undefined) this._cachedEnabled = (enabled === true || enabled === 'on');
     }
 
     if (integration.available) {
       if (sss) {
-        // Load global, user and device overrides separately so each tier can be read/written
-        // independently from the config panel.  Playback merges them (device > user > global).
         const globalRaw = await sss.read(STORAGE_KEY_SOUND_OVERRIDES, ['global']);
         this._globalOverridesCache = (globalRaw !== null && globalRaw !== undefined) ? globalRaw : {};
 
@@ -816,7 +800,6 @@ export class SoundManager extends BaseService {
         const deviceRaw = await sss.read(STORAGE_KEY_SOUND_OVERRIDES, ['device']);
         this._deviceOverridesCache = (deviceRaw !== null && deviceRaw !== undefined) ? deviceRaw : {};
       } else {
-        // Legacy path (no scoped storage) — flat global key only.
         const backendValue = await integration.readStorage(STORAGE_KEY_SOUND_OVERRIDES);
         this._globalOverridesCache = (backendValue !== undefined && backendValue !== null) ? backendValue : {};
         this._overridesCache = {};
@@ -827,6 +810,15 @@ export class SoundManager extends BaseService {
       this._overridesCache = {};
       lcardsLog.warn('[SoundManager] Integration unavailable — sound overrides will not be persisted');
     }
+  }
+
+  /**
+   * Returns a promise that resolves once overrides and scoped settings are fully loaded.
+   * Await this before playing startup sounds that may depend on user overrides.
+   * @returns {Promise<void>}
+   */
+  ensureReady() {
+    return this._ensureOverridesLoaded();
   }
 
   /**
@@ -886,18 +878,14 @@ export class SoundManager extends BaseService {
    * calling assetManager.get() (which is async and loads the ArrayBuffer).
    * Audio elements use the URL natively — no need to pre-load the binary content.
    *
+   * Autoplay: browser policy is enforced natively by audio.play() — no guard needed here.
+   * Sites that allow autoplay (browser site settings) will hear sounds on page load;
+   * others will have play() silently rejected until the first user gesture.
+   *
    * @param {string} assetKey - Asset key registered in AssetManager
-   * @param {boolean} [force=false] - If true, skip browser interaction check (for preview)
    * @private
    */
-  _playAsset(assetKey, force = false) {
-    // Enforce browser autoplay policy — skip until user has interacted with the page.
-    // Preview calls (force=true) bypass this so the Config Panel can test sounds.
-    if (!force && !this._userInteracted) {
-      lcardsLog.trace('[SoundManager] Audio skipped — awaiting first user interaction (browser autoplay policy)');
-      return;
-    }
-
+  _playAsset(assetKey) {
     // Read URL directly from registry metadata — no async required
     const registry = this._core?.assetManager?.getRegistry('audio');
     const entry = registry?.assets?.get(assetKey);
@@ -931,11 +919,49 @@ export class SoundManager extends BaseService {
       schemesCount: this._soundSchemes?.size || 0,
       schemeNames: this.getSchemeNames(),
       audioCacheSize: this._audioCache?.size || 0,
-      userInteracted: this._userInteracted || false,
+
       schemesOptionsSynced: this._schemesOptionsSynced || false,
       syncInProgress: this._syncInProgress || false,
       syncScheduled: this._syncScheduled || false
     };
+  }
+
+  /**
+   * Dump the full decision-chain state for enable/disable checks to the console.
+   * Run from browser console: window.lcards.core.soundManager.diagnose()
+   */
+  diagnose() {
+    const hm = this._core?.helperManager;
+    const soundEnabledVal   = hm?.getHelperValue('sound_enabled');
+    const cardsEnabledVal   = hm?.getHelperValue('sound_cards_enabled');
+    const uiEnabledVal      = hm?.getHelperValue('sound_ui_enabled');
+    const alertsEnabledVal  = hm?.getHelperValue('sound_alerts_enabled');
+
+    const info = {
+      '--- SoundManager caches ---': '',
+      '_cachedEnabled':  this._cachedEnabled,
+      '_cachedScheme':   this._cachedScheme,
+      '_cachedVolume':   this._cachedVolume,
+      '_overridesLoaded': this._overridesLoaded,
+      '--- HelperManager raw values (from cache/HASS) ---': '',
+      'sound_enabled (raw)':          soundEnabledVal,
+      'sound_enabled (type)':         typeof soundEnabledVal,
+      'sound_cards_enabled (raw)':    cardsEnabledVal,
+      'sound_cards_enabled (type)':   typeof cardsEnabledVal,
+      'sound_ui_enabled (raw)':       uiEnabledVal,
+      'sound_ui_enabled (type)':      typeof uiEnabledVal,
+      'sound_alerts_enabled (raw)':   alertsEnabledVal,
+      'sound_alerts_enabled (type)':  typeof alertsEnabledVal,
+      '--- Computed results ---': '',
+      '_isEnabled()':                 this._isEnabled(),
+      '_isCategoryEnabled(cards)':    this._isCategoryEnabled('cards'),
+      '_isCategoryEnabled(ui)':       this._isCategoryEnabled('ui'),
+      '_isCategoryEnabled(alerts)':   this._isCategoryEnabled('alerts'),
+      '--- HelperManager _valueCache ---': '',
+      '_valueCache entries': hm?._valueCache ? Object.fromEntries(hm._valueCache) : null,
+    };
+    console.table(info);
+    return info;
   }
 
   /**

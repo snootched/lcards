@@ -698,6 +698,12 @@ export class LCARdSSoundConfigTab extends LitElement {
           </div>
         ` : ''}
 
+        <!-- ── BROWSER AUTOPLAY NOTICE ── -->
+        <lcards-message
+          type="info"
+          .message=${'<strong>Browser audio policy:</strong> Most sounds play after the first user interaction (tap or click). The <em>System Ready</em> startup sound plays on page load — for it to work your browser must allow audio autoplay for this URL. <a href="https://lcards.unimatrix01.ca/configuration/sounds#browser-audio-policy" target="_blank" rel="noopener noreferrer">Browser setup instructions →</a>'}
+        ></lcards-message>
+
         <!-- ── GLOBAL SETTINGS GROUP ── -->
         <lcards-form-section
           header="Global Settings"

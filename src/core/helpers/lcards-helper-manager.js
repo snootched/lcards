@@ -490,19 +490,18 @@ export class LCARdSHelperManager extends BaseService {
       return null;
     }
 
-    // Try cache first
+    // Try cache first (populated by state-change events and explicit setHelperValue calls)
     if (this._valueCache.has(key)) {
       return this._valueCache.get(key);
     }
 
-    // Fall back to API
+    // Not yet in cache — read live from hass.states without caching.
+    // Caching a fallback read would store default_value (boolean) when the entity doesn't
+    // exist yet, and that stale boolean then persists past the first state-change event.
     if (this.hass) {
-      const value = apiGetHelperValue(this.hass, definition.entity_id, definition.default_value);
-      this._valueCache.set(key, value);
-      return value;
+      return apiGetHelperValue(this.hass, definition.entity_id, definition.default_value);
     }
 
-    // Return default if no HASS
     return definition.default_value;
   }
 
@@ -526,8 +525,13 @@ export class LCARdSHelperManager extends BaseService {
 
     await apiSetHelperValue(this.hass, definition.entity_id, value);
 
-    // Update cache immediately (will be confirmed by state change event)
-    this._valueCache.set(key, value);
+    // Update cache immediately (will be confirmed by state change event).
+    // Normalize input_boolean values to entity state strings so cache is consistent
+    // with what _handleStateChange stores — avoids !== 'off' checks returning wrong result.
+    const cacheVal = definition.domain === 'input_boolean'
+        ? ((value === true || value === 'on' || value === 1) ? 'on' : 'off')
+        : value;
+    this._valueCache.set(key, cacheVal);
   }
 
   /**
@@ -679,7 +683,19 @@ export class LCARdSHelperManager extends BaseService {
     // this.hass can be replaced by a HASS update between the two callService awaits,
     // so we pin both once and use the snapshot throughout.
     const hass = this.hass;
-    const currentValue = hass.states?.[definition.entity_id]?.state;
+    const entityState = hass.states?.[definition.entity_id];
+    const currentValue = entityState?.state;
+    const currentOptions = entityState?.attributes?.options;
+
+    // Skip if the option list is already correct — avoids HA resetting the selection
+    // to the first option between set_options and the restore select_option call.
+    const alreadyMatches = Array.isArray(currentOptions) &&
+      currentOptions.length === options.length &&
+      options.every((o, i) => currentOptions[i] === o);
+    if (alreadyMatches) {
+      lcardsLog.debug(`[HelperManager] ${key} options already match — skipping sync`);
+      return true;
+    }
 
     try {
       await hass.callService('input_select', 'set_options', {

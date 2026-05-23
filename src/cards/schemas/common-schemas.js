@@ -1609,7 +1609,7 @@ export const cardMinHeightSchema = {
     description: 'Minimum card height floor. Overrides the --lcards-button-min-height CSS token. Bare integer = px.',
     'x-ui-hints': {
         label: 'Min Height',
-        helper: 'Floor height (e.g. 40). Overrides --lcards-button-min-height token.',
+        helper: 'Floor height (e.g. 40)',
         selector: { text: {} }
     }
 };
@@ -1670,10 +1670,10 @@ export const cardMinWidthSchema = {
             description: 'Minimum card width with CSS unit (e.g. 80px, 10vw)'
         }
     ],
-    description: 'Minimum card width floor. Overrides the --lcards-button-min-width CSS token. Bare integer = px.',
+    description: 'Minimum card width floor. Bare integer = px.',
     'x-ui-hints': {
         label: 'Min Width',
-        helper: 'Floor width (e.g. 80). Overrides --lcards-button-min-width token.',
+        helper: 'Floor width (e.g. 80)',
         selector: { text: {} }
     }
 };
