@@ -63,11 +63,11 @@ Presets are named animation parameter bundles distributed via packs. Built-in pr
 
 | Preset | Effect |
 |---|---|
-| `alert_pulse` | Scale pulse, red tint |
-| `glow` | Opacity + shadow flash |
-| `slide_in_left` / `slide_in_right` | Translate + fade |
-| `fade_in` / `fade_out` | Opacity |
-| `bounce` | Scale bounce spring |
+| `pulse` | Scale + brightness breathing (use for alert emphasis) |
+| `glow` | Animated drop-shadow bloom |
+| `slide` | Slide in from a direction |
+| `fade` | Opacity transition |
+| `bounce` | Elastic scale bounce |
 
 Custom presets are registered via `animation_presets` in pack definitions.
 
@@ -96,7 +96,7 @@ window.lcards.debug.singleton('animationManager')
 ```javascript [Live object]
 const am = window.lcards.core.animationManager
 
-am.play('my-overlay', 'alert_pulse', { loop: true })
+am.play('my-overlay', 'pulse', { loop: true })
 am.stop('my-overlay')
 am.stopAll()
 am.getActiveAnimations()        // Map<overlayId, Set<anime instance>>

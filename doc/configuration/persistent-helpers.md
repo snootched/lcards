@@ -38,7 +38,7 @@ These helpers control dimensions, appearance, and features of the HA-LCARS theme
 |--------|------|---------|
 | `input_number.lcars_horizontal` | `input_number` | Dashboard-wide horizontal bar width |
 | `input_number.lcars_vertical` | `input_number` | Dashboard-wide vertical bar height |
-| `input_number.lcars_elbow_angle` | `input_number` | Dashboard-wide elbow corner angle |
+| `input_number.lcars_elbow_angle` | `input_number` | Dashboard-wide elbow diagonal angle (1–89°). Elbow segments set to **Theme Binding** follow this value live. |
 | `input_boolean.lcars_sound` | `input_boolean` | Toggles button/tap sounds within the HA-LCARS theme |
 | `input_boolean.lcars_texture` | `input_boolean` | Toggles the grain pattern and backlight effect in HA-LCARS |
 | `input_number.lcars_menu_font` | `input_number` | Sidebar menu font size (8–24 px) |
@@ -69,6 +69,51 @@ input_select:
       - black_alert
     initial: green_alert
     icon: mdi:alert-circle
+```
+
+### HA-LCARS Theme
+
+```yaml
+input_number:
+  lcars_elbow_angle:
+    name: LCARS Elbow Angle
+    min: 1
+    max: 89
+    step: 1
+    mode: slider
+    unit_of_measurement: "°"
+    initial: 45
+    icon: mdi:angle-acute
+  lcars_vertical:
+    name: LCARS Vertical
+    min: 26
+    max: 60
+    step: 1
+    mode: slider
+    icon: mdi:arrow-expand-vertical
+  lcars_horizontal:
+    name: LCARS Horizontal
+    min: 6
+    max: 60
+    step: 1
+    mode: slider
+    icon: mdi:arrow-expand-horizontal
+  lcars_menu_font:
+    name: LCARS Menu Font
+    min: 8
+    max: 24
+    step: 1
+    mode: slider
+    unit_of_measurement: "px"
+    icon: mdi:format-font-size-increase
+
+input_boolean:
+  lcars_sound:
+    name: LCARS Sound
+    icon: mdi:volume-high
+  lcars_texture:
+    name: LCARS Texture
+    icon: mdi:texture
 ```
 
 ### Sound

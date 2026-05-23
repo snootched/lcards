@@ -34,7 +34,7 @@ A scheme maps every event to an audio file. Select your scheme from the **Sound 
 
 Covers all event types with LCARS-style beeps and tones. Additional schemes become available when sound packs are installed.
 
-Set to **none** to disable all sounds without turning off the helpers.
+Set to **none** to use the default built-in scheme. To disable all sounds, turn off the master **Sound Effects Enabled** toggle.
 
 ---
 

@@ -47,7 +47,7 @@ animations:
     entity: binary_sensor.door
     from_state: 'off'
     to_state: 'on'
-    preset: alert_pulse
+    preset: pulse
     duration: 300
 ```
 
@@ -139,7 +139,7 @@ With no `to_state`, the animation starts immediately on card load if the conditi
   attribute: current_temperature
   while:
     above: 24
-  preset: alert_pulse
+  preset: pulse
   loop: true
   check_on_load: true
 ```

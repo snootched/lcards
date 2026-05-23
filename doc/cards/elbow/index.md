@@ -357,8 +357,36 @@ symbiont:
 | `position.left` | number | `10` | Left padding |
 | `position.right` | number | `10` | Right padding |
 | `position.bottom` | number | `0` | Bottom padding |
+| `size` | object | — | Explicit dimensions for the symbiont container. If omitted, the container fills the full inset area |
+| `size.width` | string | — | CSS width (e.g. `"95%"`, `"300px"`, `"clamp(200px, 80%, 600px)"`) |
+| `size.height` | string | — | CSS height |
+| `anchor` | string | `top-left` | Alignment of the sized container within the inset area. Only applies when `size` is set. Options: `top-left`, `top-center`, `top-right`, `middle-left`, `center`, `middle-right`, `bottom-left`, `bottom-center`, `bottom-right` |
 | `imprint` | object | — | Shadow-root style injection — see below |
 | `custom_style` | string | — | Raw CSS appended to the embedded card's shadow root (no card-mod required) |
+
+### Size & Anchor
+
+By default the symbiont container fills the entire content area (after `position` padding is applied). Set `size` to constrain it to explicit dimensions, then use `anchor` to control where it sits within that area.
+
+```yaml
+symbiont:
+  enabled: true
+  position:
+    top: 10
+    right: 10
+    bottom: 10
+    left: 10
+  size:
+    width: "95%"
+    height: "95%"
+  anchor: center
+  card:
+    type: entities
+    entities:
+      - sensor.temperature
+```
+
+`anchor` has no effect when `size` is omitted — the container already fills all available space.
 
 ### Imprint
 

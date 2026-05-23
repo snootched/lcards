@@ -68,10 +68,10 @@ Changes in the Lab are reflected in real time on any open Lovelace dashboard. Yo
 
 Click **Save** in the Lab to write all current parameter values to their corresponding `input_number` helpers. These helpers are created and managed automatically — you don't need to set them up manually.
 
-Helper naming convention: `input_number.lcards_<mode>_<parameter>`, for example:
-- `input_number.lcards_red_alert_hue`
-- `input_number.lcards_yellow_alert_saturation`
-- `input_number.lcards_black_alert_contrast_threshold`
+Helper naming convention: `input_number.lcards_alert_lab_<mode>_<parameter>`, for example:
+- `input_number.lcards_alert_lab_red_hue`
+- `input_number.lcards_alert_lab_yellow_saturation`
+- `input_number.lcards_alert_lab_black_threshold`
 
 ---
 

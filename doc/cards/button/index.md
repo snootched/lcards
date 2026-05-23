@@ -665,7 +665,7 @@ style:
     color:
       default: "var(--lcards-gray)"
       active: "var(--lcards-orange)"
-    width2: 2
+    width: 2
 
 tap_action:
   action: toggle

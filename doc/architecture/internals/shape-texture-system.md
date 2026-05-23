@@ -2,14 +2,14 @@
 
 ## What It Is
 
-The `shape_texture` feature renders an SVG-native texture or animation **inside** the button or elbow shape boundary. It is a hybrid approach that sits **alongside** the existing `background_animation` canvas system:
+The `shape_texture` feature renders a Canvas2D texture or animation **inside** the button or elbow shape boundary. It sits **alongside** the existing `background_animation` canvas system:
 
 | System | Rendering | Scope | Animation |
 |---|---|---|---|
-| `background_animation` | Canvas 2D | Full card bleed | anime.js / RAF |
-| `shape_texture` | SVG-native | Inside shape fill only | Declarative SVG (`<animateTransform>`, `<animate>`) |
+| `background_animation` | Canvas2D | Full card bleed | anime.js / RAF |
+| `shape_texture` | Canvas2D | Inside shape fill only | Canvas2D RAF loop |
 
-The canvas system continues to handle full-bleed card backgrounds unchanged. `shape_texture` provides a declarative, zero-JS-overhead texture layer composited directly within the SVG shape fill.
+The background animation system handles full-bleed card backgrounds. `shape_texture` mounts a `<canvas>` element inside a `<foreignObject>` placeholder in the card SVG, clipped to the shape geometry via Canvas2D Path2D, and drives all presets through a shared RAF loop (`CanvasTextureRenderer`).
 
 ## Supported Card Types
 
@@ -41,14 +41,13 @@ shape_texture:
 
 ```yaml
 shape_texture:
-  preset: pulse
+  preset: fluid
   opacity:
     active: 0.8
     inactive: 0.15
     default: 0.35
   config:
     color: "var(--lcars-alert-red)"
-    speed: 1.5
 ```
 
 ### State-based speed example (animated → static on active)
@@ -76,7 +75,7 @@ shape_texture:
 
 ## Preset Reference
 
-All 12 built-in presets are listed below. Color fields accept any of: `rgba()`, `#hex`, `var(--css-variable)`, `{theme:token.path}`, or state-based maps — the color pipeline resolves all formats before they reach the SVG renderer (see [Color Pipeline](#color-pipeline)).
+All 11 built-in presets are listed below. Color fields accept any of: `rgba()`, `#hex`, `var(--css-variable)`, `{theme:token.path}`, or state-based maps — the color pipeline resolves all formats before they reach the Canvas2D renderer (see [Color Pipeline](#color-pipeline)).
 
 ### `grid`
 
@@ -129,7 +128,7 @@ Scrolling dot grid.
 
 ### `fluid`
 
-Organic swirling noise effect. Large fractalNoise blobs drift diagonally while the noise continuously evolves via SMIL `<animate baseFrequency>`. The ±5 % baseFrequency variation is imperceptible as a size change but causes the blob patterns to genuinely morph over time — no scroll seams or repeating loops.
+Organic swirling noise field. Uses a Canvas2D fBm (fractional Brownian motion) Perlin-style value-noise algorithm that advances its offset each frame, producing a seamlessly morphing colour wash — no repeating loops or scroll seams. `base_frequency` controls feature size (lower = larger blobs); `num_octaves` controls detail.
 
 | Config key | Default | Description |
 |---|---|---|
@@ -141,14 +140,14 @@ Organic swirling noise effect. Large fractalNoise blobs drift diagonally while t
 
 ### `plasma`
 
-Dual-colour fractalNoise wash — two colours (`color_a`/`color_b`) are screen-blended using opposing turbulence channel masks. Creates a vivid energy/plasma look.
+Dual-colour Canvas2D fBm plasma field. Two colours blend across a continuously scrolling noise field to produce a vivid energy/plasma look. Per-pixel cost scales with `num_octaves`.
 
 | Config key | Default | Description |
 |---|---|---|
 | `color_a` | `rgba(80,0,255,0.9)` | First colour |
 | `color_b` | `rgba(255,40,120,0.9)` | Second colour |
-| `base_frequency` | `0.012` | Turbulence base frequency |
-| `num_octaves` | `2` | Turbulence octaves |
+| `base_frequency` | `0.012` | Noise frequency (lower = larger features) |
+| `num_octaves` | `3` | fBm octave count (higher = more detail, more CPU) |
 | `scroll_speed_x` | `8` | Horizontal scroll speed px/s |
 | `scroll_speed_y` | `5` | Vertical scroll speed px/s |
 
@@ -165,15 +164,18 @@ A directional light-sweep gradient that continuously traverses the shape. The an
 
 ### `flow`
 
-Directional streaming currents. Horizontally-elongated turbulence streaks (baseFrequency x:y ratio ~6:1) are warped by a second static displacement layer, then scrolled at high speed. The warp turbulence is deliberately static — no baseFrequency animation — so there are no visible jump discontinuities.
+Directional streaming currents. Draws parallel horizontal gradient bands with sine-wave Y offsets that scroll at high speed, giving the impression of flowing current streaks. `wave_scale` controls the lateral warp amplitude; `num_streaks` controls band density.
 
 | Config key | Default | Description |
 |---|---|---|
-| `color` | `rgba(0,200,255,0.7)` | Streak color |
-| `base_frequency` | `0.012` | Turbulence base frequency for streaks |
-| `wave_scale` | `8` | Displacement map scale (warp amplitude) |
-| `scroll_speed_x` | `50` | Horizontal scroll speed px/s (high = fast current) |
-| `scroll_speed_y` | `0` | Vertical scroll speed px/s |
+| `color` | `rgba(0,200,255,0.7)` | Streak colour |
+| `base_frequency` | `0.012` | Controls streak sine-wave density |
+| `wave_scale` | `8` | Sine amplitude in px (warp depth) |
+| `num_streaks` | `8` | Number of parallel bands |
+| `streak_width` | `0.8` | Band height as fraction of slot (>1 = overlap/blend) |
+| `blur` | `0` | Gaussian blur radius px (softens band edges) |
+| `scroll_speed_x` | `50` | Horizontal sweep speed px/s |
+| `scroll_speed_y` | `0` | Vertical drift speed px/s |
 
 ### `level`
 
@@ -181,26 +183,24 @@ Animated level-indicator fill bar that rises from the bottom (or fills from the 
 
 | Config key | Default | Description |
 |---|---|---|
-| `color` | `rgba(0,200,100,0.7)` | Fill color |
-| `fill_pct` | `50` | Fill percentage 0–100; supports templates |
+| `color` / `color_a` | `rgba(0,200,100,0.7)` | Primary fill colour (bottom/left). `color` is a backward-compatible alias for `color_a`. |
+| `color_b` | `null` | Secondary colour (top/right). When set, a gradient is drawn from `color_a` to `color_b`. |
+| `gradient_crossover` | `80` | 0–100 — percentage of fill height that stays `color_a` before transitioning to `color_b`. |
+| `fill_pct` | `50` | Fill percentage 0–100; supports templates. |
 | `direction` | `'up'` | `'up'` (bottom→top) \| `'right'` (left→right) |
-| `edge_glow` | `true` | Thin white highlight on leading edge |
-| `wave_height` | `4` | Wave amplitude in px (0 = flat edge) |
-| `wave_speed` | `20` | Wave scroll speed in px/s |
-| `wave_count` | `4` | Number of wave crests across the shape width |
+| `edge_glow` | `true` | Bloom highlight on the leading edge. |
+| `edge_glow_color` | `rgba(255,255,255,0.7)` | Edge glow colour. |
+| `edge_glow_width` | `6` | Glow spread radius in px. |
+| `wave_height` | `4` | Primary wave amplitude in px (0 = flat edge). |
+| `wave_speed` | `20` | Primary wave phase rate in deg/s (negative = reverse). |
+| `wave_count` | `4` | Sine cycles across the shape width. |
+| `wave2_height` | `0` | Secondary wave amplitude in px (0 = disabled). |
+| `wave2_count` | `5` | Secondary wave cycle count. |
+| `wave2_speed` | `-15` | Secondary wave phase rate in deg/s. |
+| `slosh_amount` | `0` | 0–1 tilt intensity. Makes the fluid rock as if in a vessel. |
+| `slosh_period` | `3` | Seconds per slosh cycle. |
 
 `direction: 'right'` does not support waves — the leading edge is always flat.
-
-### `pulse`
-
-Breathing radial glow for attention / alert indicators. A `radialGradient` ellipse expands and contracts; `opacity` also animates to create a punchy in/out effect.
-
-| Config key | Default | Description |
-|---|---|---|
-| `color` | `rgba(255,80,0,0.8)` | Glow center color (fades to transparent at edge) |
-| `speed` | `1.2` | Breathe cycles per second |
-| `radius` | `0.7` | Maximum glow radius as a fraction of shape diagonal |
-| `min_size` | `0.15` | Minimum glow size as a fraction of max radius |
 
 ### `scanlines`
 
@@ -217,11 +217,11 @@ Classic CRT-style scan-line overlay. Works as a darkening (or lightening) overla
 
 ### `image`
 
-User-supplied image rendered inside the card shape, clipped to the shape geometry via a Canvas2D Path2D clip path. Unlike the SVG-native presets above, this uses a `<foreignObject>` Canvas2D renderer (`CanvasTextureRenderer`) — the same pipeline as all other shape texture presets. There is no continuous animation frame cost when the image is static; the frame loop is always running but the draw call is a single GPU blit.
+User-supplied image rendered inside the card shape, clipped to the shape geometry via a Canvas2D Path2D clip path. Like all other presets, this runs inside `CanvasTextureRenderer`. There is no continuous per-frame draw cost when the image is static — the RAF loop is always running but the draw call is a single GPU blit.
 
 | Config key | Default | Description |
 |---|---|---|
-| `url` | `''` | `/local/` path, `https://` URL, `builtin:<key>` reference, or a template (e.g. `'{entity.attributes.entity_picture}'`). SVG files are also supported — they are loaded via `<img>` and painted into Canvas2D like any raster image. |
+| `source` | `''` | `/local/` path, `https://` URL, `builtin:<key>` reference, or a template (e.g. `'{entity.attributes.entity_picture}'`). SVG files are also supported — they are loaded via `<img>` and painted into Canvas2D like any raster image. |
 | `size` | `'cover'` | `'cover'` \| `'contain'` \| `'fill'` \| `'<n>px'` (explicit pixel size for the shorter axis) |
 | `position` | `'center'` | CSS `background-position` style string — keywords (`top left`, `center`, `bottom right`) or percentages (`50% 50%`) |
 | `repeat` | `false` | If `true`, tiles the image across the shape rather than fitting it |
@@ -235,7 +235,7 @@ shape_texture:
   opacity: 0.75
   mix_blend_mode: overlay
   config:
-    url: '{entity.attributes.entity_picture}'
+    source: '{entity.attributes.entity_picture}'
     size: cover
 ```
 
@@ -246,7 +246,7 @@ shape_texture:
   preset: image
   opacity: 0.4
   config:
-    url: '/local/images/bedroom.jpg'
+    source: '/local/images/bedroom.jpg'
     size: cover
     position: center top
 ```
@@ -259,7 +259,7 @@ shape_texture:
   opacity: 0.5
   mix_blend_mode: overlay
   config:
-    url: 'builtin:bedroom'  # key registered in lcards-images-pack or via Config Panel
+    source: 'builtin:bedroom'  # key registered in lcards-images-pack or via Config Panel
     size: cover
 ```
 
@@ -275,15 +275,17 @@ The texture layer is injected between `backgroundMarkup` and `borderMarkup`:
 
 ```
 ${backgroundMarkup}    ← shape fill (rect/path)
-${textureMarkup}       ← <defs> + clipped texture rect/path
+${textureMarkup}       ← <foreignObject class="button-texture-host"> placeholder
 ${borderMarkup}        ← borders
 ${iconData.markup}     ← icon
 ${textMarkup}          ← text
 ```
 
+`${textureMarkup}` emits a `<foreignObject>` sized to the full card. After Lit renders the SVG, `_mountCanvasTexture()` locates the `<foreignObject>` and passes it to `CanvasTextureRenderer`, which appends a `<canvas>` (100% × 100%, `pointer-events:none`) inside it. A `ResizeObserver` keeps the canvas dimensions in sync with the layout.
+
 ### ID Scoping
 
-All `<defs>` IDs include a per-instance unique suffix (e.g., `stex-clip-abc12`, `stex-pattern-abc12`) generated by `_getTextureInstanceId()`. This prevents collisions when multiple cards exist on the same dashboard.
+A per-instance unique suffix (e.g., `abc12`) generated by `_getTextureInstanceId()` is used in debug logging and distinguishes multiple texture instances on the same dashboard.
 
 ### Color Pipeline
 
@@ -302,40 +304,12 @@ User config value (JS template / token / theme token / CSS var / rgba / hex / st
     ▼  Stage 2 — ColorUtils.resolveCssVariable() (per color field, same function)
     │  Resolves var(--…) CSS variables → concrete color strings
     │
-    ▼  Stage 3 — createDefs(id, cfg, ctx)
-       SVG feFlood flood-color="…" / fill="…" attribute
-       Browser HTML parser resolves any remaining CSS natively
+    ▼  Stage 3 — TextureEffect constructor / update()
+       Canvas2D fillStyle / strokeStyle / createLinearGradient stop-color
+       Color is already a concrete rgba/hex string by this stage
 ```
 
-All turbulence and glow presets (`fluid`, `plasma`, `flow`) use `feFlood flood-color` + `feComposite operator="in"` rather than `feColorMatrix` RGB extraction. This means any color format the SVG parser understands (including CSS custom properties that have been resolved to a concrete value by the time they reach the attribute) works correctly — no manual `rgb()` decomposition.
-
-Fill-bar presets (`level`, `pulse`) use the color directly as an SVG `fill` / `stop-color` attribute, with the same benefit.
-
-### `_turbPattern` Helper
-
-All turbulence-based presets (`fluid`, `plasma`, `flow`) use the shared `_turbPattern(id, turbPrim, colorPrim, W, H, sx, sy)` helper. The key insight is:
-
-```
-<filter> applied to a <rect> INSIDE a <pattern>
-    evaluates in the pattern tile's LOCAL coordinate system
-    → every tile produces identical output
-    → animating patternTransform translate is always seam-free
-```
-
-The old `feTile + feOffset` approach failed because browsers clip `feTile` output to the filter region. The inner-filter-in-pattern approach produces a true infinite repeat.
-
-`_turbPattern` emits:
-
-```svg
-<filter id="stex-inner-{id}" filterUnits="userSpaceOnUse" …>
-  {turbPrim}          <!-- feTurbulence; result must be "turb" -->
-  {colorPrim}         <!-- colour/composite stages -->
-</filter>
-<pattern id="stex-pattern-{id}" …>
-  <rect filter="url(#stex-inner-{id})" …/>
-  <animateTransform …/>    <!-- seamless scroll -->
-</pattern>
-```
+By the time a color value reaches the Canvas2D effect, it is a concrete `rgba(…)` or `#hex` string. No CSS variable resolution happens inside the effect — that is handled in Stage 2 by `ColorUtils.resolveCssVariable()` in `_resolveShapeTextureConfig()`. This means effects can pass the color string directly to `ctx.fillStyle` or `ctx.strokeStyle` without further processing.
 
 ### Template Support
 
@@ -405,14 +379,15 @@ Because `_resolveShapeTextureConfig()` reads directly from `this.config` at ever
 
 | File | Role |
 |---|---|
-| `src/core/packs/textures/presets/index.js` | `SHAPE_TEXTURE_PRESETS` registry; `_turbPattern` helper |
-| `src/core/packs/textures/ShapeTextureRenderer.js` | SVG string generator |
+| `src/core/packs/textures/CanvasTextureRenderer.js` | Main Canvas2D renderer — creates `<canvas>`, drives RAF loop, manages `ResizeObserver`, delegates to effect |
+| `src/core/packs/textures/presets/index.js` | `CANVAS_TEXTURE_PRESETS` registry (also exported as `SHAPE_TEXTURE_PRESETS` for backward compat) |
+| `src/core/packs/textures/effects/` | One `BaseTextureEffect` subclass per preset |
+| `src/core/packs/textures/effects/noise-helpers.js` | Shared fBm noise math and `parseColorToRgba` used by fluid/plasma effects |
 | `src/core/packs/textures/index.js` | Re-exports |
 | `src/core/packs/lcards-textures-pack.js` | Pack metadata |
 | `src/editor/components/lcards-shape-texture-editor.js` | Editor UI component |
-| `src/core/packs/textures/effects/ImageTextureEffect.js` | Canvas2D image effect for the `image` preset |
-| `src/core/packs/shared/ImageLoader.js` | Shared singleton image cache; resolves `builtin:key` via AssetManager |
-| `src/core/packs/shared/ImageDrawUtils.js` | Shared cover/contain/fill draw-param math; handles SVG zero-dimension fallback |
+| `src/core/packs/shared/ImageLoader.js` | Singleton image cache; resolves `builtin:key` references via AssetManager |
+| `src/core/packs/shared/ImageDrawUtils.js` | Cover/contain/fill draw-param math used by `ImageTextureEffect` |
 
 
 ## See Also

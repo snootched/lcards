@@ -101,6 +101,9 @@ These services start on page load and become accessible to all LCARdS cards via 
 | **Helper Manager** | `helperManager` | Manages LCARdS and HA-LCARS `input_*` helper entities; auto-create from LCARdS Config Panel |
 | **Device Identity Manager** | `deviceIdentityManager` | Stable per-browser UUID + display name; heartbeat registration to backend; supports `?lcards_device=` URL param |
 | **Scoped Settings Service** | `scopedSettingsService` | Three-tier waterfall (Device → User → Global) for any LCARdS setting; requires backend `scoped_storage` capability; graceful degradation |
+| **Screen Effect Manager** | `screenEffectManager` | Full-screen composited canvas effect layer (blur, static, glitch, vignette, etc.); accessible via HA services, console, and card config |
+| **Portal Overlay Manager** | `portalOverlayManager` | Shared portal overlay lifecycle engine for dialogs and modal card overlays rendered above the dashboard |
+| **Connection Overlay Service** | `connectionOverlayService` | Monitors HA WebSocket health and shows a full-screen connection-lost overlay when the frontend loses server contact |
 
 **Template Support** — any text field in any card supports four syntaxes:
 JavaScript `[[[return ...]]]`, LCARdS tokens `{entity.state}` / `{theme:colors.card.button}`, DataSource `{ds:sensor_name}`, and Jinja2 `{{states("sensor.temp")}}` (Jinja2 evaluated by HA server).

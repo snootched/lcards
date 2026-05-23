@@ -224,8 +224,8 @@ export default withMermaid(defineConfig({
           { text: 'Card Foundation',    link: '/architecture/cards/lcards-card-foundation' },
           { text: 'MSD Pipeline',       link: '/architecture/msd/' },
           { text: 'Animation Architecture', link: '/architecture/animations/' },
-          { text: 'Core Subsystems →',       link: '/architecture/subsystems/pack-system' },
-          { text: 'Internals →',             link: '/architecture/internals/storage' },
+          { text: 'Core Subsystems →',       link: '/architecture/subsystems/' },
+          { text: 'Internals →',             link: '/architecture/internals/' },
         ],
       },
       {

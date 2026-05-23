@@ -17,10 +17,12 @@ See the **[Preset Reference](animations/preset-reference.md)** for full paramete
 
 | Category | Presets |
 |----------|---------|
-| Motion | [`bounce`](animations/preset-reference.md#bounce), [`blink`](animations/preset-reference.md#blink), [`fade`](animations/preset-reference.md#fade), [`glow`](animations/preset-reference.md#glow), [`pulse`](animations/preset-reference.md#pulse), [`rotate`](animations/preset-reference.md#rotate), [`scale`](animations/preset-reference.md#scale), [`scale-reset`](animations/preset-reference.md#scale-reset), [`shake`](animations/preset-reference.md#shake), [`slide`](animations/preset-reference.md#slide), [`strobe`](animations/preset-reference.md#strobe) |
+| Motion | [`bounce`](animations/preset-reference.md#bounce), [`blink`](animations/preset-reference.md#blink), [`fade`](animations/preset-reference.md#fade), [`glow`](animations/preset-reference.md#glow), [`pulse`](animations/preset-reference.md#pulse), [`rotate`](animations/preset-reference.md#rotate), [`scale`](animations/preset-reference.md#scale), [`scale-reset`](animations/preset-reference.md#scale-reset), [`shake`](animations/preset-reference.md#shake), [`skew`](animations/preset-reference.md#skew), [`slide`](animations/preset-reference.md#slide), [`strobe`](animations/preset-reference.md#strobe) |
+| Color | [`border-pulse`](animations/preset-reference.md#border-pulse), [`cascade-color`](animations/preset-reference.md#cascade-color), [`color-shift`](animations/preset-reference.md#color-shift), [`shimmer`](animations/preset-reference.md#shimmer) |
 | Text | [`text-glitch`](animations/preset-reference.md#text-glitch), [`text-reveal`](animations/preset-reference.md#text-reveal), [`text-scramble`](animations/preset-reference.md#text-scramble), [`text-typewriter`](animations/preset-reference.md#text-typewriter) |
-| Visual Effects | [`cascade`](animations/preset-reference.md#cascade), [`flicker`](animations/preset-reference.md#flicker), [`ripple`](animations/preset-reference.md#ripple), [`shimmer`](animations/preset-reference.md#shimmer) |
+| Visual Effects | [`cascade`](animations/preset-reference.md#cascade), [`flicker`](animations/preset-reference.md#flicker), [`glitch`](animations/preset-reference.md#glitch), [`ripple`](animations/preset-reference.md#ripple), [`scan-line`](animations/preset-reference.md#scan-line) |
 | SVG | [`draw`](animations/preset-reference.md#draw), [`march`](animations/preset-reference.md#march) |
+| Advanced | [`chaos`](animations/preset-reference.md#chaos), [`grid-stagger`](animations/preset-reference.md#grid-stagger), [`physics-spring`](animations/preset-reference.md#physics-spring), [`sequence`](animations/preset-reference.md#sequence) |
 | Utility | [`motionpath`](animations/preset-reference.md#motionpath), [`set`](animations/preset-reference.md#set) |
 
 ---

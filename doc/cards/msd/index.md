@@ -38,7 +38,7 @@ msd:
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `type` | string | `custom:lcards-msd` (required) |
+| `type` | string | `custom:lcards-msd-card` (required) |
 | `msd` | object | Full MSD configuration (required) |
 | `id` | string | Card ID for rule targeting |
 | `tags` | list | Tags for rule targeting |

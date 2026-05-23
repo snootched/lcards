@@ -970,6 +970,34 @@ export const HELPER_REGISTRY = {
     icon: mdi:texture`
   },
 
+  lcars_elbow_angle: {
+    entity_id: 'input_number.lcars_elbow_angle',
+    domain: 'input_number',
+    name: 'LCARS Elbow Angle',
+    description: 'Dashboard-wide diagonal cut angle for elbow corners. Elbow segments set to "Theme Binding" follow this value live (1–89°).',
+    icon: 'mdi:angle-acute',
+    category: 'ha_lcars_theme',
+    ws_create_params: {
+      min: 1,
+      max: 89,
+      step: 1,
+      mode: 'slider',
+      unit_of_measurement: '°',
+      initial: 45
+    },
+    default_value: 45,
+    yaml_config: `input_number:
+  lcars_elbow_angle:
+    name: LCARS Elbow Angle
+    min: 1
+    max: 89
+    step: 1
+    mode: slider
+    unit_of_measurement: "°"
+    initial: 45
+    icon: mdi:angle-acute`
+  },
+
   lcars_vertical: {
     entity_id: 'input_number.lcars_vertical',
     domain: 'input_number',

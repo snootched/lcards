@@ -98,6 +98,23 @@ Rapid opacity flicker.
 | `loop` | `true` | Loop continuously |
 | `alternate` | `true` | Reverse on each loop |
 
+### `skew`
+
+Skew/slant transformation.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `skewX` | `0` | Target horizontal skew (degrees) |
+| `skewY` | `0` | Target vertical skew (degrees) |
+| `from_skewX` | `0` | Starting horizontal skew |
+| `from_skewY` | `0` | Starting vertical skew |
+| `duration` | `600` | Duration (ms) |
+| `ease` | `inOutQuad` | Easing function |
+| `loop` | `false` | Loop continuously |
+| `alternate` | `false` | Reverse on each loop |
+
+---
+
 ### `fade`
 
 Simple opacity transition.
@@ -262,6 +279,79 @@ Expanding scale with opacity fade.
 | `ease` | `outExpo` | Easing function |
 | `loop` | `false` | Loop continuously |
 
+### `glitch`
+
+Random position and colour shifts for a malfunction effect.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `intensity` | `5` | Max pixel displacement |
+| `frequency` | `10` | Number of glitch steps |
+| `duration` | `1000` | Duration (ms) |
+| `loop` | `false` | Loop continuously |
+
+### `scan-line`
+
+Moving highlight gradient across the element.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `direction` | `horizontal` | `horizontal` or `vertical` |
+| `color` | `rgba(255,255,255,0.3)` | Scan line colour |
+| `duration` | `2000` | Duration (ms) |
+| `ease` | `linear` | Easing function |
+| `loop` | `true` | Loop continuously |
+
+---
+
+## Color Animation Presets
+
+### `color-shift`
+
+Animates a colour property from one value to another.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `color_from` | — | Starting colour (required) |
+| `color_to` | — | Target colour (required) |
+| `property` | `color` | CSS property: `color`, `fill`, `stroke`, `background-color`, etc. |
+| `duration` | `1000` | Duration (ms) |
+| `ease` | `inOutQuad` | Easing function |
+| `loop` | `false` | Loop continuously |
+| `alternate` | `false` | Reverse on each loop |
+
+### `border-pulse`
+
+Animate border colour and/or width. At least one pair (`color_from`/`color_to` or `width_from`/`width_to`) must be specified.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `color_from` | — | Starting border colour |
+| `color_to` | — | Ending border colour |
+| `width_from` | — | Starting border width |
+| `width_to` | — | Ending border width |
+| `duration` | `1000` | Duration (ms) |
+| `ease` | `inOutSine` | Easing function |
+| `loop` | `true` | Loop continuously |
+| `alternate` | `true` | Reverse on each loop |
+
+### `cascade-color`
+
+LCARS-style colour cascade through three keyframe colours. Uses theme tokens for default colours.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `colors` | theme cascade colours | Array of 3 colours: `[start, mid, end]` |
+| `property` | `color` | CSS property to animate |
+| `duration` | `5000` | ms per full cycle |
+| `ease` | `linear` | Easing function |
+| `loop` | `true` | Loop continuously |
+| `alternate` | `true` | Reverse on each loop |
+| `stagger_delay` | `100` | Delay between elements in stagger mode (ms) |
+| `stagger_from` | — | Stagger origin: `first`, `last`, `center`, or `[x, y]` |
+| `axis` | `row` | Stagger axis: `row` or `column` |
+| `interactive` | `false` | Pause on hover, resume on leave |
+
 ---
 
 ## SVG-Specific Presets
@@ -320,6 +410,78 @@ Path-following animation. Requires a `<path>` element in the SVG.
 | `duration` | `4000` | Duration (ms) |
 | `ease` | `linear` | Easing function |
 | `loop` | `true` | Loop continuously |
+
+---
+
+## Advanced Presets
+
+### `sequence`
+
+Timeline-based animation with multiple steps at specified offsets. Uses `anime.js` `createTimeline()` internally.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `steps` | — | Array of step objects (required) — each has the same fields as a normal anime.js animate call plus an optional `at` offset (ms or `'<'` for overlap) |
+| `duration` | `2000` | Default duration per step |
+| `ease` | `outQuad` | Default easing per step |
+| `loop` | `false` | Loop the full sequence |
+
+```yaml
+- preset: sequence
+  trigger: on_tap
+  params:
+    steps:
+      - opacity: [0, 1]
+        duration: 500
+      - scale: [1, 1.2]
+        duration: 300
+        at: 500
+```
+
+### `grid-stagger`
+
+Staggered animation across grid elements, with waves emanating from a chosen origin.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `grid` | `[10, 10]` | Grid dimensions `[cols, rows]` |
+| `from` | `center` | Wave origin: `center`, `first`, `last`, `random`, or `[x, y]` |
+| `property` | `scale` | CSS property to animate |
+| `from_value` | `1` | Starting value |
+| `to_value` | `1.5` | Ending value |
+| `stagger_duration` | `50` | Delay between elements (ms) |
+| `wave_duration` | `1000` | Duration per element animation (ms) |
+| `ease` | `inOutQuad` | Easing function |
+| `loop` | `false` | Loop continuously |
+| `alternate` | `true` | Reverse on each loop |
+
+### `chaos`
+
+Randomised multi-property animation for glitch and malfunction effects.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `properties` | `['x', 'y', 'rotate']` | Properties to randomise (`x`/`y` map to `translateX`/`translateY`) |
+| `range` | `{x: [-50,50], y: [-50,50], rotate: [-15,15]}` | Min/max `[min, max]` per property |
+| `duration_min` | `200` | Minimum animation duration (ms) |
+| `duration_max` | `800` | Maximum animation duration (ms) |
+| `ease` | `inOutQuad` | Easing function |
+| `loop` | `true` | Loop continuously |
+
+### `physics-spring`
+
+Spring-physics animation using anime.js v4 spring easing. Produces natural, organic motion.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `property` | `scale` | CSS property to animate |
+| `from` | — | Starting value (required) |
+| `to` | — | Target value (required) |
+| `stiffness` | `100` | Spring stiffness (higher = snappier) |
+| `damping` | `10` | Spring damping (higher = less bounce) |
+| `mass` | `1` | Spring mass (higher = slower) |
+| `velocity` | `0` | Initial velocity |
+| `loop` | `false` | Loop continuously |
 
 ---
 
