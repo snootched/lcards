@@ -112,6 +112,9 @@ export class SoundManager extends BaseService {
     /** @type {Map<string, HTMLAudioElement>} Cached Audio elements by asset key */
     this._audioCache = new Map();
 
+    /** @type {Function|null} Unsubscribe fn for persistent_notification/subscribe WebSocket subscription */
+    this._notificationUnsubscribe = null;
+
     /** @type {EventListener|null} hass-toggle-menu handler for sidebar expand/collapse */
     this._menuToggleHandler = null;
 
@@ -230,6 +233,42 @@ export class SoundManager extends BaseService {
     }
     // One-shot: load overrides from backend once IntegrationService has probed
     this._ensureOverridesLoaded();
+
+    // Subscribe to persistent notifications via WebSocket once we have a connection.
+    // This is independent of any card being on the dashboard.
+    if (hass?.connection && !this._notificationUnsubscribe) {
+      this._subscribeToNotifications(hass.connection);
+    }
+  }
+
+  /**
+   * Subscribe to HA's persistent_notification/subscribe WebSocket stream.
+   * Fires the 'notification' sound whenever a notification is added (not on the
+   * initial snapshot, which contains pre-existing notifications on page load).
+   * @param {Object} connection - hass.connection
+   * @private
+   */
+  _subscribeToNotifications(connection) {
+    let isInitialSnapshot = true;
+
+    connection.subscribeMessage(
+      (message) => {
+        if (isInitialSnapshot) {
+          isInitialSnapshot = false;
+          return;
+        }
+        if (message.type === 'added') {
+          lcardsLog.debug('[SoundManager] Persistent notification added — playing notification sound');
+          if (this._isCategoryEnabled('alerts')) this.play('notification');
+        }
+      },
+      { type: 'persistent_notification/subscribe' }
+    ).then((unsubscribe) => {
+      this._notificationUnsubscribe = unsubscribe;
+      lcardsLog.info('[SoundManager] Subscribed to persistent notifications');
+    }).catch((err) => {
+      lcardsLog.warn('[SoundManager] Could not subscribe to persistent notifications:', err);
+    });
   }
 
   /**
@@ -409,6 +448,10 @@ export class SoundManager extends BaseService {
     if (this._alertUnsubscribe) {
       this._alertUnsubscribe();
       this._alertUnsubscribe = null;
+    }
+    if (this._notificationUnsubscribe) {
+      this._notificationUnsubscribe();
+      this._notificationUnsubscribe = null;
     }
     this._audioCache.clear();
     lcardsLog.info('[SoundManager] Destroyed');
