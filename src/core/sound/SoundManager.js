@@ -114,6 +114,8 @@ export class SoundManager extends BaseService {
 
     /** @type {Function|null} Unsubscribe fn for persistent_notification/subscribe WebSocket subscription */
     this._notificationUnsubscribe = null;
+    /** @type {boolean} True while a subscribeMessage call is in flight — prevents parallel subscription attempts */
+    this._notificationPending = false;
 
     /** @type {EventListener|null} hass-toggle-menu handler for sidebar expand/collapse */
     this._menuToggleHandler = null;
@@ -236,7 +238,7 @@ export class SoundManager extends BaseService {
 
     // Subscribe to persistent notifications via WebSocket once we have a connection.
     // This is independent of any card being on the dashboard.
-    if (hass?.connection && !this._notificationUnsubscribe) {
+    if (hass?.connection && !this._notificationUnsubscribe && !this._notificationPending) {
       this._subscribeToNotifications(hass.connection);
     }
   }
@@ -249,8 +251,13 @@ export class SoundManager extends BaseService {
    * @private
    */
   _subscribeToNotifications(connection) {
+    this._notificationPending = true;
     let isInitialSnapshot = true;
 
+    // resubscribe: false — we manage reconnects via the 'disconnected' listener
+    // below rather than relying on the library's auto-resubscribe.  Auto-resubscribe
+    // can fire an unhandled rejection if HA rejects the attempt during its own
+    // restart sequence (before the persistent_notification component is ready).
     connection.subscribeMessage(
       (message) => {
         if (isInitialSnapshot) {
@@ -262,13 +269,25 @@ export class SoundManager extends BaseService {
           if (this._isCategoryEnabled('alerts')) this.play('notification');
         }
       },
-      { type: 'persistent_notification/subscribe' }
+      { type: 'persistent_notification/subscribe' },
+      { resubscribe: false }
     ).then((unsubscribe) => {
+      this._notificationPending     = false;
       this._notificationUnsubscribe = unsubscribe;
       lcardsLog.info('[SoundManager] Subscribed to persistent notifications');
     }).catch((err) => {
+      this._notificationPending = false;
       lcardsLog.warn('[SoundManager] Could not subscribe to persistent notifications:', err);
     });
+
+    // When this connection closes, clear the ref so updateHass() re-subscribes
+    // fresh on the next hass update after reconnect.
+    const onDisconnect = () => {
+      this._notificationUnsubscribe = null;
+      this._notificationPending     = false;
+      connection.removeEventListener('disconnected', onDisconnect);
+    };
+    connection.addEventListener('disconnected', onDisconnect);
   }
 
   /**
