@@ -10,11 +10,13 @@
  * Two complementary signals are used:
  *
  * 1. **`hass.connection` WebSocket events** — `home-assistant-js-websocket`
- *    fires `'disconnected'` / `'reconnected'` events on the `Connection` object
- *    whenever the underlying WebSocket closes or reopens.  These fire immediately
- *    on graceful disconnects and after TCP timeout on hard network cuts — with no
- *    false positives from idle dashboards (no state changes → no hass updates is
- *    normal and must NOT be treated as disconnection).
+ *    fires `'disconnected'` on close and `'ready'` on (re)connect on the
+ *    `Connection` object.  Note: the library has no `'reconnected'` event — the
+ *    correct reconnect signal is `'ready'`, which fires after auth completes on
+ *    both the initial connection and every subsequent reconnect.  These fire
+ *    immediately on graceful disconnects and after TCP timeout on hard network
+ *    cuts — with no false positives from idle dashboards (no state changes → no
+ *    hass updates is normal and must NOT be treated as disconnection).
  *
  * 2. **`hass.connected` flag** — belt-and-suspenders.  HA also sets this flag
  *    and propagates an updated hass object on connect/disconnect transitions.
@@ -111,12 +113,12 @@ const DEFAULT_CONFIG = {
     },
     /** Optional brief confirmation overlay shown after the connection is re-established. */
     reconnected: {
-        enabled:              false,
-        text:                 'Connection Restored',
-        color:                '#4caf50',
+        enabled:              true,
+        text:                 'Connection Established',
+        color:                'var(--primary-color)',
         auto_dismiss_seconds: 3,
         font:      'Antonio',
-        size:      26,
+        size:      32,
         weight:    '400',
         transform: 'uppercase',
         /** Optional HA card shown in card mode instead of the text reconnect message. */
@@ -165,6 +167,12 @@ export class ConnectionOverlayService extends BaseService {
         this._isDismissed = false;
         /** Timer handle for auto-dismissing the reconnected confirmation banner. */
         this._reconnectedTimer = null;
+        /**
+         * Short stabilization timer: delays clearing the disconnect overlay after a
+         * 'ready' event so that rapid disconnect/ready cycles during HA server restart
+         * don't cause visible flicker (overlay briefly disappears then reappears).
+         */
+        this._reconnectDebounceTimer = null;
 
         // ── HASS ──────────────────────────────────────────────────────────
         this._hass = null;
@@ -281,34 +289,39 @@ export class ConnectionOverlayService extends BaseService {
             sss.read(CONN_OVERLAY_BORG_SEM,             SCOPES, () => null),
         ]);
 
+        // Priority: storage value → existing in-memory value → built-in default.
+        // "Existing in-memory value" is the in-memory config at call time (seeded
+        // from localStorage on construction).  This means a connection error during
+        // reads (which returns null) does NOT clobber a previously loaded setting.
+        const C = this._config;
         const resolved = {
-            enabled:  enabled  ?? D.enabled,
-            dismiss:  dismiss  ?? D.dismiss,
-            position: position ?? D.position,
-            width:    width    ?? D.width,
-            height:   height   ?? D.height,
-            content:  content  ?? D.content,
-            layers:   sem      ?? D.layers,
+            enabled:  enabled  ?? C.enabled  ?? D.enabled,
+            dismiss:  dismiss  ?? C.dismiss  ?? D.dismiss,
+            position: position ?? C.position ?? D.position,
+            width:    width    ?? C.width    ?? D.width,
+            height:   height   ?? C.height   ?? D.height,
+            content:  content  ?? C.content  ?? D.content,
+            layers:   sem      ?? C.layers   ?? D.layers,
             message: {
-                mode:      msgMode      ?? D.message.mode,
-                text:      msgText      ?? D.message.text,
-                color:     msgColor     ?? D.message.color,
-                font:      msgFont      ?? D.message.font,
-                size:      msgSize      ?? D.message.size,
-                weight:    msgWeight    ?? D.message.weight,
-                transform: msgTransform ?? D.message.transform,
-                borgLayers: borgSem ?? null,
+                mode:      msgMode      ?? C.message?.mode      ?? D.message.mode,
+                text:      msgText      ?? C.message?.text      ?? D.message.text,
+                color:     msgColor     ?? C.message?.color     ?? D.message.color,
+                font:      msgFont      ?? C.message?.font      ?? D.message.font,
+                size:      msgSize      ?? C.message?.size      ?? D.message.size,
+                weight:    msgWeight    ?? C.message?.weight    ?? D.message.weight,
+                transform: msgTransform ?? C.message?.transform ?? D.message.transform,
+                borgLayers: borgSem ?? C.message?.borgLayers ?? null,
             },
             reconnected: {
-                enabled:              reconEnabled     ?? D.reconnected.enabled,
-                text:                 reconText        ?? D.reconnected.text,
-                color:                reconColor       ?? D.reconnected.color,
-                auto_dismiss_seconds: reconDismissSecs ?? D.reconnected.auto_dismiss_seconds,
-                font:                 reconFont        ?? D.reconnected.font,
-                size:                 reconSize        ?? D.reconnected.size,
-                weight:               reconWeight      ?? D.reconnected.weight,
-                transform:            reconTransform   ?? D.reconnected.transform,
-                content:              reconContent     ?? D.reconnected.content,
+                enabled:              reconEnabled     ?? C.reconnected?.enabled              ?? D.reconnected.enabled,
+                text:                 reconText        ?? C.reconnected?.text                 ?? D.reconnected.text,
+                color:                reconColor       ?? C.reconnected?.color                ?? D.reconnected.color,
+                auto_dismiss_seconds: reconDismissSecs ?? C.reconnected?.auto_dismiss_seconds ?? D.reconnected.auto_dismiss_seconds,
+                font:                 reconFont        ?? C.reconnected?.font                 ?? D.reconnected.font,
+                size:                 reconSize        ?? C.reconnected?.size                 ?? D.reconnected.size,
+                weight:               reconWeight      ?? C.reconnected?.weight               ?? D.reconnected.weight,
+                transform:            reconTransform   ?? C.reconnected?.transform            ?? D.reconnected.transform,
+                content:              reconContent     ?? C.reconnected?.content              ?? D.reconnected.content,
             },
         };
 
@@ -517,6 +530,10 @@ export class ConnectionOverlayService extends BaseService {
      * Destroy the service: unsubscribe connection events, tear down portal.
      */
     destroy() {
+        if (this._reconnectDebounceTimer !== null) {
+            clearTimeout(this._reconnectDebounceTimer);
+            this._reconnectDebounceTimer = null;
+        }
         this._clearReconnectedTimer();
         this._unsubscribeConnectionEvents();
         window.lcards?.core?.portalOverlayManager?.hide('connection-overlay');
@@ -528,6 +545,11 @@ export class ConnectionOverlayService extends BaseService {
     // -------------------------------------------------------------------------
 
     _onDisconnected() {
+        // Cancel any pending reconnect debounce — a new disconnect voids it.
+        if (this._reconnectDebounceTimer !== null) {
+            clearTimeout(this._reconnectDebounceTimer);
+            this._reconnectDebounceTimer = null;
+        }
         // Cancel any in-progress "reconnected" banner before showing the disconnect overlay.
         this._clearReconnectedTimer();
         this._isReconnectedActive = false;
@@ -556,6 +578,21 @@ export class ConnectionOverlayService extends BaseService {
     }
 
     _onReconnected() {
+        // Debounce: wait 1 s before actually clearing the overlay.  During an HA
+        // server restart the socket may open briefly ('ready') and then close again
+        // ('disconnected') several times before HA is stable.  The debounce keeps
+        // the overlay visible through those transient reconnects and only clears it
+        // once the connection holds for at least 1 second.
+        if (this._reconnectDebounceTimer !== null) {
+            clearTimeout(this._reconnectDebounceTimer);
+        }
+        this._reconnectDebounceTimer = setTimeout(() => {
+            this._reconnectDebounceTimer = null;
+            this._doReconnected();
+        }, 1000);
+    }
+
+    _doReconnected() {
         this._clearReconnectedTimer();
 
         lcardsLog.info('[ConnectionOverlayService] Connection restored — clearing disconnect overlay');
@@ -659,13 +696,13 @@ export class ConnectionOverlayService extends BaseService {
     // -------------------------------------------------------------------------
 
     /**
-     * Subscribe to `disconnected` / `reconnected` events on the
+     * Subscribe to `disconnected` / `ready` events on the
      * `home-assistant-js-websocket` Connection object.
      *
-     * These events fire immediately when the underlying WebSocket closes or
-     * reopens — independently of whether any state changes are in flight.
-     * This is the primary disconnect-detection mechanism, replacing the
-     * previous heartbeat timer that produced false positives on idle dashboards.
+     * The library fires `'disconnected'` when the WebSocket closes and `'ready'`
+     * when it (re)opens after authentication — there is no `'reconnected'` event.
+     * Both fire immediately, independently of whether any state changes are in
+     * flight, making them the primary disconnect-detection mechanism.
      *
      * @param {object} conn - `hass.connection`
      */
@@ -680,13 +717,13 @@ export class ConnectionOverlayService extends BaseService {
         };
 
         this._handleConnReconnected = () => {
-            lcardsLog.info('[ConnectionOverlayService] WS "reconnected" event — clearing overlay');
+            lcardsLog.info('[ConnectionOverlayService] WS "ready" event — scheduling overlay clear');
             this._isConnected = true;
             this._onReconnected();
         };
 
         conn.addEventListener('disconnected', this._handleConnDisconnected);
-        conn.addEventListener('reconnected',  this._handleConnReconnected);
+        conn.addEventListener('ready',        this._handleConnReconnected);
         this._subscribedConnection = conn;
 
         lcardsLog.debug('[ConnectionOverlayService] Subscribed to hass.connection events');
@@ -700,7 +737,7 @@ export class ConnectionOverlayService extends BaseService {
         if (this._subscribedConnection && this._handleConnDisconnected) {
             try {
                 this._subscribedConnection.removeEventListener('disconnected', this._handleConnDisconnected);
-                this._subscribedConnection.removeEventListener('reconnected',  this._handleConnReconnected);
+                this._subscribedConnection.removeEventListener('ready',        this._handleConnReconnected);
             } catch (_) { /* best-effort — connection may already be gone */ }
         }
         this._subscribedConnection   = null;

@@ -32,33 +32,118 @@ style:
 
 ---
 
-## Top-Level Options
+## Common Properties
+
+The following properties are shared across all LCARdS cards. See [Common Card Properties](../common.md) for full details.
+
+| Category | Config keys | Reference |
+|----------|-------------|-----------|
+| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min_height-min_width-max_height-max_width) |
+| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow_x-overflow_y) |
+| Stacking | `z_index` | [Stacking](../common.md#stacking-z_index) |
+| Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
+| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
+| Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
+| Text labels | `text` | [Text Fields](../../core/text-fields.md) |
+| Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
+| Animations | `animations`, `background_animation` | [Animations](../../core/animations.md) |
+| Sounds | `sounds` | [Sounds](../../core/sounds.md) |
+| Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |
+
+---
+
+## Config Structure
+
+Annotated map of all top-level keys.
+
+```yaml
+type: custom:lcards-slider
+
+# ── Entity & mode ─────────────────────────────────────────────────────────────────
+entity: light.bedroom      # entity to display / control
+ranges_attribute: ""       # entity attribute for range conditions
+preset: pills-left-border  # visual preset — see Presets
+component: shaped          # advanced: 'shaped' or 'picard'
+
+# ── Control ─────────────────────────────────────────────────────────────────────
+control:
+  attribute: brightness    # entity attribute to control
+  min: 0
+  max: 100
+  step: 1
+  locked: false            # force read-only
+  invert_value: false
+
+# ── Text labels ────────────────────────────────────────────────────────────────
+text:
+  label:
+    content: Brightness
+    position: top-left
+
+# ── Style ───────────────────────────────────────────────────────────────────────
+style:
+  track:
+    type: pills              # pills | gauge | shaped
+    height: 40
+    display:
+      min: 0
+      max: 100
+      unit: "%"
+    segments:
+      gradient:
+        start:               # string or state-based object
+          default: "var(--lcars-orange)"
+          inactive: "alpha(var(--lcars-orange), 0.3)"
+        end:                 # string or state-based object
+          default: "var(--lcars-moonlight)"
+  gauge:
+    color:                   # string or state-based object (gauge fill)
+      default: "var(--lcars-orange)"
+      inactive: "var(--lcars-gray)"
+  border:
+    left:
+      enabled: true
+      size: 12
+      color:                 # string or state-based object
+        default: "var(--lcars-orange)"
+
+# ── Actions, animations & effects ────────────────────────────────────────────
+tap_action:
+  action: more-info
+animations: []
+background_animation: []
+sounds: {}
+
+# ── Layout ─────────────────────────────────────────────────────────────────────
+height: 60
+width: 300
+min_height: 40
+max_height: 120
+overflow: hidden
+z_index: 0
+grid_options:
+  columns: 6
+  rows: 1
+id: my-slider
+tags: [controls]
+data_sources: {}
+triggers_update: []
+```
+
+---
+
+## Card Options
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `type` | string | `custom:lcards-slider` (required) |
 | `entity` | string | Entity to display and/or control |
-| `ranges_attribute` | string | Entity attribute used for `above:`/`below:`/`between:` range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
-| `preset` | string | Visual style preset |
-| `component` | string | Advanced SVG component name (`shaped` for clip-path fill style) |
-| `height` | number / string | Card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `width` | number / string | Card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `min_height` | number / string | Minimum card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `min_width` | number / string | Minimum card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `triggers_update` | list | Extra entity IDs that trigger re-render — see [Data Sources](../../core/datasources/) |
-| `id` | string | Card ID for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
-| `tags` | list | Tags for [Rules Engine targeting](../../cards/common.md#card-identification-id-and-tags) |
-| `control` | object | Control behavior — see [Control Options](#control-options) |
+| `ranges_attribute` | string | Entity attribute for range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
+| `preset` | string | Visual style preset — see [Presets](#presets) |
+| `component` | string | Advanced SVG component: `shaped` or `picard` |
+| `control` | object | Control behaviour — see [Control Options](#control-options) |
 | `text` | object | Text label definitions — see [Text Fields](../../core/text-fields.md) |
 | `style` | object | Visual style overrides — see [Style Object](#style-object) |
-| `grid_options` | object | HA grid layout — see [grid_options](../../cards/common.md#ha-grid-sizing-grid_options) |
-| `tap_action` | object | Tap action — see [Actions](../../core/actions.md) |
-| `hold_action` | object | Hold action — see [Actions](../../core/actions.md) |
-| `double_tap_action` | object | Double-tap action — see [Actions](../../core/actions.md) |
-| `animations` | list | Card animations — see [Animations](../../core/animations.md) |
-| `background_animation` | list / object | Canvas background — see [Background Animations](../../core/effects/background-animations.md) |
-| `data_sources` | object | Named data source definitions — see [Data Sources](../../core/datasources/) |
-| `sounds` | object | Per-card sound overrides — see [Sound Effects](../../core/sounds.md) |
 
 ---
 
@@ -150,7 +235,6 @@ All other domains default to read-only (locked). Set `control.locked: true/false
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `color` | string / object | — | Primary gauge fill colour — shorthand, takes priority over `progress_bar.color`. Supports [state maps](../../core/colours.md). |
 | `progress_bar.color` | string / object | theme | Filled bar colour — [state map](../../core/colours.md) supported |
 | `progress_bar.height` | number | theme | Bar cross-sectional thickness in px |
 | `progress_bar.layer` | string | `background` | `background` (behind ticks) or `foreground` (in front) |
@@ -331,7 +415,7 @@ style:
 | `style.shaped.fill.color` | string | theme | Fill colour for the active portion |
 | `style.shaped.track.background` | string | theme | Interior background (empty portion) colour |
 | `style.shaped.text_bands.top.size` | number | `36` | Top text band height in px (vertical mode) |
-| `style.shaped.text_bands.bottom.size` | number | `28` | Bottom text band height in px (vertical mode) |
+| `style.shaped.text_bands.bottom.size` | number | `36` | Bottom text band height in px (vertical mode) |
 | `style.shaped.text_bands.left.size` | number | `60` | Left text band width in px (horizontal mode) |
 | `style.shaped.text_bands.right.size` | number | `60` | Right text band width in px (horizontal mode) |
 | `style.shaped.polygon.points` | array | — | `[[xPct, yPct], ...]` vertices (0–1) for polygon shape |

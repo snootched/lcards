@@ -122,14 +122,14 @@ export class LCARdSNativeCard extends LitElement {
             /* LCARS font loading */
             @font-face {
                 font-family: 'lcards_jeffries';
-                src: url('/hacsfiles/lcards/fonts/jeffries.woff2') format('woff2'),
-                     url('/hacsfiles/lcards/fonts/jeffries.woff') format('woff');
+                src: url('/lcards/fonts/jeffries.woff2') format('woff2'),
+                     url('/lcards/fonts/jeffries.woff') format('woff');
             }
 
             @font-face {
                 font-family: 'lcards_microgramma';
-                src: url('/hacsfiles/lcards/fonts/microgramma.woff2') format('woff2'),
-                     url('/hacsfiles/lcards/fonts/microgramma.woff') format('woff');
+                src: url('/lcards/fonts/microgramma.woff2') format('woff2'),
+                     url('/lcards/fonts/microgramma.woff') format('woff');
             }
         `;
     }
@@ -256,6 +256,21 @@ export class LCARdSNativeCard extends LitElement {
         super.connectedCallback();
 
         lcardsLog.debug(`[LCARdSNativeCard] Connected: ${this._cardGuid}`);
+
+        // Re-detect whether we're inside the card editor dialog now that the card
+        // is in the DOM. setConfig() runs before connectedCallback() (HA inserts the
+        // element after configuration), so shadow-DOM-piercing ancestor checks always
+        // return false at setConfig() time. We only need to catch the editor dialog
+        // case here — dashboard edit mode and card-picker detection are handled by
+        // _detectPreviewMode() (called from setConfig()) once the card is placed in
+        // its final context, and by each card's _handleFirstUpdate() override.
+        // NOTE: intentionally does NOT call the full _detectPreviewMode() to avoid
+        // falsely setting _isPreviewMode=true for dashboard edit mode, which would
+        // break cards that use _isPreviewMode to decide whether to render a placeholder.
+        if (this._checkForAncestor(['hui-dialog-edit-card'])) {
+            lcardsLog.debug(`[LCARdSNativeCard] Preview detection: card editor dialog detected (connectedCallback)`);
+            this._isPreviewMode = true;
+        }
 
         // Load fonts if needed
         this._loadFonts();
@@ -428,6 +443,12 @@ export class LCARdSNativeCard extends LitElement {
         } else {
             this.style.minWidth = _toCssLength(config.min_width ?? '');
         }
+
+        const validOverflow = ['visible', 'hidden', 'clip', 'scroll', 'auto'];
+        this.style.overflow  = validOverflow.includes(config.overflow)   ? config.overflow   : '';
+        this.style.overflowX = validOverflow.includes(config.overflow_x) ? config.overflow_x : '';
+        this.style.overflowY = validOverflow.includes(config.overflow_y) ? config.overflow_y : '';
+        this.style.zIndex    = config.z_index != null ? String(config.z_index) : '';
     }
 
     /**
@@ -570,6 +591,34 @@ export class LCARdSNativeCard extends LitElement {
     }
 
     /**
+     * Walk up the DOM tree (piercing shadow root boundaries) and check whether
+     * any ancestor element matches one of the given tag-name selectors.
+     * This is needed because `Element.closest()` cannot cross shadow DOM
+     * boundaries, but the HA editor places cards inside nested shadow roots.
+     * @param {string[]} selectors  Lower-case custom-element tag names to test
+     * @returns {boolean}
+     * @protected
+     */
+    _checkForAncestor(selectors) {
+        let current = /** @type {Element | null} */ (this);
+        const maxLevels = 20;
+
+        for (let i = 0; i < maxLevels && current; i++) {
+            for (const selector of selectors) {
+                if (current.tagName?.toLowerCase() === selector.toLowerCase()) {
+                    return true;
+                }
+            }
+            // Traverse shadow DOM boundaries: try parentElement, then shadow host
+            current = current.parentElement ||
+                /** @type {ShadowRoot} */ (current.parentNode)?.host ||
+                /** @type {ShadowRoot} */ (current.getRootNode())?.host;
+        }
+
+        return false;
+    }
+
+    /**
      * Detect if running in preview mode
      * @protected
      * @returns {boolean|'picker'|'editor'}
@@ -597,6 +646,17 @@ export class LCARdSNativeCard extends LitElement {
                 parentTag: parentElement.tagName,
                 parentClass: parentElement.className
             });
+            return true;
+        }
+
+        // Check for card editor dialog — must pierce shadow DOM boundaries because
+        // hui-dialog-edit-card uses shadow DOM and closest() stops at the boundary.
+        // When a card is inside this dialog its IntersectionObserver would fire
+        // immediately with isIntersecting:false (the backgroundLayer div is clipped
+        // by the dialog's overflow boundary before layout settles), permanently
+        // suspending background animations before any frame renders.
+        if (this._checkForAncestor(['hui-dialog-edit-card'])) {
+            lcardsLog.debug(`[LCARdSNativeCard] Preview detection: card editor dialog detected`);
             return true;
         }
 

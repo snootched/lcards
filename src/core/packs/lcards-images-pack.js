@@ -11,7 +11,7 @@
  * ## Adding curated images
  *
  * 1. Copy the image file to `hacsfiles/lcards/images/` (mirrored from `src/assets/images/`)
- * 2. Add an entry below with a stable snake_case key and a `/hacsfiles/lcards/images/` URL.
+ * 2. Add an entry below with a stable snake_case key and a `/lcards/images/` URL.
  * 3. The key becomes the `builtin:<key>` reference users put in card config.
  *
  * ## User-defined images
@@ -45,7 +45,7 @@ export const LCARDS_IMAGES_PACK = {
      *
      * ```js
      * 'bedroom': {
-     *   url: '/hacsfiles/lcards/images/bedroom.jpg',
+     *   url: '/lcards/images/bedroom.jpg',
      *   label: 'Bedroom',
      *   category: 'rooms',
      *   description: 'Generic bedroom area photo'
@@ -56,49 +56,49 @@ export const LCARDS_IMAGES_PACK = {
         // Built-in entries will be added here as they are sourced and licensed.
         // Users add their own via the Config Panel → Image Library.
         sun: {
-            url: '/hacsfiles/lcards/images/astrographix_visuals-sun-1494070_1920.jpg',
+            url: '/lcards/images/astrographix_visuals-sun-1494070_1920.jpg',
             label: 'Sun',
             category: 'space',
             description: 'Close-up of the sun — astrographix_visuals (Pixabay #1494070)',
         },
         stars_blue_green: {
-            url: '/hacsfiles/lcards/images/geralt-stars-2643089_1920.jpg',
+            url: '/lcards/images/geralt-stars-2643089_1920.jpg',
             label: 'Stars (blue/green)',
             category: 'space',
             description: 'Star field — geralt (Pixabay #2643089)',
         },
         starry_sky: {
-            url: '/hacsfiles/lcards/images/hans-starry-sky-1655503_1920.jpg',
+            url: '/lcards/images/hans-starry-sky-1655503_1920.jpg',
             label: 'Starry Sky',
             category: 'space',
             description: 'Starry night sky — hans (Pixabay #1655503)',
         },
         ds9_station: {
-            url: '/hacsfiles/lcards/images/janson_g-space-station-2749367.png',
+            url: '/lcards/images/janson_g-space-station-2749367.png',
             label: 'DS9 Model Station',
             category: 'sci-fi',
             description: 'Space station — janson_g (Pixabay #2749367)',
         },
         borg_cube: {
-            url: '/hacsfiles/lcards/images/kifoku-borg-5108780.png',
+            url: '/lcards/images/kifoku-borg-5108780.png',
             label: 'Borg Cube',
             category: 'sci-fi',
             description: 'Borg — kifoku (Pixabay #5108780)',
         },
         stars_blue: {
-            url: '/hacsfiles/lcards/images/pexels-stars-2179083_1920.jpg',
+            url: '/lcards/images/pexels-stars-2179083_1920.jpg',
             label: 'Stars (blue)',
             category: 'space',
             description: 'Star field — Pexels (#2179083)',
         },
         nebula_green_orange: {
-            url: '/hacsfiles/lcards/images/wikiimages-space-11097_1920.jpg',
+            url: '/lcards/images/wikiimages-space-11097_1920.jpg',
             label: 'Nebula (green/orange)',
             category: 'space',
             description: 'Deep space — WikiImages (Pixabay #11097)',
         },
         nebula_orange_red: {
-            url: '/hacsfiles/lcards/images/wikiimages-stars-67616_1920.jpg',
+            url: '/lcards/images/wikiimages-stars-67616_1920.jpg',
             label: 'Nebula (orange/red)',
             category: 'space',
             description: 'Star field — WikiImages (Pixabay #67616)',

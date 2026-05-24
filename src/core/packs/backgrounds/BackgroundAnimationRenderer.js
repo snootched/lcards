@@ -136,7 +136,14 @@ export class BackgroundAnimationRenderer {
 
       // Suspend animation when the card is scrolled off-screen, resume when it returns.
       // Falls back gracefully if IntersectionObserver is unavailable (SSR, old browsers).
-      if (typeof IntersectionObserver !== 'undefined') {
+      // Skip in editor preview mode — the card is always visible there, and the IO
+      // fires immediately with isIntersecting:false inside the editor's shadow DOM
+      // context (the backgroundLayer div is clipped by the dialog's overflow boundary
+      // before layout settles), permanently suspending the loop before any frame renders.
+      const _isPreview = typeof this.cardInstance?.isPreviewMode === 'function'
+        ? this.cardInstance.isPreviewMode()
+        : false;
+      if (!_isPreview && typeof IntersectionObserver !== 'undefined') {
         this._intersectionObserver = new IntersectionObserver(
           (entries) => {
             // Ignore IO callbacks that fire as a side-effect of the browser tab being

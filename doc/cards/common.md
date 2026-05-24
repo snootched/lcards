@@ -12,6 +12,12 @@ LCARdS share a set of common top-level configuration properties regardless of ca
 | `width` | number / string | CSS width override applied to the card host element (see below) |
 | `min_height` | number / string | Minimum height floor — card will not shrink below this value (see below) |
 | `min_width` | number / string | Minimum width floor — card will not shrink below this value (see below) |
+| `max_height` | number / string | Maximum height ceiling — card will not grow beyond this value (see below) |
+| `max_width` | number / string | Maximum width ceiling — card will not grow beyond this value (see below) |
+| `overflow` | string | CSS overflow shorthand for both axes: `visible`, `hidden`, `clip`, `scroll`, or `auto` |
+| `overflow_x` | string | Horizontal axis overflow — same values as `overflow`; overrides the shorthand |
+| `overflow_y` | string | Vertical axis overflow — same values as `overflow`; overrides the shorthand |
+| `z_index` | integer | CSS z-index on the card host element (range: -999 to 9999) |
 | `grid_options` | object | HA grid sizing — `rows` and `columns` for the Lovelace grid (see below) |
 | `data_sources` | object | Named data source definitions — see [Data Sources](../core/datasources/) |
 | `triggers_update` | list | Extra entity IDs that trigger template re-evaluation — see [Templates](../core/templates/#manual-tracking-with-triggers-update) |
@@ -35,7 +41,7 @@ tags:
 
 ---
 
-## Sizing (`height`, `width`, `min_height`, `min_width`)
+## Sizing (`height`, `width`, `min_height`, `min_width`, `max_height`, `max_width`)
 
 ### Default behaviour
 
@@ -83,6 +89,18 @@ min_width: 80        # never narrower than 80px
 
 These override the CSS token defaults (`--lcars-button-min-height` and `--lcars-button-min-width`). When `height` is also set, it takes precedence and the `min-height` floor is cleared (`min-height: 0`) so the fixed height is respected exactly. `min_height` and `min_width` do not affect `getCardSize()`.
 
+### `max_height` and `max_width`
+
+Set a maximum size ceiling. The card can shrink below this value but will not grow beyond it. Useful for preventing a card from expanding too far in a flexible or dynamic layout.
+
+```yaml
+type: custom:lcards-button
+max_height: 200      # never taller than 200px
+max_width: 400px     # never wider than 400px
+```
+
+Accepts the same formats as `height` and `width` (bare integer = px, or any CSS unit). `max_height` and `max_width` do not affect `getCardSize()`.
+
 ### When to use sizing overrides
 
 - **Alert overlays** — explicit size because the overlay container uses `height: auto`
@@ -92,6 +110,44 @@ These override the CSS token defaults (`--lcars-button-min-height` and `--lcars-
 - **Dynamic content** — use `min_height`/`min_width` to prevent collapse when content length varies
 
 > **Note on `getCardSize()`**: HA uses `getCardSize()` to pre-allocate grid space before the card renders. When `height` is set in pixels, LCARdS uses that value to report grid rows (`px ÷ 56`, rounded up). For non-px units (`vh`, `%`, etc.) the card falls back to its default row count since the pixel value cannot be determined at configuration time.
+
+---
+
+## Overflow (`overflow`, `overflow_x`, `overflow_y`)
+
+Controls what happens when a card's content exceeds its rendered size. Accepts the standard CSS overflow values.
+
+| Value | Behaviour |
+|-------|-----------|
+| `visible` | Content is not clipped — overflows the card box |
+| `hidden` | Content is clipped without a scrollbar |
+| `clip` | Like `hidden` but also disallows programmatic scrolling |
+| `scroll` | Always shows a scrollbar |
+| `auto` | Adds a scrollbar only when content overflows |
+
+```yaml
+type: custom:lcards-button
+overflow: hidden        # clip any content that exceeds the card bounds
+```
+
+`overflow_x` and `overflow_y` set the horizontal and vertical axes independently and override `overflow` when both are present.
+
+```yaml
+type: custom:lcards-button
+overflow_x: hidden
+overflow_y: auto        # vertical scrollbar only when needed
+```
+
+---
+
+## Stacking (`z_index`)
+
+Sets the CSS `z-index` on the card's host element, controlling its stacking order relative to adjacent cards in the same grid container. Useful when cards overlap — for example, an alert overlay, a floating panel, or an MSD embed.
+
+```yaml
+type: custom:lcards-button
+z_index: 10     # render above neighbouring cards (range: -999 to 9999)
+```
 
 ---
 
@@ -128,9 +184,7 @@ In most dashboard layouts you only need `grid_options`. Use the sizing propertie
 
 ## Sizing inside `custom:layout-card`
 
-[`custom:layout-card`](https://github.com/thomasloven/lovelace-layout-card) arranges cards in a CSS Grid, Masonry, or other layout. By default it sets `--layout-height: auto` on the grid container, which means grid rows size to their content rather than stretching to fill the allocated height. LCARdS cards rely on `height: 100%` on their host element to fill the row — with `auto` height rows this collapses the card to its minimum height.
-
-There also exists a bug (unpatched, PR pending) that fixes the `card_margin` configuration on grid layouts.  Currently, this option is ignored and hard coded margins are applied causing undesired offsets.  See below.
+[`custom:layout-card`](https://github.com/thomasloven/lovelace-layout-card) arranges cards in a CSS Grid, Masonry, or other layout. By default it sets `--layout-height: auto` on the grid container, so grid rows size to their content rather than stretching to fill the allocated height. LCARdS cards rely on `height: 100%` to fill the row — this collapses the card with `auto` height rows. There is also a known upstream bug where `card_margin` is ignored and hard-coded margins are applied instead.
 
 ### 1. Symptom
 
@@ -167,10 +221,32 @@ Cards inside `custom:layout-card` that uses `grid-layout` - `card_margin` option
 
 ### Fix
 
-Until bug is resolved upstream, you can use a patched version of `custom:layout-card` from this repo: [patched custom-layout-card](https:///github.com/snootched/lovelace-layout-card)
+Until bug is resolved upstream, you can use a patched version of `custom:layout-card` from this repo: [patched custom-layout-card](https://github.com/snootched/lovelace-layout-card)
 1. Uninstall the official `custom-layout-card`
 2. If exists: remove the cached gzip file from the original install `www/community/lovelace-layout-card/layout-card.js.gz`
-3. Add as a custom repo in HACS: `https:///github.com/snootched/lovelace-layout-card`
+3. Add as a custom repo in HACS: `https://github.com/snootched/lovelace-layout-card`
 4. Install the patched version per normal.
 
-This will be maintained until upstream project resolves the issue.
+This will be maintained until the upstream project resolves the issue.
+
+---
+
+## Card Features
+
+All LCARdS cards support the following cross-cutting features in addition to the common properties above. Each links to the full reference page.
+
+| Feature | Description |
+|---------|-------------|
+| [Text Labels](../core/text-fields.md) | Multiple positioned text fields with template support, per-field styling, and zone targeting |
+| [Actions](../core/actions.md) | `tap_action`, `hold_action`, and `double_tap_action` — any HA action type |
+| [Animations](../core/animations.md) | Trigger-based card animations (on load, on state change, etc.) |
+| [Background Animations](../core/effects/background-animations.md) | Canvas-rendered animated backgrounds (grid, starfield, fluid, etc.) |
+| [Sound Effects](../core/sounds.md) | Per-card audio playback tied to state changes or actions |
+| [Rules Engine](../core/rules/) | Conditional style patches driven by entity state, time, or tags |
+| [Data Sources](../core/datasources/) | Named entity subscriptions with history buffering and processing |
+| [Templates](../core/templates/) | JS, token, DataSource, and Jinja2 template evaluation in any string field |
+| [Themes](../core/themes/) | Design token system — colours, typography, borders, and component defaults |
+
+::: tip Not every card supports every feature
+Some features are card-specific — for example, `background_animation` is only available on cards that render a canvas layer (Button, Elbow, Slider). Check the individual card page for which features apply.
+:::

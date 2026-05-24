@@ -408,7 +408,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         tabs.push({ label: 'Effects', content: () => this._renderEffectsTab() });
 
         // Sound tab: per-card mute + event overrides
-        tabs.push({ label: 'Sound', content: () => this._renderSoundTab() });
+        tabs.push({ label: 'Sound', content: () => this._renderSoundTab(['card_tap', 'card_hold', 'card_double_tap', 'card_hover', 'toggle_on', 'toggle_off']) });
 
         return [...tabs, ...this._getUtilityTabs()];
     }
@@ -585,10 +585,14 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     children: [
                         { type: 'field', path: 'height',     label: 'Height',     helper: 'Fixed height (e.g. 56px). Overrides grid row height.' },
                         { type: 'field', path: 'width',      label: 'Width',      helper: 'Fixed width (e.g. 200px). Overrides grid column width.' },
-                        { type: 'field', path: 'min_height', label: 'Min Height', helper: 'Floor height. Overrides --lcards-button-min-height token.' },
-                        { type: 'field', path: 'min_width',  label: 'Min Width',  helper: 'Floor width. Overrides --lcards-button-min-width token.' },
-                        { type: 'field', path: 'max_height', label: 'Max Height', helper: 'Ceiling height. Bare integer = px, or CSS units (400px, 80vh, etc).' },
-                        { type: 'field', path: 'max_width',  label: 'Max Width',  helper: 'Ceiling width. Bare integer = px, or CSS units (600px, 80vw, etc).' }
+                        { type: 'field', path: 'min_height', label: 'Min Height', helper: 'Floor height. Bare integer = px, or CSS units (e.g. 40px, 10vh).' },
+                        { type: 'field', path: 'min_width',  label: 'Min Width',  helper: 'Floor width. Bare integer = px, or CSS units (e.g. 80px, 10vw).' },
+                        { type: 'field', path: 'max_height', label: 'Max Height', helper: 'Ceiling height. Bare integer = px, or CSS units (e.g. 400px, 80vh).' },
+                        { type: 'field', path: 'max_width',  label: 'Max Width',  helper: 'Ceiling width. Bare integer = px, or CSS units (e.g. 600px, 80vw).' },
+                        { type: 'field', path: 'overflow',   label: 'Overflow',   helper: 'Sets both axes. Use overflow_x / overflow_y to override per axis.' },
+                        { type: 'field', path: 'z_index',    label: 'Z-Index',    helper: 'Stacking order. Higher = in front within the same stacking context.' },
+                        { type: 'field', path: 'overflow_x', label: 'Overflow X', helper: 'Horizontal axis — overrides the Overflow setting.' },
+                        { type: 'field', path: 'overflow_y', label: 'Overflow Y', helper: 'Vertical axis — overrides the Overflow setting.' },
                     ]
                 },
                 { type: 'custom', render: () => this._renderLayoutCardHint() }

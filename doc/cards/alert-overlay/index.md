@@ -25,6 +25,14 @@ The built-in defaults display an LCARS shield symbol styled for the active condi
 
 ---
 
+## Common Properties
+
+::: tip Infrastructure card — no common properties
+This card renders as a zero-size sentinel element in the HA grid. The overlay is injected into `document.body` and always covers the full viewport. Unlike other LCARdS cards, it does **not** support the standard common properties — no `height`, `width`, `id`, `tags`, `grid_options`, sizing, actions, text fields, or animations keys.
+:::
+
+---
+
 ## Placement
 
 Add the card to the Lovelace view to use. When active, the card renders the overlay in a portal attached to `document.body` rather than inside the card slot, so it always covers the full viewport regardless of where in the grid the card element sits.
@@ -40,7 +48,61 @@ views:
 
 ---
 
-## Top-Level Options
+## Config Structure
+
+Annotated map of all top-level keys.
+
+```yaml
+type: custom:lcards-alert-overlay
+
+# ── Dismiss behaviour ──────────────────────────────────────────────────────────
+dismiss_mode: dismiss           # dismiss | reset | auto-dismiss | auto-reset
+auto_dismiss_seconds: 30        # seconds; required for auto-dismiss / auto-reset
+
+# ── Content position & size ────────────────────────────────────────────────────
+position: center                # center | top | bottom | top-left | top-right
+                                # bottom-left | bottom-right | left | right
+width: 400px                    # content card width (any CSS value)
+height: auto                    # content card height; usually omit — SVG cards self-size from width
+
+# ── Screen effects ─────────────────────────────────────────────────────────────
+layers:
+  backdrop:                     # CSS backdrop-filter behind the overlay
+    preset: blur                # blur | grayscale | saturate | contrast | hue-rotate
+    amount: 8px
+  color:                        # colour overlay above the backdrop
+    preset: color-tint          # color-tint | vignette
+    color: rgba(0, 0, 0, 0.5)
+  canvas:                       # canvas2D animation above the colour layer
+    preset: static              # static | pixelate | glitch | scanlines
+    opacity: 0.3
+
+# ── Per-condition overrides ────────────────────────────────────────────────────
+conditions:
+  red_alert:
+    auto_dismiss_seconds: 15    # per-condition timeout override
+    position: center
+    width: 500px
+    layers:
+      color:
+        preset: color-tint
+        color: rgba(180, 0, 0, 0.35)
+    alert_button:               # patch the built-in default button (partial override)
+      text:
+        sub_text:
+          content: CONDITION RED — ALL HANDS TO BATTLE STATIONS
+    # content:                  # OR replace entirely with any HA card config
+    #   type: custom:lcards-button
+    #   preset: condition_red
+  yellow_alert: {}              # inherits all defaults
+  blue_alert: {}
+  black_alert: {}
+  gray_alert: {}
+```
+
+---
+
+## Card Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|

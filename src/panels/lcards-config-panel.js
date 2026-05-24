@@ -13,7 +13,7 @@
  *     sidebar_title: LCARdS Config
  *     sidebar_icon: mdi:cog
  *     url_path: lcards-config-panel
- *     module_url: /hacsfiles/lcards/lcards.js
+ *     module_url: /lcards/lcards.js
  * ```
  *
  * @element lcards-config-panel
@@ -787,7 +787,7 @@ export class LCARdSConfigPanel extends LitElement {
         <div class="header">
           <img
             class="banner-logo"
-            src="/hacsfiles/lcards/brand/icon@2x.png"
+            src="/lcards/brand/icon@2x.png"
             alt="LCARdS"
             @error=${(e) => { e.target.style.display = 'none'; }}
           />

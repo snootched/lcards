@@ -287,12 +287,14 @@ export function applyHassToCard(cardElement, hass, label = 'card') {
             cardElement._hass = hass;
             cardElement.requestUpdate?.('hass', oldHass);
         } else {
-            // Unknown card type — prefer setHass, fall back to property
+            // Unknown card type — prefer setHass, fall back to property.
+            // NOTE: Do NOT set ._hass here — that is LCARdS-internal only.
+            // Third-party cards (e.g. advanced-camera-card) may define _hass
+            // as a getter-only property, which would throw a TypeError.
             if (typeof cardElement.setHass === 'function') {
                 cardElement.setHass(hass);
             } else {
-                cardElement.hass  = hass;
-                cardElement._hass = hass;
+                cardElement.hass = hass;
                 cardElement.requestUpdate?.('hass', oldHass);
             }
         }

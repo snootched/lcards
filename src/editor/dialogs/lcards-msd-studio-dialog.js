@@ -1279,7 +1279,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (source.startsWith('builtin:')) {
             svgKey = source.replace('builtin:', '');
             isBuiltin = true;
-        } else if (source.startsWith('/local/') || source.startsWith('/hacsfiles/')) {
+        } else if (source.startsWith('/local/') || source.startsWith('/hacsfiles/') || source.startsWith('/lcards/')) {
             svgKey = source.split('/').pop().replace('.svg', '');
             isExternal = true;
         } else if (source.startsWith('http://') || source.startsWith('https://')) {
@@ -1459,7 +1459,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <ha-alert alert-type="info">
                 <strong>Custom SVG Paths:</strong><br>
                 • /local/my-ship.svg (from www/ folder)<br>
-                • /hacsfiles/lcards/ships/custom.svg<br>
+                • /lcards/ships/custom.svg<br>
                 • https://example.com/my-ship.svg<br>
                 <br>
                 <em>Provide a valid URL or local path to your custom SVG file.</em>

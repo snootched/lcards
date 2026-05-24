@@ -234,7 +234,7 @@ lcards-core.js _performInitialization():
            step 7: pack.components      → ComponentManager.registerComponentsFromPack()
 ```
 
-Note: ComponentManager initializes from `components/index.js` at step 1 *before* PackManager runs. When a pack with `components` is registered at step 7, it re-registers those components with added `pack` provenance (overwrites, which is intentional). This double-registration is a transitional state — see *Roadmap* below.
+Note: ComponentManager initializes from `components/index.js` at step 1 *before* PackManager runs. When a pack with `components` is registered at step 7, it re-registers those components with added `pack` provenance (overwrites, which is intentional). The `components/index.js` load ensures component types are available immediately even if packs haven't loaded yet; the pack registration at step 7 enriches them with provenance metadata.
 
 ---
 
@@ -314,7 +314,7 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
      ...myTypeComponents
    };
    ```
-   (This ensures ComponentManager's initial load includes the new type as a fallback — see Roadmap.)
+   (This ensures ComponentManager's initial load includes the new type immediately, before packs have loaded.)
 
 5. **Consumers query via singleton**:
    ```js

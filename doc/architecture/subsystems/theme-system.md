@@ -75,9 +75,16 @@ const color = theme.palette.moonlight;
 
 ## Alert Mode Integration
 
-When alert mode changes, `paletteInjector` replaces CSS custom properties on `:root`, applying colour transforms from `ALERT_MODE_TRANSFORMS`. Cards using theme tokens in CSS see the change immediately — no re-render needed.
+Alert mode changes are triggered by calling `themeManager.setAlertMode(mode)`. This is typically driven by `AlertMode` service, which watches the `input_select.lcars_alert_mode` helper via `HelperManager` and calls `setAlertMode()` whenever it changes.
 
-Transform spec:
+When `setAlertMode(mode)` is called, it:
+1. Loads user-customised transform parameters from HA helpers (unless `opts.skipHelperLoad` is set, e.g. from the Alert Lab editor)
+2. Calls `paletteInjector` which writes new values to CSS custom properties on `:root`
+3. Clears the `ThemeTokenResolver` cache so fresh resolves pick up the new values
+4. Updates `themeManager.currentAlertMode`
+5. Fires all `_alertModeSubscribers` callbacks — **after** CSS vars are written, so it is safe to call `requestUpdate()` directly from the callback
+
+Transform spec (defined in `alertModeTransform.js`):
 
 ```javascript
 ALERT_MODE_TRANSFORMS['red'] = {
@@ -86,6 +93,41 @@ ALERT_MODE_TRANSFORMS['red'] = {
   // ...
 }
 ```
+
+Cards using theme tokens in CSS see the change immediately — no re-render needed for CSS-driven styles.
+
+To react to alert mode changes in a card:
+
+```javascript
+const tm = window.lcards.core.themeManager;
+const unsubscribe = tm.subscribeToAlertMode((mode) => {
+    this._alertMode = mode;
+    this.requestUpdate();
+});
+// In disconnectedCallback():
+unsubscribe();
+```
+
+---
+
+## Scoped Theme Overrides
+
+`ThemeManager` integrates with `ScopedSettingsService` to allow per-device or per-user theme token overrides. Overrides are stored under `STORAGE_KEY_THEME_OVERRIDES` and loaded on startup. They are applied on top of the active theme's token tree, so they survive theme switches.
+
+```javascript
+const tm = window.lcards.core.themeManager;
+
+// Load all scopes and apply (called automatically on startup)
+await tm.loadOverrides();
+
+// Write an override for a scope ('device', 'user', or 'global')
+await tm.setOverride('palette.moonlight', '#ff0000', 'device');
+
+// Clear one override
+await tm.clearOverride('palette.moonlight', 'device');
+```
+
+Scoped overrides require the `scoped_storage` backend capability — they degrade gracefully when the backend is absent.
 
 ---
 

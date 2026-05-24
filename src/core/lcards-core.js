@@ -371,9 +371,18 @@ class LCARdSCore {
             }
 
             lcardsLog.info('[LCARdSCore] ✅ Core systems initialized successfully');
+            this.soundManager.ensureReady().then(() => {
+                // window flag clears on any true page load (including hard refresh) but survives
+                // SPA navigation and module re-init, so system_ready only plays once per page load
+                if (!/** @type {any} */ (window)._lcardsSystemReadyPlayed) {
+                    /** @type {any} */ (window)._lcardsSystemReadyPlayed = true;
+                    this.soundManager.play('system_ready');
+                }
+            });
 
         } catch (error) {
             lcardsLog.error('[LCARdSCore] ❌ Core initialization failed:', error);
+            this.soundManager.play('error');
             this._coreInitialized = false;
             throw error;
         }
@@ -809,7 +818,33 @@ class LCARdSCore {
         }
 
         if (this.stylePresetManager) {
+            this.stylePresetManager.destroy();
             this.stylePresetManager = null;
+        }
+
+        if (this.animationRegistry) {
+            this.animationRegistry.destroy();
+            this.animationRegistry = null;
+        }
+
+        if (this.actionHandler) {
+            this.actionHandler.destroy();
+            this.actionHandler = null;
+        }
+
+        if (this.assetManager) {
+            this.assetManager.destroy();
+            this.assetManager = null;
+        }
+
+        if (this.configManager) {
+            this.configManager.destroy();
+            this.configManager = null;
+        }
+
+        if (this.componentManager) {
+            this.componentManager.destroy();
+            this.componentManager = null;
         }
 
         if (this.soundManager) {

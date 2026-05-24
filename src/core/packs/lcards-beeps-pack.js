@@ -7,7 +7,7 @@
  * in the Config Panel Sound tab.
  *
  * File layout on disk (relative to the HA www root):
- *   /hacsfiles/lcards/sounds/lcards_beeps/<asset>.mp3
+ *   /lcards/sounds/lcards_beeps/<asset>.mp3
  *
  * Asset key conventions:
  *   beeps_<descriptor>   e.g. beeps_short, beeps_chirp_high
@@ -21,7 +21,7 @@
  * available in the override picker without forming a named scheme.
  */
 
-const BASE_URL = '/hacsfiles/lcards/sounds/lcards_beeps';
+const BASE_URL = '/lcards/sounds/lcards_beeps';
 
 // ──────────────────────────────────────────────────────────────
 // AUDIO ASSET REGISTRY

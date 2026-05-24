@@ -14,7 +14,7 @@
  * Builtin MSD Background SVGs Pack
  *
  * External SVG files shipped with LCARdS for Master Systems Display cards.
- * Files are hosted at /hacsfiles/lcards/msd/ and lazy-loaded on demand.
+ * Files are hosted at /lcards/msd/ and lazy-loaded on demand.
  */
 export const BUILTIN_MSD_SVG_PACK = {
   id: 'builtin_msd_backgrounds',
@@ -24,7 +24,7 @@ export const BUILTIN_MSD_SVG_PACK = {
   // External SVG assets (lazy-loaded)
   svg_assets: {
     'ncc-1701-a': {
-      url: '/hacsfiles/lcards/msd/ncc-1701-a.svg',
+      url: '/lcards/msd/ncc-1701-a.svg',
       metadata: {
         ship: 'USS Enterprise',
         registry: 'NCC-1701-A',
@@ -38,7 +38,7 @@ export const BUILTIN_MSD_SVG_PACK = {
     },
 
     'ncc-1701-a-blue': {
-      url: '/hacsfiles/lcards/msd/ncc-1701-a-blue.svg',
+      url: '/lcards/msd/ncc-1701-a-blue.svg',
       metadata: {
         ship: 'USS Enterprise',
         registry: 'NCC-1701-A',
@@ -53,7 +53,7 @@ export const BUILTIN_MSD_SVG_PACK = {
     },
 
     'enterprise-d-shuttlecraft15-anomaly': {
-      url: '/hacsfiles/lcards/msd/enterprise-d-shuttlecraft15-anomaly.svg',
+      url: '/lcards/msd/enterprise-d-shuttlecraft15-anomaly.svg',
       metadata: {
         ship: 'Shuttlecraft 15',
         registry: 'NCC-1701-D-15',
@@ -65,7 +65,7 @@ export const BUILTIN_MSD_SVG_PACK = {
       },
     },
     'enterprise-d-shuttlecraft15-anomaly-custom': {
-      url: '/hacsfiles/lcards/msd/enterprise-d-shuttlecraft15-anomaly-custom.svg',
+      url: '/lcards/msd/enterprise-d-shuttlecraft15-anomaly-custom.svg',
       metadata: {
         ship: 'Shuttlecraft 15',
         registry: 'NCC-1701-D-15',

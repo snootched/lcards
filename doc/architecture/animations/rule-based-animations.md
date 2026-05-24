@@ -17,7 +17,7 @@ rules:
     apply:
       animations:
         - tag: temperature_widgets
-          preset: alert_pulse
+          preset: pulse
           duration: 1000
           loop: true
 ```
@@ -196,10 +196,10 @@ All standard animation parameters are supported:
 ```yaml
 animations:
   - tag: my_target
-    preset: fade_in           # Required: Animation preset name
+    preset: fade              # Required: Animation preset name
     duration: 1000           # Optional: Duration in milliseconds
     delay: 100               # Optional: Delay before starting
-    ease: easeInOutQuad      # Optional: Easing function
+    ease: inOutQuad          # Optional: Easing function
     loop: true               # Optional: Loop animation (stops on unmatch)
     alternate: true          # Optional: Reverse direction on each loop
 ```

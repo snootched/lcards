@@ -606,7 +606,7 @@ disconnectedCallback() {
 | `callService(domain, service, data)` | domain: string, service: string, data?: Object | Promise | Call HA service |
 | `setupActions(element, actions)` | element: HTMLElement, actions: Object | Function | Setup action handlers |
 | `_registerOverlayForRules(overlayId, tags)` | overlayId: string, tags: `Array<string>` | void | Register overlay with RulesEngine for rule-based styling (tags optional, defaults to []) |
-| `_getMergedStyleWithRules(baseStyle)` | baseStyle: Object | Object | Merge base style with active rule patches (rules have highest priority) |
+| `_getMergedStyleWithRules(baseStyle)` | baseStyle: Object | Object | Merge base style with active rule patches (rules have highest priority). Internal — called in `_resolveStyle()`; call `_resolveStyle()` instead of this directly. |
 | `_applyRulePatches(patches)` | patches: Object | void | Internal method to apply rule patches and trigger callback |
 
 ### Lifecycle Hooks

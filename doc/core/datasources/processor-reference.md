@@ -7,7 +7,7 @@ Complete reference for all 12 DataSource processor types.
 Processors transform data as it flows through a DataSource. Each processor:
 - Has a unique **name** (the key in the `processing` object)
 - Specifies a **type** (one of 12 processor types)
-- Optionally uses `from` to depend on another processor
+- Optionally uses `input_source` to depend on another processor
 - Outputs a value accessible in templates as `{datasource.processor_name}`
 
 ## Quick Reference
@@ -110,10 +110,10 @@ Map input range to output range with optional curve.
 ```yaml
 processor_name:
   type: scale
-  from: source_processor  # Optional
+  input_source: source_processor  # Optional
   input_range: [0, 100]
   output_range: [0, 255]
-  curve: linear           # linear, exponential, logarithmic, sigmoid
+  curve: linear                   # linear, exponential, logarithmic, sigmoid
 ```
 
 ### Examples
@@ -128,7 +128,7 @@ normalized:
 # Temperature comfort index
 comfort:
   type: scale
-  from: fahrenheit
+  input_source: fahrenheit
   input_range: [32, 95]
   output_range: [0, 100]
 
@@ -151,10 +151,10 @@ Apply smoothing algorithms to reduce noise.
 ```yaml
 processor_name:
   type: smooth
-  from: source_processor  # Optional
-  method: exponential     # exponential, moving_average, gaussian
-  window: 10              # For moving_average (samples)
-  alpha: 0.3              # For exponential (0-1, lower = more smoothing)
+  input_source: source_processor  # Optional
+  method: exponential             # exponential, moving_average, gaussian
+  window: 10                      # For moving_average (samples)
+  alpha: 0.3                      # For exponential (0-1, lower = more smoothing)
 ```
 
 ### Methods
@@ -186,14 +186,14 @@ smoothed:
 # 10-sample moving average
 moving_avg:
   type: smooth
-  from: converted
+  input_source: converted
   method: moving_average
   window: 10
 
 # Smooth temperature readings
 smooth_temp:
   type: smooth
-  from: fahrenheit
+  input_source: fahrenheit
   method: gaussian
   window: 5
 ```
@@ -209,8 +209,8 @@ Evaluate custom JavaScript expressions.
 ```yaml
 processor_name:
   type: expression
-  from: source_processor     # Optional: single source
-  sources:                   # Optional: multiple sources
+  input_source: source_processor  # Optional: single source
+  sources:                        # Optional: multiple sources
     - processor1
     - processor2
   expression: "value * 2"    # JavaScript expression
@@ -218,7 +218,7 @@ processor_name:
 
 ### Context Variables
 
-- `value` - Current value (if `from` specified)
+- `value` - Current value (if `input_source` specified)
 - `sources[0], sources[1]...` - Array of source values (if `sources` specified)
 - `metadata` - DataSource metadata object
 - `states` - Full HA states object
@@ -243,7 +243,7 @@ comfort:
 # Conditional logic
 status:
   type: expression
-  from: temperature
+  input_source: temperature
   expression: "value > 25 ? 'hot' : 'cold'"
 
 # Complex formula
@@ -271,8 +271,8 @@ Calculate statistical measures over a time window.
 ```yaml
 processor_name:
   type: statistics
-  from: source_processor  # Optional
-  window: 24h             # Time window or 'session'
+  input_source: source_processor  # Optional
+  window: 24h                     # Time window or 'session'
   stats:                  # Array of statistics to calculate
     - min
     - max
@@ -310,7 +310,7 @@ Returns object with requested stats:
 # Daily temperature statistics
 daily_stats:
   type: statistics
-  from: fahrenheit
+  input_source: fahrenheit
   window: 24h
   stats: [min, max, mean]
 
@@ -323,7 +323,7 @@ session_stats:
 # Full statistical analysis
 complete_stats:
   type: statistics
-  from: sensor_value
+  input_source: sensor_value
   window: 1h
   stats: [min, max, mean, median, std_dev, q1, q3]
 ```
@@ -347,9 +347,9 @@ Calculate rate of change over time.
 ```yaml
 processor_name:
   type: rate
-  from: source_processor  # Optional
-  unit: per_second        # per_second, per_minute, per_hour
-  smoothing: true         # Optional: apply smoothing
+  input_source: source_processor  # Optional
+  unit: per_second                # per_second, per_minute, per_hour
+  smoothing: true                 # Optional: apply smoothing
 ```
 
 ### Examples
@@ -358,19 +358,19 @@ processor_name:
 # Power consumption rate
 power_rate:
   type: rate
-  from: kilowatts
+  input_source: kilowatts
   unit: per_hour
 
 # Data transfer rate
 transfer_rate:
   type: rate
-  from: bytes_transferred
+  input_source: bytes_transferred
   unit: per_second
 
 # Temperature change rate
 temp_rate:
   type: rate
-  from: celsius
+  input_source: celsius
   unit: per_minute
   smoothing: true
 ```
@@ -386,9 +386,9 @@ Detect trend direction (increasing, decreasing, stable).
 ```yaml
 processor_name:
   type: trend
-  from: source_processor  # Optional
-  samples: 5              # Number of samples to analyze
-  threshold: 0.01         # Minimum change to detect trend
+  input_source: source_processor  # Optional
+  samples: 5                      # Number of samples to analyze
+  threshold: 0.01                 # Minimum change to detect trend
 ```
 
 ### Output
@@ -404,14 +404,14 @@ Returns string:
 # Temperature trend
 temp_trend:
   type: trend
-  from: celsius
+  input_source: celsius
   samples: 10
   threshold: 0.1
 
 # Battery trend
 battery_trend:
   type: trend
-  from: battery_percent
+  input_source: battery_percent
   samples: 5
   threshold: 1
 ```
@@ -435,9 +435,9 @@ Track time spent in a condition.
 ```yaml
 processor_name:
   type: duration
-  from: source_processor  # Optional
-  condition: "> 20"       # Condition expression
-  reset_on: "< 15"        # Optional: reset condition
+  input_source: source_processor  # Optional
+  condition: "> 20"               # Condition expression
+  reset_on: "< 15"                # Optional: reset condition
 ```
 
 ### Output
@@ -456,7 +456,7 @@ Returns object:
 # Time above threshold
 high_temp_duration:
   type: duration
-  from: celsius
+  input_source: celsius
   condition: "> 25"
   reset_on: "< 20"
 
@@ -468,7 +468,7 @@ motion_duration:
 # Door open duration
 door_open_time:
   type: duration
-  from: door_state
+  input_source: door_state
   condition: "== 'open'"
 ```
 
@@ -489,11 +489,11 @@ Convert value to binary based on threshold.
 ```yaml
 processor_name:
   type: threshold
-  from: source_processor  # Optional
+  input_source: source_processor  # Optional
   threshold: 20
-  above: 1                # Value when above threshold
-  below: 0                # Value when below threshold
-  hysteresis: 2           # Optional: prevent flapping
+  above: 1                        # Value when above threshold
+  below: 0                        # Value when below threshold
+  hysteresis: 2                   # Optional: prevent flapping
 ```
 
 ### Hysteresis
@@ -508,7 +508,7 @@ Prevents rapid switching near threshold:
 # Simple binary
 is_hot:
   type: threshold
-  from: celsius
+  input_source: celsius
   threshold: 25
   above: 1
   below: 0
@@ -516,7 +516,7 @@ is_hot:
 # With hysteresis (prevents flapping at 25°C)
 comfort_alert:
   type: threshold
-  from: temperature
+  input_source: temperature
   threshold: 25
   above: 1
   below: 0
@@ -525,7 +525,7 @@ comfort_alert:
 # Custom values
 temp_level:
   type: threshold
-  from: fahrenheit
+  input_source: fahrenheit
   threshold: 75
   above: "hot"
   below: "comfortable"
@@ -542,7 +542,7 @@ Limit value to minimum and maximum bounds.
 ```yaml
 processor_name:
   type: clamp
-  from: source_processor  # Optional
+  input_source: source_processor  # Optional
   min: 0
   max: 100
 ```
@@ -559,14 +559,14 @@ percent_clamped:
 # Limit temperature range
 temp_limited:
   type: clamp
-  from: celsius
+  input_source: celsius
   min: -10
   max: 40
 
 # Prevent negative values
 positive_only:
   type: clamp
-  from: calculated
+  input_source: calculated
   min: 0
 ```
 
@@ -581,9 +581,9 @@ Round to specified precision.
 ```yaml
 processor_name:
   type: round
-  from: source_processor  # Optional
-  precision: 1            # Decimal places
-  method: round           # round, floor, ceil
+  input_source: source_processor  # Optional
+  precision: 1                    # Decimal places
+  method: round                   # round, floor, ceil
 ```
 
 ### Methods
@@ -603,13 +603,13 @@ rounded:
 # No decimals
 whole_number:
   type: round
-  from: temperature
+  input_source: temperature
   precision: 0
 
 # Always round down
 floored:
   type: round
-  from: value
+  input_source: value
   precision: 0
   method: floor
 
@@ -630,8 +630,8 @@ Calculate change from previous value.
 ```yaml
 processor_name:
   type: delta
-  from: source_processor  # Optional
-  absolute: false         # true = absolute change, false = signed
+  input_source: source_processor  # Optional
+  absolute: false                 # true = absolute change, false = signed
 ```
 
 ### Examples
@@ -640,19 +640,19 @@ processor_name:
 # Signed change
 temp_change:
   type: delta
-  from: celsius
+  input_source: celsius
   absolute: false
 
 # Absolute change
 abs_change:
   type: delta
-  from: power
+  input_source: power
   absolute: true
 
 # Detect large jumps
 significant_change:
   type: expression
-  from: temp_change
+  input_source: temp_change
   expression: "Math.abs(value) > 5"
 ```
 
@@ -660,7 +660,7 @@ significant_change:
 
 ## Chaining Processors
 
-Processors can depend on each other using `from`:
+Processors can depend on each other using `input_source`:
 
 ```yaml
 data_sources:
@@ -676,20 +676,20 @@ data_sources:
       # 2. Smooth (depends on fahrenheit)
       smoothed:
         type: smooth
-        from: fahrenheit
+        input_source: fahrenheit
         method: exponential
         alpha: 0.3
 
       # 3. Round (depends on smoothed)
       rounded:
         type: round
-        from: smoothed
+        input_source: smoothed
         precision: 1
 
       # 4. Statistics (depends on smoothed, parallel with rounded)
       stats:
         type: statistics
-        from: smoothed
+        input_source: smoothed
         window: 24h
         stats: [min, max, mean]
 ```

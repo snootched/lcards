@@ -20,12 +20,37 @@
 
 ---
 
+## Compilation
+
+When `RulesEngine` is constructed it immediately compiles every rule's `when` block into an optimised predicate tree via `compileRule()` in `compileConditions.js`. The result is stored in `this.compiledRules` (a `Map<ruleId, { tree, deps }>`):
+
+- **`tree`** — a recursive node structure (`all`, `any`, `not`, leaf comparisons, `javascript`, `jinja2`) that `evalCompiled()` walks during evaluation.
+- **`deps`** — sets of entity IDs, performance-metric keys, and feature flags that the rule references, used to build the dependency index.
+
+Compilation happens once per `RulesEngine` instance (at construction). If rules are replaced, a new `RulesEngine` instance is created rather than mutating the existing one. Compilation issues (e.g. a plain string `condition` without `[[[ ]]]` or `{{ }}`) are logged as warnings and the affected rule falls back to an always-true node.
+
+```javascript
+// compileConditions.js shape
+{ tree: {
+    type: 'all',           // 'all' | 'any' | 'not' | 'leaf' | 'javascript' | 'jinja2' | 'always'
+    nodes: [ ... ]
+  },
+  deps: {
+    entities: Set<string>,
+    perf:     Set<string>,
+    flags:    Set<string>
+  }
+}
+```
+
+---
+
 ## Evaluation Flow
 
 ```
 HASS state push
     → mark affected rules dirty  (dependency index O(1) lookup)
-    → evaluate dirty rules only  (compiled predicates)
+    → evaluate dirty rules only  (evalCompiled() walks compiled tree)
     → for each matched rule: compute patches
     → distribute patches to registered overlay listeners
     → overlays call requestUpdate()
@@ -51,7 +76,7 @@ rules:
             color: var(--lcars-red)
       animations:
         - tag: temp_widget
-          preset: alert_pulse
+          preset: pulse
           loop: true
 
   - id: motion_active

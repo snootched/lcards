@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.05.09.1",
+  "version": "2026.05.24.1",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -23,7 +23,6 @@
     "validate:css-vars:verbose": "node scripts/validate-css-vars.js --verbose",
     "validate:doc-examples": "node scripts/validate-doc-examples.js",
     "validate:doc-examples:strict": "node scripts/validate-doc-examples.js --strict",
-    "build:dev": "vite build --mode development",
     "build:integration": "vite build --mode integration && node scripts/copy-assets.js",
     "set-version": "node scripts/set-version.js",
     "generate-brand-icon": "node scripts/generate-brand-icon.js",

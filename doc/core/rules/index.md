@@ -199,11 +199,11 @@ Target by **tag** to affect multiple cards at once:
 apply:
   animations:
     - tag: alert-buttons       # All overlays tagged 'alert-buttons'
-      preset: alert_pulse
+      preset: pulse
       loop: true
       duration: 800            # ms
       delay: 0                 # ms before start
-      ease: easeInOutQuad
+      ease: inOutQuad
       params:
         speed: 2
         color: "#ff4400"
@@ -392,7 +392,7 @@ rules:
             color: var(--lcars-red)
       animations:
         - tag: status
-          preset: alert_pulse
+          preset: pulse
           loop: true
       base_svg:
         filter_preset: red-alert

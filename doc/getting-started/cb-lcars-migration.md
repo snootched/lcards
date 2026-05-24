@@ -2,11 +2,16 @@
 
 LCARdS originates from, and supersedes, the [CB-LCARS](https://github.com/snootched/cb-lcars) project.
 
+CB-LCARS was based on [Custom Button Card](https://github.com/custom-cards/button-card) but LCARdS uses native LIT and other libraries.
+
+Most features have been ported to LCARdS, see the table to quickly find the LCARdS equivalent for each CB-LCARS card or feature.
+
 ::: tip You can run both simultaneously
 CB-LCARS and LCARdS can coexist while you transition. All new features and fixes will be made in LCARdS only going forward.
+
+Configuration schemas are different between the two, there is no direct port of card config at this time.
 :::
 
-Use this table to quickly find the LCARdS equivalent for each CB-LCARS card or feature.
 
 ## Feature Comparison
 

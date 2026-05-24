@@ -1609,7 +1609,7 @@ export const cardMinHeightSchema = {
     description: 'Minimum card height floor. Overrides the --lcards-button-min-height CSS token. Bare integer = px.',
     'x-ui-hints': {
         label: 'Min Height',
-        helper: 'Floor height (e.g. 40). Overrides --lcards-button-min-height token.',
+        helper: 'Floor height (e.g. 40)',
         selector: { text: {} }
     }
 };
@@ -1670,10 +1670,10 @@ export const cardMinWidthSchema = {
             description: 'Minimum card width with CSS unit (e.g. 80px, 10vw)'
         }
     ],
-    description: 'Minimum card width floor. Overrides the --lcards-button-min-width CSS token. Bare integer = px.',
+    description: 'Minimum card width floor. Bare integer = px.',
     'x-ui-hints': {
         label: 'Min Width',
-        helper: 'Floor width (e.g. 80). Overrides --lcards-button-min-width token.',
+        helper: 'Floor width (e.g. 80)',
         selector: { text: {} }
     }
 };
@@ -1717,5 +1717,56 @@ export const cardMaxWidthSchema = {
         label: 'Max Width',
         helper: 'Ceiling width (e.g. 600). Bare integer = px, or CSS units (600px, 80vw, etc).',
         selector: { text: {} }
+    }
+};
+
+const _overflowOptions = [
+    { value: 'visible', label: 'Visible — content paints outside the box' },
+    { value: 'hidden',  label: 'Hidden — clips without scroll' },
+    { value: 'clip',    label: 'Clip — hard clip, no programmatic scroll' },
+    { value: 'scroll',  label: 'Scroll — always shows scrollbar' },
+    { value: 'auto',    label: 'Auto — scrollbar only when needed' },
+];
+
+export const cardOverflowSchema = {
+    type: 'string',
+    enum: ['visible', 'hidden', 'clip', 'scroll', 'auto'],
+    description: 'CSS overflow shorthand on the card host element (sets both axes unless overridden per-axis).',
+    'x-ui-hints': {
+        label: 'Overflow',
+        helper: 'Sets both axes. Use overflow_x / overflow_y to control axes independently.',
+        selector: { select: { mode: 'dropdown', options: _overflowOptions } }
+    }
+};
+
+export const cardOverflowXSchema = {
+    type: 'string',
+    enum: ['visible', 'hidden', 'clip', 'scroll', 'auto'],
+    description: 'CSS overflow-x on the card host element. Overrides the overflow shorthand for the horizontal axis.',
+    'x-ui-hints': {
+        label: 'Overflow X',
+        helper: 'Horizontal axis overflow. Overrides the overflow shorthand.',
+        selector: { select: { mode: 'dropdown', options: _overflowOptions } }
+    }
+};
+
+export const cardOverflowYSchema = {
+    type: 'string',
+    enum: ['visible', 'hidden', 'clip', 'scroll', 'auto'],
+    description: 'CSS overflow-y on the card host element. Overrides the overflow shorthand for the vertical axis.',
+    'x-ui-hints': {
+        label: 'Overflow Y',
+        helper: 'Vertical axis overflow. Overrides the overflow shorthand.',
+        selector: { select: { mode: 'dropdown', options: _overflowOptions } }
+    }
+};
+
+export const cardZIndexSchema = {
+    type: 'integer',
+    description: 'CSS z-index stacking order on the card host element.',
+    'x-ui-hints': {
+        label: 'Z-Index',
+        helper: 'Stacking order within a shared stacking context. Higher = in front.',
+        selector: { number: { min: -999, max: 9999, step: 1, mode: 'box' } }
     }
 };

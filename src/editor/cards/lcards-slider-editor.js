@@ -461,7 +461,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             // Sound tab: per-card mute + slider & action event overrides
             { label: 'Sound', content: () => this._renderSoundTab([
                 'slider_drag_start', 'slider_change', 'slider_drag_end',
-                'card_tap', 'card_hold', 'card_double_tap'
+                'card_tap', 'card_hold', 'card_double_tap', 'toggle_on', 'toggle_off'
             ]) }
         );
 
@@ -558,7 +558,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                             { type: 'field', path: 'min_height' },
                             { type: 'field', path: 'min_width' },
                             { type: 'field', path: 'max_height' },
-                            { type: 'field', path: 'max_width' }
+                            { type: 'field', path: 'max_width' },
+                            { type: 'field', path: 'overflow' },
+                            { type: 'field', path: 'z_index' },
+                            { type: 'field', path: 'overflow_x' },
+                            { type: 'field', path: 'overflow_y' },
                         ]
                     },
                     { type: 'custom', render: () => this._renderLayoutCardHint() }

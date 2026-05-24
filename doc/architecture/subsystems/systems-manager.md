@@ -22,7 +22,7 @@
 - Allow cards to subscribe per entity ID with a callback
 - Deduplicate subscriptions — N cards watching the same entity = one internal subscription
 - Provide overlay registry used by the `RulesEngine` for cross-card targeting
-- Batch rapid state changes using a microtask queue
+- Notify subscribers synchronously on each HASS push (only changed entities are dispatched)
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **LCARS-style audio feedback for card interactions and HA UI events**
 
-LCARdS can play sounds for card taps, navigation, dialogs, alert mode changes, and more. It's opt-in — everything is off by default until you create the helpers and enable them.
+LCARdS can play sounds for card taps, navigation, dialogs, alert mode changes, and more. Sounds are **off by default** — you need to create the helper entities and enable the master toggle before any sound plays. Once enabled, all categories are on and the built-in scheme plays immediately with no further configuration.
 
 ---
 
@@ -34,7 +34,7 @@ A scheme maps every event to an audio file. Select your scheme from the **Sound 
 
 Covers all event types with LCARS-style beeps and tones. Additional schemes become available when sound packs are installed.
 
-Set to **none** to disable all sounds without turning off the helpers.
+Set to **none** to use the default built-in scheme. To disable all sounds, turn off the master **Sound Effects Enabled** toggle.
 
 ---
 
@@ -140,11 +140,44 @@ In the overrides table, set the event's asset to **Silence** (the explicit silen
 
 ---
 
+## Browser Audio Policy {#browser-audio-policy}
+
+Browsers block audio playback until the user has interacted with the page (clicked, tapped, or pressed a key). For most LCARdS sounds this is transparent — the first tap on a card or navigation link is the interaction, and sounds play normally from that point on.
+
+The **System Ready** startup sound is different: it plays immediately after LCARdS finishes initializing, before any user interaction. Browsers will block it by default unless your HA dashboard URL is explicitly allowed to autoplay audio.
+
+:::: tabs
+=== Chrome / Edge
+
+1. Open **Chrome Settings** → **Privacy and security** → **Site settings** → **Additional content settings** → **Sound**
+2. Under **Allowed to play sound**, click **Add** and enter your HA URL (e.g. `http://homeassistant.local:8123` or `https://my.ha.instance`)
+3. Hard-refresh your HA dashboard — the startup sound will now play on page load
+
+Alternatively, click the **🔒 / ℹ️** icon in the address bar while on your HA page → **Site settings** → change **Sound** to **Allow**.
+
+=== Firefox
+
+1. Open **Firefox Settings** → **Privacy & Security** → scroll to **Permissions** → **Block websites from automatically playing sound** → click **Exceptions...**
+2. Enter your HA URL and click **Allow** → **Save Changes**
+3. Hard-refresh your HA dashboard
+
+Alternatively, when Firefox shows the autoplay blocked icon (🔇) in the address bar, click it and select **Allow Audio and Video**.
+
+::::
+
+::: tip
+If you don't use the System Ready sound, no browser changes are needed — all other sounds fire after a user interaction and play without restriction.
+:::
+
+---
+
 ## Notes
 
-- Sounds require at least one user click before they'll play (browser autoplay policy). The first tap on any card unlocks audio.
+- Sounds are off by default. Nothing plays until `input_boolean.lcards_sound_enabled` exists and is set to `on`.
+- Category toggles (`lcards_sound_cards`, `lcards_sound_ui`, `lcards_sound_alerts`) default to enabled once the master is on — you only need to create them if you want to disable a specific category.
 - Volume is shared across all events — there's no per-event volume.
 - Global overrides apply to all users and devices. User-scoped and device-scoped overrides apply only to that user or device respectively; device-scope wins over user-scope on a per-event basis.
 - The sound scheme helper's option list updates automatically as you install sound packs — no manual YAML edits needed.
+- Setting the scheme to **none** uses the default built-in scheme. To disable all sounds, use the master **Sound Effects Enabled** toggle.
 
 ---

@@ -1,7 +1,4 @@
-# Manual Routing Guide
-
-**Last Updated**: January 23, 2026
-**LCARdS Version**: 1.29.07
+# Manual Routing
 
 ## Overview
 
@@ -88,72 +85,6 @@ waypoints:
 ```
 Creates a path going **down → up** - the line appears to "double back" on itself.
 
-## Visual Editing in MSD Studio
-
-### Entering Waypoint Mode
-
-1. **Hover over any line** - Line shows subtle blue glow indicating it's selectable
-2. **Click the line** - Line highlights with **blue glow** and enters waypoint mode
-3. Cursor changes to **crosshair**
-4. Existing waypoints show as **numbered green circles**
-
-### Exiting Waypoint Mode
-
-**Three ways to exit:**
-- Click on **empty canvas area** (not on lines, waypoints, or overlays)
-- Press **ESC** key
-- Click **View Mode** in the toolbar
-
-### Waypoint Markers
-
-- **Green circles with numbers** (1, 2, 3...) show processing order
-- **Number indicates position in waypoints array**
-- Line follows: `start → 1 → 2 → 3 → end`
-
-### Adding Waypoints
-
-**Coordinate Waypoints:**
-1. Click anywhere on the canvas
-2. New waypoint added **at the end** of the array (highest number)
-3. Line automatically converts to `route: manual`
-
-**Named Anchor Waypoints:**
-1. Enable **Show Anchors** in canvas toolbar
-2. Click any **yellow anchor marker**
-3. Anchor name added as waypoint (e.g., `"nav_anchor"`)
-4. Line will route through the anchor's position
-5. If anchor moves, line automatically adjusts
-
-### Reordering Waypoints
-
-**Currently**: Waypoints can only be added at the end.
-
-**To reorder**: Edit YAML directly or delete/re-add in desired order.
-
-### Editing Waypoints
-
-- **Drag marker**: Repositions that waypoint
-- **Double-click marker**: Deletes that waypoint (renumbers remaining)
-
-### Example Workflow
-
-```
-Initial: start → end (no waypoints)
-
-Click line → Click canvas at [200, 100]:
-  Waypoint 1 appears
-  Path: start → ① → end
-
-Click canvas at [400, 100]:
-  Waypoint 2 appears
-  Path: start → ① → ② → end
-
-Double-click waypoint 1:
-  Waypoint 1 deleted
-  Waypoint 2 becomes waypoint 1
-  Path: start → ① → end
-```
-
 ## Best Practices
 
 ### Planning Routes
@@ -193,38 +124,6 @@ waypoints:
 - Many lines share similar routing patterns
 - Channels define clear routing zones
 - Config maintenance is a priority
-
-## Technical Details
-
-### Path Algorithm
-
-```javascript
-// Simplified RouterCore._computeManual() logic
-const pts = [
-  [anchorX, anchorY],          // Start
-  ...waypoints,                 // All waypoints in order
-  [attachToX, attachToY]        // End
-];
-
-// Remove duplicate consecutive points
-// Convert to SVG path string
-```
-
-### Coordinate System
-
-- **Waypoints use viewBox coordinates** (not pixel positions)
-- **Origin (0,0)** at top-left of viewBox
-- **X increases right**, **Y increases down**
-
-### Example Coordinate Calculation
-
-```yaml
-view_box: [0, 0, 1920, 1080]  # Full HD viewBox
-
-# Waypoint at center of screen:
-waypoints:
-  - [960, 540]  # viewBox center (not window pixels)
-```
 
 ## Troubleshooting
 

@@ -19,33 +19,108 @@ elbow:
 
 ---
 
-## Top-Level Options
+## Common Properties
+
+The following properties are shared across all LCARdS cards. See [Common Card Properties](../common.md) for full details.
+
+| Category | Config keys | Reference |
+|----------|-------------|-----------|
+| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min_height-min_width-max_height-max_width) |
+| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow_x-overflow_y) |
+| Stacking | `z_index` | [Stacking](../common.md#stacking-z_index) |
+| Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
+| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
+| Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
+| Text labels | `text` | [Text Fields](../../core/text-fields.md) |
+| Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
+| Animations | `animations`, `background_animation` | [Animations](../../core/animations.md) |
+| Sounds | `sounds` | [Sounds](../../core/sounds.md) |
+| Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |
+
+---
+
+## Config Structure
+
+Annotated map of all top-level keys. The most important key is `elbow` — everything else is optional.
+
+```yaml
+type: custom:lcards-elbow
+
+# ── Elbow geometry ─────────────────────────────────────────────────────────────────
+elbow:
+  type: header-left     # header-left | header-right | footer-left | footer-right
+                        # header-contained | header-open | footer-open | footer-contained
+                        # diagonal-cap-left | diagonal-cap-right | frame
+  style: simple         # simple (default) | segmented
+  segment:              # for simple style
+    bar_width: 90       # vertical bar thickness in px ('theme' for HA-LCARS binding)
+    bar_height: 20      # horizontal bar thickness in px
+    outer_curve: auto   # corner radius — 'auto' = bar_width / 2
+    color:              # string or state-based object
+      default: "var(--lcars-orange)"
+      inactive: "alpha(var(--lcars-orange), 0.3)"
+  segments:             # for segmented style
+    gap: 4
+    outer_segment:
+      bar_width: 90
+      color:            # string or state-based object
+        default: "var(--lcars-orange)"
+    inner_segment:
+      bar_width: 30
+      color:            # string or state-based object
+        default: "var(--lcars-moonlight)"
+
+# ── Identity & entity ──────────────────────────────────────────────────────────
+entity: light.living_room  # entity for state-based colouring
+id: my-elbow               # rules engine targeting
+tags: [nav]                # group tags
+
+# ── Appearance ─────────────────────────────────────────────────────────────────
+ranges_attribute: ""      # entity attribute for range conditions
+shape_texture:
+  preset: fluid            # SVG texture clipped to the elbow fill
+filters: []               # CSS / SVG filters
+
+# ── Text, actions & animations ──────────────────────────────────────────────────
+text:
+  label:
+    content: NAVIGATION
+    position: top-right
+tap_action:
+  action: toggle
+animations: []
+background_animation:
+  inset: auto              # sizes canvas to the open content area
+  effects: []              # stack of background effects rendered bottom → top
+sounds: {}
+
+# ── Layout ─────────────────────────────────────────────────────────────────────
+height: 200
+width: 300
+min_height: 100
+max_height: 400
+overflow: hidden
+z_index: 0
+grid_options:
+  columns: 6
+  rows: 4
+data_sources: {}
+triggers_update: []
+```
+
+---
+
+## Card Options
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `type` | string | `custom:lcards-elbow` (required) |
-| `elbow` | object | Elbow geometry and styling (required) |
-| `entity` | string | Entity to monitor (for state-based styling) |
-| `preset` | string | Style preset name (inherits from button presets, e.g. `lozenge`, `pill`) |
-| `ranges_attribute` | string | Entity attribute used for `above:`/`below:`/`between:` range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
-| `id` | string | Card ID for rule targeting — see [Rules Engine](../../core/rules/index.md) |
-| `tags` | list | Tags for rule targeting — see [Rules Engine](../../core/rules/index.md) |
-| `height` | string / number | Card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `width` | string / number | Card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `min_height` | string / number | Minimum card height — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `min_width` | string / number | Minimum card width — see [Sizing](../../cards/common.md#sizing-height-and-width) |
-| `text` | object | Text labels — see [Text Fields](../../core/text-fields.md) |
-| `tap_action` | object | Tap action — see [Actions](../../core/actions.md) |
-| `hold_action` | object | Hold action — see [Actions](../../core/actions.md) |
-| `double_tap_action` | object | Double-tap action — see [Actions](../../core/actions.md) |
-| `animations` | list | Card animations — see [Animations](../../core/animations.md) |
-| `background_animation` | list / object | Canvas background animations — see [Background Animations](../../core/effects/background-animations.md) |
-| `shape_texture` | object | SVG texture inside the elbow shape fill |
+| `elbow` | object | Elbow geometry and styling — see [Elbow Types](#elbow-types) (required) |
+| `entity` | string | Entity to monitor for state-based styling |
+| `preset` | string | Optional button-style preset base (e.g. `lozenge`, `pill`) |
+| `ranges_attribute` | string | Entity attribute for range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
+| `shape_texture` | object | SVG texture inside the elbow shape fill — see [Button card → Shape Texture](../button/#shape-texture) |
 | `filters` | list | Visual filters (CSS / SVG filter primitives) — see [Filters](../../core/effects/filters.md) |
-| `sounds` | object | Per-card sound overrides — see [Sounds](../../core/sounds.md) |
-| `data_sources` | object | DataSource subscriptions — see [Data Sources](../../core/datasources/) |
-| `triggers_update` | list | Extra entity IDs that force template re-evaluation |
-| `grid_options` | object | HA grid layout options (`columns`, `rows`, `min_columns`, `min_rows`) |
 
 ---
 
@@ -120,7 +195,7 @@ elbow:
 | `bar_height` | number / `"theme"` | `20` | Horizontal bar thickness in px. Use `"theme"` to bind to `input_number.lcars_horizontal` |
 | `outer_curve` | number / `"auto"` | `"auto"` | Corner arc radius. `auto` = `bar_width / 2` |
 | `inner_curve` | number | — | Inner arc radius (omit for LCARS formula: `outer / 2`) |
-| `diagonal_angle` | number | `45` | Angle of the diagonal cap in degrees (diagonal-cap elbow types only) |
+| `diagonal_angle` | number / `"theme"` | `45` | Diagonal cut angle in degrees (diagonal-cap elbow types only). Use `"theme"` to bind to `input_number.lcars_elbow_angle` |
 | `color` | string / object | — | Fill colour — [state map](../../core/colours.md) supported |
 
 ---
@@ -140,9 +215,10 @@ Both `outer_segment` and `inner_segment` share the same schema:
 | Option | Type | Description |
 |--------|------|-------------|
 | `bar_width` | number | Vertical bar thickness in px (**required**) |
-| `bar_height` | number | Horizontal bar thickness in px |
+| `bar_height` | number | Horizontal bar thickness in px (defaults to `bar_width`) |
 | `outer_curve` | number | Outer corner radius in px |
 | `inner_curve` | number | Inner corner radius in px |
+| `diagonal_angle` | number / `"theme"` | Diagonal cut angle in degrees (diagonal-cap types only). Use `"theme"` to bind to `input_number.lcars_elbow_angle`. Default: `45` |
 | `color` | string / object | Fill colour — [state map](../../core/colours.md) supported |
 | `entity_id` | string | Entity ID for state-based colour on this segment |
 | `tap_action` | object | Tap action for this segment — see [Actions](../../core/actions.md) |
@@ -272,14 +348,45 @@ symbiont:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enabled` | boolean | `false` | Enable or disable the symbiont |
+| `overflow` | string | `hidden` | CSS overflow for both axes of the symbiont container: `visible`, `hidden`, `clip`, `scroll`, `auto` |
+| `overflow_x` | string | — | CSS overflow-x (horizontal). Overrides `overflow` shorthand |
+| `overflow_y` | string | — | CSS overflow-y (vertical). Overrides `overflow` shorthand |
 | `card` | object | — | Any valid HA card config (`type` + card properties) |
 | `position` | object | — | Padding (px) within the elbow content area |
 | `position.top` | number | `10` | Top padding |
 | `position.left` | number | `10` | Left padding |
 | `position.right` | number | `10` | Right padding |
 | `position.bottom` | number | `0` | Bottom padding |
+| `size` | object | — | Explicit dimensions for the symbiont container. If omitted, the container fills the full inset area |
+| `size.width` | string | — | CSS width (e.g. `"95%"`, `"300px"`, `"clamp(200px, 80%, 600px)"`) |
+| `size.height` | string | — | CSS height |
+| `anchor` | string | `top-left` | Alignment of the sized container within the inset area. Only applies when `size` is set. Options: `top-left`, `top-center`, `top-right`, `middle-left`, `center`, `middle-right`, `bottom-left`, `bottom-center`, `bottom-right` |
 | `imprint` | object | — | Shadow-root style injection — see below |
 | `custom_style` | string | — | Raw CSS appended to the embedded card's shadow root (no card-mod required) |
+
+### Size & Anchor
+
+By default the symbiont container fills the entire content area (after `position` padding is applied). Set `size` to constrain it to explicit dimensions, then use `anchor` to control where it sits within that area.
+
+```yaml
+symbiont:
+  enabled: true
+  position:
+    top: 10
+    right: 10
+    bottom: 10
+    left: 10
+  size:
+    width: "95%"
+    height: "95%"
+  anchor: center
+  card:
+    type: entities
+    entities:
+      - sensor.temperature
+```
+
+`anchor` has no effect when `size` is omitted — the container already fills all available space.
 
 ### Imprint
 
@@ -389,47 +496,5 @@ symbiont:
 HA lazy-loads many of its own built-in card modules (e.g. `alarm-panel`, `thermostat`, `media-player`) — they are only imported when they first appear on a dashboard. On a fresh page load, before another dashboard view has triggered the import, the element is not yet registered.
 
 LCARdS handles this automatically: when the requested type is not yet registered, it routes through HA's internal `hui-card` wrapper which triggers the correct dynamic import. The card renders as soon as HA finishes loading the module — no configuration required.
-
----
-
-## Examples
-
-### Standard header cap pair
-
-```yaml alternatives
-# Left cap
-type: custom:lcards-elbow
-elbow:
-  type: header-left
-  segment:
-    bar_width: theme
-    bar_height: theme
-
-# Right cap
-type: custom:lcards-elbow
-elbow:
-  type: header-right
-  segment:
-    bar_width: theme
-    bar_height: theme
-```
-
-### State-reactive elbow
-
-Changes colour when a sensor is above threshold (using [Rules Engine](../../core/rules/)):
-
-```yaml
-type: custom:lcards-elbow
-id: alert-cap
-elbow:
-  type: header-left
-  segment:
-    bar_width: 90
-    bar_height: 20
-    color:
-      default: "var(--lcards-orange)"
-```
-
-Then define a rule that patches `id: alert-cap` when the sensor is high.
 
 ---

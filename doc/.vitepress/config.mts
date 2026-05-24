@@ -2,6 +2,8 @@ import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
 
+const SITE_URL = 'https://lcards.unimatrix01.ca'
+
 /**
  * markdown-it core rule: wrap {{ ... }} in <span v-pre> so Vue's
  * template compiler doesn't try to interpret them as interpolations.
@@ -58,6 +60,9 @@ export default withMermaid(defineConfig({
 
   // Output goes to doc/.vitepress/dist (VitePress default — consistent across environments)
 
+  sitemap: {
+    hostname: SITE_URL,
+  },
 
   head: [
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
@@ -219,8 +224,8 @@ export default withMermaid(defineConfig({
           { text: 'Card Foundation',    link: '/architecture/cards/lcards-card-foundation' },
           { text: 'MSD Pipeline',       link: '/architecture/msd/' },
           { text: 'Animation Architecture', link: '/architecture/animations/' },
-          { text: 'Core Subsystems →',       link: '/architecture/subsystems/pack-system' },
-          { text: 'Internals →',             link: '/architecture/internals/storage' },
+          { text: 'Core Subsystems →',       link: '/architecture/subsystems/' },
+          { text: 'Internals →',             link: '/architecture/internals/' },
         ],
       },
       {
@@ -296,7 +301,6 @@ export default withMermaid(defineConfig({
                 { text: 'Control Overlay',  link: '/cards/msd/control-overlay' },
                 { text: 'Line Overlay',     link: '/cards/msd/line-overlay' },
                 { text: 'Manual Routing',   link: '/cards/msd/manual-routing' },
-                { text: 'Bulk Selectors',   link: '/cards/msd/bulk-selectors' },
                 { text: 'Base SVG Filters', link: '/cards/msd/base-svg-filters' },
               ],
             },

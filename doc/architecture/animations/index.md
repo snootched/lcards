@@ -13,7 +13,7 @@ rules:
     apply:
       animations:
         - tag: temp_widgets
-          preset: alert_pulse
+          preset: pulse
           loop: true
 ```
 
@@ -128,8 +128,8 @@ Look for key log messages:
 
 ## See Also
 
-- [Entity Change Triggers](../../core/animations/entity-change-triggers.md)
-- [Rule-based Animations](../../core/animations/rule-based-animations.md)
+- [Entity Change Triggers](./entity-change-triggers.md)
+- [Rule-based Animations](./rule-based-animations.md)
 - [DataSource Buffers](../internals/datasource-buffers.md)
 - [Animation Manager](../subsystems/animation-manager.md)
 - [anime.js v4 Documentation](https://animejs.com)

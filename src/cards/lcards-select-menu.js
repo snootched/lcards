@@ -144,8 +144,11 @@ export class LCARdSSelectMenu extends LCARdSCard {
     _handleFirstUpdate(changedProperties) {
         // Re-detect preview mode now that we're in the DOM (setConfig fires before mount).
         // Same pattern as lcards-chart.js / lcards-msd.js.
-        const isInCardPicker = this._checkForAncestor(['hui-card-picker', 'hui-card-preview']);
-        if (isInCardPicker) {
+        // Only the card-picker (browse-cards screen) should show the placeholder.
+        // hui-card-preview alone appears in dashboard edit mode — do NOT treat that
+        // as the picker.  hui-card-picker IS the reliable indicator for the picker UI.
+        this._isInCardPicker = this._checkForAncestor(['hui-card-picker']);
+        if (this._isInCardPicker) {
             this._isPreviewMode = true;
             this.requestUpdate();
             return; // Skip full initialisation in preview context
@@ -533,8 +536,10 @@ export class LCARdSSelectMenu extends LCARdSCard {
     _renderCard() {
         if (!this._initialized) return super._renderCard();
 
-        // Card picker / editor preview — show LCARS-style button grid placeholder
-        if (this._isPreviewMode) {
+        // Card picker — show LCARS-style button grid placeholder.
+        // Use the dedicated _isInCardPicker flag so the placeholder only appears
+        // when browsing cards to add, not in the card editor dialog or dashboard edit mode.
+        if (this._isInCardPicker) {
             return this._renderPickerPlaceholder();
         }
 
@@ -619,9 +624,12 @@ export class LCARdSSelectMenu extends LCARdSCard {
 
         // button_template: full lcards-button config set via Style-tab sub-editor.
         // Everything in it becomes the base; card-level and option-specific values override.
-        const template = this.config.button_template
-            ? { ...this.config.button_template }
-            : {};
+        // id and tags are stripped — the card manages them (per-button ids cause rules collision).
+        const {
+            id:   _tplId,
+            tags: _tplTags,
+            ...template
+        } = this.config.button_template || {};
 
         // Style merge: template.style → card config.style → per-option opt.style
         const templateStyle = template.style;

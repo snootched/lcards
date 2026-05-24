@@ -294,6 +294,10 @@ export class StylePresetManager {
     lcardsLog.debug('[StylePresetManager] 🧹 Preset cache cleared');
   }
 
+  destroy() {
+    this.clearCache();
+  }
+
   /**
    * Reinitialize with new pack data (useful for hot-reloading)
    * @param {Array} packs - New pack data

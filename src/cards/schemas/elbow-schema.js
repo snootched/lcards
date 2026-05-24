@@ -11,7 +11,7 @@
  * Editor UI is defined separately in lcards-elbow-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, triggersUpdateSchema } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema } from './common-schemas.js';
 import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
 /**
@@ -125,6 +125,11 @@ export function getElbowSchema(options = {}) {
             max_height: cardMaxHeightSchema,
 
             max_width: cardMaxWidthSchema,
+
+            overflow:   cardOverflowSchema,
+            overflow_x: cardOverflowXSchema,
+            overflow_y: cardOverflowYSchema,
+            z_index:    cardZIndexSchema,
 
 
             preset: {
@@ -667,6 +672,21 @@ export function getElbowSchema(options = {}) {
                         type: 'boolean',
                         default: false,
                         description: 'Enable symbiont card embedding'
+                    },
+                    overflow: {
+                        type: 'string',
+                        enum: ['visible', 'hidden', 'clip', 'scroll', 'auto'],
+                        description: 'CSS overflow for both axes of the symbiont container. Overridden per-axis by overflow_x / overflow_y. Default: hidden.'
+                    },
+                    overflow_x: {
+                        type: 'string',
+                        enum: ['visible', 'hidden', 'clip', 'scroll', 'auto'],
+                        description: 'CSS overflow-x for the symbiont container (horizontal axis). Overrides overflow shorthand.'
+                    },
+                    overflow_y: {
+                        type: 'string',
+                        enum: ['visible', 'hidden', 'clip', 'scroll', 'auto'],
+                        description: 'CSS overflow-y for the symbiont container (vertical axis). Overrides overflow shorthand.'
                     },
                     position: {
                         type: 'object',

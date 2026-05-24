@@ -202,7 +202,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             { label: 'Symbiont', content: () => this._renderSymbiontTab() },
             { label: 'Actions', content: () => this._renderActionsTab() },
             { label: 'Effects', content: () => this._renderEffectsTab() },
-            { label: 'Sound', content: () => this._renderSoundTab() },
+            { label: 'Sound', content: () => this._renderSoundTab(['card_tap', 'card_hold', 'card_double_tap', 'card_hover', 'toggle_on', 'toggle_off']) },
             ...this._getUtilityTabs()
         ];
     }
@@ -589,7 +589,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         { type: 'field', path: 'min_height' },
                         { type: 'field', path: 'min_width' },
                         { type: 'field', path: 'max_height' },
-                        { type: 'field', path: 'max_width' }
+                        { type: 'field', path: 'max_width' },
+                        { type: 'field', path: 'overflow' },
+                        { type: 'field', path: 'z_index' },
+                        { type: 'field', path: 'overflow_x' },
+                        { type: 'field', path: 'overflow_y' },
                     ]
                 },
                 { type: 'custom', render: () => this._renderLayoutCardHint() }
@@ -1959,6 +1963,62 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         ` : ''}
                     </lcards-form-section>
 
+                    <!-- Container Behavior -->
+                    <lcards-form-section
+                        header="Container"
+                        description="Overflow and scrolling behavior for the symbiont content area"
+                        icon="mdi:dock-window"
+                        ?expanded=${false}
+                        ?outlined=${true}>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Overflow'}
+                            .helper=${'Sets both axes unless overridden below. Default: hidden (clips content).'}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'hidden',  label: 'Hidden — clips content (default)' },
+                                { value: 'visible', label: 'Visible — content paints outside' },
+                                { value: 'clip',    label: 'Clip — hard clip, no scroll' },
+                                { value: 'scroll',  label: 'Scroll — always shows scrollbar' },
+                                { value: 'auto',    label: 'Auto — scrollbar only when needed' },
+                            ] } }}
+                            .value=${symbiont.overflow ?? 'hidden'}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.overflow', e.detail.value === 'hidden' ? undefined : e.detail.value)}>
+                        </ha-selector>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Overflow X (horizontal)'}
+                            .helper=${'Overrides the Overflow setting for the horizontal axis only.'}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: '',        label: '— inherit from Overflow —' },
+                                { value: 'hidden',  label: 'Hidden' },
+                                { value: 'visible', label: 'Visible' },
+                                { value: 'clip',    label: 'Clip' },
+                                { value: 'scroll',  label: 'Scroll' },
+                                { value: 'auto',    label: 'Auto' },
+                            ] } }}
+                            .value=${symbiont.overflow_x ?? ''}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.overflow_x', e.detail.value || undefined)}>
+                        </ha-selector>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Overflow Y (vertical)'}
+                            .helper=${'Overrides the Overflow setting for the vertical axis only.'}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: '',        label: '— inherit from Overflow —' },
+                                { value: 'hidden',  label: 'Hidden' },
+                                { value: 'visible', label: 'Visible' },
+                                { value: 'clip',    label: 'Clip' },
+                                { value: 'scroll',  label: 'Scroll' },
+                                { value: 'auto',    label: 'Auto' },
+                            ] } }}
+                            .value=${symbiont.overflow_y ?? ''}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.overflow_y', e.detail.value || undefined)}>
+                        </ha-selector>
+                    </lcards-form-section>
+
                     <!-- Position / Padding -->
                     <lcards-form-section
                         header="Position"
@@ -1974,6 +2034,55 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             label="Content Area Padding"
                             helper="Extra inset from each edge of the elbow content area (the card already starts inside the elbow bars automatically)">
                         </lcards-padding-editor>
+                    </lcards-form-section>
+
+                    <!-- Size & Anchor -->
+                    <lcards-form-section
+                        header="Size & Anchor"
+                        description="Constrain the symbiont to an explicit size and anchor it within the content area"
+                        icon="mdi:arrow-expand-all"
+                        ?expanded=${false}
+                        ?outlined=${true}>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Width'}
+                            .helper=${'CSS width of the symbiont container — e.g. "50%" or "200px". Leave blank to fill the available area.'}
+                            .selector=${{ text: {} }}
+                            .value=${symbiont.size?.width ?? ''}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.size.width', e.detail.value || null)}>
+                        </ha-selector>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Height'}
+                            .helper=${'CSS height of the symbiont container — e.g. "50%" or "150px". Leave blank to fill the available area.'}
+                            .selector=${{ text: {} }}
+                            .value=${symbiont.size?.height ?? ''}
+                            @value-changed=${(e) => this._setConfigValue('symbiont.size.height', e.detail.value || null)}>
+                        </ha-selector>
+
+                        ${(symbiont.size?.width != null || symbiont.size?.height != null) ? html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Anchor'}
+                                .helper=${'Where to place the sized container within the content area'}
+                                .selector=${{ select: { mode: 'dropdown', options: [
+                                    { value: 'top-left',      label: 'Top Left'      },
+                                    { value: 'top-center',    label: 'Top Center'    },
+                                    { value: 'top-right',     label: 'Top Right'     },
+                                    { value: 'middle-left',   label: 'Middle Left'   },
+                                    { value: 'center',        label: 'Center'        },
+                                    { value: 'middle-right',  label: 'Middle Right'  },
+                                    { value: 'bottom-left',   label: 'Bottom Left'   },
+                                    { value: 'bottom-center', label: 'Bottom Center' },
+                                    { value: 'bottom-right',  label: 'Bottom Right'  },
+                                ] } }}
+                                .value=${symbiont.anchor ?? 'top-left'}
+                                @value-changed=${(e) => this._setConfigValue('symbiont.anchor', e.detail.value)}>
+                            </ha-selector>
+                        ` : ''}
+
                     </lcards-form-section>
 
                     <!-- Imprint -->

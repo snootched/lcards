@@ -62,8 +62,8 @@ data_sources:
 
 | Type | Key field | Output |
 |---|---|---|
-| `unit_conversion` | custom | Converted numeric value |
-| `smooth` | custom | Moving average |
+| `convert_unit` | custom | Converted numeric value |
+| `smooth` | custom | Smoothed value (exponential, moving average, or gaussian) |
 | `rate` | custom | Rate of change per second |
 | `delta` | custom | Difference from previous value |
 | `round` | custom | Rounded to N decimal places |
@@ -74,6 +74,45 @@ data_sources:
 | `statistics` | custom | `{ min, max, avg, stddev }` object |
 | `duration` | custom | Duration entity formatted string |
 | `expression` | custom | Arbitrary JS expression result |
+
+## Processor Execution Order & Chaining
+
+Processors run in **dependency order**, not config order. `ProcessorManager` performs a topological sort (Kahn's algorithm) at initialization. The resolved execution order is logged at `debug` level on startup.
+
+Each processor declares its input via `input_source`:
+- **No `input_source`**: processor reads from the raw entity value pushed by HA
+- **`input_source: other_key`**: processor reads from the *output* of the named processor
+
+A processor only ever sees one input — either the raw entity value or the output of its `input_source` target. Processors with no shared dependencies run in an unspecified order relative to each other; only declared chains are ordered.
+
+**Circular dependencies throw at initialization** — the DataSource will fail to configure.
+
+```yaml
+data_sources:
+  temp_sensor:
+    entity_id: sensor.outdoor_temp
+    processors:
+      # Step 1 — reads raw entity value (no input_source)
+      celsius:
+        type: convert_unit
+        from_unit: °F
+        to_unit: °C
+
+      # Step 2 — reads output of 'celsius' processor
+      smoothed:
+        type: smooth
+        input_source: celsius
+        method: moving_average
+        window: 5
+
+      # Step 3 — reads output of 'smoothed'
+      display:
+        type: round
+        input_source: smoothed
+        decimals: 1
+```
+
+Access each stage in templates: `{ds:temp_sensor.celsius}`, `{ds:temp_sensor.smoothed}`, `{ds:temp_sensor.display}`.
 
 ---
 

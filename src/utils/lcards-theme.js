@@ -32,7 +32,7 @@ export function loadFont(fontInput) {
     // Else assume local LCARdS font (NEW PREFIX)
     if (!fontName.startsWith('lcards_')) return;
 
-    const href = `/hacsfiles/lcards/fonts/${fontName}.css`;
+    const href = `/lcards/fonts/${fontName}.css`;
     const fontKey = fontName;
 
     if (_loadedFonts.has(fontKey)) return;

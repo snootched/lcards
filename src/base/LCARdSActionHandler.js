@@ -29,7 +29,6 @@ import { TriggerManager } from '../core/animation/TriggerManager.js';
 export class LCARdSActionHandler {
 
     constructor() {
-        this._registeredElements = new WeakMap();
         this._activeHandlers = new Set();
     }
 
@@ -226,6 +225,18 @@ export class LCARdSActionHandler {
             }
         };
 
+        // Plays toggle_on/toggle_off if actionConfig is a toggle and entity state is known.
+        // Returns true if a toggle sound was played; caller should skip the generic fallback.
+        const playToggleSound = (actionConfig, defaultEntityId) => {
+            if (actionConfig?.action !== 'toggle') return false;
+            const entityId = actionConfig.entity || defaultEntityId || options.entity;
+            const liveHass = options.getHass?.() ?? hass;
+            if (!entityId || !liveHass?.states?.[entityId]) return false;
+            const state = liveHass.states[entityId].state;
+            playSound(state === 'on' ? 'toggle_off' : 'toggle_on');
+            return true;
+        };
+
         // Track action state to prevent conflicts
         let holdTimer = null;
         let lastTapTime = 0;
@@ -280,7 +291,7 @@ export class LCARdSActionHandler {
                                     currentAnimationManager.triggerAnimations(elementId, 'on_tap');
                                 }
 
-                                playSound('card_tap');
+                                if (!playToggleSound(actions.tap_action, defaultEntity)) playSound('card_tap');
                                 this._executeAction(actions.tap_action, hass, element, defaultEntity);
                             }
                             tapCount = 0;
@@ -299,7 +310,7 @@ export class LCARdSActionHandler {
                             dtAnimationManager.triggerAnimations(elementId, 'on_double_tap');
                         }
 
-                        playSound('card_double_tap');
+                        if (!playToggleSound(actions.double_tap_action, defaultEntity)) playSound('card_double_tap');
                         this._executeAction(actions.double_tap_action, hass, element, defaultEntity);
                     }
                 } else {
@@ -315,7 +326,7 @@ export class LCARdSActionHandler {
                         currentAnimationManager.triggerAnimations(elementId, 'on_tap');
                     }
 
-                    playSound('card_tap');
+                    if (!playToggleSound(actions.tap_action, defaultEntity)) playSound('card_tap');
                     this._executeAction(actions.tap_action, hass, element, defaultEntity);
                 }
             };
@@ -347,7 +358,7 @@ export class LCARdSActionHandler {
                         currentAnimationManager.triggerAnimations(elementId, 'on_hold');
                     }
 
-                    playSound('card_hold');
+                    if (!playToggleSound(actions.hold_action, defaultEntity)) playSound('card_hold');
                     this._executeAction(actions.hold_action, hass, element, defaultEntity);
                 }, 500);
             };
@@ -790,5 +801,9 @@ export class LCARdSActionHandler {
 
         lcardsLog.debug(`[LCARdSActionHandler] Opening URL ${url}`);
         window.open(url, '_blank');
+    }
+
+    destroy() {
+        this._activeHandlers.clear();
     }
 }

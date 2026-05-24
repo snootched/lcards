@@ -8,7 +8,7 @@
  * Editor UI is defined separately in lcards-slider-editor.js config.
  */
 
-import { dataSourcesSchema, simpleColorSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, actionSchema, animationSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, triggersUpdateSchema } from './common-schemas.js';
+import { dataSourcesSchema, simpleColorSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, actionSchema, animationSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema } from './common-schemas.js';
 
 /**
  * Get complete slider card schema
@@ -85,6 +85,11 @@ export function getSliderSchema(options = {}) {
             max_height: cardMaxHeightSchema,
 
             max_width: cardMaxWidthSchema,
+
+            overflow:   cardOverflowSchema,
+            overflow_x: cardOverflowXSchema,
+            overflow_y: cardOverflowYSchema,
+            z_index:    cardZIndexSchema,
 
 
             // ============================================================================
@@ -440,14 +445,6 @@ export function getSliderSchema(options = {}) {
                         type: 'object',
                         description: 'Gauge-specific configuration (for type: gauge)',
                         properties: {
-                            color: {
-                                ...stateColorSchema,
-                                description: 'Primary gauge fill/progress-bar colour. Supports state-based maps ({ default, active, inactive, unavailable, ... }). Takes priority over progress_bar.color.',
-                                'x-ui-hints': {
-                                    label: 'Gauge Colour',
-                                    helper: 'Main colour for the filled portion of the gauge (progress bar). Supports state-reactive values.'
-                                }
-                            },
                             progress_bar: {
                                 type: 'object',
                                 description: 'Progress indicator bar',
@@ -1058,7 +1055,7 @@ export function getSliderSchema(options = {}) {
                                     bottom: {
                                         type: 'object',
                                         description: 'Bottom band (vertical mode only)',
-                                        properties: { size: { type: 'number', default: 28, 'x-ui-hints': { selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } } } } }
+                                        properties: { size: { type: 'number', default: 36, 'x-ui-hints': { selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } } } } }
                                     },
                                     left: {
                                         type: 'object',

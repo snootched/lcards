@@ -43,12 +43,12 @@ export const MY_PACK = {
   // URL-only image registry — no content fetch
   image_assets: {
     'bedroom': {
-      url: '/hacsfiles/lcards/images/bedroom.jpg',
+      url: '/lcards/images/bedroom.jpg',
       label: 'Bedroom',
       category: 'rooms'
     },
     'lcars_panel': {
-      url: '/hacsfiles/lcards/images/lcars-panel.png',
+      url: '/lcards/images/lcars-panel.png',
       label: 'LCARS Panel',
       category: 'backgrounds'
     }
@@ -92,7 +92,7 @@ const svg = await assetManager.loadSvg('enterprise_schematic');
 
 // Resolve an image key to its URL (synchronous — no fetch)
 const url = assetManager.resolveImageUrl('bedroom');
-// → '/hacsfiles/lcards/images/bedroom.jpg'
+// → '/lcards/images/bedroom.jpg'
 
 // All registered image keys
 const images = assetManager.listImages();
@@ -109,7 +109,7 @@ card config: url = 'builtin:bedroom'
     ↓ ImageLoader.loadImage('builtin:bedroom')
       │
       ↓ assetManager.resolveImageUrl('bedroom')
-        → '/hacsfiles/lcards/images/bedroom.jpg'
+        → '/lcards/images/bedroom.jpg'
       │
       ↓ new Image() with resolved URL
         → browser fetches & caches the image

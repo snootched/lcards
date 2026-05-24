@@ -7,7 +7,7 @@ hero:
   text: LCARS Card System for Home Assistant
   tagline: Build your own LCARS-style dashboards with realistic controls, reactivity and animations.
   image:
-    src: /img/lcards-hero-banner.gif
+    src: /img/icon@2x.png
     alt: LCARdS banner
   actions:
     - theme: brand

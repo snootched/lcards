@@ -8,7 +8,7 @@
  * Editor UI is defined separately in lcards-button-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, triggersUpdateSchema } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema } from './common-schemas.js';
 
 /**
  * Get complete button card schema
@@ -75,6 +75,11 @@ export function getButtonSchema(options = {}) {
             max_height: cardMaxHeightSchema,
 
             max_width: cardMaxWidthSchema,
+
+            overflow:   cardOverflowSchema,
+            overflow_x: cardOverflowXSchema,
+            overflow_y: cardOverflowYSchema,
+            z_index:    cardZIndexSchema,
 
 
             // ============================================================================

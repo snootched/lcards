@@ -13,7 +13,7 @@
  * @see doc/user/configuration/cards/chart.md
  */
 
-import { simpleColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema } from './common-schemas.js';
+import { simpleColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema } from './common-schemas.js';
 
 /**
  * Get complete chart card schema with nested structure
@@ -284,6 +284,11 @@ export function getChartSchema(options = {}) {
             max_height: cardMaxHeightSchema,
 
             max_width: cardMaxWidthSchema,
+
+            overflow:   cardOverflowSchema,
+            overflow_x: cardOverflowXSchema,
+            overflow_y: cardOverflowYSchema,
+            z_index:    cardZIndexSchema,
 
             show_legend: {
                 type: 'boolean',

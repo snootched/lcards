@@ -26,6 +26,7 @@ import { CORE_FONTS_PACK } from './core-fonts-pack.js';
 import { CORE_PACK }       from './core-pack.js';
 import { LCARDS_TEXTURES_PACK }  from './lcards-textures-pack.js';
 import { LCARDS_IMAGES_PACK }    from './lcards-images-pack.js';
+import { LCARDS_POWER_PACK }     from './lcards-power-pack.js';
 
 // ──────────────────────────────────────────────────────────────
 // BUILTIN REGISTRY
@@ -46,6 +47,7 @@ const BUILTIN_REGISTRY = {
   lcards_alerts:           LCARDS_ALERTS_PACK,
   lcards_textures:         LCARDS_TEXTURES_PACK,
   lcards_images:           LCARDS_IMAGES_PACK,
+  lcards_power:            LCARDS_POWER_PACK,
 };
 
 /**
@@ -70,7 +72,8 @@ export function loadBuiltinPacks(requested = ['core', 'lcards_buttons', 'lcards_
     'lcards_alerts',
     'lcards_elbows',
     'lcards_textures',
-    'lcards_images'
+    'lcards_images',
+    'lcards_power'
   ];
 
   const packsToLoad = [...new Set([...requested, ...alwaysLoad])];
