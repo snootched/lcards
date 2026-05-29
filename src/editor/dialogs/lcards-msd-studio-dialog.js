@@ -1783,12 +1783,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 @value-changed=${(e) => this._handleSvgSourceChange(e.detail.value)}>
                             </ha-selector>
                         ` : this._svgSourceMode === 'custom' ? html`
-                            <ha-textfield
+                            <ha-input
                                 label="Custom SVG Path"
                                 .value=${baseSvg.source || ''}
                                 @input=${(e) => this._handleSvgSourceChange(e.target.value)}
                                 helper-text="Enter custom path (e.g., /local/my-ship.svg)">
-                            </ha-textfield>
+                            </ha-input>
                         ` : html`
                             <ha-alert alert-type="info">
                                 No base SVG will be rendered. Overlays will be drawn on a transparent canvas using the viewBox coordinates below.
@@ -1806,52 +1806,42 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     icon="mdi:grid"
                     ?expanded=${true}>
                     <div style="display: flex; flex-direction: column; gap: 12px;">
-                        <ha-formfield label="Auto-detect from SVG">
-                            <ha-radio
-                                name="viewbox-mode"
-                                value="auto"
-                                ?checked=${this._viewBoxMode === 'auto'}
-                                @change=${() => this._handleViewBoxModeChange('auto')}>
-                            </ha-radio>
-                        </ha-formfield>
-                        <ha-formfield label="Custom viewBox">
-                            <ha-radio
-                                name="viewbox-mode"
-                                value="custom"
-                                ?checked=${this._viewBoxMode === 'custom'}
-                                @change=${() => this._handleViewBoxModeChange('custom')}>
-                            </ha-radio>
-                        </ha-formfield>
+                        <ha-radio-group
+                            .value=${this._viewBoxMode}
+                            @value-changed=${e => this._handleViewBoxModeChange(e.detail.value)}>
+                            <ha-radio-option value="auto">Auto-detect from SVG</ha-radio-option>
+                            <ha-radio-option value="custom">Custom viewBox</ha-radio-option>
+                        </ha-radio-group>
 
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px;">
-                            <ha-textfield
+                            <ha-input
                                 type="number"
                                 label="Min X"
                                 .value=${String(viewBox[0] || 0)}
                                 ?disabled=${this._viewBoxMode === 'auto'}
                                 @input=${(e) => this._updateViewBoxValue(0, e.target.value)}>
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 type="number"
                                 label="Min Y"
                                 .value=${String(viewBox[1] || 0)}
                                 ?disabled=${this._viewBoxMode === 'auto'}
                                 @input=${(e) => this._updateViewBoxValue(1, e.target.value)}>
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 type="number"
                                 label="Width"
                                 .value=${String(viewBox[2] || 400)}
                                 ?disabled=${this._viewBoxMode === 'auto'}
                                 @input=${(e) => this._updateViewBoxValue(2, e.target.value)}>
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 type="number"
                                 label="Height"
                                 .value=${String(viewBox[3] || 200)}
                                 ?disabled=${this._viewBoxMode === 'auto'}
                                 @input=${(e) => this._updateViewBoxValue(3, e.target.value)}>
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                         ${this._renderViewBoxHelper()}
                     </div>
@@ -2077,7 +2067,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </lcards-message>
                     ` : ''}
 
-                    <ha-textfield
+                    <ha-input
                         label="Anchor Name"
                         .value=${this._anchorFormName}
                         @input=${(e) => {
@@ -2087,21 +2077,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         required
                         helper-text="Unique identifier for this anchor"
                         style="width: 100%; margin-bottom: 16px;">
-                    </ha-textfield>
+                    </ha-input>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             label="X Position"
                             .value=${String(this._anchorFormPosition[0] || 0)}
                             @input=${(e) => this._updateAnchorFormPosition(0, e.target.value)}>
-                        </ha-textfield>
-                        <ha-textfield
+                        </ha-input>
+                        <ha-input
                             type="number"
                             label="Y Position"
                             .value=${String(this._anchorFormPosition[1] || 0)}
                             @input=${(e) => this._updateAnchorFormPosition(1, e.target.value)}>
-                        </ha-textfield>
+                        </ha-input>
                     </div>
                 </div>
 
@@ -7449,13 +7439,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <div style="display: flex; flex-direction: column; gap: 16px;">
-                <ha-textfield
+                <ha-input
                     label="Control ID"
                     .value=${this._controlFormId}
                     @input=${(e) => this._controlFormId = e.target.value}
                     required
                     helper-text="Unique identifier for this control">
-                </ha-textfield>
+                </ha-input>
 
                 <lcards-form-section
                     header="Position"
@@ -7484,7 +7474,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     ${!useAnchor ? html`
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
-                            <ha-textfield
+                            <ha-input
                                 type="number"
                                 label="X Position"
                                 .value=${String(this._controlFormPosition[0] || 0)}
@@ -7492,8 +7482,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     this._controlFormPosition = [this._roundToPrecision(Number(e.target.value)), this._controlFormPosition[1]];
                                     this.requestUpdate();
                                 }}>
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 type="number"
                                 label="Y Position"
                                 .value=${String(this._controlFormPosition[1] || 0)}
@@ -7501,7 +7491,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     this._controlFormPosition = [this._controlFormPosition[0], this._roundToPrecision(Number(e.target.value))];
                                     this.requestUpdate();
                                 }}>
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     ` : ''}
 
@@ -7540,7 +7530,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     icon="mdi:resize"
                     ?expanded=${true}>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             label="Width"
                             .value=${String(this._controlFormSize[0] || 100)}
@@ -7548,8 +7538,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 this._controlFormSize = [this._roundToPrecision(Number(e.target.value)), this._controlFormSize[1]];
                                 this.requestUpdate();
                             }}>
-                        </ha-textfield>
-                        <ha-textfield
+                        </ha-input>
+                        <ha-input
                             type="number"
                             label="Height"
                             .value=${String(this._controlFormSize[1] || 100)}
@@ -7557,7 +7547,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 this._controlFormSize = [this._controlFormSize[0], this._roundToPrecision(Number(e.target.value))];
                                 this.requestUpdate();
                             }}>
-                        </ha-textfield>
+                        </ha-input>
                     </div>
                 </lcards-form-section>
 
@@ -9107,7 +9097,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div style="margin-bottom: 16px;">
                         <div style="font-weight: 500; margin-bottom: 8px;">Grid-Based Routing</div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
-                            <ha-textfield
+                            <ha-input
                                 label="Clearance (px)"
                                 type="number"
                                 min="0"
@@ -9115,8 +9105,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.clearance ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('clearance', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Min distance from obstacles (default: 0)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Grid Resolution (px)"
                                 type="number"
                                 min="5"
@@ -9124,8 +9114,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.grid_resolution ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('grid_resolution', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Grid cell size (default: 64)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Turn Penalty"
                                 type="number"
                                 min="0"
@@ -9133,7 +9123,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.turn_penalty ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('turn_penalty', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Cost for direction changes (default: 2)">
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     </div>
 
@@ -9148,7 +9138,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 <ha-dropdown-item .value=${'none'}>None</ha-dropdown-item>
                                 <ha-dropdown-item .value=${'chaikin'}>Chaikin</ha-dropdown-item>
                             </ha-select>
-                            <ha-textfield
+                            <ha-input
                                 label="Iterations"
                                 type="number"
                                 min="1"
@@ -9156,15 +9146,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.smoothing_iterations ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('smoothing_iterations', e.target.value ? parseInt(e.target.value) : undefined)}
                                 helper-text="1-5 (default: 1)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Max Points"
                                 type="number"
                                 min="1"
                                 .value=${routing.smoothing_max_points ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('smoothing_max_points', e.target.value ? parseInt(e.target.value) : undefined)}
                                 helper-text="Default: 160">
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     </div>
 
@@ -9177,46 +9167,46 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </span>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <ha-textfield
+                            <ha-input
                                 label="Proximity Band (px)"
                                 type="number"
                                 min="0"
                                 .value=${routing.smart_proximity ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('smart_proximity', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Obstacle avoidance distance (default: 0)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Detour Span (px)"
                                 type="number"
                                 min="1"
                                 .value=${routing.smart_detour_span ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('smart_detour_span', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Max elbow shift (default: 48)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Max Extra Bends"
                                 type="number"
                                 min="0"
                                 .value=${routing.smart_max_extra_bends ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('smart_max_extra_bends', e.target.value ? parseInt(e.target.value) : undefined)}
                                 helper-text="Max added bends (default: 3)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Min Improvement (px)"
                                 type="number"
                                 min="0"
                                 .value=${routing.smart_min_improvement ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('smart_min_improvement', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Min cost gain (default: 4)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Max Detours Per Elbow"
                                 type="number"
                                 min="1"
                                 .value=${routing.smart_max_detours_per_elbow ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('smart_max_detours_per_elbow', e.target.value ? parseInt(e.target.value) : undefined)}
                                 helper-text="Default: 4">
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     </div>
 
@@ -9229,15 +9219,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </span>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <ha-textfield
+                            <ha-input
                                 label="Force Penalty"
                                 type="number"
                                 min="0"
                                 .value=${routing.channel_force_penalty ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('channel_force_penalty', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Penalty for exiting forced channels (default: 800)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Avoid Multiplier"
                                 type="number"
                                 min="0"
@@ -9245,8 +9235,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.channel_avoid_multiplier ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('channel_avoid_multiplier', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Avoid channel strength (default: 1.0)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Target Coverage"
                                 type="number"
                                 min="0"
@@ -9255,24 +9245,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.channel_target_coverage ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('channel_target_coverage', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Prefer mode target 0-1 (default: 0.6)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Shaping Max Attempts"
                                 type="number"
                                 min="1"
                                 .value=${routing.channel_shaping_max_attempts ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('channel_shaping_max_attempts', e.target.value ? parseInt(e.target.value) : undefined)}
                                 helper-text="Max shaping iterations (default: 12)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Shaping Span (px)"
                                 type="number"
                                 min="1"
                                 .value=${routing.channel_shaping_span ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('channel_shaping_span', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Max shaping shift (default: 32)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Min Coverage Gain"
                                 type="number"
                                 min="0"
@@ -9281,7 +9271,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.channel_min_coverage_gain ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('channel_min_coverage_gain', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Min gain threshold 0-1 (default: 0.04)">
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     </div>
 
@@ -9289,22 +9279,22 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div>
                         <div style="font-weight: 500; margin-bottom: 8px;">Cost Function Weights</div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <ha-textfield
+                            <ha-input
                                 label="Bend Cost"
                                 type="number"
                                 min="0"
                                 .value=${routing.cost_defaults?.bend ?? ''}
                                 @input=${(e) => this._updateRoutingCostDefaults('bend', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Cost per bend (default: 10)">
-                            </ha-textfield>
-                            <ha-textfield
+                            </ha-input>
+                            <ha-input
                                 label="Proximity Cost"
                                 type="number"
                                 min="0"
                                 .value=${routing.cost_defaults?.proximity ?? ''}
                                 @input=${(e) => this._updateRoutingCostDefaults('proximity', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Cost for obstacle proximity (default: 4)">
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     </div>
                 </lcards-form-section>
@@ -9495,13 +9485,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <!-- Channel ID -->
                             <div>
                                 <label class="form-label">Channel ID</label>
-                                <ha-textfield
+                                <ha-input
                                     .value=${data.id}
                                     ?disabled=${!isNew}
                                     @input=${(e) => this._updateChannelFormField('id', e.target.value)}
                                     placeholder="power_corridor"
                                     style="width: 100%;">
-                                </ha-textfield>
+                                </ha-input>
                                 ${isNew ? html`
                                     <div class="form-helper">Unique identifier (e.g., power_corridor)</div>
                                 ` : ''}
@@ -9553,34 +9543,34 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <div>
                                 <label class="form-label">Channel Bounds (x, y, w, h)</label>
                                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-                                    <ha-textfield
+                                    <ha-input
                                         type="number"
                                         .value=${String(data.bounds[0])}
                                         @input=${(e) => this._updateChannelBounds(0, Number(e.target.value))}
                                         label="X"
                                         style="width: 100%;">
-                                    </ha-textfield>
-                                    <ha-textfield
+                                    </ha-input>
+                                    <ha-input
                                         type="number"
                                         .value=${String(data.bounds[1])}
                                         @input=${(e) => this._updateChannelBounds(1, Number(e.target.value))}
                                         label="Y"
                                         style="width: 100%;">
-                                    </ha-textfield>
-                                    <ha-textfield
+                                    </ha-input>
+                                    <ha-input
                                         type="number"
                                         .value=${String(data.bounds[2])}
                                         @input=${(e) => this._updateChannelBounds(2, Number(e.target.value))}
                                         label="W"
                                         style="width: 100%;">
-                                    </ha-textfield>
-                                    <ha-textfield
+                                    </ha-input>
+                                    <ha-input
                                         type="number"
                                         .value=${String(data.bounds[3])}
                                         @input=${(e) => this._updateChannelBounds(3, Number(e.target.value))}
                                         label="H"
                                         style="width: 100%;">
-                                    </ha-textfield>
+                                    </ha-input>
                                 </div>
                             </div>
 
@@ -10587,7 +10577,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <div style="display: flex; flex-direction: column; gap: 16px;">
                 <!-- Line ID -->
-                <ha-textfield
+                <ha-input
                     label="Line ID"
                     .value=${this._lineFormData.id}
                     @input=${(e) => {
@@ -10596,7 +10586,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     }}
                     required
                     helper-text="Unique identifier for this line">
-                </ha-textfield>
+                </ha-input>
 
                 <!-- Horizontal Source → Target Layout -->
                 <div class="line-connection-flow">
@@ -10635,7 +10625,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 }}>
                             </lcards-position-picker>
 
-                            <ha-textfield
+                            <ha-input
                                 type="number"
                                 label="Gap (px)"
                                 .value=${String(this._lineFormData.anchor_gap || 0)}
@@ -10645,7 +10635,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 }}
                                 helper-text="Distance from point"
                                 style="width: 100%;">
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     </lcards-form-section>
 
@@ -10689,7 +10679,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 }}>
                             </lcards-position-picker>
 
-                            <ha-textfield
+                            <ha-input
                                 type="number"
                                 label="Gap (px)"
                                 .value=${String(this._lineFormData.attach_gap || 0)}
@@ -10699,7 +10689,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 }}
                                 helper-text="Distance from point"
                                 style="width: 100%;">
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     </lcards-form-section>
                 </div>
@@ -10944,7 +10934,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                                 <!-- Waypoint Content (Coordinates or Named Anchor) -->
                                                 ${typeof wp === 'string' ? html`
                                                     <!-- Named Anchor -->
-                                                    <ha-textfield
+                                                    <ha-input
                                                         label="Anchor"
                                                         .value=${wp}
                                                         @input=${(e) => {
@@ -10953,11 +10943,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                                             this.requestUpdate();
                                                         }}
                                                         style="flex: 1; min-width: 120px;">
-                                                    </ha-textfield>
+                                                    </ha-input>
                                                 ` : html`
                                                     <!-- Coordinates -->
                                                     <div style="flex: 1; display: flex; gap: 8px; min-width: 0;">
-                                                        <ha-textfield
+                                                        <ha-input
                                                             type="number"
                                                             label="X"
                                                             .value=${String(wp[0] || 0)}
@@ -10967,8 +10957,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                                                 this.requestUpdate();
                                                             }}
                                                             style="flex: 1; min-width: 80px;">
-                                                        </ha-textfield>
-                                                        <ha-textfield
+                                                        </ha-input>
+                                                        <ha-input
                                                             type="number"
                                                             label="Y"
                                                             .value=${String(wp[1] || 0)}
@@ -10978,7 +10968,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                                                 this.requestUpdate();
                                                             }}
                                                             style="flex: 1; min-width: 80px;">
-                                                        </ha-textfield>
+                                                        </ha-input>
                                                     </div>
                                                 `}
 
@@ -11034,7 +11024,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             icon="mdi:cog"
                             ?expanded=${false}>
 
-                            <ha-textfield
+                            <ha-input
                                 type="number"
                                 label="Clearance (pixels)"
                                 .value=${String(this._lineFormData.clearance || '')}
@@ -11049,7 +11039,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 }}
                                 helper-text="Minimum pixels from obstacles (leave empty for default: 8)"
                                 style="width: 100%;">
-                            </ha-textfield>
+                            </ha-input>
                         </lcards-form-section>
                     ` : ''}
 
@@ -11110,7 +11100,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </ha-selector>
 
                     ${this._lineFormData.style?.marker_start?.type && this._lineFormData.style.marker_start.type !== 'none' ? html`
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             label="Size (pixels)"
                             .value=${String(this._lineFormData.style.marker_start.size ?? 10)}
@@ -11127,7 +11117,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 };
                                 this.requestUpdate();
                             }}>
-                        </ha-textfield>
+                        </ha-input>
 
                         <div style="margin-top: 12px;">
                             <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: var(--primary-text-color);">Fill Color</div>
@@ -11168,7 +11158,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 </lcards-color-picker>
                             </div>
 
-                            <ha-textfield
+                            <ha-input
                                 type="number"
                                 label="Stroke Width"
                                 .value=${String(this._lineFormData.style.marker_start.stroke_width || 0)}
@@ -11182,7 +11172,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     };
                                     this.requestUpdate();
                                 }}>
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     ` : ''}
                 </lcards-form-section>
@@ -11227,7 +11217,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </ha-selector>
 
                     ${this._lineFormData.style?.marker_end?.type && this._lineFormData.style.marker_end.type !== 'none' ? html`
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             label="Size (pixels)"
                             .value=${String(this._lineFormData.style.marker_end.size ?? 10)}
@@ -11244,7 +11234,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 };
                                 this.requestUpdate();
                             }}>
-                        </ha-textfield>
+                        </ha-input>
 
                         <div style="margin-top: 12px;">
                             <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: var(--primary-text-color);">Fill Color</div>
@@ -11285,7 +11275,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 </lcards-color-picker>
                             </div>
 
-                            <ha-textfield
+                            <ha-input
                                 type="number"
                                 label="Stroke Width"
                                 .value=${String(this._lineFormData.style.marker_end.stroke_width || 0)}
@@ -11299,7 +11289,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     };
                                     this.requestUpdate();
                                 }}>
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     ` : ''}
                 </lcards-form-section>
@@ -11626,7 +11616,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </ha-selector>
 
                             ${(this._lineFormData.corner_style === 'round') ? html`
-                                <ha-textfield
+                                <ha-input
                                     type="number"
                                     label="Corner Radius (pixels)"
                                     .value=${String(this._lineFormData.corner_radius || 12)}
@@ -11636,11 +11626,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }}
                                     helper-text="Arc radius for rounded corners"
                                     style="margin-top: 12px; width: 100%;">
-                                </ha-textfield>
+                                </ha-input>
                             ` : ''}
 
                             ${(this._lineFormData.corner_style === 'miter') ? html`
-                                <ha-textfield
+                                <ha-input
                                     type="number"
                                     label="Miter Limit"
                                     .value=${String(this._lineFormData.miter_limit || 4)}
@@ -11650,7 +11640,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }}
                                     helper-text="Max ratio before clipping sharp corners (default: 4)"
                                     style="margin-top: 12px; width: 100%;">
-                                </ha-textfield>
+                                </ha-input>
                             ` : ''}
 
                         <!-- Smoothing Settings -->
@@ -11672,7 +11662,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </ha-selector>
 
                             ${(this._lineFormData.smoothing_mode === 'chaikin') ? html`
-                                <ha-textfield
+                                <ha-input
                                     type="number"
                                     label="Smoothing Iterations"
                                     .value=${String(this._lineFormData.smoothing_iterations || 0)}
@@ -11682,7 +11672,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }}
                                     helper-text="More iterations = smoother curves"
                                     style="margin-top: 12px; width: 100%;">
-                                </ha-textfield>
+                                </ha-input>
                             ` : ''}
                     </lcards-form-section>
                 </div>
@@ -11744,7 +11734,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <!-- Right Column -->
                         <div>
                             <!-- Stroke Override -->
-                            <ha-textfield
+                            <ha-input
                                 label="Stroke Override"
                                 .value=${this._lineFormData.style?.stroke || ''}
                                 @input=${(e) => {
@@ -11762,10 +11752,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 }}
                                 helper-text="Override color with custom stroke (e.g., url(#gradient))"
                                 style="width: 100%;">
-                            </ha-textfield>
+                            </ha-input>
 
                             <!-- Dash Offset -->
-                            <ha-textfield
+                            <ha-input
                                 type="number"
                                 label="Dash Offset"
                                 .value=${String(this._lineFormData.style?.dash_offset || 0)}
@@ -11775,7 +11765,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 }}
                                 helper-text="Shifts the dash pattern (pixels)"
                                 style="margin-top: 12px; width: 100%;">
-                            </ha-textfield>
+                            </ha-input>
                         </div>
                     </div>
                 </lcards-form-section>

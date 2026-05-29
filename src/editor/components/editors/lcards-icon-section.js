@@ -197,7 +197,7 @@ export class LCARdSIconSection extends LitElement {
                 }
 
                 .editor-item-actions ha-icon-button {
-                    --mdc-icon-button-size: 40px;
+                    --ha-icon-button-size: 40px;
                     --mdc-icon-size: 20px;
                     --md-icon-button-icon-color: var(--primary-text-color);
                     --md-icon-button-hover-icon-color: var(--error-color);

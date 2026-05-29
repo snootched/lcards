@@ -215,7 +215,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       }
 
       ha-icon-button {
-        --mdc-icon-button-size: 36px;
+        --ha-icon-button-size: 36px;
         --mdc-icon-size: 20px;
       }
 
@@ -731,7 +731,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       <!-- Grid Sizing -->
       <lcards-form-section header="Grid" icon="mdi:grid" ?expanded=${true}>
         <div class="param-grid">
-          <ha-textfield
+          <ha-input
             type="number"
             label="Rows (blank = auto)"
             helper="Leave empty to fill card height automatically"
@@ -741,8 +741,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
             .value=${config.num_rows ?? ''}
             placeholder="auto"
             @input=${(e) => this._updateEffectConfig(index, 'num_rows', e.target.value ? Number(e.target.value) : null)}
-          ></ha-textfield>
-          <ha-textfield
+          ></ha-input>
+          <ha-input
             type="number"
             label="Columns (blank = auto)"
             helper="Leave empty to fill card width automatically"
@@ -752,7 +752,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
             .value=${config.num_cols ?? ''}
             placeholder="auto"
             @input=${(e) => this._updateEffectConfig(index, 'num_cols', e.target.value ? Number(e.target.value) : null)}
-          ></ha-textfield>
+          ></ha-input>
           ${this._renderField({ key: 'gap', label: 'Cell Gap (px)', type: 'number', min: 0, max: 20, step: 1, default: 4 }, config, index)}
         </div>
       </lcards-form-section>

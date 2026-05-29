@@ -24,7 +24,7 @@ export const editorComponentStyles = css`
         background: rgba(255, 255, 255, 0.1);
         border: 2px solid transparent;
         transition: all 0.2s;
-        --mdc-icon-button-size: 40px;
+        --ha-icon-button-size: 40px;
         --mdc-icon-size: 20px;
     }
 

@@ -424,7 +424,7 @@ export class LCARdSConfigPanel extends LitElement {
       right: 8px;
       top: 50%;
       transform: translateY(-50%);
-      --mdc-icon-button-size: 32px;
+      --ha-icon-button-size: 32px;
     }
 
     .search-result-count {
@@ -985,14 +985,14 @@ export class LCARdSConfigPanel extends LitElement {
           <div class="dialog-body">
             <div class="search-container">
               <div class="search-wrapper">
-                <ha-textfield
+                <ha-input
                   style="width: 100%;"
                   .value=${this._filterText}
                   @input=${(e) => { this._filterText = e.target.value; this.requestUpdate(); }}
                   placeholder="Search helpers... (Ctrl+F)"
                   .label=${'Search'}>
                   <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
-                </ha-textfield>
+                </ha-input>
                 ${this._filterText ? html`
                   <ha-icon-button
                     class="search-clear"

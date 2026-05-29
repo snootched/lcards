@@ -335,6 +335,9 @@ const LCARdSCardClasses = [
         preview: true,
         description: 'Modern LCARS button with multi-text labels and flexible positioning',
         documentationURL: "https://lcards.unimatrix01.ca/cards/button/",
+        getEntitySuggestion: (_hass, entityId) => ({
+            config: { ...LCARdSButton.getStubConfig(), entity: entityId },
+        }),
     },
     {
         type: 'lcards-elbow',
@@ -349,6 +352,11 @@ const LCARdSCardClasses = [
         preview: true,
         description: 'Data visualization chart powered by ApexCharts',
         documentationURL: "https://lcards.unimatrix01.ca/cards/chart/",
+        getEntitySuggestion: (_hass, entityId) => {
+            const domain = entityId.split('.')[0];
+            if (!['sensor', 'input_number', 'number', 'weather'].includes(domain)) return null;
+            return { config: { ...LCARdSChart.getStubConfig(), entity: entityId } };
+        },
     },
     {
         type: 'lcards-slider',
@@ -356,6 +364,11 @@ const LCARdSCardClasses = [
         preview: true,
         description: 'Interactive slider/gauge for lights, covers, fans, and sensors with LCARS styling',
         documentationURL: "https://lcards.unimatrix01.ca/cards/slider-card/",
+        getEntitySuggestion: (_hass, entityId) => {
+            const domain = entityId.split('.')[0];
+            if (!['light', 'fan', 'cover', 'input_number', 'number', 'climate', 'media_player', 'humidifier', 'water_heater', 'valve'].includes(domain)) return null;
+            return { config: { ...LCARdSSlider.getStubConfig(), entity: entityId } };
+        },
     },
     {
         type: 'lcards-data-grid',
@@ -377,6 +390,11 @@ const LCARdSCardClasses = [
         preview: true,
         description: 'Renders an input_select entity as a grid of LCARS-styled option buttons',
         documentationURL: 'https://lcards.unimatrix01.ca/cards/select-menu/',
+        getEntitySuggestion: (_hass, entityId) => {
+            const domain = entityId.split('.')[0];
+            if (domain !== 'input_select' && domain !== 'select') return null;
+            return { config: { ...LCARdSSelectMenu.getStubConfig(), entity: entityId } };
+        },
     },
     {
         type: 'lcards-alert-overlay',

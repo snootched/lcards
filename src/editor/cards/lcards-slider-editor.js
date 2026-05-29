@@ -255,12 +255,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                                    metadata.orientation.slice(1);
 
             return html`
-                <ha-textfield
+                <ha-input
                     .label=${'Orientation'}
                     .value=${`${orientationLabel} (fixed)`}
                     .disabled=${true}
                     .helper=${'This component only supports ${metadata.orientation} orientation'}
-                ></ha-textfield>
+                ></ha-input>
             `;
         }
 
@@ -313,12 +313,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
         if (filteredPresets.length === 0) {
             return html`
-                <ha-textfield
+                <ha-input
                     .label=${'Style Preset'}
                     .value=${'No presets available for this component'}
                     .disabled=${true}
                     .helper=${'Change or clear the component to see presets'}
-                ></ha-textfield>
+                ></ha-input>
             `;
         }
 
@@ -826,13 +826,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         return html`
             <!-- Value template -->
             <div>
-                <ha-textfield
+                <ha-input
                     .label=${'Marker Value / Template'}
                     .helper=${'Template resolving to a position on the track. Examples: {entity.attributes.current_temperature}, {states.sensor.outdoor_temp.state}, [[[return hass.states["sensor.x"].state]]]'}
                     .value=${String(range.value ?? '')}
                     @change=${(e) => this._setConfigPath(`${basePath}.value`, e.target.value)}
                     style="width: 100%;">
-                </ha-textfield>
+                </ha-input>
             </div>
 
             ${isPills ? html`
@@ -1714,7 +1714,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const currentRadius = this.config?.style?.border?.radius;
         const isPerCorner = typeof currentRadius === 'object' && currentRadius !== null;
 
-        /** Convert any config value to a display string for ha-textfield */
+        /** Convert any config value to a display string for ha-input */
         const toStr = (v) => (v === undefined || v === null) ? '' : String(v);
 
         /**
@@ -1794,39 +1794,39 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 </ha-selector>
 
                 ${!isPerCorner ? html`
-                    <ha-textfield
+                    <ha-input
                         label="Radius"
                         .value=${toStr(currentRadius)}
                         helper="Number (12), px (12px), rem (0.75rem), or CSS var: var(--ha-card-border-radius)"
                         helperPersistent
                         @change=${handleUniform}>
-                    </ha-textfield>
+                    </ha-input>
                 ` : html`
                     <lcards-grid-layout>
-                        <ha-textfield
+                        <ha-input
                             label="Top Left"
                             .value=${toStr(currentRadius?.top_left)}
                             helper="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('top_left', e)}>
-                        </ha-textfield>
-                        <ha-textfield
+                        </ha-input>
+                        <ha-input
                             label="Top Right"
                             .value=${toStr(currentRadius?.top_right)}
                             helper="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('top_right', e)}>
-                        </ha-textfield>
-                        <ha-textfield
+                        </ha-input>
+                        <ha-input
                             label="Bottom Left"
                             .value=${toStr(currentRadius?.bottom_left)}
                             helper="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('bottom_left', e)}>
-                        </ha-textfield>
-                        <ha-textfield
+                        </ha-input>
+                        <ha-input
                             label="Bottom Right"
                             .value=${toStr(currentRadius?.bottom_right)}
                             helper="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('bottom_right', e)}>
-                        </ha-textfield>
+                        </ha-input>
                     </lcards-grid-layout>
                 `}
             </lcards-form-section>

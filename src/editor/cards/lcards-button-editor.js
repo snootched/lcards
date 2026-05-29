@@ -1288,12 +1288,12 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                                 @value-changed=${(e) => this._updateRangeField(idx, 'preset', e.detail.value)}>
                             </ha-selector>
                         ` : html`
-                            <ha-textfield
+                            <ha-input
                                 style="width: 100%;"
                                 .label=${'Preset name'}
                                 .value=${range.preset || ''}
                                 @change=${(e) => this._updateRangeField(idx, 'preset', e.target.value)}>
-                            </ha-textfield>
+                            </ha-input>
                         `}
                     </div>
                     <ha-icon-button
@@ -1315,26 +1315,26 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     </ha-selector>
 
                     ${condType === 'between' ? html`
-                        <ha-textfield
+                        <ha-input
                             .label=${'From (≥)'}
                             type="number"
                             .value=${String(range.above ?? '')}
                             @change=${(e) => this._updateRangeField(idx, 'above', parseFloat(e.target.value))}>
-                        </ha-textfield>
-                        <ha-textfield
+                        </ha-input>
+                        <ha-input
                             .label=${'To (<)'}
                             type="number"
                             .value=${String(range.below ?? '')}
                             @change=${(e) => this._updateRangeField(idx, 'below', parseFloat(e.target.value))}>
-                        </ha-textfield>
+                        </ha-input>
                     ` : condType === 'equals' ? html`
-                        <ha-textfield
+                        <ha-input
                             .label=${'Value'}
                             .value=${String(range.equals ?? '')}
                             @change=${(e) => this._updateRangeField(idx, 'equals', e.target.value)}>
-                        </ha-textfield>
+                        </ha-input>
                     ` : html`
-                        <ha-textfield
+                        <ha-input
                             .label=${condType === 'above' ? 'Min (≥)' : 'Max (<)'}
                             type="number"
                             .value=${String(condType === 'above' ? (range.above ?? '') : (range.below ?? ''))}
@@ -1343,7 +1343,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                                 condType === 'above' ? 'above' : 'below',
                                 parseFloat(e.target.value)
                             )}>
-                        </ha-textfield>
+                        </ha-input>
                     `}
                 </div>
 
@@ -1536,7 +1536,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     </div>
                     <ha-icon-button
                         title="Delete"
-                        style="--mdc-icon-button-size: 36px; --mdc-icon-size: 18px;"
+                        style="--ha-icon-button-size: 36px; --mdc-icon-size: 18px;"
                         @click=${(e) => { e.stopPropagation(); this._deleteCustomPreset(name); }}>
                         <ha-icon icon="mdi:delete-outline"></ha-icon>
                     </ha-icon-button>
@@ -1552,12 +1552,12 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         <!-- Rename field -->
                         <div>
                             <div style="font-size: 12px; font-weight: 500; margin-bottom: 6px; color: var(--primary-text-color);">Preset name</div>
-                            <ha-textfield
+                            <ha-input
                                 style="width: 100%;"
                                 .value=${name}
                                 placeholder="e.g. condition_red or my_preset"
                                 @change=${(e) => this._renameCustomPreset(name, e.target.value.trim())}>
-                            </ha-textfield>
+                            </ha-input>
                             ${isOverride ? html`
                                 <div style="font-size: 11px; color: var(--warning-color, orange); margin-top: 4px;">
                                     ⚠ Overrides built-in preset <strong>${name}</strong>

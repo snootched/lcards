@@ -172,13 +172,10 @@ export class LCARdSColorList extends LitElement {
       }
 
       ha-icon-button {
-        --mdc-icon-button-size: 36px;
+        --ha-icon-button-size: 36px;
         --mdc-icon-size: 20px;
       }
 
-      ha-button {
-        --mdc-theme-primary: var(--primary-color);
-      }
     `;
   }
 

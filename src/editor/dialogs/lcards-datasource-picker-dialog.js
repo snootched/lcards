@@ -180,7 +180,7 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
         width: 100%;
       }
 
-      ha-textfield {
+      ha-input {
         width: 100%;
       }
 
@@ -398,12 +398,12 @@ export class LCARdSDataSourcePickerDialog extends LitElement {
         ${this._selectedEntity ? html`
           <div class="form-field">
             <label class="form-label">DataSource Name</label>
-            <ha-textfield
+            <ha-input
               .value=${this._dataSourceName}
               @input=${this._handleNameInput}
               placeholder="Enter a unique name"
               aria-label="Datasource name">
-            </ha-textfield>
+            </ha-input>
             <div class="form-helper">
               A unique identifier for this DataSource (auto-generated from entity)
             </div>

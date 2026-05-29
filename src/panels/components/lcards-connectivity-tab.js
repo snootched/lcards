@@ -562,7 +562,7 @@ export class LCARdSConnectivityTab extends LitElement {
             if (!hasOverride(key)) return nothing;
             return html`<ha-icon-button
               .label=${'Clear override'}
-              style="--mdc-icon-button-size:32px; --mdc-icon-size:18px;"
+              style="--ha-icon-button-size:32px; --mdc-icon-size:18px;"
               @click=${() => this._clearScopedValue(key)}
             ><ha-icon icon="mdi:close-circle-outline"></ha-icon></ha-icon-button>`;
         };

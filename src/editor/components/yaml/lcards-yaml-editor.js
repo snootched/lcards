@@ -98,7 +98,7 @@ export class LCARdSYamlEditor extends LitElement {
             }
 
             ha-icon-button {
-                --mdc-icon-button-size: 36px;
+                --ha-icon-button-size: 36px;
                 --mdc-icon-size: 20px;
                 display: flex;
                 align-items: center;

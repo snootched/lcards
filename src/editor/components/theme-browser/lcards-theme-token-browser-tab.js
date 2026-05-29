@@ -294,7 +294,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         right: 8px;
         top: 50%;
         transform: translateY(-50%);
-        --mdc-icon-button-size: 32px;
+        --ha-icon-button-size: 32px;
       }
 
       .search-result-count {
@@ -647,7 +647,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .token-actions ha-icon-button {
-        --mdc-icon-button-size: 36px;
+        --ha-icon-button-size: 36px;
         --mdc-icon-size: 20px;
         color: var(--primary-text-color);
       }
@@ -1468,7 +1468,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         ${this._activeView !== 'alert-lab' && this._activeView !== 'overrides' ? html`
           <div class="search-container">
             <div class="search-wrapper">
-              <ha-textfield
+              <ha-input
                 class="dialog-search"
                 .value=${this._searchQuery}
                 @input=${this._handleSearchInput}
@@ -1479,7 +1479,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                 }"
                 .label=${'Search'}>
                 <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
-              </ha-textfield>
+              </ha-input>
               ${this._searchQuery ? html`
                 <ha-icon-button
                   class="search-clear"
@@ -4076,12 +4076,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                   @value-changed=${(e) => { this._editPendingValue = String(e.detail.value); this.requestUpdate(); }}>
                 </ha-selector>
               ` : html`
-                <ha-textfield
+                <ha-input
                   .value=${overrideValue}
                   placeholder="Enter value (e.g. #93e1ff, var(--lcars-blue), 14px)"
                   style="width: 100%"
                   @input=${(e) => { this._editPendingValue = e.target.value; }}>
-                </ha-textfield>
+                </ha-input>
               `}
             </div>
 
@@ -4178,13 +4178,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         <!-- Filter + summary bar -->
         <div class="overrides-toolbar">
           <div class="overrides-filter-wrapper">
-            <ha-textfield
+            <ha-input
               .value=${this._overridesFilter}
               @input=${(e) => { this._overridesFilter = e.target.value; this.requestUpdate(); }}
               placeholder="Filter tokens..."
               label="Filter">
               <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
-            </ha-textfield>
+            </ha-input>
           </div>
           <div class="overrides-summary">
             ${this._overridesLoading

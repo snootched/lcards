@@ -102,7 +102,7 @@ export const editorWidgetStyles = css`
     }
 
     .editor-item-actions ha-icon-button {
-        --mdc-icon-button-size: 36px;
+        --ha-icon-button-size: 36px;
         --mdc-icon-size: 20px;
     }
 

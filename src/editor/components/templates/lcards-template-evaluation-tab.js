@@ -142,7 +142,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
       }
 
       .card-actions ha-icon-button {
-        --mdc-icon-button-size: 32px;
+        --ha-icon-button-size: 32px;
         --mdc-icon-size: 18px;
       }
 

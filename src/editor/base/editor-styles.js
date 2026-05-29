@@ -207,7 +207,7 @@ export const editorStyles = css`
         gap: 8px;
     }
 
-    ha-textfield,
+    ha-input,
     ha-selector,
     ha-entity-picker {
         width: 100%;

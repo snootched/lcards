@@ -1049,10 +1049,6 @@ export class LCARdSDataSourceBrowser extends LitElement {
         flex-wrap: wrap;
       }
 
-      .action-buttons mwc-button {
-        --mdc-button-outline-color: var(--primary-color);
-      }
-
       .action-buttons ha-icon {
         --mdc-icon-size: 18px;
         margin-right: 4px;

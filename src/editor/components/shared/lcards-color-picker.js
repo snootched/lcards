@@ -146,7 +146,7 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             ha-dropdown-item {
-                --mdc-list-item-graphic-margin: 8px;
+                gap: 8px;
             }
 
             .preview {

@@ -355,7 +355,7 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .color-preview:hover {
-        border-color: var(--mdc-theme-primary, #03a9f4);
+        border-color: var(--primary-color, #03a9f4);
       }
 
       /* Token Resolution Display */
@@ -452,13 +452,13 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .stat-card.modern:hover {
-        border-color: var(--mdc-theme-primary, #03a9f4);
+        border-color: var(--primary-color, #03a9f4);
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       }
 
       .stat-icon {
         --mdc-icon-size: 32px;
-        color: var(--mdc-theme-primary, #03a9f4);
+        color: var(--primary-color, #03a9f4);
         opacity: 0.8;
       }
 
@@ -497,7 +497,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .section-header ha-icon {
         --mdc-icon-size: 20px;
-        color: var(--mdc-theme-primary, #03a9f4);
+        color: var(--primary-color, #03a9f4);
       }
 
       .section-header h4 {
@@ -608,7 +608,7 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .token-item:hover {
-        border-color: var(--mdc-theme-primary, #03a9f4);
+        border-color: var(--primary-color, #03a9f4);
         background: var(--secondary-background-color);
       }
 
@@ -618,7 +618,7 @@ export class LCARdSProvenanceTab extends LitElement {
         justify-content: center;
         width: 32px;
         height: 32px;
-        background: var(--mdc-theme-primary, #03a9f4);
+        background: var(--primary-color, #03a9f4);
         color: white;
         border-radius: 50%;
         font-size: 13px;
@@ -684,7 +684,7 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .token-card:hover {
-        border-color: var(--mdc-theme-primary, #03a9f4);
+        border-color: var(--primary-color, #03a9f4);
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       }
 
@@ -707,7 +707,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .token-path-display ha-icon {
         --mdc-icon-size: 20px;
-        color: var(--mdc-theme-primary, #03a9f4);
+        color: var(--primary-color, #03a9f4);
         flex-shrink: 0;
       }
 
@@ -789,7 +789,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .color-preview-large:hover {
         transform: scale(1.1);
-        border-color: var(--mdc-theme-primary, #03a9f4);
+        border-color: var(--primary-color, #03a9f4);
       }
 
       .token-used-by-list {
@@ -850,7 +850,7 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .tree-actions ha-icon-button {
-        --mdc-icon-button-size: 32px;
+        --ha-icon-button-size: 32px;
         --mdc-icon-size: 20px;
       }
 
@@ -1210,7 +1210,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .resolution-step-card {
         background: var(--secondary-background-color);
         border-radius: 8px;
-        border-left: 4px solid var(--mdc-theme-primary, #03a9f4);
+        border-left: 4px solid var(--primary-color, #03a9f4);
         padding: 12px;
         display: flex;
         align-items: center;
@@ -2002,14 +2002,14 @@ export class LCARdSProvenanceTab extends LitElement {
         ${this._activeView === 'tokens' ? html`
           <div class="search-container">
             <div class="search-wrapper">
-              <ha-textfield
+              <ha-input
                 class="dialog-search"
                 .value=${this._searchQuery}
                 @input=${this._handleSearchInput}
                 placeholder="Search fields... (Ctrl+F)"
                 .label=${'Search'}>
                 <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
-              </ha-textfield>
+              </ha-input>
               ${this._searchQuery ? html`
                 <ha-icon-button
                   class="search-clear"

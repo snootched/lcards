@@ -137,7 +137,7 @@ export class LCARdSGridColumnEditor extends LitElement {
                 margin-bottom: 12px;
             }
 
-            ha-textfield {
+            ha-input {
                 width: 100%;
                 margin-bottom: 8px;
             }
@@ -245,12 +245,12 @@ export class LCARdSGridColumnEditor extends LitElement {
                     <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--primary-text-color);">
                         Column Width
                     </label>
-                    <ha-textfield
+                    <ha-input
                         label="Width"
                         .value=${this._editWidth}
                         @input=${(e) => this._editWidth = e.target.value}
                         helper="CSS value (e.g., '100px', '1fr', 'auto')">
-                    </ha-textfield>
+                    </ha-input>
                 </div>
 
                 <!-- Text Alignment -->
@@ -299,26 +299,26 @@ export class LCARdSGridColumnEditor extends LitElement {
                         Column Style Overrides
                     </summary>
 
-                    <ha-textfield
+                    <ha-input
                         label="Text Colour"
                         .value=${this._editStyle.color || ''}
                         @input=${(e) => this._updateStyle('color', e.target.value)}
                         helper="CSS colour value">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Background Colour"
                         .value=${this._editStyle.background || ''}
                         @input=${(e) => this._updateStyle('background', e.target.value)}
                         helper="CSS colour value">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Font Weight"
                         .value=${this._editStyle.font_weight || ''}
                         @input=${(e) => this._updateStyle('font_weight', e.target.value)}
                         helper="100-900">
-                    </ha-textfield>
+                    </ha-input>
                 </details>
 
                 <!-- Danger Zone -->

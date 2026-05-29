@@ -114,7 +114,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                     border-top: 1px solid var(--divider-color);
                 }
 
-                .custom-field-input ha-textfield {
+                .custom-field-input ha-input {
                     flex: 1;
                 }
 
@@ -141,7 +141,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
 
                 /* Action buttons - ensure visibility */
                 .editor-item-actions ha-icon-button {
-                    --mdc-icon-button-size: 40px;
+                    --ha-icon-button-size: 40px;
                     --mdc-icon-size: 20px;
                     color: var(--primary-text-color);
                 }
@@ -646,7 +646,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                     ` : ''}
 
                     <div class="custom-field-input">
-                        <ha-textfield
+                        <ha-input
                             .label=${'Custom Field Name'}
                             .helper=${'Alphanumeric and underscore only'}
                             .value=${this._newFieldName}
@@ -656,7 +656,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                                     this._addField(this._newFieldName);
                                 }
                             }}>
-                        </ha-textfield>
+                        </ha-input>
                         <ha-button
                             variant="brand"
                             @click=${() => this._addField(this._newFieldName)}

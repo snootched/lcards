@@ -743,11 +743,6 @@ export class LCARdSTemplateSandbox extends LitElement {
         word-break: break-all;
       }
 
-      /* Buttons */
-      ha-button {
-        --mdc-theme-primary: var(--primary-color);
-      }
-
       .action-buttons {
         display: flex;
         gap: 8px;
@@ -925,7 +920,7 @@ export class LCARdSTemplateSandbox extends LitElement {
       </div>
 
       <div class="form-row">
-        <ha-button @click=${() => this._evaluateTemplate()} ?disabled=${this._isEvaluating} style="width: 100%; --mdc-typography-button-font-size: 14px;">
+        <ha-button @click=${() => this._evaluateTemplate()} ?disabled=${this._isEvaluating} style="width: 100%; font-size: 14px;">
           <ha-icon icon="mdi:play" slot="start"></ha-icon>
           ${this._isEvaluating ? 'Evaluating...' : 'Evaluate Now'}
         </ha-button>
@@ -1021,7 +1016,7 @@ export class LCARdSTemplateSandbox extends LitElement {
 
         <!-- Template Metadata -->
         <div class="form-row" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; padding: 12px; background: var(--secondary-background-color); border-radius: 6px; font-size: 13px;">
-          <ha-button @click=${() => this._evaluateTemplate()} ?disabled=${this._isEvaluating} style="--mdc-typography-button-font-size: 12px;">
+          <ha-button @click=${() => this._evaluateTemplate()} ?disabled=${this._isEvaluating} style="font-size: 12px;">
             <ha-icon icon="mdi:play" slot="start"></ha-icon>
             ${this._isEvaluating ? 'Evaluating...' : 'Evaluate Now'}
           </ha-button>

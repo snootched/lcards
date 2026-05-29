@@ -149,7 +149,7 @@ export class LCARdSGridCellEditor extends LitElement {
                 margin-bottom: 12px;
             }
 
-            ha-textfield {
+            ha-input {
                 width: 100%;
             }
 
@@ -216,12 +216,12 @@ export class LCARdSGridCellEditor extends LitElement {
                 <!-- Value Editor -->
                 <div class="value-editor">
                     ${this._editMode === 'static' ? html`
-                        <ha-textfield
+                        <ha-input
                             label="Cell Value"
                             .value=${this._editValue}
                             @input=${(e) => this._editValue = e.target.value}
                             helper="Static text or number">
-                        </ha-textfield>
+                        </ha-input>
                     ` : html`
                         <ha-textarea
                             label="Template"
@@ -246,28 +246,28 @@ export class LCARdSGridCellEditor extends LitElement {
                         Style Overrides (Optional)
                     </summary>
 
-                    <ha-textfield
+                    <ha-input
                         label="Text Colour"
                         .value=${this._editStyle.color || ''}
                         @input=${(e) => this._updateStyle('color', e.target.value)}
                         helper="CSS colour value">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Background Colour"
                         .value=${this._editStyle.background || ''}
                         @input=${(e) => this._updateStyle('background', e.target.value)}
                         helper="CSS colour value"
                         style="margin-top: 8px;">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Font Weight"
                         .value=${this._editStyle.font_weight || ''}
                         @input=${(e) => this._updateStyle('font_weight', e.target.value)}
                         helper="100-900"
                         style="margin-top: 8px;">
-                    </ha-textfield>
+                    </ha-input>
                 </details>
             </div>
 

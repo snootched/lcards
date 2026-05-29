@@ -503,7 +503,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 width: 100%;
             }
 
-            ha-textfield {
+            ha-input {
                 width: 100%;
             }
 

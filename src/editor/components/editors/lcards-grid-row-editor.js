@@ -143,7 +143,7 @@ export class LCARdSGridRowEditor extends LitElement {
                 margin-top: 12px;
             }
 
-            ha-textfield {
+            ha-input {
                 width: 100%;
                 margin-bottom: 8px;
             }
@@ -214,33 +214,33 @@ export class LCARdSGridRowEditor extends LitElement {
                         Row Style Overrides
                     </summary>
 
-                    <ha-textfield
+                    <ha-input
                         label="Text Colour"
                         .value=${this._editStyle.color || ''}
                         @input=${(e) => this._updateStyle('color', e.target.value)}
                         helper="CSS colour value">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Background Colour"
                         .value=${this._editStyle.background || ''}
                         @input=${(e) => this._updateStyle('background', e.target.value)}
                         helper="CSS colour value">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Font Weight"
                         .value=${this._editStyle.font_weight || ''}
                         @input=${(e) => this._updateStyle('font_weight', e.target.value)}
                         helper="100-900">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Height"
                         .value=${this._editStyle.height || ''}
                         @input=${(e) => this._updateStyle('height', e.target.value)}
                         helper="CSS height (e.g., '40px', 'auto')">
-                    </ha-textfield>
+                    </ha-input>
                 </details>
 
                 <!-- Danger Zone -->

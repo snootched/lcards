@@ -272,7 +272,7 @@ export class LCARdSRulesDashboard extends LitElement {
             }
 
             ha-dialog {
-                --mdc-dialog-max-width: 600px;
+                --dialog-max-width: 600px;
             }
 
             .rule-preview-dialog {

@@ -699,39 +699,39 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 <div class="manual-inputs">
                     <div class="input-group">
                         <label class="input-label">Display Min</label>
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             .value="${String(this.displayMin)}"
                             @change="${(e) => this._handleInputChange(e, 'displayMin')}"
                             ?disabled="${this.disabled}">
-                        </ha-textfield>
+                        </ha-input>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Display Max</label>
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             .value="${String(this.displayMax)}"
                             @change="${(e) => this._handleInputChange(e, 'displayMax')}"
                             ?disabled="${this.disabled}">
-                        </ha-textfield>
+                        </ha-input>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Control Min</label>
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             .value="${String(this.controlMin)}"
                             @change="${(e) => this._handleInputChange(e, 'controlMin')}"
                             ?disabled="${this.disabled}">
-                        </ha-textfield>
+                        </ha-input>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Control Max</label>
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             .value="${String(this.controlMax)}"
                             @change="${(e) => this._handleInputChange(e, 'controlMax')}"
                             ?disabled="${this.disabled}">
-                        </ha-textfield>
+                        </ha-input>
                     </div>
                 </div>
             </div>
