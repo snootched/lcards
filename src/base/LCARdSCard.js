@@ -2677,8 +2677,13 @@ export class LCARdSCard extends LCARdSNativeCard {
             current = current[part];
         }
 
+        // If the path resolved to a scalar (direct color string, template, number), the
+        // entire config key is already set — treat all state keys as covered so callers
+        // don't try to write per-state properties into a non-object.
+        if (current != null && typeof current !== 'object') return true;
+
         // Check if finalKey exists in the final object
-        return current && typeof current === 'object' && finalKey in current;
+        return current != null && typeof current === 'object' && finalKey in current;
     }
 
     /**
@@ -2810,22 +2815,64 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
-     * Drop-in replacement for resolveStateColor() that automatically injects the
-     * entity's numeric range value (from config.ranges_attribute) so that
-     * above:/below:/between: keys in any state-based config work against any
-     * entity attribute — not just the raw entity state string.
+     * Resolve the attribute value used as the primary key for exact-match state
+     * lookups when config.state_attribute is set.
+     *
+     * Unlike ranges_attribute (which provides a numeric value for above:/below:
+     * keys), state_attribute replaces the exact-state lookup key entirely.
+     * The attribute value is serialized via String() so booleans become "true"/"false",
+     * null becomes "null", and strings are used as-is — matching the YAML key the
+     * user writes (e.g. "fade", "true", "null").
+     *
+     * Returns undefined when state_attribute is not configured, leaving
+     * actualState as the highest-priority exact-match key (existing behavior).
+     *
+     * @returns {string|undefined}
+     * @protected
+     */
+    _getAttributeStateForMatching() {
+        if (!this._entity || !this.config?.state_attribute) return undefined;
+
+        const attr = this.config.state_attribute;
+        const val = this._entity.attributes?.[attr];
+
+        if (val === undefined) {
+            lcardsLog.debug(`[LCARdSCard] _getAttributeStateForMatching → undefined (state_attribute="${attr}" not found on entity attributes)`);
+            return undefined;
+        }
+
+        return String(val);
+    }
+
+    /**
+     * Drop-in replacement for resolveStateColor() that automatically injects:
+     * - numericState from config.ranges_attribute (for above:/below:/between: range keys)
+     * - attributeState from config.state_attribute (for highest-priority exact-match keys)
+     *
+     * Also applies _resolveTemplateValue() to the result so that template strings
+     * (Jinja2 / JS) stored in color config values are substituted with their
+     * pre-evaluated results from _evaluatedStyleCache before being returned.
      *
      * All state-based resolveStateColor call sites should use this wrapper so
-     * the feature applies uniformly across icons, colors, borders, backgrounds,
+     * both features apply uniformly across icons, colors, borders, backgrounds,
      * text, and any future state-based config.
      *
      * @param {Object} options - Same options as resolveStateColor()
-     * @returns {*} Resolved value
+     * @returns {*} Resolved value (templates already substituted)
      * @protected
      */
     _resolveStateValue(options) {
-        const numericState = this._getNumericStateForRanges();
-        return resolveStateColor(numericState !== undefined ? { ...options, numericState } : options);
+        const numericState   = this._getNumericStateForRanges();
+        const attributeState = this._getAttributeStateForMatching();
+
+        const overrides = {};
+        if (numericState   !== undefined) overrides.numericState   = numericState;
+        if (attributeState !== undefined) overrides.attributeState = attributeState;
+
+        const resolved = resolveStateColor(
+            Object.keys(overrides).length > 0 ? { ...options, ...overrides } : options
+        );
+        return this._resolveTemplateValue(resolved);
     }
 
     /**

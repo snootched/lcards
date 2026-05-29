@@ -263,30 +263,27 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * @private
      */
     _renderAttributeSelector() {
-        const attributes = this._getAttributeOptions();
         const currentAttribute = this.config?.control?.attribute || '';
         const entityId = this.config?.entity;
 
-        // Check if current attribute is valid
         const isInvalidAttribute = currentAttribute &&
             entityId &&
             this.hass?.states?.[entityId] &&
             !this.hass.states[entityId].attributes?.hasOwnProperty(currentAttribute);
 
+        const attrOpts = entityId && this.hass?.states?.[entityId]
+            ? Object.keys(this.hass.states[entityId].attributes || {}).sort()
+                  .map(attr => ({ value: attr, label: attr }))
+            : [];
+        const options = [{ value: '__none__', label: '— Control entity state' }, ...attrOpts];
         return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'Attribute'}
-                .value=${currentAttribute}
-                .helper=${'Select an entity attribute to control (leave blank to control entity state)'}
-                .disabled=${!entityId || attributes.length === 0}
-                .selector=${{
-                    select: {
-                        custom_value: true,
-                        mode: 'dropdown',
-                        options: attributes.map(attr => ({ value: attr, label: attr }))
-                    }
-                }}
+                .helper=${'Entity attribute to control. Select "— Control entity state" to clear.'}
+                .disabled=${!entityId}
+                .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
+                .value=${currentAttribute || '__none__'}
                 @value-changed=${this._handleAttributeChange}>
             </ha-selector>
             ${isInvalidAttribute ? html`
@@ -304,8 +301,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * @private
      */
     _handleAttributeChange(e) {
-        const value = e.detail.value;
-        if (value) {
+        const value = (e.detail.value ?? '').trim();
+        if (value && value !== '__none__') {
             this._setConfigValue('control.attribute', value);
         } else {
             this._removeConfigPath('control.attribute');
@@ -553,6 +550,10 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 {
                     type: 'custom',
                     render: () => this._renderRangesAttributeSelector()
+                },
+                {
+                    type: 'custom',
+                    render: () => this._renderStateAttributeSelector()
                 }
             ]
         });

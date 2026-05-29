@@ -1014,7 +1014,7 @@ export class LCARdSBaseEditor extends LitElement {
      */
     _getRangesAttributeOptions() {
         const entityId = this.config?.entity;
-        const options = [{ value: '', label: '(Entity state)' }];
+        const options = [];
         if (!entityId || !this.hass?.states?.[entityId]) return options;
         const attrs = Object.keys(this.hass.states[entityId].attributes || {}).sort();
         for (const attr of attrs) {
@@ -1042,23 +1042,82 @@ export class LCARdSBaseEditor extends LitElement {
      */
     _renderRangesAttributeSelector() {
         const entityId = this.config?.entity;
+        const current = this.config?.ranges_attribute || '';
+        const options = [
+            { value: '__none__', label: '— Use entity state' },
+            ...this._getRangesAttributeOptions()
+        ];
         return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'Range Attribute'}
-                .helper=${'Attribute value compared against range conditions (above:/below:/between:) for icons, colours, and borders. Leave blank to use entity state.'}
+                .helper=${'Attribute value compared against range conditions (above:/below:/between:). Select "— Use entity state" to clear.'}
                 .disabled=${!entityId}
-                .selector=${{ select: {
-                    mode: 'dropdown',
-                    options: this._getRangesAttributeOptions(),
-                    custom_value: true
-                }}}
-                .value=${this.config?.ranges_attribute || ''}
+                .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
+                .value=${current || '__none__'}
                 @value-changed=${(e) => {
                     let v = (e.detail.value ?? '').trim();
+                    if (v === '__none__' || !v) { this._removeConfigPath('ranges_attribute'); return; }
                     if (v === 'brightness') v = 'brightness_pct';
-                    if (v) this._setConfigValue('ranges_attribute', v);
-                    else   this._removeConfigPath('ranges_attribute');
+                    this._setConfigValue('ranges_attribute', v);
+                }}>
+            </ha-selector>
+        `;
+    }
+
+    /**
+     * Build ha-selector option list for the state_attribute dropdown.
+     * Lists all entity attributes as string-match candidates (no virtual attrs needed).
+     *
+     * @returns {Array<{value:string, label:string}>}
+     * @protected
+     */
+    _getStateAttributeOptions() {
+        const entityId = this.config?.entity;
+        const options = [];
+        if (!entityId || !this.hass?.states?.[entityId]) return options;
+        const attrs = Object.keys(this.hass.states[entityId].attributes || {}).sort();
+        for (const attr of attrs) {
+            options.push({ value: attr, label: attr });
+        }
+        return options;
+    }
+
+    /**
+     * Render the state_attribute dropdown selector.
+     *
+     * When set, String(entity.attributes[state_attribute]) is used as the
+     * highest-priority key for ALL exact-match state-color lookups across the card,
+     * overriding the raw entity.state string. Useful for boolean attributes
+     * (true→"true" / false→"false") and discrete string attributes (e.g. "fade").
+     * Classified state (active/inactive) is always derived from entity.state.
+     *
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderStateAttributeSelector() {
+        const entityId = this.config?.entity;
+        const current = this.config?.state_attribute || '';
+        const options = entityId && this.hass?.states?.[entityId]
+            ? Object.keys(this.hass.states[entityId].attributes || {}).sort()
+                  .map(attr => ({ value: attr, label: attr }))
+            : [];
+        const allOptions = [
+            { value: '__none__', label: '— Use entity state' },
+            ...options
+        ];
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'State Attribute'}
+                .helper=${'Attribute whose string value is matched against color-config keys (e.g. "fade", "true"). Select "— Use entity state" to clear.'}
+                .disabled=${!entityId}
+                .selector=${{ select: { mode: 'dropdown', options: allOptions, custom_value: true } }}
+                .value=${current || '__none__'}
+                @value-changed=${(e) => {
+                    const v = (e.detail.value ?? '').trim();
+                    if (v === '__none__' || !v) { this._removeConfigPath('state_attribute'); return; }
+                    this._setConfigValue('state_attribute', v);
                 }}>
             </ha-selector>
         `;

@@ -3103,11 +3103,13 @@ export class LCARdSButton extends LCARdSCard {
     async _processCustomTemplates() {
         lcardsLog.trace(`[LCARdSButton] _processCustomTemplates called for ${this._cardGuid}`);
 
-        // Pre-evaluate Jinja2/JS templates in the style config so that synchronous
-        // SVG generation (e.g. color fields like card.color.background.active) can
-        // use the result via _resolveTemplateValue().
+        // Pre-evaluate Jinja2/JS templates in style config subtrees so that synchronous
+        // SVG generation can use results via _resolveTemplateValue().
         if (this.config.style) {
             await this._preEvaluateStyleTemplates(this.config.style);
+        }
+        if (this.config.icon_style) {
+            await this._preEvaluateStyleTemplates(this.config.icon_style);
         }
 
         // Track if any templates changed to avoid unnecessary re-renders

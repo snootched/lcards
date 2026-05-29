@@ -116,7 +116,7 @@ function _resolveRangeColor(value, colorConfig) {
  * });
  * // Returns: '#FF9900'
  */
-export function resolveStateColor({ actualState, classifiedState, colorConfig, fallback = null, numericState = undefined }) {
+export function resolveStateColor({ actualState, classifiedState, colorConfig, fallback = null, numericState = undefined, attributeState = undefined }) {
     // If colorConfig is null/undefined, return fallback
     if (!colorConfig) {
         return fallback;
@@ -128,6 +128,8 @@ export function resolveStateColor({ actualState, classifiedState, colorConfig, f
     }
 
     // State-based color object - check in priority order:
+    // 0. Attribute state — String(entity.attributes[state_attribute]) — highest priority
+    //    (only when attributeState !== undefined, set via config.state_attribute)
     // 1. Actual entity state (e.g., "heat", "cool", "playing")
     // 2. "zero" — exact numeric zero match (value === 0); treated like an exact-match key
     // 3. Range conditions (above:N, below:N, between:N:M) — most-specific numeric match wins
@@ -145,6 +147,10 @@ export function resolveStateColor({ actualState, classifiedState, colorConfig, f
     // When provided, it replaces parseFloat(actualState) for range/zero/non_zero
     // evaluation. This allows callers to use entity attributes (e.g. brightness_pct)
     // for range conditions while keeping actualState for exact-string matching.
+    //
+    // attributeState: optional String(entity.attributes[state_attribute]) override.
+    // When provided, it is checked before actualState for exact-key matching, allowing
+    // boolean (true→"true") and discrete string (e.g. "fade") attributes to drive colors.
     let resolved;
 
     // Pre-compute numeric value once: use explicit numericState when provided,
@@ -152,8 +158,14 @@ export function resolveStateColor({ actualState, classifiedState, colorConfig, f
     const numericVal = numericState !== undefined ? numericState : parseFloat(actualState);
     const numericValValid = !isNaN(numericVal);
 
+    // 0. Attribute state match — String(entity.attributes[state_attribute])
+    // Checked before actualState so boolean/discrete attributes take precedence.
+    if (attributeState !== undefined && colorConfig[attributeState] !== undefined) {
+        resolved = colorConfig[attributeState];
+    }
+
     // 1. Exact raw state match (always uses actualState string, never the numeric override)
-    if (actualState != null && colorConfig[actualState] !== undefined) {
+    if (resolved === undefined && actualState != null && colorConfig[actualState] !== undefined) {
         resolved = colorConfig[actualState];
     }
 
@@ -218,12 +230,13 @@ export function resolveStateColor({ actualState, classifiedState, colorConfig, f
  *   fallback: 'var(--lcars-color-secondary)'
  * });
  */
-export function resolveNestedStateColor({ actualState, classifiedState, configPath, fallback = null, numericState = undefined }) {
+export function resolveNestedStateColor({ actualState, classifiedState, configPath, fallback = null, numericState = undefined, attributeState = undefined }) {
     return resolveStateColor({
         actualState,
         classifiedState,
         colorConfig: configPath,
         fallback,
-        numericState
+        numericState,
+        attributeState
     });
 }

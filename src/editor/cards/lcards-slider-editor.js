@@ -364,39 +364,25 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const entityId = this.config?.entity;
         const currentValue = this.config?.control?.attribute || '';
 
-        // Build attribute list from entity (no empty/state sentinel — handled by clear button)
         const entity = this.hass?.states?.[entityId];
-        const attributes = entity ? Object.keys(entity.attributes || {}) : [];
-        const options = attributes.map(attr => ({ value: attr, label: attr }));
-
         const isValidAttribute = !currentValue ||
                                 (entity?.attributes && currentValue in entity.attributes);
 
+        const attrOpts = entityId && this.hass?.states?.[entityId]
+            ? Object.keys(this.hass.states[entityId].attributes || {}).sort()
+                  .map(attr => ({ value: attr, label: attr }))
+            : [];
+        const options = [{ value: '__none__', label: '— Control entity state' }, ...attrOpts];
         return html`
-            <div style="display:flex; gap:8px; align-items:flex-end;">
-                <ha-selector
-                    style="flex:1;"
-                    .hass=${this.hass}
-                    .label=${'Attribute'}
-                    .helper=${'Entity attribute to control (e.g. brightness). Clear to use entity state.'}
-                    .selector=${{
-                        select: {
-                            mode: 'dropdown',
-                            options: options.length ? options : [{ value: '', label: '— no attributes —' }],
-                            custom_value: true
-                        }
-                    }}
-                    .value=${currentValue}
-                    @value-changed=${(e) => this._handleAttributeChange(e)}>
-                </ha-selector>
-                ${currentValue ? html`
-                    <ha-icon-button
-                        title="Clear — use entity state"
-                        .path=${'M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z'}
-                        @click=${() => this._handleAttributeChange(/** @type {any} */ ({ detail: { value: '' } }))}>
-                    </ha-icon-button>
-                ` : ''}
-            </div>
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'Attribute'}
+                .helper=${'Entity attribute to control (e.g. brightness). Select "— Control entity state" to clear.'}
+                .disabled=${!entityId}
+                .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
+                .value=${currentValue || '__none__'}
+                @value-changed=${(e) => this._handleAttributeChange(e)}>
+            </ha-selector>
 
             ${!isValidAttribute && currentValue ? html`
                 <lcards-message
@@ -413,13 +399,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      * @private
      */
     _handleAttributeChange(event) {
-        const value = event.detail?.value;
-        // Empty string, null, or undefined → remove attribute key entirely.
+        const value = (event.detail?.value ?? '').trim();
+        // '__none__' sentinel, empty string, null → remove attribute key entirely.
         // _updateConfig uses deepMerge which cannot delete keys, so we pre-patch
         // this.config directly then call _updateConfig({}) to trigger the normal
         // validation / YAML-sync / fireEvent pipeline without any merge interference.
         const control = { ...this.config?.control };
-        if (value !== null && value !== undefined && value !== '') {
+        if (value && value !== '__none__') {
             control.attribute = value;
         } else {
             delete control.attribute;
@@ -600,6 +586,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 ${this._renderAttributeSelector()}
 
                 ${this._renderRangesAttributeSelector()}
+
+                ${this._renderStateAttributeSelector()}
             </lcards-form-section>
 
             <!-- Visual Range & Direction Configurator -->
