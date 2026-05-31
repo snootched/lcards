@@ -102,7 +102,7 @@ export class LCARdSAnimationEditor extends LitElement {
 
       .animation-item {
         background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         overflow: hidden;
       }
@@ -197,7 +197,7 @@ export class LCARdSAnimationEditor extends LitElement {
         color: var(--primary-text-color);
         margin-bottom: 16px;
         padding-bottom: 8px;
-        border-bottom: 2px solid var(--primary-color);
+        border-bottom: var(--ha-border-width-md) solid var(--primary-color);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -396,7 +396,7 @@ export class LCARdSAnimationEditor extends LitElement {
         align-items: center;
         justify-content: flex-end;
         padding-top: 20px;
-        border-top: 1px solid var(--divider-color);
+        border-top: var(--ha-border-width-sm) solid var(--divider-color);
         margin-top: 8px;
       }
 
@@ -406,7 +406,7 @@ export class LCARdSAnimationEditor extends LitElement {
         gap: 8px;
         justify-content: flex-end;
         padding-top: 20px;
-        border-top: 1px solid var(--error-color, #f44336);
+        border-top: var(--ha-border-width-sm) solid var(--error-color, #f44336);
         margin-top: 8px;
       }
 

@@ -141,7 +141,7 @@ export class LCARdSProvenanceTab extends LitElement {
         flex-direction: column;
         gap: 8px;
         padding-bottom: 8px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         flex-shrink: 0;
       }
 
@@ -149,7 +149,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .tabs-container {
         display: flex;
         gap: 4px;
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
       }
 
       /* HA native tab styling (Issue #82) */
@@ -214,7 +214,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .layer-chip {
         appearance: none;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
         color: var(--primary-text-color);
         padding: 6px 12px;
@@ -257,7 +257,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .refresh-controls input[type="number"] {
         width: 60px;
         padding: 4px 8px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 4px;
         background: var(--primary-background-color);
         color: var(--primary-text-color);
@@ -304,7 +304,7 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .field-table tbody tr {
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         transition: background 0.2s;
       }
 
@@ -350,7 +350,7 @@ export class LCARdSProvenanceTab extends LitElement {
         width: 32px;
         height: 32px;
         border-radius: 4px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         cursor: pointer;
       }
 
@@ -445,7 +445,7 @@ export class LCARdSProvenanceTab extends LitElement {
         align-items: center;
         gap: 12px;
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 12px;
         padding: 20px;
         transition: all 0.2s;
@@ -483,7 +483,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .stat-section {
         margin: 12px 20px;
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 12px;
         padding: 20px;
       }
@@ -602,7 +602,7 @@ export class LCARdSProvenanceTab extends LitElement {
         gap: 12px;
         padding: 12px;
         background: var(--primary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 8px;
         transition: all 0.2s;
       }
@@ -677,7 +677,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .token-card {
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 12px;
         overflow: hidden;
         transition: all 0.2s;
@@ -694,7 +694,7 @@ export class LCARdSProvenanceTab extends LitElement {
         justify-content: space-between;
         padding: 16px;
         background: var(--primary-background-color);
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .token-path-display {
@@ -766,7 +766,7 @@ export class LCARdSProvenanceTab extends LitElement {
         background: var(--primary-background-color);
         padding: 12px;
         border-radius: 8px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         overflow-x: auto;
         word-break: break-word;
       }
@@ -781,7 +781,7 @@ export class LCARdSProvenanceTab extends LitElement {
         width: 48px;
         height: 48px;
         border-radius: 8px;
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
         cursor: pointer;
         flex-shrink: 0;
         transition: all 0.2s;
@@ -806,7 +806,7 @@ export class LCARdSProvenanceTab extends LitElement {
         background: var(--primary-background-color);
         padding: 4px 8px;
         border-radius: 4px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       /* Split Pane Layout - New Tree View */
@@ -825,7 +825,7 @@ export class LCARdSProvenanceTab extends LitElement {
         flex-direction: column;
         min-height: 0;
         overflow: hidden;
-        border-right: 1px solid var(--divider-color);
+        border-right: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .tree-pane-header {
@@ -833,7 +833,7 @@ export class LCARdSProvenanceTab extends LitElement {
         align-items: center;
         justify-content: space-between;
         padding: 12px 16px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
         flex-shrink: 0;
       }
@@ -952,7 +952,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .tree-children {
         margin-left: 24px;
-        border-left: 1px solid var(--divider-color);
+        border-left: var(--ha-border-width-sm) solid var(--divider-color);
         padding-left: 4px;
       }
 
@@ -974,7 +974,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .detail-panel-header {
         padding-bottom: 16px;
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
         margin-bottom: 12px;
       }
 
@@ -1389,7 +1389,7 @@ export class LCARdSProvenanceTab extends LitElement {
         width: 28px;
         height: 28px;
         border-radius: 4px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
+        border: var(--ha-border-width-md) solid rgba(255, 255, 255, 0.3);
         flex-shrink: 0;
         box-shadow: var(--ha-box-shadow-s);
       }
@@ -1405,7 +1405,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .before-after-panel {
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 8px;
         padding: 12px;
         display: flex;
@@ -1513,7 +1513,7 @@ export class LCARdSProvenanceTab extends LitElement {
         background: var(--secondary-background-color);
         padding: 4px 8px;
         border-radius: 12px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       /* Used by lists */
@@ -1535,7 +1535,7 @@ export class LCARdSProvenanceTab extends LitElement {
         font-size: 12px;
         cursor: pointer;
         transition: all 0.15s;
-        border: 1px solid transparent;
+        border: var(--ha-border-width-sm) solid transparent;
       }
 
       .used-by-item:not(.current):hover {
@@ -1569,7 +1569,7 @@ export class LCARdSProvenanceTab extends LitElement {
         padding: 10px 12px;
         background: var(--secondary-background-color);
         border-radius: 6px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .used-by-token-item ha-icon {
@@ -1625,7 +1625,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .layer-card {
         background: var(--secondary-background-color);
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
         border-radius: 12px;
         overflow: hidden;
         transition: all 0.3s ease;
@@ -1690,7 +1690,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .layer-card-body {
         padding: 12px 16px 16px 16px;
-        border-top: 1px solid var(--divider-color);
+        border-top: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .layer-value {

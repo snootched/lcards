@@ -72,7 +72,7 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
                 width: calc(100% - 160px);
                 height: 60px;
                 background: rgba(255, 152, 0, 0.15);
-                border: 2px solid rgba(255, 152, 0, 0.6);
+                border: var(--ha-border-width-md) solid rgba(255, 152, 0, 0.6);
                 border-radius: 4px;
                 display: flex;
                 align-items: center;
@@ -88,7 +88,7 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
                 width: 60px;
                 height: calc(100% - 120px);
                 background: rgba(76, 175, 80, 0.15);
-                border: 2px solid rgba(76, 175, 80, 0.6);
+                border: var(--ha-border-width-md) solid rgba(76, 175, 80, 0.6);
                 border-radius: 4px;
                 display: flex;
                 align-items: flex-end;
@@ -149,7 +149,7 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
                 width: 16px;
                 height: 16px;
                 border-radius: 3px;
-                border: 2px solid;
+                border: var(--ha-border-width-md) solid;
             }
 
             .legend-grid { background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.1); border-color: var(--primary-color); }

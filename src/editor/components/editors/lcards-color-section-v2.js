@@ -103,7 +103,7 @@ export class LCARdSColorSectionV2 extends LitElement {
                 /* State mapping info box */
                 .state-mapping-info {
                     background: var(--primary-background-color);
-                    border: 1px solid var(--divider-color);
+                    border: var(--ha-border-width-sm) solid var(--divider-color);
                     border-radius: var(--ha-card-border-radius, 12px);
                     margin-bottom: 12px;
                     margin-top: 12px;
@@ -141,7 +141,7 @@ export class LCARdSColorSectionV2 extends LitElement {
 
                 .state-mapping-info-body {
                     padding: 0 12px 12px 12px;
-                    border-top: 1px solid var(--divider-color);
+                    border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 }
 
                 .state-mapping-info strong {
@@ -219,7 +219,7 @@ export class LCARdSColorSectionV2 extends LitElement {
                     gap: 8px;
                     align-items: center;
                     padding-top: 12px;
-                    border-top: 1px solid var(--divider-color);
+                    border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 }
 
                 /* Action buttons - ensure visibility */
@@ -275,7 +275,7 @@ export class LCARdSColorSectionV2 extends LitElement {
                     flex-direction: column;
                     gap: 8px;
                     padding-top: 12px;
-                    border-top: 1px solid var(--divider-color);
+                    border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 }
 
                 .range-condition-row {

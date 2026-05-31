@@ -66,7 +66,7 @@ export class LCARdSPaddingEditor extends LitElement {
                 align-items: center;
                 padding: 16px 16px 24px 16px;
                 background: var(--primary-background-color, #fff);
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: var(--ha-card-border-radius, 12px);
             }
 
@@ -92,7 +92,7 @@ export class LCARdSPaddingEditor extends LitElement {
                 grid-column: 2;
                 grid-row: 2;
                 background: var(--primary-color, #f5f5f5);
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: 12px;
                 font-size: 12px;
                 color: var(--text-primary-color, #757575);
@@ -124,7 +124,7 @@ export class LCARdSPaddingEditor extends LitElement {
                 width: 70px;
                 height: 36px;
                 padding: 8px;
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: 4px;
                 background: var(--card-background-color, #fff);
                 color: var(--primary-text-color, #212121);

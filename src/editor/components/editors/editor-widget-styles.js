@@ -27,7 +27,7 @@ export const editorWidgetStyles = css`
     /* List Item */
     .editor-item {
         background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         overflow: hidden;
         transition: border-color 0.2s;
@@ -119,7 +119,7 @@ export const editorWidgetStyles = css`
     .editor-item-content {
         padding: 16px;
         background: var(--primary-background-color);
-        border-top: 1px solid var(--divider-color);
+        border-top: var(--ha-border-width-sm) solid var(--divider-color);
     }
 
     /* Dragging States */
@@ -152,7 +152,7 @@ export const editorWidgetStyles = css`
         color: var(--primary-text-color);
         margin-bottom: 16px;
         padding-bottom: 8px;
-        border-bottom: 2px solid var(--primary-color);
+        border-bottom: var(--ha-border-width-md) solid var(--primary-color);
         display: flex;
         align-items: center;
         gap: 8px;

@@ -104,7 +104,7 @@ export class LCARdSGridColumnEditor extends LitElement {
             .align-btn {
                 padding: 8px;
                 background: var(--secondary-background-color);
-                border: 2px solid transparent;
+                border: var(--ha-border-width-md) solid transparent;
                 border-radius: 4px;
                 cursor: pointer;
                 transition: all 0.2s ease;
@@ -133,7 +133,7 @@ export class LCARdSGridColumnEditor extends LitElement {
             }
 
             .style-section {
-                border-top: 1px solid var(--divider-color);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 padding-top: 12px;
                 margin-top: 12px;
             }

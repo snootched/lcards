@@ -353,7 +353,7 @@ export class LCARdSCardSoundTab extends LitElement {
         }
         .banner.info {
           background: color-mix(in srgb, var(--info-color, #03a9f4) 15%, transparent);
-          border: 1px solid color-mix(in srgb, var(--info-color, #03a9f4) 40%, transparent);
+          border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 40%, transparent);
           color: var(--primary-text-color);
         }
 
@@ -392,7 +392,7 @@ export class LCARdSCardSoundTab extends LitElement {
           text-align: left;
           padding: 6px 8px;
           color: var(--secondary-text-color);
-          border-bottom: 1px solid var(--divider-color);
+          border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
           position: sticky;
           top: 0;
           background: var(--card-background-color, #1c1c1c);
@@ -400,7 +400,7 @@ export class LCARdSCardSoundTab extends LitElement {
         .overrides-table td {
           padding: 4px 8px;
           vertical-align: middle;
-          border-bottom: 1px solid
+          border-bottom: var(--ha-border-width-sm) solid
             color-mix(in srgb, var(--divider-color) 40%, transparent);
         }
         ha-icon-button {

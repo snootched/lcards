@@ -35,7 +35,7 @@ export class LCARdSPreviewChip extends LitElement {
       text-transform: uppercase;
       line-height: 1;
       white-space: nowrap;
-      border: 2px solid color-mix(in srgb, var(--info-color, #03a9f4) 40%, transparent);
+      border: var(--ha-border-width-md) solid color-mix(in srgb, var(--info-color, #03a9f4) 40%, transparent);
     }
   `;
 

@@ -11,7 +11,7 @@ export const overlayEditorStyles = css`
         position: fixed;
         z-index: 10000;
         background: var(--card-background-color);
-        border: 2px solid var(--primary-color);
+        border: var(--ha-border-width-md) solid var(--primary-color);
         border-radius: var(--ha-border-radius-md);
         box-shadow: var(--ha-box-shadow-l);
         min-width: 320px;
@@ -19,13 +19,13 @@ export const overlayEditorStyles = css`
     }
 
     .editor-header {
-        padding: 12px;
+        padding: var(--ha-space-3);
         background: var(--primary-color);
         color: white;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-radius: 6px 6px 0 0;
+        border-radius: var(--ha-border-radius-md) var(--ha-border-radius-md) 0 0;
     }
 
     .editor-title {
@@ -38,36 +38,36 @@ export const overlayEditorStyles = css`
         border: none;
         color: white;
         cursor: pointer;
-        padding: 4px;
+        padding: var(--ha-space-1);
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
     .close-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: color-mix(in srgb, white 20%, transparent);
         border-radius: var(--ha-border-radius-sm);
     }
 
     .editor-content {
-        padding: 12px;
+        padding: var(--ha-space-3);
         max-height: 400px;
         overflow-y: auto;
     }
 
     .editor-actions {
-        padding: 12px;
-        border-top: 1px solid var(--divider-color);
+        padding: var(--ha-space-3);
+        border-top: var(--ha-border-width-sm) solid var(--divider-color);
         display: flex;
-        gap: 8px;
+        gap: var(--ha-space-2);
         justify-content: flex-end;
     }
 
     .danger-zone {
-        border-top: 1px solid color-mix(in srgb, var(--error-color) 40%, transparent);
-        padding: 12px;
-        margin-top: 12px;
+        border-top: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color) 40%, transparent);
+        padding: var(--ha-space-3);
+        margin-top: var(--ha-space-3);
         background: color-mix(in srgb, var(--error-color) 5%, transparent);
-        border-radius: 6px;
+        border-radius: var(--ha-border-radius-md);
     }
 `;

@@ -890,7 +890,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         align-items: center;
         justify-content: space-between;
         padding-bottom: 12px;
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
         flex-shrink: 0;
       }
 
@@ -917,7 +917,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        border-right: 1px solid var(--divider-color);
+        border-right: var(--ha-border-width-sm) solid var(--divider-color);
         min-height: 0;
       }
 
@@ -926,7 +926,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         align-items: center;
         justify-content: space-between;
         padding: 12px 16px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
         flex-shrink: 0;
       }
@@ -1196,7 +1196,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         font-family: 'Courier New', monospace;
         font-size: 13px;
         align-items: center;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: var(--ha-border-width-sm) solid rgba(255, 255, 255, 0.1);
       }
 
       .buffer-index {

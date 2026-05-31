@@ -651,7 +651,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
       }
       .banner.error {
         background: color-mix(in srgb, var(--error-color, #f44336) 15%, transparent);
-        border: 1px solid color-mix(in srgb, var(--error-color, #f44336) 40%, transparent);
+        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color, #f44336) 40%, transparent);
         color: var(--primary-text-color);
       }
       .banner ha-button { margin-left: auto; }
@@ -669,7 +669,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         display: flex;
         flex-direction: column;
         padding: 8px 0;
-        border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+        border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 40%, transparent);
       }
       .field-group:last-child { border-bottom: none; }
 
@@ -717,7 +717,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         flex: 1;
         min-width: 160px;
         background: var(--input-fill-color, rgba(255,255,255,0.05));
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-border-radius-sm);
         color: var(--primary-text-color);
         padding: 5px 8px;
@@ -747,12 +747,12 @@ export class LCARdsUsersDevicesTab extends LitElement {
         letter-spacing: 0.04em;
         color: var(--secondary-text-color);
         font-weight: 600;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .data-table td {
         padding: 6px 8px;
-        border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+        border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 40%, transparent);
         vertical-align: middle;
       }
 
@@ -794,7 +794,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         gap: 8px;
         padding: 8px 10px;
         background: color-mix(in srgb, var(--error-color, #f44336) 10%, transparent);
-        border: 1px solid color-mix(in srgb, var(--error-color, #f44336) 30%, transparent);
+        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color, #f44336) 30%, transparent);
         border-radius: var(--ha-border-radius-md);
         font-size: 0.85em;
         flex-wrap: wrap;

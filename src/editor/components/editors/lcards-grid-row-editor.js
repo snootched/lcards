@@ -90,7 +90,7 @@ export class LCARdSGridRowEditor extends LitElement {
             }
 
             .style-section {
-                border-top: 1px solid var(--divider-color);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 padding-top: 12px;
                 margin-top: 12px;
             }

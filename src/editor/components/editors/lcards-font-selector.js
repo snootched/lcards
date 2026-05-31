@@ -73,7 +73,7 @@ export class LCARdSFontSelector extends LitElement {
             .toggle-button {
                 padding: 8px 12px;
                 background: var(--secondary-background-color, #fafafa);
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 border-radius: 4px;
                 cursor: pointer;
                 font-size: 12px;
@@ -88,7 +88,7 @@ export class LCARdSFontSelector extends LitElement {
             .preview {
                 margin-top: 8px;
                 padding: 12px;
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 border-radius: var(--ha-card-border-radius, 12px);
                 background: var(--primary-background-color, #fff);
                 font-size: 16px;

@@ -126,14 +126,14 @@ export class LCARdSGridCellEditor extends LitElement {
             }
 
             .style-section {
-                border-top: 1px solid var(--divider-color);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 padding-top: 12px;
                 margin-top: 12px;
             }
 
             .editor-actions {
                 padding: 12px;
-                border-top: 1px solid var(--divider-color);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 display: flex;
                 gap: 8px;
                 justify-content: flex-end;

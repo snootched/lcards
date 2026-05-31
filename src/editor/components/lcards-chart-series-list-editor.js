@@ -47,7 +47,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
 
       .series-item {
         background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         overflow: hidden;
       }
@@ -103,7 +103,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
 
       .series-content {
         padding: 16px;
-        border-top: 1px solid var(--divider-color);
+        border-top: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--card-background-color);
       }
 

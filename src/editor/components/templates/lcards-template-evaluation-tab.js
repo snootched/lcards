@@ -66,7 +66,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
 
       .template-card {
         background: var(--chip-background-color, var(--card-background-color));
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 8px;
         padding: 12px;
         display: flex;

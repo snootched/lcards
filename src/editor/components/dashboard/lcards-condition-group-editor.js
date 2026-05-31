@@ -100,7 +100,7 @@ export class LCARdSConditionGroupEditor extends LitElement {
                 background: var(--secondary-background-color, rgba(0,0,0,0.05));
                 border-radius: 8px;
                 padding: 8px;
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
             }
 
             .condition-row .type-select {
@@ -129,7 +129,7 @@ export class LCARdSConditionGroupEditor extends LitElement {
             }
 
             .nested-group {
-                border: 1px solid var(--primary-color, #03a9f4);
+                border: var(--ha-border-width-sm) solid var(--primary-color, #03a9f4);
                 border-radius: 8px;
                 padding: 8px;
             }

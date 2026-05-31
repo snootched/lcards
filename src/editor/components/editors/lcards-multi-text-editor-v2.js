@@ -76,7 +76,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                 /* Add Dialog */
                 .add-dialog {
                     background: var(--card-background-color);
-                    border: 2px solid var(--divider-color);
+                    border: var(--ha-border-width-md) solid var(--divider-color);
                     border-radius: var(--ha-card-border-radius, 12px);
                     padding: 16px;
                     margin-top: 12px;
@@ -111,7 +111,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                     gap: 8px;
                     align-items: center;
                     padding-top: 8px;
-                    border-top: 1px solid var(--divider-color);
+                    border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 }
 
                 .custom-field-input ha-input {

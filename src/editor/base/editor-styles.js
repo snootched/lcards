@@ -16,16 +16,16 @@ export const editorStyles = css`
     .editor-container {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--ha-space-2);
     }
 
     .tab-bar {
-        border-bottom: 1px solid var(--divider-color, #e0e0e0);
-        margin-bottom: 12px;
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
+        margin-bottom: var(--ha-space-3);
     }
 
     .tab-content {
-        padding: 8px 0;
+        padding: var(--ha-space-2) 0;
         min-height: 400px;
     }
 
@@ -33,7 +33,7 @@ export const editorStyles = css`
     ha-tab-group {
         display: block;
         margin-bottom: 0;
-        padding: 12px 0;
+        padding: var(--ha-space-3) 0;
     }
 
     ha-tab-panel {
@@ -48,7 +48,7 @@ export const editorStyles = css`
     }
 
     ha-expansion-panel[outlined] {
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
     }
 
     ha-expansion-panel[expanded] {
@@ -64,7 +64,7 @@ export const editorStyles = css`
     .tab-content-container {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--ha-space-4);
     }
 
     /* Section spacing with CSS variables for density control */
@@ -75,16 +75,16 @@ export const editorStyles = css`
     .section-header {
         font-size: var(--ha-font-size-l);
         font-weight: 500;
-        margin-bottom: 12px;
+        margin-bottom: var(--ha-space-3);
         color: var(--primary-text-color, #212121);
-        border-bottom: 1px solid var(--divider-color, #e0e0e0);
-        padding-bottom: 8px;
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
+        padding-bottom: var(--ha-space-2);
     }
 
     .section-description {
         font-size: var(--ha-font-size-m);
         color: var(--secondary-text-color, #727272);
-        margin-bottom: 12px;
+        margin-bottom: var(--ha-space-3);
         line-height: 1.5;
     }
 
@@ -92,7 +92,7 @@ export const editorStyles = css`
         margin-bottom: var(--lcards-section-spacing, 16px);
         display: grid;
         grid-template-columns: 100%;
-        grid-gap: 8px;
+        grid-gap: var(--ha-space-2);
     }
 
     .form-row.two-controls {
@@ -102,7 +102,7 @@ export const editorStyles = css`
     .form-row-group {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 12px;
+        gap: var(--ha-space-3);
         margin-bottom: var(--lcards-section-spacing, 16px);
     }
 
@@ -111,11 +111,11 @@ export const editorStyles = css`
         color: var(--primary-text-color, #212121);
         font-size: var(--ha-font-size-m);
         display: block;
-        padding: 2px 8px;
+        padding: 2px var(--ha-space-2);
     }
 
     .form-control {
-        padding: 2px 8px;
+        padding: 2px var(--ha-space-2);
         border-radius: 10px;
         box-sizing: border-box;
     }
@@ -123,66 +123,66 @@ export const editorStyles = css`
     .helper-text {
         font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color, #727272);
-        margin-top: 4px;
+        margin-top: var(--ha-space-1);
         line-height: 1.4;
-        padding: 0 8px;
+        padding: 0 var(--ha-space-2);
     }
 
     .error-message {
         color: var(--error-color, #f44336);
         background: var(--error-background-color, rgba(244, 67, 54, 0.1));
-        padding: 8px 12px;
+        padding: var(--ha-space-2) var(--ha-space-3);
         border-radius: var(--ha-border-radius-sm);
-        margin: 8px 0;
+        margin: var(--ha-space-2) 0;
         font-size: var(--ha-font-size-m);
     }
 
     .error-message ul {
-        margin: 8px 0 0 0;
-        padding-left: 20px;
+        margin: var(--ha-space-2) 0 0 0;
+        padding-left: var(--ha-space-5);
     }
 
     .error-message li {
-        margin: 4px 0;
+        margin: var(--ha-space-1) 0;
     }
 
     .warning-message {
         color: var(--warning-color, #ff9800);
         background: var(--warning-background-color, rgba(255, 152, 0, 0.1));
-        padding: 8px 12px;
+        padding: var(--ha-space-2) var(--ha-space-3);
         border-radius: var(--ha-border-radius-sm);
-        margin: 8px 0;
+        margin: var(--ha-space-2) 0;
         font-size: var(--ha-font-size-m);
     }
 
     .info-message {
         color: var(--info-color, #2196f3);
         background: var(--info-background-color, rgba(33, 150, 243, 0.1));
-        padding: 8px 12px;
+        padding: var(--ha-space-2) var(--ha-space-3);
         border-radius: var(--ha-border-radius-sm);
-        margin: 8px 0;
+        margin: var(--ha-space-2) 0;
         font-size: var(--ha-font-size-m);
     }
 
     /* Info card - standardized launcher card for tabs (Theme Browser, Provenance, Templates) */
     .info-card {
         background: var(--primary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
-        padding: 24px;
+        padding: var(--ha-space-6);
         margin-bottom: var(--lcards-section-spacing, 16px);
         box-shadow: var(--ha-box-shadow-s);
     }
 
     .info-card h3 {
-        margin: 0 0 12px 0;
+        margin: 0 0 var(--ha-space-3) 0;
         color: var(--primary-text-color);
         font-size: 18px;
         font-weight: 500;
     }
 
     .info-card p {
-        margin: 8px 0;
+        margin: var(--ha-space-2) 0;
         color: var(--secondary-text-color);
         line-height: 1.5;
     }
@@ -196,15 +196,15 @@ export const editorStyles = css`
     }
 
     .info-card-content {
-        margin-bottom: 16px;
+        margin-bottom: var(--ha-space-4);
     }
 
     .info-card-actions {
         display: flex;
         justify-content: flex-end;
-        padding-top: 8px;
-        border-top: 1px solid var(--divider-color);
-        gap: 8px;
+        padding-top: var(--ha-space-2);
+        border-top: var(--ha-border-width-sm) solid var(--divider-color);
+        gap: var(--ha-space-2);
     }
 
     ha-input,
@@ -216,11 +216,11 @@ export const editorStyles = css`
     /* Expansion panel styling to match legacy */
     ha-expansion-panel {
         margin-bottom: 10px;
-        border-radius: var(--ha-card-border-radius, 24px);
+        border-radius: var(--ha-card-border-radius, var(--ha-border-radius-3xl));
     }
 
     ha-expansion-panel[outlined] {
-        border: 2px solid var(--chip-background-color, #e0e0e0);
+        border: var(--ha-border-width-md) solid var(--chip-background-color, #e0e0e0);
     }
 
     ha-expansion-panel[expanded] {
@@ -240,8 +240,8 @@ export const editorStyles = css`
 
     .button-group {
         display: flex;
-        gap: 8px;
-        margin-top: 16px;
+        gap: var(--ha-space-2);
+        margin-top: var(--ha-space-4);
     }
 
     .button-group mwc-button {
@@ -251,7 +251,7 @@ export const editorStyles = css`
     /* Monaco editor container */
     .monaco-container {
         height: 500px;
-        border: 1px solid var(--divider-color, #e0e0e0);
+        border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
         border-radius: var(--ha-border-radius-sm);
         overflow: hidden;
     }
@@ -259,16 +259,16 @@ export const editorStyles = css`
     /* Horizontal rule styling */
     hr {
         width: 95%;
-        border: 1px solid var(--chip-background-color, #e0e0e0);
-        margin: 16px auto;
+        border: var(--ha-border-width-sm) solid var(--chip-background-color, #e0e0e0);
+        margin: var(--ha-space-4) auto;
     }
 
     /* YAML Editor Validation Errors */
     .validation-errors {
-        margin-top: 16px;
+        margin-top: var(--ha-space-4);
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--ha-space-2);
     }
 
     .validation-errors ha-alert {
@@ -279,37 +279,37 @@ export const editorStyles = css`
 
     /* Nested Section Spacing - tighter spacing for nested sections */
     lcards-form-section lcards-form-section {
-        margin-bottom: 8px;
+        margin-bottom: var(--ha-space-2);
     }
 
     /* Section Content Variants */
     .section-content.nested {
-        padding: 8px;
+        padding: var(--ha-space-2);
     }
 
     .section-content.compact {
-        padding: 8px;
+        padding: var(--ha-space-2);
     }
 
     /* Compact Form Field Variant */
     .form-field.compact {
-        margin-bottom: 8px;
+        margin-bottom: var(--ha-space-2);
         gap: 6px;
     }
 
     /* Form Row Variants */
     .form-row.compact {
-        margin-bottom: 8px;
+        margin-bottom: var(--ha-space-2);
     }
 
     .form-row.nested {
-        margin-bottom: 8px;
+        margin-bottom: var(--ha-space-2);
     }
 
     /* Responsive design */
     @media (max-width: 768px) {
         :host {
-            padding: 12px;
+            padding: var(--ha-space-3);
         }
 
         .form-row-group,

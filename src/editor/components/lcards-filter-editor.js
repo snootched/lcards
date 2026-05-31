@@ -84,7 +84,7 @@ export class LCARdSFilterEditor extends LitElement {
 
             .filter-item {
                 background: var(--card-background-color);
-                border: 1px solid var(--divider-color);
+                border: var(--ha-border-width-sm) solid var(--divider-color);
                 border-radius: var(--ha-card-border-radius, 12px);
                 overflow: hidden;
             }
@@ -169,7 +169,7 @@ export class LCARdSFilterEditor extends LitElement {
 
             .filter-content {
                 padding: 16px;
-                border-top: 1px solid var(--divider-color);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color);
             }
 
             .param-grid {
@@ -199,7 +199,7 @@ export class LCARdSFilterEditor extends LitElement {
 
             .filter-chain-info {
                 background: var(--primary-background-color);
-                border: 1px solid var(--divider-color);
+                border: var(--ha-border-width-sm) solid var(--divider-color);
                 border-radius: var(--ha-card-border-radius, 12px);
                 padding: 12px;
                 margin-bottom: 12px;
@@ -874,7 +874,7 @@ export class LCARdSFilterEditor extends LitElement {
             </ha-selector>
 
             ${value.operator === 'arithmetic' ? html`
-                <div style="margin-top: 16px; padding: 12px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px;">
+                <div style="margin-top: 16px; padding: 12px; background: var(--card-background-color); border: var(--ha-border-width-sm) solid var(--divider-color); border-radius: 4px;">
                     <div style="font-weight: 500; margin-bottom: 12px;">Arithmetic Coefficients</div>
                     <div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 12px;">
                         result = k1*i1*i2 + k2*i1 + k3*i2 + k4

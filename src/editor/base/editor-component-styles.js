@@ -22,7 +22,7 @@ export const editorComponentStyles = css`
         height: 40px;
         border-radius: 50%;
         background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
-        border: 2px solid transparent;
+        border: var(--ha-border-width-md) solid transparent;
         transition: all var(--ha-animation-duration-normal, 0.2s);
         --ha-icon-button-size: 40px;
         --mdc-icon-size: 20px;
@@ -42,16 +42,16 @@ export const editorComponentStyles = css`
     .info-card {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 16px;
+        gap: var(--ha-space-3);
+        padding: var(--ha-space-4);
         background: var(--card-background-color);
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
         border-radius: var(--ha-border-radius-lg);
-        margin-bottom: 12px;
+        margin-bottom: var(--ha-space-3);
     }
 
     .info-card-content h3 {
-        margin: 0 0 8px 0;
+        margin: 0 0 var(--ha-space-2) 0;
         font-size: 18px;
         font-weight: 600;
         color: var(--primary-text-color);
@@ -66,7 +66,7 @@ export const editorComponentStyles = css`
 
     .info-card-actions {
         display: flex;
-        gap: 8px;
+        gap: var(--ha-space-2);
         justify-content: flex-start;
     }
 
@@ -74,23 +74,23 @@ export const editorComponentStyles = css`
     .section-header-standard {
         font-size: var(--ha-font-size-l);
         font-weight: 500;
-        margin-bottom: 12px;
+        margin-bottom: var(--ha-space-3);
         color: var(--primary-text-color);
-        border-bottom: 1px solid var(--divider-color);
-        padding-bottom: 8px;
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
+        padding-bottom: var(--ha-space-2);
     }
 
     /* Grid Layouts */
     .two-column-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 12px;
+        gap: var(--ha-space-3);
     }
 
     .three-column-grid {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        gap: 12px;
+        gap: var(--ha-space-3);
     }
 
     @media (max-width: 768px) {
@@ -103,8 +103,8 @@ export const editorComponentStyles = css`
     /* Button Group Pattern */
     .button-group {
         display: flex;
-        gap: 8px;
-        margin-top: 12px;
+        gap: var(--ha-space-2);
+        margin-top: var(--ha-space-3);
     }
 
     .button-group ha-button {
@@ -114,21 +114,21 @@ export const editorComponentStyles = css`
     /* Empty State Pattern */
     .empty-state {
         text-align: center;
-        padding: 32px 16px;
+        padding: var(--ha-space-8) var(--ha-space-4);
         color: var(--secondary-text-color);
     }
 
     .empty-state ha-icon {
         font-size: 64px; /* icon display size — no HA token at this scale */
         opacity: 0.3;
-        margin-bottom: 16px;
+        margin-bottom: var(--ha-space-4);
         --mdc-icon-size: 64px;
     }
 
     .empty-state-title {
         font-size: var(--ha-font-size-l);
         font-weight: 600;
-        margin-bottom: 8px;
+        margin-bottom: var(--ha-space-2);
     }
 
     .empty-state-subtitle {
@@ -139,26 +139,26 @@ export const editorComponentStyles = css`
     /* Toolbar Pattern */
     .toolbar {
         display: flex;
-        gap: 8px;
+        gap: var(--ha-space-2);
         align-items: center;
-        padding: 8px;
+        padding: var(--ha-space-2);
         background: var(--secondary-background-color);
         border-radius: var(--ha-border-radius-md);
-        margin-bottom: 12px;
+        margin-bottom: var(--ha-space-3);
     }
 
     .toolbar-divider {
-        width: 1px;
+        width: var(--ha-border-width-sm);
         height: 24px;
         background: var(--divider-color);
-        margin: 0 4px;
+        margin: 0 var(--ha-space-1);
     }
 
     /* Badge Pattern */
     .badge {
         display: inline-flex;
         align-items: center;
-        padding: 4px 8px;
+        padding: var(--ha-space-1) var(--ha-space-2);
         background: var(--primary-color);
         color: white;
         border-radius: var(--ha-border-radius-md);

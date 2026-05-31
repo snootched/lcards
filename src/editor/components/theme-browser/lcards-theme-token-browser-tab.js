@@ -220,7 +220,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         flex-wrap: nowrap;
         scroll-behavior: smooth;
         scrollbar-width: thin;
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
         margin-bottom: 0;
       }
 
@@ -244,14 +244,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         display: flex;
         gap: 12px;
         padding: 12px 24px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
       }
 
       .theme-info-badge {
         padding: 8px 16px;
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 4px;
         font-size: 13px;
         font-weight: 500;
@@ -273,7 +273,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .search-container {
         padding: 12px 24px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         display: flex;
         gap: 12px;
         align-items: center;
@@ -309,12 +309,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         gap: 8px;
         flex-wrap: wrap;
         padding: 16px 24px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .category-chip {
         appearance: none;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
         color: var(--primary-text-color);
         padding: 6px 12px;
@@ -358,7 +358,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .css-vars-column {
         overflow: auto;
-        border-right: 1px solid var(--divider-color);
+        border-right: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .css-vars-column:last-child {
@@ -372,7 +372,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         padding: 16px 24px 8px;
         margin: 0;
         color: var(--primary-text-color);
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
         z-index: 1;
       }
 
@@ -395,7 +395,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         padding: 12px 16px;
         font-weight: 600;
         color: var(--primary-text-color);
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
         cursor: pointer;
         user-select: none;
       }
@@ -412,7 +412,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .token-table td {
         padding: 12px 16px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         vertical-align: middle;
       }
 
@@ -470,7 +470,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         width: 32px;
         height: 32px;
         border-radius: 4px;
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
         display: inline-block;
         box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
       }
@@ -488,7 +488,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         width: 22px;
         height: 22px;
         border-radius: 3px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         cursor: pointer;
         transition: transform 0.1s ease;
         box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
@@ -502,7 +502,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .alert-swatch.active-mode {
-        border: 2px solid var(--primary-color);
+        border: var(--ha-border-width-md) solid var(--primary-color);
         box-shadow: 0 0 0 2px rgba(var(--rgb-primary-color), 0.3);
       }
 
@@ -558,7 +558,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         margin-top: 12px;
         border-radius: 8px;
         overflow: hidden;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .hsl-formula-table table {
@@ -570,7 +570,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .hsl-formula-table td {
         padding: 8px 12px;
         text-align: left;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         font-size: 13px;
       }
 
@@ -619,7 +619,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         font-weight: 600;
         font-size: 12px;
         color: var(--secondary-text-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .hsl-formula-info code {
@@ -745,7 +745,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         flex-direction: column;
         gap: 12px;
         padding-bottom: 16px;
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
       }
 
       .mode-selection-controls {
@@ -768,7 +768,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .alert-mode-select {
         padding: 8px 12px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 4px;
         background: var(--secondary-background-color);
         color: var(--primary-text-color);
@@ -888,7 +888,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .preview-section {
         background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         padding: 20px;
       }
@@ -924,7 +924,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         font-weight: 600;
         color: var(--primary-text-color);
         padding-bottom: 8px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .preview-swatches-grid {
@@ -944,7 +944,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         width: 60px;
         height: 60px;
         border-radius: 8px;
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
         box-shadow: var(--ha-box-shadow-s);
         transition: transform 0.2s;
       }
@@ -963,7 +963,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .comparison-grid-container {
         display: flex;
         flex-direction: column;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 4px;
         overflow: auto;
       }
@@ -973,7 +973,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         grid-template-columns: 200px 1fr 1fr;
         gap: 12px;
         padding: 12px 16px;
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
         font-weight: 600;
         font-size: 13px;
       }
@@ -992,7 +992,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         grid-template-columns: 200px 1fr 1fr;
         gap: 12px;
         padding: 12px 16px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         transition: background-color 0.2s;
       }
 
@@ -1021,7 +1021,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         width: 40px;
         height: 40px;
         border-radius: 4px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         flex-shrink: 0;
       }
 
@@ -1042,7 +1042,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         padding: 20px;
         border-radius: var(--ha-card-border-radius, 12px);
         background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .visualization-section h4 {
@@ -1211,7 +1211,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         width: 14px;
         height: 14px;
         border-radius: 3px;
-        border: 1px solid var(--divider-color, #ccc);
+        border: var(--ha-border-width-sm) solid var(--divider-color, #ccc);
         vertical-align: middle;
         margin-right: 4px;
       }
@@ -1254,7 +1254,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .override-edit-panel {
         margin: 4px 8px 12px;
         padding: 16px;
-        border: 1px solid var(--accent-color, #039be5);
+        border: var(--ha-border-width-sm) solid var(--accent-color, #039be5);
         border-radius: 6px;
         background: var(--card-background-color);
         display: flex;
@@ -1560,15 +1560,22 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     // Count variables by category
     const categoryCounts = {
-      'ha-core': { label: 'HA Core', count: 0 },
-      'material': { label: 'Material', count: 0 },
-      'ha-specific': { label: 'HA-Specific', count: 0 },
-      'states': { label: 'States', count: 0 },
-      'card-mod': { label: 'Card-Mod', count: 0 },
-      'lcars': { label: 'LCARS', count: 0 },
-      'lcards': { label: 'LCARdS', count: 0 },
-      'app': { label: 'App', count: 0 },
-      'other': { label: 'Other', count: 0 }
+      'ha-legacy':   { label: 'HA Legacy', count: 0 },
+      'ha-color':    { label: 'HA Color', count: 0 },
+      'ha-space':    { label: 'HA Spacing', count: 0 },
+      'ha-shape':    { label: 'HA Shape', count: 0 },
+      'ha-motion':   { label: 'HA Motion', count: 0 },
+      'ha-type':     { label: 'HA Typography', count: 0 },
+      'ha-elevation':{ label: 'HA Elevation', count: 0 },
+      'ha-system':   { label: 'HA System', count: 0 },
+      'material':    { label: 'Material', count: 0 },
+      'wa':          { label: 'WebAwesome', count: 0 },
+      'states':      { label: 'States', count: 0 },
+      'card-mod':    { label: 'Card-Mod', count: 0 },
+      'lcars':       { label: 'LCARS', count: 0 },
+      'lcards':      { label: 'LCARdS', count: 0 },
+      'app':         { label: 'App', count: 0 },
+      'other':       { label: 'Other', count: 0 }
     };
 
     allVars.forEach(v => {
@@ -1974,15 +1981,22 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     // Group by category
     const categories = {
-      'ha-core': { title: 'Home Assistant Core Theme', vars: [] },
-      'material': { title: 'Material Design Components (MDC)', vars: [] },
-      'ha-specific': { title: 'HA-Specific Variables', vars: [] },
-      'states': { title: 'Entity State Colours', vars: [] },
-      'card-mod': { title: 'Card-Mod Variables', vars: [] },
-      'lcars': { title: 'HA-LCARS Theme', vars: [] },
-      'lcards': { title: 'LCARdS Injected', vars: [] },
-      'app': { title: 'App-Specific', vars: [] },
-      'other': { title: 'Other Variables', vars: [] }
+      'ha-legacy':   { title: 'HA Legacy Semantic (--primary-*, --text-*, etc.)', vars: [] },
+      'ha-color':    { title: 'HA Color System (--ha-color-*)', vars: [] },
+      'ha-space':    { title: 'HA Spacing Scale (--ha-space-*)', vars: [] },
+      'ha-shape':    { title: 'HA Shape — Border Radius & Width', vars: [] },
+      'ha-motion':   { title: 'HA Motion — Animation Durations', vars: [] },
+      'ha-type':     { title: 'HA Typography — Font & Line Height', vars: [] },
+      'ha-elevation':{ title: 'HA Elevation — Box Shadows', vars: [] },
+      'ha-system':   { title: 'HA System (icons, chips, dialogs, …)', vars: [] },
+      'material':    { title: 'Material Design (--mdc-*, --md-*)', vars: [] },
+      'wa':          { title: 'WebAwesome (--wa-*)', vars: [] },
+      'states':      { title: 'Entity State Colours (--state-*)', vars: [] },
+      'card-mod':    { title: 'Card-Mod Variables', vars: [] },
+      'lcars':       { title: 'HA-LCARS Theme (--lcars-*)', vars: [] },
+      'lcards':      { title: 'LCARdS Injected (--lcards-*)', vars: [] },
+      'app':         { title: 'App-Specific (--app-*)', vars: [] },
+      'other':       { title: 'Other Variables', vars: [] }
     };
 
     vars.forEach(v => {
@@ -2992,17 +3006,31 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
             category = 'lcars';
           } else if (prop.startsWith('--lcards-')) {
             category = 'lcards';
-          } else if (prop.startsWith('--mdc-')) {
+          } else if (prop.startsWith('--mdc-') || prop.startsWith('--md-')) {
             category = 'material';
+          } else if (prop.startsWith('--wa-')) {
+            category = 'wa';
+          } else if (prop.startsWith('--ha-color-')) {
+            category = 'ha-color';
+          } else if (prop.startsWith('--ha-space-')) {
+            category = 'ha-space';
+          } else if (prop.startsWith('--ha-border-radius-') || prop.startsWith('--ha-border-width-')) {
+            category = 'ha-shape';
+          } else if (prop.startsWith('--ha-animation-')) {
+            category = 'ha-motion';
+          } else if (prop.startsWith('--ha-font-') || prop.startsWith('--ha-line-height-')) {
+            category = 'ha-type';
+          } else if (prop.startsWith('--ha-box-shadow-')) {
+            category = 'ha-elevation';
           } else if (prop.startsWith('--ha-')) {
-            category = 'ha-specific';
+            category = 'ha-system';
           } else if (prop.startsWith('--state-')) {
             category = 'states';
           } else if (prop.startsWith('--primary-') || prop.startsWith('--secondary-') ||
               prop.startsWith('--accent-') || prop.startsWith('--card-') ||
               prop.startsWith('--divider-') || prop.startsWith('--text-') ||
               prop.startsWith('--disabled-') || prop.startsWith('--sidebar-')) {
-            category = 'ha-core';
+            category = 'ha-legacy';
           } else if (prop.startsWith('--app-')) {
             category = 'app';
           }
@@ -3019,7 +3047,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       // Sort by category then name
       allVars.sort((a, b) => {
         if (a.category !== b.category) {
-          const order = ['ha-core', 'material', 'ha-specific', 'states', 'card-mod', 'lcars', 'lcards', 'app', 'other'];
+          const order = ['ha-legacy', 'ha-color', 'ha-space', 'ha-shape', 'ha-motion', 'ha-type', 'ha-elevation', 'ha-system', 'material', 'wa', 'states', 'card-mod', 'lcars', 'lcards', 'app', 'other'];
           return order.indexOf(a.category) - order.indexOf(b.category);
         }
         return a.name.localeCompare(b.name);
@@ -3031,15 +3059,22 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       lcardsLog.debug('[ThemeTokenBrowser] Scanned all CSS variables', {
         total: allVars.length,
         byCategory: {
-          'ha-core': allVars.filter(v => v.category === 'ha-core').length,
-          'material': allVars.filter(v => v.category === 'material').length,
-          'ha-specific': allVars.filter(v => v.category === 'ha-specific').length,
-          'states': allVars.filter(v => v.category === 'states').length,
-          'card-mod': allVars.filter(v => v.category === 'card-mod').length,
-          'lcars': allVars.filter(v => v.category === 'lcars').length,
-          'lcards': allVars.filter(v => v.category === 'lcards').length,
-          'app': allVars.filter(v => v.category === 'app').length,
-          'other': allVars.filter(v => v.category === 'other').length
+          'ha-legacy':   allVars.filter(v => v.category === 'ha-legacy').length,
+          'ha-color':    allVars.filter(v => v.category === 'ha-color').length,
+          'ha-space':    allVars.filter(v => v.category === 'ha-space').length,
+          'ha-shape':    allVars.filter(v => v.category === 'ha-shape').length,
+          'ha-motion':   allVars.filter(v => v.category === 'ha-motion').length,
+          'ha-type':     allVars.filter(v => v.category === 'ha-type').length,
+          'ha-elevation':allVars.filter(v => v.category === 'ha-elevation').length,
+          'ha-system':   allVars.filter(v => v.category === 'ha-system').length,
+          'material':    allVars.filter(v => v.category === 'material').length,
+          'wa':          allVars.filter(v => v.category === 'wa').length,
+          'states':      allVars.filter(v => v.category === 'states').length,
+          'card-mod':    allVars.filter(v => v.category === 'card-mod').length,
+          'lcars':       allVars.filter(v => v.category === 'lcars').length,
+          'lcards':      allVars.filter(v => v.category === 'lcards').length,
+          'app':         allVars.filter(v => v.category === 'app').length,
+          'other':       allVars.filter(v => v.category === 'other').length
         }
       });
     } catch (error) {

@@ -766,7 +766,7 @@ export class LCARdSLayoutsTab extends LitElement {
       }
       .banner.warning {
         background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-        border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
+        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
         color: var(--primary-text-color);
       }
       .banner ha-icon { flex-shrink: 0; color: var(--warning-color, #ff9800); }
@@ -789,7 +789,7 @@ export class LCARdSLayoutsTab extends LitElement {
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: var(--secondary-text-color);
-        border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+        border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 40%, transparent);
         margin-bottom: 6px;
       }
       .section-label ha-icon { --mdc-icon-size: 13px; }
@@ -808,7 +808,7 @@ export class LCARdSLayoutsTab extends LitElement {
         gap: 12px;
         padding: 10px 12px;
         border-radius: var(--ha-card-border-radius, 12px);
-        border: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
+        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 60%, transparent);
         background: var(--secondary-background-color);
         cursor: pointer;
         color: var(--primary-text-color);
@@ -837,7 +837,7 @@ export class LCARdSLayoutsTab extends LitElement {
         justify-content: space-between;
         gap: 12px;
         padding: 8px 0;
-        border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
+        border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 50%, transparent);
       }
       .control-row:last-child { border-bottom: none; }
 
@@ -861,7 +861,7 @@ export class LCARdSLayoutsTab extends LitElement {
         align-items: center;
         gap: 12px;
         padding: 4px 0 10px;
-        border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
+        border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 50%, transparent);
         margin-bottom: 10px;
       }
       .yaml-hint { flex: 1; font-size: 0.85em; color: var(--secondary-text-color); }
@@ -875,7 +875,7 @@ export class LCARdSLayoutsTab extends LitElement {
       .yaml-block {
         background: var(--primary-background-color);
         color: var(--primary-text-color);
-        border: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
+        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 60%, transparent);
         border-radius: 6px;
         padding: 14px 16px;
         font-family: 'Fira Code', 'Consolas', 'Menlo', monospace;

@@ -84,7 +84,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
                 font-size: 12px;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
-                border-bottom: 2px solid var(--divider-color, #e0e0e0);
+                border-bottom: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 white-space: nowrap;
             }
 
@@ -94,7 +94,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
 
             .ref-table td {
                 padding: 12px;
-                border-bottom: 1px solid var(--divider-color, #e0e0e0);
+                border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 white-space: nowrap;
             }
 

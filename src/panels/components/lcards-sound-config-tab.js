@@ -1318,7 +1318,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     }
     .banner.warning {
       background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
       color: var(--primary-text-color);
     }
     .banner ha-button {
@@ -1342,7 +1342,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       justify-content: space-between;
       gap: 12px;
       padding: 8px 0;
-      border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
+      border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 50%, transparent);
     }
     .control-row:last-child { border-bottom: none; }
     .control-row.prominent { font-size: 1.05em; }
@@ -1397,7 +1397,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       text-align: left;
       padding: 6px 8px;
       color: var(--secondary-text-color);
-      border-bottom: 1px solid var(--divider-color);
+      border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       position: sticky;
       top: 0;
       z-index: 1;
@@ -1408,7 +1408,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     .overrides-table td {
       padding: 4px 8px;
       vertical-align: middle;
-      border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+      border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 40%, transparent);
     }
     .overrides-table tr.has-override td {
       background: color-mix(in srgb, var(--primary-color) 8%, transparent);
@@ -1437,12 +1437,12 @@ export class LCARdSSoundConfigTab extends LitElement {
       text-align: left;
       padding: 6px 8px;
       color: var(--secondary-text-color);
-      border-bottom: 1px solid var(--divider-color);
+      border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
     }
     .helper-status-table td {
       padding: 6px 8px;
       vertical-align: middle;
-      border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+      border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 40%, transparent);
     }
     .helper-status-table tr:last-child td { border-bottom: none; }
     .helper-name {
@@ -1474,7 +1474,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       align-items: center;
       gap: 12px;
       padding: 6px 0;
-      border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.06));
+      border-bottom: var(--ha-border-width-sm) solid var(--divider-color, rgba(255,255,255,0.06));
     }
     .scoped-row:last-child { border-bottom: none; }
 
@@ -1508,7 +1508,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       padding: 8px 12px;
       margin: 4px 0;
       background: color-mix(in srgb, var(--warning-color, #ff9800) 10%, transparent);
-      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 30%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 30%, transparent);
       border-radius: var(--ha-border-radius-md);
     }
     .admin-selector-label {
@@ -1534,7 +1534,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     }
     .scope-context-banner.own {
       background: color-mix(in srgb, var(--info-color, #03a9f4) 10%, transparent);
-      border: 1px solid color-mix(in srgb, var(--info-color, #03a9f4) 25%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 25%, transparent);
       color: var(--primary-text-color);
     }
     .scope-context-banner.own ha-icon {
@@ -1543,7 +1543,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     }
     .scope-context-banner.admin {
       background: color-mix(in srgb, var(--warning-color, #ff9800) 12%, transparent);
-      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 35%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 35%, transparent);
       color: var(--primary-text-color);
     }
     .scope-context-banner.admin ha-icon {
@@ -1558,7 +1558,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       gap: 8px;
       padding: 10px 0 6px;
       margin-top: 8px;
-      border-top: 1px solid var(--divider-color, rgba(255,255,255,0.08));
+      border-top: var(--ha-border-width-sm) solid var(--divider-color, rgba(255,255,255,0.08));
       font-size: 0.9rem;
       font-weight: 500;
       color: var(--primary-text-color);

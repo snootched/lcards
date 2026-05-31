@@ -66,7 +66,7 @@ export class LCARdSPositionPicker extends LitElement {
                 grid-template-rows: repeat(3, 40px);
                 gap: 6px;
                 background: var(--card-background-color, #fff);
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: 8px;
                 padding: 8px;
             }
@@ -74,7 +74,7 @@ export class LCARdSPositionPicker extends LitElement {
             .position-cell {
                 width: 40px;
                 height: 40px;
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: 6px;
                 background: var(--disabled-text-color, #9e9e9e);
                 cursor: pointer;

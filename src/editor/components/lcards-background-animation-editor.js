@@ -56,7 +56,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
       .effect-item {
         background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         overflow: hidden;
         transition: transform 0.2s, opacity 0.2s;

@@ -510,7 +510,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       align-items: center;
       gap: 12px;
       padding-bottom: 12px;
-      border-bottom: 2px solid var(--divider-color);
+      border-bottom: var(--ha-border-width-md) solid var(--divider-color);
       margin-bottom: 12px;
     }
 
@@ -561,13 +561,13 @@ export class LCARdSStorageExplorerTab extends LitElement {
 
     .banner.error {
       background: color-mix(in srgb, var(--error-color, #f44336) 15%, transparent);
-      border: 1px solid color-mix(in srgb, var(--error-color, #f44336) 40%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color, #f44336) 40%, transparent);
       color: var(--primary-text-color);
     }
 
     .banner.warning {
       background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
       color: var(--primary-text-color);
     }
 
@@ -720,7 +720,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       gap: 8px;
       padding: 10px 12px;
       background: color-mix(in srgb, var(--error-color, #f44336) 10%, transparent);
-      border: 1px solid color-mix(in srgb, var(--error-color, #f44336) 30%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color, #f44336) 30%, transparent);
       border-radius: var(--ha-border-radius-md);
       font-size: 0.9em;
       flex-wrap: wrap;
@@ -744,7 +744,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       padding: 10px;
       background: var(--code-editor-background-color, #1e1e1e);
       color: var(--code-editor-text-color, #d4d4d4);
-      border: 1px solid var(--divider-color);
+      border: var(--ha-border-width-sm) solid var(--divider-color);
       border-radius: 6px;
       resize: vertical;
       outline: none;
@@ -776,7 +776,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       line-height: 1.5;
       overflow-x: auto;
       border-radius: 6px;
-      border: 1px solid var(--divider-color);
+      border: var(--ha-border-width-sm) solid var(--divider-color);
     }
 
   `;

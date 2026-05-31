@@ -146,7 +146,7 @@ export class LCARdSVisualGridDesigner extends LitElement {
             /* Grid Canvas */
             .grid-canvas {
                 background: var(--card-background-color, white);
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: 8px;
                 padding: 16px;
                 max-height: 400px;
@@ -161,7 +161,7 @@ export class LCARdSVisualGridDesigner extends LitElement {
             }
 
             .grid-cell {
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 background: var(--secondary-background-color, #fafafa);
                 min-height: 40px;
                 display: flex;

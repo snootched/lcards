@@ -253,6 +253,12 @@ export default withMermaid(defineConfig({
             ],
           },
           {
+            text: 'CSS & Theming',
+            items: [
+              { text: 'HA CSS Variables', link: '/development/ha-css-vars' },
+            ],
+          },
+          {
             text: 'Internals',
             items: [
               { text: 'Codebase Review', link: '/dev/codebase-review' },
@@ -513,6 +519,13 @@ export default withMermaid(defineConfig({
             { text: 'Backend WS API',   link: '/development/backend-api' },
             { text: 'Debug API',        link: '/development/debug-api' },
             { text: 'Helpers API',      link: '/development/helpers-api' },
+          ],
+        },
+        {
+          text: 'CSS & Theming',
+          collapsed: false,
+          items: [
+            { text: 'HA CSS Variables', link: '/development/ha-css-vars' },
           ],
         },
         {

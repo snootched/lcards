@@ -134,7 +134,7 @@ export class AlertModeColorWheel extends LitElement {
       cursor: pointer;
       transition: all 0.2s;
       user-select: none;
-      border: 1px solid transparent;
+      border: var(--ha-border-width-sm) solid transparent;
     }
 
     .legend-item:hover {
@@ -158,14 +158,14 @@ export class AlertModeColorWheel extends LitElement {
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      border: 1px solid rgba(0, 0, 0, 0.8);
+      border: var(--ha-border-width-sm) solid rgba(0, 0, 0, 0.8);
       flex-shrink: 0;
     }
 
     .legend-square {
       width: 8px;
       height: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.9);
+      border: var(--ha-border-width-sm) solid rgba(255, 255, 255, 0.9);
       flex-shrink: 0;
     }
 

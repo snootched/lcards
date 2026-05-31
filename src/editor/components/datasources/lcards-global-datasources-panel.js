@@ -71,7 +71,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
 
       .source-card {
         background: var(--chip-background-color, var(--card-background-color, #fff));
-        border: 2px solid var(--divider-color, #e0e0e0);
+        border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
         border-radius: 12px;
         padding: 16px;
         transition: all 0.2s;
@@ -96,7 +96,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
         gap: 8px;
         margin-bottom: 12px;
         padding-bottom: 8px;
-        border-bottom: 1px solid var(--divider-color, #e0e0e0);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
       }
 
       .source-header ha-icon {

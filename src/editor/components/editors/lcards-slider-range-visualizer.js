@@ -46,7 +46,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 padding: 16px;
                 background: var(--card-background-color);
                 border-radius: var(--ha-card-border-radius, 12px);
-                border: 1px solid var(--divider-color);
+                border: var(--ha-border-width-sm) solid var(--divider-color);
             }
 
             .section {
@@ -184,7 +184,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 gap: 6px;
                 padding: 8px 12px;
                 background: var(--secondary-background-color);
-                border: 2px solid var(--divider-color);
+                border: var(--ha-border-width-md) solid var(--divider-color);
                 border-radius: 8px;
                 cursor: pointer;
                 transition: all 0.2s;
@@ -216,7 +216,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 gap: 4px;
                 padding: 10px 6px;
                 background: var(--secondary-background-color);
-                border: 2px solid var(--divider-color);
+                border: var(--ha-border-width-md) solid var(--divider-color);
                 border-radius: 8px;
                 cursor: pointer;
                 transition: all 0.2s;
@@ -257,7 +257,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 padding: 20px;
                 background: var(--card-background-color);
                 border-radius: 12px;
-                border: 2px solid var(--primary-color);
+                border: var(--ha-border-width-md) solid var(--primary-color);
                 box-shadow: var(--ha-box-shadow-m);
             }
 
@@ -330,7 +330,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
 
             .input-field {
                 padding: 6px 8px;
-                border: 1px solid var(--divider-color);
+                border: var(--ha-border-width-sm) solid var(--divider-color);
                 border-radius: 4px;
                 background: var(--card-background-color);
                 color: var(--primary-text-color);

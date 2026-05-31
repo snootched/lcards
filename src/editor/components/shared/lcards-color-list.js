@@ -52,12 +52,12 @@ export class LCARdSColorList extends LitElement {
       .color-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--ha-space-2);
       }
 
       .color-item {
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         overflow: hidden;
         transition: all var(--ha-animation-duration-normal, 0.2s) ease;
@@ -70,10 +70,10 @@ export class LCARdSColorList extends LitElement {
       .color-header {
         display: flex;
         align-items: center;
-        padding: 12px;
+        padding: var(--ha-space-3);
         cursor: pointer;
         background: var(--card-background-color);
-        gap: 12px;
+        gap: var(--ha-space-3);
         user-select: none;
       }
 
@@ -99,7 +99,7 @@ export class LCARdSColorList extends LitElement {
         width: 40px;
         height: 32px;
         border-radius: 6px;
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
         flex-shrink: 0;
         background-image:
           linear-gradient(45deg, #ccc 25%, transparent 25%),
@@ -122,7 +122,7 @@ export class LCARdSColorList extends LitElement {
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--ha-space-1);
       }
 
       .color-value {
@@ -141,7 +141,7 @@ export class LCARdSColorList extends LitElement {
 
       .color-actions {
         display: flex;
-        gap: 4px;
+        gap: var(--ha-space-1);
         flex-shrink: 0;
       }
 
@@ -156,14 +156,14 @@ export class LCARdSColorList extends LitElement {
       }
 
       .color-content {
-        padding: 16px;
+        padding: var(--ha-space-4);
         background: var(--primary-background-color);
-        border-top: 1px solid var(--divider-color);
+        border-top: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .empty-state {
         text-align: center;
-        padding: 24px;
+        padding: var(--ha-space-6);
         color: var(--secondary-text-color);
         font-size: var(--ha-font-size-m);
         background: var(--card-background-color);

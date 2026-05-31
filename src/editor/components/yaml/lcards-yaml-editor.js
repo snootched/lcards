@@ -93,7 +93,7 @@ export class LCARdSYamlEditor extends LitElement {
                 align-items: center;
                 padding: 4px 8px;
                 background: var(--card-background-color, #21252b);
-                border-bottom: 1px solid var(--divider-color, #181a1f);
+                border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #181a1f);
                 gap: 4px;
             }
 
@@ -113,7 +113,7 @@ export class LCARdSYamlEditor extends LitElement {
 
             .editor-container {
                 flex: 1;
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 border-radius: 4px;
                 overflow: hidden;
                 min-height: 400px;
@@ -180,7 +180,7 @@ export class LCARdSYamlEditor extends LitElement {
             /* Autocomplete popup */
             .editor-container :global(.cm-tooltip-autocomplete) {
                 background: #282c34;
-                border: 1px solid #3e4451;
+                border: var(--ha-border-width-sm) solid #3e4451;
                 border-radius: 4px;
                 box-shadow: var(--ha-box-shadow-m);
             }
@@ -210,13 +210,13 @@ export class LCARdSYamlEditor extends LitElement {
             /* Search panel */
             .editor-container :global(.cm-panel) {
                 background: #21252b;
-                border-bottom: 1px solid #3e4451;
+                border-bottom: var(--ha-border-width-sm) solid #3e4451;
                 color: #abb2bf;
             }
 
             .editor-container :global(.cm-textfield) {
                 background: #282c34;
-                border: 1px solid #3e4451;
+                border: var(--ha-border-width-sm) solid #3e4451;
                 color: #abb2bf;
                 padding: 4px 8px;
                 border-radius: 3px;
@@ -238,7 +238,7 @@ export class LCARdSYamlEditor extends LitElement {
             /* Bracket matching */
             .editor-container :global(.cm-matchingBracket) {
                 background-color: rgba(97, 175, 239, 0.3);
-                border: 1px solid #61afef;
+                border: var(--ha-border-width-sm) solid #61afef;
             }
 
             /* Selection match highlighting */
@@ -266,12 +266,12 @@ export class LCARdSYamlEditor extends LitElement {
             }
 
             .editor-container :global(.cm-indent-marker) {
-                border-left: 1px solid rgba(92, 99, 112, 0.3);
+                border-left: var(--ha-border-width-sm) solid rgba(92, 99, 112, 0.3);
                 height: 100%;
             }
 
             .editor-container :global(.cm-indent-marker-active) {
-                border-left: 1px solid rgba(97, 175, 239, 0.4);
+                border-left: var(--ha-border-width-sm) solid rgba(97, 175, 239, 0.4);
             }
 
             /* Status footer */
@@ -281,7 +281,7 @@ export class LCARdSYamlEditor extends LitElement {
                 align-items: center;
                 padding: 4px 12px;
                 background: var(--card-background-color, #21252b);
-                border-top: 1px solid var(--divider-color, #181a1f);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color, #181a1f);
                 font-size: 12px;
                 color: #5c6370;
                 gap: 16px;
@@ -320,7 +320,7 @@ export class LCARdSYamlEditor extends LitElement {
                 left: 50%;
                 transform: translate(-50%, -50%);
                 background: #282c34;
-                border: 1px solid #3e4451;
+                border: var(--ha-border-width-sm) solid #3e4451;
                 border-radius: 8px;
                 box-shadow: 0 4px 24px rgba(0,0,0,0.6);
                 z-index: 10000;
@@ -336,7 +336,7 @@ export class LCARdSYamlEditor extends LitElement {
                 justify-content: space-between;
                 align-items: center;
                 padding: 16px 20px;
-                border-bottom: 1px solid #3e4451;
+                border-bottom: var(--ha-border-width-sm) solid #3e4451;
                 background: #21252b;
                 border-radius: 8px 8px 0 0;
             }
@@ -400,7 +400,7 @@ export class LCARdSYamlEditor extends LitElement {
             .key {
                 padding: 4px 8px;
                 background: #3e4451;
-                border: 1px solid #4e545f;
+                border: var(--ha-border-width-sm) solid #4e545f;
                 border-radius: 4px;
                 font-family: 'Consolas', 'Monaco', monospace;
                 font-size: 11px;
