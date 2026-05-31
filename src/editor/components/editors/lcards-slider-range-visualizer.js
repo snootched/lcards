@@ -128,18 +128,18 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 transform: translate(-50%, -50%);
                 cursor: grab;
                 z-index: 10;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                box-shadow: var(--ha-box-shadow-m);
                 transition: transform 0.1s, box-shadow 0.1s;
             }
 
             .range-handle:hover {
                 transform: translate(-50%, -50%) scale(1.15);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                box-shadow: var(--ha-box-shadow-l);
             }
 
             .range-handle:active {
                 cursor: grabbing;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                box-shadow: var(--ha-box-shadow-m);
             }
 
             .range-handle-label {
@@ -258,7 +258,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 background: var(--card-background-color);
                 border-radius: 12px;
                 border: 2px solid var(--primary-color);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                box-shadow: var(--ha-box-shadow-m);
             }
 
             .preview-label {
@@ -295,7 +295,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 border: 3px solid var(--primary-color);
                 border-radius: 50%;
                 transform: translate(-50%, -50%);
-                box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                box-shadow: var(--ha-box-shadow-s);
                 transition: left 0.2s;
             }
 

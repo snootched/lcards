@@ -13,7 +13,7 @@ export const overlayEditorStyles = css`
         background: var(--card-background-color);
         border: 2px solid var(--primary-color);
         border-radius: 8px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        box-shadow: var(--ha-box-shadow-l);
         min-width: 320px;
         max-width: 400px;
     }

@@ -76,7 +76,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
       }
 
       .template-card:hover {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: var(--ha-box-shadow-m);
         border-color: var(--primary-color);
       }
 

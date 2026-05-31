@@ -244,7 +244,7 @@ export class LCARdSConfigPanel extends LitElement {
       border-radius: var(--ha-card-border-radius, 12px);
       padding: 20px;
       margin-bottom: 16px;
-      box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.1));
+      box-shadow: var(--ha-box-shadow-m);
       border: 1px solid var(--divider-color);
     }
 

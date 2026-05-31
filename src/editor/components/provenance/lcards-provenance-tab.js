@@ -453,7 +453,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .stat-card.modern:hover {
         border-color: var(--primary-color, #03a9f4);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: var(--ha-box-shadow-m);
       }
 
       .stat-icon {
@@ -685,7 +685,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .token-card:hover {
         border-color: var(--primary-color, #03a9f4);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: var(--ha-box-shadow-m);
       }
 
       .token-card-header {
@@ -1220,7 +1220,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .resolution-step-card:hover {
         background: var(--card-background-color);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--ha-box-shadow-s);
       }
 
       .resolution-step-icon {
@@ -1357,7 +1357,7 @@ export class LCARdSProvenanceTab extends LitElement {
         display: flex;
         flex-direction: column;
         gap: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--ha-box-shadow-m);
       }
 
       .resolution-final-label {
@@ -1391,7 +1391,7 @@ export class LCARdSProvenanceTab extends LitElement {
         border-radius: 4px;
         border: 2px solid rgba(255, 255, 255, 0.3);
         flex-shrink: 0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--ha-box-shadow-s);
       }
 
       /* Before/After comparison */

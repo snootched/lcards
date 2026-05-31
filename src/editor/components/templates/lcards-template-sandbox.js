@@ -707,7 +707,7 @@ export class LCARdSTemplateSandbox extends LitElement {
 
       .example-card:hover {
         border-color: var(--primary-color);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--ha-box-shadow-m);
         transform: translateY(-2px);
       }
 
