@@ -7695,8 +7695,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 this._previousCardConfig = { ...this._controlFormCard };
                                 this._controlFormCard = { type: '' };
                                 this.requestUpdate();
-                            }}
-                            style="--mdc-theme-primary: white; --mdc-theme-on-primary: var(--info-color, #03a9f4);">
+                            }}>
                             <ha-icon icon="mdi:swap-horizontal" slot="start"></ha-icon>
                             Change
                         </ha-button>

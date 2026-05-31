@@ -912,6 +912,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                             @input=${/* @ts-ignore TS2339 */ (e) => this.editor._setConfigValue('svg.content', e.target.value)}
                             placeholder="<svg viewBox='0 0 100 100'>...</svg>"
                             rows="10"
+                            resize="auto"
                             style="width: 100%; font-family: monospace;">
                         </ha-textarea>
                         <div class="helper-text">

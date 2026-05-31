@@ -1332,9 +1332,7 @@ rules:
                         Cancel
                     </ha-button>
                     <ha-button
-                        variant="brand"
-                        appearance="accent"
-                        style="--mdc-theme-primary: var(--error-color, #f44336);"
+                        variant="danger"
                         @click=${this._confirmDelete}>
                         Delete
                     </ha-button>

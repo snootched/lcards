@@ -387,7 +387,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         top: 0;
         background: var(--primary-background-color);
         z-index: 1;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: var(--ha-box-shadow-s);
       }
 
       .token-table th {
@@ -853,7 +853,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         border-radius: 50%;
         background: var(--primary-color);
         cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--ha-box-shadow-s);
       }
 
       .parameter-slider::-moz-range-thumb {
@@ -863,7 +863,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         background: var(--primary-color);
         cursor: pointer;
         border: none;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--ha-box-shadow-s);
       }
 
       .parameter-slider:focus::-webkit-slider-thumb {
@@ -945,7 +945,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         height: 60px;
         border-radius: 8px;
         border: 2px solid var(--divider-color);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--ha-box-shadow-s);
         transition: transform 0.2s;
       }
 
@@ -4188,7 +4188,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           </div>
           <div class="overrides-summary">
             ${this._overridesLoading
-              ? html`<ha-circular-progress active indeterminate size="small"></ha-circular-progress>`
+              ? html`<ha-circular-progress active indeterminate size="s"></ha-circular-progress>`
               : html`<span>${overriddenCount} override${overriddenCount !== 1 ? 's' : ''} in this scope</span>`}
           </div>
         </div>

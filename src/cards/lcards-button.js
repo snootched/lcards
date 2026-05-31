@@ -6814,14 +6814,12 @@ export class LCARdSButton extends LCARdSCard {
      * @returns {Object} Layout configuration
      */
     getGridOptions() {
-        // HA uses grid_options.columns and grid_options.rows
-        // Provide sensible defaults if not configured
         const gridOptions = this.config.grid_options || {};
         return {
-            grid_columns: gridOptions.columns || 4,  // Default to 4 columns
-            grid_rows: gridOptions.rows || 1,        // Default to 1 row
-            grid_min_columns: 1,
-            grid_min_rows: 1
+            columns: gridOptions.columns || 4,
+            rows: gridOptions.rows || 1,
+            min_columns: 1,
+            min_rows: 1,
         };
     }
 

@@ -182,7 +182,7 @@ export class LCARdSYamlEditor extends LitElement {
                 background: #282c34;
                 border: 1px solid #3e4451;
                 border-radius: 4px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                box-shadow: var(--ha-box-shadow-m);
             }
 
             .editor-container :global(.cm-completionLabel) {

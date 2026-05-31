@@ -171,7 +171,7 @@ export const editorStyles = css`
         border-radius: var(--ha-card-border-radius, 12px);
         padding: 24px;
         margin-bottom: var(--lcards-section-spacing, 16px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--ha-box-shadow-s);
     }
 
     .info-card h3 {

@@ -83,7 +83,7 @@ export class LCARdSCollapsibleSection extends LitElement {
       .section-header:hover {
         background: var(--divider-color);
         border-color: var(--primary-color);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--ha-box-shadow-s);
       }
 
       .section-header:focus-visible {

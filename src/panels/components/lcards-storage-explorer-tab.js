@@ -306,6 +306,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
             </ha-icon-button>
             <ha-button
               class="danger-btn"
+              variant="danger"
               @click=${this._askReset}
               ?disabled=${this._resetting || keys.length === 0}
             >
@@ -330,7 +331,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
             <ha-icon icon="mdi:alert"></ha-icon>
             <span>This will <strong>wipe all ${keys.length} stored key${keys.length !== 1 ? 's' : ''}</strong> permanently. Are you sure?</span>
             <div class="confirm-actions">
-              <ha-button class="danger-btn" @click=${this._confirmResetAll}>Yes, reset all</ha-button>
+              <ha-button class="danger-btn" variant="danger" @click=${this._confirmResetAll}>Yes, reset all</ha-button>
               <ha-button @click=${this._cancelReset}>Cancel</ha-button>
             </div>
           </div>
@@ -431,7 +432,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
               @click=${(e) => { e.stopPropagation(); this._saveEdit(key); }}
               ?disabled=${isSaving}
             >
-              ${isSaving ? html`<ha-circular-progress indeterminate size="small"></ha-circular-progress>` : 'Save'}
+              ${isSaving ? html`<ha-circular-progress indeterminate size="s"></ha-circular-progress>` : 'Save'}
             </ha-button>
             <ha-button @click=${(e) => { e.stopPropagation(); this._cancelEdit(); }}>Cancel</ha-button>
           `}
@@ -445,7 +446,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
             <div class="inline-confirm">
               <ha-icon icon="mdi:alert"></ha-icon>
               <span>Delete key <strong>${key}</strong>? This cannot be undone.</span>
-              <ha-button class="danger-btn" @click=${() => this._confirmDeleteKey(key)}>Delete</ha-button>
+              <ha-button class="danger-btn" variant="danger" @click=${() => this._confirmDeleteKey(key)}>Delete</ha-button>
               <ha-button @click=${this._cancelDelete}>Cancel</ha-button>
             </div>
           ` : ''}
@@ -778,10 +779,6 @@ export class LCARdSStorageExplorerTab extends LitElement {
       border: 1px solid var(--divider-color);
     }
 
-    /* ── Danger button/icon variant ── */
-    .danger-btn {
-      --mdc-theme-primary: var(--error-color, #f44336);
-    }
   `;
 }
 

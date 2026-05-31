@@ -967,9 +967,12 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @protected
      */
     _getGridOptions() {
+        const go = this.config.grid_options || {};
         return {
-            grid_rows: 8,
-            grid_columns: 4
+            columns: go.columns ?? 4,
+            rows: go.rows ?? 8,
+            min_columns: 2,
+            min_rows: 4,
         };
     }
 

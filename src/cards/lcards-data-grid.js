@@ -1746,9 +1746,12 @@ export class LCARdSDataGrid extends LCARdSCard {
    * @returns {Object} Layout configuration
    */
   getGridOptions() {
+    const go = this.config.grid_options || {};
     return {
-      grid_columns: this.config.grid_columns !== undefined ? this.config.grid_columns : 'full',
-      grid_rows: this.config.grid_rows || 'auto'
+      columns: go.columns ?? 'full',
+      rows: go.rows ?? 4,
+      min_columns: 4,
+      min_rows: 2,
     };
   }
 

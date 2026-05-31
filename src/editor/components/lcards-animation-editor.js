@@ -2116,6 +2116,7 @@ export class LCARdSAnimationEditor extends LitElement {
           .value=${params.ease_params?.customString ?? ''}
           @input=${(e) => this._updateEaseParam(index, 'customString', e.target.value)}
           rows="3"
+          resize="auto"
           style="width: 100%; font-family: 'Roboto Mono', monospace;">
         </ha-textarea>
         <lcards-message type="info">

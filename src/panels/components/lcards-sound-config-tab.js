@@ -66,6 +66,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     _adminScopeDeviceId:{ type: String,   state: true },
     /** Admin: basic settings (volume/scheme/enabled) for the currently-viewed admin target; null = own */
     _adminTargetBasic:  { type: Object,   state: true },
+    _confirmResetOverrides: { type: Boolean, state: true },
   };
 
   constructor() {
@@ -95,6 +96,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     this._adminScopeDeviceId = null;
     /** @type {Object|null} Basic settings for admin-selected target; null = own */
     this._adminTargetBasic = null;
+    this._confirmResetOverrides = false;
   }
 
   connectedCallback() {
@@ -655,11 +657,22 @@ export class LCARdSSoundConfigTab extends LitElement {
     this.requestUpdate();
   }
 
+  _askResetOverrides() {
+    this._confirmResetOverrides = true;
+    this.requestUpdate();
+  }
+
+  _cancelResetOverrides() {
+    this._confirmResetOverrides = false;
+    this.requestUpdate();
+  }
+
   _resetOverrides() {
     const sm = window.lcards?.core?.soundManager;
     if (!sm) return;
     sm.clearAllOverrides('global');
     this._overrides = sm.getOverrides('global');
+    this._confirmResetOverrides = false;
     this.requestUpdate();
   }
 
@@ -846,12 +859,22 @@ export class LCARdSSoundConfigTab extends LitElement {
                 message="Overrides are stored in LCARdS Integration persistent storage.  See Storage tab for details."
               ></lcards-message>
               ${Object.keys(this._overrides).length > 0 ? html`
-                <ha-button @click=${this._resetOverrides} class="reset-overrides-btn">
+                <ha-button @click=${this._askResetOverrides} class="reset-overrides-btn" variant="warning">
                   <ha-icon slot="start" icon="mdi:restore"></ha-icon>
                   Reset all to scheme defaults
                 </ha-button>
               ` : ''}
             </div>
+            ${this._confirmResetOverrides ? html`
+              <div class="banner warning">
+                <ha-icon icon="mdi:alert"></ha-icon>
+                <span>This will <strong>clear all ${Object.keys(this._overrides).length} override${Object.keys(this._overrides).length !== 1 ? 's' : ''}</strong> and restore scheme defaults. Are you sure?</span>
+                <div class="confirm-actions">
+                  <ha-button class="danger-btn" variant="danger" @click=${this._resetOverrides}>Yes, reset all</ha-button>
+                  <ha-button @click=${this._cancelResetOverrides}>Cancel</ha-button>
+                </div>
+              </div>
+            ` : ''}
             <div class="overrides-table-wrapper">
               <table class="overrides-table">
                 <thead>
@@ -1081,7 +1104,7 @@ export class LCARdSSoundConfigTab extends LitElement {
         <!-- ── LOADING / SETTINGS BODY ── -->
         ${(this._scopedLoading && !isAdminTarget) || this._scopedOverridesLoading ? html`
           <div class="scoped-loading">
-            <ha-circular-progress indeterminate size="small"></ha-circular-progress>
+            <ha-circular-progress indeterminate size="s"></ha-circular-progress>
             Loading…
           </div>
         ` : html`
@@ -1301,6 +1324,11 @@ export class LCARdSSoundConfigTab extends LitElement {
     .banner ha-button {
       margin-left: auto;
     }
+    .confirm-actions {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
 
     /* Dim sections or individual rows when sound is globally disabled */
     .dimmed {
@@ -1396,7 +1424,6 @@ export class LCARdSSoundConfigTab extends LitElement {
       padding: 0 4px 8px;
     }
     .reset-overrides-btn {
-      --mdc-theme-primary: var(--warning-color, #ff9800);
       flex-shrink: 0;
     }
 

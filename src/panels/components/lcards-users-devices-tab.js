@@ -476,10 +476,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                               <ha-icon icon="mdi:alert"></ha-icon>
                               <span>Clear all overrides for <strong>${displayName ?? u.id}</strong>?</span>
                               <div class="confirm-actions">
-                                <ha-button class="danger-btn" @click=${this._executeDeleteUser}>
-                                  <ha-icon slot="start" icon="mdi:delete"></ha-icon>
-                                  Delete
-                                </ha-button>
+                                <ha-button class="danger-btn" variant="danger" @click=${this._executeDeleteUser}>Delete</ha-button>
                                 <ha-button @click=${this._cancelDeleteUser}>Cancel</ha-button>
                               </div>
                             </div>
@@ -578,10 +575,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                               <ha-icon icon="mdi:alert"></ha-icon>
                               <span>Remove <strong>${name ?? d.id}</strong>?</span>
                               <div class="confirm-actions">
-                                <ha-button class="danger-btn" @click=${this._executeDeleteDevice}>
-                                  <ha-icon slot="start" icon="mdi:delete"></ha-icon>
-                                  Remove
-                                </ha-button>
+                                <ha-button class="danger-btn" variant="danger" @click=${this._executeDeleteDevice}>Delete</ha-button>
                                 <ha-button @click=${this._cancelDeleteDevice}>Cancel</ha-button>
                               </div>
                             </div>
@@ -812,13 +806,11 @@ export class LCARdsUsersDevicesTab extends LitElement {
       .inline-confirm span { flex: 1; }
       .confirm-actions {
         display: flex;
-        gap: 6px;
+        gap: 8px;
+        margin-left: auto;
       }
       .danger-icon {
         color: var(--error-color, #f44336);
-      }
-      .danger-btn {
-        --mdc-theme-primary: var(--error-color, #f44336);
       }
 
       /* ── Loading / empty ── */

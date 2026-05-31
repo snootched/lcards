@@ -791,6 +791,16 @@ export class LCARdSSelectMenu extends LCARdSCard {
     // STATIC HELPERS
     // =========================================================================
 
+    getGridOptions() {
+        const go = this.config.grid_options || {};
+        return {
+            columns: go.columns ?? 4,
+            rows: go.rows ?? 2,
+            min_columns: 2,
+            min_rows: 1,
+        };
+    }
+
     static getStubConfig() {
         return {
             type: 'custom:lcards-select-menu',
