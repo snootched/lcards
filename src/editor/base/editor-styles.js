@@ -73,7 +73,7 @@ export const editorStyles = css`
     }
 
     .section-header {
-        font-size: 16px;
+        font-size: var(--ha-font-size-l);
         font-weight: 500;
         margin-bottom: 12px;
         color: var(--primary-text-color, #212121);
@@ -82,7 +82,7 @@ export const editorStyles = css`
     }
 
     .section-description {
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         color: var(--secondary-text-color, #727272);
         margin-bottom: 12px;
         line-height: 1.5;
@@ -109,7 +109,7 @@ export const editorStyles = css`
     .form-row label {
         font-weight: 500;
         color: var(--primary-text-color, #212121);
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         display: block;
         padding: 2px 8px;
     }
@@ -121,7 +121,7 @@ export const editorStyles = css`
     }
 
     .helper-text {
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color, #727272);
         margin-top: 4px;
         line-height: 1.4;
@@ -132,9 +132,9 @@ export const editorStyles = css`
         color: var(--error-color, #f44336);
         background: var(--error-background-color, rgba(244, 67, 54, 0.1));
         padding: 8px 12px;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         margin: 8px 0;
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
     }
 
     .error-message ul {
@@ -150,18 +150,18 @@ export const editorStyles = css`
         color: var(--warning-color, #ff9800);
         background: var(--warning-background-color, rgba(255, 152, 0, 0.1));
         padding: 8px 12px;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         margin: 8px 0;
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
     }
 
     .info-message {
         color: var(--info-color, #2196f3);
         background: var(--info-background-color, rgba(33, 150, 243, 0.1));
         padding: 8px 12px;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         margin: 8px 0;
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
     }
 
     /* Info card - standardized launcher card for tabs (Theme Browser, Provenance, Templates) */
@@ -252,7 +252,7 @@ export const editorStyles = css`
     .monaco-container {
         height: 500px;
         border: 1px solid var(--divider-color, #e0e0e0);
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         overflow: hidden;
     }
 

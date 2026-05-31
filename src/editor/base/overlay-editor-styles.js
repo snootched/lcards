@@ -12,7 +12,7 @@ export const overlayEditorStyles = css`
         z-index: 10000;
         background: var(--card-background-color);
         border: 2px solid var(--primary-color);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         box-shadow: var(--ha-box-shadow-l);
         min-width: 320px;
         max-width: 400px;
@@ -30,7 +30,7 @@ export const overlayEditorStyles = css`
 
     .editor-title {
         font-weight: 600;
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
     }
 
     .close-btn {
@@ -46,7 +46,7 @@ export const overlayEditorStyles = css`
 
     .close-btn:hover {
         background: rgba(255, 255, 255, 0.2);
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
     }
 
     .editor-content {

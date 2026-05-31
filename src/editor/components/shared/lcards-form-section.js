@@ -61,7 +61,7 @@ export class LCARdSFormSection extends LitElement {
                 --expansion-panel-summary-padding: 0 8px 0 16px;
                 background-color: color-mix(
                     in srgb,
-                    var(--secondary-background-color) 30%,
+                    var(--secondary-background-color) 50%,
                     color-mix(in srgb, var(--primary-background-color) 25%, transparent)
                 );
             }
@@ -73,7 +73,7 @@ export class LCARdSFormSection extends LitElement {
             ha-expansion-panel[expanded] {
                 background-color: color-mix(
                     in srgb,
-                    var(--secondary-background-color) 30%,
+                    var(--secondary-background-color) 50%,
                     color-mix(in srgb, var(--primary-background-color) 25%, transparent)
                 );
             }
@@ -83,12 +83,12 @@ export class LCARdSFormSection extends LitElement {
             ha-expansion-panel.focused {
                 background-color: color-mix(
                     in srgb,
-                    var(--secondary-background-color) 45%,
+                    var(--secondary-background-color) 65%,
                     color-mix(in srgb, var(--primary-background-color) 35%, transparent)
                 );
                 --input-fill-color: color-mix(
                     in srgb,
-                    var(--secondary-background-color) 45%,
+                    var(--secondary-background-color) 65%,
                     color-mix(in srgb, var(--primary-background-color) 35%, transparent)
                 );
             }
@@ -103,7 +103,7 @@ export class LCARdSFormSection extends LitElement {
             }
 
             .section-description {
-                font-size: 14px;
+                font-size: var(--ha-font-size-m);
                 color: var(--secondary-text-color, #727272);
                 margin-bottom: 12px; /* Reduced from 16px for consistency */
                 line-height: 1.5;

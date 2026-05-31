@@ -644,7 +644,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         flex-wrap: wrap;
         gap: 10px;
         padding: 10px 14px;
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         font-size: 0.9em;
         flex-shrink: 0;
         margin-bottom: 8px;
@@ -718,7 +718,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         min-width: 160px;
         background: var(--input-fill-color, rgba(255,255,255,0.05));
         border: 1px solid var(--divider-color);
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         color: var(--primary-text-color);
         padding: 5px 8px;
         font-size: 0.9rem;
@@ -795,7 +795,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         padding: 8px 10px;
         background: color-mix(in srgb, var(--error-color, #f44336) 10%, transparent);
         border: 1px solid color-mix(in srgb, var(--error-color, #f44336) 30%, transparent);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         font-size: 0.85em;
         flex-wrap: wrap;
       }

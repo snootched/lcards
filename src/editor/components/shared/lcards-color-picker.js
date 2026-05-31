@@ -105,7 +105,7 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             .input-label {
-                font-size: 12px;
+                font-size: var(--ha-font-size-s);
                 font-weight: 500;
                 color: var(--secondary-text-color, #727272);
                 padding: 0 8px;
@@ -157,7 +157,7 @@ export class LCARdSColorPicker extends LitElement {
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
-                transition: all 0.2s ease;
+                transition: all var(--ha-animation-duration-normal, 0.2s) ease;
             }
 
             .preview-value {
@@ -211,7 +211,7 @@ export class LCARdSColorPicker extends LitElement {
             .builder-result {
                 background: var(--secondary-background-color, #f5f5f5);
                 padding: 12px;
-                border-radius: 8px;
+                border-radius: var(--ha-border-radius-md);
                 border: 1px solid var(--divider-color, #e0e0e0);
             }
 
@@ -239,7 +239,7 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             .copy-success {
-                font-size: 12px;
+                font-size: var(--ha-font-size-s);
                 color: var(--success-color, #4caf50);
                 display: flex;
                 align-items: center;
@@ -279,10 +279,10 @@ export class LCARdSColorPicker extends LitElement {
 
             .validation-error {
                 color: var(--error-color, #f44336);
-                font-size: 12px;
+                font-size: var(--ha-font-size-s);
                 padding: 8px;
                 background: var(--error-background-color, rgba(244, 67, 54, 0.1));
-                border-radius: 4px;
+                border-radius: var(--ha-border-radius-sm);
                 margin-top: 8px;
             }
         `;

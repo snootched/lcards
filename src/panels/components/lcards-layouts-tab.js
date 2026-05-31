@@ -761,7 +761,7 @@ export class LCARdSLayoutsTab extends LitElement {
         align-items: center;
         gap: 12px;
         padding: 12px 16px;
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         font-size: 0.9em;
       }
       .banner.warning {
@@ -809,17 +809,17 @@ export class LCARdSLayoutsTab extends LitElement {
         padding: 10px 12px;
         border-radius: var(--ha-card-border-radius, 12px);
         border: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
-        background: rgba(40,40,40,0.6);
+        background: var(--secondary-background-color);
         cursor: pointer;
         color: var(--primary-text-color);
-        transition: background 0.15s, border-color 0.15s;
+        transition: background var(--ha-animation-duration-fast), border-color var(--ha-animation-duration-fast);
       }
       .template-card:hover {
-        background: color-mix(in srgb, var(--primary-color, #1b4f8a) 18%, rgba(40,40,40,0.8));
+        background: color-mix(in srgb, var(--primary-color) 15%, var(--secondary-background-color));
         border-color: var(--primary-color);
       }
       .template-card.selected {
-        background: color-mix(in srgb, var(--primary-color, #1b4f8a) 22%, rgba(40,40,40,0.9));
+        background: color-mix(in srgb, var(--primary-color) 22%, var(--secondary-background-color));
         border-color: var(--primary-color);
       }
       .template-card:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
@@ -873,7 +873,7 @@ export class LCARdSLayoutsTab extends LitElement {
       }
 
       .yaml-block {
-        background: rgba(10,10,10,0.6);
+        background: var(--primary-background-color);
         color: var(--primary-text-color);
         border: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
         border-radius: 6px;

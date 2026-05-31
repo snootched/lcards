@@ -60,7 +60,7 @@ export class LCARdSColorList extends LitElement {
         border: 1px solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         overflow: hidden;
-        transition: all 0.2s ease;
+        transition: all var(--ha-animation-duration-normal, 0.2s) ease;
       }
 
       .color-item:hover {
@@ -91,7 +91,7 @@ export class LCARdSColorList extends LitElement {
         background: var(--primary-color);
         color: var(--text-primary-color);
         font-weight: 500;
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         flex-shrink: 0;
       }
 
@@ -114,7 +114,7 @@ export class LCARdSColorList extends LitElement {
       .color-preview-fill {
         width: 100%;
         height: 100%;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
       }
 
       .color-info {
@@ -127,7 +127,7 @@ export class LCARdSColorList extends LitElement {
 
       .color-value {
         font-weight: 500;
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         color: var(--primary-text-color);
         overflow: hidden;
         text-overflow: ellipsis;
@@ -135,7 +135,7 @@ export class LCARdSColorList extends LitElement {
       }
 
       .color-description {
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
       }
 
@@ -146,7 +146,7 @@ export class LCARdSColorList extends LitElement {
       }
 
       .expand-icon {
-        transition: transform 0.2s ease;
+        transition: transform var(--ha-animation-duration-normal, 0.2s) ease;
         flex-shrink: 0;
         color: var(--secondary-text-color);
       }
@@ -165,7 +165,7 @@ export class LCARdSColorList extends LitElement {
         text-align: center;
         padding: 24px;
         color: var(--secondary-text-color);
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         background: var(--card-background-color);
         border: 2px dashed var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);

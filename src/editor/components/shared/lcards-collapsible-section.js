@@ -53,10 +53,10 @@ export class LCARdSCollapsibleSection extends LitElement {
       .section-wrapper {
         margin-bottom: 12px;
         border: 1px solid var(--divider-color);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         overflow: hidden;
         background: var(--card-background-color);
-        transition: border 0.2s ease;
+        transition: border var(--ha-animation-duration-normal, 0.2s) ease;
       }
 
       /* Dashed border when collapsed */
@@ -73,11 +73,11 @@ export class LCARdSCollapsibleSection extends LitElement {
         padding: 12px 16px;
         background: var(--secondary-background-color);
         border: 1px solid var(--divider-color);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         z-index: 1;
         cursor: pointer;
         user-select: none;
-        transition: all 0.2s ease;
+        transition: all var(--ha-animation-duration-normal, 0.2s) ease;
       }
 
       .section-header:hover {
@@ -117,7 +117,7 @@ export class LCARdSCollapsibleSection extends LitElement {
         height: 18px;
         font-size: 18px;
         color: var(--primary-color);
-        transition: transform 0.2s ease;
+        transition: transform var(--ha-animation-duration-normal, 0.2s) ease;
         flex-shrink: 0;
       }
 
@@ -126,7 +126,7 @@ export class LCARdSCollapsibleSection extends LitElement {
       }
 
       .section-title {
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         font-weight: 600;
         color: var(--primary-text-color);
       }
@@ -135,7 +135,7 @@ export class LCARdSCollapsibleSection extends LitElement {
         max-height: 0;
         overflow: hidden;
         opacity: 0;
-        transition: max-height 0.3s ease, opacity 0.2s ease;
+        transition: max-height var(--ha-animation-duration-slow, 0.3s) ease, opacity var(--ha-animation-duration-normal, 0.2s) ease;
         border-top: 1px solid transparent;
       }
 

@@ -21,15 +21,15 @@ export const editorComponentStyles = css`
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.1);
+        background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
         border: 2px solid transparent;
-        transition: all 0.2s;
+        transition: all var(--ha-animation-duration-normal, 0.2s);
         --ha-icon-button-size: 40px;
         --mdc-icon-size: 20px;
     }
 
     ha-icon-button:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: color-mix(in srgb, var(--primary-text-color) 20%, transparent);
         border-color: var(--primary-color);
     }
 
@@ -46,7 +46,7 @@ export const editorComponentStyles = css`
         padding: 16px;
         background: var(--card-background-color);
         border: 2px solid var(--divider-color);
-        border-radius: 12px;
+        border-radius: var(--ha-border-radius-lg);
         margin-bottom: 12px;
     }
 
@@ -59,7 +59,7 @@ export const editorComponentStyles = css`
 
     .info-card-content p {
         margin: 0;
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         color: var(--secondary-text-color);
         line-height: 1.5;
     }
@@ -72,7 +72,7 @@ export const editorComponentStyles = css`
 
     /* Section Headers */
     .section-header-standard {
-        font-size: 16px;
+        font-size: var(--ha-font-size-l);
         font-weight: 500;
         margin-bottom: 12px;
         color: var(--primary-text-color);
@@ -119,20 +119,20 @@ export const editorComponentStyles = css`
     }
 
     .empty-state ha-icon {
-        font-size: 64px;
+        font-size: 64px; /* icon display size — no HA token at this scale */
         opacity: 0.3;
         margin-bottom: 16px;
         --mdc-icon-size: 64px;
     }
 
     .empty-state-title {
-        font-size: 16px;
+        font-size: var(--ha-font-size-l);
         font-weight: 600;
         margin-bottom: 8px;
     }
 
     .empty-state-subtitle {
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         opacity: 0.7;
     }
 
@@ -143,7 +143,7 @@ export const editorComponentStyles = css`
         align-items: center;
         padding: 8px;
         background: var(--secondary-background-color);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         margin-bottom: 12px;
     }
 
@@ -161,8 +161,8 @@ export const editorComponentStyles = css`
         padding: 4px 8px;
         background: var(--primary-color);
         color: white;
-        border-radius: 8px;
-        font-size: 12px;
+        border-radius: var(--ha-border-radius-md);
+        font-size: var(--ha-font-size-s);
         font-weight: 500;
     }
 

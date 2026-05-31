@@ -1168,7 +1168,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 align-items: center;
                 gap: 12px;
                 padding: 12px 16px;
-                border-radius: 8px;
+                border-radius: var(--ha-border-radius-md);
                 font-size: 0.9em;
             }
             .banner.warning {

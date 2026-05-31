@@ -1313,7 +1313,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       align-items: center;
       gap: 12px;
       padding: 12px 16px;
-      border-radius: 8px;
+      border-radius: var(--ha-border-radius-md);
       font-size: 0.9em;
     }
     .banner.warning {
@@ -1509,7 +1509,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       margin: 4px 0;
       background: color-mix(in srgb, var(--warning-color, #ff9800) 10%, transparent);
       border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 30%, transparent);
-      border-radius: 8px;
+      border-radius: var(--ha-border-radius-md);
     }
     .admin-selector-label {
       font-size: 0.85rem;

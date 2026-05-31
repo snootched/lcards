@@ -553,7 +553,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       flex-wrap: wrap;
       gap: 10px;
       padding: 10px 14px;
-      border-radius: 8px;
+      border-radius: var(--ha-border-radius-md);
       font-size: 0.9em;
       flex-shrink: 0;
       margin-bottom: 8px;
@@ -721,7 +721,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       padding: 10px 12px;
       background: color-mix(in srgb, var(--error-color, #f44336) 10%, transparent);
       border: 1px solid color-mix(in srgb, var(--error-color, #f44336) 30%, transparent);
-      border-radius: 8px;
+      border-radius: var(--ha-border-radius-md);
       font-size: 0.9em;
       flex-wrap: wrap;
     }

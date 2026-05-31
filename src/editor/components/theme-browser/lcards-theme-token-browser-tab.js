@@ -887,7 +887,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .preview-section {
-        background: rgba(60,60,60,0.5);
+        background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         border: 1px solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         padding: 20px;
@@ -1041,7 +1041,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .visualization-section {
         padding: 20px;
         border-radius: var(--ha-card-border-radius, 12px);
-        background: rgba(60,60,60,0.5);
+        background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         border: 1px solid var(--divider-color);
       }
 
