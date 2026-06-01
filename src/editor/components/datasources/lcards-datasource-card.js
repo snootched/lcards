@@ -35,7 +35,7 @@ export class LCARdSDataSourceCard extends LitElement {
       }
 
       .datasource-card {
-        border: 2px solid var(--divider-color, #e0e0e0);
+        border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
         border-radius: 8px;
         padding: 12px;
         cursor: pointer;
@@ -47,7 +47,7 @@ export class LCARdSDataSourceCard extends LitElement {
         border-color: var(--primary-color);
         background: var(--secondary-background-color, #fafafa);
         transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--ha-box-shadow-s);
       }
 
       .datasource-card.selected {

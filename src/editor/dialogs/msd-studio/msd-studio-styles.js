@@ -143,7 +143,7 @@ export const msdStudioStyles = css`
         justify-content: center;
         padding: 0;
         margin: 0;
-        --mdc-icon-button-size: 40px;
+        --ha-icon-button-size: 40px;
         --mdc-icon-size: 20px;
     }
 

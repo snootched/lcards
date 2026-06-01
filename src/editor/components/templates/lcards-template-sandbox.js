@@ -148,7 +148,7 @@ export class LCARdSTemplateSandbox extends LitElement {
         align-items: center;
         justify-content: space-between;
         padding: 12px 16px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
         flex-shrink: 0;
       }
@@ -215,7 +215,7 @@ export class LCARdSTemplateSandbox extends LitElement {
         gap: 10px;
         padding: 10px 12px;
         background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 6px;
         cursor: pointer;
         transition: all 0.2s;
@@ -279,13 +279,13 @@ export class LCARdSTemplateSandbox extends LitElement {
       .status-badge.live {
         background: rgba(76, 175, 80, 0.2);
         color: #4caf50;
-        border: 1px solid #4caf50;
+        border: var(--ha-border-width-sm) solid #4caf50;
       }
 
       .status-badge.mock {
         background: rgba(255, 152, 0, 0.2);
         color: #ff9800;
-        border: 1px solid #ff9800;
+        border: var(--ha-border-width-sm) solid #ff9800;
       }
 
       /* Template Input */
@@ -300,7 +300,7 @@ export class LCARdSTemplateSandbox extends LitElement {
         font-family: 'Courier New', monospace;
         font-size: 13px;
         line-height: 1.5;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 8px;
         background: var(--code-background-color, #282c34);
         color: var(--code-text-color, #abb2bf);
@@ -352,7 +352,7 @@ export class LCARdSTemplateSandbox extends LitElement {
       .entity-input, .example-select, .yaml-editor {
         width: 100%;
         padding: 8px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 4px;
         background: var(--card-background-color);
         color: var(--primary-text-color);
@@ -372,7 +372,7 @@ export class LCARdSTemplateSandbox extends LitElement {
       .entity-state-display {
         padding: 12px;
         background: var(--code-background-color, #282c34);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 4px;
         font-family: 'Courier New', monospace;
         font-size: 12px;
@@ -413,7 +413,7 @@ export class LCARdSTemplateSandbox extends LitElement {
 
       .state-button {
         padding: 6px 12px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 4px;
         background: var(--card-background-color);
         color: var(--primary-text-color);
@@ -462,7 +462,7 @@ export class LCARdSTemplateSandbox extends LitElement {
         font-size: 14px;
         word-break: break-word;
         min-height: 80px;
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
         position: relative;
       }
 
@@ -533,7 +533,7 @@ export class LCARdSTemplateSandbox extends LitElement {
 
       .dep-section {
         background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 6px;
         padding: 12px;
       }
@@ -680,7 +680,7 @@ export class LCARdSTemplateSandbox extends LitElement {
 
       .info-banner.mock {
         background: rgba(255, 152, 0, 0.1);
-        border: 1px solid #ff9800;
+        border: var(--ha-border-width-sm) solid #ff9800;
         color: #ff9800;
       }
 
@@ -698,7 +698,7 @@ export class LCARdSTemplateSandbox extends LitElement {
 
       .example-card {
         background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 8px;
         padding: 16px;
         cursor: pointer;
@@ -707,7 +707,7 @@ export class LCARdSTemplateSandbox extends LitElement {
 
       .example-card:hover {
         border-color: var(--primary-color);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--ha-box-shadow-m);
         transform: translateY(-2px);
       }
 
@@ -741,11 +741,6 @@ export class LCARdSTemplateSandbox extends LitElement {
         color: var(--code-text-color, #abb2bf);
         overflow-x: auto;
         word-break: break-all;
-      }
-
-      /* Buttons */
-      ha-button {
-        --mdc-theme-primary: var(--primary-color);
       }
 
       .action-buttons {
@@ -925,7 +920,7 @@ export class LCARdSTemplateSandbox extends LitElement {
       </div>
 
       <div class="form-row">
-        <ha-button @click=${() => this._evaluateTemplate()} ?disabled=${this._isEvaluating} style="width: 100%; --mdc-typography-button-font-size: 14px;">
+        <ha-button @click=${() => this._evaluateTemplate()} ?disabled=${this._isEvaluating} style="width: 100%; font-size: 14px;">
           <ha-icon icon="mdi:play" slot="start"></ha-icon>
           ${this._isEvaluating ? 'Evaluating...' : 'Evaluate Now'}
         </ha-button>
@@ -1021,7 +1016,7 @@ export class LCARdSTemplateSandbox extends LitElement {
 
         <!-- Template Metadata -->
         <div class="form-row" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; padding: 12px; background: var(--secondary-background-color); border-radius: 6px; font-size: 13px;">
-          <ha-button @click=${() => this._evaluateTemplate()} ?disabled=${this._isEvaluating} style="--mdc-typography-button-font-size: 12px;">
+          <ha-button @click=${() => this._evaluateTemplate()} ?disabled=${this._isEvaluating} style="font-size: 12px;">
             <ha-icon icon="mdi:play" slot="start"></ha-icon>
             ${this._isEvaluating ? 'Evaluating...' : 'Evaluate Now'}
           </ha-button>

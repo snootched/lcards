@@ -20,6 +20,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { overlayEditorStyles } from '../../../editor/base/overlay-editor-styles.js';
 import '../../components/shared/lcards-form-section.js';
 import './lcards-color-section.js';
 
@@ -65,56 +66,7 @@ export class LCARdSGridCellEditor extends LitElement {
     }
 
     static get styles() {
-        return css`
-            :host {
-                display: block;
-                position: fixed;
-                z-index: 10000;
-                background: var(--card-background-color);
-                border: 2px solid var(--primary-color);
-                border-radius: 8px;
-                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-                min-width: 320px;
-                max-width: 400px;
-            }
-
-            .editor-header {
-                padding: 12px;
-                background: var(--primary-color);
-                color: white;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                border-radius: 6px 6px 0 0;
-            }
-
-            .editor-title {
-                font-weight: 600;
-                font-size: 14px;
-            }
-
-            .close-btn {
-                background: transparent;
-                border: none;
-                color: white;
-                cursor: pointer;
-                padding: 4px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .close-btn:hover {
-                background: rgba(255, 255, 255, 0.2);
-                border-radius: 4px;
-            }
-
-            .editor-content {
-                padding: 12px;
-                max-height: 400px;
-                overflow-y: auto;
-            }
-
+        return [overlayEditorStyles, css`
             .mode-toggle {
                 display: flex;
                 gap: 4px;
@@ -149,7 +101,7 @@ export class LCARdSGridCellEditor extends LitElement {
                 margin-bottom: 12px;
             }
 
-            ha-textfield {
+            ha-input {
                 width: 100%;
             }
 
@@ -174,19 +126,19 @@ export class LCARdSGridCellEditor extends LitElement {
             }
 
             .style-section {
-                border-top: 1px solid var(--divider-color);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 padding-top: 12px;
                 margin-top: 12px;
             }
 
             .editor-actions {
                 padding: 12px;
-                border-top: 1px solid var(--divider-color);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 display: flex;
                 gap: 8px;
                 justify-content: flex-end;
             }
-        `;
+        `];
     }
 
     render() {
@@ -216,18 +168,19 @@ export class LCARdSGridCellEditor extends LitElement {
                 <!-- Value Editor -->
                 <div class="value-editor">
                     ${this._editMode === 'static' ? html`
-                        <ha-textfield
+                        <ha-input
                             label="Cell Value"
                             .value=${this._editValue}
                             @input=${(e) => this._editValue = e.target.value}
                             helper="Static text or number">
-                        </ha-textfield>
+                        </ha-input>
                     ` : html`
                         <ha-textarea
                             label="Template"
                             .value=${this._editValue}
                             @input=${(e) => this._editValue = e.target.value}
                             rows="3"
+                            resize="auto"
                             helper="Home Assistant template syntax">
                         </ha-textarea>
 
@@ -246,28 +199,28 @@ export class LCARdSGridCellEditor extends LitElement {
                         Style Overrides (Optional)
                     </summary>
 
-                    <ha-textfield
+                    <ha-input
                         label="Text Colour"
                         .value=${this._editStyle.color || ''}
                         @input=${(e) => this._updateStyle('color', e.target.value)}
                         helper="CSS colour value">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Background Colour"
                         .value=${this._editStyle.background || ''}
                         @input=${(e) => this._updateStyle('background', e.target.value)}
                         helper="CSS colour value"
                         style="margin-top: 8px;">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Font Weight"
                         .value=${this._editStyle.font_weight || ''}
                         @input=${(e) => this._updateStyle('font_weight', e.target.value)}
                         helper="100-900"
                         style="margin-top: 8px;">
-                    </ha-textfield>
+                    </ha-input>
                 </details>
             </div>
 

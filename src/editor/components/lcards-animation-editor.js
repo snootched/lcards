@@ -102,7 +102,7 @@ export class LCARdSAnimationEditor extends LitElement {
 
       .animation-item {
         background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         overflow: hidden;
       }
@@ -197,7 +197,7 @@ export class LCARdSAnimationEditor extends LitElement {
         color: var(--primary-text-color);
         margin-bottom: 16px;
         padding-bottom: 8px;
-        border-bottom: 2px solid var(--primary-color);
+        border-bottom: var(--ha-border-width-md) solid var(--primary-color);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -231,7 +231,6 @@ export class LCARdSAnimationEditor extends LitElement {
       .add-button {
         width: 100%;
         margin-top: 8px;
-        --mdc-theme-primary: var(--primary-color);
       }
 
       .empty-state {
@@ -271,7 +270,7 @@ export class LCARdSAnimationEditor extends LitElement {
       }
 
       ha-icon-button {
-        --mdc-icon-button-size: 36px;
+        --ha-icon-button-size: 36px;
         --mdc-icon-size: 20px;
       }
 
@@ -327,11 +326,6 @@ export class LCARdSAnimationEditor extends LitElement {
         padding: 8px 0;
       }
 
-      .mode-selector ha-formfield {
-        display: flex;
-        align-items: center;
-      }
-
       .target-list {
         display: flex;
         flex-direction: column;
@@ -350,7 +344,7 @@ export class LCARdSAnimationEditor extends LitElement {
 
       .target-item ha-icon-button {
         margin-top: 8px;
-        --mdc-icon-button-size: 36px;
+        --ha-icon-button-size: 36px;
         --mdc-icon-size: 20px;
       }
 
@@ -402,7 +396,7 @@ export class LCARdSAnimationEditor extends LitElement {
         align-items: center;
         justify-content: flex-end;
         padding-top: 20px;
-        border-top: 1px solid var(--divider-color);
+        border-top: var(--ha-border-width-sm) solid var(--divider-color);
         margin-top: 8px;
       }
 
@@ -412,7 +406,7 @@ export class LCARdSAnimationEditor extends LitElement {
         gap: 8px;
         justify-content: flex-end;
         padding-top: 20px;
-        border-top: 1px solid var(--error-color, #f44336);
+        border-top: var(--ha-border-width-sm) solid var(--error-color, #f44336);
         margin-top: 8px;
       }
 
@@ -829,20 +823,20 @@ export class LCARdSAnimationEditor extends LitElement {
       case 'march':
         specificParams = html`
           <div class="param-grid">
-            <ha-textfield
+            <ha-input
               type="number"
               label="Dash Length (px)"
               .value=${params.dash_length ?? ''}
               placeholder="Auto-detect"
               @input=${(e) => this._updateParam(index, 'dash_length', e.target.value ? Number(e.target.value) : undefined)}>
-            </ha-textfield>
-            <ha-textfield
+            </ha-input>
+            <ha-input
               type="number"
               label="Gap Length (px)"
               .value=${params.gap_length ?? ''}
               placeholder="Auto-detect"
               @input=${(e) => this._updateParam(index, 'gap_length', e.target.value ? Number(e.target.value) : undefined)}>
-            </ha-textfield>
+            </ha-input>
             <ha-selector
               .hass=${this.hass}
               .selector=${{
@@ -858,13 +852,13 @@ export class LCARdSAnimationEditor extends LitElement {
               .label=${'Direction'}
               @value-changed=${(e) => this._updateParam(index, 'direction', e.detail.value)}>
             </ha-selector>
-            <ha-textfield
+            <ha-input
               type="number"
               label="Speed (seconds)"
               .value=${params.speed ?? 2}
               step="0.1"
               @input=${(e) => this._updateParam(index, 'speed', Number(e.target.value))}>
-            </ha-textfield>
+            </ha-input>
           </div>
           <lcards-message type="info" .message=${'Leave dash/gap empty to auto-detect from element'}></lcards-message>
         `;
@@ -976,31 +970,31 @@ export class LCARdSAnimationEditor extends LitElement {
       case 'cascade':
         specificParams = html`
           <div class="param-grid">
-            <ha-textfield
+            <ha-input
               type="number"
               label="Stagger Delay (ms)"
               .value=${params.stagger ?? 100}
               @input=${(e) => this._updateParam(index, 'stagger', Number(e.target.value))}>
-            </ha-textfield>
-            <ha-textfield
+            </ha-input>
+            <ha-input
               label="CSS Property"
               .value=${params.property ?? 'opacity'}
               @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-textfield>
-            <ha-textfield
+            </ha-input>
+            <ha-input
               type="number"
               label="From Value"
               .value=${params.from ?? 0}
               step="0.1"
               @input=${(e) => this._updateParam(index, 'from', Number(e.target.value))}>
-            </ha-textfield>
-            <ha-textfield
+            </ha-input>
+            <ha-input
               type="number"
               label="To Value"
               .value=${params.to ?? 1}
               step="0.1"
               @input=${(e) => this._updateParam(index, 'to', Number(e.target.value))}>
-            </ha-textfield>
+            </ha-input>
           </div>
         `;
         break;
@@ -1059,7 +1053,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .value=${params.pattern ?? 'default'}
               @value-changed=${(e) => this._updateParam(index, 'pattern', e.detail.value)}>
             </ha-selector>
-            <ha-textfield
+            <ha-input
               type="number"
               label="Speed Multiplier"
               .value=${params.speed_multiplier ?? 1.0}
@@ -1068,13 +1062,13 @@ export class LCARdSAnimationEditor extends LitElement {
               min="0.1"
               max="10"
               @input=${(e) => this._updateParam(index, 'speed_multiplier', Number(e.target.value))}>
-            </ha-textfield>
-            <ha-textfield
+            </ha-input>
+            <ha-input
               label="CSS Property"
               .value=${params.property ?? 'color'}
               .helper=${'Property to animate (color, fill, stroke, etc.)'}
               @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-textfield>
+            </ha-input>
           </div>
         `;
         break;
@@ -1128,7 +1122,7 @@ export class LCARdSAnimationEditor extends LitElement {
       case 'set':
         specificParams = html`
           <div class="param-full">
-            <ha-textfield
+            <ha-input
               label="Properties (JSON)"
               .value=${JSON.stringify(params.properties ?? {})}
               @input=${(e) => {
@@ -1139,7 +1133,7 @@ export class LCARdSAnimationEditor extends LitElement {
                 }
               }}
               helper="CSS properties to set immediately">
-            </ha-textfield>
+            </ha-input>
           </div>
         `;
         break;
@@ -1188,12 +1182,12 @@ export class LCARdSAnimationEditor extends LitElement {
               .helper=${'Positive = clockwise, negative = counter-clockwise'}
               @value-changed=${(e) => this._updateParam(index, 'angle', e.detail.value)}>
             </ha-selector>
-            <ha-textfield
+            <ha-input
               label="Transform Origin"
               .value=${params.origin ?? 'center'}
               .helper=${'e.g., "center", "top left", "50% 50%"'}
               @input=${(e) => this._updateParam(index, 'origin', e.target.value)}>
-            </ha-textfield>
+            </ha-input>
           </div>
         `;
         break;
@@ -1273,12 +1267,12 @@ export class LCARdSAnimationEditor extends LitElement {
                 @value-changed=${(e) => this._updateParam(index, 'color_to', e.detail.value)}>
               </lcards-color-picker>
             </div>
-            <ha-textfield
+            <ha-input
               label="CSS Property"
               .value=${params.property ?? 'color'}
               .helper=${'Property to animate: color, fill, stroke, background, etc.'}
               @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-textfield>
+            </ha-input>
           </div>
         `;
         break;
@@ -1486,11 +1480,11 @@ export class LCARdSAnimationEditor extends LitElement {
               .label=${'Loop'}
               @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value)}>
             </ha-selector>
-            <ha-textfield
+            <ha-input
               label="Character Pool"
               .value=${params.characters ?? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'}
               @input=${(e) => this._updateParam(index, 'characters', e.target.value)}>
-            </ha-textfield>
+            </ha-input>
           </div>
         `;
         break;
@@ -1541,7 +1535,7 @@ export class LCARdSAnimationEditor extends LitElement {
       case 'stagger-grid':
         specificParams = html`
           <div class="param-grid">
-            <ha-textfield
+            <ha-input
               label="Grid Dimensions"
               .value=${JSON.stringify(params.grid ?? [3, 3])}
               .helper=${'Format: [columns, rows] e.g., [6, 1] for alert bars'}
@@ -1550,7 +1544,7 @@ export class LCARdSAnimationEditor extends LitElement {
                   this._updateParam(index, 'grid', JSON.parse(e.target.value));
                 } catch (err) {}
               }}>
-            </ha-textfield>
+            </ha-input>
             <ha-selector
               .hass=${this.hass}
               .selector=${{
@@ -1575,12 +1569,12 @@ export class LCARdSAnimationEditor extends LitElement {
               .label=${'Stagger Delay (ms)'}
               @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
             </ha-selector>
-            <ha-textfield
+            <ha-input
               label="Property"
               .value=${params.property ?? 'scale'}
               .helper=${'Property to animate (scale, opacity, translateY, etc.)'}
               @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-textfield>
+            </ha-input>
           </div>
         `;
         break;
@@ -1610,7 +1604,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .helper=${'How much of each cycle the bar spends snapping to the trail color (legacy: 20%)'}
               @value-changed=${(e) => this._updateParam(index, 'lead_pct', e.detail.value)}>
             </ha-selector>
-            <ha-textfield
+            <ha-input
               type="number"
               label="Stagger Delay (ms)"
               .value=${params.delay ?? ''}
@@ -1620,8 +1614,8 @@ export class LCARdSAnimationEditor extends LitElement {
                 if (!v) { this._updateParam(index, 'delay', undefined); return; }
                 this._updateParam(index, 'delay', Number(v));
               }}>
-            </ha-textfield>
-            <ha-textfield
+            </ha-input>
+            <ha-input
               label="Grid Layout"
               .value=${params.grid ? JSON.stringify(params.grid) : ''}
               .helper=${'Optional: [cols, rows] e.g. [6,1] for 6 horizontal bars. Leave empty for linear.'}
@@ -1630,7 +1624,7 @@ export class LCARdSAnimationEditor extends LitElement {
                 if (!v) { this._updateParam(index, 'grid', undefined); return; }
                 try { this._updateParam(index, 'grid', JSON.parse(v)); } catch (_) {}
               }}>
-            </ha-textfield>
+            </ha-input>
             <ha-selector
               .hass=${this.hass}
               .selector=${{ select: { mode: 'dropdown', options: [
@@ -1642,12 +1636,12 @@ export class LCARdSAnimationEditor extends LitElement {
               .label=${'Chase Direction'}
               @value-changed=${(e) => this._updateParam(index, 'from', e.detail.value)}>
             </ha-selector>
-            <ha-textfield
+            <ha-input
               label="SVG/CSS Property"
               .value=${params.property ?? 'stroke'}
               .helper=${'stroke (SVG lines), fill (SVG shapes), color (text/HTML)'}
               @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-textfield>
+            </ha-input>
             <ha-selector
               .hass=${this.hass}
               .selector=${{ boolean: {} }}
@@ -1680,12 +1674,12 @@ export class LCARdSAnimationEditor extends LitElement {
               .label=${'Stagger Delay (ms)'}
               @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
             </ha-selector>
-            <ha-textfield
+            <ha-input
               label="Property"
               .value=${params.property ?? 'scale'}
               @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-textfield>
-            <ha-textfield
+            </ha-input>
+            <ha-input
               label="Center Point (for radial)"
               .value=${params.center ? JSON.stringify(params.center) : '[50, 50]'}
               .helper=${'Format: [x, y] in percentage. e.g., [50, 50]'}
@@ -1694,7 +1688,7 @@ export class LCARdSAnimationEditor extends LitElement {
                   this._updateParam(index, 'center', JSON.parse(e.target.value));
                 } catch (err) {}
               }}>
-            </ha-textfield>
+            </ha-input>
           </div>
         `;
         break;
@@ -1703,7 +1697,7 @@ export class LCARdSAnimationEditor extends LitElement {
       case 'timeline-cascade':
         specificParams = html`
           <div class="param-grid">
-            <ha-textfield
+            <ha-input
               label="Steps (JSON)"
               .value=${JSON.stringify(params.steps ?? [])}
               .helper=${'Array of step objects with targets, params, duration, offset'}
@@ -1712,7 +1706,7 @@ export class LCARdSAnimationEditor extends LitElement {
                   this._updateParam(index, 'steps', JSON.parse(e.target.value));
                 } catch (err) {}
               }}>
-            </ha-textfield>
+            </ha-input>
             <lcards-message type="info" .message=${'Define multiple sequential animation steps. Example: [{ targets: ".step-1", params: { opacity: [0, 1] }, duration: 300, offset: 0 }]'}></lcards-message>
           </div>
         `;
@@ -1760,16 +1754,16 @@ export class LCARdSAnimationEditor extends LitElement {
         icon="mdi:timer-outline"
         ?expanded=${true}>
         <div class="param-grid">
-          <ha-textfield
+          <ha-input
             type="number"
             label="Duration (ms)"
             .value=${params.duration ?? 1000}
             min="0"
             step="100"
             @input=${(e) => this._updateParam(index, 'duration', Number(e.target.value))}>
-          </ha-textfield>
+          </ha-input>
 
-          ${!options.hideStartDelay ? html`<ha-textfield
+          ${!options.hideStartDelay ? html`<ha-input
             type="number"
             label="Start Delay (ms)"
             .value=${params.delay ?? 0}
@@ -1777,7 +1771,7 @@ export class LCARdSAnimationEditor extends LitElement {
             step="100"
             helper="Delay before animation starts"
             @input=${(e) => this._updateParam(index, 'delay', Number(e.target.value))}>
-          </ha-textfield>` : ''}
+          </ha-input>` : ''}
 
           <ha-selector
             .hass=${this.hass}
@@ -1914,7 +1908,7 @@ export class LCARdSAnimationEditor extends LitElement {
     // Power easings (in, out, inOut, outIn)
     if (['in', 'out', 'inOut', 'outIn'].includes(ease)) {
       return html`
-        <ha-textfield
+        <ha-input
           type="number"
           label="Power (exponent)"
           .value=${params.ease_params?.power ?? 1.675}
@@ -1923,14 +1917,14 @@ export class LCARdSAnimationEditor extends LitElement {
           step="0.1"
           helper="Default: 1.675. Higher = steeper curve"
           @input=${(e) => this._updateEaseParam(index, 'power', Number(e.target.value))}>
-        </ha-textfield>
+        </ha-input>
       `;
     }
 
     // Back easings (overshoot parameter)
     if (ease.includes('Back')) {
       return html`
-        <ha-textfield
+        <ha-input
           type="number"
           label="Overshoot"
           .value=${params.ease_params?.overshoot ?? 1.70158}
@@ -1939,7 +1933,7 @@ export class LCARdSAnimationEditor extends LitElement {
           step="0.1"
           helper="Default: 1.70158. Higher = more overshoot"
           @input=${(e) => this._updateEaseParam(index, 'overshoot', Number(e.target.value))}>
-        </ha-textfield>
+        </ha-input>
       `;
     }
 
@@ -1947,7 +1941,7 @@ export class LCARdSAnimationEditor extends LitElement {
     if (ease.includes('Elastic')) {
       return html`
         <div class="param-grid" style="grid-template-columns: 1fr 1fr;">
-          <ha-textfield
+          <ha-input
             type="number"
             label="Amplitude"
             .value=${params.ease_params?.amplitude ?? 1}
@@ -1956,9 +1950,9 @@ export class LCARdSAnimationEditor extends LitElement {
             step="0.1"
             helper="Default: 1"
             @input=${(e) => this._updateEaseParam(index, 'amplitude', Number(e.target.value))}>
-          </ha-textfield>
+          </ha-input>
 
-          <ha-textfield
+          <ha-input
             type="number"
             label="Period"
             .value=${params.ease_params?.period ?? 0.3}
@@ -1967,7 +1961,7 @@ export class LCARdSAnimationEditor extends LitElement {
             step="0.05"
             helper="Default: 0.3"
             @input=${(e) => this._updateEaseParam(index, 'period', Number(e.target.value))}>
-          </ha-textfield>
+          </ha-input>
         </div>
       `;
     }
@@ -2122,7 +2116,8 @@ export class LCARdSAnimationEditor extends LitElement {
           .value=${params.ease_params?.customString ?? ''}
           @input=${(e) => this._updateEaseParam(index, 'customString', e.target.value)}
           rows="3"
-          style="width: 100%; font-family: 'Roboto Mono', monospace; --mdc-theme-primary: var(--primary-color);">
+          resize="auto"
+          style="width: 100%; font-family: 'Roboto Mono', monospace;">
         </ha-textarea>
         <lcards-message type="info">
           Paste from <a href="https://animejs.com/easing-editor/spring/default" target="_blank">anime.js Easing Editor</a>.
@@ -2241,31 +2236,31 @@ export class LCARdSAnimationEditor extends LitElement {
           style="margin-bottom: 12px;">
         </ha-selector>
 
-        <ha-textfield
+        <ha-input
           label="Attribute (optional)"
           .value=${anim.attribute || ''}
           .helper=${'Attribute to read instead of entity state. Applies to from_state, to_state, and while. Use brightness_pct for a computed 0\u2013100 light brightness percentage.'}
           @input=${(e) => this._updateAnimation(index, 'attribute', e.target.value || undefined)}
           style="width: 100%; margin-bottom: 12px;">
-        </ha-textfield>
+        </ha-input>
 
         <lcards-message type="warning" .message=${'\u26a0\ufe0f from_state and to_state are fire-and-forget gates \u2014 they control when an animation starts but will NOT stop a looping animation. To automatically stop a loop when a condition clears, add a While Condition below.'}></lcards-message>
 
-        <ha-textfield
+        <ha-input
           label="From State (optional)"
           .value=${anim.from_state || ''}
           .helper=${'Fire-and-forget gate: only trigger when transitioning FROM this value (leave empty for any)'}
           @input=${(e) => this._updateAnimation(index, 'from_state', e.target.value)}
           style="width: 100%; margin-bottom: 12px;">
-        </ha-textfield>
+        </ha-input>
 
-        <ha-textfield
+        <ha-input
           label="To State (optional)"
           .value=${anim.to_state || ''}
           .helper=${'Fire-and-forget gate: only trigger when transitioning TO this value (leave empty for any)'}
           @input=${(e) => this._updateAnimation(index, 'to_state', e.target.value)}
           style="width: 100%; margin-bottom: 12px;">
-        </ha-textfield>
+        </ha-input>
 
         <label class="field-label" style="margin-top: 8px; display: block;">While Condition <span style="font-size: 0.85em; opacity: 0.7;">(requires loop: true)</span></label>
         <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: flex-start;">
@@ -2284,14 +2279,14 @@ export class LCARdSAnimationEditor extends LitElement {
             style="flex: 1;">
           </ha-selector>
           ${whileType !== 'none' ? html`
-            <ha-textfield
+            <ha-input
               label="Value"
               type=${whileIsNumeric ? 'number' : 'text'}
               .value=${whileValue}
               .helper=${whileIsNumeric ? 'Numeric threshold' : 'State string (e.g. on, off, heating)'}
               @input=${(e) => this._updateWhileConditionValue(index, whileType, e.target.value)}
               style="flex: 1;">
-            </ha-textfield>
+            </ha-input>
           ` : ''}
         </div>
 
@@ -2746,23 +2741,12 @@ export class LCARdSAnimationEditor extends LitElement {
         ?expanded=${true}>
 
         <div class="mode-selector">
-          <ha-formfield .label=${'Single Element'}>
-            <ha-radio
-              .checked=${targetMode === 'single'}
-              .value=${'single'}
-              .name=${'target-mode-' + index}
-              @change=${() => this._setTargetMode(index, 'single')}
-            ></ha-radio>
-          </ha-formfield>
-
-          <ha-formfield .label=${'Multiple Elements'}>
-            <ha-radio
-              .checked=${targetMode === 'multiple'}
-              .value=${'multiple'}
-              .name=${'target-mode-' + index}
-              @change=${() => this._setTargetMode(index, 'multiple')}
-            ></ha-radio>
-          </ha-formfield>
+          <ha-radio-group
+            .value=${targetMode}
+            @value-changed=${e => this._setTargetMode(index, e.detail.value)}>
+            <ha-radio-option value="single">Single Element</ha-radio-option>
+            <ha-radio-option value="multiple">Multiple Elements</ha-radio-option>
+          </ha-radio-group>
         </div>
 
         ${targetMode === 'single'

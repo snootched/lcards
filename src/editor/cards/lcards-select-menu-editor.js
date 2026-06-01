@@ -144,7 +144,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 }
 
                 ha-icon-button {
-                    --mdc-icon-button-size: 36px;
+                    --ha-icon-button-size: 36px;
                     --mdc-icon-size: 20px;
                 }
 
@@ -173,7 +173,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                     align-items: center;
                     margin-top: 8px;
                 }
-                .add-option-row ha-textfield { flex: 1; }
+                .add-option-row ha-input { flex: 1; }
 
                 /* ── Entity sync strip ── */
                 .entity-sync-strip {
@@ -878,12 +878,12 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         }
         return html`
             <div class="add-option-row">
-                <ha-textfield
+                <ha-input
                     label="New option value"
                     .value=${this._addOptionValue}
                     @input=${(e) => { this._addOptionValue = e.target.value; }}
                     @keydown=${(e) => { if (e.key === 'Enter') this._addManualOption(this._addOptionValue); }}>
-                </ha-textfield>
+                </ha-input>
                 <ha-icon-button
                     .label=${'Add option'}
                     .path=${'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z'}

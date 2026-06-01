@@ -73,7 +73,7 @@ export class LCARdSCardDataSourcesList extends LitElement {
         display: flex;
         justify-content: space-between;
         padding: 6px 0;
-        border-bottom: 1px solid var(--divider-color, #e0e0e0);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
       }
 
       .info-row:last-of-type {

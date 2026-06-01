@@ -255,12 +255,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                                    metadata.orientation.slice(1);
 
             return html`
-                <ha-textfield
+                <ha-input
                     .label=${'Orientation'}
                     .value=${`${orientationLabel} (fixed)`}
                     .disabled=${true}
                     .helper=${'This component only supports ${metadata.orientation} orientation'}
-                ></ha-textfield>
+                ></ha-input>
             `;
         }
 
@@ -313,12 +313,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
         if (filteredPresets.length === 0) {
             return html`
-                <ha-textfield
+                <ha-input
                     .label=${'Style Preset'}
                     .value=${'No presets available for this component'}
                     .disabled=${true}
                     .helper=${'Change or clear the component to see presets'}
-                ></ha-textfield>
+                ></ha-input>
             `;
         }
 
@@ -364,39 +364,25 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const entityId = this.config?.entity;
         const currentValue = this.config?.control?.attribute || '';
 
-        // Build attribute list from entity (no empty/state sentinel — handled by clear button)
         const entity = this.hass?.states?.[entityId];
-        const attributes = entity ? Object.keys(entity.attributes || {}) : [];
-        const options = attributes.map(attr => ({ value: attr, label: attr }));
-
         const isValidAttribute = !currentValue ||
                                 (entity?.attributes && currentValue in entity.attributes);
 
+        const attrOpts = entityId && this.hass?.states?.[entityId]
+            ? Object.keys(this.hass.states[entityId].attributes || {}).sort()
+                  .map(attr => ({ value: attr, label: attr }))
+            : [];
+        const options = [{ value: '__none__', label: '— Control entity state' }, ...attrOpts];
         return html`
-            <div style="display:flex; gap:8px; align-items:flex-end;">
-                <ha-selector
-                    style="flex:1;"
-                    .hass=${this.hass}
-                    .label=${'Attribute'}
-                    .helper=${'Entity attribute to control (e.g. brightness). Clear to use entity state.'}
-                    .selector=${{
-                        select: {
-                            mode: 'dropdown',
-                            options: options.length ? options : [{ value: '', label: '— no attributes —' }],
-                            custom_value: true
-                        }
-                    }}
-                    .value=${currentValue}
-                    @value-changed=${(e) => this._handleAttributeChange(e)}>
-                </ha-selector>
-                ${currentValue ? html`
-                    <ha-icon-button
-                        title="Clear — use entity state"
-                        .path=${'M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z'}
-                        @click=${() => this._handleAttributeChange(/** @type {any} */ ({ detail: { value: '' } }))}>
-                    </ha-icon-button>
-                ` : ''}
-            </div>
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'Attribute'}
+                .helper=${'Entity attribute to control (e.g. brightness). Select "— Control entity state" to clear.'}
+                .disabled=${!entityId}
+                .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
+                .value=${currentValue || '__none__'}
+                @value-changed=${(e) => this._handleAttributeChange(e)}>
+            </ha-selector>
 
             ${!isValidAttribute && currentValue ? html`
                 <lcards-message
@@ -413,13 +399,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      * @private
      */
     _handleAttributeChange(event) {
-        const value = event.detail?.value;
-        // Empty string, null, or undefined → remove attribute key entirely.
+        const value = (event.detail?.value ?? '').trim();
+        // '__none__' sentinel, empty string, null → remove attribute key entirely.
         // _updateConfig uses deepMerge which cannot delete keys, so we pre-patch
         // this.config directly then call _updateConfig({}) to trigger the normal
         // validation / YAML-sync / fireEvent pipeline without any merge interference.
         const control = { ...this.config?.control };
-        if (value !== null && value !== undefined && value !== '') {
+        if (value && value !== '__none__') {
             control.attribute = value;
         } else {
             delete control.attribute;
@@ -600,6 +586,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 ${this._renderAttributeSelector()}
 
                 ${this._renderRangesAttributeSelector()}
+
+                ${this._renderStateAttributeSelector()}
             </lcards-form-section>
 
             <!-- Visual Range & Direction Configurator -->
@@ -838,13 +826,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         return html`
             <!-- Value template -->
             <div>
-                <ha-textfield
+                <ha-input
                     .label=${'Marker Value / Template'}
                     .helper=${'Template resolving to a position on the track. Examples: {entity.attributes.current_temperature}, {states.sensor.outdoor_temp.state}, [[[return hass.states["sensor.x"].state]]]'}
                     .value=${String(range.value ?? '')}
                     @change=${(e) => this._setConfigPath(`${basePath}.value`, e.target.value)}
                     style="width: 100%;">
-                </ha-textfield>
+                </ha-input>
             </div>
 
             ${isPills ? html`
@@ -1726,7 +1714,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const currentRadius = this.config?.style?.border?.radius;
         const isPerCorner = typeof currentRadius === 'object' && currentRadius !== null;
 
-        /** Convert any config value to a display string for ha-textfield */
+        /** Convert any config value to a display string for ha-input */
         const toStr = (v) => (v === undefined || v === null) ? '' : String(v);
 
         /**
@@ -1806,39 +1794,39 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 </ha-selector>
 
                 ${!isPerCorner ? html`
-                    <ha-textfield
+                    <ha-input
                         label="Radius"
                         .value=${toStr(currentRadius)}
                         helper="Number (12), px (12px), rem (0.75rem), or CSS var: var(--ha-card-border-radius)"
                         helperPersistent
                         @change=${handleUniform}>
-                    </ha-textfield>
+                    </ha-input>
                 ` : html`
                     <lcards-grid-layout>
-                        <ha-textfield
+                        <ha-input
                             label="Top Left"
                             .value=${toStr(currentRadius?.top_left)}
                             helper="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('top_left', e)}>
-                        </ha-textfield>
-                        <ha-textfield
+                        </ha-input>
+                        <ha-input
                             label="Top Right"
                             .value=${toStr(currentRadius?.top_right)}
                             helper="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('top_right', e)}>
-                        </ha-textfield>
-                        <ha-textfield
+                        </ha-input>
+                        <ha-input
                             label="Bottom Left"
                             .value=${toStr(currentRadius?.bottom_left)}
                             helper="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('bottom_left', e)}>
-                        </ha-textfield>
-                        <ha-textfield
+                        </ha-input>
+                        <ha-input
                             label="Bottom Right"
                             .value=${toStr(currentRadius?.bottom_right)}
                             helper="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('bottom_right', e)}>
-                        </ha-textfield>
+                        </ha-input>
                     </lcards-grid-layout>
                 `}
             </lcards-form-section>

@@ -86,7 +86,7 @@ export class LCARdSBorderEditor extends LitElement {
                 height: auto;
             }
 
-            ha-textfield {
+            ha-input {
                 width: 100%;
                 display: block;
             }

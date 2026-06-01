@@ -80,7 +80,7 @@ export class LCARdSProcessorTreeEditor extends LitElement {
       .container {
         display: flex;
         flex-direction: column;
-        border: 1px solid var(--divider-color, #e0e0e0);
+        border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
         border-radius: var(--ha-card-border-radius, 12px);
         background: var(--primary-background-color, #fafafa);
         overflow: hidden;
@@ -134,7 +134,7 @@ export class LCARdSProcessorTreeEditor extends LitElement {
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        border-right: 1px solid var(--divider-color);
+        border-right: var(--ha-border-width-sm) solid var(--divider-color);
         min-height: 0;
       }
 
@@ -143,7 +143,7 @@ export class LCARdSProcessorTreeEditor extends LitElement {
         align-items: center;
         justify-content: space-between;
         padding: 12px 16px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         flex-shrink: 0;
       }
 

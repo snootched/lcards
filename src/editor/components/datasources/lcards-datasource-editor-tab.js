@@ -64,7 +64,7 @@ export class LCARdSDataSourceEditorTab extends LitElement {
         gap: 0;
         padding: 0;
         background: transparent;
-        border-bottom: 2px solid var(--divider-color, #e0e0e0);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
         overflow-x: auto;
         scrollbar-width: thin;
       }

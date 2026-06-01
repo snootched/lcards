@@ -83,7 +83,7 @@ export class LCARdSIconSection extends LitElement {
                 /* State mapping info box */
                 .state-mapping-info {
                     background: var(--primary-background-color);
-                    border: 1px solid var(--divider-color);
+                    border: var(--ha-border-width-sm) solid var(--divider-color);
                     border-radius: var(--ha-card-border-radius, 12px);
                     margin-bottom: 12px;
                     margin-top: 12px;
@@ -121,7 +121,7 @@ export class LCARdSIconSection extends LitElement {
 
                 .state-mapping-info-body {
                     padding: 0 12px 12px 12px;
-                    border-top: 1px solid var(--divider-color);
+                    border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 }
 
                 .state-mapping-info strong {
@@ -183,13 +183,9 @@ export class LCARdSIconSection extends LitElement {
                 .custom-state-input {
                     display: flex;
                     gap: 8px;
-                    align-items: flex-end;
+                    align-items: center;
                     padding-top: 12px;
-                    border-top: 1px solid var(--divider-color);
-                }
-
-                .custom-state-input ha-textfield {
-                    flex: 1;
+                    border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 }
 
                 /* Action buttons */
@@ -201,7 +197,7 @@ export class LCARdSIconSection extends LitElement {
                 }
 
                 .editor-item-actions ha-icon-button {
-                    --mdc-icon-button-size: 40px;
+                    --ha-icon-button-size: 40px;
                     --mdc-icon-size: 20px;
                     --md-icon-button-icon-color: var(--primary-text-color);
                     --md-icon-button-hover-icon-color: var(--error-color);
@@ -256,24 +252,14 @@ export class LCARdSIconSection extends LitElement {
                     flex-direction: column;
                     gap: 8px;
                     padding-top: 12px;
-                    border-top: 1px solid var(--divider-color);
+                    border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 }
 
                 .range-condition-row {
                     display: flex;
                     gap: 8px;
-                    align-items: flex-end;
+                    align-items: flex-start;
                     flex-wrap: wrap;
-                }
-
-                .range-condition-row ha-selector {
-                    width: 140px;
-                    flex-shrink: 0;
-                }
-
-                .range-condition-row ha-textfield {
-                    flex: 1;
-                    min-width: 80px;
                 }
             `
         ];
@@ -456,13 +442,15 @@ export class LCARdSIconSection extends LitElement {
                 <!-- Custom State Input (if enabled) -->
                 ${this.allowCustomStates ? html`
                     <div class="custom-state-input">
-                        <ha-textfield
+                        <ha-selector
+                            style="flex:1;"
+                            .hass=${this.editor.hass}
                             .label=${'Custom State Name'}
-                            .placeholder=${'idle, heat, cleaning...'}
+                            .selector=${{ text: {} }}
                             .value=${this._customStateInput}
-                            @input=${this._handleCustomStateInput}
+                            @value-changed=${this._handleCustomStateInput}
                             @keydown=${this._handleCustomStateKeydown}>
-                        </ha-textfield>
+                        </ha-selector>
                         <ha-button
                             variant="brand"
                             @click=${this._addCustomState}
@@ -478,6 +466,7 @@ export class LCARdSIconSection extends LitElement {
                     <div class="field-label">Add Range Condition</div>
                     <div class="range-condition-row">
                         <ha-selector
+                            style="width:140px; flex-shrink:0;"
                             .hass=${this.editor.hass}
                             .label=${'Operator'}
                             .value=${this._rangeOperator}
@@ -493,21 +482,26 @@ export class LCARdSIconSection extends LitElement {
                             }}
                             @value-changed=${this._handleRangeOperatorChange}>
                         </ha-selector>
-                        <ha-textfield
+                        <ha-selector
+                            style="flex:1; min-width:80px;"
+                            .hass=${this.editor.hass}
                             .label=${this._rangeOperator === 'between' ? 'From' : 'Threshold'}
-                            .value=${this._rangeMin}
-                            type="number"
-                            @input=${this._handleRangeMinChange}>
-                        </ha-textfield>
+                            .selector=${{ number: { mode: 'box', step: 0.01 } }}
+                            .value=${this._rangeMin === '' ? null : parseFloat(this._rangeMin)}
+                            @value-changed=${this._handleRangeMinChange}>
+                        </ha-selector>
                         ${this._rangeOperator === 'between' ? html`
-                            <ha-textfield
-                                label="To"
-                                .value=${this._rangeMax}
-                                type="number"
-                                @input=${this._handleRangeMaxChange}>
-                            </ha-textfield>
+                            <ha-selector
+                                style="flex:1; min-width:80px;"
+                                .hass=${this.editor.hass}
+                                .label=${'To'}
+                                .selector=${{ number: { mode: 'box', step: 0.01 } }}
+                                .value=${this._rangeMax === '' ? null : parseFloat(this._rangeMax)}
+                                @value-changed=${this._handleRangeMaxChange}>
+                            </ha-selector>
                         ` : ''}
                         <ha-button
+                            style="align-self: center;"
                             variant="brand"
                             @click=${this._addRangeCondition}
                             ?disabled=${!this._isValidRangeForm()}>
@@ -576,8 +570,7 @@ export class LCARdSIconSection extends LitElement {
      * @private
      */
     _handleCustomStateInput(e) {
-        // @ts-ignore
-        this._customStateInput = e.target.value;
+        this._customStateInput = e.detail.value ?? '';
     }
 
     /**
@@ -625,11 +618,13 @@ export class LCARdSIconSection extends LitElement {
     }
 
     _handleRangeMinChange(e) {
-        this._rangeMin = /** @type {HTMLInputElement} */ (e.target).value;
+        const v = e.detail?.value;
+        this._rangeMin = v !== null && v !== undefined ? String(v) : '';
     }
 
     _handleRangeMaxChange(e) {
-        this._rangeMax = /** @type {HTMLInputElement} */ (e.target).value;
+        const v = e.detail?.value;
+        this._rangeMax = v !== null && v !== undefined ? String(v) : '';
     }
 
     _isValidRangeForm() {

@@ -46,7 +46,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 padding: 16px;
                 background: var(--card-background-color);
                 border-radius: var(--ha-card-border-radius, 12px);
-                border: 1px solid var(--divider-color);
+                border: var(--ha-border-width-sm) solid var(--divider-color);
             }
 
             .section {
@@ -128,18 +128,18 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 transform: translate(-50%, -50%);
                 cursor: grab;
                 z-index: 10;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                box-shadow: var(--ha-box-shadow-m);
                 transition: transform 0.1s, box-shadow 0.1s;
             }
 
             .range-handle:hover {
                 transform: translate(-50%, -50%) scale(1.15);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                box-shadow: var(--ha-box-shadow-l);
             }
 
             .range-handle:active {
                 cursor: grabbing;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                box-shadow: var(--ha-box-shadow-m);
             }
 
             .range-handle-label {
@@ -184,7 +184,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 gap: 6px;
                 padding: 8px 12px;
                 background: var(--secondary-background-color);
-                border: 2px solid var(--divider-color);
+                border: var(--ha-border-width-md) solid var(--divider-color);
                 border-radius: 8px;
                 cursor: pointer;
                 transition: all 0.2s;
@@ -216,7 +216,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 gap: 4px;
                 padding: 10px 6px;
                 background: var(--secondary-background-color);
-                border: 2px solid var(--divider-color);
+                border: var(--ha-border-width-md) solid var(--divider-color);
                 border-radius: 8px;
                 cursor: pointer;
                 transition: all 0.2s;
@@ -257,8 +257,8 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 padding: 20px;
                 background: var(--card-background-color);
                 border-radius: 12px;
-                border: 2px solid var(--primary-color);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                border: var(--ha-border-width-md) solid var(--primary-color);
+                box-shadow: var(--ha-box-shadow-m);
             }
 
             .preview-label {
@@ -295,7 +295,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 border: 3px solid var(--primary-color);
                 border-radius: 50%;
                 transform: translate(-50%, -50%);
-                box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                box-shadow: var(--ha-box-shadow-s);
                 transition: left 0.2s;
             }
 
@@ -330,7 +330,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
 
             .input-field {
                 padding: 6px 8px;
-                border: 1px solid var(--divider-color);
+                border: var(--ha-border-width-sm) solid var(--divider-color);
                 border-radius: 4px;
                 background: var(--card-background-color);
                 color: var(--primary-text-color);
@@ -699,39 +699,39 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 <div class="manual-inputs">
                     <div class="input-group">
                         <label class="input-label">Display Min</label>
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             .value="${String(this.displayMin)}"
                             @change="${(e) => this._handleInputChange(e, 'displayMin')}"
                             ?disabled="${this.disabled}">
-                        </ha-textfield>
+                        </ha-input>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Display Max</label>
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             .value="${String(this.displayMax)}"
                             @change="${(e) => this._handleInputChange(e, 'displayMax')}"
                             ?disabled="${this.disabled}">
-                        </ha-textfield>
+                        </ha-input>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Control Min</label>
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             .value="${String(this.controlMin)}"
                             @change="${(e) => this._handleInputChange(e, 'controlMin')}"
                             ?disabled="${this.disabled}">
-                        </ha-textfield>
+                        </ha-input>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Control Max</label>
-                        <ha-textfield
+                        <ha-input
                             type="number"
                             .value="${String(this.controlMax)}"
                             @change="${(e) => this._handleInputChange(e, 'controlMax')}"
                             ?disabled="${this.disabled}">
-                        </ha-textfield>
+                        </ha-input>
                     </div>
                 </div>
             </div>

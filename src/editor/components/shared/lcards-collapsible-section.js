@@ -51,17 +51,17 @@ export class LCARdSCollapsibleSection extends LitElement {
       }
 
       .section-wrapper {
-        margin-bottom: 12px;
-        border: 1px solid var(--divider-color);
-        border-radius: 8px;
+        margin-bottom: var(--ha-space-3);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
+        border-radius: var(--ha-border-radius-md);
         overflow: hidden;
         background: var(--card-background-color);
-        transition: border 0.2s ease;
+        transition: border var(--ha-animation-duration-normal, 0.2s) ease;
       }
 
       /* Dashed border when collapsed */
       :host(:not([expanded])) .section-wrapper {
-        border: 2px dashed var(--divider-color);
+        border: var(--ha-border-width-md) dashed var(--divider-color);
       }
 
       .section-header {
@@ -70,20 +70,20 @@ export class LCARdSCollapsibleSection extends LitElement {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 16px;
+        padding: var(--ha-space-3) var(--ha-space-4);
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
-        border-radius: 8px;
+        border: var(--ha-border-width-sm) solid var(--divider-color);
+        border-radius: var(--ha-border-radius-md);
         z-index: 1;
         cursor: pointer;
         user-select: none;
-        transition: all 0.2s ease;
+        transition: all var(--ha-animation-duration-normal, 0.2s) ease;
       }
 
       .section-header:hover {
         background: var(--divider-color);
         border-color: var(--primary-color);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--ha-box-shadow-s);
       }
 
       .section-header:focus-visible {
@@ -94,19 +94,19 @@ export class LCARdSCollapsibleSection extends LitElement {
       .header-left {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2);
       }
 
       .header-right {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2);
       }
 
       .actions-slot {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--ha-space-1);
       }
 
       .section-chevron {
@@ -117,7 +117,7 @@ export class LCARdSCollapsibleSection extends LitElement {
         height: 18px;
         font-size: 18px;
         color: var(--primary-color);
-        transition: transform 0.2s ease;
+        transition: transform var(--ha-animation-duration-normal, 0.2s) ease;
         flex-shrink: 0;
       }
 
@@ -126,7 +126,7 @@ export class LCARdSCollapsibleSection extends LitElement {
       }
 
       .section-title {
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         font-weight: 600;
         color: var(--primary-text-color);
       }
@@ -135,8 +135,8 @@ export class LCARdSCollapsibleSection extends LitElement {
         max-height: 0;
         overflow: hidden;
         opacity: 0;
-        transition: max-height 0.3s ease, opacity 0.2s ease;
-        border-top: 1px solid transparent;
+        transition: max-height var(--ha-animation-duration-slow, 0.3s) ease, opacity var(--ha-animation-duration-normal, 0.2s) ease;
+        border-top: var(--ha-border-width-sm) solid transparent;
       }
 
       :host([expanded]) .section-content {

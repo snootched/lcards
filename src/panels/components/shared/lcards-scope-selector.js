@@ -221,7 +221,7 @@ export class LCARdSScopeSelector extends LitElement {
         border-radius: 6px;
         font-size: 13px;
         background: color-mix(in srgb, var(--info-color, #03a9f4) 12%, transparent);
-        border: 1px solid color-mix(in srgb, var(--info-color, #03a9f4) 30%, transparent);
+        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 30%, transparent);
         margin-bottom: 8px;
       }
       .scope-context-banner.admin {

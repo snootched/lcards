@@ -263,30 +263,27 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * @private
      */
     _renderAttributeSelector() {
-        const attributes = this._getAttributeOptions();
         const currentAttribute = this.config?.control?.attribute || '';
         const entityId = this.config?.entity;
 
-        // Check if current attribute is valid
         const isInvalidAttribute = currentAttribute &&
             entityId &&
             this.hass?.states?.[entityId] &&
             !this.hass.states[entityId].attributes?.hasOwnProperty(currentAttribute);
 
+        const attrOpts = entityId && this.hass?.states?.[entityId]
+            ? Object.keys(this.hass.states[entityId].attributes || {}).sort()
+                  .map(attr => ({ value: attr, label: attr }))
+            : [];
+        const options = [{ value: '__none__', label: '— Control entity state' }, ...attrOpts];
         return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'Attribute'}
-                .value=${currentAttribute}
-                .helper=${'Select an entity attribute to control (leave blank to control entity state)'}
-                .disabled=${!entityId || attributes.length === 0}
-                .selector=${{
-                    select: {
-                        custom_value: true,
-                        mode: 'dropdown',
-                        options: attributes.map(attr => ({ value: attr, label: attr }))
-                    }
-                }}
+                .helper=${'Entity attribute to control. Select "— Control entity state" to clear.'}
+                .disabled=${!entityId}
+                .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
+                .value=${currentAttribute || '__none__'}
                 @value-changed=${this._handleAttributeChange}>
             </ha-selector>
             ${isInvalidAttribute ? html`
@@ -304,8 +301,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * @private
      */
     _handleAttributeChange(e) {
-        const value = e.detail.value;
-        if (value) {
+        const value = (e.detail.value ?? '').trim();
+        if (value && value !== '__none__') {
             this._setConfigValue('control.attribute', value);
         } else {
             this._removeConfigPath('control.attribute');
@@ -553,6 +550,10 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 {
                     type: 'custom',
                     render: () => this._renderRangesAttributeSelector()
+                },
+                {
+                    type: 'custom',
+                    render: () => this._renderStateAttributeSelector()
                 }
             ]
         });
@@ -911,6 +912,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                             @input=${/* @ts-ignore TS2339 */ (e) => this.editor._setConfigValue('svg.content', e.target.value)}
                             placeholder="<svg viewBox='0 0 100 100'>...</svg>"
                             rows="10"
+                            resize="auto"
                             style="width: 100%; font-family: monospace;">
                         </ha-textarea>
                         <div class="helper-text">
@@ -1287,12 +1289,12 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                                 @value-changed=${(e) => this._updateRangeField(idx, 'preset', e.detail.value)}>
                             </ha-selector>
                         ` : html`
-                            <ha-textfield
+                            <ha-input
                                 style="width: 100%;"
                                 .label=${'Preset name'}
                                 .value=${range.preset || ''}
                                 @change=${(e) => this._updateRangeField(idx, 'preset', e.target.value)}>
-                            </ha-textfield>
+                            </ha-input>
                         `}
                     </div>
                     <ha-icon-button
@@ -1314,26 +1316,26 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     </ha-selector>
 
                     ${condType === 'between' ? html`
-                        <ha-textfield
+                        <ha-input
                             .label=${'From (≥)'}
                             type="number"
                             .value=${String(range.above ?? '')}
                             @change=${(e) => this._updateRangeField(idx, 'above', parseFloat(e.target.value))}>
-                        </ha-textfield>
-                        <ha-textfield
+                        </ha-input>
+                        <ha-input
                             .label=${'To (<)'}
                             type="number"
                             .value=${String(range.below ?? '')}
                             @change=${(e) => this._updateRangeField(idx, 'below', parseFloat(e.target.value))}>
-                        </ha-textfield>
+                        </ha-input>
                     ` : condType === 'equals' ? html`
-                        <ha-textfield
+                        <ha-input
                             .label=${'Value'}
                             .value=${String(range.equals ?? '')}
                             @change=${(e) => this._updateRangeField(idx, 'equals', e.target.value)}>
-                        </ha-textfield>
+                        </ha-input>
                     ` : html`
-                        <ha-textfield
+                        <ha-input
                             .label=${condType === 'above' ? 'Min (≥)' : 'Max (<)'}
                             type="number"
                             .value=${String(condType === 'above' ? (range.above ?? '') : (range.below ?? ''))}
@@ -1342,7 +1344,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                                 condType === 'above' ? 'above' : 'below',
                                 parseFloat(e.target.value)
                             )}>
-                        </ha-textfield>
+                        </ha-input>
                     `}
                 </div>
 
@@ -1535,7 +1537,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     </div>
                     <ha-icon-button
                         title="Delete"
-                        style="--mdc-icon-button-size: 36px; --mdc-icon-size: 18px;"
+                        style="--ha-icon-button-size: 36px; --mdc-icon-size: 18px;"
                         @click=${(e) => { e.stopPropagation(); this._deleteCustomPreset(name); }}>
                         <ha-icon icon="mdi:delete-outline"></ha-icon>
                     </ha-icon-button>
@@ -1551,12 +1553,12 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         <!-- Rename field -->
                         <div>
                             <div style="font-size: 12px; font-weight: 500; margin-bottom: 6px; color: var(--primary-text-color);">Preset name</div>
-                            <ha-textfield
+                            <ha-input
                                 style="width: 100%;"
                                 .value=${name}
                                 placeholder="e.g. condition_red or my_preset"
                                 @change=${(e) => this._renameCustomPreset(name, e.target.value.trim())}>
-                            </ha-textfield>
+                            </ha-input>
                             ${isOverride ? html`
                                 <div style="font-size: 11px; color: var(--warning-color, orange); margin-top: 4px;">
                                     ⚠ Overrides built-in preset <strong>${name}</strong>

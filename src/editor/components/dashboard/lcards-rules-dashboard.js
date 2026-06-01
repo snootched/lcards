@@ -77,7 +77,7 @@ export class LCARdSRulesDashboard extends LitElement {
 
             .stat-card {
                 background: var(--card-background-color, #fff);
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: 12px;
                 padding: 12px;
                 text-align: center;
@@ -143,7 +143,7 @@ export class LCARdSRulesDashboard extends LitElement {
                 letter-spacing: 0.5px;
                 cursor: pointer;
                 user-select: none;
-                border-bottom: 2px solid var(--divider-color, #e0e0e0);
+                border-bottom: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 white-space: nowrap;
             }
 
@@ -162,7 +162,7 @@ export class LCARdSRulesDashboard extends LitElement {
 
             .rules-table td {
                 padding: 12px;
-                border-bottom: 1px solid var(--divider-color, #e0e0e0);
+                border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 white-space: nowrap;
             }
 
@@ -272,7 +272,7 @@ export class LCARdSRulesDashboard extends LitElement {
             }
 
             ha-dialog {
-                --mdc-dialog-max-width: 600px;
+                --dialog-max-width: 600px;
             }
 
             .rule-preview-dialog {
@@ -291,7 +291,7 @@ export class LCARdSRulesDashboard extends LitElement {
                 gap: 12px;
                 margin-bottom: 12px;
                 padding-bottom: 12px;
-                border-bottom: 1px solid var(--divider-color, #e0e0e0);
+                border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
             }
 
             .rule-preview-dialog .detail-row:last-child {
@@ -1332,9 +1332,7 @@ rules:
                         Cancel
                     </ha-button>
                     <ha-button
-                        variant="brand"
-                        appearance="accent"
-                        style="--mdc-theme-primary: var(--error-color, #f44336);"
+                        variant="danger"
                         @click=${this._confirmDelete}>
                         Delete
                     </ha-button>

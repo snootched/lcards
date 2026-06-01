@@ -963,6 +963,16 @@ export function getButtonSchema(options = {}) {
                 }
             },
 
+            state_attribute: {
+                type: 'string',
+                description: 'Entity attribute whose String() value is used as the highest-priority key for ALL exact-match state-color lookups across the card. Booleans become "true"/"false"; null becomes "null"; strings are used as-is. Classified state (active/inactive) is always derived from entity.state and is unaffected. Can be used alongside ranges_attribute.',
+                examples: ['effect', 'hvac_action', 'charging', 'preset_mode', 'color_mode'],
+                'x-ui-hints': {
+                    label: 'State Attribute',
+                    helper: 'Attribute whose value is matched against color-config keys. Write YAML keys as strings (e.g. "fade", "true", "null"). Leave blank to match entity state directly.'
+                }
+            },
+
             ranges: {
                 type: 'array',
                 description: 'State-driven preset switching: evaluates entity value against thresholds and applies matching preset',

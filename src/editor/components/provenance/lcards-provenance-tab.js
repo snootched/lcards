@@ -141,7 +141,7 @@ export class LCARdSProvenanceTab extends LitElement {
         flex-direction: column;
         gap: 8px;
         padding-bottom: 8px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         flex-shrink: 0;
       }
 
@@ -149,7 +149,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .tabs-container {
         display: flex;
         gap: 4px;
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
       }
 
       /* HA native tab styling (Issue #82) */
@@ -214,7 +214,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .layer-chip {
         appearance: none;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
         color: var(--primary-text-color);
         padding: 6px 12px;
@@ -257,7 +257,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .refresh-controls input[type="number"] {
         width: 60px;
         padding: 4px 8px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 4px;
         background: var(--primary-background-color);
         color: var(--primary-text-color);
@@ -304,7 +304,7 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .field-table tbody tr {
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         transition: background 0.2s;
       }
 
@@ -350,12 +350,12 @@ export class LCARdSProvenanceTab extends LitElement {
         width: 32px;
         height: 32px;
         border-radius: 4px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         cursor: pointer;
       }
 
       .color-preview:hover {
-        border-color: var(--mdc-theme-primary, #03a9f4);
+        border-color: var(--primary-color, #03a9f4);
       }
 
       /* Token Resolution Display */
@@ -445,20 +445,20 @@ export class LCARdSProvenanceTab extends LitElement {
         align-items: center;
         gap: 12px;
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 12px;
         padding: 20px;
         transition: all 0.2s;
       }
 
       .stat-card.modern:hover {
-        border-color: var(--mdc-theme-primary, #03a9f4);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-color: var(--primary-color, #03a9f4);
+        box-shadow: var(--ha-box-shadow-m);
       }
 
       .stat-icon {
         --mdc-icon-size: 32px;
-        color: var(--mdc-theme-primary, #03a9f4);
+        color: var(--primary-color, #03a9f4);
         opacity: 0.8;
       }
 
@@ -483,7 +483,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .stat-section {
         margin: 12px 20px;
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 12px;
         padding: 20px;
       }
@@ -497,7 +497,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .section-header ha-icon {
         --mdc-icon-size: 20px;
-        color: var(--mdc-theme-primary, #03a9f4);
+        color: var(--primary-color, #03a9f4);
       }
 
       .section-header h4 {
@@ -602,13 +602,13 @@ export class LCARdSProvenanceTab extends LitElement {
         gap: 12px;
         padding: 12px;
         background: var(--primary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 8px;
         transition: all 0.2s;
       }
 
       .token-item:hover {
-        border-color: var(--mdc-theme-primary, #03a9f4);
+        border-color: var(--primary-color, #03a9f4);
         background: var(--secondary-background-color);
       }
 
@@ -618,7 +618,7 @@ export class LCARdSProvenanceTab extends LitElement {
         justify-content: center;
         width: 32px;
         height: 32px;
-        background: var(--mdc-theme-primary, #03a9f4);
+        background: var(--primary-color, #03a9f4);
         color: white;
         border-radius: 50%;
         font-size: 13px;
@@ -677,15 +677,15 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .token-card {
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 12px;
         overflow: hidden;
         transition: all 0.2s;
       }
 
       .token-card:hover {
-        border-color: var(--mdc-theme-primary, #03a9f4);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-color: var(--primary-color, #03a9f4);
+        box-shadow: var(--ha-box-shadow-m);
       }
 
       .token-card-header {
@@ -694,7 +694,7 @@ export class LCARdSProvenanceTab extends LitElement {
         justify-content: space-between;
         padding: 16px;
         background: var(--primary-background-color);
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .token-path-display {
@@ -707,7 +707,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .token-path-display ha-icon {
         --mdc-icon-size: 20px;
-        color: var(--mdc-theme-primary, #03a9f4);
+        color: var(--primary-color, #03a9f4);
         flex-shrink: 0;
       }
 
@@ -766,7 +766,7 @@ export class LCARdSProvenanceTab extends LitElement {
         background: var(--primary-background-color);
         padding: 12px;
         border-radius: 8px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         overflow-x: auto;
         word-break: break-word;
       }
@@ -781,7 +781,7 @@ export class LCARdSProvenanceTab extends LitElement {
         width: 48px;
         height: 48px;
         border-radius: 8px;
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
         cursor: pointer;
         flex-shrink: 0;
         transition: all 0.2s;
@@ -789,7 +789,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .color-preview-large:hover {
         transform: scale(1.1);
-        border-color: var(--mdc-theme-primary, #03a9f4);
+        border-color: var(--primary-color, #03a9f4);
       }
 
       .token-used-by-list {
@@ -806,7 +806,7 @@ export class LCARdSProvenanceTab extends LitElement {
         background: var(--primary-background-color);
         padding: 4px 8px;
         border-radius: 4px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       /* Split Pane Layout - New Tree View */
@@ -825,7 +825,7 @@ export class LCARdSProvenanceTab extends LitElement {
         flex-direction: column;
         min-height: 0;
         overflow: hidden;
-        border-right: 1px solid var(--divider-color);
+        border-right: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .tree-pane-header {
@@ -833,7 +833,7 @@ export class LCARdSProvenanceTab extends LitElement {
         align-items: center;
         justify-content: space-between;
         padding: 12px 16px;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
         flex-shrink: 0;
       }
@@ -850,7 +850,7 @@ export class LCARdSProvenanceTab extends LitElement {
       }
 
       .tree-actions ha-icon-button {
-        --mdc-icon-button-size: 32px;
+        --ha-icon-button-size: 32px;
         --mdc-icon-size: 20px;
       }
 
@@ -952,7 +952,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .tree-children {
         margin-left: 24px;
-        border-left: 1px solid var(--divider-color);
+        border-left: var(--ha-border-width-sm) solid var(--divider-color);
         padding-left: 4px;
       }
 
@@ -974,7 +974,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .detail-panel-header {
         padding-bottom: 16px;
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
         margin-bottom: 12px;
       }
 
@@ -1210,7 +1210,7 @@ export class LCARdSProvenanceTab extends LitElement {
       .resolution-step-card {
         background: var(--secondary-background-color);
         border-radius: 8px;
-        border-left: 4px solid var(--mdc-theme-primary, #03a9f4);
+        border-left: 4px solid var(--primary-color, #03a9f4);
         padding: 12px;
         display: flex;
         align-items: center;
@@ -1220,7 +1220,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .resolution-step-card:hover {
         background: var(--card-background-color);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--ha-box-shadow-s);
       }
 
       .resolution-step-icon {
@@ -1357,7 +1357,7 @@ export class LCARdSProvenanceTab extends LitElement {
         display: flex;
         flex-direction: column;
         gap: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--ha-box-shadow-m);
       }
 
       .resolution-final-label {
@@ -1389,9 +1389,9 @@ export class LCARdSProvenanceTab extends LitElement {
         width: 28px;
         height: 28px;
         border-radius: 4px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
+        border: var(--ha-border-width-md) solid rgba(255, 255, 255, 0.3);
         flex-shrink: 0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--ha-box-shadow-s);
       }
 
       /* Before/After comparison */
@@ -1405,7 +1405,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .before-after-panel {
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 8px;
         padding: 12px;
         display: flex;
@@ -1513,7 +1513,7 @@ export class LCARdSProvenanceTab extends LitElement {
         background: var(--secondary-background-color);
         padding: 4px 8px;
         border-radius: 12px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       /* Used by lists */
@@ -1535,7 +1535,7 @@ export class LCARdSProvenanceTab extends LitElement {
         font-size: 12px;
         cursor: pointer;
         transition: all 0.15s;
-        border: 1px solid transparent;
+        border: var(--ha-border-width-sm) solid transparent;
       }
 
       .used-by-item:not(.current):hover {
@@ -1569,7 +1569,7 @@ export class LCARdSProvenanceTab extends LitElement {
         padding: 10px 12px;
         background: var(--secondary-background-color);
         border-radius: 6px;
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .used-by-token-item ha-icon {
@@ -1625,7 +1625,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .layer-card {
         background: var(--secondary-background-color);
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
         border-radius: 12px;
         overflow: hidden;
         transition: all 0.3s ease;
@@ -1690,7 +1690,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
       .layer-card-body {
         padding: 12px 16px 16px 16px;
-        border-top: 1px solid var(--divider-color);
+        border-top: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .layer-value {
@@ -2002,14 +2002,14 @@ export class LCARdSProvenanceTab extends LitElement {
         ${this._activeView === 'tokens' ? html`
           <div class="search-container">
             <div class="search-wrapper">
-              <ha-textfield
+              <ha-input
                 class="dialog-search"
                 .value=${this._searchQuery}
                 @input=${this._handleSearchInput}
                 placeholder="Search fields... (Ctrl+F)"
                 .label=${'Search'}>
                 <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
-              </ha-textfield>
+              </ha-input>
               ${this._searchQuery ? html`
                 <ha-icon-button
                   class="search-clear"

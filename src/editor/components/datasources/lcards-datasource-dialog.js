@@ -73,7 +73,7 @@ export class LCARdSDataSourceDialog extends LitElement {
         padding: 0 8px;
       }
 
-      ha-textfield,
+      ha-input,
       ha-entity-picker,
       ha-select {
         width: 100%;

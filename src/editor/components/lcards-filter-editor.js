@@ -84,7 +84,7 @@ export class LCARdSFilterEditor extends LitElement {
 
             .filter-item {
                 background: var(--card-background-color);
-                border: 1px solid var(--divider-color);
+                border: var(--ha-border-width-sm) solid var(--divider-color);
                 border-radius: var(--ha-card-border-radius, 12px);
                 overflow: hidden;
             }
@@ -169,7 +169,7 @@ export class LCARdSFilterEditor extends LitElement {
 
             .filter-content {
                 padding: 16px;
-                border-top: 1px solid var(--divider-color);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color);
             }
 
             .param-grid {
@@ -197,14 +197,9 @@ export class LCARdSFilterEditor extends LitElement {
                 margin-bottom: 12px;
             }
 
-            /* Button styling for raised appearance */
-            ha-button[raised] {
-                --mdc-theme-primary: var(--primary-color);
-            }
-
             .filter-chain-info {
                 background: var(--primary-background-color);
-                border: 1px solid var(--divider-color);
+                border: var(--ha-border-width-sm) solid var(--divider-color);
                 border-radius: var(--ha-card-border-radius, 12px);
                 padding: 12px;
                 margin-bottom: 12px;
@@ -483,13 +478,13 @@ export class LCARdSFilterEditor extends LitElement {
      */
     _renderBlurParams(filter, index) {
         return html`
-            <ha-textfield
+            <ha-input
                 type="text"
                 label="Blur Radius"
                 .value=${filter.value || '0px'}
                 @input=${(e) => this._updateFilter(index, 'value', e.target.value)}
                 helper-text="e.g., 0px, 2px, 5px, 10px">
-            </ha-textfield>
+            </ha-input>
         `;
     }
 
@@ -646,26 +641,26 @@ export class LCARdSFilterEditor extends LitElement {
 
         return html`
             <div class="param-grid two-col">
-                <ha-textfield
+                <ha-input
                     type="number"
                     label="X Offset (px)"
                     .value=${shadow.x ?? 0}
                     @input=${(e) => this._updateDropShadowParam(index, 'x', e.target.value)}>
-                </ha-textfield>
-                <ha-textfield
+                </ha-input>
+                <ha-input
                     type="number"
                     label="Y Offset (px)"
                     .value=${shadow.y ?? 0}
                     @input=${(e) => this._updateDropShadowParam(index, 'y', e.target.value)}>
-                </ha-textfield>
+                </ha-input>
             </div>
-            <ha-textfield
+            <ha-input
                 type="text"
                 label="Blur Radius"
                 .value=${shadow.blur || '0px'}
                 @input=${(e) => this._updateDropShadowParam(index, 'blur', e.target.value)}
                 helper-text="e.g., 0px, 2px, 5px">
-            </ha-textfield>
+            </ha-input>
             <lcards-color-picker
                 // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
@@ -767,14 +762,14 @@ export class LCARdSFilterEditor extends LitElement {
             ` : ''}
 
             ${value.type === 'matrix' ? html`
-                <ha-textfield
+                <ha-input
                     type="text"
                     label="Matrix Values (4x5 = 20 numbers)"
                     .value=${Array.isArray(value.values) ? value.values.join(' ') : (value.values || '')}
                     @input=${(e) => this._updateSvgFilterParam(index, 'values', e.target.value)}
                     helper-text="Space-separated numbers (e.g., 1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0)"
                     style="margin-top: 12px;">
-                </ha-textfield>
+                </ha-input>
             ` : ''}
 
             <lcards-message type="info" .message=${'Combines two inputs: Uses previous filter + SourceGraphic. Advanced compositing for complex layering effects.'}></lcards-message>
@@ -790,20 +785,20 @@ export class LCARdSFilterEditor extends LitElement {
 
         return html`
             <div class="param-grid two-col">
-                <ha-textfield
+                <ha-input
                     type="number"
                     label="dx (horizontal offset)"
                     .value=${value.dx ?? 0}
                     step="1"
                     @input=${(e) => this._updateSvgFilterParam(index, 'dx', e.target.value)}>
-                </ha-textfield>
-                <ha-textfield
+                </ha-input>
+                <ha-input
                     type="number"
                     label="dy (vertical offset)"
                     .value=${value.dy ?? 0}
                     step="1"
                     @input=${(e) => this._updateSvgFilterParam(index, 'dy', e.target.value)}>
-                </ha-textfield>
+                </ha-input>
             </div>
             <lcards-message type="info" .message=${'Offset in pixels (positive = right/down, negative = left/up)'}></lcards-message>
         `;
@@ -879,16 +874,16 @@ export class LCARdSFilterEditor extends LitElement {
             </ha-selector>
 
             ${value.operator === 'arithmetic' ? html`
-                <div style="margin-top: 16px; padding: 12px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px;">
+                <div style="margin-top: 16px; padding: 12px; background: var(--card-background-color); border: var(--ha-border-width-sm) solid var(--divider-color); border-radius: 4px;">
                     <div style="font-weight: 500; margin-bottom: 12px;">Arithmetic Coefficients</div>
                     <div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 12px;">
                         result = k1*i1*i2 + k2*i1 + k3*i2 + k4
                     </div>
                     <div class="param-grid">
-                        <ha-textfield type="number" label="k1" .value=${value.k1 ?? 0} step="0.1" @input=${(e) => this._updateSvgFilterParam(index, 'k1', e.target.value)}></ha-textfield>
-                        <ha-textfield type="number" label="k2" .value=${value.k2 ?? 0} step="0.1" @input=${(e) => this._updateSvgFilterParam(index, 'k2', e.target.value)}></ha-textfield>
-                        <ha-textfield type="number" label="k3" .value=${value.k3 ?? 0} step="0.1" @input=${(e) => this._updateSvgFilterParam(index, 'k3', e.target.value)}></ha-textfield>
-                        <ha-textfield type="number" label="k4" .value=${value.k4 ?? 0} step="0.1" @input=${(e) => this._updateSvgFilterParam(index, 'k4', e.target.value)}></ha-textfield>
+                        <ha-input type="number" label="k1" .value=${value.k1 ?? 0} step="0.1" @input=${(e) => this._updateSvgFilterParam(index, 'k1', e.target.value)}></ha-input>
+                        <ha-input type="number" label="k2" .value=${value.k2 ?? 0} step="0.1" @input=${(e) => this._updateSvgFilterParam(index, 'k2', e.target.value)}></ha-input>
+                        <ha-input type="number" label="k3" .value=${value.k3 ?? 0} step="0.1" @input=${(e) => this._updateSvgFilterParam(index, 'k3', e.target.value)}></ha-input>
+                        <ha-input type="number" label="k4" .value=${value.k4 ?? 0} step="0.1" @input=${(e) => this._updateSvgFilterParam(index, 'k4', e.target.value)}></ha-input>
                     </div>
                 </div>
             ` : ''}
@@ -978,13 +973,13 @@ export class LCARdSFilterEditor extends LitElement {
                 style="margin-top: 12px;">
             </ha-selector>
 
-            <ha-textfield
+            <ha-input
                 type="number"
                 label="Seed (randomization)"
                 .value=${value.seed ?? 0}
                 @input=${(e) => this._updateSvgFilterParam(index, 'seed', e.target.value)}
                 style="margin-top: 12px;">
-            </ha-textfield>
+            </ha-input>
 
             <lcards-message type="info" .message=${'Generates Perlin noise patterns for organic textures'}></lcards-message>
         `;

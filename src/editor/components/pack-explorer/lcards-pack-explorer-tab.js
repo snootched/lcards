@@ -83,7 +83,7 @@ export class LCARdSPackExplorerTab extends LitElement {
       .header {
         flex-shrink: 0;
         padding-bottom: 12px;
-        border-bottom: 2px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
       }
 
       .header h2 {
@@ -109,7 +109,7 @@ export class LCARdSPackExplorerTab extends LitElement {
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        border-right: 1px solid var(--divider-color);
+        border-right: var(--ha-border-width-sm) solid var(--divider-color);
         min-height: 0;
       }
 
@@ -118,8 +118,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         align-items: center;
         justify-content: space-between;
         padding: 14px 24px;
-        border-bottom: 1px solid var(--divider-color);
-        background: rgba(60,60,60,0.5);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
+        background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         flex-shrink: 0;
         border-top-left-radius: var(--ha-card-border-radius, 12px);
       }
@@ -134,7 +134,7 @@ export class LCARdSPackExplorerTab extends LitElement {
         flex: 1;
         overflow-y: auto;
         padding: 12px;
-        background: rgba(60,60,60,0.5);
+        background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         border-bottom-left-radius: var(--ha-card-border-radius, 12px);
       }
 
@@ -331,7 +331,7 @@ export class LCARdSPackExplorerTab extends LitElement {
       }
 
       .svg-preview-container {
-        background: rgba(60,60,60,0.5);
+        background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         border-radius: var(--ha-card-border-radius, 12px);
         padding: 16px;
         display: flex;
@@ -371,7 +371,7 @@ export class LCARdSPackExplorerTab extends LitElement {
       }
 
       .preview-placeholder {
-        background: rgba(60,60,60,0.5);
+        background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         border: 2px dashed var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         padding: 24px;
@@ -402,7 +402,7 @@ export class LCARdSPackExplorerTab extends LitElement {
 
       .font-preview-container {
         background: var(--card-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 8px;
         padding: 24px;
       }
@@ -415,7 +415,7 @@ export class LCARdSPackExplorerTab extends LitElement {
       }
 
       .audio-preview-container {
-        background: rgba(60,60,60,0.5);
+        background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         border-radius: var(--ha-card-border-radius, 12px);
         padding: 16px;
         display: flex;
@@ -428,7 +428,7 @@ export class LCARdSPackExplorerTab extends LitElement {
       }
 
       .image-preview-container {
-        background: rgba(40,40,40,0.7);
+        background: var(--secondary-background-color);
         border-radius: var(--ha-card-border-radius, 12px);
         padding: 16px;
         display: flex;
@@ -469,13 +469,13 @@ export class LCARdSPackExplorerTab extends LitElement {
         width: 14px;
         height: 14px;
         border-radius: 50%;
-        border: 1px solid rgba(255,255,255,0.2);
+        border: var(--ha-border-width-sm) solid rgba(255,255,255,0.2);
         flex-shrink: 0;
       }
 
       .preset-preview-container {
-        background: rgba(60,60,60,0.5);
-        border: 1px solid var(--divider-color);
+        background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         padding: 24px;
         display: flex;
@@ -492,7 +492,7 @@ export class LCARdSPackExplorerTab extends LitElement {
 
         .tree-pane {
           border-right: none;
-          border-bottom: 1px solid var(--divider-color);
+          border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
           max-height: 300px;
         }
 

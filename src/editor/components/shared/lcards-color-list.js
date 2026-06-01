@@ -52,15 +52,15 @@ export class LCARdSColorList extends LitElement {
       .color-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--ha-space-2);
       }
 
       .color-item {
         background: var(--secondary-background-color);
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         overflow: hidden;
-        transition: all 0.2s ease;
+        transition: all var(--ha-animation-duration-normal, 0.2s) ease;
       }
 
       .color-item:hover {
@@ -70,10 +70,10 @@ export class LCARdSColorList extends LitElement {
       .color-header {
         display: flex;
         align-items: center;
-        padding: 12px;
+        padding: var(--ha-space-3);
         cursor: pointer;
         background: var(--card-background-color);
-        gap: 12px;
+        gap: var(--ha-space-3);
         user-select: none;
       }
 
@@ -91,7 +91,7 @@ export class LCARdSColorList extends LitElement {
         background: var(--primary-color);
         color: var(--text-primary-color);
         font-weight: 500;
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         flex-shrink: 0;
       }
 
@@ -99,7 +99,7 @@ export class LCARdSColorList extends LitElement {
         width: 40px;
         height: 32px;
         border-radius: 6px;
-        border: 2px solid var(--divider-color);
+        border: var(--ha-border-width-md) solid var(--divider-color);
         flex-shrink: 0;
         background-image:
           linear-gradient(45deg, #ccc 25%, transparent 25%),
@@ -114,7 +114,7 @@ export class LCARdSColorList extends LitElement {
       .color-preview-fill {
         width: 100%;
         height: 100%;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
       }
 
       .color-info {
@@ -122,12 +122,12 @@ export class LCARdSColorList extends LitElement {
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--ha-space-1);
       }
 
       .color-value {
         font-weight: 500;
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         color: var(--primary-text-color);
         overflow: hidden;
         text-overflow: ellipsis;
@@ -135,18 +135,18 @@ export class LCARdSColorList extends LitElement {
       }
 
       .color-description {
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
       }
 
       .color-actions {
         display: flex;
-        gap: 4px;
+        gap: var(--ha-space-1);
         flex-shrink: 0;
       }
 
       .expand-icon {
-        transition: transform 0.2s ease;
+        transition: transform var(--ha-animation-duration-normal, 0.2s) ease;
         flex-shrink: 0;
         color: var(--secondary-text-color);
       }
@@ -156,29 +156,26 @@ export class LCARdSColorList extends LitElement {
       }
 
       .color-content {
-        padding: 16px;
+        padding: var(--ha-space-4);
         background: var(--primary-background-color);
-        border-top: 1px solid var(--divider-color);
+        border-top: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .empty-state {
         text-align: center;
-        padding: 24px;
+        padding: var(--ha-space-6);
         color: var(--secondary-text-color);
-        font-size: 14px;
+        font-size: var(--ha-font-size-m);
         background: var(--card-background-color);
         border: 2px dashed var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
       }
 
       ha-icon-button {
-        --mdc-icon-button-size: 36px;
+        --ha-icon-button-size: 36px;
         --mdc-icon-size: 20px;
       }
 
-      ha-button {
-        --mdc-theme-primary: var(--primary-color);
-      }
     `;
   }
 

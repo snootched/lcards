@@ -87,7 +87,7 @@ export const studioDialogStyles = css`
         backdrop-filter: blur(8px);
         border-radius: 24px;
         padding: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        box-shadow: var(--ha-box-shadow-l);
         z-index: 1000;
         transition: all 0.3s ease;
     }
@@ -171,7 +171,7 @@ export const studioDialogStyles = css`
         backdrop-filter: blur(8px);
         border-radius: 24px;
         padding: 8px 16px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        box-shadow: var(--ha-box-shadow-l);
         z-index: 1000;
     }
 

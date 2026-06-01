@@ -562,7 +562,7 @@ export class LCARdSConnectivityTab extends LitElement {
             if (!hasOverride(key)) return nothing;
             return html`<ha-icon-button
               .label=${'Clear override'}
-              style="--mdc-icon-button-size:32px; --mdc-icon-size:18px;"
+              style="--ha-icon-button-size:32px; --mdc-icon-size:18px;"
               @click=${() => this._clearScopedValue(key)}
             ><ha-icon icon="mdi:close-circle-outline"></ha-icon></ha-icon-button>`;
         };
@@ -1168,12 +1168,12 @@ export class LCARdSConnectivityTab extends LitElement {
                 align-items: center;
                 gap: 12px;
                 padding: 12px 16px;
-                border-radius: 8px;
+                border-radius: var(--ha-border-radius-md);
                 font-size: 0.9em;
             }
             .banner.warning {
                 background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-                border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
+                border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
                 color: var(--primary-text-color);
             }
 
@@ -1187,7 +1187,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 align-items: center;
                 gap: 12px;
                 padding: 8px 0;
-                border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
+                border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 50%, transparent);
             }
             .control-row:last-child { border-bottom: none; }
             .control-row ha-selector { flex: 1; }
@@ -1214,13 +1214,13 @@ export class LCARdSConnectivityTab extends LitElement {
 
             .color-field {
                 padding: 8px 0;
-                border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
+                border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 50%, transparent);
             }
             .color-field:last-child { border-bottom: none; }
 
             .font-field {
                 padding: 8px 0;
-                border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
+                border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 50%, transparent);
             }
 
             .typo-row {
@@ -1228,7 +1228,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 grid-template-columns: 1fr 1fr 1fr;
                 gap: 8px;
                 padding: 8px 0;
-                border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
+                border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 50%, transparent);
             }
             .typo-row:last-child { border-bottom: none; }
 

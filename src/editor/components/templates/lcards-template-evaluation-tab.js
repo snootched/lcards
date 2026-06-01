@@ -66,7 +66,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
 
       .template-card {
         background: var(--chip-background-color, var(--card-background-color));
-        border: 1px solid var(--divider-color);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: 8px;
         padding: 12px;
         display: flex;
@@ -76,7 +76,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
       }
 
       .template-card:hover {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: var(--ha-box-shadow-m);
         border-color: var(--primary-color);
       }
 
@@ -142,7 +142,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
       }
 
       .card-actions ha-icon-button {
-        --mdc-icon-button-size: 32px;
+        --ha-icon-button-size: 32px;
         --mdc-icon-size: 18px;
       }
 

@@ -306,6 +306,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
             </ha-icon-button>
             <ha-button
               class="danger-btn"
+              variant="danger"
               @click=${this._askReset}
               ?disabled=${this._resetting || keys.length === 0}
             >
@@ -330,7 +331,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
             <ha-icon icon="mdi:alert"></ha-icon>
             <span>This will <strong>wipe all ${keys.length} stored key${keys.length !== 1 ? 's' : ''}</strong> permanently. Are you sure?</span>
             <div class="confirm-actions">
-              <ha-button class="danger-btn" @click=${this._confirmResetAll}>Yes, reset all</ha-button>
+              <ha-button class="danger-btn" variant="danger" @click=${this._confirmResetAll}>Yes, reset all</ha-button>
               <ha-button @click=${this._cancelReset}>Cancel</ha-button>
             </div>
           </div>
@@ -431,7 +432,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
               @click=${(e) => { e.stopPropagation(); this._saveEdit(key); }}
               ?disabled=${isSaving}
             >
-              ${isSaving ? html`<ha-circular-progress indeterminate size="small"></ha-circular-progress>` : 'Save'}
+              ${isSaving ? html`<ha-circular-progress indeterminate size="s"></ha-circular-progress>` : 'Save'}
             </ha-button>
             <ha-button @click=${(e) => { e.stopPropagation(); this._cancelEdit(); }}>Cancel</ha-button>
           `}
@@ -445,7 +446,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
             <div class="inline-confirm">
               <ha-icon icon="mdi:alert"></ha-icon>
               <span>Delete key <strong>${key}</strong>? This cannot be undone.</span>
-              <ha-button class="danger-btn" @click=${() => this._confirmDeleteKey(key)}>Delete</ha-button>
+              <ha-button class="danger-btn" variant="danger" @click=${() => this._confirmDeleteKey(key)}>Delete</ha-button>
               <ha-button @click=${this._cancelDelete}>Cancel</ha-button>
             </div>
           ` : ''}
@@ -509,7 +510,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       align-items: center;
       gap: 12px;
       padding-bottom: 12px;
-      border-bottom: 2px solid var(--divider-color);
+      border-bottom: var(--ha-border-width-md) solid var(--divider-color);
       margin-bottom: 12px;
     }
 
@@ -552,7 +553,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       flex-wrap: wrap;
       gap: 10px;
       padding: 10px 14px;
-      border-radius: 8px;
+      border-radius: var(--ha-border-radius-md);
       font-size: 0.9em;
       flex-shrink: 0;
       margin-bottom: 8px;
@@ -560,13 +561,13 @@ export class LCARdSStorageExplorerTab extends LitElement {
 
     .banner.error {
       background: color-mix(in srgb, var(--error-color, #f44336) 15%, transparent);
-      border: 1px solid color-mix(in srgb, var(--error-color, #f44336) 40%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color, #f44336) 40%, transparent);
       color: var(--primary-text-color);
     }
 
     .banner.warning {
       background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
       color: var(--primary-text-color);
     }
 
@@ -719,8 +720,8 @@ export class LCARdSStorageExplorerTab extends LitElement {
       gap: 8px;
       padding: 10px 12px;
       background: color-mix(in srgb, var(--error-color, #f44336) 10%, transparent);
-      border: 1px solid color-mix(in srgb, var(--error-color, #f44336) 30%, transparent);
-      border-radius: 8px;
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color, #f44336) 30%, transparent);
+      border-radius: var(--ha-border-radius-md);
       font-size: 0.9em;
       flex-wrap: wrap;
     }
@@ -743,7 +744,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       padding: 10px;
       background: var(--code-editor-background-color, #1e1e1e);
       color: var(--code-editor-text-color, #d4d4d4);
-      border: 1px solid var(--divider-color);
+      border: var(--ha-border-width-sm) solid var(--divider-color);
       border-radius: 6px;
       resize: vertical;
       outline: none;
@@ -775,13 +776,9 @@ export class LCARdSStorageExplorerTab extends LitElement {
       line-height: 1.5;
       overflow-x: auto;
       border-radius: 6px;
-      border: 1px solid var(--divider-color);
+      border: var(--ha-border-width-sm) solid var(--divider-color);
     }
 
-    /* ── Danger button/icon variant ── */
-    .danger-btn {
-      --mdc-theme-primary: var(--error-color, #f44336);
-    }
   `;
 }
 

@@ -291,7 +291,11 @@ export class LCARdSAboutTab extends LitElement {
 
     /* ── Sections — matches lcards-form-section background ─────── */
     .section {
-      background: rgba(60, 60, 60, 0.5);
+      background: color-mix(
+          in srgb,
+          var(--secondary-background-color) 50%,
+          color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+      );
       border-radius: var(--ha-card-border-radius, 12px);
       padding: 12px 16px;
     }
@@ -304,7 +308,7 @@ export class LCARdSAboutTab extends LitElement {
       font-weight: 600;
       color: var(--primary-text-color);
       padding-bottom: 12px;
-      border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
+      border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 60%, transparent);
       margin-bottom: 12px;
     }
 
@@ -335,9 +339,9 @@ export class LCARdSAboutTab extends LitElement {
       align-items: flex-start;
       gap: 12px;
       padding: 9px 12px;
-      border-radius: 8px;
+      border-radius: var(--ha-border-radius-md);
       background: color-mix(in srgb, var(--info-color, #03a9f4) 7%, rgba(40,40,40,0.5));
-      border: 1px solid color-mix(in srgb, var(--info-color, #03a9f4) 20%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 20%, transparent);
     }
 
     .preview-features-list ha-icon {
@@ -366,7 +370,7 @@ export class LCARdSAboutTab extends LitElement {
 
     .pf-desc code {
       font-family: monospace;
-      background: rgba(255,255,255,0.08);
+      background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
       padding: 1px 4px;
       border-radius: 3px;
       font-size: 0.95em;
@@ -433,15 +437,15 @@ export class LCARdSAboutTab extends LitElement {
       gap: 12px;
       padding: 10px 12px;
       border-radius: var(--ha-card-border-radius, 12px);
-      border: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
-      background: rgba(40, 40, 40, 0.6);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 60%, transparent);
+      background: var(--secondary-background-color);
       cursor: pointer;
       color: var(--primary-text-color);
-      transition: background 0.15s, border-color 0.15s;
+      transition: background var(--ha-animation-duration-fast), border-color var(--ha-animation-duration-fast);
     }
 
     .tab-guide-card:hover {
-      background: color-mix(in srgb, var(--primary-color, #1b4f8a) 18%, rgba(40, 40, 40, 0.8));
+      background: color-mix(in srgb, var(--primary-color) 15%, var(--secondary-background-color));
       border-color: var(--primary-color);
     }
 
@@ -478,7 +482,7 @@ export class LCARdSAboutTab extends LitElement {
       --mdc-icon-size: 16px;
       color: var(--secondary-text-color);
       flex-shrink: 0;
-      transition: color 0.15s;
+      transition: color var(--ha-animation-duration-fast);
     }
 
     .tab-guide-card:hover .tab-guide-arrow {
@@ -498,15 +502,15 @@ export class LCARdSAboutTab extends LitElement {
       gap: 12px;
       padding: 10px 12px;
       border-radius: var(--ha-card-border-radius, 12px);
-      border: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
-      background: rgba(40, 40, 40, 0.6);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 60%, transparent);
+      background: var(--secondary-background-color);
       text-decoration: none;
       color: var(--primary-text-color);
-      transition: background 0.15s, border-color 0.15s;
+      transition: background var(--ha-animation-duration-fast), border-color var(--ha-animation-duration-fast);
     }
 
     .link-card:hover {
-      background: color-mix(in srgb, var(--primary-color, #1b4f8a) 18%, rgba(40, 40, 40, 0.8));
+      background: color-mix(in srgb, var(--primary-color) 15%, var(--secondary-background-color));
       border-color: var(--primary-color);
     }
 

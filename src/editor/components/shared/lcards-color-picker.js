@@ -83,13 +83,13 @@ export class LCARdSColorPicker extends LitElement {
             .color-picker {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: var(--ha-space-2);
             }
 
             .color-inputs {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 8px;
+                gap: var(--ha-space-2);
             }
 
             @media (max-width: 600px) {
@@ -101,14 +101,14 @@ export class LCARdSColorPicker extends LitElement {
             .input-group {
                 display: flex;
                 flex-direction: column;
-                gap: 4px;
+                gap: var(--ha-space-1);
             }
 
             .input-label {
-                font-size: 12px;
+                font-size: var(--ha-font-size-s);
                 font-weight: 500;
                 color: var(--secondary-text-color, #727272);
-                padding: 0 8px;
+                padding: 0 var(--ha-space-2);
             }
 
             ha-selector {
@@ -130,9 +130,9 @@ export class LCARdSColorPicker extends LitElement {
                 width: 16px;
                 height: 16px;
                 border-radius: 3px;
-                margin-right: 8px;
+                margin-right: var(--ha-space-2);
                 vertical-align: middle;
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
             }
 
@@ -146,18 +146,18 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             ha-dropdown-item {
-                --mdc-list-item-graphic-margin: 8px;
+                gap: var(--ha-space-2);
             }
 
             .preview {
-                margin-top: 8px;
-                padding: 12px;
+                margin-top: var(--ha-space-2);
+                padding: var(--ha-space-3);
                 border-radius: 22px;
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 display: flex;
                 flex-direction: column;
-                gap: 4px;
-                transition: all 0.2s ease;
+                gap: var(--ha-space-1);
+                transition: all var(--ha-animation-duration-normal, 0.2s) ease;
             }
 
             .preview-value {
@@ -173,8 +173,8 @@ export class LCARdSColorPicker extends LitElement {
             /* Builder UI Styles */
             .mode-toggle {
                 display: flex;
-                gap: 8px;
-                margin-bottom: 12px;
+                gap: var(--ha-space-2);
+                margin-bottom: var(--ha-space-3);
             }
 
             .mode-toggle ha-button {
@@ -182,24 +182,24 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             .mode-toggle ha-button[outlined] {
-                border: 1px solid var(--primary-color);
+                border: var(--ha-border-width-sm) solid var(--primary-color);
                 color: var(--primary-color);
             }
 
             .builder-panel {
                 background: var(--card-background-color, #fff);
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 border-radius: var(--ha-card-border-radius, 12px);
-                padding: 16px;
+                padding: var(--ha-space-4);
                 display: flex;
                 flex-direction: column;
-                gap: 16px;
+                gap: var(--ha-space-4);
             }
 
             .builder-row {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: var(--ha-space-2);
             }
 
             .builder-row label {
@@ -210,9 +210,9 @@ export class LCARdSColorPicker extends LitElement {
 
             .builder-result {
                 background: var(--secondary-background-color, #f5f5f5);
-                padding: 12px;
-                border-radius: 8px;
-                border: 1px solid var(--divider-color, #e0e0e0);
+                padding: var(--ha-space-3);
+                border-radius: var(--ha-border-radius-md);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
             }
 
             .builder-result code {
@@ -224,9 +224,9 @@ export class LCARdSColorPicker extends LitElement {
 
             .result-actions {
                 display: flex;
-                gap: 8px;
+                gap: var(--ha-space-2);
                 align-items: center;
-                margin-top: 8px;
+                margin-top: var(--ha-space-2);
             }
 
             .result-actions ha-button {
@@ -234,33 +234,33 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             .result-actions ha-button[outlined] {
-                border: 1px solid var(--primary-color);
+                border: var(--ha-border-width-sm) solid var(--primary-color);
                 color: var(--primary-color);
             }
 
             .copy-success {
-                font-size: 12px;
+                font-size: var(--ha-font-size-s);
                 color: var(--success-color, #4caf50);
                 display: flex;
                 align-items: center;
-                gap: 4px;
+                gap: var(--ha-space-1);
             }
 
             .preview-comparison {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 8px;
-                margin-top: 12px;
+                gap: var(--ha-space-2);
+                margin-top: var(--ha-space-3);
             }
 
             .preview-swatch {
-                padding: 12px;
+                padding: var(--ha-space-3);
                 border-radius: var(--ha-card-border-radius, 12px);
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 text-align: center;
                 display: flex;
                 flex-direction: column;
-                gap: 4px;
+                gap: var(--ha-space-1);
             }
 
             .preview-swatch-label {
@@ -279,10 +279,10 @@ export class LCARdSColorPicker extends LitElement {
 
             .validation-error {
                 color: var(--error-color, #f44336);
-                font-size: 12px;
+                font-size: var(--ha-font-size-s);
                 padding: 8px;
                 background: var(--error-background-color, rgba(244, 67, 54, 0.1));
-                border-radius: 4px;
+                border-radius: var(--ha-border-radius-sm);
                 margin-top: 8px;
             }
         `;

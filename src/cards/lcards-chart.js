@@ -1022,6 +1022,16 @@ export class LCARdSChart extends LCARdSCard {
     return Math.ceil((this._configPx(this.config?.height) || 200) / 50);
   }
 
+  getGridOptions() {
+    const go = this.config.grid_options || {};
+    return {
+      columns: go.columns ?? 6,
+      rows: go.rows ?? 4,
+      min_columns: 4,
+      min_rows: 2,
+    };
+  }
+
   /**
    * Get stub config for GUI editor preview
    * @static

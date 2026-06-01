@@ -4092,17 +4092,17 @@ export class LCARdSSlider extends LCARdSButton {
 
         if (isVertical) {
             return {
-                grid_columns:     go.columns     ?? 1,
-                grid_rows:        go.rows,
-                grid_min_columns: go.min_columns ?? 1,
-                grid_min_rows:    go.min_rows    ?? 1
+                columns:     go.columns     ?? 1,
+                rows:        go.rows,
+                min_columns: go.min_columns ?? 1,
+                min_rows:    go.min_rows    ?? 1,
             };
         } else {
             return {
-                grid_columns:     go.columns,
-                grid_rows:        go.rows        ?? 1,
-                grid_min_columns: go.min_columns ?? 1,
-                grid_min_rows:    go.min_rows    ?? 1
+                columns:     go.columns,
+                rows:        go.rows        ?? 1,
+                min_columns: go.min_columns ?? 1,
+                min_rows:    go.min_rows    ?? 1,
             };
         }
     }

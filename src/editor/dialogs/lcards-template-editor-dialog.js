@@ -110,7 +110,7 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             }
 
             .row-actions mwc-icon-button {
-                --mdc-icon-button-size: 32px;
+                --ha-icon-button-size: 32px;
                 --mdc-icon-size: 20px;
             }
 
@@ -149,7 +149,7 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             }
 
             .entity-picker-button {
-                --mdc-icon-button-size: 36px;
+                --ha-icon-button-size: 36px;
                 --mdc-icon-size: 20px;
             }
 
@@ -210,7 +210,7 @@ export class LCARdSTemplateEditorDialog extends LitElement {
                 margin-top: 8px;
             }
 
-            ha-textfield {
+            ha-input {
                 width: 100%;
             }
 
@@ -349,12 +349,12 @@ export class LCARdSTemplateEditorDialog extends LitElement {
                 ${values.map((value, cellIndex) => html`
                     <div class="cell-row">
                         <div class="cell-label">Cell ${cellIndex + 1}:</div>
-                        <ha-textfield
+                        <ha-input
                             class="cell-input"
                             .value=${value || ''}
                             placeholder="Enter text or template (e.g., {{states.sensor.temp.state}})"
                             @input=${(e) => this._handleCellValueChange(rowIndex, cellIndex, e.target.value)}>
-                        </ha-textfield>
+                        </ha-input>
                         <mwc-icon-button
                             class="entity-picker-button"
                             @click=${() => this._openEntityPicker(rowIndex, cellIndex)}
@@ -463,14 +463,14 @@ export class LCARdSTemplateEditorDialog extends LitElement {
             </lcards-color-section>
 
             <lcards-grid-layout columns="2">
-                <ha-textfield
+                <ha-input
                     label="Font Size"
                     .value=${style.font_size || ''}
                     placeholder="e.g., 14px"
                     @input=${(e) => this._handleStyleChange(rowIndex, type, 'font_size', e.target.value, cellIndex)}>
-                </ha-textfield>
+                </ha-input>
 
-                <ha-textfield
+                <ha-input
                     label="Font Weight"
                     type="number"
                     min="100"
@@ -479,22 +479,22 @@ export class LCARdSTemplateEditorDialog extends LitElement {
                     .value=${style.font_weight || ''}
                     placeholder="e.g., 700"
                     @input=${(e) => this._handleStyleChange(rowIndex, type, 'font_weight', e.target.value, cellIndex)}>
-                </ha-textfield>
+                </ha-input>
             </lcards-grid-layout>
 
-            <ha-textfield
+            <ha-input
                 label="Padding"
                 .value=${style.padding || ''}
                 placeholder="e.g., 8px or 8px 12px"
                 @input=${(e) => this._handleStyleChange(rowIndex, type, 'padding', e.target.value, cellIndex)}>
-            </ha-textfield>
+            </ha-input>
 
-            <ha-textfield
+            <ha-input
                 label="Border Width"
                 .value=${style.border_width || ''}
                 placeholder="e.g., 2px"
                 @input=${(e) => this._handleStyleChange(rowIndex, type, 'border_width', e.target.value, cellIndex)}>
-            </ha-textfield>
+            </ha-input>
 
             <lcards-color-section
                 .editor=${this}

@@ -117,7 +117,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
 
             .delete-button {
                 margin-top: 16px;
-                --mdc-theme-primary: var(--error-color, #db4437);
             }
         `;
     }

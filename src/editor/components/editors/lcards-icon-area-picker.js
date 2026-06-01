@@ -67,7 +67,7 @@ export class LCARdSIconAreaPicker extends LitElement {
                 grid-template-rows: repeat(3, 50px);
                 gap: 6px;
                 background: var(--primary-background-color, #fff);
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: 8px;
                 padding: 12px;
             }
@@ -75,7 +75,7 @@ export class LCARdSIconAreaPicker extends LitElement {
             .area-cell {
                 width: 50px;
                 height: 50px;
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: 6px;
                 cursor: pointer;
                 transition: all 0.2s ease;

@@ -57,39 +57,55 @@ export class LCARdSFormSection extends LitElement {
             }
 
             ha-expansion-panel {
-                border-radius: var(--ha-card-border-radius, 24px);
-                --expansion-panel-summary-padding: 0 8px 0 16px;
-                background-color: rgba(60, 60, 60, 0.5);
+                border-radius: var(--ha-card-border-radius, var(--ha-border-radius-3xl));
+                --expansion-panel-summary-padding: 0 var(--ha-space-2) 0 var(--ha-space-4);
+                background-color: color-mix(
+                    in srgb,
+                    var(--secondary-background-color) 30%,
+                    color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+                );
             }
 
             ha-expansion-panel[outlined] {
-                border: 2px solid var(--chip-background-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--chip-background-color, #e0e0e0);
             }
 
             ha-expansion-panel[expanded] {
-                background-color: rgba(60, 60, 60, 0.5);
+                background-color: color-mix(
+                    in srgb,
+                    var(--secondary-background-color) 30%,
+                    color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+                );
             }
 
             /* Override focused state background */
             ha-expansion-panel:focus-within,
             ha-expansion-panel.focused {
-                background-color: rgba(60, 60, 60, 0.7);
-                --input-fill-color: rgba(60, 60, 60, 0.7);
+                background-color: color-mix(
+                    in srgb,
+                    var(--secondary-background-color) 65%,
+                    color-mix(in srgb, var(--primary-background-color) 35%, transparent)
+                );
+                --input-fill-color: color-mix(
+                    in srgb,
+                    var(--secondary-background-color) 65%,
+                    color-mix(in srgb, var(--primary-background-color) 35%, transparent)
+                );
             }
 
             .section-content {
-                padding: 12px; /* Reduced from 16px for denser layout */
+                padding: var(--ha-space-3);
             }
 
             .section-content.compact,
             .section-content.nested {
-                padding: 8px; /* Tighter spacing for nested/compact variants */
+                padding: var(--ha-space-2);
             }
 
             .section-description {
-                font-size: 14px;
+                font-size: var(--ha-font-size-m);
                 color: var(--secondary-text-color, #727272);
-                margin-bottom: 12px; /* Reduced from 16px for consistency */
+                margin-bottom: var(--ha-space-3);
                 line-height: 1.5;
             }
 
@@ -99,7 +115,7 @@ export class LCARdSFormSection extends LitElement {
 
             /* Add spacing between ha-selector elements to prevent cramping when helper text is present */
             ::slotted(ha-selector) {
-                margin-bottom: 16px;
+                margin-bottom: var(--ha-space-4);
             }
 
             /* Icon spacing in headers */
@@ -109,7 +125,7 @@ export class LCARdSFormSection extends LitElement {
             h4 ha-icon,
             h5 ha-icon,
             h6 ha-icon {
-                margin-right: 8px;
+                margin-right: var(--ha-space-2);
                 vertical-align: middle;
             }
         `;

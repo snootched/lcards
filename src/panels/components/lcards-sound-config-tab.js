@@ -66,6 +66,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     _adminScopeDeviceId:{ type: String,   state: true },
     /** Admin: basic settings (volume/scheme/enabled) for the currently-viewed admin target; null = own */
     _adminTargetBasic:  { type: Object,   state: true },
+    _confirmResetOverrides: { type: Boolean, state: true },
   };
 
   constructor() {
@@ -95,6 +96,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     this._adminScopeDeviceId = null;
     /** @type {Object|null} Basic settings for admin-selected target; null = own */
     this._adminTargetBasic = null;
+    this._confirmResetOverrides = false;
   }
 
   connectedCallback() {
@@ -655,11 +657,22 @@ export class LCARdSSoundConfigTab extends LitElement {
     this.requestUpdate();
   }
 
+  _askResetOverrides() {
+    this._confirmResetOverrides = true;
+    this.requestUpdate();
+  }
+
+  _cancelResetOverrides() {
+    this._confirmResetOverrides = false;
+    this.requestUpdate();
+  }
+
   _resetOverrides() {
     const sm = window.lcards?.core?.soundManager;
     if (!sm) return;
     sm.clearAllOverrides('global');
     this._overrides = sm.getOverrides('global');
+    this._confirmResetOverrides = false;
     this.requestUpdate();
   }
 
@@ -846,12 +859,22 @@ export class LCARdSSoundConfigTab extends LitElement {
                 message="Overrides are stored in LCARdS Integration persistent storage.  See Storage tab for details."
               ></lcards-message>
               ${Object.keys(this._overrides).length > 0 ? html`
-                <ha-button @click=${this._resetOverrides} class="reset-overrides-btn">
+                <ha-button @click=${this._askResetOverrides} class="reset-overrides-btn" variant="warning">
                   <ha-icon slot="start" icon="mdi:restore"></ha-icon>
                   Reset all to scheme defaults
                 </ha-button>
               ` : ''}
             </div>
+            ${this._confirmResetOverrides ? html`
+              <div class="banner warning">
+                <ha-icon icon="mdi:alert"></ha-icon>
+                <span>This will <strong>clear all ${Object.keys(this._overrides).length} override${Object.keys(this._overrides).length !== 1 ? 's' : ''}</strong> and restore scheme defaults. Are you sure?</span>
+                <div class="confirm-actions">
+                  <ha-button class="danger-btn" variant="danger" @click=${this._resetOverrides}>Yes, reset all</ha-button>
+                  <ha-button @click=${this._cancelResetOverrides}>Cancel</ha-button>
+                </div>
+              </div>
+            ` : ''}
             <div class="overrides-table-wrapper">
               <table class="overrides-table">
                 <thead>
@@ -1081,7 +1104,7 @@ export class LCARdSSoundConfigTab extends LitElement {
         <!-- ── LOADING / SETTINGS BODY ── -->
         ${(this._scopedLoading && !isAdminTarget) || this._scopedOverridesLoading ? html`
           <div class="scoped-loading">
-            <ha-circular-progress indeterminate size="small"></ha-circular-progress>
+            <ha-circular-progress indeterminate size="s"></ha-circular-progress>
             Loading…
           </div>
         ` : html`
@@ -1290,15 +1313,20 @@ export class LCARdSSoundConfigTab extends LitElement {
       align-items: center;
       gap: 12px;
       padding: 12px 16px;
-      border-radius: 8px;
+      border-radius: var(--ha-border-radius-md);
       font-size: 0.9em;
     }
     .banner.warning {
       background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
       color: var(--primary-text-color);
     }
     .banner ha-button {
+      margin-left: auto;
+    }
+    .confirm-actions {
+      display: flex;
+      gap: 8px;
       margin-left: auto;
     }
 
@@ -1314,7 +1342,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       justify-content: space-between;
       gap: 12px;
       padding: 8px 0;
-      border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
+      border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 50%, transparent);
     }
     .control-row:last-child { border-bottom: none; }
     .control-row.prominent { font-size: 1.05em; }
@@ -1369,7 +1397,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       text-align: left;
       padding: 6px 8px;
       color: var(--secondary-text-color);
-      border-bottom: 1px solid var(--divider-color);
+      border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       position: sticky;
       top: 0;
       z-index: 1;
@@ -1380,7 +1408,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     .overrides-table td {
       padding: 4px 8px;
       vertical-align: middle;
-      border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+      border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 40%, transparent);
     }
     .overrides-table tr.has-override td {
       background: color-mix(in srgb, var(--primary-color) 8%, transparent);
@@ -1396,7 +1424,6 @@ export class LCARdSSoundConfigTab extends LitElement {
       padding: 0 4px 8px;
     }
     .reset-overrides-btn {
-      --mdc-theme-primary: var(--warning-color, #ff9800);
       flex-shrink: 0;
     }
 
@@ -1410,12 +1437,12 @@ export class LCARdSSoundConfigTab extends LitElement {
       text-align: left;
       padding: 6px 8px;
       color: var(--secondary-text-color);
-      border-bottom: 1px solid var(--divider-color);
+      border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
     }
     .helper-status-table td {
       padding: 6px 8px;
       vertical-align: middle;
-      border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+      border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 40%, transparent);
     }
     .helper-status-table tr:last-child td { border-bottom: none; }
     .helper-name {
@@ -1447,7 +1474,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       align-items: center;
       gap: 12px;
       padding: 6px 0;
-      border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.06));
+      border-bottom: var(--ha-border-width-sm) solid var(--divider-color, rgba(255,255,255,0.06));
     }
     .scoped-row:last-child { border-bottom: none; }
 
@@ -1481,8 +1508,8 @@ export class LCARdSSoundConfigTab extends LitElement {
       padding: 8px 12px;
       margin: 4px 0;
       background: color-mix(in srgb, var(--warning-color, #ff9800) 10%, transparent);
-      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 30%, transparent);
-      border-radius: 8px;
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 30%, transparent);
+      border-radius: var(--ha-border-radius-md);
     }
     .admin-selector-label {
       font-size: 0.85rem;
@@ -1507,7 +1534,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     }
     .scope-context-banner.own {
       background: color-mix(in srgb, var(--info-color, #03a9f4) 10%, transparent);
-      border: 1px solid color-mix(in srgb, var(--info-color, #03a9f4) 25%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 25%, transparent);
       color: var(--primary-text-color);
     }
     .scope-context-banner.own ha-icon {
@@ -1516,7 +1543,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     }
     .scope-context-banner.admin {
       background: color-mix(in srgb, var(--warning-color, #ff9800) 12%, transparent);
-      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 35%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 35%, transparent);
       color: var(--primary-text-color);
     }
     .scope-context-banner.admin ha-icon {
@@ -1531,7 +1558,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       gap: 8px;
       padding: 10px 0 6px;
       margin-top: 8px;
-      border-top: 1px solid var(--divider-color, rgba(255,255,255,0.08));
+      border-top: var(--ha-border-width-sm) solid var(--divider-color, rgba(255,255,255,0.08));
       font-size: 0.9rem;
       font-weight: 500;
       color: var(--primary-text-color);

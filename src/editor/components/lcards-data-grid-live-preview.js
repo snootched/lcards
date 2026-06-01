@@ -53,7 +53,7 @@ export class LCARdSDataGridLivePreview extends LitElement {
                 flex-direction: column;
                 height: 100%;
                 background: var(--secondary-background-color, #fafafa);
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: 8px;
                 overflow: hidden;
             }
@@ -64,7 +64,7 @@ export class LCARdSDataGridLivePreview extends LitElement {
                 align-items: center;
                 padding: 12px 16px;
                 background: var(--card-background-color, white);
-                border-bottom: 2px solid var(--divider-color, #e0e0e0);
+                border-bottom: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 font-weight: 600;
                 font-size: 14px;
             }
@@ -88,14 +88,14 @@ export class LCARdSDataGridLivePreview extends LitElement {
             lcards-data-grid {
                 max-width: 100%;
                 max-height: 100%;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                box-shadow: var(--ha-box-shadow-m);
                 border-radius: 4px;
             }
 
             .preview-footer {
                 padding: 8px 16px;
                 background: var(--card-background-color, white);
-                border-top: 1px solid var(--divider-color, #e0e0e0);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 font-size: 12px;
                 color: var(--secondary-text-color, #727272);
                 display: flex;

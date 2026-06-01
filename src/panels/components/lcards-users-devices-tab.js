@@ -476,10 +476,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                               <ha-icon icon="mdi:alert"></ha-icon>
                               <span>Clear all overrides for <strong>${displayName ?? u.id}</strong>?</span>
                               <div class="confirm-actions">
-                                <ha-button class="danger-btn" @click=${this._executeDeleteUser}>
-                                  <ha-icon slot="start" icon="mdi:delete"></ha-icon>
-                                  Delete
-                                </ha-button>
+                                <ha-button class="danger-btn" variant="danger" @click=${this._executeDeleteUser}>Delete</ha-button>
                                 <ha-button @click=${this._cancelDeleteUser}>Cancel</ha-button>
                               </div>
                             </div>
@@ -578,10 +575,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                               <ha-icon icon="mdi:alert"></ha-icon>
                               <span>Remove <strong>${name ?? d.id}</strong>?</span>
                               <div class="confirm-actions">
-                                <ha-button class="danger-btn" @click=${this._executeDeleteDevice}>
-                                  <ha-icon slot="start" icon="mdi:delete"></ha-icon>
-                                  Remove
-                                </ha-button>
+                                <ha-button class="danger-btn" variant="danger" @click=${this._executeDeleteDevice}>Delete</ha-button>
                                 <ha-button @click=${this._cancelDeleteDevice}>Cancel</ha-button>
                               </div>
                             </div>
@@ -650,14 +644,14 @@ export class LCARdsUsersDevicesTab extends LitElement {
         flex-wrap: wrap;
         gap: 10px;
         padding: 10px 14px;
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         font-size: 0.9em;
         flex-shrink: 0;
         margin-bottom: 8px;
       }
       .banner.error {
         background: color-mix(in srgb, var(--error-color, #f44336) 15%, transparent);
-        border: 1px solid color-mix(in srgb, var(--error-color, #f44336) 40%, transparent);
+        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color, #f44336) 40%, transparent);
         color: var(--primary-text-color);
       }
       .banner ha-button { margin-left: auto; }
@@ -675,7 +669,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         display: flex;
         flex-direction: column;
         padding: 8px 0;
-        border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+        border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 40%, transparent);
       }
       .field-group:last-child { border-bottom: none; }
 
@@ -723,8 +717,8 @@ export class LCARdsUsersDevicesTab extends LitElement {
         flex: 1;
         min-width: 160px;
         background: var(--input-fill-color, rgba(255,255,255,0.05));
-        border: 1px solid var(--divider-color);
-        border-radius: 4px;
+        border: var(--ha-border-width-sm) solid var(--divider-color);
+        border-radius: var(--ha-border-radius-sm);
         color: var(--primary-text-color);
         padding: 5px 8px;
         font-size: 0.9rem;
@@ -753,12 +747,12 @@ export class LCARdsUsersDevicesTab extends LitElement {
         letter-spacing: 0.04em;
         color: var(--secondary-text-color);
         font-weight: 600;
-        border-bottom: 1px solid var(--divider-color);
+        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .data-table td {
         padding: 6px 8px;
-        border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+        border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 40%, transparent);
         vertical-align: middle;
       }
 
@@ -800,8 +794,8 @@ export class LCARdsUsersDevicesTab extends LitElement {
         gap: 8px;
         padding: 8px 10px;
         background: color-mix(in srgb, var(--error-color, #f44336) 10%, transparent);
-        border: 1px solid color-mix(in srgb, var(--error-color, #f44336) 30%, transparent);
-        border-radius: 8px;
+        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color, #f44336) 30%, transparent);
+        border-radius: var(--ha-border-radius-md);
         font-size: 0.85em;
         flex-wrap: wrap;
       }
@@ -812,13 +806,11 @@ export class LCARdsUsersDevicesTab extends LitElement {
       .inline-confirm span { flex: 1; }
       .confirm-actions {
         display: flex;
-        gap: 6px;
+        gap: 8px;
+        margin-left: auto;
       }
       .danger-icon {
         color: var(--error-color, #f44336);
-      }
-      .danger-btn {
-        --mdc-theme-primary: var(--error-color, #f44336);
       }
 
       /* ── Loading / empty ── */

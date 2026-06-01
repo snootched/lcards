@@ -3562,10 +3562,10 @@ export class LCARdSElbow extends LCARdSButton {
         // Provide sensible defaults for elbow cards
         const gridOptions = this.config.grid_options || {};
         return {
-            grid_columns: gridOptions.columns || 4,  // Default to 4 columns
-            grid_rows: gridOptions.rows || 2,        // Default to 2 rows (elbows need more vertical space)
-            grid_min_columns: 1,
-            grid_min_rows: 1
+            columns: gridOptions.columns || 4,
+            rows: gridOptions.rows || 2,
+            min_columns: 1,
+            min_rows: 1,
         };
     }
 

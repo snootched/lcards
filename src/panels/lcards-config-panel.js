@@ -240,11 +240,11 @@ export class LCARdSConfigPanel extends LitElement {
     }
 
     .card {
-      background: rgba(60,60,60,0.7);
+      background: color-mix(in srgb, var(--secondary-background-color) 70%, transparent);
       border-radius: var(--ha-card-border-radius, 12px);
       padding: 20px;
       margin-bottom: 16px;
-      box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.1));
+      box-shadow: var(--ha-box-shadow-m);
       border: 1px solid var(--divider-color);
     }
 
@@ -386,24 +386,6 @@ export class LCARdSConfigPanel extends LitElement {
       font-size: 1.1em;
     }
 
-    /* Success Message */
-    .success-message {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
-      background: rgba(76, 175, 80, 0.1);
-      border: 1px solid var(--success-color, #4caf50);
-      border-radius: 8px;
-      color: var(--success-color, #4caf50);
-      margin-bottom: 16px;
-      font-weight: 500;
-    }
-
-    .success-message ha-icon {
-      --mdc-icon-size: 24px;
-    }
-
     /* Search container */
     .search-container {
       padding: 12px 24px;
@@ -424,7 +406,7 @@ export class LCARdSConfigPanel extends LitElement {
       right: 8px;
       top: 50%;
       transform: translateY(-50%);
-      --mdc-icon-button-size: 32px;
+      --ha-icon-button-size: 32px;
     }
 
     .search-result-count {
@@ -472,28 +454,6 @@ export class LCARdSConfigPanel extends LitElement {
       align-items: center;
       gap: 8px;
       margin-bottom: 12px;
-    }
-
-    .success-message {
-      padding: 12px;
-      background: var(--success-color, #4caf50);
-      color: white;
-      border-radius: 4px;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .error-message {
-      padding: 12px;
-      background: var(--error-color, #f44336);
-      color: white;
-      border-radius: 4px;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
 
     .spinner {
@@ -985,14 +945,14 @@ export class LCARdSConfigPanel extends LitElement {
           <div class="dialog-body">
             <div class="search-container">
               <div class="search-wrapper">
-                <ha-textfield
+                <ha-input
                   style="width: 100%;"
                   .value=${this._filterText}
                   @input=${(e) => { this._filterText = e.target.value; this.requestUpdate(); }}
                   placeholder="Search helpers... (Ctrl+F)"
                   .label=${'Search'}>
                   <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
-                </ha-textfield>
+                </ha-input>
                 ${this._filterText ? html`
                   <ha-icon-button
                     class="search-clear"

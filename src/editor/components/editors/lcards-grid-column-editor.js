@@ -20,6 +20,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { overlayEditorStyles } from '../../../editor/base/overlay-editor-styles.js';
 import '../../components/shared/lcards-form-section.js';
 
 // @ts-ignore - TS2415: duplicate method implementations in LitElement subclass
@@ -60,56 +61,7 @@ export class LCARdSGridColumnEditor extends LitElement {
     }
 
     static get styles() {
-        return css`
-            :host {
-                display: block;
-                position: fixed;
-                z-index: 10000;
-                background: var(--card-background-color);
-                border: 2px solid var(--primary-color);
-                border-radius: 8px;
-                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-                min-width: 320px;
-                max-width: 400px;
-            }
-
-            .editor-header {
-                padding: 12px;
-                background: var(--primary-color);
-                color: white;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                border-radius: 6px 6px 0 0;
-            }
-
-            .editor-title {
-                font-weight: 600;
-                font-size: 14px;
-            }
-
-            .close-btn {
-                background: transparent;
-                border: none;
-                color: white;
-                cursor: pointer;
-                padding: 4px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .close-btn:hover {
-                background: rgba(255, 255, 255, 0.2);
-                border-radius: 4px;
-            }
-
-            .editor-content {
-                padding: 12px;
-                max-height: 400px;
-                overflow-y: auto;
-            }
-
+        return [overlayEditorStyles, css`
             .column-info {
                 padding: 12px;
                 background: var(--secondary-background-color);
@@ -137,7 +89,7 @@ export class LCARdSGridColumnEditor extends LitElement {
                 margin-bottom: 12px;
             }
 
-            ha-textfield {
+            ha-input {
                 width: 100%;
                 margin-bottom: 8px;
             }
@@ -152,7 +104,7 @@ export class LCARdSGridColumnEditor extends LitElement {
             .align-btn {
                 padding: 8px;
                 background: var(--secondary-background-color);
-                border: 2px solid transparent;
+                border: var(--ha-border-width-md) solid transparent;
                 border-radius: 4px;
                 cursor: pointer;
                 transition: all 0.2s ease;
@@ -181,7 +133,7 @@ export class LCARdSGridColumnEditor extends LitElement {
             }
 
             .style-section {
-                border-top: 1px solid var(--divider-color);
+                border-top: var(--ha-border-width-sm) solid var(--divider-color);
                 padding-top: 12px;
                 margin-top: 12px;
             }
@@ -197,25 +149,7 @@ export class LCARdSGridColumnEditor extends LitElement {
                 width: 100%;
                 justify-content: flex-start;
             }
-
-            .editor-actions {
-                padding: 12px;
-                border-top: 1px solid var(--divider-color);
-                display: flex;
-                gap: 8px;
-                justify-content: flex-end;
-            }
-
-            .danger-zone {
-                border-top: 1px solid var(--divider-color);
-                padding-top: 12px;
-                margin-top: 12px;
-            }
-
-            .danger-btn {
-                --mdc-theme-primary: var(--error-color);
-            }
-        `;
+        `];
     }
 
     render() {
@@ -245,12 +179,12 @@ export class LCARdSGridColumnEditor extends LitElement {
                     <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--primary-text-color);">
                         Column Width
                     </label>
-                    <ha-textfield
+                    <ha-input
                         label="Width"
                         .value=${this._editWidth}
                         @input=${(e) => this._editWidth = e.target.value}
                         helper="CSS value (e.g., '100px', '1fr', 'auto')">
-                    </ha-textfield>
+                    </ha-input>
                 </div>
 
                 <!-- Text Alignment -->
@@ -299,31 +233,31 @@ export class LCARdSGridColumnEditor extends LitElement {
                         Column Style Overrides
                     </summary>
 
-                    <ha-textfield
+                    <ha-input
                         label="Text Colour"
                         .value=${this._editStyle.color || ''}
                         @input=${(e) => this._updateStyle('color', e.target.value)}
                         helper="CSS colour value">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Background Colour"
                         .value=${this._editStyle.background || ''}
                         @input=${(e) => this._updateStyle('background', e.target.value)}
                         helper="CSS colour value">
-                    </ha-textfield>
+                    </ha-input>
 
-                    <ha-textfield
+                    <ha-input
                         label="Font Weight"
                         .value=${this._editStyle.font_weight || ''}
                         @input=${(e) => this._updateStyle('font_weight', e.target.value)}
                         helper="100-900">
-                    </ha-textfield>
+                    </ha-input>
                 </details>
 
                 <!-- Danger Zone -->
                 <div class="danger-zone">
-                    <ha-button class="danger-btn" @click=${this._handleDelete}>
+                    <ha-button class="danger-btn" variant="danger" @click=${this._handleDelete}>
                         <ha-icon icon="mdi:delete" slot="start"></ha-icon>
                         Delete Column
                     </ha-button>

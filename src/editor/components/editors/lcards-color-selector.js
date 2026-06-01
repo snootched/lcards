@@ -53,7 +53,7 @@ export class LCARdSColorSelector extends LitElement {
             input[type="color"] {
                 width: 60px;
                 height: 40px;
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 border-radius: 4px;
                 cursor: pointer;
             }
@@ -89,7 +89,7 @@ export class LCARdSColorSelector extends LitElement {
                 height: 40px;
                 border-radius: 4px;
                 cursor: pointer;
-                border: 2px solid transparent;
+                border: var(--ha-border-width-md) solid transparent;
                 transition: all 0.2s ease;
             }
 

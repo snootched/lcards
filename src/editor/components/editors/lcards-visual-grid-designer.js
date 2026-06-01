@@ -146,7 +146,7 @@ export class LCARdSVisualGridDesigner extends LitElement {
             /* Grid Canvas */
             .grid-canvas {
                 background: var(--card-background-color, white);
-                border: 2px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
                 border-radius: 8px;
                 padding: 16px;
                 max-height: 400px;
@@ -161,7 +161,7 @@ export class LCARdSVisualGridDesigner extends LitElement {
             }
 
             .grid-cell {
-                border: 1px solid var(--divider-color, #e0e0e0);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
                 background: var(--secondary-background-color, #fafafa);
                 min-height: 40px;
                 display: flex;
@@ -230,7 +230,7 @@ export class LCARdSVisualGridDesigner extends LitElement {
                 padding: 2px 8px;
             }
 
-            .input-group ha-textfield,
+            .input-group ha-input,
             .input-group ha-selector {
                 width: 100%;
             }
@@ -468,31 +468,31 @@ export class LCARdSVisualGridDesigner extends LitElement {
                 <!-- Basic Grid Properties -->
                 <div class="input-group">
                     <label>Grid Template Columns</label>
-                    <ha-textfield
+                    <ha-input
                         .placeholder=${'repeat(12, 1fr)'}
                         .value=${this._cssInputs['grid-template-columns']}
                         @input=${(e) => this._handleCSSInput('grid-template-columns', e.target.value)}>
-                    </ha-textfield>
+                    </ha-input>
                     ${this._renderValidationError('grid-template-columns')}
                 </div>
 
                 <div class="input-group">
                     <label>Grid Template Rows</label>
-                    <ha-textfield
+                    <ha-input
                         .placeholder=${'repeat(8, auto)'}
                         .value=${this._cssInputs['grid-template-rows']}
                         @input=${(e) => this._handleCSSInput('grid-template-rows', e.target.value)}>
-                    </ha-textfield>
+                    </ha-input>
                     ${this._renderValidationError('grid-template-rows')}
                 </div>
 
                 <div class="input-group">
                     <label>Gap</label>
-                    <ha-textfield
+                    <ha-input
                         .placeholder=${'8px'}
                         .value=${this._cssInputs['gap']}
                         @input=${(e) => this._handleCSSInput('gap', e.target.value)}>
-                    </ha-textfield>
+                    </ha-input>
                     ${this._renderValidationError('gap')}
                 </div>
 
