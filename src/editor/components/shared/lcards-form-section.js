@@ -61,7 +61,7 @@ export class LCARdSFormSection extends LitElement {
                 --expansion-panel-summary-padding: 0 var(--ha-space-2) 0 var(--ha-space-4);
                 background-color: color-mix(
                     in srgb,
-                    var(--secondary-background-color) 50%,
+                    var(--secondary-background-color) 30%,
                     color-mix(in srgb, var(--primary-background-color) 25%, transparent)
                 );
             }
@@ -73,7 +73,7 @@ export class LCARdSFormSection extends LitElement {
             ha-expansion-panel[expanded] {
                 background-color: color-mix(
                     in srgb,
-                    var(--secondary-background-color) 50%,
+                    var(--secondary-background-color) 30%,
                     color-mix(in srgb, var(--primary-background-color) 25%, transparent)
                 );
             }
