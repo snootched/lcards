@@ -40,7 +40,7 @@ import * as anchorHelpers from './utils/lcards-anchor-helpers.js';
 import './msd/index.js';
 
 // LCARdS strategy imports
-import { LCARdSPanelViewStrategy, LCARdSPanelDashboardStrategy } from './strategies/index.js';
+import { LCARdSShellDashboardStrategy, LCARdSShellStrategyEditor } from './strategies/index.js';
 
 // LCARdS card imports
 import { LCARdSButton } from './cards/lcards-button.js';
@@ -307,16 +307,7 @@ initializeCustomCard()
 
             lcardsLog.debug('[lcards.js] Card schemas registered');
 
-        // Register dashboard/view strategies as custom elements.
-        // Naming convention required by HA: ll-strategy-dashboard-{type} / ll-strategy-view-{type}
-        // https://developers.home-assistant.io/docs/frontend/custom-ui/custom-strategy/
-        if (!customElements.get('ll-strategy-dashboard-lcards-panel')) {
-            customElements.define('ll-strategy-dashboard-lcards-panel', LCARdSPanelDashboardStrategy);
-        }
-        if (!customElements.get('ll-strategy-view-lcards-panel')) {
-            customElements.define('ll-strategy-view-lcards-panel', LCARdSPanelViewStrategy);
-        }
-        lcardsLog.debug('[lcards.js] Dashboard/view strategies registered');
+        lcardsLog.debug('[lcards.js] Card schemas registered (strategies registered at module load)');
         } else {
             lcardsLog.error('[lcards.js] ❌ CoreConfigManager not available for schema registration');
         }
@@ -409,6 +400,30 @@ const LCARdSCardClasses = [
 // (e.g. both add_extra_js_url AND a lingering hacsfiles Lovelace resource entry).
 if (!window.customCards.some(c => c.type === 'lcards-button')) {
   window.customCards.push(...LCARdSCardClasses);
+}
+
+// Register dashboard/view strategies as custom elements.
+// Must be top-level (not inside async init) — HA's strategy resolver has a short timeout
+// and will fail if the element isn't defined when the New Dashboard dialog is clicked.
+// Naming convention required by HA: ll-strategy-dashboard-{type} / ll-strategy-view-{type}
+// https://developers.home-assistant.io/docs/frontend/custom-ui/custom-strategy/
+if (!customElements.get('ll-strategy-dashboard-lcars-shell')) {
+    customElements.define('ll-strategy-dashboard-lcars-shell', LCARdSShellDashboardStrategy);
+}
+if (!customElements.get('lcards-shell-strategy-editor')) {
+    customElements.define('lcards-shell-strategy-editor', LCARdSShellStrategyEditor);
+}
+
+// Register the LCARS shell as a community dashboard in HA's New Dashboard picker (HA 2026.5+).
+window.customStrategies = window.customStrategies || [];
+if (!window.customStrategies.some(s => s.type === 'lcars-shell')) {
+  window.customStrategies.push({
+    type: 'lcars-shell',
+    strategyType: 'dashboard',
+    name: 'LCARS Dashboard',
+    description: 'Star Trek LCARS-style full-screen shell with sidebar nav, header/footer chrome, and room light controller. Requires: lovelace-layout-card, card-mod, auto-entities.',
+    documentationURL: 'https://lcards.unimatrix01.ca/',
+  });
 }
 
 // ============================================================================

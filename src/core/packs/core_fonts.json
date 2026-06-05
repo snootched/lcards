@@ -10,6 +10,7 @@
       "category": "Core",
       "url": "https://fonts.googleapis.com/css2?family=Antonio:wght@100..700&display=swap",
       "external": true,
+      "autoLoad": true,
       "description": "Primary LCARS display font"
     },
     "lcards_jeffries": {

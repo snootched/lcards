@@ -34,8 +34,6 @@ import { AnimationRegistry } from './animation/AnimationRegistry.js';
 import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';
 import { CoreConfigManager } from './config-manager/index.js';
 import { injectPalette } from './themes/paletteInjector.js';
-import { loadFont } from '../utils/lcards-theme.js';
-import { core_fonts } from '../lcards-vars.js';
 import { PackManager } from './PackManager.js';
 import { AssetManager } from './assets/AssetManager.js';
 import { DataSourceDebugAPI } from '../api/DataSourceDebugAPI.js';
@@ -152,16 +150,6 @@ class LCARdSCore {
             injectPalette();
             lcardsLog.debug('[LCARdSCore] ✅ LCARdS palette injected as --lcards-* CSS variables');
 
-            // ✅ PHASE 1b: Load core fonts unconditionally at startup.
-            // This ensures Antonio (Google Fonts) and bundled LCARdS fonts are available
-            // in all contexts — including the Config Panel — regardless of whether any
-            // Lovelace cards are mounted or the HA-LCARS card-mod theme has loaded.
-
-            //TODO: discuss having 100..700 in HA-LCARS docs
-
-            //core_fonts.forEach(f => loadFont(f));
-            //lcardsLog.debug('[LCARdSCore] ✅ Core fonts loading initiated');
-
             // Initialize SystemsManager (Phase 1a)
             this.systemsManager = new CoreSystemsManager();
             this.systemsManager.initialize(hass);
@@ -247,6 +235,16 @@ class LCARdSCore {
             this.packManager = new PackManager(this);
             await this.packManager.loadBuiltinPacks(['core', 'lcards_buttons', 'lcards_sliders', 'lcars_fx', 'builtin_themes']);
             lcardsLog.debug('[LCARdSCore] PackManager loaded all packs and registered to managers');
+
+            // Load fonts flagged autoLoad:true in core_fonts.json (currently just Antonio).
+            // Fire-and-forget: browser fetches async; cards re-render via document.fonts.ready.
+            const fontRegistry = this.assetManager.getRegistry('font');
+            for (const [key, asset] of fontRegistry.assets.entries()) {
+                if (asset.metadata?.autoLoad) {
+                    this.assetManager.loadFont(key);
+                }
+            }
+            lcardsLog.debug('[LCARdSCore] ✅ Core fonts loading initiated');
 
             // Activate default theme after packs are loaded
             try {
