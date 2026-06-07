@@ -109,8 +109,12 @@ export class LCARdSGridEditOverlay extends LitElement {
         rows:        { attribute: false },
         areas:       { attribute: false },
         gap:         { attribute: false },
+        measureColumns: { attribute: false }, // resolved px tracks for the ghost grid (optional)
+        measureRows:    { attribute: false }, // resolved px tracks for the ghost grid (optional)
         cardConfigs: { attribute: false },
         layout:      { attribute: false }, // full layout object for settings panel
+        hideCardMode: { attribute: false }, // hide the "Edit Cards" toolbar toggle (card editor uses a list instead)
+        hideSettings: { attribute: false }, // hide the toolbar "grid settings" button (studio uses its Layout tab)
 
         _selectedArea:   { state: true },
         _renaming:       { state: true },
@@ -124,6 +128,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         _toolbarPos:     { state: true }, // { top, left } | null — moved toolbar position
         _areaSettings:   { state: true }, // area name whose settings panel is open | null
         _areaPanelPos:   { state: true }, // { top, left } | null — dragged area panel position
+        _hideAreas:      { state: true }, // hide area overlays to preview cell backgrounds
     };
 
     constructor() {
@@ -148,6 +153,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._areaPanelPos   = null;
         this._areaPanelAnchor = null;
         this._areaPanelDrag  = null;
+        this._hideAreas      = false;
 
         // Measurement cache: _cells[r][c] = DOMRect relative to overlay
         this._cells = [];
@@ -266,6 +272,31 @@ export class LCARdSGridEditOverlay extends LitElement {
             background: var(--divider-color, rgba(255,255,255,.12));
             margin: 0 2px;
         }
+        /* Segmented pill toggle (HA control-select look) */
+        .t-seg {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 2px;
+            border-radius: 11px;
+            background: rgba(255,255,255,.08);
+        }
+        .t-seg-btn {
+            border: none;
+            background: transparent;
+            color: var(--secondary-text-color);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 11px;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: background var(--ha-animation-duration-fast,.15s), color var(--ha-animation-duration-fast,.15s);
+        }
+        .t-seg-btn:hover { color: var(--primary-text-color); }
+        .t-seg-btn.active {
+            background: var(--lcars-ui-primary, var(--primary-color));
+            color: var(--text-primary-color, #fff);
+        }
 
         /* ─── Column headers ──────────────────────────────────────────────── */
         .col-header {
@@ -368,6 +399,10 @@ export class LCARdSGridEditOverlay extends LitElement {
             pointer-events: auto;
             --mdc-icon-size: 12px;
             color: #fff;
+            /* Row headers use vertical-rl writing-mode; reset it here so the icon
+               glyph is centered in the button (matches the column header). */
+            writing-mode: horizontal-tb;
+            line-height: 0;
         }
         .col-header:hover .del-btn,
         .row-header:hover .del-btn { display: flex; }
@@ -509,17 +544,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             flex-shrink: 0;
         }
         .area-toolbar ha-icon-button:hover { color: var(--lcars-ui-primary, var(--primary-color)); }
-
-        .card-count {
-            position: absolute;
-            bottom: 6px;
-            right: 8px;
-            font-size: 11px;
-            font-weight: 600;
-            color: rgba(255,255,255,.65);
-            pointer-events: none;
-            text-shadow: 0 1px 2px rgba(0,0,0,.5);
-        }
 
         .rename-input-wrapper {
             position: absolute;
@@ -838,6 +862,23 @@ export class LCARdSGridEditOverlay extends LitElement {
         .ap-inline ha-input,
         .ap-inline ha-selector { flex: 1; min-width: 0; }
 
+        /* ─── Reorder drag chip (follows the cursor) ──────────────────────── */
+        .drag-chip {
+            position: absolute;
+            display: none;
+            z-index: 250;
+            pointer-events: none;
+            padding: 4px 9px;
+            border-radius: var(--ha-border-radius-pill, 9999px);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            background: var(--lcars-ui-primary, var(--primary-color));
+            color: var(--text-primary-color, #fff);
+            box-shadow: 0 2px 8px rgba(0,0,0,.4);
+            white-space: nowrap;
+        }
+
         /* ─── Reorder drop-line indicator ─────────────────────────────────── */
         .drop-line {
             position: absolute;
@@ -940,6 +981,14 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._scheduleMeasure();
     }
 
+    /**
+     * Force a re-measure. Useful when the overlay's container changes size in a way
+     * a ResizeObserver may miss the right moment for — e.g. a dialog open animation.
+     */
+    refresh() {
+        this._scheduleMeasure();
+    }
+
     _scheduleMeasure() {
         if (this._measureScheduled) return;
         this._measureScheduled = true;
@@ -1010,13 +1059,19 @@ export class LCARdSGridEditOverlay extends LitElement {
             ${this._trackPopover ? this._renderTrackPopover() : nothing}
             ${this._areaSettings ? this._renderAreaSettingsPanel() : nothing}
             ${this._renderToolbar()}
+            <div class="drag-chip" id="drag-chip"></div>
         `;
     }
 
     _renderGhostGrid() {
+        // Prefer resolved pixel track sizes from the real grid when provided, so the
+        // (content-less) ghost matches content-sized tracks like `auto`/min-content.
+        // Falls back to the declared tracks when no measurement is supplied.
+        const measureCols = this.measureColumns?.length ? this.measureColumns : this.columns;
+        const measureRows = this.measureRows?.length ? this.measureRows : this.rows;
         const style = [
-            `grid-template-columns: ${this.columns.join(' ')}`,
-            `grid-template-rows: ${this.rows.join(' ')}`,
+            `grid-template-columns: ${measureCols.join(' ')}`,
+            `grid-template-rows: ${measureRows.join(' ')}`,
             `gap: ${this.gap}`,
         ].join('; ');
         const cells = [];
@@ -1045,22 +1100,33 @@ export class LCARdSGridEditOverlay extends LitElement {
                     <span>Row</span>
                 </button>
                 <div class="t-sep"></div>
-                <button
-                    class="t-btn ${this._showSettings ? 'primary' : ''}"
-                    title="Layout settings (gap, margins)"
-                    @click=${() => { this._showSettings = !this._showSettings; }}
-                >
-                    <ha-icon icon="mdi:tune-variant"></ha-icon>
-                </button>
-                <div class="t-sep"></div>
-                <button
-                    class="t-btn primary"
-                    title="Switch to card editing mode"
-                    @click=${() => this.dispatchEvent(new CustomEvent('switch-to-cards-mode', { bubbles: false }))}
-                >
-                    <ha-icon icon="mdi:card-multiple-outline"></ha-icon>
-                    <span>Edit Cards</span>
-                </button>
+                <div class="t-seg" title="Show area overlays, or hide them to preview cell backgrounds">
+                    <button class="t-seg-btn ${!this._hideAreas ? 'active' : ''}"
+                        @click=${() => { this._hideAreas = false; }}>Areas</button>
+                    <button class="t-seg-btn ${this._hideAreas ? 'active' : ''}"
+                        @click=${() => { this._hideAreas = true; }}>Cells</button>
+                </div>
+                ${this.hideSettings ? nothing : html`
+                    <div class="t-sep"></div>
+                    <button
+                        class="t-btn ${this._showSettings ? 'primary' : ''}"
+                        title="Layout settings (gap, margins)"
+                        @click=${() => { this._showSettings = !this._showSettings; }}
+                    >
+                        <ha-icon icon="mdi:tune-variant"></ha-icon>
+                    </button>
+                `}
+                ${this.hideCardMode ? nothing : html`
+                    <div class="t-sep"></div>
+                    <button
+                        class="t-btn primary"
+                        title="Switch to card editing mode"
+                        @click=${() => this.dispatchEvent(new CustomEvent('switch-to-cards-mode', { bubbles: false }))}
+                    >
+                        <ha-icon icon="mdi:card-multiple-outline"></ha-icon>
+                        <span>Edit Cards</span>
+                    </button>
+                `}
             </div>
             ${this._showSettings ? this._renderSettingsPanel() : nothing}
         `;
@@ -1182,7 +1248,7 @@ export class LCARdSGridEditOverlay extends LitElement {
                     class="col-header ${isDragging ? 'dragging' : ''} ${isTarget ? 'drop-target' : ''}"
                     id="ch-${i}"
                     @pointerdown=${(e) => this._headerPointerDown(e, 'col', i)}
-                    @click=${(e) => { e.stopPropagation(); if (!this._reorderDrag) this._openTrackPopover('col', i, e); }}
+                    @click=${(e) => { e.stopPropagation(); if (this._consumeReorderClick()) return; this._openTrackPopover('col', i, e); }}
                 >
                     ${isEditing
                         ? html`<input
@@ -1216,7 +1282,7 @@ export class LCARdSGridEditOverlay extends LitElement {
                     class="row-header ${isDragging ? 'dragging' : ''} ${isTarget ? 'drop-target' : ''}"
                     id="rh-${i}"
                     @pointerdown=${(e) => this._headerPointerDown(e, 'row', i)}
-                    @click=${(e) => { e.stopPropagation(); if (!this._reorderDrag) this._openTrackPopover('row', i, e); }}
+                    @click=${(e) => { e.stopPropagation(); if (this._consumeReorderClick()) return; this._openTrackPopover('row', i, e); }}
                 >
                     ${isEditing
                         ? html`<input
@@ -1286,10 +1352,12 @@ export class LCARdSGridEditOverlay extends LitElement {
     }
 
     _renderAreaOverlays() {
+        // "Cells" toggle: hide the colored area overlays so the real cell/area
+        // backgrounds are visible while configuring them.
+        if (this._hideAreas) return nothing;
         const areaNames = getAreaNames(this.areas);
         return areaNames.map(name => {
             const isSelected = this._selectedArea === name;
-            const cardCount  = (this.cardConfigs ?? []).filter(c => c?.view_layout?.['grid-area'] === name).length;
             const { bg } = areaColor(name);
 
             return html`
@@ -1333,7 +1401,6 @@ export class LCARdSGridEditOverlay extends LitElement {
                             @click=${(e) => { e.stopPropagation(); this._deleteArea(name); }}
                         ><ha-icon icon="mdi:delete-outline"></ha-icon></ha-icon-button>
                     </div>
-                    ${!isSelected ? html`<div class="card-count">${cardCount > 0 ? `${cardCount}` : ''}</div>` : nothing}
                     ${isSelected ? this._renderAreaCardList(name) : nothing}
                 </div>
             `;
@@ -1660,6 +1727,36 @@ export class LCARdSGridEditOverlay extends LitElement {
         e.currentTarget.setPointerCapture(e.pointerId);
         // pointermove/up are handled by the unified listener in connectedCallback
         this._reorderDrag = { axis, fromIndex: index, currentIndex: index };
+        this._reorderStart = { x: e.clientX, y: e.clientY };
+        this._reorderMoved = false;
+        this._updateDragChip(e.clientX, e.clientY);
+    }
+
+    /** True (once) if the just-finished pointer interaction was a drag, so the
+     *  trailing click should be ignored instead of opening the size popover. */
+    _consumeReorderClick() {
+        if (this._suppressClick) { this._suppressClick = false; return true; }
+        return false;
+    }
+
+    /** Position/label the floating chip that shows which track is being dragged. */
+    _updateDragChip(clientX, clientY) {
+        const chip = this.renderRoot?.querySelector('#drag-chip');
+        if (!chip || !this._reorderDrag) return;
+        const { axis, fromIndex, currentIndex } = this._reorderDrag;
+        const label = axis === 'col' ? 'Col' : 'Row';
+        chip.textContent = currentIndex !== fromIndex
+            ? `${label} ${fromIndex + 1} → ${currentIndex + 1}`
+            : `${label} ${fromIndex + 1}`;
+        const oRect = this._overlayRect ?? this.getBoundingClientRect();
+        chip.style.left = `${clientX - oRect.left + 14}px`;
+        chip.style.top  = `${clientY - oRect.top + 14}px`;
+        chip.style.display = 'block';
+    }
+
+    _hideDragChip() {
+        const chip = this.renderRoot?.querySelector('#drag-chip');
+        if (chip) chip.style.display = 'none';
     }
 
     _reorderMove(e) {
@@ -1667,6 +1764,14 @@ export class LCARdSGridEditOverlay extends LitElement {
         const { axis, fromIndex } = this._reorderDrag;
         const cells = this._cells;
         if (!cells.length) return;
+
+        // Mark as a real drag once the pointer moves past a small threshold, so the
+        // trailing click is suppressed.
+        if (!this._reorderMoved && this._reorderStart) {
+            const dx = e.clientX - this._reorderStart.x;
+            const dy = e.clientY - this._reorderStart.y;
+            if ((dx * dx + dy * dy) > 16) this._reorderMoved = true;
+        }
 
         // document.elementFromPoint returns the shadow host in shadow DOM — unusable.
         // Use cell position measurements to determine which track the pointer is over.
@@ -1690,6 +1795,7 @@ export class LCARdSGridEditOverlay extends LitElement {
             this._reorderPreview = { axis, from: fromIndex, to: targetIndex };
             this.requestUpdate();
         }
+        this._updateDragChip(e.clientX, e.clientY);
     }
 
     _reorderUp() {
@@ -1697,6 +1803,15 @@ export class LCARdSGridEditOverlay extends LitElement {
         const { axis, fromIndex, currentIndex } = this._reorderDrag;
         this._reorderDrag    = null;
         this._reorderPreview = null;
+        this._hideDragChip();
+
+        // If the user actually dragged, swallow the click that follows pointerup so
+        // it doesn't open the track-size popover. Reset on the next macrotask.
+        if (this._reorderMoved) {
+            this._suppressClick = true;
+            setTimeout(() => { this._suppressClick = false; }, 0);
+        }
+        this._reorderMoved = false;
 
         if (fromIndex === currentIndex) { this.requestUpdate(); return; }
 

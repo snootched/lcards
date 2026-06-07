@@ -63,6 +63,7 @@ Build and shape the grid itself:
 - **Rename / delete an area** — select the area, then use its toolbar.
 - **Area settings** — the *tune* button on a selected area opens the [per-area panel](#per-area-settings) (background, border, spacing…).
 - **Grid settings** — the *tune* button on the toolbar sets `grid-gap`, `height`, `card_margin`, `padding`.
+- **Areas / Cells toggle** — the toolbar pill hides the coloured area overlays so you can preview the real cell/area backgrounds while configuring them.
 
 ### Card mode
 
@@ -192,9 +193,54 @@ layout:
 
 ---
 
+## Layout Card
+
+`custom:lcards-layout-card`
+
+The **card** version of the layout view — a grid container you place *inside* a card slot, most often a single area of a layout view, to build a **sub-grid**. It uses the same `layout` + `view_layout` + `areas` schema as the view.
+
+```yaml
+# A layout view whose "controls" area holds a 2×2 sub-grid of buttons
+type: custom:lcards-layout-view
+layout:
+  grid-template-areas: |
+    "header"
+    "controls"
+cards:
+  - type: custom:lcards-elbow
+    view_layout: { grid-area: header }
+  - type: custom:lcards-layout-card        # ← sub-grid in the "controls" area
+    view_layout: { grid-area: controls }
+    layout:
+      grid-template-columns: "1fr 1fr"
+      grid-template-rows: "1fr 1fr"
+      grid-gap: "6px"
+    cards:
+      - type: custom:lcards-button
+      - type: custom:lcards-button
+      - type: custom:lcards-button
+      - type: custom:lcards-button
+```
+
+### Editing
+Unlike the view, the layout card is edited in its card editor (not on the dashboard). Opening it shows an **Open Layout Studio** button that launches a full-screen workspace:
+
+- a large **canvas** with the same grid overlay — size tracks, draw/rename/delete areas, and style area backgrounds/borders;
+- a **Layout** tab for global settings (gap, height, card margin, padding);
+- a **tab per card** with an inline HA card editor and placement controls (area, align, margin, overflow), plus **Add card** / **Remove**.
+
+Changes save through the normal card-config flow.
+
+> **Card picker:** the first time you use **Add card** in a session, Home Assistant may not have loaded its card picker yet. If you see a "Card picker not ready" message, click **Add card** once on any dashboard view (you can cancel it) to load it, then come back — this is a Home Assistant limitation shared by other cards' editors.
+
+### Notes
+- **Height:** defaults to `100%`, so it fills the area it's placed in. For standalone use (e.g. a masonry view) set `layout.height` explicitly, otherwise `fr` rows have no height to divide.
+- Child cards are built through HA's `hui-card`, so their native **Visibility** conditions work just like in the view.
+- Layout cards can be nested for deeper sub-grids.
+
 ## Notes & limitations
 
-- **One card per area** — use a stack card to group several.
+- **One card per area** — use a stack card (or a nested [Layout Card](#layout-card)) to group several.
 - **`grid-gap` is grid-wide** — CSS grid has no per-cell gap.
 - **Per-card visibility** uses HA's native [Visibility](#conditional-cards), not a `view_layout.show` key.
 

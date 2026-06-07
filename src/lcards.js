@@ -44,6 +44,8 @@ import { LCARdSShellDashboardStrategy, LCARdSShellStrategyEditor } from './strat
 
 // LCARdS view imports
 import { LCARdSLayoutView, LCARdSGridEditOverlay } from './views/index.js';
+// Side-effect: adds `custom:lcards-layout-view` to HA's View-type dropdown (defensive monkey-patch).
+import './patches/hui-view-editor-patch.js';
 
 // LCARdS card imports
 import { LCARdSButton } from './cards/lcards-button.js';
@@ -54,6 +56,7 @@ import { LCARdSDataGrid } from './cards/lcards-data-grid.js';
 import { LCARdSMSDCard } from './cards/lcards-msd.js';
 import { LCARdSAlertOverlay } from './cards/lcards-alert-overlay.js';
 import { LCARdSSelectMenu } from './cards/lcards-select-menu.js';
+import { LCARdSLayoutCard } from './cards/lcards-layout-card.js';
 import { LCARdSConfigPanel } from './panels/lcards-config-panel.js';
 
 
@@ -292,6 +295,7 @@ initializeCustomCard()
         if (!customElements.get('lcards-msd-card')) customElements.define('lcards-msd-card', LCARdSMSDCard);
         if (!customElements.get('lcards-alert-overlay')) customElements.define('lcards-alert-overlay', LCARdSAlertOverlay);
         if (!customElements.get('lcards-select-menu')) customElements.define('lcards-select-menu', LCARdSSelectMenu);
+        if (!customElements.get('lcards-layout-card')) customElements.define('lcards-layout-card', LCARdSLayoutCard);
         //customElements.define('lcards-config-panel', LCARdSConfigPanel);
 
         lcardsLog.debug('[lcards.js] All custom elements registered after core initialization');
@@ -307,6 +311,7 @@ initializeCustomCard()
             if (LCARdSMSDCard.registerSchema) LCARdSMSDCard.registerSchema();
             if (LCARdSAlertOverlay.registerSchema) LCARdSAlertOverlay.registerSchema();
             if (LCARdSSelectMenu.registerSchema) LCARdSSelectMenu.registerSchema();
+            if (LCARdSLayoutCard.registerSchema) LCARdSLayoutCard.registerSchema();
 
             lcardsLog.debug('[lcards.js] Card schemas registered');
 
@@ -396,6 +401,13 @@ const LCARdSCardClasses = [
         preview: false,
         description: 'Full-screen alert overlay that reacts to lcards_alert_mode with backdrop and content card',
         documentationURL: "https://lcards.unimatrix01.ca/cards/alert-overlay/",
+    },
+    {
+        type: 'lcards-layout-card',
+        name: 'LCARdS Layout Card',
+        preview: false,
+        description: 'CSS Grid container card with a visual editor — build sub-grids and place cards into named areas',
+        documentationURL: "https://lcards.unimatrix01.ca/cards/layout-view/#layout-card",
     }
 ];
 

@@ -63,3 +63,44 @@ export function showConfirmDeleteDialog({ title, message, confirmText = 'Delete'
         document.body.appendChild(dialog);
     });
 }
+
+/**
+ * Show a simple informational HA dialog with a single OK button.
+ * @param {object} opts
+ * @param {string} opts.title
+ * @param {string} opts.message
+ * @returns {Promise<void>}
+ */
+export function showInfoDialog({ title, message }) {
+    return new Promise((resolve) => {
+        const dialog = document.createElement('ha-dialog');
+        // @ts-ignore - ha-dialog properties not in HTMLElement type
+        dialog.headerTitle = title;
+        // @ts-ignore - ha-dialog properties not in HTMLElement type
+        dialog.open = true;
+
+        const content = document.createElement('div');
+        content.textContent = message;
+        content.style.padding = '16px';
+        content.style.lineHeight = '1.5';
+        content.style.maxWidth = '380px';
+        dialog.appendChild(content);
+
+        const okButton = document.createElement('ha-button');
+        okButton.textContent = 'OK';
+        okButton.setAttribute('slot', 'footer');
+        okButton.setAttribute('variant', 'brand');
+        okButton.addEventListener('click', () => {
+            // @ts-ignore - ha-dialog properties not in HTMLElement type
+            dialog.open = false;
+        });
+        dialog.appendChild(okButton);
+
+        dialog.addEventListener('closed', () => {
+            dialog.remove();
+            resolve();
+        });
+
+        document.body.appendChild(dialog);
+    });
+}

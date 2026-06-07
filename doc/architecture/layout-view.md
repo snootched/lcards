@@ -9,7 +9,16 @@ All code lives in `src/views/`:
 | `lcards-layout-view.js` | The view element — renders the grid, mounts HA-provided cards, owns config + persistence, manages the editor overlay. |
 | `lcards-grid-edit-overlay.js` | The in-view editor chrome (Layout mode): track handles, headers, area overlays, toolbars, settings panels. |
 | `layout-grid-utils.js` | Pure, DOM-free functions: track-list parsing, 2D area manipulation, area-settings reconciliation. |
+| `layout-render.js` | Shared render helpers (`buildGridStyle`, `applyCardPlacement`, `renderAreaSurfaces`, `resolveColorValue`) used by both the view and the card. |
 | `layout-edit-dialogs.js` | Shared `ha-dialog` confirmation helper (destructive actions). |
+
+The **card** version (`custom:lcards-layout-card`) reuses all of the above:
+
+| File | Role |
+|------|------|
+| `cards/lcards-layout-card.js` | Container card: renders the same grid, builds its own children as `hui-card` wrappers (so native Visibility works), propagates hass. Read-only on the dashboard. |
+| `editor/cards/lcards-layout-card-editor.js` | The card's GUI editor — a thin launcher that opens the Layout Studio and relays its `config-changed` to HA. |
+| `editor/dialogs/lcards-layout-studio-dialog.js` | Full-screen studio: a single live preview + grid overlay on a large canvas, a Layout tab (global settings), and a tab per card with an inline `hui-card-element-editor` + placement. |
 
 ---
 
@@ -49,7 +58,7 @@ The view does **not** put `<lcards-grid-edit-overlay>` in its Lit template. HA b
 
 So `_syncEditOverlay()` (called from `updated()`) creates the overlay with `document.createElement('lcards-grid-edit-overlay')` (the **global** registry), wires events with `addEventListener`, sets state via properties, and appends it to `renderRoot`. It is removed when leaving Layout mode and on disconnect.
 
-> The future `lcards-layout-card` (card version) will hit the identical constraint when it nests its overlay — it must use the same imperative pattern.
+The **layout card** uses the same imperative pattern, but inside the **Layout Studio** dialog rather than HA's cramped card-edit dialog: the studio creates a single preview card *and* a single grid overlay via `document.createElement` on a large canvas. Because the studio owns one of each for its lifetime (and is destroyed on close), the duplicate-overlay/alignment problems of in-dialog editing don't arise. Editing needs **no edit-mode detection** and no nested-path `saveConfig` — overlay events recompute a working config and the studio fires `config-changed`, which the card's GUI editor relays to HA. New cards use HA's `hui-card-picker`; each card is edited inline with `hui-card-element-editor` in its tab.
 
 ---
 

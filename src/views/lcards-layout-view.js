@@ -51,30 +51,15 @@ import {
     parseLayoutConfig,
     serializeLayoutConfig,
     getAreaNames,
-    GRID_EDIT_GUTTER,
     renameAreaSettings,
     pruneAreaSettings,
 } from './layout-grid-utils.js';
+import {
+    buildGridStyle,
+    applyCardPlacement,
+    renderAreaSurfaces,
+} from './layout-render.js';
 import { showConfirmDeleteDialog } from './layout-edit-dialogs.js';
-
-// CSS Grid property names and aliases that are applied directly to the container
-const GRID_CONTAINER_PROPS = new Set([
-    'grid-template-columns', 'grid-template-rows', 'grid-template-areas',
-    'grid-gap', 'gap', 'grid-auto-flow', 'grid-auto-columns', 'grid-auto-rows',
-    'place-items', 'place-content',
-]);
-
-// Per-card view_layout properties applied directly to the card element
-// (any key starting with 'grid-' or 'place-' is also applied)
-const CARD_PLACEMENT_PROPS = new Set(['grid-area', 'grid-column', 'grid-row', 'place-self']);
-
-// Per-card view_layout keys applied to the GRID ITEM (the card, or its wrapper in
-// card-edit mode). 'overflow' is the exception — it applies to the card element so
-// content clipping works regardless of the wrapper. Grid placement (grid-*) is
-// matched separately by prefix. Used by _applyCardPlacement().
-const CARD_ITEM_STYLE_KEYS = new Set([
-    'place-self', 'align-self', 'justify-self', 'margin', 'z-index',
-]);
 
 // Alignment / overflow option lists for the per-card Placement editor.
 const PLACEMENT_ALIGN_OPTIONS = [
@@ -186,6 +171,7 @@ export class LCARdSLayoutView extends LitElement {
         if (editMode !== this._editMode) {
             this._editMode    = editMode;
             this._editSubMode = 'grid'; // reset to grid editing on each edit session start
+            if (editMode) this._primeCardPicker();
         }
 
         // HA saves card changes directly via lovelace.saveConfig — detect changes here.
@@ -248,6 +234,8 @@ export class LCARdSLayoutView extends LitElement {
         this._teardownMediaQueries();
         this.removeEventListener('pointermove', this._boundHostPointerMove);
         this.removeEventListener('pointerup',   this._boundHostPointerUp);
+        this._gridResizeObserver?.disconnect();
+        this._gridResizeObserver = null;
         if (this._editOverlayEl) {
             this._editOverlayEl.remove();
             this._editOverlayEl = null;
@@ -337,6 +325,8 @@ export class LCARdSLayoutView extends LitElement {
                 this._editOverlayEl.remove();
                 this._editOverlayEl = null;
             }
+            this._gridResizeObserver?.disconnect();
+            this._gridResizeObserver = null;
             return;
         }
 
@@ -353,6 +343,15 @@ export class LCARdSLayoutView extends LitElement {
             el.addEventListener('switch-to-cards-mode',   () => { this._editSubMode = 'cards'; });
             this.renderRoot.appendChild(el);
             this._editOverlayEl = el;
+
+            // Mirror the real grid's resolved track sizes onto the overlay's ghost
+            // grid so content-sized tracks (auto / min-content) stay aligned — the
+            // empty ghost otherwise collapses those and the overlay drifts.
+            const grid = this.renderRoot?.querySelector('#grid-root');
+            if (grid && !this._gridResizeObserver) {
+                this._gridResizeObserver = new ResizeObserver(() => this._syncMeasureTracks());
+                this._gridResizeObserver.observe(grid);
+            }
         }
 
         // Push current state as properties
@@ -364,6 +363,21 @@ export class LCARdSLayoutView extends LitElement {
         el.gap         = this._gap;
         el.cardConfigs = this._config?.cards ?? [];
         el.layout      = this._config?.layout ?? {};
+        this._syncMeasureTracks();
+    }
+
+    /** Feed the overlay the real grid's resolved px track sizes so its ghost grid
+     *  matches content-sized tracks (auto / min-content). */
+    _syncMeasureTracks() {
+        const overlay = this._editOverlayEl;
+        const grid = this.renderRoot?.querySelector('#grid-root');
+        if (!overlay || !grid) return;
+        const cs = getComputedStyle(grid);
+        const cols = cs.gridTemplateColumns;
+        const rows = cs.gridTemplateRows;
+        if (cols && cols !== 'none') overlay.measureColumns = cols.trim().split(/\s+/);
+        if (rows && rows !== 'none') overlay.measureRows = rows.trim().split(/\s+/);
+        overlay.refresh?.();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -630,7 +644,9 @@ export class LCARdSLayoutView extends LitElement {
 
     render() {
         const layout    = this._config?.layout ?? {};
-        const gridStyle = this._buildGridStyle(layout);
+        const gridStyle = buildGridStyle(layout, this._columns, this._rows, this._areas, this._gap, {
+            withGutter: this._editMode && this._editSubMode === 'grid',
+        });
         const hasAreas  = getAreaNames(this._areas).length > 0;
 
         return html`
@@ -673,61 +689,6 @@ export class LCARdSLayoutView extends LitElement {
         `;
     }
 
-    /**
-     * Build the inline style string for #grid-root from the layout config.
-     * Passes through all grid-* and place-* properties plus sizing/spacing.
-     */
-    _buildGridStyle(layout) {
-        const parts = [];
-
-        // Height (default: full viewport minus HA header)
-        const height = layout.height ?? 'calc(100dvh - var(--header-height, 56px))';
-        parts.push(`height: ${height}`);
-
-        // If height is set and not auto, enable overflow
-        if (height && height !== 'auto') {
-            parts.push('overflow-y: auto');
-        }
-
-        // Outer container spacing
-        if (layout.margin != null)  parts.push(`margin: ${layout.margin}`);
-        if (layout.padding != null) parts.push(`padding: ${layout.padding}`);
-
-        // While the grid editor is active, reserve a gutter at the top/left so the
-        // column/row headers have room and never cover the first row / column. The
-        // overlay's ghost grid pads by the same amount (GRID_EDIT_GUTTER) so the
-        // editor chrome stays aligned with the real cards. Longhand after the
-        // `padding` shorthand above so it overrides only the top/left edges.
-        if (this._editMode && this._editSubMode === 'grid') {
-            parts.push(`padding-top: ${GRID_EDIT_GUTTER}px`);
-            parts.push(`padding-left: ${GRID_EDIT_GUTTER}px`);
-        }
-
-        // Grid template properties (apply live computed values from editor state)
-        parts.push(`grid-template-columns: ${this._columns.join(' ')}`);
-        parts.push(`grid-template-rows: ${this._rows.join(' ')}`);
-        if (getAreaNames(this._areas).length > 0) {
-            parts.push(`grid-template-areas: ${this._areas.map(r => `"${r.join(' ')}"`).join(' ')}`);
-        }
-        parts.push(`gap: ${this._gap}`);
-
-        // Pass through any other grid-* / place-* properties from layout
-        for (const [key, value] of Object.entries(layout)) {
-            if ((key.startsWith('grid-') && !['grid-template-columns','grid-template-rows','grid-template-areas','grid-gap'].includes(key))
-                || (key.startsWith('place-') && !['place-items','place-content'].includes(key))) {
-                continue; // skip ones already handled
-            }
-            if (key === 'place-items' || key === 'place-content') {
-                parts.push(`${key}: ${value}`);
-            }
-            if (key === 'grid-auto-flow' || key === 'grid-auto-columns' || key === 'grid-auto-rows') {
-                parts.push(`${key}: ${value}`);
-            }
-        }
-
-        return parts.join('; ');
-    }
-
     // ─────────────────────────────────────────────────────────────────────────
     // Card placement
     // ─────────────────────────────────────────────────────────────────────────
@@ -750,7 +711,7 @@ export class LCARdSLayoutView extends LitElement {
 
         // Per-area backing surfaces (background/border etc.) — rendered first so
         // cards paint above their own area surface by DOM order.
-        this._renderAreaSurfaces(grid, layout);
+        renderAreaSurfaces(grid, layout, this._areas);
 
         (this._cardElements ?? []).forEach((cardEl, cardIndex) => {
             const viewLayout = cardEl.config?.view_layout ?? {};
@@ -765,7 +726,7 @@ export class LCARdSLayoutView extends LitElement {
                 // z-index) is applied to the wrapper; overflow stays on the card.
                 const wrap = document.createElement('div');
                 wrap.className = 'card-edit-wrap';
-                this._applyCardPlacement(wrap, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
+                applyCardPlacement(wrap, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
 
                 // Plain buttons (not ha-icon-button) are reliably clickable when
                 // created imperatively; ha-icon-button needs Lit hydration we don't get here.
@@ -807,7 +768,7 @@ export class LCARdSLayoutView extends LitElement {
                 grid.appendChild(wrap);
             } else {
                 // Outside card mode the card element itself is the grid item.
-                this._applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
+                applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
                 grid.appendChild(cardEl);
             }
         });
@@ -835,92 +796,6 @@ export class LCARdSLayoutView extends LitElement {
                 grid.appendChild(placeholder);
             }
         }
-    }
-
-    /**
-     * Apply placement / spacing styles for a single card.
-     *
-     * Precedence (low → high): global layout defaults (card_margin / card_overflow)
-     * < per-card view_layout overrides. Grid placement and alignment land on the
-     * grid item (the card, or its edit-mode wrapper); overflow lands on the card so
-     * its content clips regardless of any wrapper.
-     *
-     * @param {HTMLElement} gridItem   the element that participates in the grid
-     * @param {HTMLElement} cardEl     the actual card element
-     * @param {object} viewLayout      card.view_layout
-     * @param {string|null} cardMargin global default margin
-     * @param {string} cardOverflow    global default overflow
-     * @param {object} [areaSettings]  per-area defaults (layout.areas[name])
-     */
-    _applyCardPlacement(gridItem, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings = {}) {
-        // Clear previously-applied item styles first so view_layout keys that were
-        // removed don't persist on a reused card element (HA may reuse instances).
-        for (const k of ['grid-area', 'grid-column', 'grid-row',
-                         'place-self', 'align-self', 'justify-self', 'z-index']) {
-            gridItem.style.removeProperty(k);
-        }
-        // Base layer: global default < per-area default (per-card view_layout wins below).
-        const baseMargin = areaSettings.margin ?? cardMargin;
-        gridItem.style.margin = baseMargin != null ? baseMargin : '';
-        cardEl.style.overflow = areaSettings.overflow ?? cardOverflow;
-        if (areaSettings['place-self']) {
-            gridItem.style.setProperty('place-self', String(areaSettings['place-self']));
-        }
-
-        for (const [key, value] of Object.entries(viewLayout ?? {})) {
-            if (key === 'show') continue;
-            const v = String(value);
-            if (key === 'overflow') {
-                cardEl.style.setProperty('overflow', v);
-            } else if (key.startsWith('grid-') || CARD_ITEM_STYLE_KEYS.has(key)) {
-                gridItem.style.setProperty(key, v);
-            }
-        }
-    }
-
-    /**
-     * Render a non-interactive backing surface for each named area that has
-     * settings in layout.areas. Surfaces share the area's grid cell with the card
-     * (as siblings) and sit beneath it, so they show through margins/insets and
-     * remain visible when the area is empty.
-     */
-    _renderAreaSurfaces(grid, layout) {
-        const areas = layout?.areas;
-        if (!areas || typeof areas !== 'object') return;
-        const valid = new Set(getAreaNames(this._areas));
-        for (const [name, settings] of Object.entries(areas)) {
-            if (!valid.has(name) || !settings || typeof settings !== 'object') continue;
-            const surface = document.createElement('div');
-            surface.className = 'area-surface';
-            surface.style.gridArea = name;
-            this._applyAreaSurfaceStyle(surface, settings);
-            grid.appendChild(surface);
-        }
-    }
-
-    /** Apply the surface (decoration) keys of an area settings object to an element. */
-    _applyAreaSurfaceStyle(el, s) {
-        if (s.background) el.style.background = this._resolveColorValue(s.background);
-        if (s['background-image']) {
-            el.style.backgroundImage    = s['background-image'];
-            el.style.backgroundSize     = s['background-size']     ?? 'cover';
-            el.style.backgroundPosition = s['background-position'] ?? 'center';
-            el.style.backgroundRepeat   = s['background-repeat']   ?? 'no-repeat';
-        }
-        if (s['border-width']) el.style.borderWidth = s['border-width'];
-        if (s['border-style']) el.style.borderStyle = s['border-style'];
-        if (s['border-color']) el.style.borderColor = this._resolveColorValue(s['border-color']);
-        if (s['border-radius']) el.style.borderRadius = s['border-radius'];
-        if (s['z-index'] != null && s['z-index'] !== '') el.style.zIndex = String(s['z-index']);
-    }
-
-    /** Resolve a `theme:` token to its value; pass through CSS colors/vars unchanged. */
-    _resolveColorValue(v) {
-        if (typeof v === 'string' && v.startsWith('theme:')) {
-            const resolver = window.lcards?.core?.themeManager?.resolver;
-            return resolver?.resolve?.(v, 'transparent') ?? v;
-        }
-        return v;
     }
 
     /**
@@ -1066,6 +941,49 @@ export class LCARdSLayoutView extends LitElement {
                 else cardEl.hass = this._hass;
             } catch { /* ignore */ }
         }
+    }
+
+    /**
+     * Prime HA's lazily-loaded `hui-card-picker` so the layout-card studio's card
+     * picker works for cards placed inside this view.
+     *
+     * HA only registers `hui-card-picker` after its create-card dialog has opened
+     * once. The dialog is opened by `showCreateCardDialog`, which HA wires to the
+     * `ll-create-card` event — but the listener lives on the view's *layout
+     * element*, which (for a custom view) IS this element. So firing the event on
+     * ourselves reaches HA's handler and loads the picker; we then close the dialog
+     * HA opened. Runs once per session (skips if already registered). A nested
+     * layout-card placed in a non-lcards view won't be primed and falls back to the
+     * studio's "card picker not ready" message.
+     */
+    _primeCardPicker() {
+        if (customElements.get('hui-card-picker')) return; // already available
+
+        // Defer one frame so HA's hui-view has attached its ll-create-card listener
+        // to this layout element before we fire. Not flagged as "done" — if this
+        // attempt is too early it simply retries the next time edit mode is entered.
+        requestAnimationFrame(() => {
+            if (customElements.get('hui-card-picker') || !this._editMode) return;
+
+            this.dispatchEvent(new CustomEvent('ll-create-card', {
+                bubbles: true, composed: true, detail: { suggested: [] },
+            }));
+
+            // Close the create-card dialog HA opens while priming, as soon as it appears.
+            let tries = 0;
+            const tryClose = () => {
+                const dlg = document.querySelector('home-assistant')?.shadowRoot
+                    ?.querySelector('hui-dialog-create-card');
+                if (dlg) {
+                    try { dlg.closeDialog?.(); } catch { /* ignore */ }
+                    try { dlg.remove(); } catch { /* ignore */ }
+                    lcardsLog.debug('[LCARSLayoutView] card picker primed');
+                    return;
+                }
+                if (tries++ < 25) setTimeout(tryClose, 60);
+            };
+            tryClose();
+        });
     }
 
     // ─────────────────────────────────────────────────────────────────────────
