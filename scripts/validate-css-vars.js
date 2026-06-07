@@ -176,6 +176,11 @@ const LCARDS_COMPONENT_VARS = new Set([
   'lcards-button-min-width',
   'lcards-section-spacing',   // editor layout spacing token
   'lcards-icon-spacing',      // editor icon spacing token
+  // lcars-layout-view / lcars-grid-edit-overlay edit mode vars
+  'lcards-grid-edit-header-size',
+  'lcards-grid-edit-handle-size',
+  'lcards-grid-edit-area-opacity',
+  'lcards-grid-edit-selection-color',
 ]);
 
 /**

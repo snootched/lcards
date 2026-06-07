@@ -155,6 +155,7 @@ export default withMermaid(defineConfig({
               { text: 'Chart',         link: '/cards/chart/' },
               { text: 'Data Grid',     link: '/cards/data-grid/' },
               { text: 'Elbow',         link: '/cards/elbow/' },
+              { text: 'Layout View',   link: '/cards/layout-view/' },
               { text: 'MSD',           link: '/cards/msd/' },
               { text: 'Select Menu',   link: '/cards/select-menu/' },
               { text: 'Slider',        link: '/cards/slider-card/' },
@@ -222,6 +223,7 @@ export default withMermaid(defineConfig({
           { text: 'Systems Overview',   link: '/architecture/systems-arch' },
           { text: 'HA Integration',     link: '/architecture/ha-integration' },
           { text: 'Card Foundation',    link: '/architecture/cards/lcards-card-foundation' },
+          { text: 'Layout View',        link: '/architecture/layout-view' },
           { text: 'MSD Pipeline',       link: '/architecture/msd/' },
           { text: 'Animation Architecture', link: '/architecture/animations/' },
           { text: 'Core Subsystems →',       link: '/architecture/subsystems/' },
@@ -299,6 +301,7 @@ export default withMermaid(defineConfig({
             { text: 'Slider',         link: '/cards/slider-card/' },
             { text: 'Chart',          link: '/cards/chart/' },
             { text: 'Data Grid',      link: '/cards/data-grid/' },
+            { text: 'Layout View',    link: '/cards/layout-view/' },
             {
               text: 'MSD',
               collapsed: true,
@@ -451,6 +454,7 @@ export default withMermaid(defineConfig({
           collapsed: false,
           items: [
             { text: 'Card Foundation',  link: '/architecture/cards/lcards-card-foundation' },
+            { text: 'Layout View',      link: '/architecture/layout-view' },
             { text: 'MSD Pipeline',     link: '/architecture/msd/' },
           ],
         },
