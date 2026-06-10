@@ -2,4 +2,4 @@
  * @fileoverview LCARdS Strategies — barrel export
  */
 
-export { LCARdSPanelViewStrategy, LCARdSPanelDashboardStrategy } from './lcards-panel-strategy.js';
+export { LCARdSShellDashboardStrategy, LCARdSShellStrategyEditor } from './lcards-shell-strategy.js';

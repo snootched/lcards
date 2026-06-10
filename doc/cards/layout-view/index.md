@@ -149,6 +149,35 @@ Use Home Assistant's **native card Visibility** for per-card conditions — open
 
 > The layout view does not implement its own per-card `show` option. A pasted `custom:grid-layout` config that uses `view_layout.show` will simply ignore that key — move the condition to the card's Visibility tab. (To vary the *grid itself* by screen size, use [`mediaquery`](#responsive-layouts-mediaquery) at the layout level.)
 
+### Visibility-driven row sizing
+
+When a card has a **state** Visibility condition and spans an entire row by itself, the layout view can automatically collapse that row to `0px` when the card is hidden and restore it when the card appears — without any manual CSS.
+
+**Requirements:**
+
+1. The card must be a `custom:lcards-layout-card` with an explicit, definite `layout.height` (e.g. `height: 10vh` or `height: 120px`). Percentage and `auto` heights are not supported — the row would have nothing to size to.
+2. The Visibility condition must be a `state` condition (not `numeric_state`, `screen`, etc.).
+3. The card must be the only occupant of its row (so the row is fully controlled by that card's visibility).
+
+```yaml
+cards:
+  - type: custom:lcards-layout-card
+    layout:
+      height: 10vh                     # must be a definite, non-percentage height
+      grid-template-areas: '"left banner"'
+      grid-template-columns: auto 1fr
+    view_layout:
+      grid-area: top-bar               # the row containing top-bar collapses when hidden
+    visibility:
+      - condition: state
+        entity: input_boolean.show_top_bar
+        state: "on"
+```
+
+When `input_boolean.show_top_bar` is `"on"`, the row is set to `10vh`. When it's anything else, the row is set to `0px`. Any `1fr` rows in the layout are recomputed to fill the remaining space correctly.
+
+> **Sidebar / window resize:** row heights are recomputed automatically via a `ResizeObserver` whenever the host element changes size (HA sidebar opens/closes, window resized, dev tools toggled).
+
 ---
 
 ## Per-area settings

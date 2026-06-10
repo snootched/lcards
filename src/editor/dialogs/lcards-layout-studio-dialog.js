@@ -28,17 +28,27 @@ import {
 import { showConfirmDeleteDialog, showInfoDialog } from '../../views/layout-edit-dialogs.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-color-picker.js';
+import '../components/yaml/lcards-yaml-editor.js';
+import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
 
-const ALIGN_OPTIONS = [
-    { value: 'stretch', label: 'Stretch' },
-    { value: 'start',   label: 'Start' },
+const ALIGN_V_OPTIONS = [
+    { value: 'stretch', label: 'Stretch (default)' },
+    { value: 'start',   label: 'Top' },
     { value: 'center',  label: 'Center' },
-    { value: 'end',     label: 'End' },
+    { value: 'end',     label: 'Bottom' },
+];
+const ALIGN_H_OPTIONS = [
+    { value: 'stretch', label: 'Stretch (default)' },
+    { value: 'start',   label: 'Left' },
+    { value: 'center',  label: 'Center' },
+    { value: 'end',     label: 'Right' },
 ];
 const OVERFLOW_OPTIONS = [
-    { value: 'visible', label: 'Visible' },
-    { value: 'hidden',  label: 'Hidden' },
-    { value: 'auto',    label: 'Scroll' },
+    { value: 'visible', label: 'Visible — bleeds beyond cell' },
+    { value: 'clip',    label: 'Clip — hard clip, no scroll' },
+    { value: 'hidden',  label: 'Hidden — clip + block context' },
+    { value: 'auto',    label: 'Scroll when needed (auto)' },
+    { value: 'scroll',  label: 'Always scroll' },
 ];
 const BORDER_STYLE_OPTIONS = [
     { value: 'none',   label: 'None' },
@@ -70,17 +80,24 @@ export class LCARdSLayoutStudioDialog extends LitElement {
 
     static get properties() {
         return {
-            hass:       { attribute: false },
-            config:     { attribute: false },
-            _activeTab: { state: true },   // 'layout' | 'card-<index>'
+            hass:           { attribute: false },
+            _workingConfig: { state: true },
+            _activeTab:     { state: true },   // 'layout' | 'card-<index>' | 'yaml'
         };
     }
+
+    set config(value) {
+        this._initialConfig  = JSON.parse(JSON.stringify(value ?? {}));
+        this._workingConfig  = JSON.parse(JSON.stringify(value ?? {}));
+    }
+    get config() { return this._workingConfig; }
 
     constructor() {
         super();
         this.hass = undefined;
-        this.config = {};
-        this._activeTab = 'layout';
+        this._initialConfig = {};
+        this._workingConfig = {};
+        this._activeTab = 'layout'; // 'layout' | 'card-<index>' | 'yaml'
         this._previewEl = null;
         this._overlayEl = null;
         this._pickerDialog = null;
@@ -197,20 +214,14 @@ export class LCARdSLayoutStudioDialog extends LitElement {
     // ─────────────────────────────────────────────────────────────────────────
 
     _commit(newConfig) {
-        this.config = newConfig;
-        this.dispatchEvent(new CustomEvent('config-changed', {
-            detail: { config: this.config }, bubbles: true, composed: true,
-        }));
+        this._workingConfig = newConfig;
         this.requestUpdate();
         this.updateComplete.then(() => this._syncCanvas());
     }
 
-    /** Commit WITHOUT re-rendering the studio (config mutated in place) — used by
-     *  the inline child editor so typing doesn't reset its own value binding. */
+    /** Commit WITHOUT re-rendering the studio — used by the inline child editor
+     *  so typing doesn't reset its own value binding. */
     _commitQuiet() {
-        this.dispatchEvent(new CustomEvent('config-changed', {
-            detail: { config: this.config }, bubbles: true, composed: true,
-        }));
         this._refreshPreview();
     }
 
@@ -286,7 +297,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
+                @closed=${(e) => { e.stopPropagation(); this._handleCancel(); }}
                 header-title="Layout Studio">
 
                 <div class="dialog-content">
@@ -304,10 +315,16 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                                         ${i + 1}: ${(c.type ?? 'card').replace('custom:', '')}
                                     </ha-tab-group-tab>
                                 `)}
+                                <ha-tab-group-tab value="yaml" ?active=${this._activeTab === 'yaml'}>
+                                    <ha-icon icon="mdi:code-braces"></ha-icon>
+                                    YAML
+                                </ha-tab-group-tab>
                             </ha-tab-group>
 
                             <div class="tab-content">
-                                ${this._activeTab === 'layout' ? this._renderLayoutTab() : this._renderCardTab(activeIdx)}
+                                ${this._activeTab === 'layout' ? this._renderLayoutTab()
+                                : this._activeTab === 'yaml'   ? this._renderYamlTab()
+                                : this._renderCardTab(activeIdx)}
                             </div>
                         </div>
 
@@ -323,9 +340,12 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                 </div>
 
                 <div slot="footer">
-                    <ha-button variant="brand" @click=${this._handleClose}>
+                    <ha-button appearance="plain" @click=${this._handleCancel}>
+                        Cancel
+                    </ha-button>
+                    <ha-button variant="brand" @click=${this._handleSave}>
                         <ha-icon icon="mdi:check" slot="start"></ha-icon>
-                        Done
+                        Save
                     </ha-button>
                 </div>
             </ha-dialog>
@@ -407,19 +427,29 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                             .selector=${{ select: { mode: 'dropdown', options: areaOptions } }}
                             .value=${vl['grid-area'] ?? ''}
                             @value-changed=${(e) => this._setPlacement(i, 'grid-area', e.detail.value || undefined)}></ha-selector>
-                        <label>Align</label>
+                        <label>Align ↕</label>
                         <ha-selector .hass=${this.hass}
-                            .selector=${{ select: { mode: 'dropdown', options: ALIGN_OPTIONS } }}
-                            .value=${vl['place-self'] ?? 'stretch'}
-                            @value-changed=${(e) => this._setPlacement(i, 'place-self', e.detail.value === 'stretch' ? undefined : e.detail.value)}></ha-selector>
+                            .selector=${{ select: { mode: 'dropdown', options: ALIGN_V_OPTIONS } }}
+                            .value=${vl['align-self'] ?? vl['place-self'] ?? 'stretch'}
+                            @value-changed=${(e) => this._setAlignment(i, e.detail.value, vl['justify-self'] ?? vl['place-self'] ?? 'stretch')}></ha-selector>
+                        <label>Align ↔</label>
+                        <ha-selector .hass=${this.hass}
+                            .selector=${{ select: { mode: 'dropdown', options: ALIGN_H_OPTIONS } }}
+                            .value=${vl['justify-self'] ?? vl['place-self'] ?? 'stretch'}
+                            @value-changed=${(e) => this._setAlignment(i, vl['align-self'] ?? vl['place-self'] ?? 'stretch', e.detail.value)}></ha-selector>
                         <label>Margin</label>
                         <ha-input .value=${vl.margin ?? ''} placeholder=${this.config?.layout?.card_margin ?? 'none'}
                             @change=${(e) => this._setPlacement(i, 'margin', e.target.value || undefined)}></ha-input>
-                        <label>Overflow</label>
+                        <label>Overflow X</label>
                         <ha-selector .hass=${this.hass}
                             .selector=${{ select: { mode: 'dropdown', options: OVERFLOW_OPTIONS } }}
-                            .value=${vl.overflow ?? 'visible'}
-                            @value-changed=${(e) => this._setPlacement(i, 'overflow', e.detail.value === 'visible' ? undefined : e.detail.value)}></ha-selector>
+                            .value=${vl['overflow-x'] ?? vl.overflow ?? 'visible'}
+                            @value-changed=${(e) => this._setOverflow(i, e.detail.value, vl['overflow-y'] ?? vl.overflow ?? 'visible')}></ha-selector>
+                        <label>Overflow Y</label>
+                        <ha-selector .hass=${this.hass}
+                            .selector=${{ select: { mode: 'dropdown', options: OVERFLOW_OPTIONS } }}
+                            .value=${vl['overflow-y'] ?? vl.overflow ?? 'visible'}
+                            @value-changed=${(e) => this._setOverflow(i, vl['overflow-x'] ?? vl.overflow ?? 'visible', e.detail.value)}></ha-selector>
                     </div>
                 </lcards-form-section>
 
@@ -491,6 +521,27 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         `;
     }
 
+    _renderYamlTab() {
+        return html`
+            <div class="yaml-tab">
+                <lcards-yaml-editor
+                    .value=${configToYaml(this.config ?? {})}
+                    .hass=${this.hass}
+                    @value-changed=${this._handleYamlChange}>
+                </lcards-yaml-editor>
+            </div>
+        `;
+    }
+
+    _handleYamlChange(ev) {
+        try {
+            const newConfig = yamlToConfig(ev.detail.value);
+            this._commit(newConfig);
+        } catch (_) {
+            // Invalid YAML mid-edit — wait for valid state
+        }
+    }
+
     _handleTabChange(e) {
         const value = e.target?.activeTab?.getAttribute('value');
         if (value != null) {
@@ -510,6 +561,42 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         const vl = { ...(card.view_layout ?? {}) };
         if (value == null || value === '') delete vl[key];
         else vl[key] = value;
+        cards[i] = { ...card, view_layout: vl };
+        this._commit({ ...this.config, cards });
+    }
+
+    _setAlignment(i, v, h) {
+        const cards = [...(this.config?.cards ?? [])];
+        const card = cards[i];
+        if (!card) return;
+        const vl = { ...(card.view_layout ?? {}) };
+        delete vl['place-self'];
+        delete vl['align-self'];
+        delete vl['justify-self'];
+        if (v === h) {
+            if (v !== 'stretch') vl['place-self'] = v;
+        } else {
+            if (v !== 'stretch') vl['align-self']   = v;
+            if (h !== 'stretch') vl['justify-self'] = h;
+        }
+        cards[i] = { ...card, view_layout: vl };
+        this._commit({ ...this.config, cards });
+    }
+
+    _setOverflow(i, ox, oy) {
+        const cards = [...(this.config?.cards ?? [])];
+        const card = cards[i];
+        if (!card) return;
+        const vl = { ...(card.view_layout ?? {}) };
+        delete vl['overflow'];
+        delete vl['overflow-x'];
+        delete vl['overflow-y'];
+        if (ox === oy) {
+            if (ox !== 'visible') vl['overflow'] = ox;
+        } else {
+            if (ox !== 'visible') vl['overflow-x'] = ox;
+            if (oy !== 'visible') vl['overflow-y'] = oy;
+        }
         cards[i] = { ...card, view_layout: vl };
         this._commit({ ...this.config, cards });
     }
@@ -602,6 +689,21 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         });
     }
 
+    _handleSave() {
+        this.dispatchEvent(new CustomEvent('config-changed', {
+            detail: { config: this._workingConfig }, bubbles: true, composed: true,
+        }));
+        this._handleClose();
+    }
+
+    _handleCancel() {
+        // Restore initial config so the card isn't left with any intermediate state
+        this.dispatchEvent(new CustomEvent('config-changed', {
+            detail: { config: this._initialConfig }, bubbles: true, composed: true,
+        }));
+        this._handleClose();
+    }
+
     _handleClose() {
         this.dispatchEvent(new CustomEvent('closed', { bubbles: true, composed: true }));
     }
@@ -655,6 +757,8 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                 .canvas lcards-layout-card { display: block; width: 100%; height: 100%; }
 
                 .layout-tab { display: flex; flex-direction: column; gap: 12px; }
+                .yaml-tab { display: flex; flex-direction: column; height: 100%; }
+                .yaml-tab lcards-yaml-editor { flex: 1; min-height: 0; }
                 .hint { font-size: 13px; color: var(--secondary-text-color); line-height: 1.5; }
 
                 .card-tab { display: flex; flex-direction: column; gap: 14px; }

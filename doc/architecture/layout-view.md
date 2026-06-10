@@ -93,6 +93,32 @@ Cards are **always placed** — per-card visibility is not the view's concern. H
 
 ---
 
+## Visibility-driven row sizing
+
+HA's `hui-card` wrapper hides cards by setting `display: none`. In a standard CSS Grid, a `display: none` item does not contribute to track sizing — so a row with only hidden cards collapses to `0px` naturally. In practice, HA's layout context does not provide the grid engine with a definite available block-size, so `fr` tracks expand to the max-content of their items rather than filling the remaining space. This makes `minmax(0,auto)` tracks collapse correctly but `1fr` tracks wrong.
+
+The view solves this entirely in JS:
+
+### `_baseRows` and `_visibilityRows`
+
+`_baseRows` holds the row tracks as parsed from config (never modified at runtime). After every card placement, `_collectVisibilityRows()` scans the placed cards for `state` Visibility conditions. For each matching card — one that has a definite `layout.height` on a `custom:lcards-layout-card` and a single-row `grid-area` — it records `{ rowIndex, entity, expectedState, targetHeight }` in `_visibilityRows`.
+
+### `_applyVisibilityRowHeights()`
+
+Called from three places: end of `_placeCards()`, every `updated()` (after Lit renders), and every `set hass()` (entity state changes):
+
+1. **Build candidate rows** — start from `_baseRows`, override visibility rows with `targetHeight` or `'0px'` based on current entity state.
+2. **Identify `fr` tracks** — locate all `Nfr` tracks in the candidate rows.
+3. **Resolve non-fr sizes** — temporarily write the rows with every `fr` replaced by `0px` and force a reflow (`getComputedStyle`), so the browser evaluates all `clamp()`, `vh`, `px`, and `min()`/`max()` tracks to their actual pixel sizes.
+4. **Compute fr allocation** — `frSpace = hostHeight - sum(non-fr rows) - sum(gaps)`. This is exact regardless of what the CSS Grid engine would have done.
+5. **Final write** — replace every `Nfr` track with `round(frSpace × N / totalFR)px` and write `grid.style.gridTemplateRows` directly (bypassing Lit to avoid a re-render feedback loop).
+
+### `ResizeObserver`
+
+A `ResizeObserver` on the host element (created in `connectedCallback`, torn down in `disconnectedCallback`) fires `_applyVisibilityRowHeights()` via a `requestAnimationFrame` debounce whenever the host's bounding box changes — window resize, HA sidebar toggle, devtools open/close. This keeps row allocations correct across all viewport changes without polling.
+
+---
+
 ## Persistence & event flow
 
 HA hands the view three inputs via setters: `hass`, `lovelace`, and `cards` (pre-built card elements). The view never pushes config to HA except through one funnel.

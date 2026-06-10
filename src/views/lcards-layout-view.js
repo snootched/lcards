@@ -57,21 +57,31 @@ import {
 import {
     buildGridStyle,
     applyCardPlacement,
+    applyGridItemHeight,
     renderAreaSurfaces,
 } from './layout-render.js';
 import { showConfirmDeleteDialog } from './layout-edit-dialogs.js';
 
-// Alignment / overflow option lists for the per-card Placement editor.
-const PLACEMENT_ALIGN_OPTIONS = [
+// Alignment option lists for the per-card Placement editor.
+// align-self = vertical (block axis); justify-self = horizontal (inline axis).
+const ALIGN_V_OPTIONS = [
     { value: 'stretch', label: 'Stretch (default)' },
-    { value: 'start',   label: 'Start' },
+    { value: 'start',   label: 'Top' },
     { value: 'center',  label: 'Center' },
-    { value: 'end',     label: 'End' },
+    { value: 'end',     label: 'Bottom' },
+];
+const ALIGN_H_OPTIONS = [
+    { value: 'stretch', label: 'Stretch (default)' },
+    { value: 'start',   label: 'Left' },
+    { value: 'center',  label: 'Center' },
+    { value: 'end',     label: 'Right' },
 ];
 const PLACEMENT_OVERFLOW_OPTIONS = [
-    { value: 'visible', label: 'Visible (default)' },
-    { value: 'hidden',  label: 'Hidden (clip)' },
-    { value: 'auto',    label: 'Scroll' },
+    { value: 'visible', label: 'Visible — bleeds beyond cell' },
+    { value: 'clip',    label: 'Clip — hard clip, no scroll' },
+    { value: 'hidden',  label: 'Hidden — clip + block context' },
+    { value: 'auto',    label: 'Scroll when needed (auto)' },
+    { value: 'scroll',  label: 'Always scroll' },
 ];
 
 export class LCARdSLayoutView extends LitElement {
@@ -107,8 +117,10 @@ export class LCARdSLayoutView extends LitElement {
         this._editSubMode = 'grid'; // reset to grid mode each time edit mode activates
         this._columns  = ['1fr', '1fr', '1fr'];
         this._rows     = ['1fr', '1fr', '1fr'];
+        this._baseRows = ['1fr', '1fr', '1fr']; // rows from config, never modified by visibility logic
         this._areas    = Array(3).fill(null).map(() => Array(3).fill('.'));
         this._gap      = '5px';
+        this._visibilityRows  = []; // [{rowIndex, entity, expectedState, targetHeight}]
         this._cardElements    = []; // HA-provided pre-built card elements
         this._mediaQueryLists = []; // active MediaQueryList instances
         this._pendingAddArea  = null; // area name waiting for HA's card picker to save
@@ -132,6 +144,16 @@ export class LCARdSLayoutView extends LitElement {
         super.connectedCallback();
         this.addEventListener('pointermove', this._boundHostPointerMove);
         this.addEventListener('pointerup',   this._boundHostPointerUp);
+        // Recompute fr row allocations whenever the host changes size (window resize,
+        // sidebar toggle that changes our bounding box, devtools open/close).
+        this._hostResizeObserver = new ResizeObserver(() => {
+            if (this._resizeRaf) cancelAnimationFrame(this._resizeRaf);
+            this._resizeRaf = requestAnimationFrame(() => {
+                this._resizeRaf = null;
+                this._applyVisibilityRowHeights();
+            });
+        });
+        this._hostResizeObserver.observe(this);
     }
 
     _onHostPointerMove(e) {
@@ -150,10 +172,11 @@ export class LCARdSLayoutView extends LitElement {
     setConfig(config) {
         this._config = JSON.parse(JSON.stringify(config ?? {}));
         const { columns, rows, areas, gap } = parseLayoutConfig(this._config.layout);
-        this._columns = columns;
-        this._rows    = rows;
-        this._areas   = areas;
-        this._gap     = gap;
+        this._columns  = columns;
+        this._baseRows = rows;
+        this._rows     = rows;
+        this._areas    = areas;
+        this._gap      = gap;
         this._setupMediaQueries();
     }
 
@@ -161,6 +184,7 @@ export class LCARdSLayoutView extends LitElement {
         this._hass = hass;
         this._propagateHass();
         if (this._editOverlayEl) this._editOverlayEl.hass = hass;
+        this._applyVisibilityRowHeights();
     }
     get hass() { return this._hass; }
 
@@ -234,6 +258,9 @@ export class LCARdSLayoutView extends LitElement {
         this._teardownMediaQueries();
         this.removeEventListener('pointermove', this._boundHostPointerMove);
         this.removeEventListener('pointerup',   this._boundHostPointerUp);
+        this._hostResizeObserver?.disconnect();
+        this._hostResizeObserver = null;
+        if (this._resizeRaf) { cancelAnimationFrame(this._resizeRaf); this._resizeRaf = null; }
         this._gridResizeObserver?.disconnect();
         this._gridResizeObserver = null;
         if (this._editOverlayEl) {
@@ -307,6 +334,7 @@ export class LCARdSLayoutView extends LitElement {
             this._placeCards();
         }
         this._syncEditOverlay();
+        this._applyVisibilityRowHeights();
     }
 
     /**
@@ -546,40 +574,36 @@ export class LCARdSLayoutView extends LitElement {
         }
         .card-edit-handle {
             position: absolute;
-            top: 4px;
-            right: 4px;
+            top: 6px;
+            right: 6px;
             z-index: 10;
             display: flex;
-            gap: 2px;
+            align-items: center;
+            gap: var(--ha-space-1, 4px);
             opacity: 0;
             visibility: hidden;
-            transition: opacity .12s ease, visibility 0s linear .12s;
+            transition: opacity var(--ha-animation-duration-fast,.15s) ease,
+                        visibility 0s linear .15s;
             pointer-events: auto;
+            /* Glassy pill wrapping the buttons */
+            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.7)) 90%, transparent);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: var(--ha-border-width-sm,1px) solid color-mix(in oklab, var(--divider-color) 60%, transparent);
+            border-radius: var(--ha-border-radius-lg, 12px);
+            padding: var(--ha-space-1, 4px);
+            box-shadow: var(--ha-box-shadow-s, 0 2px 8px rgba(0,0,0,.35));
         }
         .card-edit-wrap:hover .card-edit-handle {
             opacity: 1;
             visibility: visible;
             transition-delay: 0s;
         }
-        .card-edit-handle .ceh-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 30px;
-            height: 30px;
-            padding: 0;
-            cursor: pointer;
-            --mdc-icon-size: 16px;
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.7)) 88%, transparent);
-            backdrop-filter: blur(6px);
-            border-radius: 7px;
-            color: var(--primary-text-color);
-            border: var(--ha-border-width-sm,1px) solid var(--divider-color);
-            box-shadow: 0 2px 6px rgba(0,0,0,.3);
-            transition: background .12s, color .12s;
+        .card-edit-wrap:hover {
+            outline: 2px dashed color-mix(in oklab, var(--primary-color) 70%, transparent);
+            outline-offset: 2px;
+            border-radius: var(--ha-border-radius-md, 8px);
         }
-        .card-edit-handle .ceh-btn:hover { background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 30%, var(--card-background-color)); }
-        .card-edit-handle .ceh-btn.danger:hover { color: var(--error-color, #ef4444); }
 
         /* Per-card placement / spacing panel (card mode) */
         .placement-panel {
@@ -643,9 +667,21 @@ export class LCARdSLayoutView extends LitElement {
     `;
 
     render() {
-        const layout    = this._config?.layout ?? {};
+        const layout = this._config?.layout ?? {};
+
+        // Apply the layout height to the HOST element (not #grid-root). CSS Grid's track
+        // sizing algorithm uses the parent-provided available block-size, not the element's
+        // own height property. A self-imposed height (e.g. calc(100dvh - ...)) is treated
+        // as infinite available block-size by the track sizing algorithm, collapsing
+        // minmax(0,auto) rows to 0. Moving the height to :host makes it parent-provided
+        // for #grid-root, so track sizing gets a definite 920px and minmax(0,auto) works.
+        const hostHeight = layout.height ?? 'calc(100dvh - var(--header-height, 56px))';
+        this.style.height = hostHeight;
+
         const gridStyle = buildGridStyle(layout, this._columns, this._rows, this._areas, this._gap, {
             withGutter: this._editMode && this._editSubMode === 'grid',
+            overflowY: 'clip',
+            overrideHeight: '100%',  // #grid-root fills the host; host carries the actual height
         });
         const hasAreas  = getAreaNames(this._areas).length > 0;
 
@@ -665,9 +701,9 @@ export class LCARdSLayoutView extends LitElement {
                     <div class="drag-grip" @pointerdown=${this._cardBarDragStart} title="Drag to move">
                         <ha-icon icon="mdi:drag"></ha-icon>
                     </div>
-                    <span class="bar-label">Cards</span>
+                    <span class="bar-label">Card Mode</span>
                     <div class="bar-sep"></div>
-                    <span class="bar-hint">Hover a card to edit · empty areas show “Add card”</span>
+                    <span class="bar-hint">Hover over a card to edit · empty areas show “Add card”</span>
                     <div class="bar-sep"></div>
                     <button
                         class="bar-btn primary"
@@ -675,7 +711,7 @@ export class LCARdSLayoutView extends LitElement {
                         @click=${() => { this._placementEditCard = null; this._editSubMode = 'grid'; }}
                     >
                         <ha-icon icon="mdi:grid"></ha-icon>
-                        <span>Edit Layout</span>
+                        <span>Switch to Edit Layout</span>
                     </button>
                 </div>
             ` : nothing}
@@ -727,23 +763,20 @@ export class LCARdSLayoutView extends LitElement {
                 const wrap = document.createElement('div');
                 wrap.className = 'card-edit-wrap';
                 applyCardPlacement(wrap, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
+                applyGridItemHeight(wrap, cardEl.config);
 
-                // Plain buttons (not ha-icon-button) are reliably clickable when
-                // created imperatively; ha-icon-button needs Lit hydration we don't get here.
                 const handle = document.createElement('div');
                 handle.className = 'card-edit-handle';
-                const editBtn = document.createElement('button');
-                editBtn.className = 'ceh-btn';
-                editBtn.title = 'Edit card';
-                editBtn.innerHTML = '<ha-icon icon="mdi:pencil"></ha-icon>';
-                const placeBtn = document.createElement('button');
-                placeBtn.className = 'ceh-btn';
-                placeBtn.title = 'Placement & spacing';
-                placeBtn.innerHTML = '<ha-icon icon="mdi:tune-variant"></ha-icon>';
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'ceh-btn danger';
-                deleteBtn.title = 'Remove card';
-                deleteBtn.innerHTML = '<ha-icon icon="mdi:delete-outline"></ha-icon>';
+
+                function makeHaButton(icon, label, variant) {
+                    const btn = document.createElement('ha-button');
+                    if (variant) btn.setAttribute('variant', variant);
+                    btn.innerHTML = `<ha-icon icon="${icon}" slot="start"></ha-icon>${label}`;
+                    return btn;
+                }
+                const editBtn   = makeHaButton('mdi:pencil',          'Edit',   null);
+                const placeBtn  = makeHaButton('mdi:tune-variant',     'Place',  null);
+                const deleteBtn = makeHaButton('mdi:delete-outline',   'Delete', 'danger');
                 editBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     e.preventDefault();
@@ -769,6 +802,7 @@ export class LCARdSLayoutView extends LitElement {
             } else {
                 // Outside card mode the card element itself is the grid item.
                 applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
+                applyGridItemHeight(cardEl, cardEl.config);
                 grid.appendChild(cardEl);
             }
         });
@@ -796,6 +830,112 @@ export class LCARdSLayoutView extends LitElement {
                 grid.appendChild(placeholder);
             }
         }
+
+        this._collectVisibilityRows();
+        this._applyVisibilityRowHeights();
+    }
+
+    /**
+     * Scan placed cards for state-visibility conditions that govern entire rows.
+     * Fills this._visibilityRows with {rowIndex, entity, expectedState, targetHeight}.
+     * Called after every card placement so the list stays in sync.
+     */
+    _collectVisibilityRows() {
+        this._visibilityRows = [];
+        if (!this._areas?.length) return;
+        for (const cardEl of (this._cardElements ?? [])) {
+            const config = cardEl.config;
+            if (!config) continue;
+            const area       = config.view_layout?.['grid-area'];
+            const visibility = config.visibility;
+            if (!area || !visibility?.length) continue;
+            const rowIndex = this._areas.findIndex(row => row.includes(area));
+            if (rowIndex === -1) continue;
+            // Only forward a definite viewport/pixel height (same rule as applyGridItemHeight).
+            const h = config.layout?.height;
+            if (!h || h === 'auto' || h === '100%') continue;
+            for (const cond of visibility) {
+                if (cond.condition === 'state' && cond.entity && cond.state != null) {
+                    this._visibilityRows.push({
+                        rowIndex,
+                        entity: cond.entity,
+                        expectedState: String(cond.state),
+                        targetHeight: h,
+                    });
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Evaluate current entity states and update grid-template-rows directly on
+     * the DOM node — bypassing Lit's render cycle to avoid feedback loops.
+     *
+     * CSS Grid's track sizing algorithm treats a self-imposed height (height: calc(100dvh - ...))
+     * as infinite available block-size, so `1fr` expands to max-content instead of filling the
+     * remaining space. We resolve this in JS: temporarily write `0px` for fr tracks (so the
+     * browser correctly sizes all clamp/vh/px tracks), read those back, compute the leftover
+     * space, then write explicit px values for every fr track.
+     */
+    _applyVisibilityRowHeights() {
+        const grid = this.renderRoot?.querySelector('#grid-root');
+        if (!grid) return;
+
+        const rows = [...this._baseRows];
+
+        // In edit mode HA shows all cards regardless of visibility conditions,
+        // so expand every visibility-controlled row to its target height.
+        for (const { rowIndex, entity, expectedState, targetHeight } of (this._visibilityRows ?? [])) {
+            const state = this._hass?.states?.[entity]?.state;
+            rows[rowIndex] = (this._editMode || state === expectedState) ? targetHeight : '0px';
+        }
+
+        // Identify fr tracks in the resolved rows.
+        const frTracks = [];
+        let totalFR = 0;
+        rows.forEach((r, i) => {
+            const m = String(r).match(/^([0-9.]+)fr$/);
+            if (m) { frTracks.push({ index: i, units: parseFloat(m[1]) }); totalFR += parseFloat(m[1]); }
+        });
+
+        if (frTracks.length === 0) {
+            grid.style.gridTemplateRows = rows.join(' ');
+            return;
+        }
+
+        // Available height of the host element (provided by HA's parent container).
+        const available = this.getBoundingClientRect().height;
+        if (available <= 0) {
+            // Host not yet laid out — write rows as-is and retry after render.
+            grid.style.gridTemplateRows = rows.join(' ');
+            return;
+        }
+
+        // Write fr tracks as 0px so clamp/vh/px rows compute their natural sizes.
+        const tempRows = rows.map(r => /^[0-9.]+fr$/.test(String(r)) ? '0px' : r);
+        grid.style.gridTemplateRows = tempRows.join(' ');
+
+        // Force reflow and read back computed px values for every row.
+        const computedPx = getComputedStyle(grid).gridTemplateRows
+            .split(/\s+/).map(v => parseFloat(v) || 0);
+
+        // Sum the non-fr row heights and the inter-row gaps.
+        let fixedTotal = 0;
+        rows.forEach((r, i) => {
+            if (!/^[0-9.]+fr$/.test(String(r))) fixedTotal += computedPx[i] ?? 0;
+        });
+        const gap = parseFloat(getComputedStyle(grid).rowGap) || 0;
+        const gapTotal = (rows.length - 1) * gap;
+
+        const frSpace = Math.max(0, available - fixedTotal - gapTotal);
+
+        // Replace each fr track with its allocated px.
+        for (const { index, units } of frTracks) {
+            rows[index] = Math.round(frSpace * units / totalFR) + 'px';
+        }
+
+        grid.style.gridTemplateRows = rows.join(' ');
     }
 
     /**
@@ -822,6 +962,19 @@ export class LCARdSLayoutView extends LitElement {
         }
         this._placementPos = null; // start from the anchor; user can drag from there
         this._placementEditCard = { index: cardIndex };
+    }
+
+    /** Write align-self + justify-self for a card, using place-self shorthand when both axes match. */
+    _setAlignment(cardIndex, v, h) {
+        if (v === h) {
+            this._updateCardViewLayout(cardIndex, 'place-self',   v === 'stretch' ? undefined : v);
+            this._updateCardViewLayout(cardIndex, 'align-self',   undefined);
+            this._updateCardViewLayout(cardIndex, 'justify-self', undefined);
+        } else {
+            this._updateCardViewLayout(cardIndex, 'place-self',   undefined);
+            this._updateCardViewLayout(cardIndex, 'align-self',   v === 'stretch' ? undefined : v);
+            this._updateCardViewLayout(cardIndex, 'justify-self', h === 'stretch' ? undefined : h);
+        }
     }
 
     /** Commit a single view_layout key for a card (empty/undefined removes it). */
@@ -855,12 +1008,29 @@ export class LCARdSLayoutView extends LitElement {
                     <div class="placement-title">Placement — ${label}</div>
                 </div>
                 <div class="placement-field">
-                    <label>Align</label>
+                    <label>Align ↕</label>
                     <ha-selector
                         .hass=${this._hass}
-                        .selector=${{ select: { mode: 'dropdown', options: PLACEMENT_ALIGN_OPTIONS } }}
-                        .value=${vl['place-self'] ?? 'stretch'}
-                        @value-changed=${(e) => this._updateCardViewLayout(idx, 'place-self', e.detail.value === 'stretch' ? undefined : e.detail.value)}
+                        .selector=${{ select: { mode: 'dropdown', options: ALIGN_V_OPTIONS } }}
+                        .value=${vl['align-self'] ?? vl['place-self'] ?? 'stretch'}
+                        @value-changed=${(e) => {
+                            const v = e.detail.value;
+                            const h = vl['justify-self'] ?? vl['place-self'] ?? 'stretch';
+                            this._setAlignment(idx, v, h);
+                        }}
+                    ></ha-selector>
+                </div>
+                <div class="placement-field">
+                    <label>Align ↔</label>
+                    <ha-selector
+                        .hass=${this._hass}
+                        .selector=${{ select: { mode: 'dropdown', options: ALIGN_H_OPTIONS } }}
+                        .value=${vl['justify-self'] ?? vl['place-self'] ?? 'stretch'}
+                        @value-changed=${(e) => {
+                            const v = vl['align-self'] ?? vl['place-self'] ?? 'stretch';
+                            const h = e.detail.value;
+                            this._setAlignment(idx, v, h);
+                        }}
                     ></ha-selector>
                 </div>
                 <div class="placement-field">
@@ -873,12 +1043,47 @@ export class LCARdSLayoutView extends LitElement {
                     ></ha-input>
                 </div>
                 <div class="placement-field">
-                    <label>Overflow</label>
+                    <label>Overflow X</label>
                     <ha-selector
                         .hass=${this._hass}
                         .selector=${{ select: { mode: 'dropdown', options: PLACEMENT_OVERFLOW_OPTIONS } }}
-                        .value=${vl.overflow ?? 'visible'}
-                        @value-changed=${(e) => this._updateCardViewLayout(idx, 'overflow', e.detail.value === 'visible' ? undefined : e.detail.value)}
+                        .value=${vl['overflow-x'] ?? vl.overflow ?? 'visible'}
+                        @value-changed=${(e) => {
+                            const v = e.detail.value;
+                            const y = this._placementEditCard?.config?.view_layout?.['overflow-y']
+                                   ?? this._placementEditCard?.config?.view_layout?.overflow
+                                   ?? 'visible';
+                            if (v === y) {
+                                this._updateCardViewLayout(idx, 'overflow',   v === 'visible' ? undefined : v);
+                                this._updateCardViewLayout(idx, 'overflow-x', undefined);
+                                this._updateCardViewLayout(idx, 'overflow-y', undefined);
+                            } else {
+                                this._updateCardViewLayout(idx, 'overflow',   undefined);
+                                this._updateCardViewLayout(idx, 'overflow-x', v === 'visible' ? undefined : v);
+                            }
+                        }}
+                    ></ha-selector>
+                </div>
+                <div class="placement-field">
+                    <label>Overflow Y</label>
+                    <ha-selector
+                        .hass=${this._hass}
+                        .selector=${{ select: { mode: 'dropdown', options: PLACEMENT_OVERFLOW_OPTIONS } }}
+                        .value=${vl['overflow-y'] ?? vl.overflow ?? 'visible'}
+                        @value-changed=${(e) => {
+                            const v = e.detail.value;
+                            const x = this._placementEditCard?.config?.view_layout?.['overflow-x']
+                                   ?? this._placementEditCard?.config?.view_layout?.overflow
+                                   ?? 'visible';
+                            if (v === x) {
+                                this._updateCardViewLayout(idx, 'overflow',   v === 'visible' ? undefined : v);
+                                this._updateCardViewLayout(idx, 'overflow-x', undefined);
+                                this._updateCardViewLayout(idx, 'overflow-y', undefined);
+                            } else {
+                                this._updateCardViewLayout(idx, 'overflow',   undefined);
+                                this._updateCardViewLayout(idx, 'overflow-y', v === 'visible' ? undefined : v);
+                            }
+                        }}
                     ></ha-selector>
                 </div>
                 <div class="placement-actions">
@@ -1063,10 +1268,11 @@ export class LCARdSLayoutView extends LitElement {
     _onGridStateChanged(ev) {
         ev.stopPropagation();
         const { columns, rows, areas, gap } = ev.detail;
-        this._columns = columns;
-        this._rows    = rows;
-        this._areas   = areas;
-        this._gap     = gap ?? this._gap;
+        this._columns  = columns;
+        this._baseRows = rows;
+        this._rows     = rows;
+        this._areas    = areas;
+        this._gap      = gap ?? this._gap;
 
         let newLayout = serializeLayoutConfig(
             columns, rows, areas, gap ?? this._gap,

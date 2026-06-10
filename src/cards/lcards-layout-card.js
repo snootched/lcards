@@ -36,6 +36,7 @@ import { parseLayoutConfig } from '../views/layout-grid-utils.js';
 import {
     buildGridStyle,
     applyCardPlacement,
+    applyGridItemHeight,
     renderAreaSurfaces,
 } from '../views/layout-render.js';
 
@@ -185,6 +186,13 @@ export class LCARdSLayoutCard extends LitElement {
     // ─────────────────────────────────────────────────────────────────────────
 
     updated(changed) {
+        // Mirror the grid height onto the host. Default is 100% (fill the area),
+        // but a percentage height collapses to 0 in a content-sized (minmax(0,auto))
+        // grid row — so when the user sets layout.height: auto, the host must be
+        // 'auto' too (not just #grid-root) or it contributes 0 to the row's
+        // max-content and the whole card collapses.
+        this.style.height = this._config?.layout?.height ?? '100%';
+
         if (changed.has('_config') || changed.has('_columns') || changed.has('_rows')
             || changed.has('_areas') || changed.has('_gap') || changed.has('editing')) {
             this._placeCards();
@@ -212,9 +220,11 @@ export class LCARdSLayoutCard extends LitElement {
         renderAreaSurfaces(grid, layout, this._areas);
 
         (this._cardElements ?? []).forEach((cardEl, i) => {
-            const viewLayout   = this._config?.cards?.[i]?.view_layout ?? {};
+            const childCfg     = this._config?.cards?.[i];
+            const viewLayout   = childCfg?.view_layout ?? {};
             const areaSettings = layout.areas?.[viewLayout['grid-area']] ?? {};
             applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
+            applyGridItemHeight(cardEl, childCfg);
             grid.appendChild(cardEl);
         });
     }

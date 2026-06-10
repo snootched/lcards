@@ -37,16 +37,24 @@ import { showConfirmDeleteDialog } from './layout-edit-dialogs.js';
 import '../editor/components/shared/lcards-color-picker.js';
 
 // ─── Per-area settings option lists ─────────────────────────────────────────
-const AREA_ALIGN_OPTIONS = [
+const AREA_ALIGN_V_OPTIONS = [
     { value: 'stretch', label: 'Stretch (default)' },
-    { value: 'start',   label: 'Start' },
+    { value: 'start',   label: 'Top' },
     { value: 'center',  label: 'Center' },
-    { value: 'end',     label: 'End' },
+    { value: 'end',     label: 'Bottom' },
+];
+const AREA_ALIGN_H_OPTIONS = [
+    { value: 'stretch', label: 'Stretch (default)' },
+    { value: 'start',   label: 'Left' },
+    { value: 'center',  label: 'Center' },
+    { value: 'end',     label: 'Right' },
 ];
 const AREA_OVERFLOW_OPTIONS = [
-    { value: 'visible', label: 'Visible (default)' },
-    { value: 'hidden',  label: 'Hidden (clip)' },
-    { value: 'auto',    label: 'Scroll' },
+    { value: 'visible', label: 'Visible — bleeds beyond cell' },
+    { value: 'clip',    label: 'Clip — hard clip, no scroll' },
+    { value: 'hidden',  label: 'Hidden — clip + block context' },
+    { value: 'auto',    label: 'Scroll when needed (auto)' },
+    { value: 'scroll',  label: 'Always scroll' },
 ];
 const AREA_BORDER_STYLE_OPTIONS = [
     { value: 'none',   label: 'None' },
@@ -117,8 +125,8 @@ export class LCARdSGridEditOverlay extends LitElement {
         hideSettings: { attribute: false }, // hide the toolbar "grid settings" button (studio uses its Layout tab)
 
         _selectedArea:   { state: true },
-        _renaming:       { state: true },
-        _trackPopover:   { state: true }, // { axis, index } | null — track size popover
+        _renaming:     { state: true }, // area name being renamed via in-bar input | null
+        _trackPopover: { state: true }, // { axis, index } | null — track size popover
         _selStart:       { state: true },
         _selEnd:         { state: true },
         _selectionName:  { state: true },
@@ -128,7 +136,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         _toolbarPos:     { state: true }, // { top, left } | null — moved toolbar position
         _areaSettings:   { state: true }, // area name whose settings panel is open | null
         _areaPanelPos:   { state: true }, // { top, left } | null — dragged area panel position
-        _hideAreas:      { state: true }, // hide area overlays to preview cell backgrounds
+        _overlayOpacity: { state: true }, // area overlay color-mix % (0–100)
     };
 
     constructor() {
@@ -140,9 +148,9 @@ export class LCARdSGridEditOverlay extends LitElement {
         this.cardConfigs = [];
         this.layout      = {};
 
-        this._selectedArea   = null;
-        this._renaming       = null;
-        this._trackPopover   = null;
+        this._selectedArea = null;
+        this._renaming     = null;
+        this._trackPopover = null;
         this._showSettings   = false;
         this._selStart       = null;
         this._selEnd         = null;
@@ -153,7 +161,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._areaPanelPos   = null;
         this._areaPanelAnchor = null;
         this._areaPanelDrag  = null;
-        this._hideAreas      = false;
+        this._overlayOpacity = 50;
 
         // Measurement cache: _cells[r][c] = DOMRect relative to overlay
         this._cells = [];
@@ -173,6 +181,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         // to the active drag (resize / reorder / selection / toolbar).
         this._boundPointerMove = this._onAnyPointerMove.bind(this);
         this._boundPointerUp   = this._onAnyPointerUp.bind(this);
+        this._boundKeydown     = this._onDocKeydown.bind(this);
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -272,30 +281,47 @@ export class LCARdSGridEditOverlay extends LitElement {
             background: var(--divider-color, rgba(255,255,255,.12));
             margin: 0 2px;
         }
-        /* Segmented pill toggle (HA control-select look) */
-        .t-seg {
-            display: inline-flex;
+        /* Opacity slider — sits in the toolbar next to the Areas/Cells toggle */
+        .t-opacity {
+            display: flex;
             align-items: center;
-            gap: 2px;
-            padding: 2px;
-            border-radius: 11px;
-            background: rgba(255,255,255,.08);
-        }
-        .t-seg-btn {
-            border: none;
-            background: transparent;
+            gap: 6px;
+            padding: 0 4px;
             color: var(--secondary-text-color);
-            font-size: 12px;
-            font-weight: 600;
-            padding: 5px 11px;
-            border-radius: 9px;
-            cursor: pointer;
-            transition: background var(--ha-animation-duration-fast,.15s), color var(--ha-animation-duration-fast,.15s);
+            --mdc-icon-size: 15px;
         }
-        .t-seg-btn:hover { color: var(--primary-text-color); }
-        .t-seg-btn.active {
+        .t-opacity ha-icon { opacity: 0.7; flex-shrink: 0; }
+        .t-opacity input[type=range] {
+            width: 72px;
+            height: 4px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background: linear-gradient(
+                to right,
+                var(--lcars-ui-primary, var(--primary-color)) 0%,
+                var(--lcars-ui-primary, var(--primary-color)) var(--pct, 50%),
+                rgba(255,255,255,.18) var(--pct, 50%)
+            );
+            border-radius: 2px;
+            outline: none;
+        }
+        .t-opacity input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
             background: var(--lcars-ui-primary, var(--primary-color));
-            color: var(--text-primary-color, #fff);
+            border: 2px solid var(--card-background-color, #111);
+            box-shadow: 0 1px 4px rgba(0,0,0,.4);
+        }
+        .t-opacity input[type=range]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--lcars-ui-primary, var(--primary-color));
+            border: 2px solid var(--card-background-color, #111);
         }
 
         /* ─── Column headers ──────────────────────────────────────────────── */
@@ -489,113 +515,128 @@ export class LCARdSGridEditOverlay extends LitElement {
             cursor: pointer;
             transition: filter var(--ha-animation-duration-fast,.15s), outline var(--ha-animation-duration-fast,.15s);
             z-index: 20;
-            overflow: hidden;
+            /* overflow: visible (default) — border-radius still clips the background-color,
+               but the action bar (a DOM child positioned above/below) remains interactive.
+               overflow:hidden would clip the bar's hit area, breaking hover-to-click. */
         }
-        .area-overlay:hover { filter: brightness(1.25); }
+        .area-overlay:hover { filter: brightness(1.15); }
         .area-overlay.selected {
             outline: 3px solid var(--lcars-ui-primary, var(--primary-color));
             outline-offset: -2px;
             /* Raise above col/row headers (z-index 30) so rename input and
                toolbar are never clipped under a header when the area abuts an edge. */
             z-index: 35;
-            overflow: visible;
         }
 
+        /* Label centered in cell body — never reaches the top-right toolbar corner. */
         .area-label {
             position: absolute;
-            top: 8px;
-            left: 10px;
+            top: 50%;
+            left: 8px;
+            right: 8px;
+            transform: translateY(-50%);
             font-size: 14px;
             font-weight: 700;
             letter-spacing: 0.04em;
             text-shadow: 0 1px 3px rgba(0,0,0,.6);
             color: white;
             pointer-events: none;
-            max-width: calc(100% - 80px);
+            text-align: center;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-
-        .area-toolbar {
+        /* ─── Area action bar ────────────────────────────────────────────────
+           Floats above each area on hover (below when near the top edge).
+           Child of the area overlay so CSS :hover drives visibility;
+           overflow:visible on :hover lets it escape the cell boundary. */
+        .area-action-bar {
             position: absolute;
-            top: 6px;
-            right: 6px;
-            display: flex;
-            gap: 3px;
-            background: rgba(0,0,0,.55);
-            backdrop-filter: blur(6px);
-            border-radius: 8px;
-            padding: 3px;
-            pointer-events: auto;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity .12s ease, visibility 0s linear .12s;
-        }
-        .area-overlay.selected .area-toolbar {
-            opacity: 1;
-            visibility: visible;
-            transition-delay: 0s;
-        }
-        .area-toolbar ha-icon-button {
-            --mdc-icon-button-size: 28px;
-            --mdc-icon-size: 15px;
-            color: white;
-            flex-shrink: 0;
-        }
-        .area-toolbar ha-icon-button:hover { color: var(--lcars-ui-primary, var(--primary-color)); }
-
-        .rename-input-wrapper {
-            position: absolute;
-            top: 6px;
-            left: 8px;
-            right: 8px;
-            pointer-events: auto;
-        }
-        .rename-input-wrapper ha-input {
-            width: 100%;
-            --text-field-font-size: 13px;
-        }
-
-        /* ─── Card list (inside selected area overlay) ────────────────────── */
-        .card-list {
-            position: absolute;
-            bottom: 0;
-            left: 0;
+            bottom: calc(100% + 5px);  /* above the cell */
             right: 0;
-            max-height: 50%;
-            overflow-y: auto;
-            background: rgba(0,0,0,.55);
-            backdrop-filter: blur(6px);
-            padding: 4px 0;
-            border-radius: 0 0 var(--ha-border-radius-sm,4px) var(--ha-border-radius-sm,4px);
-            pointer-events: auto;
-        }
-        .card-row {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 3px 8px;
-            font-size: 12px;
-            color: rgba(255,255,255,.85);
-            border-bottom: var(--ha-border-width-sm,1px) solid rgba(255,255,255,.08);
-        }
-        .card-row:last-child { border-bottom: none; }
-        .card-type {
-            flex: 1;
+            gap: 2px;
+            background: color-mix(in oklab, var(--card-background-color, #1c1c28) 85%, rgba(0,0,0,.3));
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: var(--ha-border-width-sm,1px) solid rgba(255,255,255,.14);
+            border-radius: var(--ha-border-radius-md, 8px);
+            padding: 4px;
+            box-shadow: var(--ha-box-shadow-m, 0 4px 16px rgba(0,0,0,.5));
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--ha-animation-duration-fast,.15s) ease;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-weight: 500;
+            z-index: 50;
         }
-        .card-row ha-icon-button {
-            --mdc-icon-button-size: 22px;
-            --mdc-icon-size: 13px;
-            color: rgba(255,255,255,.6);
+        /* Flip to below the cell when near the top edge (class set imperatively) */
+        .area-overlay.bar-below .area-action-bar {
+            bottom: auto;
+            top: calc(100% + 5px);
+        }
+        /* Bar shows on click (selected) or while renaming — not on hover */
+        .area-overlay.selected .area-action-bar,
+        .area-overlay.renaming .area-action-bar {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        /* Faint edit hint in top-right corner — signals the cell is clickable */
+        .area-overlay:not(.selected):not(.renaming)::after {
+            content: '';
+            position: absolute;
+            top: 5px; right: 5px;
+            width: 20px; height: 20px;
+            opacity: 0.45;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z'/%3E%3C/svg%3E") no-repeat center/contain;
+            pointer-events: none;
+        }
+
+        /* Individual action buttons in the bar */
+        .aab-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,.82);
+            cursor: pointer;
+            border-radius: var(--ha-border-radius-sm, 4px);
+            padding: 0;
             flex-shrink: 0;
+            transition: background var(--ha-animation-duration-fast,.15s), color var(--ha-animation-duration-fast,.15s);
         }
-        .card-row ha-icon-button:hover { color: white; }
-        .card-row ha-icon-button.danger:hover { color: var(--error-color, #ef4444); }
+        .aab-btn:hover { background: rgba(255,255,255,.12); color: white; }
+        .aab-btn.danger:hover { background: color-mix(in oklab, var(--error-color, #ef4444) 18%, transparent); color: var(--error-color, #ef4444); }
+        .aab-btn svg { pointer-events: none; }
+        /* Thin separator between button groups */
+        .aab-sep {
+            width: var(--ha-border-width-sm, 1px);
+            height: 20px;
+            background: rgba(255,255,255,.15);
+            flex-shrink: 0;
+            margin: 0 2px;
+        }
+
+        /* Rename input inside the bar (replaces buttons in-place) */
+        .aab-rename-input {
+            flex: 1;
+            min-width: 120px;
+            max-width: 200px;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 5px var(--ha-space-2, 8px);
+            border: var(--ha-border-width-sm,1px) solid var(--primary-color);
+            border-radius: var(--ha-border-radius-sm, 4px);
+            background: rgba(255,255,255,.1);
+            color: white;
+            outline: none;
+        }
+        .aab-rename-input::placeholder { color: rgba(255,255,255,.4); }
+        .aab-rename-confirm { color: var(--success-color, #4ade80) !important; }
+        .aab-rename-confirm:hover { background: color-mix(in oklab, var(--success-color, #4ade80) 18%, transparent) !important; }
 
         /* ─── Cell selection targets (unoccupied cells for rubber-band) ───── */
         .cell-target {
@@ -730,14 +771,37 @@ export class LCARdSGridEditOverlay extends LitElement {
             box-shadow: 0 4px 20px rgba(0,0,0,.5);
             min-width: 200px;
         }
+        .tp-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
         .tp-title {
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 0.07em;
             text-transform: uppercase;
             color: var(--secondary-text-color);
-            margin-bottom: 8px;
         }
+        .tp-close {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: var(--secondary-text-color);
+            cursor: pointer;
+            border-radius: var(--ha-border-radius-sm, 4px);
+            padding: 0;
+            font-size: 16px;
+            line-height: 1;
+            margin: -2px -4px -2px 4px;
+        }
+        .tp-close:hover { background: rgba(255,255,255,.1); color: var(--primary-text-color); }
         .tp-presets {
             display: flex;
             flex-wrap: wrap;
@@ -811,7 +875,23 @@ export class LCARdSGridEditOverlay extends LitElement {
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .ap-close { --mdc-icon-button-size: 28px; --mdc-icon-size: 16px; color: var(--secondary-text-color); }
+        .ap-close {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: var(--secondary-text-color);
+            cursor: pointer;
+            border-radius: var(--ha-border-radius-sm, 4px);
+            padding: 0;
+            font-size: 18px;
+            line-height: 1;
+        }
+        .ap-close:hover { background: rgba(255,255,255,.1); color: var(--primary-text-color); }
         .ap-body { padding: 10px 12px 12px; }
         .ap-group {
             display: flex;
@@ -900,6 +980,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         // This avoids shadow DOM boundary issues that affect document-level listeners.
         this.addEventListener('pointermove', this._boundPointerMove);
         this.addEventListener('pointerup',   this._boundPointerUp);
+        document.addEventListener('keydown', this._boundKeydown, true);
 
         // Re-measure whenever the overlay changes size — e.g. the HA sidebar is
         // expanded/collapsed, the window resizes, or a responsive breakpoint
@@ -913,8 +994,22 @@ export class LCARdSGridEditOverlay extends LitElement {
         super.disconnectedCallback();
         this.removeEventListener('pointermove', this._boundPointerMove);
         this.removeEventListener('pointerup',   this._boundPointerUp);
+        document.removeEventListener('keydown', this._boundKeydown, true);
         this._resizeObserver?.disconnect();
         this._resizeObserver = null;
+    }
+
+    _onDocKeydown(e) {
+        if (e.key !== 'Escape') return;
+        if (this._renaming) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            this._renaming = null;
+        } else if (this._trackPopover) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            this._trackPopover = null;
+        }
     }
 
     // Unified pointer move/up dispatcher — routes to the active drag handler
@@ -1089,22 +1184,27 @@ export class LCARdSGridEditOverlay extends LitElement {
                 <div class="drag-grip" @pointerdown=${this._toolbarDragStart} title="Drag to move">
                     <ha-icon icon="mdi:drag"></ha-icon>
                 </div>
-                <span class="toolbar-label">Layout</span>
+                <span class="toolbar-label">Layout Mode</span>
                 <div class="t-sep"></div>
                 <button class="t-btn" title="Add column" @click=${() => this._addTrack('col')}>
                     <ha-icon icon="mdi:table-column-plus-after"></ha-icon>
-                    <span>Col</span>
+                    <span>+ Col</span>
                 </button>
                 <button class="t-btn" title="Add row" @click=${() => this._addTrack('row')}>
                     <ha-icon icon="mdi:table-row-plus-after"></ha-icon>
-                    <span>Row</span>
+                    <span>+ Row</span>
                 </button>
                 <div class="t-sep"></div>
-                <div class="t-seg" title="Show area overlays, or hide them to preview cell backgrounds">
-                    <button class="t-seg-btn ${!this._hideAreas ? 'active' : ''}"
-                        @click=${() => { this._hideAreas = false; }}>Areas</button>
-                    <button class="t-seg-btn ${this._hideAreas ? 'active' : ''}"
-                        @click=${() => { this._hideAreas = true; }}>Cells</button>
+                <div class="t-opacity" title="Area overlay opacity">
+                    <ha-icon icon="mdi:opacity"></ha-icon>
+                    <input type="range" min="0" max="100" step="5"
+                        .value=${String(this._overlayOpacity)}
+                        style="--pct:${this._overlayOpacity}%"
+                        @input=${(e) => {
+                            this._overlayOpacity = Number(e.target.value);
+                            e.target.style.setProperty('--pct', `${this._overlayOpacity}%`);
+                        }}
+                    >
                 </div>
                 ${this.hideSettings ? nothing : html`
                     <div class="t-sep"></div>
@@ -1124,7 +1224,7 @@ export class LCARdSGridEditOverlay extends LitElement {
                         @click=${() => this.dispatchEvent(new CustomEvent('switch-to-cards-mode', { bubbles: false }))}
                     >
                         <ha-icon icon="mdi:card-multiple-outline"></ha-icon>
-                        <span>Edit Cards</span>
+                        <span>Switch to Edit Cards</span>
                     </button>
                 `}
             </div>
@@ -1179,9 +1279,15 @@ export class LCARdSGridEditOverlay extends LitElement {
             ? ['1fr', '2fr', '3fr', 'auto', '100px', '200px', '300px', '50%', 'clamp(100px,12vw,200px)']
             : ['1fr', '2fr', 'auto', '60px', '80px', '120px', '50%', 'clamp(40px,8vh,100px)'];
 
+        const closePopover = (e) => { e.stopPropagation(); this._trackPopover = null; };
         return html`
-            <div class="track-popover" id="track-popover" @click=${(e) => e.stopPropagation()}>
-                <div class="tp-title">${label} size</div>
+            <div class="track-popover" id="track-popover"
+                @click=${(e) => e.stopPropagation()}
+                @keydown=${(e) => { if (e.key === 'Escape') { closePopover(e); } else { e.stopPropagation(); } }}>
+                <div class="tp-header">
+                    <span class="tp-title">${label} size</span>
+                    <button class="tp-close" title="Close" @click=${closePopover}>×</button>
+                </div>
                 <div class="tp-presets">
                     ${presets.map(p => html`
                         <button
@@ -1196,6 +1302,7 @@ export class LCARdSGridEditOverlay extends LitElement {
                         .value=${current}
                         placeholder="e.g. 1fr, 200px, 25%"
                         @keydown=${(e) => {
+                            e.stopPropagation();
                             if (e.key === 'Enter')  { this._commitTrack(axis, index, e.target.value); this._trackPopover = null; }
                             if (e.key === 'Escape') { this._trackPopover = null; }
                         }}
@@ -1207,7 +1314,6 @@ export class LCARdSGridEditOverlay extends LitElement {
 
     _openTrackPopover(axis, index, e) {
         this._trackPopover = { axis, index };
-        // Position the popover after render using the header element's position
         this.updateComplete.then(() => {
             const popover = this.renderRoot?.querySelector('#track-popover');
             if (!popover) return;
@@ -1216,13 +1322,17 @@ export class LCARdSGridEditOverlay extends LitElement {
             if (!header) return;
             const hRect  = header.getBoundingClientRect();
             const oRect  = this.getBoundingClientRect();
-            const left   = hRect.left - oRect.left;
-            const top    = hRect.bottom - oRect.top + 4;
-            // Clamp to overlay bounds
-            const popW = 210;
-            const clampedLeft = Math.max(0, Math.min(left, (oRect.width ?? 800) - popW - 4));
-            popover.style.left = `${clampedLeft}px`;
-            popover.style.top  = `${top}px`;
+            const popH   = /** @type {HTMLElement} */ (popover).offsetHeight;
+            const popW   = 210;
+            // Horizontal: align to header left, clamp to overlay width
+            const rawLeft    = hRect.left - oRect.left;
+            const clampedLeft = Math.max(0, Math.min(rawLeft, oRect.width - popW - 4));
+            // Vertical: prefer below the header; flip above if it would overflow the overlay bottom
+            const belowTop = hRect.bottom - oRect.top + 4;
+            const aboveTop = hRect.top - oRect.top - popH - 4;
+            const top = (belowTop + popH > oRect.height && aboveTop >= 0) ? aboveTop : belowTop;
+            popover.style.left   = `${clampedLeft}px`;
+            popover.style.top    = `${Math.max(0, top)}px`;
             popover.style.bottom = 'auto';
             popover.querySelector('ha-input')?.focus?.();
         });
@@ -1352,56 +1462,73 @@ export class LCARdSGridEditOverlay extends LitElement {
     }
 
     _renderAreaOverlays() {
-        // "Cells" toggle: hide the colored area overlays so the real cell/area
-        // backgrounds are visible while configuring them.
-        if (this._hideAreas) return nothing;
         const areaNames = getAreaNames(this.areas);
+
+        // Inline SVG helper — no WA shadow-DOM sizing; exact pixel control
+        const ico = (d, sz = 18) => html`<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="currentColor" aria-hidden="true"><path d="${d}"/></svg>`;
+        const ICO_PENCIL = 'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z';
+        const ICO_PLUS   = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
+        const ICO_TUNE   = 'M8 13C6.14 13 4.59 14.28 4.14 16H2V18H4.14C4.59 19.72 6.14 21 8 21S11.41 19.72 11.86 18H22V16H11.86C11.41 14.28 9.86 13 8 13M8 19C6.9 19 6 18.1 6 17C6 15.9 6.9 15 8 15S10 15.9 10 17C10 18.1 9.1 19 8 19M19.86 6C19.41 4.28 17.86 3 16 3S12.59 4.28 12.14 6H2V8H12.14C12.59 9.72 14.14 11 16 11S19.41 9.72 19.86 8H22V6H19.86M16 9C14.9 9 14 8.1 14 7C14 5.9 14.9 5 16 5S18 5.9 18 7C18 8.1 17.1 9 16 9Z';
+        const ICO_DELETE = 'M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19M8,9H16V19H8V9M15.5,4L14.5,3H9.5L8.5,4H5V6H19V4H15.5Z';
+        const ICO_CHECK  = 'M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z';
+        const ICO_CLOSE  = 'M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z';
+
         return areaNames.map(name => {
             const isSelected = this._selectedArea === name;
+            const isRenaming = this._renaming === name;
             const { bg } = areaColor(name);
+
+            const barContent = isRenaming
+                ? html`
+                    <input class="aab-rename-input"
+                        .value=${name}
+                        placeholder="area-name"
+                        @keydown=${(/** @type {KeyboardEvent} */ e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter')  { this._commitRenameFromBar(name, /** @type {HTMLInputElement} */ (e.target).value); }
+                            if (e.key === 'Escape') { this._renaming = null; }
+                        }}
+                        @blur=${(/** @type {FocusEvent} */ e) => {
+                            if (this._renaming === name) this._commitRenameFromBar(name, /** @type {HTMLInputElement} */ (e.target).value);
+                        }}
+                    >
+                    <button class="aab-btn aab-rename-confirm" title="Confirm rename"
+                        @click=${(/** @type {MouseEvent} */ e) => {
+                            e.stopPropagation();
+                            const input = /** @type {HTMLInputElement|null} */ (e.currentTarget.previousElementSibling);
+                            if (input) this._commitRenameFromBar(name, input.value);
+                        }}>${ico(ICO_CHECK, 16)}</button>
+                    <button class="aab-btn" title="Cancel rename"
+                        @click=${(/** @type {MouseEvent} */ e) => { e.stopPropagation(); this._renaming = null; }}
+                    >${ico(ICO_CLOSE, 16)}</button>
+                  `
+                : html`
+                    <button class="aab-btn" title="Rename area"
+                        @click=${(/** @type {MouseEvent} */ e) => { e.stopPropagation(); this._startBarRename(name); }}
+                    >${ico(ICO_PENCIL)}</button>
+                    <button class="aab-btn" title="Add card to area"
+                        @click=${(/** @type {MouseEvent} */ e) => { e.stopPropagation(); this._addCardToArea(name); }}
+                    >${ico(ICO_PLUS)}</button>
+                    <div class="aab-sep"></div>
+                    <button class="aab-btn" title="Area background, border &amp; spacing"
+                        @click=${(/** @type {MouseEvent} */ e) => { e.stopPropagation(); this._openAreaSettings(name); }}
+                    >${ico(ICO_TUNE)}</button>
+                    <button class="aab-btn danger" title="Delete area (and its cards)"
+                        @click=${(/** @type {MouseEvent} */ e) => { e.stopPropagation(); this._deleteArea(name); }}
+                    >${ico(ICO_DELETE)}</button>
+                  `;
 
             return html`
                 <div
-                    class="area-overlay ${isSelected ? 'selected' : ''}"
+                    class="area-overlay ${isSelected ? 'selected' : ''} ${isRenaming ? 'renaming' : ''}"
                     id="ao-${name}"
-                    style="display:none; background: color-mix(in oklab, ${bg} 30%, transparent);"
+                    style="display:none; background: color-mix(in oklab, ${bg} ${this._overlayOpacity}%, transparent);"
                     @click=${(e) => { e.stopPropagation(); this._selectArea(name); }}
                 >
-                    ${isSelected && this._renaming === name
-                        ? html`
-                            <div class="rename-input-wrapper">
-                                <ha-input
-                                    .value=${name}
-                                    @keydown=${(e) => this._renameKeydown(e, name)}
-                                    @blur=${(e) => this._commitRename(name, e.target.value)}
-                                    @click=${(e) => e.stopPropagation()}
-                                ></ha-input>
-                            </div>`
-                        : html`<div class="area-label">${name}</div>`
-                    }
-                    <div class="area-toolbar">
-                        <ha-icon-button
-                            .label=${'Rename'}
-                            title="Rename area"
-                            @click=${(e) => { e.stopPropagation(); this._startRename(name); }}
-                        ><ha-icon icon="mdi:pencil"></ha-icon></ha-icon-button>
-                        <ha-icon-button
-                            .label=${'Add card'}
-                            title="Add card to area"
-                            @click=${(e) => { e.stopPropagation(); this._addCardToArea(name); }}
-                        ><ha-icon icon="mdi:plus"></ha-icon></ha-icon-button>
-                        <ha-icon-button
-                            .label=${'Area settings'}
-                            title="Area background, border & spacing"
-                            @click=${(e) => { e.stopPropagation(); this._openAreaSettings(name); }}
-                        ><ha-icon icon="mdi:tune-variant"></ha-icon></ha-icon-button>
-                        <ha-icon-button
-                            .label=${'Delete area'}
-                            title="Delete area (and its cards)"
-                            @click=${(e) => { e.stopPropagation(); this._deleteArea(name); }}
-                        ><ha-icon icon="mdi:delete-outline"></ha-icon></ha-icon-button>
+                    <div class="area-label">${name}</div>
+                    <div class="area-action-bar" @click=${(e) => e.stopPropagation()}>
+                        ${barContent}
                     </div>
-                    ${isSelected ? this._renderAreaCardList(name) : nothing}
                 </div>
             `;
         });
@@ -1570,6 +1697,8 @@ export class LCARdSGridEditOverlay extends LitElement {
             el.style.top     = `${tl.top}px`;
             el.style.width   = `${br.right - tl.left}px`;
             el.style.height  = `${br.bottom - tl.top}px`;
+            // Flip action bar below the cell when there isn't enough room above
+            el.classList.toggle('bar-below', tl.top < 50);
         }
     }
 
@@ -1911,21 +2040,21 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._editingTrack = null;
     }
 
-    _startRename(name) {
+    _startBarRename(name) {
         this._renaming = name;
         this.updateComplete.then(() => {
-            this.renderRoot?.querySelector(`#ao-${name} ha-input`)?.focus?.();
+            /** @type {HTMLInputElement|null} */ (this.renderRoot?.querySelector(`#ao-${name} .aab-rename-input`))?.select();
         });
     }
 
-    _renameKeydown(e, oldName) {
-        if (e.key === 'Enter') { e.target.blur(); }
-        if (e.key === 'Escape') { this._renaming = null; }
+    _commitRenameFromBar(oldName, newName) {
+        this._renaming = null;
+        const t = newName?.trim();
+        if (t && t !== oldName) this._commitRename(oldName, t);
     }
 
     _commitRename(oldName, newName) {
         const t = newName?.trim();
-        this._renaming = null;
         if (!t || t === oldName) return;
         if (!/^[a-zA-Z_-][a-zA-Z0-9_-]*$/.test(t)) {
             lcardsLog.warn(`[GridEditOverlay] Invalid area name: ${t}`);
@@ -1949,12 +2078,17 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._emitAreaCards(newCards);
     }
 
-    _deleteArea(name) {
+    async _deleteArea(name) {
+        const confirmed = await showConfirmDeleteDialog({
+            title: `Delete area "${name}"?`,
+            message: 'This will remove the area and all cards placed inside it.',
+            confirmText: 'Delete',
+        });
+        if (!confirmed) return;
         const newAreas = removeArea(this.areas, name);
         const newCards = (this.cardConfigs ?? []).filter(c => c?.view_layout?.['grid-area'] !== name);
         this._selectedArea = null;
         if (this._areaSettings === name) this._areaSettings = null;
-        // The view prunes layout.areas[name] when it sees the area is gone.
         this._emitGridState(this.columns, this.rows, newAreas);
         this._emitAreaCards(newCards);
     }
@@ -2032,9 +2166,7 @@ export class LCARdSGridEditOverlay extends LitElement {
                         <ha-icon icon="mdi:drag"></ha-icon>
                     </div>
                     <div class="ap-title">Area — ${name}</div>
-                    <ha-icon-button class="ap-close" .label=${'Close'} @click=${() => { this._areaSettings = null; }}>
-                        <ha-icon icon="mdi:close"></ha-icon>
-                    </ha-icon-button>
+                    <button class="ap-close" title="Close" @click=${() => { this._areaSettings = null; }}>×</button>
                 </div>
                 <div class="ap-body">
                     <div class="ap-group">Surface</div>
@@ -2124,12 +2256,33 @@ export class LCARdSGridEditOverlay extends LitElement {
 
                     <div class="ap-group">Placement</div>
                     <div class="ap-field">
-                        <label>Align</label>
+                        <label>Align ↕</label>
                         <ha-selector
                             .hass=${this.hass}
-                            .selector=${{ select: { mode: 'dropdown', options: AREA_ALIGN_OPTIONS } }}
-                            .value=${s['place-self'] ?? 'stretch'}
-                            @value-changed=${(e) => set('place-self', e.detail.value === 'stretch' ? undefined : e.detail.value)}
+                            .selector=${{ select: { mode: 'dropdown', options: AREA_ALIGN_V_OPTIONS } }}
+                            .value=${s['align-self'] ?? s['place-self'] ?? 'stretch'}
+                            @value-changed=${(e) => {
+                                const v = e.detail.value;
+                                const h = s['justify-self'] ?? s['place-self'] ?? 'stretch';
+                                set('place-self',   undefined);
+                                set('align-self',   v === 'stretch' ? undefined : v);
+                                set('justify-self', h === 'stretch' ? undefined : h);
+                            }}
+                        ></ha-selector>
+                    </div>
+                    <div class="ap-field">
+                        <label>Align ↔</label>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ select: { mode: 'dropdown', options: AREA_ALIGN_H_OPTIONS } }}
+                            .value=${s['justify-self'] ?? s['place-self'] ?? 'stretch'}
+                            @value-changed=${(e) => {
+                                const v = s['align-self'] ?? s['place-self'] ?? 'stretch';
+                                const h = e.detail.value;
+                                set('place-self',   undefined);
+                                set('align-self',   v === 'stretch' ? undefined : v);
+                                set('justify-self', h === 'stretch' ? undefined : h);
+                            }}
                         ></ha-selector>
                     </div>
                     <div class="ap-field">
@@ -2142,12 +2295,33 @@ export class LCARdSGridEditOverlay extends LitElement {
                         ></ha-input>
                     </div>
                     <div class="ap-field">
-                        <label>Overflow</label>
+                        <label>Overflow X</label>
                         <ha-selector
                             .hass=${this.hass}
                             .selector=${{ select: { mode: 'dropdown', options: AREA_OVERFLOW_OPTIONS } }}
-                            .value=${s.overflow ?? 'visible'}
-                            @value-changed=${(e) => set('overflow', e.detail.value === 'visible' ? undefined : e.detail.value)}
+                            .value=${s['overflow-x'] ?? s.overflow ?? 'visible'}
+                            @value-changed=${(e) => {
+                                const ox = e.detail.value;
+                                const oy = s['overflow-y'] ?? s.overflow ?? 'visible';
+                                set('overflow',   undefined);
+                                set('overflow-x', ox === 'visible' ? undefined : ox);
+                                set('overflow-y', oy === 'visible' ? undefined : oy);
+                            }}
+                        ></ha-selector>
+                    </div>
+                    <div class="ap-field">
+                        <label>Overflow Y</label>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ select: { mode: 'dropdown', options: AREA_OVERFLOW_OPTIONS } }}
+                            .value=${s['overflow-y'] ?? s.overflow ?? 'visible'}
+                            @value-changed=${(e) => {
+                                const ox = s['overflow-x'] ?? s.overflow ?? 'visible';
+                                const oy = e.detail.value;
+                                set('overflow',   undefined);
+                                set('overflow-x', ox === 'visible' ? undefined : ox);
+                                set('overflow-y', oy === 'visible' ? undefined : oy);
+                            }}
                         ></ha-selector>
                     </div>
                     <div class="ap-field">

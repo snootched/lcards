@@ -31,14 +31,22 @@ export const CARD_ITEM_STYLE_KEYS = new Set([
  * @returns {string}
  */
 export function buildGridStyle(layout = {}, columns, rows, areas, gap, opts = {}) {
-    const { withGutter = false, defaultHeight = 'calc(100dvh - var(--header-height, 56px))' } = opts;
+    const {
+        withGutter = false,
+        defaultHeight = 'calc(100dvh - var(--header-height, 56px))',
+        // Unconditional height override. The view passes '100%' here so that #grid-root fills
+        // the host element, which carries the actual height value. This way the CSS Grid engine
+        // receives the height as a parent-provided size rather than a self-imposed one.
+        // Note: in practice HA's layout context still treats available block-size as indefinite,
+        // so fr tracks are resolved in JS by _applyVisibilityRowHeights() rather than by CSS.
+        overrideHeight = undefined,
+        overflowY = 'auto',
+    } = opts;
     const parts = [];
 
-    const height = layout.height ?? defaultHeight;
-    if (height) {
-        parts.push(`height: ${height}`);
-        if (height !== 'auto') parts.push('overflow-y: auto');
-    }
+    const height = overrideHeight !== undefined ? overrideHeight : (layout.height ?? defaultHeight);
+    if (height) parts.push(`height: ${height}`);
+    if (layout.height != null && layout.height !== 'auto') parts.push(`overflow-y: ${overflowY}`);
 
     if (layout.margin != null)  parts.push(`margin: ${layout.margin}`);
     if (layout.padding != null) parts.push(`padding: ${layout.padding}`);
@@ -92,20 +100,61 @@ export function applyCardPlacement(gridItem, cardEl, viewLayout, cardMargin, car
     }
     const baseMargin = areaSettings.margin ?? cardMargin;
     gridItem.style.margin = baseMargin != null ? baseMargin : '';
-    cardEl.style.overflow = areaSettings.overflow ?? cardOverflow;
-    if (areaSettings['place-self']) {
+
+    // Overflow: clear both axes first, then apply area-settings fallback, then
+    // per-card view_layout (handled below in the loop).
+    cardEl.style.removeProperty('overflow');
+    cardEl.style.removeProperty('overflow-x');
+    cardEl.style.removeProperty('overflow-y');
+    const areaOverflow = areaSettings.overflow ?? cardOverflow;
+    if (areaSettings['overflow-x'] || areaSettings['overflow-y']) {
+        cardEl.style.setProperty('overflow-x', areaSettings['overflow-x'] ?? areaOverflow);
+        cardEl.style.setProperty('overflow-y', areaSettings['overflow-y'] ?? areaOverflow);
+    } else {
+        cardEl.style.overflow = areaOverflow;
+    }
+
+    // Alignment: support both the shorthand (place-self) and per-axis overrides.
+    if (areaSettings['align-self'] || areaSettings['justify-self']) {
+        if (areaSettings['align-self'])   gridItem.style.setProperty('align-self',   String(areaSettings['align-self']));
+        if (areaSettings['justify-self']) gridItem.style.setProperty('justify-self', String(areaSettings['justify-self']));
+    } else if (areaSettings['place-self']) {
         gridItem.style.setProperty('place-self', String(areaSettings['place-self']));
     }
 
     for (const [key, value] of Object.entries(viewLayout ?? {})) {
         if (key === 'show') continue;
         const v = String(value);
-        if (key === 'overflow') {
-            cardEl.style.setProperty('overflow', v);
+        if (key === 'overflow' || key === 'overflow-x' || key === 'overflow-y') {
+            cardEl.style.setProperty(key, v);
         } else if (key.startsWith('grid-') || CARD_ITEM_STYLE_KEYS.has(key)) {
             gridItem.style.setProperty(key, v);
         }
     }
+}
+
+/**
+ * Carry a nested `lcards-layout-card`'s height onto its grid-item wrapper.
+ *
+ * A layout-card sets its own host height, but the wrapper that actually IS the
+ * grid item (HA's `hui-card`, or the edit-mode `.card-edit-wrap`) stays auto-height
+ * and does NOT propagate the card's height up to a content-sized
+ * (`minmax(0,auto)` / `auto`) grid row — so that row collapses to 0 and the card
+ * overflows the next row. Setting the height on the grid item itself makes the row
+ * size to it (and it still collapses to 0 when the item is `display:none`).
+ *
+ * @param {HTMLElement} gridItem    the element participating in the grid
+ * @param {object} cardConfig       the child card config
+ */
+export function applyGridItemHeight(gridItem, cardConfig) {
+    if (cardConfig?.type !== 'custom:lcards-layout-card') return;
+    const h = cardConfig.layout?.height;
+    // Only forward a DEFINITE, non-percentage height (e.g. '8vh', '120px').
+    // '100%' → leave to grid stretch. 'auto' → do NOT set: hui-card's shadow DOM
+    // has a slot wrapper with height:100%, which resolves to 0 in an unsized
+    // parent, so hui-card at height:auto still reports 0px computed height and
+    // contributes nothing to the row's max-content.  Clearing to '' is correct.
+    gridItem.style.height = (h && h !== '100%' && h !== 'auto') ? h : '';
 }
 
 /** Resolve a `theme:` token to its value; pass CSS colors/vars through unchanged. */
