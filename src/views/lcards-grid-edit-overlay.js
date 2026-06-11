@@ -98,9 +98,9 @@ function areaColor(name) {
 }
 
 // ─── Dimension constants ───────────────────────────────────────────────────
-// Header bar height/width. Matches GRID_EDIT_GUTTER so the headers sit exactly
-// in the gutter the view reserves at the top/left of the grid during editing —
-// they never cover the first-row / first-column cells (or their "+" buttons).
+// Header bar height/width. Headers float over the first 28px of the first
+// row (col headers) and first column (row headers) at low opacity; they
+// brighten on hover. No gutter is reserved in the grid itself.
 const HEADER_OVERLAP = GRID_EDIT_GUTTER;
 const HANDLE_SIZE    = 10;   // px — resize/reorder handle thickness
 const MIN_TRACK_PX   = 20;   // px — minimum track size during resize
@@ -137,16 +137,22 @@ export class LCARdSGridEditOverlay extends LitElement {
         _areaSettings:   { state: true }, // area name whose settings panel is open | null
         _areaPanelPos:   { state: true }, // { top, left } | null — dragged area panel position
         _overlayOpacity: { state: true }, // area overlay color-mix % (0–100)
+        _headerOpacity:  { state: true }, // col/row header idle opacity % (0–100)
     };
 
     constructor() {
         super();
-        this.columns     = ['1fr', '1fr', '1fr'];
-        this.rows        = ['1fr', '1fr', '1fr'];
-        this.areas       = Array(3).fill(null).map(() => Array(3).fill('.'));
-        this.gap         = '5px';
-        this.cardConfigs = [];
-        this.layout      = {};
+        this.hass           = undefined;
+        this.columns        = ['1fr', '1fr', '1fr'];
+        this.rows           = ['1fr', '1fr', '1fr'];
+        this.areas          = Array(3).fill(null).map(() => Array(3).fill('.'));
+        this.gap            = '5px';
+        this.cardConfigs    = [];
+        this.layout         = {};
+        this.measureColumns = undefined;
+        this.measureRows    = undefined;
+        this.hideCardMode   = false;
+        this.hideSettings   = false;
 
         this._selectedArea = null;
         this._renaming     = null;
@@ -162,6 +168,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._areaPanelAnchor = null;
         this._areaPanelDrag  = null;
         this._overlayOpacity = 50;
+        this._headerOpacity  = 20;
 
         // Measurement cache: _cells[r][c] = DOMRect relative to overlay
         this._cells = [];
@@ -208,7 +215,7 @@ export class LCARdSGridEditOverlay extends LitElement {
             opacity: 0;
             pointer-events: none;
             box-sizing: border-box;
-            padding: ${HEADER_OVERLAP}px 0 0 ${HEADER_OVERLAP}px;
+            padding: 0;
         }
         .gc { min-width: 0; min-height: 0; }
 
@@ -342,12 +349,16 @@ export class LCARdSGridEditOverlay extends LitElement {
             border-radius: var(--ha-border-radius-sm, 4px) var(--ha-border-radius-sm, 4px) 0 0;
             box-sizing: border-box;
             overflow: hidden;
-            transition: background var(--ha-animation-duration-fast,.15s);
+            opacity: var(--lcards-header-opacity, 0.2);
+            transition: background var(--ha-animation-duration-fast,.15s), opacity var(--ha-animation-duration-fast,.15s), transform var(--ha-animation-duration-fast,.15s);
+            transform-origin: center top;
             z-index: 30;
         }
-        .col-header:hover { background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 20%, var(--card-background-color, rgba(0,0,0,.5))); }
+        .col-header:hover { opacity: 1; transform: scaleX(1.25) scaleY(1.1); z-index: 40; background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 20%, var(--card-background-color, rgba(0,0,0,.5))); }
+        .col-header.edge-start { transform-origin: left top; }
+        .col-header.edge-end   { transform-origin: right top; }
         .col-header.dragging { opacity: 0.5; cursor: grabbing; }
-        .col-header.drop-target { background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 35%, transparent); }
+        .col-header.drop-target { opacity: 1; background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 35%, transparent); }
 
         /* ─── Row headers ─────────────────────────────────────────────────── */
         .row-header {
@@ -368,12 +379,16 @@ export class LCARdSGridEditOverlay extends LitElement {
             border-radius: var(--ha-border-radius-sm, 4px) 0 0 var(--ha-border-radius-sm, 4px);
             box-sizing: border-box;
             overflow: hidden;
-            transition: background var(--ha-animation-duration-fast,.15s);
+            opacity: var(--lcards-header-opacity, 0.2);
+            transition: background var(--ha-animation-duration-fast,.15s), opacity var(--ha-animation-duration-fast,.15s), transform var(--ha-animation-duration-fast,.15s);
+            transform-origin: left center;
             z-index: 30;
         }
-        .row-header:hover { background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 20%, var(--card-background-color, rgba(0,0,0,.5))); }
+        .row-header:hover { opacity: 1; transform: scaleX(1.1) scaleY(1.25); z-index: 40; background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 20%, var(--card-background-color, rgba(0,0,0,.5))); }
+        .row-header.edge-start { transform-origin: left top; }
+        .row-header.edge-end   { transform-origin: left bottom; }
         .row-header.dragging { opacity: 0.5; cursor: grabbing; }
-        .row-header.drop-target { background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 35%, transparent); }
+        .row-header.drop-target { opacity: 1; background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 35%, transparent); }
 
         /* ─── Track size label ────────────────────────────────────────────── */
         .track-label {
@@ -466,12 +481,12 @@ export class LCARdSGridEditOverlay extends LitElement {
         .rh-col {
             cursor: col-resize;
             width: ${HANDLE_SIZE}px;
-            top: ${HEADER_OVERLAP}px;
+            top: 0;
         }
         .rh-row {
             cursor: row-resize;
             height: ${HANDLE_SIZE}px;
-            left: ${HEADER_OVERLAP}px;
+            left: 0;
         }
         .resize-handle::after {
             content: '';
@@ -971,6 +986,12 @@ export class LCARdSGridEditOverlay extends LitElement {
     `;
 
     // ──────────────────────────────────────────────────────────────────────
+    /** Typed querySelector — returns HTMLElement so callers can access .style/.focus. */
+    _qh(/** @type {string} */ sel) {
+        if (!this.renderRoot) return null;
+        return /** @type {HTMLElement|null} */ (this.renderRoot.querySelector(sel));
+    }
+
     // Lifecycle
     // ──────────────────────────────────────────────────────────────────────
 
@@ -1030,7 +1051,7 @@ export class LCARdSGridEditOverlay extends LitElement {
 
     _toolbarDragStart(e) {
         e.stopPropagation();
-        const toolbar = this.renderRoot?.querySelector('#toolbar');
+        const toolbar = this._qh('#toolbar');
         const rect = toolbar?.getBoundingClientRect();
         const oRect = this.getBoundingClientRect();
         this._toolbarDrag = {
@@ -1049,9 +1070,9 @@ export class LCARdSGridEditOverlay extends LitElement {
             top:  e.clientY - oTop  - offsetY,
         };
     }
-    _toolbarDragEnd() {
+    _toolbarDragEnd(_e) {
         this._toolbarDrag = null;
-        this.renderRoot?.querySelector('#toolbar')?.classList.remove('dragging');
+        this._qh('#toolbar')?.classList.remove('dragging');
     }
 
     /** Hit-test which cell (r,c) the pointer is over, using measured cell rects. */
@@ -1072,8 +1093,11 @@ export class LCARdSGridEditOverlay extends LitElement {
         return null;
     }
 
-    updated() {
+    updated(changed) {
         this._scheduleMeasure();
+        if (changed.has('_headerOpacity')) {
+            this.style.setProperty('--lcards-header-opacity', String(this._headerOpacity / 100));
+        }
     }
 
     /**
@@ -1094,7 +1118,7 @@ export class LCARdSGridEditOverlay extends LitElement {
     }
 
     _measure() {
-        const ghost = this.renderRoot?.querySelector('#ghost-grid');
+        const ghost = this._qh('#ghost-grid');
         if (!ghost) return;
 
         const overlayRect = this.getBoundingClientRect();
@@ -1203,6 +1227,18 @@ export class LCARdSGridEditOverlay extends LitElement {
                         @input=${(e) => {
                             this._overlayOpacity = Number(e.target.value);
                             e.target.style.setProperty('--pct', `${this._overlayOpacity}%`);
+                        }}
+                    >
+                </div>
+                <div class="t-opacity" title="Track header opacity">
+                    <ha-icon icon="mdi:table-headers-eye"></ha-icon>
+                    <input type="range" min="0" max="100" step="5"
+                        .value=${String(this._headerOpacity)}
+                        style="--pct:${this._headerOpacity}%"
+                        @input=${(e) => {
+                            this._headerOpacity = Number(e.target.value);
+                            e.target.style.setProperty('--pct', `${this._headerOpacity}%`);
+                            this.style.setProperty('--lcards-header-opacity', String(this._headerOpacity / 100));
                         }}
                     >
                 </div>
@@ -1315,10 +1351,10 @@ export class LCARdSGridEditOverlay extends LitElement {
     _openTrackPopover(axis, index, e) {
         this._trackPopover = { axis, index };
         this.updateComplete.then(() => {
-            const popover = this.renderRoot?.querySelector('#track-popover');
+            const popover = this._qh('#track-popover');
             if (!popover) return;
             const headerId = axis === 'col' ? `ch-${index}` : `rh-${index}`;
-            const header   = this.renderRoot?.querySelector(`#${headerId}`);
+            const header   = this._qh(`#${headerId}`);
             if (!header) return;
             const hRect  = header.getBoundingClientRect();
             const oRect  = this.getBoundingClientRect();
@@ -1334,7 +1370,7 @@ export class LCARdSGridEditOverlay extends LitElement {
             popover.style.left   = `${clampedLeft}px`;
             popover.style.top    = `${Math.max(0, top)}px`;
             popover.style.bottom = 'auto';
-            popover.querySelector('ha-input')?.focus?.();
+            (/** @type {HTMLElement|null} */ (popover.querySelector('ha-input')))?.focus();
         });
     }
 
@@ -1495,7 +1531,7 @@ export class LCARdSGridEditOverlay extends LitElement {
                     <button class="aab-btn aab-rename-confirm" title="Confirm rename"
                         @click=${(/** @type {MouseEvent} */ e) => {
                             e.stopPropagation();
-                            const input = /** @type {HTMLInputElement|null} */ (e.currentTarget.previousElementSibling);
+                            const input = /** @type {HTMLInputElement|null} */ ((/** @type {HTMLElement} */ (e.currentTarget)).previousElementSibling);
                             if (input) this._commitRenameFromBar(name, input.value);
                         }}>${ico(ICO_CHECK, 16)}</button>
                     <button class="aab-btn" title="Cancel rename"
@@ -1589,23 +1625,25 @@ export class LCARdSGridEditOverlay extends LitElement {
         if (!cells.length || !cells[0]?.length) return;
 
         for (let i = 0; i < this.columns.length; i++) {
-            const el = this.renderRoot?.querySelector(`#ch-${i}`);
+            const el = this._qh(`#ch-${i}`);
             if (!el) continue;
             const cell = cells[0]?.[i];
             if (!cell) continue;
             el.style.left   = `${cell.left}px`;
             el.style.width  = `${cell.width}px`;
             el.style.height = `${HEADER_OVERLAP}px`;
-            el.style.top    = `${Math.max(0, cell.top - HEADER_OVERLAP)}px`;
+            el.style.top    = `${cell.top}px`;  // floats over top of cell
+            el.classList.toggle('edge-start', i === 0);
+            el.classList.toggle('edge-end',  i === this.columns.length - 1);
         }
 
         // Add-col button: after last column
         const lastCell = cells[0]?.[this.columns.length - 1];
         if (lastCell) {
-            const addBtn = this.renderRoot?.querySelector('.add-col-btn');
+            const addBtn = this._qh('.add-col-btn');
             if (addBtn) {
                 addBtn.style.left = `${lastCell.right + 4}px`;
-                addBtn.style.top  = `${Math.max(0, lastCell.top - HEADER_OVERLAP)}px`;
+                addBtn.style.top  = `${lastCell.top}px`;
             }
         }
     }
@@ -1615,23 +1653,25 @@ export class LCARdSGridEditOverlay extends LitElement {
         if (!cells.length) return;
 
         for (let i = 0; i < this.rows.length; i++) {
-            const el = this.renderRoot?.querySelector(`#rh-${i}`);
+            const el = this._qh(`#rh-${i}`);
             if (!el) continue;
             const cell = cells[i]?.[0];
             if (!cell) continue;
             el.style.top    = `${cell.top}px`;
             el.style.height = `${cell.height}px`;
             el.style.width  = `${HEADER_OVERLAP}px`;
-            el.style.left   = `${Math.max(0, cell.left - HEADER_OVERLAP)}px`;
+            el.style.left   = `${cell.left}px`;  // floats over left of cell
+            el.classList.toggle('edge-start', i === 0);
+            el.classList.toggle('edge-end',  i === this.rows.length - 1);
         }
 
         // Add-row button: below last row
         const lastCell = cells[this.rows.length - 1]?.[0];
         if (lastCell) {
-            const addBtn = this.renderRoot?.querySelector('.add-row-btn');
+            const addBtn = this._qh('.add-row-btn');
             if (addBtn) {
                 addBtn.style.top  = `${lastCell.bottom + 4}px`;
-                addBtn.style.left = `${Math.max(0, lastCell.left - HEADER_OVERLAP)}px`;
+                addBtn.style.left = `${lastCell.left}px`;
             }
         }
     }
@@ -1652,7 +1692,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         const gridRight  = rightCell?.right ?? 0;
 
         for (let i = 0; i < this.columns.length - 1; i++) {
-            const el = this.renderRoot?.querySelector(`#rhc-${i}`);
+            const el = this._qh(`#rhc-${i}`);
             if (!el) continue;
             const a = cells[0]?.[i];
             const b = cells[0]?.[i + 1];
@@ -1666,7 +1706,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         }
 
         for (let i = 0; i < this.rows.length - 1; i++) {
-            const el = this.renderRoot?.querySelector(`#rhr-${i}`);
+            const el = this._qh(`#rhr-${i}`);
             if (!el) continue;
             const a = cells[i]?.[0];
             const b = cells[i + 1]?.[0];
@@ -1684,7 +1724,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         const cells = this._cells;
         if (!cells.length) return;
         for (const name of getAreaNames(this.areas)) {
-            const el = this.renderRoot?.querySelector(`#ao-${name}`);
+            const el = this._qh(`#ao-${name}`);
             if (!el) continue;
             const bounds = getAreaBounds(this.areas, name);
             if (!bounds) continue;
@@ -1708,7 +1748,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         for (let r = 0; r < this.rows.length; r++) {
             for (let c = 0; c < this.columns.length; c++) {
                 if (this.areas[r]?.[c] !== '.') continue;
-                const el = this.renderRoot?.querySelector(`#ct-${r}-${c}`);
+                const el = this._qh(`#ct-${r}-${c}`);
                 if (!el) continue;
                 const cell = cells[r]?.[c];
                 if (!cell) continue;
@@ -1732,7 +1772,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         const tl = cells[minR]?.[minC];
         const br = cells[maxR]?.[maxC];
         if (!tl || !br) return;
-        const el = this.renderRoot?.querySelector('#sel-rect');
+        const el = this._qh('#sel-rect');
         if (!el) return;
         el.style.left   = `${tl.left}px`;
         el.style.top    = `${tl.top}px`;
@@ -1751,7 +1791,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         const tl = cells[minR]?.[minC];
         const br = cells[maxR]?.[maxC];
         if (!tl || !br) return;
-        const popup = this.renderRoot?.querySelector('#name-popup');
+        const popup = this._qh('#name-popup');
         if (!popup) return;
         popup.style.display = 'flex';
         const cx = tl.left + (br.right  - tl.left) / 2;
@@ -1760,7 +1800,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         popup.style.left = `${Math.max(4, Math.min(cx - popupW / 2, (this._overlayRect?.width ?? 800) - popupW - 4))}px`;
         popup.style.top  = `${Math.max(4, Math.min(cy - popupH / 2, (this._overlayRect?.height ?? 600) - popupH - 4))}px`;
         // Focus the input
-        requestAnimationFrame(() => popup.querySelector('ha-input')?.focus?.());
+        requestAnimationFrame(() => (/** @type {HTMLElement|null} */ (popup.querySelector('ha-input')))?.focus());
     }
 
     _positionAddButtons() {
@@ -1770,8 +1810,8 @@ export class LCARdSGridEditOverlay extends LitElement {
     /** Anchor the settings panel just below the (possibly dragged) toolbar. */
     _positionSettingsPanel() {
         if (!this._showSettings) return;
-        const panel = this.renderRoot?.querySelector('.settings-panel');
-        const toolbar = this.renderRoot?.querySelector('#toolbar');
+        const panel = this._qh('.settings-panel');
+        const toolbar = this._qh('#toolbar');
         if (!panel || !toolbar) return;
         const tRect = toolbar.getBoundingClientRect();
         const oRect = this._overlayRect ?? this.getBoundingClientRect();
@@ -1796,7 +1836,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         // Focus the input after render
         this.updateComplete.then(() => {
             const sel = axis === 'col' ? `#ch-${index} input` : `#rh-${index} input`;
-            this.renderRoot?.querySelector(sel)?.focus();
+            this._qh(sel)?.focus();
         });
     }
 
@@ -1870,7 +1910,7 @@ export class LCARdSGridEditOverlay extends LitElement {
 
     /** Position/label the floating chip that shows which track is being dragged. */
     _updateDragChip(clientX, clientY) {
-        const chip = this.renderRoot?.querySelector('#drag-chip');
+        const chip = this._qh('#drag-chip');
         if (!chip || !this._reorderDrag) return;
         const { axis, fromIndex, currentIndex } = this._reorderDrag;
         const label = axis === 'col' ? 'Col' : 'Row';
@@ -1884,7 +1924,7 @@ export class LCARdSGridEditOverlay extends LitElement {
     }
 
     _hideDragChip() {
-        const chip = this.renderRoot?.querySelector('#drag-chip');
+        const chip = this._qh('#drag-chip');
         if (chip) chip.style.display = 'none';
     }
 
@@ -1927,7 +1967,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._updateDragChip(e.clientX, e.clientY);
     }
 
-    _reorderUp() {
+    _reorderUp(_e) {
         if (!this._reorderDrag) return;
         const { axis, fromIndex, currentIndex } = this._reorderDrag;
         this._reorderDrag    = null;
@@ -1967,7 +2007,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         e.currentTarget.setPointerCapture(e.pointerId);
         e.currentTarget.classList.add('active');
 
-        const ghost    = this.renderRoot?.querySelector('#ghost-grid');
+        const ghost    = this._qh('#ghost-grid');
         const container = axis === 'col' ? (ghost?.clientWidth ?? 800) : (ghost?.clientHeight ?? 600);
 
         this._resizeDrag = {
@@ -1989,7 +2029,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._resizeDrag._pendingTracks = newTracks;
 
         // Live preview: update ghost-grid so measurements stay accurate on next rAF
-        const ghost = this.renderRoot?.querySelector('#ghost-grid');
+        const ghost = this._qh('#ghost-grid');
         if (ghost) {
             const prop = axis === 'col' ? 'gridTemplateColumns' : 'gridTemplateRows';
             ghost.style[prop] = newTracks.join(' ');
@@ -2009,7 +2049,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._scheduleMeasure();
     }
 
-    _resizeUp() {
+    _resizeUp(_e) {
         if (!this._resizeDrag) return;
         const { axis, _pendingTracks, el } = this._resizeDrag;
         this._resizeDrag = null;
@@ -2018,7 +2058,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         if (!_pendingTracks) return;
 
         // Reset ghost-grid style (it will be set correctly by _emitGridState → re-render)
-        const ghost = this.renderRoot?.querySelector('#ghost-grid');
+        const ghost = this._qh('#ghost-grid');
         if (ghost) {
             ghost.style.gridTemplateColumns = '';
             ghost.style.gridTemplateRows    = '';
@@ -2043,7 +2083,7 @@ export class LCARdSGridEditOverlay extends LitElement {
     _startBarRename(name) {
         this._renaming = name;
         this.updateComplete.then(() => {
-            /** @type {HTMLInputElement|null} */ (this.renderRoot?.querySelector(`#ao-${name} .aab-rename-input`))?.select();
+            /** @type {HTMLInputElement|null} */ (this._qh(`#ao-${name} .aab-rename-input`))?.select();
         });
     }
 
@@ -2100,7 +2140,7 @@ export class LCARdSGridEditOverlay extends LitElement {
     _openAreaSettings(name) {
         this._selectedArea = name;
         const host = this.getBoundingClientRect();
-        const el = this.renderRoot?.querySelector(`#ao-${name}`);
+        const el = this._qh(`#ao-${name}`);
         const r = el?.getBoundingClientRect();
         const panelW = 360;
         const gap = 10;
@@ -2127,7 +2167,7 @@ export class LCARdSGridEditOverlay extends LitElement {
 
     _areaPanelDragStart(e) {
         e.stopPropagation();
-        const panel = this.renderRoot?.querySelector('.area-panel');
+        const panel = this._qh('.area-panel');
         const rect  = panel?.getBoundingClientRect();
         const oRect = this.getBoundingClientRect();
         e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -2147,10 +2187,10 @@ export class LCARdSGridEditOverlay extends LitElement {
             top:  e.clientY - oTop  - offsetY,
         };
     }
-    _areaPanelDragEnd() {
+    _areaPanelDragEnd(_e) {
         if (!this._areaPanelDrag) return;
         this._areaPanelDrag = null;
-        this.renderRoot?.querySelector('.area-panel')?.classList.remove('dragging');
+        this._qh('.area-panel')?.classList.remove('dragging');
     }
 
     _renderAreaSettingsPanel() {
@@ -2426,14 +2466,14 @@ export class LCARdSGridEditOverlay extends LitElement {
             this._positionSelectionRect();
             for (let row = 0; row < this.rows.length; row++) {
                 for (let col = 0; col < this.columns.length; col++) {
-                    const el = this.renderRoot?.querySelector(`#ct-${row}-${col}`);
+                    const el = this._qh(`#ct-${row}-${col}`);
                     if (el) el.classList.toggle('in-sel', this._isCellInSel(row, col));
                 }
             }
         }
     }
 
-    _selUp() {
+    _selUp(_e) {
         if (!this._selDrag) return;
         this._selDrag = false;
         // Only open the name popup if the user actually dragged across cells.
@@ -2486,7 +2526,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         };
         const result = cellsToAreaName(this.areas, bounds, name);
         if (!result.ok) {
-            lcardsLog.warn(`[GridEditOverlay] Cannot create area: ${result.error}`);
+            lcardsLog.warn(`[GridEditOverlay] Cannot create area: ${/** @type {any} */ (result).error}`);
             return;
         }
         this._selStart      = null;

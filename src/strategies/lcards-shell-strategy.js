@@ -53,6 +53,12 @@ export class LCARdSShellStrategyEditor extends LitElement {
         _config: { state: true },
     };
 
+    constructor() {
+        super();
+        this.hass    = undefined;
+        this._config = {};
+    }
+
     setConfig(config) {
         this._config = config;
     }

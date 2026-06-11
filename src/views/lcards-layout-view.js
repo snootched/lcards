@@ -112,6 +112,7 @@ export class LCARdSLayoutView extends LitElement {
 
     constructor() {
         super();
+        this.index        = undefined;
         this._config      = {};
         this._editMode    = false;
         this._editSubMode = 'grid'; // reset to grid mode each time edit mode activates
@@ -125,7 +126,7 @@ export class LCARdSLayoutView extends LitElement {
         this._mediaQueryLists = []; // active MediaQueryList instances
         this._pendingAddArea  = null; // area name waiting for HA's card picker to save
         this._pendingEditCard = null; // { index, viewLayout } — preserves view_layout through card edit
-        this._editOverlayEl   = null; // imperatively-created grid edit overlay element
+        /** @type {any} */ this._editOverlayEl = null; // imperatively-created grid edit overlay element
 
         this._cardBarPos  = null;     // dragged card-mode bar position
         this._cardBarDrag = null;     // active drag state for the card-mode bar
@@ -163,6 +164,12 @@ export class LCARdSLayoutView extends LitElement {
     _onHostPointerUp(e) {
         if (this._cardBarDrag)   this._cardBarDragEnd(e);
         if (this._placementDrag) this._placementDragEnd(e);
+    }
+
+    /** Typed querySelector — returns HTMLElement so callers can access .style. */
+    _qh(/** @type {string} */ sel) {
+        if (!this.renderRoot) return null;
+        return /** @type {HTMLElement|null} */ (this.renderRoot.querySelector(sel));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -275,7 +282,7 @@ export class LCARdSLayoutView extends LitElement {
 
     _cardBarDragStart(e) {
         e.stopPropagation();
-        const bar  = this.renderRoot?.querySelector('.card-mode-bar');
+        const bar  = this._qh('.card-mode-bar');
         const rect = bar?.getBoundingClientRect();
         const oRect = this.getBoundingClientRect();
         e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -295,15 +302,15 @@ export class LCARdSLayoutView extends LitElement {
             top:  e.clientY - oTop  - offsetY,
         };
     }
-    _cardBarDragEnd() {
+    _cardBarDragEnd(_e) {
         if (!this._cardBarDrag) return;
         this._cardBarDrag = null;
-        this.renderRoot?.querySelector('.card-mode-bar')?.classList.remove('dragging');
+        this._qh('.card-mode-bar')?.classList.remove('dragging');
     }
 
     _placementDragStart(e) {
         e.stopPropagation();
-        const panel = this.renderRoot?.querySelector('.placement-panel');
+        const panel = this._qh('.placement-panel');
         const rect  = panel?.getBoundingClientRect();
         const host  = this.getBoundingClientRect();
         e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -323,10 +330,10 @@ export class LCARdSLayoutView extends LitElement {
             top:  e.clientY - oTop  - offsetY,
         };
     }
-    _placementDragEnd() {
+    _placementDragEnd(_e) {
         if (!this._placementDrag) return;
         this._placementDrag = null;
-        this.renderRoot?.querySelector('.placement-panel')?.classList.remove('dragging');
+        this._qh('.placement-panel')?.classList.remove('dragging');
     }
 
     updated(changed) {
@@ -375,7 +382,7 @@ export class LCARdSLayoutView extends LitElement {
             // Mirror the real grid's resolved track sizes onto the overlay's ghost
             // grid so content-sized tracks (auto / min-content) stay aligned — the
             // empty ghost otherwise collapses those and the overlay drifts.
-            const grid = this.renderRoot?.querySelector('#grid-root');
+            const grid = this._qh('#grid-root');
             if (grid && !this._gridResizeObserver) {
                 this._gridResizeObserver = new ResizeObserver(() => this._syncMeasureTracks());
                 this._gridResizeObserver.observe(grid);
@@ -398,7 +405,7 @@ export class LCARdSLayoutView extends LitElement {
      *  matches content-sized tracks (auto / min-content). */
     _syncMeasureTracks() {
         const overlay = this._editOverlayEl;
-        const grid = this.renderRoot?.querySelector('#grid-root');
+        const grid = this._qh('#grid-root');
         if (!overlay || !grid) return;
         const cs = getComputedStyle(grid);
         const cols = cs.gridTemplateColumns;
@@ -679,7 +686,7 @@ export class LCARdSLayoutView extends LitElement {
         this.style.height = hostHeight;
 
         const gridStyle = buildGridStyle(layout, this._columns, this._rows, this._areas, this._gap, {
-            withGutter: this._editMode && this._editSubMode === 'grid',
+            withGutter: false, // Option B: headers float over first 28px of grid, no gutter reserved
             overflowY: 'clip',
             overrideHeight: '100%',  // #grid-root fills the host; host carries the actual height
         });
@@ -735,7 +742,7 @@ export class LCARdSLayoutView extends LitElement {
      * Called whenever cards or layout changes.
      */
     _placeCards() {
-        const grid = this.renderRoot?.querySelector('#grid-root');
+        const grid = this._qh('#grid-root');
         if (!grid) return;
 
         grid.innerHTML = '';
@@ -879,7 +886,7 @@ export class LCARdSLayoutView extends LitElement {
      * space, then write explicit px values for every fr track.
      */
     _applyVisibilityRowHeights() {
-        const grid = this.renderRoot?.querySelector('#grid-root');
+        const grid = this._qh('#grid-root');
         if (!grid) return;
 
         const rows = [...this._baseRows];
@@ -1180,7 +1187,7 @@ export class LCARdSLayoutView extends LitElement {
                 const dlg = document.querySelector('home-assistant')?.shadowRoot
                     ?.querySelector('hui-dialog-create-card');
                 if (dlg) {
-                    try { dlg.closeDialog?.(); } catch { /* ignore */ }
+                    try { (/** @type {any} */ (dlg)).closeDialog?.(); } catch { /* ignore */ }
                     try { dlg.remove(); } catch { /* ignore */ }
                     lcardsLog.debug('[LCARSLayoutView] card picker primed');
                     return;
@@ -1218,7 +1225,7 @@ export class LCARdSLayoutView extends LitElement {
     }
 
     _applyMediaQueryOverrides() {
-        const grid = this.renderRoot?.querySelector('#grid-root');
+        const grid = this._qh('#grid-root');
         if (!grid) return;
 
         const baseLayout   = this._config?.layout ?? {};
@@ -1258,7 +1265,7 @@ export class LCARdSLayoutView extends LitElement {
     _onGridPreviewChanged(ev) {
         ev.stopPropagation();
         const { columns, rows, gap } = ev.detail;
-        const grid = this.renderRoot?.querySelector('#grid-root');
+        const grid = this._qh('#grid-root');
         if (!grid) return;
         if (columns) grid.style.gridTemplateColumns = columns.join(' ');
         if (rows)    grid.style.gridTemplateRows    = rows.join(' ');

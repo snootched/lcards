@@ -181,6 +181,7 @@ const LCARDS_COMPONENT_VARS = new Set([
   'lcards-grid-edit-handle-size',
   'lcards-grid-edit-area-opacity',
   'lcards-grid-edit-selection-color',
+  'lcards-header-opacity',
 ]);
 
 /**

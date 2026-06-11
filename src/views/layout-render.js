@@ -26,8 +26,10 @@ export const CARD_ITEM_STYLE_KEYS = new Set([
  * @param {string[][]} areas   2D area matrix
  * @param {string}   gap       grid gap
  * @param {object}   [opts]
- * @param {boolean}  [opts.withGutter=false]  reserve the top/left editor gutter
- * @param {string}   [opts.defaultHeight]     height when `layout.height` is unset
+ * @param {boolean}  [opts.withGutter=false]    reserve the top/left editor gutter
+ * @param {string}   [opts.defaultHeight]       height when `layout.height` is unset
+ * @param {string}   [opts.overrideHeight]      unconditional height override (ignores layout.height)
+ * @param {string}   [opts.overflowY]           overflow-y value (default 'auto')
  * @returns {string}
  */
 export function buildGridStyle(layout = {}, columns, rows, areas, gap, opts = {}) {
