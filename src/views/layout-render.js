@@ -152,10 +152,11 @@ export function applyGridItemHeight(gridItem, cardConfig) {
     if (cardConfig?.type !== 'custom:lcards-layout-card') return;
     const h = cardConfig.layout?.height;
     // Only forward a DEFINITE, non-percentage height (e.g. '8vh', '120px').
-    // '100%' → leave to grid stretch. 'auto' → do NOT set: hui-card's shadow DOM
-    // has a slot wrapper with height:100%, which resolves to 0 in an unsized
-    // parent, so hui-card at height:auto still reports 0px computed height and
-    // contributes nothing to the row's max-content.  Clearing to '' is correct.
+    // '100%' → leave to grid stretch. 'auto' → do NOT set: hui-card renders
+    // into light DOM with no height of its own, and the layout-card host
+    // inside it is height:100% — a percentage with nothing to resolve against
+    // in an unsized row — so hui-card reports 0px and contributes nothing to
+    // the row's max-content.  Clearing to '' is correct.
     gridItem.style.height = (h && h !== '100%' && h !== 'auto') ? h : '';
 }
 

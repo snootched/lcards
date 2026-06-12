@@ -44,10 +44,11 @@ export class LCARdSSelectMenu extends LCARdSCard {
     static get properties() {
         return {
             ...super.properties,
-            _resolvedStyle:  { type: Object,  state: true },
-            _optionList:     { type: Array,   state: true },
-            _hoverOption:    { type: String,  state: true },
-            _pressedOption:  { type: String,  state: true },
+            _resolvedStyle:   { type: Object,  state: true },
+            _optionList:      { type: Array,   state: true },
+            _hoverOption:     { type: String,  state: true },
+            _pressedOption:   { type: String,  state: true },
+            _containerHeight: { type: Number,  state: true },
         };
     }
 
@@ -126,15 +127,34 @@ export class LCARdSSelectMenu extends LCARdSCard {
 
     constructor() {
         super();
-        this._resolvedStyle  = null;
-        this._optionList     = [];
-        this._hoverOption    = null;
-        this._pressedOption  = null;
+        this._resolvedStyle   = null;
+        this._optionList      = [];
+        this._hoverOption     = null;
+        this._pressedOption   = null;
+        this._containerHeight = 0;
+        this._containerRO     = null;
     }
 
     // =========================================================================
     // LIFECYCLE
     // =========================================================================
+
+    connectedCallback() {
+        super.connectedCallback();
+        if (!this._containerRO) {
+            this._containerRO = new ResizeObserver(entries => {
+                const h = entries[0]?.contentRect?.height ?? 0;
+                if (h !== this._containerHeight) this._containerHeight = h;
+            });
+            this._containerRO.observe(this);
+        }
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this._containerRO?.disconnect();
+        this._containerRO = null;
+    }
 
     _onConfigSet(config) {
         super._onConfigSet(config);
@@ -563,7 +583,68 @@ export class LCARdSSelectMenu extends LCARdSCard {
         const rowGap  = gridCfg['row-gap']    || gridCfg.row_gap    || gap;
         const colGap  = gridCfg['column-gap'] || gridCfg.column_gap || gap;
         const autoFlow = gridCfg['grid-auto-flow'] || 'row';
-        const autoRows = gridCfg['grid-auto-rows'] || '56px';
+        let   autoRows  = gridCfg['grid-auto-rows'] || '56px';
+        let   overflowY = null;
+
+        // Fit mode: grid.height='fit' publishes the menu's natural height as a
+        // definite inline height on the HOST. Content-sized outer grid tracks
+        // (auto / max-content) cannot reliably measure the menu through HA's
+        // hui-card wrappers — percentage-height hosts contribute 0 or garbage
+        // to intrinsic track sizing — so a definite pixel height is the only
+        // dependable way to let an outer row size itself to this card. Pair
+        // with an outer row of minmax(0, max-content): the row then tracks the
+        // menu exactly, capped by the container (add overflow-y:auto on the
+        // wrapper via view_layout so the squeezed case scrolls, not bleeds).
+        let hostHeight = null;
+        if (gridCfg.height === 'fit' && this._optionList.length > 0) {
+            const mm = autoRows.match(/^minmax\(\s*[\d.]+px\s*,\s*([\d.]+)px\s*\)$/i);
+            const px = mm ? null : autoRows.match(/^([\d.]+)px$/);
+            if (mm || px) {
+                const rowPx = parseFloat(mm ? mm[1] : px[1]);
+                let colCount = 1;
+                if (typeof gridCfg.columns === 'number')      colCount = gridCfg.columns;
+                else if (typeof gridCfg.columns === 'string') colCount = gridCfg.columns.trim().split(/\s+/).length;
+                const N     = Math.ceil(this._optionList.length / Math.max(1, colCount));
+                const gapPx = parseFloat(rowGap) || 0;
+                hostHeight  = N * rowPx + (N - 1) * gapPx;
+            }
+        }
+        // Definite px in fit mode; otherwise restore the stylesheet default
+        // (:host height:100%) so mode switches in the editor behave.
+        this.style.height = hostHeight != null ? `${hostHeight}px` : '';
+
+        // Bounded-fill mode: grid.height='100%' makes sm-grid fill a bounded
+        // container (e.g. a minmax(0,1fr) sidebar row). When grid-auto-rows is
+        // pixel-bounded — minmax(Apx, Bpx) or plain Npx — a ResizeObserver gives
+        // us the exact container height so we can compute a concrete per-button
+        // height that fits without overflowing the container. Values with a 1fr
+        // max fall through to CSS, which flexes them within the bounded height.
+        if (gridCfg.height === '100%' && this._optionList.length > 0) {
+            const mm = autoRows.match(/^minmax\(\s*([\d.]+)px\s*,\s*([\d.]+)px\s*\)$/i);
+            const px = mm ? null : autoRows.match(/^([\d.]+)px$/);
+            if (mm || px) {
+                const minPx = parseFloat(mm ? mm[1] : px[1]);
+                const maxPx = parseFloat(mm ? mm[2] : px[1]);
+                if (this._containerHeight > 0) {
+                    const N     = this._optionList.length;
+                    const gapPx = parseFloat(rowGap) || 0;
+                    const fit   = Math.floor((this._containerHeight - (N - 1) * gapPx) / N);
+                    if (fit < minPx) {
+                        // Even the minimum row height overflows the container:
+                        // keep buttons usable at minPx and scroll inside the
+                        // menu only — never bleed into the surrounding layout.
+                        autoRows  = `${minPx}px`;
+                        overflowY = 'auto';
+                    } else {
+                        autoRows = `${Math.min(maxPx, fit)}px`;
+                    }
+                } else {
+                    // Container not measured yet (first frame, before the RO
+                    // fires): clip rather than bleed until a real height lands.
+                    overflowY = 'hidden';
+                }
+            }
+        }
 
         // Allow callers to override the sm-grid height via grid.height.
         // Without an override the CSS class (.sm-grid { height: auto }) applies,
@@ -580,7 +661,8 @@ export class LCARdSSelectMenu extends LCARdSCard {
             `width: 100%`,
             `box-sizing: border-box`,
         ];
-        if (gridCfg.height) gridStyleParts.push(`height: ${gridCfg.height}`);
+        if (gridCfg.height && gridCfg.height !== 'fit') gridStyleParts.push(`height: ${gridCfg.height}`);
+        if (overflowY)      gridStyleParts.push(`overflow-y: ${overflowY}`);
         const gridStyle = gridStyleParts.join('; ');
 
         return html`
