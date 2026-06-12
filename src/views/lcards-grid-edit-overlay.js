@@ -235,8 +235,9 @@ export class LCARdSGridEditOverlay extends LitElement {
             backdrop-filter: blur(12px) saturate(1.1);
             -webkit-backdrop-filter: blur(12px) saturate(1.1);
             border: var(--ha-border-width-sm, 1px) solid color-mix(in oklab, var(--divider-color, rgba(255,255,255,.1)) 60%, transparent);
-            border-radius: 22px;
+            border-radius: var(--ha-border-radius-pill, 9999px);
             box-shadow: 0 4px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07);
+            white-space: nowrap;
         }
         .toolbar.dragging { transition: none; cursor: grabbing; }
         .drag-grip {
@@ -266,7 +267,7 @@ export class LCARdSGridEditOverlay extends LitElement {
             padding: 0 12px;
             gap: 5px;
             border: none;
-            border-radius: 11px;
+            border-radius: var(--ha-border-radius-pill, 9999px);
             cursor: pointer;
             font-size: 13px;
             font-weight: 600;

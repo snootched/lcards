@@ -202,7 +202,7 @@ export class LCARdSLayoutCard extends LitElement {
     render() {
         const layout = this._config?.layout ?? {};
         const gridStyle = buildGridStyle(layout, this._columns, this._rows, this._areas, this._gap, {
-            withGutter: this.editing,
+            withGutter: false,
             defaultHeight: '100%',
         });
         return html`<div id="grid-root" style="${gridStyle}"></div>`;

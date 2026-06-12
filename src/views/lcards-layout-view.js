@@ -487,10 +487,11 @@ export class LCARdSLayoutView extends LitElement {
             backdrop-filter: blur(12px) saturate(1.1);
             -webkit-backdrop-filter: blur(12px) saturate(1.1);
             border: var(--ha-border-width-sm, 1px) solid color-mix(in oklab, var(--divider-color, rgba(255,255,255,.1)) 60%, transparent);
-            border-radius: 22px;
+            border-radius: var(--ha-border-radius-pill, 9999px);
             box-shadow: 0 4px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07);
             font-size: 12px;
             color: var(--secondary-text-color);
+            white-space: nowrap;
         }
         .card-mode-bar.dragging { cursor: grabbing; }
         .card-mode-bar .drag-grip {
@@ -532,7 +533,7 @@ export class LCARdSLayoutView extends LitElement {
             padding: 0 12px;
             gap: 5px;
             border: none;
-            border-radius: 11px;
+            border-radius: var(--ha-border-radius-pill, 9999px);
             cursor: pointer;
             font-size: 13px;
             font-weight: 600;
@@ -593,11 +594,11 @@ export class LCARdSLayoutView extends LitElement {
                         visibility 0s linear .15s;
             pointer-events: auto;
             /* Glassy pill wrapping the buttons */
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.7)) 90%, transparent);
+            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.7)) 72%, transparent);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             border: var(--ha-border-width-sm,1px) solid color-mix(in oklab, var(--divider-color) 60%, transparent);
-            border-radius: var(--ha-border-radius-lg, 12px);
+            border-radius: var(--ha-border-radius-pill, 9999px);
             padding: var(--ha-space-1, 4px);
             box-shadow: var(--ha-box-shadow-s, 0 2px 8px rgba(0,0,0,.35));
         }
@@ -802,6 +803,29 @@ export class LCARdSLayoutView extends LitElement {
                 handle.appendChild(editBtn);
                 handle.appendChild(placeBtn);
                 handle.appendChild(deleteBtn);
+
+                // Edge avoidance: reposition handle so it doesn't get clipped by the
+                // host's overflow:hidden when the card is near a layout boundary.
+                // Must use 'auto' (not '') when cancelling the opposite CSS property —
+                // clearing to '' reverts to the CSS value, leaving both sides set and
+                // collapsing the element width to containing-block-width minus both offsets.
+                wrap.addEventListener('pointerenter', () => {
+                    const host = this.getBoundingClientRect();
+                    const hr   = handle.getBoundingClientRect();
+                    // Flip left-anchored if handle extends past host's left edge
+                    if (hr.left < host.left + 4) {
+                        handle.style.right = 'auto';
+                        handle.style.left  = '6px';
+                    }
+                    // Flip bottom-anchored if handle extends past host's bottom edge
+                    if (hr.bottom > host.bottom - 4) {
+                        handle.style.top    = 'auto';
+                        handle.style.bottom = '6px';
+                    }
+                });
+                wrap.addEventListener('pointerleave', () => {
+                    handle.style.left = handle.style.right = handle.style.top = handle.style.bottom = '';
+                });
 
                 wrap.appendChild(cardEl);
                 wrap.appendChild(handle);
