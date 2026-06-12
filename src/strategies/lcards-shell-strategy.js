@@ -107,7 +107,8 @@ function _layoutCard(viewArea, layout, cards, extra = {}) {
 
 function _roomLightControllerCard(roomEntity) {
     // A sub-grid (lcards-layout-card) placed directly in the content-panel area:
-    // header elbow, room selector, an auto-entities light list, and a footer elbow.
+    // header elbow, selector column (room select-menu + filler panel), scrollable
+    // auto-entities light list, and a footer elbow.
     return {
         type: 'custom:lcards-layout-card',
         layout: {
@@ -124,16 +125,44 @@ function _roomLightControllerCard(roomEntity) {
             {
                 type: 'custom:lcards-elbow',
                 min_height: '60px',
-                elbow: { segment: { bar_width: 'theme' } },
+                elbow: { segment: { bar_width: 180, bar_height: 'theme' } },
                 view_layout: { 'grid-area': 'header' },
             },
+            // Selector column: room select-menu at natural height, filler button takes the rest
             {
-                type: 'custom:lcards-select-menu',
-                entity: roomEntity,
-                preset: 'outline',
-                grid: { columns: 1, gap: '5px' },
+                type: 'custom:lcards-layout-card',
+                layout: {
+                    'grid-template-columns': '1fr',
+                    'grid-template-rows': 'auto 1fr',
+                    'grid-gap': '5px',
+                    padding: 0,
+                    card_margin: 0,
+                    margin: 0,
+                    height: '100%',
+                },
+                cards: [
+                    {
+                        type: 'custom:lcards-select-menu',
+                        entity: roomEntity,
+                        preset: 'filled',
+                        grid: {
+                            columns: 1,
+                            gap: '5px',
+                            'grid-auto-rows': 'minmax(40px, 56px)',
+                        },
+                        button_template: {
+                            min_height: '10',
+                            text: { label: { show: true, position: 'right-center' } },
+                        },
+                    },
+                    {
+                        type: 'custom:lcards-button',
+                        preset: 'panel-light',
+                    },
+                ],
                 view_layout: { 'grid-area': 'selector' },
             },
+            // Slider list — overflow-y: auto gives isolated scrolling within the 1fr cell
             {
                 type: 'custom:auto-entities',
                 filter: {
@@ -161,15 +190,16 @@ area_entities(states('${roomEntity}')) %}
                         padding: 0,
                         card_margin: 0,
                         margin: 0,
+                        height: 'auto',
                     },
                 },
-                view_layout: { 'grid-area': 'list' },
+                view_layout: { 'grid-area': 'list', 'overflow-y': 'auto' },
             },
             {
                 type: 'custom:lcards-elbow',
                 elbow: {
                     type: 'footer-left',
-                    segment: { bar_width: 'theme', bar_height: 'theme', outer_curve: 'auto' },
+                    segment: { bar_width: 180, bar_height: 'theme', outer_curve: 'auto' },
                 },
                 height: '60px',
                 view_layout: { 'grid-area': 'footer' },
@@ -253,7 +283,7 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                             bar_width: 'clamp(100px, 12vw, 180px)',
                             bar_height: 'clamp(25px, 5vh, 95px)',
                             inner_curve: 35,
-                            color: { default: 'var(--lcars-ui-quaternary)', hover: 'var(--lcards-green)' },
+                            color: { default: 'var(--lcars-ui-quaternary)' },
                         },
                     },
                 },

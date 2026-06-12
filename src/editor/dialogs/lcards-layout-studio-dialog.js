@@ -87,8 +87,9 @@ export class LCARdSLayoutStudioDialog extends LitElement {
     }
 
     set config(value) {
-        this._initialConfig  = JSON.parse(JSON.stringify(value ?? {}));
-        this._workingConfig  = JSON.parse(JSON.stringify(value ?? {}));
+        this._handled       = false;  // reset so the new session can save/cancel once
+        this._initialConfig = JSON.parse(JSON.stringify(value ?? {}));
+        this._workingConfig = JSON.parse(JSON.stringify(value ?? {}));
     }
     get config() { return this._workingConfig; }
 
@@ -97,6 +98,8 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         this.hass = undefined;
         this._initialConfig = {};
         this._workingConfig = {};
+        this._handled       = false;  // true after the first save or cancel; prevents ha-dialog's
+                                      // async 'closed' event from re-dispatching config-changed
         this._activeTab = 'layout'; // 'layout' | 'card-<index>' | 'yaml'
         this._previewEl = null;
         this._overlayEl = null;
@@ -250,7 +253,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         const { from, to } = ev.detail ?? {};
         const layout = this.config?.layout;
         if (!layout?.areas || layout.areas[from] === undefined) return;
-        this.config = { ...this.config, layout: { ...layout, areas: renameAreaSettings(layout.areas, from, to) } };
+        this._commit({ ...this.config, layout: { ...layout, areas: renameAreaSettings(layout.areas, from, to) } });
     }
 
     _onAreaSettingsChanged(ev) {
@@ -690,6 +693,8 @@ export class LCARdSLayoutStudioDialog extends LitElement {
     }
 
     _handleSave() {
+        if (this._handled) return;
+        this._handled = true;
         this.dispatchEvent(new CustomEvent('config-changed', {
             detail: { config: this._workingConfig }, bubbles: true, composed: true,
         }));
@@ -697,6 +702,8 @@ export class LCARdSLayoutStudioDialog extends LitElement {
     }
 
     _handleCancel() {
+        if (this._handled) return;
+        this._handled = true;
         // Restore initial config so the card isn't left with any intermediate state
         this.dispatchEvent(new CustomEvent('config-changed', {
             detail: { config: this._initialConfig }, bubbles: true, composed: true,
