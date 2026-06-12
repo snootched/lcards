@@ -565,7 +565,12 @@ export class LCARdSSelectMenu extends LCARdSCard {
         const autoFlow = gridCfg['grid-auto-flow'] || 'row';
         const autoRows = gridCfg['grid-auto-rows'] || '56px';
 
-        const gridStyle = [
+        // Allow callers to override the sm-grid height via grid.height.
+        // Without an override the CSS class (.sm-grid { height: auto }) applies,
+        // which sizes sm-grid to its content and prevents overflow-gap issues.
+        // Pass height: '100%' when the grid must fill a bounded parent (e.g. a 1fr
+        // sidebar row) so that grid-auto-rows can scale buttons proportionally.
+        const gridStyleParts = [
             `display: grid`,
             `grid-template-columns: ${tplCols}`,
             `row-gap: ${rowGap}`,
@@ -574,7 +579,9 @@ export class LCARdSSelectMenu extends LCARdSCard {
             `grid-auto-rows: ${autoRows}`,
             `width: 100%`,
             `box-sizing: border-box`,
-        ].join('; ');
+        ];
+        if (gridCfg.height) gridStyleParts.push(`height: ${gridCfg.height}`);
+        const gridStyle = gridStyleParts.join('; ');
 
         return html`
             <div class="sm-grid" style="${gridStyle}">

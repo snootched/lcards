@@ -361,7 +361,11 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                 },
             ]),
 
-            // ── Sidebar-left (border strip + page selector + extras) ─────────
+            // ── Sidebar-left (border strip + page selector + filler) ─────────
+            // 4-cell flat grid: 2 cols × 2 rows, both rows 1fr (equal halves).
+            // Col 1: panel-light strip (top) + panel-light strip (bottom).
+            // Col 2: select-menu (top, buttons fill their half via 1fr) + panel-dark filler.
+            // grid.height:'100%' makes sm-grid fill its 1fr row so minmax(40px,1fr) scales.
             _layoutCard('sidebar-left', {
                 'grid-template-columns': '45px 1fr',
                 'grid-template-rows': '1fr',
@@ -377,7 +381,7 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                     type: 'custom:lcards-select-menu',
                     entity: pageEntity,
                     preset: 'outline',
-                    grid: { columns: 1, gap: '5px', 'grid-auto-rows': 'minmax(40px,1fr)' },
+                    grid: { columns: 1, gap: '5px', 'grid-auto-rows': 'minmax(40px, 1fr)', height: '100%' },
                     button_template: {
                         min_height: '10',
                         text: { label: { show: true, position: 'right-center' } },
