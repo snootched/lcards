@@ -19,8 +19,8 @@
  * @module scripts/validate-css-vars
  */
 
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, relative, dirname } from 'path';
+import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
+import { join, resolve, relative, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -43,18 +43,32 @@ const DIM    = s => `\x1b[2m${s}\x1b[0m`;
 /** @type {Set<string>} */
 let VALID_LCARS_VARS;
 try {
-  const { fetchHaLcarsVars, STATIC_FALLBACK_VARS, HA_LCARS_THEME_URL } =
+  const { fetchHaLcarsVars, readLocalHaLcarsVars, STATIC_FALLBACK_VARS, LOCAL_HA_LCARS_THEME_PATH } =
     await import('./ha-lcars-theme-vars.js');
 
-  try {
-    process.stdout.write('  Fetching HA-LCARS theme vars from GitHub… ');
-    VALID_LCARS_VARS = await fetchHaLcarsVars();
-    console.log(`✓ (${VALID_LCARS_VARS.size} vars)`);
-  } catch (fetchErr) {
-    console.warn(`\n${YELLOW('⚠  Network fetch failed:')} ${fetchErr.message}`);
-    console.warn(YELLOW(`   Falling back to static list (${STATIC_FALLBACK_VARS.size} vars).`));
-    console.warn(YELLOW(`   Re-run with network access for a full check.\n`));
-    VALID_LCARS_VARS = STATIC_FALLBACK_VARS;
+  const localThemePath = resolve(ROOT, LOCAL_HA_LCARS_THEME_PATH);
+
+  if (existsSync(localThemePath)) {
+    try {
+      VALID_LCARS_VARS = readLocalHaLcarsVars(localThemePath);
+      console.log(`  Using local ha-lcars theme… ✓ (${VALID_LCARS_VARS.size} vars)`);
+    } catch (localErr) {
+      console.warn(YELLOW(`⚠  Local theme read failed: ${localErr.message}`));
+      console.warn(YELLOW('   Falling back to GitHub fetch…'));
+    }
+  }
+
+  if (!VALID_LCARS_VARS) {
+    try {
+      process.stdout.write('  Fetching HA-LCARS theme vars from GitHub… ');
+      VALID_LCARS_VARS = await fetchHaLcarsVars();
+      console.log(`✓ (${VALID_LCARS_VARS.size} vars)`);
+    } catch (fetchErr) {
+      console.warn(`\n${YELLOW('⚠  Network fetch failed:')} ${fetchErr.message}`);
+      console.warn(YELLOW(`   Falling back to static list (${STATIC_FALLBACK_VARS.size} vars).`));
+      console.warn(YELLOW(`   Re-run with network access or a local ha-lcars clone for a full check.\n`));
+      VALID_LCARS_VARS = STATIC_FALLBACK_VARS;
+    }
   }
 } catch (e) {
   console.error(RED('✗ Cannot load scripts/ha-lcars-theme-vars.js:'), e.message);
@@ -168,6 +182,16 @@ const LCARS_USER_CONVENTION_VARS = new Set([
 ]);
 
 /**
+ * --lcars-* vars that were removed from upstream ha-lcars and are awaiting
+ * source cleanup (tracked in todo:.md backlog). They still have --lcards-*
+ * fallbacks so they cause no runtime breakage, but the source should be
+ * updated to drop these references when the backlog item is addressed.
+ */
+const LCARS_DEPRECATED_VARS = new Set([
+  'lcars-card-button-unavailable', // removed upstream; use --lcards-gray-dark fallback directly
+]);
+
+/**
  * --lcards-* var names (without prefix) that are intentional component layout
  * or editor spacing vars defined outside the GREEN_ALERT_PALETTE.
  */
@@ -176,6 +200,12 @@ const LCARDS_COMPONENT_VARS = new Set([
   'lcards-button-min-width',
   'lcards-section-spacing',   // editor layout spacing token
   'lcards-icon-spacing',      // editor icon spacing token
+  // lcars-layout-view / lcars-grid-edit-overlay edit mode vars
+  'lcards-grid-edit-header-size',
+  'lcards-grid-edit-handle-size',
+  'lcards-grid-edit-area-opacity',
+  'lcards-grid-edit-selection-color',
+  'lcards-header-opacity',
 ]);
 
 /**
@@ -300,7 +330,7 @@ function pass1_lcarsVars(file, fileLines, violations, hits) {
 
     for (const m of content.matchAll(RE_LCARS)) {
       const varName = `lcars-${m[1]}`; // e.g. lcars-alert-red
-      if (!VALID_LCARS_VARS.has(varName) && !LCARS_USER_CONVENTION_VARS.has(varName)) {
+      if (!VALID_LCARS_VARS.has(varName) && !LCARS_USER_CONVENTION_VARS.has(varName) && !LCARS_DEPRECATED_VARS.has(varName)) {
         violations.add(file, no, `Unknown --lcars var: ${YELLOW(`--${varName}`)}`);
       } else if (hits) {
         hits.add(file, no, `--${varName}`, 'lcars');

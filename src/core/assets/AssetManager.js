@@ -356,6 +356,7 @@ export class AssetManager extends BaseService {
             legacyName: def.legacyName,
             description: def.description,
             external: def.external,
+            autoLoad: def.autoLoad,
             family: def.family,
             weight: def.weight,
             style: def.style

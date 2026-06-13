@@ -25,7 +25,8 @@ Object.entries(coreFontsJson.fonts).forEach(([key, fontMeta]) => {
     category:    fm.category,
     legacyName:  fm.legacyName,
     description: fm.description,
-    external:    fm.external || false
+    external:    fm.external || false,
+    autoLoad:    fm.autoLoad || false
   };
 });
 

@@ -176,6 +176,7 @@ Controls how the option buttons are arranged.
 | `grid-auto-flow` | string | `row` | CSS `grid-auto-flow` value: `row`, `column`, `dense`, `row dense`, `column dense` |
 | `justify-items` | string | — | CSS `justify-items` for cell alignment: `stretch`, `start`, `end`, `center` |
 | `align-items` | string | — | CSS `align-items` for cell alignment: `stretch`, `start`, `end`, `center` |
+| `height` | string | — | Sizing mode: `fit`, `100%`, or any CSS height — see [Height modes](#height-modes) below |
 
 ```yaml
 grid:
@@ -183,6 +184,42 @@ grid:
   gap: 6px
   grid-auto-rows: 48px
 ```
+
+### Height modes
+
+`grid.height` controls how the card sizes itself against its container. Three modes:
+
+| Value | Behavior |
+|-------|----------|
+| _(unset)_ | **Natural** — the option grid is as tall as its rows; the card flows like normal content. |
+| `fit` | **Content-driven, published** — the card computes its exact natural height from config (`rows × row-height max + gaps`, using the pixel max of `grid-auto-rows`) and sets it as a definite pixel height on the card element. Use this when a *parent* grid track must size itself to the menu (an `auto` or `minmax(0, max-content)` track): measuring the menu through HA's `hui-card` wrapper via intrinsic CSS sizing is unreliable, while a definite pixel height always works. Requires a pixel-bounded `grid-auto-rows` (`minmax(Apx, Bpx)` or `Npx`). |
+| `100%` | **Bounded fill** — the option grid fills whatever height its container provides. With a pixel-bounded `grid-auto-rows`, a `ResizeObserver` measures the container and computes a concrete per-button height within the bounds; if even the minimum row height cannot fit, buttons stay at the minimum and the grid scrolls internally instead of overflowing. With a flexible max (e.g. `minmax(40px, 1fr)`), CSS distributes the height directly. |
+
+Example — a sidebar where the menu's row hugs its content and a filler panel absorbs the leftover (the pattern used by the shell strategy):
+
+```yaml
+type: custom:lcards-layout-card
+layout:
+  grid-template-columns: 1fr
+  grid-template-rows: minmax(0, max-content)
+  grid-auto-rows: minmax(40px, 1fr)
+  grid-gap: 5px
+cards:
+  - type: custom:lcards-select-menu
+    entity: input_select.page
+    grid:
+      columns: 1
+      gap: 5px
+      grid-auto-rows: minmax(40px, 56px)
+      height: fit
+    view_layout:
+      overflow-y: auto      # scrolls inside the menu if the container is too short
+  - type: custom:lcards-button
+    preset: panel-dark
+    min_height: 1           # lets the filler shrink with its row
+```
+
+The `minmax(0, max-content)` row tracks the menu's published height exactly, capped by the container; the filler row takes the rest. Buttons placed in rows that can shrink should set a small `min_height` — without one, the theme minimum (`--lcars-button-min-height`, typically 56px) keeps them painting at full size even in a collapsed row.
 
 ---
 
