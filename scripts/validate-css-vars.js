@@ -182,13 +182,18 @@ const LCARS_USER_CONVENTION_VARS = new Set([
 ]);
 
 /**
- * --lcars-* vars that were removed from upstream ha-lcars and are awaiting
+ * --lcars-* vars that were removed/renamed in upstream ha-lcars and are awaiting
  * source cleanup (tracked in todo:.md backlog). They still have --lcards-*
- * fallbacks so they cause no runtime breakage, but the source should be
- * updated to drop these references when the backlog item is addressed.
+ * fallbacks so they cause no runtime breakage. When found in the active theme
+ * source (e.g. local ha-lcars clone with backward-compat aliases) they pass
+ * silently; when NOT found (e.g. CI against upstream GitHub), they emit a
+ * deprecation warning but do NOT count as violations.
  */
 const LCARS_DEPRECATED_VARS = new Set([
+  'lcars-card-button',             // renamed → lcars-card-button-color upstream
+  'lcars-card-button-off',         // removed upstream; no direct replacement
   'lcars-card-button-unavailable', // removed upstream; use --lcards-gray-dark fallback directly
+  'lcars-card-mid-left-color',     // renamed → lcars-card-mid-color upstream
 ]);
 
 /**
@@ -319,21 +324,50 @@ class Hits {
   }
 }
 
+/**
+ * Collects deprecation warnings: vars in LCARS_DEPRECATED_VARS that were not
+ * found in the active theme source (e.g. when running against upstream GitHub
+ * in CI). These do not fail the build but are printed as a reminder.
+ */
+class DeprecationWarnings {
+  constructor() { this._seen = new Set(); }  // deduplicate by var name
+
+  add(varName) { this._seen.add(varName); }
+
+  get count() { return this._seen.size; }
+
+  print() {
+    if (this._seen.size === 0) return;
+    console.log(YELLOW(`\n⚠  Deprecated --lcars-* vars in source (not in active theme — see todo:.md):`));
+    for (const v of [...this._seen].sort()) {
+      console.log(YELLOW(`     --${v}`));
+    }
+    console.log(YELLOW('   These pass with a warning. Update source refs when ha-lcars PR is merged.\n'));
+  }
+}
+
 // ─── Pass implementations ─────────────────────────────────────────────────────
 
 /**
  * Pass 1: --lcars-* references must be in VALID_LCARS_VARS or user convention set.
+ * Vars in LCARS_DEPRECATED_VARS that are absent from the active theme emit a
+ * deprecation warning but do not count as violations.
  */
-function pass1_lcarsVars(file, fileLines, violations, hits) {
+function pass1_lcarsVars(file, fileLines, violations, hits, deprecations) {
   for (const { no, content } of fileLines) {
     if (content.trimStart().startsWith('//') || content.trimStart().startsWith('*')) continue;
 
     for (const m of content.matchAll(RE_LCARS)) {
       const varName = `lcars-${m[1]}`; // e.g. lcars-alert-red
-      if (!VALID_LCARS_VARS.has(varName) && !LCARS_USER_CONVENTION_VARS.has(varName) && !LCARS_DEPRECATED_VARS.has(varName)) {
+      if (VALID_LCARS_VARS.has(varName) || LCARS_USER_CONVENTION_VARS.has(varName)) {
+        if (hits) hits.add(file, no, `--${varName}`, 'lcars');
+      } else if (LCARS_DEPRECATED_VARS.has(varName)) {
+        // In local theme (backward-compat aliases present): treat as valid hit.
+        // In CI against upstream GitHub: var absent → warn but don't fail.
+        if (hits) hits.add(file, no, `--${varName}`, 'lcars~');
+        deprecations.add(varName);
+      } else {
         violations.add(file, no, `Unknown --lcars var: ${YELLOW(`--${varName}`)}`);
-      } else if (hits) {
-        hits.add(file, no, `--${varName}`, 'lcars');
       }
     }
   }
@@ -403,6 +437,7 @@ async function main() {
   const files = jsFiles(SRC);
   const violations = new Violations();
   const hits = VERBOSE ? new Hits() : null;
+  const deprecations = new DeprecationWarnings();
 
   let p1 = 0, p2 = 0, p3 = 0;
   let h1 = 0, h2 = 0, h3 = 0;
@@ -414,7 +449,7 @@ async function main() {
     const before = violations.count;
     const hitsBefore = hits ? hits.count : 0;
 
-    pass1_lcarsVars(file, fileLines, violations, hits);
+    pass1_lcarsVars(file, fileLines, violations, hits, deprecations);
     const afterP1 = violations.count;
     const hitsAfterP1 = hits ? hits.count : 0;
 
@@ -445,6 +480,8 @@ async function main() {
     hits.printVerbose(violations);
     console.log();
   }
+
+  deprecations.print();
 
   if (total === 0) {
     console.log(GREEN(`✅ All CSS variable references are valid! (${files.length} files checked)`));
