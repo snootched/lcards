@@ -2,7 +2,8 @@
  * @fileoverview HA-LCARS Theme Variable Allowlist (Dynamic)
  *
  * Fetches the live HA-LCARS theme YAML from GitHub and parses all
- * `lcars-*` variable names from it.
+ * `lcars-*` variable names from it. Also supports reading from a local
+ * workspace copy of ha-lcars when available (e.g. during active PR work).
  *
  * In the card-mod theme YAML the variables are defined WITHOUT the `--` prefix
  * (e.g. `lcars-green: "#33cc99"`). Home Assistant prepends `--` when it injects
@@ -16,8 +17,38 @@
  * @module scripts/ha-lcars-theme-vars
  */
 
+import { readFileSync } from 'fs';
+
 export const HA_LCARS_THEME_URL =
   'https://raw.githubusercontent.com/th3jesta/ha-lcars/refs/heads/master/themes/lcars.yaml';
+
+/**
+ * Conventional relative path (from the lcards repo root) to a local ha-lcars
+ * workspace clone. Used when the repo is checked out alongside lcards, e.g.
+ * during active PR work before changes are merged upstream.
+ */
+export const LOCAL_HA_LCARS_THEME_PATH = '../ha-lcars/themes/lcars.yaml';
+
+/**
+ * Read the HA-LCARS theme YAML from a local file and return the set of all
+ * valid `--lcars-*` CSS custom property names (without the `--` prefix).
+ *
+ * @param {string} filePath — absolute path to the lcars.yaml file
+ * @returns {Set<string>} e.g. Set { 'lcars-green', 'lcars-alert-red', … }
+ * @throws {Error} if the file cannot be read or no variables are found
+ */
+export function readLocalHaLcarsVars(filePath) {
+  const text = readFileSync(filePath, 'utf-8');
+  const vars = new Set();
+  const RE_VAR_LINE = /^  (lcars-[a-z0-9-]+)\s*:/gm;
+  for (const m of text.matchAll(RE_VAR_LINE)) {
+    vars.add(m[1]);
+  }
+  if (vars.size === 0) {
+    throw new Error(`No lcars-* variables found in local file ${filePath}`);
+  }
+  return vars;
+}
 
 /**
  * Fetch the HA-LCARS theme YAML from GitHub and return the set of all valid

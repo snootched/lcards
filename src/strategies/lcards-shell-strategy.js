@@ -21,12 +21,18 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 // ============================================================================
 
 const _EDITOR_SCHEMA = [
+    // ── Room controller ──────────────────────────────────────────────────────
     {
         name: 'room_selector_entity',
-        label: 'Room Selector Entity',
-        description: 'input_select entity used to pick the active room in the content panel (enables the room light controller)',
-        selector: { entity: { domain: ['input_select', 'select'] } },
+        label: 'Room Controller Entity',
+        description: 'Controls the room light controller. '
+            + 'input_select or select: its options become the room list (entity mode). '
+            + 'input_text: room list is built from your HA area registry automatically; '
+            + 'the selected area is stored in this entity (auto-areas mode). '
+            + 'Leave blank to show a placeholder.',
+        selector: { entity: { domain: ['input_select', 'select', 'input_text'] } },
     },
+    // ── Shell controls ───────────────────────────────────────────────────────
     {
         name: 'page_selector_entity',
         label: 'Page Selector Entity',
@@ -115,7 +121,7 @@ function _roomLightControllerCard(roomEntity) {
             'grid-template-columns': 'minmax(60px, 180px) 10px 1fr',
             'grid-template-rows': 'auto 1fr auto',
             'grid-template-areas': '"header header header" "selector . list" "footer footer footer"',
-            'grid-gap': '15px',
+            'grid-gap': '10px',
             padding: 0,
             card_margin: 0,
             margin: 0,
@@ -125,7 +131,7 @@ function _roomLightControllerCard(roomEntity) {
             {
                 type: 'custom:lcards-elbow',
                 min_height: '60px',
-                elbow: { segment: { bar_width: 180, bar_height: 'theme' } },
+                elbow: { segment: { bar_width: 180, bar_height: 'theme', inner_curve: 30, outer_curve: 60 } },
                 view_layout: { 'grid-area': 'header' },
             },
             // Selector column: room select-menu at natural height, filler button takes the rest
@@ -167,17 +173,20 @@ function _roomLightControllerCard(roomEntity) {
                 type: 'custom:auto-entities',
                 filter: {
                     template: `[{% for e in
-area_entities(states('${roomEntity}')) %}
-  {% if e.startswith('light.') %}
-    {
-      'entity': '{{ e }}',
-      'type': 'custom:lcards-slider',
-      'preset': 'pills-left-border',
-      'view_layout': {'grid-column': '1'},
-      'text': {'name': {'show': 'true'}}
-    },
-  {% endif %}
-{% endfor %}]`,
+                        area_entities(states('${roomEntity}')) %}
+                        {% if e.startswith('light.') %}
+                            {
+                            'entity': '{{ e }}',
+                            'type': 'custom:lcards-slider',
+                            'preset': 'pills-left-border',
+                            'view_layout': {'grid-column': '1'},
+                            'text': {'name': {'show': 'true'}},
+                            'tap_action': {'action': 'toggle'},
+                            'hold_action': {'action': 'more-info', 'entity': '{{ e }}'},
+                            'style': { 'track': { 'segments': { 'gradient': { 'end': { 'active': 'match-light' }, 'start': { 'active': 'darken(match-light,0.6)' } } } } },
+                            },
+                        {% endif %}
+                        {% endfor %}]`,
                 },
                 card_param: 'cards',
                 card: {
@@ -199,7 +208,7 @@ area_entities(states('${roomEntity}')) %}
                 type: 'custom:lcards-elbow',
                 elbow: {
                     type: 'footer-left',
-                    segment: { bar_width: 180, bar_height: 'theme', outer_curve: 'auto' },
+                    segment: { bar_width: 180, bar_height: 'theme', inner_curve: 30, outer_curve: 60 },
                 },
                 height: '60px',
                 view_layout: { 'grid-area': 'footer' },
@@ -209,17 +218,160 @@ area_entities(states('${roomEntity}')) %}
     };
 }
 
-function _contentPlaceholderCard() {
+function _contentPlaceholderCard(message = 'Content Area — select a Room Selector Entity in the dashboard settings to enable the room light controller.') {
     return {
         type: 'custom:lcards-button',
         preset: 'outline',
         text: {
             label: {
                 show: true,
-                content: 'Content Area — select a Room Selector Entity in the dashboard settings to enable the room light controller.',
+                content: message,
             },
         },
         view_layout: { 'grid-area': 'content-panel' },
+    };
+}
+
+// ============================================================================
+// AUTO-AREAS ROOM CONTROLLER
+// ============================================================================
+
+/**
+ * Build the tap_action for one area button in auto-areas mode.
+ * input_text → set_value (accepts any string, no option registration needed).
+ * input_select / select → select_option (only works if area_id is a registered option).
+ */
+function _areaSelectAction(entityId, areaId) {
+    const domain = entityId.split('.')[0];
+    if (domain === 'input_text') {
+        return { action: 'call-service', service: 'input_text.set_value',
+                 data: { entity_id: entityId, value: areaId } };
+    }
+    if (domain === 'input_select' || domain === 'select') {
+        return { action: 'call-service', service: `${domain}.select_option`,
+                 data: { entity_id: entityId, option: areaId } };
+    }
+    return { action: 'none' };
+}
+
+/**
+ * Room controller variant for auto-areas mode. Same chrome as _roomLightControllerCard
+ * but the select-menu options come from the HA area registry (not entity options).
+ *
+ * @param {Array<{area_id: string, name: string, icon: string|null}>} areas
+ * @param {string|null} stateEntity  Entity used to track the selected area (ideally input_text).
+ *                                   When null the area buttons are rendered but tapping does nothing
+ *                                   and the light list shows a setup prompt.
+ */
+function _autoAreasRoomCard(areas, stateEntity) {
+    const options = areas.map(area => ({
+        value: area.area_id,
+        label: area.name,
+        ...(area.icon ? { icon: area.icon } : {}),
+        tap_action: stateEntity ? _areaSelectAction(stateEntity, area.area_id) : { action: 'none' },
+    }));
+
+    const listCard = stateEntity ? {
+        type: 'custom:auto-entities',
+        filter: {
+            template: `[{% for e in
+                area_entities(states('${stateEntity}')) %}
+                {% if e.startswith('light.') %}
+                    {
+                    'entity': '{{ e }}',
+                    'type': 'custom:lcards-slider',
+                    'preset': 'pills-left-border',
+                    'view_layout': {'grid-column': '1'},
+                    'text': {'name': {'show': 'true'}}
+                    },
+                {% endif %}
+                {% endfor %}]`,
+        },
+        card_param: 'cards',
+        card: {
+            type: 'custom:lcards-layout-card',
+            layout: {
+                'grid-template-columns': '1fr',
+                'grid-template-rows': 'minmax(45px, 56px)',
+                'grid-auto-rows': 'minmax(45px, 56px)',
+                'grid-gap': '5px',
+                padding: 0,
+                card_margin: 0,
+                margin: 0,
+                height: 'auto',
+            },
+        },
+        view_layout: { 'grid-area': 'list', 'overflow-y': 'auto' },
+    } : {
+        type: 'custom:lcards-button',
+        preset: 'outline',
+        interactive: false,
+        text: { label: { show: true, content: 'Tap a room to select it — add an input_text helper entity in dashboard settings to enable light filtering.' } },
+        view_layout: { 'grid-area': 'list' },
+    };
+
+    return {
+        type: 'custom:lcards-layout-card',
+        layout: {
+            'grid-template-columns': 'minmax(60px, 180px) 10px 1fr',
+            'grid-template-rows': 'auto 1fr auto',
+            'grid-template-areas': '"header header header" "selector . list" "footer footer footer"',
+            'grid-gap': '10px',
+            padding: 0,
+            card_margin: 0,
+            margin: 0,
+            height: '100%',
+        },
+        cards: [
+            {
+                type: 'custom:lcards-elbow',
+                min_height: '60px',
+                elbow: { segment: { bar_width: 180, bar_height: 'theme', inner_curve: 30, outer_curve: 60 } },
+                view_layout: { 'grid-area': 'header' },
+            },
+            {
+                type: 'custom:lcards-layout-card',
+                layout: {
+                    'grid-template-columns': '1fr',
+                    'grid-template-rows': 'auto 1fr',
+                    'grid-gap': '5px',
+                    padding: 0,
+                    card_margin: 0,
+                    margin: 0,
+                    height: '100%',
+                },
+                cards: [
+                    {
+                        type: 'custom:lcards-select-menu',
+                        ...(stateEntity ? { entity: stateEntity } : {}),
+                        preset: 'filled',
+                        grid: {
+                            columns: 1,
+                            gap: '5px',
+                            'grid-auto-rows': 'minmax(40px, 56px)',
+                        },
+                        options,
+                        button_template: {
+                            min_height: '10',
+                            text: { label: { show: true, position: 'right-center' } },
+                        },
+                    },
+                    { type: 'custom:lcards-button', preset: 'panel-light' },
+                ],
+                view_layout: { 'grid-area': 'selector' },
+            },
+            listCard,
+            {
+                type: 'custom:lcards-elbow',
+                elbow: {
+                    type: 'footer-left',
+                    segment: { bar_width: 180, bar_height: 'theme', inner_curve: 30, outer_curve: 60 },
+                },
+                height: '60px',
+                view_layout: { 'grid-area': 'footer' },
+            },
+        ],
+        view_layout: { 'grid-area': 'content-panel', margin: '20' },
     };
 }
 
@@ -239,7 +391,12 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
             margin: 0,
             padding: 0,
             'grid-template-columns': '45px clamp(100px, 12vw, 180px) 5px 40px 1fr 40px 5px minmax(0, auto)',
-            'grid-template-rows': 'minmax(0,auto) clamp(25px, 5vh, 95px) 5px 40px 1fr 40px 5px clamp(25px, 5vh, 95px) 45px',
+            // Row 0 (header-border): minmax(0,auto) when the top bar entity is set so
+            // the row can expand to the card's height (managed by _applyVisibilityRowHeights).
+            // Without an entity the card is absent — use 0px (definite) so the measurement
+            // pass in _applyVisibilityRowHeights cannot mistake it for free space (auto-max
+            // tracks absorb remaining space when fr tracks are zeroed during measurement).
+            'grid-template-rows': `${topBarEntity ? 'minmax(0,auto)' : '0px'} clamp(25px, 5vh, 95px) 5px 40px 1fr 40px 5px clamp(25px, 5vh, 95px) 45px`,
             'grid-template-areas': `
 "header-border  header-border  header-border  header-border  header-border  header-border  header-border  header-border"
 "border-left    header-left    .              header         header         header         header         sidebar-right"
@@ -254,7 +411,7 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
             mediaquery: {
                 '(max-width: 1010px)': {
                     'grid-template-columns': '45px clamp(100px, 12vw, 180px) 5px 40px 1fr 40px 1px minmax(0,auto)',
-                    'grid-template-rows': 'minmax(0,auto) clamp(25px, 5vh, 95px) 5px 40px 1fr 40px 5px clamp(25px, 5vh, 95px) 45px',
+                    'grid-template-rows': `${topBarEntity ? 'minmax(0,auto)' : '0px'} clamp(25px, 5vh, 95px) 5px 40px 1fr 40px 5px clamp(25px, 5vh, 95px) 45px`,
                     'grid-gap': '5px',
                 },
             },
@@ -362,26 +519,39 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
             ]),
 
             // ── Sidebar-left (border strip + page selector + filler) ─────────
-            // 4-cell flat grid: 2 cols × 2 rows, both rows 1fr (equal halves).
+            // 4-cell flat grid: 2 cols × 2 rows.
             // Col 1: panel-light strip (top) + panel-light strip (bottom).
-            // Col 2: select-menu (top, buttons fill their half via 1fr) + panel-dark filler.
-            // grid.height:'100%' makes sm-grid fill its 1fr row so minmax(40px,1fr) scales.
+            // Col 2: select-menu (top) + panel-dark filler (bottom).
+            // Row 1 is menu-driven: grid.height:'fit' makes the select-menu set
+            // a definite pixel height on its host (N buttons × 56px + gaps) —
+            // intrinsic content sizing through hui-card's percentage-height
+            // wrappers is unreliable, so the height must be explicit. The
+            // minmax(0, max-content) row then tracks that height exactly, capped
+            // by the sidebar (the 0 minimum prevents inflation past the
+            // container; view_layout overflow-y scrolls the squeezed case).
+            // Row 2 (minmax(40px, 1fr)) absorbs whatever is left, keeping at
+            // least a 40px filler strip visible when the menu needs the rest.
+            // The strips/filler need min_height: 1 — without it the button's
+            // theme minimum (--lcars-button-min-height, ~56px) keeps painting
+            // past a collapsed row into the areas below.
             _layoutCard('sidebar-left', {
                 'grid-template-columns': '45px 1fr',
-                'grid-template-rows': '1fr',
-                'grid-auto-rows': '1fr',
+                'grid-template-rows': 'minmax(0, max-content)',
+                'grid-auto-rows': 'minmax(40px, 1fr)',
                 'grid-gap': '5px',
             }, [
                 {
                     type: 'custom:lcards-button',
                     preset: 'panel-light',
+                    min_height: 1,
                     text: { label: { show: false } },
                 },
                 ...(pageEntity ? [{
                     type: 'custom:lcards-select-menu',
                     entity: pageEntity,
                     preset: 'outline',
-                    grid: { columns: 1, gap: '5px', 'grid-auto-rows': 'minmax(40px, 1fr)', height: '100%' },
+                    grid: { columns: 1, gap: '5px', 'grid-auto-rows': 'minmax(40px, 56px)', height: 'fit' },
+                    view_layout: { 'overflow-y': 'auto' },
                     button_template: {
                         min_height: '10',
                         text: { label: { show: true, position: 'right-center' } },
@@ -394,11 +564,13 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                 {
                     type: 'custom:lcards-button',
                     preset: 'panel-light',
+                    min_height: 1,
                     text: { label: { show: false } },
                 },
                 {
                     type: 'custom:lcards-button',
                     preset: 'panel-dark',
+                    min_height: 1,
                     tap_action: { action: 'toggle' },
                 },
             ]),
@@ -442,13 +614,15 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
             ]),
 
             // ── Header border (elbow + banner row) ───────────────────────────
-            // height must be a DEFINITE value (e.g. '10vh'). HA wraps every card
-            // in <hui-card> whose shadow DOM has a slot wrapper with height:100%.
-            // In an unsized (auto) grid row, 100% resolves to 0, so hui-card always
-            // reports 0px height — collapsing the row — regardless of whether its
-            // inner content has height. applyGridItemHeight forwards this value to
-            // the hui-card wrapper, giving the outer row a definite size.
-            _layoutCard('header-border', {
+            // Omitted entirely when topBarEntity is unset. With no card in the
+            // header-border area, the minmax(0,auto) row collapses cleanly to 0.
+            // When included, the visibility condition feeds _collectVisibilityRows
+            // so _applyVisibilityRowHeights can write the row height explicitly
+            // ('10vh' or '0px') — without that, the auto track can size to the
+            // inner content's intrinsic height and steal space from the 1fr row.
+            // height must be a DEFINITE value: applyGridItemHeight forwards it to
+            // the hui-card wrapper so the auto row has something to resolve to.
+            ...(topBarEntity ? [_layoutCard('header-border', {
                 'grid-template-columns': 'auto 1fr',
                 'grid-gap': '5px',
                 'grid-template-rows': 'auto',
@@ -528,10 +702,8 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                     view_layout: { 'grid-area': 'hb-banner' },
                 },
             ], {
-                ...(topBarEntity ? {
-                    visibility: [{ condition: 'state', entity: topBarEntity, state: 'on' }],
-                } : {}),
-            }),
+                visibility: [{ condition: 'state', entity: topBarEntity, state: 'on' }],
+            })] : []),
         ],
     };
 }
@@ -553,22 +725,36 @@ export class LCARdSShellDashboardStrategy extends HTMLElement {
     }
 
     /**
-     * @param {object} config - Strategy config: { type, room_selector_entity?, page_selector_entity? }
-     * @param {object} hass   - The Home Assistant object
+     * @param {object} config - Strategy config (from the editor form)
+     * @param {object} hass   - The Home Assistant frontend object
      * @returns {Promise<{ views: Array }>}
      */
     static async generate(config, hass) {
-        const roomEntity        = config?.room_selector_entity || null;
-        const pageEntity        = config?.page_selector_entity || null;
-        const topBarEntity      = config?.top_bar_entity || null;
+        const roomEntity         = config?.room_selector_entity || null;
+        const roomEntityDomain   = roomEntity?.split('.')[0] ?? null;
+        const pageEntity         = config?.page_selector_entity || null;
+        const topBarEntity       = config?.top_bar_entity || null;
         const rightSidebarEntity = config?.right_sidebar_entity || null;
 
-        lcardsLog.debug(`[LCARdSShellStrategy] generate() roomEntity=${roomEntity} pageEntity=${pageEntity} topBarEntity=${topBarEntity} rightSidebarEntity=${rightSidebarEntity}`);
+        lcardsLog.debug(`[LCARdSShellStrategy] generate() roomEntity=${roomEntity} domain=${roomEntityDomain} pageEntity=${pageEntity} topBarEntity=${topBarEntity} rightSidebarEntity=${rightSidebarEntity}`);
 
-        const hasRoomSelector = roomEntity && (roomEntity in (hass?.states ?? {}));
-        const contentCard = hasRoomSelector
-            ? _roomLightControllerCard(roomEntity)
-            : _contentPlaceholderCard();
+        let contentCard;
+        if (roomEntity && roomEntity in (hass?.states ?? {})) {
+            if (roomEntityDomain === 'input_text') {
+                // Auto-areas mode: build room list from HA area registry, store selection in input_text.
+                const areas = Object.values(hass?.areas ?? {})
+                    .filter(a => a?.area_id && a?.name)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+                contentCard = areas.length > 0
+                    ? _autoAreasRoomCard(areas, roomEntity)
+                    : _contentPlaceholderCard('No areas found — add rooms in Settings → Areas & Zones, then reload.');
+            } else {
+                // Entity mode: input_select / select options drive the room list.
+                contentCard = _roomLightControllerCard(roomEntity);
+            }
+        } else {
+            contentCard = _contentPlaceholderCard();
+        }
 
         return { views: [_buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEntity })] };
     }
