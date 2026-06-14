@@ -8,7 +8,7 @@
  * Editor UI is defined separately in lcards-button-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema } from './common-schemas.js';
 
 /**
  * Get complete button card schema
@@ -972,6 +972,8 @@ export function getButtonSchema(options = {}) {
                     helper: 'Attribute whose value is matched against color-config keys. Write YAML keys as strings (e.g. "fade", "true", "null"). Leave blank to match entity state directly.'
                 }
             },
+
+            state_classification: stateClassificationSchema,
 
             ranges: {
                 type: 'array',

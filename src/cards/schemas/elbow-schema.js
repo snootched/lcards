@@ -11,7 +11,7 @@
  * Editor UI is defined separately in lcards-elbow-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema } from './common-schemas.js';
 import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
 /**
@@ -115,6 +115,8 @@ export function getElbowSchema(options = {}) {
                     helper: 'Attribute whose value is matched against color-config keys. Write YAML keys as strings (e.g. "fade", "true", "null"). Leave blank to match entity state directly.'
                 }
             },
+
+            state_classification: stateClassificationSchema,
 
             id: cardIdSchema,
 

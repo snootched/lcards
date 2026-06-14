@@ -565,6 +565,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         {
                             type: 'custom',
                             render: () => this._renderStateAttributeSelector()
+                        },
+                        {
+                            type: 'custom',
+                            render: () => this._renderStateClassificationElseSelector()
                         }
                     ]
                 }

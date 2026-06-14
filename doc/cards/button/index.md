@@ -218,6 +218,8 @@ Horizontal bars with an opaque text background that creates a "break" in the bar
 | `svg` | object | Custom SVG config — see [Custom SVG Mode](#custom-svg-mode) |
 | `interactive` | boolean | `true` by default. Set `false` to suppress hover effects — see [Decorative Buttons](#decorative--non-interactive-buttons) |
 | `ranges_attribute` | string | Entity attribute for range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
+| `state_attribute` | string | Attribute whose string value drives exact-key colour matching — see [state_attribute](../../core/colours.md#exact-match-keys-from-an-attribute--state_attribute) |
+| `state_classification` | object | Override which state bucket unmapped states fall into (`else: default\|active\|inactive`) — see [state_classification](../../core/colours.md#custom-state-classification--state_classification) |
 | `ranges` | list | State-driven preset switching — see [Component Mode: Alert](#component-mode-alert) |
 | `control` | object | Control behaviour — see [Control](#control) |
 | `show_icon` | boolean | Show/hide the icon (default: `true`) |

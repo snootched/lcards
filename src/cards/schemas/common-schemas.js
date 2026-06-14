@@ -1770,3 +1770,66 @@ export const cardZIndexSchema = {
         selector: { number: { min: -999, max: 9999, step: 1, mode: 'box' } }
     }
 };
+
+// ============================================================================
+// STATE CLASSIFICATION
+// ============================================================================
+
+/**
+ * Schema for state_classification — lets users override which entity states
+ * map to style buckets used by the state-based color/icon/text resolver.
+ *
+ * Built-in buckets: active, inactive, unavailable, default
+ * Custom buckets:   any other key name (e.g. "away", "zone") whose value is a
+ *                   string array of raw entity states that map to it.
+ *
+ * Priority (highest → lowest):
+ *   explicit state key in style config  >  state_classification  >  built-in activeStates list  >  else
+ *
+ * Reserved keys (cannot be used as custom bucket names):
+ *   active, inactive, unavailable, default, else, unknown
+ */
+export const stateClassificationSchema = {
+    type: 'object',
+    description:
+        'Override how raw entity states are mapped to style buckets. ' +
+        'Use built-in buckets (active/inactive/default) or define your own named buckets. ' +
+        'Explicit state keys in style config always take priority over this.',
+    properties: {
+        active: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Additional states to classify as "active" (augments the built-in active list).',
+            examples: [['home', 'work', 'gym']],
+            'x-ui-hints': { label: 'Active states', helper: 'Extra states treated as active.' }
+        },
+        inactive: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'States to explicitly classify as "inactive".',
+            examples: [['not_home', 'away']],
+            'x-ui-hints': { label: 'Inactive states', helper: 'States treated as inactive.' }
+        },
+        else: {
+            type: 'string',
+            description:
+                'Bucket for states not matched by any list (built-in or custom). ' +
+                'Accepts built-in bucket names (active/inactive/default) or a custom bucket name. ' +
+                'Defaults to "inactive" when omitted.',
+            'x-ui-hints': {
+                label: 'Unmapped state class',
+                helper: 'What bucket unrecognised states fall into. Use "default" to reach your default colour instead of the preset inactive colour.',
+                selector: { select: { options: [
+                    { value: 'inactive', label: 'Inactive (default)' },
+                    { value: 'default',  label: 'Default' },
+                    { value: 'active',   label: 'Active' },
+                ] } }
+            }
+        },
+    },
+    additionalProperties: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Custom bucket: an array of raw entity states that map to this bucket name.',
+    },
+};

@@ -588,6 +588,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 ${this._renderRangesAttributeSelector()}
 
                 ${this._renderStateAttributeSelector()}
+
+                ${this._renderStateClassificationElseSelector()}
             </lcards-form-section>
 
             <!-- Visual Range & Direction Configurator -->

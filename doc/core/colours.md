@@ -329,6 +329,120 @@ ranges_attribute: current_humidity  # range keys: above:60 / below:30
 
 ---
 
+## Custom State Classification — `state_classification`
+
+By default, LCARdS maps raw entity states to one of four style buckets:
+
+| Bucket | States |
+|---|---|
+| `unavailable` | `unavailable`, `unknown` |
+| `active` | `on`, `home`, `playing`, `heat`, `open`, and [20+ more built-in states](/development/colour-resolution.md) |
+| `inactive` | everything else |
+| `default` | card has no entity |
+
+When a preset is applied (e.g. `preset: lozenge`), the preset's `inactive` colour silently fills in the bucket — meaning all unmapped states get the preset's inactive shade, even when you only defined a `default` colour.
+
+`state_classification` lets you override this mapping — and define your own named buckets beyond the four built-in ones.
+
+### Built-in bucket overrides
+
+```yaml
+type: custom:lcards-button
+entity: person.stefan
+state_classification:
+  else: default         # unmapped zone names → "default" bucket, not "inactive"
+style:
+  card:
+    color:
+      background:
+        home: var(--lcars-green)
+        not_home: var(--lcars-mango)
+        default: var(--lcars-blue)   # custom zones land here now
+```
+
+### Custom buckets
+
+You can define your own bucket names as keys alongside `active` and `inactive`. Any key that isn't a reserved word becomes a custom bucket — assign it an array of raw entity states, then use that key name in your colour config exactly like `active` or `inactive`.
+
+```yaml
+type: custom:lcards-button
+entity: person.stefan
+state_classification:
+  home_zone: [home]
+  work_zone: [work, office, downtown]
+  away: [not_home]
+  else: away            # all other states → "away" bucket
+style:
+  card:
+    color:
+      background:
+        home_zone: var(--lcars-green)
+        work_zone: var(--lcars-blue)
+        away: var(--lcars-mango)
+        unavailable: var(--lcars-red)
+```
+
+Custom bucket names can be anything except the reserved words: `active`, `inactive`, `unavailable`, `default`, `else`, `unknown`.
+
+### Keys
+
+| Key | Type | Description |
+|---|---|---|
+| `active` | `string[]` | Additional states classified as **active** (augments built-in list) |
+| `inactive` | `string[]` | States explicitly classified as **inactive** |
+| `<custom>` | `string[]` | States mapped to your named bucket (use that name as a colour key) |
+| `else` | string | Bucket for states not matched by any list. Accepts built-in names (`active`/`inactive`/`default`) or a custom bucket name. Defaults to `inactive`. |
+
+`unavailable` and `unknown` always map to the `unavailable` bucket and cannot be overridden.
+
+### Priority within the resolver
+
+Explicit state keys in your colour config still win over `state_classification`. Classification is only consulted when no exact key matches:
+
+```
+attributeState exact key  (state_attribute config)
+  → exact state key in color config  (e.g. home: green)
+  → numeric zero / range / non_zero
+  → classified bucket  ← state_classification applies here
+  → default / fallback
+```
+
+### Examples
+
+**All unmapped person zones use `default` colour:**
+```yaml
+state_classification:
+  else: default
+```
+
+**Treat specific zones as active:**
+```yaml
+state_classification:
+  active: [work, gym, school]   # augments built-in active list
+  else: default
+```
+
+**Binary sensor — treat all states as active unless unavailable:**
+```yaml
+state_classification:
+  else: active
+```
+
+**Named zones with distinct colours (custom buckets):**
+```yaml
+state_classification:
+  home_zone: [home]
+  work_zone: [work, office, downtown]
+  away: [not_home]
+  else: away
+```
+
+### Supported cards
+
+`state_classification` is a top-level config key on `lcards-button`, `lcards-elbow`, and `lcards-slider`. The `else` field is also available in the card editor UI; all array fields are YAML-only.
+
+---
+
 ## Template Strings as Colour Values
 
 Any colour field also accepts a **Jinja2 / JS template string**. The template is evaluated by the LCARdS template pipeline and the result is used as the colour. This is most useful when the logic is too conditional for a flat state-key map.

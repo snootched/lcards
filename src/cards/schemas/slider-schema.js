@@ -8,7 +8,7 @@
  * Editor UI is defined separately in lcards-slider-editor.js config.
  */
 
-import { dataSourcesSchema, simpleColorSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, actionSchema, animationSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema } from './common-schemas.js';
+import { dataSourcesSchema, simpleColorSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, actionSchema, animationSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema } from './common-schemas.js';
 
 /**
  * Get complete slider card schema
@@ -75,6 +75,8 @@ export function getSliderSchema(options = {}) {
                     helper: 'Attribute whose value is matched against color-config keys. Write YAML keys as strings (e.g. "fade", "true", "null"). Leave blank to match entity state directly.'
                 }
             },
+
+            state_classification: stateClassificationSchema,
 
             id: cardIdSchema,
 
