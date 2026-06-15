@@ -199,7 +199,7 @@ function _generateShellAdaptive(inputs, size) {
             entity: 'input_select.lcars_ui_page_selector',
             preset: 'outline',
             grid: { columns: 1, gap: '5px', 'grid-auto-rows': 'auto' },
-            button_template: { min_height: '10', text: { label: { show: true, position: 'right-center' } } },
+            button_template: { min_height: '10', text: { label: { show: true, position: 'center-right' } } },
           },
           { type: 'custom:lcards-button', preset: 'panel-light', text: { label: { show: false } } },
           { type: 'custom:lcards-button', preset: 'panel-dark', tap_action: { action: 'toggle' } },

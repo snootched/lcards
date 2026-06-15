@@ -135,7 +135,7 @@ export class LCARdSPositionPicker extends LitElement {
     _getPositionValue(row, col) {
         const positions = [
             ['top-left', 'top-center', 'top-right'],
-            ['left-center', 'center', 'right-center'],
+            ['center-left', 'center', 'center-right'],
             ['bottom-left', 'bottom-center', 'bottom-right']
         ];
         return positions[row][col];
@@ -145,23 +145,25 @@ export class LCARdSPositionPicker extends LitElement {
      * Map position value to grid coordinates
      */
     _getGridCoordinates(value) {
-        // Normalize edge shortcuts
+        // Normalize edge shortcuts and legacy aliases
         const normalized = {
-            'top': 'top-center',
-            'bottom': 'bottom-center',
-            'left': 'left-center',
-            'right': 'right-center'
+            'top':          'top-center',
+            'bottom':       'bottom-center',
+            'left':         'center-left',
+            'right':        'center-right',
+            'left-center':  'center-left',
+            'right-center': 'center-right',
         }[value] || value;
 
         const positions = {
-            'top-left': [0, 0],
-            'top-center': [0, 1],
-            'top-right': [0, 2],
-            'left-center': [1, 0],
-            'center': [1, 1],
-            'right-center': [1, 2],
-            'bottom-left': [2, 0],
-            'bottom-center': [2, 1],
+            'top-left':     [0, 0],
+            'top-center':   [0, 1],
+            'top-right':    [0, 2],
+            'center-left':  [1, 0],
+            'center':       [1, 1],
+            'center-right': [1, 2],
+            'bottom-left':  [2, 0],
+            'bottom-center':[2, 1],
             'bottom-right': [2, 2]
         };
 

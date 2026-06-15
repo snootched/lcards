@@ -4143,9 +4143,10 @@ export class LCARdSSlider extends LCARdSButton {
         // Position options with proper labels
         const positionEnum = [
             'top-left', 'top-center', 'top-right',
-            'left-center', 'center', 'right-center',
+            'center-left', 'center', 'center-right',
             'bottom-left', 'bottom-center', 'bottom-right',
-            'top', 'bottom', 'left', 'right'
+            'top', 'bottom', 'left', 'right',
+            'left-center', 'right-center',              // accepted aliases (deprecated)
         ];
 
         lcardsLog.debug('[LCARdSSlider] Registering schema with presets:', availablePresets);

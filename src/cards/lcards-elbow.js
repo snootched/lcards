@@ -3087,7 +3087,7 @@ export class LCARdSElbow extends LCARdSButton {
             const isBottomAligned = originalField.position?.includes('bottom');
 
             // Determine if this is a center position (vertically)
-            // Includes: 'center', 'left-center', 'right-center' (but not 'top-center' or 'bottom-center')
+            // Includes: 'center', 'center-left', 'center-right' (but not 'top-center' or 'bottom-center')
             const isCenterY = !originalField.position || originalField.position === 'center' ||
                              (originalField.position?.includes('center') && !isTopAligned && !isBottomAligned);
 
@@ -3740,9 +3740,10 @@ export class LCARdSElbow extends LCARdSButton {
         // Position options with proper labels (same as button)
         const positionEnum = [
             'top-left', 'top-center', 'top-right',
-            'left-center', 'center', 'right-center',
+            'center-left', 'center', 'center-right',
             'bottom-left', 'bottom-center', 'bottom-right',
-            'top', 'bottom', 'left', 'right'
+            'top', 'bottom', 'left', 'right',
+            'left-center', 'right-center',              // accepted aliases (deprecated)
         ];
 
         // Build complete schema using schema factory function

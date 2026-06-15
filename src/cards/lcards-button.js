@@ -2768,7 +2768,7 @@ export class LCARdSButton extends LCARdSCard {
             iconPosition = resolvedStyle.icon_style.position;
         }
 
-        // Normalize position names (e.g., 'left' -> 'left-center', 'top' -> 'top-center')
+        // Normalize position names (e.g., 'left'/'left-center' -> 'center-left', 'top' -> 'top-center')
         if (!explicitX && !explicitXPercent) {
             iconPosition = this._normalizePositionName(iconPosition);
         }
@@ -5211,9 +5211,9 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Normalize position name to handle synonyms
-     * Maps edge shortcuts to full centered positions:
-     * - 'left' → 'left-center'
-     * - 'right' → 'right-center'
+     * Maps shortcuts and legacy aliases to canonical positions:
+     * - 'left' / 'left-center' → 'center-left'
+     * - 'right' / 'right-center' → 'center-right'
      * - 'top' → 'top-center'
      * - 'bottom' → 'bottom-center'
      *
@@ -5227,10 +5227,12 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         const synonyms = {
-            'left': 'left-center',
-            'right': 'right-center',
-            'top': 'top-center',
-            'bottom': 'bottom-center'
+            'left':         'center-left',
+            'right':        'center-right',
+            'top':          'top-center',
+            'bottom':       'bottom-center',
+            'left-center':  'center-left',
+            'right-center': 'center-right',
         };
 
         return synonyms[position] || position;
@@ -5241,7 +5243,7 @@ export class LCARdSButton extends LCARdSCard {
      * @private
      */
     _calculateNamedPosition(position, textAreaBounds, padding) {
-        // Normalize position name (handle synonyms like 'left' → 'left-center')
+        // Normalize position name (handle synonyms like 'left'/'left-center' → 'center-left')
         position = this._normalizePositionName(position);
 
         // Parse padding (support simple number or directional object)
@@ -5304,13 +5306,13 @@ export class LCARdSButton extends LCARdSCard {
                 anchor: 'middle',
                 baseline: 'alphabetic'
             },
-            'left-center': {
+            'center-left': {
                 x: left + pad.left,
                 y: top + (height / 2),
                 anchor: 'start',
                 baseline: 'middle'  // 'middle' is more visually centered than 'central'
             },
-            'right-center': {
+            'center-right': {
                 x: left + width - pad.right,
                 y: top + (height / 2),
                 anchor: 'end',
@@ -5792,7 +5794,7 @@ export class LCARdSButton extends LCARdSCard {
                     anchor = 'start';     // textLength extends rightward from x
                     stretchTextLength = (availWidth * factor).toFixed(3);
 
-                    // Vertically-centred positions ('center', 'left-center', 'right-center',
+                    // Vertically-centred positions ('center', 'center-left', 'center-right',
                     // and the no-position default) all produce baseline='middle' and don't
                     // factor top/bottom padding into y.  Apply the imbalance here so callers
                     // can nudge text down (padTop > padBottom) or up (padBottom > padTop).
@@ -6867,9 +6869,10 @@ export class LCARdSButton extends LCARdSCard {
         // Position options with proper labels
         const positionEnum = [
             'top-left', 'top-center', 'top-right',
-            'left-center', 'center', 'right-center',
+            'center-left', 'center', 'center-right',
             'bottom-left', 'bottom-center', 'bottom-right',
-            'top', 'bottom', 'left', 'right'
+            'top', 'bottom', 'left', 'right',
+            'left-center', 'right-center',              // accepted aliases (deprecated)
         ];
 
         // Build simplified schema (no $ref resolution needed)
