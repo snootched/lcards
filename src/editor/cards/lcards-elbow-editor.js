@@ -14,7 +14,7 @@
  * - Inherits button card functionality (text, actions, etc.)
  */
 
-import { html } from 'lit';
+import { html, svg } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { editorComponentStyles } from '../base/editor-component-styles.js';
@@ -48,6 +48,19 @@ import '../components/provenance/lcards-provenance-tab.js';
 // @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
+    static get properties() {
+        return {
+            ...super.properties,
+            _liveOuterCurve:  { type: Number, state: true },
+            _liveInnerCurve:  { type: Number, state: true },
+            _liveSegOuterOC:  { type: Number, state: true },
+            _liveSegOuterIC:  { type: Number, state: true },
+            _liveSegInnerOC:  { type: Number, state: true },
+            _liveSegInnerIC:  { type: Number, state: true },
+            _segCurveTab:     { type: String, state: true },
+        };
+    }
+
     constructor() {
         super();
         this.cardType = 'elbow';
@@ -56,6 +69,13 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         this._symbioCardEditorDialogRef = null;
         this._yamlDebounceTimer = null;
         this._cssDebounceTimer = null;
+        this._liveOuterCurve = null;
+        this._liveInnerCurve = null;
+        this._liveSegOuterOC = null;
+        this._liveSegOuterIC = null;
+        this._liveSegInnerOC = null;
+        this._liveSegInnerIC = null;
+        this._segCurveTab = 'outer';
     }
 
     /**
@@ -898,6 +918,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     _isCssExpr(val) {
         if (typeof val !== 'string' || val === '') return false;
         if (val === 'theme' || val === 'auto') return false;
+        if (['arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'].includes(val)) return false;
         if (/^\s*-?\d+(\.\d+)?\s*(px)?\s*$/.test(val)) return false;
         return true;
     }
@@ -944,116 +965,69 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const segment = this.config.elbow?.segment || {};
         // Preserve 'theme' strings - don't default them to numbers
         const barWidth = segment.bar_width !== undefined ? segment.bar_width : 90;
-        const barHeight = segment.bar_height !== undefined ? segment.bar_height : barWidth;
+        const barHeight = segment.bar_height !== undefined ? segment.bar_height : (typeof barWidth === 'number' ? barWidth : 90);
         const outerCurve = segment.outer_curve ?? 'auto';
-        const isOuterAuto = outerCurve === 'auto';
+        const OUTER_CURVE_KEYWORDS = ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'];
+        const isOuterKeyword = OUTER_CURVE_KEYWORDS.includes(outerCurve);
+        const isOuterAuto = outerCurve === 'auto' || outerCurve === 'arm_width';
         const innerCurve = segment.inner_curve;
+        const INNER_CURVE_KEYWORDS = ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'];
+        const isInnerKeyword = INNER_CURVE_KEYWORDS.includes(innerCurve);
 
         // Detect CSS expressions so the UI never clobbers them
         const isCssBarWidth   = this._isCssExpr(barWidth);
         const isCssBarHeight  = this._isCssExpr(barHeight);
         const isCssOuterCurve = this._isCssExpr(outerCurve);
-        const isCssInnerCurve = this._isCssExpr(innerCurve);
+        const isCssInnerCurve = !isInnerKeyword && this._isCssExpr(innerCurve);
 
-        // Calculate auto values for helper text (handle 'theme' case)
+        // Clamp config
+        const outerCurveClamp = segment.outer_curve_clamp ?? 'card';
+        const isClampManual = typeof outerCurveClamp === 'number';
+        const clampModeValue = isClampManual ? 'manual' : outerCurveClamp;
+
+        // Calculate resolved values for helper text (handle 'theme' case)
         const numericBarWidth = typeof barWidth === 'number' ? barWidth : 90;
         const numericBarHeight = typeof barHeight === 'number' ? barHeight : 90;
-        const calculatedOuterCurve = numericBarWidth / 2;
-        const calculatedInnerCurve = (isOuterAuto ? calculatedOuterCurve : (typeof outerCurve === 'number' ? outerCurve : calculatedOuterCurve)) / 2;
+        const armMin = Math.min(numericBarWidth, numericBarHeight);
+        const armMax = Math.max(numericBarWidth, numericBarHeight);
+        const calculatedOuterCurve = (() => {
+            if (outerCurve === 'arm_height') return numericBarHeight / 2;
+            if (outerCurve === 'arm_max') return armMax / 2;
+            if (outerCurve === 'arm_min') return armMin / 2;
+            if (outerCurve === 'arm_fill') return armMax;
+            return numericBarWidth / 2; // 'auto', 'arm_width', or fallback
+        })();
+        const effectiveOuter = typeof outerCurve === 'number' ? outerCurve : calculatedOuterCurve;
+        const calculatedInnerCurve = (() => {
+            if (innerCurve === 'arm_width') return numericBarWidth / 2;
+            if (innerCurve === 'arm_height') return numericBarHeight / 2;
+            if (innerCurve === 'arm_max') return armMax / 2;
+            if (innerCurve === 'arm_min') return armMin / 2;
+            if (innerCurve === 'arm_fill') return armMax;
+            return effectiveOuter / 2; // 'auto', undefined, or fallback
+        })();
+
+        // Drive the selects: keyword modes map to themselves; numeric → 'manual'; CSS → 'css'
+        const outerCurveModeValue = isCssOuterCurve ? 'css' : (typeof outerCurve === 'number' ? 'manual' : outerCurve);
+        const innerCurveModeValue = isCssInnerCurve ? 'css' : (typeof innerCurve === 'number' ? 'manual' : (innerCurve ?? 'auto'));
 
         return html`
-            <lcards-message
-                type="info"
-                message="Configure dimensions and curves for your simple elbow. Bar dimensions control thickness, while outer_curve/inner_curve control the depth (scale) of the diagonal cut into the corner - independent of bar thickness.">
-            </lcards-message>
-
-            <!-- Visual Diagram -->
+            <!-- Static reference diagram -->
             <lcards-form-section
-                header="Elbow Geometry Diagram"
-                description="Visual reference for understanding elbow dimensions"
-                icon="mdi:ruler"
-                ?expanded=${true}
+                header="Elbow Geometry Reference"
+                description="How the four dimensions map to the physical LCARS elbow shape"
+                icon="mdi:ruler-square"
+                ?expanded=${false}
                 ?outlined=${true}>
 
-                <div style="padding: 30px; background: var(--ha-card-background, #1c1c1c); border-radius: var(--ha-card-border-radius, 12px); text-align: center;">
-                    <svg viewBox="0 0 400 250" style="max-width: 500px; width: 100%; height: auto;">
-                        <!-- Background -->
-                        <rect x="0" y="0" width="400" height="300" fill="transparent" stroke="none"/>
-
-                        <!-- Example Elbow (header-left style) -->
-                        <g id="elbow-example">
-                            <!-- Vertical bar (bar_width controls this) -->
-                            <rect x="50" y="50" width="80" height="200" fill="var(--primary-color, #FF9900)" opacity="0.7"/>
-                            <!-- Horizontal bar (bar_height controls this) -->
-                            <rect x="50" y="50" width="300" height="30" fill="var(--primary-color, #FF9900)" opacity="0.7"/>
-
-                            <!-- Outer arc (outer_curve) - the "bite" depth -->
-                            <path d="M 130 50 A 44 40 0 0 0 48 100"
-                                  fill="none"
-                                  stroke="var(--accent-color, #00FFFF)"
-                                  stroke-width="3"
-                                  stroke-dasharray="5,5"/>
-                            <!-- Outer diagonal extension line showing depth -->
-                            <line x1="90" y1="50" x2="90" y2="90"
-                                  stroke="var(--accent-color, #00FFFF)"
-                                  stroke-width="1"
-                                  stroke-dasharray="2,2"
-                                  opacity="0.5"/>
-
-                            <!-- Inner arc (inner_curve) -->
-                            <path d="M 130 80 A 20 20 0 0 0 110 100"
-                                  fill="none"
-                                  stroke="var(--warning-color, #FFAA00)"
-                                  stroke-width="3"
-                                  stroke-dasharray="5,5"/>
-                            <!-- Inner diagonal extension line -->
-                            <line x1="110" y1="80" x2="110" y2="100"
-                                  stroke="var(--warning-color, #FFAA00)"
-                                  stroke-width="1"
-                                  stroke-dasharray="2,2"
-                                  opacity="0.5"/>
-                        </g>
-
-                        <!-- Labels with arrows -->
-                        <!-- bar_width label -->
-                        <line x1="50" y1="200" x2="160" y2="200" stroke="white" stroke-width="2" marker-end="url(#arrowhead)"/>
-                        <text x="165" y="195" fill="white" font-size="14" font-weight="bold">bar_width</text>
-                        <text x="165" y="210" fill="white" font-size="11" opacity="0.7">(vertical thickness)</text>
-
-                        <!-- bar_height label -->
-                        <line x1="200" y1="80" x2="200" y2="35" stroke="white" stroke-width="2" marker-end="url(#arrowhead)"/>
-                        <text x="165" y="14" fill="white" font-size="14" font-weight="bold">bar_height</text>
-                        <text x="165" y="30" fill="white" font-size="11" opacity="0.7">(horizontal thickness)</text>
-
-                        <!-- outer_curve label -->
-                        <line x1="90" y1="70" x2="67" y2="38" stroke="var(--accent-color, #00FFFF)" stroke-width="2" marker-end="url(#arrowhead-cyan)"/>
-                        <text x="0" y="12" fill="var(--accent-color, #00FFFF)" font-size="14" font-weight="bold">outer_curve</text>
-                        <text x="0" y="26" fill="var(--accent-color, #00FFFF)" font-size="11" opacity="0.9">(cut depth/scale)</text>
-
-                        <!-- inner_curve label -->
-                        <line x1="120" y1="90" x2="160" y2="120" stroke="var(--warning-color, #FFAA00)" stroke-width="2" marker-end="url(#arrowhead-yellow)"/>
-                        <text x="165" y="135" fill="var(--warning-color, #FFAA00)" font-size="14" font-weight="bold">inner_curve</text>
-                        <text x="165" y="150" fill="var(--warning-color, #FFAA00)" font-size="11" opacity="0.9">(inner cut depth)</text>
-
-                        <!-- Arrow markers -->
-                        <defs>
-                            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                                <polygon points="0 0, 10 3, 0 6" fill="white" />
-                            </marker>
-                            <marker id="arrowhead-cyan" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                                <polygon points="0 0, 10 3, 0 6" fill="var(--accent-color, #00FFFF)" />
-                            </marker>
-                            <marker id="arrowhead-yellow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                                <polygon points="0 0, 10 3, 0 6" fill="var(--warning-color, #FFAA00)" />
-                            </marker>
-                        </defs>
-                    </svg>
+                <div style="padding: 16px; text-align: center;">
+                    ${this._renderElbowReferenceDiagram()}
                 </div>
             </lcards-form-section>
 
             <lcards-form-section
                 header="Bar Dimensions"
-                description="Configure the thickness of the elbow bars (static values or dynamic theme binding)"
+                description="Thickness of the two arms"
                 icon="mdi:resize"
                 ?expanded=${true}
                 ?outlined=${true}>
@@ -1062,10 +1036,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .hass=${this.hass}
                     .label=${'Bar Width Mode (Vertical)'}
                     .helper=${isCssBarWidth
-                        ? '📐 CSS expression — set via YAML (use YAML tab to edit)'
+                        ? 'CSS expression — edit via YAML'
                         : barWidth === 'theme'
-                            ? '🎨 Dynamic: Binds to input_number.lcars_vertical helper'
-                            : '📏 Static: Fixed pixel value'}
+                            ? 'Dynamic — follows input_number.lcars_vertical'
+                            : 'Static pixel value'}
                     .selector=${{
                         select: {
                             mode: 'dropdown',
@@ -1110,10 +1084,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .hass=${this.hass}
                     .label=${'Bar Height Mode (Horizontal)'}
                     .helper=${isCssBarHeight
-                        ? '📐 CSS expression — set via YAML (use YAML tab to edit)'
+                        ? 'CSS expression — edit via YAML'
                         : barHeight === 'theme'
-                            ? '🎨 Dynamic: Binds to input_number.lcars_horizontal helper'
-                            : '📏 Static: Fixed pixel value'}
+                            ? 'Dynamic — follows input_number.lcars_horizontal'
+                            : 'Static pixel value'}
                     .selector=${{
                         select: {
                             mode: 'dropdown',
@@ -1157,77 +1131,136 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
             <lcards-form-section
                 header="Corner Curves"
-                description="Control the depth/scale of the diagonal cut. Tip: Use thin bars (20px) with large curves (60-80px) for dramatic diagonal cuts."
+                description="Arc radii for the outer and inner corners"
                 icon="mdi:vector-curve"
                 ?expanded=${true}
                 ?outlined=${true}>
 
-                <div class="form-row">
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Outer Curve Radius - Enable Manual Mode'}
-                        .helper=${isCssOuterCurve
-                            ? '📐 CSS expression — set via YAML; clear it to switch back to auto/manual'
-                            : isOuterAuto
-                                ? `Auto mode active: Outer radius = bar_width ÷ 2 = ${calculatedOuterCurve.toFixed(1)}px (LCARS formula)`
-                                : 'Manual mode: Set custom outer curve radius below'}
-                        .selector=${{ boolean: {} }}
-                        .value=${!isOuterAuto && !isCssOuterCurve ? true : isCssOuterCurve ? true : false}
-                        @value-changed=${this._handleOuterCurveModeChange}>
-                    </ha-selector>
+                <!-- Live arc preview — uses live slider value during drag, config value otherwise -->
+                <div style="padding: 12px 0 4px; text-align: center;">
+                    ${this._renderCurveLivePreview(
+                        this._liveOuterCurve ?? (typeof outerCurve === 'number' ? outerCurve : calculatedOuterCurve),
+                        this._liveInnerCurve ?? (typeof innerCurve === 'number' ? innerCurve : calculatedInnerCurve),
+                        numericBarWidth, numericBarHeight, clampModeValue, outerCurveClamp
+                    )}
                 </div>
+
+                <!-- Outer curve -->
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Outer Arc Radius'}
+                    .helper=${isCssOuterCurve ? 'CSS expression — edit via YAML' : `→ ${calculatedOuterCurve.toFixed(1)} px`}
+                    .selector=${{
+                        select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'auto',       label: 'auto / arm_width  (bar_width ÷ 2)' },
+                                { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
+                                { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)  ★ paired elbows' },
+                                { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
+                                { value: 'arm_fill',   label: 'arm_fill  (max arm — full sweep)' },
+                                { value: 'manual',     label: 'manual  (explicit px)' },
+                                ...(isCssOuterCurve ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
+                            ]
+                        }
+                    }}
+                    .value=${outerCurveModeValue}
+                    @value-changed=${this._handleOuterCurveModeChange}>
+                </ha-selector>
 
                 ${isCssOuterCurve
                     ? this._renderCssField('Outer Curve Radius', outerCurve, 'elbow.segment.outer_curve', 'auto')
-                    : !isOuterAuto ? html`
+                    : outerCurveModeValue === 'manual' ? html`
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Outer Curve Radius'}
-                            .helper=${'Controls the depth/scale of the diagonal cut. Increase for deeper "bite" into corner (independent of bar thickness)'}
-                            .selector=${{
-                                number: {
-                                    min: 0,
-                                    max: 250,
-                                    step: 5,
-                                    mode: 'slider',
-                                    unit_of_measurement: 'px'
-                                }
-                            }}
+                            .selector=${{ number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
                             .value=${typeof outerCurve === 'number' ? outerCurve : calculatedOuterCurve}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segment.outer_curve', e.detail.value)}>
+                            @input=${(e) => { const v = Number(e.composedPath?.()?.[0]?.value); if (!isNaN(v)) this._liveOuterCurve = v; }}
+                            @value-changed=${(e) => { this._liveOuterCurve = null; this._setConfigValue('elbow.segment.outer_curve', e.detail.value); }}>
                         </ha-selector>
-                    ` : ''}
+                    ` : this._renderCurveModeMessage('outer', outerCurveModeValue, calculatedOuterCurve, numericBarWidth, numericBarHeight)}
+
+                <!-- Inner curve -->
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Inner Arc Radius'}
+                    .helper=${isCssInnerCurve ? 'CSS expression — edit via YAML' : `→ ${calculatedInnerCurve.toFixed(1)} px`}
+                    .selector=${{
+                        select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'auto',       label: 'auto  (outer ÷ 2, LCARS formula)' },
+                                { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)' },
+                                { value: 'arm_width',  label: 'arm_width  (bar_width ÷ 2)' },
+                                { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
+                                { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
+                                { value: 'arm_fill',   label: 'arm_fill  (max arm)' },
+                                { value: 'manual',     label: 'manual  (explicit px)' },
+                                ...(isCssInnerCurve ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
+                            ]
+                        }
+                    }}
+                    .value=${innerCurveModeValue}
+                    @value-changed=${this._handleInnerCurveModeChange}>
+                </ha-selector>
 
                 ${isCssInnerCurve
-                    ? this._renderCssField('Inner Curve Radius', innerCurve, 'elbow.segment.inner_curve', Math.round(calculatedInnerCurve))
-                    : html`
+                    ? this._renderCssField('Inner Curve Radius', innerCurve, 'elbow.segment.inner_curve', 'auto')
+                    : innerCurveModeValue === 'manual' ? html`
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Inner Curve Radius'}
-                            .helper=${innerCurve !== undefined
-                                ? `Current: ${innerCurve}px (controls inner cut depth - default would be ${calculatedInnerCurve.toFixed(1)}px using LCARS formula)`
-                                : `Using LCARS formula: outer_curve ÷ 2 = ${calculatedInnerCurve.toFixed(1)}px (controls inner cut depth)`}
-                            .selector=${{
-                                number: {
-                                    min: 0,
-                                    max: 250,
-                                    step: 5,
-                                    mode: 'slider',
-                                    unit_of_measurement: 'px'
-                                }
-                            }}
+                            .selector=${{ number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
                             .value=${typeof innerCurve === 'number' ? innerCurve : calculatedInnerCurve}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segment.inner_curve', e.detail.value)}>
+                            @input=${(e) => { const v = Number(e.composedPath?.()?.[0]?.value); if (!isNaN(v)) this._liveInnerCurve = v; }}
+                            @value-changed=${(e) => { this._liveInnerCurve = null; this._setConfigValue('elbow.segment.inner_curve', e.detail.value); }}>
                         </ha-selector>
-                    `}
+                    ` : this._renderCurveModeMessage('inner', innerCurveModeValue, calculatedInnerCurve, numericBarWidth, numericBarHeight, calculatedOuterCurve)}
+
+                <!-- Curve clamp -->
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Curve Clamp'}
+                    .helper=${'Controls how the arc radius is limited at render time'}
+                    .selector=${{
+                        select: {
+                            mode: 'dropdown',
+                            options: [
+                                { value: 'card',   label: 'card  — clamp to card viewport (default)' },
+                                { value: 'none',   label: 'none  — no clamp (consistent paired elbows)' },
+                                { value: 'manual', label: 'manual  — explicit px ceiling' },
+                            ]
+                        }
+                    }}
+                    .value=${clampModeValue}
+                    @value-changed=${this._handleClampModeChange}>
+                </ha-selector>
+
+                ${isClampManual ? html`
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Clamp Ceiling'}
+                        .selector=${{ number: { min: 0, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
+                        .value=${typeof outerCurveClamp === 'number' ? outerCurveClamp : 60}
+                        @value-changed=${(e) => this._setConfigValue('elbow.segment.outer_curve_clamp', e.detail.value)}>
+                    </ha-selector>
+                ` : html`
+                    <lcards-message
+                        type=${clampModeValue === 'none' ? 'success' : 'info'}
+                        message=${clampModeValue === 'none'
+                            ? 'No clamping — the arc radius is exactly the computed value. The SVG clips overflow at the card edge. Use this for paired elbows in different-height cards so both render identically.'
+                            : 'The arc radius is clamped to min(card_width, card_height) at render time. Two elbows with the same config in differently-sized cards may render with different radii. Use none to prevent this.'}>
+                    </lcards-message>
+                `}
 
                 ${this._isDiagonalCapType() ? html`
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Diagonal Angle Mode'}
                         .helper=${segment.diagonal_angle === 'theme'
-                            ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
-                            : '📏 Static: Fixed angle value'}
+                            ? 'Dynamic — follows input_number.lcars_elbow_angle'
+                            : 'Static angle value'}
                         .selector=${{
                             select: {
                                 mode: 'dropdown',
@@ -1328,15 +1361,106 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const gap = segments.gap ?? 4;
         const outerSegment = segments.outer_segment || {};
         const innerSegment = segments.inner_segment || {};
-
         const isInnerOuterCurveManual = innerSegment.outer_curve !== undefined;
+
+        const CURVE_KEYWORDS = ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'];
+
+        // ── Outer segment resolved values ──────────────────────────────────
+        const outerBW = typeof outerSegment.bar_width  === 'number' ? outerSegment.bar_width  : 90;
+        const outerBH = typeof outerSegment.bar_height === 'number' ? outerSegment.bar_height : outerBW;
+        const outerArmMin = Math.min(outerBW, outerBH);
+        const outerArmMax = Math.max(outerBW, outerBH);
+
+        const outerOC = outerSegment.outer_curve ?? 'auto';
+        const isOuterOCKw  = CURVE_KEYWORDS.includes(outerOC);
+        const isCssOuterOC = !isOuterOCKw && this._isCssExpr(outerOC);
+        const outerOCMode  = isCssOuterOC ? 'css' : (typeof outerOC === 'number' ? 'manual' : outerOC);
+        const outerOCPx = (() => {
+            if (typeof outerOC === 'number') return outerOC;
+            if (outerOC === 'arm_height') return outerBH / 2;
+            if (outerOC === 'arm_max')    return outerArmMax / 2;
+            if (outerOC === 'arm_min')    return outerArmMin / 2;
+            if (outerOC === 'arm_fill')   return outerArmMax;
+            return outerBW / 2; // auto / arm_width
+        })();
+
+        const outerIC = outerSegment.inner_curve;
+        const isOuterICKw  = CURVE_KEYWORDS.includes(outerIC);
+        const isCssOuterIC = !isOuterICKw && this._isCssExpr(outerIC);
+        const outerICMode  = isCssOuterIC ? 'css' : (typeof outerIC === 'number' ? 'manual' : (outerIC ?? 'auto'));
+        const outerICPx = (() => {
+            if (typeof outerIC === 'number') return outerIC;
+            if (outerIC === 'arm_width')  return outerBW / 2;
+            if (outerIC === 'arm_height') return outerBH / 2;
+            if (outerIC === 'arm_max')    return outerArmMax / 2;
+            if (outerIC === 'arm_min')    return outerArmMin / 2;
+            if (outerIC === 'arm_fill')   return outerArmMax;
+            return outerOCPx / 2; // auto / undefined
+        })();
+
+        const outerClamp     = outerSegment.outer_curve_clamp ?? 'card';
+        const outerClampMode = typeof outerClamp === 'number' ? 'manual' : outerClamp;
+
+        // ── Inner segment resolved values ──────────────────────────────────
+        const innerBW = typeof innerSegment.bar_width  === 'number' ? innerSegment.bar_width  : 60;
+        const innerBH = typeof innerSegment.bar_height === 'number' ? innerSegment.bar_height : innerBW;
+        const innerArmMin = Math.min(innerBW, innerBH);
+        const innerArmMax = Math.max(innerBW, innerBH);
+
+        const innerOCAutoValue = this._calculateInnerOuterCurveAuto();
+        const innerOC = innerSegment.outer_curve;
+        const isInnerOCKw  = CURVE_KEYWORDS.includes(innerOC);
+        const isCssInnerOC = !isInnerOCKw && this._isCssExpr(innerOC);
+        const innerOCMode  = isCssInnerOC ? 'css' : (typeof innerOC === 'number' ? 'manual' : (innerOC ?? 'auto'));
+        const innerOCPx = (() => {
+            if (typeof innerOC === 'number') return innerOC;
+            if (innerOC === 'arm_height') return innerBH / 2;
+            if (innerOC === 'arm_max')    return innerArmMax / 2;
+            if (innerOC === 'arm_min')    return innerArmMin / 2;
+            if (innerOC === 'arm_fill')   return innerArmMax;
+            if (isInnerOCKw)              return innerBW / 2; // arm_width / auto
+            return innerOCAutoValue; // undefined = concentric auto
+        })();
+
+        const innerIC = innerSegment.inner_curve;
+        const isInnerICKw  = CURVE_KEYWORDS.includes(innerIC);
+        const isCssInnerIC = !isInnerICKw && this._isCssExpr(innerIC);
+        const innerICMode  = isCssInnerIC ? 'css' : (typeof innerIC === 'number' ? 'manual' : (innerIC ?? 'auto'));
+        const innerICPx = (() => {
+            if (typeof innerIC === 'number') return innerIC;
+            if (innerIC === 'arm_width')  return innerBW / 2;
+            if (innerIC === 'arm_height') return innerBH / 2;
+            if (innerIC === 'arm_max')    return innerArmMax / 2;
+            if (innerIC === 'arm_min')    return innerArmMin / 2;
+            if (innerIC === 'arm_fill')   return innerArmMax;
+            return innerOCPx / 2; // auto / undefined
+        })();
+
+        // Live preview values — pick up slider drag before commit
+        const previewOC      = this._liveSegOuterOC ?? (typeof outerOC === 'number' ? outerOC : outerOCPx);
+        const previewIC      = this._liveSegOuterIC ?? (typeof outerIC === 'number' ? outerIC : outerICPx);
+        const previewInnerOC = this._liveSegInnerOC ?? innerOCPx;
+        const previewInnerIC = this._liveSegInnerIC ?? innerICPx;
 
         return html`
             <lcards-message
                 type="info"
-                message="Configure your segmented (Picard-style) double elbow with outer and inner concentric segments.">
+                message="Picard-style double elbow: an outer frame segment and an inner content segment separated by a gap.">
             </lcards-message>
 
+            <!-- ── Geometry Reference ──────────────────────────────────────── -->
+            <lcards-form-section
+                header="Geometry Reference"
+                description="Fixed-proportion diagram showing the segmented elbow structure"
+                icon="mdi:help-circle-outline"
+                ?expanded=${false}
+                ?outlined=${true}>
+                <div style="padding: 8px 0; text-align: center;">
+                    ${this._renderSegmentedElbowReferenceDiagram()}
+                </div>
+            </lcards-form-section>
+
+            <!-- ── Segment Spacing ─────────────────────────────────────────── -->
             <lcards-form-section
                 header="Segment Spacing"
                 description="Gap between outer and inner segments"
@@ -1347,24 +1471,17 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Segment Gap'}
-                    .helper=${`Gap between outer and inner segments (default: 4px)`}
-                    .selector=${{
-                        number: {
-                            min: 0,
-                            max: 50,
-                            step: 1,
-                            mode: 'slider',
-                            unit_of_measurement: 'px'
-                        }
-                    }}
+                    .helper=${'Space between the two segments (default: 4px)'}
+                    .selector=${{ number: { min: 0, max: 50, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
                     .value=${gap}
                     @value-changed=${(e) => this._setConfigValue('elbow.segments.gap', e.detail.value)}>
                 </ha-selector>
             </lcards-form-section>
 
+            <!-- ── Outer Segment ────────────────────────────────────────────── -->
             <lcards-form-section
                 header="Outer Segment (Frame)"
-                description="Outer elbow dimensions and colour"
+                description="Colour and dimensions for the outer elbow"
                 icon="mdi:vector-square"
                 ?expanded=${true}
                 ?outlined=${true}>
@@ -1373,234 +1490,108 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="elbow.segments.outer_segment.color"
-                    header="Outer Segment Colour"
-                    description="Colour states for outer frame segment - supports custom states like 'heat', 'cool', etc."
+                    header="Colour"
+                    description="Colour states for outer frame segment"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
                 </lcards-color-section-v2>
 
-                ${this._isCssExpr(outerSegment.bar_width)
-                    ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Width Mode'}
+                <lcards-form-section
+                    header="Bar Dimensions"
+                    icon="mdi:ruler"
+                    ?expanded=${true}
+                    ?outlined=${false}>
+
+                    ${this._isCssExpr(outerSegment.bar_width) ? html`
+                        <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
                             .helper=${'📐 CSS expression active'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
+                            ]}}}
                             .value=${'css'}
                             @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_width', 90, 'clamp(60px, 8vw, 120px)')}>
                         </ha-selector>
                         ${this._renderCssField('Bar Width', outerSegment.bar_width, 'elbow.segments.outer_segment.bar_width', 90)}
-                    `
-                    : html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Width Mode'}
+                    ` : html`
+                        <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
                             .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
+                            ]}}}
                             .value=${'static'}
                             @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_width', 90, 'clamp(60px, 8vw, 120px)')}>
                         </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Width'}
-                            .helper=${'Vertical bar thickness'}
-                            .selector=${{
-                                number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' }
-                            }}
+                        <ha-selector .hass=${this.hass} .label=${'Bar Width'} .helper=${'Vertical bar thickness'}
+                            .selector=${{ number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
                             .value=${typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90}
                             @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.bar_width', e.detail.value)}>
                         </ha-selector>
                     `}
 
-                ${this._isCssExpr(outerSegment.bar_height)
-                    ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Height Mode'}
+                    ${this._isCssExpr(outerSegment.bar_height) ? html`
+                        <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
                             .helper=${'📐 CSS expression active'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
+                            ]}}}
                             .value=${'css'}
                             @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_height', 90, 'clamp(40px, 6vh, 90px)')}>
                         </ha-selector>
                         ${this._renderCssField('Bar Height', outerSegment.bar_height, 'elbow.segments.outer_segment.bar_height', 90)}
-                    `
-                    : html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Height Mode'}
+                    ` : html`
+                        <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
                             .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
+                            ]}}}
                             .value=${'static'}
                             @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.bar_height', 90, 'clamp(40px, 6vh, 90px)')}>
                         </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Height'}
-                            .helper=${'Horizontal bar thickness'}
-                            .selector=${{
-                                number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' }
-                            }}
-                            .value=${typeof outerSegment.bar_height === 'number' ? outerSegment.bar_height : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90)}
+                        <ha-selector .hass=${this.hass} .label=${'Bar Height'} .helper=${'Horizontal bar thickness'}
+                            .selector=${{ number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
+                            .value=${typeof outerSegment.bar_height === 'number' ? outerSegment.bar_height : outerBW}
                             @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.bar_height', e.detail.value)}>
                         </ha-selector>
                     `}
 
-                ${this._isCssExpr(outerSegment.outer_curve)
-                    ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Outer Curve Mode'}
-                            .helper=${'📐 CSS expression active'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
-                            .value=${'css'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.outer_curve', Math.round((typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2), 'clamp(30px, 4vw, 60px)')}>
+                    ${this._isDiagonalCapType() ? html`
+                        <ha-selector .hass=${this.hass}
+                            .label=${'Diagonal Angle Mode'}
+                            .helper=${outerSegment.diagonal_angle === 'theme'
+                                ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
+                                : '📏 Static: Fixed angle value'}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
+                            ]}}}
+                            .value=${outerSegment.diagonal_angle === 'theme' ? 'theme' : 'static'}
+                            @value-changed=${(e) => this._handleOuterDiagonalAngleModeChange(e)}>
                         </ha-selector>
-                        ${this._renderCssField('Outer Curve', outerSegment.outer_curve, 'elbow.segments.outer_segment.outer_curve', Math.round((typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2))}
-                    `
-                    : html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Outer Curve Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
-                            .value=${'static'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.outer_curve', Math.round((typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2), 'clamp(30px, 4vw, 60px)')}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Outer Curve'}
-                            .helper=${'Outer corner radius'}
-                            .selector=${{
-                                number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' }
-                            }}
-                            .value=${typeof outerSegment.outer_curve === 'number' ? outerSegment.outer_curve : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.outer_curve', e.detail.value)}>
-                        </ha-selector>
-                    `}
-
-                ${this._isCssExpr(outerSegment.inner_curve)
-                    ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Inner Curve Mode'}
-                            .helper=${'📐 CSS expression active'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
-                            .value=${'css'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.inner_curve', Math.round((typeof outerSegment.outer_curve === 'number' ? outerSegment.outer_curve : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2) / 2), 'clamp(15px, 2vw, 30px)')}>
-                        </ha-selector>
-                        ${this._renderCssField('Inner Curve', outerSegment.inner_curve, 'elbow.segments.outer_segment.inner_curve', Math.round((typeof outerSegment.outer_curve === 'number' ? outerSegment.outer_curve : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2) / 2))}
-                    `
-                    : html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Inner Curve Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
-                            .value=${'static'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.outer_segment.inner_curve', Math.round((typeof outerSegment.outer_curve === 'number' ? outerSegment.outer_curve : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2) / 2), 'clamp(15px, 2vw, 30px)')}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Inner Curve'}
-                            .helper=${'Inner corner radius'}
-                            .selector=${{
-                                number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' }
-                            }}
-                            .value=${typeof outerSegment.inner_curve === 'number' ? outerSegment.inner_curve : (typeof outerSegment.outer_curve === 'number' ? outerSegment.outer_curve : (typeof outerSegment.bar_width === 'number' ? outerSegment.bar_width : 90) / 2) / 2}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.inner_curve', e.detail.value)}>
-                        </ha-selector>
-                    `}
-
-                ${this._isDiagonalCapType() ? html`
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Diagonal Angle Mode'}
-                        .helper=${outerSegment.diagonal_angle === 'theme'
-                            ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
-                            : '📏 Static: Fixed angle value'}
-                        .selector=${{
-                            select: {
-                                mode: 'dropdown',
-                                options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
-                                ]
-                            }
-                        }}
-                        .value=${outerSegment.diagonal_angle === 'theme' ? 'theme' : 'static'}
-                        @value-changed=${(e) => this._handleOuterDiagonalAngleModeChange(e)}>
-                    </ha-selector>
-
-                    ${outerSegment.diagonal_angle !== 'theme' ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Diagonal Cut Angle'}
-                            .helper=${'Angle of diagonal cuts (0° = horizontal, 45° = diagonal, 90° = vertical)'}
-                            .selector=${{
-                                number: {
-                                    min: 0,
-                                    max: 90,
-                                    step: 5,
-                                    mode: 'slider',
-                                    unit_of_measurement: '°'
-                                }
-                            }}
-                            .value=${typeof outerSegment.diagonal_angle === 'number' ? outerSegment.diagonal_angle : 45}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.diagonal_angle', e.detail.value)}>
-                        </ha-selector>
-                    ` : html`
-                        <lcards-message type="info" title="Theme Integration">
-                            Diagonal angle will dynamically follow <code>input_number.lcars_elbow_angle</code> entity state.
-                            Create this helper in Home Assistant configuration to enable theme integration.
-                        </lcards-message>
-                    `}
-                ` : ''}
+                        ${outerSegment.diagonal_angle !== 'theme' ? html`
+                            <ha-selector .hass=${this.hass} .label=${'Diagonal Cut Angle'}
+                                .helper=${'Angle of diagonal cuts (0° = horizontal, 45° = diagonal, 90° = vertical)'}
+                                .selector=${{ number: { min: 0, max: 90, step: 5, mode: 'slider', unit_of_measurement: '°' } }}
+                                .value=${typeof outerSegment.diagonal_angle === 'number' ? outerSegment.diagonal_angle : 45}
+                                @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.diagonal_angle', e.detail.value)}>
+                            </ha-selector>
+                        ` : html`
+                            <lcards-message type="info" title="Theme Integration">
+                                Diagonal angle will dynamically follow <code>input_number.lcars_elbow_angle</code>.
+                            </lcards-message>
+                        `}
+                    ` : ''}
+                </lcards-form-section>
             </lcards-form-section>
 
+            <!-- ── Inner Segment ─────────────────────────────────────────────── -->
             <lcards-form-section
                 header="Inner Segment (Content Area)"
-                description="Inner elbow dimensions and colour"
+                description="Colour and dimensions for the inner elbow"
                 icon="mdi:vector-square-open"
                 ?expanded=${true}
                 ?outlined=${true}>
@@ -1609,252 +1600,278 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="elbow.segments.inner_segment.color"
-                    header="Inner Segment Colour"
-                    description="Colour states for inner content segment - supports custom states like 'heat', 'cool', etc."
+                    header="Colour"
+                    description="Colour states for inner content segment"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
                 </lcards-color-section-v2>
 
-            <lcards-form-section
-                header="Inner Segment (Content Area)"
-                description="Inner elbow dimensions and colour"
-                icon="mdi:vector-square-open"
-                ?expanded=${true}
-                ?outlined=${true}>
+                <lcards-form-section
+                    header="Bar Dimensions"
+                    icon="mdi:ruler"
+                    ?expanded=${true}
+                    ?outlined=${false}>
 
-                <div class="form-row">
-                    <label>Manual Outer Curve Override</label>
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Manual Mode'}
-                        .helper=${isInnerOuterCurveManual
-                            ? 'Manual mode: custom inner segment outer curve'
-                            : 'Auto mode: calculated for concentricity with outer segment'}
-                        .selector=${{ boolean: {} }}
-                        .value=${isInnerOuterCurveManual}
-                        @value-changed=${this._handleInnerOuterCurveToggle}>
-                    </ha-selector>
-                </div>
-
-                ${this._isCssExpr(innerSegment.bar_width)
-                    ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Width Mode'}
+                    ${this._isCssExpr(innerSegment.bar_width) ? html`
+                        <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
                             .helper=${'📐 CSS expression active'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
+                            ]}}}
                             .value=${'css'}
                             @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_width', 60, 'clamp(40px, 5vw, 80px)')}>
                         </ha-selector>
                         ${this._renderCssField('Bar Width', innerSegment.bar_width, 'elbow.segments.inner_segment.bar_width', 60)}
-                    `
-                    : html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Width Mode'}
+                    ` : html`
+                        <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
                             .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
+                            ]}}}
                             .value=${'static'}
                             @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_width', 60, 'clamp(40px, 5vw, 80px)')}>
                         </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Width'}
-                            .helper=${'Vertical bar thickness'}
-                            .selector=${{
-                                number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' }
-                            }}
+                        <ha-selector .hass=${this.hass} .label=${'Bar Width'} .helper=${'Vertical bar thickness'}
+                            .selector=${{ number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
                             .value=${typeof innerSegment.bar_width === 'number' ? innerSegment.bar_width : 60}
                             @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.bar_width', e.detail.value)}>
                         </ha-selector>
                     `}
 
-                ${this._isCssExpr(innerSegment.bar_height)
-                    ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Height Mode'}
+                    ${this._isCssExpr(innerSegment.bar_height) ? html`
+                        <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
                             .helper=${'📐 CSS expression active'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
+                            ]}}}
                             .value=${'css'}
                             @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_height', 60, 'clamp(30px, 4vh, 60px)')}>
                         </ha-selector>
                         ${this._renderCssField('Bar Height', innerSegment.bar_height, 'elbow.segments.inner_segment.bar_height', 60)}
-                    `
-                    : html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Height Mode'}
+                    ` : html`
+                        <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
                             .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
+                            ]}}}
                             .value=${'static'}
                             @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.bar_height', 60, 'clamp(30px, 4vh, 60px)')}>
                         </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Bar Height'}
-                            .helper=${'Horizontal bar thickness'}
-                            .selector=${{
-                                number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' }
-                            }}
-                            .value=${typeof innerSegment.bar_height === 'number' ? innerSegment.bar_height : (typeof innerSegment.bar_width === 'number' ? innerSegment.bar_width : 60)}
+                        <ha-selector .hass=${this.hass} .label=${'Bar Height'} .helper=${'Horizontal bar thickness'}
+                            .selector=${{ number: { min: 10, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
+                            .value=${typeof innerSegment.bar_height === 'number' ? innerSegment.bar_height : innerBW}
                             @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.bar_height', e.detail.value)}>
                         </ha-selector>
                     `}
 
-                ${isInnerOuterCurveManual
-                    ? this._isCssExpr(innerSegment.outer_curve)
-                        ? html`
-                            <ha-selector
-                                .hass=${this.hass}
-                                .label=${'Outer Curve Mode'}
-                                .helper=${'📐 CSS expression active'}
-                                .selector=${{
-                                    select: { mode: 'dropdown', options: [
-                                        { value: 'static', label: 'Static Value' },
-                                        { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                    ]}
-                                }}
-                                .value=${'css'}
-                                @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.outer_curve', Math.round(this._calculateInnerOuterCurveAuto()), 'clamp(20px, 3vw, 45px)')}>
+                    ${this._isDiagonalCapType() ? html`
+                        <ha-selector .hass=${this.hass}
+                            .label=${'Diagonal Angle Mode'}
+                            .helper=${innerSegment.diagonal_angle === 'theme'
+                                ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
+                                : '📏 Static: Fixed angle value'}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'static', label: 'Static Value' },
+                                { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
+                            ]}}}
+                            .value=${innerSegment.diagonal_angle === 'theme' ? 'theme' : 'static'}
+                            @value-changed=${(e) => this._handleInnerDiagonalAngleModeChange(e)}>
+                        </ha-selector>
+                        ${innerSegment.diagonal_angle !== 'theme' ? html`
+                            <ha-selector .hass=${this.hass} .label=${'Diagonal Cut Angle'}
+                                .helper=${'Angle of diagonal cuts (defaults to outer segment angle)'}
+                                .selector=${{ number: { min: 0, max: 90, step: 5, mode: 'slider', unit_of_measurement: '°' } }}
+                                .value=${typeof innerSegment.diagonal_angle === 'number' ? innerSegment.diagonal_angle : (outerSegment.diagonal_angle ?? 45)}
+                                @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.diagonal_angle', e.detail.value)}>
                             </ha-selector>
-                            ${this._renderCssField('Outer Curve', innerSegment.outer_curve, 'elbow.segments.inner_segment.outer_curve', Math.round(this._calculateInnerOuterCurveAuto()))}
-                        `
-                        : html`
-                            <ha-selector
-                                .hass=${this.hass}
-                                .label=${'Outer Curve Mode'}
-                                .helper=${'📏 Static: Fixed pixel value'}
-                                .selector=${{
-                                    select: { mode: 'dropdown', options: [
-                                        { value: 'static', label: 'Static Value' },
-                                        { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                    ]}
-                                }}
-                                .value=${'static'}
-                                @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.outer_curve', Math.round(this._calculateInnerOuterCurveAuto()), 'clamp(20px, 3vw, 45px)')}>
-                            </ha-selector>
-                            <ha-selector
-                                .hass=${this.hass}
-                                .label=${'Outer Curve'}
-                                .helper=${'Outer corner radius'}
-                                .selector=${{
-                                    number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' }
-                                }}
-                                .value=${typeof innerSegment.outer_curve === 'number' ? innerSegment.outer_curve : this._calculateInnerOuterCurveAuto()}
-                                @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.outer_curve', e.detail.value)}>
-                            </ha-selector>
-                        `
-                    : ''}
+                        ` : html`
+                            <lcards-message type="info" title="Theme Integration">
+                                Diagonal angle will dynamically follow <code>input_number.lcars_elbow_angle</code>.
+                            </lcards-message>
+                        `}
+                    ` : ''}
+                </lcards-form-section>
+            </lcards-form-section>
 
-                ${this._isCssExpr(innerSegment.inner_curve)
-                    ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Inner Curve Mode'}
-                            .helper=${'📐 CSS expression active'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
-                            .value=${'css'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.inner_curve', Math.round((typeof innerSegment.outer_curve === 'number' ? innerSegment.outer_curve : this._calculateInnerOuterCurveAuto()) / 2), 'clamp(10px, 1.5vw, 22px)')}>
-                        </ha-selector>
-                        ${this._renderCssField('Inner Curve', innerSegment.inner_curve, 'elbow.segments.inner_segment.inner_curve', Math.round((typeof innerSegment.outer_curve === 'number' ? innerSegment.outer_curve : this._calculateInnerOuterCurveAuto()) / 2))}
-                    `
-                    : html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Inner Curve Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
-                            .selector=${{
-                                select: { mode: 'dropdown', options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'css',    label: 'CSS Expression (vw/vh/clamp/calc)' }
-                                ]}
-                            }}
-                            .value=${'static'}
-                            @value-changed=${(e) => this._handleDimModeChange(e.detail.value, 'elbow.segments.inner_segment.inner_curve', Math.round((typeof innerSegment.outer_curve === 'number' ? innerSegment.outer_curve : this._calculateInnerOuterCurveAuto()) / 2), 'clamp(10px, 1.5vw, 22px)')}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Inner Curve'}
-                            .helper=${'Inner corner radius'}
-                            .selector=${{
-                                number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' }
-                            }}
-                            .value=${typeof innerSegment.inner_curve === 'number' ? innerSegment.inner_curve : (typeof innerSegment.outer_curve === 'number' ? innerSegment.outer_curve : this._calculateInnerOuterCurveAuto()) / 2}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.inner_curve', e.detail.value)}>
-                        </ha-selector>
-                    `}
+            <!-- ── Corner Curves ────────────────────────────────────────────── -->
+            <lcards-form-section
+                header="Corner Curves"
+                description="Arc radii for both segments — dual preview updates live as you drag"
+                icon="mdi:vector-curve"
+                ?expanded=${true}
+                ?outlined=${true}>
 
-                ${this._isDiagonalCapType() ? html`
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Diagonal Angle Mode'}
-                        .helper=${innerSegment.diagonal_angle === 'theme'
-                            ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
-                            : '📏 Static: Fixed angle value'}
-                        .selector=${{
-                            select: {
-                                mode: 'dropdown',
-                                options: [
-                                    { value: 'static', label: 'Static Value' },
-                                    { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
-                                ]
-                            }
-                        }}
-                        .value=${innerSegment.diagonal_angle === 'theme' ? 'theme' : 'static'}
-                        @value-changed=${(e) => this._handleInnerDiagonalAngleModeChange(e)}>
+                <!-- Dual-segment live preview -->
+                <div style="padding: 8px 0 4px; text-align: center;">
+                    ${this._renderSegmentedLivePreview(
+                        previewOC, previewIC, outerBW, outerBH,
+                        previewInnerOC, previewInnerIC, innerBW, innerBH,
+                        gap, outerClampMode, outerClamp
+                    )}
+                </div>
+
+                <!-- Outer segment curves subsection -->
+                <lcards-form-section
+                    header="Outer Segment"
+                    icon="mdi:vector-square"
+                    ?expanded=${true}
+                    ?outlined=${false}>
+
+                    <ha-selector .hass=${this.hass}
+                        .label=${'Outer Arc Radius'}
+                        .helper=${isCssOuterOC ? 'CSS expression — edit via YAML' : `→ ${outerOCPx.toFixed(1)} px`}
+                        .selector=${{ select: { mode: 'dropdown', options: [
+                            { value: 'auto',       label: 'auto / arm_width  (bar_width ÷ 2)' },
+                            { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
+                            { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)  ★ paired elbows' },
+                            { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
+                            { value: 'arm_fill',   label: 'arm_fill  (max arm — full sweep)' },
+                            { value: 'manual',     label: 'manual  (explicit px)' },
+                            ...(isCssOuterOC ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
+                        ]}}}
+                        .value=${outerOCMode}
+                        @value-changed=${(e) => this._handleSegCurveModeChange('elbow.segments.outer_segment.outer_curve', e.detail.value, Math.round(outerOCPx), 'clamp(30px, 4vw, 60px)', true)}>
+                    </ha-selector>
+                    ${isCssOuterOC
+                        ? this._renderCssField('Outer Arc Radius', outerOC, 'elbow.segments.outer_segment.outer_curve', Math.round(outerOCPx))
+                        : outerOCMode === 'manual' ? html`
+                            <ha-selector .hass=${this.hass} .label=${'Outer Arc Radius'}
+                                .selector=${{ number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
+                                .value=${typeof outerOC === 'number' ? outerOC : outerOCPx}
+                                @input=${(e) => { const v = Number(e.composedPath?.()?.[0]?.value); if (!isNaN(v)) this._liveSegOuterOC = v; }}
+                                @value-changed=${(e) => { this._liveSegOuterOC = null; this._setConfigValue('elbow.segments.outer_segment.outer_curve', e.detail.value); }}>
+                            </ha-selector>
+                        ` : this._renderCurveModeMessage('outer', outerOCMode, outerOCPx, outerBW, outerBH)}
+
+                    <ha-selector .hass=${this.hass}
+                        .label=${'Inner Arc Radius'}
+                        .helper=${isCssOuterIC ? 'CSS expression — edit via YAML' : `→ ${outerICPx.toFixed(1)} px`}
+                        .selector=${{ select: { mode: 'dropdown', options: [
+                            { value: 'auto',       label: 'auto  (outer ÷ 2, LCARS formula)' },
+                            { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)' },
+                            { value: 'arm_width',  label: 'arm_width  (bar_width ÷ 2)' },
+                            { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
+                            { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
+                            { value: 'arm_fill',   label: 'arm_fill  (max arm)' },
+                            { value: 'manual',     label: 'manual  (explicit px)' },
+                            ...(isCssOuterIC ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
+                        ]}}}
+                        .value=${outerICMode}
+                        @value-changed=${(e) => this._handleSegCurveModeChange('elbow.segments.outer_segment.inner_curve', e.detail.value, Math.round(outerICPx), 'clamp(15px, 2vw, 30px)', false)}>
+                    </ha-selector>
+                    ${isCssOuterIC
+                        ? this._renderCssField('Inner Arc Radius', outerIC, 'elbow.segments.outer_segment.inner_curve', Math.round(outerICPx))
+                        : outerICMode === 'manual' ? html`
+                            <ha-selector .hass=${this.hass} .label=${'Inner Arc Radius'}
+                                .selector=${{ number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
+                                .value=${typeof outerIC === 'number' ? outerIC : outerICPx}
+                                @input=${(e) => { const v = Number(e.composedPath?.()?.[0]?.value); if (!isNaN(v)) this._liveSegOuterIC = v; }}
+                                @value-changed=${(e) => { this._liveSegOuterIC = null; this._setConfigValue('elbow.segments.outer_segment.inner_curve', e.detail.value); }}>
+                            </ha-selector>
+                        ` : this._renderCurveModeMessage('inner', outerICMode, outerICPx, outerBW, outerBH, outerOCPx)}
+
+                    <ha-selector .hass=${this.hass}
+                        .label=${'Curve Clamp'}
+                        .helper=${{
+                            card:   'card  — clamp to card dimensions (default)',
+                            none:   'none  — no clamp; card clips SVG overflow',
+                            manual: `manual  — ceiling at ${typeof outerClamp === 'number' ? outerClamp : 100} px`,
+                        }[outerClampMode] ?? ''}
+                        .selector=${{ select: { mode: 'dropdown', options: [
+                            { value: 'card',   label: 'card  (clamp to card size)' },
+                            { value: 'none',   label: 'none  (no clamp — use with arm_max for paired elbows)' },
+                            { value: 'manual', label: 'manual  (explicit px ceiling)' },
+                        ]}}}
+                        .value=${outerClampMode}
+                        @value-changed=${(e) => this._handleSegClampModeChange('elbow.segments.outer_segment.outer_curve_clamp', e.detail.value, 100)}>
+                    </ha-selector>
+                    ${outerClampMode === 'manual' ? html`
+                        <ha-selector .hass=${this.hass} .label=${'Clamp Ceiling'}
+                            .selector=${{ number: { min: 0, max: 500, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
+                            .value=${typeof outerClamp === 'number' ? outerClamp : 100}
+                            @value-changed=${(e) => this._setConfigValue('elbow.segments.outer_segment.outer_curve_clamp', e.detail.value)}>
+                        </ha-selector>
+                    ` : ''}
+                </lcards-form-section>
+
+                <!-- Inner segment curves subsection -->
+                <lcards-form-section
+                    header="Inner Segment"
+                    icon="mdi:vector-square-open"
+                    ?expanded=${true}
+                    ?outlined=${false}>
+
+                    <!-- Auto / manual outer_curve toggle -->
+                    <ha-selector .hass=${this.hass}
+                        .label=${'Outer Curve'}
+                        .helper=${isInnerOuterCurveManual
+                            ? 'Manual: set explicit outer arc radius for inner segment'
+                            : `Auto: concentric formula → ${innerOCAutoValue.toFixed(1)} px  (outer_curve − gap − bar_width)`}
+                        .selector=${{ boolean: {} }}
+                        .value=${isInnerOuterCurveManual}
+                        @value-changed=${this._handleInnerOuterCurveToggle}>
                     </ha-selector>
 
-                    ${innerSegment.diagonal_angle !== 'theme' ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Diagonal Cut Angle'}
-                            .helper=${'Angle of diagonal cuts (defaults to outer segment angle)'}
-                            .selector=${{
-                                number: {
-                                    min: 0,
-                                    max: 90,
-                                    step: 5,
-                                    mode: 'slider',
-                                    unit_of_measurement: '°'
-                                }
-                            }}
-                            .value=${typeof innerSegment.diagonal_angle === 'number' ? innerSegment.diagonal_angle : (outerSegment.diagonal_angle ?? 45)}
-                            @value-changed=${(e) => this._setConfigValue('elbow.segments.inner_segment.diagonal_angle', e.detail.value)}>
+                    ${isInnerOuterCurveManual ? html`
+                        <ha-selector .hass=${this.hass}
+                            .label=${'Outer Arc Radius'}
+                            .helper=${isCssInnerOC ? 'CSS expression — edit via YAML' : `→ ${innerOCPx.toFixed(1)} px`}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'auto',       label: 'auto / arm_width  (bar_width ÷ 2)' },
+                                { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
+                                { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)' },
+                                { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
+                                { value: 'arm_fill',   label: 'arm_fill  (max arm)' },
+                                { value: 'manual',     label: 'manual  (explicit px)' },
+                                ...(isCssInnerOC ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
+                            ]}}}
+                            .value=${innerOCMode}
+                            @value-changed=${(e) => this._handleSegCurveModeChange('elbow.segments.inner_segment.outer_curve', e.detail.value, Math.round(innerOCPx), 'clamp(20px, 3vw, 45px)', true)}>
                         </ha-selector>
-                    ` : html`
-                        <lcards-message type="info" title="Theme Integration">
-                            Diagonal angle will dynamically follow <code>input_number.lcars_elbow_angle</code> entity state.
-                            Create this helper in Home Assistant configuration to enable theme integration.
-                        </lcards-message>
-                    `}
-                ` : ''}
+                        ${isCssInnerOC
+                            ? this._renderCssField('Outer Arc Radius', innerOC, 'elbow.segments.inner_segment.outer_curve', Math.round(innerOCPx))
+                            : innerOCMode === 'manual' ? html`
+                                <ha-selector .hass=${this.hass} .label=${'Outer Arc Radius'}
+                                    .selector=${{ number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
+                                    .value=${typeof innerOC === 'number' ? innerOC : innerOCPx}
+                                    @input=${(e) => { const v = Number(e.composedPath?.()?.[0]?.value); if (!isNaN(v)) this._liveSegInnerOC = v; }}
+                                    @value-changed=${(e) => { this._liveSegInnerOC = null; this._setConfigValue('elbow.segments.inner_segment.outer_curve', e.detail.value); }}>
+                                </ha-selector>
+                            ` : this._renderCurveModeMessage('outer', innerOCMode, innerOCPx, innerBW, innerBH)}
+                    ` : ''}
+
+                    <ha-selector .hass=${this.hass}
+                        .label=${'Inner Arc Radius'}
+                        .helper=${isCssInnerIC ? 'CSS expression — edit via YAML' : `→ ${innerICPx.toFixed(1)} px`}
+                        .selector=${{ select: { mode: 'dropdown', options: [
+                            { value: 'auto',       label: 'auto  (outer ÷ 2, LCARS formula)' },
+                            { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)' },
+                            { value: 'arm_width',  label: 'arm_width  (bar_width ÷ 2)' },
+                            { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
+                            { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
+                            { value: 'arm_fill',   label: 'arm_fill  (max arm)' },
+                            { value: 'manual',     label: 'manual  (explicit px)' },
+                            ...(isCssInnerIC ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
+                        ]}}}
+                        .value=${innerICMode}
+                        @value-changed=${(e) => this._handleSegCurveModeChange('elbow.segments.inner_segment.inner_curve', e.detail.value, Math.round(innerICPx), 'clamp(10px, 1.5vw, 22px)', false)}>
+                    </ha-selector>
+                    ${isCssInnerIC
+                        ? this._renderCssField('Inner Arc Radius', innerIC, 'elbow.segments.inner_segment.inner_curve', Math.round(innerICPx))
+                        : innerICMode === 'manual' ? html`
+                            <ha-selector .hass=${this.hass} .label=${'Inner Arc Radius'}
+                                .selector=${{ number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
+                                .value=${typeof innerIC === 'number' ? innerIC : innerICPx}
+                                @input=${(e) => { const v = Number(e.composedPath?.()?.[0]?.value); if (!isNaN(v)) this._liveSegInnerIC = v; }}
+                                @value-changed=${(e) => { this._liveSegInnerIC = null; this._setConfigValue('elbow.segments.inner_segment.inner_curve', e.detail.value); }}>
+                            </ha-selector>
+                        ` : this._renderCurveModeMessage('inner', innerICMode, innerICPx, innerBW, innerBH, innerOCPx)}
+                </lcards-form-section>
             </lcards-form-section>
         `;
     }
@@ -2471,29 +2488,502 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * @private
      */
     _handleOuterCurveModeChange(event) {
-        const isManual = event.detail.value;
-        const currentOuter = this.config.elbow?.segment?.outer_curve;
+        const mode = event.detail.value;
+        if (mode === 'css') return; // read-only; set via YAML
 
-        // If the current value is a CSS expression, the toggle is in 'read-only CSS' state.
-        // Toggling it off should clear to auto; toggling on is a no-op (use YAML tab to set CSS).
-        if (this._isCssExpr(currentOuter)) {
-            if (!isManual) this._setConfigValue('elbow.segment.outer_curve', 'auto');
-            this.requestUpdate();
-            return;
-        }
-
-        if (isManual) {
-            // Switch to manual mode - set a numeric value
+        if (mode === 'manual') {
             const barWidth = this.config.elbow?.segment?.bar_width;
-            // Handle 'theme'/'css' - use default numeric value for calculation
             const numericBarWidth = typeof barWidth === 'number' ? barWidth : 90;
-            const calculatedValue = numericBarWidth / 2;
-            this._setConfigValue('elbow.segment.outer_curve', calculatedValue);
+            this._setConfigValue('elbow.segment.outer_curve', numericBarWidth / 2);
         } else {
-            // Switch to auto mode
-            this._setConfigValue('elbow.segment.outer_curve', 'auto');
+            // Keyword modes: 'auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'
+            // 'auto' and 'arm_width' are equivalent; store 'auto' as canonical for backward compat
+            this._setConfigValue('elbow.segment.outer_curve', mode === 'arm_width' ? 'auto' : mode);
         }
 
+        this.requestUpdate();
+    }
+
+    /**
+     * Render a static labeled SVG diagram explaining the four geometry terms.
+     * This is the collapsed reference at the top of the Elbow Design tab.
+     */
+    /**
+     * Fixed-proportion reference diagram for the segmented (double) elbow.
+     * Shows both outer (orange) and inner (cyan) segments with key dimension labels.
+     */
+    _renderSegmentedElbowReferenceDiagram() {
+        // Fixed reference geometry — chosen to make both segments clearly visible
+        const oBW = 45, oBH = 18, oOR = 65, oIR = 28;
+        const cW = 230, cH = 140;
+        const gap = 4;
+        const iBW = 28, iBH = 11;
+        const iOR = 33;  // oOR − gap − iBW = 65 − 4 − 28
+        const iIR = 13;  // approx oIR − gap − iBH
+        const ox = oBW + gap;  // 49 — inner segment left/top offset
+        const oy = oBH + gap;  // 22
+
+        const outerPath = `M ${oOR} 0 L ${cW} 0 L ${cW} ${oBH} L ${oBW + oIR} ${oBH} A ${oIR} ${oIR} 0 0 0 ${oBW} ${oBH + oIR} L ${oBW} ${cH} L 0 ${cH} L 0 ${oOR} A ${oOR} ${oOR} 0 0 1 ${oOR} 0 Z`;
+        const innerPath = `M ${ox + iOR} ${oy} L ${cW} ${oy} L ${cW} ${oy + iBH} L ${ox + iBW + iIR} ${oy + iBH} A ${iIR} ${iIR} 0 0 0 ${ox + iBW} ${oy + iBH + iIR} L ${ox + iBW} ${cH} L ${ox} ${cH} L ${ox} ${oy + iOR} A ${iOR} ${iOR} 0 0 1 ${ox + iOR} ${oy} Z`;
+
+        return html`
+            <svg viewBox="0 0 380 185" style="width: 100%; max-width: 480px; height: auto;" overflow="hidden">
+                <defs>
+                    <marker id="sgA" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+                        <polygon points="0 0,8 2.5,0 5" fill="var(--secondary-text-color,#aaa)"/>
+                    </marker>
+                    <marker id="sgDH" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto-start-reverse">
+                        <polygon points="0 0,8 2.5,0 5" fill="var(--secondary-text-color,#aaa)"/>
+                    </marker>
+                    <marker id="sgC" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+                        <polygon points="0 0,8 2.5,0 5" fill="#00CFFF"/>
+                    </marker>
+                    <marker id="sgB" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+                        <polygon points="0 0,8 2.5,0 5" fill="#5599FF"/>
+                    </marker>
+                    <marker id="sgO" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+                        <polygon points="0 0,8 2.5,0 5" fill="#FF8C00"/>
+                    </marker>
+                    <marker id="sgY" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+                        <polygon points="0 0,8 2.5,0 5" fill="#FFAA33"/>
+                    </marker>
+                </defs>
+
+                <g transform="translate(120, 28)">
+                    <!-- Card outline -->
+                    <rect x="0" y="0" width="${cW}" height="${cH}" fill="none"
+                          stroke="var(--divider-color,#333)" stroke-width="1" stroke-dasharray="3,2"/>
+
+                    <!-- Outer segment (blue) -->
+                    <path d="${outerPath}" fill="#5599FF" opacity="0.80"/>
+
+                    <!-- Inner segment (orange) -->
+                    <path d="${innerPath}" fill="#FF8C00" opacity="0.85"/>
+
+                    <!-- outer seg. outer_curve arc — cyan -->
+                    <path d="M ${oOR} 0 A ${oOR} ${oOR} 0 0 0 0 ${oOR}"
+                          fill="none" stroke="#00CFFF" stroke-width="2" stroke-dasharray="5,3"/>
+                    <line x1="-15" y1="18" x2="14" y2="18" stroke="#00CFFF" stroke-width="1.5" marker-end="url(#sgC)"/>
+                    <text x="-17" y="13" fill="#00CFFF" font-size="11" text-anchor="end" font-family="monospace">outer_curve</text>
+                    <text x="-17" y="25" fill="#00CFFF" font-size="9" text-anchor="end">outer seg.</text>
+
+                    <!-- outer seg. inner_curve arc — blue -->
+                    <path d="M ${oBW + oIR} ${oBH} A ${oIR} ${oIR} 0 0 0 ${oBW} ${oBH + oIR}"
+                          fill="none" stroke="#5599FF" stroke-width="2" stroke-dasharray="5,3"/>
+                    <line x1="-15" y1="40" x2="${oBW + oIR - 8}" y2="${oBH + oIR - 8}"
+                          stroke="#5599FF" stroke-width="1.5" marker-end="url(#sgB)"/>
+                    <text x="-17" y="36" fill="#5599FF" font-size="11" text-anchor="end" font-family="monospace">inner_curve</text>
+                    <text x="-17" y="48" fill="#5599FF" font-size="9" text-anchor="end">outer seg.</text>
+
+                    <!-- bar_width: horizontal double-headed arrow showing width of vertical arm -->
+                    <line x1="0" y1="115" x2="${oBW}" y2="115"
+                          stroke="var(--secondary-text-color,#aaa)" stroke-width="1.5"
+                          marker-start="url(#sgDH)" marker-end="url(#sgDH)"/>
+                    <line x1="0" y1="111" x2="0" y2="119" stroke="var(--secondary-text-color,#aaa)" stroke-width="1"/>
+                    <line x1="${oBW}" y1="111" x2="${oBW}" y2="119" stroke="var(--secondary-text-color,#aaa)" stroke-width="1"/>
+                    <text x="-6" y="110" fill="var(--primary-text-color,#fff)" font-size="11" text-anchor="end" font-family="monospace">bar_width</text>
+                    <text x="-6" y="122" fill="var(--secondary-text-color,#aaa)" font-size="9" text-anchor="end">outer seg.</text>
+
+                    <!-- bar_height: vertical double-headed arrow showing height of horizontal arm -->
+                    <line x1="${cW - 25}" y1="0" x2="${cW - 25}" y2="${oBH}"
+                          stroke="var(--secondary-text-color,#aaa)" stroke-width="1.5"
+                          marker-start="url(#sgDH)" marker-end="url(#sgDH)"/>
+                    <line x1="${cW - 29}" y1="0" x2="${cW - 21}" y2="0" stroke="var(--secondary-text-color,#aaa)" stroke-width="1"/>
+                    <line x1="${cW - 29}" y1="${oBH}" x2="${cW - 21}" y2="${oBH}" stroke="var(--secondary-text-color,#aaa)" stroke-width="1"/>
+                    <text x="${cW - 25}" y="-13" fill="var(--primary-text-color,#fff)" font-size="11" text-anchor="middle" font-family="monospace">bar_height</text>
+                    <text x="${cW - 25}" y="-2" fill="var(--secondary-text-color,#aaa)" font-size="9" text-anchor="middle">outer seg.</text>
+
+                    <!-- gap annotation: dashed guide at inner left edge + measurement label -->
+                    <line x1="${ox}" y1="${oBH + 2}" x2="${ox}" y2="${cH - 2}"
+                          stroke="var(--divider-color,#555)" stroke-width="1" stroke-dasharray="2,2"/>
+                    <line x1="${oBW + 1}" y1="${cH * 0.62}" x2="${ox - 1}" y2="${cH * 0.62}"
+                          stroke="var(--secondary-text-color,#888)" stroke-width="1.5"/>
+                    <text x="${(oBW + ox) / 2}" y="${cH * 0.62 - 4}" fill="var(--secondary-text-color,#aaa)"
+                          font-size="9" text-anchor="middle" font-family="monospace">gap</text>
+
+                    <!-- inner seg. outer_curve arc — orange, leader into content area -->
+                    <path d="M ${ox + iOR} ${oy} A ${iOR} ${iOR} 0 0 0 ${ox} ${oy + iOR}"
+                          fill="none" stroke="#FF8C00" stroke-width="1.8" stroke-dasharray="4,3" opacity="0.9"/>
+                    <line x1="${ox + 46}" y1="${oy + 47}" x2="${ox + 24}" y2="${oy + 24}"
+                          stroke="#FF8C00" stroke-width="1.5" marker-end="url(#sgO)"/>
+                    <text x="${ox + 48}" y="${oy + 44}" fill="#FF8C00" font-size="9" text-anchor="start">inner seg.</text>
+                    <text x="${ox + 48}" y="${oy + 56}" fill="#FF8C00" font-size="11" text-anchor="start" font-family="monospace">outer_curve</text>
+
+                    <!-- inner seg. inner_curve arc — amber, L-shaped leader routes below orange labels then up to arc -->
+                    <path d="M ${ox + iBW + iIR} ${oy + iBH} A ${iIR} ${iIR} 0 0 0 ${ox + iBW} ${oy + iBH + iIR}"
+                          fill="none" stroke="#FFAA33" stroke-width="1.8" stroke-dasharray="4,3" opacity="0.9"/>
+                    <polyline points="${ox+110},${oy+95} ${ox+29},${oy+95} ${ox+iBW+9},${oy+iBH+11}"
+                              fill="none" stroke="#FFAA33" stroke-width="1.5" marker-end="url(#sgY)"/>
+                    <text x="${ox + 112}" y="${oy + 82}" fill="#FFAA33" font-size="9" text-anchor="start">inner seg.</text>
+                    <text x="${ox + 112}" y="${oy + 94}" fill="#FFAA33" font-size="11" text-anchor="start" font-family="monospace">inner_curve</text>
+                </g>
+            </svg>
+        `;
+    }
+
+    /**
+     * Live dynamic SVG showing BOTH segments scaled to fit the preview area.
+     */
+    _renderSegmentedLivePreview(outerOC, outerIC, outerBW, outerBH, innerOC, innerIC, innerBW, innerBH, gapPx, clampMode, clampCeil) {
+        if (!outerBW || !outerBH) return html``;
+
+        // Scale so outer bar_width ≤ 90px, bar_height ≤ 50px, outer_curve ≤ 110px
+        const k = Math.min(90 / outerBW, 50 / outerBH, 110 / Math.max(outerOC || 1, 1), 2.5);
+
+        // Outer segment scaled
+        const bW = outerBW * k;
+        const bH = outerBH * k;
+        const oR = outerOC * k;
+        const oIR = Math.min(outerIC * k, Math.max(0, oR - 0.5));
+
+        // Preview card size
+        const cH = Math.max(oR + 28, bH * 2.5, 70);
+        const cW = Math.max(bW * 2, 170);
+
+        // Clamp outer arc for display — apply manual ceiling when configured
+        const oRp  = clampMode === 'manual' && typeof clampCeil === 'number'
+            ? Math.min(oR, clampCeil * k, cH - 1, cW - 1)
+            : Math.min(oR, cH - 1, cW - 1);
+        const oIRp = Math.max(0, oRp - (oR - oIR));
+
+        // The L-shape path already traces only the arm perimeter — the content area is naturally
+        // outside the closed path, so no evenodd trick is needed.
+        const outerBandPath =
+            `M ${oRp} 0 L ${cW} 0 L ${cW} ${bH} L ${bW + oIRp} ${bH} A ${oIRp} ${oIRp} 0 0 0 ${bW} ${bH + oIRp} L ${bW} ${cH} L 0 ${cH} L 0 ${oRp} A ${oRp} ${oRp} 0 0 1 ${oRp} 0 Z`;
+
+        // Inner segment: minimum visible gap of 4px for preview clarity
+        const gpDisplay = Math.max(gapPx * k, 4);
+        const iBW = innerBW * k;
+        const iBH = innerBH * k;
+        const ox  = bW + gpDisplay;
+        const oy  = bH + gpDisplay;
+        const icW = cW - ox;
+        const icH = cH - oy;
+
+        const iORraw = innerOC * k;
+        const iOR = Math.max(0, Math.min(iORraw, icH - 0.5, icW - 0.5));
+        const iIR = Math.max(0, Math.min(innerIC * k, iOR - 0.5));
+
+        const hasInner = iBW > 0 && iBH > 0 && icW > iBW && icH > iBH;
+        const innerPath = hasInner
+            ? `M ${ox + iOR} ${oy} L ${cW} ${oy} L ${cW} ${oy + iBH} L ${ox + iBW + iIR} ${oy + iBH} A ${iIR} ${iIR} 0 0 0 ${ox + iBW} ${oy + iBH + iIR} L ${ox + iBW} ${cH} L ${ox} ${cH} L ${ox} ${oy + iOR} A ${iOR} ${iOR} 0 0 1 ${ox + iOR} ${oy} Z`
+            : null;
+
+        const legendH = hasInner ? 74 : 46;
+        const svgH = cH + legendH;
+        const svgW = cW + 20;
+
+        return html`
+            <svg viewBox="0 0 ${svgW} ${svgH}" style="width: 100%; max-width: 380px; height: auto;" overflow="hidden">
+                <g transform="translate(8, 6)">
+                    <!-- Card background — makes the gap between segments visible -->
+                    <rect x="0" y="0" width="${cW}" height="${cH}"
+                          fill="var(--ha-card-background-color,var(--card-background-color,#1c1c2a))"
+                          stroke="var(--divider-color,#444)" stroke-width="1" stroke-dasharray="4,3" rx="2"/>
+
+                    <!-- Outer segment arms — blue, L-path naturally excludes the content area -->
+                    <path d="${outerBandPath}" fill="#5599FF" opacity="0.85"/>
+                    <!-- outer outer_curve arc -->
+                    <path d="M ${oRp} 0 A ${oRp} ${oRp} 0 0 0 0 ${oRp}"
+                          fill="none" stroke="#00CFFF" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
+                    <!-- outer inner_curve arc -->
+                    ${oIRp > 2 ? svg`
+                        <path d="M ${bW + oIRp} ${bH} A ${oIRp} ${oIRp} 0 0 0 ${bW} ${bH + oIRp}"
+                              fill="none" stroke="#5599FF" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
+                    ` : ''}
+
+                    <!-- Inner segment — orange, sits inside the gap -->
+                    ${hasInner ? svg`
+                        <path d="${innerPath}" fill="#FF8C00" opacity="0.85"/>
+                        <!-- inner outer_curve arc -->
+                        ${iOR > 2 ? svg`
+                            <path d="M ${ox + iOR} ${oy} A ${iOR} ${iOR} 0 0 0 ${ox} ${oy + iOR}"
+                                  fill="none" stroke="#FF8C00" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85"/>
+                        ` : ''}
+                        <!-- inner inner_curve arc -->
+                        ${iIR > 2 ? svg`
+                            <path d="M ${ox + iBW + iIR} ${oy + iBH} A ${iIR} ${iIR} 0 0 0 ${ox + iBW} ${oy + iBH + iIR}"
+                                  fill="none" stroke="#FFAA33" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
+                        ` : ''}
+                    ` : ''}
+
+                    <!-- Clamp indicator (bottom-right) -->
+                    ${clampMode === 'none' ? svg`
+                        <text x="${cW - 2}" y="${cH - 5}" fill="#7BCF7B" font-size="9" text-anchor="end" opacity="0.8">no clamp</text>
+                    ` : clampMode === 'card' ? svg`
+                        <text x="${cW - 2}" y="${cH - 5}" fill="var(--secondary-text-color,#888)" font-size="9" text-anchor="end" opacity="0.7">card clamp</text>
+                    ` : svg`
+                        <text x="${cW - 2}" y="${cH - 5}" fill="var(--warning-color,#FFA500)" font-size="9" text-anchor="end" opacity="0.8">fixed clamp</text>
+                    `}
+
+                    <!-- Legend -->
+                    <circle cx="4" cy="${cH + 14}" r="4" fill="#00CFFF" opacity="0.9"/>
+                    <text x="12" y="${cH + 18}" fill="#00CFFF" font-size="10" font-family="monospace">outer outer_curve = ${outerOC.toFixed(1)}px</text>
+                    <circle cx="4" cy="${cH + 30}" r="4" fill="#5599FF" opacity="0.9"/>
+                    <text x="12" y="${cH + 34}" fill="#5599FF" font-size="10" font-family="monospace">outer inner_curve = ${outerIC.toFixed(1)}px</text>
+                    ${hasInner ? svg`
+                        <circle cx="4" cy="${cH + 46}" r="4" fill="#FF8C00" opacity="0.9"/>
+                        <text x="12" y="${cH + 50}" fill="#FF8C00" font-size="10" font-family="monospace">inner outer_curve = ${innerOC.toFixed(1)}px</text>
+                        <circle cx="4" cy="${cH + 62}" r="4" fill="#FFAA33" opacity="0.9"/>
+                        <text x="12" y="${cH + 66}" fill="#FFAA33" font-size="10" font-family="monospace">inner inner_curve = ${innerIC.toFixed(1)}px</text>
+                    ` : ''}
+                </g>
+            </svg>
+        `;
+    }
+
+    _renderElbowReferenceDiagram() {
+        // Fixed proportions: bW=80, bH=22, oR=60, iR=30 — always the same reference shape
+        const bW = 80, bH = 22, oR = 60, iR = 30;
+        const cW = 230, cH = 140;
+
+        // Inner arc center: (bW, bH). Start: (bW + iR, bH), End: (bW, bH + iR).
+        const elbowPath = `M ${oR} 0 L ${cW} 0 L ${cW} ${bH} L ${bW + iR} ${bH} A ${iR} ${iR} 0 0 0 ${bW} ${bH + iR} L ${bW} ${cH} L 0 ${cH} L 0 ${oR} A ${oR} ${oR} 0 0 1 ${oR} 0 Z`;
+
+        return html`
+            <svg viewBox="0 0 380 185" style="width: 100%; max-width: 480px; height: auto;" overflow="hidden">
+                <defs>
+                    <marker id="rda" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+                        <polygon points="0 0,8 2.5,0 5" fill="var(--secondary-text-color,#aaa)"/>
+                    </marker>
+                    <marker id="rdaDH" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto-start-reverse">
+                        <polygon points="0 0,8 2.5,0 5" fill="var(--secondary-text-color,#aaa)"/>
+                    </marker>
+                    <marker id="rdc" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+                        <polygon points="0 0,8 2.5,0 5" fill="#00CFFF"/>
+                    </marker>
+                    <marker id="rdy" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+                        <polygon points="0 0,8 2.5,0 5" fill="#FFAA33"/>
+                    </marker>
+                </defs>
+
+                <g transform="translate(120, 28)">
+                    <!-- Elbow fill -->
+                    <path d="${elbowPath}" fill="var(--primary-color,#FF9900)" opacity="0.75"/>
+
+                    <!-- bar_width: horizontal double-headed arrow showing width (thickness) of vertical arm -->
+                    <line x1="0" y1="115" x2="${bW}" y2="115"
+                          stroke="var(--secondary-text-color,#aaa)" stroke-width="1.5"
+                          marker-start="url(#rdaDH)" marker-end="url(#rdaDH)"/>
+                    <line x1="0" y1="111" x2="0" y2="119" stroke="var(--secondary-text-color,#aaa)" stroke-width="1"/>
+                    <line x1="${bW}" y1="111" x2="${bW}" y2="119" stroke="var(--secondary-text-color,#aaa)" stroke-width="1"/>
+                    <text x="-6" y="110" fill="var(--primary-text-color,#fff)" font-size="11" text-anchor="end" font-family="monospace">bar_width</text>
+                    <text x="-6" y="122" fill="var(--secondary-text-color,#aaa)" font-size="9" text-anchor="end">vertical arm</text>
+
+                    <!-- bar_height: vertical double-headed arrow showing height (thickness) of horizontal arm -->
+                    <line x1="${cW - 25}" y1="0" x2="${cW - 25}" y2="${bH}"
+                          stroke="var(--secondary-text-color,#aaa)" stroke-width="1.5"
+                          marker-start="url(#rdaDH)" marker-end="url(#rdaDH)"/>
+                    <line x1="${cW - 29}" y1="0" x2="${cW - 21}" y2="0" stroke="var(--secondary-text-color,#aaa)" stroke-width="1"/>
+                    <line x1="${cW - 29}" y1="${bH}" x2="${cW - 21}" y2="${bH}" stroke="var(--secondary-text-color,#aaa)" stroke-width="1"/>
+                    <text x="${cW - 25}" y="-13" fill="var(--primary-text-color,#fff)" font-size="11" text-anchor="middle" font-family="monospace">bar_height</text>
+                    <text x="${cW - 25}" y="-2" fill="var(--secondary-text-color,#aaa)" font-size="9" text-anchor="middle">horiz. arm</text>
+
+                    <!-- outer_curve arc highlight — leader line points at arc midpoint (18,18) -->
+                    <path d="M ${oR} 0 A ${oR} ${oR} 0 0 0 0 ${oR}"
+                          fill="none" stroke="#00CFFF" stroke-width="2.5" stroke-dasharray="5,3"/>
+                    <line x1="-15" y1="18" x2="14" y2="18" stroke="#00CFFF" stroke-width="1.5" marker-end="url(#rdc)"/>
+                    <text x="-17" y="13" fill="#00CFFF" font-size="11" text-anchor="end" font-family="monospace">outer_curve</text>
+                    <text x="-17" y="25" fill="#4DDDFF" font-size="9" text-anchor="end">sweep radius</text>
+
+                    <!-- inner_curve arc highlight -->
+                    <path d="M ${bW + iR} ${bH} A ${iR} ${iR} 0 0 0 ${bW} ${bH + iR}"
+                          fill="none" stroke="#FFAA33" stroke-width="2.5" stroke-dasharray="5,3"/>
+                    <line x1="${bW}" y1="${bH + iR}" x2="${bW + 30}" y2="${bH + iR + 30}" stroke="#FFAA33" stroke-width="1.5" marker-end="url(#rdy)"/>
+                    <text x="${bW + 32}" y="${bH + iR + 35}" fill="#FFAA33" font-size="11" text-anchor="start" font-family="monospace">inner_curve</text>
+                    <text x="${bW + 32}" y="${bH + iR + 47}" fill="#FFCC77" font-size="9" text-anchor="start">concave corner</text>
+                </g>
+            </svg>
+        `;
+    }
+
+    /**
+     * Live dynamic SVG showing the actual computed arc geometry.
+     * Scales all dimensions so the result always fits the preview area.
+     */
+    _renderCurveLivePreview(outerR, innerR, barW, barH, clampMode, clampCeil) {
+        // Scale so bar_width = max 90px, bar_height = max 50px, outer_curve = max 110px
+        const k = Math.min(90 / barW, 50 / barH, 110 / (outerR || 1), 2.5);
+        const bW = barW * k;
+        const bH = barH * k;
+        const oR = outerR * k;
+        const iR = Math.min(innerR * k, oR - 0.5);
+
+        // Preview card: height = outer radius + content strip
+        const cH = Math.max(oR + 28, bH * 2.5, 70);
+        const cW = Math.max(bW * 2, 170);
+
+        // Apply configured clamp mode — manual ceiling is scaled, card/none both use display bounds
+        const oRp = clampMode === 'manual' && typeof clampCeil === 'number'
+            ? Math.min(oR, clampCeil * k, cH - 1, cW - 1)
+            : Math.min(oR, cH - 1, cW - 1);
+        const iRp = Math.max(0, oRp - (oR - iR));
+
+        const elbowPath = `M ${oRp} 0 L ${cW} 0 L ${cW} ${bH} L ${bW + iRp} ${bH} A ${iRp} ${iRp} 0 0 0 ${bW} ${bH + iRp} L ${bW} ${cH} L 0 ${cH} L 0 ${oRp} A ${oRp} ${oRp} 0 0 1 ${oRp} 0 Z`;
+
+        // Label positions
+        const outerLabelX = oRp > 40 ? oRp / 2 - 4 : oRp + 8;
+        const outerLabelY = oRp > 40 ? oRp / 2 - 4 : 4;
+        const innerLabelX = bW + iRp / 2;
+        const innerLabelY = bH + iRp + 14;
+
+        // Total SVG height including padding for labels below
+        const svgH = cH + 44;
+        const svgW = cW + 20;
+
+        return html`
+            <svg viewBox="0 0 ${svgW} ${svgH}" style="width: 100%; max-width: 380px; height: auto;" overflow="hidden">
+                <defs>
+                    <marker id="lpa" markerWidth="7" markerHeight="7" refX="6" refY="2.5" orient="auto">
+                        <polygon points="0 0,7 2.5,0 5" fill="#00CFFF"/>
+                    </marker>
+                    <marker id="lpb" markerWidth="7" markerHeight="7" refX="6" refY="2.5" orient="auto">
+                        <polygon points="0 0,7 2.5,0 5" fill="#FFAA33"/>
+                    </marker>
+                </defs>
+
+                <g transform="translate(8, 6)">
+                    <!-- Card outline -->
+                    <rect x="0" y="0" width="${cW}" height="${cH}"
+                          fill="none" stroke="var(--divider-color,#444)" stroke-width="1" stroke-dasharray="4,3" rx="2"/>
+
+                    <!-- Elbow fill -->
+                    <path d="${elbowPath}" fill="var(--primary-color,#FF9900)" opacity="0.8"/>
+
+                    <!-- Outer arc annotation -->
+                    <path d="M ${oRp} 0 A ${oRp} ${oRp} 0 0 0 0 ${oRp}"
+                          fill="none" stroke="#00CFFF" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
+                    <text x="${outerLabelX}" y="${outerLabelY}"
+                          fill="#00CFFF" font-size="10" text-anchor="middle" font-family="monospace"
+                          dominant-baseline="auto">${outerR.toFixed(1)}px</text>
+
+                    <!-- Inner arc annotation -->
+                    <path d="M ${bW + iRp} ${bH} A ${iRp} ${iRp} 0 0 0 ${bW} ${bH + iRp}"
+                          fill="none" stroke="#FFAA33" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
+                    ${iRp > 6 ? svg`
+                        <text x="${innerLabelX}" y="${innerLabelY}"
+                              fill="#FFAA33" font-size="10" text-anchor="middle" font-family="monospace">${innerR.toFixed(1)}px</text>
+                    ` : ''}
+
+                    <!-- Clamp-mode indicator (bottom-right) -->
+                    ${clampMode === 'none' ? svg`
+                        <text x="${cW - 2}" y="${cH - 5}" fill="#7BCF7B" font-size="9" text-anchor="end" opacity="0.8">no clamp</text>
+                    ` : clampMode === 'card' ? svg`
+                        <text x="${cW - 2}" y="${cH - 5}" fill="var(--secondary-text-color,#888)" font-size="9" text-anchor="end" opacity="0.7">card clamp</text>
+                    ` : svg`
+                        <text x="${cW - 2}" y="${cH - 5}" fill="var(--warning-color,#FFA500)" font-size="9" text-anchor="end" opacity="0.8">fixed clamp</text>
+                    `}
+
+                    <!-- Legend row below card -->
+                    <circle cx="4" cy="${cH + 14}" r="4" fill="#00CFFF" opacity="0.9"/>
+                    <text x="12" y="${cH + 18}" fill="#00CFFF" font-size="10" font-family="monospace">outer_curve = ${outerR.toFixed(1)}px</text>
+                    <circle cx="4" cy="${cH + 30}" r="4" fill="#FFAA33" opacity="0.9"/>
+                    <text x="12" y="${cH + 34}" fill="#FFAA33" font-size="10" font-family="monospace">inner_curve = ${innerR.toFixed(1)}px</text>
+                </g>
+            </svg>
+        `;
+    }
+
+    /**
+     * Render a contextual info message for the selected curve mode.
+     * @param {'outer'|'inner'} which
+     * @param {string} mode  - the selected keyword
+     * @param {number} resolvedPx - the computed radius in px
+     * @param {number} barW, barH - arm dimensions
+     * @param {number} [outerPx] - for inner mode: the outer radius (for 'auto' description)
+     */
+    _renderCurveModeMessage(which, mode, resolvedPx, barW, barH, outerPx) {
+        const f = (n) => n.toFixed(1);
+        const messages = which === 'outer' ? {
+            auto:       `bar_width ÷ 2 = ${f(barW / 2)} px. Classic LCARS sweep from the vertical arm.`,
+            arm_height: `bar_height ÷ 2 = ${f(barH / 2)} px. Based on the horizontal arm — ${barH < barW ? 'smaller than auto for this config' : 'useful when bar_height is the dominant arm'}.`,
+            arm_max:    `max(${barW}, ${barH}) ÷ 2 = ${f(Math.max(barW, barH) / 2)} px. Uses the larger arm — same as auto when bar_width ≥ bar_height. Recommended for consistent paired elbows.`,
+            arm_min:    `min(${barW}, ${barH}) ÷ 2 = ${f(Math.min(barW, barH) / 2)} px. Tightest arc, based on the thinner arm. ${barW !== barH ? 'Significantly smaller than auto for asymmetric bars.' : 'Equal bars — same as auto.'}`,
+            arm_fill:   `max(${barW}, ${barH}) = ${f(Math.max(barW, barH))} px. Maximum sweep — fills the entire dominant arm. Dramatic effect; arc may be clipped by the card edge.`,
+        } : {
+            auto:       `outer_curve ÷ 2 = ${f((outerPx || resolvedPx * 2) / 2)} px. LCARS concentric formula — matches the outer arc's curvature family.`,
+            arm_max:    `max(${barW}, ${barH}) ÷ 2 = ${f(Math.max(barW, barH) / 2)} px. Independent of outer_curve — based on the larger arm.`,
+            arm_width:  `bar_width ÷ 2 = ${f(barW / 2)} px. Based on the vertical arm width.`,
+            arm_height: `bar_height ÷ 2 = ${f(barH / 2)} px. Based on the horizontal arm — ${barH < barW ? 'tighter than arm_width for this config' : 'same as arm_width for this config'}.`,
+            arm_min:    `min(${barW}, ${barH}) ÷ 2 = ${f(Math.min(barW, barH) / 2)} px. Tightest inner arc.`,
+            arm_fill:   `max(${barW}, ${barH}) = ${f(Math.max(barW, barH))} px. Very large inner arc — likely exceeds the outer. Use with care.`,
+        };
+
+        const text = messages[mode];
+        if (!text) return '';
+        return html`
+            <lcards-message type="info" message="${text}"></lcards-message>
+        `;
+    }
+
+    _handleInnerCurveModeChange(event) {
+        const mode = event.detail.value;
+        if (mode === 'css') return; // read-only; set via YAML
+
+        if (mode === 'manual') {
+            const seg = this.config.elbow?.segment || {};
+            const barWidth = typeof seg.bar_width === 'number' ? seg.bar_width : 90;
+            this._setConfigValue('elbow.segment.inner_curve', Math.round(barWidth / 4));
+        } else if (mode === 'auto') {
+            // 'auto' is the default — remove the key so it's computed from outer_curve / 2
+            this._setConfigValue('elbow.segment.inner_curve', undefined);
+        } else {
+            this._setConfigValue('elbow.segment.inner_curve', mode);
+        }
+
+        this.requestUpdate();
+    }
+
+    _handleClampModeChange(event) {
+        const mode = event.detail.value;
+        if (mode === 'manual') {
+            this._setConfigValue('elbow.segment.outer_curve_clamp', 60);
+        } else if (mode === 'card') {
+            // 'card' is the default — remove the key
+            this._setConfigValue('elbow.segment.outer_curve_clamp', undefined);
+        } else {
+            this._setConfigValue('elbow.segment.outer_curve_clamp', mode); // 'none'
+        }
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Generic curve-mode handler for segmented outer/inner curve fields.
+     * @param {string}  path        - config path
+     * @param {string}  mode        - selected mode value
+     * @param {number}  defaultPx   - numeric default for 'manual'
+     * @param {string}  defaultCss  - CSS starter expression
+     * @param {boolean} isOuterCurve - true: map 'arm_width'→'auto' (outer compat); false: keep as-is (inner)
+     */
+    _handleSegCurveModeChange(path, mode, defaultPx, defaultCss, isOuterCurve) {
+        if (mode === 'manual') {
+            this._setConfigValue(path, defaultPx);
+        } else if (mode === 'css') {
+            this._setConfigValue(path, defaultCss);
+        } else if (mode === 'auto') {
+            this._setConfigValue(path, undefined); // undefined = default (auto)
+        } else {
+            // keyword: outer curve maps arm_width→'auto' for backward compat; inner keeps as-is
+            this._setConfigValue(path, (isOuterCurve && mode === 'arm_width') ? 'auto' : mode);
+        }
+        this.requestUpdate();
+    }
+
+    /**
+     * Generic clamp-mode handler for segmented outer_curve_clamp fields.
+     * @param {string} path       - config path
+     * @param {string} mode       - 'card' | 'none' | 'manual'
+     * @param {number} defaultPx  - numeric default for 'manual'
+     */
+    _handleSegClampModeChange(path, mode, defaultPx) {
+        if (mode === 'manual') {
+            this._setConfigValue(path, defaultPx);
+        } else if (mode === 'card') {
+            this._setConfigValue(path, undefined); // 'card' is the default — remove key
+        } else {
+            this._setConfigValue(path, mode); // 'none'
+        }
         this.requestUpdate();
     }
 
