@@ -33,8 +33,9 @@ import {
     GRID_EDIT_GUTTER,
 } from './layout-grid-utils.js';
 import { showConfirmDeleteDialog } from './layout-edit-dialogs.js';
-// Side-effect import: registers <lcards-color-picker> (used by the area settings panel).
+// Side-effect imports: registers components used by the area settings panel.
 import '../editor/components/shared/lcards-color-picker.js';
+import '../editor/components/shared/lcards-form-section.js';
 
 // ─── Per-area settings option lists ─────────────────────────────────────────
 const AREA_ALIGN_V_OPTIONS = [
@@ -531,9 +532,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             cursor: pointer;
             transition: filter var(--ha-animation-duration-fast,.15s), outline var(--ha-animation-duration-fast,.15s);
             z-index: 20;
-            /* overflow: visible (default) — border-radius still clips the background-color,
-               but the action bar (a DOM child positioned above/below) remains interactive.
-               overflow:hidden would clip the bar's hit area, breaking hover-to-click. */
         }
         .area-overlay:hover { filter: brightness(1.15); }
         .area-overlay.selected {
@@ -562,14 +560,13 @@ export class LCARdSGridEditOverlay extends LitElement {
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        /* ─── Area action bar ────────────────────────────────────────────────
-           Floats above each area on hover (below when near the top edge).
-           Child of the area overlay so CSS :hover drives visibility;
-           overflow:visible on :hover lets it escape the cell boundary. */
+        /* ─── Area action bar ─────────────────────────────────────────────────
+           Positioned inside the area overlay at the top-right corner, inset
+           from the edge so gutters never clip it. Appears on hover or select. */
         .area-action-bar {
             position: absolute;
-            bottom: calc(100% + 5px);  /* above the cell */
-            right: 0;
+            top: 8px;
+            right: 8px;
             display: flex;
             align-items: center;
             gap: 2px;
@@ -586,26 +583,12 @@ export class LCARdSGridEditOverlay extends LitElement {
             white-space: nowrap;
             z-index: 50;
         }
-        /* Flip to below the cell when near the top edge (class set imperatively) */
-        .area-overlay.bar-below .area-action-bar {
-            bottom: auto;
-            top: calc(100% + 5px);
-        }
-        /* Bar shows on click (selected) or while renaming — not on hover */
+        /* Bar shows on hover, click (selected), or while renaming */
+        .area-overlay:hover .area-action-bar,
         .area-overlay.selected .area-action-bar,
         .area-overlay.renaming .area-action-bar {
             opacity: 1;
             pointer-events: auto;
-        }
-        /* Faint edit hint in top-right corner — signals the cell is clickable */
-        .area-overlay:not(.selected):not(.renaming)::after {
-            content: '';
-            position: absolute;
-            top: 5px; right: 5px;
-            width: 20px; height: 20px;
-            opacity: 0.45;
-            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z'/%3E%3C/svg%3E") no-repeat center/contain;
-            pointer-events: none;
         }
 
         /* Individual action buttons in the bar */
@@ -613,8 +596,8 @@ export class LCARdSGridEditOverlay extends LitElement {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 34px;
-            height: 34px;
+            width: var(--ha-card-border-radius, 34px);
+            height: var(--ha-card-border-radius, 34px);
             border: none;
             background: transparent;
             color: rgba(255,255,255,.82);
@@ -660,32 +643,38 @@ export class LCARdSGridEditOverlay extends LitElement {
             pointer-events: auto;
             cursor: crosshair;
             box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: var(--ha-border-width-sm,1px) dashed rgba(255,255,255,.1);
-            border-radius: var(--ha-border-radius-sm,4px);
-            transition: background .1s;
+            border-radius: var(--ha-card-border-radius, 34px);
             touch-action: none;
         }
-        .cell-target:hover { background: rgba(255,255,255,.06); }
-        .cell-target.in-sel { background: color-mix(in oklab, var(--primary-color) 20%, transparent); border-color: rgba(255,255,255,.25); }
         .cell-add-btn {
+            position: absolute;
+            inset: 0;
             opacity: 0;
-            width: 28px;
-            height: 28px;
-            border-radius: var(--ha-border-radius-circle, 50%);
-            border: var(--ha-border-width-sm,1px) solid var(--lcars-ui-primary, var(--primary-color));
-            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 25%, transparent);
-            color: var(--lcars-ui-primary, var(--primary-color));
-            font-size: 18px;
-            line-height: 1;
-            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: var(--ha-space-1, 4px);
+            border-radius: var(--ha-card-border-radius, 34px);
+            border: var(--ha-border-width-md, 2px) dashed var(--primary-color, var(--lcars-ui-primary));
+            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 6%, transparent);
+            color: var(--primary-text-color, #fff);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            cursor: crosshair;
             pointer-events: auto;
             transition: opacity .12s, background .12s;
         }
         .cell-target:hover .cell-add-btn { opacity: 1; }
-        .cell-add-btn:hover { background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 45%, transparent); }
+        .cell-add-btn:hover {
+            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 16%, transparent);
+        }
+        .cell-target.in-sel .cell-add-btn {
+            opacity: 1;
+            background: color-mix(in oklab, var(--primary-color) 18%, transparent);
+            border-color: var(--primary-color);
+        }
 
         /* ─── Rubber-band selection rect ──────────────────────────────────── */
         .sel-rect {
@@ -736,13 +725,17 @@ export class LCARdSGridEditOverlay extends LitElement {
             left: 0;
             z-index: 210;
             pointer-events: auto;
+            width: 280px;
+            min-width: 220px;
+            overflow: auto;
+            resize: both;
+            box-sizing: border-box;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.85)) 92%, transparent);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: var(--ha-border-width-sm,1px) solid var(--divider-color);
             border-radius: var(--ha-border-radius-md, 8px);
             padding: 10px 14px;
-            min-width: 240px;
             box-shadow: 0 4px 20px rgba(0,0,0,.4);
         }
         .settings-title {
@@ -847,10 +840,12 @@ export class LCARdSGridEditOverlay extends LitElement {
             position: absolute;
             z-index: 230;
             pointer-events: auto;
-            width: 360px;
-            max-width: calc(100vw - 24px);
+            width: 460px;
+            min-width: 300px;
+            max-width: min(600px, calc(100vw - 24px));
             max-height: calc(100% - 24px);
-            overflow-y: auto;
+            overflow: auto;
+            resize: both;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.9)) 95%, transparent);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
@@ -908,31 +903,13 @@ export class LCARdSGridEditOverlay extends LitElement {
             line-height: 1;
         }
         .ap-close:hover { background: rgba(255,255,255,.1); color: var(--primary-text-color); }
-        .ap-body { padding: 10px 12px 12px; }
-        .ap-group {
+        .ap-body { padding: var(--ha-space-2, 8px); display: flex; flex-direction: column; }
+        .ap-actions {
             display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--lcars-ui-primary, var(--primary-color));
-            margin: 2px 0 10px;
-        }
-        /* Trailing rule line after each group title — same hue as the title text. */
-        .ap-group::after {
-            content: '';
-            flex: 1;
-            height: var(--ha-border-width-md,2px);
-            background: var(--lcars-ui-primary, var(--primary-color));
-            opacity: 0.7;
-        }
-        /* Separator above every group except the first. */
-        .ap-group:not(:first-child) {
-            margin-top: 18px;
-            padding-top: 16px;
-            border-top: var(--ha-border-width-sm,1px) solid color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 60%, transparent);
+            justify-content: flex-end;
+            margin-top: 6px;
+            padding-top: 8px;
+            border-top: var(--ha-border-width-sm, 1px) solid var(--divider-color);
         }
         /* Each setting is its own row with a faint accent rule, so complex
            controls (e.g. the color picker's buttons + input) read as one unit. */
@@ -944,7 +921,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             border-bottom: var(--ha-border-width-sm,1px) solid color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 22%, transparent);
         }
         .ap-field:last-child { border-bottom: none; padding-bottom: 2px; }
-        .ap-field:has(+ .ap-group) { border-bottom: none; }
         .ap-field > label {
             font-size: 14px;
             color: var(--primary-text-color);
@@ -973,16 +949,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             color: var(--text-primary-color, #fff);
             box-shadow: 0 2px 8px rgba(0,0,0,.4);
             white-space: nowrap;
-        }
-
-        /* ─── Reorder drop-line indicator ─────────────────────────────────── */
-        .drop-line {
-            position: absolute;
-            background: var(--lcars-ui-primary, var(--primary-color));
-            border-radius: 2px;
-            pointer-events: none;
-            z-index: 50;
-            box-shadow: 0 0 6px var(--lcars-ui-primary, var(--primary-color));
         }
     `;
 
@@ -1158,7 +1124,6 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._positionCellTargets();
         this._positionSelectionRect();
         this._positionNamePopup();
-        this._positionAddButtons();
         this._positionSettingsPanel();
     }
 
@@ -1590,7 +1555,10 @@ export class LCARdSGridEditOverlay extends LitElement {
                             class="cell-add-btn"
                             title="Create area here"
                             @click=${(e) => { e.stopPropagation(); this._createSingleCellArea(r, c); }}
-                        >+</button>
+                        >
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+                            <span>Create area</span>
+                        </button>
                     </div>
                 `);
             }
@@ -1738,8 +1706,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             el.style.top     = `${tl.top}px`;
             el.style.width   = `${br.right - tl.left}px`;
             el.style.height  = `${br.bottom - tl.top}px`;
-            // Flip action bar below the cell when there isn't enough room above
-            el.classList.toggle('bar-below', tl.top < 50);
         }
     }
 
@@ -1802,10 +1768,6 @@ export class LCARdSGridEditOverlay extends LitElement {
         popup.style.top  = `${Math.max(4, Math.min(cy - popupH / 2, (this._overlayRect?.height ?? 600) - popupH - 4))}px`;
         // Focus the input
         requestAnimationFrame(() => (/** @type {HTMLElement|null} */ (popup.querySelector('ha-input')))?.focus());
-    }
-
-    _positionAddButtons() {
-        // Handled within _positionColumnHeaders / _positionRowHeaders
     }
 
     /** Anchor the settings panel just below the (possibly dragged) toolbar. */
@@ -2210,170 +2172,176 @@ export class LCARdSGridEditOverlay extends LitElement {
                     <button class="ap-close" title="Close" @click=${() => { this._areaSettings = null; }}>×</button>
                 </div>
                 <div class="ap-body">
-                    <div class="ap-group">Surface</div>
-                    <div class="ap-field">
-                        <label>Background</label>
-                        <lcards-color-picker
-                            .hass=${this.hass}
-                            .value=${s.background ?? ''}
-                            ?showPreview=${true}
-                            ?showBuilder=${true}
-                            @value-changed=${(e) => set('background', e.detail.value || undefined)}
-                        ></lcards-color-picker>
-                    </div>
-                    <div class="ap-field">
-                        <label>Image</label>
-                        <ha-input
-                            .value=${s['background-image'] ?? ''}
-                            placeholder="url(...) or linear-gradient(...)"
-                            @change=${(e) => set('background-image', e.target.value || undefined)}
-                        ></ha-input>
-                    </div>
-                    ${s['background-image'] ? html`
+                    <lcards-form-section header="Surface" icon="mdi:palette-outline" ?expanded=${false} ?outlined=${true}>
                         <div class="ap-field">
-                            <label>Fit</label>
-                            <ha-selector
+                            <label>Background</label>
+                            <lcards-color-picker
                                 .hass=${this.hass}
-                                .selector=${{ select: { mode: 'dropdown', options: AREA_BG_SIZE_OPTIONS } }}
-                                .value=${s['background-size'] ?? 'cover'}
-                                @value-changed=${(e) => set('background-size', e.detail.value === 'cover' ? undefined : e.detail.value)}
-                            ></ha-selector>
+                                .value=${s.background ?? ''}
+                                ?showPreview=${true}
+                                ?showBuilder=${true}
+                                @value-changed=${(e) => set('background', e.detail.value || undefined)}
+                            ></lcards-color-picker>
                         </div>
                         <div class="ap-field">
-                            <label>Position</label>
-                            <ha-selector
-                                .hass=${this.hass}
-                                .selector=${{ select: { mode: 'dropdown', options: AREA_BG_POSITION_OPTIONS } }}
-                                .value=${s['background-position'] ?? 'center'}
-                                @value-changed=${(e) => set('background-position', e.detail.value === 'center' ? undefined : e.detail.value)}
-                            ></ha-selector>
-                        </div>
-                        <div class="ap-field">
-                            <label>Repeat</label>
-                            <ha-selector
-                                .hass=${this.hass}
-                                .selector=${{ select: { mode: 'dropdown', options: AREA_BG_REPEAT_OPTIONS } }}
-                                .value=${s['background-repeat'] ?? 'no-repeat'}
-                                @value-changed=${(e) => set('background-repeat', e.detail.value === 'no-repeat' ? undefined : e.detail.value)}
-                            ></ha-selector>
-                        </div>
-                    ` : nothing}
-                    <div class="ap-field">
-                        <label>Border color</label>
-                        <lcards-color-picker
-                            .hass=${this.hass}
-                            .value=${s['border-color'] ?? ''}
-                            ?showPreview=${true}
-                            ?showBuilder=${true}
-                            @value-changed=${(e) => set('border-color', e.detail.value || undefined)}
-                        ></lcards-color-picker>
-                    </div>
-                    <div class="ap-field">
-                        <label>Border</label>
-                        <div class="ap-inline">
+                            <label>Image</label>
                             <ha-input
-                                .value=${s['border-width'] ?? ''}
-                                placeholder="2px"
-                                title="Border width"
-                                @change=${(e) => set('border-width', e.target.value || undefined)}
+                                .value=${s['background-image'] ?? ''}
+                                placeholder="url(...) or linear-gradient(...)"
+                                @change=${(e) => set('background-image', e.target.value || undefined)}
                             ></ha-input>
+                        </div>
+                        ${s['background-image'] ? html`
+                            <div class="ap-field">
+                                <label>Fit</label>
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ select: { mode: 'dropdown', options: AREA_BG_SIZE_OPTIONS } }}
+                                    .value=${s['background-size'] ?? 'cover'}
+                                    @value-changed=${(e) => set('background-size', e.detail.value === 'cover' ? undefined : e.detail.value)}
+                                ></ha-selector>
+                            </div>
+                            <div class="ap-field">
+                                <label>Position</label>
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ select: { mode: 'dropdown', options: AREA_BG_POSITION_OPTIONS } }}
+                                    .value=${s['background-position'] ?? 'center'}
+                                    @value-changed=${(e) => set('background-position', e.detail.value === 'center' ? undefined : e.detail.value)}
+                                ></ha-selector>
+                            </div>
+                            <div class="ap-field">
+                                <label>Repeat</label>
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ select: { mode: 'dropdown', options: AREA_BG_REPEAT_OPTIONS } }}
+                                    .value=${s['background-repeat'] ?? 'no-repeat'}
+                                    @value-changed=${(e) => set('background-repeat', e.detail.value === 'no-repeat' ? undefined : e.detail.value)}
+                                ></ha-selector>
+                            </div>
+                        ` : nothing}
+                        <div class="ap-field">
+                            <label>Border color</label>
+                            <lcards-color-picker
+                                .hass=${this.hass}
+                                .value=${s['border-color'] ?? ''}
+                                ?showPreview=${true}
+                                ?showBuilder=${true}
+                                @value-changed=${(e) => set('border-color', e.detail.value || undefined)}
+                            ></lcards-color-picker>
+                        </div>
+                        <div class="ap-field">
+                            <label>Border</label>
+                            <div class="ap-inline">
+                                <ha-input
+                                    .value=${s['border-width'] ?? ''}
+                                    placeholder="2px"
+                                    title="Border width"
+                                    @change=${(e) => set('border-width', e.target.value || undefined)}
+                                ></ha-input>
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ select: { mode: 'dropdown', options: AREA_BORDER_STYLE_OPTIONS } }}
+                                    .value=${s['border-style'] ?? 'none'}
+                                    @value-changed=${(e) => set('border-style', e.detail.value === 'none' ? undefined : e.detail.value)}
+                                ></ha-selector>
+                            </div>
+                        </div>
+                        <div class="ap-field">
+                            <label>Radius</label>
+                            <ha-input
+                                .value=${s['border-radius'] ?? ''}
+                                placeholder="0"
+                                title="Corner radius (e.g. 12px, var(--ha-border-radius-lg))"
+                                @change=${(e) => set('border-radius', e.target.value || undefined)}
+                            ></ha-input>
+                        </div>
+                    </lcards-form-section>
+
+                    <lcards-form-section header="Placement" icon="mdi:move-resize" ?expanded=${false} ?outlined=${true}>
+                        <div class="ap-field">
+                            <label>Align ↕</label>
                             <ha-selector
                                 .hass=${this.hass}
-                                .selector=${{ select: { mode: 'dropdown', options: AREA_BORDER_STYLE_OPTIONS } }}
-                                .value=${s['border-style'] ?? 'none'}
-                                @value-changed=${(e) => set('border-style', e.detail.value === 'none' ? undefined : e.detail.value)}
+                                .selector=${{ select: { mode: 'dropdown', options: AREA_ALIGN_V_OPTIONS } }}
+                                .value=${s['align-self'] ?? s['place-self'] ?? 'stretch'}
+                                @value-changed=${(e) => {
+                                    const v = e.detail.value;
+                                    const h = s['justify-self'] ?? s['place-self'] ?? 'stretch';
+                                    set('place-self',   undefined);
+                                    set('align-self',   v === 'stretch' ? undefined : v);
+                                    set('justify-self', h === 'stretch' ? undefined : h);
+                                }}
                             ></ha-selector>
                         </div>
-                    </div>
-                    <div class="ap-field">
-                        <label>Radius</label>
-                        <ha-input
-                            .value=${s['border-radius'] ?? ''}
-                            placeholder="0"
-                            title="Corner radius (e.g. 12px, var(--ha-border-radius-lg))"
-                            @change=${(e) => set('border-radius', e.target.value || undefined)}
-                        ></ha-input>
-                    </div>
+                        <div class="ap-field">
+                            <label>Align ↔</label>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ select: { mode: 'dropdown', options: AREA_ALIGN_H_OPTIONS } }}
+                                .value=${s['justify-self'] ?? s['place-self'] ?? 'stretch'}
+                                @value-changed=${(e) => {
+                                    const v = s['align-self'] ?? s['place-self'] ?? 'stretch';
+                                    const h = e.detail.value;
+                                    set('place-self',   undefined);
+                                    set('align-self',   v === 'stretch' ? undefined : v);
+                                    set('justify-self', h === 'stretch' ? undefined : h);
+                                }}
+                            ></ha-selector>
+                        </div>
+                        <div class="ap-field">
+                            <label>Inset</label>
+                            <ha-input
+                                .value=${s.margin ?? ''}
+                                placeholder=${this.layout?.card_margin ?? 'none'}
+                                title="Space around the card within the area (margin)"
+                                @change=${(e) => set('margin', e.target.value || undefined)}
+                            ></ha-input>
+                        </div>
+                        <div class="ap-field">
+                            <label>Overflow X</label>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ select: { mode: 'dropdown', options: AREA_OVERFLOW_OPTIONS } }}
+                                .value=${s['overflow-x'] ?? s.overflow ?? 'visible'}
+                                @value-changed=${(e) => {
+                                    const ox = e.detail.value;
+                                    const oy = s['overflow-y'] ?? s.overflow ?? 'visible';
+                                    set('overflow',   undefined);
+                                    set('overflow-x', ox === 'visible' ? undefined : ox);
+                                    set('overflow-y', oy === 'visible' ? undefined : oy);
+                                }}
+                            ></ha-selector>
+                        </div>
+                        <div class="ap-field">
+                            <label>Overflow Y</label>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ select: { mode: 'dropdown', options: AREA_OVERFLOW_OPTIONS } }}
+                                .value=${s['overflow-y'] ?? s.overflow ?? 'visible'}
+                                @value-changed=${(e) => {
+                                    const ox = s['overflow-x'] ?? s.overflow ?? 'visible';
+                                    const oy = e.detail.value;
+                                    set('overflow',   undefined);
+                                    set('overflow-x', ox === 'visible' ? undefined : ox);
+                                    set('overflow-y', oy === 'visible' ? undefined : oy);
+                                }}
+                            ></ha-selector>
+                        </div>
+                        <div class="ap-field">
+                            <label>Layer (z)</label>
+                            <ha-input
+                                type="number"
+                                .value=${s['z-index'] ?? ''}
+                                placeholder="0"
+                                title="Stacking order of this area's backing surface"
+                                @change=${(e) => set('z-index', e.target.value === '' ? undefined : Number(e.target.value))}
+                            ></ha-input>
+                        </div>
+                    </lcards-form-section>
 
-                    <div class="ap-group">Placement</div>
-                    <div class="ap-field">
-                        <label>Align ↕</label>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{ select: { mode: 'dropdown', options: AREA_ALIGN_V_OPTIONS } }}
-                            .value=${s['align-self'] ?? s['place-self'] ?? 'stretch'}
-                            @value-changed=${(e) => {
-                                const v = e.detail.value;
-                                const h = s['justify-self'] ?? s['place-self'] ?? 'stretch';
-                                set('place-self',   undefined);
-                                set('align-self',   v === 'stretch' ? undefined : v);
-                                set('justify-self', h === 'stretch' ? undefined : h);
-                            }}
-                        ></ha-selector>
-                    </div>
-                    <div class="ap-field">
-                        <label>Align ↔</label>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{ select: { mode: 'dropdown', options: AREA_ALIGN_H_OPTIONS } }}
-                            .value=${s['justify-self'] ?? s['place-self'] ?? 'stretch'}
-                            @value-changed=${(e) => {
-                                const v = s['align-self'] ?? s['place-self'] ?? 'stretch';
-                                const h = e.detail.value;
-                                set('place-self',   undefined);
-                                set('align-self',   v === 'stretch' ? undefined : v);
-                                set('justify-self', h === 'stretch' ? undefined : h);
-                            }}
-                        ></ha-selector>
-                    </div>
-                    <div class="ap-field">
-                        <label>Inset</label>
-                        <ha-input
-                            .value=${s.margin ?? ''}
-                            placeholder=${this.layout?.card_margin ?? 'none'}
-                            title="Space around the card within the area (margin)"
-                            @change=${(e) => set('margin', e.target.value || undefined)}
-                        ></ha-input>
-                    </div>
-                    <div class="ap-field">
-                        <label>Overflow X</label>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{ select: { mode: 'dropdown', options: AREA_OVERFLOW_OPTIONS } }}
-                            .value=${s['overflow-x'] ?? s.overflow ?? 'visible'}
-                            @value-changed=${(e) => {
-                                const ox = e.detail.value;
-                                const oy = s['overflow-y'] ?? s.overflow ?? 'visible';
-                                set('overflow',   undefined);
-                                set('overflow-x', ox === 'visible' ? undefined : ox);
-                                set('overflow-y', oy === 'visible' ? undefined : oy);
-                            }}
-                        ></ha-selector>
-                    </div>
-                    <div class="ap-field">
-                        <label>Overflow Y</label>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{ select: { mode: 'dropdown', options: AREA_OVERFLOW_OPTIONS } }}
-                            .value=${s['overflow-y'] ?? s.overflow ?? 'visible'}
-                            @value-changed=${(e) => {
-                                const ox = s['overflow-x'] ?? s.overflow ?? 'visible';
-                                const oy = e.detail.value;
-                                set('overflow',   undefined);
-                                set('overflow-x', ox === 'visible' ? undefined : ox);
-                                set('overflow-y', oy === 'visible' ? undefined : oy);
-                            }}
-                        ></ha-selector>
-                    </div>
-                    <div class="ap-field">
-                        <label>Layer (z)</label>
-                        <ha-input
-                            type="number"
-                            .value=${s['z-index'] ?? ''}
-                            placeholder="0"
-                            title="Stacking order of this area's backing surface"
-                            @change=${(e) => set('z-index', e.target.value === '' ? undefined : Number(e.target.value))}
-                        ></ha-input>
+                    <div class="ap-actions">
+                        <ha-button @click=${() => { this._areaSettings = null; }}>Done</ha-button>
                     </div>
                 </div>
             </div>
@@ -2443,8 +2411,6 @@ export class LCARdSGridEditOverlay extends LitElement {
 
     _cellPointerDown(e, r, c) {
         if (this._showNameInput) return;
-        // Ignore the hover "+" button click — that path creates a single-cell area directly
-        if (e.target?.closest?.('.cell-add-btn')) return;
         e.stopPropagation();
         // Do NOT setPointerCapture — that would block hit-testing sibling cells.
         // The unified overlay pointermove handler tracks the drag instead.
