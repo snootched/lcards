@@ -1141,7 +1141,9 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     ${this._renderCurveLivePreview(
                         this._liveOuterCurve ?? (typeof outerCurve === 'number' ? outerCurve : calculatedOuterCurve),
                         this._liveInnerCurve ?? (typeof innerCurve === 'number' ? innerCurve : calculatedInnerCurve),
-                        numericBarWidth, numericBarHeight, clampModeValue, outerCurveClamp
+                        numericBarWidth, numericBarHeight, clampModeValue, outerCurveClamp,
+                        this._parseStylePx(this.config?.style?.height ?? this.config?.height),
+                        this._parseStylePx(this.config?.style?.width ?? this.config?.width)
                     )}
                 </div>
 
@@ -1361,8 +1363,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const gap = segments.gap ?? 4;
         const outerSegment = segments.outer_segment || {};
         const innerSegment = segments.inner_segment || {};
-        const isInnerOuterCurveManual = innerSegment.outer_curve !== undefined;
-
         const CURVE_KEYWORDS = ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'];
 
         // ── Outer segment resolved values ──────────────────────────────────
@@ -1407,7 +1407,17 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const innerArmMin = Math.min(innerBW, innerBH);
         const innerArmMax = Math.max(innerBW, innerBH);
 
-        const innerOCAutoValue = this._calculateInnerOuterCurveAuto();
+        // Concentric formula cascades through the outer segment's clamp before subtracting gap.
+        // This matches the card: clamp outer first, then derive inner from that clamped value.
+        const cardHPx = this._parseStylePx(this.config?.style?.height ?? this.config?.height);
+        const outerMaxORForCascade = outerClampMode === 'none' ? Infinity
+            : typeof outerClamp === 'number' ? outerClamp
+            : (cardHPx ?? Infinity);
+        const outerClampedOCForCascade = Math.max(0, Math.min(outerOCPx, outerMaxORForCascade));
+        const outerClampedICForCascade = outerOCPx > 0
+            ? Math.max(0, outerICPx * (outerClampedOCForCascade / outerOCPx))
+            : 0;
+        const innerOCAutoValue = Math.max(0, outerClampedICForCascade - gap);
         const innerOC = innerSegment.outer_curve;
         const isInnerOCKw  = CURVE_KEYWORDS.includes(innerOC);
         const isCssInnerOC = !isInnerOCKw && this._isCssExpr(innerOC);
@@ -1711,7 +1721,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     ${this._renderSegmentedLivePreview(
                         previewOC, previewIC, outerBW, outerBH,
                         previewInnerOC, previewInnerIC, innerBW, innerBH,
-                        gap, outerClampMode, outerClamp
+                        gap, outerClampMode, outerClamp,
+                        this._parseStylePx(this.config?.style?.height ?? this.config?.height),
+                        this._parseStylePx(this.config?.style?.width ?? this.config?.width),
+                        innerOC === undefined,
+                        innerSegment.inner_curve === undefined || innerSegment.inner_curve === 'auto'
                     )}
                 </div>
 
@@ -1806,44 +1820,31 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     ?expanded=${true}
                     ?outlined=${false}>
 
-                    <!-- Auto / manual outer_curve toggle -->
                     <ha-selector .hass=${this.hass}
-                        .label=${'Outer Curve'}
-                        .helper=${isInnerOuterCurveManual
-                            ? 'Manual: set explicit outer arc radius for inner segment'
-                            : `Auto: concentric formula → ${innerOCAutoValue.toFixed(1)} px  (outer_curve − gap − bar_width)`}
-                        .selector=${{ boolean: {} }}
-                        .value=${isInnerOuterCurveManual}
-                        @value-changed=${this._handleInnerOuterCurveToggle}>
+                        .label=${'Outer Arc Radius'}
+                        .helper=${isCssInnerOC ? 'CSS expression — edit via YAML' : `→ ${innerOCPx.toFixed(1)} px`}
+                        .selector=${{ select: { mode: 'dropdown', options: [
+                            { value: 'auto',       label: `auto  (concentric → ${innerOCAutoValue.toFixed(1)} px)` },
+                            { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
+                            { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)' },
+                            { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
+                            { value: 'arm_fill',   label: 'arm_fill  (max arm)' },
+                            { value: 'manual',     label: 'manual  (explicit px)' },
+                            ...(isCssInnerOC ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
+                        ]}}}
+                        .value=${innerOCMode}
+                        @value-changed=${(e) => this._handleSegCurveModeChange('elbow.segments.inner_segment.outer_curve', e.detail.value, Math.round(innerOCPx), 'clamp(20px, 3vw, 45px)', true)}>
                     </ha-selector>
-
-                    ${isInnerOuterCurveManual ? html`
-                        <ha-selector .hass=${this.hass}
-                            .label=${'Outer Arc Radius'}
-                            .helper=${isCssInnerOC ? 'CSS expression — edit via YAML' : `→ ${innerOCPx.toFixed(1)} px`}
-                            .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'auto',       label: 'auto / arm_width  (bar_width ÷ 2)' },
-                                { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
-                                { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)' },
-                                { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
-                                { value: 'arm_fill',   label: 'arm_fill  (max arm)' },
-                                { value: 'manual',     label: 'manual  (explicit px)' },
-                                ...(isCssInnerOC ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
-                            ]}}}
-                            .value=${innerOCMode}
-                            @value-changed=${(e) => this._handleSegCurveModeChange('elbow.segments.inner_segment.outer_curve', e.detail.value, Math.round(innerOCPx), 'clamp(20px, 3vw, 45px)', true)}>
-                        </ha-selector>
-                        ${isCssInnerOC
-                            ? this._renderCssField('Outer Arc Radius', innerOC, 'elbow.segments.inner_segment.outer_curve', Math.round(innerOCPx))
-                            : innerOCMode === 'manual' ? html`
-                                <ha-selector .hass=${this.hass} .label=${'Outer Arc Radius'}
-                                    .selector=${{ number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
-                                    .value=${typeof innerOC === 'number' ? innerOC : innerOCPx}
-                                    @input=${(e) => { const v = Number(e.composedPath?.()?.[0]?.value); if (!isNaN(v)) this._liveSegInnerOC = v; }}
-                                    @value-changed=${(e) => { this._liveSegInnerOC = null; this._setConfigValue('elbow.segments.inner_segment.outer_curve', e.detail.value); }}>
-                                </ha-selector>
-                            ` : this._renderCurveModeMessage('outer', innerOCMode, innerOCPx, innerBW, innerBH)}
-                    ` : ''}
+                    ${isCssInnerOC
+                        ? this._renderCssField('Outer Arc Radius', innerOC, 'elbow.segments.inner_segment.outer_curve', Math.round(innerOCPx))
+                        : innerOCMode === 'manual' ? html`
+                            <ha-selector .hass=${this.hass} .label=${'Outer Arc Radius'}
+                                .selector=${{ number: { min: 0, max: 250, step: 5, mode: 'slider', unit_of_measurement: 'px' } }}
+                                .value=${typeof innerOC === 'number' ? innerOC : innerOCPx}
+                                @input=${(e) => { const v = Number(e.composedPath?.()?.[0]?.value); if (!isNaN(v)) this._liveSegInnerOC = v; }}
+                                @value-changed=${(e) => { this._liveSegInnerOC = null; this._setConfigValue('elbow.segments.inner_segment.outer_curve', e.detail.value); }}>
+                            </ha-selector>
+                        ` : this._renderCurveModeMessage('outer', innerOCMode, innerOCPx, innerBW, innerBH)}
 
                     <ha-selector .hass=${this.hass}
                         .label=${'Inner Arc Radius'}
@@ -1871,6 +1872,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                 @value-changed=${(e) => { this._liveSegInnerIC = null; this._setConfigValue('elbow.segments.inner_segment.inner_curve', e.detail.value); }}>
                             </ha-selector>
                         ` : this._renderCurveModeMessage('inner', innerICMode, innerICPx, innerBW, innerBH, innerOCPx)}
+
                 </lcards-form-section>
             </lcards-form-section>
         `;
@@ -2612,7 +2614,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <!-- inner seg. inner_curve arc — amber, L-shaped leader routes below orange labels then up to arc -->
                     <path d="M ${ox + iBW + iIR} ${oy + iBH} A ${iIR} ${iIR} 0 0 0 ${ox + iBW} ${oy + iBH + iIR}"
                           fill="none" stroke="#FFAA33" stroke-width="1.8" stroke-dasharray="4,3" opacity="0.9"/>
-                    <polyline points="${ox+110},${oy+95} ${ox+29},${oy+95} ${ox+iBW+9},${oy+iBH+11}"
+                    <polyline points="${ox+110},${oy+95} ${ox+iBW+9},${oy+95} ${ox+iBW+9},${oy+iBH+11}"
                               fill="none" stroke="#FFAA33" stroke-width="1.5" marker-end="url(#sgY)"/>
                     <text x="${ox + 112}" y="${oy + 82}" fill="#FFAA33" font-size="9" text-anchor="start">inner seg.</text>
                     <text x="${ox + 112}" y="${oy + 94}" fill="#FFAA33" font-size="11" text-anchor="start" font-family="monospace">inner_curve</text>
@@ -2624,7 +2626,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     /**
      * Live dynamic SVG showing BOTH segments scaled to fit the preview area.
      */
-    _renderSegmentedLivePreview(outerOC, outerIC, outerBW, outerBH, innerOC, innerIC, innerBW, innerBH, gapPx, clampMode, clampCeil) {
+    _renderSegmentedLivePreview(outerOC, outerIC, outerBW, outerBH, innerOC, innerIC, innerBW, innerBH, gapPx, clampMode, clampCeil, cardH, cardW, innerOCIsConcentric = false, innerICDerivesFromOC = false) {
         if (!outerBW || !outerBH) return html``;
 
         // Scale so outer bar_width ≤ 90px, bar_height ≤ 50px, outer_curve ≤ 110px
@@ -2640,11 +2642,26 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const cH = Math.max(oR + 28, bH * 2.5, 70);
         const cW = Math.max(bW * 2, 170);
 
-        // Clamp outer arc for display — apply manual ceiling when configured
+        // Card boundary indicators (only when style.height/width are explicit px values)
+        const cardHSc = typeof cardH === 'number' && cardH > 0 ? cardH * k : null;
+        const cardWSc = typeof cardW === 'number' && cardW > 0 ? cardW * k : null;
+
+        // Clamp outer arc for display — card clamp uses actual card dims when known
         const oRp  = clampMode === 'manual' && typeof clampCeil === 'number'
             ? Math.min(oR, clampCeil * k, cH - 1, cW - 1)
-            : Math.min(oR, cH - 1, cW - 1);
-        const oIRp = Math.max(0, oRp - (oR - oIR));
+            : clampMode === 'card' && (cardHSc !== null || cardWSc !== null)
+                ? Math.min(oR, cardHSc ?? Infinity, cardWSc ?? Infinity, cH - 1, cW - 1)
+                : Math.min(oR, cH - 1, cW - 1);
+        const oIRp = oR > 0 ? Math.max(0, oIR * (oRp / oR)) : 0;
+
+        const showCardH = cardHSc !== null && cardHSc > 2 && cardHSc < cH;
+        const showCardW = cardWSc !== null && cardWSc > 2 && cardWSc < cW;
+        const cardHOverflow = showCardH && oRp > cardHSc;
+        const cardWOverflow = showCardW && oRp > cardWSc;
+
+        // Clamped real-px values for labels (null when not clamped)
+        const outerOCClampedPx = oRp < oR - 0.5 ? oRp / k : null;
+        const outerICClampedPx = oIRp < oIR - 0.5 ? oIRp / k : null;
 
         // The L-shape path already traces only the arm perimeter — the content area is naturally
         // outside the closed path, so no evenodd trick is needed.
@@ -2660,9 +2677,15 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const icW = cW - ox;
         const icH = cH - oy;
 
-        const iORraw = innerOC * k;
+        // When inner outer_curve is concentric (config undefined), cascade from the clamped
+        // outer inner_curve (oIRp) rather than from the pre-clamp geometry value.
+        const iORraw = innerOCIsConcentric
+            ? Math.max(0, oIRp - gapPx * k)
+            : innerOC * k;
         const iOR = Math.max(0, Math.min(iORraw, icH - 0.5, icW - 0.5));
-        const iIR = Math.max(0, Math.min(innerIC * k, iOR - 0.5));
+        const iIR = (innerOCIsConcentric && innerICDerivesFromOC)
+            ? Math.max(0, Math.min(iOR / 2, iOR - 0.5))
+            : Math.max(0, Math.min(innerIC * k, iOR - 0.5));
 
         const hasInner = iBW > 0 && iBH > 0 && icW > iBW && icH > iBH;
         const innerPath = hasInner
@@ -2707,6 +2730,26 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         ` : ''}
                     ` : ''}
 
+                    <!-- Card boundary lines — dashed line + faint overlay shows what the card clips -->
+                    ${showCardH ? svg`
+                        ${cardHOverflow ? svg`
+                            <rect x="0" y="${cardHSc}" width="${cW}" height="${cH - cardHSc}"
+                                  fill="#FF4444" opacity="0.10"/>
+                        ` : ''}
+                        <line x1="0" y1="${cardHSc}" x2="${cW}" y2="${cardHSc}"
+                              stroke="#FF4444" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.8"/>
+                        <text x="${cW - 3}" y="${cardHSc - 3}" fill="#FF4444" font-size="8" text-anchor="end" opacity="0.9">↕ ${cardH}px</text>
+                    ` : ''}
+                    ${showCardW ? svg`
+                        ${cardWOverflow ? svg`
+                            <rect x="${cardWSc}" y="0" width="${cW - cardWSc}" height="${cH}"
+                                  fill="#FF4444" opacity="0.10"/>
+                        ` : ''}
+                        <line x1="${cardWSc}" y1="0" x2="${cardWSc}" y2="${cH}"
+                              stroke="#FF4444" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.8"/>
+                        <text x="${cardWSc + 3}" y="10" fill="#FF4444" font-size="8" text-anchor="start" opacity="0.9">↔ ${cardW}px</text>
+                    ` : ''}
+
                     <!-- Clamp indicator (bottom-right) -->
                     ${clampMode === 'none' ? svg`
                         <text x="${cW - 2}" y="${cH - 5}" fill="#7BCF7B" font-size="9" text-anchor="end" opacity="0.8">no clamp</text>
@@ -2718,14 +2761,14 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <!-- Legend -->
                     <circle cx="4" cy="${cH + 14}" r="4" fill="#00CFFF" opacity="0.9"/>
-                    <text x="12" y="${cH + 18}" fill="#00CFFF" font-size="10" font-family="monospace">outer outer_curve = ${outerOC.toFixed(1)}px</text>
+                    <text x="12" y="${cH + 18}" fill="#00CFFF" font-size="9" font-family="monospace">outer_curve = ${outerOCClampedPx !== null ? `${outerOC.toFixed(1)}→${outerOCClampedPx.toFixed(1)}px` : `${outerOC.toFixed(1)}px`}</text>
                     <circle cx="4" cy="${cH + 30}" r="4" fill="#5599FF" opacity="0.9"/>
-                    <text x="12" y="${cH + 34}" fill="#5599FF" font-size="10" font-family="monospace">outer inner_curve = ${outerIC.toFixed(1)}px</text>
+                    <text x="12" y="${cH + 34}" fill="#5599FF" font-size="9" font-family="monospace">inner_curve = ${outerICClampedPx !== null ? `${outerIC.toFixed(1)}→${outerICClampedPx.toFixed(1)}px` : `${outerIC.toFixed(1)}px`}</text>
                     ${hasInner ? svg`
                         <circle cx="4" cy="${cH + 46}" r="4" fill="#FF8C00" opacity="0.9"/>
-                        <text x="12" y="${cH + 50}" fill="#FF8C00" font-size="10" font-family="monospace">inner outer_curve = ${innerOC.toFixed(1)}px</text>
+                        <text x="12" y="${cH + 50}" fill="#FF8C00" font-size="9" font-family="monospace">outer_curve = ${innerOCIsConcentric ? `${(iOR / k).toFixed(1)}px` : `${innerOC.toFixed(1)}px`}</text>
                         <circle cx="4" cy="${cH + 62}" r="4" fill="#FFAA33" opacity="0.9"/>
-                        <text x="12" y="${cH + 66}" fill="#FFAA33" font-size="10" font-family="monospace">inner inner_curve = ${innerIC.toFixed(1)}px</text>
+                        <text x="12" y="${cH + 66}" fill="#FFAA33" font-size="9" font-family="monospace">inner_curve = ${(innerOCIsConcentric && innerICDerivesFromOC) ? `${(iIR / k).toFixed(1)}px` : `${innerIC.toFixed(1)}px`}</text>
                     ` : ''}
                 </g>
             </svg>
@@ -2801,7 +2844,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * Live dynamic SVG showing the actual computed arc geometry.
      * Scales all dimensions so the result always fits the preview area.
      */
-    _renderCurveLivePreview(outerR, innerR, barW, barH, clampMode, clampCeil) {
+    _renderCurveLivePreview(outerR, innerR, barW, barH, clampMode, clampCeil, cardH, cardW) {
         // Scale so bar_width = max 90px, bar_height = max 50px, outer_curve = max 110px
         const k = Math.min(90 / barW, 50 / barH, 110 / (outerR || 1), 2.5);
         const bW = barW * k;
@@ -2813,11 +2856,26 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const cH = Math.max(oR + 28, bH * 2.5, 70);
         const cW = Math.max(bW * 2, 170);
 
-        // Apply configured clamp mode — manual ceiling is scaled, card/none both use display bounds
+        // Card boundary indicators (only when style.height/width are explicit px values)
+        const cardHSc = typeof cardH === 'number' && cardH > 0 ? cardH * k : null;
+        const cardWSc = typeof cardW === 'number' && cardW > 0 ? cardW * k : null;
+
+        // Apply configured clamp mode — card clamp uses actual card dims when known
         const oRp = clampMode === 'manual' && typeof clampCeil === 'number'
             ? Math.min(oR, clampCeil * k, cH - 1, cW - 1)
-            : Math.min(oR, cH - 1, cW - 1);
-        const iRp = Math.max(0, oRp - (oR - iR));
+            : clampMode === 'card' && (cardHSc !== null || cardWSc !== null)
+                ? Math.min(oR, cardHSc ?? Infinity, cardWSc ?? Infinity, cH - 1, cW - 1)
+                : Math.min(oR, cH - 1, cW - 1);
+        const iRp = oR > 0 ? Math.max(0, iR * (oRp / oR)) : 0;
+
+        const showCardH = cardHSc !== null && cardHSc > 2 && cardHSc < cH;
+        const showCardW = cardWSc !== null && cardWSc > 2 && cardWSc < cW;
+        const cardHOverflow = showCardH && oRp > cardHSc;
+        const cardWOverflow = showCardW && oRp > cardWSc;
+
+        // Clamped real-px values for labels (null when not clamped)
+        const outerClampedPx = oRp < oR - 0.5 ? oRp / k : null;
+        const innerClampedPx = iRp < iR - 0.5 ? iRp / k : null;
 
         const elbowPath = `M ${oRp} 0 L ${cW} 0 L ${cW} ${bH} L ${bW + iRp} ${bH} A ${iRp} ${iRp} 0 0 0 ${bW} ${bH + iRp} L ${bW} ${cH} L 0 ${cH} L 0 ${oRp} A ${oRp} ${oRp} 0 0 1 ${oRp} 0 Z`;
 
@@ -2855,14 +2913,34 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                           fill="none" stroke="#00CFFF" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
                     <text x="${outerLabelX}" y="${outerLabelY}"
                           fill="#00CFFF" font-size="10" text-anchor="middle" font-family="monospace"
-                          dominant-baseline="auto">${outerR.toFixed(1)}px</text>
+                          dominant-baseline="auto">${outerClampedPx !== null ? `${outerR.toFixed(1)}→${outerClampedPx.toFixed(1)}px` : `${outerR.toFixed(1)}px`}</text>
 
                     <!-- Inner arc annotation -->
                     <path d="M ${bW + iRp} ${bH} A ${iRp} ${iRp} 0 0 0 ${bW} ${bH + iRp}"
                           fill="none" stroke="#FFAA33" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
                     ${iRp > 6 ? svg`
                         <text x="${innerLabelX}" y="${innerLabelY}"
-                              fill="#FFAA33" font-size="10" text-anchor="middle" font-family="monospace">${innerR.toFixed(1)}px</text>
+                              fill="#FFAA33" font-size="10" text-anchor="middle" font-family="monospace">${innerClampedPx !== null ? `${innerR.toFixed(1)}→${innerClampedPx.toFixed(1)}px` : `${innerR.toFixed(1)}px`}</text>
+                    ` : ''}
+
+                    <!-- Card boundary lines — dashed line + faint overlay shows what the card clips -->
+                    ${showCardH ? svg`
+                        ${cardHOverflow ? svg`
+                            <rect x="0" y="${cardHSc}" width="${cW}" height="${cH - cardHSc}"
+                                  fill="#FF4444" opacity="0.10"/>
+                        ` : ''}
+                        <line x1="0" y1="${cardHSc}" x2="${cW}" y2="${cardHSc}"
+                              stroke="#FF4444" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.8"/>
+                        <text x="${cW - 3}" y="${cardHSc - 3}" fill="#FF4444" font-size="8" text-anchor="end" opacity="0.9">↕ ${cardH}px</text>
+                    ` : ''}
+                    ${showCardW ? svg`
+                        ${cardWOverflow ? svg`
+                            <rect x="${cardWSc}" y="0" width="${cW - cardWSc}" height="${cH}"
+                                  fill="#FF4444" opacity="0.10"/>
+                        ` : ''}
+                        <line x1="${cardWSc}" y1="0" x2="${cardWSc}" y2="${cH}"
+                              stroke="#FF4444" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.8"/>
+                        <text x="${cardWSc + 3}" y="10" fill="#FF4444" font-size="8" text-anchor="start" opacity="0.9">↔ ${cardW}px</text>
                     ` : ''}
 
                     <!-- Clamp-mode indicator (bottom-right) -->
@@ -2876,9 +2954,9 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <!-- Legend row below card -->
                     <circle cx="4" cy="${cH + 14}" r="4" fill="#00CFFF" opacity="0.9"/>
-                    <text x="12" y="${cH + 18}" fill="#00CFFF" font-size="10" font-family="monospace">outer_curve = ${outerR.toFixed(1)}px</text>
+                    <text x="12" y="${cH + 18}" fill="#00CFFF" font-size="10" font-family="monospace">outer_curve = ${outerClampedPx !== null ? `${outerR.toFixed(1)}→${outerClampedPx.toFixed(1)}px` : `${outerR.toFixed(1)}px`}</text>
                     <circle cx="4" cy="${cH + 30}" r="4" fill="#FFAA33" opacity="0.9"/>
-                    <text x="12" y="${cH + 34}" fill="#FFAA33" font-size="10" font-family="monospace">inner_curve = ${innerR.toFixed(1)}px</text>
+                    <text x="12" y="${cH + 34}" fill="#FFAA33" font-size="10" font-family="monospace">inner_curve = ${innerClampedPx !== null ? `${innerR.toFixed(1)}→${innerClampedPx.toFixed(1)}px` : `${innerR.toFixed(1)}px`}</text>
                 </g>
             </svg>
         `;
@@ -3323,6 +3401,13 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 </lcards-form-section>
             </div>
         `;
+    }
+
+    /** Extract a numeric pixel value from a CSS string like "40px". Returns null for "auto", "8vh", etc. */
+    _parseStylePx(value) {
+        if (typeof value !== 'string') return null;
+        const m = value.match(/^(\d+(?:\.\d+)?)px$/);
+        return m ? parseFloat(m[1]) : null;
     }
 }
 

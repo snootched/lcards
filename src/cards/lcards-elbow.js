@@ -2340,12 +2340,13 @@ export class LCARdSElbow extends LCARdSButton {
                              : Math.min(width, height); // 'card'
         const clampedOuterRadius = Math.max(0, Math.min(outerRadius, maxOuterRadius));
 
-        // Preserve the bar-width gap (outer_curve − inner_curve) when the outer radius is
-        // clamped.  Simply clamping innerRadius to outerRadius-1 breaks concentric arcs:
-        // the inner arc tangent point moves to (horizontal + innerRadius) which no longer
-        // coincides with the clamped outer arc tangent, producing a visible kink.
-        const barWidthGap = outerRadius - innerRadius;  // e.g. 160 - 115 = 45 (= bar_width)
-        const clampedInnerRadius = Math.max(0, clampedOuterRadius - barWidthGap);
+        // Scale inner radius proportionally with the outer clamp so the ratio (e.g. 2:1 for
+        // auto inner_curve) is preserved. The offset model (subtract the same absolute delta)
+        // breaks the ratio — e.g. auto inner=32.5 with outer clamped 65→40 would give 7.5
+        // instead of the expected 20 (= clamped_outer / 2).
+        const clampedInnerRadius = outerRadius > 0
+            ? Math.max(0, innerRadius * (clampedOuterRadius / outerRadius))
+            : 0;
 
         // Get component from registry using the full type
         const elbowType = g.type;
@@ -2525,6 +2526,32 @@ export class LCARdSElbow extends LCARdSButton {
             outer.curveClamp ?? 'card'
         );
 
+        // Compute clamped outer segment inner_curve so the inner segment's concentric
+        // outer_curve derives from the post-clamp value, not the pre-clamp geometry.
+        // This mirrors the logic inside _generateSegmentPath.
+        const outerClampSpec = outer.curveClamp ?? 'card';
+        const outerMaxOR = outerClampSpec === 'none' ? Infinity
+            : typeof outerClampSpec === 'number' ? outerClampSpec
+            : Math.min(width, height);
+        const outerClampedOR = Math.max(0, Math.min(outer.outerRadius, outerMaxOR));
+        const outerClampedIR = outer.outerRadius > 0
+            ? Math.max(0, outer.innerRadius * (outerClampedOR / outer.outerRadius))
+            : 0;
+
+        // When inner outer_curve is undefined (concentric), cascade from the clamped outer
+        // inner_curve so the gap between segments is visually uniform through the curve bend.
+        const innerOCConfigIsUndefined = innerSegmentConfig.outer_curve === undefined;
+        const innerOuterRadiusForPath = innerOCConfigIsUndefined
+            ? Math.max(0, outerClampedIR - gap)
+            : inner.outerRadius;
+
+        // When inner inner_curve is also auto, derive it from the cascaded outer_curve
+        // so the 2:1 LCARS ratio is preserved after the cascade.
+        const innerICIsAuto = innerSegmentConfig.inner_curve === undefined || innerSegmentConfig.inner_curve === 'auto';
+        const innerInnerRadiusForPath = (innerOCConfigIsUndefined && innerICIsAuto)
+            ? innerOuterRadiusForPath / 2
+            : inner.innerRadius;
+
         // Generate inner segment path (smaller elbow)
         // The inner segment must fit within the outer segment's content area
         // Reduce width by outer horizontal bar + gap
@@ -2532,13 +2559,20 @@ export class LCARdSElbow extends LCARdSButton {
         const innerWidth = width - (outer.horizontal + gap);
         const innerHeight = height - (outer.vertical + gap);
 
+        // When inner OC is concentric, propagate the outer segment's clamp mode so the inner
+        // segment doesn't apply an independent secondary clamp on top of the cascaded value.
+        // e.g. outer clamp='none' should mean the inner also renders without clamping.
+        const innerPathClamp = innerOCConfigIsUndefined
+            ? outerClampSpec
+            : (inner.curveClamp ?? 'card');
+
         const innerPath = this._generateSegmentPath(
             innerWidth, innerHeight,
             inner.horizontal, inner.vertical,
-            inner.outerRadius, inner.innerRadius,
+            innerOuterRadiusForPath, innerInnerRadiusForPath,
             inner.diagonalAngle,
             type,
-            inner.curveClamp ?? 'card'
+            innerPathClamp
         );
 
         // Process icon and text (same as simple elbow)
