@@ -158,7 +158,7 @@ function _roomLightControllerCard(roomEntity) {
                         },
                         button_template: {
                             min_height: '10',
-                            text: { label: { show: true, position: 'right-center' } },
+                            text: { label: { show: true, position: 'center-right' } },
                         },
                     },
                     {
@@ -353,7 +353,7 @@ function _autoAreasRoomCard(areas, stateEntity) {
                         options,
                         button_template: {
                             min_height: '10',
-                            text: { label: { show: true, position: 'right-center' } },
+                            text: { label: { show: true, position: 'center-right' } },
                         },
                     },
                     { type: 'custom:lcards-button', preset: 'panel-light' },
@@ -554,7 +554,7 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                     view_layout: { 'overflow-y': 'auto' },
                     button_template: {
                         min_height: '10',
-                        text: { label: { show: true, position: 'right-center' } },
+                        text: { label: { show: true, position: 'center-right' } },
                     },
                 }] : [{
                     type: 'custom:lcards-button',

@@ -62,7 +62,7 @@ const SHAPE_BUILDERS = {
 
     /**
      * Diamond — polygon connecting the four edge midpoints.
-     *   top-center → right-center → bottom-center → left-center
+     *   top-center → center-right → bottom-center → center-left
      */
     diamond(x, y, w, h) {
         const cx = x + w / 2;

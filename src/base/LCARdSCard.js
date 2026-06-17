@@ -2712,9 +2712,27 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         const state = targetEntity.state;
 
-        // Unavailable/Unknown is universal
+        // Unavailable/Unknown is universal — state_classification cannot override this
         if (state === 'unavailable' || state === 'unknown') {
             return 'unavailable';
+        }
+
+        const sc = this.config?.state_classification;
+
+        // Reserved keys that are never treated as custom bucket names
+        const RESERVED = new Set(['active', 'inactive', 'unavailable', 'default', 'else', 'unknown']);
+
+        // User-defined built-in bucket overrides checked first
+        if (sc?.active?.includes(state)) return 'active';
+        if (sc?.inactive?.includes(state)) return 'inactive';
+
+        // User-defined custom buckets (any non-reserved key whose value is a string array)
+        if (sc) {
+            for (const [key, val] of Object.entries(sc)) {
+                if (!RESERVED.has(key) && Array.isArray(val) && val.includes(state)) {
+                    return key;
+                }
+            }
         }
 
         // Comprehensive active states across all HA domains
@@ -2730,8 +2748,8 @@ export class LCARdSCard extends LCARdSNativeCard {
             return 'active';
         }
 
-        // Inactive states (OFF, unlocked, closed, idle, etc.)
-        return 'inactive';
+        // Catch-all: user-defined else bucket, or 'inactive' (legacy default)
+        return sc?.else ?? 'inactive';
     }
 
     /**

@@ -97,9 +97,9 @@ export const alertOverlaySchema = {
             type: 'string',
             enum: [
                 'top-left', 'top', 'top-center', 'top-right',
-                'left', 'left-center',
+                'left', 'center-left', 'left-center',
                 'center',
-                'right', 'right-center',
+                'right', 'center-right', 'right-center',
                 'bottom-left', 'bottom', 'bottom-center', 'bottom-right',
             ],
             default: 'center',
@@ -176,9 +176,9 @@ export const alertOverlaySchema = {
                         type: 'string',
                         enum: [
                             'top-left', 'top', 'top-center', 'top-right',
-                            'left', 'left-center',
+                            'left', 'center-left', 'left-center',
                             'center',
-                            'right', 'right-center',
+                            'right', 'center-right', 'right-center',
                             'bottom-left', 'bottom', 'bottom-center', 'bottom-right',
                         ],
                     },

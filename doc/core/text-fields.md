@@ -67,7 +67,7 @@ All options in the per-field table below are also valid in `text.default` as sha
 └──────────────┴──────────────┴──────────────┘
 ```
 
-Shorthand aliases: `top` → `top-center`, `bottom` → `bottom-center`, `left` → `center-left`, `right` → `center-right`.
+Shorthand aliases: `top` → `top-center`, `bottom` → `bottom-center`, `left` → `center-left`, `right` → `center-right`. The legacy values `left-center` and `right-center` are also accepted and normalized automatically.
 
 Absolute positioning with `x`/`y` or `x_percent`/`y_percent` overrides `position`.
 

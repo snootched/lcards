@@ -11,7 +11,7 @@
  * Editor UI is defined separately in lcards-elbow-editor.js config.
  */
 
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema } from './common-schemas.js';
 import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
 /**
@@ -29,8 +29,6 @@ export function getElbowSchema(options = {}) {
 
     // Get available elbow types from component registry
     const availableElbowTypes = getElbowTypeNames();
-
-    // Action, animation, and filter schemas imported from common-schemas.js
 
     // Action, animation, and filter schemas imported from common-schemas.js
 
@@ -115,6 +113,8 @@ export function getElbowSchema(options = {}) {
                     helper: 'Attribute whose value is matched against color-config keys. Write YAML keys as strings (e.g. "fade", "true", "null"). Leave blank to match entity state directly.'
                 }
             },
+
+            state_classification: stateClassificationSchema,
 
             id: cardIdSchema,
 
@@ -329,16 +329,16 @@ export function getElbowSchema(options = {}) {
                                     },
                                     {
                                         type: 'string',
-                                        description: "Use 'auto' for LCARS formula (bar_width / 2), or a CSS length expression (e.g. 'clamp(30px, 4vw, 60px)')",
-                                        examples: ['auto', 'clamp(30px, 4vw, 60px)']
+                                        description: "Keyword or CSS expression. Keywords: 'auto'/'arm_width' = bar_width/2, 'arm_height' = bar_height/2, 'arm_max' = max(bar_width,bar_height)/2 (recommended), 'arm_min' = min(bar_width,bar_height)/2, 'arm_fill' = max(bar_width,bar_height). CSS: e.g. 'clamp(30px, 4vw, 60px)'",
+                                        examples: ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill', 'clamp(30px, 4vw, 60px)']
                                     }
                                 ],
                                 default: 'auto',
-                                description: 'Outer corner radius (pixels or "auto" for LCARS formula: bar_width / 2)',
-                                $comment: 'LCARS Arc Formula: outer_curve = bar_width / 2 creates authentic tangent geometry',
+                                description: "Outer corner radius. Keywords: 'auto'/'arm_width' = bar_width/2 (LCARS classic), 'arm_height' = bar_height/2, 'arm_max' = max(bar_width,bar_height)/2 (recommended for paired elbows — same as auto for typical configs), 'arm_min' = min(bar_width,bar_height)/2, 'arm_fill' = max(bar_width,bar_height) (fills dominant arm). Or set explicit pixels.",
+                                $comment: 'Arc tangent points always arrive at 0° to their edges. Render-time clamp: outerRadius ≤ min(card_w, card_h) keeps tangent points within card viewport. Use arm_max for consistent paired elbows — equals auto (bar_width/2) when bar_width >= bar_height.',
                                 'x-ui-hints': {
                                     label: 'Outer Curve',
-                                    helper: 'Radius of outer corner (use "auto" for authentic LCARS geometry)',
+                                    helper: 'Arc radius mode — arm_max recommended for consistent paired elbows',
                                     defaultOneOfBranch: 0,
                                     selector: {
                                         number: {
@@ -355,19 +355,19 @@ export function getElbowSchema(options = {}) {
                                         type: 'number',
                                         minimum: 0,
                                         maximum: 500,
-                                        description: 'Inner corner radius (pixels, defaults to outer_curve / 2 using LCARS formula)',
+                                        description: 'Inner corner radius in pixels',
                                         examples: [22.5, 37.5, 50]
                                     },
                                     {
                                         type: 'string',
-                                        description: 'CSS length expression for inner corner radius (e.g. \'clamp(10px, 2vw, 30px)\')',
-                                        examples: ['clamp(10px, 2vw, 30px)']
+                                        description: "Keyword or CSS expression. Keywords: 'auto' = outer_curve/2 (LCARS formula), 'arm_width' = bar_width/2, 'arm_height' = bar_height/2, 'arm_max' = max(w,h)/2, 'arm_min' = min(w,h)/2, 'arm_fill' = max(w,h). CSS: e.g. 'clamp(10px, 2vw, 30px)'",
+                                        examples: ['auto', 'arm_max', 'arm_height', 'arm_min', 'clamp(10px, 2vw, 30px)']
                                     }
                                 ],
-                                $comment: 'LCARS formula: inner_curve = outer_curve / 2 for authentic concentric geometry',
+                                $comment: 'LCARS formula default: inner_curve = outer_curve / 2. Keywords use the same bar dimension formulas as outer_curve, independently of the outer value.',
                                 'x-ui-hints': {
                                     label: 'Inner Curve',
-                                    helper: 'Radius of inner corner (defaults to outer_curve / 2 for LCARS geometry)',
+                                    helper: 'Inner arc radius — auto = outer_curve / 2 (LCARS formula)',
                                     selector: {
                                         number: {
                                             mode: 'slider',
@@ -375,6 +375,27 @@ export function getElbowSchema(options = {}) {
                                             unit_of_measurement: 'px'
                                         }
                                     }
+                                }
+                            },
+                            outer_curve_clamp: {
+                                oneOf: [
+                                    {
+                                        type: 'string',
+                                        enum: ['card', 'none'],
+                                        description: "'card' (default) clamps outer_curve to min(card_w, card_h) — keeps arc within viewport. 'none' disables clamping — arc is exactly the computed value; SVG overflow:hidden clips any overflow. Use 'none' for consistent paired elbows regardless of card height."
+                                    },
+                                    {
+                                        type: 'number',
+                                        minimum: 0,
+                                        maximum: 500,
+                                        description: 'Explicit px ceiling for outer radius — hard cap independent of card or arm dimensions'
+                                    }
+                                ],
+                                default: 'card',
+                                $comment: "Issue #361: two same-config elbows in differently-sized cards get different radii because 'card' clamp uses the card height. Set 'none' to decouple radius from card height.",
+                                'x-ui-hints': {
+                                    label: 'Curve Clamp',
+                                    helper: "card = clamp to viewport (default), none = no clamp (use for paired elbows)"
                                 }
                             },
                             color: {
@@ -477,10 +498,10 @@ export function getElbowSchema(options = {}) {
                                     outer_curve: {
                                         oneOf: [
                                             { type: 'number', minimum: 0, maximum: 500 },
-                                            { type: 'string', description: 'CSS length expression (e.g. \'clamp(30px, 4vw, 60px)\')' }
+                                            { type: 'string', description: "Keyword: 'auto'/'arm_width', 'arm_height', 'arm_max' (recommended), 'arm_min', 'arm_fill', or CSS expression" }
                                         ],
-                                        description: 'Outer corner radius (pixels or CSS length, defaults to bar_width / 2)',
-                                        examples: [45, 60, 75, 'clamp(30px, 4vw, 60px)']
+                                        description: "Outer corner radius. Keywords: 'auto'/'arm_width'=bar_width/2, 'arm_height'=bar_height/2, 'arm_max'=max(w,h)/2 (recommended), 'arm_min'=min(w,h)/2, 'arm_fill'=max(w,h). Or explicit pixels.",
+                                        examples: [45, 60, 75, 'auto', 'arm_max', 'arm_fill', 'clamp(30px, 4vw, 60px)']
                                     },
                                     inner_curve: {
                                         oneOf: [
@@ -538,11 +559,11 @@ export function getElbowSchema(options = {}) {
                                     outer_curve: {
                                         oneOf: [
                                             { type: 'number', minimum: 0, maximum: 500 },
-                                            { type: 'string', description: 'CSS length expression for outer corner radius' }
+                                            { type: 'string', description: "Keyword: 'auto'/'arm_width', 'arm_height', 'arm_max' (recommended), 'arm_min', 'arm_fill', or CSS expression" }
                                         ],
-                                        description: 'Outer corner radius (pixels or CSS length, auto-calculated for concentricity if not specified)',
-                                        examples: [18, 30, 40],
-                                        $comment: 'Auto-calculation: outer_segment.inner_curve - gap'
+                                        description: "Outer corner radius. Omit for auto concentric (outer_segment.inner_curve - gap). Keywords: 'auto'/'arm_width'=bar_width/2, 'arm_height'=bar_height/2, 'arm_max'=max(w,h)/2 (recommended), 'arm_min'=min(w,h)/2, 'arm_fill'=max(w,h).",
+                                        examples: [18, 30, 40, 'arm_max', 'arm_fill'],
+                                        $comment: 'Auto-calculation (when omitted): outer_segment.inner_curve - gap. Keyword modes use bar dimensions of inner_segment.'
                                     },
                                     inner_curve: {
                                         oneOf: [

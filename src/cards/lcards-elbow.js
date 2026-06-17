@@ -121,8 +121,16 @@ export class LCARdSElbow extends LCARdSButton {
                     display: block;
                     width: 100%;
                     height: 100%;
-                    overflow: visible;
+                    overflow: hidden;
                     cursor: pointer;
+                }
+
+                /* Elbow SVGs must clip at the viewBox boundary.
+                 * The base button class sets overflow:visible on .button-container > svg
+                 * to allow badge/icon bleed — elbows don't need that and it breaks
+                 * outer_curve_clamp:none which relies on the SVG to clip arc overflow. */
+                .button-container > svg {
+                    overflow: hidden;
                 }
 
                 .elbow-svg:hover {
@@ -1219,28 +1227,36 @@ export class LCARdSElbow extends LCARdSButton {
                 bar_height = bar_width;
             }
 
-            // Parse outer curve - 'auto' means use bar_width / 2
+            // Parse outer curve — keywords are passed through for geometry resolution
+            const OUTER_CURVE_KEYWORDS = ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'];
             let outer_curve = segment.outer_curve;
-            if (outer_curve === 'auto' || outer_curve === undefined) {
-                outer_curve = 'auto'; // Will be resolved in geometry calculation
+            if (outer_curve === undefined || OUTER_CURVE_KEYWORDS.includes(outer_curve)) {
+                outer_curve = outer_curve ?? 'auto'; // preserve keyword; normalize undefined → 'auto'
             } else if (isCssLengthString(outer_curve)) {
                 this._hasCssUnitDimensions = true;
             } else {
                 outer_curve = this._parseUnit(outer_curve);
             }
 
-            // Parse inner curve - defaults to LCARS formula (outer_curve / 2)
+            // Parse inner curve — keywords pass through; defaults to 'auto' (outer_curve / 2)
+            const INNER_CURVE_KEYWORDS = ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'];
             let inner_curve;
             if (segment.inner_curve !== undefined) {
-                if (isCssLengthString(segment.inner_curve)) {
+                if (INNER_CURVE_KEYWORDS.includes(segment.inner_curve)) {
+                    inner_curve = segment.inner_curve; // preserve keyword for geometry resolution
+                } else if (isCssLengthString(segment.inner_curve)) {
                     this._hasCssUnitDimensions = true;
                     inner_curve = segment.inner_curve;
                 } else {
                     inner_curve = this._parseUnit(segment.inner_curve);
                 }
-            } else {
-                // LCARS formula: inner = outer / 2 (will be calculated)
-                inner_curve = undefined;
+            }
+            // undefined → 'auto' (LCARS formula outer / 2) resolved in _calculateSimpleElbowGeometry
+
+            // Parse outer_curve_clamp — 'card' (default), 'none', or explicit px number
+            let outer_curve_clamp = segment.outer_curve_clamp ?? 'card';
+            if (outer_curve_clamp !== 'card' && outer_curve_clamp !== 'none') {
+                outer_curve_clamp = this._parseUnit(outer_curve_clamp);
             }
 
             // Parse diagonal angle (for diagonal-cap variants) - support 'theme' keyword
@@ -1257,6 +1273,7 @@ export class LCARdSElbow extends LCARdSButton {
                 bar_height,
                 outer_curve,
                 inner_curve,
+                outer_curve_clamp,
                 diagonal_angle,
                 color: segment.color
             };
@@ -1271,10 +1288,9 @@ export class LCARdSElbow extends LCARdSButton {
                     bar_width: this._parseDimPreservingCss(elbowConfig.segments.outer_segment.bar_width),
                     bar_height: elbowConfig.segments.outer_segment.bar_height ?
                         this._parseDimPreservingCss(elbowConfig.segments.outer_segment.bar_height) : undefined,
-                    outer_curve: elbowConfig.segments.outer_segment.outer_curve ?
-                        this._parseDimPreservingCss(elbowConfig.segments.outer_segment.outer_curve) : undefined,
-                    inner_curve: elbowConfig.segments.outer_segment.inner_curve ?
-                        this._parseDimPreservingCss(elbowConfig.segments.outer_segment.inner_curve) : undefined,
+                    outer_curve: this._parseOuterCurveKeyword(elbowConfig.segments.outer_segment.outer_curve),
+                    inner_curve: this._parseInnerCurveKeyword(elbowConfig.segments.outer_segment.inner_curve),
+                    outer_curve_clamp: this._parseClamp(elbowConfig.segments.outer_segment.outer_curve_clamp),
                     diagonal_angle: (elbowConfig.segments.outer_segment.diagonal_angle === 'theme' ||
                                     elbowConfig.segments.outer_segment.diagonal_angle === 'input_number.lcars_elbow_angle') ? 'theme' :
                                    (elbowConfig.segments.outer_segment.diagonal_angle !== undefined ?
@@ -1287,10 +1303,9 @@ export class LCARdSElbow extends LCARdSButton {
                     bar_width: this._parseDimPreservingCss(elbowConfig.segments.inner_segment.bar_width),
                     bar_height: elbowConfig.segments.inner_segment.bar_height ?
                         this._parseDimPreservingCss(elbowConfig.segments.inner_segment.bar_height) : undefined,
-                    outer_curve: elbowConfig.segments.inner_segment.outer_curve ?
-                        this._parseDimPreservingCss(elbowConfig.segments.inner_segment.outer_curve) : undefined,
-                    inner_curve: elbowConfig.segments.inner_segment.inner_curve ?
-                        this._parseDimPreservingCss(elbowConfig.segments.inner_segment.inner_curve) : undefined,
+                    outer_curve: this._parseOuterCurveKeyword(elbowConfig.segments.inner_segment.outer_curve),
+                    inner_curve: this._parseInnerCurveKeyword(elbowConfig.segments.inner_segment.inner_curve),
+                    outer_curve_clamp: this._parseClamp(elbowConfig.segments.inner_segment.outer_curve_clamp),
                     diagonal_angle: (elbowConfig.segments.inner_segment.diagonal_angle === 'theme' ||
                                     elbowConfig.segments.inner_segment.diagonal_angle === 'input_number.lcars_elbow_angle') ? 'theme' :
                                    (elbowConfig.segments.inner_segment.diagonal_angle !== undefined ?
@@ -1348,6 +1363,7 @@ export class LCARdSElbow extends LCARdSButton {
         let bar_height = segment.bar_height;
         let outer_curve = segment.outer_curve;
         let inner_curve = segment.inner_curve;
+        const curveClamp = segment.outer_curve_clamp ?? 'card';
         let diagonal_angle = segment.diagonal_angle ?? 45; // Default 45° angle
 
         // Resolve bar_width (vertical dimension in LCARS)
@@ -1362,18 +1378,51 @@ export class LCARdSElbow extends LCARdSButton {
             lcardsLog.debug(`[LCARdSElbow] Resolved bar_height from theme: ${bar_height}px`);
         }
 
-        // Resolve outer_curve ('auto' means bar_width / 2 — LCARS aesthetic default)
-        // The render-time clamp in _generateElbowPath will cap this to min(width, height)
-        // if the card is constrained to a smaller size than the natural arc would require.
-        if (outer_curve === 'auto') {
+        // Resolve outer_curve keyword modes.
+        // Arc radius keyword formulas. The render-time clamp (card viewport) is the
+        // only hard safety net — the keywords below let users choose the aesthetic:
+        //
+        // 'auto' / 'arm_width'  → bar_width / 2          (LCARS classic; large sweeping arc)
+        // 'arm_height'          → bar_height / 2          (arc based on horizontal arm)
+        // 'arm_max'             → max(w,h) / 2            (sweeping arc — same as auto when bar_width > bar_height)
+        // 'arm_min'             → min(w,h) / 2            (arc based on thinner arm; tiny with asymmetric bars)
+        // 'arm_fill'            → max(w,h)                (maximum arc; fills entire dominant arm)
+        if (outer_curve === 'auto' || outer_curve === 'arm_width') {
             outer_curve = bar_width / 2;
-            lcardsLog.debug(`[LCARdSElbow] Calculated auto outer_curve: ${outer_curve}px`);
+            lcardsLog.debug(`[LCARdSElbow] Calculated outer_curve (arm_width): ${outer_curve}px`);
+        } else if (outer_curve === 'arm_height') {
+            outer_curve = bar_height / 2;
+            lcardsLog.debug(`[LCARdSElbow] Calculated outer_curve (arm_height): ${outer_curve}px`);
+        } else if (outer_curve === 'arm_max') {
+            outer_curve = Math.max(bar_width, bar_height) / 2;
+            lcardsLog.debug(`[LCARdSElbow] Calculated outer_curve (arm_max): ${outer_curve}px`);
+        } else if (outer_curve === 'arm_min') {
+            outer_curve = Math.min(bar_width, bar_height) / 2;
+            lcardsLog.debug(`[LCARdSElbow] Calculated outer_curve (arm_min): ${outer_curve}px`);
+        } else if (outer_curve === 'arm_fill') {
+            outer_curve = Math.max(bar_width, bar_height);
+            lcardsLog.debug(`[LCARdSElbow] Calculated outer_curve (arm_fill): ${outer_curve}px`);
         }
 
-        // Resolve inner_curve (defaults to outer_curve / 2 - LCARS formula)
-        if (inner_curve === undefined) {
+        // Resolve inner_curve — keyword modes or LCARS formula (outer / 2)
+        if (inner_curve === undefined || inner_curve === 'auto') {
             inner_curve = outer_curve / 2;
             lcardsLog.debug(`[LCARdSElbow] Calculated LCARS inner_curve: ${inner_curve}px`);
+        } else if (inner_curve === 'arm_width') {
+            inner_curve = bar_width / 2;
+            lcardsLog.debug(`[LCARdSElbow] Calculated inner_curve (arm_width): ${inner_curve}px`);
+        } else if (inner_curve === 'arm_height') {
+            inner_curve = bar_height / 2;
+            lcardsLog.debug(`[LCARdSElbow] Calculated inner_curve (arm_height): ${inner_curve}px`);
+        } else if (inner_curve === 'arm_max') {
+            inner_curve = Math.max(bar_width, bar_height) / 2;
+            lcardsLog.debug(`[LCARdSElbow] Calculated inner_curve (arm_max): ${inner_curve}px`);
+        } else if (inner_curve === 'arm_min') {
+            inner_curve = Math.min(bar_width, bar_height) / 2;
+            lcardsLog.debug(`[LCARdSElbow] Calculated inner_curve (arm_min): ${inner_curve}px`);
+        } else if (inner_curve === 'arm_fill') {
+            inner_curve = Math.max(bar_width, bar_height);
+            lcardsLog.debug(`[LCARdSElbow] Calculated inner_curve (arm_fill): ${inner_curve}px`);
         }
 
         // Resolve diagonal_angle
@@ -1384,11 +1433,12 @@ export class LCARdSElbow extends LCARdSButton {
 
         return {
             type,  // Full type string (e.g., 'header-left', 'corner-inset-left', etc.)
-            horizontal: bar_width,   // Sidebar width
-            vertical: bar_height,    // Top bar height
+            horizontal: bar_width,
+            vertical: bar_height,
             outerRadius: outer_curve,
             innerRadius: inner_curve,
-            diagonalAngle: diagonal_angle  // Angle for diagonal cuts (0-90°)
+            curveClamp,
+            diagonalAngle: diagonal_angle
         };
     }
 
@@ -1427,8 +1477,25 @@ export class LCARdSElbow extends LCARdSButton {
         // Apply defaults
         const outerHorizontal = outer_segment.bar_width;
         const outerVertical = outer_segment.bar_height ?? outer_segment.bar_width;
-        const outerSegmentOuterRadius = outer_segment.outer_curve ?? outer_segment.bar_width / 2;
-        const outerSegmentInnerRadius = outer_segment.inner_curve ?? outerSegmentOuterRadius / 2;
+        const outerSegmentOuterRadius = (() => {
+            const oc = outer_segment.outer_curve;
+            if (oc === undefined || oc === 'auto' || oc === 'arm_width') return outerHorizontal / 2;
+            if (oc === 'arm_height') return outerVertical / 2;
+            if (oc === 'arm_max') return Math.max(outerHorizontal, outerVertical) / 2;
+            if (oc === 'arm_min') return Math.min(outerHorizontal, outerVertical) / 2;
+            if (oc === 'arm_fill') return Math.max(outerHorizontal, outerVertical);
+            return oc;
+        })();
+        const outerSegmentInnerRadius = (() => {
+            const ic = outer_segment.inner_curve;
+            if (ic === undefined || ic === 'auto') return outerSegmentOuterRadius / 2;
+            if (ic === 'arm_width') return outerHorizontal / 2;
+            if (ic === 'arm_height') return outerVertical / 2;
+            if (ic === 'arm_max') return Math.max(outerHorizontal, outerVertical) / 2;
+            if (ic === 'arm_min') return Math.min(outerHorizontal, outerVertical) / 2;
+            if (ic === 'arm_fill') return Math.max(outerHorizontal, outerVertical);
+            return ic;
+        })();
         let outerDiagonalAngle = outer_segment.diagonal_angle ?? 45;
 
         // Resolve theme angle if needed
@@ -1442,13 +1509,29 @@ export class LCARdSElbow extends LCARdSButton {
         const innerHorizontal = inner_segment.bar_width;
         const innerVertical = inner_segment.bar_height ?? inner_segment.bar_width;
 
-        // Default for inner outer_curve: concentric calculation
-        const innerSegmentOuterRadius = inner_segment.outer_curve ??
-            Math.max(0, outerSegmentInnerRadius - gap);
+        // Default for inner outer_curve: concentric calculation (falls back to outerInner - gap)
+        const innerSegmentOuterRadius = (() => {
+            const oc = inner_segment.outer_curve;
+            if (oc === undefined) return Math.max(0, outerSegmentInnerRadius - gap);
+            if (oc === 'auto' || oc === 'arm_width') return innerHorizontal / 2;
+            if (oc === 'arm_height') return innerVertical / 2;
+            if (oc === 'arm_max') return Math.max(innerHorizontal, innerVertical) / 2;
+            if (oc === 'arm_min') return Math.min(innerHorizontal, innerVertical) / 2;
+            if (oc === 'arm_fill') return Math.max(innerHorizontal, innerVertical);
+            return oc;
+        })();
 
         // Default for inner inner_curve: LCARS formula
-        const innerSegmentInnerRadius = inner_segment.inner_curve ??
-            innerSegmentOuterRadius / 2;
+        const innerSegmentInnerRadius = (() => {
+            const ic = inner_segment.inner_curve;
+            if (ic === undefined || ic === 'auto') return innerSegmentOuterRadius / 2;
+            if (ic === 'arm_width') return innerHorizontal / 2;
+            if (ic === 'arm_height') return innerVertical / 2;
+            if (ic === 'arm_max') return Math.max(innerHorizontal, innerVertical) / 2;
+            if (ic === 'arm_min') return Math.min(innerHorizontal, innerVertical) / 2;
+            if (ic === 'arm_fill') return Math.max(innerHorizontal, innerVertical);
+            return ic;
+        })();
         let innerDiagonalAngle = inner_segment.diagonal_angle ?? outerDiagonalAngle;
 
         // Resolve theme angle if needed
@@ -1496,6 +1579,7 @@ export class LCARdSElbow extends LCARdSButton {
                 vertical: outerVertical,
                 outerRadius: outerSegmentOuterRadius,
                 innerRadius: outerSegmentInnerRadius,
+                curveClamp: outer_segment.outer_curve_clamp ?? 'card',
                 diagonalAngle: outerDiagonalAngle,
                 color: outer_segment.color
             },
@@ -1504,6 +1588,7 @@ export class LCARdSElbow extends LCARdSButton {
                 vertical: innerVertical,
                 outerRadius: innerSegmentOuterRadius,
                 innerRadius: innerSegmentInnerRadius,
+                curveClamp: inner_segment.outer_curve_clamp ?? 'card',
                 diagonalAngle: innerDiagonalAngle,
                 color: inner_segment.color
             },
@@ -1889,6 +1974,35 @@ export class LCARdSElbow extends LCARdSButton {
     }
 
     /**
+     * Parse an outer_curve value, preserving keyword strings so geometry functions can
+     * resolve them. Keywords (auto, arm_width, arm_height, arm_min, arm_fill) pass through
+     * unchanged; CSS expressions are preserved for runtime resolution; other values are
+     * parsed as numbers.
+     * @param {number|string|undefined} value
+     * @returns {number|string|undefined}
+     * @private
+     */
+    _parseOuterCurveKeyword(value) {
+        if (value === undefined) return undefined;
+        const KEYWORDS = ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'];
+        if (KEYWORDS.includes(value)) return value;
+        return this._parseDimPreservingCss(value);
+    }
+
+    _parseInnerCurveKeyword(value) {
+        if (value === undefined) return undefined;
+        const KEYWORDS = ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'];
+        if (KEYWORDS.includes(value)) return value;
+        return this._parseDimPreservingCss(value);
+    }
+
+    _parseClamp(value) {
+        if (value === undefined || value === 'card') return 'card';
+        if (value === 'none') return 'none';
+        return this._parseUnit(value); // explicit px number
+    }
+
+    /**
      * Resolve a dimension value at render time.
      * CSS length strings are measured via a DOM probe; other values pass through unchanged
      * (numbers stay numbers; 'theme'/'auto' are left for geometry functions to handle).
@@ -2215,19 +2329,24 @@ export class LCARdSElbow extends LCARdSButton {
 
         const { position, side, horizontal, vertical, outerRadius, innerRadius, diagonalAngle } = g;
 
-        // Basic validation: ensure radii are non-negative and within SVG viewport bounds.
-        // A quarter-circle arc whose tangent points lie on two perpendicular edges can only
-        // stay inside the viewport when r ≤ min(width, height). Using Math.max was wrong:
-        // on a wide, short card it allowed the arc to extend far below the bottom edge.
-        const maxOuterRadius = Math.min(width, height);
+        // Clamp the outer radius.
+        // 'card' (default): min(card_w, card_h) — prevents arc tangent from leaving the SVG viewBox.
+        // 'none': no clamp; the SVG's overflow:hidden clips any overflow. Use for consistent
+        //         paired elbows regardless of card height differences (issue #361 fix).
+        // number: explicit px ceiling — hard cap independent of card or arm dimensions.
+        const curveClamp = g.curveClamp ?? 'card';
+        const maxOuterRadius = curveClamp === 'none'   ? Infinity
+                             : typeof curveClamp === 'number' ? curveClamp
+                             : Math.min(width, height); // 'card'
         const clampedOuterRadius = Math.max(0, Math.min(outerRadius, maxOuterRadius));
 
-        // Preserve the bar-width gap (outer_curve − inner_curve) when the outer radius is
-        // clamped.  Simply clamping innerRadius to outerRadius-1 breaks concentric arcs:
-        // the inner arc tangent point moves to (horizontal + innerRadius) which no longer
-        // coincides with the clamped outer arc tangent, producing a visible kink.
-        const barWidthGap = outerRadius - innerRadius;  // e.g. 160 - 115 = 45 (= bar_width)
-        const clampedInnerRadius = Math.max(0, clampedOuterRadius - barWidthGap);
+        // Scale inner radius proportionally with the outer clamp so the ratio (e.g. 2:1 for
+        // auto inner_curve) is preserved. The offset model (subtract the same absolute delta)
+        // breaks the ratio — e.g. auto inner=32.5 with outer clamped 65→40 would give 7.5
+        // instead of the expected 20 (= clamped_outer / 2).
+        const clampedInnerRadius = outerRadius > 0
+            ? Math.max(0, innerRadius * (clampedOuterRadius / outerRadius))
+            : 0;
 
         // Get component from registry using the full type
         const elbowType = g.type;
@@ -2291,7 +2410,8 @@ export class LCARdSElbow extends LCARdSButton {
                     rg.horizontal, rg.vertical,
                     rg.outerRadius, rg.innerRadius,
                     rg.diagonalAngle,
-                    rg.type
+                    rg.type,
+                    rg.curveClamp ?? 'card'
                   )
                 : this._generateElbowPath(width, height);
         } else {
@@ -2402,8 +2522,35 @@ export class LCARdSElbow extends LCARdSButton {
             outer.horizontal, outer.vertical,
             outer.outerRadius, outer.innerRadius,
             outer.diagonalAngle,
-            type
+            type,
+            outer.curveClamp ?? 'card'
         );
+
+        // Compute clamped outer segment inner_curve so the inner segment's concentric
+        // outer_curve derives from the post-clamp value, not the pre-clamp geometry.
+        // This mirrors the logic inside _generateSegmentPath.
+        const outerClampSpec = outer.curveClamp ?? 'card';
+        const outerMaxOR = outerClampSpec === 'none' ? Infinity
+            : typeof outerClampSpec === 'number' ? outerClampSpec
+            : Math.min(width, height);
+        const outerClampedOR = Math.max(0, Math.min(outer.outerRadius, outerMaxOR));
+        const outerClampedIR = outer.outerRadius > 0
+            ? Math.max(0, outer.innerRadius * (outerClampedOR / outer.outerRadius))
+            : 0;
+
+        // When inner outer_curve is undefined (concentric), cascade from the clamped outer
+        // inner_curve so the gap between segments is visually uniform through the curve bend.
+        const innerOCConfigIsUndefined = innerSegmentConfig.outer_curve === undefined;
+        const innerOuterRadiusForPath = innerOCConfigIsUndefined
+            ? Math.max(0, outerClampedIR - gap)
+            : inner.outerRadius;
+
+        // When inner inner_curve is also auto, derive it from the cascaded outer_curve
+        // so the 2:1 LCARS ratio is preserved after the cascade.
+        const innerICIsAuto = innerSegmentConfig.inner_curve === undefined || innerSegmentConfig.inner_curve === 'auto';
+        const innerInnerRadiusForPath = (innerOCConfigIsUndefined && innerICIsAuto)
+            ? innerOuterRadiusForPath / 2
+            : inner.innerRadius;
 
         // Generate inner segment path (smaller elbow)
         // The inner segment must fit within the outer segment's content area
@@ -2412,12 +2559,20 @@ export class LCARdSElbow extends LCARdSButton {
         const innerWidth = width - (outer.horizontal + gap);
         const innerHeight = height - (outer.vertical + gap);
 
+        // When inner OC is concentric, propagate the outer segment's clamp mode so the inner
+        // segment doesn't apply an independent secondary clamp on top of the cascaded value.
+        // e.g. outer clamp='none' should mean the inner also renders without clamping.
+        const innerPathClamp = innerOCConfigIsUndefined
+            ? outerClampSpec
+            : (inner.curveClamp ?? 'card');
+
         const innerPath = this._generateSegmentPath(
             innerWidth, innerHeight,
             inner.horizontal, inner.vertical,
-            inner.outerRadius, inner.innerRadius,
+            innerOuterRadiusForPath, innerInnerRadiusForPath,
             inner.diagonalAngle,
-            type
+            type,
+            innerPathClamp
         );
 
         // Process icon and text (same as simple elbow)
@@ -2790,7 +2945,7 @@ export class LCARdSElbow extends LCARdSButton {
      * Wrapper around _generateElbowPath with segment-specific dimensions
      * @private
      */
-    _generateSegmentPath(width, height, horizontal, vertical, outerRadius, innerRadius, diagonalAngle, type) {
+    _generateSegmentPath(width, height, horizontal, vertical, outerRadius, innerRadius, diagonalAngle, type, curveClamp = 'card') {
         // Temporarily set geometry for path generation
         const tempGeometry = {
             type,
@@ -2798,7 +2953,8 @@ export class LCARdSElbow extends LCARdSButton {
             vertical,
             outerRadius,
             innerRadius,
-            diagonalAngle
+            diagonalAngle,
+            curveClamp
         };
 
         const savedGeometry = this._elbowGeometry;
@@ -2965,7 +3121,7 @@ export class LCARdSElbow extends LCARdSButton {
             const isBottomAligned = originalField.position?.includes('bottom');
 
             // Determine if this is a center position (vertically)
-            // Includes: 'center', 'left-center', 'right-center' (but not 'top-center' or 'bottom-center')
+            // Includes: 'center', 'center-left', 'center-right' (but not 'top-center' or 'bottom-center')
             const isCenterY = !originalField.position || originalField.position === 'center' ||
                              (originalField.position?.includes('center') && !isTopAligned && !isBottomAligned);
 
@@ -3618,9 +3774,10 @@ export class LCARdSElbow extends LCARdSButton {
         // Position options with proper labels (same as button)
         const positionEnum = [
             'top-left', 'top-center', 'top-right',
-            'left-center', 'center', 'right-center',
+            'center-left', 'center', 'center-right',
             'bottom-left', 'bottom-center', 'bottom-right',
-            'top', 'bottom', 'left', 'right'
+            'top', 'bottom', 'left', 'right',
+            'left-center', 'right-center',              // accepted aliases (deprecated)
         ];
 
         // Build complete schema using schema factory function

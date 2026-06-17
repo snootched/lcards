@@ -1124,6 +1124,52 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     /**
+     * Render the state_classification.else dropdown selector.
+     *
+     * Controls which style bucket unrecognised entity states fall into when they
+     * don't match any explicit color key or the built-in active/inactive lists.
+     * The active/inactive array fields are YAML-only for now.
+     *
+     * @returns {TemplateResult}
+     * @protected
+     */
+    _renderStateClassificationElseSelector() {
+        const current = this.config?.state_classification?.else ?? '__none__';
+        const options = [
+            { value: '__none__',  label: '— Inactive (default)' },
+            { value: 'default',   label: 'Default' },
+            { value: 'active',    label: 'Active' },
+            { value: 'inactive',  label: 'Inactive' },
+        ];
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .label=${'Unmapped State Class'}
+                .helper=${'Style bucket for states not in the active/inactive lists. Use "Default" so custom zones reach your default colour instead of the preset inactive colour.'}
+                .selector=${{ select: { mode: 'dropdown', options } }}
+                .value=${current}
+                @value-changed=${(e) => {
+                    const v = (e.detail.value ?? '').trim();
+                    if (v === '__none__' || !v) {
+                        const sc = { ...(this.config?.state_classification ?? {}) };
+                        delete sc.else;
+                        if (Object.keys(sc).length === 0) {
+                            this._removeConfigPath('state_classification');
+                        } else {
+                            this._setConfigValue('state_classification', sc);
+                        }
+                        return;
+                    }
+                    this._setConfigValue('state_classification', {
+                        ...(this.config?.state_classification ?? {}),
+                        else: v,
+                    });
+                }}>
+            </ha-selector>
+        `;
+    }
+
+    /**
      * Build standard config tab structure with flexible field control
      *
      * @param {Object} options - Config tab options

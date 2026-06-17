@@ -334,7 +334,7 @@ export const SLIDER_PRESETS = {
 
   /**
    * shaped-horizontal: Horizontal shaped slider.  Fill grows from the left.
-   * Text: entity name at left-center, state value at right-center.
+   * Text: entity name at center-left, state value at center-right.
    */
   'shaped-horizontal': {
     extends: 'slider.base',

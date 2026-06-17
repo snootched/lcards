@@ -559,18 +559,17 @@ export class LCARdSLayoutView extends LitElement {
             min-width: 0;
             min-height: 0;
             cursor: pointer;
-            color: var(--lcars-ui-primary, var(--primary-color));
-            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 8%, transparent);
-            border: var(--ha-border-width-md, 2px) dashed color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 55%, transparent);
-            border-radius: var(--ha-border-radius-md, 8px);
+            color: var(--primary-text-color, #fff);
+            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 6%, transparent);
+            border: var(--ha-border-width-md, 2px) dashed var(--primary-color, var(--lcars-ui-primary));
+            border-radius: var(--ha-card-border-radius, 34px);
             font-size: 13px;
             font-weight: 600;
             letter-spacing: 0.03em;
-            transition: background var(--ha-animation-duration-fast,.15s), border-color var(--ha-animation-duration-fast,.15s);
+            transition: background var(--ha-animation-duration-fast,.15s);
         }
         .card-add-placeholder:hover {
-            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 18%, transparent);
-            border-color: var(--lcars-ui-primary, var(--primary-color));
+            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 16%, transparent);
         }
         .card-add-placeholder ha-icon { --mdc-icon-size: 28px; }
 
@@ -582,31 +581,50 @@ export class LCARdSLayoutView extends LitElement {
         }
         .card-edit-handle {
             position: absolute;
-            top: 6px;
-            right: 6px;
+            top: 8px;
+            right: 8px;
             z-index: 10;
             display: flex;
             align-items: center;
-            gap: var(--ha-space-1, 4px);
+            gap: 2px;
             opacity: 0;
             visibility: hidden;
             transition: opacity var(--ha-animation-duration-fast,.15s) ease,
                         visibility 0s linear .15s;
             pointer-events: auto;
-            /* Glassy pill wrapping the buttons */
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.7)) 72%, transparent);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: var(--ha-border-width-sm,1px) solid color-mix(in oklab, var(--divider-color) 60%, transparent);
-            border-radius: var(--ha-border-radius-pill, 9999px);
-            padding: var(--ha-space-1, 4px);
-            box-shadow: var(--ha-box-shadow-s, 0 2px 8px rgba(0,0,0,.35));
+            background: color-mix(in oklab, var(--card-background-color, #1c1c28) 85%, rgba(0,0,0,.3));
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: var(--ha-border-width-sm,1px) solid rgba(255,255,255,.14);
+            border-radius: var(--ha-border-radius-md, 8px);
+            padding: 4px;
+            box-shadow: var(--ha-box-shadow-m, 0 4px 16px rgba(0,0,0,.5));
+            white-space: nowrap;
         }
         .card-edit-wrap:hover .card-edit-handle {
             opacity: 1;
             visibility: visible;
             transition-delay: 0s;
         }
+        /* Compact icon buttons inside the card edit handle — matches area-action-bar style */
+        .ceh-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,.82);
+            cursor: pointer;
+            border-radius: var(--ha-border-radius-sm, 4px);
+            padding: 0;
+            flex-shrink: 0;
+            transition: background var(--ha-animation-duration-fast,.15s), color var(--ha-animation-duration-fast,.15s);
+        }
+        .ceh-btn:hover { background: rgba(255,255,255,.12); color: white; }
+        .ceh-btn.danger:hover { background: color-mix(in oklab, var(--error-color, #ef4444) 18%, transparent); color: var(--error-color, #ef4444); }
+        .ceh-btn svg { pointer-events: none; }
         .card-edit-wrap:hover {
             outline: 2px dashed color-mix(in oklab, var(--primary-color) 70%, transparent);
             outline-offset: 2px;
@@ -776,15 +794,19 @@ export class LCARdSLayoutView extends LitElement {
                 const handle = document.createElement('div');
                 handle.className = 'card-edit-handle';
 
-                function makeHaButton(icon, label, variant) {
-                    const btn = document.createElement('ha-button');
-                    if (variant) btn.setAttribute('variant', variant);
-                    btn.innerHTML = `<ha-icon icon="${icon}" slot="start"></ha-icon>${label}`;
+                const _ICO_PENCIL = 'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z';
+                const _ICO_TUNE   = 'M8 13C6.14 13 4.59 14.28 4.14 16H2V18H4.14C4.59 19.72 6.14 21 8 21S11.41 19.72 11.86 18H22V16H11.86C11.41 14.28 9.86 13 8 13M8 19C6.9 19 6 18.1 6 17C6 15.9 6.9 15 8 15S10 15.9 10 17C10 18.1 9.1 19 8 19M19.86 6C19.41 4.28 17.86 3 16 3S12.59 4.28 12.14 6H2V8H12.14C12.59 9.72 14.14 11 16 11S19.41 9.72 19.86 8H22V6H19.86M16 9C14.9 9 14 8.1 14 7C14 5.9 14.9 5 16 5S18 5.9 18 7C18 8.1 17.1 9 16 9Z';
+                const _ICO_DELETE = 'M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19M8,9H16V19H8V9M15.5,4L14.5,3H9.5L8.5,4H5V6H19V4H15.5Z';
+                const makeSvgBtn = (path, title, danger = false) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'ceh-btn' + (danger ? ' danger' : '');
+                    btn.title = title;
+                    btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="${path}"/></svg>`;
                     return btn;
-                }
-                const editBtn   = makeHaButton('mdi:pencil',          'Edit',   null);
-                const placeBtn  = makeHaButton('mdi:tune-variant',     'Place',  null);
-                const deleteBtn = makeHaButton('mdi:delete-outline',   'Delete', 'danger');
+                };
+                const editBtn   = makeSvgBtn(_ICO_PENCIL, 'Edit card');
+                const placeBtn  = makeSvgBtn(_ICO_TUNE,   'Placement & spacing');
+                const deleteBtn = makeSvgBtn(_ICO_DELETE, 'Delete card', true);
                 editBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     e.preventDefault();

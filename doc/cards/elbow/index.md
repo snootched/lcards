@@ -55,7 +55,7 @@ elbow:
   segment:              # for simple style
     bar_width: 90       # vertical bar thickness in px ('theme' for HA-LCARS binding)
     bar_height: 20      # horizontal bar thickness in px
-    outer_curve: auto   # corner radius — 'auto' = bar_width / 2
+    outer_curve: auto   # arc radius keyword — see Arc Radius Modes below
     color:              # string or state-based object
       default: "var(--lcars-orange)"
       inactive: "alpha(var(--lcars-orange), 0.3)"
@@ -159,7 +159,7 @@ elbow:
   segment:
     bar_width: 90       # Vertical bar thickness (px)
     bar_height: 20      # Horizontal bar thickness (px)
-    outer_curve: auto   # Corner radius — 'auto' = bar_width / 2 (LCARS formula)
+    outer_curve: auto   # arc radius keyword — see Arc Radius Modes below
     color:
       default: "var(--lcards-orange)"
       active: "var(--lcards-orange-medium)"
@@ -193,10 +193,55 @@ elbow:
 |--------|------|---------|-------------|
 | `bar_width` | number / `"theme"` | `90` | Vertical bar thickness in px. Use `"theme"` to bind to `input_number.lcars_vertical` |
 | `bar_height` | number / `"theme"` | `20` | Horizontal bar thickness in px. Use `"theme"` to bind to `input_number.lcars_horizontal` |
-| `outer_curve` | number / `"auto"` | `"auto"` | Corner arc radius. `auto` = `bar_width / 2` |
-| `inner_curve` | number | — | Inner arc radius (omit for LCARS formula: `outer / 2`) |
+| `outer_curve` | number / keyword | `"auto"` | Corner arc radius. See [Arc Radius Modes](#arc-radius-modes). |
+| `outer_curve_clamp` | `"card"` / `"none"` / number | `"card"` | Clamp behaviour. `"card"` = `min(card_w, card_h)` (default). `"none"` = no clamp (fix for paired elbow inconsistency). number = explicit px ceiling. |
+| `inner_curve` | number / keyword | — | Inner arc radius. Same keywords as `outer_curve` plus `"auto"` = `outer_curve / 2` (LCARS formula, default when omitted). |
 | `diagonal_angle` | number / `"theme"` | `45` | Diagonal cut angle in degrees (diagonal-cap elbow types only). Use `"theme"` to bind to `input_number.lcars_elbow_angle` |
 | `color` | string / object | — | Fill colour — [state map](../../core/colours.md) supported |
+
+---
+
+## Arc Radius Modes
+
+The `outer_curve` property accepts either an explicit pixel value or a keyword that derives the radius from the arm dimensions. The render engine clamps the result to `min(card_width, card_height)` to keep arc tangent points within the card viewport.
+
+| Keyword | Formula | Notes |
+|---|---|---|
+| `"auto"` / `"arm_width"` | `bar_width / 2` | LCARS classic default. Arc sweeps through the vertical arm. |
+| `"arm_height"` | `bar_height / 2` | Arc based on horizontal arm. Tiny with thin horizontal bars. |
+| `"arm_max"` | `max(bar_width, bar_height) / 2` | **Recommended for paired elbows.** Uses the larger arm — equals `auto` for typical LCARS configs (wide vertical bar, thin horizontal bar), but self-corrects when orientation is reversed. |
+| `"arm_min"` | `min(bar_width, bar_height) / 2` | Based on the thinner arm. Very small with asymmetric bars. Useful for compact corners. |
+| `"arm_fill"` | `max(bar_width, bar_height)` | Maximum sweeping arc — fills the entire dominant arm. Dramatic effect. |
+| number | explicit px | Set the radius directly in pixels. |
+
+**Tangent geometry:** Arcs always arrive at exactly 0° (tangent) to their edges — a property of the quarter-circle shape. The mode controls *where on the edge* the tangent point lands, not the arrival angle.
+
+**Why paired elbows look different with `auto`:** The render-time viewport clamp reduces the radius when `outer_curve` exceeds the card height. Two elbows in differently-sized cards get different clamped radii. Fix: set `outer_curve_clamp: none` to decouple the radius from card height entirely.
+
+**`inner_curve` keywords:** `inner_curve` accepts the same keyword set. `"auto"` (default) uses `outer_curve / 2`. The keywords derive the inner radius independently from bar dimensions, letting you decouple inner from outer (e.g. `outer_curve: arm_max, inner_curve: arm_height` for an asymmetric corner feel).
+
+**Paired elbows — the correct config** (issue #361 fix):
+
+```yaml
+# Both elbows identical — outer_curve_clamp: none prevents card height from affecting radius
+elbow:
+  type: header-left
+  segment:
+    bar_width: 130
+    bar_height: 15
+    outer_curve: arm_max        # max(130,15)/2 = 65px sweeping arc
+    outer_curve_clamp: none     # no card-height clamping — consistent in any layout
+```
+
+```yaml
+elbow:
+  type: footer-left
+  segment:
+    bar_width: 130
+    bar_height: 15
+    outer_curve: arm_max
+    outer_curve_clamp: none
+```
 
 ---
 
@@ -216,8 +261,9 @@ Both `outer_segment` and `inner_segment` share the same schema:
 |--------|------|-------------|
 | `bar_width` | number | Vertical bar thickness in px (**required**) |
 | `bar_height` | number | Horizontal bar thickness in px (defaults to `bar_width`) |
-| `outer_curve` | number | Outer corner radius in px |
-| `inner_curve` | number | Inner corner radius in px |
+| `outer_curve` | number / keyword | Outer corner radius — same keyword modes as simple style |
+| `outer_curve_clamp` | `"card"` / `"none"` / number | Clamp behaviour — same as simple style |
+| `inner_curve` | number / keyword | Inner arc radius — same keyword modes as simple style (`"auto"` = `outer_curve / 2`) |
 | `diagonal_angle` | number / `"theme"` | Diagonal cut angle in degrees (diagonal-cap types only). Use `"theme"` to bind to `input_number.lcars_elbow_angle`. Default: `45` |
 | `color` | string / object | Fill colour — [state map](../../core/colours.md) supported |
 | `entity_id` | string | Entity ID for state-based colour on this segment |

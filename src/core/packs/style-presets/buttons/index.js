@@ -44,7 +44,7 @@ export const BUTTON_PRESETS = {
     // Text styling (nested structure) - ALL text properties go here
     text: {
       default: {
-        position: 'right-center',  // Default text position (right-aligned, vertically centered)
+        position: 'center-right',  // Default text position (right-aligned, vertically centered)
         // Default text styling - applies to all text fields unless overridden
         font_family: 'theme:components.button.text.font_family',
         font_size: 'theme:components.button.text.font_size',
@@ -292,7 +292,7 @@ export const BUTTON_PRESETS = {
     // Swap text and icon positions
     text: {
       default: {
-        position: 'left-center'  // Text on left when icon is on right
+        position: 'center-left'  // Text on left when icon is on right
       },
       name: {
         position: 'bottom-left',
@@ -425,7 +425,7 @@ export const BUTTON_PRESETS = {
 
     text: {
       default: {
-        position: 'left-center'  // Text on left when icon is on right
+        position: 'center-left'  // Text on left when icon is on right
       },
       name: {
         position: 'left',
@@ -633,11 +633,11 @@ export const BUTTON_PRESETS = {
 
     text: {
       default: {
-        position: 'left-center'
+        position: 'center-left'
       },
       label: {
         show: true,
-        position: 'left-center'
+        position: 'center-left'
       }
     }
   },
@@ -665,11 +665,11 @@ export const BUTTON_PRESETS = {
 
     text: {
       default: {
-        position: 'right-center'
+        position: 'center-right'
       },
       label: {
         show: true,
-        position: 'right-center'
+        position: 'center-right'
       }
     }
   },
@@ -736,11 +736,11 @@ export const BUTTON_PRESETS = {
 
     text: {
       default: {
-        position: 'right-center'
+        position: 'center-right'
       },
       label: {
         show: true,
-        position: 'right-center'
+        position: 'center-right'
       }
     }
   },
@@ -761,11 +761,11 @@ export const BUTTON_PRESETS = {
 
     text: {
       default: {
-        position: 'left-center'
+        position: 'center-left'
       },
       label: {
         show: true,
-        position: 'left-center'
+        position: 'center-left'
       }
     }
   },
@@ -786,11 +786,11 @@ export const BUTTON_PRESETS = {
 
     text: {
       default: {
-        position: 'left-center'
+        position: 'center-left'
       },
       label: {
         show: true,
-        position: 'left-center'
+        position: 'center-left'
       }
     }
   },
@@ -811,11 +811,11 @@ export const BUTTON_PRESETS = {
 
     text: {
       default: {
-        position: 'right-center'
+        position: 'center-right'
       },
       label: {
         show: true,
-        position: 'right-center'
+        position: 'center-right'
       }
     }
   },

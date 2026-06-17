@@ -42,6 +42,9 @@ export class TriggerManager {
     /** @type {boolean} Set by AnimationManager when recreating a scope that had active while-animations */
     this._isRecreation = false;
 
+    /** @type {boolean} Set to true in destroy() — guards deferred callbacks after teardown */
+    this._destroyed = false;
+
     lcardsLog.debug(`[TriggerManager] Created for overlay: ${overlayId}`);
   }
 
@@ -155,51 +158,40 @@ export class TriggerManager {
           // --- While-lifecycle path ---
           // When 'while' is present it always gates the animation — the while-block
           // always returns so the fire-and-forget path below is never reached.
+          // _whileActiveAnims tracking and falling-edge stop apply unconditionally
+          // so the animation always stops when the condition clears, regardless of
+          // whether loop is truthy.
           if (anim.while) {
-            const condMet    = this._evaluateWhileCondition(anim, newValue);
-            const isActive   = this._whileActiveAnims.has(anim);
-            // loop may be at top level (canonical) or legacy params.loop
-            const effectiveLoop = anim.loop ?? anim.params?.loop;
+            const condMet  = this._evaluateWhileCondition(anim, newValue);
+            const isActive = this._whileActiveAnims.has(anim);
 
-            if (effectiveLoop === true) {
-              // Full lifecycle: play while condition met, stop when it clears
-              if (condMet) {
-                if (!isActive) {
-                  // oldState === null means this is the very first ingestHass on page
-                  // load: HA reports every entity as "changed" from nothing.  We
-                  // always suppress the direct subscription path here — the
-                  // check_on_load block below is the proper gate for initial-load
-                  // evaluation.  Default is to check on load (check_on_load: true);
-                  // set check_on_load: false to suppress animation until the next
-                  // real state transition.
-                  if (oldState === null) {
-                    lcardsLog.debug(`[TriggerManager] while-start suppressed on initial load for ${changedEntityId} — handled by check_on_load block`);
-                    return;
-                  }
-                  // Respect from_state/to_state fire gates when starting for the first time
-                  const fromOk = anim.from_state === undefined || String(oldValue) === String(anim.from_state);
-                  const toOk   = anim.to_state   === undefined || String(newValue) === String(anim.to_state);
-                  if (fromOk && toOk) {
-                    this._whileActiveAnims.add(anim);
-                    lcardsLog.debug(`[TriggerManager] 🎬 while-start: ${this.overlayId}, entity: ${changedEntityId}`);
-                    this.animationManager.playAnimation(this.overlayId, anim);
-                  }
+            if (condMet) {
+              if (!isActive) {
+                // oldState === null means this is the very first ingestHass on page
+                // load: HA reports every entity as "changed" from nothing.  We
+                // always suppress the direct subscription path here — the
+                // check_on_load block below is the proper gate for initial-load
+                // evaluation.  Default is to check on load (check_on_load: true);
+                // set check_on_load: false to suppress animation until the next
+                // real state transition.
+                if (oldState === null) {
+                  lcardsLog.debug(`[TriggerManager] while-start suppressed on initial load for ${changedEntityId} — handled by check_on_load block`);
+                  return;
                 }
-                // Already active → loop continues, nothing to do
-              } else if (isActive) {
-                this._whileActiveAnims.delete(anim);
-                lcardsLog.debug(`[TriggerManager] ⏹️ while-stop: ${this.overlayId}, entity: ${changedEntityId}`);
-                this.animationManager.stopAnimations(this.overlayId, 'on_entity_change');
+                // Respect from_state/to_state fire gates when starting for the first time
+                const fromOk = anim.from_state === undefined || String(oldValue) === String(anim.from_state);
+                const toOk   = anim.to_state   === undefined || String(newValue) === String(anim.to_state);
+                if (fromOk && toOk) {
+                  this._whileActiveAnims.add(anim);
+                  lcardsLog.debug(`[TriggerManager] 🎬 while-start: ${this.overlayId}, entity: ${changedEntityId}`);
+                  this.animationManager.playAnimation(this.overlayId, anim);
+                }
               }
-            } else {
-              // while without loop: still gate on the condition, but no stop tracking.
-              // Fire only on the rising edge (condition newly true).
-              lcardsLog.warn(`[TriggerManager] 'while' works best with 'loop: true' — no auto-stop tracking for overlay: ${this.overlayId}`);
-              const wasCondMet = oldState ? this._evaluateWhileCondition(anim, oldValue) : false;
-              if (condMet && !wasCondMet) {
-                lcardsLog.debug(`[TriggerManager] 🎬 while-start (no-loop): ${this.overlayId}, entity: ${changedEntityId}`);
-                this.animationManager.playAnimation(this.overlayId, anim);
-              }
+              // Already active → loop continues, nothing to do
+            } else if (isActive) {
+              this._whileActiveAnims.delete(anim);
+              lcardsLog.debug(`[TriggerManager] ⏹️ while-stop: ${this.overlayId}, entity: ${changedEntityId}`);
+              this.animationManager.stopAnimations(this.overlayId, 'on_entity_change');
             }
             return; // while-path fully handled — never fall through to fire-and-forget
           }
@@ -231,23 +223,30 @@ export class TriggerManager {
     // while+loop animation that was running before the old scope was torn down.
     // This is intentionally separate from — and not gated by — check_on_load.
     if (this._isRecreation) {
-      animations.forEach(anim => {
-        if (!anim.while) return;
-        const effectiveLoop = anim.loop ?? anim.params?.loop;
-        if (effectiveLoop !== true) return;
-        const entityId = anim.entity;
-        if (!entityId) return;
-        const currentState = systemsManager.getEntityState?.(entityId);
-        if (!currentState) return;
-        const currentValue = this._resolveEntityValue(anim, currentState);
-        const condMet = this._evaluateWhileCondition(anim, currentValue);
-        if (condMet && !this._whileActiveAnims.has(anim)) {
-          this._whileActiveAnims.add(anim);
-          lcardsLog.debug(`[TriggerManager] 🔄 Recreation re-seed: while condition met for ${entityId}, restarting animation`);
-          this.animationManager.playAnimation(this.overlayId, anim);
-        } else {
-          lcardsLog.debug(`[TriggerManager] 🔄 Recreation re-seed: while condition NOT met for ${entityId} — not starting`);
-        }
+      // Defer the re-seed to run AFTER _updateHass has updated the entity cache and
+      // notified subscribers.  The Lit render microtask (which calls this code) is
+      // queued BEFORE the _updateHass microtask, so a Promise.resolve().then() queued
+      // here runs AFTER _updateHass — meaning getEntityState() returns the correct
+      // current state and we don't falsely restart an animation whose condition just
+      // cleared on the same tick as the re-render.
+      Promise.resolve().then(() => {
+        if (this._destroyed) return;
+        animations.forEach(anim => {
+          if (!anim.while) return;
+          const entityId = anim.entity;
+          if (!entityId) return;
+          const currentState = systemsManager.getEntityState?.(entityId);
+          if (!currentState) return;
+          const currentValue = this._resolveEntityValue(anim, currentState);
+          const condMet = this._evaluateWhileCondition(anim, currentValue);
+          if (condMet && !this._whileActiveAnims.has(anim)) {
+            this._whileActiveAnims.add(anim);
+            lcardsLog.debug(`[TriggerManager] 🔄 Recreation re-seed: while condition met for ${entityId}, restarting animation`);
+            this.animationManager.playAnimation(this.overlayId, anim);
+          } else {
+            lcardsLog.debug(`[TriggerManager] 🔄 Recreation re-seed: while condition NOT met for ${entityId} — not starting`);
+          }
+        });
       });
     }
 
@@ -271,17 +270,10 @@ export class TriggerManager {
       // While condition: evaluate immediately — gate applies regardless of loop setting
       if (anim.while) {
         const condMet = this._evaluateWhileCondition(anim, currentValue);
-        // loop may be at top level (canonical) or legacy params.loop
-        const effectiveLoop = anim.loop ?? anim.params?.loop;
         if (condMet) {
-          if (effectiveLoop === true) {
-            if (!this._whileActiveAnims.has(anim)) {
-              this._whileActiveAnims.add(anim);
-              lcardsLog.debug(`[TriggerManager] 🎬 check_on_load while-start: ${entityId} condition already met`);
-              this.animationManager.playAnimation(this.overlayId, anim);
-            }
-          } else {
-            lcardsLog.debug(`[TriggerManager] 🎬 check_on_load while-start (no-loop): ${entityId} condition already met`);
+          if (!this._whileActiveAnims.has(anim)) {
+            this._whileActiveAnims.add(anim);
+            lcardsLog.debug(`[TriggerManager] 🎬 check_on_load while-start: ${entityId} condition already met`);
             this.animationManager.playAnimation(this.overlayId, anim);
           }
         } else {
@@ -378,6 +370,7 @@ export class TriggerManager {
    * Cleanup all event listeners and resources
    */
   destroy() {
+    this._destroyed = true;
     lcardsLog.debug(`[TriggerManager] 🗑️ Destroying trigger manager for ${this.overlayId}`);
 
     // Execute all cleanup functions
