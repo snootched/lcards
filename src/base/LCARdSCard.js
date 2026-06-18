@@ -3488,7 +3488,14 @@ export class LCARdSCard extends LCARdSNativeCard {
             }
         }
 
-        // Action handler cleanup is handled by setupActions() cleanup function
+        // --- Main overlay animation scope (entity subscriptions, while-animations, etc.) ---
+        // Subclasses with custom overlay schemes (lcards-button, lcards-slider) handle their
+        // own scope(s) directly; this covers the default _getAnimationSetup() overlayId for
+        // any card type that doesn't override it.
+        if (this._singletons?.animationManager) {
+            const { overlayId } = this._getAnimationSetup();
+            this._singletons.animationManager.destroyOverlayScope(overlayId);
+        }
 
         lcardsLog.trace(`[LCARdSCard] Disconnected and cleaned up: ${this._getDisplayId()}`);
     }

@@ -83,7 +83,12 @@ export class LCARdSActionHandler {
         // ALWAYS register animation scope (even without animations) for rule-based targeting
         if (elementId && animationManager) {
             const animationSetup = options.getAnimationSetup?.() || {};
-            const overlayId = animationSetup.overlayId || elementId;
+            // Prefer the caller's explicit elementId over getAnimationSetup()'s overlayId —
+            // getAnimationSetup() always returns a truthy default (e.g. `lcards-card-${guid}`),
+            // so callers that register multiple overlays per card instance (e.g. lcards-slider's
+            // four border sides) need their distinct elementId to win, or every call collides
+            // on the same overlayId and each new call tears down the previous one's scope.
+            const overlayId = elementId || animationSetup.overlayId;
             const shadowRoot = options.shadowRoot;
             const targetElement = shadowRoot?.querySelector(animationSetup.elementSelector || '[data-overlay-id]') || element;
 
@@ -93,48 +98,10 @@ export class LCARdSActionHandler {
                 lcardsLog.debug(`[LCARdSActionHandler] Registered animation scope: ${overlayId} (${options.animations?.length || 0} animations)`);
             }
 
-            // Only create TriggerManager if animations are defined
-            if (options.animations && options.animations.length > 0) {
-                const animations = options.animations;
-
-                lcardsLog.debug(`[LCARdSActionHandler] Creating TriggerManager for ${overlayId}:`, {
-                    animationCount: animations.length,
-                    triggers: animations.map(a => a.trigger || 'on_tap')
-                });
-
-                // Create TriggerManager instance
-                triggerManager = new TriggerManager(overlayId, targetElement, animationManager);
-
-                // This TriggerManager duplicates the one AnimationManager.onOverlayRendered()
-                // just created for the same overlayId's scope (called above) — both end up
-                // tracking the same while-gated animations independently. That scope-owned
-                // TriggerManager already had its _isRecreation flag correctly computed (true
-                // only when a while-animation was actively running before this scope teardown/
-                // recreation). Mirror it here too, otherwise this instance's check_on_load runs
-                // unguarded on every recreation, reading the entity cache before _updateHass
-                // settles it and racing the correct while-stop — it can incorrectly restart an
-                // animation whose condition already cleared on this same render tick.
-                const scopeTriggerManager = animationManager.scopes?.get(overlayId)?.triggerManager;
-                triggerManager._isRecreation = !!scopeTriggerManager?._isRecreation;
-
-                // Register each animation with TriggerManager
-                animations.forEach(animConfig => {
-                    const trigger = animConfig.trigger || 'on_tap';
-                    triggerManager.register(trigger, animConfig);
-                });
-
-                lcardsLog.debug(`[LCARdSActionHandler] ✅ TriggerManager created with ${animations.length} animations`);
-
-                // Add cleanup for TriggerManager
-                cleanupFunctions.push(() => {
-                    triggerManager.destroy();
-                    lcardsLog.debug(`[LCARdSActionHandler] TriggerManager destroyed for ${overlayId}`);
-                });
-            }
         } else if (elementId && options.animations && !animationManager) {
             // AnimationManager not ready - store for late binding
             const animationSetup = options.getAnimationSetup?.() || {};
-            const overlayId = animationSetup.overlayId || elementId;
+            const overlayId = elementId || animationSetup.overlayId;
 
             lcardsLog.debug(`[LCARdSActionHandler] AnimationManager not ready, storing for late binding:`, {
                 overlayId,

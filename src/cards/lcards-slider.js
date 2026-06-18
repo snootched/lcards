@@ -4010,6 +4010,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Cleanup border interaction listeners
         const borders = ['left', 'top', 'right', 'bottom'];
+        const animationManager = this._singletons?.animationManager;
         borders.forEach(side => {
             if (this._borderInteractivityCleanups[side]) {
                 this._borderInteractivityCleanups[side]();
@@ -4019,6 +4020,8 @@ export class LCARdSSlider extends LCARdSButton {
                 this._borderActionCleanups[side]();
                 this._borderActionCleanups[side] = null;
             }
+            // Clean up main overlay scope (entity subscriptions, while-animations, etc.)
+            animationManager?.destroyOverlayScope(`slider-${this._cardGuid}-border-${side}`);
         });
     }
 

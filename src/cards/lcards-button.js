@@ -6758,6 +6758,11 @@ export class LCARdSButton extends LCARdSCard {
             this._registeredSegmentAnimations.clear();
         }
 
+        // Clean up main overlay scope (entity subscriptions, while-animations, etc.)
+        if (this._singletons?.animationManager) {
+            this._singletons.animationManager.destroyOverlayScope(`button-${this._cardGuid}`);
+        }
+
         // Clear segment tracking maps
         if (this._segmentElements) {
             this._segmentElements.clear();
