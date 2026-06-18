@@ -105,6 +105,18 @@ export class LCARdSActionHandler {
                 // Create TriggerManager instance
                 triggerManager = new TriggerManager(overlayId, targetElement, animationManager);
 
+                // This TriggerManager duplicates the one AnimationManager.onOverlayRendered()
+                // just created for the same overlayId's scope (called above) — both end up
+                // tracking the same while-gated animations independently. That scope-owned
+                // TriggerManager already had its _isRecreation flag correctly computed (true
+                // only when a while-animation was actively running before this scope teardown/
+                // recreation). Mirror it here too, otherwise this instance's check_on_load runs
+                // unguarded on every recreation, reading the entity cache before _updateHass
+                // settles it and racing the correct while-stop — it can incorrectly restart an
+                // animation whose condition already cleared on this same render tick.
+                const scopeTriggerManager = animationManager.scopes?.get(overlayId)?.triggerManager;
+                triggerManager._isRecreation = !!scopeTriggerManager?._isRecreation;
+
                 // Register each animation with TriggerManager
                 animations.forEach(animConfig => {
                     const trigger = animConfig.trigger || 'on_tap';
