@@ -14,6 +14,8 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { resolveThemeTokensRecursive } from '../../../utils/lcards-theme.js';
 import { captureOriginalColors } from '../../../core/themes/paletteInjector.js';
+import { getColorSortKey, compareColorSortKeys, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
+import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
 import { editorStyles } from '../../base/editor-styles.js';
 import {
   transformColorToAlertMode,
@@ -54,6 +56,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       _allCssVariables: { type: Array, state: true },
       _filteredAllVars: { type: Array, state: true },
       _selectedAllVarsCategory: { type: String, state: true },
+      _selectedFamily: { type: String, state: true }, // Color-family chip filter (css-vars & all-vars views)
+      _cssVarSortColumn: { type: String, state: true }, // Sort column for the LCARS CSS Variables table ('name'|'value'|'hue')
+      _cssVarSortDirection: { type: String, state: true },
       _alertModePreview: { type: Boolean, state: true }, // Toggle for alert mode previews
       // Alert Mode Lab properties
       _selectedAlertMode: { type: String, state: true },
@@ -83,10 +88,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._searchQuery = '';
     this._selectedCategory = 'all';
     this._isLoading = false;
+    this._selectedFamily = 'all';
     this._activeTheme = null;
     this._dialogOpen = false;
     this._sortColumn = 'path';
     this._sortDirection = 'asc';
+    this._cssVarSortColumn = 'hue';
+    this._cssVarSortDirection = 'asc';
     this._activeView = 'alert-lab'; // Default to alert-lab view
     this._cssVariables = [];
     this._filteredCssVars = [];
@@ -334,6 +342,16 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         background: var(--primary-color);
         color: white;
         border-color: var(--primary-color);
+      }
+
+      .chip-swatch {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+        border: var(--ha-border-width-sm) solid rgba(0, 0, 0, 0.15);
       }
 
       .dialog-body {
@@ -1334,6 +1352,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           ${this._renderDialogHeader()}
           ${this._activeView === 'tokens' ? this._renderCategoryFilters() : ''}
           ${this._activeView === 'all-vars' ? this._renderAllVarsCategoryFilters() : ''}
+          ${this._activeView === 'css-vars' ? this._renderFamilyFilters(this._cssVariables.filter(v => v.category === 'lcars')) : ''}
+          ${this._activeView === 'all-vars' ? this._renderFamilyFilters(this._allCssVariables) : ''}
           ${this._renderDialogBody()}
         </div>
       </div>
@@ -1905,9 +1925,18 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       `;
     }
 
-    // Group by category
-    const lcarsVars = vars.filter(v => v.category === 'lcars');
-    const lcardsVars = vars.filter(v => v.category === 'lcards');
+    // Group by category, then narrow by the color-family chip (if any selected)
+    const matchesFamily = v => this._selectedFamily === 'all' ||
+      (v.isColor && v.colorSortKey?.family === this._selectedFamily);
+    let lcarsVars = vars.filter(v => v.category === 'lcars' && matchesFamily(v));
+    let lcardsVars = vars.filter(v => v.category === 'lcards' && matchesFamily(v));
+
+    // Sort order is fully controlled by the clickable column headers
+    // (_cssVarSortColumn/_cssVarSortDirection, default hue-grouped). Search
+    // only filters which rows show via _applyCssVarFilters(), never reorders.
+    const comparator = this._getCssVarComparator();
+    lcarsVars = [...lcarsVars].sort(comparator);
+    lcardsVars = [...lcardsVars].sort(comparator);
 
     return html`
       <div class="dialog-body">
@@ -1918,9 +1947,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
               <table class="token-table">
                 <thead>
                   <tr>
-                    <th>Variable Name</th>
-                    <th>Value</th>
-                    <th>Preview</th>
+                    ${this._renderCssVarSortHeader('name', 'Variable Name')}
+                    ${this._renderCssVarSortHeader('value', 'Value')}
+                    ${this._renderCssVarSortHeader('hue', 'Preview')}
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -1942,9 +1971,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
               <table class="token-table">
                 <thead>
                   <tr>
-                    <th>Variable Name</th>
-                    <th>Value</th>
-                    <th>Preview</th>
+                    ${this._renderCssVarSortHeader('name', 'Variable Name')}
+                    ${this._renderCssVarSortHeader('value', 'Value')}
+                    ${this._renderCssVarSortHeader('hue', 'Preview')}
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -1968,7 +1997,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * Render All CSS Variables view (comprehensive HA variables)
    */
   _renderAllVarsView() {
-    const vars = this._filteredAllVars || this._allCssVariables || [];
+    let vars = this._filteredAllVars || this._allCssVariables || [];
+
+    // Color-family chip is a second filter axis alongside the prefix-category
+    // chips; non-color rows always pass through since there's nothing to
+    // classify (see issue #372).
+    if (this._selectedFamily !== 'all') {
+      vars = vars.filter(v => !v.isColor || v.colorSortKey?.family === this._selectedFamily);
+    }
 
     if (vars.length === 0) {
       return html`
@@ -2706,6 +2742,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _switchView(view) {
     this._activeView = view;
     this._searchQuery = ''; // Reset search when switching views
+    this._selectedFamily = 'all'; // Reset family chip filter
     if (view === 'all-vars') {
       this._selectedAllVarsCategory = 'all'; // Reset category filter
     }
@@ -2761,6 +2798,66 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this.requestUpdate();
   }
 
+  /**
+   * True if a CSS var row's value-based color family label matches the
+   * current search query (e.g. typing "orange" finds lcars-tomato even
+   * though "orange" doesn't appear in the var name) — see issue #372.
+   * @param {{colorSortKey: {family: string}|null}} cssVar
+   * @returns {boolean}
+   */
+  _matchesFamilySearch(cssVar) {
+    const family = cssVar.colorSortKey?.family;
+    if (!family) return false;
+    return FAMILY_LABELS[family].toLowerCase().includes(this._searchQuery);
+  }
+
+  _selectFamily(family) {
+    this._selectedFamily = family;
+    this.requestUpdate();
+  }
+
+  /**
+   * Build family chip filter definitions (id/label/count) from a list of
+   * scanned CSS variables. Non-color rows are ignored for counting.
+   * @param {Array<{isColor: boolean, colorSortKey: {family: string}|null}>} vars
+   * @returns {Array<{label: string, value: string, count: number}>}
+   */
+  _buildFamilyFilters(vars) {
+    const counts = {};
+    let colorCount = 0;
+    vars.forEach(v => {
+      const family = v.colorSortKey?.family;
+      if (!family) return;
+      colorCount++;
+      counts[family] = (counts[family] || 0) + 1;
+    });
+
+    return [
+      { label: 'All', value: 'all', count: colorCount },
+      ...FAMILY_ORDER
+        .filter(family => counts[family] > 0)
+        .map(family => ({ label: FAMILY_LABELS[family], value: family, count: counts[family] }))
+    ];
+  }
+
+  _renderFamilyFilters(vars) {
+    const filters = this._buildFamilyFilters(vars);
+
+    return html`
+      <div class="category-filters color-family-filters">
+        ${filters.map(filter => html`
+          <button
+            class="category-chip ${this._selectedFamily === filter.value ? 'selected' : ''}"
+            title=${FAMILY_HUE_RANGES[filter.value] || ''}
+            @click=${() => this._selectFamily(filter.value)}>
+            ${filter.value !== 'all' ? html`<span class="chip-swatch" style="background-color: ${FAMILY_SWATCH_COLORS[filter.value]}"></span>` : ''}
+            ${filter.label} (${filter.count})
+          </button>
+        `)}
+      </div>
+    `;
+  }
+
   _sortBy(column) {
     if (this._sortColumn === column) {
       // Toggle direction
@@ -2770,6 +2867,54 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       this._sortDirection = 'asc';
     }
     this.requestUpdate();
+  }
+
+  /**
+   * Sort-state toggle for the "LCARS CSS Variables" table, kept separate
+   * from _sortBy()/_sortColumn (which belong to the unrelated tokens view)
+   * so switching views never cross-pollutes sort state.
+   * @param {'name'|'value'|'hue'} column
+   */
+  _sortCssVarsBy(column) {
+    if (this._cssVarSortColumn === column) {
+      this._cssVarSortDirection = this._cssVarSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this._cssVarSortColumn = column;
+      this._cssVarSortDirection = 'asc';
+    }
+    this.requestUpdate();
+  }
+
+  /**
+   * Comparator for the "LCARS CSS Variables" table, driven by
+   * _cssVarSortColumn/_cssVarSortDirection.
+   * @returns {(a: any, b: any) => number}
+   */
+  _getCssVarComparator() {
+    const dir = this._cssVarSortDirection === 'asc' ? 1 : -1;
+    switch (this._cssVarSortColumn) {
+      case 'name':
+        return (a, b) => dir * a.name.localeCompare(b.name);
+      case 'value':
+        return (a, b) => dir * String(a.value).localeCompare(String(b.value));
+      case 'hue':
+      default:
+        return (a, b) => dir * (compareColorSortKeys(a.colorSortKey, b.colorSortKey) || a.name.localeCompare(b.name));
+    }
+  }
+
+  /**
+   * Render a clickable, sort-indicating <th> for the "LCARS CSS Variables" table.
+   * @param {'name'|'value'|'hue'} column
+   * @param {string} label
+   */
+  _renderCssVarSortHeader(column, label) {
+    return html`
+      <th @click=${() => this._sortCssVarsBy(column)}>
+        ${label}
+        ${this._cssVarSortColumn === column ? html`<span class="sort-indicator">${this._cssVarSortDirection === 'asc' ? '▲' : '▼'}</span>` : ''}
+      </th>
+    `;
   }
 
   _getSortedTokens() {
@@ -2885,13 +3030,16 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           // Categorize by prefix
           const source = prop.startsWith('--lcars-') ? 'HA-LCARS Theme' : 'LCARdS Injected';
           const category = prop.startsWith('--lcars-') ? 'lcars' : 'lcards';
+          const isColor = this._isColorValue(value);
 
           cssVars.push({
             name: prop,
             value: value,
             source: source,
             category: category,
-            isColor: this._isColorValue(value)
+            isColor: isColor,
+            // Value-based color family (hue bucket), independent of var naming — see issue #372
+            colorSortKey: isColor ? getColorSortKey(value) : null
           });
         }
       }
@@ -2974,7 +3122,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       filtered = filtered.filter(v =>
         v.name.toLowerCase().includes(this._searchQuery) ||
         v.value.toLowerCase().includes(this._searchQuery) ||
-        v.source.toLowerCase().includes(this._searchQuery)
+        v.source.toLowerCase().includes(this._searchQuery) ||
+        this._matchesFamilySearch(v)
       );
     }
 
@@ -2999,47 +3148,15 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           const value = styles.getPropertyValue(prop).trim();
 
           // Categorize by prefix (check more specific prefixes first!)
-          let category = 'other';
-          if (prop.startsWith('--card-mod-')) {
-            category = 'card-mod';
-          } else if (prop.startsWith('--lcars-')) {
-            category = 'lcars';
-          } else if (prop.startsWith('--lcards-')) {
-            category = 'lcards';
-          } else if (prop.startsWith('--mdc-') || prop.startsWith('--md-')) {
-            category = 'material';
-          } else if (prop.startsWith('--wa-')) {
-            category = 'wa';
-          } else if (prop.startsWith('--ha-color-')) {
-            category = 'ha-color';
-          } else if (prop.startsWith('--ha-space-')) {
-            category = 'ha-space';
-          } else if (prop.startsWith('--ha-border-radius-') || prop.startsWith('--ha-border-width-')) {
-            category = 'ha-shape';
-          } else if (prop.startsWith('--ha-animation-')) {
-            category = 'ha-motion';
-          } else if (prop.startsWith('--ha-font-') || prop.startsWith('--ha-line-height-')) {
-            category = 'ha-type';
-          } else if (prop.startsWith('--ha-box-shadow-')) {
-            category = 'ha-elevation';
-          } else if (prop.startsWith('--ha-')) {
-            category = 'ha-system';
-          } else if (prop.startsWith('--state-')) {
-            category = 'states';
-          } else if (prop.startsWith('--primary-') || prop.startsWith('--secondary-') ||
-              prop.startsWith('--accent-') || prop.startsWith('--card-') ||
-              prop.startsWith('--divider-') || prop.startsWith('--text-') ||
-              prop.startsWith('--disabled-') || prop.startsWith('--sidebar-')) {
-            category = 'ha-legacy';
-          } else if (prop.startsWith('--app-')) {
-            category = 'app';
-          }
+          const category = getCssVarCategory(prop);
 
+          const isColor = this._isColorValue(value);
           allVars.push({
             name: prop,
             value: value,
             category: category,
-            isColor: this._isColorValue(value)
+            isColor: isColor,
+            colorSortKey: isColor ? getColorSortKey(value) : null
           });
         }
       }
@@ -3095,7 +3212,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       filtered = filtered.filter(v =>
         v.name.toLowerCase().includes(this._searchQuery) ||
         v.value.toLowerCase().includes(this._searchQuery) ||
-        v.category.toLowerCase().includes(this._searchQuery)
+        v.category.toLowerCase().includes(this._searchQuery) ||
+        this._matchesFamilySearch(v)
       );
     }
 
@@ -3400,53 +3518,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   /**
-   * Check if a value looks like a color
+   * Check if a value looks like a color. Delegates to the shared
+   * CssVarCategory.isColorValue() so the picker reuses the same logic.
    */
   _isColorValue(value) {
-    if (typeof value !== 'string') return false;
-
-    // Check for CSS variables (var() function)
-    if (/^var\(/.test(value)) return true;
-
-    // Check for hex colors (#RGB, #RGBA, #RRGGBB, #RRGGBBAA)
-    if (/^#[0-9A-Fa-f]{3,8}$/.test(value)) return true;
-
-    // Check for rgb/rgba
-    if (/^rgba?\(/.test(value)) return true;
-
-    // Check for hsl/hsla
-    if (/^hsla?\(/.test(value)) return true;
-
-    // Check for CSS color functions (color(), lab(), lch(), oklab(), oklch(), color-mix())
-    if (/^(color-mix|color|lab|lch|oklab|oklch)\(/.test(value)) return true;
-
-    // Check for CSS color names (comprehensive list of common colors)
-    const cssColors = [
-      'aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure', 'beige', 'bisque', 'black',
-      'blanchedalmond', 'blue', 'blueviolet', 'brown', 'burlywood', 'cadetblue', 'chartreuse',
-      'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson', 'cyan', 'darkblue',
-      'darkcyan', 'darkgoldenrod', 'darkgray', 'darkgrey', 'darkgreen', 'darkkhaki',
-      'darkmagenta', 'darkolivegreen', 'darkorange', 'darkorchid', 'darkred', 'darksalmon',
-      'darkseagreen', 'darkslateblue', 'darkslategray', 'darkslategrey', 'darkturquoise',
-      'darkviolet', 'deeppink', 'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue',
-      'firebrick', 'floralwhite', 'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite',
-      'gold', 'goldenrod', 'gray', 'grey', 'green', 'greenyellow', 'honeydew', 'hotpink',
-      'indianred', 'indigo', 'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen',
-      'lemonchiffon', 'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow',
-      'lightgray', 'lightgrey', 'lightgreen', 'lightpink', 'lightsalmon', 'lightseagreen',
-      'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow',
-      'lime', 'limegreen', 'linen', 'magenta', 'maroon', 'mediumaquamarine', 'mediumblue',
-      'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue', 'mediumspringgreen',
-      'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream', 'mistyrose',
-      'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab', 'orange',
-      'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise', 'palevioletred',
-      'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue', 'purple', 'red',
-      'rosybrown', 'royalblue', 'saddlebrown', 'salmon', 'sandybrown', 'seagreen', 'seashell',
-      'sienna', 'silver', 'skyblue', 'slateblue', 'slategray', 'slategrey', 'snow',
-      'springgreen', 'steelblue', 'tan', 'teal', 'thistle', 'tomato', 'turquoise', 'violet',
-      'wheat', 'white', 'whitesmoke', 'yellow', 'yellowgreen', 'transparent', 'currentcolor'
-    ];
-    return cssColors.includes(value.toLowerCase());
+    return isColorValue(value);
   }
 
   /**

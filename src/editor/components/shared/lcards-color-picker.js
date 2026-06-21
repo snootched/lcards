@@ -26,6 +26,21 @@
 
 import { LitElement, html, css } from 'lit';
 import { ColorUtils } from '../../../core/themes/ColorUtils.js';
+import { getColorFamily, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
+import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
+
+/**
+ * Opt-in scope groups for the picker's broader-var chip row (issue #372
+ * follow-up). 'theme' matches the picker's historical variablePrefixes
+ * default (--lcards-/--lcars-/--cblcars-) so the default visible list is
+ * unchanged unless the user opts into 'ha' or 'all'.
+ */
+const CATEGORY_GROUPS = {
+    theme: ['lcars', 'lcards', 'card-mod'],
+    ha: ['ha-legacy', 'ha-color', 'ha-system', 'ha-space', 'ha-shape', 'ha-motion', 'ha-type', 'ha-elevation', 'states'],
+    all: null
+};
+const CATEGORY_GROUP_LABELS = { theme: 'Theme', ha: 'HA', all: 'All' };
 
 export class LCARdSColorPicker extends LitElement {
 
@@ -46,7 +61,11 @@ export class LCARdSColorPicker extends LitElement {
             _baseColor: { type: String, state: true },
             _baseColor2: { type: String, state: true },  // For mix() function
             _amount: { type: Number, state: true },
-            _applyBrightness: { type: Boolean, state: true }  // Apply light brightness to colour
+            _applyBrightness: { type: Boolean, state: true },  // Apply light brightness to colour
+            _filterBarOpen: { type: Boolean, state: true },    // Show search/family filter bar
+            _searchText: { type: String, state: true },        // Dropdown filter text
+            _selectedFamily: { type: String, state: true },    // Dropdown color-family chip filter
+            _selectedCategoryGroup: { type: String, state: true } // Dropdown scope: 'theme'|'ha'|'all'
         };
     }
 
@@ -72,6 +91,12 @@ export class LCARdSColorPicker extends LitElement {
         this._baseColor2 = '';
         this._amount = 20;
         this._applyBrightness = false;
+
+        // Dropdown filter state (issue #372 — search/family filtering for CSS var list)
+        this._filterBarOpen = false;
+        this._searchText = '';
+        this._selectedFamily = 'all';
+        this._selectedCategoryGroup = 'theme';
     }
 
     static get styles() {
@@ -109,6 +134,72 @@ export class LCARdSColorPicker extends LitElement {
                 font-weight: 500;
                 color: var(--secondary-text-color, #727272);
                 padding: 0 var(--ha-space-2);
+            }
+
+            .input-label-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                min-height: 24px;
+            }
+
+            .filter-toggle {
+                /* ha-icon-button (HA 2026.6+) sizes via --ha-icon-button-size, not the
+                   legacy MDC vars, which no longer affect its WA-based internals. */
+                --ha-icon-button-size: 24px;
+                --mdc-icon-size: 16px;
+                color: var(--secondary-text-color, #727272);
+            }
+
+            .filter-bar {
+                display: flex;
+                flex-direction: column;
+                gap: var(--ha-space-1);
+                padding: var(--ha-space-2);
+                margin-bottom: var(--ha-space-1);
+                background: var(--secondary-background-color, #f5f5f5);
+                border-radius: var(--ha-border-radius-md);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
+            }
+
+            .filter-search {
+                width: 100%;
+            }
+
+            .filter-chips {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--ha-space-1);
+            }
+
+            .filter-chip {
+                font-size: 11px;
+                padding: 2px var(--ha-space-2);
+                border-radius: var(--ha-border-radius-pill);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
+                background: var(--card-background-color, #fff);
+                color: var(--primary-text-color);
+                cursor: pointer;
+            }
+
+            .filter-chip:hover {
+                border-color: var(--primary-color);
+            }
+
+            .filter-chip.selected {
+                background: var(--primary-color);
+                color: var(--text-primary-color, #fff);
+                border-color: var(--primary-color);
+            }
+
+            .chip-swatch {
+                display: inline-block;
+                width: 9px;
+                height: 9px;
+                border-radius: var(--ha-border-radius-circle, 50%);
+                margin-right: var(--ha-space-1);
+                vertical-align: middle;
+                border: var(--ha-border-width-sm) solid rgba(0, 0, 0, 0.15);
             }
 
             ha-selector {
@@ -331,25 +422,26 @@ export class LCARdSColorPicker extends LitElement {
         const variables = [];
         const styles = getComputedStyle(document.documentElement);
 
-        // Scan all CSS properties
+        // Scan every CSS custom property (not just variablePrefixes) — scope
+        // is narrowed downstream by the category-group chip (issue #372
+        // follow-up), defaulting to 'theme' so the visible list is unchanged
+        // unless the user opts into 'ha' or 'all'. Only color values are ever
+        // candidates here since this is a color field.
         for (let i = 0; i < styles.length; i++) {
             const prop = styles[i];
+            if (!prop.startsWith('--')) continue;
 
-            // Check if property matches any prefix
-            const matchesPrefix = this.variablePrefixes.some(prefix =>
-                prop.startsWith(prefix)
-            );
+            const value = styles.getPropertyValue(prop).trim();
+            if (!value || !isColorValue(value)) continue;
 
-            if (matchesPrefix) {
-                const value = styles.getPropertyValue(prop).trim();
-                if (value) {
-                    variables.push({
-                        name: prop,
-                        value: `var(${prop})`,
-                        label: this._formatVariableName(prop)
-                    });
-                }
-            }
+            variables.push({
+                name: prop,
+                value: `var(${prop})`,
+                label: this._formatVariableName(prop),
+                // Value-based color family (hue bucket), independent of var naming — issue #372
+                family: getColorFamily(value),
+                category: getCssVarCategory(prop)
+            });
         }
 
         // Sort alphabetically by label
@@ -376,6 +468,109 @@ export class LCARdSColorPicker extends LitElement {
         }
 
         return label;
+    }
+
+    /**
+     * Variables to actually render in the dropdown(s), narrowed by the
+     * search text / color-family chip filter bar (issue #372). When no
+     * filter is active this is just `_cssVariables` unchanged.
+     * @returns {Array}
+     * @private
+     */
+    _getFilteredVariables() {
+        let vars = this._cssVariables;
+
+        const allowedCategories = CATEGORY_GROUPS[this._selectedCategoryGroup];
+        if (allowedCategories) {
+            vars = vars.filter(v => allowedCategories.includes(v.category));
+        }
+
+        if (this._selectedFamily !== 'all') {
+            vars = vars.filter(v => v.family === this._selectedFamily);
+        }
+
+        if (this._searchText) {
+            const q = this._searchText.toLowerCase();
+            vars = vars.filter(v =>
+                v.label.toLowerCase().includes(q) ||
+                v.name.toLowerCase().includes(q) ||
+                (v.family && FAMILY_LABELS[v.family].toLowerCase().includes(q))
+            );
+        }
+
+        return vars;
+    }
+
+    _toggleFilterBar() {
+        this._filterBarOpen = !this._filterBarOpen;
+        if (!this._filterBarOpen) {
+            this._searchText = '';
+            this._selectedFamily = 'all';
+        }
+    }
+
+    _handleFilterSearchInput(ev) {
+        this._searchText = ev.target.value || '';
+    }
+
+    _selectPickerFamily(family) {
+        this._selectedFamily = family;
+    }
+
+    _selectCategoryGroup(group) {
+        this._selectedCategoryGroup = group;
+    }
+
+    /**
+     * Compact search input + color-family chip row, shown when the filter
+     * bar is toggled open. Narrows all three dropdowns in this picker
+     * (main select + builder-mode base color / color 2) since they all
+     * render from the same `_getFilteredVariables()` source.
+     * @returns {import('lit').TemplateResult|string}
+     * @private
+     */
+    _renderFilterBar() {
+        if (!this._filterBarOpen) return '';
+
+        const familiesPresent = FAMILY_ORDER.filter(f => this._cssVariables.some(v => v.family === f));
+
+        return html`
+            <div class="filter-bar">
+                <div class="filter-chips category-group-chips">
+                    ${Object.keys(CATEGORY_GROUPS).map(group => html`
+                        <button
+                            class="filter-chip ${this._selectedCategoryGroup === group ? 'selected' : ''}"
+                            @click=${() => this._selectCategoryGroup(group)}>
+                            ${CATEGORY_GROUP_LABELS[group]}
+                        </button>
+                    `)}
+                </div>
+                <ha-input
+                    class="filter-search"
+                    .value=${this._searchText}
+                    .disabled=${this.disabled}
+                    placeholder="Filter variables..."
+                    @input=${this._handleFilterSearchInput}>
+                    <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
+                </ha-input>
+                <div class="filter-chips">
+                    <button
+                        class="filter-chip ${this._selectedFamily === 'all' ? 'selected' : ''}"
+                        @click=${() => this._selectPickerFamily('all')}>
+                        All
+                    </button>
+                    ${familiesPresent.map(family => html`
+                        <button
+                            class="filter-chip ${this._selectedFamily === family ? 'selected' : ''}"
+                            title=${FAMILY_HUE_RANGES[family] || ''}
+                            @click=${() => this._selectPickerFamily(family)}>
+                            <span class="chip-swatch" style="background-color: ${FAMILY_SWATCH_COLORS[family]}"></span>
+                            ${FAMILY_LABELS[family]}
+                        </button>
+                    `)}
+                </div>
+            </div>
+        `;
     }
 
     /**
@@ -595,7 +790,16 @@ export class LCARdSColorPicker extends LitElement {
             <div class="color-inputs">
                 <!-- CSS Variable Dropdown with Color Swatches -->
                 <div class="input-group">
-                    <div class="input-label">CSS Variable / Preset</div>
+                    <div class="input-label-row">
+                        <div class="input-label">CSS Variable / Preset</div>
+                        <ha-icon-button
+                            class="filter-toggle"
+                            .label=${'Search / filter by color'}
+                            @click=${this._toggleFilterBar}>
+                            <ha-icon icon=${this._filterBarOpen ? 'mdi:magnify-close' : 'mdi:magnify'}></ha-icon>
+                        </ha-icon-button>
+                    </div>
+                    ${this._renderFilterBar()}
                     <ha-select
                         .value=${this._getCurrentDropdownValue()}
                         .disabled=${this.disabled}
@@ -621,7 +825,9 @@ export class LCARdSColorPicker extends LitElement {
 
                 <!-- Custom Color Input -->
                 <div class="input-group">
-                    <div class="input-label">Custom Color</div>
+                    <div class="input-label-row">
+                        <div class="input-label">Custom Color</div>
+                    </div>
                     <ha-selector
                         // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
@@ -816,8 +1022,8 @@ export class LCARdSColorPicker extends LitElement {
             `);
         }
 
-        // CSS variables with color swatches
-        this._cssVariables.forEach(variable => {
+        // CSS variables with color swatches, narrowed by the filter bar (if open)
+        this._getFilteredVariables().forEach(variable => {
             const computedColor = this._computeColor(variable.value);
             items.push(html`
                 <ha-dropdown-item .value=${variable.value}>
