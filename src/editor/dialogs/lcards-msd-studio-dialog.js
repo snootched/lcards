@@ -10778,7 +10778,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${routeMode === 'auto' || routeMode === 'direct' ? html`
                                 <ha-button
                                     @click=${() => this._convertLineToManual(this._lineFormData.id)}
-                                    size="small"
+                                    size="s"
                                     style="margin-top: 12px;">
                                     <ha-icon icon="mdi:content-save-edit" slot="start"></ha-icon>
                                     Freeze to Manual Mode
@@ -10878,7 +10878,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                             this._showWaypointMarkers = true;
                                             this.requestUpdate();
                                         }}
-                                        size="small">
+                                        size="s">
                                         <ha-icon icon="mdi:plus" slot="start"></ha-icon>
                                         Add Waypoint
                                     </ha-button>
