@@ -33,6 +33,41 @@ import '../../../panels/components/shared/lcards-scope-selector.js';
 import '../../../panels/components/lcards-preview-chip.js';
 import { STORAGE_KEY_THEME_OVERRIDES } from '../../../core/services/ScopedSettingsConstants.js';
 
+/**
+ * Copy text to the clipboard, falling back to the legacy execCommand path
+ * when the async Clipboard API is unavailable (e.g. non-secure-context
+ * HTTP access to HA, which both Chrome and Safari block on Mac).
+ * @param {string} text
+ * @returns {Promise<boolean>} whether the copy succeeded
+ */
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      lcardsLog.warn('[ThemeTokenBrowser] navigator.clipboard.writeText failed, falling back:', error);
+    }
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const success = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return success;
+  } catch (error) {
+    lcardsLog.error('[ThemeTokenBrowser] execCommand("copy") fallback failed:', error);
+    return false;
+  }
+}
+
 export class LCARdSThemeTokenBrowserTab extends LitElement {
   static get properties() {
     return {
@@ -3536,7 +3571,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     const originalIcon = button.icon;
 
     try {
-      await navigator.clipboard.writeText(syntax);
+      const success = await copyTextToClipboard(syntax);
+      if (!success) throw new Error('Clipboard write returned failure');
       lcardsLog.info('[ThemeTokenBrowser] Copied token syntax:', syntax);
 
       // Show success feedback
@@ -3572,7 +3608,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     const originalIcon = button.icon;
 
     try {
-      await navigator.clipboard.writeText(syntax);
+      const success = await copyTextToClipboard(syntax);
+      if (!success) throw new Error('Clipboard write returned failure');
       lcardsLog.info('[ThemeTokenBrowser] Copied CSS var syntax:', syntax);
 
       // Show success feedback
@@ -3694,7 +3731,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     const originalIcon = button.icon;
 
     try {
-      await navigator.clipboard.writeText(String(value));
+      const success = await copyTextToClipboard(String(value));
+      if (!success) throw new Error('Clipboard write returned failure');
       lcardsLog.info('[ThemeTokenBrowser] Copied value:', value);
 
       // Show success feedback
@@ -3726,7 +3764,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     try {
       // Convert the color to hex if possible
       const hexColor = this._getHexColor(colorValue);
-      await navigator.clipboard.writeText(hexColor);
+      const success = await copyTextToClipboard(hexColor);
+      if (!success) throw new Error('Clipboard write returned failure');
       lcardsLog.info('[ThemeTokenBrowser] Copied hex color:', hexColor);
 
       // Show success feedback on the preview
