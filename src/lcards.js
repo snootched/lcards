@@ -829,6 +829,7 @@ lcardsLog.debug('[lcards.js] connectionOverlay console API attached');
 //   window.lcards.sound.getEvents()                // List all sound event types
 window.lcards.sound = {
   play:       (eventType, ctx) => window.lcards.core.soundManager?.play(eventType, ctx),
+  playAsset:  (assetKey)       => window.lcards.core.soundManager?.playAsset(assetKey),
   preview:    (assetKey)       => window.lcards.core.soundManager?.preview(assetKey),
   getSchemes: ()               => window.lcards.core.soundManager?.getSchemeNames(),
   getEvents:  ()               => window.lcards.core.soundManager?.getEventTypes(),

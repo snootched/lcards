@@ -599,6 +599,18 @@ export class SoundManager extends BaseService {
   }
 
   /**
+   * Play a specific audio asset directly, bypassing scheme/override resolution.
+   * Respects the master sound_enabled switch but not the per-category toggles
+   * (cards/ui/alerts) — used for HA-action-triggered playback such as
+   * lcards.play_sound, where the sound isn't tied to any UI category.
+   * @param {string} assetKey - Asset key registered in AssetManager
+   */
+  playAsset(assetKey) {
+    if (!this._isEnabled()) return;
+    this._playAsset(assetKey);
+  }
+
+  /**
    * Preview the active (or specified) scheme by playing a representative event.
    * @param {string} [schemeName] - Scheme to preview (defaults to active)
    * @param {string} [eventType='card_tap'] - Event type to use for preview

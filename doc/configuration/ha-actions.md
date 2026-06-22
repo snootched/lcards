@@ -177,6 +177,54 @@ data:
 
 ---
 
+## Sound Actions
+
+Play a sound effect on connected browser tabs — without touching alert mode, theme, or any screen effect. Useful for subtle audio cues from automations (e.g. a soft chime when a kiosk tablet wakes). Supports [targeting](#targeting).
+
+Sound playback always respects the target device's master **Sound Effects Enabled** toggle (`input_boolean.lcards_sound_enabled`) — if the user has muted sounds, `play_sound` stays silent too. It does *not* check the `cards` / `ui` / `alerts` category toggles, since an automation-triggered sound isn't tied to any of those categories.
+
+See [Sound Configuration](/configuration/sounds) for the full event list, schemes, and per-user/per-device overrides.
+
+### `lcards.play_sound`
+
+Provide either `event_type` or `asset_key` — not both. If both are given, `asset_key` wins.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `event_type` | select | | Plays whatever sound is currently configured for that UI event on the target device — respects its per-event override and active sound scheme. One of the 26 event keys listed in [Sound Configuration](/configuration/sounds#what-events-are-covered). |
+| `asset_key` | string | | Plays one exact sound file (e.g. `lcards_default_system_ready`), bypassing the target's scheme/overrides entirely. Find valid keys via the Config Panel Sound tab or `window.lcards.sound.getEvents()` in the browser console. |
+| `target_device_ids` | list | | → [Targeting](#targeting) |
+| `target_device_names` | list | | → [Targeting](#targeting) |
+| `target_user_ids` | list | | → [Targeting](#targeting) |
+| `target_user_names` | list | | → [Targeting](#targeting) |
+
+```yaml
+# Play the user's configured "notification" sound on all browsers
+action: lcards.play_sound
+data:
+  event_type: notification
+```
+
+```yaml
+# Subtle wake chime on one kiosk tablet, alongside the screen-wake call
+action: lcards.play_sound
+data:
+  event_type: notification
+  target_device_names:
+    - Kitchen Tablet
+```
+
+```yaml
+# Play one exact sound file regardless of the device's active scheme
+action: lcards.play_sound
+data:
+  asset_key: lcards_default_system_ready
+  target_device_names:
+    - Kitchen Tablet
+```
+
+---
+
 ## Portal Overlay Actions
 
 Display or clear a custom HA card over the full-screen portal on connected browser tabs. Supports [targeting](#targeting).
@@ -489,6 +537,23 @@ action:
               level: warn
 ```
 
+### Subtle chime when a kiosk tablet wakes
+
+```yaml
+alias: Tablet wake chime
+trigger:
+  - platform: state
+    entity_id: binary_sensor.hallway_motion
+    to: "on"
+action:
+  - action: rest_command.fully_kiosk_wake_screen  # your existing wake call
+  - action: lcards.play_sound
+    data:
+      event_type: notification
+      target_device_names:
+        - Kitchen Tablet
+```
+
 ### Borg mode — assimilate all browsers, auto-revert after 30 minutes
 
 ```yaml
@@ -512,5 +577,6 @@ automation:
 
 - [Borg Assimilation](/core/borg) — full console API, layer params, and sequence documentation
 - [Screen Effects](/core/effects/screen-effects) — full preset reference for `layers` params used by `trigger_effect`, `show_portal_card`, and the borg actions
+- [Sound Configuration](/configuration/sounds) — event list, schemes, and per-user/per-device overrides used by `play_sound`
 - [Users & Devices](/configuration/users-devices) — how device IDs and display names are assigned
 - [Alert Mode Lab](/configuration/alert-mode-lab) — interactive alert mode configuration

@@ -330,6 +330,10 @@ sm.play('card_tap', { cardOverride: null });        // silence this event
 sm.preview('my_asset');                            // bypass enable checks
 sm.previewScheme('lcars_classic', 'card_tap');     // preview a scheme
 
+sm.playAsset('my_asset');                          // respects master sound_enabled,
+                                                    // skips per-category gate — used by
+                                                    // the lcards.play_sound HA action
+
 // Global overrides (shared across all users and devices)
 const overrides = sm.getOverrides('global');       // { eventType: assetKey }
 await sm.setOverride('card_tap', 'my_asset', 'global');  // set global override
