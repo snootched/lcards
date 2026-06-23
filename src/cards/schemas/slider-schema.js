@@ -663,8 +663,11 @@ export function getSliderSchema(options = {}) {
                                 description: 'Current value indicator configuration',
                                 properties: {
                                     enabled: {
-                                        type: 'boolean',
-                                        description: 'Show/hide current value indicator'
+                                        type: ['boolean', 'string'],
+                                        description: 'Show/hide current value indicator. Also accepts a Jinja2/JS template string resolving to a boolean (e.g. "{{ not is_state(\'sensor.x\', \'unavailable\') }}") for state-driven visibility.',
+                                        'x-ui-hints': {
+                                            selector: { boolean: {} }
+                                        }
                                     },
                                     type: {
                                         type: 'string',

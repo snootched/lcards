@@ -262,7 +262,7 @@ All other domains default to read-only (locked). Set `control.locked: true/false
 | `scale.labels.color` | string / object | theme | Label colour |
 | `scale.labels.font_size` | number | — | Label font size in px |
 | `scale.labels.padding` | number | — | Label padding in px |
-| `indicator.enabled` | boolean | `true` | Show current value indicator |
+| `indicator.enabled` | boolean / string | `true` | Show current value indicator. Also accepts a Jinja2/JS template resolving to a boolean for state-driven visibility, e.g. `"{{ not is_state('sensor.x', 'unavailable') }}"` |
 | `indicator.type` | string | `line` | `line`, `round`, or `triangle` |
 | `indicator.color` | string / object | theme | Indicator colour — [state map](../../core/colours.md) supported |
 | `indicator.size.width` | number | — | Indicator width in px |

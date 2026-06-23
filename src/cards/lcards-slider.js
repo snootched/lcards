@@ -1907,9 +1907,18 @@ export class LCARdSSlider extends LCARdSButton {
     _getIndicatorConfig(gaugeConfig) {
         const indicatorConfig = gaugeConfig?.indicator;
 
+        // `enabled` may be a literal boolean or a template string (resolved by
+        // _preEvaluateStyleTemplates() at this point) — coerce the resolved value
+        // to a real boolean. HA's Jinja2 templates can come back as the strings
+        // "True"/"False", so a strict `=== true` check isn't enough here.
+        let resolvedEnabled = this._resolveTemplateValue(indicatorConfig?.enabled);
+        if (typeof resolvedEnabled === 'string') {
+            resolvedEnabled = !['false', '0', ''].includes(resolvedEnabled.trim().toLowerCase());
+        }
+
         // Check if indicator is enabled
-        const indicatorEnabled = indicatorConfig?.enabled === true ||
-                                (indicatorConfig?.enabled !== false &&
+        const indicatorEnabled = resolvedEnabled === true ||
+                                (resolvedEnabled !== false &&
                                  (indicatorConfig?.type || indicatorConfig?.color || indicatorConfig?.size));
 
         if (!indicatorEnabled) return null;
