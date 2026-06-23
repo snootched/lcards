@@ -1104,54 +1104,27 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
-     * Resolve a plain (non-state-based) color value through the full pipeline:
-     *   1. ThemeTokenResolver — handles `theme:*` tokens and computed functions
-     *      such as `lighten(...)`, `darken(...)`, `alpha(...)`, etc.
-     *   2. ColorUtils.resolveCssVariable — resolves any remaining `var(--x)` refs.
+     * Override of the base class full color-resolution pipeline.
+     * Adds a Canvas2D-specific optimization: if the base class resolves match-light
+     * to a shadow-DOM CSS variable (var(--lcards-light-color-*)), that var cannot be
+     * read by ColorUtils.resolveCssVariable() from document root.  Return the cached
+     * concrete value (_lightColorValue) instead so Canvas2D fillStyle never sees a
+     * var() string.
      *
-     * Use this instead of bare `ColorUtils.resolveCssVariable()` whenever the
-     * value could come from user config (where computed tokens are valid).
-     *
-     * @param {string} rawValue  - Raw color string from config/preset
-     * @param {string} [fallback=''] - Returned when rawValue is falsy
-     * @returns {string} Resolved color
+     * @override
+     * @param {Object|string|null} rawValue - Raw color config: state-object or string
+     * @param {string} [fallback=''] - Returned when rawValue is falsy or resolution yields nothing
+     * @returns {string} Resolved concrete color string, or fallback
      * @private
      */
     _resolveColorValue(rawValue, fallback = '') {
-        if (!rawValue) return fallback;
-        let value = rawValue;
-        // Step 0: 'match-light' special token → per-card CSS variable
-        value = /** @type {string} */(this._resolveMatchLightColor(value));
-
-        // If the value resolved to our dynamic per-card light-colour variable,
-        // return the already-computed colour value stored on the instance.
-        // This avoids relying on CSS-var reactivity in SVG presentation attributes
-        // (which is unreliable) and ensures the memoization hash always reflects
-        // the actual current colour, causing the cache to bust when it changes.
-        if (typeof value === 'string' && value.includes('--lcards-light-color-')) {
+        const result = super._resolveColorValue(rawValue, fallback);
+        // Canvas2D: match-light resolves to a shadow-DOM var that document-root
+        // getComputedStyle can't reach. Substitute the cached concrete value.
+        if (typeof result === 'string' && result.includes('--lcards-light-color-')) {
             return this._lightColorValue || fallback;
         }
-
-        // Step 1: computed tokens and theme: tokens
-        // ThemeTokenResolver.resolve() only ever expects bare paths ("colors.x.y"), never the
-        // "theme:" prefix — strip it here. Static config values already had this done once by
-        // CoreConfigManager's merge-time pass, but values produced at render time (e.g. a
-        // template whose evaluated result is a "theme:" string) never go through that pass,
-        // so this step must be able to handle the prefix itself.
-        const resolver = window.lcards?.core?.themeManager?.resolver;
-        if (resolver) {
-            const tokenPath = typeof value === 'string' && value.startsWith('theme:') ? value.slice(6) : value;
-            value = resolver.resolve(tokenPath, value);
-        }
-        // Step 2: CSS variable references.
-        // Only call resolveCssVariable for bare `var()` references. If the resolver
-        // already produced a CSS function like `color-mix()`, the browser handles it
-        // natively — calling resolveCssVariable would match the var() inside
-        // color-mix() and strip the surrounding function away, losing the effect.
-        if (typeof value === 'string' && value.trim().startsWith('var(')) {
-            return ColorUtils.resolveCssVariable(value) || fallback;
-        }
-        return value || fallback;
+        return result;
     }
 
     /**

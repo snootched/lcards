@@ -2171,29 +2171,6 @@ export class LCARdSElbow extends LCARdSButton {
      * @returns {string} Resolved CSS color value
      * @private
      */
-    _resolveColorValue(colorValue, currentState = 'default') {
-        // Substitute pre-evaluated Jinja2/JS template results before colour resolution.
-        // _preEvaluateStyleTemplates() populates the cache during _processCustomTemplates().
-        colorValue = this._resolveTemplateValue(colorValue);
-
-        // Use base class method for state-based color resolution with theme token support
-        // The base class method handles both state selection and theme token resolution
-        const resolved = this._resolveEntityStateColor(colorValue, null);
-
-        if (!resolved) return null;
-
-        // If base class didn't resolve theme token (returns theme:* as-is), resolve it here
-        if (typeof resolved === 'string' && resolved.startsWith('theme:')) {
-            const tokenPath = resolved.replace('theme:', '');
-            const tokenValue = this.getThemeToken(tokenPath, resolved);
-            lcardsLog.trace(`[LCARdSElbow] Resolved theme token "${resolved}" -> "${tokenValue}"`);
-            // Resolve match-light token after theme resolution
-            return String(this._resolveMatchLightColor(tokenValue));
-        }
-
-        // Resolve match-light token → var(--lcards-light-color-{guid})
-        return String(this._resolveMatchLightColor(resolved));
-    }
 
     /**
      * Override to also pre-evaluate Jinja2/JS templates in `config.elbow`.
@@ -2236,7 +2213,7 @@ export class LCARdSElbow extends LCARdSButton {
                     colorConfig: backgroundColors
                 });
                 if (stateColor) {
-                    return this._resolveColorValue(stateColor, classifiedState);
+                    return this._resolveColorValue(stateColor);
                 }
             }
         }
@@ -2250,7 +2227,7 @@ export class LCARdSElbow extends LCARdSButton {
                 colorConfig: segmentConfig.color
             });
             if (resolvedColor) {
-                const resolved = this._resolveColorValue(resolvedColor, state);
+                const resolved = this._resolveColorValue(resolvedColor);
                 if (resolved) return resolved;
             }
         }
@@ -2264,7 +2241,7 @@ export class LCARdSElbow extends LCARdSButton {
                 colorConfig: this._elbowConfig.segment.color
             });
             if (resolvedColor) {
-                const resolved = this._resolveColorValue(resolvedColor, state);
+                const resolved = this._resolveColorValue(resolvedColor);
                 if (resolved) return resolved;
             }
         }
@@ -2278,7 +2255,7 @@ export class LCARdSElbow extends LCARdSButton {
                 colorConfig: this._elbowConfig.colors.background
             });
             if (resolvedColor) {
-                const resolved = this._resolveColorValue(resolvedColor, state);
+                const resolved = this._resolveColorValue(resolvedColor);
                 if (resolved) return resolved;
             }
         }
@@ -2298,7 +2275,7 @@ export class LCARdSElbow extends LCARdSButton {
             lcardsLog.debug(`[LCARdSElbow] _getElbowColor - resolvedStateColor:`, stateColor);
 
             if (stateColor) {
-                const resolved = this._resolveColorValue(stateColor, state);
+                const resolved = this._resolveColorValue(stateColor);
                 lcardsLog.debug(`[LCARdSElbow] _getElbowColor - final resolved:`, resolved);
                 if (resolved) return resolved;
             }
@@ -3557,28 +3534,16 @@ export class LCARdSElbow extends LCARdSButton {
         // container element as a fallback for light-DOM / slotted cards.
         const container = /** @type {HTMLElement|null} */ (this.renderRoot?.querySelector('#lcards-symbiont-host'));
         if (container && this.config?.symbiont?.imprint) {
-            const imprint    = this.config.symbiont.imprint;
-            const buttonState = this._getButtonState();
-            const actualState = this._entity?.state;
+            const imprint = this.config.symbiont.imprint;
 
             if (imprint.background) {
-                const bg = this._resolveStateValue({
-                    actualState,
-                    classifiedState: buttonState,
-                    colorConfig: imprint.background,
-                    fallback: null
-                });
-                if (bg) container.style.setProperty('--ha-card-background', String(bg));
+                const bg = this._resolveColorValue(imprint.background);
+                if (bg) container.style.setProperty('--ha-card-background', bg);
             }
 
             if (imprint.text?.color) {
-                const tc = this._resolveStateValue({
-                    actualState,
-                    classifiedState: buttonState,
-                    colorConfig: imprint.text.color,
-                    fallback: null
-                });
-                if (tc) container.style.setProperty('--primary-text-color', String(tc));
+                const tc = this._resolveColorValue(imprint.text.color);
+                if (tc) container.style.setProperty('--primary-text-color', tc);
             }
         }
 
@@ -3595,30 +3560,10 @@ export class LCARdSElbow extends LCARdSButton {
         const imprint = this.config?.symbiont?.imprint;
         if (!imprint) return '';
 
-        const buttonState = this._getButtonState();
-        const actualState = this._entity?.state;
-
-        // Resolve background color
-        let bgColor = null;
-        if (imprint.background) {
-            bgColor = this._resolveStateValue({
-                actualState,
-                classifiedState: buttonState,
-                colorConfig: imprint.background,
-                fallback: null
-            });
-        }
-
-        // Resolve text color
-        let textColor = null;
-        if (imprint.text?.color) {
-            textColor = this._resolveStateValue({
-                actualState,
-                classifiedState: buttonState,
-                colorConfig: imprint.text.color,
-                fallback: null
-            });
-        }
+        // Resolve background and text colors through the full pipeline (state-object,
+        // theme tokens, match-light, CSS var resolution).
+        const bgColor = imprint.background ? this._resolveColorValue(imprint.background) : null;
+        const textColor = imprint.text?.color ? this._resolveColorValue(imprint.text.color) : null;
 
         const fontSize = imprint.text?.font_size || null;
         const fontFamily = imprint.text?.font_family || null;

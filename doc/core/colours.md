@@ -141,10 +141,11 @@ State-based colour objects are accepted wherever a `color:` value is expected, i
 
 - `style.card.color.background`
 - `style.border.color`
-- `style.text.default.color` and `style.text.<field>.color`
+- `style.text.default.color`, `style.text.<field>.color`, and `style.text.<field>.background`
 - `icon_style.color`
 - `shape_texture.config.color` (and `color_a`, `color_b`)
 - `elbow.segment.color`
+- `symbiont.imprint.background` and `symbiont.imprint.text.color` (lcards-elbow)
 - Background animation `config.color`
 - Divider `color`
 - `lcards-slider`: `style.gauge.indicator.color` / `.border.color`, `style.gauge.progress_bar.color`, `style.ranges[].color` and `ranges[].indicator.color` / `.border.color`, `style.shaped.fill.color` / `track.background`, `style.border.<side>.color` — see [Slider Card](../cards/slider-card/) for the full field list

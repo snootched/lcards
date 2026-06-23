@@ -2793,6 +2793,57 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
+     * Full color-resolution pipeline — accepts raw config (state-object or string) and
+     * returns a concrete color value safe for SVG presentation attributes, Canvas2D, and
+     * CSS property contexts alike.
+     *
+     * Pipeline (in order):
+     *   1. _resolveEntityStateColor()  — state-object unwrap, theme: strip, computed-token
+     *      resolution (darken/lighten/alpha/…), and _resolveTemplateValue() on the result.
+     *   2. _resolveMatchLightColor()   — match-light / match-brightness substitution.
+     *   3. theme: safety net          — strips any surviving theme: prefix and calls
+     *      resolver.resolve() again (handles edge cases where a template emits theme: strings
+     *      that the utility's one-time pass didn't see).
+     *   4. CSS var resolution         — resolves bare var(…) references for contexts that
+     *      cannot use CSS variables natively (SVG/Canvas2D). No-op in CSS contexts.
+     *
+     * Subclasses may override to add context-specific steps (e.g. lcards-slider adds a
+     * Canvas2D-specific concrete-value substitution for the --lcards-light-color-* var).
+     *
+     * @param {Object|string|null} rawConfig - Raw color config: state-object or string
+     * @param {string} [fallback=''] - Returned when rawConfig is falsy or resolution yields nothing
+     * @returns {string} Resolved concrete color string, or fallback
+     * @protected
+     */
+    _resolveColorValue(rawConfig, fallback = '') {
+        if (!rawConfig) return fallback;
+
+        // Step 1: state-object unwrap + theme: strip + computed-token resolution + template eval
+        let value = this._resolveEntityStateColor(rawConfig, fallback);
+        if (!value) return fallback;
+
+        // Step 2: match-light / match-brightness substitution
+        value = this._resolveMatchLightColor(value);
+
+        // Step 3: theme: prefix safety net for render-time template outputs
+        const resolver = window.lcards?.core?.themeManager?.resolver;
+        if (resolver) {
+            const tokenPath = typeof value === 'string' && value.startsWith('theme:')
+                ? value.slice(6) : value;
+            value = resolver.resolve(tokenPath, value);
+        }
+
+        // Step 4: CSS variable resolution for SVG/Canvas2D contexts
+        // Only applied to bare var() strings — color-mix() and similar functions are
+        // handled natively by the browser and must not be unwrapped here.
+        if (typeof value === 'string' && value.trim().startsWith('var(')) {
+            return ColorUtils.resolveCssVariable(value) || fallback;
+        }
+
+        return value || fallback;
+    }
+
+    /**
      * Resolve the numeric value used for range conditions in ALL state-based
      * lookups across this card (colors, icons, text, borders, backgrounds).
      *

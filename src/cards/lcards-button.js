@@ -4214,16 +4214,13 @@ export class LCARdSButton extends LCARdSCard {
         }
         resolvedConfig = evaluatedConfig;
 
-        // Resolve state-based color on the 'color' field
+        // Resolve state-based color on the 'color' field.
+        // Must go through the full pipeline (state-object → match-light → CSS var)
+        // because Canvas2D cannot handle var() or match-light strings.
         if (resolvedConfig.color && typeof resolvedConfig.color === 'object') {
             resolvedConfig = {
                 ...resolvedConfig,
-                color: this._resolveStateValue({
-                    actualState: actualEntityState,
-                    classifiedState: buttonState,
-                    colorConfig: resolvedConfig.color,
-                    fallback: 'rgba(255,255,255,0.2)'
-                }) || 'rgba(255,255,255,0.2)'
+                color: this._resolveColorValue(resolvedConfig.color, 'rgba(255,255,255,0.2)')
             };
         }
 
@@ -5440,15 +5437,10 @@ export class LCARdSButton extends LCARdSCard {
             resolvedColor = this._resolveMatchLightColor(resolvedColor);
 
             // Resolve background color based on entity state (supports state-based color map)
-            let resolvedBackground = null;
-            if (field.background) {
-                resolvedBackground = this._resolveStateValue({
-                    actualState: actualEntityState,
-                    classifiedState: entityState,
-                    colorConfig: field.background,
-                    fallback: null
-                });
-            }
+            // Full pipeline required: SVG fill attributes cannot handle var() or match-light.
+            const resolvedBackground = field.background
+                ? this._resolveColorValue(field.background) || null
+                : null;
 
             // ── Cap-height fill mode ──────────────────────────────────────────────
             // When font_size_percent + cap_height_ratio are both set AND the position is
@@ -5816,10 +5808,6 @@ export class LCARdSButton extends LCARdSCard {
                     colorConfig:     field.color,
                     fallback:        null
                 });
-                // Resolve theme: tokens that resolveStateColor passes through as-is
-                if (typeof resolvedColor === 'string' && resolvedColor.startsWith('theme:')) {
-                    resolvedColor = this.getThemeToken(resolvedColor.replace('theme:', ''), resolvedColor);
-                }
             }
             if (!resolvedColor) {
                 resolvedColor = this._resolveStateValue({
