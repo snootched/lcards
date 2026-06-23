@@ -1097,7 +1097,7 @@ export class LCARdSColorPicker extends LitElement {
      * @private
      */
     _parseIncomingValue(value) {
-        if (!value) return { color: value, applyBrightness: false };
+        if (!value || typeof value !== 'string') return { color: value, applyBrightness: false };
         const match = value.match(/^alpha\((.+),\s*match-brightness\)$/);
         if (match) {
             return { color: match[1].trim(), applyBrightness: true };

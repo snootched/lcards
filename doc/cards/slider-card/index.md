@@ -360,7 +360,7 @@ style:
 |-------|------|---------|-------------|
 | `min` | number / string | required | Band start value — supports templates: `{entity.attributes.x}`, `[[[JS]]]` |
 | `max` | number / string | required | Band end value — supports templates |
-| `color` | string | — | Band fill colour |
+| `color` | string / object | — | Band fill colour — [state map](../../core/colours.md) supported |
 | `opacity` | number | `0.3` | Band opacity (0–1) |
 
 ### Value marker fields
@@ -368,19 +368,21 @@ style:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `value` | number / string | required | Position value — supports templates: `{entity.attributes.x}`, `{states.id.state}`, `[[[JS]]]` |
-| `color` | string | — | Marker colour |
+| `color` | string / object | — | Marker colour — [state map](../../core/colours.md) supported |
 | `indicator.type` | string | `triangle` | Shape: `line`, `round`, `triangle` |
 | `indicator.align` | string | `center` | Cross-axis pin: `start`, `center`, `end` |
+| `indicator.color` | string / object | range colour | Indicator fill colour — overrides the range's own `color` for the indicator only |
 | `indicator.size.width` | number | `20` | Width in px |
 | `indicator.size.height` | number | `20` | Height in px |
 | `indicator.rotation` | number | `180` | Rotation in degrees |
 | `indicator.offset.x` | number | — | Horizontal offset in px |
 | `indicator.offset.y` | number | — | Vertical offset in px |
 | `indicator.border.enabled` | boolean | — | Show border on indicator |
-| `indicator.border.color` | string | — | Border colour |
+| `indicator.border.color` | string / object | — | Border colour |
 | `indicator.border.width` | number | — | Border width in px |
 | `pill_style.stroke` | boolean | `true` | Pills mode: outline on marker pill |
 | `pill_style.stroke_width` | number | `2` | Pills mode: outline thickness in px |
+| `pill_style.stroke_color` | string/object | — | Pills mode: outline colour. Falls back to the pill fill colour (`color`) if unset. Supports state-object syntax |
 
 Global marker defaults can be set at `style.gauge.marker_indicator` — individual range entries override per field.
 
@@ -412,8 +414,8 @@ style:
 |-------|------|---------|-------------|
 | `style.shaped.type` | string | `lozenge` | Shape: `lozenge`, `rect`, `rounded`, `diamond`, `hexagon`, `polygon`, `path` |
 | `style.shaped.radius` | number | auto | Corner radius override in px |
-| `style.shaped.fill.color` | string | theme | Fill colour for the active portion |
-| `style.shaped.track.background` | string | theme | Interior background (empty portion) colour |
+| `style.shaped.fill.color` | string / object | theme | Fill colour for the active portion — [state map](../../core/colours.md) supported |
+| `style.shaped.track.background` | string / object | theme | Interior background (empty portion) colour — [state map](../../core/colours.md) supported |
 | `style.shaped.text_bands.top.size` | number | `36` | Top text band height in px (vertical mode) |
 | `style.shaped.text_bands.bottom.size` | number | `36` | Bottom text band height in px (vertical mode) |
 | `style.shaped.text_bands.left.size` | number | `60` | Left text band width in px (horizontal mode) |
@@ -421,6 +423,41 @@ style:
 | `style.shaped.polygon.points` | array | — | `[[xPct, yPct], ...]` vertices (0–1) for polygon shape |
 | `style.shaped.path.d` | string | — | Raw SVG path `d` attribute (absolute coords) |
 | `style.shaped.path.translate` | boolean | `false` | Translate path to shape body origin |
+
+---
+
+## Picard Component
+
+Use `component: picard` for the Picard-style gauge rendering — a decorative range frame, a dedicated solid value bar, and a scanning activity indicator alongside the standard gauge elements. Requires `component: picard` explicitly; presets like `picard-gauge-vertical` only declare compatibility, they don't set it for you.
+
+```yaml
+type: custom:lcards-slider
+entity: sensor.temperature
+component: picard
+preset: picard-gauge-vertical
+style:
+  range:
+    border:
+      color: "theme:components.slider.range.border.color"
+    frame:
+      color:
+        active: "#00ffff"
+        inactive: "#333333"
+  solid_bar:
+    color:
+      active: "var(--lcards-green)"
+      inactive: "var(--lcards-gray)"
+  animation:
+    indicator:
+      color: "lighten(var(--lcards-orange), 0.2)"
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `style.range.border.color` | string / object | theme | Range track border colour — [state map](../../core/colours.md) supported |
+| `style.range.frame.color` | string / object | range border colour | Decorative outline colour around the range track. Falls back to `range.border.color` if unset |
+| `style.solid_bar.color` | string / object | range border colour | Solid value-bar colour. Falls back to `range.border.color` if unset |
+| `style.animation.indicator.color` | string / object | theme | Colour of the scanning/activity indicator shown during the built-in animation, if enabled on the preset |
 
 ---
 

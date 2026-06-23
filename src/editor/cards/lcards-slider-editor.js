@@ -12,7 +12,6 @@ import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { deepMerge } from '../../utils/deepMerge.js';
 
 // Import shared form components
-import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-color-section-v2.js';
 import '../components/editors/lcards-border-editor.js';
 import '../components/editors/lcards-object-editor.js';
@@ -728,7 +727,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
         const itemStyle = 'background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); overflow: hidden;';
         const headerStyle = 'display: flex; align-items: center; gap: 12px; padding: 12px; cursor: pointer; user-select: none; background: var(--secondary-background-color);';
-        const iconColor = range.color || 'var(--primary-color)';
+        const iconColor = (typeof range.color === 'string' && range.color) || 'var(--primary-color)';
         const iconStyle = `color: ${iconColor}; --mdc-icon-size: 24px;`;
         const infoStyle = 'flex: 1; min-width: 0;';
         const labelStyle = 'font-weight: 600; font-size: 14px;';
@@ -796,16 +795,16 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 })}
             </lcards-grid-layout>
 
-            <lcards-color-section
+            <lcards-color-section-v2
                 .editor=${this}
                 .entityId=${this.config?.entity || ''}
                 basePath="${basePath}.color"
                 header="Band Colour"
-                description="Background colour for this zone"
-                ?singleColor=${true}
-                ?expanded=${true}
-                ?useColorPicker=${true}>
-            </lcards-color-section>
+                description="State-based background colour for this zone"
+                .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                ?allowCustomStates=${true}
+                ?expanded=${true}>
+            </lcards-color-section-v2>
 
             ${FormField.renderField(this, `${basePath}.opacity`, {
                 label: 'Opacity',
@@ -838,16 +837,16 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             </div>
 
             ${isPills ? html`
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="${basePath}.color"
                     header="Pill Highlight Colour"
-                    description="Colour used to highlight this marker pill"
-                    ?singleColor=${true}
-                    ?expanded=${true}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    description="State-based colour used to highlight this marker pill"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${true}>
+                </lcards-color-section-v2>
             ` : ''}
 
             <!-- Indicator shape settings (gauge mode) -->
@@ -906,16 +905,16 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     })}
                 </lcards-grid-layout>
 
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="${basePath}.indicator.color"
                     header="Indicator Colour"
-                    description="Colour of the indicator shape. Fallback: style.gauge.marker_indicator.color → white"
-                    ?singleColor=${true}
-                    ?expanded=${true}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    description="State-based colour of the indicator shape. Fallback: style.gauge.marker_indicator.color → white"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${true}>
+                </lcards-color-section-v2>
 
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.indicator.border.enabled`, {
@@ -929,15 +928,16 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     })}
                 </lcards-grid-layout>
 
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="${basePath}.indicator.border.color"
                     header="Border Colour"
-                    ?singleColor=${true}
-                    ?expanded=${false}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    description="State-based colour of the indicator border"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
             </lcards-form-section>
 
             <!-- Pill style settings (pills mode) -->
@@ -968,6 +968,17 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         helper: 'Border thickness (default: 2)'
                     })}
                 </lcards-grid-layout>
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="${basePath}.pill_style.stroke_color"
+                    header="Outline Colour"
+                    description="State-based outline colour. Falls back to the pill fill colour (Pill Highlight Colour above) if unset."
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
             </lcards-form-section>
         `;
     }
@@ -1505,26 +1516,27 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 })}
 
                 <!-- INLINE: Indicator colors -->
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
-                    header="Indicator Colours"
-                    description="Colours for value indicator marker"
-                    .colorPaths=${[
-                        {
-                            path: 'style.gauge.indicator.color',
-                            label: 'Indicator Colour',
-                            helper: 'Colour of value indicator'
-                        },
-                        {
-                            path: 'style.gauge.indicator.border.color',
-                            label: 'Border Colour',
-                            helper: 'Colour of indicator border'
-                        }
-                    ]}
-                    ?expanded=${false}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    basePath="style.gauge.indicator.color"
+                    header="Indicator Colour"
+                    description="State-based colour of value indicator"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="style.gauge.indicator.border.color"
+                    header="Indicator Border Colour"
+                    description="State-based colour of indicator border"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
             </lcards-form-section>
         `;
     }
@@ -1569,27 +1581,27 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 ?outlined=${true}
                 headerLevel="4">
 
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.shaped.fill.color"
                     header="Fill Colour"
-                    description="Colour of the value fill (the filled portion)"
-                    ?singleColor=${true}
-                    ?expanded=${true}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    description="State-based colour of the value fill (the filled portion)"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${true}>
+                </lcards-color-section-v2>
 
-                <lcards-color-section
+                <lcards-color-section-v2
                     .editor=${this}
                     .entityId=${this.config?.entity || ''}
                     basePath="style.shaped.track.background"
                     header="Background Colour"
-                    description="Colour of the empty (unfilled) interior of the shape"
-                    ?singleColor=${true}
-                    ?expanded=${false}
-                    ?useColorPicker=${true}>
-                </lcards-color-section>
+                    description="State-based colour of the empty (unfilled) interior of the shape"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
             </lcards-form-section>
 
             <!-- Label Band Sizes -->
