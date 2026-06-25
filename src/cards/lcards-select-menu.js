@@ -611,7 +611,12 @@ export class LCARdSSelectMenu extends LCARdSCard {
         }
         // Definite px in fit mode; otherwise restore the stylesheet default
         // (:host height:100%) so mode switches in the editor behave.
-        this.style.height = hostHeight != null ? `${hostHeight}px` : '';
+        // Do NOT clear when config.height is set — _onConfigSet already applied it.
+        if (hostHeight != null) {
+            this.style.height = `${hostHeight}px`;
+        } else if (!this.config.height) {
+            this.style.height = '';
+        }
 
         // Bounded-fill mode: grid.height='100%' makes sm-grid fill a bounded
         // container (e.g. a minmax(0,1fr) sidebar row). When grid-auto-rows is
@@ -646,11 +651,11 @@ export class LCARdSSelectMenu extends LCARdSCard {
             }
         }
 
-        // Allow callers to override the sm-grid height via grid.height.
-        // Without an override the CSS class (.sm-grid { height: auto }) applies,
-        // which sizes sm-grid to its content and prevents overflow-gap issues.
-        // Pass height: '100%' when the grid must fill a bounded parent (e.g. a 1fr
-        // sidebar row) so that grid-auto-rows can scale buttons proportionally.
+        // '100%' mode: sm-grid must fill the bounded parent so its content is
+        // measurable by the ResizeObserver-driven autoRows calculation.
+        // 'fit' mode: host gets a definite px height (above); inner grid stays auto.
+        // All other grid.height values are intentionally ignored here — use the
+        // top-level config.height to constrain the card host instead.
         const gridStyleParts = [
             `display: grid`,
             `grid-template-columns: ${tplCols}`,
@@ -661,7 +666,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
             `width: 100%`,
             `box-sizing: border-box`,
         ];
-        if (gridCfg.height && gridCfg.height !== 'fit') gridStyleParts.push(`height: ${gridCfg.height}`);
+        if (gridCfg.height === '100%') gridStyleParts.push(`height: 100%`);
         if (overflowY)      gridStyleParts.push(`overflow-y: ${overflowY}`);
         const gridStyle = gridStyleParts.join('; ');
 

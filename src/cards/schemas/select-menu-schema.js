@@ -132,6 +132,11 @@ export function getSelectMenuSchema(options = {}) {
                 type: 'string',
                 enum: ['stretch', 'start', 'end', 'center'],
                 description: 'CSS align-items for cell alignment'
+            },
+            height: {
+                type: 'string',
+                enum: ['fit', '100%'],
+                description: '"fit": sizes the card host to the exact height of all buttons (useful for outer grid track sizing). "100%": proportionally fills a bounded parent row, resizing buttons to fit without overflow. For a fixed card height with scrolling, use the top-level height + overflow_y config instead.'
             }
         },
         additionalProperties: true
