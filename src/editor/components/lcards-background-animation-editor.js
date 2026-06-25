@@ -1725,16 +1725,23 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
       case 'contour-field':
         return {
-          seed: Math.floor(Math.random() * 1e9), // Generate unique seed
-          noise_scale: 0.008,
-          num_octaves: 1,
+          seed: Math.floor(Math.random() * 1e9),
+          noise_scale: 0.005,
+          num_octaves: 2,
           num_bands: 5,
-          fill_level: 0.05,
           cell_size: 1,
-          colors: ['var(--lcards-green)', 'var(--lcars-blue)', 'var(--lcards-blue-medium-light)'],
-          scroll_speed_x: 0,
-          scroll_speed_y: 0,
-          blend_colors: false
+          blend_colors: true,
+          fill_level: 0.45,
+          fill_color: 'alpha(var(--lcars-midnight-blue), 0.30)',
+          colors: [
+            'alpha(#130b81, 0.08)',
+            'alpha(#130b81, 0.25)',
+            'alpha(#130b81, 0.42)',
+            'alpha(#130b81, 0.62)',
+            'alpha(#130b81, 0.80)',
+          ],
+          scroll_speed_x: -3,
+          scroll_speed_y: 0.45,
         };
 
       default:

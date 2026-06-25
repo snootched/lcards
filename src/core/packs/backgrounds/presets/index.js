@@ -253,19 +253,25 @@ export const BACKGROUND_PRESETS = {
 
       const contourConfig = {
         seed: config.seed ?? Math.floor(Math.random() * 1e9), // Random seed by default
-        noiseScale: config.noise_scale ?? resolveToken('components.backgroundAnimation.contourField.noise.scale', 0.01),
-        numOctaves: config.num_octaves ?? resolveToken('components.backgroundAnimation.contourField.noise.octaves', 4),
-        numBands: config.num_bands ?? resolveToken('components.backgroundAnimation.contourField.bands.count', 8),
-        cellSize: config.cell_size ?? resolveToken('components.backgroundAnimation.contourField.bands.cellSize', 3),
-        fillLevel: config.fill_level ?? resolveToken('components.backgroundAnimation.contourField.bands.fillLevel', 0),
-        fillColor: config.fill_color ?? resolveToken('components.backgroundAnimation.contourField.bands.fillColor', undefined),
+        noiseScale: config.noise_scale ?? resolveToken('components.backgroundAnimation.contourField.noise.scale', 0.005),
+        numOctaves: config.num_octaves ?? resolveToken('components.backgroundAnimation.contourField.noise.octaves', 2),
+        numBands: config.num_bands ?? resolveToken('components.backgroundAnimation.contourField.bands.count', 5),
+        cellSize: config.cell_size ?? resolveToken('components.backgroundAnimation.contourField.bands.cellSize', 1),
+        fillLevel: config.fill_level ?? resolveToken('components.backgroundAnimation.contourField.bands.fillLevel', 0.45),
+        fillColor: config.fill_color ?? resolveToken('components.backgroundAnimation.contourField.bands.fillColor', 'alpha(var(--lcars-midnight-blue), 0.30)'),
         blendColors: config.blend_colors ?? resolveToken('components.backgroundAnimation.contourField.bands.blendColors', true),
 
         // Support both 'colors' (array) and 'color' (single)
-        colors: config.colors ?? (config.color ? [config.color] : resolveToken('components.backgroundAnimation.contourField.colors', ['#1a0033', '#4b0082', '#8a2be2', '#da70d6'])),
+        colors: config.colors ?? (config.color ? [config.color] : resolveToken('components.backgroundAnimation.contourField.colors', [
+          'alpha(#130b81, 0.08)',
+          'alpha(#130b81, 0.25)',
+          'alpha(#130b81, 0.42)',
+          'alpha(#130b81, 0.62)',
+          'alpha(#130b81, 0.80)',
+        ])),
 
-        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.contourField.scroll.speedX', 3),
-        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.contourField.scroll.speedY', 3),
+        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.contourField.scroll.speedX', -3),
+        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.contourField.scroll.speedY', 0.45),
 
         opacity: config.opacity ?? 1
       };
