@@ -29,7 +29,42 @@ import { LitElement, html, css, nothing } from 'lit';
 const MDI_CHEVRON_DOWN = 'M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z';
 const MDI_LIGHTBULB = 'M12,2A7,7 0 0,1 19,9C19,11.38 17.81,13.47 16,14.74V17A1,1 0 0,1 15,18H9A1,1 0 0,1 8,17V14.74C6.19,13.47 5,11.38 5,9A7,7 0 0,1 12,2M9,21V20H15V21A1,1 0 0,1 14,22H10A1,1 0 0,1 9,21M12,4A5,5 0 0,0 7,9C7,11.05 8.23,12.81 10,13.58V16H14V13.58C15.77,12.81 17,11.05 17,9A5,5 0 0,0 12,4Z';
 
+// All 140 CSS named colors — used by the "Named" popover tab
+const CSS_NAMED_COLORS = [
+    'aliceblue','antiquewhite','aqua','aquamarine','azure',
+    'beige','bisque','black','blanchedalmond','blue','blueviolet','brown','burlywood',
+    'cadetblue','chartreuse','chocolate','coral','cornflowerblue','cornsilk','crimson','cyan',
+    'darkblue','darkcyan','darkgoldenrod','darkgray','darkgreen','darkgrey','darkkhaki',
+    'darkmagenta','darkolivegreen','darkorange','darkorchid','darkred','darksalmon',
+    'darkseagreen','darkslateblue','darkslategray','darkslategrey','darkturquoise','darkviolet',
+    'deeppink','deepskyblue','dimgray','dimgrey','dodgerblue',
+    'firebrick','floralwhite','forestgreen','fuchsia',
+    'gainsboro','ghostwhite','gold','goldenrod','gray','green','greenyellow','grey',
+    'honeydew','hotpink',
+    'indianred','indigo','ivory',
+    'khaki',
+    'lavender','lavenderblush','lawngreen','lemonchiffon',
+    'lightblue','lightcoral','lightcyan','lightgoldenrodyellow','lightgray','lightgreen',
+    'lightgrey','lightpink','lightsalmon','lightseagreen','lightskyblue','lightslategray',
+    'lightslategrey','lightsteelblue','lightyellow','lime','limegreen','linen',
+    'magenta','maroon','mediumaquamarine','mediumblue','mediumorchid','mediumpurple',
+    'mediumseagreen','mediumslateblue','mediumspringgreen','mediumturquoise','mediumvioletred',
+    'midnightblue','mintcream','mistyrose','moccasin',
+    'navajowhite','navy',
+    'oldlace','olive','olivedrab','orange','orangered','orchid',
+    'palegoldenrod','palegreen','paleturquoise','palevioletred','papayawhip','peachpuff',
+    'peru','pink','plum','powderblue','purple',
+    'rebeccapurple','red','rosybrown','royalblue',
+    'saddlebrown','salmon','sandybrown','seagreen','seashell','sienna','silver',
+    'skyblue','slateblue','slategray','slategrey','snow','springgreen','steelblue',
+    'tan','teal','thistle','tomato','turquoise',
+    'violet',
+    'wheat','white','whitesmoke',
+    'yellow','yellowgreen',
+];
 
+import 'vanilla-colorful/hex-alpha-color-picker.js';
+import 'vanilla-colorful/hex-input.js';
 import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 import { getColorFamily, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
 import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
@@ -69,10 +104,13 @@ export class LCARdSColorPicker extends LitElement {
             _applyBrightness: { type: Boolean, state: true },  // Apply light brightness to colour
             _popoverOpen: { type: Boolean, state: true },       // CSS-var picker popover open (controls .open)
             _popoverMounted: { type: Boolean, state: true },   // True after wa-after-show; keeps popover in DOM during close animation
-            _pickerMode: { type: Boolean, state: true },        // Show ha-input color picker instead of list
+            _popoverMode: { type: String, state: true },          // ''|'picker'|'named'|'custom'
             _searchText: { type: String, state: true },         // Popover filter text
             _selectedFamily: { type: String, state: true },     // Popover color-family chip filter
-            _selectedCategoryGroup: { type: String, state: true } // Popover scope: 'theme'|'ha'|'all'
+            _selectedCategoryGroup: { type: String, state: true }, // Popover scope: 'theme'|'ha'|'all'
+            _builderPickingFor: { type: String, state: true },  // 'color1'|'color2'|null — which builder slot is picking
+            _builderPopoverOpen: { type: Boolean, state: true },
+            _builderPopoverMounted: { type: Boolean, state: true }
         };
     }
 
@@ -102,10 +140,15 @@ export class LCARdSColorPicker extends LitElement {
         // Popover + filter state
         this._popoverOpen = false;
         this._popoverMounted = false;
-        this._pickerMode = false;
+        this._popoverMode = '';
         this._searchText = '';
         this._selectedFamily = 'all';
         this._selectedCategoryGroup = 'theme';
+
+        // Builder color-slot popover state
+        this._builderPickingFor = null;
+        this._builderPopoverOpen = false;
+        this._builderPopoverMounted = false;
     }
 
     static get styles() {
@@ -196,7 +239,7 @@ export class LCARdSColorPicker extends LitElement {
             .color-swatch-trigger {
                 width: 20px;
                 height: 20px;
-                border-radius: var(--ha-border-radius-circle);
+                border-radius: var(--ha-border-radius-sm);
                 border: var(--ha-border-width-sm) solid rgba(0, 0, 0, 0.15);
                 flex-shrink: 0;
             }
@@ -242,6 +285,7 @@ export class LCARdSColorPicker extends LitElement {
                 gap: var(--ha-space-2);
                 padding: 0 var(--ha-space-3) var(--ha-space-3);
                 overflow: auto;
+                flex-shrink: 0;
             }
 
             .sections ha-filter-chip {
@@ -339,15 +383,55 @@ export class LCARdSColorPicker extends LitElement {
 
             /* Native color picker (Picker chip mode) */
             .picker-mode-content {
-                padding: var(--ha-space-4) var(--ha-space-3);
+                padding: var(--ha-space-3);
                 display: flex;
                 flex-direction: column;
-                align-items: center;
-                gap: var(--ha-space-2);
+                gap: var(--ha-space-3);
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
             }
 
-            .picker-mode-content ha-input {
+            hex-alpha-color-picker {
                 width: 100%;
+                height: 240px;
+            }
+
+            hex-alpha-color-picker::part(saturation) {
+                border-radius: var(--ha-border-radius-md) var(--ha-border-radius-md) 0 0;
+            }
+
+            hex-alpha-color-picker::part(hue) {
+                border-radius: 0;
+                height: 24px;
+            }
+
+            hex-alpha-color-picker::part(alpha) {
+                border-radius: 0 0 var(--ha-border-radius-md) var(--ha-border-radius-md);
+                height: 24px;
+            }
+
+            hex-input {
+                width: 100%;
+            }
+
+            hex-input::part(input) {
+                width: 100%;
+                box-sizing: border-box;
+                padding: var(--ha-space-2) var(--ha-space-3);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
+                border-radius: var(--ha-border-radius-md);
+                background: var(--card-background-color, #fff);
+                color: var(--primary-text-color);
+                font-family: monospace;
+                font-size: var(--ha-font-size-m, 14px);
+                outline: none;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            hex-input::part(input):focus {
+                border-color: var(--primary-color);
             }
 
             .chip-swatch {
@@ -360,11 +444,6 @@ export class LCARdSColorPicker extends LitElement {
 
             ha-selector {
                 width: 100%;
-            }
-
-            ha-select {
-                width: 100%;
-                position: relative;
             }
 
             .color-swatch {
@@ -385,10 +464,6 @@ export class LCARdSColorPicker extends LitElement {
                             linear-gradient(-45deg, transparent 75%, #ccc 75%);
                 background-size: 8px 8px;
                 background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
-            }
-
-            ha-dropdown-item {
-                gap: var(--ha-space-2);
             }
 
             .preview {
@@ -531,6 +606,17 @@ export class LCARdSColorPicker extends LitElement {
                 background: var(--error-background-color, rgba(244, 67, 54, 0.1));
                 border-radius: var(--ha-border-radius-sm);
                 margin-top: 8px;
+            }
+
+            .custom-color-input {
+                padding: 0 var(--ha-space-3) var(--ha-space-3);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ha-space-2);
+            }
+
+            .custom-color-input ha-selector {
+                width: 100%;
             }
         `;
     }
@@ -677,6 +763,7 @@ export class LCARdSColorPicker extends LitElement {
     _renderPopoverContent() {
         const familiesPresent = FAMILY_ORDER.filter(f => this._cssVariables.some(v => v.family === f));
         const sectionTitle = this._getSectionTitle();
+        const isListMode = this._popoverMode === '';
 
         return html`
             <div class="popover-content">
@@ -690,27 +777,39 @@ export class LCARdSColorPicker extends LitElement {
                     @input=${this._handleFilterSearchInput}>
                 </ha-input-search>
 
-                <!-- 2. Sections row: scope chips | separator | Picker -->
+                <!-- 2. Sections row: scope chips | separator | Picker | Named | Custom -->
                 <ha-chip-set class="sections">
                     ${Object.keys(CATEGORY_GROUPS).map(group => html`
                         <ha-filter-chip
                             no-leading-icon
-                            .selected=${this._selectedCategoryGroup === group && !this._pickerMode}
+                            .selected=${this._selectedCategoryGroup === group && isListMode}
                             .label=${CATEGORY_GROUP_LABELS[group]}
-                            @click=${() => { this._pickerMode = false; this._selectCategoryGroup(group); }}>
+                            @click=${() => { this._popoverMode = ''; this._selectCategoryGroup(group); }}>
                         </ha-filter-chip>
                     `)}
                     <div class="separator"></div>
                     <ha-filter-chip
                         no-leading-icon
-                        .selected=${this._pickerMode}
+                        .selected=${this._popoverMode === 'picker'}
                         .label=${'Picker'}
-                        @click=${this._togglePickerMode}>
+                        @click=${() => this._setPopoverMode('picker')}>
+                    </ha-filter-chip>
+                    <ha-filter-chip
+                        no-leading-icon
+                        .selected=${this._popoverMode === 'named'}
+                        .label=${'CSS'}
+                        @click=${() => this._setPopoverMode('named')}>
+                    </ha-filter-chip>
+                    <ha-filter-chip
+                        no-leading-icon
+                        .selected=${this._popoverMode === 'custom'}
+                        .label=${'Custom'}
+                        @click=${() => this._setPopoverMode('custom')}>
                     </ha-filter-chip>
                 </ha-chip-set>
 
-                <!-- 3. Color family chips (hidden in Picker mode) -->
-                ${!this._pickerMode ? html`
+                <!-- 3. Color family chips (list mode only) -->
+                ${isListMode ? html`
                     <ha-chip-set class="sections">
                         <ha-filter-chip
                             no-leading-icon
@@ -737,8 +836,11 @@ export class LCARdSColorPicker extends LitElement {
                     </div>
                 ` : nothing}
 
-                <!-- 5. Color list or native picker -->
-                ${this._pickerMode ? this._renderPickerMode() : this._renderColorList()}
+                <!-- 5. Content area: list, color wheel, named colors, or custom input -->
+                ${this._popoverMode === 'picker' ? this._renderPickerMode() :
+                  this._popoverMode === 'named' ? this._renderNamedColorList() :
+                  this._popoverMode === 'custom' ? this._renderCustomColorInput() :
+                  this._renderColorList()}
             </div>
         `;
     }
@@ -761,7 +863,10 @@ export class LCARdSColorPicker extends LitElement {
      */
     _renderColorList() {
         const filteredVars = this._getFilteredVariables();
-        const { color: currentColor } = this._parseIncomingValue(this.value);
+        const activeValue = this._builderPickingFor === 'color1' ? this._baseColor
+                          : this._builderPickingFor === 'color2' ? this._baseColor2
+                          : this.value;
+        const { color: currentColor } = this._parseIncomingValue(activeValue);
 
         return html`
             <div class="color-list" role="listbox">
@@ -804,16 +909,78 @@ export class LCARdSColorPicker extends LitElement {
      * @private
      */
     _renderPickerMode() {
+        const hexValue = this._valueToHex();
         return html`
             <div class="picker-mode-content">
-                <ha-input
-                    type="color"
-                    .value=${this._valueToHex()}
-                    .disabled=${this.disabled}
-                    @change=${this._handlePickerColorChange}>
-                </ha-input>
+                <hex-alpha-color-picker
+                    .color=${hexValue}
+                    @color-changed=${this._handlePickerColorChange}>
+                </hex-alpha-color-picker>
+                <hex-input
+                    prefixed
+                    alpha
+                    .color=${hexValue}
+                    @color-changed=${this._handlePickerColorChange}>
+                </hex-input>
             </div>
         `;
+    }
+
+    /** Filter CSS named colors by current search text. */
+    _getFilteredNamedColors() {
+        if (!this._searchText) return CSS_NAMED_COLORS;
+        const q = this._searchText.toLowerCase();
+        return CSS_NAMED_COLORS.filter(n => n.includes(q));
+    }
+
+    _renderNamedColorList() {
+        const filtered = this._getFilteredNamedColors();
+        const activeValue = this._builderPickingFor === 'color1' ? this._baseColor
+                          : this._builderPickingFor === 'color2' ? this._baseColor2
+                          : this.value;
+        return html`
+            <div class="color-list" role="listbox">
+                ${filtered.map(name => html`
+                    <ha-combo-box-item type="button"
+                        class="${activeValue === name ? 'current-value' : ''}"
+                        @click=${() => this._selectAndClose(name)}>
+                        <span slot="start" class="color-swatch-sm"
+                            style="background-color: ${name};"></span>
+                        <span slot="headline">${name}</span>
+                    </ha-combo-box-item>
+                `)}
+            </div>
+        `;
+    }
+
+    _renderCustomColorInput() {
+        const currentVal = this._builderPickingFor === 'color1' ? this._baseColor
+                         : this._builderPickingFor === 'color2' ? this._baseColor2
+                         : this.value;
+        return html`
+            <div class="custom-color-input">
+                <ha-selector
+                    // @ts-ignore - TS2339: auto-suppressed
+                    .hass=${this.hass}
+                    .selector=${{ text: {} }}
+                    .value=${currentVal || ''}
+                    .disabled=${this.disabled}
+                    @value-changed=${this._handlePopoverCustomInput}
+                    placeholder="#ff9900, rgb(255,153,0), var(...), lighten(...)">
+                </ha-selector>
+            </div>
+        `;
+    }
+
+    _handlePopoverCustomInput(ev) {
+        if (this.disabled) return;
+        const value = ev.detail.value;
+        if (this._builderPickingFor) {
+            if (this._builderPickingFor === 'color1') this._baseColor = value;
+            else this._baseColor2 = value;
+        } else {
+            this._emitChange(value);
+        }
     }
 
     /**
@@ -1091,21 +1258,6 @@ export class LCARdSColorPicker extends LitElement {
                 </div>
                 ` : ''}
 
-                <!-- Custom Color Input -->
-                <div class="input-group">
-                    <div class="input-label-row">
-                        <div class="input-label">Custom Color</div>
-                    </div>
-                    <ha-selector
-                        // @ts-ignore - TS2339: auto-suppressed
-                        .hass=${this.hass}
-                        .selector=${{ text: {} }}
-                        .value=${this.value || ''}
-                        .disabled=${this.disabled}
-                        @value-changed=${this._handleTextChange}
-                        placeholder="#ff9900, rgb(255,153,0), var(...), lighten(...)">
-                    </ha-selector>
-                </div>
             </div>
         `;
     }
@@ -1125,12 +1277,11 @@ export class LCARdSColorPicker extends LitElement {
                 <div class="builder-row">
                     <label>Function:</label>
                     <ha-selector
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'lighten', label: 'Lighten' },
                             { value: 'darken', label: 'Darken' },
-                            { value: 'alpha', label: 'Transparency' },
+                            { value: 'alpha', label: 'Alpha/Transparency' },
                             { value: 'saturate', label: 'Saturate' },
                             { value: 'desaturate', label: 'Desaturate' },
                             { value: 'mix', label: 'Mix Colours' },
@@ -1145,28 +1296,14 @@ export class LCARdSColorPicker extends LitElement {
                 <!-- Base Color Picker -->
                 <div class="builder-row">
                     <label>${this._selectedFunction === 'mix' ? 'Color 1:' : 'Base Color:'}</label>
-                    <ha-select
-                        .value=${this._baseColor}
-                        .disabled=${this.disabled}
-                        fixedMenuPosition
-                        @selected=${this._onBaseColorChange}
-                        @closed=${(e) => e.stopPropagation()}>
-                        ${this._renderDropdownItems()}
-                    </ha-select>
+                    ${this._renderBuilderColorTrigger('color1', this._baseColor)}
                 </div>
 
                 <!-- Second Color for Mix Function -->
                 ${this._selectedFunction === 'mix' ? html`
                     <div class="builder-row">
                         <label>Color 2:</label>
-                        <ha-select
-                            .value=${this._baseColor2}
-                            .disabled=${this.disabled}
-                            fixedMenuPosition
-                            @selected=${this._onBaseColor2Change}
-                            @closed=${(e) => e.stopPropagation()}>
-                            ${this._renderDropdownItems()}
-                        </ha-select>
+                        ${this._renderBuilderColorTrigger('color2', this._baseColor2)}
                     </div>
                 ` : ''}
 
@@ -1260,55 +1397,6 @@ export class LCARdSColorPicker extends LitElement {
     */
 
     /**
-     * Render dropdown items with color swatches
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderDropdownItems() {
-        const items = [];
-
-        // Default option
-        items.push(html`
-            <ha-dropdown-item .value=${''}>-- Select Variable --</ha-dropdown-item>
-        `);
-
-        // Transparent option with checkered pattern
-        items.push(html`
-            <ha-dropdown-item .value=${'transparent'}>
-                <span class="color-swatch transparent"></span>
-                Transparent
-            </ha-dropdown-item>
-        `);
-
-        // Match Light option (if enabled — allowMatchLight is already gated on light.* domain,
-        // so no further attribute sniffing needed; brightness-only lights are valid too)
-        if (this.allowMatchLight) {
-            items.push(html`
-                <ha-dropdown-item .value=${'match-light'}>
-                    💡 Match Light Colour
-                </ha-dropdown-item>
-            `);
-        }
-
-        // CSS variables with color swatches, narrowed by the filter bar (if open)
-        this._getFilteredVariables().forEach(variable => {
-            const computedColor = this._computeColor(variable.value);
-            items.push(html`
-                <ha-dropdown-item .value=${variable.value}>
-                    <span
-                        class="color-swatch"
-                        style="background-color: ${computedColor};">
-                    </span>
-                    ${variable.label}
-                </ha-dropdown-item>
-            `);
-        });
-
-        // @ts-ignore - TS2739: auto-suppressed
-        return items;
-    }
-
-    /**
      * Get current dropdown value
      * @returns {string}
      * @private
@@ -1387,22 +1475,6 @@ export class LCARdSColorPicker extends LitElement {
     }
 
     /**
-     * Handle dropdown change
-     * @param {CustomEvent} ev - selected event from ha-select
-     * @private
-     */
-    _handleDropdownChange(ev) {
-        if (this.disabled) return;
-
-        // ha-select fires 'selected' with detail.value (HA 2026.2+ ha-dropdown migration)
-        // @ts-ignore - TS2339: auto-suppressed
-        const newValue = ev.detail?.value ?? ev.target?.value;
-        if (newValue) {
-            this._emitChange(this._computeEmittedValue(newValue, this._applyBrightness));
-        }
-    }
-
-    /**
      * Handle text input change
      * @param {CustomEvent} ev - value-changed event
      * @private
@@ -1465,29 +1537,123 @@ export class LCARdSColorPicker extends LitElement {
     _closePickerPopover() {
         this._popoverOpen = false;
         this._popoverMounted = false;
-        this._pickerMode = false;
+        this._popoverMode = '';
         this._searchText = '';
         this._selectedFamily = 'all';
+    }
+
+    _openBuilderColorPicker(target, ev) {
+        if (this.disabled) return;
+        ev?.stopPropagation();
+        this._builderPickingFor = target;
+        this._builderPopoverOpen = true;
+    }
+
+    _onBuilderPopoverOpened() {
+        this._builderPopoverMounted = true;
+    }
+
+    _closeBuilderPopover() {
+        this._builderPopoverOpen = false;
+        this._builderPopoverMounted = false;
+        this._builderPickingFor = null;
+        this._popoverMode = '';
+        this._searchText = '';
+        this._selectedFamily = 'all';
+    }
+
+    /** Label for a builder color slot — falls back to raw value or placeholder. */
+    _getBuilderColorLabel(value) {
+        if (!value) return '— Select Variable —';
+        if (value === 'transparent') return 'Transparent';
+        return this._cssVariables.find(v => v.value === value)?.label || value;
+    }
+
+    /**
+     * Render a builder color-slot trigger field + its wa-popover.
+     * @param {'color1'|'color2'} target
+     * @param {string} value
+     * @returns {import('lit').TemplateResult}
+     * @private
+     */
+    _renderBuilderColorTrigger(target, value) {
+        const triggerId = `builder-${target}-trigger`;
+        const isOpen = this._builderPopoverOpen && this._builderPickingFor === target;
+        const isMounted = this._builderPopoverMounted && this._builderPickingFor === target;
+        const showPopover = isOpen || isMounted;
+        const computedColor = value ? this._computeColor(value) : null;
+        const label = this._getBuilderColorLabel(value);
+        const isNone = !value;
+
+        return html`
+            <div id="${triggerId}"
+                class="color-trigger-field"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-expanded=${isOpen ? 'true' : 'false'}
+                @click=${(ev) => this._openBuilderColorPicker(target, ev)}
+                @keydown=${(e) => (e.key === 'Enter' || e.key === ' ') && this._openBuilderColorPicker(target, e)}>
+                <span class="color-swatch-trigger"
+                    style="background-color: ${isNone ? 'transparent' : computedColor};
+                           ${isNone ? 'border-style: dashed;' : ''}">
+                </span>
+                <span class="color-trigger-label">${label}</span>
+                <ha-svg-icon class="color-trigger-chevron" .path=${MDI_CHEVRON_DOWN}></ha-svg-icon>
+            </div>
+            ${showPopover ? html`
+                <wa-popover
+                    .open=${isOpen}
+                    style="--body-width: ${this._getPopoverWidth()}px;"
+                    without-arrow
+                    distance="-4"
+                    for="${triggerId}"
+                    placement="bottom"
+                    auto-size="vertical"
+                    auto-size-padding="16"
+                    @wa-after-show=${this._onBuilderPopoverOpened}
+                    @wa-after-hide=${this._closeBuilderPopover}
+                    trap-focus
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Select color">
+                    ${isMounted ? this._renderPopoverContent() : nothing}
+                </wa-popover>
+            ` : nothing}
+        `;
     }
 
     /** Select a color from the list and close the popover. */
     _selectAndClose(value) {
         if (this.disabled) return;
-        const emitted = value ? this._computeEmittedValue(value, this._applyBrightness) : '';
-        this._emitChange(emitted);
-        this._popoverOpen = false;
+        if (this._builderPickingFor) {
+            // Route to the builder color slot — don't emit value-changed
+            if (this._builderPickingFor === 'color1') this._baseColor = value || '';
+            else this._baseColor2 = value || '';
+            this._builderPopoverOpen = false;
+            // _builderPickingFor cleared by _closeBuilderPopover after animation
+        } else {
+            const emitted = value ? this._computeEmittedValue(value, this._applyBrightness) : '';
+            this._emitChange(emitted);
+            this._popoverOpen = false;
+        }
     }
 
-    _togglePickerMode() {
-        this._pickerMode = !this._pickerMode;
+    /** Toggle one of the named popover modes; clicking the active chip returns to list. */
+    _setPopoverMode(mode) {
+        this._popoverMode = this._popoverMode === mode ? '' : mode;
     }
 
     _handlePickerColorChange(ev) {
-        const hex = ev.target.value;
-        if (hex) {
+        const hex = ev.detail.value;
+        if (!hex || this.disabled) return;
+        if (this._builderPickingFor) {
+            if (this._builderPickingFor === 'color1') this._baseColor = hex;
+            else this._baseColor2 = hex;
+        } else {
             this._emitChange(this._computeEmittedValue(hex, this._applyBrightness));
         }
-        this._popoverOpen = false;
+        // Live updates — popover stays open while picking
     }
 
     /**
@@ -1512,9 +1678,28 @@ export class LCARdSColorPicker extends LitElement {
      * @private
      */
     _valueToHex() {
-        const m = this._computedColor?.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        if (!m) return '#000000';
-        return '#' + [m[1], m[2], m[3]].map(n => parseInt(n).toString(16).padStart(2, '0')).join('');
+        // If value is already a hex literal, round-trip it directly with alpha preserved
+        const raw = (this.value || '').trim().toLowerCase();
+        if (/^#[0-9a-f]{8}$/.test(raw)) return raw;
+        if (/^#[0-9a-f]{6}$/.test(raw)) return raw + 'ff';
+        if (/^#[0-9a-f]{4}$/.test(raw)) {
+            const [r, g, b, a] = raw.slice(1).split('');
+            return `#${r}${r}${g}${g}${b}${b}${a}${a}`;
+        }
+        if (/^#[0-9a-f]{3}$/.test(raw)) {
+            const [r, g, b] = raw.slice(1).split('');
+            return `#${r}${r}${g}${g}${b}${b}ff`;
+        }
+        // Fall back to computed color (handles CSS vars, token values, named colors)
+        const rgba = this._computedColor?.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        if (!rgba) return '#000000ff';
+        const r = parseInt(rgba[1]).toString(16).padStart(2, '0');
+        const g = parseInt(rgba[2]).toString(16).padStart(2, '0');
+        const b = parseInt(rgba[3]).toString(16).padStart(2, '0');
+        const a = rgba[4] !== undefined
+            ? Math.round(parseFloat(rgba[4]) * 255).toString(16).padStart(2, '0')
+            : 'ff';
+        return `#${r}${g}${b}${a}`;
     }
 
     /**
@@ -1740,36 +1925,6 @@ export class LCARdSColorPicker extends LitElement {
                 this._amount = 20; // 20% adjustment
             }
 
-            this.requestUpdate();
-        }
-    }
-
-    /**
-     * Handle base color selection change
-     * @param {CustomEvent} ev - selected event from ha-select
-     * @private
-     */
-    _onBaseColorChange(ev) {
-        ev.stopPropagation();
-        // @ts-ignore - TS2339: auto-suppressed
-        const newValue = ev.detail?.value ?? ev.target?.value;
-        if (newValue !== undefined && newValue !== this._baseColor) {
-            this._baseColor = newValue;
-            this.requestUpdate();
-        }
-    }
-
-    /**
-     * Handle second base color selection change (for mix)
-     * @param {CustomEvent} ev - selected event from ha-select
-     * @private
-     */
-    _onBaseColor2Change(ev) {
-        ev.stopPropagation();
-        // @ts-ignore - TS2339: auto-suppressed
-        const newValue = ev.detail?.value ?? ev.target?.value;
-        if (newValue !== undefined && newValue !== this._baseColor2) {
-            this._baseColor2 = newValue;
             this.requestUpdate();
         }
     }
