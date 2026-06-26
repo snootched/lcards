@@ -63,8 +63,29 @@ export class LCARdSColorSection extends LitElement {
                 display: block;
             }
 
-            .mode-toggle {
-                margin-bottom: 12px;
+            .picker-header {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                padding: 0 var(--ha-space-1);
+                margin-bottom: var(--ha-space-3);
+            }
+
+            /* ::part(base) pierces ha-button's shadow DOM to reach the inner <button>.
+               Works because both wa-button-group and ha-button live in our shadow root. */
+            .picker-header wa-button-group ha-button:first-child::part(base) {
+                border-start-start-radius: var(--ha-border-radius-pill);
+                border-end-start-radius: var(--ha-border-radius-pill);
+                border-start-end-radius: 0;
+                border-end-end-radius: 0;
+                border-inline-end: none;
+            }
+
+            .picker-header wa-button-group ha-button:last-child::part(base) {
+                border-start-start-radius: 0;
+                border-end-start-radius: 0;
+                border-start-end-radius: var(--ha-border-radius-pill);
+                border-end-end-radius: var(--ha-border-radius-pill);
             }
 
             .mode-info {
@@ -216,19 +237,26 @@ export class LCARdSColorSection extends LitElement {
      */
     _renderModeToggle(currentMode) {
         return html`
-            <div class="mode-toggle">
-                <ha-button
-                    @click=${this._toggleMode}
-                    outlined>
-                    ${currentMode === 'simple'
-                        ? '🔄 Use State-Based Colors'
-                        : '🔄 Use Single Color'}
-                </ha-button>
-                <div class="mode-info">
-                    ${currentMode === 'simple'
-                        ? 'Currently using a single color for all states'
-                        : 'Currently using different colors per state'}
-                </div>
+            <div class="picker-header">
+                <wa-button-group childSelector="ha-button">
+                    <ha-button iconTag="ha-svg-icon"
+                        variant="brand" size="s"
+                        .appearance=${currentMode === 'simple' ? 'accent' : 'filled'}
+                        @click=${() => { if (currentMode !== 'simple') this._toggleMode(); }}>
+                        Single Color
+                    </ha-button>
+                    <ha-button iconTag="ha-svg-icon"
+                        variant="brand" size="s"
+                        .appearance=${currentMode !== 'simple' ? 'accent' : 'filled'}
+                        @click=${() => { if (currentMode === 'simple') this._toggleMode(); }}>
+                        State Colors
+                    </ha-button>
+                </wa-button-group>
+            </div>
+            <div class="mode-info">
+                ${currentMode === 'simple'
+                    ? 'Currently using a single color for all states'
+                    : 'Currently using different colors per state'}
             </div>
         `;
     }

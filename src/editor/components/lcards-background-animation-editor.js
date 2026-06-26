@@ -923,7 +923,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     // Store current effect index for _setConfigValue callback
     this._currentEffectIndex = index;
 
-    const colorPaths = [{ path: 'color', label: 'Line Colour', helper: 'Main line colour (RGBA recommended)' }];
+    const colorPaths = [{ path: 'color', label: 'Line Colour', helper: 'Main line colour' }];
 
     if (preset === 'grid' || preset === 'grid-hexagonal') {
       colorPaths.push({ path: 'color_major', label: 'Major Line Colour', helper: 'Leave empty to use same as main colour' });
