@@ -737,12 +737,15 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   _renderContourFieldSection(config, index) {
     return html`
       <ha-alert alert-type="info">
-        Contour Field paints a drifting noise field, then slices it into colour bands — like
-        a topographic map. <b>Noise</b> shapes the raw terrain (how big and rough the features
-        are). <b>Contour Bands</b> controls how that terrain is sliced into rings — the full
-        peaks-and-valleys range, always present underneath. <b>Fill</b> floods/drains a
+        <b>Contour Field</b> paints a drifting noise field, then slices it into colour bands — like
+        a topographic map.
+        <br><br> <b>Noise</b> shapes the raw terrain (how big and rough the features
+        are).
+        <br><br> <b>Contour Bands</b> controls how that terrain is sliced into rings — the full
+        peaks-and-valleys range, always present underneath.
+        <br><br> <b>Fill</b> floods/drains a
         waterline over that terrain without changing it, for empty "space" between blobs.
-        <b>Colour</b> sets what fills each ring. Lower "Band Count" + "Cell Size" for a blocky,
+        <br><br> <b>Colour</b> sets what fills each ring. Lower "Band Count" + "Cell Size" for a blocky,
         retro-LCARS look; raise them for a smooth, photographic nebula look.
       </ha-alert>
 

@@ -28,6 +28,8 @@ import { LitElement, html, css, nothing } from 'lit';
 
 const MDI_CHEVRON_DOWN = 'M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z';
 const MDI_LIGHTBULB = 'M12,2A7,7 0 0,1 19,9C19,11.38 17.81,13.47 16,14.74V17A1,1 0 0,1 15,18H9A1,1 0 0,1 8,17V14.74C6.19,13.47 5,11.38 5,9A7,7 0 0,1 12,2M9,21V20H15V21A1,1 0 0,1 14,22H10A1,1 0 0,1 9,21M12,4A5,5 0 0,0 7,9C7,11.05 8.23,12.81 10,13.58V16H14V13.58C15.77,12.81 17,11.05 17,9A5,5 0 0,0 12,4Z';
+const MDI_SORT_ALPHA = 'M9.25,5L12.5,1.75L15.75,5H9.25M15.75,19L12.5,22.25L9.25,19H15.75M3,13H5V11H3M3,6V8H5V6M3,18H5V16H3V18M7,13H21V11H7M7,6V8H21V6M7,18H21V16H7V18Z';
+const MDI_PALETTE = 'M12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2C17.5,2 22,6 22,11A6,6 0 0,1 16,17H14.2C13.9,17 13.7,17.2 13.7,17.5C13.7,17.6 13.75,17.7 13.8,17.8C14.08,18.1 14.25,18.5 14.25,19A3,3 0 0,1 11.25,22L12,22M10,7.5A1.5,1.5 0 0,0 8.5,9A1.5,1.5 0 0,0 10,10.5A1.5,1.5 0 0,0 11.5,9A1.5,1.5 0 0,0 10,7.5M14,7.5A1.5,1.5 0 0,0 12.5,9A1.5,1.5 0 0,0 14,10.5A1.5,1.5 0 0,0 15.5,9A1.5,1.5 0 0,0 14,7.5M7,12.5A1.5,1.5 0 0,0 5.5,14A1.5,1.5 0 0,0 7,15.5A1.5,1.5 0 0,0 8.5,14A1.5,1.5 0 0,0 7,12.5Z';
 
 // All 140 CSS named colors — used by the "Named" popover tab
 const CSS_NAMED_COLORS = [
@@ -66,7 +68,7 @@ const CSS_NAMED_COLORS = [
 import 'vanilla-colorful/hex-alpha-color-picker.js';
 import 'vanilla-colorful/hex-input.js';
 import { ColorUtils } from '../../../core/themes/ColorUtils.js';
-import { getColorFamily, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
+import { getColorFamily, getColorSortKey, compareColorSortKeys, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
 import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
 
 /**
@@ -105,6 +107,7 @@ export class LCARdSColorPicker extends LitElement {
             _popoverOpen: { type: Boolean, state: true },       // CSS-var picker popover open (controls .open)
             _popoverMounted: { type: Boolean, state: true },   // True after wa-after-show; keeps popover in DOM during close animation
             _popoverMode: { type: String, state: true },          // ''|'picker'|'named'|'custom'
+            _sortMode: { type: String, state: true },             // ''|'name'|'gradient'
             _searchText: { type: String, state: true },         // Popover filter text
             _selectedFamily: { type: String, state: true },     // Popover color-family chip filter
             _selectedCategoryGroup: { type: String, state: true }, // Popover scope: 'theme'|'ha'|'all'
@@ -141,6 +144,7 @@ export class LCARdSColorPicker extends LitElement {
         this._popoverOpen = false;
         this._popoverMounted = false;
         this._popoverMode = '';
+        this._sortMode = 'name';
         this._searchText = '';
         this._selectedFamily = 'all';
         this._selectedCategoryGroup = 'theme';
@@ -286,6 +290,39 @@ export class LCARdSColorPicker extends LitElement {
                 padding: 0 var(--ha-space-3) var(--ha-space-3);
                 overflow: auto;
                 flex-shrink: 0;
+            }
+
+            .sort-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 18px;
+                height: 18px;
+                padding: 0;
+                margin-inline-start: auto;
+                flex-shrink: 0;
+                border: none;
+                background: none;
+                cursor: pointer;
+                color: var(--secondary-text-color);
+                opacity: 0.5;
+                border-radius: var(--ha-border-radius-sm);
+                transition: opacity var(--ha-animation-duration-fast, 0.15s);
+            }
+
+            .sort-btn:hover {
+                opacity: 0.9;
+            }
+
+            .sort-btn ha-svg-icon {
+                width: 16px;
+                height: 16px;
+                pointer-events: none;
+            }
+
+            .sort-btn.sort-gradient {
+                color: var(--primary-color);
+                opacity: 1;
             }
 
             .sections ha-filter-chip {
@@ -740,7 +777,33 @@ export class LCARdSColorPicker extends LitElement {
             );
         }
 
+        if (this._sortMode === 'gradient') {
+            // Pre-compute sort keys once (avoids n·log(n) DOM reads inside comparator)
+            const withKeys = vars.map(v => ({ v, k: getColorSortKey(v.value) }));
+            withKeys.sort((a, b) => {
+                const ak = a.k, bk = b.k;
+                if (!ak && !bk) return a.v.label.localeCompare(b.v.label);
+                if (!ak) return 1;
+                if (!bk) return -1;
+                // Family first (hue-wheel order: red → orange → … → gray)
+                const familyDiff = FAMILY_ORDER.indexOf(ak.family) - FAMILY_ORDER.indexOf(bk.family);
+                if (familyDiff !== 0) return familyDiff;
+                // Within family: lightness (dark → light) so variants cluster visually
+                const lightnessDiff = ak.lightness - bk.lightness;
+                if (lightnessDiff !== 0) return lightnessDiff;
+                // Tiebreak by hue, then name
+                return (ak.hue - bk.hue) || a.v.label.localeCompare(b.v.label);
+            });
+            vars = withKeys.map(({ v }) => v);
+        } else {
+            vars = [...vars].sort((a, b) => a.label.localeCompare(b.label));
+        }
+
         return vars;
+    }
+
+    _cycleSortMode() {
+        this._sortMode = this._sortMode === 'gradient' ? 'name' : 'gradient';
     }
 
     _handleFilterSearchInput(ev) {
@@ -777,7 +840,7 @@ export class LCARdSColorPicker extends LitElement {
                     @input=${this._handleFilterSearchInput}>
                 </ha-input-search>
 
-                <!-- 2. Sections row: scope chips | separator | Picker | Named | Custom -->
+                <!-- 2. Sections row: scope chips | separator | Picker | CSS | Custom -->
                 <ha-chip-set class="sections">
                     ${Object.keys(CATEGORY_GROUPS).map(group => html`
                         <ha-filter-chip
@@ -830,9 +893,17 @@ export class LCARdSColorPicker extends LitElement {
                         `)}
                     </ha-chip-set>
 
-                    <!-- 4. Section title header (floats above list) -->
+                    <!-- 4. Section title header (floats above list) with sort button -->
                     <div class="section-title-wrapper">
-                        <div class="section-title show">${sectionTitle}</div>
+                        <div class="section-title show">
+                            <span>${sectionTitle}</span>
+                            <button
+                                class="sort-btn ${this._sortMode === 'gradient' ? 'sort-gradient' : ''}"
+                                title=${this._sortMode === 'gradient' ? 'Sort: Colour (click for A–Z)' : 'Sort: A–Z (click for colour)'}
+                                @click=${this._cycleSortMode}>
+                                <ha-svg-icon .path=${this._sortMode === 'gradient' ? MDI_PALETTE : MDI_SORT_ALPHA}></ha-svg-icon>
+                            </button>
+                        </div>
                     </div>
                 ` : nothing}
 
