@@ -335,7 +335,10 @@ export class ThemeTokenResolver {
     // CSS variable may change between calls (theme application, alert mode
     // switches) and a stale cached result would produce the wrong colour.
     // Concrete expressions (no var()) are safe to cache as usual.
-    const isCacheable = !expression.includes('var(');
+    // Also disable caching when an element context is provided: different card
+    // elements may be in different HA sections/views with different section-scoped
+    // theme vars, so the result is context-dependent and must not be shared.
+    const isCacheable = !expression.includes('var(') && !context?.element;
 
     if (isCacheable && this.computedCache.has(expression)) {
       return this.computedCache.get(expression);
@@ -413,8 +416,9 @@ export class ThemeTokenResolver {
         // that ColorUtils receives a hex/rgb string rather than var(--name).
         // e.g. lighten(var(--lcards-green), 0.3) — Canvas / anime.js cannot
         // use color-mix() output, so we must materialise the value here.
+        // Pass element from context so section-scoped theme vars are visible.
         if (typeof arg === 'string' && arg.includes('var(')) {
-          return ColorUtils.resolveCssVariable(arg, arg);
+          return ColorUtils.resolveCssVariable(arg, arg, context?.element || null);
         }
         // If argument is a number string (possibly with %), parse it
         const trimmedArg = typeof arg === 'string' ? arg.trim() : arg;

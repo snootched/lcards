@@ -2848,19 +2848,23 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Step 2: match-light / match-brightness substitution
         value = this._resolveMatchLightColor(value);
 
-        // Step 3: theme: prefix safety net for render-time template outputs
+        // Step 3: theme: prefix safety net for render-time template outputs.
+        // Pass `this` as element context so that _resolveComputedToken() can read
+        // CSS vars from the card's inherited scope (picks up section-scoped theme vars).
         const resolver = window.lcards?.core?.themeManager?.resolver;
         if (resolver) {
             const tokenPath = typeof value === 'string' && value.startsWith('theme:')
                 ? value.slice(6) : value;
-            value = resolver.resolve(tokenPath, value);
+            value = resolver.resolve(tokenPath, value, { element: this });
         }
 
-        // Step 4: CSS variable resolution for SVG/Canvas2D contexts
+        // Step 4: CSS variable resolution for SVG/Canvas2D contexts.
         // Only applied to bare var() strings — color-mix() and similar functions are
         // handled natively by the browser and must not be unwrapped here.
+        // Pass `this` as element so that section-scoped CSS vars are visible via
+        // CSS custom property inheritance from the view/section container.
         if (typeof value === 'string' && value.trim().startsWith('var(')) {
-            return ColorUtils.resolveCssVariable(value) || fallback;
+            return ColorUtils.resolveCssVariable(value, fallback, this) || fallback;
         }
 
         return value || fallback;

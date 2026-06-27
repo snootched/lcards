@@ -250,6 +250,10 @@ export class ColorUtils {
   /**
    * @param {string|string[]} value - CSS value that may contain one or more var(), or an array of values
    * @param {string} [defaultValue='#000000'] - Fallback for each var() that cannot be resolved
+   * @param {Element|null} [element=null] - Element to read computed styles from. When provided,
+   *   CSS custom properties are read from this element's computed context (which inherits from
+   *   parent elements, including HA section/view containers that carry per-section theme vars).
+   *   Defaults to document.documentElement for backward-compatibility.
    * @returns {string|string[]} Input with every var() replaced by its computed value
    *
    * @example
@@ -264,11 +268,14 @@ export class ColorUtils {
    *
    * // Arrays
    * ColorUtils.resolveCssVariable(['var(--color1)', 'var(--color2)']) // => [resolved1, resolved2]
+   *
+   * // Element-scoped (reads from card's inherited CSS context, picks up section-scoped theme vars)
+   * ColorUtils.resolveCssVariable('var(--lcars-card-top-color)', '#888', this)
    */
-  static resolveCssVariable(value, defaultValue = '#000000') {
+  static resolveCssVariable(value, defaultValue = '#000000', element = null, _depth = 0) {
     // Handle arrays recursively
     if (Array.isArray(value)) {
-      return value.map(v => this.resolveCssVariable(v, defaultValue));
+      return value.map(v => this.resolveCssVariable(v, defaultValue, element, _depth));
     }
 
     // Non-string or falsy values pass through unchanged
@@ -280,12 +287,20 @@ export class ColorUtils {
       return value;
     }
 
+    // Guard against circular var() references (e.g. --a: var(--b); --b: var(--a)).
+    if (_depth > 10) {
+      lcardsLog.warn('[ColorUtils] resolveCssVariable: max recursion depth reached, returning default');
+      return defaultValue;
+    }
+
     // Replace every var() occurrence in-place.
-    // The regex handles one level of nesting — var(--a, var(--b, #x)) — which
-    // covers all real-world cases in the LCARdS token set.
+    // The regex handles one level of syntactic nesting — var(--a, var(--b, #x)).
+    // Deep chains (--a: var(--b); --b: #x) are followed by _resolveSingleVar's
+    // recursive call into this method when the obtained property value is itself
+    // a var() reference.
     const resolved = value.replace(
       /var\((?:[^)(]|\([^)]*\))*\)/g,
-      (varExpr) => this._resolveSingleVar(varExpr, defaultValue)
+      (varExpr) => this._resolveSingleVar(varExpr, defaultValue, element, _depth)
     );
 
     lcardsLog.trace(`[ColorUtils] resolveCssVariable: ${value} → ${resolved}`);
@@ -298,9 +313,14 @@ export class ColorUtils {
    * @private
    * @param {string} varExpr - A complete `var(...)` token
    * @param {string} defaultValue - Last-resort value if the var is undefined and has no fallback
+   * @param {Element|null} [element=null] - Element to read computed styles from (threaded through
+   *   from resolveCssVariable). Falls back to document.documentElement when null.
+   * @param {number} [_depth=0] - Recursion depth counter (internal use only).
    * @returns {string} Resolved value
    */
-  static _resolveSingleVar(varExpr, defaultValue) {
+  static _resolveSingleVar(varExpr, defaultValue, element = null, _depth = 0) {
+    const el = element || document.documentElement;
+
     // Extract --custom-property-name and optional fallback.
     // The fallback capture group is greedy so it picks up everything after the
     // first comma, including nested var() expressions.
@@ -310,7 +330,7 @@ export class ColorUtils {
       const nameMatch = varExpr.match(/var\(\s*(--[^,)]+)/);
       if (nameMatch) {
         try {
-          const computed = getComputedStyle(document.documentElement)
+          const computed = getComputedStyle(el)
             .getPropertyValue(nameMatch[1].trim()).trim();
           if (computed) return computed;
         } catch (_) { /* ignore */ }
@@ -322,10 +342,16 @@ export class ColorUtils {
     const fallback = match[2]?.trim();
 
     try {
-      const computed = getComputedStyle(document.documentElement)
+      const computed = getComputedStyle(el)
         .getPropertyValue(varName).trim();
       if (computed) {
         lcardsLog.trace(`[ColorUtils] ✅ Resolved ${varName} → ${computed}`);
+        // HA themes commonly chain vars (--a: var(--b); --b: #hex).
+        // getPropertyValue returns the raw token value, not the fully computed
+        // colour, so follow the chain until we reach a concrete value.
+        if (computed.includes('var(')) {
+          return String(this.resolveCssVariable(computed, defaultValue, element, _depth + 1));
+        }
         return computed;
       }
     } catch (e) {
@@ -337,7 +363,7 @@ export class ColorUtils {
     // input type, but fallback is always a string here so the result is always
     // a string. The cast keeps _resolveSingleVar's return type consistent.
     if (fallback) {
-      return String(this.resolveCssVariable(fallback, defaultValue));
+      return String(this.resolveCssVariable(fallback, defaultValue, element, _depth + 1));
     }
 
     lcardsLog.trace(`[ColorUtils] ⚠️ Using default for ${varExpr}: ${defaultValue}`);

@@ -1095,6 +1095,23 @@ export class LCARdSSlider extends LCARdSButton {
      * @returns {string|number|null} Resolved color
      * @private
      */
+    /**
+     * Override: treat any entity whose state is a valid finite number as 'active'.
+     * input_number, number, counter, and numeric sensors have states like "75" or
+     * "0.5" — these aren't in the base class activeStates list so they fall through
+     * to 'inactive' (grey) without this override. String-state domains (light,
+     * media_player, switch, …) are unaffected because their states are not numeric.
+     * @override
+     */
+    _classifyEntityState(entity = null) {
+        const target = entity || this._entity;
+        if (target && target.state !== 'unavailable' && target.state !== 'unknown') {
+            const n = parseFloat(target.state);
+            if (!isNaN(n) && isFinite(n)) return 'active';
+        }
+        return super._classifyEntityState(entity);
+    }
+
     _resolveStateBorderColor(colorConfig) {
         // Use base class method for state-based color resolution
         return this._resolveEntityStateColor(
@@ -1186,7 +1203,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', String(leftSize));
             rect.setAttribute('height', String(height));
             const leftColor = this._resolveStateBorderColor(borderConfig.left.color);
-            const resolvedColor = ColorUtils.resolveCssVariable(String(leftColor ?? ''));
+            const resolvedColor = ColorUtils.resolveCssVariable(String(leftColor ?? ''), '#000000', this);
             // Ensure color is valid before setting (never empty/null)
             rect.setAttribute('fill', String(resolvedColor || '#000000'));
             fragment.appendChild(rect);
@@ -1202,7 +1219,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', String(width));
             rect.setAttribute('height', String(topSize));
             const topColor = this._resolveStateBorderColor(borderConfig.top.color);
-            const resolvedColor = ColorUtils.resolveCssVariable(String(topColor ?? ''));
+            const resolvedColor = ColorUtils.resolveCssVariable(String(topColor ?? ''), '#000000', this);
             // Ensure color is valid before setting (never empty/null)
             rect.setAttribute('fill', String(resolvedColor || '#000000'));
             fragment.appendChild(rect);
@@ -1218,7 +1235,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', String(rightSize));
             rect.setAttribute('height', String(height));
             const rightColor = this._resolveStateBorderColor(borderConfig.right.color);
-            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(rightColor ?? '')) || '#000000'));
+            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(rightColor ?? ''), '#000000', this) || '#000000'));
             fragment.appendChild(rect);
         }
 
@@ -1232,7 +1249,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', String(width));
             rect.setAttribute('height', String(bottomSize));
             const bottomColor = this._resolveStateBorderColor(borderConfig.bottom.color);
-            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(bottomColor ?? '')) || '#000000'));
+            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(bottomColor ?? ''), '#000000', this) || '#000000'));
             fragment.appendChild(rect);
         }
 
@@ -3821,11 +3838,14 @@ export class LCARdSSlider extends LCARdSButton {
             borders.forEach(side => {
                 const element = this._borderElements[side];
                 if (element) {
-                    const borderConfig = this._sliderStyle?.border?.[side];
-                    const restoreColor = borderConfig ?
-                        this._resolveStateBorderColor(borderConfig.color) :
-                        'black';
-                    element.style.fill = restoreColor;
+                    // Clear the inline style so the SVG presentation attribute
+                    // (set by the last render via _injectBordersToElement, resolved
+                    // against the global theme scope) shows through.  Computing a
+                    // restore color here produces a color-mix() expression containing
+                    // var(--lcars-card-button-color) which the browser re-resolves
+                    // from the element's inherited CSS scope — picking up any
+                    // section-scoped theme override and returning the wrong colour.
+                    element.style.fill = '';
                 }
             });
         };
