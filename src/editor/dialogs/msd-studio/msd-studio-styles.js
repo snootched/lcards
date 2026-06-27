@@ -12,6 +12,20 @@ import { css } from 'lit';
 export const msdStudioStyles = css`
     :host {
         display: block;
+        color: var(--primary-text-color);
+    }
+
+    /* List item styled like ha-card but without transition:all or color inheritance issues */
+    .list-item-card {
+        background: var(--ha-card-background, var(--card-background-color, white));
+        box-shadow: var(--ha-card-box-shadow, none);
+        box-sizing: border-box;
+        border-radius: var(--ha-card-border-radius, var(--ha-border-radius-lg));
+        border-width: var(--ha-card-border-width, var(--ha-border-width-sm));
+        border-style: solid;
+        border-color: var(--ha-card-border-color, var(--divider-color, #e0e0e0));
+        padding: var(--ha-space-3);
+        margin-bottom: var(--ha-space-2);
     }
 
     /* ha-dialog Sizing - Web Awesome ha-dialog uses --ha-dialog-* CSS properties */

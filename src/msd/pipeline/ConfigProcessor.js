@@ -28,6 +28,10 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
 
   lcardsLog.trace('[ConfigProcessor] Processing config with SVG extraction');
 
+  // Unwrap nested { type, msd: {...} } card config structure — the pipeline receives the full
+  // card config, but anchor/viewBox data lives inside the `msd` sub-object.
+  const msdSubConfig = userMsdConfig.msd || userMsdConfig;
+
   // Extract SVG metadata BEFORE config processing
   let viewBox = null;
   let anchors = {};
@@ -39,7 +43,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
     // Extract and merge anchors
     const anchorResult = AnchorProcessor.processAnchors(
       svgContent,
-      userMsdConfig.anchors || {},
+      msdSubConfig.anchors || {},
       viewBox || [0, 0, 1920, 1080]
     );
 
@@ -51,12 +55,12 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
       svgAnchors: anchorResult.metadata.svgAnchorCount,
       userAnchors: anchorResult.metadata.userAnchorCount
     });
-  } else if (userMsdConfig.base_svg?.source === 'none') {
+  } else if (msdSubConfig.base_svg?.source === 'none') {
     // No SVG - use explicit viewBox from config
-    viewBox = userMsdConfig.view_box;
+    viewBox = msdSubConfig.view_box;
     anchors = AnchorProcessor.processAnchors(
       null,
-      userMsdConfig.anchors || {},
+      msdSubConfig.anchors || {},
       viewBox || [0, 0, 1920, 1080]
     ).anchors;
 
@@ -67,7 +71,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
   // This ensures anchors/viewBox flow through the merge pipeline with provenance
   const enhancedConfig = {
     ...userMsdConfig,
-    view_box: viewBox || userMsdConfig.view_box || [0, 0, 1920, 1080],
+    view_box: viewBox || msdSubConfig.view_box || [0, 0, 1920, 1080],
     anchors: anchors,  // Put extracted anchors here - will be at top-level after processConfig
     _svgMetadata: {
       extractedViewBox: viewBox,

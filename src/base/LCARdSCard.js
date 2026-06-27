@@ -975,6 +975,29 @@ export class LCARdSCard extends LCARdSNativeCard {
      * }
      */
     _setupAutoSizing(onResize = null) {
+        // MSD context: the card is inside an SVG foreignObject whose visual size changes
+        // with the SVG viewBox scale. getBoundingClientRect() on the host returns the
+        // *visually scaled* size (SVG user units × viewBox scale), not the CSS layout size.
+        // If the window-resize fallback used that value as _containerSize, the viewBox
+        // would be set to the scaled size and fonts would always render at the same absolute
+        // pixel count regardless of MSD card size (the original bug).
+        //
+        // Instead: lock _containerSize at the design dimensions the MSD author specified.
+        // With a fixed viewBox="0 0 W H" and SVG width="100%", 1 SVG unit maps to
+        // (foreignObject CSS px / W) page pixels — content scales proportionally. ✓
+        const msdDesignAttr = this.getAttribute?.('data-msd-design-size');
+        if (msdDesignAttr) {
+            const [w, h] = msdDesignAttr.split(',').map(Number);
+            if (w > 0 && h > 0) {
+                this._autoSizingCallback = onResize;
+                this._autoSizingEnabled = true; // keeps reconnect path working
+                // _resizeObserver intentionally left null — SVG handles all scaling
+                this._containerSize = { width: w, height: h };
+                onResize?.(w, h);
+            }
+            return;
+        }
+
         // Clean up existing observer and window handler if any
         if (this._resizeObserver) {
             this._resizeObserver.disconnect();

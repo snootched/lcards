@@ -1975,7 +1975,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const [x, y] = Array.isArray(position) ? position : [0, 0];
 
         return html`
-            <ha-card style="padding: 12px; background: var(--card-background-color, #fff); opacity: 0.85;">
+            <div class="list-item-card" style="opacity: 0.85;">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <ha-icon icon="mdi:image-marker" style="--mdc-icon-size: 32px; color: var(--info-color, #2196F3);"></ha-icon>
                     <div style="flex: 1;">
@@ -1995,7 +1995,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ha-icon-button>
                     </div>
                 </div>
-            </ha-card>
+            </div>
         `;
     }
 
@@ -2010,7 +2010,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const [x, y] = Array.isArray(position) ? position : [0, 0];
 
         return html`
-            <ha-card style="padding: 12px;">
+            <div class="list-item-card">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <ha-icon icon="mdi:map-marker" style="--mdc-icon-size: 32px; color: var(--primary-color);"></ha-icon>
                     <div style="flex: 1;">
@@ -2037,7 +2037,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ha-icon-button>
                     </div>
                 </div>
-            </ha-card>
+            </div>
         `;
     }
 
@@ -4537,20 +4537,28 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (!msdCard) return '';
 
         // Resolve position - handle anchor-based positioning (string reference)
+        // @ts-ignore - TS2339: auto-suppressed
+        const highlightAnchors = msdCard._msdPipeline?.getResolvedModel()?.anchors || {};
         let resolvedPosition;
-        if (typeof control.position === 'string') {
-            // Get complete merged anchors from card's resolved model (includes SVG + user-defined)
-            // @ts-ignore - TS2339: auto-suppressed
-            const anchors = msdCard._msdPipeline?.getResolvedModel()?.anchors || {};
-            resolvedPosition = anchors[control.position];
+        if (Array.isArray(control.position)) {
+            resolvedPosition = control.position;
+        } else if (typeof control.position === 'string') {
+            resolvedPosition = highlightAnchors[control.position];
             if (!resolvedPosition) {
                 lcardsLog.warn(`⚠️ [MSD Studio] Anchor '${control.position}' not found in resolved model`);
                 // @ts-ignore - TS2322: auto-suppressed
                 return '';
             }
+        } else if (control.anchor) {
+            resolvedPosition = highlightAnchors[control.anchor];
+            if (!resolvedPosition) {
+                lcardsLog.warn(`⚠️ [MSD Studio] Anchor '${control.anchor}' not found in resolved model`);
+                // @ts-ignore - TS2322: auto-suppressed
+                return '';
+            }
         } else {
-            // Direct coordinate positioning
-            resolvedPosition = control.position || [0, 0];
+            // @ts-ignore - TS2322: auto-suppressed
+            return '';
         }
 
         // Get size - default to 100x100 if not specified
@@ -4562,7 +4570,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const [width, height] = size;
 
         // Apply attachment offset (same logic as MsdControlsRenderer and bounding box)
-        const attachment = control.attachment || 'top-left';
+        const attachment = control.attachment || 'center';
         const offsetMap = {
             'top-left': [0, 0],
             'top': [-width / 2, 0],
@@ -4716,11 +4724,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const overlays = this._workingConfig.msd?.overlays || [];
             const overlay = overlays.find(o => o.id === line.anchor);
             if (overlay) {
-                if (overlay.position) {
-                    startPos = overlay.position;
-                } else if (overlay.anchor) {
-                    startPos = OverlayUtils.resolvePosition(overlay.anchor, allAnchors);
-                }
+                startPos = OverlayUtils.resolvePosition(overlay.position || overlay.anchor, allAnchors);
             }
         }
 
@@ -4730,11 +4734,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const overlays = this._workingConfig.msd?.overlays || [];
             const overlay = overlays.find(o => o.id === line.attach_to);
             if (overlay) {
-                if (overlay.position) {
-                    endPos = overlay.position;
-                } else if (overlay.anchor) {
-                    endPos = OverlayUtils.resolvePosition(overlay.anchor, allAnchors);
-                }
+                endPos = OverlayUtils.resolvePosition(overlay.position || overlay.anchor, allAnchors);
             }
         }
 
@@ -5315,7 +5315,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     const [width, height] = size;
 
                     // Apply attachment offset (same logic as MsdControlsRenderer)
-                    const attachment = control.attachment || 'top-left';
+                    const attachment = control.attachment || 'center';
                     const offsetMap = {
                         'top-left': [0, 0],
                         'top': [-width / 2, 0],
@@ -6658,20 +6658,23 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Render attachment points for controls (rectangles with corners and edges)
         const controlElements = controls.map((control, index) => {
-            // Resolve position for both anchored and explicitly positioned controls
+            // Resolve position: [x,y] array, named anchor string (position: or anchor:), or none
             let resolvedPosition;
             if (control.position && Array.isArray(control.position)) {
-                // Explicitly positioned
                 resolvedPosition = control.position;
+            } else if (typeof control.position === 'string') {
+                resolvedPosition = OverlayUtils.resolvePosition(control.position, anchors);
+                if (!resolvedPosition) {
+                    lcardsLog.warn('[MSDStudio] Failed to resolve position anchor for control:', control.id, control.position);
+                    return '';
+                }
             } else if (control.anchor) {
-                // Anchored to a named anchor - resolve using OverlayUtils
                 resolvedPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
                 if (!resolvedPosition) {
                     lcardsLog.warn('[MSDStudio] Failed to resolve anchor for control:', control.id, control.anchor);
                     return '';
                 }
             } else {
-                // No position info
                 lcardsLog.warn('[MSDStudio] Control has neither position nor anchor:', control.id);
                 return '';
             }
@@ -6683,7 +6686,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             const [rawX, rawY] = resolvedPosition;
             const [width, height] = control.size;
-            const attachment = control.attachment || 'top-left';
+            const attachment = control.attachment || 'center';
 
             // Apply attachment offset (same logic as MsdControlsRenderer)
             const offsetMap = {
@@ -7114,7 +7117,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const hasCard = control.card && control.card.type;
 
         return html`
-            <ha-card style="padding: 12px; margin-bottom: 8px;">
+            <div class="list-item-card">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <ha-icon icon="mdi:card-outline" style="--mdc-icon-size: 32px; color: var(--primary-color);"></ha-icon>
                     <div style="flex: 1;">
@@ -7141,7 +7144,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ha-icon-button>
                     </div>
                 </div>
-            </ha-card>
+            </div>
         `;
     }
 
@@ -8840,7 +8843,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         return html`
-            <ha-card style="padding: 12px; margin-bottom: 8px;">
+            <div class="list-item-card">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <!-- Line Style Preview -->
                     <div style="
@@ -8901,7 +8904,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </ha-icon-button>
                 </div>
             </div>
-            </ha-card>
+            </div>
         `;
     }
 

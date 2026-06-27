@@ -51,9 +51,6 @@ export class LineOverlay extends OverlayBase {
     this.gradientCache = new Map();
     this.patternCache = new Map();
 
-    // Attachment points for overlay-to-overlay connections
-    this.overlayAttachmentPoints = null;
-
     lcardsLog.trace(`[LineOverlay] Created instance for overlay ${overlay.id}`);
   }
 
@@ -81,16 +78,6 @@ export class LineOverlay extends OverlayBase {
       lcardsLog.error(`[LineOverlay] Error initializing overlay ${this.overlay.id}:`, error);
       throw error;
     }
-  }
-
-  /**
-   * Set overlay attachment points for overlay-to-overlay line connections
-   *
-   * @param {Map} overlayAttachmentPoints - Map of overlay ID to attachment point data
-   */
-  setOverlayAttachmentPoints(overlayAttachmentPoints) {
-    this.overlayAttachmentPoints = overlayAttachmentPoints;
-    lcardsLog.trace(`[LineOverlay] Updated with ${overlayAttachmentPoints?.size || 0} attachment points`);
   }
 
   /**
@@ -321,7 +308,6 @@ export class LineOverlay extends OverlayBase {
     this.markerCache.clear();
     this.gradientCache.clear();
     this.patternCache.clear();
-    this.overlayAttachmentPoints = null;
 
     // Call parent destroy
     super.destroy();
@@ -466,16 +452,13 @@ export class LineOverlay extends OverlayBase {
   _resolveAnchor(overlay, anchors) {
     lcardsLog.trace(`[LineOverlay] 🎯 _resolveAnchor for ${overlay.id}:`, {
       anchor: overlay.anchor,
-      anchor_side: overlay.anchor_side,
-      hasOverlayAttachmentPoints: this.overlayAttachmentPoints?.has(overlay.anchor)
+      anchor_side: overlay.anchor_side
     });
 
-    // PRIORITY 1: Check if we have a virtual anchor (overlay.side format) with gap already applied
-    // This is created by AdvancedRenderer when it processes overlay-to-overlay connections
+    // PRIORITY 1: virtual anchor with gap pre-applied by AdvancedRenderer
+    // e.g. anchors['n_hub.top'] built by _buildDynamicOverlayAnchors
     if (typeof overlay.anchor === 'string') {
       const anchorSide = (overlay.anchor_side || '').toLowerCase();
-
-      // Construct virtual anchor ID the same way AdvancedRenderer does
       const virtualAnchorId = anchorSide && anchorSide !== 'center'
         ? `${overlay.anchor}.${anchorSide}`
         : overlay.anchor;
@@ -486,7 +469,6 @@ export class LineOverlay extends OverlayBase {
         hasInAnchors: !!anchors[virtualAnchorId]
       });
 
-      // Try to resolve the virtual anchor first (gap already applied by AdvancedRenderer)
       const virtualAnchor = OverlayUtils.resolvePosition(virtualAnchorId, anchors);
       if (virtualAnchor) {
         lcardsLog.trace(`[LineOverlay] ✅ Resolved virtual anchor (gap pre-applied):`, virtualAnchor);
@@ -494,23 +476,7 @@ export class LineOverlay extends OverlayBase {
       }
     }
 
-    // PRIORITY 2: Check if anchor refers to an overlay (fallback if virtual anchor doesn't exist)
-    if (typeof overlay.anchor === 'string' && this.overlayAttachmentPoints?.has(overlay.anchor)) {
-      const sourceAttachmentPoints = this.overlayAttachmentPoints.get(overlay.anchor);
-      if (sourceAttachmentPoints?.points) {
-        const anchorSide = overlay.anchor_side || 'center';
-        const sourcePoint = this._resolveAttachmentPoint(sourceAttachmentPoints.points, anchorSide);
-
-        if (sourcePoint) {
-          const anchorGap = overlay.anchor_gap || 0;
-          const result = this._applyGapToAttachmentPoint(sourcePoint, anchorSide, anchorGap, sourceAttachmentPoints.bbox);
-          lcardsLog.trace(`[LineOverlay] Resolved from overlayAttachmentPoints (gap applied on-the-fly):`, result);
-          return result;
-        }
-      }
-    }
-
-    // PRIORITY 3: Standard anchor resolution (final fallback)
+    // PRIORITY 2: standard static anchor resolution (named anchor or [x, y])
     const fallback = OverlayUtils.resolvePosition(overlay.anchor, anchors);
     lcardsLog.trace(`[LineOverlay] Using fallback resolution:`, fallback);
     return fallback;
@@ -524,16 +490,12 @@ export class LineOverlay extends OverlayBase {
   _resolveAttachTo(overlay, anchors) {
     lcardsLog.trace(`[LineOverlay] 🎯 _resolveAttachTo for ${overlay.id}:`, {
       attach_to: overlay.attach_to,
-      attach_side: overlay.attach_side,
-      hasOverlayAttachmentPoints: this.overlayAttachmentPoints?.has(overlay.attach_to)
+      attach_side: overlay.attach_side
     });
 
-    // PRIORITY 1: Check if we have a virtual anchor (overlay.side format) with gap already applied
-    // This is created by AdvancedRenderer when it processes overlay-to-overlay connections
+    // PRIORITY 1: virtual anchor with gap pre-applied by AdvancedRenderer
     if (typeof overlay.attach_to === 'string') {
       const attachSide = (overlay.attach_side || '').toLowerCase();
-
-      // Construct virtual anchor ID the same way AdvancedRenderer does
       const virtualAnchorId = attachSide && attachSide !== 'center'
         ? `${overlay.attach_to}.${attachSide}`
         : overlay.attach_to;
@@ -544,7 +506,6 @@ export class LineOverlay extends OverlayBase {
         hasInAnchors: !!anchors[virtualAnchorId]
       });
 
-      // Try to resolve the virtual anchor first (gap already applied by AdvancedRenderer)
       const virtualAnchor = OverlayUtils.resolvePosition(virtualAnchorId, anchors);
       if (virtualAnchor) {
         lcardsLog.trace(`[LineOverlay] ✅ Resolved virtual anchor (gap pre-applied):`, virtualAnchor);
@@ -552,23 +513,7 @@ export class LineOverlay extends OverlayBase {
       }
     }
 
-    // PRIORITY 2: Check if attach_to refers to an overlay (fallback if virtual anchor doesn't exist)
-    if (typeof overlay.attach_to === 'string' && this.overlayAttachmentPoints?.has(overlay.attach_to)) {
-      const targetAttachmentPoints = this.overlayAttachmentPoints.get(overlay.attach_to);
-      if (targetAttachmentPoints?.points) {
-        const attachSide = overlay.attach_side || 'center';
-        const targetPoint = this._resolveAttachmentPoint(targetAttachmentPoints.points, attachSide);
-
-        if (targetPoint) {
-          const attachGap = overlay.attach_gap || 0;
-          const result = this._applyGapToAttachmentPoint(targetPoint, attachSide, attachGap, targetAttachmentPoints.bbox);
-          lcardsLog.trace(`[LineOverlay] Resolved from overlayAttachmentPoints (gap applied on-the-fly):`, result);
-          return result;
-        }
-      }
-    }
-
-    // PRIORITY 3: Standard attach_to resolution (final fallback)
+    // PRIORITY 2: standard static anchor resolution
     const fallback = OverlayUtils.resolvePosition(overlay.attach_to, anchors);
     lcardsLog.trace(`[LineOverlay] Using fallback resolution:`, fallback);
     return fallback;
