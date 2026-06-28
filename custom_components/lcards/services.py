@@ -12,6 +12,7 @@ Provides the lcards.* action namespace:
   lcards.reload           — fire a reload event to all connected frontends
   lcards.set_log_level    — change JS frontend log level at runtime
   lcards.trigger_effect   — fire a named screen effect on target devices/users
+  lcards.play_sound       — play a sound effect on target devices/users
 
 All services accept four optional targeting fields (all may be combined):
 
@@ -64,6 +65,20 @@ _ALERT_MODES = [
     "blue_alert",
     "gray_alert",
     "black_alert",
+]
+
+# Canonical sound event keys — must stay in sync with EVENT_CATEGORY in
+# src/core/sound/SoundManager.js. Validated here so a typo in an automation
+# surfaces as a clear HA-side error instead of a silent no-op in the browser.
+_SOUND_EVENT_TYPES = [
+    "card_tap", "card_hold", "card_double_tap", "card_hover",
+    "button_tap", "toggle_on", "toggle_off",
+    "slider_drag_start", "slider_drag_end", "slider_change",
+    "more_info_open",
+    "menu_expand", "nav_page", "dialog_open", "dialog_close",
+    "dashboard_edit_start", "dashboard_edit_save",
+    "alert_red", "alert_yellow", "alert_blue", "alert_gray", "alert_black",
+    "alert_clear", "system_ready", "error", "notification",
 ]
 
 # HA event name for the Python → JS push channel.
@@ -167,6 +182,7 @@ SERVICE_RELOAD         = "reload"
 SERVICE_SET_LOG_LEVEL  = "set_log_level"
 SERVICE_TRIGGER_EFFECT = "trigger_effect"
 SERVICE_CLEAR_EFFECT   = "clear_effect"
+SERVICE_PLAY_SOUND     = "play_sound"
 SERVICE_SHOW_PORTAL_CARD  = "show_portal_card"
 SERVICE_CLEAR_PORTAL_CARD = "clear_portal_card"
 SERVICE_BORG_ASSIMILATE   = "borg_assimilate"    # Easter egg
@@ -184,6 +200,7 @@ _ALL_SERVICES = [
     SERVICE_SET_LOG_LEVEL,
     SERVICE_TRIGGER_EFFECT,
     SERVICE_CLEAR_EFFECT,
+    SERVICE_PLAY_SOUND,
     SERVICE_SHOW_PORTAL_CARD,
     SERVICE_CLEAR_PORTAL_CARD,
     SERVICE_BORG_ASSIMILATE,
@@ -302,6 +319,28 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             payload["duration"] = duration
         device_ids, user_ids = await _async_resolve_targets(hass, call)
         _fire_targeted_event(hass, "trigger_effect", payload, device_ids, user_ids)
+    async def handle_play_sound(call: ServiceCall) -> None:
+        """Play a sound effect on target LCARdS frontends.
+
+        Provide either ``event_type`` (plays whatever sound is currently
+        configured for that UI event on the target device, respecting its
+        overrides/scheme) or ``asset_key`` (plays one exact sound file,
+        bypassing scheme/overrides). If both are given, asset_key wins.
+        """
+        event_type = call.data.get("event_type")
+        asset_key  = call.data.get("asset_key")
+        _LOGGER.info(
+            "LCARdS service: play_sound (event_type=%r, asset_key=%r)",
+            event_type, asset_key,
+        )
+        payload: dict = {}
+        if event_type:
+            payload["event_type"] = event_type
+        if asset_key:
+            payload["asset_key"] = asset_key
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        _fire_targeted_event(hass, "play_sound", payload, device_ids, user_ids)
+
     async def handle_clear_effect(call: ServiceCall) -> None:
         """Clear screen effects on target LCARdS frontends.
 
@@ -475,6 +514,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         DOMAIN, SERVICE_CLEAR_EFFECT, handle_clear_effect,
         schema=vol.Schema({
             vol.Optional("slot"): vol.In(["backdrop", "canvas", "color"]),
+            **_TARGET_FIELDS,
+        }),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_PLAY_SOUND, handle_play_sound,
+        schema=vol.Schema({
+            vol.Optional("event_type"): vol.In(_SOUND_EVENT_TYPES),
+            vol.Optional("asset_key"):  vol.All(str, vol.Length(min=1)),
             **_TARGET_FIELDS,
         }),
     )

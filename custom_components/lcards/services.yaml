@@ -623,6 +623,98 @@ clear_effect:
         text:
           multiple: true
 
+play_sound:
+  name: Play Sound
+  description: >
+    Play a sound effect on target LCARdS frontends — without changing alert
+    mode, theme, or any screen effect. Provide either `event_type` (plays
+    whatever sound is currently configured for that UI event on the target
+    device, respecting its overrides/scheme) or `asset_key` (plays one exact
+    sound file, bypassing scheme/overrides). If both are given, `asset_key`
+    wins.
+  fields:
+    event_type:
+      name: Event Type
+      description: >
+        Play the sound currently configured for this UI event (respects the
+        device/user's per-event override and active sound scheme). Leave
+        empty if using Asset Key instead.
+      required: false
+      selector:
+        select:
+          options:
+            - { label: "Card Tap", value: card_tap }
+            - { label: "Card Hold", value: card_hold }
+            - { label: "Card Double-Tap", value: card_double_tap }
+            - { label: "Card Hover (Desktop)", value: card_hover }
+            - { label: "Button Tap", value: button_tap }
+            - { label: "Toggle → On", value: toggle_on }
+            - { label: "Toggle → Off", value: toggle_off }
+            - { label: "Slider Grab", value: slider_drag_start }
+            - { label: "Slider Release", value: slider_drag_end }
+            - { label: "Slider Value Change", value: slider_change }
+            - { label: "More Info Open", value: more_info_open }
+            - { label: "Sidebar Menu Expand / Collapse", value: menu_expand }
+            - { label: "Page / View Navigation", value: nav_page }
+            - { label: "Dialog Open", value: dialog_open }
+            - { label: "Dialog Close", value: dialog_close }
+            - { label: "Dashboard Edit Start", value: dashboard_edit_start }
+            - { label: "Dashboard Edit Save / Done", value: dashboard_edit_save }
+            - { label: "Red Alert", value: alert_red }
+            - { label: "Yellow Alert", value: alert_yellow }
+            - { label: "Blue Alert", value: alert_blue }
+            - { label: "Gray Alert", value: alert_gray }
+            - { label: "Black Alert", value: alert_black }
+            - { label: "Alert Cleared (Green Alert)", value: alert_clear }
+            - { label: "System Ready", value: system_ready }
+            - { label: "System Error", value: error }
+            - { label: "Notification", value: notification }
+    asset_key:
+      name: Asset Key (advanced)
+      description: >
+        Exact sound asset key to play (e.g. `lcards_default_system_ready`),
+        bypassing the target device's configured scheme/overrides entirely.
+        Find valid keys via the LCARdS Config Panel sound settings or the
+        browser console (`window.lcards.sound.getEvents()`). Leave empty if
+        using Event Type instead.
+      required: false
+      selector:
+        text:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific HA users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to HA users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
+
 show_portal_card:
   name: Show Portal Card
   description: >
