@@ -618,16 +618,17 @@ export class LCARdSSlider extends LCARdSButton {
         const invertValue = config.control?.invert_value ?? false;
 
         // Domain-specific attribute min/max/step defaults
-        let defaultMin, defaultMax, defaultStep;
+        let defaultMin, defaultMax, defaultStep, defaultUnit;
         if (this._domain === 'climate' || this._domain === 'water_heater') {
             defaultMin = entity?.attributes?.min_temp ?? 15;
             defaultMax = entity?.attributes?.max_temp ?? (this._domain === 'water_heater' ? 60 : 30);
             defaultStep = entity?.attributes?.target_temp_step ?? 0.5;
         } else if (this._domain === 'media_player') {
-            // volume_level is a 0.0–1.0 float; expose that range natively
+            // volume_level is 0.0–1.0 internally; slider operates in 0–100 percentage space
             defaultMin = 0;
-            defaultMax = 1;
-            defaultStep = 0.01;
+            defaultMax = 100;
+            defaultStep = 1;
+            defaultUnit = '%';
         } else if (this._domain === 'humidifier') {
             defaultMin = entity?.attributes?.min_humidity ?? 0;
             defaultMax = entity?.attributes?.max_humidity ?? 100;
@@ -659,7 +660,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._displayConfig = {
             min: this._sliderStyle?.track?.display?.min ?? this._controlConfig.min,
             max: this._sliderStyle?.track?.display?.max ?? this._controlConfig.max,
-            unit: this._sliderStyle?.track?.display?.unit ?? haUnit ?? entity?.attributes?.unit_of_measurement ?? ''
+            unit: this._sliderStyle?.track?.display?.unit ?? haUnit ?? entity?.attributes?.unit_of_measurement ?? defaultUnit ?? ''
         };
 
         lcardsLog.debug('[LCARdSSlider] Config resolved:', {
@@ -693,6 +694,9 @@ export class LCARdSSlider extends LCARdSButton {
             // Convert brightness (0-255) to percentage (0-100)
             // The slider operates in percentage space, regardless of control min/max
             rawValue = (rawValue / 255) * 100;
+        } else if (this._domain === 'media_player' && attribute === 'volume_level') {
+            // Convert volume_level (0.0–1.0) to percentage (0–100)
+            rawValue = rawValue * 100;
         }
 
         // Apply value inversion if configured
@@ -2901,7 +2905,7 @@ export class LCARdSSlider extends LCARdSButton {
             } else if (domain === 'media_player') {
                 await this.hass.callService('media_player', 'volume_set', {
                     entity_id: entityId,
-                    volume_level: entityValue
+                    volume_level: entityValue / 100
                 });
             } else if (domain === 'humidifier') {
                 await this.hass.callService('humidifier', 'set_humidity', {
