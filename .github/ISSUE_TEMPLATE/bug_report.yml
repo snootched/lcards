@@ -16,10 +16,12 @@ body:
       options:
         - lcards-button
         - lcards-chart
-        - lcards-slider
         - lcards-data-grid
         - lcards-elbow
+        - lcards-layout-card
         - lcards-msd
+        - lcards-select-menu
+        - lcards-slider
         - lcards-alert-overlay
         - Multiple / All cards
         - Not card-specific (core system)
@@ -85,7 +87,10 @@ body:
     id: config
     attributes:
       label: Card YAML Configuration
-      description: Paste your full card YAML config. Remove any sensitive values (tokens, passwords, etc.). This will be syntax-highlighted automatically.
+      description: >-
+        Paste your raw YAML config here — **do not wrap it in triple backticks**, it will be
+        syntax-highlighted and formatted automatically. Remove any sensitive values (tokens,
+        passwords, etc.).
       render: yaml
       placeholder: |
         type: custom:lcards-button
@@ -101,10 +106,7 @@ body:
     attributes:
       label: Browser Console Output
       description: |
-        Open the browser console (F12 → Console tab) and:
-        1. Run `window.lcards.info()` — paste the output here (it includes version, build date, and core state)
-        2. Enable debug logging: `window.lcards.debug.setLevel('debug')`
-        3. Reproduce the issue and paste any errors or warnings below.
+        Open the browser console (F12 → Console tab), run `window.lcards.info()`, and paste the output here. Also include any errors or warnings visible in the console.
       render: shell
       placeholder: Paste console output here
 
