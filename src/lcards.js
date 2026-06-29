@@ -796,8 +796,8 @@ window.lcards.connectionOverlay = {
    * @param {'device'|'user'|'global'} [scope='global']
    * @returns {Promise<void>}
    */
-  saveConfig(config, scope = 'global') {
-    return window.lcards?.core?.connectionOverlayService?.saveConfig(config, scope)
+  saveConfig(config, scope = 'global', opts = {}) {
+    return window.lcards?.core?.connectionOverlayService?.saveConfig(config, scope, opts)
         ?? Promise.resolve();
   },
   /**
@@ -805,8 +805,8 @@ window.lcards.connectionOverlay = {
    * @param {'device'|'user'|'global'} [scope='global']
    * @returns {Promise<void>}
    */
-  clearConfig(scope = 'global') {
-    return window.lcards?.core?.connectionOverlayService?.clearConfig(scope)
+  clearConfig(scope = 'global', opts = {}) {
+    return window.lcards?.core?.connectionOverlayService?.clearConfig(scope, opts)
         ?? Promise.resolve();
   },
   /**

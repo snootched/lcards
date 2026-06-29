@@ -511,6 +511,22 @@ export class IntegrationService extends BaseService {
                 break;
             }
 
+            case 'reload_connection_config': {
+                const cos = window.lcards?.core?.connectionOverlayService;
+                if (cos) {
+                    cos.loadConfig()
+                        .then(() => {
+                            // Notify any open config panel so it can refresh its badge state.
+                            document.dispatchEvent(new CustomEvent('lcards-connection-config-changed', { bubbles: false }));
+                        })
+                        .catch((err) => {
+                            lcardsLog.warn('[IntegrationService] reload_connection_config: loadConfig failed:', err);
+                        });
+                    lcardsLog.info('[IntegrationService] Connection overlay config reloaded via broadcast');
+                }
+                break;
+            }
+
             default:
                 lcardsLog.debug('[IntegrationService] Unknown lcards_event action:', payload.action);
         }

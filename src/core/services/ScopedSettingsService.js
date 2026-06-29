@@ -126,7 +126,7 @@ export class ScopedSettingsService extends BaseService {
      * @param {string} scope - Target scope: ``'device'``, ``'user'``, or ``'global'``.
      * @returns {Promise<boolean>} True on success, false on error.
      */
-    async write(key, value, scope) {
+    async write(key, value, scope, opts = {}) {
         const integration = this._getIntegration();
         if (!integration?.available || !this._hass?.connection) {
             lcardsLog.warn(`[ScopedSettingsService] write("${key}", scope="${scope}") — integration unavailable`);
@@ -139,7 +139,7 @@ export class ScopedSettingsService extends BaseService {
             scope = 'global';
         }
 
-        return this._writeScope(key, value, scope, integration);
+        return this._writeScope(key, value, scope, integration, opts);
     }
 
     /**
@@ -152,13 +152,13 @@ export class ScopedSettingsService extends BaseService {
      * @param {string} scope - Scope tier to clear from.
      * @returns {Promise<boolean>} True on success, false on error.
      */
-    async clear(key, scope) {
+    async clear(key, scope, opts = {}) {
         const integration = this._getIntegration();
         if (!integration?.available || !this._hass?.connection) {
             lcardsLog.warn(`[ScopedSettingsService] clear("${key}", scope="${scope}") — integration unavailable`);
             return false;
         }
-        return this._clearScope(key, scope, integration);
+        return this._clearScope(key, scope, integration, opts);
     }
 
     /**
@@ -175,17 +175,17 @@ export class ScopedSettingsService extends BaseService {
      * @param {Function} [globalFallback] - Fallback for global miss.
      * @returns {Promise<{device: any, user: any, global: any, resolved: any}>}
      */
-    async readAllScopes(key, globalFallback = null) {
+    async readAllScopes(key, globalFallback = null, opts = {}) {
         const integration = this._getIntegration();
         const scopedAvailable = this._isScopedAvailable(integration);
 
         const result = { device: null, user: null, global: null, resolved: null };
 
         if (scopedAvailable) {
-            result.device = await this._readScope(key, 'device', integration);
-            result.user   = await this._readScope(key, 'user',   integration);
+            result.device = await this._readScope(key, 'device', integration, opts);
+            result.user   = await this._readScope(key, 'user',   integration, opts);
         }
-        result.global = await this._readScope(key, 'global', integration);
+        result.global = await this._readScope(key, 'global', integration, opts);
 
         // Fallback
         if (result.global === null && typeof globalFallback === 'function') {
@@ -203,11 +203,12 @@ export class ScopedSettingsService extends BaseService {
     // -----------------------------------------------------------------------
 
     /** @private */
-    async _readScope(key, scope, integration) {
+    async _readScope(key, scope, integration, opts = {}) {
         try {
             switch (scope) {
                 case 'device': {
-                    const deviceId = window.lcards?.core?.deviceIdentityManager?.getDeviceId();
+                    const deviceId = opts.targetDeviceId
+                        ?? window.lcards?.core?.deviceIdentityManager?.getDeviceId();
                     if (!deviceId) return null;
                     const result = await this._hass.connection.sendMessagePromise({
                         type: 'lcards/storage/device/get',
@@ -218,6 +219,15 @@ export class ScopedSettingsService extends BaseService {
                 }
 
                 case 'user': {
+                    if (opts.targetUserId) {
+                        // Admin read: users/get returns the full dict; extract the key.
+                        const result = await this._hass.connection.sendMessagePromise({
+                            type: 'lcards/storage/users/get',
+                            user_id: opts.targetUserId,
+                        });
+                        const value = result?.value?.[key];
+                        return value !== undefined ? value : null;
+                    }
                     const result = await this._hass.connection.sendMessagePromise({
                         type: 'lcards/storage/user/get',
                         key,
@@ -240,12 +250,14 @@ export class ScopedSettingsService extends BaseService {
     }
 
     /** @private */
-    async _writeScope(key, value, scope, integration) {
+    async _writeScope(key, value, scope, integration, opts = {}) {
         try {
             switch (scope) {
                 case 'device': {
-                    const deviceId = window.lcards?.core?.deviceIdentityManager?.getDeviceId();
+                    const deviceId = opts.targetDeviceId
+                        ?? window.lcards?.core?.deviceIdentityManager?.getDeviceId();
                     if (!deviceId) return false;
+                    lcardsLog.debug(`[ScopedSettingsService] write device "${key}" → device_id="${deviceId}" (targetDeviceId=${opts.targetDeviceId ?? 'own'})`);
                     await this._hass.connection.sendMessagePromise({
                         type: 'lcards/storage/device/set',
                         device_id: deviceId,
@@ -256,11 +268,21 @@ export class ScopedSettingsService extends BaseService {
                 }
 
                 case 'user': {
-                    await this._hass.connection.sendMessagePromise({
-                        type: 'lcards/storage/user/set',
-                        data: { [key]: value },
-                    });
-                    lcardsLog.debug(`[ScopedSettingsService] write user "${key}" = ${JSON.stringify(value)}`);
+                    if (opts.targetUserId) {
+                        // Admin write to a specific user's storage.
+                        await this._hass.connection.sendMessagePromise({
+                            type: 'lcards/storage/users/set',
+                            user_id: opts.targetUserId,
+                            data: { [key]: value },
+                        });
+                        lcardsLog.debug(`[ScopedSettingsService] write user[${opts.targetUserId}] "${key}" = ${JSON.stringify(value)}`);
+                    } else {
+                        await this._hass.connection.sendMessagePromise({
+                            type: 'lcards/storage/user/set',
+                            data: { [key]: value },
+                        });
+                        lcardsLog.debug(`[ScopedSettingsService] write user "${key}" = ${JSON.stringify(value)}`);
+                    }
                     return true;
                 }
 
@@ -280,11 +302,12 @@ export class ScopedSettingsService extends BaseService {
     }
 
     /** @private */
-    async _clearScope(key, scope, integration) {
+    async _clearScope(key, scope, integration, opts = {}) {
         try {
             switch (scope) {
                 case 'device': {
-                    const deviceId = window.lcards?.core?.deviceIdentityManager?.getDeviceId();
+                    const deviceId = opts.targetDeviceId
+                        ?? window.lcards?.core?.deviceIdentityManager?.getDeviceId();
                     if (!deviceId) return false;
                     // Use device/set with null to clear; device storage uses deep-merge
                     // so setting to null is the cleanest signal available via device/set.
@@ -300,11 +323,21 @@ export class ScopedSettingsService extends BaseService {
                 }
 
                 case 'user': {
-                    await this._hass.connection.sendMessagePromise({
-                        type: 'lcards/storage/user/delete',
-                        key,
-                    });
-                    lcardsLog.debug(`[ScopedSettingsService] clear user "${key}"`);
+                    if (opts.targetUserId) {
+                        // Admin clear: users/set with null (no dedicated users/delete endpoint).
+                        await this._hass.connection.sendMessagePromise({
+                            type: 'lcards/storage/users/set',
+                            user_id: opts.targetUserId,
+                            data: { [key]: null },
+                        });
+                        lcardsLog.debug(`[ScopedSettingsService] clear user[${opts.targetUserId}] "${key}"`);
+                    } else {
+                        await this._hass.connection.sendMessagePromise({
+                            type: 'lcards/storage/user/delete',
+                            key,
+                        });
+                        lcardsLog.debug(`[ScopedSettingsService] clear user "${key}"`);
+                    }
                     return true;
                 }
 

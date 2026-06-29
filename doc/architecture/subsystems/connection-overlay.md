@@ -15,7 +15,7 @@ Key capabilities:
 
 - **Automatic detection** via two complementary signals (WS events + `hass.connected` flag)
 - **Per-scope config** via the ScopedSettings waterfall — device, user, or global overrides
-- **Offline-first** — reads a localStorage cache at construction, so the overlay appears immediately even after a hard browser refresh while HA is already offline
+- **Config auto-refresh** — re-reads config from the scoped waterfall after every HA reconnect, so settings saved just before an HA restart are always picked up without a page reload
 - **Two display modes** — simple text message or a full custom HA card
 - **Optional reconnection banner** — brief confirmation overlay that auto-dismisses after reconnection
 - **SEM integration** — backdrop, canvas, and colour effect layers via `ScreenEffectManager`
@@ -128,12 +128,12 @@ The service subscribes to `hass.connection` events each time it sees a new `conn
 Config is stored as **23 flat keys** in `ScopedSettingsService` (one per independently overridable field). Resolution order, first non-null wins:
 
 ```
-Device scope → User scope → Global scope → localStorage cache → Built-in defaults
+Device scope → User scope → Global scope → Built-in defaults
 ```
 
 Flat keys are independent — a device-scoped colour does **not** clobber a global-scoped text value. This allows kiosks or individual users to override only the fields they care about.
 
-The localStorage cache (key: `lcards_connection_overlay_config`) is written every time the full waterfall is read and is loaded synchronously at service construction. This means the overlay uses the last-known config immediately on page load, even if HA is already offline.
+Config is re-read from the full waterfall after every HA reconnect (`_doReconnected()` → `loadConfig()`), so settings saved just before an HA restart are picked up automatically without a page reload. A brief in-memory optimistic patch is also applied immediately after a successful save so that `_onDisconnected()` sees the correct flags even if the subsequent `loadConfig()` WS reads are interrupted by an HA restart.
 
 ### Flat key constants (from `ScopedSettingsConstants.js`)
 
@@ -276,4 +276,48 @@ await window.lcards.connectionOverlay.loadConfig()
 | **ScopedSettingsService** | Stores the 23 flat config keys at device/user/global scope. Waterfall resolution is done in `loadConfig()` via parallel `sss.read()` calls. |
 | **Alert overlay** (`lcards-alert-overlay`) | Both overlays use POM and stack independently. The connection overlay renders on top when both are active. SEM effect slots are last-in-wins. |
 | **AssetManager** | Font keys in config (e.g. `'Antonio'`) are resolved to CSS `font-family` strings via `assetManager.getRegistry('font')`. Falls back to `<key>, sans-serif` if the registry is unavailable. |
-| **Config Panel** (`lcards-connectivity-tab`) | UI tab that reads/writes config via the `window.lcards.connectionOverlay` API. Supports scope switching (device/user/global) and per-field override badges. Includes "Simulate Disconnect" and "Clear Test" buttons that call `showWith()` / `hide()`. |
+| **Config Panel** (`lcards-connectivity-tab`) | UI tab that reads/writes config via the `window.lcards.connectionOverlay` API. Supports scope switching (device/user/global) and per-field override badges. Includes "Simulate Disconnect" / "Clear Test" buttons and admin broadcast controls. |
+| **IntegrationService** | Receives `reload_connection_config` lcards_events and calls `loadConfig()` to update the runtime config and re-render the active overlay. |
+
+---
+
+## Remote Config Sync
+
+When an admin saves connectivity settings for a remote device or user from the Config Panel, the affected browser automatically picks up the new settings via the `lcards_event` push channel:
+
+```
+Admin browser
+  → save to device/user/global scope
+    → ConnectionOverlayService.saveConfig() fires lcards/fire_event
+      → Python hass.bus.async_fire("lcards_event", { action: "reload_connection_config", target_device_ids: [...] })
+        → Matching browsers receive event via lcards/subscribe
+          → IntegrationService._handleLcardsEvent() → case 'reload_connection_config'
+            → connectionOverlayService.loadConfig()
+              → Updates runtime config and re-renders active overlay immediately
+              → Dispatches 'lcards-connection-config-changed' DOM event
+                → Config Panel tab auto-refreshes badge state (or shows stale-data banner)
+```
+
+**Targeting rules** (set by `saveConfig()` automatically):
+
+| Scope saved | Broadcast target |
+|---|---|
+| Remote device scope | Only that device UUID |
+| Remote user scope | All sessions logged in as that user |
+| Own-user scope | All sessions logged in as the saving user |
+| Global scope | All connected browsers (no target filter) |
+| Own-device scope | No broadcast needed — `loadConfig()` runs locally |
+
+### Admin buttons in Config Panel action row
+
+| Button | Action |
+|---|---|
+| **Reload Config** | Broadcasts `reload_connection_config` to all browsers — they call `loadConfig()` without a page reload |
+| **Reload Pages** | Broadcasts `action: reload` — all browsers call `window.location.reload()` (nuclear option for deep state drift) |
+
+### Config Panel live update
+
+When a `reload_connection_config` event fires on a browser that has the Config Panel open:
+
+- **No unsaved edits**: the panel silently re-loads `_scopedValues` and rebuilds its form — badges update to reflect the new scope state.
+- **Unsaved edits present**: a blue info banner appears — "Settings were updated from another device. [Discard edits & refresh]" — preserving the in-progress work until the user decides.

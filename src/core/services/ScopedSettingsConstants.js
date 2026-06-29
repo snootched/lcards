@@ -150,8 +150,11 @@ export const CONN_OVERLAY_RECON_CONTENT      = 'conn_overlay_recon_content';
 /** Full 3-slot SEM layers config for borg assimilation mode (canvas/backdrop/color). Null = use defaults. */
 export const CONN_OVERLAY_BORG_SEM = 'conn_overlay_borg_sem';
 
+/** Milliseconds to wait after a disconnect event before showing the overlay (0 = immediate). */
+export const CONN_OVERLAY_DISCONNECT_DELAY = 'conn_overlay_disconnect_delay';
+
 /**
- * All 24 connection-overlay flat keys in a stable array.
+ * All 25 connection-overlay flat keys in a stable array.
  * Used for bulk operations (loadConfig, clearConfig, readAllScopesFull).
  */
 export const CONN_OVERLAY_ALL_KEYS = [
@@ -179,4 +182,5 @@ export const CONN_OVERLAY_ALL_KEYS = [
     CONN_OVERLAY_RECON_TRANSFORM,
     CONN_OVERLAY_RECON_CONTENT,
     CONN_OVERLAY_BORG_SEM,
+    CONN_OVERLAY_DISCONNECT_DELAY,
 ];

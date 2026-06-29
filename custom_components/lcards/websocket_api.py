@@ -115,6 +115,8 @@ def async_setup_ws(hass: HomeAssistant) -> None:
         ws_storage_devices_get,
         ws_storage_devices_set,
         ws_storage_devices_clear,
+        # Browser-to-all-browsers event relay
+        ws_fire_event,
     )
     for cmd in commands:
         websocket_api.async_register_command(hass, cmd)
@@ -326,6 +328,50 @@ async def ws_subscribe(
     connection.subscriptions[msg["id"]] = hass.bus.async_listen("lcards_event", _forward)
     connection.send_result(msg["id"])
     _LOGGER.debug("LCARdS: browser session subscribed to lcards_event push channel")
+
+
+# ---------------------------------------------------------------------------
+# Browser-to-all-browsers event relay (admin only)
+# ---------------------------------------------------------------------------
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/fire_event",
+        vol.Required("action"): str,
+        vol.Optional("target_device_ids", default=[]): [str],
+        vol.Optional("target_user_ids",   default=[]): [str],
+        vol.Optional("data",              default={}): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_fire_event(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Handle lcards/fire_event.
+
+    Relays a browser-originated ``lcards_event`` to all connected browsers via
+    the HA event bus.  Requires admin — the fired event can trigger actions
+    (config reloads, sounds, etc.) on other users' sessions.
+
+    Optional ``target_device_ids`` / ``target_user_ids`` are forwarded in the
+    payload so the receiving ``IntegrationService._handleLcardsEvent()`` can
+    filter events intended only for specific devices or users.
+    """
+    if not _require_admin(connection, msg):
+        return
+    payload: dict = {"action": msg["action"], **msg.get("data", {})}
+    if msg["target_device_ids"]:
+        payload["target_device_ids"] = msg["target_device_ids"]
+    if msg["target_user_ids"]:
+        payload["target_user_ids"] = msg["target_user_ids"]
+    hass.bus.async_fire("lcards_event", payload)
+    connection.send_result(msg["id"])
+    _LOGGER.debug(
+        "LCARdS: fire_event relayed action=%r device_ids=%r user_ids=%r",
+        msg["action"], msg["target_device_ids"], msg["target_user_ids"],
+    )
 
 
 # ---------------------------------------------------------------------------
