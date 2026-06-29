@@ -498,6 +498,15 @@ export class LCARdSConnectivityTab extends LitElement {
             .catch(() => {});
     }
 
+    _discardChanges() {
+        this._isDirty          = false;
+        this._dirtyServiceKeys = new Set();
+        this._editConfig       = this._buildEffectiveConfig();
+        const cfg = this._editConfig;
+        this._contentYaml            = cfg.content           ? yaml.dump(cfg.content,             { indent: 2 }) : '';
+        this._reconnectedContentYaml = cfg.reconnected?.content ? yaml.dump(cfg.reconnected.content, { indent: 2 }) : '';
+    }
+
     _requestClearScope() {
         this._confirmClear = true;
     }
@@ -1239,10 +1248,10 @@ export class LCARdSConnectivityTab extends LitElement {
             ${this._confirmClear ? html`
               <div class="banner warning">
                 <ha-icon icon="mdi:alert"></ha-icon>
-                <span>This will remove <strong>all ${this._scopeInfo.scope}-scoped overrides</strong> for the connection overlay. Are you sure?</span>
+                <span>This will remove <strong>all ${this._scopeInfo.scope}-scoped overrides</strong> for the connection overlay — fields will fall back to lower scopes. Are you sure?</span>
                 <div class="confirm-actions">
                   <ha-button variant="danger" ?disabled=${this._saving} @click=${this._resetScope}>
-                    ${this._saving ? 'Clearing…' : 'Yes, clear'}
+                    ${this._saving ? 'Resetting…' : 'Yes, reset all'}
                   </ha-button>
                   <ha-button ?disabled=${this._saving} @click=${this._cancelClearScope}>Cancel</ha-button>
                 </div>
@@ -1252,9 +1261,17 @@ export class LCARdSConnectivityTab extends LitElement {
               <ha-button
                 variant="danger"
                 ?disabled=${this._saving || !hasScopeData || this._confirmClear}
+                title="Remove all stored overrides at this scope — fields fall back to lower scopes"
                 @click=${this._requestClearScope}>
                 <ha-icon slot="icon" icon="mdi:delete-sweep-outline"></ha-icon>
-                Clear ${this._scopeInfo.scope}
+                Reset ${this._scopeInfo.scope}
+              </ha-button>
+              <ha-button
+                ?disabled=${this._saving || !this._isDirty}
+                title="Discard unsaved changes and revert to stored values"
+                @click=${this._discardChanges}>
+                <ha-icon slot="icon" icon="mdi:undo"></ha-icon>
+                Discard changes
               </ha-button>
               <ha-button
                 raised
@@ -1267,7 +1284,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 title="Push current stored config to all connected browsers"
                 @click=${this._reloadAllDevices}>
                 <ha-icon slot="icon" icon=${this._reloadSent === 'config' ? 'mdi:check' : 'mdi:refresh-auto'}></ha-icon>
-                ${this._reloadSent === 'config' ? 'Sent!' : 'Reload Config'}
+                ${this._reloadSent === 'config' ? 'Sent!' : 'Push Live Config'}
               </ha-button>
               <ha-button
                 variant="warning"
@@ -1275,7 +1292,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 title="Force a full page reload on all connected browsers (disruptive)"
                 @click=${this._reloadAllPages}>
                 <ha-icon slot="icon" icon=${this._reloadSent === 'pages' ? 'mdi:check' : 'mdi:reload-alert'}></ha-icon>
-                ${this._reloadSent === 'pages' ? 'Sent!' : 'Reload Pages'}
+                ${this._reloadSent === 'pages' ? 'Sent!' : 'Reload All Clients'}
               </ha-button>
             </div>
 
