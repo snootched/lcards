@@ -65,8 +65,16 @@ const CSS_NAMED_COLORS = [
     'yellow','yellowgreen',
 ];
 
-import 'vanilla-colorful/hex-alpha-color-picker.js';
-import 'vanilla-colorful/hex-input.js';
+import { HexAlphaBase } from 'vanilla-colorful/lib/entrypoints/hex-alpha';
+import { HexInputBase } from 'vanilla-colorful/lib/entrypoints/hex-input';
+if (!customElements.get('hex-alpha-color-picker')) {
+  class HexAlphaColorPicker extends HexAlphaBase {}
+  customElements.define('hex-alpha-color-picker', HexAlphaColorPicker);
+}
+if (!customElements.get('hex-input')) {
+  class HexInput extends HexInputBase {}
+  customElements.define('hex-input', HexInput);
+}
 import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 import { getColorFamily, getColorSortKey, compareColorSortKeys, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
 import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
