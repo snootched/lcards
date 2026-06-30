@@ -553,7 +553,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 color:     'var(--error-color)',
                 mode:      'text',
                 font:      'Antonio',
-                size:      32,
+                size:      42,
                 weight:    '400',
                 transform: 'uppercase',
                 // Borg SEM layers — defaults match borg-assimilation canvas + standard backdrop/tint.
@@ -571,7 +571,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 color:                'var(--primary-color)',
                 auto_dismiss_seconds: 3,
                 font:      'Antonio',
-                size:      32,
+                size:      42,
                 weight:    '400',
                 transform: 'uppercase',
                 content:   null,
@@ -579,7 +579,7 @@ export class LCARdSConnectivityTab extends LitElement {
             layers: {
                 backdrop: null,
                 color:    { preset: 'color-tint', color: 'rgba(0,0,0,0.55)' },
-                canvas:   { preset: 'static', intensity: 0.45 },
+                canvas:   { preset: 'static', opacity: 0.55 },
             },
             content: null,
         };

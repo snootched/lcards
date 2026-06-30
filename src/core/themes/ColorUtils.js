@@ -643,6 +643,22 @@ export class ColorUtils {
       ];
     }
 
+    // Fallback — let the browser resolve named colors (and any other valid
+    // CSS color syntax) via a throwaway canvas; ctx.fillStyle normalizes
+    // whatever it accepts down to '#rrggbb', which the hex branch above
+    // can then parse on a recursive call.
+    if (typeof document !== 'undefined' && (typeof CSS === 'undefined' || CSS.supports?.('color', color))) {
+      try {
+        const ctx = (ColorUtils._probeCtx ??= document.createElement('canvas').getContext('2d'));
+        ctx.fillStyle = '#000000';
+        ctx.fillStyle = color;
+        const normalized = ctx.fillStyle;
+        if (normalized && normalized !== color) {
+          return this._parseColor(normalized);
+        }
+      } catch (_) { /* not a valid CSS color */ }
+    }
+
     return null;
   }
 

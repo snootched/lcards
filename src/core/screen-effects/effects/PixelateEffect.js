@@ -10,6 +10,8 @@
  * @module core/screen-effects/effects/PixelateEffect
  */
 
+import { ColorUtils } from '../../themes/ColorUtils.js';
+
 /**
  * Mosaic pixel-block effect for a `<canvas>` slot element.
  *
@@ -21,20 +23,26 @@
  *
  * @param {HTMLCanvasElement} canvas - The managed canvas slot element.
  * @param {Object} params
- * @param {number} [params.pixelSize=8]    - Block size in logical pixels.
- * @param {number} [params.opacity=0.75]   - Overall canvas opacity (0–1).
- * @param {number} [params.variance=0.35]  - Lightness jitter per block (0–1).
- *                                           0 = uniform, 1 = max contrast.
- * @param {number} [params.baseLight=80]   - Base grey lightness 0–255.
+ * @param {number} [params.pixelSize=8]      - Block size in logical pixels.
+ * @param {number} [params.opacity=0.75]     - Overall canvas opacity (0–1).
+ * @param {number} [params.variance=0.35]    - Lightness jitter per block (0–1).
+ *                                             0 = uniform, 1 = max contrast.
+ * @param {number} [params.baseLight=80]     - Base grey lightness 0–255.
+ * @param {string} [params.color='#8c9aa6']  - Tint colour blended into each block.
+ * @param {number} [params.tintStrength=0]   - 0–1 blend toward `color`. `0` = neutral gray mosaic.
  * @returns {() => void} Cleanup function that stops the rAF loop.
  */
 export function PixelateEffect(canvas, params = {}) {
     const {
-        pixelSize = 8,
-        opacity   = 0.75,
-        variance  = 0.35,
-        baseLight = 80,
+        pixelSize    = 8,
+        opacity      = 0.75,
+        variance     = 0.35,
+        baseLight    = 80,
+        color        = '#8c9aa6',
+        tintStrength = 0,
     } = params;
+
+    const [tr, tg, tb] = ColorUtils._parseColor(color) ?? [140, 154, 166];
 
     canvas.style.opacity      = String(opacity);
     canvas.style.mixBlendMode = 'multiply';
@@ -58,13 +66,16 @@ export function PixelateEffect(canvas, params = {}) {
 
         for (let y = 0; y < ph; y += pixelSize) {
             for (let x = 0; x < pw; x += pixelSize) {
-                // Slight warm/cool tint: random hue ±15° around neutral gray
-                const hue  = 200 + Math.floor(Math.random() * 30) - 15;
-                const sat  = Math.floor(Math.random() * 8);   // near-monochrome
-                const lite = Math.floor(
+                // Per-block brightness jitter around baseLight, then blend toward
+                // the tint color by tintStrength (0 = neutral gray, mirrors StaticEffect).
+                const lite    = Math.floor(
                     baseLight * (1 - variance * 0.5 + Math.random() * variance)
                 );
-                ctx.fillStyle = `hsl(${hue},${sat}%,${lite}%)`;
+                const grayVal = Math.round(lite / 100 * 255);
+                const r = Math.round(grayVal + (tr - grayVal) * tintStrength);
+                const g = Math.round(grayVal + (tg - grayVal) * tintStrength);
+                const b = Math.round(grayVal + (tb - grayVal) * tintStrength);
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
                 ctx.fillRect(x, y, pixelSize, pixelSize);
             }
         }

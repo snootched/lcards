@@ -295,6 +295,7 @@ export class ScreenEffectManager extends BaseService {
                 label:        p.label ?? name,
                 slot:         p.slot,
                 params_schema: p.params_schema ?? [],
+                defaults:     p.defaults ?? {},
             };
         });
     }

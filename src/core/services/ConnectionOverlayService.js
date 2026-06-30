@@ -108,12 +108,22 @@ const DEFAULT_CONFIG = {
      */
     message: {
         text:      'Connection Lost',
-        color:     '#93e1ff',
+        color:     'var(--error-color)',
         mode:      'text',      // 'text' | 'card'
         font:      'Antonio',   // font key from the lcards font registry
-        size:      26,
+        size:      42,
         weight:    '400',
         transform: 'uppercase',
+        // Borg SEM layers — defaults match borg-assimilation canvas + standard backdrop/tint.
+        // Mirrors the connectivity tab's editor defaults so an unconfigured Borg mode
+        // renders the same preview shown in the UI instead of a bare/null overlay.
+        borgLayers: {
+            canvas:   { preset: 'borg-assimilation', siteCount: 8, tendrilsPerSite: 5, tendrilLength: 600, particleCount: 2, color: 'var(--lcars-martian)', glowColor: 'var(--lcards-yellow)' },
+            backdrop: { preset: 'saturate', amount: '200%' },
+            color:    { preset: 'color-tint', color: 'rgba(0,60,0,0.25)' },
+            paletteHue: 110,
+            fontSwap:   true,
+        },
     },
     /** Optional brief confirmation overlay shown after the connection is re-established. */
     reconnected: {
@@ -122,7 +132,7 @@ const DEFAULT_CONFIG = {
         color:                'var(--primary-color)',
         auto_dismiss_seconds: 3,
         font:      'Antonio',
-        size:      32,
+        size:      42,
         weight:    '400',
         transform: 'uppercase',
         /** Optional HA card shown in card mode instead of the text reconnect message. */
@@ -132,7 +142,7 @@ const DEFAULT_CONFIG = {
     layers: {
         backdrop: null,
         color: { preset: 'color-tint', color: 'rgba(0,0,0,0.55)' },
-        canvas: { preset: 'static', intensity: 0.45 },
+        canvas: { preset: 'static', opacity: 0.55 },
     },
     /**
      * Optional HA card config to display in the overlay when mode = 'card'.
@@ -365,7 +375,7 @@ export class ConnectionOverlayService extends BaseService {
                 size:       msgSize      ?? C.message?.size      ?? D.message.size,
                 weight:     msgWeight    ?? C.message?.weight    ?? D.message.weight,
                 transform:  msgTransform ?? C.message?.transform ?? D.message.transform,
-                borgLayers: borgSem      ?? C.message?.borgLayers ?? null,
+                borgLayers: borgSem      ?? C.message?.borgLayers ?? D.message.borgLayers,
             },
             reconnected: {
                 enabled:              reconEnabled     ?? C.reconnected?.enabled              ?? D.reconnected.enabled,

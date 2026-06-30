@@ -85,8 +85,8 @@ Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-
 
 | Preset | Default params | Description |
 |---|---|---|
-| `static` | `opacity: 0.55, scale: 4` | TV static noise; `scale` controls block size |
-| `pixelate` | `pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80` | Mosaic dark blocks; `multiply` blend — simulates low-res signal degradation |
+| `static` | `opacity: 0.55, scale: 4, color: '#ffffff', tintStrength: 0` | TV static noise; `scale` controls block size; `color`/`tintStrength` blend toward a tint |
+| `pixelate` | `pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80, color: '#8c9aa6', tintStrength: 0` | Mosaic dark blocks; `multiply` blend — simulates low-res signal degradation; `color`/`tintStrength` blend toward a tint |
 | `glitch` | `intensity: 0.08, maxShift: 40, bandHeight: 4, opacity: 0.85, fps: 20` | Sparse horizontal displacement bands + thin chroma edges; `overlay` blend |
 | `scanlines` | `lineHeight: 4, opacity: 0.25, scroll: 0` | CRT horizontal line overlay; `scroll` px/s for animation |
 | `borg-assimilation` | `siteCount: 7, tendrilsPerSite: 8, tendrilLength: 600, particleCount: 2, color: '#00cc44', glowColor: '#00ff66'` | Borg nano-tube assimilation lattice — tapered gradient tendrils branch outward from staggered injection sites, interconnect via cross-bridge arcs with junction nodes, and carry nano-probe particles; runs indefinitely until dismissed |

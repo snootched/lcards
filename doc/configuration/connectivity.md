@@ -134,8 +134,8 @@ Once you pick a preset, additional parameter fields appear for that preset's adj
 
 | Preset | Slot | Key parameters |
 |--------|------|----------------|
-| `static` | Canvas | Opacity, Grain Scale |
-| `pixelate` | Canvas | Pixel Size, Opacity, Light Variance, Base Lightness |
+| `static` | Canvas | Opacity, Grain Scale, Tint Color, Tint Strength |
+| `pixelate` | Canvas | Pixel Size, Opacity, Light Variance, Base Lightness, Tint Color, Tint Strength |
 | `glitch` | Canvas | Intensity, Max Shift, Band Height, Opacity, FPS |
 | `scanlines` | Canvas | Line Height, Opacity, Scroll Speed |
 | `color-tint` | Colour | Tint Color (any CSS colour / rgba) |
