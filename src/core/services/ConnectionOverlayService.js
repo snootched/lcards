@@ -309,38 +309,45 @@ export class ConnectionOverlayService extends BaseService {
             borgSem,
             disconnectDelay,
         ] = await Promise.all([
-            sss.read(CONN_OVERLAY_ENABLED,            SCOPES, () => D.enabled),
-            sss.read(CONN_OVERLAY_DISMISS,             SCOPES, () => D.dismiss),
-            sss.read(CONN_OVERLAY_POSITION,            SCOPES, () => D.position),
-            sss.read(CONN_OVERLAY_WIDTH,               SCOPES, () => D.width),
-            sss.read(CONN_OVERLAY_HEIGHT,              SCOPES, () => D.height),
-            sss.read(CONN_OVERLAY_CONTENT,             SCOPES, () => D.content),
-            sss.read(CONN_OVERLAY_SEM,                 SCOPES, () => D.layers),
-            sss.read(CONN_OVERLAY_MSG_MODE,            SCOPES, () => D.message.mode),
-            sss.read(CONN_OVERLAY_MSG_TEXT,            SCOPES, () => D.message.text),
-            sss.read(CONN_OVERLAY_MSG_COLOR,           SCOPES, () => D.message.color),
-            sss.read(CONN_OVERLAY_MSG_FONT,            SCOPES, () => D.message.font),
-            sss.read(CONN_OVERLAY_MSG_SIZE,            SCOPES, () => D.message.size),
-            sss.read(CONN_OVERLAY_MSG_WEIGHT,          SCOPES, () => D.message.weight),
-            sss.read(CONN_OVERLAY_MSG_TRANSFORM,       SCOPES, () => D.message.transform),
-            sss.read(CONN_OVERLAY_RECON_ENABLED,       SCOPES, () => D.reconnected.enabled),
-            sss.read(CONN_OVERLAY_RECON_TEXT,          SCOPES, () => D.reconnected.text),
-            sss.read(CONN_OVERLAY_RECON_COLOR,         SCOPES, () => D.reconnected.color),
-            sss.read(CONN_OVERLAY_RECON_DISMISS_SECS,  SCOPES, () => D.reconnected.auto_dismiss_seconds),
-            sss.read(CONN_OVERLAY_RECON_FONT,          SCOPES, () => D.reconnected.font),
-            sss.read(CONN_OVERLAY_RECON_SIZE,          SCOPES, () => D.reconnected.size),
-            sss.read(CONN_OVERLAY_RECON_WEIGHT,        SCOPES, () => D.reconnected.weight),
-            sss.read(CONN_OVERLAY_RECON_TRANSFORM,     SCOPES, () => D.reconnected.transform),
-            sss.read(CONN_OVERLAY_RECON_CONTENT,       SCOPES, () => D.reconnected.content),
-            sss.read(CONN_OVERLAY_BORG_SEM,             SCOPES, () => null),
-            sss.read(CONN_OVERLAY_DISCONNECT_DELAY,    SCOPES, () => D.disconnect_delay_ms),
+            sss.read(CONN_OVERLAY_ENABLED,            SCOPES, null),
+            sss.read(CONN_OVERLAY_DISMISS,             SCOPES, null),
+            sss.read(CONN_OVERLAY_POSITION,            SCOPES, null),
+            sss.read(CONN_OVERLAY_WIDTH,               SCOPES, null),
+            sss.read(CONN_OVERLAY_HEIGHT,              SCOPES, null),
+            sss.read(CONN_OVERLAY_CONTENT,             SCOPES, null),
+            sss.read(CONN_OVERLAY_SEM,                 SCOPES, null),
+            sss.read(CONN_OVERLAY_MSG_MODE,            SCOPES, null),
+            sss.read(CONN_OVERLAY_MSG_TEXT,            SCOPES, null),
+            sss.read(CONN_OVERLAY_MSG_COLOR,           SCOPES, null),
+            sss.read(CONN_OVERLAY_MSG_FONT,            SCOPES, null),
+            sss.read(CONN_OVERLAY_MSG_SIZE,            SCOPES, null),
+            sss.read(CONN_OVERLAY_MSG_WEIGHT,          SCOPES, null),
+            sss.read(CONN_OVERLAY_MSG_TRANSFORM,       SCOPES, null),
+            sss.read(CONN_OVERLAY_RECON_ENABLED,       SCOPES, null),
+            sss.read(CONN_OVERLAY_RECON_TEXT,          SCOPES, null),
+            sss.read(CONN_OVERLAY_RECON_COLOR,         SCOPES, null),
+            sss.read(CONN_OVERLAY_RECON_DISMISS_SECS,  SCOPES, null),
+            sss.read(CONN_OVERLAY_RECON_FONT,          SCOPES, null),
+            sss.read(CONN_OVERLAY_RECON_SIZE,          SCOPES, null),
+            sss.read(CONN_OVERLAY_RECON_WEIGHT,        SCOPES, null),
+            sss.read(CONN_OVERLAY_RECON_TRANSFORM,     SCOPES, null),
+            sss.read(CONN_OVERLAY_RECON_CONTENT,       SCOPES, null),
+            sss.read(CONN_OVERLAY_BORG_SEM,             SCOPES, null),
+            sss.read(CONN_OVERLAY_DISCONNECT_DELAY,    SCOPES, null),
         ]);
 
         // Priority: storage value → existing in-memory value → built-in default.
-        // Fall back to the existing in-memory value when a WS read returns null.
-        // This means a connection error during reads does NOT clobber a previously
-        // loaded setting (e.g. one loaded from the optimistic update in saveConfig).
+        // All sss.read() calls use null as the globalFallback so that a WS failure
+        // (all scopes returning null) propagates null here.  The ?? chain then falls
+        // through to C (the in-memory snapshot), preserving a previously-loaded value
+        // (e.g. the optimistic patch set by saveConfig) instead of overwriting it with
+        // a default.  Using () => D.xxx as the fallback would return a non-null value
+        // (e.g. false for `enabled`) that ?? would NOT skip, clobbering the in-memory
+        // state — that's the bug this pattern intentionally avoids.
         const C = this._config;
+        lcardsLog.debug('[ConnectionOverlayService] loadConfig merge', {
+            rawEnabled: enabled, memEnabled: C.enabled, resolvedEnabled: enabled ?? C.enabled ?? D.enabled,
+        });
         const resolved = {
             enabled:            enabled            ?? C.enabled            ?? D.enabled,
             dismiss:            dismiss            ?? C.dismiss            ?? D.dismiss,
@@ -459,14 +466,24 @@ export class ConnectionOverlayService extends BaseService {
         }
 
         // Notify other browsers to reload their connection overlay config.
-        // Own-device saves are excluded — loadConfig() below handles those locally.
-        // Own-user saves target the current user so other devices they're logged into also refresh.
+        // This browser already has the fresh config (optimistic patch above +
+        // loadConfig() below), so the broadcast is tagged with origin_device_id —
+        // IntegrationService ignores reload_connection_config events that name this
+        // device as the origin, preventing a redundant reload here and the false
+        // "settings updated from another device" banner this client would otherwise
+        // see from its own save (isGlobal/own-user saves carry no target_device_ids/
+        // target_user_ids that would naturally exclude this device).
         const isRemoteDevice = !!opts.targetDeviceId;
         const isRemoteUser   = !!opts.targetUserId;
         const isGlobal       = scope === 'global';
         const isOwnUser      = scope === 'user' && !opts.targetUserId;
         if ((isRemoteDevice || isRemoteUser || isGlobal || isOwnUser) && this._hass?.connection) {
-            const firePayload = { type: 'lcards/fire_event', action: 'reload_connection_config' };
+            const myDeviceId = window.lcards?.core?.deviceIdentityManager?.getDeviceId();
+            const firePayload = {
+                type: 'lcards/fire_event',
+                action: 'reload_connection_config',
+                data: myDeviceId ? { origin_device_id: myDeviceId } : {},
+            };
             if (isRemoteDevice) firePayload.target_device_ids = [opts.targetDeviceId];
             if (isRemoteUser)   firePayload.target_user_ids   = [opts.targetUserId];
             if (isOwnUser)      firePayload.target_user_ids   = [this._hass.user?.id].filter(Boolean);
@@ -664,11 +681,17 @@ export class ConnectionOverlayService extends BaseService {
             return;
         }
 
-        if (!this._config.enabled) return;
+        if (!this._config.enabled) {
+            lcardsLog.info('[ConnectionOverlayService] _onDisconnected: overlay disabled — skipping (enabled=false)');
+            return;
+        }
 
         // Deduplicate: if we're already processing a disconnect, ignore duplicates
         // (both WS events and hass.connected transitions can fire for the same event).
-        if (this._isDisconnected) return;
+        if (this._isDisconnected) {
+            lcardsLog.debug('[ConnectionOverlayService] _onDisconnected: already processing disconnect — dedup skip');
+            return;
+        }
 
         this._isDisconnected = true;
         this._isDismissed    = false;
@@ -724,6 +747,9 @@ export class ConnectionOverlayService extends BaseService {
         this._clearReconnectedTimer();
         // Cancel any pending disconnect-delay show — if we reconnected before the
         // tolerance window expired, the overlay should never appear.
+        if (this._disconnectDelayTimer !== null) {
+            lcardsLog.info('[ConnectionOverlayService] _doReconnected: transient reconnect — cancelling tolerance timer (overlay suppressed)');
+        }
         this._clearDisconnectDelayTimer();
 
         lcardsLog.info('[ConnectionOverlayService] Connection restored — clearing disconnect overlay');

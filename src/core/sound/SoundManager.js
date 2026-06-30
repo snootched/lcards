@@ -282,10 +282,16 @@ export class SoundManager extends BaseService {
 
     // When this connection closes, clear the ref so updateHass() re-subscribes
     // fresh on the next hass update after reconnect.
+    // The removeEventListener() call is deferred to a microtask: Connection.fireEvent()
+    // dispatches via Array.forEach() over the *live* listeners array, and
+    // removeEventListener() splices that same array. Splicing out an earlier-registered
+    // listener while forEach is still iterating shifts later listeners down an index,
+    // causing forEach to skip whichever listener was registered immediately after this
+    // one (e.g. ConnectionOverlayService's 'disconnected' handler) on this first firing.
     const onDisconnect = () => {
       this._notificationUnsubscribe = null;
       this._notificationPending     = false;
-      connection.removeEventListener('disconnected', onDisconnect);
+      queueMicrotask(() => connection.removeEventListener('disconnected', onDisconnect));
     };
     connection.addEventListener('disconnected', onDisconnect);
   }

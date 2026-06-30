@@ -318,6 +318,14 @@ class LCARdSCore {
             this.connectionOverlayService = new ConnectionOverlayService();
             lcardsLog.debug('[LCARdSCore] ✅ ConnectionOverlayService created');
 
+            // Subscribe to hass.connection events immediately — do not wait for a
+            // subsequent _updateHass() tick. Without this, there is a window between
+            // service construction and whatever later event happens to push the next
+            // hass update (which is what normally triggers the subscription) during
+            // which a WS disconnect fires with no listener attached yet and is missed
+            // silently. hass.connection is already available right here.
+            this.connectionOverlayService.updateHass(hass);
+
             // Once the integration probe completes (triggered by the first _updateHass
             // call that carries a live WS connection), load token overrides and re-apply
             // them to the resolver.  This is intentionally fire-and-forget so it does NOT

@@ -512,6 +512,17 @@ export class IntegrationService extends BaseService {
             }
 
             case 'reload_connection_config': {
+                // Skip self-echo: the saving device already applied its own
+                // optimistic patch + loadConfig() in ConnectionOverlayService.saveConfig().
+                // Without this check, isGlobal/own-user saves (which carry no
+                // target_device_ids/target_user_ids to naturally exclude this device)
+                // would re-trigger loadConfig() here and, if local edits are still
+                // in flight, show a false "updated from another device" banner.
+                const myDeviceId = window.lcards?.core?.deviceIdentityManager?.getDeviceId();
+                if (payload.origin_device_id && payload.origin_device_id === myDeviceId) {
+                    lcardsLog.debug('[IntegrationService] reload_connection_config: self-originated — skipping');
+                    break;
+                }
                 const cos = window.lcards?.core?.connectionOverlayService;
                 if (cos) {
                     cos.loadConfig()
