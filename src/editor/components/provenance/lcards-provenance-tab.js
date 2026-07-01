@@ -1915,7 +1915,7 @@ export class LCARdSProvenanceTab extends LitElement {
     if (this._isLoading) {
       return html`
         <div class="loading-state">
-          <ha-circular-progress active></ha-circular-progress>
+          <ha-circular-progress indeterminate size="s"></ha-circular-progress>
           <p>Loading provenance data...</p>
         </div>
       `;
