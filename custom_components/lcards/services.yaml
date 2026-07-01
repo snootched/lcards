@@ -675,8 +675,8 @@ play_sound:
         Exact sound asset key to play (e.g. `lcards_default_system_ready`),
         bypassing the target device's configured scheme/overrides entirely.
         Find valid keys via the LCARdS Config Panel sound settings or the
-        browser console (`window.lcards.sound.getEvents()`). Leave empty if
-        using Event Type instead.
+        browser console (`window.lcards.core.assetManager.getRegistry('audio').list()`).
+        Leave empty if using Event Type instead.
       required: false
       selector:
         text:
