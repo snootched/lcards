@@ -18,6 +18,7 @@
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
 import { _fbm, parseColorToRgba } from './noise-helpers.js';
+import { ColorUtils } from '../../../themes/ColorUtils.js';
 
 /**
  * PlasmaTextureEffect - Vivid alternating two-colour plasma bands
@@ -38,8 +39,10 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
      */
     constructor(config = {}) {
         super(/** @type {any} */ (config));
-        this._colorA  = parseColorToRgba(config.color_a ?? 'rgba(80,0,255,0.9)',  'rgba(80,0,255,0.9)');
-        this._colorB  = parseColorToRgba(config.color_b ?? 'rgba(255,40,120,0.9)', 'rgba(255,40,120,0.9)');
+        const _r = window.lcards?.core?.themeManager?.resolver;
+        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        this._colorA  = parseColorToRgba(_resolve(config.color_a ?? 'rgba(80,0,255,0.9)'),  'rgba(80,0,255,0.9)');
+        this._colorB  = parseColorToRgba(_resolve(config.color_b ?? 'rgba(255,40,120,0.9)'), 'rgba(255,40,120,0.9)');
         this._freq    = config.base_frequency ?? 0.012;
         this._octaves = config.num_octaves    ?? 3;
         this._speedX  = config.scroll_speed_x ?? 8;
@@ -137,8 +140,10 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
 
     updateConfig(cfg) {
         super.updateConfig(cfg);
-        if (cfg.color_a        !== undefined) this._colorA  = parseColorToRgba(cfg.color_a, 'rgba(80,0,255,0.9)');
-        if (cfg.color_b        !== undefined) this._colorB  = parseColorToRgba(cfg.color_b, 'rgba(255,40,120,0.9)');
+        const _r = window.lcards?.core?.themeManager?.resolver;
+        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        if (cfg.color_a        !== undefined) this._colorA  = parseColorToRgba(_resolve(cfg.color_a), 'rgba(80,0,255,0.9)');
+        if (cfg.color_b        !== undefined) this._colorB  = parseColorToRgba(_resolve(cfg.color_b), 'rgba(255,40,120,0.9)');
         if (cfg.base_frequency !== undefined) this._freq    = cfg.base_frequency;
         if (cfg.num_octaves    !== undefined) this._octaves = cfg.num_octaves;
         if (cfg.scroll_speed_x !== undefined) this._speedX  = cfg.scroll_speed_x;

@@ -104,7 +104,6 @@ export class CanvasTextureRenderer {
         // would also race on the non-refcounted stop() if monitoring were enabled.
         this._renderer = new Canvas2DRenderer(canvas, { monitorPerformance: false });
         this._renderer.addEffect(this._effect);
-        this._renderer.start();
 
         // ResizeObserver: handles both zero-size-at-first-paint (#3) and
         // subsequent layout changes (#4).  The first callback fires after layout
@@ -116,6 +115,16 @@ export class CanvasTextureRenderer {
             }
         });
         this._resizeObserver.observe(this._hostEl);
+
+        // If the host element is already laid out (editor hot-reload, card re-render
+        // after config change), size the canvas immediately rather than waiting for
+        // the async ResizeObserver callback.  This must happen BEFORE start() so
+        // the first RAF frame never sees a 1×1 canvas/clip-path.
+        const { offsetWidth: iw, offsetHeight: ih } = this._hostEl;
+        if (iw > 0 && ih > 0) this._resizeCanvas(iw, ih);
+
+        // Start the RAF loop only after the clip path is correctly sized.
+        this._renderer.start();
 
         lcardsLog.debug(`[CanvasTextureRenderer:${this._id}] Initialized`, { preset });
     }

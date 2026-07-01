@@ -9,6 +9,7 @@
  */
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
+import { ColorUtils } from '../../../themes/ColorUtils.js';
 
 /**
  * ShimmerTextureEffect - Sweeping highlight band
@@ -26,7 +27,9 @@ export class ShimmerTextureEffect extends BaseTextureEffect {
      */
     constructor(config = {}) {
         super(/** @type {any} */ (config));
-        this._color          = config.color           ?? 'rgba(255,255,255,0.55)';
+        const _r = window.lcards?.core?.themeManager?.resolver;
+        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        this._color          = _resolve(config.color ?? 'rgba(255,255,255,0.55)');
         this._highlightWidth = config.highlight_width ?? 0.35;
         this._sweepSpeed     = config.speed           ?? 2.5;
         this._angle          = config.angle           ?? 30;
@@ -75,7 +78,9 @@ export class ShimmerTextureEffect extends BaseTextureEffect {
 
     updateConfig(cfg) {
         super.updateConfig(cfg);
-        if (cfg.color           !== undefined) this._color          = cfg.color;
+        const _r = window.lcards?.core?.themeManager?.resolver;
+        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        if (cfg.color           !== undefined) this._color          = _resolve(cfg.color);
         if (cfg.highlight_width !== undefined) this._highlightWidth = cfg.highlight_width;
         if (cfg.speed           !== undefined) this._sweepSpeed     = cfg.speed;
         if (cfg.angle           !== undefined) this._angle          = cfg.angle;

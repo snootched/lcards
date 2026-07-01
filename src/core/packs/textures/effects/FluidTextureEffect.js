@@ -11,6 +11,7 @@
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
 import { _fbm, parseColorToRgba } from './noise-helpers.js';
+import { ColorUtils } from '../../../themes/ColorUtils.js';
 
 // ---------------------------------------------------------------------------
 
@@ -34,7 +35,9 @@ export class FluidTextureEffect extends BaseTextureEffect {
      */
     constructor(config = {}) {
         super(/** @type {any} */ (config));
-        this._color    = parseColorToRgba(config.color ?? 'rgba(100,180,255,0.8)', 'rgba(100,180,255,0.8)');
+        const _r = window.lcards?.core?.themeManager?.resolver;
+        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        this._color    = parseColorToRgba(_resolve(config.color ?? 'rgba(100,180,255,0.8)'), 'rgba(100,180,255,0.8)');
         this._freq     = config.base_frequency   ?? 0.010;
         this._octaves  = config.num_octaves      ?? 4;
         this._speedX   = config.scroll_speed_x   ?? 7;
@@ -125,7 +128,9 @@ export class FluidTextureEffect extends BaseTextureEffect {
 
     updateConfig(cfg) {
         super.updateConfig(cfg);
-        if (cfg.color          !== undefined) this._color   = parseColorToRgba(cfg.color, 'rgba(100,180,255,0.8)');
+        const _r = window.lcards?.core?.themeManager?.resolver;
+        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        if (cfg.color          !== undefined) this._color   = parseColorToRgba(_resolve(cfg.color), 'rgba(100,180,255,0.8)');
         if (cfg.base_frequency !== undefined) this._freq    = cfg.base_frequency;
         if (cfg.num_octaves    !== undefined) this._octaves = cfg.num_octaves;
         if (cfg.scroll_speed_x !== undefined) this._speedX  = cfg.scroll_speed_x;
