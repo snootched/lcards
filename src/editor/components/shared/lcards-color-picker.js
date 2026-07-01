@@ -24,8 +24,73 @@
  * </lcards-color-picker>
  */
 
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
+
+const MDI_CHEVRON_DOWN = 'M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z';
+const MDI_LIGHTBULB = 'M12,2A7,7 0 0,1 19,9C19,11.38 17.81,13.47 16,14.74V17A1,1 0 0,1 15,18H9A1,1 0 0,1 8,17V14.74C6.19,13.47 5,11.38 5,9A7,7 0 0,1 12,2M9,21V20H15V21A1,1 0 0,1 14,22H10A1,1 0 0,1 9,21M12,4A5,5 0 0,0 7,9C7,11.05 8.23,12.81 10,13.58V16H14V13.58C15.77,12.81 17,11.05 17,9A5,5 0 0,0 12,4Z';
+const MDI_SORT_ALPHA = 'M9.25,5L12.5,1.75L15.75,5H9.25M15.75,19L12.5,22.25L9.25,19H15.75M3,13H5V11H3M3,6V8H5V6M3,18H5V16H3V18M7,13H21V11H7M7,6V8H21V6M7,18H21V16H7V18Z';
+const MDI_PALETTE = 'M12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2C17.5,2 22,6 22,11A6,6 0 0,1 16,17H14.2C13.9,17 13.7,17.2 13.7,17.5C13.7,17.6 13.75,17.7 13.8,17.8C14.08,18.1 14.25,18.5 14.25,19A3,3 0 0,1 11.25,22L12,22M10,7.5A1.5,1.5 0 0,0 8.5,9A1.5,1.5 0 0,0 10,10.5A1.5,1.5 0 0,0 11.5,9A1.5,1.5 0 0,0 10,7.5M14,7.5A1.5,1.5 0 0,0 12.5,9A1.5,1.5 0 0,0 14,10.5A1.5,1.5 0 0,0 15.5,9A1.5,1.5 0 0,0 14,7.5M7,12.5A1.5,1.5 0 0,0 5.5,14A1.5,1.5 0 0,0 7,15.5A1.5,1.5 0 0,0 8.5,14A1.5,1.5 0 0,0 7,12.5Z';
+
+// All 140 CSS named colors — used by the "Named" popover tab
+const CSS_NAMED_COLORS = [
+    'aliceblue','antiquewhite','aqua','aquamarine','azure',
+    'beige','bisque','black','blanchedalmond','blue','blueviolet','brown','burlywood',
+    'cadetblue','chartreuse','chocolate','coral','cornflowerblue','cornsilk','crimson','cyan',
+    'darkblue','darkcyan','darkgoldenrod','darkgray','darkgreen','darkgrey','darkkhaki',
+    'darkmagenta','darkolivegreen','darkorange','darkorchid','darkred','darksalmon',
+    'darkseagreen','darkslateblue','darkslategray','darkslategrey','darkturquoise','darkviolet',
+    'deeppink','deepskyblue','dimgray','dimgrey','dodgerblue',
+    'firebrick','floralwhite','forestgreen','fuchsia',
+    'gainsboro','ghostwhite','gold','goldenrod','gray','green','greenyellow','grey',
+    'honeydew','hotpink',
+    'indianred','indigo','ivory',
+    'khaki',
+    'lavender','lavenderblush','lawngreen','lemonchiffon',
+    'lightblue','lightcoral','lightcyan','lightgoldenrodyellow','lightgray','lightgreen',
+    'lightgrey','lightpink','lightsalmon','lightseagreen','lightskyblue','lightslategray',
+    'lightslategrey','lightsteelblue','lightyellow','lime','limegreen','linen',
+    'magenta','maroon','mediumaquamarine','mediumblue','mediumorchid','mediumpurple',
+    'mediumseagreen','mediumslateblue','mediumspringgreen','mediumturquoise','mediumvioletred',
+    'midnightblue','mintcream','mistyrose','moccasin',
+    'navajowhite','navy',
+    'oldlace','olive','olivedrab','orange','orangered','orchid',
+    'palegoldenrod','palegreen','paleturquoise','palevioletred','papayawhip','peachpuff',
+    'peru','pink','plum','powderblue','purple',
+    'rebeccapurple','red','rosybrown','royalblue',
+    'saddlebrown','salmon','sandybrown','seagreen','seashell','sienna','silver',
+    'skyblue','slateblue','slategray','slategrey','snow','springgreen','steelblue',
+    'tan','teal','thistle','tomato','turquoise',
+    'violet',
+    'wheat','white','whitesmoke',
+    'yellow','yellowgreen',
+];
+
+import { HexAlphaBase } from 'vanilla-colorful/lib/entrypoints/hex-alpha';
+import { HexInputBase } from 'vanilla-colorful/lib/entrypoints/hex-input';
+if (!customElements.get('hex-alpha-color-picker')) {
+  class HexAlphaColorPicker extends HexAlphaBase {}
+  customElements.define('hex-alpha-color-picker', HexAlphaColorPicker);
+}
+if (!customElements.get('hex-input')) {
+  class HexInput extends HexInputBase {}
+  customElements.define('hex-input', HexInput);
+}
 import { ColorUtils } from '../../../core/themes/ColorUtils.js';
+import { getColorFamily, getColorSortKey, compareColorSortKeys, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
+import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
+
+/**
+ * Opt-in scope groups for the picker's broader-var chip row (issue #372
+ * follow-up). 'theme' matches the picker's historical variablePrefixes
+ * default (--lcards-/--lcars-/--cblcars-) so the default visible list is
+ * unchanged unless the user opts into 'ha' or 'all'.
+ */
+const CATEGORY_GROUPS = {
+    theme: ['lcars', 'lcards', 'card-mod'],
+    ha: ['ha-legacy', 'ha-color', 'ha-system', 'ha-space', 'ha-shape', 'ha-motion', 'ha-type', 'ha-elevation', 'states'],
+    all: null
+};
+const CATEGORY_GROUP_LABELS = { theme: 'Theme', ha: 'HA', all: 'All' };
 
 export class LCARdSColorPicker extends LitElement {
 
@@ -46,7 +111,17 @@ export class LCARdSColorPicker extends LitElement {
             _baseColor: { type: String, state: true },
             _baseColor2: { type: String, state: true },  // For mix() function
             _amount: { type: Number, state: true },
-            _applyBrightness: { type: Boolean, state: true }  // Apply light brightness to colour
+            _applyBrightness: { type: Boolean, state: true },  // Apply light brightness to colour
+            _popoverOpen: { type: Boolean, state: true },       // CSS-var picker popover open (controls .open)
+            _popoverMounted: { type: Boolean, state: true },   // True after wa-after-show; keeps popover in DOM during close animation
+            _popoverMode: { type: String, state: true },          // ''|'picker'|'named'|'custom'
+            _sortMode: { type: String, state: true },             // ''|'name'|'gradient'
+            _searchText: { type: String, state: true },         // Popover filter text
+            _selectedFamily: { type: String, state: true },     // Popover color-family chip filter
+            _selectedCategoryGroup: { type: String, state: true }, // Popover scope: 'theme'|'ha'|'all'
+            _builderPickingFor: { type: String, state: true },  // 'color1'|'color2'|null — which builder slot is picking
+            _builderPopoverOpen: { type: Boolean, state: true },
+            _builderPopoverMounted: { type: Boolean, state: true }
         };
     }
 
@@ -72,6 +147,20 @@ export class LCARdSColorPicker extends LitElement {
         this._baseColor2 = '';
         this._amount = 20;
         this._applyBrightness = false;
+
+        // Popover + filter state
+        this._popoverOpen = false;
+        this._popoverMounted = false;
+        this._popoverMode = '';
+        this._sortMode = 'name';
+        this._searchText = '';
+        this._selectedFamily = 'all';
+        this._selectedCategoryGroup = 'theme';
+
+        // Builder color-slot popover state
+        this._builderPickingFor = null;
+        this._builderPopoverOpen = false;
+        this._builderPopoverMounted = false;
     }
 
     static get styles() {
@@ -87,15 +176,9 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             .color-inputs {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
+                display: flex;
+                flex-direction: column;
                 gap: var(--ha-space-2);
-            }
-
-            @media (max-width: 600px) {
-                .color-inputs {
-                    grid-template-columns: 1fr;
-                }
             }
 
             .input-group {
@@ -111,19 +194,302 @@ export class LCARdSColorPicker extends LitElement {
                 padding: 0 var(--ha-space-2);
             }
 
-            ha-selector {
-                width: 100%;
+            .input-label-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                min-height: 24px;
             }
 
-            ha-select {
-                width: 100%;
+            .brightness-toggle-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 var(--ha-space-2);
+                min-height: 36px;
+            }
+
+            /* ── wa-popover body — zero out Web Awesome's built-in padding and fix size ── */
+            wa-popover {
+                --wa-space-l: 0;
+            }
+
+            wa-popover::part(body) {
+                padding: 0;
+                width: max(var(--body-width, 320px), 280px);
+                max-width: max(var(--body-width, 320px), 280px);
+                max-height: 500px;
+                height: 70vh;
+                overflow: hidden;
+            }
+
+            @media (max-height: 1000px) {
+                wa-popover::part(body) {
+                    max-height: 400px;
+                }
+            }
+
+            /* Trigger field (replaces ha-select in text UI mode) */
+            .color-trigger-field {
+                display: flex;
+                align-items: center;
+                gap: var(--ha-space-2);
+                padding: 0 var(--ha-space-3);
+                height: 56px;
+                border: var(--ha-border-width-sm) solid var(--outline-color, var(--divider-color, #e0e0e0));
+                border-radius: var(--ha-border-radius-md);
+                cursor: pointer;
+                background: var(--card-background-color, #fff);
+                box-sizing: border-box;
+                user-select: none;
+            }
+
+            .color-trigger-field:hover {
+                border-color: var(--primary-color);
+            }
+
+            .color-swatch-trigger {
+                width: 20px;
+                height: 20px;
+                border-radius: var(--ha-border-radius-sm);
+                border: var(--ha-border-width-sm) solid rgba(0, 0, 0, 0.15);
+                flex-shrink: 0;
+            }
+
+            .color-trigger-label {
+                flex: 1;
+                font-size: var(--ha-font-size-m);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                color: var(--primary-text-color);
+            }
+
+            .color-trigger-chevron {
+                color: var(--secondary-text-color);
+                flex-shrink: 0;
+            }
+
+            /* ── Popover content — mirrors ha-picker-combo-box layout ── */
+            .popover-content {
+                display: flex;
+                flex-direction: column;
+                padding-top: var(--ha-space-4);
+                height: 100%;
+                overflow: hidden;
+                box-sizing: border-box;
+            }
+
+            /* search input: left/right gutter + bottom spacing, distinct background */
+            .popover-content ha-input-search {
+                padding: 0 var(--ha-space-3) var(--ha-space-3);
+                /* Make the search field visually distinct from the popover body by
+                   mapping --card-background-color (used internally by ha-input outlined)
+                   to the neutral-quiet-resting fill that HA uses for section headers etc. */
+                --card-background-color: var(--ha-color-fill-neutral-quiet-resting, var(--secondary-background-color, #f5f5f5));
+            }
+
+            /* sections chip row (scope + separator + Picker, and family row) */
+            .sections {
+                display: flex;
+                flex-wrap: nowrap;
+                align-items: center;
+                gap: var(--ha-space-2);
+                padding: 0 var(--ha-space-3) var(--ha-space-3);
+                overflow: auto;
+                flex-shrink: 0;
+            }
+
+            .sort-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 18px;
+                height: 18px;
+                padding: 0;
+                margin-inline-start: auto;
+                flex-shrink: 0;
+                border: none;
+                background: none;
+                cursor: pointer;
+                color: var(--secondary-text-color);
+                opacity: 0.5;
+                border-radius: var(--ha-border-radius-sm);
+                transition: opacity var(--ha-animation-duration-fast, 0.15s);
+            }
+
+            .sort-btn:hover {
+                opacity: 0.9;
+            }
+
+            .sort-btn ha-svg-icon {
+                width: 16px;
+                height: 16px;
+                pointer-events: none;
+            }
+
+            .sort-btn.sort-gradient {
+                color: var(--primary-color);
+                opacity: 1;
+            }
+
+            .sections ha-filter-chip {
+                flex-shrink: 0;
+                --md-filter-chip-selected-container-color: var(
+                    --ha-color-fill-primary-normal-hover,
+                    rgba(var(--rgb-primary-color, 3, 169, 244), 0.2)
+                );
+                color: var(--primary-color);
+            }
+
+            /* Chips with no-leading-icon: equalise leading/trailing space so the label
+               stays horizontally centred in both selected and unselected states.
+               MD3 normally reduces leading-space when a leading icon (checkmark) is
+               present; forcing it equal to trailing-space keeps text visually centred. */
+            .sections ha-filter-chip[no-leading-icon] {
+                --md-filter-chip-leading-space: var(--ha-space-3);
+                --md-filter-chip-with-leading-icon-leading-space: var(--ha-space-3);
+                --md-filter-chip-trailing-space: var(--ha-space-3);
+            }
+
+            /* vertical bar between scope chips and Picker */
+            .sections .separator {
+                height: var(--ha-space-8);
+                width: 0;
+                border: var(--ha-border-width-sm) solid var(--ha-color-border-neutral-quiet, var(--divider-color));
+                flex-shrink: 0;
+                align-self: center;
+            }
+
+            /* section title above the list */
+            .section-title-wrapper {
+                height: 0;
                 position: relative;
             }
 
-            /* Override MWC select to prevent clipping */
-            //ha-select::part(menu) {
-            //    z-index: 1000;
-            //}
+            .section-title {
+                box-sizing: border-box;
+                background-color: var(--ha-color-fill-neutral-quiet-resting, var(--secondary-background-color));
+                padding: var(--ha-space-1) var(--ha-space-4);
+                font-family: var(--ha-font-family-body, inherit);
+                font-weight: var(--ha-font-weight-bold, 500);
+                color: var(--secondary-text-color);
+                min-height: var(--ha-space-6);
+                display: flex;
+                align-items: center;
+                opacity: 0;
+                position: absolute;
+                top: 1px;
+                width: calc(100% - var(--ha-space-4));
+            }
+
+            .section-title.show {
+                opacity: 1;
+                z-index: 1;
+            }
+
+            /* scrollable color variable list */
+            .color-list {
+                overflow-y: auto;
+                flex: 1;
+                min-height: 0;
+                /* leave room for the section-title overlay */
+                padding-top: var(--ha-space-6);
+            }
+
+            /* selected item highlight */
+            ha-combo-box-item.current-value {
+                background-color: var(--ha-color-fill-primary-quiet-resting, rgba(var(--rgb-primary-color, 3, 169, 244), 0.08));
+            }
+
+            .color-swatch-sm {
+                display: block;
+                width: 20px;
+                height: 20px;
+                border-radius: var(--ha-border-radius-sm);
+                border: var(--ha-border-width-sm) solid rgba(0, 0, 0, 0.15);
+                flex-shrink: 0;
+            }
+
+            .swatch-transparent {
+                display: block;
+                width: 20px;
+                height: 20px;
+                border-radius: var(--ha-border-radius-sm);
+                border: var(--ha-border-width-sm) solid rgba(0, 0, 0, 0.15);
+                background: linear-gradient(45deg, #ccc 25%, transparent 25%),
+                            linear-gradient(-45deg, #ccc 25%, transparent 25%),
+                            linear-gradient(45deg, transparent 75%, #ccc 75%),
+                            linear-gradient(-45deg, transparent 75%, #ccc 75%);
+                background-size: 8px 8px;
+                background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+                flex-shrink: 0;
+            }
+
+            /* Native color picker (Picker chip mode) */
+            .picker-mode-content {
+                padding: var(--ha-space-3);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ha-space-3);
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+            }
+
+            hex-alpha-color-picker {
+                width: 100%;
+                height: 240px;
+            }
+
+            hex-alpha-color-picker::part(saturation) {
+                border-radius: var(--ha-border-radius-md) var(--ha-border-radius-md) 0 0;
+            }
+
+            hex-alpha-color-picker::part(hue) {
+                border-radius: 0;
+                height: 24px;
+            }
+
+            hex-alpha-color-picker::part(alpha) {
+                border-radius: 0 0 var(--ha-border-radius-md) var(--ha-border-radius-md);
+                height: 24px;
+            }
+
+            hex-input {
+                width: 100%;
+            }
+
+            hex-input::part(input) {
+                width: 100%;
+                box-sizing: border-box;
+                padding: var(--ha-space-2) var(--ha-space-3);
+                border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
+                border-radius: var(--ha-border-radius-md);
+                background: var(--card-background-color, #fff);
+                color: var(--primary-text-color);
+                font-family: monospace;
+                font-size: var(--ha-font-size-m, 14px);
+                outline: none;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            hex-input::part(input):focus {
+                border-color: var(--primary-color);
+            }
+
+            .chip-swatch {
+                display: inline-block;
+                width: 9px;
+                height: 9px;
+                border-radius: var(--ha-border-radius-circle, 50%);
+                border: var(--ha-border-width-sm) solid rgba(0, 0, 0, 0.15);
+            }
+
+            ha-selector {
+                width: 100%;
+            }
 
             .color-swatch {
                 display: inline-block;
@@ -143,10 +509,6 @@ export class LCARdSColorPicker extends LitElement {
                             linear-gradient(-45deg, transparent 75%, #ccc 75%);
                 background-size: 8px 8px;
                 background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
-            }
-
-            ha-dropdown-item {
-                gap: var(--ha-space-2);
             }
 
             .preview {
@@ -171,19 +533,35 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             /* Builder UI Styles */
-            .mode-toggle {
+            .picker-header {
                 display: flex;
-                gap: var(--ha-space-2);
-                margin-bottom: var(--ha-space-3);
+                align-items: center;
+                justify-content: flex-end;
+                padding: 0 var(--ha-space-1);
             }
 
-            .mode-toggle ha-button {
-                flex: 1;
+            /* Unified pill-group: square the inner corners, pill the outer ones.
+               ::part(base) pierces ha-button's shadow DOM to reach the <button> element. */
+            .picker-header wa-button-group ha-button::part(base) {
+                min-height: 28px;
+                height: 28px;
+                padding-block: 0;
+                font-size: var(--ha-font-size-s, 12px);
             }
 
-            .mode-toggle ha-button[outlined] {
-                border: var(--ha-border-width-sm) solid var(--primary-color);
-                color: var(--primary-color);
+            .picker-header wa-button-group ha-button:first-child::part(base) {
+                border-start-start-radius: var(--ha-border-radius-pill);
+                border-end-start-radius: var(--ha-border-radius-pill);
+                border-start-end-radius: 0;
+                border-end-end-radius: 0;
+                border-inline-end: none;
+            }
+
+            .picker-header wa-button-group ha-button:last-child::part(base) {
+                border-start-start-radius: 0;
+                border-end-start-radius: 0;
+                border-start-end-radius: var(--ha-border-radius-pill);
+                border-end-end-radius: var(--ha-border-radius-pill);
             }
 
             .builder-panel {
@@ -226,16 +604,12 @@ export class LCARdSColorPicker extends LitElement {
                 display: flex;
                 gap: var(--ha-space-2);
                 align-items: center;
+                justify-content: flex-end;
                 margin-top: var(--ha-space-2);
             }
 
             .result-actions ha-button {
                 --ha-button-border-radius: var(--ha-card-border-radius, 12px);
-            }
-
-            .result-actions ha-button[outlined] {
-                border: var(--ha-border-width-sm) solid var(--primary-color);
-                color: var(--primary-color);
             }
 
             .copy-success {
@@ -285,6 +659,17 @@ export class LCARdSColorPicker extends LitElement {
                 border-radius: var(--ha-border-radius-sm);
                 margin-top: 8px;
             }
+
+            .custom-color-input {
+                padding: 0 var(--ha-space-3) var(--ha-space-3);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ha-space-2);
+            }
+
+            .custom-color-input ha-selector {
+                width: 100%;
+            }
         `;
     }
 
@@ -331,25 +716,26 @@ export class LCARdSColorPicker extends LitElement {
         const variables = [];
         const styles = getComputedStyle(document.documentElement);
 
-        // Scan all CSS properties
+        // Scan every CSS custom property (not just variablePrefixes) — scope
+        // is narrowed downstream by the category-group chip (issue #372
+        // follow-up), defaulting to 'theme' so the visible list is unchanged
+        // unless the user opts into 'ha' or 'all'. Only color values are ever
+        // candidates here since this is a color field.
         for (let i = 0; i < styles.length; i++) {
             const prop = styles[i];
+            if (!prop.startsWith('--')) continue;
 
-            // Check if property matches any prefix
-            const matchesPrefix = this.variablePrefixes.some(prefix =>
-                prop.startsWith(prefix)
-            );
+            const value = styles.getPropertyValue(prop).trim();
+            if (!value || !isColorValue(value)) continue;
 
-            if (matchesPrefix) {
-                const value = styles.getPropertyValue(prop).trim();
-                if (value) {
-                    variables.push({
-                        name: prop,
-                        value: `var(${prop})`,
-                        label: this._formatVariableName(prop)
-                    });
-                }
-            }
+            variables.push({
+                name: prop,
+                value: `var(${prop})`,
+                label: this._formatVariableName(prop),
+                // Value-based color family (hue bucket), independent of var naming — issue #372
+                family: getColorFamily(value),
+                category: getCssVarCategory(prop)
+            });
         }
 
         // Sort alphabetically by label
@@ -376,6 +762,311 @@ export class LCARdSColorPicker extends LitElement {
         }
 
         return label;
+    }
+
+    /**
+     * Variables to actually render in the dropdown(s), narrowed by the
+     * search text / color-family chip filter bar (issue #372). When no
+     * filter is active this is just `_cssVariables` unchanged.
+     * @returns {Array}
+     * @private
+     */
+    _getFilteredVariables() {
+        let vars = this._cssVariables;
+
+        const allowedCategories = CATEGORY_GROUPS[this._selectedCategoryGroup];
+        if (allowedCategories) {
+            vars = vars.filter(v => allowedCategories.includes(v.category));
+        }
+
+        if (this._selectedFamily !== 'all') {
+            vars = vars.filter(v => v.family === this._selectedFamily);
+        }
+
+        if (this._searchText) {
+            const q = this._searchText.toLowerCase();
+            vars = vars.filter(v =>
+                v.label.toLowerCase().includes(q) ||
+                v.name.toLowerCase().includes(q) ||
+                (v.family && FAMILY_LABELS[v.family].toLowerCase().includes(q))
+            );
+        }
+
+        if (this._sortMode === 'gradient') {
+            // Pre-compute sort keys once (avoids n·log(n) DOM reads inside comparator)
+            const withKeys = vars.map(v => ({ v, k: getColorSortKey(v.value) }));
+            withKeys.sort((a, b) => {
+                const ak = a.k, bk = b.k;
+                if (!ak && !bk) return a.v.label.localeCompare(b.v.label);
+                if (!ak) return 1;
+                if (!bk) return -1;
+                // Family first (hue-wheel order: red → orange → … → gray)
+                const familyDiff = FAMILY_ORDER.indexOf(ak.family) - FAMILY_ORDER.indexOf(bk.family);
+                if (familyDiff !== 0) return familyDiff;
+                // Within family: lightness (dark → light) so variants cluster visually
+                const lightnessDiff = ak.lightness - bk.lightness;
+                if (lightnessDiff !== 0) return lightnessDiff;
+                // Tiebreak by hue, then name
+                return (ak.hue - bk.hue) || a.v.label.localeCompare(b.v.label);
+            });
+            vars = withKeys.map(({ v }) => v);
+        } else {
+            vars = [...vars].sort((a, b) => a.label.localeCompare(b.label));
+        }
+
+        return vars;
+    }
+
+    _cycleSortMode() {
+        this._sortMode = this._sortMode === 'gradient' ? 'name' : 'gradient';
+    }
+
+    _handleFilterSearchInput(ev) {
+        this._searchText = ev.target.value || '';
+    }
+
+    _selectPickerFamily(family) {
+        this._selectedFamily = family;
+    }
+
+    _selectCategoryGroup(group) {
+        this._selectedCategoryGroup = group;
+    }
+
+    /**
+     * Full popover body: category chips + search + family chips + Picker chip + list or color input.
+     * @returns {import('lit').TemplateResult}
+     * @private
+     */
+    _renderPopoverContent() {
+        const familiesPresent = FAMILY_ORDER.filter(f => this._cssVariables.some(v => v.family === f));
+        const sectionTitle = this._getSectionTitle();
+        const isListMode = this._popoverMode === '';
+
+        return html`
+            <div class="popover-content">
+
+                <!-- 1. Search — always visible, always first -->
+                <ha-input-search
+                    appearance="outlined"
+                    style="--start-slot-width: calc(18px + var(--ha-space-1)); --input-padding-inline-start: var(--ha-space-1);"
+                    .value=${this._searchText}
+                    .disabled=${this.disabled}
+                    @input=${this._handleFilterSearchInput}>
+                </ha-input-search>
+
+                <!-- 2. Sections row: scope chips | separator | Picker | CSS | Custom -->
+                <ha-chip-set class="sections">
+                    ${Object.keys(CATEGORY_GROUPS).map(group => html`
+                        <ha-filter-chip
+                            no-leading-icon
+                            .selected=${this._selectedCategoryGroup === group && isListMode}
+                            .label=${CATEGORY_GROUP_LABELS[group]}
+                            @click=${() => { this._popoverMode = ''; this._selectCategoryGroup(group); }}>
+                        </ha-filter-chip>
+                    `)}
+                    <div class="separator"></div>
+                    <ha-filter-chip
+                        no-leading-icon
+                        .selected=${this._popoverMode === 'picker'}
+                        .label=${'Picker'}
+                        @click=${() => this._setPopoverMode('picker')}>
+                    </ha-filter-chip>
+                    <ha-filter-chip
+                        no-leading-icon
+                        .selected=${this._popoverMode === 'named'}
+                        .label=${'CSS'}
+                        @click=${() => this._setPopoverMode('named')}>
+                    </ha-filter-chip>
+                    <ha-filter-chip
+                        no-leading-icon
+                        .selected=${this._popoverMode === 'custom'}
+                        .label=${'Custom'}
+                        @click=${() => this._setPopoverMode('custom')}>
+                    </ha-filter-chip>
+                </ha-chip-set>
+
+                <!-- 3. Color family chips (list mode only) -->
+                ${isListMode ? html`
+                    <ha-chip-set class="sections">
+                        <ha-filter-chip
+                            no-leading-icon
+                            .selected=${this._selectedFamily === 'all'}
+                            .label=${'All'}
+                            @click=${() => this._selectPickerFamily('all')}>
+                        </ha-filter-chip>
+                        ${familiesPresent.map(family => html`
+                            <ha-filter-chip
+                                .selected=${this._selectedFamily === family}
+                                .label=${FAMILY_LABELS[family]}
+                                title=${FAMILY_HUE_RANGES[family] || ''}
+                                @click=${() => this._selectPickerFamily(family)}>
+                                <span slot="icon" class="chip-swatch"
+                                    style="background-color: ${FAMILY_SWATCH_COLORS[family]}">
+                                </span>
+                            </ha-filter-chip>
+                        `)}
+                    </ha-chip-set>
+
+                    <!-- 4. Section title header (floats above list) with sort button -->
+                    <div class="section-title-wrapper">
+                        <div class="section-title show">
+                            <span>${sectionTitle}</span>
+                            <button
+                                class="sort-btn ${this._sortMode === 'gradient' ? 'sort-gradient' : ''}"
+                                title=${this._sortMode === 'gradient' ? 'Sort: Colour (click for A–Z)' : 'Sort: A–Z (click for colour)'}
+                                @click=${this._cycleSortMode}>
+                                <ha-svg-icon .path=${this._sortMode === 'gradient' ? MDI_PALETTE : MDI_SORT_ALPHA}></ha-svg-icon>
+                            </button>
+                        </div>
+                    </div>
+                ` : nothing}
+
+                <!-- 5. Content area: list, color wheel, named colors, or custom input -->
+                ${this._popoverMode === 'picker' ? this._renderPickerMode() :
+                  this._popoverMode === 'named' ? this._renderNamedColorList() :
+                  this._popoverMode === 'custom' ? this._renderCustomColorInput() :
+                  this._renderColorList()}
+            </div>
+        `;
+    }
+
+    /**
+     * Label for the section title bar above the list.
+     * @returns {string}
+     * @private
+     */
+    _getSectionTitle() {
+        const scopeLabel = CATEGORY_GROUP_LABELS[this._selectedCategoryGroup];
+        if (this._selectedFamily === 'all') return scopeLabel;
+        return `${scopeLabel} — ${FAMILY_LABELS[this._selectedFamily]}`;
+    }
+
+    /**
+     * Scrollable list of color variables + special entries for the popover.
+     * @returns {import('lit').TemplateResult}
+     * @private
+     */
+    _renderColorList() {
+        const filteredVars = this._getFilteredVariables();
+        const activeValue = this._builderPickingFor === 'color1' ? this._baseColor
+                          : this._builderPickingFor === 'color2' ? this._baseColor2
+                          : this.value;
+        const { color: currentColor } = this._parseIncomingValue(activeValue);
+
+        return html`
+            <div class="color-list" role="listbox">
+                <ha-combo-box-item type="button"
+                    @click=${() => this._selectAndClose('')}>
+                    <span slot="headline">— None —</span>
+                </ha-combo-box-item>
+                <ha-combo-box-item type="button"
+                    @click=${() => this._selectAndClose('transparent')}>
+                    <span slot="start" class="swatch-transparent"></span>
+                    <span slot="headline">Transparent</span>
+                </ha-combo-box-item>
+                ${this.allowMatchLight ? html`
+                    <ha-combo-box-item type="button"
+                        @click=${() => this._selectAndClose('match-light')}>
+                        <ha-svg-icon slot="start" .path=${MDI_LIGHTBULB}
+                            style="color: ${this._resolveMatchLightForPreview('match-light') || 'var(--primary-text-color)'}; width: 20px; height: 20px; flex-shrink: 0;">
+                        </ha-svg-icon>
+                        <span slot="headline">Match Light Colour</span>
+                    </ha-combo-box-item>
+                ` : nothing}
+                ${filteredVars.map(v => html`
+                    <ha-combo-box-item type="button"
+                        class="${currentColor === v.value ? 'current-value' : ''}"
+                        @click=${() => this._selectAndClose(v.value)}>
+                        <span slot="start" class="color-swatch-sm"
+                            style="background-color: ${this._computeColor(v.value)};"></span>
+                        <span slot="headline">${v.label}</span>
+                    </ha-combo-box-item>
+                `)}
+            </div>
+        `;
+    }
+
+    /**
+     * Native ha-input color picker shown when "Picker" chip is active.
+     * Uses `change` (not `input`) so the popover closes only when the browser
+     * native color picker is dismissed, not on each slider drag.
+     * @returns {import('lit').TemplateResult}
+     * @private
+     */
+    _renderPickerMode() {
+        const hexValue = this._valueToHex();
+        return html`
+            <div class="picker-mode-content">
+                <hex-alpha-color-picker
+                    .color=${hexValue}
+                    @color-changed=${this._handlePickerColorChange}>
+                </hex-alpha-color-picker>
+                <hex-input
+                    prefixed
+                    alpha
+                    .color=${hexValue}
+                    @color-changed=${this._handlePickerColorChange}>
+                </hex-input>
+            </div>
+        `;
+    }
+
+    /** Filter CSS named colors by current search text. */
+    _getFilteredNamedColors() {
+        if (!this._searchText) return CSS_NAMED_COLORS;
+        const q = this._searchText.toLowerCase();
+        return CSS_NAMED_COLORS.filter(n => n.includes(q));
+    }
+
+    _renderNamedColorList() {
+        const filtered = this._getFilteredNamedColors();
+        const activeValue = this._builderPickingFor === 'color1' ? this._baseColor
+                          : this._builderPickingFor === 'color2' ? this._baseColor2
+                          : this.value;
+        return html`
+            <div class="color-list" role="listbox">
+                ${filtered.map(name => html`
+                    <ha-combo-box-item type="button"
+                        class="${activeValue === name ? 'current-value' : ''}"
+                        @click=${() => this._selectAndClose(name)}>
+                        <span slot="start" class="color-swatch-sm"
+                            style="background-color: ${name};"></span>
+                        <span slot="headline">${name}</span>
+                    </ha-combo-box-item>
+                `)}
+            </div>
+        `;
+    }
+
+    _renderCustomColorInput() {
+        const currentVal = this._builderPickingFor === 'color1' ? this._baseColor
+                         : this._builderPickingFor === 'color2' ? this._baseColor2
+                         : this.value;
+        return html`
+            <div class="custom-color-input">
+                <ha-selector
+                    // @ts-ignore - TS2339: auto-suppressed
+                    .hass=${this.hass}
+                    .selector=${{ text: {} }}
+                    .value=${currentVal || ''}
+                    .disabled=${this.disabled}
+                    @value-changed=${this._handlePopoverCustomInput}
+                    placeholder="#ff9900, rgb(255,153,0), var(...), lighten(...)">
+                </ha-selector>
+            </div>
+        `;
+    }
+
+    _handlePopoverCustomInput(ev) {
+        if (this.disabled) return;
+        const value = ev.detail.value;
+        if (this._builderPickingFor) {
+            if (this._builderPickingFor === 'color1') this._baseColor = value;
+            else this._baseColor2 = value;
+        } else {
+            this._emitChange(value);
+        }
     }
 
     /**
@@ -568,19 +1259,23 @@ export class LCARdSColorPicker extends LitElement {
      */
     _renderModeToggle() {
         return html`
-            <div class="mode-toggle">
-                <ha-button
-                    appearance=${!this._builderMode ? 'accent' : 'filled'}
-                    .disabled=${this.disabled}
-                    @click=${() => this._setMode(false)}>
-                    Picker/Text
-                </ha-button>
-                <ha-button
-                    appearance=${this._builderMode ? 'accent' : 'filled'}
-                    .disabled=${this.disabled}
-                    @click=${() => this._setMode(true)}>
-                    Computed Builder
-                </ha-button>
+            <div class="picker-header">
+                <wa-button-group childSelector="ha-button">
+                    <ha-button iconTag="ha-svg-icon"
+                        variant="brand" size="s"
+                        .appearance=${!this._builderMode ? 'accent' : 'filled'}
+                        .disabled=${this.disabled}
+                        @click=${() => this._setMode(false)}>
+                        Picker / Text
+                    </ha-button>
+                    <ha-button iconTag="ha-svg-icon"
+                        variant="brand" size="s"
+                        .appearance=${this._builderMode ? 'accent' : 'filled'}
+                        .disabled=${this.disabled}
+                        @click=${() => this._setMode(true)}>
+                        Builder
+                    </ha-button>
+                </wa-button-group>
             </div>
         `;
     }
@@ -591,26 +1286,56 @@ export class LCARdSColorPicker extends LitElement {
      * @private
      */
     _renderTextUI() {
+        const triggerLabel = this._getTriggerLabel();
+        const triggerBg = this._computedColor || 'transparent';
+        const isTriggerNone = !this.value;
+
         return html`
             <div class="color-inputs">
-                <!-- CSS Variable Dropdown with Color Swatches -->
+                <!-- CSS Variable / Preset — opens wa-popover picker -->
                 <div class="input-group">
-                    <div class="input-label">CSS Variable / Preset</div>
-                    <ha-select
-                        .value=${this._getCurrentDropdownValue()}
-                        .disabled=${this.disabled}
-                        fixedMenuPosition
-                        @selected=${this._handleDropdownChange}
-                        @closed=${(e) => e.stopPropagation()}>
-                        ${this._renderDropdownItems()}
-                    </ha-select>
+                    <div class="input-label-row">
+                        <div class="input-label">CSS Variable / Preset</div>
+                    </div>
+                    <div id="color-trigger"
+                        class="color-trigger-field"
+                        role="button"
+                        tabindex="0"
+                        aria-haspopup="dialog"
+                        aria-expanded=${this._popoverOpen ? 'true' : 'false'}
+                        @click=${this._openPickerPopover}
+                        @keydown=${(e) => (e.key === 'Enter' || e.key === ' ') && this._openPickerPopover(e)}>
+                        <span class="color-swatch-trigger"
+                            style="background-color: ${isTriggerNone ? 'transparent' : triggerBg};
+                                   ${isTriggerNone ? 'border-style: dashed;' : ''}">
+                        </span>
+                        <span class="color-trigger-label">${triggerLabel}</span>
+                        <ha-svg-icon class="color-trigger-chevron" .path=${MDI_CHEVRON_DOWN}></ha-svg-icon>
+                    </div>
+                    ${this._popoverOpen || this._popoverMounted ? html`
+                        <wa-popover
+                            .open=${this._popoverOpen}
+                            style="--body-width: ${this._getPopoverWidth()}px;"
+                            without-arrow
+                            distance="-4"
+                            for="color-trigger"
+                            placement="bottom"
+                            auto-size="vertical"
+                            auto-size-padding="16"
+                            @wa-after-show=${this._onPopoverOpened}
+                            @wa-after-hide=${this._closePickerPopover}
+                            trap-focus
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Select color">
+                            ${this._popoverMounted ? this._renderPopoverContent() : nothing}
+                        </wa-popover>
+                    ` : nothing}
                 </div>
 
                 ${this.allowMatchLight ? html`
-                <!-- Apply light brightness toggle -->
-                <div class="input-group" style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 16px;">☀</span>
-                    <span style="flex: 1; font-size: 12px;">Apply light brightness to colour</span>
+                <div class="brightness-toggle-row">
+                    <span class="input-label">Apply light brightness to colour</span>
                     <ha-switch
                         .checked=${this._applyBrightness}
                         .disabled=${this.disabled}
@@ -619,19 +1344,6 @@ export class LCARdSColorPicker extends LitElement {
                 </div>
                 ` : ''}
 
-                <!-- Custom Color Input -->
-                <div class="input-group">
-                    <div class="input-label">Custom Color</div>
-                    <ha-selector
-                        // @ts-ignore - TS2339: auto-suppressed
-                        .hass=${this.hass}
-                        .selector=${{ text: {} }}
-                        .value=${this.value || ''}
-                        .disabled=${this.disabled}
-                        @value-changed=${this._handleTextChange}
-                        placeholder="#ff9900, rgb(255,153,0), var(...), lighten(...)">
-                    </ha-selector>
-                </div>
             </div>
         `;
     }
@@ -651,12 +1363,11 @@ export class LCARdSColorPicker extends LitElement {
                 <div class="builder-row">
                     <label>Function:</label>
                     <ha-selector
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'lighten', label: 'Lighten' },
                             { value: 'darken', label: 'Darken' },
-                            { value: 'alpha', label: 'Transparency' },
+                            { value: 'alpha', label: 'Alpha/Transparency' },
                             { value: 'saturate', label: 'Saturate' },
                             { value: 'desaturate', label: 'Desaturate' },
                             { value: 'mix', label: 'Mix Colours' },
@@ -671,28 +1382,14 @@ export class LCARdSColorPicker extends LitElement {
                 <!-- Base Color Picker -->
                 <div class="builder-row">
                     <label>${this._selectedFunction === 'mix' ? 'Color 1:' : 'Base Color:'}</label>
-                    <ha-select
-                        .value=${this._baseColor}
-                        .disabled=${this.disabled}
-                        fixedMenuPosition
-                        @selected=${this._onBaseColorChange}
-                        @closed=${(e) => e.stopPropagation()}>
-                        ${this._renderDropdownItems()}
-                    </ha-select>
+                    ${this._renderBuilderColorTrigger('color1', this._baseColor)}
                 </div>
 
                 <!-- Second Color for Mix Function -->
                 ${this._selectedFunction === 'mix' ? html`
                     <div class="builder-row">
                         <label>Color 2:</label>
-                        <ha-select
-                            .value=${this._baseColor2}
-                            .disabled=${this.disabled}
-                            fixedMenuPosition
-                            @selected=${this._onBaseColor2Change}
-                            @closed=${(e) => e.stopPropagation()}>
-                            ${this._renderDropdownItems()}
-                        </ha-select>
+                        ${this._renderBuilderColorTrigger('color2', this._baseColor2)}
                     </div>
                 ` : ''}
 
@@ -721,13 +1418,13 @@ export class LCARdSColorPicker extends LitElement {
                     ${expression ? html`
                         <div class="result-actions">
                             <ha-button
-                                ?outlined=${true}
-                                .disabled=${this.disabled || !isValid}
+                                appearance="filled"
+                                .disabled=${this.disabled || !isValid || expression === this.value}
                                 @click=${this._applyExpression}>
                                 Apply
                             </ha-button>
                             <ha-button
-                                ?outlined=${true}
+                                appearance="filled"
                                 .disabled=${this.disabled || !expression}
                                 @click=${this._copyExpression}>
                                 Copy
@@ -786,55 +1483,6 @@ export class LCARdSColorPicker extends LitElement {
     */
 
     /**
-     * Render dropdown items with color swatches
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderDropdownItems() {
-        const items = [];
-
-        // Default option
-        items.push(html`
-            <ha-dropdown-item .value=${''}>-- Select Variable --</ha-dropdown-item>
-        `);
-
-        // Transparent option with checkered pattern
-        items.push(html`
-            <ha-dropdown-item .value=${'transparent'}>
-                <span class="color-swatch transparent"></span>
-                Transparent
-            </ha-dropdown-item>
-        `);
-
-        // Match Light option (if enabled — allowMatchLight is already gated on light.* domain,
-        // so no further attribute sniffing needed; brightness-only lights are valid too)
-        if (this.allowMatchLight) {
-            items.push(html`
-                <ha-dropdown-item .value=${'match-light'}>
-                    💡 Match Light Colour
-                </ha-dropdown-item>
-            `);
-        }
-
-        // CSS variables with color swatches
-        this._cssVariables.forEach(variable => {
-            const computedColor = this._computeColor(variable.value);
-            items.push(html`
-                <ha-dropdown-item .value=${variable.value}>
-                    <span
-                        class="color-swatch"
-                        style="background-color: ${computedColor};">
-                    </span>
-                    ${variable.label}
-                </ha-dropdown-item>
-            `);
-        });
-
-        // @ts-ignore - TS2739: auto-suppressed
-        return items;
-    }
-
-    /**
      * Get current dropdown value
      * @returns {string}
      * @private
@@ -891,7 +1539,7 @@ export class LCARdSColorPicker extends LitElement {
      * @private
      */
     _parseIncomingValue(value) {
-        if (!value) return { color: value, applyBrightness: false };
+        if (!value || typeof value !== 'string') return { color: value, applyBrightness: false };
         const match = value.match(/^alpha\((.+),\s*match-brightness\)$/);
         if (match) {
             return { color: match[1].trim(), applyBrightness: true };
@@ -910,22 +1558,6 @@ export class LCARdSColorPicker extends LitElement {
         if (!colorValue) return colorValue;
         if (!applyBrightness) return colorValue;
         return `alpha(${colorValue}, match-brightness)`;
-    }
-
-    /**
-     * Handle dropdown change
-     * @param {CustomEvent} ev - selected event from ha-select
-     * @private
-     */
-    _handleDropdownChange(ev) {
-        if (this.disabled) return;
-
-        // ha-select fires 'selected' with detail.value (HA 2026.2+ ha-dropdown migration)
-        // @ts-ignore - TS2339: auto-suppressed
-        const newValue = ev.detail?.value ?? ev.target?.value;
-        if (newValue) {
-            this._emitChange(this._computeEmittedValue(newValue, this._applyBrightness));
-        }
     }
 
     /**
@@ -970,6 +1602,199 @@ export class LCARdSColorPicker extends LitElement {
             bubbles: true,
             composed: true
         }));
+    }
+
+    // ============================================================================
+    // POPOVER METHODS
+    // ============================================================================
+
+    _openPickerPopover(ev) {
+        if (this.disabled) return;
+        ev?.stopPropagation();
+        this._popoverOpen = true;
+    }
+
+    // Called by @wa-after-show — popover animation complete, now render content
+    _onPopoverOpened() {
+        this._popoverMounted = true;
+    }
+
+    // Called by @wa-after-hide — animation complete, now safe to remove from DOM
+    _closePickerPopover() {
+        this._popoverOpen = false;
+        this._popoverMounted = false;
+        this._popoverMode = '';
+        this._searchText = '';
+        this._selectedFamily = 'all';
+    }
+
+    _openBuilderColorPicker(target, ev) {
+        if (this.disabled) return;
+        ev?.stopPropagation();
+        this._builderPickingFor = target;
+        this._builderPopoverOpen = true;
+    }
+
+    _onBuilderPopoverOpened() {
+        this._builderPopoverMounted = true;
+    }
+
+    _closeBuilderPopover() {
+        this._builderPopoverOpen = false;
+        this._builderPopoverMounted = false;
+        this._builderPickingFor = null;
+        this._popoverMode = '';
+        this._searchText = '';
+        this._selectedFamily = 'all';
+    }
+
+    /** Label for a builder color slot — falls back to raw value or placeholder. */
+    _getBuilderColorLabel(value) {
+        if (!value) return '— Select Variable —';
+        if (value === 'transparent') return 'Transparent';
+        return this._cssVariables.find(v => v.value === value)?.label || value;
+    }
+
+    /**
+     * Render a builder color-slot trigger field + its wa-popover.
+     * @param {'color1'|'color2'} target
+     * @param {string} value
+     * @returns {import('lit').TemplateResult}
+     * @private
+     */
+    _renderBuilderColorTrigger(target, value) {
+        const triggerId = `builder-${target}-trigger`;
+        const isOpen = this._builderPopoverOpen && this._builderPickingFor === target;
+        const isMounted = this._builderPopoverMounted && this._builderPickingFor === target;
+        const showPopover = isOpen || isMounted;
+        const computedColor = value ? this._computeColor(value) : null;
+        const label = this._getBuilderColorLabel(value);
+        const isNone = !value;
+
+        return html`
+            <div id="${triggerId}"
+                class="color-trigger-field"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-expanded=${isOpen ? 'true' : 'false'}
+                @click=${(ev) => this._openBuilderColorPicker(target, ev)}
+                @keydown=${(e) => (e.key === 'Enter' || e.key === ' ') && this._openBuilderColorPicker(target, e)}>
+                <span class="color-swatch-trigger"
+                    style="background-color: ${isNone ? 'transparent' : computedColor};
+                           ${isNone ? 'border-style: dashed;' : ''}">
+                </span>
+                <span class="color-trigger-label">${label}</span>
+                <ha-svg-icon class="color-trigger-chevron" .path=${MDI_CHEVRON_DOWN}></ha-svg-icon>
+            </div>
+            ${showPopover ? html`
+                <wa-popover
+                    .open=${isOpen}
+                    style="--body-width: ${this._getPopoverWidth()}px;"
+                    without-arrow
+                    distance="-4"
+                    for="${triggerId}"
+                    placement="bottom"
+                    auto-size="vertical"
+                    auto-size-padding="16"
+                    @wa-after-show=${this._onBuilderPopoverOpened}
+                    @wa-after-hide=${this._closeBuilderPopover}
+                    trap-focus
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Select color">
+                    ${isMounted ? this._renderPopoverContent() : nothing}
+                </wa-popover>
+            ` : nothing}
+        `;
+    }
+
+    /** Select a color from the list and close the popover. */
+    _selectAndClose(value) {
+        if (this.disabled) return;
+        if (this._builderPickingFor) {
+            // Route to the builder color slot — don't emit value-changed
+            if (this._builderPickingFor === 'color1') this._baseColor = value || '';
+            else this._baseColor2 = value || '';
+            this._builderPopoverOpen = false;
+            // _builderPickingFor cleared by _closeBuilderPopover after animation
+        } else {
+            const emitted = value ? this._computeEmittedValue(value, this._applyBrightness) : '';
+            this._emitChange(emitted);
+            this._popoverOpen = false;
+        }
+    }
+
+    /** Toggle one of the named popover modes; clicking the active chip returns to list. */
+    _setPopoverMode(mode) {
+        this._popoverMode = this._popoverMode === mode ? '' : mode;
+    }
+
+    _handlePickerColorChange(ev) {
+        const hex = ev.detail.value;
+        if (!hex || this.disabled) return;
+        if (this._builderPickingFor) {
+            if (this._builderPickingFor === 'color1') this._baseColor = hex;
+            else this._baseColor2 = hex;
+        } else {
+            this._emitChange(this._computeEmittedValue(hex, this._applyBrightness));
+        }
+        // Live updates — popover stays open while picking
+    }
+
+    /**
+     * Human-readable label for the trigger field.
+     * @returns {string}
+     * @private
+     */
+    _getTriggerLabel() {
+        if (!this.value) return '— None —';
+        const { color } = this._parseIncomingValue(this.value);
+        if (color === 'transparent') return 'Transparent';
+        if (color === 'match-light') return 'Match Light Colour';
+        const matchingVar = this._cssVariables.find(v => v.value === color);
+        if (matchingVar) return matchingVar.label;
+        return color || '— None —';
+    }
+
+    /**
+     * Current value as a hex color string for ha-input type="color".
+     * Falls back to #000000 if the computed color cannot be converted.
+     * @returns {string}
+     * @private
+     */
+    _valueToHex() {
+        // If value is already a hex literal, round-trip it directly with alpha preserved
+        const raw = (this.value || '').trim().toLowerCase();
+        if (/^#[0-9a-f]{8}$/.test(raw)) return raw;
+        if (/^#[0-9a-f]{6}$/.test(raw)) return raw + 'ff';
+        if (/^#[0-9a-f]{4}$/.test(raw)) {
+            const [r, g, b, a] = raw.slice(1).split('');
+            return `#${r}${r}${g}${g}${b}${b}${a}${a}`;
+        }
+        if (/^#[0-9a-f]{3}$/.test(raw)) {
+            const [r, g, b] = raw.slice(1).split('');
+            return `#${r}${r}${g}${g}${b}${b}ff`;
+        }
+        // Fall back to computed color (handles CSS vars, token values, named colors)
+        const rgba = this._computedColor?.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        if (!rgba) return '#000000ff';
+        const r = parseInt(rgba[1]).toString(16).padStart(2, '0');
+        const g = parseInt(rgba[2]).toString(16).padStart(2, '0');
+        const b = parseInt(rgba[3]).toString(16).padStart(2, '0');
+        const a = rgba[4] !== undefined
+            ? Math.round(parseFloat(rgba[4]) * 255).toString(16).padStart(2, '0')
+            : 'ff';
+        return `#${r}${g}${b}${a}`;
+    }
+
+    /**
+     * Width for the wa-popover --body-width, matched to the trigger field.
+     * @returns {number}
+     * @private
+     */
+    _getPopoverWidth() {
+        return this.offsetWidth || 320;
     }
 
     // ============================================================================
@@ -1191,36 +2016,6 @@ export class LCARdSColorPicker extends LitElement {
     }
 
     /**
-     * Handle base color selection change
-     * @param {CustomEvent} ev - selected event from ha-select
-     * @private
-     */
-    _onBaseColorChange(ev) {
-        ev.stopPropagation();
-        // @ts-ignore - TS2339: auto-suppressed
-        const newValue = ev.detail?.value ?? ev.target?.value;
-        if (newValue !== undefined && newValue !== this._baseColor) {
-            this._baseColor = newValue;
-            this.requestUpdate();
-        }
-    }
-
-    /**
-     * Handle second base color selection change (for mix)
-     * @param {CustomEvent} ev - selected event from ha-select
-     * @private
-     */
-    _onBaseColor2Change(ev) {
-        ev.stopPropagation();
-        // @ts-ignore - TS2339: auto-suppressed
-        const newValue = ev.detail?.value ?? ev.target?.value;
-        if (newValue !== undefined && newValue !== this._baseColor2) {
-            this._baseColor2 = newValue;
-            this.requestUpdate();
-        }
-    }
-
-    /**
      * Handle amount slider change
      * @param {CustomEvent} ev - value-changed event from ha-selector
      * @private
@@ -1254,17 +2049,26 @@ export class LCARdSColorPicker extends LitElement {
         if (!expression) return;
 
         try {
-            await navigator.clipboard.writeText(expression);
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(expression);
+            } else {
+                // Fallback for HTTP / iframe contexts where clipboard API is unavailable
+                const ta = document.createElement('textarea');
+                ta.value = expression;
+                ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
             this._copySuccess = true;
             this.requestUpdate();
-
-            // Clear success message after 2 seconds
             setTimeout(() => {
                 this._copySuccess = false;
                 this.requestUpdate();
             }, 2000);
         } catch (err) {
-            console.error('Failed to copy:', err);
+            lcardsLog.debug('[ColorPicker] Failed to copy expression:', err);
         }
     }
 

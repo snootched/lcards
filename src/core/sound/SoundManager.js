@@ -282,10 +282,16 @@ export class SoundManager extends BaseService {
 
     // When this connection closes, clear the ref so updateHass() re-subscribes
     // fresh on the next hass update after reconnect.
+    // The removeEventListener() call is deferred to a microtask: Connection.fireEvent()
+    // dispatches via Array.forEach() over the *live* listeners array, and
+    // removeEventListener() splices that same array. Splicing out an earlier-registered
+    // listener while forEach is still iterating shifts later listeners down an index,
+    // causing forEach to skip whichever listener was registered immediately after this
+    // one (e.g. ConnectionOverlayService's 'disconnected' handler) on this first firing.
     const onDisconnect = () => {
       this._notificationUnsubscribe = null;
       this._notificationPending     = false;
-      connection.removeEventListener('disconnected', onDisconnect);
+      queueMicrotask(() => connection.removeEventListener('disconnected', onDisconnect));
     };
     connection.addEventListener('disconnected', onDisconnect);
   }
@@ -595,6 +601,18 @@ export class SoundManager extends BaseService {
    * @param {string} assetKey - Asset key to preview
    */
   preview(assetKey) {
+    this._playAsset(assetKey);
+  }
+
+  /**
+   * Play a specific audio asset directly, bypassing scheme/override resolution.
+   * Respects the master sound_enabled switch but not the per-category toggles
+   * (cards/ui/alerts) — used for HA-action-triggered playback such as
+   * lcards.play_sound, where the sound isn't tied to any UI category.
+   * @param {string} assetKey - Asset key registered in AssetManager
+   */
+  playAsset(assetKey) {
+    if (!this._isEnabled()) return;
     this._playAsset(assetKey);
   }
 

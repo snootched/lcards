@@ -189,17 +189,3 @@ jobs:
           files: lcards.zip
           prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
           generate_release_notes: true
-          body: |
-            ## LCARdS ${{ steps.version.outputs.version }}
-
-            ### Installation via HACS (recommended)
-            1. Open HACS → Integrations → ⋮ → Custom repositories
-            2. Add `https://github.com/snootched/lcards` — category **Integration**
-            3. Install **LCARdS** and restart Home Assistant
-            4. Add the integration via **Settings → Integrations → Add integration → LCARdS**
-
-            ### Manual installation
-            1. Download `lcards.zip`
-            2. Extract into `config/custom_components/lcards/`
-            3. Restart Home Assistant
-            4. Add the integration via Settings → Integrations

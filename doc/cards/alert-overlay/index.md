@@ -183,11 +183,11 @@ layers: null
 | Preset | Parameters | Description |
 |--------|------------|-------------|
 | `static` | `opacity`, `scale`, `color`, `tintStrength` | TV static noise |
-| `pixelate` | `pixelSize`, `opacity`, `variance`, `baseLight` | Mosaic blocks |
+| `pixelate` | `pixelSize`, `opacity`, `variance`, `baseLight`, `color`, `tintStrength` | Mosaic blocks |
 | `glitch` | `intensity`, `maxShift`, `bandHeight`, `opacity`, `fps` | Horizontal displacement bands |
 | `scanlines` | `lineHeight`, `opacity`, `scroll` | CRT horizontal lines |
 
-> **Colour values**: The `color-tint` preset's `color` param supports the full LCARdS colour expression syntax — hex, `rgb()`/`rgba()`, `var(--css-variable)`, theme tokens (`theme:palette.moonlight`), and computed expressions (`alpha(theme:colors.ui.primary, 0.4)`). Canvas preset colour params (`static.color`, `static.tintStrength`) accept plain CSS values only. For alert-mode-aware colours use `var(--lcards-*)` or `var(--lcars-*)` variables.
+> **Colour values**: All `color-text` params — `color-tint`'s `color`, and the canvas presets' `static.color` / `pixelate.color` — support the full LCARdS colour expression syntax: hex, `rgb()`/`rgba()`, `var(--css-variable)`, theme tokens (`theme:palette.moonlight`), CSS named colours (`cornflowerblue`), and computed expressions (`alpha(theme:colors.ui.primary, 0.4)`). For alert-mode-aware colours use `var(--lcards-*)` or `var(--lcars-*)` variables.
 
 ---
 
@@ -536,7 +536,6 @@ conditions:
 
 ## Limitations
 
-- **Theme tokens in canvas colour params are not resolved** — `theme:` token paths and computed expressions (`alpha(...)`, `darken(...)`) work in `layers.color.color` (the `color-tint` preset), but canvas preset colour params (`static.color`, `static.tintStrength`) accept plain CSS values only.
 - **Single instance per dashboard** — only the first instance connected to the DOM becomes active. Any additional instances are automatically suppressed: they have no visual presence in normal mode and show a "DUPLICATE — INACTIVE" warning placeholder in edit mode. Remove duplicate instances to avoid confusion.
 - **Not targetable by the rules engine** — the overlay does not extend `LCARdSCard` and has no card ID or tags. Rules cannot target it. The content card *inside* the overlay does support rules if it is an `lcards-*` card type.
 

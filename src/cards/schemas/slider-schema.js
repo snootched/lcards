@@ -663,8 +663,11 @@ export function getSliderSchema(options = {}) {
                                 description: 'Current value indicator configuration',
                                 properties: {
                                     enabled: {
-                                        type: 'boolean',
-                                        description: 'Show/hide current value indicator'
+                                        type: ['boolean', 'string'],
+                                        description: 'Show/hide current value indicator. Also accepts a Jinja2/JS template string resolving to a boolean (e.g. "{{ not is_state(\'sensor.x\', \'unavailable\') }}") for state-driven visibility.',
+                                        'x-ui-hints': {
+                                            selector: { boolean: {} }
+                                        }
                                     },
                                     type: {
                                         type: 'string',
@@ -915,6 +918,48 @@ export function getSliderSchema(options = {}) {
                         }
                     },
 
+                    range: {
+                        type: 'object',
+                        description: 'Visual styling for range-band frame/border elements (used by components like Picard that render a decorative frame around the ranges track).',
+                        properties: {
+                            border: {
+                                type: 'object',
+                                description: 'Range track border styling',
+                                properties: {
+                                    color: { ...stateColorSchema, description: 'Range border colour (default: theme:components.slider.range.border.color)' }
+                                }
+                            },
+                            frame: {
+                                type: 'object',
+                                description: 'Range track frame styling (decorative outline, e.g. Picard component)',
+                                properties: {
+                                    color: { ...stateColorSchema, description: 'Range frame colour. Falls back to the top border colour if unset.' }
+                                }
+                            }
+                        }
+                    },
+
+                    solid_bar: {
+                        type: 'object',
+                        description: 'Solid value-bar styling (used by components with a dedicated solid-bar zone, e.g. Picard).',
+                        properties: {
+                            color: { ...stateColorSchema, description: 'Solid bar colour. Falls back to the top border colour if unset.' }
+                        }
+                    },
+
+                    animation: {
+                        type: 'object',
+                        description: 'Styling for the built-in scanning/activity animation indicator (used by components like Picard/Demo).',
+                        properties: {
+                            indicator: {
+                                type: 'object',
+                                properties: {
+                                    color: { ...stateColorSchema, description: 'Animation indicator colour (default: theme:components.slider.animation.indicator.color)' }
+                                }
+                            }
+                        }
+                    },
+
                     // ====================================================================
                     // RANGES CONFIGURATION (Phase 2)
                     // ====================================================================
@@ -962,7 +1007,7 @@ export function getSliderSchema(options = {}) {
                                             default: 'center',
                                             description: 'Cross-axis alignment: start=left/top edge, center=middle, end=right/bottom. Overrides the preset marker_indicator.align for this range only.'
                                         },
-                                        color: { type: 'string', description: 'Indicator fill color (defaults to range color)' },
+                                        color: { ...stateColorSchema, description: 'Indicator fill color (defaults to range color). Supports state-object syntax ({ active, inactive, above:N, … }) and theme:/var()/computed colour tokens.' },
                                         size: {
                                             type: 'object',
                                             properties: {
@@ -982,7 +1027,7 @@ export function getSliderSchema(options = {}) {
                                             type: 'object',
                                             properties: {
                                                 enabled: { type: 'boolean', default: true },
-                                                color: { type: 'string' },
+                                                color: stateColorSchema,
                                                 width: { type: 'number' }
                                             }
                                         }
@@ -993,7 +1038,8 @@ export function getSliderSchema(options = {}) {
                                     description: 'Pills mode: visual appearance of the marker pill.',
                                     properties: {
                                         stroke: { type: 'boolean', default: true, description: 'Show an outline border on the marker pill to distinguish it from neighbours' },
-                                        stroke_width: { type: 'number', default: 2, description: 'Border thickness in pixels' }
+                                        stroke_width: { type: 'number', default: 2, description: 'Border thickness in pixels' },
+                                        stroke_color: { ...stateColorSchema, description: 'Outline border colour. Falls back to the pill fill colour (range.color) if unset.' }
                                     },
                                     'x-ui-hints': {
                                         label: 'Pill Marker Style',
@@ -1048,10 +1094,8 @@ export function getSliderSchema(options = {}) {
                                 description: 'Value fill appearance (the “filled” portion of the shape)',
                                 properties: {
                                     color: {
-                                        type: 'string',
-                                        description: 'Fill colour',
-                                        default: 'theme:components.slider.shaped.fill.color',
-                                        examples: ['theme:components.slider.shaped.fill.color', '#93e1ff', 'theme:colors.text.onDark', 'var(--lcards-blue-light)']
+                                        ...stateColorSchema,
+                                        description: 'Fill colour. Supports state-object syntax ({ active, inactive, above:N, … }) and theme:/var()/computed colour tokens.'
                                     }
                                 }
                             },
@@ -1086,10 +1130,8 @@ export function getSliderSchema(options = {}) {
                                 description: 'Shape track appearance',
                                 properties: {
                                     background: {
-                                        type: 'string',
-                                        description: 'Shape interior background colour (the “empty” portion)',
-                                        default: 'theme:components.slider.track.background',
-                                        examples: ['#12121c', 'theme:components.slider.track.background', 'var(--lcards-gray-darkest)']
+                                        ...stateColorSchema,
+                                        description: 'Shape interior background colour (the “empty” portion). Supports state-object syntax and theme:/var()/computed colour tokens.'
                                     }
                                 }
                             },

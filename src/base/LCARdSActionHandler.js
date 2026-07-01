@@ -83,7 +83,12 @@ export class LCARdSActionHandler {
         // ALWAYS register animation scope (even without animations) for rule-based targeting
         if (elementId && animationManager) {
             const animationSetup = options.getAnimationSetup?.() || {};
-            const overlayId = animationSetup.overlayId || elementId;
+            // Prefer the caller's explicit elementId over getAnimationSetup()'s overlayId —
+            // getAnimationSetup() always returns a truthy default (e.g. `lcards-card-${guid}`),
+            // so callers that register multiple overlays per card instance (e.g. lcards-slider's
+            // four border sides) need their distinct elementId to win, or every call collides
+            // on the same overlayId and each new call tears down the previous one's scope.
+            const overlayId = elementId || animationSetup.overlayId;
             const shadowRoot = options.shadowRoot;
             const targetElement = shadowRoot?.querySelector(animationSetup.elementSelector || '[data-overlay-id]') || element;
 
@@ -93,36 +98,10 @@ export class LCARdSActionHandler {
                 lcardsLog.debug(`[LCARdSActionHandler] Registered animation scope: ${overlayId} (${options.animations?.length || 0} animations)`);
             }
 
-            // Only create TriggerManager if animations are defined
-            if (options.animations && options.animations.length > 0) {
-                const animations = options.animations;
-
-                lcardsLog.debug(`[LCARdSActionHandler] Creating TriggerManager for ${overlayId}:`, {
-                    animationCount: animations.length,
-                    triggers: animations.map(a => a.trigger || 'on_tap')
-                });
-
-                // Create TriggerManager instance
-                triggerManager = new TriggerManager(overlayId, targetElement, animationManager);
-
-                // Register each animation with TriggerManager
-                animations.forEach(animConfig => {
-                    const trigger = animConfig.trigger || 'on_tap';
-                    triggerManager.register(trigger, animConfig);
-                });
-
-                lcardsLog.debug(`[LCARdSActionHandler] ✅ TriggerManager created with ${animations.length} animations`);
-
-                // Add cleanup for TriggerManager
-                cleanupFunctions.push(() => {
-                    triggerManager.destroy();
-                    lcardsLog.debug(`[LCARdSActionHandler] TriggerManager destroyed for ${overlayId}`);
-                });
-            }
         } else if (elementId && options.animations && !animationManager) {
             // AnimationManager not ready - store for late binding
             const animationSetup = options.getAnimationSetup?.() || {};
-            const overlayId = animationSetup.overlayId || elementId;
+            const overlayId = elementId || animationSetup.overlayId;
 
             lcardsLog.debug(`[LCARdSActionHandler] AnimationManager not ready, storing for late binding:`, {
                 overlayId,

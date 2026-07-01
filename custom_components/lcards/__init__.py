@@ -71,7 +71,26 @@ def _register_panel(
     title: str = DEFAULT_SIDEBAR_TITLE,
     icon: str = DEFAULT_SIDEBAR_ICON,
 ) -> None:
-    """Register the LCARdS sidebar panel with the given title and icon."""
+    """Register the LCARdS sidebar panel with the given title and icon.
+
+    `module_url` must be the exact same URL string that
+    `async_register_frontend_script_resource` passed to `add_extra_js_url`
+    (stored in `hass.data[DOMAIN]["resource_url"]`). lcards.js is already
+    loaded globally on every HA page via add_extra_js_url, which also
+    defines the `lcards-config-panel` custom element — the panel itself
+    never needs to load the bundle again.
+
+    Using a *different* URL (e.g. the bare, unversioned path) here makes
+    the browser treat it as a second, independent ES module: a whole
+    separate evaluation of lcards.js with its own singleton state (core,
+    ConnectionOverlayService, etc.), registering duplicate listeners on
+    the shared hass.connection object and leaving `window.lcards` pointing
+    at whichever copy happened to load last. Reusing the identical
+    versioned URL lets the browser's module cache collapse both loads into
+    a single evaluation, exactly as the bare unversioned path coincidentally
+    can for repeat loads of itself but never for the versioned one.
+    """
+    resource_url = hass.data.get(DOMAIN, {}).get("resource_url", f"/{DOMAIN}/lcards.js")
     _LOGGER.debug("LCARdS: registering sidebar panel (title=%r, icon=%r)", title, icon)
     async_register_built_in_panel(
         hass,
@@ -82,7 +101,7 @@ def _register_panel(
         config={
             "_panel_custom": {
                 "name": "lcards-config-panel",
-                "module_url": f"/{DOMAIN}/lcards.js",
+                "module_url": resource_url,
                 "embed_iframe": False,
             }
         },

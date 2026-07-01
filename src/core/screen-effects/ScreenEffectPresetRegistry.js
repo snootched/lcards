@@ -193,12 +193,16 @@ screenEffectPresetRegistry.register('vignette', {
 screenEffectPresetRegistry.register('static', {
     label:  'Static (TV Noise)',
     slot:   'canvas',
-    defaults: { opacity: 0.55, scale: 4 },
+    defaults: { opacity: 0.55, scale: 4, color: '#ffffff', tintStrength: 0 },
     params_schema: [
         { key: 'opacity', type: 'number', label: 'Opacity',    min: 0, max: 1,  step: 0.05,
           helper: 'Overall effect opacity (0–1)' },
         { key: 'scale',   type: 'number', label: 'Grain Scale', min: 1, max: 16, step: 1,
           helper: 'Pixel grain size — larger = chunkier noise' },
+        { key: 'color',        type: 'color-text', label: 'Tint Color', placeholder: '#ffffff',
+          helper: 'Base colour blended into the noise per pixel (see Tint Strength)' },
+        { key: 'tintStrength', type: 'number', label: 'Tint Strength', min: 0, max: 1, step: 0.05,
+          helper: 'Blend amount toward Tint Color (0 = pure white noise)' },
     ],
     enter: StaticEffect,
 });
@@ -206,7 +210,7 @@ screenEffectPresetRegistry.register('static', {
 screenEffectPresetRegistry.register('pixelate', {
     label:  'Pixelate',
     slot:   'canvas',
-    defaults: { pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80 },
+    defaults: { pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80, color: '#8c9aa6', tintStrength: 0 },
     params_schema: [
         { key: 'pixelSize',  type: 'number', label: 'Pixel Size',      min: 2,   max: 64,  step: 2,
           helper: 'Size of each mosaic pixel block' },
@@ -216,6 +220,10 @@ screenEffectPresetRegistry.register('pixelate', {
           helper: 'Brightness variation between blocks (0 = uniform)' },
         { key: 'baseLight',  type: 'number', label: 'Base Lightness',   min: 0,   max: 255, step: 5,
           helper: 'Base gray level (0 = black, 255 = white, 80 ≈ dark gray)' },
+        { key: 'color',        type: 'color-text', label: 'Tint Color', placeholder: '#8c9aa6',
+          helper: 'Colour blended into each mosaic block (see Tint Strength)' },
+        { key: 'tintStrength', type: 'number', label: 'Tint Strength', min: 0, max: 1, step: 0.05,
+          helper: 'Blend amount toward Tint Color (0 = neutral gray mosaic)' },
     ],
     enter: PixelateEffect,
 });

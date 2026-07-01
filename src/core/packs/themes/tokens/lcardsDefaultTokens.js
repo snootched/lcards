@@ -106,8 +106,9 @@ export const lcardsDefaultTokens = {
 
     // Card-specific colors (HA-LCARS variables with LCARdS fallbacks)
     // Note: HA-LCARS 25C themes + Picard provide button-off/unavailable explicitly
+    // Note: HA-LCARS defines --lcars-card-button-color (with -color suffix), not --lcars-card-button
     card: {
-      button: 'var(--lcars-card-button, var(--lcards-gray-medium))',
+      button: 'var(--lcars-card-button-color, var(--lcards-gray-medium))',
       buttonOn: 'var(--lcars-ui-tertiary, var(--lcards-gray-medium-light))',
       buttonOff: 'var(--lcars-card-button-off, var(--lcards-gray-medium-dark))',
       buttonUnavailable: 'var(--lcars-card-button-unavailable, var(--lcards-gray-dark))',

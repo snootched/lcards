@@ -162,6 +162,19 @@ User IDs are always derived **server-side** from the authenticated WebSocket con
 
 ---
 
+## Field-Level Dirty Tracking in Config UIs
+
+Config Panel tabs that use `ScopedSettingsService` should track **which specific fields** the user changed, not just whether any field changed. This prevents all 25 keys being written to the target scope on every save, which would cause per-field "device" badges to appear on unchanged fields.
+
+The connectivity tab implements this via `_dirtyServiceKeys: Set<string>` — a set of flat storage key names (e.g. `'conn_overlay_msg_size'`) that are added whenever `_set()` or a YAML editor fires. On save, `_buildSparseConfig()` builds a config object containing only those keys. Since `ConnectionOverlayService.saveConfig()` checks `'key' in config` before each write, only the dirty keys hit storage.
+
+When implementing new config tabs:
+- Track a `Set` of which flat keys were touched
+- Build a sparse config on save from only those keys
+- Clear the set on scope change, reset, and successful save
+
+---
+
 ## Adding a New Scoped Setting
 
 1. Add a constant to `ScopedSettingsConstants.js`:

@@ -217,11 +217,14 @@ export class TriggerManager {
       lcardsLog.debug(`[TriggerManager] ✅ Subscribed to entity: ${entityId} for overlay: ${this.overlayId}`);
     });
 
-    // check_on_load: evaluate against current state immediately
     // Recreation re-seed: when the scope is being recreated (e.g. SVG re-rendered
-    // due to entity-state-driven style change), unconditionally restore any
-    // while+loop animation that was running before the old scope was torn down.
-    // This is intentionally separate from — and not gated by — check_on_load.
+    // due to entity-state-driven style change), restore any while+loop animation
+    // that was running before the old scope was torn down. This is the sole
+    // authority for the recreation case — check_on_load below is gated off
+    // whenever _isRecreation is true so the two blocks never race each other
+    // (check_on_load reads the entity cache synchronously, before _updateHass has
+    // settled it for this tick, which previously caused it to incorrectly
+    // restart an animation whose while-condition had just cleared).
     if (this._isRecreation) {
       // Defer the re-seed to run AFTER _updateHass has updated the entity cache and
       // notified subscribers.  The Lit render microtask (which calls this code) is
@@ -250,47 +253,52 @@ export class TriggerManager {
       });
     }
 
-    animations.forEach(anim => {
-      // Default is to check on load (check_on_load defaults to true).
-      // Only skip when the user has explicitly opted out with check_on_load: false.
-      if (anim.check_on_load === false) return;
+    // check_on_load: evaluate against current state immediately. Only meaningful
+    // for genuine first-time scope setup — skipped entirely on recreation, where
+    // the deferred re-seed block above is the sole authority (see comment there).
+    if (!this._isRecreation) {
+      animations.forEach(anim => {
+        // Default is to check on load (check_on_load defaults to true).
+        // Only skip when the user has explicitly opted out with check_on_load: false.
+        if (anim.check_on_load === false) return;
 
-      const entityId = anim.entity;
-      if (!entityId) return;
+        const entityId = anim.entity;
+        if (!entityId) return;
 
-      const currentState = systemsManager.getEntityState?.(entityId);
-      if (!currentState) {
-        lcardsLog.debug(`[TriggerManager] check_on_load: no current state for ${entityId}`);
-        return;
-      }
-
-      const currentValue = this._resolveEntityValue(anim, currentState);
-      lcardsLog.debug(`[TriggerManager] check_on_load: entity=${entityId} value=${currentValue} (attribute: ${anim.attribute ?? 'state'})`);
-
-      // While condition: evaluate immediately — gate applies regardless of loop setting
-      if (anim.while) {
-        const condMet = this._evaluateWhileCondition(anim, currentValue);
-        if (condMet) {
-          if (!this._whileActiveAnims.has(anim)) {
-            this._whileActiveAnims.add(anim);
-            lcardsLog.debug(`[TriggerManager] 🎬 check_on_load while-start: ${entityId} condition already met`);
-            this.animationManager.playAnimation(this.overlayId, anim);
-          }
-        } else {
-          lcardsLog.debug(`[TriggerManager] check_on_load while: condition NOT met for ${entityId} — not starting`);
+        const currentState = systemsManager.getEntityState?.(entityId);
+        if (!currentState) {
+          lcardsLog.debug(`[TriggerManager] check_on_load: no current state for ${entityId}`);
+          return;
         }
-        return;
-      }
 
-      // Fire-and-forget: from_state not applicable on load (no prior state)
-      if (anim.to_state !== undefined && String(currentValue) !== String(anim.to_state)) {
-        lcardsLog.debug(`[TriggerManager] check_on_load: to_state mismatch for ${entityId} \u2014 expected ${anim.to_state}, got ${currentValue}`);
-        return;
-      }
+        const currentValue = this._resolveEntityValue(anim, currentState);
+        lcardsLog.debug(`[TriggerManager] check_on_load: entity=${entityId} value=${currentValue} (attribute: ${anim.attribute ?? 'state'})`);
 
-      lcardsLog.debug(`[TriggerManager] 🎬 check_on_load: triggering for ${this.overlayId} \u2014 ${entityId}=${currentValue}`);
-      this.animationManager.playAnimation(this.overlayId, anim);
-    });
+        // While condition: evaluate immediately — gate applies regardless of loop setting
+        if (anim.while) {
+          const condMet = this._evaluateWhileCondition(anim, currentValue);
+          if (condMet) {
+            if (!this._whileActiveAnims.has(anim)) {
+              this._whileActiveAnims.add(anim);
+              lcardsLog.debug(`[TriggerManager] 🎬 check_on_load while-start: ${entityId} condition already met`);
+              this.animationManager.playAnimation(this.overlayId, anim);
+            }
+          } else {
+            lcardsLog.debug(`[TriggerManager] check_on_load while: condition NOT met for ${entityId} — not starting`);
+          }
+          return;
+        }
+
+        // Fire-and-forget: from_state not applicable on load (no prior state)
+        if (anim.to_state !== undefined && String(currentValue) !== String(anim.to_state)) {
+          lcardsLog.debug(`[TriggerManager] check_on_load: to_state mismatch for ${entityId} \u2014 expected ${anim.to_state}, got ${currentValue}`);
+          return;
+        }
+
+        lcardsLog.debug(`[TriggerManager] 🎬 check_on_load: triggering for ${this.overlayId} \u2014 ${entityId}=${currentValue}`);
+        this.animationManager.playAnimation(this.overlayId, anim);
+      });
+    }
   }
 
   /**

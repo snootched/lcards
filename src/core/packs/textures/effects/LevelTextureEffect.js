@@ -10,6 +10,7 @@
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
 import { parseColorToRgba } from './noise-helpers.js';
+import { ColorUtils } from '../../../themes/ColorUtils.js';
 
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
@@ -55,8 +56,10 @@ export class LevelTextureEffect extends BaseTextureEffect {
         super(config);
 
         // ── Color ──────────────────────────────────────────────────────────────
-        this._colorA    = config.color_a ?? config.color ?? 'rgba(0,200,100,0.7)';
-        this._colorB    = config.color_b ?? null;   // null = no gradient
+        const _r = window.lcards?.core?.themeManager?.resolver;
+        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        this._colorA    = _resolve(config.color_a ?? config.color ?? 'rgba(0,200,100,0.7)');
+        this._colorB    = config.color_b ? _resolve(config.color_b) : null;
         this._crossover = clamp(config.gradient_crossover ?? 80, 0, 100);
 
         // ── Fill ───────────────────────────────────────────────────────────────
@@ -65,7 +68,7 @@ export class LevelTextureEffect extends BaseTextureEffect {
 
         // ── Edge glow ──────────────────────────────────────────────────────────
         this._edgeGlow      = config.edge_glow ?? true;
-        this._edgeGlowColor = config.edge_glow_color ?? 'rgba(255,255,255,0.7)';
+        this._edgeGlowColor = _resolve(config.edge_glow_color ?? 'rgba(255,255,255,0.7)');
         this._edgeGlowWidth = config.edge_glow_width ?? 6;
 
         // ── Primary wave ───────────────────────────────────────────────────────
@@ -347,11 +350,13 @@ export class LevelTextureEffect extends BaseTextureEffect {
 
     updateConfig(cfg) {
         super.updateConfig(cfg);
+        const _r = window.lcards?.core?.themeManager?.resolver;
+        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
 
         // Color
-        if (cfg.color              !== undefined) this._colorA    = cfg.color;
-        if (cfg.color_a            !== undefined) this._colorA    = cfg.color_a;
-        if (cfg.color_b            !== undefined) this._colorB    = cfg.color_b;
+        if (cfg.color              !== undefined) this._colorA    = _resolve(cfg.color);
+        if (cfg.color_a            !== undefined) this._colorA    = _resolve(cfg.color_a);
+        if (cfg.color_b            !== undefined) this._colorB    = _resolve(cfg.color_b);
         if (cfg.gradient_crossover !== undefined) this._crossover = clamp(cfg.gradient_crossover, 0, 100);
 
         // Fill
@@ -360,7 +365,7 @@ export class LevelTextureEffect extends BaseTextureEffect {
 
         // Edge glow
         if (cfg.edge_glow       !== undefined) this._edgeGlow      = cfg.edge_glow;
-        if (cfg.edge_glow_color !== undefined) this._edgeGlowColor = cfg.edge_glow_color;
+        if (cfg.edge_glow_color !== undefined) this._edgeGlowColor = _resolve(cfg.edge_glow_color);
         if (cfg.edge_glow_width !== undefined) this._edgeGlowWidth = cfg.edge_glow_width;
 
         // Primary wave

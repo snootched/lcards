@@ -141,15 +141,17 @@ export class LCARdSScopeSelector extends LitElement {
         conn.sendMessagePromise({ type: 'config/auth/list'           }).catch(() => []),
       ]);
 
-      const nameMap = {};
-      (Array.isArray(authUsers) ? authUsers : []).forEach(u => {
-        if (u?.id) nameMap[u.id] = u.name ?? u.id;
-      });
-
-      this._adminUserList = Object.entries(usersResult?.users ?? {}).map(([id]) => ({
-        id,
-        name: nameMap[id] ?? id,
-      }));
+      // Use config/auth/list as the authoritative source for users — this includes
+      // ALL HA users, even those who have never stored LCARdS settings yet
+      // (e.g. a tablet user who just logged in for the first time).
+      // lcards/storage/users/list only returns users who already have stored data.
+      const storageUserIds = new Set(Object.keys(usersResult?.users ?? {}));
+      this._adminUserList = (Array.isArray(authUsers) ? authUsers : [])
+        .filter(u => u?.id && !u.system_generated)
+        .map(u => ({
+          id:   u.id,
+          name: u.name ?? u.id,
+        }));
       this._adminDeviceList = Object.entries(devicesResult?.devices ?? {}).map(([id, data]) => ({
         id,
         name: data?.display_name ?? id,
@@ -178,6 +180,8 @@ export class LCARdSScopeSelector extends LitElement {
 
   _onAdminTargetChange(e) {
     const v = e.detail.value === '__own__' ? null : (e.detail.value || null);
+    const current = this._scopeTab === 'user' ? this._adminScopeUserId : this._adminScopeDeviceId;
+    if (v === current) return;
     if (this._scopeTab === 'user')   this._adminScopeUserId   = v;
     else                             this._adminScopeDeviceId = v;
     this._fireChange();

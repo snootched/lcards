@@ -142,10 +142,75 @@ export function getMsdSchema(options = {}) {
           type: 'object',
           required: ['id', 'type'],
           properties: {
+            id: {
+              type: 'string',
+              description: 'Unique identifier for this overlay'
+            },
             type: {
               type: 'string',
               enum: ['line', 'control'],
               errorMessage: 'Only "line" and "control" overlay types supported. Use LCARdS cards for buttons/charts.'
+            },
+            // Shared positioning (control overlays use position; line overlays use anchor + attach_to)
+            position: {
+              type: ['string', 'array'],
+              optional: true,
+              description: 'Control overlay position: named anchor (e.g. "hub") or absolute coordinates [x, y]. The anchor is the center of the card by default.'
+            },
+            size: {
+              type: 'array',
+              optional: true,
+              description: 'Control overlay size [width, height] in SVG coordinates'
+            },
+            attachment: {
+              type: 'string',
+              enum: ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'top', 'bottom', 'left', 'right'],
+              optional: true,
+              default: 'center',
+              description: 'Which point of the control card aligns with the anchor position. Default: center'
+            },
+            card: {
+              type: 'object',
+              optional: true,
+              description: 'HA card config embedded in this control overlay'
+            },
+            z_index: {
+              type: 'number',
+              optional: true,
+              description: 'Stacking order for overlapping overlays'
+            },
+            // Line overlay anchor/endpoint fields
+            anchor: {
+              type: ['string', 'array'],
+              optional: true,
+              description: 'Line overlays: start-point anchor name or [x,y]. Control overlays: deprecated alias for position — use position instead.'
+            },
+            anchor_side: {
+              type: 'string',
+              optional: true,
+              description: 'Line overlays: which side of the anchor overlay the line departs from (top, bottom, left, right, center)'
+            },
+            anchor_gap: {
+              type: 'number',
+              optional: true,
+              default: 0,
+              description: 'Line overlays: gap in SVG units between line endpoint and anchor edge'
+            },
+            attach_to: {
+              type: ['string', 'array'],
+              optional: true,
+              description: 'Line overlays: destination anchor name, overlay ID, or [x, y]'
+            },
+            attach_side: {
+              type: 'string',
+              optional: true,
+              description: 'Line overlays: which side of the attach_to overlay the line arrives at (top, bottom, left, right, center)'
+            },
+            attach_gap: {
+              type: 'number',
+              optional: true,
+              default: 0,
+              description: 'Line overlays: gap in SVG units between line endpoint and attach_to edge'
             },
             // Line overlay routing properties
             route: {

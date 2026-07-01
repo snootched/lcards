@@ -12,6 +12,8 @@
  * @module core/screen-effects/effects/StaticEffect
  */
 
+import { ColorUtils } from '../../themes/ColorUtils.js';
+
 /**
  * TV-static noise effect for a `<canvas>` slot element.
  *
@@ -35,14 +37,12 @@ export function StaticEffect(canvas, params = {}) {
     canvas.style.imageRendering = 'pixelated';
     canvas.style.mixBlendMode   = 'overlay';
 
-    // Parse hex colour into RGB components for per-pixel tinting.
-    // Use isNaN-safe parsing so that a component of 0 (e.g. #000000) is not
-    // misread as 255 by the || operator (parseInt('00',16) === 0 which is falsy).
-    const hex = color.replace('#', '');
-    const _h  = (s) => { const v = parseInt(s, 16); return isNaN(v) ? 255 : v; };
-    const tr  = _h(hex.slice(0, 2));
-    const tg  = _h(hex.slice(2, 4));
-    const tb  = _h(hex.slice(4, 6));
+    // Parse the tint colour into RGB components for per-pixel tinting.
+    // ColorUtils._parseColor() accepts hex, rgb()/rgba(), and named CSS colors
+    // (e.g. 'cornflowerblue') — by the time params reach here they have already
+    // been through ScreenEffectManager's var()/theme-token resolution, so this
+    // only needs to handle the final concrete color string.
+    const [tr, tg, tb] = ColorUtils._parseColor(color) ?? [255, 255, 255];
 
     let rafId = null;
     let running = true;

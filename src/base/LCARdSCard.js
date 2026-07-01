@@ -975,6 +975,29 @@ export class LCARdSCard extends LCARdSNativeCard {
      * }
      */
     _setupAutoSizing(onResize = null) {
+        // MSD context: the card is inside an SVG foreignObject whose visual size changes
+        // with the SVG viewBox scale. getBoundingClientRect() on the host returns the
+        // *visually scaled* size (SVG user units × viewBox scale), not the CSS layout size.
+        // If the window-resize fallback used that value as _containerSize, the viewBox
+        // would be set to the scaled size and fonts would always render at the same absolute
+        // pixel count regardless of MSD card size (the original bug).
+        //
+        // Instead: lock _containerSize at the design dimensions the MSD author specified.
+        // With a fixed viewBox="0 0 W H" and SVG width="100%", 1 SVG unit maps to
+        // (foreignObject CSS px / W) page pixels — content scales proportionally. ✓
+        const msdDesignAttr = this.getAttribute?.('data-msd-design-size');
+        if (msdDesignAttr) {
+            const [w, h] = msdDesignAttr.split(',').map(Number);
+            if (w > 0 && h > 0) {
+                this._autoSizingCallback = onResize;
+                this._autoSizingEnabled = true; // keeps reconnect path working
+                // _resizeObserver intentionally left null — SVG handles all scaling
+                this._containerSize = { width: w, height: h };
+                onResize?.(w, h);
+            }
+            return;
+        }
+
         // Clean up existing observer and window handler if any
         if (this._resizeObserver) {
             this._resizeObserver.disconnect();
@@ -2793,6 +2816,61 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
+     * Full color-resolution pipeline — accepts raw config (state-object or string) and
+     * returns a concrete color value safe for SVG presentation attributes, Canvas2D, and
+     * CSS property contexts alike.
+     *
+     * Pipeline (in order):
+     *   1. _resolveEntityStateColor()  — state-object unwrap, theme: strip, computed-token
+     *      resolution (darken/lighten/alpha/…), and _resolveTemplateValue() on the result.
+     *   2. _resolveMatchLightColor()   — match-light / match-brightness substitution.
+     *   3. theme: safety net          — strips any surviving theme: prefix and calls
+     *      resolver.resolve() again (handles edge cases where a template emits theme: strings
+     *      that the utility's one-time pass didn't see).
+     *   4. CSS var resolution         — resolves bare var(…) references for contexts that
+     *      cannot use CSS variables natively (SVG/Canvas2D). No-op in CSS contexts.
+     *
+     * Subclasses may override to add context-specific steps (e.g. lcards-slider adds a
+     * Canvas2D-specific concrete-value substitution for the --lcards-light-color-* var).
+     *
+     * @param {Object|string|null} rawConfig - Raw color config: state-object or string
+     * @param {string} [fallback=''] - Returned when rawConfig is falsy or resolution yields nothing
+     * @returns {string} Resolved concrete color string, or fallback
+     * @protected
+     */
+    _resolveColorValue(rawConfig, fallback = '') {
+        if (!rawConfig) return fallback;
+
+        // Step 1: state-object unwrap + theme: strip + computed-token resolution + template eval
+        let value = this._resolveEntityStateColor(rawConfig, fallback);
+        if (!value) return fallback;
+
+        // Step 2: match-light / match-brightness substitution
+        value = this._resolveMatchLightColor(value);
+
+        // Step 3: theme: prefix safety net for render-time template outputs.
+        // Pass `this` as element context so that _resolveComputedToken() can read
+        // CSS vars from the card's inherited scope (picks up section-scoped theme vars).
+        const resolver = window.lcards?.core?.themeManager?.resolver;
+        if (resolver) {
+            const tokenPath = typeof value === 'string' && value.startsWith('theme:')
+                ? value.slice(6) : value;
+            value = resolver.resolve(tokenPath, value, { element: this });
+        }
+
+        // Step 4: CSS variable resolution for SVG/Canvas2D contexts.
+        // Only applied to bare var() strings — color-mix() and similar functions are
+        // handled natively by the browser and must not be unwrapped here.
+        // Pass `this` as element so that section-scoped CSS vars are visible via
+        // CSS custom property inheritance from the view/section container.
+        if (typeof value === 'string' && value.trim().startsWith('var(')) {
+            return ColorUtils.resolveCssVariable(value, fallback, this) || fallback;
+        }
+
+        return value || fallback;
+    }
+
+    /**
      * Resolve the numeric value used for range conditions in ALL state-based
      * lookups across this card (colors, icons, text, borders, backgrounds).
      *
@@ -3488,7 +3566,14 @@ export class LCARdSCard extends LCARdSNativeCard {
             }
         }
 
-        // Action handler cleanup is handled by setupActions() cleanup function
+        // --- Main overlay animation scope (entity subscriptions, while-animations, etc.) ---
+        // Subclasses with custom overlay schemes (lcards-button, lcards-slider) handle their
+        // own scope(s) directly; this covers the default _getAnimationSetup() overlayId for
+        // any card type that doesn't override it.
+        if (this._singletons?.animationManager) {
+            const { overlayId } = this._getAnimationSetup();
+            this._singletons.animationManager.destroyOverlayScope(overlayId);
+        }
 
         lcardsLog.trace(`[LCARdSCard] Disconnected and cleaned up: ${this._getDisplayId()}`);
     }

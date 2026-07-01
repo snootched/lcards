@@ -116,4 +116,5 @@ sounds:
 ## See Also
 
 - [Sound Configuration](../configuration/sounds.md) — system-wide setup, schemes, per-user and per-device overrides
+- [HA Actions — `lcards.play_sound`](../configuration/ha-actions.md#lcards-play_sound) — trigger a sound from an automation
 - [Actions](actions.md) — tap, hold, and double-tap action configuration

@@ -74,16 +74,28 @@ export class LCARdSVisualGridDesigner extends LitElement {
             }
 
             /* Mode Toggle */
-            .mode-toggle {
+            .picker-header {
                 display: flex;
-                gap: 8px;
-                padding: 12px;
-                background: var(--secondary-background-color, #f5f5f5);
-                border-radius: 8px;
+                align-items: center;
+                justify-content: flex-end;
+                padding: 0 var(--ha-space-1);
             }
 
-            .mode-toggle ha-button {
-                flex: 1;
+            /* ::part(base) pierces ha-button's shadow DOM to reach the inner <button>.
+               Works because both wa-button-group and ha-button live in our shadow root. */
+            .picker-header wa-button-group ha-button:first-child::part(base) {
+                border-start-start-radius: var(--ha-border-radius-pill);
+                border-end-start-radius: var(--ha-border-radius-pill);
+                border-start-end-radius: 0;
+                border-end-end-radius: 0;
+                border-inline-end: none;
+            }
+
+            .picker-header wa-button-group ha-button:last-child::part(base) {
+                border-start-start-radius: 0;
+                border-end-start-radius: 0;
+                border-start-end-radius: var(--ha-border-radius-pill);
+                border-end-end-radius: var(--ha-border-radius-pill);
             }
 
             /* Visual Designer */
@@ -338,19 +350,23 @@ export class LCARdSVisualGridDesigner extends LitElement {
      */
     _renderModeToggle() {
         return html`
-            <div class="mode-toggle">
-                <ha-button
-                    .appearance=${this.mode === 'visual' ? 'accent' : 'plain'}
-                    @click=${() => this._switchMode('visual')}>
-                    <ha-icon icon="mdi:pencil-ruler" slot="start"></ha-icon>
-                    Visual Designer
-                </ha-button>
-                <ha-button
-                    .appearance=${this.mode === 'text' ? 'accent' : 'plain'}
-                    @click=${() => this._switchMode('text')}>
-                    <ha-icon icon="mdi:code-braces" slot="start"></ha-icon>
-                    CSS Editor
-                </ha-button>
+            <div class="picker-header">
+                <wa-button-group childSelector="ha-button">
+                    <ha-button iconTag="ha-svg-icon"
+                        variant="brand" size="s"
+                        .appearance=${this.mode === 'visual' ? 'accent' : 'filled'}
+                        @click=${() => this._switchMode('visual')}>
+                        <ha-icon icon="mdi:pencil-ruler" slot="start"></ha-icon>
+                        Visual Designer
+                    </ha-button>
+                    <ha-button iconTag="ha-svg-icon"
+                        variant="brand" size="s"
+                        .appearance=${this.mode === 'text' ? 'accent' : 'filled'}
+                        @click=${() => this._switchMode('text')}>
+                        <ha-icon icon="mdi:code-braces" slot="start"></ha-icon>
+                        CSS Editor
+                    </ha-button>
+                </wa-button-group>
             </div>
         `;
     }

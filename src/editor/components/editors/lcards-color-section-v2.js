@@ -783,8 +783,44 @@ export class LCARdSColorSectionV2 extends LitElement {
      * @returns {string} Resolved color
      * @private
      */
+    /** Resolve the actual RGB color for a light entity — used for match-light preview. */
+    _resolveMatchLightColor() {
+        const entityId = this.entityId || this.editor?.config?.entity || '';
+        const entity = entityId ? this.editor?.hass?.states?.[entityId] : null;
+        if (!entity || entity.state !== 'on') return 'transparent';
+        if (entity.attributes.rgb_color) {
+            const [r, g, b] = entity.attributes.rgb_color;
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+        if (entity.attributes.color_temp) {
+            const kelvin = entity.attributes.color_temp_kelvin
+                ?? Math.round(1000000 / entity.attributes.color_temp);
+            const [r, g, b] = ColorUtils.kelvinToRgb(kelvin);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+        const brightness = entity.attributes.brightness ?? 255;
+        const level = Math.round((brightness / 255) * 255);
+        return `rgb(${level}, ${Math.round(level * 0.97)}, ${Math.round(level * 0.85)})`;
+    }
+
     _resolveColorForPreview(color) {
         if (!color) return 'transparent';
+
+        // Resolve match-light / match-brightness before any further parsing
+        if (color === 'match-light') return this._resolveMatchLightColor();
+
+        if (color.includes('match-brightness')) {
+            const entityId = this.entityId || this.editor?.config?.entity || '';
+            const entity = entityId ? this.editor?.hass?.states?.[entityId] : null;
+            const alpha = (entity?.state === 'on')
+                ? ((entity.attributes.brightness ?? 255) / 255).toFixed(3)
+                : '1';
+            color = color.replace(/match-brightness/g, alpha);
+        }
+
+        if (color.includes('match-light')) {
+            color = color.replace(/match-light/g, this._resolveMatchLightColor());
+        }
 
         // Check if it's a computed token
         const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix'];

@@ -796,8 +796,8 @@ window.lcards.connectionOverlay = {
    * @param {'device'|'user'|'global'} [scope='global']
    * @returns {Promise<void>}
    */
-  saveConfig(config, scope = 'global') {
-    return window.lcards?.core?.connectionOverlayService?.saveConfig(config, scope)
+  saveConfig(config, scope = 'global', opts = {}) {
+    return window.lcards?.core?.connectionOverlayService?.saveConfig(config, scope, opts)
         ?? Promise.resolve();
   },
   /**
@@ -805,8 +805,8 @@ window.lcards.connectionOverlay = {
    * @param {'device'|'user'|'global'} [scope='global']
    * @returns {Promise<void>}
    */
-  clearConfig(scope = 'global') {
-    return window.lcards?.core?.connectionOverlayService?.clearConfig(scope)
+  clearConfig(scope = 'global', opts = {}) {
+    return window.lcards?.core?.connectionOverlayService?.clearConfig(scope, opts)
         ?? Promise.resolve();
   },
   /**
@@ -829,6 +829,7 @@ lcardsLog.debug('[lcards.js] connectionOverlay console API attached');
 //   window.lcards.sound.getEvents()                // List all sound event types
 window.lcards.sound = {
   play:       (eventType, ctx) => window.lcards.core.soundManager?.play(eventType, ctx),
+  playAsset:  (assetKey)       => window.lcards.core.soundManager?.playAsset(assetKey),
   preview:    (assetKey)       => window.lcards.core.soundManager?.preview(assetKey),
   getSchemes: ()               => window.lcards.core.soundManager?.getSchemeNames(),
   getEvents:  ()               => window.lcards.core.soundManager?.getEventTypes(),

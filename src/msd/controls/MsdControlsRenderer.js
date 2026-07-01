@@ -523,6 +523,7 @@ export class MsdControlsRenderer {
       if (existingForeignObject) {
         lcardsLog.debug('[MsdControlsRenderer] Removing existing foreignObject for', overlay.id);
         try {
+          existingForeignObject._msdScaleObserver?.disconnect();
           existingForeignObject.remove();
         } catch (e) {
           lcardsLog.warn('[MsdControlsRenderer] Failed to remove existing foreignObject:', e);
@@ -1106,13 +1107,27 @@ export class MsdControlsRenderer {
       return;
     }
 
+    // Tag the CARD element (first child of the wrapper div) with the design dimensions
+    // BEFORE connecting to the DOM. LCARdSCard._setupAutoSizing() reads this attribute
+    // on `this` (the card host) and locks _containerSize to the design size, skipping
+    // the window-resize fallback (which calls getBoundingClientRect() and returns the
+    // SVG-scaled visual size — causing the viewBox to track the visual pixel count and
+    // keeping font-size at a constant absolute pixel value regardless of MSD card size).
+    //
+    // With a locked viewBox="0 0 W H" and SVG width="100%", 1 SVG unit maps to
+    // (foreignObject-CSS-px / W) — content scales proportionally with the MSD card. ✓
+    const [designWidth, designHeight] = size;
+    const cardEl = element.firstElementChild;
+    if (cardEl) {
+      cardEl.setAttribute('data-msd-design-size', `${designWidth},${designHeight}`);
+    }
+
     // Configure the control element for SVG embedding
     this.configureControlForSvg(element, overlay, size);
 
-    // Insert control into foreignObject
     foreignObject.appendChild(element);
 
-    // Add to SVG container (this will scale automatically with viewBox)
+    // Add to SVG container (scales automatically with viewBox)
     const svgContainer = this.getSvgControlsContainer();
     if (svgContainer && foreignObject.parentNode !== svgContainer) {
       svgContainer.appendChild(foreignObject);
@@ -1136,7 +1151,7 @@ export class MsdControlsRenderer {
    * @param {string} attachment - Attachment point (center, top-left, etc.)
    * @returns {Array} Adjusted position [x, y]
    */
-  _applyAttachmentOffset(position, size, attachment = 'top-left') {
+  _applyAttachmentOffset(position, size, attachment = 'center') {
     const [x, y] = position;
     const [width, height] = size;
 
@@ -1382,6 +1397,7 @@ export class MsdControlsRenderer {
         const foreignObject = element.closest('foreignObject') ||
                              document.querySelector(`#msd-control-foreign-${id}`);
         if (foreignObject && foreignObject.remove) {
+          foreignObject._msdScaleObserver?.disconnect();
           foreignObject.remove();
         } else if (element && element.remove) {
           element.remove();

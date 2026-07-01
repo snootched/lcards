@@ -344,7 +344,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
     if (this._isEvaluating) {
       return html`
         <div class="loading-state">
-          <ha-circular-progress active></ha-circular-progress>
+          <ha-circular-progress indeterminate size="s"></ha-circular-progress>
           <p>Discovering and evaluating templates...</p>
         </div>
       `;

@@ -153,23 +153,13 @@ export class AdvancedRenderer {
 
     this._cacheElementsFrom(overlayGroup);
 
-    // Populate attachment points from initial pass BEFORE subsequent passes.
-    // This ensures line overlays have correct attachment points on initial render.
-    this._populateInitialAttachmentPoints(overlays, anchors);
-
-    // Build virtual anchors for line anchoring
-    // These are base anchors without gaps - lines will overwrite with gap-applied versions
-    this._buildVirtualAnchorsFromAllOverlays(overlays);
-
-    // Build dynamic anchors (overlay destinations) with gap applied
-    // This OVERWRITES the base anchors from _buildVirtualAnchorsFromAllOverlays with gap-applied versions
-    this.attachmentManager.setAnchorsFromObject(anchors);
-    this._buildDynamicOverlayAnchors(overlays);
-
-    // Pass 2a: render non-line overlays (cards, etc.) that lines may attach to
-    overlays.filter(o => !earlyTypes.has(o.type) && o.type !== 'line').forEach(ov => {
+    // Pass 2a: render non-line overlays (cards, etc.) that lines may attach to.
+    // Each control overlay is rendered via an async foreignObject path; we must await
+    // each one so positionControlElement registers attachment points before we build
+    // virtual anchors in the next step.
+    for (const ov of overlays.filter(o => !earlyTypes.has(o.type) && o.type !== 'line')) {
       try {
-        const result = this.renderOverlay(ov, this._staticAnchors, viewBox);
+        const result = await this.renderOverlay(ov, this._staticAnchors, viewBox);
 
         lcardsLog.trace(`[AdvancedRenderer] 📊 Phase 2a overlay ${ov.id} result:`, {
           resultType: typeof result,
@@ -213,25 +203,19 @@ export class AdvancedRenderer {
       } catch (e) {
         lcardsLog.warn(`[AdvancedRenderer] ⚠️ Phase2a render failed for overlay ${ov.id}:`, e);
       }
-    });
+    }
 
-    // Cache pass-2a elements and populate attachment points for cards
-    this._cacheElementsFrom(overlayGroup);
-    this._populateInitialAttachmentPoints(overlays, anchors);
-
-    // Rebuild virtual anchors now that we have pass-2a overlays (cards, etc.)
-    // IMPORTANT: This must run BEFORE _buildDynamicOverlayAnchors so that
-    // gap-applied anchors don't get overwritten by non-gap anchors
-    this._buildVirtualAnchorsFromAllOverlays(overlays);
-
-    // Rebuild dynamic overlay anchors now that pass-2a overlays have attachment points.
-    // This runs AFTER _buildVirtualAnchorsFromAllOverlays so gaps are preserved.
-    this._buildDynamicOverlayAnchors(overlays);
-
-    // CRITICAL: Wait for cards to fully position and register attachment points
-    // Cards may register attachment points during their connectedCallback/firstUpdated lifecycle
-    // which happens asynchronously after element creation
+    // Wait for custom element connectedCallback/firstUpdated to settle before
+    // reading attachment points. positionControlElement fires synchronously once
+    // createControlElement resolves, but the element lifecycle needs one more frame.
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    // Build virtual anchors NOW — all control overlays are positioned and their
+    // attachment points are registered in attachmentManager.
+    this._cacheElementsFrom(overlayGroup);
+    this._buildVirtualAnchorsFromAllOverlays(overlays);
+    this.attachmentManager.setAnchorsFromObject(anchors);
+    this._buildDynamicOverlayAnchors(overlays);
 
     lcardsLog.debug('[AdvancedRenderer] 🎯 Attachment points available:', {
       totalAnchors: Object.keys(this._staticAnchors).length,
@@ -499,14 +483,9 @@ export class AdvancedRenderer {
             this.routerCore.anchors[sourceVirtualAnchorId] = sourceGapPt;
           }
           lineAnchor = sourceGapPt;  // Use the gap-adjusted point
-
-          // CRITICAL: Write back auto-determined side to overlay config so LineOverlay can use it
-          raw.anchor_side = sourceEffectiveSide;
-          line.anchor_side = sourceEffectiveSide;  // Also write to top-level object
-          lcardsLog.debug(`[AdvancedRenderer] 💾 Wrote back anchor_side to overlay config:`, {
-            overlayId: line.id,
-            anchor_side: sourceEffectiveSide
-          });
+          // Virtual anchor registered in attachmentManager under sourceVirtualAnchorId.
+          // LineOverlay._resolveAnchor picks it up via the config's anchor_side value —
+          // no write-back to the (potentially frozen) overlay object needed.
         }
       } else {
         // Standard anchor lookup
@@ -552,15 +531,9 @@ export class AdvancedRenderer {
       // Store in attachment manager
       this.attachmentManager.setAnchor(virtualAnchorId, gapPt);
 
-      // CRITICAL: Write back auto-determined side to overlay config so LineOverlay can use it
-      if (effectiveSide && effectiveSide !== 'center' && !configSide) {
-        raw.attach_side = effectiveSide;
-        line.attach_side = effectiveSide;  // Also write to top-level object
-        lcardsLog.debug(`[AdvancedRenderer] 💾 Wrote back attach_side to overlay config:`, {
-          overlayId: line.id,
-          attach_side: effectiveSide
-        });
-      }
+      // Virtual anchor stored under virtualAnchorId in attachmentManager.
+      // LineOverlay._resolveAttachTo builds the same key from the config's attach_side —
+      // no write-back to the (potentially frozen) overlay object needed.
 
       // Register in routerCore so HUD sees it as an anchor
       if (this.routerCore && this.routerCore.anchors) {
@@ -1362,153 +1335,7 @@ export class AdvancedRenderer {
     return staticAnchors;
   }
 
-  /**
-   * Populate initial attachment points from Phase 1 overlays
-   * This reads the expanded bbox from DOM elements and populates overlayAttachmentPoints
-   * BEFORE Phase 2 renders, ensuring lines have correct attachment points on initial render
-   * @private
-   */
-  /**
-   * Populate attachment points for Phase 1 overlays before Phase 2 rendering
-   * This ensures line overlays have correct attachment points on initial render
-   * @private
-   */
-  _populateInitialAttachmentPoints(overlays, anchors) {
-    // Process all overlays that can be attachment targets (everything except lines)
-    overlays.filter(o => o.type !== 'line').forEach(overlay => {
-      const groupEl = this.overlayElementCache.get(overlay.id);
-      if (!groupEl) return;
 
-      // Try to read expanded bbox from DOM attribute (if status indicator present)
-      const expandedBboxAttr = groupEl.getAttribute('data-expanded-bbox');
-      let bbox;
-
-      if (expandedBboxAttr) {
-        try {
-          bbox = JSON.parse(expandedBboxAttr);
-          lcardsLog.trace(`[AdvancedRenderer] 📍 Read expanded bbox from DOM for ${overlay.id}:`, bbox);
-        } catch (e) {
-          lcardsLog.warn(`[AdvancedRenderer] Failed to parse expanded bbox for ${overlay.id}`, e);
-        }
-      }
-
-      // Fallback to measuring from DOM if no expanded bbox
-      if (!bbox) {
-        // For all overlays, use generic SVG getBBox()
-        try {
-          const bb = groupEl.getBBox();
-          bbox = {
-            width: bb.width,
-            height: bb.height,
-            left: bb.x,
-            top: bb.y,
-            right: bb.x + bb.width,
-            bottom: bb.y + bb.height,
-            centerX: bb.x + bb.width / 2,
-            centerY: bb.y + bb.height / 2
-          };
-          lcardsLog.debug(`[AdvancedRenderer] 📍 Measured bbox from DOM for ${overlay.id}:`, bbox);
-        } catch (e) {
-          lcardsLog.warn(`[AdvancedRenderer] Failed to measure bbox for ${overlay.id}`, e);
-          return;
-        }
-      }
-
-      if (!bbox) return;
-
-      // Create attachment point data
-      const attachmentPoints = {
-        id: overlay.id,
-        center: [bbox.centerX, bbox.centerY],
-        bbox: {
-          left: bbox.left,
-          right: bbox.right,
-          top: bbox.top,
-          bottom: bbox.bottom,
-          width: bbox.width,
-          height: bbox.height
-        },
-        points: {
-          center: [bbox.centerX, bbox.centerY],
-          top: [bbox.centerX, bbox.top],
-          bottom: [bbox.centerX, bbox.bottom],
-          left: [bbox.left, bbox.centerY],
-          right: [bbox.right, bbox.centerY],
-          topLeft: [bbox.left, bbox.top],
-          topRight: [bbox.right, bbox.top],
-          bottomLeft: [bbox.left, bbox.bottom],
-          bottomRight: [bbox.right, bbox.bottom]
-        }
-      };
-
-      // Store in attachment manager (single source of truth)
-      this.attachmentManager.setAttachmentPoints(overlay.id, attachmentPoints);
-
-      lcardsLog.trace(`[AdvancedRenderer] ✅ Populated initial attachment points for ${overlay.id}`, {
-        right: bbox.right,
-        expandedRight: bbox.right,
-        hasExpandedBbox: !!expandedBboxAttr
-      });
-    });
-
-    // Process other Phase 1 overlay types (cards, etc.)
-    overlays.filter(o => o.type !== 'text' && o.type !== 'line').forEach(overlay => {
-      const groupEl = this.overlayElementCache.get(overlay.id);
-      if (!groupEl) return;
-
-      // Use overlay configuration for accurate positioning
-      // Resolve position using anchors if necessary
-      const position = OverlayUtils.resolvePosition(overlay.position, anchors);
-      if (!position || !overlay.size) return;
-
-      const [x, y] = position;
-      const [width, height] = overlay.size;
-
-      const bbox = {
-        left: x,
-        right: x + width,
-        top: y,
-        bottom: y + height,
-        width: width,
-        height: height,
-        centerX: x + width / 2,
-        centerY: y + height / 2
-      };
-
-      // Create attachment point data
-      const attachmentPoints = {
-        id: overlay.id,
-        center: [bbox.centerX, bbox.centerY],
-        bbox: {
-          left: bbox.left,
-          right: bbox.right,
-          top: bbox.top,
-          bottom: bbox.bottom,
-          width: bbox.width,
-          height: bbox.height
-        },
-        points: {
-          center: [bbox.centerX, bbox.centerY],
-          top: [bbox.centerX, bbox.top],
-          bottom: [bbox.centerX, bbox.bottom],
-          left: [bbox.left, bbox.centerY],
-          right: [bbox.right, bbox.centerY],
-          topLeft: [bbox.left, bbox.top],
-          topRight: [bbox.right, bbox.top],
-          bottomLeft: [bbox.left, bbox.bottom],
-          bottomRight: [bbox.right, bbox.bottom]
-        }
-      };
-
-      // Store in attachment manager (single source of truth)
-      this.attachmentManager.setAttachmentPoints(overlay.id, attachmentPoints);
-
-      lcardsLog.trace(`[AdvancedRenderer] ✅ Populated initial attachment points for ${overlay.id} (${overlay.type})`, {
-        bbox: bbox,
-        center: [bbox.centerX, bbox.centerY]
-      });
-    });
-  }
 
   /**
    * Render fallback overlay for error cases

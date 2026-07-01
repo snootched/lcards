@@ -141,12 +141,14 @@ State-based colour objects are accepted wherever a `color:` value is expected, i
 
 - `style.card.color.background`
 - `style.border.color`
-- `style.text.default.color` and `style.text.<field>.color`
+- `style.text.default.color`, `style.text.<field>.color`, and `style.text.<field>.background`
 - `icon_style.color`
 - `shape_texture.config.color` (and `color_a`, `color_b`)
 - `elbow.segment.color`
+- `symbiont.imprint.background` and `symbiont.imprint.text.color` (lcards-elbow)
 - Background animation `config.color`
 - Divider `color`
+- `lcards-slider`: `style.gauge.indicator.color` / `.border.color`, `style.gauge.progress_bar.color`, `style.ranges[].color` and `ranges[].indicator.color` / `.border.color`, `style.shaped.fill.color` / `track.background`, `style.border.<side>.color` — see [Slider Card](../cards/slider-card/) for the full field list
 
 ---
 
@@ -460,3 +462,21 @@ The template must evaluate to a valid colour string — a hex value, CSS variabl
 :::tip
 For most cases a state map with `state_attribute` is simpler and more readable. Reach for a template when the logic can't be expressed as a flat key map.
 :::
+
+### Driving colour from a different entity than the one bound to the card
+
+State-map keys (`active`/`inactive`/`above:N`/…) are always selected by classifying the card's **own** `entity:` — there's no way to make key *selection* read a different entity. If you need a colour to react to an entity other than the one the card displays or controls, put a template in the colour *value* instead — the template can reference any entity via `is_state()` / `state_attr()` regardless of which one the card is bound to:
+
+```yaml no-validate
+type: custom:lcards-slider
+entity: input_number.target_temp   # bound entity — drives the slider's value
+control:
+  min: 0
+  max: 100
+style:
+  gauge:
+    indicator:
+      color: "{{ 'var(--lcards-green)' if is_state('input_boolean.system_armed', 'on') else 'var(--lcards-gray)' }}"
+```
+
+This works nested inside a state-object key too — a template buried under `color.active` is evaluated exactly like a flat one. Prefer Jinja2 (`{{ }}`/`{% %}`) over JS (`[[[...]]]`) here: Jinja2 templates are auto-scanned for entity references and re-evaluate automatically when they change, while a JS template referencing `states['some.entity']` needs an explicit `triggers_update: ['some.entity']` at the card-config root to live-update.

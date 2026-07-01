@@ -78,11 +78,17 @@ export class GridEffect extends BaseEffect {
     // Line styling (resolve CSS colors using ColorUtils)
     this.lineWidthMinor = config.lineWidthMinor ?? config.line_width ?? 1; // Support legacy naming
     this.lineWidthMajor = config.lineWidthMajor ?? config.lineWidthMinor ?? 2;
-    this.color = ColorUtils.resolveCssVariable(config.color ?? 'rgba(255, 153, 102, 0.3)'); // LCARS orange
-    this.colorMajor = config.colorMajor ? ColorUtils.resolveCssVariable(config.colorMajor) : this.color;
+    // Two-step resolution: resolver handles theme: tokens and computed expressions
+    // (alpha/darken/…); resolveCssVariable materialises remaining var() refs.
+    const _gResolver = window.lcards?.core?.themeManager?.resolver;
+    const _gResolve = (c) => ColorUtils.resolveCssVariable(
+        (_gResolver ? _gResolver.resolve(c, c) : c), c);
+
+    this.color = _gResolve(config.color ?? 'rgba(255, 153, 102, 0.3)'); // LCARS orange
+    this.colorMajor = config.colorMajor ? _gResolve(config.colorMajor) : this.color;
 
     // Fill color for cell backgrounds (in addition to line strokes)
-    this.fillColor = config.fillColor ? ColorUtils.resolveCssVariable(config.fillColor) : 'transparent';
+    this.fillColor = config.fillColor ? _gResolve(config.fillColor) : 'transparent';
 
     // Major/minor intervals
     this.majorRowInterval = config.majorRowInterval ?? 3;

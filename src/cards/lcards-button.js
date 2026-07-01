@@ -3476,18 +3476,31 @@ export class LCARdSButton extends LCARdSCard {
         // config.width/height may be a bare number (px) or a CSS string.
         // _configPx() returns null for viewport/relative units so sizing falls
         // back to the measured container size rather than a nonsense px value.
-        const width  = this._configPx(this.config.width)  || this._containerSize?.width  || 400;
+        let width  = this._configPx(this.config.width)  || this._containerSize?.width  || 400;
         // When HA's dashboard is in edit mode, grid cells grow to accommodate drag handles
         // and edit toolbars. Use the height frozen at edit-mode entry so geometry
         // (arc radii, text positions) doesn't visually jump during editing.
-        const height = this._configPx(this.config.height)
+        let height = this._configPx(this.config.height)
             || (this.hass?.editMode && this._preEditHeight ? this._preEditHeight : null)
             || this._containerSize?.height
             || 56;
 
+        // lcards-size-ref is positioned on :host and measures the HA grid-row height,
+        // which does not observe max-height / max-width applied to .button-container.
+        // When max_height or max_width are set (as px values), clamp the SVG geometry
+        // dimensions to match the actual rendered button size — otherwise the text
+        // background rect and other geometry are sized for the full grid row, not the
+        // visible button, driving the <g> bounding box beyond the viewBox.
+        const _maxHPx = this._configPx(this.config.max_height);
+        const _maxWPx = this._configPx(this.config.max_width);
+        if (_maxHPx != null) height = Math.min(height, _maxHPx);
+        if (_maxWPx != null) width  = Math.min(width,  _maxWPx);
+
         lcardsLog.trace(`[LCARdSButton] Size resolution:`, {
             'config.width': this.config.width,
             'config.height': this.config.height,
+            'config.max_height': this.config.max_height,
+            'config.max_width': this.config.max_width,
             '_containerSize': this._containerSize,
             'final width': width,
             'final height': height
@@ -4214,16 +4227,13 @@ export class LCARdSButton extends LCARdSCard {
         }
         resolvedConfig = evaluatedConfig;
 
-        // Resolve state-based color on the 'color' field
+        // Resolve state-based color on the 'color' field.
+        // Must go through the full pipeline (state-object → match-light → CSS var)
+        // because Canvas2D cannot handle var() or match-light strings.
         if (resolvedConfig.color && typeof resolvedConfig.color === 'object') {
             resolvedConfig = {
                 ...resolvedConfig,
-                color: this._resolveStateValue({
-                    actualState: actualEntityState,
-                    classifiedState: buttonState,
-                    colorConfig: resolvedConfig.color,
-                    fallback: 'rgba(255,255,255,0.2)'
-                }) || 'rgba(255,255,255,0.2)'
+                color: this._resolveColorValue(resolvedConfig.color, 'rgba(255,255,255,0.2)')
             };
         }
 
@@ -5440,15 +5450,10 @@ export class LCARdSButton extends LCARdSCard {
             resolvedColor = this._resolveMatchLightColor(resolvedColor);
 
             // Resolve background color based on entity state (supports state-based color map)
-            let resolvedBackground = null;
-            if (field.background) {
-                resolvedBackground = this._resolveStateValue({
-                    actualState: actualEntityState,
-                    classifiedState: entityState,
-                    colorConfig: field.background,
-                    fallback: null
-                });
-            }
+            // Full pipeline required: SVG fill attributes cannot handle var() or match-light.
+            const resolvedBackground = field.background
+                ? this._resolveColorValue(field.background) || null
+                : null;
 
             // ── Cap-height fill mode ──────────────────────────────────────────────
             // When font_size_percent + cap_height_ratio are both set AND the position is
@@ -5567,7 +5572,9 @@ export class LCARdSButton extends LCARdSCard {
                 // rendered height — either the button's configured height or the slider zone
                 // height — preventing the bg from overflowing a border zone or using the HA
                 // default 56px when a custom height like 44 is configured (issue #318).
-                const bgHeight = (Math.ceil(field._container_height ?? this._containerSize?.height ?? (metrics.height + (bgPadding * 2))) + 1);
+                // No +1 here: the bg rect must match the card viewBox height exactly so the
+                // <g> bounding box stays within the viewBox (issue #376).
+                const bgHeight = Math.ceil(field._container_height ?? this._containerSize?.height ?? (metrics.height + (bgPadding * 2)));
 
                 // Calculate background position based on text anchor
                 let bgX = field.x;
@@ -5816,10 +5823,6 @@ export class LCARdSButton extends LCARdSCard {
                     colorConfig:     field.color,
                     fallback:        null
                 });
-                // Resolve theme: tokens that resolveStateColor passes through as-is
-                if (typeof resolvedColor === 'string' && resolvedColor.startsWith('theme:')) {
-                    resolvedColor = this.getThemeToken(resolvedColor.replace('theme:', ''), resolvedColor);
-                }
             }
             if (!resolvedColor) {
                 resolvedColor = this._resolveStateValue({
@@ -6756,6 +6759,11 @@ export class LCARdSButton extends LCARdSCard {
                 animationManager.destroyCardSegmentScopes(cardId);
             }
             this._registeredSegmentAnimations.clear();
+        }
+
+        // Clean up main overlay scope (entity subscriptions, while-animations, etc.)
+        if (this._singletons?.animationManager) {
+            this._singletons.animationManager.destroyOverlayScope(`button-${this._cardGuid}`);
         }
 
         // Clear segment tracking maps

@@ -10,7 +10,7 @@ The feature is configured from the **Connectivity** tab in the [LCARdS Config Pa
 
 ## How it works
 
-LCARdS monitors the HA WebSocket connection inside the browser. When the connection drops it shows the overlay immediately — no polling delay. When the connection comes back the overlay is removed (optionally showing a brief confirmation banner first).
+LCARdS monitors the HA WebSocket connection inside the browser. When the connection drops it waits a short tolerance window (default 2.5 s) before showing the overlay — brief blips during HA startup or network handoffs are absorbed silently. When the connection comes back the overlay is removed (optionally showing a brief confirmation banner first).
 
 The overlay sits on top of the entire dashboard at the highest z-index so it is never obscured by HA's own UI.
 
@@ -34,6 +34,7 @@ Changes made in the panel are **not live until you click Save**. Use the **Test 
 |---------|---------|-------------|
 | **Enable connection overlay** | On | Master switch. When off, no overlay is shown on disconnect. |
 | **Allow user to dismiss** | On | Let the user click the overlay backdrop to close it manually. Useful if you want a "confirm you know it's offline" interaction rather than a pure indicator. |
+| **Disconnect tolerance** | 2500 ms | How long to wait after a disconnect event before showing the overlay. Brief blips during HA startup or mobile network handoffs are silently absorbed. Set to 0 to show immediately. |
 
 ---
 
@@ -133,8 +134,8 @@ Once you pick a preset, additional parameter fields appear for that preset's adj
 
 | Preset | Slot | Key parameters |
 |--------|------|----------------|
-| `static` | Canvas | Opacity, Grain Scale |
-| `pixelate` | Canvas | Pixel Size, Opacity, Light Variance, Base Lightness |
+| `static` | Canvas | Opacity, Grain Scale, Tint Color, Tint Strength |
+| `pixelate` | Canvas | Pixel Size, Opacity, Light Variance, Base Lightness, Tint Color, Tint Strength |
 | `glitch` | Canvas | Intensity, Max Shift, Band Height, Opacity, FPS |
 | `scanlines` | Canvas | Line Height, Opacity, Scroll Speed |
 | `color-tint` | Colour | Tint Color (any CSS colour / rgba) |
@@ -179,7 +180,39 @@ Use the **scope selector** at the top of the tab to choose which level you are c
 
 Each field shows a small badge indicating where its current value comes from. If a field has an override at the selected scope, a **×** button lets you clear that override and fall back to the level below.
 
-The **Save** button writes all current settings to the selected scope. The **Clear** button removes all overrides stored at that scope for the connection overlay — the resolved value then falls through to the next level.
+**Save** writes only the fields you actually changed in this editing session to the selected scope. Unchanged fields are not written, so they continue to resolve from lower scopes as intended. The **Clear** button removes all overrides stored at that scope — the resolved value then falls through to the next level.
+
+### Admin: editing another device or user
+
+Admins can select a different device or user from the scope selector dropdown. Settings saved that way are pushed directly to that scope in storage, and the affected device picks them up automatically within seconds — no page reload required on the target device.
+
+If you have the Config Panel open on a device when another admin remotely updates its settings:
+- If you have no unsaved edits, the panel refreshes its badge state automatically.
+- If you have unsaved edits, a blue banner appears — "Settings were updated from another device" — with a **Discard edits & refresh** button. Your in-progress changes are preserved until you decide.
+
+### Reload controls
+
+The action row includes two admin-only broadcast buttons:
+
+| Button | Effect |
+|--------|--------|
+| **Reload Config** | All connected browsers re-read their connection overlay config from storage. Non-disruptive — no page reload. Use this to push a stored config change to a device that was offline when you saved. |
+| **Reload Pages** | All connected browsers call `window.location.reload()`. Use this as a last resort if a device's JS state has drifted (rare). |
+
+---
+
+## Upgrading — existing stored settings
+
+If you set up connectivity settings before field-level saving was introduced, your device/user/global storage may contain all 25 fields at a single scope even though you only intended to override a few. **This is harmless** — values are all correct and the waterfall applies them in order.
+
+If you want to clean up and have only your intentional overrides at device scope:
+
+1. Open **Config Panel → Connectivity → Device** tab for the device in question.
+2. Note which settings differ from your global/user defaults.
+3. Click **Clear device** to remove all device-scope overrides.
+4. Re-save only the settings you actually want to pin at device scope.
+
+After this, only those fields will show a **device** badge — others will show **global** or **user** indicating they resolve from a higher scope.
 
 ---
 

@@ -319,7 +319,7 @@ export class LCARdSFilterEditor extends LitElement {
                         <div class="filter-type-row">
                             <span class="filter-type">${this._getFilterDisplayName(filterType)}</span>
                             <ha-button
-                                size="small"
+                                size="s"
                                 appearance="filled"
                                 variant="success"
                                 .label=${filterMode.toUpperCase()}

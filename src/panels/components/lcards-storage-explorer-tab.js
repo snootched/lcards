@@ -343,7 +343,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
           <!-- ── LOADING ── -->
           ${this._loading ? html`
             <div class="loading-row">
-              <ha-circular-progress indeterminate></ha-circular-progress>
+              <ha-circular-progress indeterminate size="s"></ha-circular-progress>
               <span>Loading storage…</span>
             </div>
           ` : ''}

@@ -22,6 +22,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BACKGROUND_PRESETS } from '../../core/packs/backgrounds/presets/index.js';
+import { CANVAS_TEXTURE_PRESETS } from '../../core/packs/textures/presets/index.js';
 import './shared/lcards-color-picker.js';
 import './shared/lcards-color-list.js';
 import './shared/lcards-form-section.js';
@@ -528,6 +529,14 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       `;
     }
 
+    // Contour Field uses its own dedicated section
+    if (preset === 'contour-field') {
+      return html`
+        ${this._renderContourFieldSection(config, index)}
+        ${this._renderScrollingSection(config, index)}
+      `;
+    }
+
     // Cascade uses its own dedicated section
     if (preset === 'cascade') {
       return html`${this._renderCascadeSection(config, index)}`;
@@ -726,6 +735,74 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     `;
   }
 
+  _renderContourFieldSection(config, index) {
+    return html`
+      <ha-alert alert-type="info">
+        <b>Contour Field</b> paints a drifting noise field, then slices it into colour bands — like
+        a topographic map.
+        <br><br> <b>Noise</b> shapes the raw terrain (how big and rough the features
+        are).
+        <br><br> <b>Contour Bands</b> controls how that terrain is sliced into rings — the full
+        peaks-and-valleys range, always present underneath.
+        <br><br> <b>Fill</b> floods/drains a
+        waterline over that terrain without changing it, for empty "space" between blobs.
+        <br><br> <b>Colour</b> sets what fills each ring. Lower "Band Count" + "Cell Size" for a blocky,
+        retro-LCARS look; raise them for a smooth, photographic nebula look.
+      </ha-alert>
+
+      <lcards-form-section
+        header="Noise"
+        icon="mdi:waves"
+        description="Shapes the raw terrain the bands are sliced from"
+        ?expanded=${true}>
+        <div class="param-grid">
+          ${this._renderField({ key: 'seed', label: 'Random Seed', type: 'number', min: 1, max: 1000000000, step: 1, default: Math.floor(Math.random() * 1e9), helper: 'Same seed + settings = same field every time; change it to get a different layout without touching anything else' }, config, index)}
+          ${this._renderField({ key: 'noise_scale', label: 'Noise Scale', type: 'number', min: 0.001, max: 0.05, step: 0.001, default: 0.01, helper: 'Smaller = a few large drifting blobs; larger = many small, busy ripples' }, config, index)}
+          ${this._renderField({ key: 'num_octaves', label: 'Noise Octaves', type: 'number', min: 1, max: 8, step: 1, default: 4, helper: 'Layers of fine detail added on top of the base shape; 1 = smooth blobs, 8 = rough, cloud-like fuzz' }, config, index)}
+        </div>
+      </lcards-form-section>
+
+      <lcards-form-section
+        header="Contour Bands"
+        icon="mdi:elevation-rise"
+        description="Always sliced across the full peaks-and-valleys range, regardless of Fill below"
+        ?expanded=${true}>
+        <div class="param-grid">
+          ${this._renderField({ key: 'num_bands', label: 'Band Count', type: 'number', min: 2, max: 64, step: 1, default: 8, helper: 'Low (2-8) = bold stepped contour lines/rings; high (32+) = a smooth, almost continuous gradient' }, config, index)}
+          ${this._renderField({ key: 'cell_size', label: 'Cell Size (px)', type: 'number', min: 1, max: 16, step: 1, default: 3, helper: 'Sample resolution. Larger = blockier/pixelated edges but cheaper to render; smaller = crisp smooth edges but more GPU/CPU cost' }, config, index)}
+        </div>
+      </lcards-form-section>
+
+      <lcards-form-section
+        header="Fill"
+        icon="mdi:water"
+        description="Floods or drains a waterline over the terrain above — doesn't change the terrain itself"
+        ?expanded=${true}>
+        <div class="param-grid">
+          ${this._renderField({ key: 'fill_level', label: 'Fill Level', type: 'number', min: 0, max: 0.95, step: 0.05, default: 0, helper: '0 = no water, full terrain visible. Raise it to flood the lowest rings — they become Fill Colour instead of their normal colour, leaving isolated nebula-like blobs at the peaks.' }, config, index)}
+          ${this._renderField({ key: 'fill_color', label: 'Fill Colour', type: 'color', default: '', fullWidth: true, helper: 'Leave empty for literal transparency (the card background shows through as "space"). Set a colour (e.g. black) to bake the void into the effect itself.' }, config, index)}
+        </div>
+      </lcards-form-section>
+
+      <lcards-form-section
+        header="Colour"
+        icon="mdi:palette"
+        description="What fills each contour ring above the waterline"
+        ?expanded=${true}>
+        <div class="param-grid">
+          ${this._renderField({ key: 'blend_colors', label: 'Blend Between Colours', type: 'boolean', default: true, helper: 'On = colours (and the Fill waterline) fade smoothly. Off = every edge is a hard cutoff with no blending anywhere — flat, solid rings and a crisp shoreline, matching real contour maps and the reference site\'s look.' }, config, index)}
+        </div>
+        <lcards-color-list
+          .hass=${this.hass}
+          .colors=${config.colors || (config.color ? [config.color] : [])}
+          .label=${'Band Colours'}
+          .description=${'One colour or several stops spread evenly across the full contour range, from lowest ring to highest'}
+          @colors-changed=${(e) => this._updateEffectConfig(index, 'colors', e.detail.colors)}
+        ></lcards-color-list>
+      </lcards-form-section>
+    `;
+  }
+
   _renderCascadeSection(config, index) {
     return html`
       <!-- Grid Sizing -->
@@ -850,7 +927,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     // Store current effect index for _setConfigValue callback
     this._currentEffectIndex = index;
 
-    const colorPaths = [{ path: 'color', label: 'Line Colour', helper: 'Main line colour (RGBA recommended)' }];
+    const colorPaths = [{ path: 'color', label: 'Line Colour', helper: 'Main line colour' }];
 
     if (preset === 'grid' || preset === 'grid-hexagonal') {
       colorPaths.push({ path: 'color_major', label: 'Major Line Colour', helper: 'Leave empty to use same as main colour' });
@@ -1117,7 +1194,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         ` : html`
           <lcards-color-picker
             .hass=${this.hass}
-            .value=${config.color ?? 'rgba(100,180,255,0.8)'}
+            .value=${config.color ?? CANVAS_TEXTURE_PRESETS[preset]?.defaults?.color ?? 'rgba(100,180,255,0.8)'}
             .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-']}
             ?showPreview=${true}
             @value-changed=${(e) => this._updateEffectConfig(index, 'color', e.detail.value)}
@@ -1305,6 +1382,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       'grid-hexagonal': 'mdi:hexagon-multiple',
       'starfield': 'mdi:star-circle',
       'nebula': 'mdi:cloud',
+      'contour-field': 'mdi:elevation-rise',
       'cascade': 'mdi:format-columns',
       'level':        'mdi:water',
       'fluid':        'mdi:water-wave',
@@ -1456,6 +1534,13 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     if (preset === 'cascade') {
       if (config.format) parts.push(`format: ${config.format}`);
       if (config.pattern) parts.push(`pattern: ${config.pattern}`);
+    }
+
+    if (preset === 'contour-field') {
+      if (config.num_bands !== undefined) parts.push(`bands: ${config.num_bands}`);
+      if (config.cell_size !== undefined) parts.push(`cell: ${config.cell_size}px`);
+      if (config.fill_level !== undefined) parts.push(`fill: ${config.fill_level}`);
+      if (config.blend_colors === false) parts.push('solid bands');
     }
 
     if (preset === 'level') {
@@ -1634,12 +1719,38 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           seed: Math.floor(Math.random() * 1e9) // Generate unique seed
         };
 
+      case 'scanlines':
+        // The preset default rgba(0,0,0,0.25) is invisible on dark LCARS backgrounds.
+        // Seed a visible semi-transparent white so the effect renders on first selection.
+        return { color: 'rgba(255,255,255,0.15)' };
+
       case 'cascade':
         return {
           format: 'mixed',
           pattern: 'default',
           font_size: 24,
           gap: 12
+        };
+
+      case 'contour-field':
+        return {
+          seed: Math.floor(Math.random() * 1e9),
+          noise_scale: 0.005,
+          num_octaves: 2,
+          num_bands: 5,
+          cell_size: 1,
+          blend_colors: true,
+          fill_level: 0.45,
+          fill_color: 'alpha(var(--lcars-midnight-blue), 0.30)',
+          colors: [
+            'alpha(#130b81, 0.08)',
+            'alpha(#130b81, 0.25)',
+            'alpha(#130b81, 0.42)',
+            'alpha(#130b81, 0.62)',
+            'alpha(#130b81, 0.80)',
+          ],
+          scroll_speed_x: -3,
+          scroll_speed_y: 0.45,
         };
 
       default:

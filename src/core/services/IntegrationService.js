@@ -398,6 +398,29 @@ export class IntegrationService extends BaseService {
                 break;
             }
 
+            case 'play_sound': {
+                // Plays a sound effect on this device — either the sound currently
+                // configured for a UI event (payload.event_type, respects the
+                // device/user override and active scheme) or one exact asset
+                // (payload.asset_key, bypasses scheme/overrides). asset_key wins
+                // if both are present.
+                const sm = window.lcards?.core?.soundManager;
+                if (!sm) {
+                    lcardsLog.warn('[IntegrationService] play_sound: soundManager unavailable');
+                    break;
+                }
+                if (payload.asset_key) {
+                    lcardsLog.info(`[IntegrationService] play_sound (asset) → ${payload.asset_key}`);
+                    sm.playAsset(payload.asset_key);
+                } else if (payload.event_type) {
+                    lcardsLog.info(`[IntegrationService] play_sound (event) → ${payload.event_type}`);
+                    sm.play(payload.event_type);
+                } else {
+                    lcardsLog.warn('[IntegrationService] play_sound: requires event_type or asset_key');
+                }
+                break;
+            }
+
             case 'trigger_effect': {
                 // Fire screen effects on this device.
                 //
@@ -484,6 +507,33 @@ export class IntegrationService extends BaseService {
                     bam.deassimilate(opts);
                 } else {
                     lcardsLog.warn('[IntegrationService] borg_deassimilate: BorgAssimilationManager unavailable');
+                }
+                break;
+            }
+
+            case 'reload_connection_config': {
+                // Skip self-echo: the saving device already applied its own
+                // optimistic patch + loadConfig() in ConnectionOverlayService.saveConfig().
+                // Without this check, isGlobal/own-user saves (which carry no
+                // target_device_ids/target_user_ids to naturally exclude this device)
+                // would re-trigger loadConfig() here and, if local edits are still
+                // in flight, show a false "updated from another device" banner.
+                const myDeviceId = window.lcards?.core?.deviceIdentityManager?.getDeviceId();
+                if (payload.origin_device_id && payload.origin_device_id === myDeviceId) {
+                    lcardsLog.debug('[IntegrationService] reload_connection_config: self-originated — skipping');
+                    break;
+                }
+                const cos = window.lcards?.core?.connectionOverlayService;
+                if (cos) {
+                    cos.loadConfig()
+                        .then(() => {
+                            // Notify any open config panel so it can refresh its badge state.
+                            document.dispatchEvent(new CustomEvent('lcards-connection-config-changed', { bubbles: false }));
+                        })
+                        .catch((err) => {
+                            lcardsLog.warn('[IntegrationService] reload_connection_config: loadConfig failed:', err);
+                        });
+                    lcardsLog.info('[IntegrationService] Connection overlay config reloaded via broadcast');
                 }
                 break;
             }

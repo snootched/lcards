@@ -618,16 +618,17 @@ export class LCARdSSlider extends LCARdSButton {
         const invertValue = config.control?.invert_value ?? false;
 
         // Domain-specific attribute min/max/step defaults
-        let defaultMin, defaultMax, defaultStep;
+        let defaultMin, defaultMax, defaultStep, defaultUnit;
         if (this._domain === 'climate' || this._domain === 'water_heater') {
             defaultMin = entity?.attributes?.min_temp ?? 15;
             defaultMax = entity?.attributes?.max_temp ?? (this._domain === 'water_heater' ? 60 : 30);
             defaultStep = entity?.attributes?.target_temp_step ?? 0.5;
         } else if (this._domain === 'media_player') {
-            // volume_level is a 0.0–1.0 float; expose that range natively
+            // volume_level is 0.0–1.0 internally; slider operates in 0–100 percentage space
             defaultMin = 0;
-            defaultMax = 1;
-            defaultStep = 0.01;
+            defaultMax = 100;
+            defaultStep = 1;
+            defaultUnit = '%';
         } else if (this._domain === 'humidifier') {
             defaultMin = entity?.attributes?.min_humidity ?? 0;
             defaultMax = entity?.attributes?.max_humidity ?? 100;
@@ -659,7 +660,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._displayConfig = {
             min: this._sliderStyle?.track?.display?.min ?? this._controlConfig.min,
             max: this._sliderStyle?.track?.display?.max ?? this._controlConfig.max,
-            unit: this._sliderStyle?.track?.display?.unit ?? haUnit ?? entity?.attributes?.unit_of_measurement ?? ''
+            unit: this._sliderStyle?.track?.display?.unit ?? haUnit ?? entity?.attributes?.unit_of_measurement ?? defaultUnit ?? ''
         };
 
         lcardsLog.debug('[LCARdSSlider] Config resolved:', {
@@ -693,6 +694,9 @@ export class LCARdSSlider extends LCARdSButton {
             // Convert brightness (0-255) to percentage (0-100)
             // The slider operates in percentage space, regardless of control min/max
             rawValue = (rawValue / 255) * 100;
+        } else if (this._domain === 'media_player' && attribute === 'volume_level') {
+            // Convert volume_level (0.0–1.0) to percentage (0–100)
+            rawValue = rawValue * 100;
         }
 
         // Apply value inversion if configured
@@ -740,8 +744,12 @@ export class LCARdSSlider extends LCARdSButton {
                     // Structure: style.border.{side}.color.hover/pressed
                     const colorConfig = borderConfig.color;
                     if (colorConfig && typeof colorConfig === 'object') {
-                        this._borderHoverStyles[side] = colorConfig.hover || null;
-                        this._borderPressedStyles[side] = colorConfig.pressed || null;
+                        this._borderHoverStyles[side] = colorConfig.hover
+                            ? this._resolveColorValue(String(this._resolveTemplateValue(colorConfig.hover)))
+                            : null;
+                        this._borderPressedStyles[side] = colorConfig.pressed
+                            ? this._resolveColorValue(String(this._resolveTemplateValue(colorConfig.pressed)))
+                            : null;
 
                         lcardsLog.trace(`[LCARdSSlider] Extracted ${side} border interaction:`, {
                             hover: this._borderHoverStyles[side],
@@ -1091,6 +1099,23 @@ export class LCARdSSlider extends LCARdSButton {
      * @returns {string|number|null} Resolved color
      * @private
      */
+    /**
+     * Override: treat any entity whose state is a valid finite number as 'active'.
+     * input_number, number, counter, and numeric sensors have states like "75" or
+     * "0.5" — these aren't in the base class activeStates list so they fall through
+     * to 'inactive' (grey) without this override. String-state domains (light,
+     * media_player, switch, …) are unaffected because their states are not numeric.
+     * @override
+     */
+    _classifyEntityState(entity = null) {
+        const target = entity || this._entity;
+        if (target && target.state !== 'unavailable' && target.state !== 'unknown') {
+            const n = parseFloat(target.state);
+            if (!isNaN(n) && isFinite(n)) return 'active';
+        }
+        return super._classifyEntityState(entity);
+    }
+
     _resolveStateBorderColor(colorConfig) {
         // Use base class method for state-based color resolution
         return this._resolveEntityStateColor(
@@ -1100,48 +1125,27 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
-     * Resolve a plain (non-state-based) color value through the full pipeline:
-     *   1. ThemeTokenResolver — handles `theme:*` tokens and computed functions
-     *      such as `lighten(...)`, `darken(...)`, `alpha(...)`, etc.
-     *   2. ColorUtils.resolveCssVariable — resolves any remaining `var(--x)` refs.
+     * Override of the base class full color-resolution pipeline.
+     * Adds a Canvas2D-specific optimization: if the base class resolves match-light
+     * to a shadow-DOM CSS variable (var(--lcards-light-color-*)), that var cannot be
+     * read by ColorUtils.resolveCssVariable() from document root.  Return the cached
+     * concrete value (_lightColorValue) instead so Canvas2D fillStyle never sees a
+     * var() string.
      *
-     * Use this instead of bare `ColorUtils.resolveCssVariable()` whenever the
-     * value could come from user config (where computed tokens are valid).
-     *
-     * @param {string} rawValue  - Raw color string from config/preset
-     * @param {string} [fallback=''] - Returned when rawValue is falsy
-     * @returns {string} Resolved color
+     * @override
+     * @param {Object|string|null} rawValue - Raw color config: state-object or string
+     * @param {string} [fallback=''] - Returned when rawValue is falsy or resolution yields nothing
+     * @returns {string} Resolved concrete color string, or fallback
      * @private
      */
     _resolveColorValue(rawValue, fallback = '') {
-        if (!rawValue) return fallback;
-        let value = rawValue;
-        // Step 0: 'match-light' special token → per-card CSS variable
-        value = /** @type {string} */(this._resolveMatchLightColor(value));
-
-        // If the value resolved to our dynamic per-card light-colour variable,
-        // return the already-computed colour value stored on the instance.
-        // This avoids relying on CSS-var reactivity in SVG presentation attributes
-        // (which is unreliable) and ensures the memoization hash always reflects
-        // the actual current colour, causing the cache to bust when it changes.
-        if (typeof value === 'string' && value.includes('--lcards-light-color-')) {
+        const result = super._resolveColorValue(rawValue, fallback);
+        // Canvas2D: match-light resolves to a shadow-DOM var that document-root
+        // getComputedStyle can't reach. Substitute the cached concrete value.
+        if (typeof result === 'string' && result.includes('--lcards-light-color-')) {
             return this._lightColorValue || fallback;
         }
-
-        // Step 1: computed tokens and theme: tokens
-        const resolver = window.lcards?.core?.themeManager?.resolver;
-        if (resolver) {
-            value = resolver.resolve(value, value);
-        }
-        // Step 2: CSS variable references.
-        // Only call resolveCssVariable for bare `var()` references. If the resolver
-        // already produced a CSS function like `color-mix()`, the browser handles it
-        // natively — calling resolveCssVariable would match the var() inside
-        // color-mix() and strip the surrounding function away, losing the effect.
-        if (typeof value === 'string' && value.trim().startsWith('var(')) {
-            return ColorUtils.resolveCssVariable(value) || fallback;
-        }
-        return value || fallback;
+        return result;
     }
 
     /**
@@ -1203,7 +1207,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', String(leftSize));
             rect.setAttribute('height', String(height));
             const leftColor = this._resolveStateBorderColor(borderConfig.left.color);
-            const resolvedColor = ColorUtils.resolveCssVariable(String(leftColor ?? ''));
+            const resolvedColor = ColorUtils.resolveCssVariable(String(leftColor ?? ''), '#000000', this);
             // Ensure color is valid before setting (never empty/null)
             rect.setAttribute('fill', String(resolvedColor || '#000000'));
             fragment.appendChild(rect);
@@ -1219,7 +1223,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', String(width));
             rect.setAttribute('height', String(topSize));
             const topColor = this._resolveStateBorderColor(borderConfig.top.color);
-            const resolvedColor = ColorUtils.resolveCssVariable(String(topColor ?? ''));
+            const resolvedColor = ColorUtils.resolveCssVariable(String(topColor ?? ''), '#000000', this);
             // Ensure color is valid before setting (never empty/null)
             rect.setAttribute('fill', String(resolvedColor || '#000000'));
             fragment.appendChild(rect);
@@ -1235,7 +1239,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', String(rightSize));
             rect.setAttribute('height', String(height));
             const rightColor = this._resolveStateBorderColor(borderConfig.right.color);
-            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(rightColor ?? '')) || '#000000'));
+            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(rightColor ?? ''), '#000000', this) || '#000000'));
             fragment.appendChild(rect);
         }
 
@@ -1249,7 +1253,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('width', String(width));
             rect.setAttribute('height', String(bottomSize));
             const bottomColor = this._resolveStateBorderColor(borderConfig.bottom.color);
-            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(bottomColor ?? '')) || '#000000'));
+            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(bottomColor ?? ''), '#000000', this) || '#000000'));
             fragment.appendChild(rect);
         }
 
@@ -1795,8 +1799,12 @@ export class LCARdSSlider extends LCARdSButton {
             const valuePercent = displayRange > 0 ? (resolvedValue - displayMin) / displayRange : 0;
             const pillIdx = Math.max(0, Math.min(count - 1, Math.round(valuePercent * (count - 1))));
             const pillStyle = range.pill_style || {};
+            const fillColor = this._resolveRangeColor(range.color || 'var(--lcars-text-light, #ffffff)');
             markerPillMap.set(pillIdx, {
-                color: this._resolveRangeColor(range.color || 'var(--lcars-text-light, #ffffff)'),
+                color: fillColor,
+                strokeColor: pillStyle.stroke_color
+                    ? this._resolveRangeColor(pillStyle.stroke_color, fillColor)
+                    : fillColor,
                 strokeEnabled: pillStyle.stroke !== false, // default true
                 strokeWidth: pillStyle.stroke_width ?? 2
             });
@@ -1821,7 +1829,7 @@ export class LCARdSSlider extends LCARdSButton {
 
                 const markerInfoV = markerPillMap.get(i);
                 const markerAttrsV = markerInfoV
-                    ? ` data-marker-color="${markerInfoV.color}" data-marker-stroke="${markerInfoV.strokeEnabled ? markerInfoV.strokeWidth : 0}"`
+                    ? ` data-marker-color="${markerInfoV.color}" data-marker-stroke="${markerInfoV.strokeEnabled ? markerInfoV.strokeWidth : 0}" data-marker-stroke-color="${markerInfoV.strokeColor}"`
                     : '';
 
                 pills += `
@@ -1859,7 +1867,7 @@ export class LCARdSSlider extends LCARdSButton {
 
                 const markerInfoH = markerPillMap.get(i);
                 const markerAttrsH = markerInfoH
-                    ? ` data-marker-color="${markerInfoH.color}" data-marker-stroke="${markerInfoH.strokeEnabled ? markerInfoH.strokeWidth : 0}"`
+                    ? ` data-marker-color="${markerInfoH.color}" data-marker-stroke="${markerInfoH.strokeEnabled ? markerInfoH.strokeWidth : 0}" data-marker-stroke-color="${markerInfoH.strokeColor}"`
                     : '';
 
                 pills += `
@@ -1893,9 +1901,18 @@ export class LCARdSSlider extends LCARdSButton {
     _getIndicatorConfig(gaugeConfig) {
         const indicatorConfig = gaugeConfig?.indicator;
 
+        // `enabled` may be a literal boolean or a template string (resolved by
+        // _preEvaluateStyleTemplates() at this point) — coerce the resolved value
+        // to a real boolean. HA's Jinja2 templates can come back as the strings
+        // "True"/"False", so a strict `=== true` check isn't enough here.
+        let resolvedEnabled = this._resolveTemplateValue(indicatorConfig?.enabled);
+        if (typeof resolvedEnabled === 'string') {
+            resolvedEnabled = !['false', '0', ''].includes(resolvedEnabled.trim().toLowerCase());
+        }
+
         // Check if indicator is enabled
-        const indicatorEnabled = indicatorConfig?.enabled === true ||
-                                (indicatorConfig?.enabled !== false &&
+        const indicatorEnabled = resolvedEnabled === true ||
+                                (resolvedEnabled !== false &&
                                  (indicatorConfig?.type || indicatorConfig?.color || indicatorConfig?.size));
 
         if (!indicatorEnabled) return null;
@@ -1903,14 +1920,24 @@ export class LCARdSSlider extends LCARdSButton {
         // Extract all config parameters
         return {
             type: indicatorConfig.type || 'line',
-            color: this._resolveColorValue(indicatorConfig.color || 'theme:components.slider.indicator.color'),
+            color: this._resolveColorValue(String(this._resolveStateValue({
+                actualState: this._entity?.state,
+                classifiedState: this._getButtonState(),
+                colorConfig: indicatorConfig.color,
+                fallback: 'theme:components.slider.indicator.color'
+            }) ?? '')),
             width: indicatorConfig.size?.width || 4,
             height: indicatorConfig.size?.height || 25,
             rotation: indicatorConfig.rotation || 0,
             offsetX: indicatorConfig.offset?.x || 0,
             offsetY: indicatorConfig.offset?.y || 0,
             borderEnabled: indicatorConfig.border?.enabled !== false,
-            borderColor: this._resolveColorValue(indicatorConfig.border?.color || 'theme:components.slider.indicator.border.color'),
+            borderColor: this._resolveColorValue(String(this._resolveStateValue({
+                actualState: this._entity?.state,
+                classifiedState: this._getButtonState(),
+                colorConfig: indicatorConfig.border?.color,
+                fallback: 'theme:components.slider.indicator.border.color'
+            }) ?? '')),
             borderWidth: indicatorConfig.border?.width || 1
         };
     }
@@ -2086,24 +2113,24 @@ export class LCARdSSlider extends LCARdSButton {
         // Major tick configuration
         const majorEnabled = tickConfig?.major?.enabled !== false;
         const majorInterval = tickConfig?.major?.interval || 10; // Value units (not percentage)
-        const majorColor = this._resolveStateValue({
+        const majorColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: tickConfig?.major?.color,
             fallback: 'theme:components.slider.gauge.tick.major.color.default'
-        });
+        }) ?? ''));
         const majorHeight = tickConfig?.major?.height; // undefined = full height
         const majorStrokeWidth = tickConfig?.major?.width || 2;
 
         // Minor tick configuration
         const minorEnabled = tickConfig?.minor?.enabled !== false;
         const minorInterval = tickConfig?.minor?.interval || 2; // Value units (not percentage)
-        const minorColor = this._resolveStateValue({
+        const minorColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: tickConfig?.minor?.color,
             fallback: 'theme:components.slider.gauge.tick.minor.color.default'
-        });
+        }) ?? ''));
         const minorHeight = tickConfig?.minor?.height || 10;
         const minorStrokeWidth = tickConfig?.minor?.width || 1;
 
@@ -2117,21 +2144,21 @@ export class LCARdSSlider extends LCARdSButton {
         const labelPadding = labelConfig?.padding || 3; // Padding between tick and label
 
         // Label color - state-aware resolution for tick labels
-        const tickLabelColor = this._resolveStateValue({
+        const tickLabelColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: labelConfig?.color,
             fallback: 'theme:components.slider.gauge.label.color.default'
-        });
+        }) ?? ''));
 
         // Progress bar configuration
         const progressConfig = gaugeConfig?.progress_bar;
-        const progressColor = this._resolveStateValue({
+        const progressColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: progressConfig?.color,
             fallback: 'theme:components.slider.gauge.progress_bar.color.default'
-        });
+        }) ?? ''));
         const progressHeight = progressConfig?.height || 12;
         // Fill bar radius: uniform number (default 2) or per-end { start, end } object
         const _prRaw = progressConfig?.radius;
@@ -2155,12 +2182,12 @@ export class LCARdSSlider extends LCARdSButton {
         };
         const pbPath   = (px, py, pw, ph, isH, fill) => pbRect(pr,   px, py, pw, ph, isH, fill);
         const bgPbPath = (px, py, pw, ph, isH, fill) => pbRect(bgPr, px, py, pw, ph, isH, fill);
-        const progressBgColor = this._resolveStateValue({
+        const progressBgColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: progressConfig?.background?.color,
             fallback: ''
-        });
+        }) ?? ''));
         const progressBgThickness = progressConfig?.background?.height ?? progressHeight;
         // Background track extent — explicit background.min/max override control-range clamping
         const _dispMin = this._displayConfig.min;
@@ -2527,10 +2554,11 @@ export class LCARdSSlider extends LCARdSButton {
             const markerColor = pill.getAttribute('data-marker-color');
             if (!markerColor) return;
             const strokeWidth = parseFloat(pill.getAttribute('data-marker-stroke') || '0');
+            const strokeColor = pill.getAttribute('data-marker-stroke-color') || markerColor;
             pill.setAttribute('opacity', '1');
             pill.setAttribute('fill', markerColor);
             if (strokeWidth > 0) {
-                pill.setAttribute('stroke', markerColor);
+                pill.setAttribute('stroke', strokeColor);
                 pill.setAttribute('stroke-width', String(strokeWidth));
             }
         });
@@ -2877,7 +2905,7 @@ export class LCARdSSlider extends LCARdSButton {
             } else if (domain === 'media_player') {
                 await this.hass.callService('media_player', 'volume_set', {
                     entity_id: entityId,
-                    volume_level: entityValue
+                    volume_level: entityValue / 100
                 });
             } else if (domain === 'humidifier') {
                 await this.hass.callService('humidifier', 'set_humidity', {
@@ -2978,25 +3006,46 @@ export class LCARdSSlider extends LCARdSButton {
             borderLeft: this._resolveStateBorderColor(borderConfig?.left?.color),
             borderRight: this._resolveStateBorderColor(borderConfig?.right?.color),
             // Progress bar color (state-aware)
-            progressBar: this._resolveStateValue({
+            progressBar: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
                 classifiedState: this._getButtonState(),
                 colorConfig: this._sliderStyle?.gauge?.progress_bar?.color,
                 fallback: 'theme:components.slider.gauge.progress_bar.color.default'
-            }),
+            }) ?? '')),
             // Range frame and borders
-            rangeBorder: this._resolveColorValue(this._sliderStyle?.range?.border?.color || 'theme:components.slider.range.border.color'),
-            rangeFrame: this._resolveColorValue(this._sliderStyle?.range?.frame?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
+            rangeBorder: this._resolveColorValue(String(this._resolveStateValue({
+                actualState: this._entity?.state,
+                classifiedState: this._getButtonState(),
+                colorConfig: this._sliderStyle?.range?.border?.color,
+                fallback: 'theme:components.slider.range.border.color'
+            }) ?? '')),
+            rangeFrame: this._resolveColorValue(String(this._resolveStateValue({
+                actualState: this._entity?.state,
+                classifiedState: this._getButtonState(),
+                colorConfig: this._sliderStyle?.range?.frame?.color,
+                fallback: ''
+            }) ?? '')) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Solid bar (defaults to same as top border)
-            solidBar: this._resolveColorValue(this._sliderStyle?.solid_bar?.color) || this._resolveStateBorderColor(borderConfig?.top?.color),
+            solidBar: this._resolveColorValue(String(this._resolveStateValue({
+                actualState: this._entity?.state,
+                classifiedState: this._getButtonState(),
+                colorConfig: this._sliderStyle?.solid_bar?.color,
+                fallback: ''
+            }) ?? '')) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Animation indicator
-            animationIndicator: this._resolveColorValue(this._sliderStyle?.animation?.indicator?.color || 'theme:components.slider.animation.indicator.color'),
+            animationIndicator: this._resolveColorValue(String(this._resolveStateValue({
+                actualState: this._entity?.state,
+                classifiedState: this._getButtonState(),
+                colorConfig: this._sliderStyle?.animation?.indicator?.color,
+                fallback: 'theme:components.slider.animation.indicator.color'
+            }) ?? '')),
             // Shaped component: track background (the "empty" portion inside the shape)
-            trackBackground: this._resolveColorValue(
-                this._sliderStyle?.shaped?.track?.background
-                    ?? this._sliderStyle?.track?.background,
-                'var(--lcards-gray-dark, #12121c)'
-            )
+            trackBackground: this._resolveColorValue(String(this._resolveStateValue({
+                actualState: this._entity?.state,
+                classifiedState: this._getButtonState(),
+                colorConfig: this._sliderStyle?.shaped?.track?.background ?? this._sliderStyle?.track?.background,
+                fallback: 'var(--lcards-gray-dark, #12121c)'
+            }) ?? ''))
         };
 
         lcardsLog.debug('[LCARdSSlider] Resolved colors using card logic:', colors);
@@ -3318,13 +3367,13 @@ export class LCARdSSlider extends LCARdSButton {
         const w = zoneSpec.width;
         const h = zoneSpec.height;
 
-        // Fill colour: shaped-specific override → gauge active colour → default
-        // Use _resolveColorValue so computed tokens (lighten/darken/alpha/theme:) work.
-        const fillColor = this._resolveColorValue(
-            this._sliderStyle?.shaped?.fill?.color ||
-            this._sliderStyle?.gauge?.fill?.color?.active ||
-            'theme:components.slider.shaped.fill.color'
-        );
+        // Fill colour: shaped-specific override (state-aware) → gauge active colour → default
+        const fillColor = this._resolveColorValue(String(this._resolveStateValue({
+            actualState: this._entity?.state,
+            classifiedState: this._getButtonState(),
+            colorConfig: this._sliderStyle?.shaped?.fill?.color,
+            fallback: this._sliderStyle?.gauge?.fill?.color?.active ?? 'theme:components.slider.shaped.fill.color'
+        }) ?? ''));
 
         const progress = this._calculateValuePercent();
 
@@ -3510,12 +3559,12 @@ export class LCARdSSlider extends LCARdSButton {
         });
 
         // Get fill color (state-aware progress_bar color)
-        const fillColor = this._resolveStateValue({
+        const fillColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: progressBarConfig.color,
             fallback: 'theme:components.slider.gauge.progress_bar.color.default'
-        });
+        }) ?? ''));
         // Radius: uniform number or per-end { start, end } object
         const _prRawZ = progressBarConfig.radius;
         const prZ = (_prRawZ !== null && typeof _prRawZ === 'object')
@@ -3536,12 +3585,12 @@ export class LCARdSSlider extends LCARdSButton {
             return `<path d="${this._buildRoundedRectPath(px, py, pw, ph, corners)}" fill="${fill}"></path>`;
         };
         // Optional background track — extent clamped to background.min/max (defaults to control range)
-        const bgColor = this._resolveStateValue({
+        const bgColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._getButtonState(),
             colorConfig: progressBarConfig.background?.color,
             fallback: ''
-        });
+        }) ?? ''));
         const bgThicknessZ = progressBarConfig.background?.height ?? null;
         // Background extent: background.min/max override, defaults to _controlConfig.min/max clamped to display range
         const bgMinVal = progressBarConfig.background?.min ?? this._controlConfig.min;
@@ -3691,7 +3740,12 @@ export class LCARdSSlider extends LCARdSButton {
             const presetMarker = gaugeConfig?.marker_indicator || {};
             // Color lives under indicator.color for value markers, not range.color
             // (range.color is the band fill — a separate concept)
-            const markerColor = this._resolveColorValue(riCfg.color || presetMarker.color || 'theme:components.slider.indicator.color');
+            const markerColor = this._resolveColorValue(String(this._resolveStateValue({
+                actualState: this._entity?.state,
+                classifiedState: this._getButtonState(),
+                colorConfig: riCfg.color ?? presetMarker.color,
+                fallback: 'theme:components.slider.indicator.color'
+            }) ?? ''));
             const markerIndicator = {
                 // type: per-range config first, then triangle default.
                 // Deliberately does NOT inherit globalIndicator.type — the main
@@ -3712,7 +3766,12 @@ export class LCARdSSlider extends LCARdSButton {
                 offsetX:       riCfg.offset?.x         ?? presetMarker.offset?.x         ?? 0,
                 offsetY:       riCfg.offset?.y         ?? presetMarker.offset?.y         ?? (isVertical ? 0 : 10),
                 borderEnabled: riCfg.border?.enabled   ?? presetMarker.border?.enabled   ?? false,
-                borderColor:   this._resolveColorValue(riCfg.border?.color ?? presetMarker.border?.color ?? 'theme:components.slider.indicator.border.color'),
+                borderColor:   this._resolveColorValue(String(this._resolveStateValue({
+                    actualState: this._entity?.state,
+                    classifiedState: this._getButtonState(),
+                    colorConfig: riCfg.border?.color ?? presetMarker.border?.color,
+                    fallback: 'theme:components.slider.indicator.border.color'
+                }) ?? '')),
                 borderWidth:   riCfg.border?.width     ?? presetMarker.border?.width     ?? 1
             };
 
@@ -3783,11 +3842,14 @@ export class LCARdSSlider extends LCARdSButton {
             borders.forEach(side => {
                 const element = this._borderElements[side];
                 if (element) {
-                    const borderConfig = this._sliderStyle?.border?.[side];
-                    const restoreColor = borderConfig ?
-                        this._resolveStateBorderColor(borderConfig.color) :
-                        'black';
-                    element.style.fill = restoreColor;
+                    // Clear the inline style so the SVG presentation attribute
+                    // (set by the last render via _injectBordersToElement, resolved
+                    // against the global theme scope) shows through.  Computing a
+                    // restore color here produces a color-mix() expression containing
+                    // var(--lcars-card-button-color) which the browser re-resolves
+                    // from the element's inherited CSS scope — picking up any
+                    // section-scoped theme override and returning the wrong colour.
+                    element.style.fill = '';
                 }
             });
         };
@@ -4010,6 +4072,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Cleanup border interaction listeners
         const borders = ['left', 'top', 'right', 'bottom'];
+        const animationManager = this._singletons?.animationManager;
         borders.forEach(side => {
             if (this._borderInteractivityCleanups[side]) {
                 this._borderInteractivityCleanups[side]();
@@ -4019,6 +4082,8 @@ export class LCARdSSlider extends LCARdSButton {
                 this._borderActionCleanups[side]();
                 this._borderActionCleanups[side] = null;
             }
+            // Clean up main overlay scope (entity subscriptions, while-animations, etc.)
+            animationManager?.destroyOverlayScope(`slider-${this._cardGuid}-border-${side}`);
         });
     }
 

@@ -70,10 +70,15 @@ export class LCARdSConfigPanel extends LitElement {
     super.willUpdate(changedProps);
 
     if (changedProps.has('hass') && this.hass) {
-      // Propagate hass to core (critical for alert mode commands to work)
+      // Initialize/propagate hass to core (critical for alert mode commands to work).
+      // `initialize()` propagates hass synchronously to all services when core is
+      // already up, ensuring SSS and integrationService have a real connection
+      // before child tabs try to read scoped settings on their first render.
       if (window.lcards?.core) {
-        lcardsLog.debug('[ConfigPanel] Propagating hass to Core');
-        window.lcards.core.ingestHass(this.hass);
+        lcardsLog.debug('[ConfigPanel] Propagating hass to Core via initialize()');
+        window.lcards.core.initialize(this.hass).catch(err => {
+          lcardsLog.warn('[ConfigPanel] Core initialize error:', err);
+        });
       }
 
       // Propagate hass to helper manager

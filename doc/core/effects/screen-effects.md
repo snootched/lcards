@@ -172,6 +172,8 @@ Mosaic of small dark blocks with subtle lightness variance. Simulates low-resolu
 | `opacity` | number | `0.75` | Overall canvas opacity (0–1) |
 | `variance` | number | `0.35` | Lightness jitter per block (0–1). `0` = uniform, `1` = max contrast |
 | `baseLight` | number | `80` | Base grey lightness (0–255). Lower = darker blocks |
+| `color` | string | `'#8c9aa6'` | Tint colour blended into each mosaic block |
+| `tintStrength` | number | `0` | 0–1 blend toward `color`. `0` = neutral gray mosaic, `1` = solid colour blocks |
 
 ```yaml
 service: lcards.trigger_effect

@@ -12,6 +12,7 @@
 import { GridEffect } from '../effects/GridEffect.js';
 import { StarfieldEffect } from '../effects/StarfieldEffect.js';
 import { NebulaEffect } from '../effects/NebulaEffect.js';
+import { ContourFieldEffect } from '../effects/ContourFieldEffect.js';
 import { CascadeEffect } from '../effects/CascadeEffect.js';
 import { LevelTextureEffect }    from '../../textures/effects/LevelTextureEffect.js';
 import { FluidTextureEffect }    from '../../textures/effects/FluidTextureEffect.js';
@@ -230,6 +231,52 @@ export const BACKGROUND_PRESETS = {
       };
 
       return [new NebulaEffect(nebulaConfig)];
+    }
+  },
+
+  /**
+   * Topographic-style banded noise field (LCARS star-chart contour look)
+   */
+  'contour-field': {
+    name: 'Contour Field',
+    description: 'Topographic-style banded noise field (LCARS star-chart contour look)',
+
+    createEffects(config, cardInstance = null) {
+      lcardsLog.debug('[Preset:contour-field] Creating contour field effect');
+
+      const resolveToken = (tokenPath, fallback) => {
+        if (cardInstance && cardInstance.getThemeToken) {
+          return cardInstance.getThemeToken(tokenPath, fallback);
+        }
+        return fallback;
+      };
+
+      const contourConfig = {
+        seed: config.seed ?? Math.floor(Math.random() * 1e9), // Random seed by default
+        noiseScale: config.noise_scale ?? resolveToken('components.backgroundAnimation.contourField.noise.scale', 0.005),
+        numOctaves: config.num_octaves ?? resolveToken('components.backgroundAnimation.contourField.noise.octaves', 2),
+        numBands: config.num_bands ?? resolveToken('components.backgroundAnimation.contourField.bands.count', 5),
+        cellSize: config.cell_size ?? resolveToken('components.backgroundAnimation.contourField.bands.cellSize', 1),
+        fillLevel: config.fill_level ?? resolveToken('components.backgroundAnimation.contourField.bands.fillLevel', 0.45),
+        fillColor: config.fill_color ?? resolveToken('components.backgroundAnimation.contourField.bands.fillColor', 'alpha(var(--lcars-midnight-blue), 0.30)'),
+        blendColors: config.blend_colors ?? resolveToken('components.backgroundAnimation.contourField.bands.blendColors', true),
+
+        // Support both 'colors' (array) and 'color' (single)
+        colors: config.colors ?? (config.color ? [config.color] : resolveToken('components.backgroundAnimation.contourField.colors', [
+          'alpha(#130b81, 0.08)',
+          'alpha(#130b81, 0.25)',
+          'alpha(#130b81, 0.42)',
+          'alpha(#130b81, 0.62)',
+          'alpha(#130b81, 0.80)',
+        ])),
+
+        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.contourField.scroll.speedX', -3),
+        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.contourField.scroll.speedY', 0.45),
+
+        opacity: config.opacity ?? 1
+      };
+
+      return [new ContourFieldEffect(contourConfig)];
     }
   },
 
