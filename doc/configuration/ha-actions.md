@@ -192,7 +192,7 @@ Provide either `event_type` or `asset_key` — not both. If both are given, `ass
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `event_type` | select | | Plays whatever sound is currently configured for that UI event on the target device — respects its per-event override and active sound scheme. One of the 26 event keys listed in [Sound Configuration](/configuration/sounds#what-events-are-covered). |
-| `asset_key` | string | | Plays one exact sound file (e.g. `lcards_default_system_ready`), bypassing the target's scheme/overrides entirely. Find valid keys via the Config Panel Sound tab or `window.lcards.sound.getEvents()` in the browser console. |
+| `asset_key` | string | | Plays one exact sound file (e.g. `lcards_default_system_ready`), bypassing the target's scheme/overrides entirely. Find valid keys via the Config Panel Sound tab or `window.lcards.core.assetManager.getRegistry('audio').list()` in the browser console. |
 | `target_device_ids` | list | | → [Targeting](#targeting) |
 | `target_device_names` | list | | → [Targeting](#targeting) |
 | `target_user_ids` | list | | → [Targeting](#targeting) |
