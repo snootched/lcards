@@ -542,6 +542,13 @@ export class LCARdSColorPicker extends LitElement {
 
             /* Unified pill-group: square the inner corners, pill the outer ones.
                ::part(base) pierces ha-button's shadow DOM to reach the <button> element. */
+            .picker-header wa-button-group ha-button::part(base) {
+                min-height: 28px;
+                height: 28px;
+                padding-block: 0;
+                font-size: var(--ha-font-size-s, 12px);
+            }
+
             .picker-header wa-button-group ha-button:first-child::part(base) {
                 border-start-start-radius: var(--ha-border-radius-pill);
                 border-end-start-radius: var(--ha-border-radius-pill);
