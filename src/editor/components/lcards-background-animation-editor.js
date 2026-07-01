@@ -22,6 +22,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BACKGROUND_PRESETS } from '../../core/packs/backgrounds/presets/index.js';
+import { CANVAS_TEXTURE_PRESETS } from '../../core/packs/textures/presets/index.js';
 import './shared/lcards-color-picker.js';
 import './shared/lcards-color-list.js';
 import './shared/lcards-form-section.js';
@@ -1193,7 +1194,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         ` : html`
           <lcards-color-picker
             .hass=${this.hass}
-            .value=${config.color ?? 'rgba(100,180,255,0.8)'}
+            .value=${config.color ?? CANVAS_TEXTURE_PRESETS[preset]?.defaults?.color ?? 'rgba(100,180,255,0.8)'}
             .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-']}
             ?showPreview=${true}
             @value-changed=${(e) => this._updateEffectConfig(index, 'color', e.detail.value)}
@@ -1717,6 +1718,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         return {
           seed: Math.floor(Math.random() * 1e9) // Generate unique seed
         };
+
+      case 'scanlines':
+        // The preset default rgba(0,0,0,0.25) is invisible on dark LCARS backgrounds.
+        // Seed a visible semi-transparent white so the effect renders on first selection.
+        return { color: 'rgba(255,255,255,0.15)' };
 
       case 'cascade':
         return {
