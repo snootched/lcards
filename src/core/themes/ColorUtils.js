@@ -431,6 +431,81 @@ export class ColorUtils {
   }
 
   /**
+   * Convert RGB to OKLCH (Björn Ottosson's OKLab, in cylindrical form)
+   *
+   * Perceptually-uniform lightness/chroma/hue space — matches the interpolation
+   * space HA's own OKLCH-based palette generation uses, so ramps built with this
+   * conversion track HA's tone-lightness progression more faithfully than HSL.
+   *
+   * @param {number} r - Red (0-255)
+   * @param {number} g - Green (0-255)
+   * @param {number} b - Blue (0-255)
+   * @returns {Array<number>} [L, C, H] where L=0-1, C~0-0.4, H=0-360 (0 if achromatic)
+   *
+   * @example
+   * ColorUtils.rgbToOklch(255, 153, 0) // Returns approximately [0.75, 0.17, 55]
+   */
+  static rgbToOklch(r, g, b) {
+    const toLinear = (c) => {
+      c /= 255;
+      return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    const lr = toLinear(r), lg = toLinear(g), lb = toLinear(b);
+
+    const l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
+    const m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
+    const s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
+
+    const l_ = Math.cbrt(l), m_ = Math.cbrt(m), s_ = Math.cbrt(s);
+
+    const L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_;
+    const a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_;
+    const bLab = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_;
+
+    const C = Math.sqrt(a * a + bLab * bLab);
+    let H = Math.atan2(bLab, a) * 180 / Math.PI;
+    if (H < 0) H += 360;
+
+    return [L, C, C < 1e-6 ? 0 : H];
+  }
+
+  /**
+   * Convert OKLCH back to RGB (inverse of {@link ColorUtils.rgbToOklch}).
+   *
+   * @param {number} L - Lightness (0-1)
+   * @param {number} C - Chroma (~0-0.4)
+   * @param {number} H - Hue (0-360)
+   * @returns {Array<number>} [r, g, b] integers clamped to 0-255
+   *
+   * @example
+   * ColorUtils.oklchToRgb(0.75, 0.17, 55) // Returns approximately [255, 153, 0]
+   */
+  static oklchToRgb(L, C, H) {
+    const hRad = H * Math.PI / 180;
+    const a = C * Math.cos(hRad);
+    const bLab = C * Math.sin(hRad);
+
+    const l_ = L + 0.3963377774 * a + 0.2158037573 * bLab;
+    const m_ = L - 0.1055613458 * a - 0.0638541728 * bLab;
+    const s_ = L - 0.0894841775 * a - 1.2914855480 * bLab;
+
+    const l = l_ * l_ * l_;
+    const m = m_ * m_ * m_;
+    const s = s_ * s_ * s_;
+
+    const lr = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+    const lg = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+    const lb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+    const toSrgb = (c) => {
+      c = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
+      return Math.round(Math.max(0, Math.min(1, c)) * 255);
+    };
+
+    return [toSrgb(lr), toSrgb(lg), toSrgb(lb)];
+  }
+
+  /**
    * Convert HS (Hue/Saturation) + brightness to RGB
    *
    * Used for converting Home Assistant light entity hs_color attributes.

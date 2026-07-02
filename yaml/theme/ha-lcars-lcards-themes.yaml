@@ -8,197 +8,424 @@ LCARS Picard [LCARdS Red Accent]:
   #                   LCARdS PALETTE VARS                                 #
   # (JS-injected on main document; defined here for iframe compatibility) #
   # ===================================================================== #
-  # ── Orange ────────────────────────────────────────────────────────────────
-  lcards-orange-darkest:      "#d91604"
-  lcards-orange-dark:         "#ef1d10"
-  lcards-orange-medium-dark:  "#e7442a"
-  lcards-orange:              "#ff6753"
-  lcards-orange-medium:       "#ff6753"
+  # ── Orange ──────────────────────────────────────────────────────────────────────
+  lcards-orange-darkest: "#d91604"
+  lcards-orange-dark: "#ef1d10"
+  lcards-orange-medium-dark: "#e7442a"
+  lcards-orange: "#ff6753"
+  lcards-orange-medium: "#ff6753"
   lcards-orange-medium-light: "#ff8470"
-  lcards-orange-light:        "#ff977b"
-  lcards-orange-lightest:     "#ffb399"
+  lcards-orange-light: "#ff977b"
+  lcards-orange-lightest: "#ffb399"
+  lcards-orange-10: "#e01808"
+  lcards-orange-50: "#ff715d"
+  lcards-orange-60: "#ff7b66"
+  lcards-orange-95: "#ffceb3"
 
-  # ── Gray ────────────────────────────────────────────────────────────────
-  lcards-gray-darkest:        "#1e2229"
-  lcards-gray-dark:           "#2f3749"
-  lcards-gray-medium-dark:    "#52596e"
-  lcards-gray:                "#6d748c"
-  lcards-gray-medium:         "#6d748c"
-  lcards-gray-medium-light:   "#9ea5ba"
-  lcards-gray-light:          "#d2d5df"
-  lcards-gray-lightest:       "#f3f4f7"
-  lcards-moonlight:           "#dfe1e8"
+  # ── Gray ──────────────────────────────────────────────────────────────────────
+  lcards-gray-darkest: "#1e2229"
+  lcards-gray-dark: "#2f3749"
+  lcards-gray-medium-dark: "#52596e"
+  lcards-gray: "#6d748c"
+  lcards-gray-medium: "#6d748c"
+  lcards-gray-medium-light: "#9ea5ba"
+  lcards-gray-light: "#d2d5df"
+  lcards-gray-lightest: "#f3f4f7"
+  lcards-gray-10: "#232933"
+  lcards-gray-50: "#7d849b"
+  lcards-gray-60: "#8d94aa"
+  lcards-gray-95: "#f8f9fc"
+  lcards-moonlight: "#dfe1e8"
 
-  # ── Blue ────────────────────────────────────────────────────────────────
-  lcards-blue-darkest:        "#002241"
-  lcards-blue-dark:           "#1c3c55"
-  lcards-blue-medium-dark:    "#2a7193"
-  lcards-blue:                "#37a6d1"
-  lcards-blue-medium:         "#37a6d1"
-  lcards-blue-medium-light:   "#67caf0"
-  lcards-blue-light:          "#93e1ff"
-  lcards-blue-lightest:       "#00eeee"
+  # ── Blue ──────────────────────────────────────────────────────────────────────
+  lcards-blue-darkest: "#002241"
+  lcards-blue-dark: "#1c3c55"
+  lcards-blue-medium-dark: "#2a7193"
+  lcards-blue: "#37a6d1"
+  lcards-blue-medium: "#37a6d1"
+  lcards-blue-medium-light: "#67caf0"
+  lcards-blue-light: "#93e1ff"
+  lcards-blue-lightest: "#00eeee"
+  lcards-blue-10: "#082b48"
+  lcards-blue-50: "#48b2db"
+  lcards-blue-60: "#58bee6"
+  lcards-blue-95: "#44ffff"
 
-  # ── Green ────────────────────────────────────────────────────────────────
-  lcards-green-darkest:       "#0c2a15"
-  lcards-green-dark:          "#083717"
-  lcards-green-medium-dark:   "#095320"
-  lcards-green:               "#266239"
-  lcards-green-medium:        "#266239"
-  lcards-green-medium-light:  "#458359"
-  lcards-green-light:         "#80bb93"
-  lcards-green-lightest:      "#b8e0c1"
+  # ── Green ──────────────────────────────────────────────────────────────────────
+  lcards-green-darkest: "#0c2a15"
+  lcards-green-dark: "#083717"
+  lcards-green-medium-dark: "#095320"
+  lcards-green: "#266239"
+  lcards-green-medium: "#266239"
+  lcards-green-medium-light: "#458359"
+  lcards-green-light: "#80bb93"
+  lcards-green-lightest: "#b8e0c1"
+  lcards-green-10: "#0b2e16"
+  lcards-green-50: "#306d43"
+  lcards-green-60: "#3b784e"
+  lcards-green-95: "#cdf6d6"
 
-  # ── Yellow ────────────────────────────────────────────────────────────────
-  lcards-yellow-darkest:      "#70602c"
-  lcards-yellow-dark:         "#ac943b"
-  lcards-yellow-medium-dark:  "#d2bf50"
-  lcards-yellow:              "#f9ef97"
-  lcards-yellow-medium:       "#f9ef97"
+  # ── Yellow ──────────────────────────────────────────────────────────────────────
+  lcards-yellow-darkest: "#70602c"
+  lcards-yellow-dark: "#ac943b"
+  lcards-yellow-medium-dark: "#d2bf50"
+  lcards-yellow: "#f9ef97"
+  lcards-yellow-medium: "#f9ef97"
   lcards-yellow-medium-light: "#fffac9"
-  lcards-yellow-light:        "#e7e6de"
-  lcards-yellow-lightest:     "#f5f5dc"
+  lcards-yellow-light: "#e7e6de"
+  lcards-yellow-lightest: "#f5f5dc"
+  lcards-yellow-10: "#847131"
+  lcards-yellow-50: "#fbf3a8"
+  lcards-yellow-60: "#fdf6b9"
+  lcards-yellow-95: "#fbfbe2"
 
   <<: *lcars-variables
   <<: *base
   <<: *card-mod-css
-
-  # ===================================================================== #
-  # HA Core Colour Tokens - mapped to LCARdS colours
-  # (HA derives many of its UI element colours from these tokens)
-  # https://github.com/home-assistant/frontend/blob/master/src/resources/theme/color/core.globals.ts
-  # ===================================================================== #
-  # ── Primary ('Red') ───────────────────────────────────────────────────────
-  ha-color-primary-05:  var(--lcards-orange-darkest)
-  ha-color-primary-10:  var(--lcards-orange-darkest)
-  ha-color-primary-20:  var(--lcards-orange-dark)
-  ha-color-primary-30:  var(--lcards-orange-medium-dark)
-  ha-color-primary-40:  var(--lcards-orange-medium)
-  ha-color-primary-50:  var(--lcards-orange-medium)
-  ha-color-primary-60:  var(--lcards-orange-medium)
-  ha-color-primary-70:  var(--lcards-orange-medium-light)
-  ha-color-primary-80:  var(--lcards-orange-light)
-  ha-color-primary-90:  var(--lcards-orange-lightest)
-  ha-color-primary-95:  var(--lcards-orange-lightest)
-
-  # ── Neutral (Gray) ───────────────────────────────────────────────────────
-  ha-color-neutral-05:  var(--lcards-gray-darkest)
-  ha-color-neutral-10:  var(--lcards-gray-darkest)
-  ha-color-neutral-20:  var(--lcards-gray-dark)
-  ha-color-neutral-30:  var(--lcards-gray-medium-dark)
-  ha-color-neutral-40:  var(--lcards-gray-medium-dark)
-  ha-color-neutral-50:  var(--lcards-gray-medium)
-  ha-color-neutral-60:  var(--lcards-gray-medium-light)
-  ha-color-neutral-70:  var(--lcards-gray-medium-light)
-  ha-color-neutral-80:  var(--lcards-gray-light)
-  ha-color-neutral-90:  var(--lcards-gray-lightest)
-  ha-color-neutral-95:  var(--lcards-gray-lightest)
-
-  # ── Orange → LCARdS Yellow ───────────────────────────────────────────────
-  ha-color-orange-05:   var(--lcards-yellow-darkest)
-  ha-color-orange-10:   var(--lcards-yellow-darkest)
-  ha-color-orange-20:   var(--lcards-yellow-dark)
-  ha-color-orange-30:   var(--lcards-yellow-medium-dark)
-  ha-color-orange-40:   var(--lcards-yellow-medium-dark)
-  ha-color-orange-50:   var(--lcards-yellow-medium)
-  ha-color-orange-60:   var(--lcards-yellow-medium-light)
-  ha-color-orange-70:   var(--lcards-yellow-medium-light)
-  ha-color-orange-80:   var(--lcards-yellow-light)
-  ha-color-orange-90:   var(--lcards-yellow-lightest)
-  ha-color-orange-95:   var(--lcards-yellow-lightest)
-
-  # ── Red → LCARdS Orange ──────────────────────────────────────────────────
-  ha-color-red-05:      var(--lcards-orange-darkest)
-  ha-color-red-10:      var(--lcards-orange-darkest)
-  ha-color-red-20:      var(--lcards-orange-dark)
-  ha-color-red-30:      var(--lcards-orange-medium-dark)
-  ha-color-red-40:      var(--lcards-orange-medium-dark)
-  ha-color-red-50:      var(--lcards-orange-medium)
-  ha-color-red-60:      var(--lcards-orange-medium-light)
-  ha-color-red-70:      var(--lcards-orange-medium-light)
-  ha-color-red-80:      var(--lcards-orange-light)
-  ha-color-red-90:      var(--lcards-orange-lightest)
-  ha-color-red-95:      var(--lcards-orange-lightest)
-
-  # ── Green ────────────────────────────────────────────────────────────────
-  ha-color-green-05:    var(--lcards-green-darkest)
-  ha-color-green-10:    var(--lcards-green-darkest)
-  ha-color-green-20:    var(--lcards-green-dark)
-  ha-color-green-30:    var(--lcards-green-medium-dark)
-  ha-color-green-40:    var(--lcards-green-medium-dark)
-  ha-color-green-50:    var(--lcards-green-medium)
-  ha-color-green-60:    var(--lcards-green-medium-light)
-  ha-color-green-70:    var(--lcards-green-medium-light)
-  ha-color-green-80:    var(--lcards-green-light)
-  ha-color-green-90:    var(--lcards-green-lightest)
-  ha-color-green-95:    var(--lcards-green-lightest)
-
+  # UI Colors
+  lcars-ui-primary: var(--lcards-gray-medium-light)
+  lcars-ui-primary-text: var(--lcars-text-dark)
+  lcars-ui-secondary: var(--lcards-gray)
+  lcars-ui-secondary-text: var(--lcars-text-dark)
+  lcars-ui-tertiary: var(--lcards-orange)
+  lcars-ui-tertiary-text: var(--lcars-text-dark)
+  lcars-ui-quaternary: var(--lcards-gray)
+  lcars-ui-quaternary-text: var(--lcars-text-light)
+  lcars-ui-accent-color: var(--lcards-orange-medium-dark)
+  lcars-ui-accent-text: var(--lcars-text-dark)
+  lcars-background-color: var(--lcars-black)
+  lcars-background-text: var(--lcars-text-light)
+  lcars-alert-color: var(--lcards-orange-medium-dark)
+  lcars-ui-text-heading: var(--lcars-text-gray)
+  # Header / Sidebar
+  lcars-ui-app-header-background-color: var(--lcars-ui-primary)
+  lcars-ui-app-header-text-color: var(--lcars-ui-primary-text)
+  lcars-ui-app-header-clock: var(--lcars-ui-tertiary)
+  lcars-ui-config-button: var(--lcards-blue-lightest)
+  lcars-ui-config-icon: var(--lcards-blue-lightest)
+  # Sidebar
+  lcars-sidebar-background: var(--lcars-ui-primary)
+  lcars-sidebar-item-color: var(--lcars-ui-secondary)
+  lcars-sidebar-text: var(--lcars-ui-secondary-text)
+  lcars-sidebar-icon-color: var(--lcards-gray-dark)
+  lcars-sidebar-icon-background: var(--lcars-card-top-color)
+  lcars-sidebar-selected-color: var(--lcars-ui-tertiary)
+  lcars-sidebar-notification-color: var(--lcars-ui-tertiary)
+  # Card colors
+  lcars-card-top-color: var(--lcards-gray-medium-dark)
+  lcars-card-mid-color: var(--lcards-orange)
+  lcars-card-button-color: var(--lcards-orange)
+  lcars-card-bottom-color: var(--lcards-gray-dark)
+  lcars-settings-card-color: "#6E758D"
+  # Card text
+  lcars-card-top-text: var(--lcars-text-light)
+  lcars-card-mid-text: var(--lcars-text-dark)
+  lcars-card-button-text: var(--lcars-text-dark)
+  lcars-card-bottom-text: var(--lcars-text-light)
+  # Status colors
+  success-color: var(--lcars-green)
+  warning-color: var(--lcars-sunflower)
+  error-color: var(--lcars-dark-red)
+  # HA Color Palette
+  ha-color-primary-05: var(--lcards-orange-darkest)
+  ha-color-primary-10: var(--lcards-orange-10)
+  ha-color-primary-20: var(--lcards-orange-dark)
+  ha-color-primary-30: var(--lcards-orange-medium-dark)
+  ha-color-primary-40: var(--lcards-orange)
+  ha-color-primary-50: var(--lcards-orange-50)
+  ha-color-primary-60: var(--lcards-orange-60)
+  ha-color-primary-70: var(--lcards-orange-medium-light)
+  ha-color-primary-80: var(--lcards-orange-light)
+  ha-color-primary-90: var(--lcards-orange-lightest)
+  ha-color-primary-95: var(--lcards-orange-95)
+  ha-color-neutral-05: var(--lcards-gray-darkest)
+  ha-color-neutral-10: var(--lcards-gray-10)
+  ha-color-neutral-20: var(--lcards-gray-dark)
+  ha-color-neutral-30: var(--lcards-gray-medium-dark)
+  ha-color-neutral-40: var(--lcards-gray)
+  ha-color-neutral-50: var(--lcards-gray-50)
+  ha-color-neutral-60: var(--lcards-gray-60)
+  ha-color-neutral-70: var(--lcards-gray-medium-light)
+  ha-color-neutral-80: var(--lcards-gray-light)
+  ha-color-neutral-90: var(--lcards-gray-lightest)
+  ha-color-neutral-95: var(--lcards-gray-95)
+  ha-color-orange-05: var(--lcards-yellow-darkest)
+  ha-color-orange-10: var(--lcards-yellow-10)
+  ha-color-orange-20: var(--lcards-yellow-dark)
+  ha-color-orange-30: var(--lcards-yellow-medium-dark)
+  ha-color-orange-40: var(--lcards-yellow)
+  ha-color-orange-50: var(--lcards-yellow-50)
+  ha-color-orange-60: var(--lcards-yellow-60)
+  ha-color-orange-70: var(--lcards-yellow-medium-light)
+  ha-color-orange-80: var(--lcards-yellow-light)
+  ha-color-orange-90: var(--lcards-yellow-lightest)
+  ha-color-orange-95: var(--lcards-yellow-95)
+  ha-color-red-05: var(--lcards-orange-darkest)
+  ha-color-red-10: var(--lcards-orange-10)
+  ha-color-red-20: var(--lcards-orange-dark)
+  ha-color-red-30: var(--lcards-orange-medium-dark)
+  ha-color-red-40: var(--lcards-orange)
+  ha-color-red-50: var(--lcards-orange-50)
+  ha-color-red-60: var(--lcards-orange-60)
+  ha-color-red-70: var(--lcards-orange-medium-light)
+  ha-color-red-80: var(--lcards-orange-light)
+  ha-color-red-90: var(--lcards-orange-lightest)
+  ha-color-red-95: var(--lcards-orange-95)
+  ha-color-green-05: var(--lcards-green-darkest)
+  ha-color-green-10: var(--lcards-green-10)
+  ha-color-green-20: var(--lcards-green-dark)
+  ha-color-green-30: var(--lcards-green-medium-dark)
+  ha-color-green-40: var(--lcards-green)
+  ha-color-green-50: var(--lcards-green-50)
+  ha-color-green-60: var(--lcards-green-60)
+  ha-color-green-70: var(--lcards-green-medium-light)
+  ha-color-green-80: var(--lcards-green-light)
+  ha-color-green-90: var(--lcards-green-lightest)
+  ha-color-green-95: var(--lcards-green-95)
+  # Derived RGB
+  rgb-card-background-color: "109,116,140"
+  rgb-primary-text-color: "255,255,255"
+  rgb-secondary-text-color: "255,255,255"
+  rgb-primary-color: "255,103,83"
+  rgb-accent-color: "231,68,42"
+  rgb-primary-background-color: "0,0,0"
+  rgb-secondary-background-color: "109,116,140"
+  # Theme-specific
+  lcars-card-mid-left-color: var(--lcards-orange)
+  lcars-card-button: var(--lcards-orange)
+  lcars-card-button-off: var(--lcards-gray-medium-light)
+  lcars-card-button-barrel: var(--lcards-gray-medium-dark)
+  lcars-card-background: var(--lcards-gray-medium-light)
   modes:
     light:
+      lcars-ui-mix-color: black
+      lcars-backlight-center: "#ffffff30"
+      lcars-backlight-middle: transparent
+      lcars-backlight-middle-location: 60%
+      lcars-backlight-outer: transparent
+      lcars-settings-card-text: var(--lcars-text-light)
+      ha-color-on-primary-quiet: var(--black-color)
+      ha-color-on-primary-normal: var(--black-color)
+      ha-color-on-primary-loud: var(--black-color)
+      ha-color-on-neutral-quiet: var(--black-color)
+      ha-color-on-neutral-normal: var(--black-color)
+      ha-color-on-neutral-loud: var(--white-color)
+      ha-color-on-disabled-quiet: var(--black-color)
+      ha-color-on-disabled-normal: var(--black-color)
+      ha-color-on-disabled-loud: var(--black-color)
+      ha-color-on-danger-quiet: var(--black-color)
+      ha-color-on-danger-normal: var(--black-color)
+      ha-color-on-danger-loud: var(--black-color)
+      ha-color-on-warning-quiet: var(--black-color)
+      ha-color-on-warning-normal: var(--black-color)
+      ha-color-on-warning-loud: var(--black-color)
+      ha-color-on-success-quiet: var(--lcards-green-50)
+      ha-color-on-success-normal: var(--lcards-green)
+      ha-color-on-success-loud: var(--white-color)
+      ha-color-fill-primary-quiet-resting: var(--lcards-orange-95)
+      ha-color-fill-primary-quiet-hover: var(--lcards-orange-lightest)
+      ha-color-fill-primary-quiet-active: var(--lcards-orange-95)
+      ha-color-fill-primary-normal-resting: var(--lcards-orange-lightest)
+      ha-color-fill-primary-normal-hover: var(--lcards-orange-light)
+      ha-color-fill-primary-normal-active: var(--lcards-orange-lightest)
+      ha-color-fill-primary-loud-resting: var(--lcards-orange)
+      ha-color-fill-primary-loud-hover: var(--lcards-orange-medium-dark)
+      ha-color-fill-primary-loud-active: var(--lcards-orange)
+      ha-color-fill-neutral-quiet-resting: var(--lcards-gray-95)
+      ha-color-fill-neutral-quiet-hover: var(--lcards-gray-lightest)
+      ha-color-fill-neutral-quiet-active: var(--lcards-gray-95)
+      ha-color-fill-neutral-normal-resting: var(--lcards-gray-lightest)
+      ha-color-fill-neutral-normal-hover: var(--lcards-gray-light)
+      ha-color-fill-neutral-normal-active: var(--lcards-gray-lightest)
+      ha-color-fill-neutral-loud-resting: var(--lcards-gray)
+      ha-color-fill-neutral-loud-hover: var(--lcards-gray-medium-dark)
+      ha-color-fill-neutral-loud-active: var(--lcards-gray)
+      ha-color-fill-disabled-quiet-resting: var(--lcards-gray-95)
+      ha-color-fill-disabled-quiet-hover: var(--lcards-gray-lightest)
+      ha-color-fill-disabled-normal-resting: var(--lcards-gray-95)
+      ha-color-fill-disabled-normal-hover: var(--lcards-gray-lightest)
+      ha-color-fill-disabled-loud-resting: var(--lcards-gray-light)
+      ha-color-fill-disabled-loud-hover: var(--lcards-gray-medium-light)
+      ha-color-fill-danger-quiet-resting: var(--lcards-orange-95)
+      ha-color-fill-danger-quiet-hover: var(--lcards-orange-lightest)
+      ha-color-fill-danger-quiet-active: var(--lcards-orange-95)
+      ha-color-fill-danger-normal-resting: var(--lcards-orange-lightest)
+      ha-color-fill-danger-normal-hover: var(--lcards-orange-light)
+      ha-color-fill-danger-normal-active: var(--lcards-orange-lightest)
+      ha-color-fill-danger-loud-resting: var(--lcards-orange-50)
+      ha-color-fill-danger-loud-hover: var(--lcards-orange)
+      ha-color-fill-danger-loud-active: var(--lcards-orange-50)
+      ha-color-fill-warning-quiet-resting: var(--lcards-yellow-95)
+      ha-color-fill-warning-quiet-hover: var(--lcards-yellow-lightest)
+      ha-color-fill-warning-quiet-active: var(--lcards-yellow-95)
+      ha-color-fill-warning-normal-resting: var(--lcards-yellow-lightest)
+      ha-color-fill-warning-normal-hover: var(--lcards-yellow-light)
+      ha-color-fill-warning-normal-active: var(--lcards-yellow-lightest)
+      ha-color-fill-warning-loud-resting: var(--lcards-yellow-medium-light)
+      ha-color-fill-warning-loud-hover: var(--lcards-yellow-50)
+      ha-color-fill-warning-loud-active: var(--lcards-yellow-medium-light)
+      ha-color-fill-success-quiet-resting: var(--lcards-green-95)
+      ha-color-fill-success-quiet-hover: var(--lcards-green-lightest)
+      ha-color-fill-success-quiet-active: var(--lcards-green-95)
+      ha-color-fill-success-normal-resting: var(--lcards-green-lightest)
+      ha-color-fill-success-normal-hover: var(--lcards-green-light)
+      ha-color-fill-success-normal-active: var(--lcards-green-lightest)
+      ha-color-fill-success-loud-resting: var(--lcards-green-50)
+      ha-color-fill-success-loud-hover: var(--lcards-green)
+      ha-color-fill-success-loud-active: var(--lcards-green-50)
+      ha-color-border-primary-quiet: var(--lcards-orange-lightest)
+      ha-color-border-primary-normal: var(--lcards-orange-medium-light)
+      ha-color-border-primary-loud: var(--lcards-orange)
+      ha-color-border-neutral-quiet: var(--lcards-gray-lightest)
+      ha-color-border-neutral-normal: var(--lcards-gray-60)
+      ha-color-border-neutral-loud: var(--lcards-gray)
+      ha-color-border-danger-quiet: var(--lcards-orange-lightest)
+      ha-color-border-danger-normal: var(--lcards-orange-medium-light)
+      ha-color-border-danger-loud: var(--lcards-orange)
+      ha-color-border-warning-quiet: var(--lcards-yellow-lightest)
+      ha-color-border-warning-normal: var(--lcards-yellow-medium-light)
+      ha-color-border-warning-loud: var(--lcards-yellow)
+      ha-color-border-success-quiet: var(--lcards-green-lightest)
+      ha-color-border-success-normal: var(--lcards-green-medium-light)
+      ha-color-border-success-loud: var(--lcards-green)
+      ha-color-surface-default: var(--white-color)
+      ha-color-surface-low: var(--lcards-gray-95)
+      ha-color-surface-lower: var(--lcards-gray-lightest)
+      ha-color-surface-default-inverted: var(--lcards-gray-10)
+      ha-color-surface-low-inverted: var(--lcards-gray-darkest)
+      ha-color-surface-lower-inverted: var(--black-color)
+      ha-color-on-surface-default: var(--lcards-gray-darkest)
+      ha-color-form-background-hover: var(--lcards-gray-lightest)
+      ha-color-form-background-disabled: var(--lcards-gray-light)
       ha-color-form-background: color-mix(in srgb, var(--lcards-moonlight) 40%, transparent)
-
-      # HA-LCARS UI colors
+      primary-text-color: var(--lcars-ui-quaternary-text)
+      secondary-text-color: var(--lcars-ui-quaternary-text)
+      ha-tooltip-background-color: var(--ha-color-surface-default)
+      ha-tooltip-text-color: var(--ha-color-on-surface-default)
       lcars-ui-primary: var(--lcards-gray-medium-light)
       lcars-ui-secondary: var(--lcards-gray-light)
       lcars-ui-tertiary: var(--lcards-orange)
       lcars-ui-quaternary: var(--lcards-gray-medium-dark)
       lcars-alert-color: var(--lcards-orange-medium-dark)
-
-      # Header colors
-      lcars-ui-app-header-background-color: "var(lcars-ui-primary)"
-      lcars-ui-app-header-text-color: var(--lcards-gray-lightest)
-      lcars-ui-app-header-clock: var(--lcards-orange)
-      lcars-ui-sidebar-icon: var(--lcars-ui-secondary)
-      lcars-ui-config-button: var(--lcards-blue-lightest)
-      lcars-ui-config-icon: var(--lcards-blue-lightest)
-
-      # Card colors
-      lcars-card-top-color: var(--lcards-gray-medium-dark)
-      lcars-card-mid-left-color: var(--lcards-gray-medium-light)
-      lcars-card-button: var(--lcards-gray-light)
-      lcars-card-button-off: var(--lcards-gray-medium-light)
-      lcars-card-button-unavailable: var(--lcards-gray-medium-dark)
-      lcars-card-button-bar: var(--lcards-gray-medium-dark)
-      lcars-card-bottom-color: var(--lcards-gray-medium-dark)
-      lcars-card-background: var(--lcards-gray-medium-light)
-
-      # Misc
       success-color: var(--lcards-green)
       warning-color: var(--lcards-orange-medium-light)
       error-color: var(--lcards-orange)
-
     dark:
+      lcars-ui-mix-color: white
+      lcars-backlight-center: "#ffffff10"
+      lcars-backlight-middle: transparent
+      lcars-backlight-middle-location: 70%
+      lcars-backlight-outer: "#00000080"
+      lcars-settings-card-text: var(--lcars-text-dark)
+      ha-color-on-primary-quiet: var(--white-color)
+      ha-color-on-primary-normal: var(--white-color)
+      ha-color-on-primary-loud: var(--black-color)
+      ha-color-on-neutral-quiet: var(--lcards-gray-medium-light)
+      ha-color-on-neutral-normal: var(--lcards-gray-60)
+      ha-color-on-neutral-loud: var(--black-color)
+      ha-color-on-disabled-quiet: var(--white-color)
+      ha-color-on-disabled-normal: var(--white-color)
+      ha-color-on-disabled-loud: var(--white-color)
+      ha-color-on-danger-quiet: var(--white-color)
+      ha-color-on-danger-normal: var(--white-color)
+      ha-color-on-danger-loud: var(--black-color)
+      ha-color-on-warning-quiet: var(--lcards-yellow-medium-light)
+      ha-color-on-warning-normal: var(--white-color)
+      ha-color-on-warning-loud: var(--black-color)
+      ha-color-on-success-quiet: var(--white-color)
+      ha-color-on-success-normal: var(--white-color)
+      ha-color-on-success-loud: var(--white-color)
+      ha-color-fill-primary-quiet-resting: var(--lcards-orange-darkest)
+      ha-color-fill-primary-quiet-hover: var(--lcards-orange-10)
+      ha-color-fill-primary-quiet-active: var(--lcards-orange-darkest)
+      ha-color-fill-primary-normal-resting: var(--lcards-orange-10)
+      ha-color-fill-primary-normal-hover: var(--lcards-orange-dark)
+      ha-color-fill-primary-normal-active: var(--lcards-orange-10)
+      ha-color-fill-primary-loud-resting: var(--lcards-orange)
+      ha-color-fill-primary-loud-hover: var(--lcards-orange-medium-dark)
+      ha-color-fill-primary-loud-active: var(--lcards-orange)
+      ha-color-fill-neutral-quiet-resting: var(--lcards-gray-darkest)
+      ha-color-fill-neutral-quiet-hover: var(--lcards-gray-10)
+      ha-color-fill-neutral-quiet-active: var(--lcards-gray-darkest)
+      ha-color-fill-neutral-normal-resting: var(--lcards-gray-10)
+      ha-color-fill-neutral-normal-hover: var(--lcards-gray-dark)
+      ha-color-fill-neutral-normal-active: var(--lcards-gray-10)
+      ha-color-fill-neutral-loud-resting: var(--lcards-gray-60)
+      ha-color-fill-neutral-loud-hover: var(--lcards-gray-medium-light)
+      ha-color-fill-neutral-loud-active: var(--lcards-gray-60)
+      ha-color-fill-disabled-quiet-resting: var(--lcards-gray-10)
+      ha-color-fill-disabled-quiet-hover: var(--lcards-gray-dark)
+      ha-color-fill-disabled-normal-resting: var(--lcards-gray-dark)
+      ha-color-fill-disabled-normal-hover: var(--lcards-gray-medium-dark)
+      ha-color-fill-disabled-loud-resting: var(--lcards-gray-medium-dark)
+      ha-color-fill-disabled-loud-hover: var(--lcards-gray)
+      ha-color-fill-danger-quiet-resting: var(--lcards-orange-darkest)
+      ha-color-fill-danger-quiet-hover: var(--lcards-orange-10)
+      ha-color-fill-danger-quiet-active: var(--lcards-orange-darkest)
+      ha-color-fill-danger-normal-resting: var(--lcards-orange-10)
+      ha-color-fill-danger-normal-hover: var(--lcards-orange-dark)
+      ha-color-fill-danger-normal-active: var(--lcards-orange-10)
+      ha-color-fill-danger-loud-resting: var(--lcards-orange)
+      ha-color-fill-danger-loud-hover: var(--lcards-orange-medium-dark)
+      ha-color-fill-danger-loud-active: var(--lcards-orange)
+      ha-color-fill-warning-quiet-resting: var(--lcards-yellow-darkest)
+      ha-color-fill-warning-quiet-hover: var(--lcards-yellow-10)
+      ha-color-fill-warning-quiet-active: var(--lcards-yellow-darkest)
+      ha-color-fill-warning-normal-resting: var(--lcards-yellow-10)
+      ha-color-fill-warning-normal-hover: var(--lcards-yellow-dark)
+      ha-color-fill-warning-normal-active: var(--lcards-yellow-10)
+      ha-color-fill-warning-loud-resting: var(--lcards-yellow)
+      ha-color-fill-warning-loud-hover: var(--lcards-yellow-medium-dark)
+      ha-color-fill-warning-loud-active: var(--lcards-yellow)
+      ha-color-fill-success-quiet-resting: var(--lcards-green-darkest)
+      ha-color-fill-success-quiet-hover: var(--lcards-green-10)
+      ha-color-fill-success-quiet-active: var(--lcards-green-darkest)
+      ha-color-fill-success-normal-resting: var(--lcards-green-10)
+      ha-color-fill-success-normal-hover: var(--lcards-green-dark)
+      ha-color-fill-success-normal-active: var(--lcards-green-10)
+      ha-color-fill-success-loud-resting: var(--lcards-green)
+      ha-color-fill-success-loud-hover: var(--lcards-green-medium-dark)
+      ha-color-fill-success-loud-active: var(--lcards-green)
+      ha-color-border-primary-quiet: var(--lcards-orange-lightest)
+      ha-color-border-primary-normal: var(--lcards-orange-medium-light)
+      ha-color-border-primary-loud: var(--lcards-orange)
+      ha-color-border-neutral-quiet: var(--lcards-gray)
+      ha-color-border-neutral-normal: var(--lcards-gray-50)
+      ha-color-border-neutral-loud: var(--lcards-gray-medium-light)
+      ha-color-border-danger-quiet: var(--lcards-orange-lightest)
+      ha-color-border-danger-normal: var(--lcards-orange-50)
+      ha-color-border-danger-loud: var(--lcards-orange-50)
+      ha-color-border-warning-quiet: var(--lcards-yellow-lightest)
+      ha-color-border-warning-normal: var(--lcards-yellow-50)
+      ha-color-border-warning-loud: var(--lcards-yellow-50)
+      ha-color-border-success-quiet: var(--lcards-green-lightest)
+      ha-color-border-success-normal: var(--lcards-green-medium-light)
+      ha-color-border-success-loud: var(--lcards-green)
+      ha-color-surface-default: var(--lcards-gray-10)
+      ha-color-surface-low: var(--lcards-gray-darkest)
+      ha-color-surface-lower: var(--black-color)
+      ha-color-surface-default-inverted: var(--white-color)
+      ha-color-surface-low-inverted: var(--lcards-gray-95)
+      ha-color-surface-lower-inverted: var(--lcards-gray-lightest)
+      ha-color-on-surface-default: var(--lcards-gray-95)
+      ha-color-form-background-hover: var(--lcards-gray-medium-dark)
+      ha-color-form-background-disabled: var(--lcards-gray-dark)
       ha-color-form-background: color-mix(in srgb, var(--lcards-moonlight) 30%, transparent)
-
-      # HA-LCARS UI colors
-      lcars-ui-primary: var(--lcards-gray-medium)
+      primary-text-color: var(--lcars-ui-quaternary-text)
+      secondary-text-color: var(--lcars-ui-quaternary-text)
+      ha-tooltip-background-color: var(--ha-color-surface-default)
+      ha-tooltip-text-color: var(--ha-color-on-surface-default)
+      lcars-ui-primary: var(--lcards-gray)
       lcars-ui-secondary: var(--lcards-gray-medium-light)
       lcars-ui-tertiary: var(--lcards-orange-medium-dark)
       lcars-ui-quaternary: var(--lcards-gray-dark)
       lcars-alert-color: var(--lcards-orange-medium-dark)
-
-      # Header colors
-      lcars-ui-app-header-background-color: "var(lcars-ui-primary)"
-      lcars-ui-app-header-text-color: var(--lcards-gray-lightest)
-      lcars-ui-app-header-clock: var(--lcards-orange-medium-dark)
-      lcars-ui-sidebar-icon: var(--lcars-ui-secondary)
-      lcars-ui-config-button: var(--lcards-blue-lightest)
-      lcars-ui-config-icon: var(--lcards-blue-lightest)
-
-      # Card colors
-      lcars-card-top-color: var(--lcards-gray-dark)
-      lcars-card-mid-left-color: var(--lcards-gray)
-      lcars-card-button: var(--lcards-gray-medium-light)
-      lcars-card-button-off: var(--lcards-gray)
-      lcars-card-button-unavailable: var(--lcards-gray-dark)
-      lcars-card-button-bar: var(--lcards-gray-dark)
-      lcars-card-bottom-color: var(--lcards-gray-dark)
-      lcars-card-background: var(--lcards-gray)
-      # Misc
       success-color: var(--lcards-green)
       warning-color: var(--lcards-orange)
-      error-color: var(--lcards-dark-orange)
-
+      error-color: var(--lcards-orange-dark)
+      lcars-ui-quaternary-text: var(--lcars-text-gray)
+      lcars-card-top-text: var(--lcars-text-dark)
+      lcars-card-bottom-text: var(--lcars-text-gray)
 
 LCARS Picard [LCARdS Blue Accent]:
   card-mod-theme: LCARS Picard [LCARdS Blue Accent]
@@ -207,193 +434,421 @@ LCARS Picard [LCARdS Blue Accent]:
   #                   LCARdS PALETTE VARS                                 #
   # (JS-injected on main document; defined here for iframe compatibility) #
   # ===================================================================== #
-  # ── Orange ────────────────────────────────────────────────────────────────
-  lcards-orange-darkest:      "#d91604"
-  lcards-orange-dark:         "#ef1d10"
-  lcards-orange-medium-dark:  "#e7442a"
-  lcards-orange:              "#ff6753"
-  lcards-orange-medium:       "#ff6753"
+  # ── Orange ──────────────────────────────────────────────────────────────────────
+  lcards-orange-darkest: "#d91604"
+  lcards-orange-dark: "#ef1d10"
+  lcards-orange-medium-dark: "#e7442a"
+  lcards-orange: "#ff6753"
+  lcards-orange-medium: "#ff6753"
   lcards-orange-medium-light: "#ff8470"
-  lcards-orange-light:        "#ff977b"
-  lcards-orange-lightest:     "#ffb399"
+  lcards-orange-light: "#ff977b"
+  lcards-orange-lightest: "#ffb399"
+  lcards-orange-10: "#e01808"
+  lcards-orange-50: "#ff715d"
+  lcards-orange-60: "#ff7b66"
+  lcards-orange-95: "#ffceb3"
 
-  # ── Gray ────────────────────────────────────────────────────────────────
-  lcards-gray-darkest:        "#1e2229"
-  lcards-gray-dark:           "#2f3749"
-  lcards-gray-medium-dark:    "#52596e"
-  lcards-gray:                "#6d748c"
-  lcards-gray-medium:         "#6d748c"
-  lcards-gray-medium-light:   "#9ea5ba"
-  lcards-gray-light:          "#d2d5df"
-  lcards-gray-lightest:       "#f3f4f7"
-  lcards-moonlight:           "#dfe1e8"
+  # ── Gray ──────────────────────────────────────────────────────────────────────
+  lcards-gray-darkest: "#1e2229"
+  lcards-gray-dark: "#2f3749"
+  lcards-gray-medium-dark: "#52596e"
+  lcards-gray: "#6d748c"
+  lcards-gray-medium: "#6d748c"
+  lcards-gray-medium-light: "#9ea5ba"
+  lcards-gray-light: "#d2d5df"
+  lcards-gray-lightest: "#f3f4f7"
+  lcards-gray-10: "#232933"
+  lcards-gray-50: "#7d849b"
+  lcards-gray-60: "#8d94aa"
+  lcards-gray-95: "#f8f9fc"
+  lcards-moonlight: "#dfe1e8"
 
-  # ── Blue ────────────────────────────────────────────────────────────────
-  lcards-blue-darkest:        "#002241"
-  lcards-blue-dark:           "#1c3c55"
-  lcards-blue-medium-dark:    "#2a7193"
-  lcards-blue:                "#37a6d1"
-  lcards-blue-medium:         "#37a6d1"
-  lcards-blue-medium-light:   "#67caf0"
-  lcards-blue-light:          "#93e1ff"
-  lcards-blue-lightest:       "#00eeee"
+  # ── Blue ──────────────────────────────────────────────────────────────────────
+  lcards-blue-darkest: "#002241"
+  lcards-blue-dark: "#1c3c55"
+  lcards-blue-medium-dark: "#2a7193"
+  lcards-blue: "#37a6d1"
+  lcards-blue-medium: "#37a6d1"
+  lcards-blue-medium-light: "#67caf0"
+  lcards-blue-light: "#93e1ff"
+  lcards-blue-lightest: "#00eeee"
+  lcards-blue-10: "#082b48"
+  lcards-blue-50: "#48b2db"
+  lcards-blue-60: "#58bee6"
+  lcards-blue-95: "#44ffff"
 
-  # ── Green ────────────────────────────────────────────────────────────────
-  lcards-green-darkest:       "#0c2a15"
-  lcards-green-dark:          "#083717"
-  lcards-green-medium-dark:   "#095320"
-  lcards-green:               "#266239"
-  lcards-green-medium:        "#266239"
-  lcards-green-medium-light:  "#458359"
-  lcards-green-light:         "#80bb93"
-  lcards-green-lightest:      "#b8e0c1"
+  # ── Green ──────────────────────────────────────────────────────────────────────
+  lcards-green-darkest: "#0c2a15"
+  lcards-green-dark: "#083717"
+  lcards-green-medium-dark: "#095320"
+  lcards-green: "#266239"
+  lcards-green-medium: "#266239"
+  lcards-green-medium-light: "#458359"
+  lcards-green-light: "#80bb93"
+  lcards-green-lightest: "#b8e0c1"
+  lcards-green-10: "#0b2e16"
+  lcards-green-50: "#306d43"
+  lcards-green-60: "#3b784e"
+  lcards-green-95: "#cdf6d6"
 
-  # ── Yellow ────────────────────────────────────────────────────────────────
-  lcards-yellow-darkest:      "#70602c"
-  lcards-yellow-dark:         "#ac943b"
-  lcards-yellow-medium-dark:  "#d2bf50"
-  lcards-yellow:              "#f9ef97"
-  lcards-yellow-medium:       "#f9ef97"
+  # ── Yellow ──────────────────────────────────────────────────────────────────────
+  lcards-yellow-darkest: "#70602c"
+  lcards-yellow-dark: "#ac943b"
+  lcards-yellow-medium-dark: "#d2bf50"
+  lcards-yellow: "#f9ef97"
+  lcards-yellow-medium: "#f9ef97"
   lcards-yellow-medium-light: "#fffac9"
-  lcards-yellow-light:        "#e7e6de"
-  lcards-yellow-lightest:     "#f5f5dc"
+  lcards-yellow-light: "#e7e6de"
+  lcards-yellow-lightest: "#f5f5dc"
+  lcards-yellow-10: "#847131"
+  lcards-yellow-50: "#fbf3a8"
+  lcards-yellow-60: "#fdf6b9"
+  lcards-yellow-95: "#fbfbe2"
 
   <<: *lcars-variables
   <<: *base
   <<: *card-mod-css
-
-  # ===================================================================== #
-  # HA Core Colour Tokens - mapped to LCARdS colours
-  # (HA derives many of its UI element colours from these tokens)
-  # https://github.com/home-assistant/frontend/blob/master/src/resources/theme/color/core.globals.ts
-  # ===================================================================== #
-  # ── Primary (Blue) ───────────────────────────────────────────────────────
-  ha-color-primary-05:  var(--lcards-blue-darkest)
-  ha-color-primary-10:  var(--lcards-blue-darkest)
-  ha-color-primary-20:  var(--lcards-blue-dark)
-  ha-color-primary-30:  var(--lcards-blue-medium-dark)
-  ha-color-primary-40:  var(--lcards-blue-medium)
-  ha-color-primary-50:  var(--lcards-blue-medium)
-  ha-color-primary-60:  var(--lcards-blue-medium)
-  ha-color-primary-70:  var(--lcards-blue-medium-light)
-  ha-color-primary-80:  var(--lcards-blue-light)
-  ha-color-primary-90:  var(--lcards-blue-lightest)
-  ha-color-primary-95:  var(--lcards-blue-lightest)
-
-  # ── Neutral (Gray) ───────────────────────────────────────────────────────
-  ha-color-neutral-05:  var(--lcards-gray-darkest)
-  ha-color-neutral-10:  var(--lcards-gray-darkest)
-  ha-color-neutral-20:  var(--lcards-gray-dark)
-  ha-color-neutral-30:  var(--lcards-gray-medium-dark)
-  ha-color-neutral-40:  var(--lcards-gray-medium-dark)
-  ha-color-neutral-50:  var(--lcards-gray-medium)
-  ha-color-neutral-60:  var(--lcards-gray-medium-light)
-  ha-color-neutral-70:  var(--lcards-gray-medium-light)
-  ha-color-neutral-80:  var(--lcards-gray-light)
-  ha-color-neutral-90:  var(--lcards-gray-lightest)
-  ha-color-neutral-95:  var(--lcards-gray-lightest)
-
-  # ── Orange → LCARdS Yellow ───────────────────────────────────────────────
-  ha-color-orange-05:   var(--lcards-yellow-darkest)
-  ha-color-orange-10:   var(--lcards-yellow-darkest)
-  ha-color-orange-20:   var(--lcards-yellow-dark)
-  ha-color-orange-30:   var(--lcards-yellow-medium-dark)
-  ha-color-orange-40:   var(--lcards-yellow-medium-dark)
-  ha-color-orange-50:   var(--lcards-yellow-medium)
-  ha-color-orange-60:   var(--lcards-yellow-medium-light)
-  ha-color-orange-70:   var(--lcards-yellow-medium-light)
-  ha-color-orange-80:   var(--lcards-yellow-light)
-  ha-color-orange-90:   var(--lcards-yellow-lightest)
-  ha-color-orange-95:   var(--lcards-yellow-lightest)
-
-  # ── Red → LCARdS Orange ──────────────────────────────────────────────────
-  ha-color-red-05:      var(--lcards-orange-darkest)
-  ha-color-red-10:      var(--lcards-orange-darkest)
-  ha-color-red-20:      var(--lcards-orange-dark)
-  ha-color-red-30:      var(--lcards-orange-medium-dark)
-  ha-color-red-40:      var(--lcards-orange-medium-dark)
-  ha-color-red-50:      var(--lcards-orange-medium)
-  ha-color-red-60:      var(--lcards-orange-medium-light)
-  ha-color-red-70:      var(--lcards-orange-medium-light)
-  ha-color-red-80:      var(--lcards-orange-light)
-  ha-color-red-90:      var(--lcards-orange-lightest)
-  ha-color-red-95:      var(--lcards-orange-lightest)
-
-  # ── Green ────────────────────────────────────────────────────────────────
-  ha-color-green-05:    var(--lcards-green-darkest)
-  ha-color-green-10:    var(--lcards-green-darkest)
-  ha-color-green-20:    var(--lcards-green-dark)
-  ha-color-green-30:    var(--lcards-green-medium-dark)
-  ha-color-green-40:    var(--lcards-green-medium-dark)
-  ha-color-green-50:    var(--lcards-green-medium)
-  ha-color-green-60:    var(--lcards-green-medium-light)
-  ha-color-green-70:    var(--lcards-green-medium-light)
-  ha-color-green-80:    var(--lcards-green-light)
-  ha-color-green-90:    var(--lcards-green-lightest)
-  ha-color-green-95:    var(--lcards-green-lightest)
-
+  # UI Colors
+  lcars-ui-primary: var(--lcards-gray-medium-light)
+  lcars-ui-primary-text: var(--lcars-text-dark)
+  lcars-ui-secondary: var(--lcards-gray)
+  lcars-ui-secondary-text: var(--lcars-text-dark)
+  lcars-ui-tertiary: var(--lcards-blue)
+  lcars-ui-tertiary-text: var(--lcars-text-dark)
+  lcars-ui-quaternary: var(--lcards-gray)
+  lcars-ui-quaternary-text: var(--lcars-text-light)
+  lcars-ui-accent-color: var(--lcards-blue)
+  lcars-ui-accent-text: var(--lcars-text-light)
+  lcars-background-color: var(--lcars-black)
+  lcars-background-text: var(--lcars-text-light)
+  lcars-alert-color: var(--lcards-orange-medium-dark)
+  lcars-ui-text-heading: var(--lcars-text-gray)
+  # Header / Sidebar
+  lcars-ui-app-header-background-color: var(--lcars-ui-primary)
+  lcars-ui-app-header-text-color: var(--lcars-ui-primary-text)
+  lcars-ui-app-header-clock: var(--lcars-ui-tertiary)
+  lcars-ui-config-button: var(--lcards-orange-lightest)
+  lcars-ui-config-icon: var(--lcards-orange-lightest)
+  # Sidebar
+  lcars-sidebar-background: var(--lcars-ui-primary)
+  lcars-sidebar-item-color: var(--lcars-ui-secondary)
+  lcars-sidebar-text: var(--lcars-ui-secondary-text)
+  lcars-sidebar-icon-color: var(--lcards-gray-dark)
+  lcars-sidebar-icon-background: var(--lcars-card-top-color)
+  lcars-sidebar-selected-color: var(--lcars-ui-tertiary)
+  lcars-sidebar-notification-color: var(--lcars-ui-tertiary)
+  # Card colors
+  lcars-card-top-color: var(--lcards-gray-medium-dark)
+  lcars-card-mid-color: var(--lcards-blue)
+  lcars-card-button-color: var(--lcards-blue)
+  lcars-card-bottom-color: var(--lcards-gray-dark)
+  lcars-settings-card-color: "#5077AF"
+  # Card text
+  lcars-card-top-text: var(--lcars-text-light)
+  lcars-card-mid-text: var(--lcars-text-dark)
+  lcars-card-button-text: var(--lcars-text-dark)
+  lcars-card-bottom-text: var(--lcars-text-light)
+  # Status colors
+  success-color: var(--lcars-green)
+  warning-color: var(--lcars-sunflower)
+  error-color: var(--lcars-dark-red)
+  # HA Color Palette
+  ha-color-primary-05: var(--lcards-blue-darkest)
+  ha-color-primary-10: var(--lcards-blue-10)
+  ha-color-primary-20: var(--lcards-blue-dark)
+  ha-color-primary-30: var(--lcards-blue-medium-dark)
+  ha-color-primary-40: var(--lcards-blue)
+  ha-color-primary-50: var(--lcards-blue-50)
+  ha-color-primary-60: var(--lcards-blue-60)
+  ha-color-primary-70: var(--lcards-blue-medium-light)
+  ha-color-primary-80: var(--lcards-blue-light)
+  ha-color-primary-90: var(--lcards-blue-lightest)
+  ha-color-primary-95: var(--lcards-blue-95)
+  ha-color-neutral-05: var(--lcards-gray-darkest)
+  ha-color-neutral-10: var(--lcards-gray-10)
+  ha-color-neutral-20: var(--lcards-gray-dark)
+  ha-color-neutral-30: var(--lcards-gray-medium-dark)
+  ha-color-neutral-40: var(--lcards-gray)
+  ha-color-neutral-50: var(--lcards-gray-50)
+  ha-color-neutral-60: var(--lcards-gray-60)
+  ha-color-neutral-70: var(--lcards-gray-medium-light)
+  ha-color-neutral-80: var(--lcards-gray-light)
+  ha-color-neutral-90: var(--lcards-gray-lightest)
+  ha-color-neutral-95: var(--lcards-gray-95)
+  ha-color-orange-05: var(--lcards-yellow-darkest)
+  ha-color-orange-10: var(--lcards-yellow-10)
+  ha-color-orange-20: var(--lcards-yellow-dark)
+  ha-color-orange-30: var(--lcards-yellow-medium-dark)
+  ha-color-orange-40: var(--lcards-yellow)
+  ha-color-orange-50: var(--lcards-yellow-50)
+  ha-color-orange-60: var(--lcards-yellow-60)
+  ha-color-orange-70: var(--lcards-yellow-medium-light)
+  ha-color-orange-80: var(--lcards-yellow-light)
+  ha-color-orange-90: var(--lcards-yellow-lightest)
+  ha-color-orange-95: var(--lcards-yellow-95)
+  ha-color-red-05: var(--lcards-orange-darkest)
+  ha-color-red-10: var(--lcards-orange-10)
+  ha-color-red-20: var(--lcards-orange-dark)
+  ha-color-red-30: var(--lcards-orange-medium-dark)
+  ha-color-red-40: var(--lcards-orange)
+  ha-color-red-50: var(--lcards-orange-50)
+  ha-color-red-60: var(--lcards-orange-60)
+  ha-color-red-70: var(--lcards-orange-medium-light)
+  ha-color-red-80: var(--lcards-orange-light)
+  ha-color-red-90: var(--lcards-orange-lightest)
+  ha-color-red-95: var(--lcards-orange-95)
+  ha-color-green-05: var(--lcards-green-darkest)
+  ha-color-green-10: var(--lcards-green-10)
+  ha-color-green-20: var(--lcards-green-dark)
+  ha-color-green-30: var(--lcards-green-medium-dark)
+  ha-color-green-40: var(--lcards-green)
+  ha-color-green-50: var(--lcards-green-50)
+  ha-color-green-60: var(--lcards-green-60)
+  ha-color-green-70: var(--lcards-green-medium-light)
+  ha-color-green-80: var(--lcards-green-light)
+  ha-color-green-90: var(--lcards-green-lightest)
+  ha-color-green-95: var(--lcards-green-95)
+  # Derived RGB
+  rgb-card-background-color: "109,116,140"
+  rgb-primary-text-color: "255,255,255"
+  rgb-secondary-text-color: "255,255,255"
+  rgb-primary-color: "55,166,209"
+  rgb-accent-color: "55,166,209"
+  rgb-primary-background-color: "0,0,0"
+  rgb-secondary-background-color: "109,116,140"
+  # Theme-specific
+  lcars-card-mid-left-color: var(--lcards-blue)
+  lcars-card-button: var(--lcards-blue)
+  lcars-card-button-off: var(--lcards-gray-medium-light)
+  lcars-card-button-barrel: var(--lcards-gray-medium-dark)
+  lcars-card-background: var(--lcards-gray-medium-light)
   modes:
     light:
+      lcars-ui-mix-color: black
+      lcars-backlight-center: "#ffffff30"
+      lcars-backlight-middle: transparent
+      lcars-backlight-middle-location: 60%
+      lcars-backlight-outer: transparent
+      lcars-settings-card-text: var(--lcars-text-light)
+      ha-color-on-primary-quiet: var(--black-color)
+      ha-color-on-primary-normal: var(--black-color)
+      ha-color-on-primary-loud: var(--black-color)
+      ha-color-on-neutral-quiet: var(--black-color)
+      ha-color-on-neutral-normal: var(--black-color)
+      ha-color-on-neutral-loud: var(--white-color)
+      ha-color-on-disabled-quiet: var(--black-color)
+      ha-color-on-disabled-normal: var(--black-color)
+      ha-color-on-disabled-loud: var(--black-color)
+      ha-color-on-danger-quiet: var(--black-color)
+      ha-color-on-danger-normal: var(--black-color)
+      ha-color-on-danger-loud: var(--black-color)
+      ha-color-on-warning-quiet: var(--black-color)
+      ha-color-on-warning-normal: var(--black-color)
+      ha-color-on-warning-loud: var(--black-color)
+      ha-color-on-success-quiet: var(--lcards-green-50)
+      ha-color-on-success-normal: var(--lcards-green)
+      ha-color-on-success-loud: var(--white-color)
+      ha-color-fill-primary-quiet-resting: var(--lcards-blue-95)
+      ha-color-fill-primary-quiet-hover: var(--lcards-blue-lightest)
+      ha-color-fill-primary-quiet-active: var(--lcards-blue-95)
+      ha-color-fill-primary-normal-resting: var(--lcards-blue-lightest)
+      ha-color-fill-primary-normal-hover: var(--lcards-blue-light)
+      ha-color-fill-primary-normal-active: var(--lcards-blue-lightest)
+      ha-color-fill-primary-loud-resting: var(--lcards-blue)
+      ha-color-fill-primary-loud-hover: var(--lcards-blue-medium-dark)
+      ha-color-fill-primary-loud-active: var(--lcards-blue)
+      ha-color-fill-neutral-quiet-resting: var(--lcards-gray-95)
+      ha-color-fill-neutral-quiet-hover: var(--lcards-gray-lightest)
+      ha-color-fill-neutral-quiet-active: var(--lcards-gray-95)
+      ha-color-fill-neutral-normal-resting: var(--lcards-gray-lightest)
+      ha-color-fill-neutral-normal-hover: var(--lcards-gray-light)
+      ha-color-fill-neutral-normal-active: var(--lcards-gray-lightest)
+      ha-color-fill-neutral-loud-resting: var(--lcards-gray)
+      ha-color-fill-neutral-loud-hover: var(--lcards-gray-medium-dark)
+      ha-color-fill-neutral-loud-active: var(--lcards-gray)
+      ha-color-fill-disabled-quiet-resting: var(--lcards-gray-95)
+      ha-color-fill-disabled-quiet-hover: var(--lcards-gray-lightest)
+      ha-color-fill-disabled-normal-resting: var(--lcards-gray-95)
+      ha-color-fill-disabled-normal-hover: var(--lcards-gray-lightest)
+      ha-color-fill-disabled-loud-resting: var(--lcards-gray-light)
+      ha-color-fill-disabled-loud-hover: var(--lcards-gray-medium-light)
+      ha-color-fill-danger-quiet-resting: var(--lcards-orange-95)
+      ha-color-fill-danger-quiet-hover: var(--lcards-orange-lightest)
+      ha-color-fill-danger-quiet-active: var(--lcards-orange-95)
+      ha-color-fill-danger-normal-resting: var(--lcards-orange-lightest)
+      ha-color-fill-danger-normal-hover: var(--lcards-orange-light)
+      ha-color-fill-danger-normal-active: var(--lcards-orange-lightest)
+      ha-color-fill-danger-loud-resting: var(--lcards-orange-50)
+      ha-color-fill-danger-loud-hover: var(--lcards-orange)
+      ha-color-fill-danger-loud-active: var(--lcards-orange-50)
+      ha-color-fill-warning-quiet-resting: var(--lcards-yellow-95)
+      ha-color-fill-warning-quiet-hover: var(--lcards-yellow-lightest)
+      ha-color-fill-warning-quiet-active: var(--lcards-yellow-95)
+      ha-color-fill-warning-normal-resting: var(--lcards-yellow-lightest)
+      ha-color-fill-warning-normal-hover: var(--lcards-yellow-light)
+      ha-color-fill-warning-normal-active: var(--lcards-yellow-lightest)
+      ha-color-fill-warning-loud-resting: var(--lcards-yellow-medium-light)
+      ha-color-fill-warning-loud-hover: var(--lcards-yellow-50)
+      ha-color-fill-warning-loud-active: var(--lcards-yellow-medium-light)
+      ha-color-fill-success-quiet-resting: var(--lcards-green-95)
+      ha-color-fill-success-quiet-hover: var(--lcards-green-lightest)
+      ha-color-fill-success-quiet-active: var(--lcards-green-95)
+      ha-color-fill-success-normal-resting: var(--lcards-green-lightest)
+      ha-color-fill-success-normal-hover: var(--lcards-green-light)
+      ha-color-fill-success-normal-active: var(--lcards-green-lightest)
+      ha-color-fill-success-loud-resting: var(--lcards-green-50)
+      ha-color-fill-success-loud-hover: var(--lcards-green)
+      ha-color-fill-success-loud-active: var(--lcards-green-50)
+      ha-color-border-primary-quiet: var(--lcards-blue-lightest)
+      ha-color-border-primary-normal: var(--lcards-blue-medium-light)
+      ha-color-border-primary-loud: var(--lcards-blue)
+      ha-color-border-neutral-quiet: var(--lcards-gray-lightest)
+      ha-color-border-neutral-normal: var(--lcards-gray-60)
+      ha-color-border-neutral-loud: var(--lcards-gray)
+      ha-color-border-danger-quiet: var(--lcards-orange-lightest)
+      ha-color-border-danger-normal: var(--lcards-orange-medium-light)
+      ha-color-border-danger-loud: var(--lcards-orange)
+      ha-color-border-warning-quiet: var(--lcards-yellow-lightest)
+      ha-color-border-warning-normal: var(--lcards-yellow-medium-light)
+      ha-color-border-warning-loud: var(--lcards-yellow)
+      ha-color-border-success-quiet: var(--lcards-green-lightest)
+      ha-color-border-success-normal: var(--lcards-green-medium-light)
+      ha-color-border-success-loud: var(--lcards-green)
+      ha-color-surface-default: var(--white-color)
+      ha-color-surface-low: var(--lcards-gray-95)
+      ha-color-surface-lower: var(--lcards-gray-lightest)
+      ha-color-surface-default-inverted: var(--lcards-gray-10)
+      ha-color-surface-low-inverted: var(--lcards-gray-darkest)
+      ha-color-surface-lower-inverted: var(--black-color)
+      ha-color-on-surface-default: var(--lcards-gray-darkest)
+      ha-color-form-background-hover: var(--lcards-gray-lightest)
+      ha-color-form-background-disabled: var(--lcards-gray-light)
       ha-color-form-background: color-mix(in srgb, var(--lcards-moonlight) 40%, transparent)
-
-      # HA-LCARS UI colors
+      primary-text-color: var(--lcars-ui-quaternary-text)
+      secondary-text-color: var(--lcars-ui-quaternary-text)
+      ha-tooltip-background-color: var(--ha-color-surface-default)
+      ha-tooltip-text-color: var(--ha-color-on-surface-default)
       lcars-ui-primary: var(--lcards-gray-medium-light)
       lcars-ui-secondary: var(--lcards-gray-light)
-      lcars-ui-tertiary: var(--lcards-blue-medium)
+      lcars-ui-tertiary: var(--lcards-blue)
       lcars-ui-quaternary: var(--lcards-gray-medium-dark)
       lcars-alert-color: var(--lcards-orange-medium-dark)
-
-      # Header colors
-      lcars-ui-app-header-background-color: "var(lcars-ui-primary)"
-      lcars-ui-app-header-text-color: var(--lcards-gray-lightest)
-      lcars-ui-app-header-clock: var(--lcards-blue-medium)
-      lcars-ui-sidebar-icon: var(--lcars-ui-secondary)
-      lcars-ui-config-button: var(--lcards-orange-lightest)
-      lcars-ui-config-icon: var(--lcards-orange-lightest)
-
-      # Card colors
-      lcars-card-top-color: var(--lcards-gray-medium-dark)
-      lcars-card-mid-left-color: var(--lcards-gray-medium-light)
-      lcars-card-button: var(--lcards-gray-light)
-      lcars-card-button-off: var(--lcards-gray-medium-light)
-      lcars-card-button-unavailable: var(--lcards-gray-medium-dark)
-      lcars-card-button-bar: var(--lcards-gray-medium-dark)
-      lcars-card-bottom-color: var(--lcards-gray-medium-dark)
-      lcars-card-background: var(--lcards-gray-medium-light)
-      # Misc
       success-color: var(--lcards-green)
       warning-color: var(--lcards-orange-medium-light)
       error-color: var(--lcards-orange)
-
     dark:
+      lcars-ui-mix-color: white
+      lcars-backlight-center: "#ffffff10"
+      lcars-backlight-middle: transparent
+      lcars-backlight-middle-location: 70%
+      lcars-backlight-outer: "#00000080"
+      lcars-settings-card-text: var(--lcars-text-dark)
+      ha-color-on-primary-quiet: var(--lcards-blue-medium-light)
+      ha-color-on-primary-normal: var(--lcards-blue-60)
+      ha-color-on-primary-loud: var(--black-color)
+      ha-color-on-neutral-quiet: var(--lcards-gray-medium-light)
+      ha-color-on-neutral-normal: var(--lcards-gray-60)
+      ha-color-on-neutral-loud: var(--black-color)
+      ha-color-on-disabled-quiet: var(--white-color)
+      ha-color-on-disabled-normal: var(--white-color)
+      ha-color-on-disabled-loud: var(--white-color)
+      ha-color-on-danger-quiet: var(--white-color)
+      ha-color-on-danger-normal: var(--white-color)
+      ha-color-on-danger-loud: var(--black-color)
+      ha-color-on-warning-quiet: var(--lcards-yellow-medium-light)
+      ha-color-on-warning-normal: var(--white-color)
+      ha-color-on-warning-loud: var(--black-color)
+      ha-color-on-success-quiet: var(--white-color)
+      ha-color-on-success-normal: var(--white-color)
+      ha-color-on-success-loud: var(--white-color)
+      ha-color-fill-primary-quiet-resting: var(--lcards-blue-darkest)
+      ha-color-fill-primary-quiet-hover: var(--lcards-blue-10)
+      ha-color-fill-primary-quiet-active: var(--lcards-blue-darkest)
+      ha-color-fill-primary-normal-resting: var(--lcards-blue-10)
+      ha-color-fill-primary-normal-hover: var(--lcards-blue-dark)
+      ha-color-fill-primary-normal-active: var(--lcards-blue-10)
+      ha-color-fill-primary-loud-resting: var(--lcards-blue)
+      ha-color-fill-primary-loud-hover: var(--lcards-blue-medium-dark)
+      ha-color-fill-primary-loud-active: var(--lcards-blue)
+      ha-color-fill-neutral-quiet-resting: var(--lcards-gray-darkest)
+      ha-color-fill-neutral-quiet-hover: var(--lcards-gray-10)
+      ha-color-fill-neutral-quiet-active: var(--lcards-gray-darkest)
+      ha-color-fill-neutral-normal-resting: var(--lcards-gray-10)
+      ha-color-fill-neutral-normal-hover: var(--lcards-gray-dark)
+      ha-color-fill-neutral-normal-active: var(--lcards-gray-10)
+      ha-color-fill-neutral-loud-resting: var(--lcards-gray-60)
+      ha-color-fill-neutral-loud-hover: var(--lcards-gray-medium-light)
+      ha-color-fill-neutral-loud-active: var(--lcards-gray-60)
+      ha-color-fill-disabled-quiet-resting: var(--lcards-gray-10)
+      ha-color-fill-disabled-quiet-hover: var(--lcards-gray-dark)
+      ha-color-fill-disabled-normal-resting: var(--lcards-gray-dark)
+      ha-color-fill-disabled-normal-hover: var(--lcards-gray-medium-dark)
+      ha-color-fill-disabled-loud-resting: var(--lcards-gray-medium-dark)
+      ha-color-fill-disabled-loud-hover: var(--lcards-gray)
+      ha-color-fill-danger-quiet-resting: var(--lcards-orange-darkest)
+      ha-color-fill-danger-quiet-hover: var(--lcards-orange-10)
+      ha-color-fill-danger-quiet-active: var(--lcards-orange-darkest)
+      ha-color-fill-danger-normal-resting: var(--lcards-orange-10)
+      ha-color-fill-danger-normal-hover: var(--lcards-orange-dark)
+      ha-color-fill-danger-normal-active: var(--lcards-orange-10)
+      ha-color-fill-danger-loud-resting: var(--lcards-orange)
+      ha-color-fill-danger-loud-hover: var(--lcards-orange-medium-dark)
+      ha-color-fill-danger-loud-active: var(--lcards-orange)
+      ha-color-fill-warning-quiet-resting: var(--lcards-yellow-darkest)
+      ha-color-fill-warning-quiet-hover: var(--lcards-yellow-10)
+      ha-color-fill-warning-quiet-active: var(--lcards-yellow-darkest)
+      ha-color-fill-warning-normal-resting: var(--lcards-yellow-10)
+      ha-color-fill-warning-normal-hover: var(--lcards-yellow-dark)
+      ha-color-fill-warning-normal-active: var(--lcards-yellow-10)
+      ha-color-fill-warning-loud-resting: var(--lcards-yellow)
+      ha-color-fill-warning-loud-hover: var(--lcards-yellow-medium-dark)
+      ha-color-fill-warning-loud-active: var(--lcards-yellow)
+      ha-color-fill-success-quiet-resting: var(--lcards-green-darkest)
+      ha-color-fill-success-quiet-hover: var(--lcards-green-10)
+      ha-color-fill-success-quiet-active: var(--lcards-green-darkest)
+      ha-color-fill-success-normal-resting: var(--lcards-green-10)
+      ha-color-fill-success-normal-hover: var(--lcards-green-dark)
+      ha-color-fill-success-normal-active: var(--lcards-green-10)
+      ha-color-fill-success-loud-resting: var(--lcards-green)
+      ha-color-fill-success-loud-hover: var(--lcards-green-medium-dark)
+      ha-color-fill-success-loud-active: var(--lcards-green)
+      ha-color-border-primary-quiet: var(--lcards-blue-lightest)
+      ha-color-border-primary-normal: var(--lcards-blue-medium-light)
+      ha-color-border-primary-loud: var(--lcards-blue)
+      ha-color-border-neutral-quiet: var(--lcards-gray)
+      ha-color-border-neutral-normal: var(--lcards-gray-50)
+      ha-color-border-neutral-loud: var(--lcards-gray-medium-light)
+      ha-color-border-danger-quiet: var(--lcards-orange-lightest)
+      ha-color-border-danger-normal: var(--lcards-orange-50)
+      ha-color-border-danger-loud: var(--lcards-orange-50)
+      ha-color-border-warning-quiet: var(--lcards-yellow-lightest)
+      ha-color-border-warning-normal: var(--lcards-yellow-50)
+      ha-color-border-warning-loud: var(--lcards-yellow-50)
+      ha-color-border-success-quiet: var(--lcards-green-lightest)
+      ha-color-border-success-normal: var(--lcards-green-medium-light)
+      ha-color-border-success-loud: var(--lcards-green)
+      ha-color-surface-default: var(--lcards-gray-10)
+      ha-color-surface-low: var(--lcards-gray-darkest)
+      ha-color-surface-lower: var(--black-color)
+      ha-color-surface-default-inverted: var(--white-color)
+      ha-color-surface-low-inverted: var(--lcards-gray-95)
+      ha-color-surface-lower-inverted: var(--lcards-gray-lightest)
+      ha-color-on-surface-default: var(--lcards-gray-95)
+      ha-color-form-background-hover: var(--lcards-gray-medium-dark)
+      ha-color-form-background-disabled: var(--lcards-gray-dark)
       ha-color-form-background: color-mix(in srgb, var(--lcards-moonlight) 30%, transparent)
-
-      # HA-LCARS UI colors
-      lcars-ui-primary: var(--lcards-gray-medium)
+      primary-text-color: var(--lcars-ui-quaternary-text)
+      secondary-text-color: var(--lcars-ui-quaternary-text)
+      ha-tooltip-background-color: var(--ha-color-surface-default)
+      ha-tooltip-text-color: var(--ha-color-on-surface-default)
+      lcars-ui-primary: var(--lcards-gray)
       lcars-ui-secondary: var(--lcards-gray-medium-light)
-      lcars-ui-tertiary: var(--lcards-blue-medium)
+      lcars-ui-tertiary: var(--lcards-blue)
       lcars-ui-quaternary: var(--lcards-gray-dark)
       lcars-alert-color: var(--lcards-orange-medium-dark)
-
-      # Header colors
-      lcars-ui-app-header-background-color: "var(lcars-ui-primary)"
-      lcars-ui-app-header-text-color: var(--lcards-gray-lightest)
-      lcars-ui-app-header-clock: var(--lcards-blue-medium)
-      lcars-ui-sidebar-icon: var(--lcars-ui-secondary)
-      lcars-ui-config-button: var(--lcards-orange-lightest)
-      lcars-ui-config-icon: var(--lcards-orange-lightest)
-
-      # Card colors
-      lcars-card-top-color: var(--lcards-gray-dark)
-      lcars-card-mid-left-color: var(--lcards-gray)
-      lcars-card-button: var(--lcards-gray-medium-light)
-      lcars-card-button-off: var(--lcards-gray)
-      lcars-card-button-unavailable: var(--lcards-gray-dark)
-      lcars-card-button-bar: var(--lcards-gray-dark)
-      lcars-card-bottom-color: var(--lcards-gray-dark)
-      lcars-card-background: var(--lcards-gray)
-      # Misc
       success-color: var(--lcards-green)
       warning-color: var(--lcards-orange)
       error-color: var(--lcards-orange-dark)
-
+      lcars-ui-quaternary-text: var(--lcars-text-gray)
+      lcars-card-top-text: var(--lcars-text-dark)
+      lcars-card-bottom-text: var(--lcars-text-gray)

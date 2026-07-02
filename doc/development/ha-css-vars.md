@@ -217,7 +217,7 @@ Each palette has 11 stops (05–95) going from darkest to lightest.
 | `--ha-color-black` | `#000000` | |
 | `--ha-color-white` | `#ffffff` | |
 
-**LCARdS/HA-LCARS theme mapping:** All five palettes are fully remapped in both the Red Accent and Blue Accent themes:
+**LCARdS/HA-LCARS theme mapping:** All five palettes are fully remapped in both the Red Accent and Blue Accent themes, 1:1 across the full 11-stop scale (not a lossy nearest-stop collapse — LCARdS's own palette was expanded to a genuine 11-stop scale specifically to support this; see [LCARdS Colour Palette](../core/themes/index.md#lcards-css-colour-palette)):
 
 | HA palette | LCARdS Red theme maps to | LCARdS Blue theme maps to |
 |---|---|---|
@@ -227,7 +227,7 @@ Each palette has 11 stops (05–95) going from darkest to lightest.
 | `ha-color-red-*` | `--lcards-orange-*` scale | `--lcards-orange-*` scale |
 | `ha-color-green-*` | `--lcards-green-*` scale | `--lcards-green-*` scale |
 
-This remapping means any HA component using the new semantic token system automatically honors the LCARdS colour palette — no per-component overrides needed.
+**Remapping the palette alone is not sufficient.** HA's semantic tokens (Layer 2, below) reference specific tone numbers within each palette (e.g. `on-primary-normal: primary-40`) on the assumption that any hue survives readably at that tone — an assumption baked in for HA's own smoothly-generated palettes that does **not** hold for every hand-picked LCARdS hue (orange in particular has a much narrower usable-lightness band than blue). Both Picard profiles therefore also explicitly override the full `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer, each value validated against real WCAG contrast rather than trusting the tone-index convention blindly — see Layer 2 below.
 
 ---
 
@@ -301,6 +301,8 @@ Key values (light theme):
 | `--ha-color-fill-warning-loud-resting` | `orange-70` | Warning button |
 | `--ha-color-fill-success-loud-resting` | `green-50` | Success badge |
 
+**HA's `<ha-button>` `appearance` attribute maps directly onto this scale**: `appearance="accent"` uses `fill-{role}-loud-resting`, `appearance="filled"` uses `fill-{role}-normal-resting` (`ha-button.ts`). Since a "quieter" tier is only supposed to look quieter — HA's own generated ramps guarantee this because `color-mix()` toward black/white strictly desaturates as you move away from tone-40 — LCARdS's profiles additionally enforce that `normal`/`quiet` tier chroma doesn't exceed `loud`'s (OKLCH saturation, capped at 90% of the next-louder tier, ignoring differences below 0.02 as imperceptible). Without this, e.g. `<ha-button-toggle-group>`'s selected ("accent") pill could read as *less* prominent than the unselected ("filled") ones, because blue's `-lightest` canon stop is a deliberately vivid electric-cyan accent and orange's darkest stops are vivid near-max-saturation "alert red" — both more saturated than their own family's tone-40 anchor. See `generate-lcards-ha-semantic-tokens.js`'s `getFillLookup()`.
+
 #### On-Colors (text on fills)
 
 Pattern: `--ha-color-on-[role]-[loudness]`
@@ -313,6 +315,8 @@ Pattern: `--ha-color-on-[role]-[loudness]`
 | `--ha-color-on-danger-loud` | `white` | Text on danger button |
 | `--ha-color-on-warning-loud` | `white` | Text on warning button |
 | `--ha-color-on-success-loud` | `white` | Text on success button |
+
+**Not derived from a contrast formula.** These are hand-picked *tone references* within the same palette — HA never computes an actual WCAG ratio here. `on-*-loud` is a hardcoded literal `white` for every role in every theme; it does not adapt to whatever hue a theme substitutes underneath it. This is precisely why LCARdS's two Picard profiles explicitly override the entire `on-*`/`fill-*`/`border-*`/`surface-*`/`form-background-*` layer rather than relying on the palette-atom remapping alone: each value is derived from HA's own tone-index convention, then validated against the *actual* resolved LCARdS hex colors with real WCAG contrast math (4.5:1 AA), substituting an explicit black/white correction wherever the mechanical default fails. See `lcards/scripts/generate-lcards-ha-semantic-tokens.js` (generator) and `ha-lcars/py/generate_themes.py`'s `verify_ha_semantic_contrast()` (build-time verifier).
 
 #### Other
 
@@ -449,20 +453,27 @@ Pattern: `--wa-color-[role]-fill-[loudness]`, `--wa-color-[role]-border-[loudnes
 | `--ha-font-weight-*` | ⬜ Still hardcoded (500, 600, 700); future cleanup pass |
 | `--ha-line-height-*` | ⬜ Still hardcoded; future cleanup pass |
 | `--ha-space-11` through `--ha-space-20` | ⬜ No values that large in editor scope |
-| `--ha-color-*` semantic tokens | ⬜ Not directly used in LCARdS CSS; cascade from palette remapping in themes |
+| `--ha-color-*` semantic tokens | ✅ Not used directly in LCARdS's own component CSS, but explicitly set (not just cascaded) by both HA-LCARS Picard theme profiles — see below |
 
 ### What the HA-LCARS theme profile sets
 
-The LCARdS theme YAML (`yaml/theme/ha-lcars-lcards-themes.yaml`) provides two complete theme variants: Red Accent and Blue Accent. Each sets:
+**Authoritative source:** `ha-lcars/src/themes/lcards_picard_{red,blue}.yaml` (in the separate `ha-lcars` repository), assembled by `py/generate_themes.py` into the installable `ha-lcars/themes/lcars.yaml`. `yaml/theme/ha-lcars-lcards-themes.yaml` in *this* repo is a vendored copy-paste-able mirror for users who don't want to depend on the ha-lcars HACS release cycle — keep it resynced when the ha-lcars source changes.
+
+Each profile sets:
 
 | Category | Status |
 |---|---|
-| `ha-color-primary-05` through `-95` | ✅ Full palette remapped to LCARdS orange (Red) or blue (Blue) |
-| `ha-color-neutral-05` through `-95` | ✅ Full palette remapped to LCARdS gray scale |
-| `ha-color-orange-05` through `-95` | ✅ Remapped to LCARdS yellow scale |
-| `ha-color-red-05` through `-95` | ✅ Remapped to LCARdS orange scale (errors/danger → orange) |
-| `ha-color-green-05` through `-95` | ✅ Remapped to LCARdS green scale |
+| `ha-color-primary-05` through `-95` | ✅ Full 1:1 11-stop mapping to LCARdS orange (Red) or blue (Blue) — no lossy collapsing |
+| `ha-color-neutral-05` through `-95` | ✅ Full 1:1 mapping to LCARdS gray scale |
+| `ha-color-orange-05` through `-95` | ✅ Full 1:1 mapping to LCARdS yellow scale |
+| `ha-color-red-05` through `-95` | ✅ Full 1:1 mapping to LCARdS orange scale (errors/danger → orange) |
+| `ha-color-green-05` through `-95` | ✅ Full 1:1 mapping to LCARdS green scale |
+| `ha-color-on-{primary,neutral,disabled,danger,warning,success}-{quiet,normal,loud}` | ✅ Set per light/dark mode, WCAG-validated against the actual resolved fill colors (Phase-2 correction applied where HA's mechanical tone-index default fails 4.5:1) |
+| `ha-color-fill-{primary,neutral,disabled,danger,warning,success}-{quiet,normal,loud}-{resting,hover,active}` | ✅ Set per light/dark mode, following HA's own tone-index convention |
+| `ha-color-border-{primary,neutral,danger,warning,success}-{quiet,normal,loud}` | ✅ Set per light/dark mode |
+| `ha-color-surface-{default,low,lower}(-inverted)`, `ha-color-on-surface-default` | ✅ Set per light/dark mode |
 | `ha-color-form-background` | ✅ Light and dark mode values (moonlight tint) |
+| `ha-color-form-background-hover/-disabled` | ✅ Set per light/dark mode (previously cascaded from the neutral palette only) |
 | `primary-color`, `accent-color` | ✅ Set via `lcars-ui-tertiary` |
 | `primary-background-color`, `secondary-background-color` | ✅ Set to LCARS black and quaternary gray |
 | `card-background-color`, `ha-card-background` | ✅ Set |
@@ -474,7 +485,8 @@ The LCARdS theme YAML (`yaml/theme/ha-lcars-lcards-themes.yaml`) provides two co
 | `ha-box-shadow-s/m/l` | ⬜ Not overridden — default HA shadows used |
 | `ha-animation-duration-*` | ⬜ Not overridden — default timing used |
 | `ha-border-radius-*` | ⬜ Not overridden — uses `ha-card-border-radius: var(--lcars-outer-radius)` for cards |
-| `ha-color-form-background-hover/disabled` | ⬜ Cascade from neutral palette (correct as-is) |
+
+Build-time validation: `generate_themes.py` runs two non-fatal WCAG verifiers on every build — `verify_contrast_rule()` (LCARS-aesthetic decorative text, `lcars-ui-*`/`lcars-card-*`) and `verify_ha_semantic_contrast()` (the `on-*`/`fill-*` pairs added above, plain AA 4.5:1 check).
 
 ---
 
