@@ -2837,7 +2837,7 @@ export class LCARdSButton extends LCARdSCard {
                     lcardsLog.trace('[LCARdSButton] Per-state icon resolved:', iconName);
                 }
             } else if (typeof iconStyle.icon === 'string' && iconStyle.icon) {
-                iconName = iconStyle.icon;
+                iconName = this._resolveTemplateValue(iconStyle.icon);
                 lcardsLog.trace('[LCARdSButton] Icon style string override:', iconName);
             }
         }
