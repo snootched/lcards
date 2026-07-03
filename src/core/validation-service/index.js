@@ -339,6 +339,18 @@ export class CoreValidationService {
   }
 
   /**
+   * Resolve the JSON-schema type name of a runtime value.
+   * `typeof` alone reports 'object' for both arrays and null, which breaks
+   * multi-type schemas like `type: ['string', 'array']` or `['number', 'null']`.
+   * @private
+   */
+  _resolveActualType(data) {
+    if (data === null) return 'null';
+    if (Array.isArray(data)) return 'array';
+    return typeof data;
+  }
+
+  /**
    * Validate object against schema definition
    * @private
    */
@@ -346,6 +358,23 @@ export class CoreValidationService {
     // Handle oneOf - try each option and succeed if any match
     if (schema.oneOf) {
       return this._validateOneOf(data, schema, result, path);
+    }
+
+    const expectedTypes = Array.isArray(schema.type) ? schema.type : [schema.type];
+
+    if (expectedTypes.length > 1) {
+      // Multi-type schema (e.g. ['string', 'array']) - dispatch based on the
+      // value's actual runtime type when it's one of the allowed types, so
+      // e.g. an array value routes to _validateArray instead of falling
+      // through to _validatePrimitive and failing a bare `typeof` check.
+      const actualType = this._resolveActualType(data);
+      if (actualType === 'object' && expectedTypes.includes('object')) {
+        return this._validateObject(data, schema, result, path);
+      }
+      if (actualType === 'array' && expectedTypes.includes('array')) {
+        return this._validateArray(data, schema, result, path);
+      }
+      return this._validatePrimitive(data, schema, result, path);
     }
 
     if (schema.type === 'object') {
@@ -382,7 +411,7 @@ export class CoreValidationService {
         .map(opt => opt.type || 'object')
         .filter((v, i, a) => a.indexOf(v) === i); // unique
 
-      const actualType = typeof data;
+      const actualType = this._resolveActualType(data);
 
       // Don't report as type error if the actual type is one of the expected types
       // (the real issue is likely a property/format validation failure)
@@ -532,7 +561,7 @@ export class CoreValidationService {
   _validatePrimitive(data, schema, result, path) {
     // Type check - handle both string and array of types
     const expectedTypes = Array.isArray(schema.type) ? schema.type : [schema.type];
-    const actualType = typeof data;
+    const actualType = this._resolveActualType(data);
 
     if (!expectedTypes.includes(actualType)) {
       result.errors.push({
