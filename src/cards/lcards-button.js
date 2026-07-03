@@ -2837,7 +2837,7 @@ export class LCARdSButton extends LCARdSCard {
                     lcardsLog.trace('[LCARdSButton] Per-state icon resolved:', iconName);
                 }
             } else if (typeof iconStyle.icon === 'string' && iconStyle.icon) {
-                iconName = iconStyle.icon;
+                iconName = this._resolveTemplateValue(iconStyle.icon);
                 lcardsLog.trace('[LCARdSButton] Icon style string override:', iconName);
             }
         }
@@ -3105,15 +3105,19 @@ export class LCARdSButton extends LCARdSCard {
 
         // Pre-evaluate Jinja2/JS templates in style config subtrees so that synchronous
         // SVG generation can use results via _resolveTemplateValue().
+        // Track if any templates changed to avoid unnecessary re-renders. Style/icon
+        // templates don't have a "did the value change" check like text fields do
+        // (below), so any evaluation at all counts as a change — otherwise cached
+        // style-derived state (e.g. _processedIcon) would only refresh when a text
+        // field happened to change at the same time (see icon_style.icon real-time
+        // update bug).
+        let hasChanges = false;
         if (this.config.style) {
-            await this._preEvaluateStyleTemplates(this.config.style);
+            hasChanges = await this._preEvaluateStyleTemplates(this.config.style) || hasChanges;
         }
         if (this.config.icon_style) {
-            await this._preEvaluateStyleTemplates(this.config.icon_style);
+            hasChanges = await this._preEvaluateStyleTemplates(this.config.icon_style) || hasChanges;
         }
-
-        // Track if any templates changed to avoid unnecessary re-renders
-        let hasChanges = false;
 
         // Initialize storage for processed templates (survives config replacement)
         if (!this._processedTemplates) {

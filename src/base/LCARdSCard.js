@@ -2047,10 +2047,15 @@ export class LCARdSCard extends LCARdSNativeCard {
      * during SVG/style generation.
      *
      * @param {*} obj - Config object subtree to scan (e.g. `this.config.style`)
+     * @returns {Promise<boolean>} True if at least one template string was found and
+     *   evaluated. Callers use this to decide whether style-dependent state (e.g. a
+     *   button's cached `_processedIcon`) needs to be re-resolved, since style templates
+     *   don't otherwise report "changed" the way tracked text fields do.
      * @protected
      */
     async _preEvaluateStyleTemplates(obj) {
         const strings = this._extractAllConfigStrings(obj);
+        let evaluatedAny = false;
         for (const str of strings) {
             const isJinja2 = str.includes('{%') || str.includes('{{');
             const isJs    = str.includes('[[[');
@@ -2058,10 +2063,12 @@ export class LCARdSCard extends LCARdSNativeCard {
             try {
                 const result = await this.processTemplate(str);
                 this._evaluatedStyleCache.set(str, result);
+                evaluatedAny = true;
             } catch (e) {
                 lcardsLog.warn('[LCARdSCard] Failed to pre-evaluate style template:', e);
             }
         }
+        return evaluatedAny;
     }
 
     /**

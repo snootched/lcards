@@ -31,6 +31,12 @@ export const GREEN_ALERT_PALETTE = {
   'orange-light': '#ff977b',
   'orange-lightest': '#ffb399',
 
+  // Orange — HA 11-step tone scale (10/50/60/95 computed, see scripts/generate-lcards-palette-scale.js)
+  'orange-10': '#e01808',  // interpolated
+  'orange-50': '#ff715d',  // interpolated
+  'orange-60': '#ff7b66',  // interpolated
+  'orange-95': '#ffceb3',  // extrapolated (neon/electric method)
+
   // Grays
   'gray-darkest': '#1e2229',
   'gray-dark': '#2f3749',
@@ -40,6 +46,12 @@ export const GREEN_ALERT_PALETTE = {
   'gray-medium-light': '#9ea5ba',
   'gray-light': '#d2d5df',
   'gray-lightest': '#f3f4f7',
+
+  // Gray — HA 11-step tone scale (10/50/60/95 computed, see scripts/generate-lcards-palette-scale.js)
+  'gray-10': '#232933',  // interpolated
+  'gray-50': '#7d849b',  // interpolated
+  'gray-60': '#8d94aa',  // interpolated
+  'gray-95': '#f8f9fc',  // extrapolated (neon/electric method)
   'moonlight': '#dfe1e8',
 
   // Blues
@@ -52,6 +64,12 @@ export const GREEN_ALERT_PALETTE = {
   'blue-light': '#93e1ff',
   'blue-lightest': '#00eeee',
 
+  // Blue — HA 11-step tone scale (10/50/60/95 computed, see scripts/generate-lcards-palette-scale.js)
+  'blue-10': '#082b48',  // interpolated
+  'blue-50': '#48b2db',  // interpolated
+  'blue-60': '#58bee6',  // interpolated
+  'blue-95': '#44ffff',  // extrapolated (neon/electric method)
+
   // Greens
   'green-darkest': '#0c2a15',
   'green-dark': '#083717',
@@ -62,6 +80,12 @@ export const GREEN_ALERT_PALETTE = {
   'green-light': '#80bb93',
   'green-lightest': '#b8e0c1',
 
+  // Green — HA 11-step tone scale (10/50/60/95 computed, see scripts/generate-lcards-palette-scale.js)
+  'green-10': '#0b2e16',  // interpolated
+  'green-50': '#306d43',  // interpolated
+  'green-60': '#3b784e',  // interpolated
+  'green-95': '#cdf6d6',  // extrapolated (neon/electric method)
+
   // Yellows
   'yellow-darkest': '#70602c',
   'yellow-dark': '#ac943b',
@@ -70,7 +94,13 @@ export const GREEN_ALERT_PALETTE = {
   'yellow-medium': '#f9ef97',  // Alias for base yellow
   'yellow-medium-light': '#fffac9',
   'yellow-light': '#e7e6de',
-  'yellow-lightest': '#f5f5dc'
+  'yellow-lightest': '#f5f5dc',
+
+  // Yellow — HA 11-step tone scale (10/50/60/95 computed, see scripts/generate-lcards-palette-scale.js)
+  'yellow-10': '#847131',  // interpolated
+  'yellow-50': '#fbf3a8',  // interpolated
+  'yellow-60': '#fdf6b9',  // interpolated
+  'yellow-95': '#fbfbe2',  // extrapolated (neon/electric method)
 };
 
 

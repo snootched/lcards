@@ -77,15 +77,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
         validationService.config.validateDataSources = true;
         validationService.config.debug = mergedConfig?.debug?.validation || false;
 
-        // Initialize overlay validation subsystem (only happens once - has internal guard)
-        // This also registers all MSD overlay schemas
-        validationService.initializeOverlayValidation();
-
-        const overlayRegistry = validationService.getOverlaySchemaRegistry();
-        lcardsLog.trace('[PipelineCore] Core ValidationService configured:', {
-          schemaCount: overlayRegistry?.getSchemaCount() || 0,
-          types: overlayRegistry?.getRegisteredTypes() || []
-        });
+        lcardsLog.trace('[PipelineCore] Core ValidationService configured');
 
         // Connect ValidationService to ThemeManager and DataSourceManager
         if (coordinator.themeManager) {

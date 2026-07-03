@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>LCARdS 11-Stop Palette Scale Review</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #111; color: #eee; padding: 24px; }
+  h1 { font-size: 20px; } h2 { font-size: 16px; margin-top: 32px; }
+  h3 { font-size: 12px; font-weight: normal; opacity: 0.7; margin: 4px 0; }
+  .row { display: flex; gap: 4px; margin-bottom: 8px; }
+  .swatch { flex: 1; min-height: 84px; display: flex; flex-direction: column; justify-content: center; align-items: center; border-radius: 4px; font-size: 11px; text-align: center; }
+  .tone { font-weight: bold; font-size: 14px; }
+  .varname { font-family: monospace; opacity: 0.9; font-size: 10px; }
+  .hex { opacity: 0.85; }
+  .tag { font-size: 9px; opacity: 0.7; text-transform: uppercase; }
+  .legend { font-size: 12px; opacity: 0.8; margin-bottom: 16px; }
+  .legend span { margin-right: 16px; }
+  .mini-row { display: flex; gap: 16px; margin-bottom: 24px; align-items: flex-start; }
+  .mini-row .swatch { flex: 0 0 160px; min-height: 100px; }
+  .btn-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 20px; margin-bottom: 16px; }
+  .btn-cell { background: #1a1a1a; border-radius: 6px; padding: 12px; text-align: center; }
+  .mock-btn { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 20px; border-radius: 999px; cursor: default; }
+  .mock-caption { font-size: 10px; opacity: 0.6; margin-top: 4px; }
+  .corrected-badge { font-size: 8px; background: #ffd60a; color: #000; border-radius: 3px; padding: 1px 4px; vertical-align: middle; }
+  .mode-label { font-size: 11px; opacity: 0.6; text-transform: uppercase; margin: 12px 0 4px; }
+</style></head><body>
+<h1>LCARdS 11-Stop Palette Scale — Review</h1>
+<div class="legend">
+  <span>solid dark border = canon anchor (unchanged)</span>
+  <span>dotted gray border = interpolated (new)</span>
+  <span style="color:#f00">dashed red border = shipped slot-95 value (neon/electric extrapolation)</span>
+  <span style="color:#666">dashed gray border = fade-to-white alternative (not shipped, comparison only)</span>
+  <span style="color:#39f">solid blue border = ha-lcars's generic &amp;base formula (reference only — see note below)</span>
+</div>
+<p>Var name shown is the <code>--lcards-&lt;family&gt;-&lt;suffix&gt;</code> suffix actually referenced by the theme YAML
+(e.g. <code>-darkest</code> for the canon anchors, <code>-10</code>/<code>-50</code>/<code>-60</code>/<code>-95</code> for the new computed stops).</p>
+<p><b>About the blue-bordered row:</b> this is <i>not</i> vanilla Home Assistant and not any currently-running theme.
+It's ha-lcars's own generic fallback mechanism (the <code>&amp;base</code> block in <code>ha-lcars/src/preamble.yaml</code>,
+shared by every non-LCARdS theme in that repo) — <code>color-mix(in oklch, seed N%, black/white)</code> at fixed
+percentages, seeded from <i>our own</i> family's <code>-40</code>/base canon color. It answers: "if we'd only defined the
+base color and let ha-lcars generate the rest automatically like every other theme does, what would we have gotten?"
+— useful as a neutral baseline to see how far our hand-picked canon anchors diverge from an automatic ramp.</p><h2>Orange</h2><h3>LCARdS (canon anchors + computed stops)</h3><div class="row"><div class="swatch" style="background:#d91604;color:#fff;border:6px solid #444">
+    <div class="tone">05</div>
+    <div class="varname">-darkest</div>
+    <div class="hex">#d91604</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#e01808;color:#fff;border:6px dotted #999">
+    <div class="tone">10</div>
+    <div class="varname">-10</div>
+    <div class="hex">#e01808</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#ef1d10;color:#000;border:6px solid #444">
+    <div class="tone">20</div>
+    <div class="varname">-dark</div>
+    <div class="hex">#ef1d10</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#e7442a;color:#000;border:6px solid #444">
+    <div class="tone">30</div>
+    <div class="varname">-medium-dark</div>
+    <div class="hex">#e7442a</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#ff6753;color:#000;border:6px solid #444">
+    <div class="tone">40</div>
+    <div class="varname">(bare key)</div>
+    <div class="hex">#ff6753</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#ff715d;color:#000;border:6px dotted #999">
+    <div class="tone">50</div>
+    <div class="varname">-50</div>
+    <div class="hex">#ff715d</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#ff7b66;color:#000;border:6px dotted #999">
+    <div class="tone">60</div>
+    <div class="varname">-60</div>
+    <div class="hex">#ff7b66</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#ff8470;color:#000;border:6px solid #444">
+    <div class="tone">70</div>
+    <div class="varname">-medium-light</div>
+    <div class="hex">#ff8470</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#ff977b;color:#000;border:6px solid #444">
+    <div class="tone">80</div>
+    <div class="varname">-light</div>
+    <div class="hex">#ff977b</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#ffb399;color:#000;border:6px solid #444">
+    <div class="tone">90</div>
+    <div class="varname">-lightest</div>
+    <div class="hex">#ffb399</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#ffceb3;color:#000;border:6px dashed #f00">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#ffceb3</div>
+    <div class="tag">extrapolated</div>
+  </div></div><h3>ha-lcars generic &amp;base formula, seeded from this family's -40 (reference only, not shipped)</h3><div class="row"><div class="swatch" style="background:#030000;color:#fff;border:6px solid #39f">
+    <div class="tone">05</div>
+    
+    <div class="hex">#030000</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#1b0503;color:#fff;border:6px solid #39f">
+    <div class="tone">10</div>
+    
+    <div class="hex">#1b0503</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#521c15;color:#fff;border:6px solid #39f">
+    <div class="tone">20</div>
+    
+    <div class="hex">#521c15</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#95392d;color:#fff;border:6px solid #39f">
+    <div class="tone">30</div>
+    
+    <div class="hex">#95392d</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#ff6753;color:#000;border:6px solid #39f">
+    <div class="tone">40</div>
+    
+    <div class="hex">#ff6753</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#ff7c69;color:#000;border:6px solid #39f">
+    <div class="tone">50</div>
+    
+    <div class="hex">#ff7c69</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#ff9988;color:#000;border:6px solid #39f">
+    <div class="tone">60</div>
+    
+    <div class="hex">#ff9988</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#ffb7aa;color:#000;border:6px solid #39f">
+    <div class="tone">70</div>
+    
+    <div class="hex">#ffb7aa</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#ffd4cc;color:#000;border:6px solid #39f">
+    <div class="tone">80</div>
+    
+    <div class="hex">#ffd4cc</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#ffeae5;color:#000;border:6px solid #39f">
+    <div class="tone">90</div>
+    
+    <div class="hex">#ffeae5</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#fff4f1;color:#000;border:6px solid #39f">
+    <div class="tone">95</div>
+    
+    <div class="hex">#fff4f1</div>
+    <div class="tag">ha-default</div>
+  </div></div><h3>Slot 95 — shipped (neon/electric) vs. fade-to-white alternative (not shipped)</h3><div class="mini-row"><div class="swatch" style="background:#ffceb3;color:#000;border:6px dashed #f00">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#ffceb3</div>
+    <div class="tag">extrapolated</div>
+  </div><div class="swatch" style="background:#ffd9cc;color:#000;border:6px dashed #666">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#ffd9cc</div>
+    <div class="tag">not-shipped</div>
+  </div></div><h2>Gray</h2><h3>LCARdS (canon anchors + computed stops)</h3><div class="row"><div class="swatch" style="background:#1e2229;color:#fff;border:6px solid #444">
+    <div class="tone">05</div>
+    <div class="varname">-darkest</div>
+    <div class="hex">#1e2229</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#232933;color:#fff;border:6px dotted #999">
+    <div class="tone">10</div>
+    <div class="varname">-10</div>
+    <div class="hex">#232933</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#2f3749;color:#fff;border:6px solid #444">
+    <div class="tone">20</div>
+    <div class="varname">-dark</div>
+    <div class="hex">#2f3749</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#52596e;color:#fff;border:6px solid #444">
+    <div class="tone">30</div>
+    <div class="varname">-medium-dark</div>
+    <div class="hex">#52596e</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#6d748c;color:#fff;border:6px solid #444">
+    <div class="tone">40</div>
+    <div class="varname">(bare key)</div>
+    <div class="hex">#6d748c</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#7d849b;color:#000;border:6px dotted #999">
+    <div class="tone">50</div>
+    <div class="varname">-50</div>
+    <div class="hex">#7d849b</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#8d94aa;color:#000;border:6px dotted #999">
+    <div class="tone">60</div>
+    <div class="varname">-60</div>
+    <div class="hex">#8d94aa</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#9ea5ba;color:#000;border:6px solid #444">
+    <div class="tone">70</div>
+    <div class="varname">-medium-light</div>
+    <div class="hex">#9ea5ba</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#d2d5df;color:#000;border:6px solid #444">
+    <div class="tone">80</div>
+    <div class="varname">-light</div>
+    <div class="hex">#d2d5df</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#f3f4f7;color:#000;border:6px solid #444">
+    <div class="tone">90</div>
+    <div class="varname">-lightest</div>
+    <div class="hex">#f3f4f7</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#f8f9fc;color:#000;border:6px dashed #f00">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#f8f9fc</div>
+    <div class="tag">extrapolated</div>
+  </div></div><h3>ha-lcars generic &amp;base formula, seeded from this family's -40 (reference only, not shipped)</h3><div class="row"><div class="swatch" style="background:#010101;color:#fff;border:6px solid #39f">
+    <div class="tone">05</div>
+    
+    <div class="hex">#010101</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#050609;color:#fff;border:6px solid #39f">
+    <div class="tone">10</div>
+    
+    <div class="hex">#050609</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#1e2129;color:#fff;border:6px solid #39f">
+    <div class="tone">20</div>
+    
+    <div class="hex">#1e2129</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#3d414f;color:#fff;border:6px solid #39f">
+    <div class="tone">30</div>
+    
+    <div class="hex">#3d414f</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#6d748c;color:#fff;border:6px solid #39f">
+    <div class="tone">40</div>
+    
+    <div class="hex">#6d748c</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#7d8499;color:#000;border:6px solid #39f">
+    <div class="tone">50</div>
+    
+    <div class="hex">#7d8499</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#969cad;color:#000;border:6px solid #39f">
+    <div class="tone">60</div>
+    
+    <div class="hex">#969cad</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#b3b7c4;color:#000;border:6px solid #39f">
+    <div class="tone">70</div>
+    
+    <div class="hex">#b3b7c4</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#d1d3db;color:#000;border:6px solid #39f">
+    <div class="tone">80</div>
+    
+    <div class="hex">#d1d3db</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#e8e9ed;color:#000;border:6px solid #39f">
+    <div class="tone">90</div>
+    
+    <div class="hex">#e8e9ed</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#f3f3f5;color:#000;border:6px solid #39f">
+    <div class="tone">95</div>
+    
+    <div class="hex">#f3f3f5</div>
+    <div class="tag">ha-default</div>
+  </div></div><h3>Slot 95 — shipped (neon/electric) vs. fade-to-white alternative (not shipped)</h3><div class="mini-row"><div class="swatch" style="background:#f8f9fc;color:#000;border:6px dashed #f00">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#f8f9fc</div>
+    <div class="tag">extrapolated</div>
+  </div><div class="swatch" style="background:#f9f9fb;color:#000;border:6px dashed #666">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#f9f9fb</div>
+    <div class="tag">not-shipped</div>
+  </div></div><h2>Blue</h2><h3>LCARdS (canon anchors + computed stops)</h3><div class="row"><div class="swatch" style="background:#002241;color:#fff;border:6px solid #444">
+    <div class="tone">05</div>
+    <div class="varname">-darkest</div>
+    <div class="hex">#002241</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#082b48;color:#fff;border:6px dotted #999">
+    <div class="tone">10</div>
+    <div class="varname">-10</div>
+    <div class="hex">#082b48</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#1c3c55;color:#fff;border:6px solid #444">
+    <div class="tone">20</div>
+    <div class="varname">-dark</div>
+    <div class="hex">#1c3c55</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#2a7193;color:#fff;border:6px solid #444">
+    <div class="tone">30</div>
+    <div class="varname">-medium-dark</div>
+    <div class="hex">#2a7193</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#37a6d1;color:#000;border:6px solid #444">
+    <div class="tone">40</div>
+    <div class="varname">(bare key)</div>
+    <div class="hex">#37a6d1</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#48b2db;color:#000;border:6px dotted #999">
+    <div class="tone">50</div>
+    <div class="varname">-50</div>
+    <div class="hex">#48b2db</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#58bee6;color:#000;border:6px dotted #999">
+    <div class="tone">60</div>
+    <div class="varname">-60</div>
+    <div class="hex">#58bee6</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#67caf0;color:#000;border:6px solid #444">
+    <div class="tone">70</div>
+    <div class="varname">-medium-light</div>
+    <div class="hex">#67caf0</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#93e1ff;color:#000;border:6px solid #444">
+    <div class="tone">80</div>
+    <div class="varname">-light</div>
+    <div class="hex">#93e1ff</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#00eeee;color:#000;border:6px solid #444">
+    <div class="tone">90</div>
+    <div class="varname">-lightest</div>
+    <div class="hex">#00eeee</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#44ffff;color:#000;border:6px dashed #f00">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#44ffff</div>
+    <div class="tag">extrapolated</div>
+  </div></div><h3>ha-lcars generic &amp;base formula, seeded from this family's -40 (reference only, not shipped)</h3><div class="row"><div class="swatch" style="background:#000102;color:#fff;border:6px solid #39f">
+    <div class="tone">05</div>
+    
+    <div class="hex">#000102</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#010d14;color:#fff;border:6px solid #39f">
+    <div class="tone">10</div>
+    
+    <div class="hex">#010d14</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#0b3242;color:#fff;border:6px solid #39f">
+    <div class="tone">20</div>
+    
+    <div class="hex">#0b3242</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#1c5f79;color:#fff;border:6px solid #39f">
+    <div class="tone">30</div>
+    
+    <div class="hex">#1c5f79</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#37a6d1;color:#000;border:6px solid #39f">
+    <div class="tone">40</div>
+    
+    <div class="hex">#37a6d1</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#57b1d7;color:#000;border:6px solid #39f">
+    <div class="tone">50</div>
+    
+    <div class="hex">#57b1d7</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#7ec1e0;color:#000;border:6px solid #39f">
+    <div class="tone">60</div>
+    
+    <div class="hex">#7ec1e0</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#a4d3e9;color:#000;border:6px solid #39f">
+    <div class="tone">70</div>
+    
+    <div class="hex">#a4d3e9</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#c9e5f2;color:#000;border:6px solid #39f">
+    <div class="tone">80</div>
+    
+    <div class="hex">#c9e5f2</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#e4f2f9;color:#000;border:6px solid #39f">
+    <div class="tone">90</div>
+    
+    <div class="hex">#e4f2f9</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#f1f8fc;color:#000;border:6px solid #39f">
+    <div class="tone">95</div>
+    
+    <div class="hex">#f1f8fc</div>
+    <div class="tag">ha-default</div>
+  </div></div><h3>Slot 95 — shipped (neon/electric) vs. fade-to-white alternative (not shipped)</h3><div class="mini-row"><div class="swatch" style="background:#44ffff;color:#000;border:6px dashed #f00">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#44ffff</div>
+    <div class="tag">extrapolated</div>
+  </div><div class="swatch" style="background:#adf8f7;color:#000;border:6px dashed #666">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#adf8f7</div>
+    <div class="tag">not-shipped</div>
+  </div></div><h2>Green</h2><h3>LCARdS (canon anchors + computed stops)</h3><div class="row"><div class="swatch" style="background:#0c2a15;color:#fff;border:6px solid #444">
+    <div class="tone">05</div>
+    <div class="varname">-darkest</div>
+    <div class="hex">#0c2a15</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#0b2e16;color:#fff;border:6px dotted #999">
+    <div class="tone">10</div>
+    <div class="varname">-10</div>
+    <div class="hex">#0b2e16</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#083717;color:#fff;border:6px solid #444">
+    <div class="tone">20</div>
+    <div class="varname">-dark</div>
+    <div class="hex">#083717</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#095320;color:#fff;border:6px solid #444">
+    <div class="tone">30</div>
+    <div class="varname">-medium-dark</div>
+    <div class="hex">#095320</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#266239;color:#fff;border:6px solid #444">
+    <div class="tone">40</div>
+    <div class="varname">(bare key)</div>
+    <div class="hex">#266239</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#306d43;color:#fff;border:6px dotted #999">
+    <div class="tone">50</div>
+    <div class="varname">-50</div>
+    <div class="hex">#306d43</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#3b784e;color:#fff;border:6px dotted #999">
+    <div class="tone">60</div>
+    <div class="varname">-60</div>
+    <div class="hex">#3b784e</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#458359;color:#000;border:6px solid #444">
+    <div class="tone">70</div>
+    <div class="varname">-medium-light</div>
+    <div class="hex">#458359</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#80bb93;color:#000;border:6px solid #444">
+    <div class="tone">80</div>
+    <div class="varname">-light</div>
+    <div class="hex">#80bb93</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#b8e0c1;color:#000;border:6px solid #444">
+    <div class="tone">90</div>
+    <div class="varname">-lightest</div>
+    <div class="hex">#b8e0c1</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#cdf6d6;color:#000;border:6px dashed #f00">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#cdf6d6</div>
+    <div class="tag">extrapolated</div>
+  </div></div><h3>ha-lcars generic &amp;base formula, seeded from this family's -40 (reference only, not shipped)</h3><div class="row"><div class="swatch" style="background:#000000;color:#fff;border:6px solid #39f">
+    <div class="tone">05</div>
+    
+    <div class="hex">#000000</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#010401;color:#fff;border:6px solid #39f">
+    <div class="tone">10</div>
+    
+    <div class="hex">#010401</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#051a0b;color:#fff;border:6px solid #39f">
+    <div class="tone">20</div>
+    
+    <div class="hex">#051a0b</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#12361d;color:#fff;border:6px solid #39f">
+    <div class="tone">30</div>
+    
+    <div class="hex">#12361d</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#266239;color:#fff;border:6px solid #39f">
+    <div class="tone">40</div>
+    
+    <div class="hex">#266239</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#41744f;color:#fff;border:6px solid #39f">
+    <div class="tone">50</div>
+    
+    <div class="hex">#41744f</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#678f70;color:#000;border:6px solid #39f">
+    <div class="tone">60</div>
+    
+    <div class="hex">#678f70</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#91ae97;color:#000;border:6px solid #39f">
+    <div class="tone">70</div>
+    
+    <div class="hex">#91ae97</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#bccec0;color:#000;border:6px solid #39f">
+    <div class="tone">80</div>
+    
+    <div class="hex">#bccec0</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#dde6df;color:#000;border:6px solid #39f">
+    <div class="tone">90</div>
+    
+    <div class="hex">#dde6df</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#edf2ee;color:#000;border:6px solid #39f">
+    <div class="tone">95</div>
+    
+    <div class="hex">#edf2ee</div>
+    <div class="tag">ha-default</div>
+  </div></div><h3>Slot 95 — shipped (neon/electric) vs. fade-to-white alternative (not shipped)</h3><div class="mini-row"><div class="swatch" style="background:#cdf6d6;color:#000;border:6px dashed #f00">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#cdf6d6</div>
+    <div class="tag">extrapolated</div>
+  </div><div class="swatch" style="background:#dcf0e0;color:#000;border:6px dashed #666">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#dcf0e0</div>
+    <div class="tag">not-shipped</div>
+  </div></div><h2>Yellow</h2><h3>LCARdS (canon anchors + computed stops)</h3><div class="row"><div class="swatch" style="background:#70602c;color:#fff;border:6px solid #444">
+    <div class="tone">05</div>
+    <div class="varname">-darkest</div>
+    <div class="hex">#70602c</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#847131;color:#fff;border:6px dotted #999">
+    <div class="tone">10</div>
+    <div class="varname">-10</div>
+    <div class="hex">#847131</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#ac943b;color:#000;border:6px solid #444">
+    <div class="tone">20</div>
+    <div class="varname">-dark</div>
+    <div class="hex">#ac943b</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#d2bf50;color:#000;border:6px solid #444">
+    <div class="tone">30</div>
+    <div class="varname">-medium-dark</div>
+    <div class="hex">#d2bf50</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#f9ef97;color:#000;border:6px solid #444">
+    <div class="tone">40</div>
+    <div class="varname">(bare key)</div>
+    <div class="hex">#f9ef97</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#fbf3a8;color:#000;border:6px dotted #999">
+    <div class="tone">50</div>
+    <div class="varname">-50</div>
+    <div class="hex">#fbf3a8</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#fdf6b9;color:#000;border:6px dotted #999">
+    <div class="tone">60</div>
+    <div class="varname">-60</div>
+    <div class="hex">#fdf6b9</div>
+    <div class="tag">interpolated</div>
+  </div><div class="swatch" style="background:#fffac9;color:#000;border:6px solid #444">
+    <div class="tone">70</div>
+    <div class="varname">-medium-light</div>
+    <div class="hex">#fffac9</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#e7e6de;color:#000;border:6px solid #444">
+    <div class="tone">80</div>
+    <div class="varname">-light</div>
+    <div class="hex">#e7e6de</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#f5f5dc;color:#000;border:6px solid #444">
+    <div class="tone">90</div>
+    <div class="varname">-lightest</div>
+    <div class="hex">#f5f5dc</div>
+    <div class="tag">anchor</div>
+  </div><div class="swatch" style="background:#fbfbe2;color:#000;border:6px dashed #f00">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#fbfbe2</div>
+    <div class="tag">extrapolated</div>
+  </div></div><h3>ha-lcars generic &amp;base formula, seeded from this family's -40 (reference only, not shipped)</h3><div class="row"><div class="swatch" style="background:#030301;color:#fff;border:6px solid #39f">
+    <div class="tone">05</div>
+    
+    <div class="hex">#030301</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#1a180b;color:#fff;border:6px solid #39f">
+    <div class="tone">10</div>
+    
+    <div class="hex">#1a180b</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#504d2d;color:#fff;border:6px solid #39f">
+    <div class="tone">20</div>
+    
+    <div class="hex">#504d2d</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#918b56;color:#000;border:6px solid #39f">
+    <div class="tone">30</div>
+    
+    <div class="hex">#918b56</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#f9ef97;color:#000;border:6px solid #39f">
+    <div class="tone">40</div>
+    
+    <div class="hex">#f9ef97</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#faf1a5;color:#000;border:6px solid #39f">
+    <div class="tone">50</div>
+    
+    <div class="hex">#faf1a5</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#fbf4b8;color:#000;border:6px solid #39f">
+    <div class="tone">60</div>
+    
+    <div class="hex">#fbf4b8</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#fcf8cd;color:#000;border:6px solid #39f">
+    <div class="tone">70</div>
+    
+    <div class="hex">#fcf8cd</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#fdfbe2;color:#000;border:6px solid #39f">
+    <div class="tone">80</div>
+    
+    <div class="hex">#fdfbe2</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#fefdf0;color:#000;border:6px solid #39f">
+    <div class="tone">90</div>
+    
+    <div class="hex">#fefdf0</div>
+    <div class="tag">ha-default</div>
+  </div><div class="swatch" style="background:#fefef7;color:#000;border:6px solid #39f">
+    <div class="tone">95</div>
+    
+    <div class="hex">#fefef7</div>
+    <div class="tag">ha-default</div>
+  </div></div><h3>Slot 95 — shipped (neon/electric) vs. fade-to-white alternative (not shipped)</h3><div class="mini-row"><div class="swatch" style="background:#fbfbe2;color:#000;border:6px dashed #f00">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#fbfbe2</div>
+    <div class="tag">extrapolated</div>
+  </div><div class="swatch" style="background:#fafaee;color:#000;border:6px dashed #666">
+    <div class="tone">95</div>
+    <div class="varname">-95</div>
+    <div class="hex">#fafaee</div>
+    <div class="tag">not-shipped</div>
+  </div></div><h2>HA Component Mockups</h2>
+<p>Hand-built approximations of <code>&lt;wa-button variant="brand/danger/warning/success"&gt;</code> styling — solid
+("loud" fill + on-loud text) and outlined ("normal" tier) — using the actual resolved colors from both profiles'
+generated <code>ha-color-fill-*</code>/<code>ha-color-on-*</code> tokens. A yellow "corrected" badge means Phase-2
+contrast validation overrode HA's mechanical tone-index default (typically white text) with black or white,
+whichever actually passes against that background.</p><h3>Red profile</h3><div class="mode-label">light</div><div class="btn-grid"><div class="btn-cell"><button class="mock-btn" style="background:#ff6753;color:#000000;border:2px solid #ff6753">primary / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">7.32:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#ffb399;color:#000000;border:2px solid #ffb399">primary / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">12.16:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#ff715d;color:#000000;border:2px solid #ff715d">danger / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">7.77:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#ffb399;color:#000000;border:2px solid #ffb399">danger / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">12.16:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#fffac9;color:#000000;border:2px solid #fffac9">warning / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">19.77:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#f5f5dc;color:#000000;border:2px solid #f5f5dc">warning / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">18.98:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#306d43;color:#ffffff;border:2px solid #306d43">success / loud</button>
+    <div class="mock-caption">6.19:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#b8e0c1;color:#266239;border:2px solid #b8e0c1">success / normal</button>
+    <div class="mock-caption">5.01:1</div></div></div><div class="mode-label">dark</div><div class="btn-grid"><div class="btn-cell"><button class="mock-btn" style="background:#ff6753;color:#000000;border:2px solid #ff6753">primary / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">7.32:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#e01808;color:#ffffff;border:2px solid #e01808">primary / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">4.88:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#ff6753;color:#000000;border:2px solid #ff6753">danger / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">7.32:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#e01808;color:#ffffff;border:2px solid #e01808">danger / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">4.88:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#f9ef97;color:#000000;border:2px solid #f9ef97">warning / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">17.82:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#847131;color:#ffffff;border:2px solid #847131">warning / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">4.79:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#266239;color:#ffffff;border:2px solid #266239">success / loud</button>
+    <div class="mock-caption">7.27:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#0b2e16;color:#ffffff;border:2px solid #0b2e16">success / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">14.82:1</div></div></div><h3>Blue profile</h3><div class="mode-label">light</div><div class="btn-grid"><div class="btn-cell"><button class="mock-btn" style="background:#37a6d1;color:#000000;border:2px solid #37a6d1">primary / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">7.54:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#00eeee;color:#000000;border:2px solid #00eeee">primary / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">14.46:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#ff715d;color:#000000;border:2px solid #ff715d">danger / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">7.77:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#ffb399;color:#000000;border:2px solid #ffb399">danger / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">12.16:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#fffac9;color:#000000;border:2px solid #fffac9">warning / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">19.77:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#f5f5dc;color:#000000;border:2px solid #f5f5dc">warning / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">18.98:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#306d43;color:#ffffff;border:2px solid #306d43">success / loud</button>
+    <div class="mock-caption">6.19:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#b8e0c1;color:#266239;border:2px solid #b8e0c1">success / normal</button>
+    <div class="mock-caption">5.01:1</div></div></div><div class="mode-label">dark</div><div class="btn-grid"><div class="btn-cell"><button class="mock-btn" style="background:#37a6d1;color:#000000;border:2px solid #37a6d1">primary / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">7.54:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#082b48;color:#58bee6;border:2px solid #082b48">primary / normal</button>
+    <div class="mock-caption">6.85:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#ff6753;color:#000000;border:2px solid #ff6753">danger / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">7.32:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#e01808;color:#ffffff;border:2px solid #e01808">danger / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">4.88:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#f9ef97;color:#000000;border:2px solid #f9ef97">warning / loud <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">17.82:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#847131;color:#ffffff;border:2px solid #847131">warning / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">4.79:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#266239;color:#ffffff;border:2px solid #266239">success / loud</button>
+    <div class="mock-caption">7.27:1</div></div><div class="btn-cell"><button class="mock-btn" style="background:#0b2e16;color:#ffffff;border:2px solid #0b2e16">success / normal <span class="corrected-badge">corrected</span></button>
+    <div class="mock-caption">14.82:1</div></div></div></body></html>

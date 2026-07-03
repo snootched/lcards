@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.07.01.1",
+  "version": "2026.07.02.0",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -33,7 +33,14 @@
     "docs:build": "vitepress build doc",
     "docs:serve": "vitepress dev doc",
     "docs:serve:network": "vitepress dev doc --host",
-    "docs:preview": "vitepress preview doc"
+    "docs:preview": "vitepress preview doc",
+    "lcars:palette-scale": "node scripts/generate-lcards-palette-scale.js",
+    "lcars:palette-scale:write": "node scripts/generate-lcards-palette-scale.js --write && cp reports/palette-scale-review.html doc/public/reports/palette-scale-review.html",
+    "lcars:semantic-tokens": "node scripts/generate-lcards-ha-semantic-tokens.js",
+    "lcars:semantic-tokens:write": "node scripts/generate-lcards-ha-semantic-tokens.js --write",
+    "lcars:generate-themes": "cd ../ha-lcars && python3 py/generate_themes.py",
+    "lcars:export-vendored": "node scripts/export-vendored-ha-lcars-theme.js --write",
+    "lcars:regenerate": "npm run lcars:semantic-tokens:write && npm run lcars:generate-themes && npm run build && npm run lcars:export-vendored"
   },
   "devDependencies": {
     "ajv": "^8.20.0",
