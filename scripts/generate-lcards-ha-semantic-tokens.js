@@ -141,7 +141,18 @@ const ON = {
 const FILL = {
   // role: { light: {quiet:{resting,hover,active?}, normal:{...}, loud:{...}}, dark: {...} }
   primary: {
-    light: { quiet: { resting: 95, hover: 90, active: 95 }, normal: { resting: 90, hover: 80, active: 90 }, loud: { resting: 40, hover: 30, active: 40 } },
+    // normal-tier light-mode resting/active pinned to tone-80/70 rather than
+    // HA's mechanical tone-90/80: for the blue family, tone-90 (-lightest)
+    // is a deliberately vivid "electric cyan" accent stop (see paletteInjector
+    // canon notes), not a smoothly-desaturated ramp continuation — using it
+    // for the "normal" (appearance="filled") tier made it read as MORE
+    // visually prominent than the "loud" (appearance="accent"/selected)
+    // tier, which uses tone-40. Confirmed via live testing (blue profile,
+    // light mode). tone-80/70 are genuinely paler same-family stops that
+    // preserve the quiet < normal < loud prominence ordering. Harmless for
+    // the orange family (red profile's primary role) — its tone-80/70 stops
+    // are unaffected by this issue and remain reasonably paler than tone-40.
+    light: { quiet: { resting: 95, hover: 90, active: 95 }, normal: { resting: 80, hover: 70, active: 80 }, loud: { resting: 40, hover: 30, active: 40 } },
     dark: { quiet: { resting: 5, hover: 10, active: 5 }, normal: { resting: 10, hover: 20, active: 10 } }, // loud not redefined in dark
   },
   neutral: {
@@ -292,6 +303,29 @@ function resolveSurfaceValue(profile, mode, key) {
   return toneVar(family, spec.tone);
 }
 
+// ─── Numeric palette-stop block (top-level, not mode-scoped) ──────────────
+// The four LCARdS-specific stops per family (-10/-50/-60/-95) aren't part of
+// ha-lcars's own shared &lcars-variables — they're declared directly in each
+// profile file so the profile stays a self-contained drop-in with zero
+// shared ha-lcars source changes. Literal hex (not var() references), since
+// these ARE the source values — PALETTE already holds them, parsed from
+// paletteInjector.js.
+const NUMERIC_FAMILIES = ['orange', 'gray', 'blue', 'green', 'yellow'];
+const NUMERIC_STOPS = [10, 50, 60, 95];
+
+function buildPaletteStopsBlock() {
+  const lines = [];
+  for (const family of NUMERIC_FAMILIES) {
+    for (const stop of NUMERIC_STOPS) {
+      const key = `${family}-${stop}`;
+      const hex = PALETTE[key];
+      if (!hex) throw new Error(`No palette value for ${key}`);
+      lines.push(`lcards-${key}: "${hex}"`);
+    }
+  }
+  return lines.join('\n');
+}
+
 // ─── Build YAML block per profile per mode ────────────────────────────────
 
 const ROLES = ['primary', 'neutral', 'disabled', 'danger', 'warning', 'success'];
@@ -354,10 +388,44 @@ console.log(`\n${report.length} pairs checked, ${fails.length} substituted.`);
 const BLOCK_START = '    # HA semantic tokens — on-* (text/icon-on-fill contrast)';
 const BLOCK_END_PREFIX = '    ha-color-form-background-disabled:';
 
+const STOPS_BLOCK_START = '# LCARdS 11-stop palette — numeric stops not already covered';
+const STOPS_ANCHOR = 'lcars-settings-card-color:';
+const STOPS_END_PREFIX = '# HA Core tonal palette';
+
 if (WRITE) {
   for (const profile of Object.keys(PROFILES)) {
     const filePath = join(HA_LCARS_ROOT, 'src/themes', `lcards_picard_${profile}.yaml`);
     let content = readFileSync(filePath, 'utf-8');
+
+    // Numeric palette-stop block: insert/replace right after the
+    // lcars-settings-card-color line, before "# HA Core tonal palette".
+    const stopsAnchorIdx = content.indexOf(STOPS_ANCHOR);
+    if (stopsAnchorIdx === -1) {
+      console.error(`Could not find "${STOPS_ANCHOR}" in ${filePath}`);
+      process.exit(1);
+    }
+    const afterStopsAnchorLine = content.indexOf('\n', stopsAnchorIdx) + 1;
+    const afterBlankLine = content.indexOf('\n', afterStopsAnchorLine) + 1; // skip the blank separator line
+    const insertionPoint = content.startsWith('\n', afterStopsAnchorLine) ? afterBlankLine : afterStopsAnchorLine;
+
+    if (content.startsWith(STOPS_BLOCK_START, insertionPoint)) {
+      const endLineStart = content.indexOf(STOPS_END_PREFIX, insertionPoint);
+      content = content.slice(0, insertionPoint) + content.slice(endLineStart);
+    }
+
+    const stopsComment = [
+      '# LCARdS 11-stop palette — numeric stops not already covered by the',
+      '# semantic-named --lcards-<family>-{darkest,dark,...,lightest} keys (defined',
+      '# in ha-lcars\'s own &lcars-variables, shared across all themes). These four',
+      '# per family (-10/-50/-60/-95) are LCARdS-specific extensions used only by',
+      '# this profile\'s 1:1 ha-color-*-{05..95} ramp below and its semantic tokens.',
+      '# Declared here (not in shared ha-lcars source) so this profile is fully',
+      '# self-contained — keep in sync with lcards/src/core/themes/paletteInjector.js',
+      '# GREEN_ALERT_PALETTE via lcards/scripts/generate-lcards-palette-scale.js.',
+    ].join('\n');
+    const stopsBlock = `${stopsComment}\n${buildPaletteStopsBlock()}\n\n`;
+    content = content.slice(0, insertionPoint) + stopsBlock + content.slice(insertionPoint);
+
     for (const mode of ['light', 'dark']) {
       const block = buildModeBlock(profile, mode);
       const marker = `  ${mode}:`;
