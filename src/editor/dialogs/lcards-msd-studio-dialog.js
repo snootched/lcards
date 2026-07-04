@@ -7750,7 +7750,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     header="Stacking Order"
                     description="Control paint order relative to other controls and lines"
                     icon="mdi:layers-outline"
-                    ?expanded=${false}>
+                    secondary=${this._controlFormZIndex != null ? `Z-Index: ${this._controlFormZIndex} (custom)` : 'Z-Index: 200 (default)'}
+                    ?expanded=${this._controlFormZIndex != null}>
                     <ha-input
                         type="number"
                         label="Z-Index"
@@ -10963,6 +10964,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
                     </lcards-form-section>
                 </div>
+
+                <lcards-form-section
+                    header="Stacking Order"
+                    description="Control paint order relative to other lines and controls"
+                    icon="mdi:layers-outline"
+                    secondary=${this._lineFormData.z_index != null ? `Z-Index: ${this._lineFormData.z_index} (custom)` : 'Z-Index: 100 (default)'}
+                    ?expanded=${this._lineFormData.z_index != null}>
+                    <ha-input
+                        type="number"
+                        label="Z-Index"
+                        .value=${this._lineFormData.z_index != null ? String(this._lineFormData.z_index) : ''}
+                        @input=${(e) => {
+                            const raw = e.target.value;
+                            this._lineFormData.z_index = raw === '' ? null : Number(raw);
+                            this.requestUpdate();
+                        }}
+                        helper-text="Higher values paint on top. Leave blank to use the default (100 — lines paint under controls).">
+                    </ha-input>
+                </lcards-form-section>
             </div>
         `;
     }
@@ -11311,24 +11331,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <!-- Channel Routing (only for auto/direct modes) -->
                 ${routeMode !== 'manual' ? this._renderChannelRoutingOptions() : ''}
-
-                <lcards-form-section
-                    header="Stacking Order"
-                    description="Control paint order relative to other lines and controls"
-                    icon="mdi:layers-outline"
-                    ?expanded=${false}>
-                    <ha-input
-                        type="number"
-                        label="Z-Index"
-                        .value=${this._lineFormData.z_index != null ? String(this._lineFormData.z_index) : ''}
-                        @input=${(e) => {
-                            const raw = e.target.value;
-                            this._lineFormData.z_index = raw === '' ? null : Number(raw);
-                            this.requestUpdate();
-                        }}
-                        helper-text="Higher values paint on top. Leave blank to use the default (100 — lines paint under controls).">
-                    </ha-input>
-                </lcards-form-section>
             </div>
         `;
     }
@@ -11508,6 +11510,47 @@ export class LCARdSMSDStudioDialog extends LitElement {
         `;
     }
 
+    /**
+     * Render a marker's "Attach Point" selector — only for marker types with
+     * a directional tip/leading edge (arrow, diamond, rect/square); dot and
+     * the orthogonal 'line' tick are symmetric along the line's axis, so
+     * center-attach is already the only sensible placement for them and this
+     * renders nothing. Backs `LineOverlay._createMarkerDefinition()`'s opt-in
+     * `align: 'edge'` handling.
+     * @param {'marker_start'|'marker_end'} markerKey
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderMarkerAlignField(markerKey) {
+        const marker = this._lineFormData.style?.[markerKey] || {};
+        if (!['arrow', 'triangle', 'diamond', 'rect', 'square'].includes(marker.type)) return '';
+        return html`
+            <ha-selector
+                style="display: block; margin-top: 12px;"
+                .hass=${this.hass}
+                .selector=${{
+                    select: {
+                        mode: 'dropdown',
+                        options: [
+                            { value: 'center', label: 'Center (default)' },
+                            { value: 'edge', label: 'Edge (projects past line end — hides thick-line overshoot)' }
+                        ]
+                    }
+                }}
+                .value=${marker.align === 'edge' ? 'edge' : 'center'}
+                .label=${'Attach Point'}
+                .helper=${'Edge hides thick-line overshoot but extends past the anchor point; use Center if the marker must land exactly on it'}
+                @value-changed=${(e) => {
+                    this._lineFormData.style = {
+                        ...this._lineFormData.style,
+                        [markerKey]: { ...this._lineFormData.style[markerKey], align: e.detail.value }
+                    };
+                    this.requestUpdate();
+                }}>
+            </ha-selector>
+        `;
+    }
+
     _renderLineFormMarkers() {
         return html`
             <div class="subform-field-stack">
@@ -11617,6 +11660,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 </ha-input>
                             </div>
                         ` : ''}
+
+                        ${this._renderMarkerAlignField('marker_start')}
 
                         <div style="margin-top: 12px;">
                             ${this._renderMarkerColorField('marker_start', 'fill', 'Fill Color')}
@@ -11745,6 +11790,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 </ha-input>
                             </div>
                         ` : ''}
+
+                        ${this._renderMarkerAlignField('marker_end')}
 
                         <div style="margin-top: 12px;">
                             ${this._renderMarkerColorField('marker_end', 'fill', 'Fill Color')}

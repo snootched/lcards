@@ -913,9 +913,28 @@ export class LineOverlay extends OverlayBase {
     // Defaults; only 'rect' overrides these to support independent width/height.
     let markerW = vb, markerH = vb, refX = center, refY = center;
 
+    // Opt-in "edge" attach (default stays 'center', preserving pre-existing
+    // configs' appearance): for pointed/directional shapes, refX becomes the
+    // shape's back edge/point (local x=0, the flat end facing the line)
+    // instead of its bounding-box center — the whole shape, tip included,
+    // then projects forward past the line's true endpoint rather than
+    // straddling it. This is deliberately the opposite of the "tip pinned to
+    // the vertex" convention common in thin-stroke SVG examples: with a
+    // thick line stroke, pinning the tip means the line's own end-cap
+    // (round/square, or even butt at sub-pixel scale) can render past the
+    // marker's point since nothing of the marker exists beyond that pivot.
+    // Pinning the back edge instead means the marker's opaque body (painted
+    // on top of the path, per SVG marker rendering order) fully covers that
+    // same spot, so the tip is always the true outermost visible point
+    // regardless of stroke width or line-cap style. Symmetric shapes (dot,
+    // the orthogonal 'line' tick) have no meaningful "edge" distinct from
+    // their center, so `align` is a no-op for them.
+    const edgeAlign = marker.align === 'edge';
+
     switch (marker.type) {
       case 'arrow':
       case 'triangle': // alias, kept for configs saved before the two were merged
+        if (edgeAlign) refX = 0;
         shape = `<path d="M 0 0 L ${vb} ${center} L 0 ${vb} Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
         break;
 
@@ -925,6 +944,7 @@ export class LineOverlay extends OverlayBase {
         break;
 
       case 'diamond':
+        if (edgeAlign) refX = 0;
         shape = `<path d="M ${center} 0 L ${vb} ${center} L ${center} ${vb} L 0 ${center} Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
         break;
 
@@ -942,7 +962,7 @@ export class LineOverlay extends OverlayBase {
         const filled = marker.filled ?? (marker.type === 'square');
         markerW = marker.width || vb;
         markerH = marker.height || vb;
-        refX = markerW / 2;
+        refX = edgeAlign ? 0 : markerW / 2;
         refY = markerH / 2;
         shape = filled
           ? `<rect x="0" y="0" width="${markerW}" height="${markerH}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`

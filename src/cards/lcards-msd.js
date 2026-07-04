@@ -208,6 +208,24 @@ export class LCARdSMSDCard extends LCARdSCard {
     async _loadAndInitializeMsd() {
         lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsd called');
 
+        // Tier 2/3 (editor stats display, card-picker placeholder) never show the
+        // real SVG/overlays — _renderEditorStats()/_renderCardPickerPlaceholder()
+        // only need this.config/this._msdConfig, both already populated by
+        // _onConfigUpdated() independent of the pipeline. Skip pipeline init
+        // entirely here: both placeholder templates contain their own decorative
+        // <svg> for visual branding, and the renderer's mount-point resolution
+        // does a bare `mountEl.querySelector('svg')` — with no real SVG container
+        // in the DOM (Tier 1's #msd-v1-comprehensive-wrapper was never rendered),
+        // it would find that decorative SVG instead and mount real overlay content
+        // straight into it, showing the actual config's lines/controls on top of
+        // the placeholder graphic.
+        if (this._isPreviewMode === 'picker' || this._isPreviewMode === 'editor') {
+            lcardsLog.debug('[LCARdSMSDCard] Skipping pipeline init - Tier 2/3 placeholder mode', {
+                isPreviewMode: this._isPreviewMode
+            });
+            return;
+        }
+
         // Wait for async config processing to complete.
         // LCARdSCard.setConfig() starts _processConfigAsync() in background.
         // We must wait for it before accessing this.config or derived properties.
@@ -1034,21 +1052,46 @@ export class LCARdSMSDCard extends LCARdSCard {
             return false; // NOT preview - allow full render
         }
 
-        // Tier 2: Card editor dialog (block with stats display)
-        const isInEditDialog = this._checkForAncestor(['hui-dialog-edit-card', 'hui-card-preview']);
+        // Dashboard (edit mode or view mode) - always allow full render.
+        // Checked BEFORE the .preview/.editMode check below: hui-view's own
+        // card-creation path sets `.preview = this.lovelace.editMode` on EVERY
+        // card on the dashboard (not just ones inside the edit-card dialog), so
+        // `.preview`/`.editMode` alone can't distinguish "dashboard is being
+        // rearranged" from "this card is open in the edit-card dialog" — only
+        // ancestry can. Checking dashboard ancestry first keeps dashboard
+        // rearrange mode on full render, matching pre-existing behavior.
+        // Must pierce shadow DOM boundaries: a card sits several shadow roots
+        // deep below hui-root/ha-panel-lovelace (hui-card -> hui-view's own
+        // shadow root -> ... -> hui-root), so plain `.closest()` never actually
+        // found it here — it silently returned null and this branch was
+        // effectively dead, only "working" because every other fallback path
+        // below also returns `false` (full render). That equivalence broke once
+        // the .preview/.editMode check below started intercepting first.
+        // Note: Do NOT call super._detectPreviewMode() as base class blocks dashboard edit mode
+        const isOnDashboard = this._checkForAncestor(['hui-root', 'ha-panel-lovelace']);
+        if (isOnDashboard) {
+            lcardsLog.debug('[LCARdSMSDCard] On dashboard - Tier 1: full render');
+            return false;
+        }
+
+        // Tier 2: Card editor dialog (block with stats display).
+        // `hui-card` (HA's wrapper for a card rendered inside hui-dialog-edit-card/
+        // hui-suggestion-card/hui-dialog-delete-card) sets `.preview`/`.editMode`
+        // directly as properties on the card element it wraps — a signal from HA
+        // itself, checked first since it's more reliable than DOM-ancestor sniffing,
+        // and safe here since the dashboard case (the other place these properties
+        // get set) was already ruled out above. The ancestor check here used to
+        // also match a `hui-card-preview` tag, which no longer exists in current HA
+        // (that wrapper is now plain `<hui-card preview>` — an attribute on
+        // `hui-card`, not a distinct element) — kept `hui-dialog-edit-card` as a
+        // fallback in case a future HA version wraps a card some other way without
+        // setting these properties.
+        const isInEditDialog = /** @type {any} */ (this).preview === true ||
+            /** @type {any} */ (this).editMode === true ||
+            this._checkForAncestor(['hui-dialog-edit-card']);
         if (isInEditDialog) {
             lcardsLog.debug('[LCARdSMSDCard] Card editor dialog detected - Tier 2: stats display mode');
             return 'editor';
-        }
-
-        // Dashboard (edit mode or view mode) - always allow full render
-        // Note: Do NOT call super._detectPreviewMode() as base class blocks dashboard edit mode
-        const dashboardEl = this.parentElement.closest('hui-root, ha-panel-lovelace');
-        if (dashboardEl) {
-            lcardsLog.debug('[LCARdSMSDCard] On dashboard - Tier 1: full render', {
-                editMode: /** @type {any} */ (dashboardEl).editMode
-            });
-            return false;
         }
 
         // Fallback: not in any recognized context, allow full render
