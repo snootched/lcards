@@ -1082,7 +1082,7 @@ export class MsdControlsRenderer {
   }
 
   positionControlElement(element, overlay, resolvedModel) {
-    const rawPosition = this.resolvePosition(overlay.position, resolvedModel);
+    const rawPosition = this.resolvePosition(overlay.position, resolvedModel, overlay.position_side || 'center');
     const size = this.resolveSize(overlay.size, resolvedModel);
 
     if (!rawPosition || !size) {
@@ -1132,6 +1132,12 @@ export class MsdControlsRenderer {
     if (svgContainer && foreignObject.parentNode !== svgContainer) {
       svgContainer.appendChild(foreignObject);
       lcardsLog.debug('[MSD Controls] Control positioned in SVG coordinates:', overlay.id, { position, size });
+    }
+
+    // Registered so AdvancedRenderer's final z-order pass can find and re-parent
+    // this element alongside lines (previously only lines were cached here).
+    if (this.renderer?.overlayElementCache) {
+      this.renderer.overlayElementCache.set(overlay.id, foreignObject);
     }
 
     // CRITICAL: Compute and register attachment points for line anchoring
@@ -1329,13 +1335,28 @@ export class MsdControlsRenderer {
   }
 
   // Helper methods for position and size resolution
-  resolvePosition(position, resolvedModel) {
+  resolvePosition(position, resolvedModel, positionSide = 'center') {
     // Use the OverlayUtils for consistency with other overlays
     lcardsLog.debug('[MSD Controls] Resolving position:', {
       position,
       anchorsAvailable: Object.keys(resolvedModel.anchors || {}),
       anchorsObject: resolvedModel.anchors
     });
+
+    // position_side: when position references another control and a non-center
+    // side is requested, resolve via the attachment-point registry directly. The
+    // flat anchors object (resolvedModel.anchors) only gets `${id}.${side}` virtual
+    // keys populated in bulk after all Phase-2a controls finish positioning, so it
+    // can't be relied on here — attachmentManager is updated synchronously as each
+    // control is positioned, so an earlier-processed target is already available.
+    if (typeof position === 'string' && positionSide && positionSide !== 'center' && this.renderer?.attachmentManager) {
+      const sidePoint = this.renderer.attachmentManager.getAttachmentPoint(position, positionSide);
+      if (sidePoint) {
+        lcardsLog.debug('[MSD Controls] Position resolved via attachment point side:', { position, positionSide, sidePoint });
+        return [sidePoint[0], sidePoint[1]];
+      }
+      lcardsLog.warn('[MSD Controls] position_side target not yet available (declare the target control earlier, or it has no attachment points) — falling back to standard resolution:', { position, positionSide });
+    }
 
     const resolved = OverlayUtils.resolvePosition(position, resolvedModel.anchors || {});
     if (resolved) {

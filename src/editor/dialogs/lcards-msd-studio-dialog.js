@@ -29,9 +29,12 @@
 
 import { LitElement, html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
 import { OverlayUtils } from '../../msd/renderer/OverlayUtils.js';
+import { RouterCore } from '../../msd/routing/RouterCore.js';
+import { LineOverlay } from '../../msd/overlays/LineOverlay.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
 import '../components/editors/lcards-color-section.js';
@@ -39,6 +42,8 @@ import '../components/editors/lcards-position-picker.js';
 import '../components/lcards-msd-live-preview.js';
 import '../components/lcards-animation-editor.js';
 import '../components/lcards-filter-editor.js';
+import '../components/lcards-background-animation-editor.js';
+import '../components/editors/lcards-color-section-v2.js';
 import '../components/yaml/lcards-yaml-editor.js';
 import '../components/lcards-card-picker-wrapper.js';
 import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
@@ -51,10 +56,11 @@ import { select } from 'd3-selection';
 import { getPreviewCoordinatesFromMouseEvent, snapToGrid } from './msd-studio/msd-coordinate-utils.js';
 import { getBaseSvgAnchors, resolveControlPosition, resolvePositionWithSide } from './msd-studio/msd-anchor-utils.js';
 import { msdStudioStyles } from './msd-studio/msd-studio-styles.js';
+import { studioDialogStyles } from './studio-dialog-styles.js';
+import { studioSubformDialogStyles } from './studio-subform-dialog-styles.js';
 
 // Native HA Card Picker & Editor Integration
 import { MSDCardPickerManager } from './msd-studio/msd-card-picker-manager.js';
-import { MSDCardEditorLauncher } from './msd-studio/msd-card-editor-launcher.js';
 import { MSDEventInterceptor } from './msd-studio/msd-event-interceptor.js';
 
 // Mode constants
@@ -118,6 +124,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _showRoutingPaths: { type: Boolean, state: true },  // Show all line routing paths
             _showRoutingChannels: { type: Boolean, state: true },  // Show all routing channel areas
             _showAttachmentPoints: { type: Boolean, state: true },  // Show 9-point attachment grid
+            _baseSvgPreviewDimmed: { type: Boolean, state: true },  // Editor-only: dim base SVG in live preview (never saved)
             // Controls Tab Properties
             _showControlForm: { type: Boolean, state: true },
             _editingControlId: { type: String, state: true },
@@ -125,7 +132,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _controlFormPosition: { type: Array, state: true },
             _controlFormSize: { type: Array, state: true },
             _controlFormAttachment: { type: String, state: true },
+            _controlFormPositionSide: { type: String, state: true },
             _controlFormObstacle: { type: Boolean, state: true },
+            _controlFormZIndex: { type: Number, state: true },
             _controlFormCard: { type: Object, state: true },
             _controlFormActiveSubtab: { type: String, state: true }, // 'placement' or 'card'
             // Lines Tab Properties
@@ -229,6 +238,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._showBoundingBoxes = false;
         this._showRoutingPaths = false;
         this._showRoutingChannels = false;  // Hidden by default, use Routing Channels toggle
+        this._baseSvgPreviewDimmed = false;  // Editor-only preview convenience, never saved to config
 
         // Preview Zoom State
         this._previewZoom = 1.0;
@@ -250,7 +260,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPosition = [0, 0];
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
+        this._controlFormPositionSide = 'center';
         this._controlFormObstacle = false;
+        this._controlFormZIndex = null;
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
 
@@ -347,7 +359,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Native HA Card Picker & Editor Managers
         this._cardPickerManager = null;
-        this._editorLauncher = null;
         this._eventInterceptor = null;
         this._activeChildEditors = new Set();
 
@@ -390,7 +401,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Initialize Native HA Card Picker & Editor Managers
         this._cardPickerManager = new MSDCardPickerManager(this);
-        this._editorLauncher = new MSDCardEditorLauncher(this);
         this._eventInterceptor = new MSDEventInterceptor(this);
 
         // Setup event interception
@@ -452,7 +462,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Cleanup Native HA Card Picker & Editor Managers
         this._eventInterceptor?.cleanupEventInterception();
         this._cardPickerManager?.cleanup();
-        this._editorLauncher?.cleanup();
 
         // Remove keyboard event listener
         if (this._boundKeyDownHandler) {
@@ -466,6 +475,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (this._boundCardPickerResultHandler) {
             document.removeEventListener('card-picker-result', this._boundCardPickerResultHandler);
         }
+
+        this._baseSvgDimObserver?.disconnect();
+        this._baseSvgDimObserver = null;
     }
 
     /**
@@ -497,7 +509,41 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // Wait for the preview to re-render with new config
             requestAnimationFrame(() => {
                 this._reinitializeZoomIfNeeded();
+                this._applyBaseSvgPreviewDimming();
             });
+        }
+    }
+
+    /**
+     * Editor-only convenience: dim the base SVG in the live preview so lines/controls
+     * are easier to see while editing. Never written to config — applied directly to
+     * the embedded preview card's DOM, same element PipelineCore locates for filters.
+     *
+     * lcards-msd-live-preview._updatePreviewCard() fully destroys and recreates the
+     * <lcards-msd-card> element on every config AND every hass update (not just
+     * base_svg changes), which would silently wipe out a one-time style change — so
+     * this both retries (the card's SVG mounts asynchronously after creation) and
+     * sets up a MutationObserver to reapply whenever the card element is replaced.
+     * @param {number} [retriesLeft] - Remaining attempts while waiting for the SVG to mount
+     * @private
+     */
+    _applyBaseSvgPreviewDimming(retriesLeft = 10) {
+        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
+        const container = livePreview?.shadowRoot?.querySelector('.preview-card-container');
+        const msdCard = container?.querySelector('lcards-msd-card');
+        const baseContent = (msdCard?.shadowRoot || msdCard?.renderRoot)?.querySelector('#__msd-base-content');
+
+        if (baseContent) {
+            baseContent.style.opacity = this._baseSvgPreviewDimmed ? '0.15' : '';
+        } else if (retriesLeft > 0) {
+            setTimeout(() => this._applyBaseSvgPreviewDimming(retriesLeft - 1), 200);
+        }
+
+        if (container && !this._baseSvgDimObserver) {
+            this._baseSvgDimObserver = new MutationObserver(() => {
+                requestAnimationFrame(() => this._applyBaseSvgPreviewDimming());
+            });
+            this._baseSvgDimObserver.observe(container, { childList: true });
         }
     }
 
@@ -745,7 +791,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     static get styles() {
-        return [editorStyles, msdStudioStyles];
+        // Order matters: msdStudioStyles must come after studioDialogStyles so
+        // its intentional overrides (33.3/66.6 split, .preview-panel overflow,
+        // tab-group spacing, zoom-controls tint) win the cascade.
+        return [editorStyles, studioDialogStyles, msdStudioStyles, studioSubformDialogStyles];
     }
 
     /**
@@ -1799,6 +1848,38 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </lcards-form-section>
 
+                <!-- Visibility Section -->
+                <lcards-form-section
+                    header="Visibility"
+                    description="Control whether the base SVG is shown as the visual background"
+                    icon="mdi:eye-outline"
+                    ?expanded=${false}>
+                    <ha-formfield .label=${'Render base SVG as visible background'} style="display: block;">
+                        <ha-switch
+                            .checked=${baseSvg.render_visual !== false}
+                            @change=${(e) => {
+                                this._setNestedValue('msd.base_svg.render_visual', e.target.checked);
+                            }}>
+                        </ha-switch>
+                    </ha-formfield>
+                    <div style="font-size: 13px; color: var(--secondary-text-color); margin-top: 8px;">
+                        Turn off to use a Background Layer (below) as the visual background instead — the SVG is still parsed for anchors either way.
+                    </div>
+
+                    <ha-formfield .label=${'Dim base SVG in this preview (not saved)'} style="display: block; margin-top: 16px;">
+                        <ha-switch
+                            .checked=${this._baseSvgPreviewDimmed === true}
+                            @change=${(e) => {
+                                this._baseSvgPreviewDimmed = e.target.checked;
+                                this._applyBaseSvgPreviewDimming();
+                            }}>
+                        </ha-switch>
+                    </ha-formfield>
+                    <div style="font-size: 13px; color: var(--secondary-text-color); margin-top: 8px;">
+                        Editor convenience only — makes lines/controls easier to see while working here. Never affects the saved config or the live card.
+                    </div>
+                </lcards-form-section>
+
                 <!-- ViewBox Section -->
                 <lcards-form-section
                     header="ViewBox"
@@ -1859,6 +1940,23 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .filters=${baseSvg.filters || []}
                         @filters-changed=${this._handleFiltersChanged}>
                     </lcards-filter-editor>
+
+                </lcards-form-section>
+
+                <!-- Background Layers Section -->
+                <lcards-form-section
+                    header="Background Layers"
+                    description="Animated or static-image backgrounds (grids, starfields, images, etc.) — same layer system used by buttons/elbows"
+                    icon="mdi:layers-triple-outline"
+                    ?expanded=${false}>
+
+                    <lcards-background-animation-editor
+                        .hass=${this.hass}
+                        .config=${this._workingConfig.msd?.background_animation ?? []}
+                        @effects-changed=${(e) => {
+                            this._setNestedValue('msd.background_animation', e.detail.value);
+                        }}>
+                    </lcards-background-animation-editor>
 
                 </lcards-form-section>
             </div>
@@ -2641,7 +2739,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPosition = [coords.x, coords.y];
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
+        this._controlFormPositionSide = 'center';
         this._controlFormObstacle = false;
+        this._controlFormZIndex = null;
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
@@ -2687,19 +2787,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
         let currentPosition;
         if (control.position && Array.isArray(control.position)) {
             currentPosition = [...control.position];
-        } else if (typeof control.position === 'string') {
-            // Position is an anchor reference (string)
-            currentPosition = OverlayUtils.resolvePosition(control.position, anchors);
+        } else if (control.position || control.anchor) {
+            // Position/anchor is a string reference — named anchor or another control's id.
+            currentPosition = this._resolveEditorControlPosition(control, anchors);
             if (!currentPosition) {
-                lcardsLog.warn('[MSDStudio] Could not resolve anchor position for drag:', control.position);
-                return;
-            }
-            currentPosition = [...currentPosition];
-        } else if (control.anchor) {
-            // Legacy: anchor property
-            currentPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
-            if (!currentPosition) {
-                lcardsLog.warn('[MSDStudio] Could not resolve legacy anchor position for drag');
+                lcardsLog.warn('[MSDStudio] Could not resolve position for drag:', control.position || control.anchor);
                 return;
             }
             currentPosition = [...currentPosition];
@@ -2926,19 +3018,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
         let currentPosition;
         if (control.position && Array.isArray(control.position)) {
             currentPosition = [...control.position];
-        } else if (typeof control.position === 'string') {
-            // Position is an anchor reference (string)
-            currentPosition = OverlayUtils.resolvePosition(control.position, anchors);
+        } else if (control.position || control.anchor) {
+            // Position/anchor is a string reference — named anchor or another control's id.
+            currentPosition = this._resolveEditorControlPosition(control, anchors);
             if (!currentPosition) {
-                lcardsLog.warn('[MSDStudio] Could not resolve anchor position for resize:', control.position);
-                return;
-            }
-            currentPosition = [...currentPosition];
-        } else if (control.anchor) {
-            // Legacy: anchor property
-            currentPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
-            if (!currentPosition) {
-                lcardsLog.warn('[MSDStudio] Could not resolve legacy anchor position for resize');
+                lcardsLog.warn('[MSDStudio] Could not resolve position for resize:', control.position || control.anchor);
                 return;
             }
             currentPosition = [...currentPosition];
@@ -4536,27 +4620,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // @ts-ignore - TS2322: auto-suppressed
         if (!msdCard) return '';
 
-        // Resolve position - handle anchor-based positioning (string reference)
+        // Resolve position - handle anchor-based positioning (string reference),
+        // including control-to-control positioning (position_side).
         // @ts-ignore - TS2339: auto-suppressed
         const highlightAnchors = msdCard._msdPipeline?.getResolvedModel()?.anchors || {};
-        let resolvedPosition;
-        if (Array.isArray(control.position)) {
-            resolvedPosition = control.position;
-        } else if (typeof control.position === 'string') {
-            resolvedPosition = highlightAnchors[control.position];
-            if (!resolvedPosition) {
-                lcardsLog.warn(`⚠️ [MSD Studio] Anchor '${control.position}' not found in resolved model`);
-                // @ts-ignore - TS2322: auto-suppressed
-                return '';
-            }
-        } else if (control.anchor) {
-            resolvedPosition = highlightAnchors[control.anchor];
-            if (!resolvedPosition) {
-                lcardsLog.warn(`⚠️ [MSD Studio] Anchor '${control.anchor}' not found in resolved model`);
-                // @ts-ignore - TS2322: auto-suppressed
-                return '';
-            }
-        } else {
+        const resolvedPosition = this._resolveEditorControlPosition(control, highlightAnchors);
+        if (!resolvedPosition) {
+            lcardsLog.warn(`⚠️ [MSD Studio] Could not resolve position for control '${control.id}'`);
             // @ts-ignore - TS2322: auto-suppressed
             return '';
         }
@@ -4724,7 +4794,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const overlays = this._workingConfig.msd?.overlays || [];
             const overlay = overlays.find(o => o.id === line.anchor);
             if (overlay) {
-                startPos = OverlayUtils.resolvePosition(overlay.position || overlay.anchor, allAnchors);
+                startPos = this._resolveEditorControlPosition(overlay, allAnchors);
             }
         }
 
@@ -4734,7 +4804,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const overlays = this._workingConfig.msd?.overlays || [];
             const overlay = overlays.find(o => o.id === line.attach_to);
             if (overlay) {
-                endPos = OverlayUtils.resolvePosition(overlay.position || overlay.anchor, allAnchors);
+                endPos = this._resolveEditorControlPosition(overlay, allAnchors);
             }
         }
 
@@ -5283,27 +5353,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 z-index: 1000;
             ">
                 ${controls.map(control => {
-                    // Resolve position for both anchored and explicitly positioned controls
-                    let resolvedPosition;
-                    if (control.position && Array.isArray(control.position)) {
-                        // Explicitly positioned with coordinates
-                        resolvedPosition = control.position;
-                    } else if (typeof control.position === 'string') {
-                        // Positioned with anchor reference (string)
-                        resolvedPosition = OverlayUtils.resolvePosition(control.position, anchors);
-                        if (!resolvedPosition) {
-                            lcardsLog.warn('[MSDStudio] Failed to resolve anchor position:', control.position, control.id);
-                            return '';
-                        }
-                    } else if (control.anchor) {
-                        // Legacy: Anchored to a named anchor
-                        resolvedPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
-                        if (!resolvedPosition) {
-                            lcardsLog.warn('[MSDStudio] Failed to resolve legacy anchor:', control.anchor, control.id);
-                            return '';
-                        }
-                    } else {
+                    // Resolve position for both anchored and explicitly positioned controls,
+                    // including control-to-control positioning (position_side).
+                    if (!control.position && !control.anchor) {
                         lcardsLog.warn('[MSDStudio] Control has no valid position:', control.id);
+                        return '';
+                    }
+                    const resolvedPosition = this._resolveEditorControlPosition(control, anchors);
+                    if (!resolvedPosition) {
+                        lcardsLog.warn('[MSDStudio] Failed to resolve position:', control.position || control.anchor, control.id);
                         return '';
                     }
 
@@ -5501,7 +5559,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     const pixelEndX = (rect.left - panelRect.left) + svgEndX;
                     const pixelEndY = (rect.top - panelRect.top) + svgEndY;
 
-                    const color = line.style?.color || '#00FFAA';
+                    const rawLineColor = line.style?.color;
+                    const color = (typeof rawLineColor === 'object' && rawLineColor !== null)
+                        ? (rawLineColor.default || rawLineColor.active || Object.values(rawLineColor)[0] || '#00FFAA')
+                        : (rawLineColor || '#00FFAA');
                     const length = Math.sqrt(Math.pow(pixelEndX - pixelStartX, 2) + Math.pow(pixelEndY - pixelStartY, 2));
                     const angle = Math.atan2(pixelEndY - pixelStartY, pixelEndX - pixelStartX) * 180 / Math.PI;
 
@@ -6656,26 +6717,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
             `;
         });
 
+        // While a control's edit form is open, highlight its own configured attachment
+        // point (live form value, so it updates as the user picks a new one), and — if
+        // its position references another control (position_side) — highlight that
+        // point on the target control too, so both ends of the attachment are visible.
+        const editingPositionTargetId = (this._showControlForm && typeof this._controlFormPosition === 'string')
+            ? this._controlFormPosition
+            : null;
+        const editingPositionTargetSide = this._controlFormPositionSide || 'center';
+
         // Render attachment points for controls (rectangles with corners and edges)
         const controlElements = controls.map((control, index) => {
-            // Resolve position: [x,y] array, named anchor string (position: or anchor:), or none
-            let resolvedPosition;
-            if (control.position && Array.isArray(control.position)) {
-                resolvedPosition = control.position;
-            } else if (typeof control.position === 'string') {
-                resolvedPosition = OverlayUtils.resolvePosition(control.position, anchors);
-                if (!resolvedPosition) {
-                    lcardsLog.warn('[MSDStudio] Failed to resolve position anchor for control:', control.id, control.position);
-                    return '';
-                }
-            } else if (control.anchor) {
-                resolvedPosition = OverlayUtils.resolvePosition(control.anchor, anchors);
-                if (!resolvedPosition) {
-                    lcardsLog.warn('[MSDStudio] Failed to resolve anchor for control:', control.id, control.anchor);
-                    return '';
-                }
-            } else {
+            // Resolve position: [x,y] array, named anchor string, or another control's
+            // id (optionally with position_side) — see _resolveEditorControlPosition.
+            if (!control.position && !control.anchor) {
                 lcardsLog.warn('[MSDStudio] Control has neither position nor anchor:', control.id);
+                return '';
+            }
+            const resolvedPosition = this._resolveEditorControlPosition(control, anchors);
+            if (!resolvedPosition) {
+                lcardsLog.warn('[MSDStudio] Failed to resolve position for control:', control.id, control.position || control.anchor);
                 return '';
             }
 
@@ -6716,6 +6777,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const pixelWidth = bottomRight.x - topLeft.x;
             const pixelHeight = bottomRight.y - topLeft.y;
 
+            // Configured attachment point for this control: live form value while its
+            // own edit form is open, otherwise its saved config value.
+            const configuredAttachment = (this._showControlForm && this._editingControlId === control.id)
+                ? (this._controlFormAttachment || 'center')
+                : (control.attachment || 'center');
+
             // Use 9-point grid for controls
             return controlAttachmentPoints.map(point => {
                 const px = centerX + (point.dx * pixelWidth / 2);
@@ -6724,6 +6791,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 const isSource = this._connectLineState.source?.type === 'control' &&
                                 this._connectLineState.source?.id === control.id &&
                                 this._connectLineState.source?.point === point.name;
+                const isPositionTarget = editingPositionTargetId === control.id && point.name === editingPositionTargetSide;
+                const isOwnConfigured = point.name === configuredAttachment;
+
+                let background = '#FF9900', border = '#F57C00', outline = 'none';
+                let boxShadow = '0 0 8px rgba(255, 153, 0, 0.6)';
+                if (isSource) {
+                    background = '#2196F3'; border = '#1976D2';
+                    boxShadow = '0 0 8px rgba(33, 150, 243, 0.8)';
+                } else if (isPositionTarget) {
+                    background = '#E040FB'; border = '#AA00FF';
+                    boxShadow = '0 0 8px rgba(224, 64, 251, 0.8)';
+                } else if (isOwnConfigured) {
+                    outline = '2px solid #FFFFFF';
+                    boxShadow = '0 0 8px rgba(255, 153, 0, 0.6), 0 0 0 4px rgba(255, 255, 255, 0.35)';
+                }
 
                 return html`
                     <div
@@ -6739,11 +6821,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             transform: translate(-50%, -50%);
                             width: 12px;
                             height: 12px;
-                            background: ${isSource ? '#2196F3' : '#FF9900'};
-                            border: 2px solid ${isSource ? '#1976D2' : '#F57C00'};
+                            background: ${background};
+                            border: 2px solid ${border};
+                            outline: ${outline};
+                            outline-offset: 2px;
                             border-radius: 50%;
                             cursor: pointer;
-                            box-shadow: 0 0 8px ${isSource ? 'rgba(33, 150, 243, 0.8)' : 'rgba(255, 153, 0, 0.6)'};
+                            box-shadow: ${boxShadow};
                             transition: all 0.2s;
                             pointer-events: auto;
                             z-index: 1000;
@@ -6969,6 +7053,59 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Resolve a control's anchor point for editor-preview purposes (attachment-point
+     * overlay, highlight box), including control-to-control positioning (position
+     * referencing another control's id, optionally with position_side) — the
+     * flat `anchors` lookup alone only covers named/base-SVG anchors and coordinates.
+     * One level of control-to-control recursion is supported, matching the runtime
+     * resolver in MsdControlsRenderer; a `visited` guard prevents infinite recursion
+     * on a cyclic config.
+     * @param {Object} control - Control overlay to resolve
+     * @param {Object} anchors - Merged named/base-SVG anchors { name: [x,y] }
+     * @param {Set} [visited] - Control ids already visited (cycle guard)
+     * @returns {Array|null} [x, y] or null if unresolvable
+     * @private
+     */
+    _resolveEditorControlPosition(control, anchors, visited = new Set()) {
+        const position = control.position ?? control.anchor;
+        if (Array.isArray(position)) return position;
+        if (typeof position !== 'string') return null;
+        if (anchors && anchors[position]) return anchors[position];
+
+        if (visited.has(control.id)) return null;
+        visited.add(control.id);
+
+        const target = this._getControlOverlays().find(o => o.id === position);
+        if (!target) return null;
+
+        const targetPos = this._resolveEditorControlPosition(target, anchors, visited);
+        if (!targetPos) return null;
+
+        const [tw, th] = target.size || [100, 100];
+        const attachOffsetMap = {
+            'top-left': [0, 0], 'top': [-tw / 2, 0], 'top-right': [-tw, 0],
+            'left': [0, -th / 2], 'center': [-tw / 2, -th / 2], 'right': [-tw, -th / 2],
+            'bottom-left': [0, -th], 'bottom': [-tw / 2, -th], 'bottom-right': [-tw, -th]
+        };
+        const attachOffset = attachOffsetMap[target.attachment || 'center'] || attachOffsetMap['top-left'];
+        const boxX = targetPos[0] + attachOffset[0];
+        const boxY = targetPos[1] + attachOffset[1];
+
+        const sidePoints = {
+            center: [boxX + tw / 2, boxY + th / 2],
+            top: [boxX + tw / 2, boxY],
+            bottom: [boxX + tw / 2, boxY + th],
+            left: [boxX, boxY + th / 2],
+            right: [boxX + tw, boxY + th / 2],
+            'top-left': [boxX, boxY],
+            'top-right': [boxX + tw, boxY],
+            'bottom-left': [boxX, boxY + th],
+            'bottom-right': [boxX + tw, boxY + th]
+        };
+        return sidePoints[control.position_side || 'center'] || sidePoints.center;
+    }
+
+    /**
      * Get routing mode information including description and diagram
      * @param {string} mode - Routing mode (auto, direct, manhattan, grid, smart)
      * @returns {Object} Info object with title, description, icon, diagram
@@ -7133,6 +7270,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             .path=${'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z'}>
                         </ha-icon-button>
                         <ha-icon-button
+                            @click=${() => this._duplicateControl(control)}
+                            .label=${'Duplicate'}
+                            .path=${'M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z'}>
+                        </ha-icon-button>
+                        <ha-icon-button
                             @click=${() => this._highlightControlInPreview(control)}
                             .label=${'Highlight'}
                             .path=${'M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9M12,4.5C17,4.5 21.27,7.61 23,12C21.27,16.39 17,19.5 12,19.5C7,19.5 2.73,16.39 1,12C2.73,7.61 7,4.5 12,4.5M3.18,12C4.83,15.36 8.24,17.5 12,17.5C15.76,17.5 19.17,15.36 20.82,12C19.17,8.64 15.76,6.5 12,6.5C8.24,6.5 4.83,8.64 3.18,12Z'}>
@@ -7195,7 +7337,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPosition = [0, 0];
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
+        this._controlFormPositionSide = 'center';
         this._controlFormObstacle = false;
+        this._controlFormZIndex = null;
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
@@ -7214,12 +7358,33 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPosition = control.position || control.anchor || [0, 0];
         this._controlFormSize = control.size || [100, 100];
         this._controlFormAttachment = control.attachment || 'center';
+        this._controlFormPositionSide = control.position_side || 'center';
         this._controlFormObstacle = control.obstacle === true;
+        this._controlFormZIndex = control.z_index ?? null;
         this._controlFormCard = control.card || { type: '' };
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
 
         this.requestUpdate();
+    }
+
+    /**
+     * Duplicate control: clone it with a fresh unique ID and open it for editing.
+     * @param {Object} control - Control to duplicate
+     * @private
+     */
+    _duplicateControl(control) {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        let controlNum = overlays.filter(o => o.type === 'control').length + 1;
+        let newId = `control_${controlNum}`;
+        while (overlays.find(o => o.id === newId)) {
+            controlNum++;
+            newId = `control_${controlNum}`;
+        }
+
+        const cloned = { ...JSON.parse(JSON.stringify(control)), id: newId };
+        this._setNestedValue('msd.overlays', [...overlays, cloned]);
+        this._editControl(cloned);
     }
 
     /**
@@ -7285,11 +7450,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
             size: this._controlFormSize,
             attachment: this._controlFormAttachment,
             obstacle: this._controlFormObstacle || undefined,
+            z_index: this._controlFormZIndex ?? undefined,
             card: this._controlFormCard
         };
 
-        // Add or update
-        const existingIndex = overlays.findIndex(o => o.id === this._controlFormId);
+        // position_side only applies when position references another control's id
+        // (not a named anchor/coordinates), and only needs saving when non-default.
+        const positionTargetIsControl = typeof this._controlFormPosition === 'string' &&
+            overlays.some(o => o.type === 'control' && o.id === this._controlFormPosition);
+        if (positionTargetIsControl && this._controlFormPositionSide && this._controlFormPositionSide !== 'center') {
+            controlOverlay.position_side = this._controlFormPositionSide;
+        }
+
+        // Look up the entry by the stable editing id (immune to in-progress ID renames),
+        // not the mutable form field — otherwise renaming while editing creates a duplicate
+        // instead of updating the original (see _saveAnchor for the equivalent correct pattern).
+        const existingIndex = this._editingControlId
+            ? overlays.findIndex(o => o.id === this._editingControlId)
+            : -1;
         if (existingIndex >= 0) {
             overlays[existingIndex] = controlOverlay;
         } else {
@@ -7326,23 +7504,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Generate unique control ID
-     * @returns {string}
-     * @private
-     */
-    // @ts-ignore - TS2393: auto-suppressed
-    _generateControlId() {
-        const overlays = this._workingConfig.msd?.overlays || [];
-        let controlNum = overlays.filter(o => o.type === 'control').length + 1;
-        let controlId = `control_${controlNum}`;
-        while (overlays.find(o => o.id === controlId)) {
-            controlNum++;
-            controlId = `control_${controlNum}`;
-        }
-        return controlId;
-    }
-
-    /**
      * Render control form dialog.
      * @returns {TemplateResult}
      * @private
@@ -7354,24 +7515,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <ha-dialog
+                class="subform-dialog"
                 open
                 @closed=${(e) => { e.stopPropagation(); this._closeControlForm(); }}
                 .headerTitle=${title}
-                style="--ha-dialog-width-md: 80vw;">
+                prevent-scrim-close>
 
-                <!-- Two-Column Layout: Config (Left) + Preview (Right) -->
-                <div style="display: grid; grid-template-columns: 1fr 35vw; gap: 24px; padding: 16px;">
+                <!-- Split Layout: Config (Left) + Preview (Right), unified with the line-edit form's shell -->
+                <div class="subform-layout">
 
                     <!-- LEFT COLUMN: Configuration Panel -->
-                    <div class="config-panel">
+                    <div class="subform-config">
                         <!-- Subtabs -->
-                        <ha-tab-group @wa-tab-show=${this._handleControlFormTabChange} style="margin-bottom: 16px;">
+                        <ha-tab-group @wa-tab-show=${this._handleControlFormTabChange} class="subform-tabs">
                             <ha-tab-group-tab value="placement" ?active=${this._controlFormActiveSubtab === 'placement'}>Placement</ha-tab-group-tab>
                             <ha-tab-group-tab value="card" ?active=${this._controlFormActiveSubtab === 'card'}>Card</ha-tab-group-tab>
                         </ha-tab-group>
 
                         <!-- Subtab Content -->
-                        <div style="max-height: 70vh; overflow-y: auto;">
+                        <div class="subform-tab-content">
                             ${this._controlFormActiveSubtab === 'placement'
                                 ? this._renderControlFormPlacement()
                                 : this._renderControlFormCard()
@@ -7380,7 +7542,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
 
                     <!-- RIGHT COLUMN: Preview Panel (Sticky) -->
-                    <div class="preview-panel" style="position: sticky; top: 0; height: fit-content;">
+                    <div class="subform-preview sticky">
                         ${this._renderControlPreview()}
                     </div>
 
@@ -7412,9 +7574,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Get user-defined anchors
         const userAnchors = this._workingConfig.msd?.anchors || {};
 
-        // Get control IDs (for attaching to other controls)
+        // Get control IDs (for attaching to other controls) — exclude the control
+        // currently being edited so it can't be offered as an anchor for itself.
         const controlIds = (this._workingConfig.msd?.overlays || [])
-            .filter(o => o.type === 'control')
+            .filter(o => o.type === 'control' && o.id !== this._editingControlId)
             .map(o => o.id);
 
         // Merge all sources
@@ -7439,9 +7602,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         const useAnchor = typeof this._controlFormPosition === 'string';
         const selectedAnchor = useAnchor ? this._controlFormPosition : '';
+        const positionTargetIsControl = useAnchor &&
+            (this._workingConfig.msd?.overlays || []).some(o => o.type === 'control' && o.id === selectedAnchor);
 
         return html`
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="subform-field-stack">
                 <ha-input
                     label="Control ID"
                     .value=${this._controlFormId}
@@ -7460,6 +7625,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .hass=${this.hass}
                         .selector=${{
                             select: {
+                                mode: 'dropdown',
                                 options: anchorOptions
                             }
                         }}
@@ -7500,31 +7666,38 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     <!-- Attachment Point - defines where on control the position refers to -->
                     <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--divider-color);">
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{
-                                select: {
-                                    options: [
-                                        { value: 'top-left', label: 'Top Left' },
-                                        { value: 'top', label: 'Top Center' },
-                                        { value: 'top-right', label: 'Top Right' },
-                                        { value: 'left', label: 'Middle Left' },
-                                        { value: 'center', label: 'Center' },
-                                        { value: 'right', label: 'Middle Right' },
-                                        { value: 'bottom-left', label: 'Bottom Left' },
-                                        { value: 'bottom', label: 'Bottom Center' },
-                                        { value: 'bottom-right', label: 'Bottom Right' }
-                                    ]
-                                }
-                            }}
-                            .value=${this._controlFormAttachment}
+                        <lcards-position-picker
+                            .value=${this._controlFormAttachment || 'center'}
                             .label=${'Attachment Point'}
-                            @value-changed=${(e) => this._controlFormAttachment = e.detail.value}>
-                        </ha-selector>
-                        <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px;">
-                            Which point of the control the position refers to (e.g., 'center' means coordinates specify the control's center)
-                        </div>
+                            .helper=${"Which point of the control the position refers to (e.g., 'center' means coordinates specify the control's center)"}
+                            @value-changed=${(e) => {
+                                // lcards-position-picker emits long-form edge names
+                                // (top-center, center-left, ...); the schema stores
+                                // short-form (top, left, ...) — normalize on the way out.
+                                const edgeAliases = { 'top-center': 'top', 'bottom-center': 'bottom', 'center-left': 'left', 'center-right': 'right' };
+                                this._controlFormAttachment = edgeAliases[e.detail.value] || e.detail.value;
+                                this.requestUpdate();
+                            }}>
+                        </lcards-position-picker>
                     </div>
+
+                    ${positionTargetIsControl ? html`
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--divider-color);">
+                            <lcards-position-picker
+                                .value=${this._controlFormPositionSide || 'center'}
+                                .label=${'Target Attachment Point'}
+                                .helper=${`Which point of "${selectedAnchor}" to attach to (instead of its center)`}
+                                @value-changed=${(e) => {
+                                    // lcards-position-picker emits long-form edge names
+                                    // (top-center, center-left, ...); attachment points are
+                                    // keyed short-form (top, left, ...) — normalize on the way out.
+                                    const edgeAliases = { 'top-center': 'top', 'bottom-center': 'bottom', 'center-left': 'left', 'center-right': 'right' };
+                                    this._controlFormPositionSide = edgeAliases[e.detail.value] || e.detail.value;
+                                    this.requestUpdate();
+                                }}>
+                            </lcards-position-picker>
+                        </div>
+                    ` : ''}
                 </lcards-form-section>
 
                 <lcards-form-section
@@ -7568,9 +7741,27 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             }}>
                         </ha-switch>
                     </ha-formfield>
-                    <div style="font-size: 13px; color: var(--secondary-text-color); margin-top: 8px;">
+                    <div class="helper-text">
                         When enabled, lines with route: auto will avoid this control overlay
                     </div>
+                </lcards-form-section>
+
+                <lcards-form-section
+                    header="Stacking Order"
+                    description="Control paint order relative to other controls and lines"
+                    icon="mdi:layers-outline"
+                    ?expanded=${false}>
+                    <ha-input
+                        type="number"
+                        label="Z-Index"
+                        .value=${this._controlFormZIndex != null ? String(this._controlFormZIndex) : ''}
+                        @input=${(e) => {
+                            const raw = e.target.value;
+                            this._controlFormZIndex = raw === '' ? null : Number(raw);
+                            this.requestUpdate();
+                        }}
+                        helper-text="Higher values paint on top. Leave blank to use the default (200 — controls paint over lines).">
+                    </ha-input>
                 </lcards-form-section>
             </div>
         `;
@@ -7611,7 +7802,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         lcardsLog.trace('[MSDStudio] Rendering Tier 2 Card tab (dropdown mode), cardType:', cardType);
 
         return html`
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="subform-field-stack">
                 ${!cardType ? html`
                     <!-- Card Picker Button (opens in editor context) -->
                     <div style="padding: 16px; background: var(--card-background-color); border-radius: 8px; text-align: center;">
@@ -8824,7 +9015,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const sourceStr = this._formatConnectionPoint(line.source || line.anchor);
         const targetStr = this._formatConnectionPoint(line.target || line.attach_to);
         const routingMode = line.route || 'auto';
-        const strokeColor = line.style?.color || '#FF9900';
+        // style.color may be a state-color object (see _renderLineColorSection) —
+        // show a representative swatch rather than "[object Object]".
+        const rawStrokeColor = line.style?.color;
+        const strokeColor = (typeof rawStrokeColor === 'object' && rawStrokeColor !== null)
+            ? (rawStrokeColor.default || rawStrokeColor.active || Object.values(rawStrokeColor)[0] || '#FF9900')
+            : (rawStrokeColor || '#FF9900');
         const strokeWidth = line.style?.width || 2;
 
         // Determine actual strategy for auto mode
@@ -8891,6 +9087,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         @click=${() => this._editLine(line)}
                         .label=${'Edit'}
                         .path=${'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z'}>
+                    </ha-icon-button>
+                    <ha-icon-button
+                        @click=${() => this._duplicateLine(line)}
+                        .label=${'Duplicate'}
+                        .path=${'M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z'}>
                     </ha-icon-button>
                     <ha-icon-button
                         @click=${() => this._highlightLineInPreview(line)}
@@ -9991,6 +10192,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._editingLineId = null;
         this._lineFormData = {
             id: lineId,
+            entity: '',
+            state_attribute: '',
+            ranges_attribute: '',
             anchor: '',
             attach_to: '',
             anchor_side: 'center',
@@ -9998,10 +10202,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
             anchor_gap: 0,
             attach_gap: 0,
             route: 'auto',
+            z_index: null,
             // Advanced routing parameters (with defaults)
             clearance: undefined, // Will use MSD default
-            corner_style: 'miter',
-            corner_radius: 12,
+            corner_style: 'round',
+            corner_radius: 34,
+            corner_angle: 45,
             smoothing_mode: 'none',
             smoothing_iterations: 0,
             // Channel routing
@@ -10009,7 +10215,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             channel_mode: 'prefer',
             // Animation - handled via animations array
             style: {
-                color: 'var(--lcars-orange)',
+                // Always a state-color object (lcards-color-section-v2's shape) even with
+                // no entity bound — resolveStateColor() just falls through to 'default'
+                // when there's nothing to match against, so this needs no separate toggle.
+                color: { default: 'var(--lcars-orange)' },
                 width: 2,
                 dash_array: '',
                 marker_end: null
@@ -10030,8 +10239,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._editingLineId = line.id;
 
         // Parse using correct schema - include all routing parameters
+        // style.color may be a legacy plain string (pre-dating state-color support) —
+        // normalize to the state-color object shape lcards-color-section-v2 expects.
+        const rawColor = line.style?.color ?? line.style?.stroke;
+        const normalizedColor = (typeof rawColor === 'object' && rawColor !== null)
+            ? rawColor
+            : { default: rawColor || 'var(--lcars-orange)' };
+
         this._lineFormData = {
             id: line.id,
+            entity: line.entity || '',
+            state_attribute: line.state_attribute || '',
+            ranges_attribute: line.ranges_attribute || '',
             anchor: line.anchor || '',
             attach_to: line.attach_to || '',
             anchor_side: line.anchor_side || 'center',
@@ -10039,13 +10258,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
             anchor_gap: line.anchor_gap || 0,
             attach_gap: line.attach_gap || 0,
             route: line.route || 'auto',
+            z_index: line.z_index ?? null,
             // Advanced routing parameters
             clearance: line.clearance,
             route_hint: line.route_hint,
             route_hint_last: line.route_hint_last,
             waypoints: line.waypoints || [],
-            corner_style: line.corner_style || 'miter',
-            corner_radius: line.corner_radius || 12,
+            corner_style: line.corner_style || 'round',
+            corner_radius: line.corner_radius ?? 34,
+            corner_angle: line.corner_angle ?? 45,
             smoothing_mode: line.smoothing_mode || 'none',
             smoothing_iterations: line.smoothing_iterations || 0,
             // Channel routing
@@ -10054,7 +10275,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             animations: line.animations || [],
             // Style (load with backward compatibility for old property names)
             style: {
-                color: line.style?.color || line.style?.stroke || 'var(--lcars-orange)',
+                color: normalizedColor,
                 width: line.style?.width || line.style?.stroke_width || 2,
                 opacity: line.style?.opacity ?? 1,
                 dash_array: line.style?.dash_array || '',
@@ -10066,6 +10287,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._lineFormActiveSubtab = 'basic';
         this._showLineForm = true;
         this.requestUpdate();
+    }
+
+    /**
+     * Duplicate line: clone it with a fresh unique ID and open it for editing.
+     * @param {Object} line - Line to duplicate
+     * @private
+     */
+    _duplicateLine(line) {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        let lineNum = overlays.filter(o => o.type === 'line').length + 1;
+        let newId = `line_${lineNum}`;
+        while (overlays.find(o => o.id === newId)) {
+            lineNum++;
+            newId = `line_${lineNum}`;
+        }
+
+        const cloned = { ...JSON.parse(JSON.stringify(line)), id: newId };
+        this._setNestedValue('msd.overlays', [...overlays, cloned]);
+        this._editLine(cloned);
     }
 
     /**
@@ -10099,6 +10339,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
             route: this._lineFormData.route || 'auto'
         };
 
+        if (this._lineFormData.z_index != null) {
+            lineOverlay.z_index = this._lineFormData.z_index;
+        }
+
+        if (this._lineFormData.entity) {
+            lineOverlay.entity = this._lineFormData.entity;
+        }
+        if (this._lineFormData.state_attribute) {
+            lineOverlay.state_attribute = this._lineFormData.state_attribute;
+        }
+        if (this._lineFormData.ranges_attribute) {
+            lineOverlay.ranges_attribute = this._lineFormData.ranges_attribute;
+        }
+
         // Attachment sides (always save if present)
         if (this._lineFormData.anchor_side) {
             lineOverlay.anchor_side = this._lineFormData.anchor_side;
@@ -10128,11 +10382,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (this._lineFormData.waypoints && this._lineFormData.waypoints.length > 0) {
             lineOverlay.waypoints = this._lineFormData.waypoints;
         }
-        if (this._lineFormData.corner_style && this._lineFormData.corner_style !== 'miter') {
+        if (this._lineFormData.corner_style && this._lineFormData.corner_style !== 'round') {
             lineOverlay.corner_style = this._lineFormData.corner_style;
         }
-        if (this._lineFormData.corner_radius != null && this._lineFormData.corner_radius !== 12) {
+        if (this._lineFormData.corner_radius != null && this._lineFormData.corner_radius !== 34) {
             lineOverlay.corner_radius = this._lineFormData.corner_radius;
+        }
+        if (this._lineFormData.corner_style === 'bevel' && this._lineFormData.corner_angle != null && this._lineFormData.corner_angle !== 45) {
+            lineOverlay.corner_angle = this._lineFormData.corner_angle;
         }
         if (this._lineFormData.smoothing_mode && this._lineFormData.smoothing_mode !== 'none') {
             lineOverlay.smoothing_mode = this._lineFormData.smoothing_mode;
@@ -10155,7 +10412,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             // Core stroke properties (always save if present)
             if (this._lineFormData.style.color != null) {
-                style.color = this._lineFormData.style.color;
+                const c = this._lineFormData.style.color;
+                // Simplify {default: X} with nothing else configured back to a plain
+                // string — keeps saved YAML clean for the common non-state-color case.
+                const keys = (typeof c === 'object' && c !== null) ? Object.keys(c) : null;
+                style.color = (keys && keys.length === 1 && keys[0] === 'default') ? c.default : c;
             }
             if (this._lineFormData.style.width != null) {
                 style.width = this._lineFormData.style.width;
@@ -10193,8 +10454,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._workingConfig.msd.overlays = [];
         }
 
+        // Look up the entry by the stable editing id (immune to in-progress ID renames),
+        // not the mutable form field — otherwise renaming while editing creates a duplicate
+        // instead of updating the original (see _saveAnchor for the equivalent correct pattern).
         // Preserve _editorSelected flag if it exists
-        const existingIndex = this._workingConfig.msd.overlays.findIndex(o => o.id === this._lineFormData.id);
+        const existingIndex = this._editingLineId
+            ? this._workingConfig.msd.overlays.findIndex(o => o.id === this._editingLineId)
+            : -1;
         if (existingIndex >= 0) {
             const existingOverlay = this._workingConfig.msd.overlays[existingIndex];
             if (existingOverlay._editorSelected) {
@@ -10472,19 +10738,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <ha-dialog
+                class="subform-dialog"
                 open
                 @closed=${(e) => { e.stopPropagation(); this._closeLineForm(); }}
                 .headerTitle=${title}
-                prevent-scrim-close
-                style="--ha-dialog-width-md: 90vw; --ha-dialog-min-height: 80vh; --ha-dialog-max-height: 80vh;">
+                prevent-scrim-close>
 
                 <!-- Split Layout: Content Left, Preview Right -->
-                <div style="display: grid; grid-template-columns: 70% 30%; height: 70vh; overflow: hidden;">
+                <div class="subform-layout">
 
                     <!-- Left Panel: Tabs and Content -->
-                    <div style="display: flex; flex-direction: column; overflow: hidden; border-right: 2px solid var(--divider-color);">
+                    <div class="subform-config">
                         <!-- Subtabs -->
-                        <ha-tab-group @wa-tab-show=${this._handleLineFormTabChange} style="padding: 0 16px; flex-shrink: 0;">
+                        <ha-tab-group @wa-tab-show=${this._handleLineFormTabChange} class="subform-tabs">
                             <ha-tab-group-tab value="basic" ?active=${this._lineFormActiveSubtab === 'basic'}>Basic</ha-tab-group-tab>
                             <ha-tab-group-tab value="style" ?active=${this._lineFormActiveSubtab === 'style'}>Style</ha-tab-group-tab>
                             <ha-tab-group-tab value="markers" ?active=${this._lineFormActiveSubtab === 'markers'}>Markers</ha-tab-group-tab>
@@ -10493,14 +10759,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ha-tab-group>
 
                         <!-- Scrollable Content -->
-                        <div style="padding: 16px; overflow-y: auto; flex: 1;">
+                        <div class="subform-tab-content">
                             ${this._renderLineFormTabContent()}
                         </div>
                     </div>
 
                     <!-- Right Panel: Vertical Line Preview -->
-                    <div style="display: flex; flex-direction: column; padding: 16px; background: var(--secondary-background-color); overflow: hidden;">
-                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--primary-text-color);">Live Preview</div>
+                    <div class="subform-preview padded">
+                        <div class="subform-preview-label">Live Preview</div>
                         ${this._renderLineStylePreviewVertical()}
                     </div>
                 </div>
@@ -10577,7 +10843,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const routingInfo = this._getRoutingModeInfo(this._lineFormData.route || 'auto');
 
         return html`
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="subform-field-stack">
                 <!-- Line ID -->
                 <ha-input
                     label="Line ID"
@@ -10600,44 +10866,45 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         class="connection-source"
                         ?expanded=${true}>
 
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{
-                                select: {
-                                    options: allSourceOptions
-                                }
-                            }}
-                            .value=${this._lineFormData.anchor}
-                            .label=${'Select Anchor or Overlay'}
-                            @value-changed=${(e) => {
-                                this._lineFormData.anchor = e.detail.value;
-                                this.requestUpdate();
-                            }}
-                            style="margin-top: 12px;">
-                        </ha-selector>
-
-                        <div style="display: grid; grid-template-columns: 1fr 120px; gap: 12px; margin-top: 12px; align-items: start;">
-                            <lcards-position-picker
-                                .value=${this._lineFormData.anchor_side || 'center'}
-                                .label=${'Anchor Side'}
-                                .helper=${'Select attachment point on the source'}
+                        <div class="subform-field-stack">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{
+                                    select: {
+                                        mode: 'dropdown',
+                                        options: allSourceOptions
+                                    }
+                                }}
+                                .value=${this._lineFormData.anchor}
+                                .label=${'Select Anchor or Overlay'}
                                 @value-changed=${(e) => {
-                                    this._lineFormData.anchor_side = e.detail.value;
+                                    this._lineFormData.anchor = e.detail.value;
                                     this.requestUpdate();
                                 }}>
-                            </lcards-position-picker>
+                            </ha-selector>
 
-                            <ha-input
-                                type="number"
-                                label="Gap (px)"
-                                .value=${String(this._lineFormData.anchor_gap || 0)}
-                                @input=${(e) => {
-                                    this._lineFormData.anchor_gap = Number(e.target.value);
-                                    this.requestUpdate();
-                                }}
-                                helper-text="Distance from point"
-                                style="width: 100%;">
-                            </ha-input>
+                            <div class="subform-row-aside">
+                                <lcards-position-picker
+                                    .value=${this._lineFormData.anchor_side || 'center'}
+                                    .label=${'Anchor Side'}
+                                    .helper=${'Select attachment point on the source'}
+                                    @value-changed=${(e) => {
+                                        this._lineFormData.anchor_side = e.detail.value;
+                                        this.requestUpdate();
+                                    }}>
+                                </lcards-position-picker>
+
+                                <ha-input
+                                    type="number"
+                                    label="Gap (px)"
+                                    .value=${String(this._lineFormData.anchor_gap || 0)}
+                                    @input=${(e) => {
+                                        this._lineFormData.anchor_gap = Number(e.target.value);
+                                        this.requestUpdate();
+                                    }}
+                                    helper-text="Distance from point">
+                                </ha-input>
+                            </div>
                         </div>
                     </lcards-form-section>
 
@@ -10654,44 +10921,45 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         class="connection-target"
                         ?expanded=${true}>
 
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{
-                                select: {
-                                    options: allSourceOptions
-                                }
-                            }}
-                            .value=${this._lineFormData.attach_to}
-                            .label=${'Select Anchor or Overlay'}
-                            @value-changed=${(e) => {
-                                this._lineFormData.attach_to = e.detail.value;
-                                this.requestUpdate();
-                            }}
-                            style="margin-top: 12px;">
-                        </ha-selector>
-
-                        <div style="display: grid; grid-template-columns: 1fr 120px; gap: 12px; margin-top: 12px; align-items: start;">
-                            <lcards-position-picker
-                                .value=${this._lineFormData.attach_side || 'center'}
-                                .label=${'Attach Side'}
-                                .helper=${'Select attachment point on the target'}
+                        <div class="subform-field-stack">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{
+                                    select: {
+                                        mode: 'dropdown',
+                                        options: allSourceOptions
+                                    }
+                                }}
+                                .value=${this._lineFormData.attach_to}
+                                .label=${'Select Anchor or Overlay'}
                                 @value-changed=${(e) => {
-                                    this._lineFormData.attach_side = e.detail.value;
+                                    this._lineFormData.attach_to = e.detail.value;
                                     this.requestUpdate();
                                 }}>
-                            </lcards-position-picker>
+                            </ha-selector>
 
-                            <ha-input
-                                type="number"
-                                label="Gap (px)"
-                                .value=${String(this._lineFormData.attach_gap || 0)}
-                                @input=${(e) => {
-                                    this._lineFormData.attach_gap = Number(e.target.value);
-                                    this.requestUpdate();
-                                }}
-                                helper-text="Distance from point"
-                                style="width: 100%;">
-                            </ha-input>
+                            <div class="subform-row-aside">
+                                <lcards-position-picker
+                                    .value=${this._lineFormData.attach_side || 'center'}
+                                    .label=${'Attach Side'}
+                                    .helper=${'Select attachment point on the target'}
+                                    @value-changed=${(e) => {
+                                        this._lineFormData.attach_side = e.detail.value;
+                                        this.requestUpdate();
+                                    }}>
+                                </lcards-position-picker>
+
+                                <ha-input
+                                    type="number"
+                                    label="Gap (px)"
+                                    .value=${String(this._lineFormData.attach_gap || 0)}
+                                    @input=${(e) => {
+                                        this._lineFormData.attach_gap = Number(e.target.value);
+                                        this.requestUpdate();
+                                    }}
+                                    helper-text="Distance from point">
+                                </ha-input>
+                            </div>
                         </div>
                     </lcards-form-section>
                 </div>
@@ -10734,7 +11002,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         return html`
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="subform-field-stack">
                 <!-- Routing Mode -->
                 <lcards-form-section
                     header="Routing Mode"
@@ -10762,36 +11030,32 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </ha-selector>
 
                     <!-- Info Panel -->
-                    <div style="margin-top: 12px; padding: 12px; background: var(--secondary-background-color); border-radius: 8px; display: flex; gap: 12px; align-items: start;">
-                        <ha-icon icon="${routeInfo.icon}" style="--mdc-icon-size: 24px; color: var(--primary-color); margin-top: 2px;"></ha-icon>
-                        <div style="flex: 1;">
-                            <div style="font-weight: 600; margin-bottom: 4px;">${routeInfo.title}</div>
-                            <div style="font-size: 13px; color: var(--secondary-text-color);">${routeInfo.description}</div>
+                    <lcards-message
+                        type="info"
+                        .title=${routeInfo.title}
+                        .message=${routeInfo.description}
+                        style="margin-top: 12px;">
+                    </lcards-message>
 
-                            ${routeMode === 'auto' ? html`
-                                <div style="margin-top: 12px; padding: 8px 12px; background: var(--primary-color); color: white; border-radius: 6px; font-size: 12px;">
-                                    <div style="font-weight: 600; margin-bottom: 2px;">
-                                        <ha-icon icon="mdi:information" style="--mdc-icon-size: 14px; margin-right: 4px;"></ha-icon>
-                                        Active Strategy: ${actualStrategy}
-                                    </div>
-                                    <div style="opacity: 0.9;">${strategyReason}</div>
-                                </div>
-                            ` : ''}
+                    ${routeMode === 'auto' ? html`
+                        <lcards-message
+                            type="tip"
+                            .title=${`Active Strategy: ${actualStrategy}`}
+                            .message=${strategyReason}>
+                        </lcards-message>
+                    ` : ''}
 
-                            ${routeMode === 'auto' || routeMode === 'direct' ? html`
-                                <ha-button
-                                    @click=${() => this._convertLineToManual(this._lineFormData.id)}
-                                    size="s"
-                                    style="margin-top: 12px;">
-                                    <ha-icon icon="mdi:content-save-edit" slot="start"></ha-icon>
-                                    Freeze to Manual Mode
-                                </ha-button>
-                                <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 4px;">
-                                    Convert current auto-routed path to manual waypoints
-                                </div>
-                            ` : ''}
+                    ${routeMode === 'auto' || routeMode === 'direct' ? html`
+                        <ha-button
+                            @click=${() => this._convertLineToManual(this._lineFormData.id)}
+                            size="s">
+                            <ha-icon icon="mdi:content-save-edit" slot="start"></ha-icon>
+                            Freeze to Manual Mode
+                        </ha-button>
+                        <div class="helper-text">
+                            Convert current auto-routed path to manual waypoints
                         </div>
-                    </div>
+                    ` : ''}
                 </lcards-form-section>
 
                 ${routeMode === 'auto' ? html`
@@ -11047,6 +11311,138 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <!-- Channel Routing (only for auto/direct modes) -->
                 ${routeMode !== 'manual' ? this._renderChannelRoutingOptions() : ''}
+
+                <lcards-form-section
+                    header="Stacking Order"
+                    description="Control paint order relative to other lines and controls"
+                    icon="mdi:layers-outline"
+                    ?expanded=${false}>
+                    <ha-input
+                        type="number"
+                        label="Z-Index"
+                        .value=${this._lineFormData.z_index != null ? String(this._lineFormData.z_index) : ''}
+                        @input=${(e) => {
+                            const raw = e.target.value;
+                            this._lineFormData.z_index = raw === '' ? null : Number(raw);
+                            this.requestUpdate();
+                        }}
+                        helper-text="Higher values paint on top. Leave blank to use the default (100 — lines paint under controls).">
+                    </ha-input>
+                </lcards-form-section>
+            </div>
+        `;
+    }
+
+    /**
+     * Adapter satisfying lcards-color-section-v2's `.editor` contract
+     * (`_getConfigValue`/`_setConfigValue` dot-path get/set over `.config`),
+     * backed by `this._lineFormData` instead of a real editor's `.config` —
+     * the MSD Studio dialog is a plain LitElement, not an LCARdSBaseEditor
+     * subclass, so the real base-editor methods aren't available here.
+     * @private
+     */
+    _getLineColorEditorAdapter() {
+        const dialog = this;
+        return {
+            hass: this.hass,
+            config: this._lineFormData,
+            _getConfigValue(path) {
+                return path.split('.').reduce((obj, key) => obj?.[key], dialog._lineFormData);
+            },
+            _setConfigValue(path, value) {
+                const keys = path.split('.');
+                const lastKey = keys.pop();
+                let target = dialog._lineFormData;
+                for (const key of keys) {
+                    if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+                    target = target[key];
+                }
+                target[lastKey] = value;
+                dialog.requestUpdate();
+            }
+        };
+    }
+
+    /**
+     * Render the line's color config: entity + state_attribute + ranges_attribute
+     * (mirrors the button card's pattern exactly, scoped per-line since MSD has no
+     * single bound entity), plus the same list-based state-color editor used
+     * elsewhere (lcards-color-section-v2 — supports custom states AND above:/below:/
+     * between: range conditions). No separate "enable state-color" toggle: the
+     * color is always the state-color object shape; with no entity bound,
+     * resolveStateColor() just falls through to 'default', so a plain single-color
+     * line is simply one bound to no entity with only a 'default' key set.
+     * Uses a real entity: {} selector — the dialog is now mounted inside
+     * <home-assistant>'s shadow root (see mountDialogNearHomeAssistant in
+     * lcards-msd-editor.js), so Lit @consume context resolves correctly.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderLineColorSection() {
+        const entityId = this._lineFormData.entity || '';
+        const attrOptions = entityId && this.hass?.states?.[entityId]
+            ? Object.keys(this.hass.states[entityId].attributes || {}).sort().map(attr => ({ value: attr, label: attr }))
+            : [];
+        const rangesAttrOptions = [...attrOptions];
+        const brightnessIdx = rangesAttrOptions.findIndex(o => o.value === 'brightness');
+        if (brightnessIdx >= 0) {
+            rangesAttrOptions.splice(brightnessIdx + 1, 0, { value: 'brightness_pct', label: 'brightness_pct  (auto 0–100%)' });
+        }
+
+        return html`
+            <div style="margin-bottom: 12px;">
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ entity: {} }}
+                    .value=${entityId}
+                    .label=${'Entity'}
+                    .helper=${"Bind this line's color to an entity's state (optional) — leave blank for a fixed color"}
+                    @value-changed=${(e) => {
+                        this._lineFormData.entity = e.detail.value || '';
+                        this.requestUpdate();
+                    }}
+                    style="display: block; margin-bottom: 12px;">
+                </ha-selector>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'State Attribute'}
+                        .helper=${'Match this attribute\'s value instead of raw entity state'}
+                        .disabled=${!entityId}
+                        .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '— Use entity state' }, ...attrOptions], custom_value: true } }}
+                        .value=${this._lineFormData.state_attribute || '__none__'}
+                        @value-changed=${(e) => {
+                            const v = (e.detail.value ?? '').trim();
+                            this._lineFormData.state_attribute = (v === '__none__' || !v) ? '' : v;
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Range Attribute'}
+                        .helper=${'Attribute compared against above:/below:/between: keys'}
+                        .disabled=${!entityId}
+                        .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '— Use entity state' }, ...rangesAttrOptions], custom_value: true } }}
+                        .value=${this._lineFormData.ranges_attribute || '__none__'}
+                        @value-changed=${(e) => {
+                            let v = (e.detail.value ?? '').trim();
+                            if (v === 'brightness') v = 'brightness_pct';
+                            this._lineFormData.ranges_attribute = (v === '__none__' || !v) ? '' : v;
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
+                </div>
+
+                <lcards-color-section-v2
+                    .editor=${this._getLineColorEditorAdapter()}
+                    .config=${this._lineFormData}
+                    .entityId=${entityId}
+                    basePath="style.color"
+                    header="Line Color"
+                    description="Fixed color, or add state/range keys to bind it to the entity above"
+                    ?expanded=${true}>
+                </lcards-color-section-v2>
             </div>
         `;
     }
@@ -11058,7 +11454,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _renderLineFormMarkers() {
         return html`
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="subform-field-stack">
+                <!-- Start/End Marker side-by-side (independent/parallel settings, see Phase 6.5) -->
+                <div class="subform-columns-2">
                 <lcards-form-section
                     header="Start Marker"
                     description="Marker at the beginning of the line"
@@ -11074,10 +11472,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     { value: 'arrow', label: 'Arrow' },
                                     { value: 'dot', label: 'Dot' },
                                     { value: 'diamond', label: 'Diamond' },
-                                    { value: 'square', label: 'Square' },
-                                    { value: 'triangle', label: 'Triangle' },
                                     { value: 'line', label: 'Line (Orthogonal)' },
-                                    { value: 'rect', label: 'Rectangle (Outlined)' }
+                                    { value: 'rect', label: 'Rectangle' }
                                 ]
                             }
                         }}
@@ -11120,6 +11516,51 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 this.requestUpdate();
                             }}>
                         </ha-input>
+
+                        ${this._lineFormData.style.marker_start.type === 'rect' ? html`
+                            <ha-formfield .label=${'Filled'} style="display: block; margin-top: 12px;">
+                                <ha-switch
+                                    .checked=${this._lineFormData.style.marker_start.filled === true}
+                                    @change=${(e) => {
+                                        this._lineFormData.style = {
+                                            ...this._lineFormData.style,
+                                            marker_start: { ...this._lineFormData.style.marker_start, filled: e.target.checked }
+                                        };
+                                        this.requestUpdate();
+                                    }}>
+                                </ha-switch>
+                            </ha-formfield>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                                <ha-input
+                                    type="number"
+                                    label="Width (pixels)"
+                                    .value=${String(this._lineFormData.style.marker_start.width ?? this._lineFormData.style.marker_start.size ?? 10)}
+                                    step="1"
+                                    min="1"
+                                    @input=${(e) => {
+                                        this._lineFormData.style = {
+                                            ...this._lineFormData.style,
+                                            marker_start: { ...this._lineFormData.style.marker_start, width: Number(e.target.value) || 10 }
+                                        };
+                                        this.requestUpdate();
+                                    }}>
+                                </ha-input>
+                                <ha-input
+                                    type="number"
+                                    label="Height (pixels)"
+                                    .value=${String(this._lineFormData.style.marker_start.height ?? this._lineFormData.style.marker_start.size ?? 10)}
+                                    step="1"
+                                    min="1"
+                                    @input=${(e) => {
+                                        this._lineFormData.style = {
+                                            ...this._lineFormData.style,
+                                            marker_start: { ...this._lineFormData.style.marker_start, height: Number(e.target.value) || 10 }
+                                        };
+                                        this.requestUpdate();
+                                    }}>
+                                </ha-input>
+                            </div>
+                        ` : ''}
 
                         <div style="margin-top: 12px;">
                             <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: var(--primary-text-color);">Fill Color</div>
@@ -11194,10 +11635,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     { value: 'arrow', label: 'Arrow' },
                                     { value: 'dot', label: 'Dot' },
                                     { value: 'diamond', label: 'Diamond' },
-                                    { value: 'square', label: 'Square' },
-                                    { value: 'triangle', label: 'Triangle' },
                                     { value: 'line', label: 'Line (Orthogonal)' },
-                                    { value: 'rect', label: 'Rectangle (Outlined)' }
+                                    { value: 'rect', label: 'Rectangle' }
                                 ]
                             }
                         }}
@@ -11237,6 +11676,51 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 this.requestUpdate();
                             }}>
                         </ha-input>
+
+                        ${this._lineFormData.style.marker_end.type === 'rect' ? html`
+                            <ha-formfield .label=${'Filled'} style="display: block; margin-top: 12px;">
+                                <ha-switch
+                                    .checked=${this._lineFormData.style.marker_end.filled === true}
+                                    @change=${(e) => {
+                                        this._lineFormData.style = {
+                                            ...this._lineFormData.style,
+                                            marker_end: { ...this._lineFormData.style.marker_end, filled: e.target.checked }
+                                        };
+                                        this.requestUpdate();
+                                    }}>
+                                </ha-switch>
+                            </ha-formfield>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                                <ha-input
+                                    type="number"
+                                    label="Width (pixels)"
+                                    .value=${String(this._lineFormData.style.marker_end.width ?? this._lineFormData.style.marker_end.size ?? 10)}
+                                    step="1"
+                                    min="1"
+                                    @input=${(e) => {
+                                        this._lineFormData.style = {
+                                            ...this._lineFormData.style,
+                                            marker_end: { ...this._lineFormData.style.marker_end, width: Number(e.target.value) || 10 }
+                                        };
+                                        this.requestUpdate();
+                                    }}>
+                                </ha-input>
+                                <ha-input
+                                    type="number"
+                                    label="Height (pixels)"
+                                    .value=${String(this._lineFormData.style.marker_end.height ?? this._lineFormData.style.marker_end.size ?? 10)}
+                                    step="1"
+                                    min="1"
+                                    @input=${(e) => {
+                                        this._lineFormData.style = {
+                                            ...this._lineFormData.style,
+                                            marker_end: { ...this._lineFormData.style.marker_end, height: Number(e.target.value) || 10 }
+                                        };
+                                        this.requestUpdate();
+                                    }}>
+                                </ha-input>
+                            </div>
+                        ` : ''}
 
                         <div style="margin-top: 12px;">
                             <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: var(--primary-text-color);">Fill Color</div>
@@ -11295,6 +11779,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
                     ` : ''}
                 </lcards-form-section>
+                </div>
             </div>
         `;
     }
@@ -11306,7 +11791,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _renderLineFormAnimation() {
         return html`
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="subform-field-stack">
                 <lcards-form-section
                     header="Line Animations"
                     description="Configure animations for this line"
@@ -11351,28 +11836,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
         ];
 
         return html`
-            <div style="display: flex; flex-direction: column; gap: 16px;">
-                <!-- Two Column Layout for Style Controls -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;">
+            <div class="subform-field-stack">
+                <!-- Color & Entity Binding (full width - pulled out of Line Style so the two
+                     columns below stay balanced in height; see Phase 6.5) -->
+                <lcards-form-section
+                    header="Color"
+                    description="Entity/state binding and color"
+                    icon="mdi:palette"
+                    ?expanded=${true}>
+                    ${this._renderLineColorSection()}
+                </lcards-form-section>
 
-                    <!-- Left Column: Color, Width, Style -->
+                <!-- Two Column Layout for Style Controls -->
+                <div class="subform-columns-2">
+
+                    <!-- Left Column: Width, Style -->
                     <lcards-form-section
                         header="Line Style"
-                        description="Line appearance settings"
-                        icon="mdi:palette"
+                        description="Width, opacity and dash pattern"
+                        icon="mdi:ruler"
                         ?expanded=${true}>
-
-                        <!-- Color Picker -->
-                        <div style="margin-bottom: 12px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 13px;">Color</label>
-                            <lcards-color-picker
-                                .value=${this._lineFormData.style?.color || 'var(--lcars-orange)'}
-                                @value-changed=${(e) => {
-                                    this._lineFormData.style = { ...this._lineFormData.style, color: e.detail.value };
-                                    this.requestUpdate();
-                                }}>
-                            </lcards-color-picker>
-                        </div>
 
                         <!-- Width Slider -->
                         <ha-selector
@@ -11450,10 +11933,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                         <!-- Dash Pattern Customization (conditional - all non-solid presets) -->
                         ${lineStylePreset !== 'solid' ? html`
-                            <div style="margin-top: 16px; padding: 12px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 4px;">
-                                <div style="font-weight: 500; font-size: 13px; margin-bottom: 12px;">
-                                    ${lineStylePreset === 'custom' ? 'Custom' : 'Customize'} Dash Pattern
-                                </div>
+                            <lcards-form-section
+                                header="${lineStylePreset === 'custom' ? 'Custom' : 'Customize'} Dash Pattern"
+                                icon="mdi:dots-horizontal"
+                                ?nested=${true}
+                                ?expanded=${true}>
 
                                 <!-- Parse existing dash_array -->
                                 ${(() => {
@@ -11586,7 +12070,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                         </div>
                                     `;
                                 })()}
-                            </div>
+                            </lcards-form-section>
                         ` : ''}
                     </lcards-form-section>
 
@@ -11597,7 +12081,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         icon="mdi:vector-curve"
                         ?expanded=${true}>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="subform-columns-2">
                         <!-- Left Column: Corner Settings -->
                         <div>
                             <ha-selector
@@ -11609,7 +12093,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                         { value: 'bevel', label: 'Bevel (Cut)' }
                                     ]
                                 }}}
-                                .value=${this._lineFormData.corner_style || 'miter'}
+                                .value=${this._lineFormData.corner_style || 'round'}
                                 .label=${'Corner Style'}
                                 @value-changed=${(e) => {
                                     this._lineFormData.corner_style = e.detail.value;
@@ -11618,31 +12102,60 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </ha-selector>
 
                             ${(this._lineFormData.corner_style === 'round') ? html`
-                                <ha-input
-                                    type="number"
-                                    label="Corner Radius (pixels)"
-                                    .value=${String(this._lineFormData.corner_radius || 12)}
-                                    @input=${(e) => {
-                                        this._lineFormData.corner_radius = Number(e.target.value) || 12;
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                                    .value=${this._lineFormData.corner_radius ?? 34}
+                                    .label=${'Corner Radius'}
+                                    @value-changed=${(e) => {
+                                        this._lineFormData.corner_radius = e.detail.value;
                                         this.requestUpdate();
                                     }}
-                                    helper-text="Arc radius for rounded corners"
-                                    style="margin-top: 12px; width: 100%;">
-                                </ha-input>
+                                    helper-text="Arc radius for rounded corners (default: 34)"
+                                    style="margin-top: 12px;">
+                                </ha-selector>
+                            ` : ''}
+
+                            ${(this._lineFormData.corner_style === 'bevel') ? html`
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                                    .value=${this._lineFormData.corner_radius ?? 34}
+                                    .label=${'Cut Size'}
+                                    @value-changed=${(e) => {
+                                        this._lineFormData.corner_radius = e.detail.value;
+                                        this.requestUpdate();
+                                    }}
+                                    helper-text="Diagonal chamfer cut size, same concept as the elbow card's corner size (default: 34)"
+                                    style="margin-top: 12px;">
+                                </ha-selector>
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ number: { min: 0, max: 90, step: 1, mode: 'slider', unit_of_measurement: '°' } }}
+                                    .value=${this._lineFormData.corner_angle ?? 45}
+                                    .label=${'Cut Angle'}
+                                    @value-changed=${(e) => {
+                                        this._lineFormData.corner_angle = e.detail.value;
+                                        this.requestUpdate();
+                                    }}
+                                    helper-text="45° = symmetric diagonal, 0°/90° = flush with one edge (no visible cut) (default: 45)"
+                                    style="margin-top: 12px;">
+                                </ha-selector>
                             ` : ''}
 
                             ${(this._lineFormData.corner_style === 'miter') ? html`
-                                <ha-input
-                                    type="number"
-                                    label="Miter Limit"
-                                    .value=${String(this._lineFormData.miter_limit || 4)}
-                                    @input=${(e) => {
-                                        this._lineFormData.miter_limit = Number(e.target.value) || 4;
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ number: { min: 1, max: 20, step: 0.5, mode: 'slider' } }}
+                                    .value=${this._lineFormData.miter_limit || 4}
+                                    .label=${'Miter Limit'}
+                                    @value-changed=${(e) => {
+                                        this._lineFormData.miter_limit = e.detail.value;
                                         this.requestUpdate();
                                     }}
                                     helper-text="Max ratio before clipping sharp corners (default: 4)"
-                                    style="margin-top: 12px; width: 100%;">
-                                </ha-input>
+                                    style="margin-top: 12px;">
+                                </ha-selector>
                             ` : ''}
 
                         <!-- Smoothing Settings -->
@@ -11664,17 +12177,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </ha-selector>
 
                             ${(this._lineFormData.smoothing_mode === 'chaikin') ? html`
-                                <ha-input
-                                    type="number"
-                                    label="Smoothing Iterations"
-                                    .value=${String(this._lineFormData.smoothing_iterations || 0)}
-                                    @input=${(e) => {
-                                        this._lineFormData.smoothing_iterations = Number(e.target.value) || 0;
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ number: { min: 0, max: 5, step: 1, mode: 'slider' } }}
+                                    .value=${this._lineFormData.smoothing_iterations || 0}
+                                    .label=${'Smoothing Iterations'}
+                                    @value-changed=${(e) => {
+                                        this._lineFormData.smoothing_iterations = e.detail.value;
                                         this.requestUpdate();
                                     }}
-                                    helper-text="More iterations = smoother curves"
-                                    style="margin-top: 12px; width: 100%;">
-                                </ha-input>
+                                    helper-text="More iterations = smoother curves (default: 0)"
+                                    style="margin-top: 12px;">
+                                </ha-selector>
                             ` : ''}
                     </lcards-form-section>
                 </div>
@@ -11686,7 +12200,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     icon="mdi:cog"
                     ?expanded=${false}>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="subform-columns-2">
                         <!-- Left Column -->
                         <div>
                             <!-- Line Cap -->
@@ -11783,82 +12297,56 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderLineStylePreviewVertical() {
-        const color = this._lineFormData.style?.color || 'var(--lcars-orange)';
+        // style.color may be a state-color object when "State-Based Color" is enabled —
+        // the preview can't simulate live entity state, so just show a representative
+        // swatch (default, falling back to any configured state) rather than "[object Object]".
+        const rawColor = this._lineFormData.style?.color;
+        const color = (typeof rawColor === 'object' && rawColor !== null)
+            ? (rawColor.default || rawColor.active || Object.values(rawColor)[0] || 'var(--lcars-orange)')
+            : (rawColor || 'var(--lcars-orange)');
         const width = this._lineFormData.style?.width || 2;
         const opacity = this._lineFormData.style?.opacity ?? 1;
         const dashArray = this._lineFormData.style?.dash_array || '';
         const markerStart = this._lineFormData.style?.marker_start;
         const markerEnd = this._lineFormData.style?.marker_end;
-        const cornerStyle = this._lineFormData.corner_style || 'miter';
-        const cornerRadius = this._lineFormData.corner_radius || 12;
+        const cornerStyle = this._lineFormData.corner_style || 'round';
         const linecap = this._lineFormData.style?.line_cap || 'butt';
         const linejoin = this._lineFormData.style?.line_join || cornerStyle;
 
-        // Helper function to create marker definition
-        const createMarker = (marker, id) => {
-            if (!marker?.type || marker.type === 'none') return '';
-
-            const size = marker.size ?? 10;
-            const half = size / 2;
-            const fillColor = marker.fill || color;
-            const strokeColor = marker.stroke || 'none';
-            const strokeWidth = marker.stroke_width || 0;
-
-            let shape = '';
-            switch (marker.type) {
-                case 'arrow':
-                    shape = `<path d="M 0 0 L ${size} ${half} L 0 ${size} z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" opacity="${opacity}" />`;
-                    break;
-                case 'dot':
-                    shape = `<circle cx="${half}" cy="${half}" r="${half * 0.6}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" opacity="${opacity}" />`;
-                    break;
-                case 'diamond':
-                    shape = `<path d="M ${half} 0 L ${size} ${half} L ${half} ${size} L 0 ${half} z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" opacity="${opacity}" />`;
-                    break;
-                case 'square':
-                    const offset = size * 0.15;
-                    const sqSize = size * 0.7;
-                    shape = `<rect x="${offset}" y="${offset}" width="${sqSize}" height="${sqSize}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" opacity="${opacity}" />`;
-                    break;
-                case 'triangle':
-                    shape = `<path d="M ${half} 0 L ${size} ${size} L 0 ${size} z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" opacity="${opacity}" />`;
-                    break;
-                case 'line':
-                    const lineLength = size * 0.8;
-                    const lineOffset = (size - lineLength) / 2;
-                    shape = `<line x1="${half}" y1="${lineOffset}" x2="${half}" y2="${size - lineOffset}" stroke="${fillColor}" stroke-width="${Math.max(strokeWidth || 2, 2)}" stroke-linecap="round" opacity="${opacity}" />`;
-                    break;
-                case 'rect':
-                    const rectSize = size * 0.7;
-                    const rectOffset = (size - rectSize) / 2;
-                    shape = `<rect x="${rectOffset}" y="${rectOffset}" width="${rectSize}" height="${rectSize}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" opacity="${opacity}" />`;
-                    break;
-            }
-
-            return `
-                <marker id="${id}" viewBox="0 0 ${size} ${size}"
-                    markerWidth="${size}" markerHeight="${size}"
-                    refX="${half}" refY="${half}" orient="auto">
-                    ${shape}
-                </marker>
-            `;
-        };
-
-        // Create vertical path with corners - larger spacing for better arc visibility
-        let pathD = 'M 35,30 L 35,90 L 65,90 L 65,190 L 35,190 L 35,250';
-
-        // Apply corner rounding if round style is selected
-        if (cornerStyle === 'round' && cornerRadius > 0) {
-            const r = Math.min(cornerRadius, 20); // Allow larger radius in preview
-            pathD = `M 35,30 L 35,${90-r} Q 35,90 ${35+r},90 L ${65-r},90 Q 65,90 65,${90+r} L 65,${190-r} Q 65,190 ${65-r},190 L ${35+r},190 Q 35,190 35,${190+r} L 35,250`;
+        // Route two fixed mock endpoints through the REAL routing/corner-rounding/
+        // smoothing engine (RouterCore), so the preview reflects actual production
+        // geometry instead of a hand-drawn approximation. 'manual' mode is mapped to
+        // 'manhattan' for the preview only, since real waypoint coordinates wouldn't
+        // relate meaningfully to these mock endpoints.
+        let pathD = 'M 20,40 L 20,240 L 180,240'; // safe fallback if routing throws
+        try {
+            const router = new RouterCore({}, {}, [0, 0, 200, 280]);
+            const routeMode = this._lineFormData.route === 'manual' ? 'manhattan' : (this._lineFormData.route || 'auto');
+            const previewOverlay = {
+                id: 'style-preview',
+                _raw: { ...this._lineFormData, route: routeMode }
+            };
+            const req = router.buildRouteRequest(previewOverlay, [20, 40], [180, 240]);
+            const routeResult = router.computePath(req);
+            if (routeResult?.d) pathD = routeResult.d;
+        } catch (e) {
+            lcardsLog.warn('[MSDStudio] Line style preview routing failed, using fallback path', e);
         }
+
+        // Reuse the production marker-definition builder (LineOverlay._createMarkerDefinition
+        // is a pure function of its arguments) for pixel-accurate marker rendering.
+        const createMarker = (marker, id, position) => {
+            if (!marker?.type || marker.type === 'none') return '';
+            return LineOverlay.prototype._createMarkerDefinition(marker, id, position);
+        };
 
         return html`
             <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; background: #0a0a0a; border-radius: 8px; border: 1px solid #333;">
-                <svg viewBox="0 0 100 280" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: 100%; max-height: 500px;">
+                <!-- color: sets currentColor fallback for unfilled markers (card host normally provides this) -->
+                <svg viewBox="0 0 200 280" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: 100%; max-height: 500px; color: ${color};">
                     <defs>
-                        ${unsafeHTML(createMarker(markerStart, 'start-preview-v'))}
-                        ${unsafeHTML(createMarker(markerEnd, 'end-preview-v'))}
+                        ${unsafeSVG(createMarker(markerStart, 'start-preview-v', 'start'))}
+                        ${unsafeSVG(createMarker(markerEnd, 'end-preview-v', 'end'))}
                     </defs>
                     <path
                         d="${pathD}"
@@ -12082,6 +12570,29 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     });
                 }
             }
+
+            // Controls reference their anchor via `position` (string form), not
+            // anchor/attach_to like lines — validate the same way lines are validated above.
+            if (control.position && typeof control.position === 'string') {
+                if (control.position === control.id) {
+                    errors.push({
+                        type: 'control',
+                        id: control.id,
+                        field: 'position',
+                        message: `Control "${control.id}": cannot use itself as its own position anchor`
+                    });
+                } else {
+                    const anchorExists = allAnchors[control.position] || overlays.find(o => o.id === control.position && o.type !== 'line');
+                    if (!anchorExists) {
+                        errors.push({
+                            type: 'control',
+                            id: control.id,
+                            field: 'position',
+                            message: `Control "${control.id}": position anchor "${control.position}" does not exist`
+                        });
+                    }
+                }
+            }
         });
 
         return errors;
@@ -12250,20 +12761,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         });
     }
 
-    /**
-     * Generate unique control ID
-     * @returns {string} New control ID
-     * @private
-     */
-    // @ts-ignore - TS2393: auto-suppressed
-    _generateControlId() {
-        const controls = this._workingConfig.msd?.controls || [];
-        let id = 1;
-        while (controls.some(c => c.id === `control_${id}`)) {
-            id++;
-        }
-        return `control_${id}`;
-    }
 
     /**
      * Render component

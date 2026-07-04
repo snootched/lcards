@@ -24,6 +24,9 @@ import {
     cardOverflowXSchema,
     cardOverflowYSchema,
     cardZIndexSchema,
+    backgroundAnimationSchema,
+    entitySchema,
+    stateColorSchema,
 } from './common-schemas.js';
 
 /**
@@ -84,9 +87,18 @@ export function getMsdSchema(options = {}) {
               control: 'filter-editor',
               label: 'Filters'
             }
+          },
+
+          render_visual: {
+            type: 'boolean',
+            optional: true,
+            default: true,
+            description: 'Whether the base SVG is painted as the visible background. Set false to use background_animation (e.g. a static image or animated layers) as the visual background instead, while the SVG is still parsed for anchors as normal.'
           }
         }
       },
+
+      background_animation: backgroundAnimationSchema,
 
       view_box: {
         oneOf: [
@@ -151,6 +163,32 @@ export function getMsdSchema(options = {}) {
               enum: ['line', 'control'],
               errorMessage: 'Only "line" and "control" overlay types supported. Use LCARdS cards for buttons/charts.'
             },
+            entity: {
+              ...entitySchema,
+              optional: true,
+              description: 'Line overlays: entity to bind style.color to (state-color object) — see style.color. Not used by control overlays, which already have their own entity via the embedded card.'
+            },
+            state_attribute: {
+              type: 'string',
+              optional: true,
+              description: 'Line overlays: attribute whose string value is matched against style.color state keys instead of the raw entity state (e.g. "fade", "true") — mirrors the button card\'s state_attribute, scoped per-line'
+            },
+            ranges_attribute: {
+              type: 'string',
+              optional: true,
+              description: 'Line overlays: attribute value compared against above:/below:/between: keys in style.color — mirrors the button card\'s ranges_attribute, scoped per-line'
+            },
+            style: {
+              type: 'object',
+              optional: true,
+              description: 'Line overlay styling (color, width, opacity, markers, etc.)',
+              properties: {
+                color: {
+                  ...stateColorSchema,
+                  description: 'Line stroke color: a literal/token/CSS value, or a state-color object resolved against `entity` (same state-color pipeline as buttons/sliders — requires `entity` to be set)'
+                }
+              }
+            },
             // Shared positioning (control overlays use position; line overlays use anchor + attach_to)
             position: {
               type: ['string', 'array'],
@@ -168,6 +206,13 @@ export function getMsdSchema(options = {}) {
               optional: true,
               default: 'center',
               description: 'Which point of the control card aligns with the anchor position. Default: center'
+            },
+            position_side: {
+              type: 'string',
+              enum: ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'top', 'bottom', 'left', 'right'],
+              optional: true,
+              default: 'center',
+              description: 'Control overlays only: when position references another control\'s id, which point of that target control to align to (instead of its center). Ignored for named-anchor or coordinate positions.'
             },
             card: {
               type: 'object',
@@ -253,15 +298,23 @@ export function getMsdSchema(options = {}) {
               type: 'string',
               enum: ['miter', 'round', 'bevel'],
               optional: true,
-              default: 'miter',
+              default: 'round',
               description: 'How line corners are rendered'
             },
             corner_radius: {
               type: 'number',
               min: 0,
               optional: true,
-              default: 0,
-              description: 'Corner rounding radius in pixels (for round corners)'
+              default: 34,
+              description: 'Corner cut size in pixels — arc radius for round corners, or diagonal chamfer size for bevel corners'
+            },
+            corner_angle: {
+              type: 'number',
+              min: 0,
+              max: 90,
+              optional: true,
+              default: 45,
+              description: 'Bevel corners only: angle of the diagonal cut in degrees (0=cut flush with incoming edge, 90=flush with outgoing edge, 45=symmetric diagonal), matching the elbow card\'s diagonal-cap angle'
             },
             smoothing_mode: {
               type: 'string',

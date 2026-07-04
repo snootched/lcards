@@ -198,7 +198,10 @@ export class LineOverlay extends OverlayBase {
       const lineStyle = this._resolveLineStyles(
         overlay.finalStyle || overlay.style || {},
         overlay.id,
-        viewBox
+        viewBox,
+        overlay.corner_style,
+        overlay,
+        cardInstance
       );
 
       const animationAttributes = this._prepareAnimationAttributes(overlay, overlay.style || {});
@@ -324,9 +327,16 @@ export class LineOverlay extends OverlayBase {
    * @param {Object} style - Style configuration
    * @param {string} overlayId - Overlay ID for logging
    * @param {Array} viewBox - SVG viewBox for scaling context
+   * @param {string} [cornerStyle] - Overlay-level corner_style (miter/round/bevel),
+   *   used as the stroke-linejoin fallback when style.line_join isn't explicitly set —
+   *   corner_style otherwise only drives RouterCore's rounding decision, so without
+   *   this a "bevel" selection never actually produced a visible cut corner.
+   * @param {Object} [overlay] - Full overlay config, used when style.color is a
+   *   state-color object (see _resolveLineColor) — needs entity/state_attribute/ranges_attribute
+   * @param {Object} [cardInstance] - MSD card instance, needed to resolve state-color
    * @returns {Object} Resolved line styles
    */
-  _resolveLineStyles(style, overlayId, viewBox) {
+  _resolveLineStyles(style, overlayId, viewBox, cornerStyle, overlay, cardInstance) {
     // Create component-scoped token resolver using the live singleton (not a stale module import)
     const _resolver = window.lcards?.core?.themeManager?.resolver;
     const resolveToken = (_resolver && typeof _resolver.forComponent === 'function')
@@ -336,11 +346,12 @@ export class LineOverlay extends OverlayBase {
 
     const lineStyle = {
       // Core stroke properties with token integration
-      color: this._resolveStyleProperty(
+      color: this._resolveLineColor(
         style.color || style.stroke,
-        'defaultColor',
-        resolveToken,
+        overlay,
+        cardInstance,
         'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))',
+        resolveToken,
         scalingContext
       ),
 
@@ -362,7 +373,7 @@ export class LineOverlay extends OverlayBase {
 
       // Advanced stroke styling
       lineCap: (style.line_cap || 'butt').toLowerCase(),
-      lineJoin: (style.line_join || 'miter').toLowerCase(),
+      lineJoin: (style.line_join || cornerStyle || 'miter').toLowerCase(),
       miterLimit: Number(style.miter_limit || 4),
 
       // Dash patterns
@@ -433,6 +444,52 @@ export class LineOverlay extends OverlayBase {
     }
 
     return fallback;
+  }
+
+  /**
+   * Resolve style.color, which may be a literal/token string (existing path) or a
+   * state-color object (stateColorSchema shape) bound to the overlay's own `entity`
+   * — mirrors the button card's entity/state_attribute/ranges_attribute, but scoped
+   * per-line since MSD has no single bound entity the way button/slider cards do.
+   *
+   * Resolution (_resolveEntityStateColor → resolveStateColor) reads
+   * cardInstance._entity, cardInstance.config.state_attribute, and
+   * cardInstance.config.ranges_attribute internally — all three are temporarily
+   * swapped to this overlay's own values for the duration of the (synchronous,
+   * no-await) call, then restored, reusing the exact same state-color pipeline
+   * buttons/sliders use with zero duplicated resolution logic.
+   *
+   * @private
+   */
+  _resolveLineColor(styleValue, overlay, cardInstance, fallback, resolveToken, context = {}) {
+    if (typeof styleValue !== 'object' || styleValue === null) {
+      return this._resolveStyleProperty(styleValue, 'defaultColor', resolveToken, fallback, context);
+    }
+
+    if (!cardInstance || typeof cardInstance._resolveColorValue !== 'function') {
+      return styleValue.default ?? fallback;
+    }
+
+    const entityId = overlay?.entity;
+    const entityObj = entityId ? cardInstance.hass?.states?.[entityId] : null;
+    const savedEntity = cardInstance._entity;
+    const savedStateAttribute = cardInstance.config?.state_attribute;
+    const savedRangesAttribute = cardInstance.config?.ranges_attribute;
+
+    cardInstance._entity = entityObj || null;
+    if (cardInstance.config) {
+      cardInstance.config.state_attribute = overlay?.state_attribute;
+      cardInstance.config.ranges_attribute = overlay?.ranges_attribute;
+    }
+    try {
+      return cardInstance._resolveColorValue(styleValue, fallback);
+    } finally {
+      cardInstance._entity = savedEntity;
+      if (cardInstance.config) {
+        cardInstance.config.state_attribute = savedStateAttribute;
+        cardInstance.config.ranges_attribute = savedRangesAttribute;
+      }
+    }
   }
 
   /**
@@ -608,13 +665,18 @@ export class LineOverlay extends OverlayBase {
       defs.push(this.patternCache.get(patternId));
     }
 
-    // Marker definitions
+    // Marker definitions. A marker with no explicit fill/color falls back to
+    // currentColor, which inherits the card host's text color — not the line's
+    // own color, which looks like an unrelated, jarring mismatch. Default to the
+    // line's color instead, same as the editor preview already does.
     ['markerStart', 'markerMid', 'markerEnd'].forEach((markerType, index) => {
-      if (lineStyle[markerType]) {
+      const marker = lineStyle[markerType];
+      if (marker) {
         const markerPosition = ['start', 'mid', 'end'][index];
         const markerId = `marker-${markerPosition}-${overlayId}`;
         if (!this.markerCache.has(markerId)) {
-          const markerDef = this._createMarkerDefinition(lineStyle[markerType], markerId);
+          const markerWithFallback = (marker.fill || marker.color) ? marker : { ...marker, fill: lineStyle.color };
+          const markerDef = this._createMarkerDefinition(markerWithFallback, markerId, markerPosition);
           this.markerCache.set(markerId, markerDef);
         }
         defs.push(this.markerCache.get(markerId));
@@ -708,7 +770,10 @@ export class LineOverlay extends OverlayBase {
   _renderFallbackLine(overlay, anchor, anchor2) {
     const [x1, y1] = anchor;
     const [x2, y2] = anchor2 || anchor;
-    const color = overlay.style?.color || 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))';
+    const rawColor = overlay.style?.color;
+    const color = (typeof rawColor === 'object' && rawColor !== null)
+      ? (rawColor.default || 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))')
+      : (rawColor || 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))');
 
     lcardsLog.warn(`[LineOverlay] Using fallback rendering for overlay ${overlay.id}`);
 
@@ -804,7 +869,7 @@ export class LineOverlay extends OverlayBase {
             </pattern>`;
   }
 
-  _createMarkerDefinition(marker, markerId) {
+  _createMarkerDefinition(marker, markerId, markerPosition = 'end') {
     if (!marker || !marker.type) return '';
 
     // Use size directly in pixels
@@ -817,9 +882,12 @@ export class LineOverlay extends OverlayBase {
     const strokeWidth = marker.stroke_width || 0;
 
     let shape = '';
+    // Defaults; only 'rect' overrides these to support independent width/height.
+    let markerW = vb, markerH = vb, refX = center, refY = center;
 
     switch (marker.type) {
       case 'arrow':
+      case 'triangle': // alias, kept for configs saved before the two were merged
         shape = `<path d="M 0 0 L ${vb} ${center} L 0 ${vb} Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
         break;
 
@@ -832,16 +900,6 @@ export class LineOverlay extends OverlayBase {
         shape = `<path d="M ${center} 0 L ${vb} ${center} L ${center} ${vb} L 0 ${center} Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
         break;
 
-      case 'square':
-        const sqSize = vb * 0.6;
-        const sqOffset = (vb - sqSize) / 2;
-        shape = `<rect x="${sqOffset}" y="${sqOffset}" width="${sqSize}" height="${sqSize}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
-        break;
-
-      case 'triangle':
-        shape = `<path d="M ${center} 0 L ${vb} ${vb} L 0 ${vb} Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
-        break;
-
       case 'line':
         // Orthogonal line (perpendicular to path direction)
         const lineLength = vb * 0.8;
@@ -849,26 +907,43 @@ export class LineOverlay extends OverlayBase {
         shape = `<line x1="${center}" y1="${lineOffset}" x2="${center}" y2="${vb - lineOffset}" stroke="${fillColor}" stroke-width="${Math.max(strokeWidth || 2, 2)}" stroke-linecap="round" />`;
         break;
 
-      case 'rect':
-        // Rectangle with fill and optional stroke
-        const rectSize = vb * 0.7;
-        const rectOffset = (vb - rectSize) / 2;
-        shape = `<rect x="${rectOffset}" y="${rectOffset}" width="${rectSize}" height="${rectSize}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
+      case 'square': // alias, kept for configs saved before 'square'/'rect' were merged
+      case 'rect': {
+        // 'square' configs (pre-merge) default filled; 'rect' configs default outlined
+        // (matching each type's original look) unless `filled` is set explicitly.
+        const filled = marker.filled ?? (marker.type === 'square');
+        markerW = marker.width || vb;
+        markerH = marker.height || vb;
+        refX = markerW / 2;
+        refY = markerH / 2;
+        shape = filled
+          ? `<rect x="0" y="0" width="${markerW}" height="${markerH}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`
+          : `<rect x="0" y="0" width="${markerW}" height="${markerH}" fill="none" stroke="${fillColor}" stroke-width="${strokeWidth || 1.5}" />`;
         break;
+      }
 
       default:
         // Fallback to dot
         shape = `<circle cx="${center}" cy="${center}" r="${vb/3}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
     }
 
+    // userSpaceOnUse: without this, markerWidth/markerHeight are multiples of the
+    // path's stroke-width (SVG default), so "size" would scale with line thickness
+    // instead of being an absolute pixel value as the field implies.
+    // auto-start-reverse: marker-start conventionally points outward/away from the
+    // line (like the far end of a two-headed arrow) — plain "auto" points forward,
+    // the same direction as marker-end, which looks backward for a start marker.
+    const orient = markerPosition === 'start' ? 'auto-start-reverse' : 'auto';
+
     return `<marker
       id="${markerId}"
-      viewBox="0 0 ${vb} ${vb}"
-      markerWidth="${vb}"
-      markerHeight="${vb}"
-      refX="${center}"
-      refY="${center}"
-      orient="auto">
+      viewBox="0 0 ${markerW} ${markerH}"
+      markerWidth="${markerW}"
+      markerHeight="${markerH}"
+      markerUnits="userSpaceOnUse"
+      refX="${refX}"
+      refY="${refY}"
+      orient="${orient}">
       ${shape}
     </marker>`;
   }

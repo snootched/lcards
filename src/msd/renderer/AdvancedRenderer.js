@@ -157,7 +157,26 @@ export class AdvancedRenderer {
     // Each control overlay is rendered via an async foreignObject path; we must await
     // each one so positionControlElement registers attachment points before we build
     // virtual anchors in the next step.
-    for (const ov of overlays.filter(o => !earlyTypes.has(o.type) && o.type !== 'line')) {
+    //
+    // Stable two-bucket partition: controls whose `position` references another
+    // control overlay's id are processed second, so the target's attachment points
+    // (registered synchronously inside positionControlElement) are already available
+    // regardless of declaration order in the config. This only handles one level of
+    // dependency — a control depending on another control that ITSELF depends on a
+    // third falls back to MsdControlsRenderer's existing [0,0]-with-warning path.
+    const phase2aOverlays = overlays.filter(o => !earlyTypes.has(o.type) && o.type !== 'line');
+    const phase2aControlIds = new Set(phase2aOverlays.filter(o => o.type === 'control').map(o => o.id));
+    const independentPhase2a = [];
+    const dependentPhase2a = [];
+    for (const ov of phase2aOverlays) {
+      if (ov.type === 'control' && typeof ov.position === 'string' && phase2aControlIds.has(ov.position)) {
+        dependentPhase2a.push(ov);
+      } else {
+        independentPhase2a.push(ov);
+      }
+    }
+
+    for (const ov of [...independentPhase2a, ...dependentPhase2a]) {
       try {
         const result = await this.renderOverlay(ov, this._staticAnchors, viewBox);
 
@@ -317,6 +336,27 @@ export class AdvancedRenderer {
       lines: overlayGroup.querySelectorAll('[data-overlay-type="line"]').length,
       controls: overlayGroup.querySelectorAll('[data-overlay-type="control"]').length
     });
+
+    // Final z-order pass: controls are inserted into a separate sibling
+    // <g id="msd-controls-container"> (see getSvgControlsContainer) while lines land
+    // directly in overlayGroup, so today's paint order is purely structural
+    // (controls-over-lines) regardless of any z_index value. Sort every cached
+    // overlay element by (z_index ?? implicit default by type, declared-order
+    // tiebreak) and re-append in that order — appendChild on an already-attached
+    // node moves it, so this both merges controls into overlayGroup and fixes
+    // final paint order without re-rendering anything. Defaults reproduce today's
+    // actual behavior when z_index is unset, so this is non-breaking by default.
+    const declOrder = new Map(overlays.map((o, i) => [o.id, i]));
+    const DEFAULT_Z_BY_TYPE = { control: 200, line: 100 };
+    overlays
+      .map(o => ({ o, el: this.overlayElementCache.get(o.id) }))
+      .filter(x => x.el)
+      .sort((a, b) => {
+        const za = a.o.z_index ?? DEFAULT_Z_BY_TYPE[a.o.type] ?? 150;
+        const zb = b.o.z_index ?? DEFAULT_Z_BY_TYPE[b.o.type] ?? 150;
+        return za - zb || declOrder.get(a.o.id) - declOrder.get(b.o.id);
+      })
+      .forEach(({ el }) => overlayGroup.appendChild(el));
 
     // NEW: schedule deferred line refresh to fix first-load orientation/position
     this._scheduleDeferredLineRefresh(overlays, this._staticAnchors, viewBox);
@@ -845,7 +885,8 @@ export class AdvancedRenderer {
         if (overlay.type === 'line') {
           // Lines need complete anchor set (static + virtual) for overlay-to-overlay connections
           const completeAnchors = this._getCompleteAnchors(anchors, overlay.type);
-          result = renderer.render(overlay, completeAnchors, viewBox, svgContainer);
+          // cardInstance needed for state-color resolution when style.color is bound to overlay.entity
+          result = renderer.render(overlay, completeAnchors, viewBox, svgContainer, this._resolveCardInstance());
         } else {
           // Standard render for other instance-based overlays (if any)
           result = renderer.render(overlay, anchors, viewBox, svgContainer);
@@ -1388,6 +1429,48 @@ export class AdvancedRenderer {
     }
 
     return null;
+  }
+
+  /**
+   * Re-resolve and DOM-patch every entity-bound line's color on a HASS update.
+   *
+   * Unlike controls (which receive HASS directly) and rule-driven overlays (which
+   * are subscribed via the Rules Engine's own watch mechanism), a line's `entity`
+   * state-color binding has no subscription of its own — render() only resolves
+   * color once, at initial paint. Called from
+   * MsdCardCoordinator._propagateHassToSystems() on every HASS update; cheap even
+   * for many lines since it's just a handful of object-key lookups per line, no
+   * re-render of routing/geometry.
+   *
+   * @param {Object} hass - Current Home Assistant state object
+   */
+  updateLineEntityColors(hass) {
+    const overlays = this.lastRenderArgs?.overlays;
+    if (!hass || !overlays) return;
+
+    const cardInstance = this._resolveCardInstance();
+    if (!cardInstance) return;
+
+    for (const overlay of overlays) {
+      if (overlay.type !== 'line' || !overlay.entity) continue;
+
+      const el = this.overlayElementCache.get(overlay.id);
+      if (!el) continue;
+
+      const lineRenderer = this._getRendererForOverlay(overlay);
+      if (!lineRenderer || typeof lineRenderer._resolveLineColor !== 'function') continue;
+
+      const styleValue = overlay.finalStyle?.color ?? overlay.style?.color;
+      const newColor = lineRenderer._resolveLineColor(
+        styleValue,
+        overlay,
+        cardInstance,
+        'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))'
+      );
+
+      const paths = el.querySelectorAll('.line-path, .line-selection-indicator');
+      paths.forEach(p => p.setAttribute('stroke', newColor));
+    }
   }
 
 }

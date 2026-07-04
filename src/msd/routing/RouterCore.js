@@ -303,8 +303,9 @@ export class RouterCore {
       _autoUpgradeReason: autoUpgradeReason,
       avoidIds: Array.isArray(raw.avoid) ? raw.avoid.slice() : [],
       channels: this._getChannelArray(raw),
-      cornerRadius: Number(raw.corner_radius || raw.cornerRadius || fs.corner_radius || 0),
-      cornerStyle: (raw.corner_style || raw.cornerStyle || fs.corner_style || 'miter').toLowerCase(),
+      cornerRadius: Number(raw.corner_radius || raw.cornerRadius || fs.corner_radius || 34),
+      cornerStyle: (raw.corner_style || raw.cornerStyle || fs.corner_style || 'round').toLowerCase(),
+      cornerAngle: Number(raw.corner_angle ?? raw.cornerAngle ?? fs.corner_angle ?? 45),
       smoothingMode,
       smoothingIterations,
       smoothingMaxPoints,
@@ -369,6 +370,9 @@ export class RouterCore {
       if (result && req.cornerStyle === 'round' && req.cornerRadius > 0) {
         const arcApplied = this._applyCornerRounding(result, req.cornerRadius, req.id);
         if (arcApplied) result = arcApplied;
+      } else if (result && req.cornerStyle === 'bevel' && req.cornerRadius > 0) {
+        const bevelApplied = this._applyCornerBeveling(result, req.cornerRadius, req.cornerAngle, req.id);
+        if (bevelApplied) result = bevelApplied;
       }
       // Apply smoothing AFTER corner arcs (arcs preserved, path rebuilt as polyline if smoothing > 0)
       if (result && req.smoothingMode !== 'none' && req.smoothingIterations > 0) {
@@ -1758,6 +1762,119 @@ export class RouterCore {
       }
     };
     return newResult;
+  }
+
+  /**
+   * Replace sharp corners with a straight diagonal chamfer cut, sized and angled
+   * like the elbow card's "diagonal-cap" corners (see
+   * src/core/packs/components/elbows/index.js): at each orthogonal corner, the cut
+   * length along the horizontal edge is `size * cos(angle)` and along the vertical
+   * edge is `size * sin(angle)` — 45° gives a symmetric diagonal, 0°/90° collapses
+   * onto one edge (no visible cut, i.e. "square"). Non-orthogonal corners (possible
+   * with manual waypoints) fall back to a symmetric chamfer along the corner
+   * bisector, ignoring angle.
+   */
+  _applyCornerBeveling(routeResult, sizeGlobal, angleDeg, routeId = null) {
+    const pts = routeResult.pts;
+    if (!Array.isArray(pts) || pts.length < 3) {
+      return null;
+    }
+    const cutMin = 1;
+    let cutCount = 0;
+    let totalTrim = 0;
+    const angleRad = (Number.isFinite(angleDeg) ? angleDeg : 45) * Math.PI / 180;
+    const parts = [];
+    let lastOut = pts[0].slice();
+    parts.push(`M${lastOut[0]},${lastOut[1]}`);
+
+    // Pre-calculate per-corner cut sizes (clamped to half-segment-length), with the
+    // same consecutive-corner conflict scaling as _applyCornerRounding.
+    const cornerSizes = [];
+    for (let i = 1; i < pts.length - 1; i++) {
+      const pPrev = pts[i - 1];
+      const p = pts[i];
+      const pNext = pts[i + 1];
+      const lenIn = Math.hypot(p[0] - pPrev[0], p[1] - pPrev[1]);
+      const lenOut = Math.hypot(pNext[0] - p[0], pNext[1] - p[1]);
+      const size = Math.min(sizeGlobal, lenIn / 2, lenOut / 2);
+      cornerSizes.push({ index: i, size, lenIn, lenOut });
+    }
+    for (let i = 0; i < cornerSizes.length - 1; i++) {
+      const curr = cornerSizes[i];
+      const next = cornerSizes[i + 1];
+      if (next.index === curr.index + 1) {
+        const segmentLength = curr.lenOut;
+        const combinedTrim = curr.size + next.size;
+        if (combinedTrim >= segmentLength * 0.70) {
+          const scale = (segmentLength * 0.65) / combinedTrim;
+          curr.size *= scale;
+          next.size *= scale;
+        }
+      }
+    }
+
+    for (let i = 1; i < pts.length - 1; i++) {
+      const pPrev = pts[i - 1];
+      const p = pts[i];
+      const pNext = pts[i + 1];
+      const vIn = [p[0] - pPrev[0], p[1] - pPrev[1]];
+      const vOut = [pNext[0] - p[0], pNext[1] - p[1]];
+      const cornerData = cornerSizes[i - 1];
+      const size = cornerData.size;
+
+      if (size < cutMin || cornerData.lenIn < 0.01 || cornerData.lenOut < 0.01) {
+        if (p[0] !== lastOut[0] || p[1] !== lastOut[1]) {
+          parts.push(`L${p[0]},${p[1]}`);
+          lastOut = p.slice();
+        }
+        continue;
+      }
+
+      const uIn = [vIn[0] / cornerData.lenIn, vIn[1] / cornerData.lenIn];
+      const uOut = [vOut[0] / cornerData.lenOut, vOut[1] / cornerData.lenOut];
+      const isOrth = (vIn[0] === 0 || vIn[1] === 0) && (vOut[0] === 0 || vOut[1] === 0);
+
+      let inCut, outCut;
+      if (isOrth) {
+        const inIsHorizontal = vIn[1] === 0;
+        inCut = inIsHorizontal ? size * Math.cos(angleRad) : size * Math.sin(angleRad);
+        outCut = inIsHorizontal ? size * Math.sin(angleRad) : size * Math.cos(angleRad);
+      } else {
+        // General-angle corner: symmetric chamfer, angle not applicable.
+        inCut = size;
+        outCut = size;
+      }
+
+      const pInTrim = [p[0] - uIn[0] * inCut, p[1] - uIn[1] * inCut];
+      const pOutTrim = [p[0] + uOut[0] * outCut, p[1] + uOut[1] * outCut];
+
+      if (pInTrim[0] !== lastOut[0] || pInTrim[1] !== lastOut[1]) {
+        parts.push(`L${pInTrim[0]},${pInTrim[1]}`);
+      }
+      parts.push(`L${pOutTrim[0]},${pOutTrim[1]}`);
+      totalTrim += inCut + outCut;
+      cutCount++;
+      lastOut = pOutTrim;
+    }
+
+    const pEnd = pts[pts.length - 1];
+    if (pEnd[0] !== lastOut[0] || pEnd[1] !== lastOut[1]) {
+      parts.push(`L${pEnd[0]},${pEnd[1]}`);
+    }
+    if (!cutCount) {
+      return null;
+    }
+    return {
+      ...routeResult,
+      d: parts.join(' '),
+      meta: {
+        ...routeResult.meta,
+        bevel: {
+          count: cutCount,
+          trimPx: Math.round(totalTrim)
+        }
+      }
+    };
   }
 
   _applySmoothing(routeResult, req) {

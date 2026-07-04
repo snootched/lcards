@@ -154,8 +154,23 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
       if (typeof o.anchor === 'string') aRefs.push(o.anchor);
       if (typeof o.attach_to === 'string') aRefs.push(o.attach_to);
       if (typeof o.attachTo === 'string') aRefs.push(o.attachTo);
+      // Controls use `position` (string form) as their anchor reference instead
+      // of `anchor`/`attach_to` — arrays are literal [x,y] coordinates, not refs.
+      if (typeof o.position === 'string') aRefs.push(o.position);
       aRefs.forEach(ref=>{
-        if (ref && !anchorSet.has(ref)) {
+        if (!ref) return;
+        // An overlay's own id is in anchorSet (added above so OTHER overlays can
+        // target it), so a self-reference would otherwise pass the "missing" check
+        // silently. Catch it explicitly instead.
+        if (ref === o.id) {
+          const code = 'anchor.self_reference';
+          if (!existingCodes.has(`${code}:${o.id}`)) {
+            issues.errors.push({ code, severity:'error', overlay:o.id, anchor:ref, msg:`Overlay ${o.id} cannot reference itself as an anchor` });
+            existingCodes.add(`${code}:${o.id}`);
+          }
+          return;
+        }
+        if (!anchorSet.has(ref)) {
           const code = 'anchor.missing';
           if (!existingCodes.has(`${code}:${ref}:${o.id}`)) {
             issues.errors.push({ code, severity:'error', overlay:o.id, anchor:ref, msg:`Overlay ${o.id} references missing anchor '${ref}'` });

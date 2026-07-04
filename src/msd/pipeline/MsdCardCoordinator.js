@@ -855,6 +855,13 @@ export class MsdCardCoordinator extends BaseService {
       lcardsLog.debug('[MsdCardCoordinator] ⏭️ Controls not ready');
     }
 
+    // 3b. Lines with an entity-bound state-color have no subscription of their own
+    // (unlike controls/DataSource/Rules-Engine-tracked overlays) — re-resolve and
+    // DOM-patch them directly on every HASS update.
+    if (this.renderer && typeof this.renderer.updateLineEntityColors === 'function') {
+      this.renderer.updateLineEntityColors(hass);
+    }
+
     // 4. Overlays update automatically via DataSource subscriptions
     lcardsLog.debug('[MsdCardCoordinator] ✅ _propagateHassToSystems: Propagation complete');
   }

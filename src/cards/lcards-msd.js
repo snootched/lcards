@@ -17,6 +17,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { initMsdPipeline } from '../msd/index.js';
 import { getMsdSchema } from './schemas/msd-schema.js';
+import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
 
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-msd-editor.js';
@@ -114,6 +115,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         this._msdInstanceGuid = null;
         this._msdInitialized = false;
         this._configIssues = null;
+        this._backgroundRenderer = null;
     }
 
     // ============================================================================
@@ -277,6 +279,13 @@ export class LCARdSMSDCard extends LCARdSCard {
         });
 
         await this._initializeMsdPipeline();
+
+        // Must come after pipeline init: _msdInitialized only flips to true (and the
+        // SVG container, i.e. #msd-v1-comprehensive-wrapper, only actually mounts)
+        // partway through _initializeMsdPipeline(), not at the updateComplete above.
+        if (this._msdInitialized && this._msdConfig?.background_animation) {
+            this._initializeBackgroundAnimation();
+        }
     }
 
     /**
@@ -530,6 +539,12 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Note: coordinator is the MsdCardCoordinator instance from pipeline
         if (this._msdPipeline?.coordinator) {
             this._msdPipeline.coordinator.ingestHass(newHass);
+        }
+
+        // MSD has no single bound entity (unlike button/elbow) — background effects
+        // needing live entity state use map_range's own explicit entity_id instead.
+        if (this._backgroundRenderer) {
+            this._backgroundRenderer.updateHass(newHass, null, this._fullConfig);
         }
 
         // Don't call super - MSD manages its own updates via MsdCardCoordinator
@@ -819,6 +834,59 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 
     /**
+     * Initialize the optional animated/image background layer (msd.background_animation).
+     * Lives in its own DOM subtree behind the SVG (z-index: -1), independent of
+     * base_svg.render_visual — same reuse of BackgroundAnimationRenderer as
+     * lcards-button.js/_initializeBackgroundAnimation().
+     * @private
+     */
+    _initializeBackgroundAnimation() {
+        // Guard against double-init (e.g. overlapping first-mount/reconnect timing) —
+        // always tear down any existing instance before creating a new one.
+        if (this._backgroundRenderer) {
+            this._backgroundRenderer.destroy();
+            this._backgroundRenderer = null;
+        }
+
+        const wrapper = this.shadowRoot?.querySelector('#msd-v1-comprehensive-wrapper');
+        if (!wrapper) {
+            lcardsLog.warn('[LCARdSMSDCard] Cannot initialize background - wrapper not found');
+            return;
+        }
+
+        // BackgroundAnimationRenderer.destroy() only removes the canvas it created,
+        // not this wrapper div — and Lit may reuse the same #msd-v1-comprehensive-wrapper
+        // element across reconnects rather than recreating it, so a prior cycle's now-empty
+        // layer div can be left behind. Remove any stragglers before adding a fresh one.
+        wrapper.querySelectorAll(':scope > [data-msd-background-layer]').forEach(el => el.remove());
+
+        const backgroundLayer = document.createElement('div');
+        backgroundLayer.setAttribute('data-msd-background-layer', '');
+        backgroundLayer.style.position = 'absolute';
+        backgroundLayer.style.top = '0';
+        backgroundLayer.style.left = '0';
+        backgroundLayer.style.width = '100%';
+        backgroundLayer.style.height = '100%';
+        backgroundLayer.style.zIndex = '-1';
+        backgroundLayer.style.pointerEvents = 'none';
+
+        wrapper.insertBefore(backgroundLayer, wrapper.firstChild);
+
+        this._backgroundRenderer = new BackgroundAnimationRenderer(
+            backgroundLayer,
+            this._msdConfig.background_animation,
+            this
+        );
+
+        const success = this._backgroundRenderer.init();
+        if (success) {
+            lcardsLog.debug('[LCARdSMSDCard] Background animation initialized');
+        } else {
+            lcardsLog.error('[LCARdSMSDCard] Background animation initialization failed');
+        }
+    }
+
+    /**
      * Cleanup MSD pipeline
      * @private
      */
@@ -828,6 +896,10 @@ export class LCARdSMSDCard extends LCARdSCard {
         }
         this._msdPipeline = null;
         this._msdInitialized = false;
+        if (this._backgroundRenderer) {
+            this._backgroundRenderer.destroy();
+            this._backgroundRenderer = null;
+        }
         lcardsLog.debug('[LCARdSMSDCard] Pipeline cleaned up');
     }
 
@@ -1410,6 +1482,14 @@ export class LCARdSMSDCard extends LCARdSCard {
                 // (prevents anchor extraction from treating this as an anchor)
                 const wrapperGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 wrapperGroup.setAttribute('id', '__msd-base-content');
+
+                // render_visual: false suppresses the base SVG's own visual paint while it's
+                // still parsed for anchors as always (AnchorProcessor reads the raw SVG text,
+                // independent of this DOM) — lets a background_animation layer (or nothing)
+                // serve as the actual visible background instead of a full SVG blueprint.
+                if (this._msdConfig?.base_svg?.render_visual === false) {
+                    wrapperGroup.style.display = 'none';
+                }
 
                 // Move all children into the wrapper
                 children.forEach(child => wrapperGroup.appendChild(child));
