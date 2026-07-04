@@ -11452,6 +11452,62 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @returns {TemplateResult}
      * @private
      */
+    /**
+     * Render a marker's fill/stroke color field with a "Match Line Color"
+     * toggle (Phase 9) alongside the normal color picker — checking it sets
+     * the field to the 'match_line' sentinel (LineOverlay._buildDefinitions()/
+     * AdvancedRenderer.updateLineEntityColors() resolve it to the line's own
+     * current color, live) instead of a literal color value.
+     * @param {'marker_start'|'marker_end'} markerKey
+     * @param {'fill'|'stroke'} colorProp
+     * @param {string} label
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderMarkerColorField(markerKey, colorProp, label) {
+        const marker = this._lineFormData.style?.[markerKey] || {};
+        const matchesLine = marker[colorProp] === 'match_line';
+        return html`
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <div style="font-size: 14px; font-weight: 500; color: var(--primary-text-color);">${label}</div>
+                    <ha-formfield .label=${'Match Line Color'}>
+                        <ha-switch
+                            .checked=${matchesLine}
+                            @change=${(e) => {
+                                this._lineFormData.style = {
+                                    ...this._lineFormData.style,
+                                    [markerKey]: {
+                                        ...this._lineFormData.style[markerKey],
+                                        [colorProp]: e.target.checked ? 'match_line' : ''
+                                    }
+                                };
+                                this.requestUpdate();
+                            }}>
+                        </ha-switch>
+                    </ha-formfield>
+                </div>
+                ${!matchesLine ? html`
+                    <lcards-color-picker
+                        .hass=${this.hass}
+                        .value=${marker[colorProp] || ''}
+                        ?showPreview=${true}
+                        @value-changed=${(e) => {
+                            this._lineFormData.style = {
+                                ...this._lineFormData.style,
+                                [markerKey]: {
+                                    ...this._lineFormData.style[markerKey],
+                                    [colorProp]: e.detail.value
+                                }
+                            };
+                            this.requestUpdate();
+                        }}>
+                    </lcards-color-picker>
+                ` : ''}
+            </div>
+        `;
+    }
+
     _renderLineFormMarkers() {
         return html`
             <div class="subform-field-stack">
@@ -11563,43 +11619,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         ` : ''}
 
                         <div style="margin-top: 12px;">
-                            <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: var(--primary-text-color);">Fill Color</div>
-                            <lcards-color-picker
-                                .hass=${this.hass}
-                                .value=${this._lineFormData.style.marker_start.fill || ''}
-                                ?showPreview=${true}
-                                @value-changed=${(e) => {
-                                    this._lineFormData.style = {
-                                        ...this._lineFormData.style,
-                                        marker_start: {
-                                            ...this._lineFormData.style.marker_start,
-                                            fill: e.detail.value
-                                        }
-                                    };
-                                    this.requestUpdate();
-                                }}>
-                            </lcards-color-picker>
+                            ${this._renderMarkerColorField('marker_start', 'fill', 'Fill Color')}
                         </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 120px; gap: 12px; margin-top: 12px;">
-                            <div>
-                                <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: var(--primary-text-color);">Stroke Color</div>
-                                <lcards-color-picker
-                                    .hass=${this.hass}
-                                    .value=${this._lineFormData.style.marker_start.stroke || ''}
-                                    ?showPreview=${true}
-                                    @value-changed=${(e) => {
-                                        this._lineFormData.style = {
-                                            ...this._lineFormData.style,
-                                            marker_start: {
-                                                ...this._lineFormData.style.marker_start,
-                                                stroke: e.detail.value
-                                            }
-                                        };
-                                        this.requestUpdate();
-                                    }}>
-                                </lcards-color-picker>
-                            </div>
+                            ${this._renderMarkerColorField('marker_start', 'stroke', 'Stroke Color')}
 
                             <ha-input
                                 type="number"
@@ -11723,43 +11747,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         ` : ''}
 
                         <div style="margin-top: 12px;">
-                            <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: var(--primary-text-color);">Fill Color</div>
-                            <lcards-color-picker
-                                .hass=${this.hass}
-                                .value=${this._lineFormData.style.marker_end.fill || ''}
-                                ?showPreview=${true}
-                                @value-changed=${(e) => {
-                                    this._lineFormData.style = {
-                                        ...this._lineFormData.style,
-                                        marker_end: {
-                                            ...this._lineFormData.style.marker_end,
-                                            fill: e.detail.value
-                                        }
-                                    };
-                                    this.requestUpdate();
-                                }}>
-                            </lcards-color-picker>
+                            ${this._renderMarkerColorField('marker_end', 'fill', 'Fill Color')}
                         </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 120px; gap: 12px; margin-top: 12px;">
-                            <div>
-                                <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: var(--primary-text-color);">Stroke Color</div>
-                                <lcards-color-picker
-                                    .hass=${this.hass}
-                                    .value=${this._lineFormData.style.marker_end.stroke || ''}
-                                    ?showPreview=${true}
-                                    @value-changed=${(e) => {
-                                        this._lineFormData.style = {
-                                            ...this._lineFormData.style,
-                                            marker_end: {
-                                                ...this._lineFormData.style.marker_end,
-                                                stroke: e.detail.value
-                                            }
-                                        };
-                                        this.requestUpdate();
-                                    }}>
-                                </lcards-color-picker>
-                            </div>
+                            ${this._renderMarkerColorField('marker_end', 'stroke', 'Stroke Color')}
 
                             <ha-input
                                 type="number"
@@ -12297,13 +12289,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderLineStylePreviewVertical() {
-        // style.color may be a state-color object when "State-Based Color" is enabled —
-        // the preview can't simulate live entity state, so just show a representative
-        // swatch (default, falling back to any configured state) rather than "[object Object]".
+        // style.color may be a state-color object — _editLine() always normalizes a
+        // plain string into { default: rawColor } (see _editLine(), ~line 10245), so
+        // resolve the representative candidate value (default/active/first-state)
+        // the same way regardless of shape, THEN check whether *that* candidate is a
+        // literal Jinja2/JS template string (Phase 8) — this dialog has no hass/card
+        // instance in scope to evaluate it against, so fall back to the default line
+        // color and flag it via isTemplateColor for a small notice below.
         const rawColor = this._lineFormData.style?.color;
-        const color = (typeof rawColor === 'object' && rawColor !== null)
-            ? (rawColor.default || rawColor.active || Object.values(rawColor)[0] || 'var(--lcars-orange)')
-            : (rawColor || 'var(--lcars-orange)');
+        const candidateColor = (typeof rawColor === 'object' && rawColor !== null)
+            ? (rawColor.default || rawColor.active || Object.values(rawColor)[0])
+            : rawColor;
+        const isTemplateColor = typeof candidateColor === 'string' &&
+            (candidateColor.includes('{{') || candidateColor.includes('{%') || candidateColor.includes('[[['));
+        const color = isTemplateColor ? 'var(--lcars-orange)' : (candidateColor || 'var(--lcars-orange)');
         const width = this._lineFormData.style?.width || 2;
         const opacity = this._lineFormData.style?.opacity ?? 1;
         const dashArray = this._lineFormData.style?.dash_array || '';
@@ -12335,15 +12334,28 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Reuse the production marker-definition builder (LineOverlay._createMarkerDefinition
         // is a pure function of its arguments) for pixel-accurate marker rendering.
+        // "match_line" (Phase 9) is normally resolved in LineOverlay._buildDefinitions()
+        // against the line's real resolved color — _createMarkerDefinition() itself has
+        // no idea what that sentinel means, so without resolving it here first it gets
+        // used as a literal (invalid) CSS color value, rendering black.
         const createMarker = (marker, id, position) => {
             if (!marker?.type || marker.type === 'none') return '';
-            return LineOverlay.prototype._createMarkerDefinition(marker, id, position);
+            const resolvedMarker = {
+                ...marker,
+                fill: marker.fill === 'match_line' ? color : marker.fill,
+                stroke: marker.stroke === 'match_line' ? color : marker.stroke
+            };
+            return LineOverlay.prototype._createMarkerDefinition(resolvedMarker, id, position, opacity);
         };
 
         return html`
-            <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; background: #0a0a0a; border-radius: 8px; border: 1px solid #333;">
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #0a0a0a; border-radius: 8px; border: 1px solid #333; overflow: hidden;">
+                ${isTemplateColor ? html`
+                    <lcards-message type="info" message="Templates aren't evaluated in this preview — showing the default color." style="width: 100%;">
+                    </lcards-message>
+                ` : ''}
                 <!-- color: sets currentColor fallback for unfilled markers (card host normally provides this) -->
-                <svg viewBox="0 0 200 280" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: 100%; max-height: 500px; color: ${color};">
+                <svg viewBox="0 0 200 280" preserveAspectRatio="xMidYMid meet" style="flex: 1; width: 100%; min-height: 0; max-height: 500px; color: ${color};">
                     <defs>
                         ${unsafeSVG(createMarker(markerStart, 'start-preview-v', 'start'))}
                         ${unsafeSVG(createMarker(markerEnd, 'end-preview-v', 'end'))}

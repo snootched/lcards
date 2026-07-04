@@ -463,7 +463,14 @@ export class LineOverlay extends OverlayBase {
    */
   _resolveLineColor(styleValue, overlay, cardInstance, fallback, resolveToken, context = {}) {
     if (typeof styleValue !== 'object' || styleValue === null) {
-      return this._resolveStyleProperty(styleValue, 'defaultColor', resolveToken, fallback, context);
+      // Literal color string: check for a pre-evaluated Jinja2/JS template result
+      // (populated by LCARdSMSDCard._processCustomTemplates()) before falling
+      // through to token/literal resolution — scoped to color only, matching
+      // button/elbow's convention (width/opacity never get template eval).
+      const resolved = (typeof styleValue === 'string' && typeof cardInstance?._resolveTemplateValue === 'function')
+        ? cardInstance._resolveTemplateValue(styleValue)
+        : styleValue;
+      return this._resolveStyleProperty(resolved, 'defaultColor', resolveToken, fallback, context);
     }
 
     if (!cardInstance || typeof cardInstance._resolveColorValue !== 'function') {
@@ -669,17 +676,38 @@ export class LineOverlay extends OverlayBase {
     // currentColor, which inherits the card host's text color — not the line's
     // own color, which looks like an unrelated, jarring mismatch. Default to the
     // line's color instead, same as the editor preview already does.
+    //
+    // "match_line" (Phase 9) is an explicit opt-in sentinel — distinct from the
+    // implicit no-fill-set fallback above — letting a marker's fill/stroke track
+    // the line's fully-resolved color (static or state-based) without duplicating
+    // state-color config onto the marker itself. The rendered <marker id="..."> is
+    // always the fixed `marker-${markerPosition}-${overlayId}` value — it's
+    // referenced by a hardcoded url(#...) from the path in _buildMainPath(), so it
+    // can't vary — but the markerCache LOOKUP key includes the resolved color for
+    // "match_line" markers, so updateLineEntityColors() (Phase 8/9) can force a
+    // fresh def (and DOM patch) when the line's color changes, rather than
+    // reusing a stale cached marker forever.
     ['markerStart', 'markerMid', 'markerEnd'].forEach((markerType, index) => {
       const marker = lineStyle[markerType];
       if (marker) {
         const markerPosition = ['start', 'mid', 'end'][index];
-        const markerId = `marker-${markerPosition}-${overlayId}`;
-        if (!this.markerCache.has(markerId)) {
-          const markerWithFallback = (marker.fill || marker.color) ? marker : { ...marker, fill: lineStyle.color };
-          const markerDef = this._createMarkerDefinition(markerWithFallback, markerId, markerPosition);
-          this.markerCache.set(markerId, markerDef);
+        const renderedId = `marker-${markerPosition}-${overlayId}`;
+        const matchesLine = marker.fill === 'match_line' || marker.stroke === 'match_line';
+        // Opacity is always baked in (see _createMarkerDefinition's lineOpacity
+        // param), so it's always part of the cache key, not just for match_line.
+        const cacheKey = matchesLine
+          ? `${renderedId}::${lineStyle.color}::${lineStyle.opacity}`
+          : `${renderedId}::${lineStyle.opacity}`;
+        if (!this.markerCache.has(cacheKey)) {
+          const resolvedFill = marker.fill === 'match_line' ? lineStyle.color : marker.fill;
+          const resolvedStroke = marker.stroke === 'match_line' ? lineStyle.color : marker.stroke;
+          const markerWithFallback = (resolvedFill || marker.color)
+            ? { ...marker, fill: resolvedFill, stroke: resolvedStroke }
+            : { ...marker, fill: lineStyle.color, stroke: resolvedStroke };
+          const markerDef = this._createMarkerDefinition(markerWithFallback, renderedId, markerPosition, lineStyle.opacity);
+          this.markerCache.set(cacheKey, markerDef);
         }
-        defs.push(this.markerCache.get(markerId));
+        defs.push(this.markerCache.get(cacheKey));
       }
     });
 
@@ -869,7 +897,7 @@ export class LineOverlay extends OverlayBase {
             </pattern>`;
   }
 
-  _createMarkerDefinition(marker, markerId, markerPosition = 'end') {
+  _createMarkerDefinition(marker, markerId, markerPosition = 'end', lineOpacity = 1) {
     if (!marker || !marker.type) return '';
 
     // Use size directly in pixels
@@ -935,6 +963,14 @@ export class LineOverlay extends OverlayBase {
     // the same direction as marker-end, which looks backward for a start marker.
     const orient = markerPosition === 'start' ? 'auto-start-reverse' : 'auto';
 
+    // A fully-opaque marker on a translucent line reads as a mismatch/bug rather
+    // than an intentional style choice (unlike marker color, which legitimately
+    // differs from the line's own color often) — so unlike "match_line" color,
+    // this isn't opt-in: markers always inherit the line's opacity. It's a
+    // static config value (no template/entity support planned), so this only
+    // needs to be baked in at build time, not live-patched on hass updates.
+    const markerContent = lineOpacity !== 1 ? `<g opacity="${lineOpacity}">${shape}</g>` : shape;
+
     return `<marker
       id="${markerId}"
       viewBox="0 0 ${markerW} ${markerH}"
@@ -944,7 +980,7 @@ export class LineOverlay extends OverlayBase {
       refX="${refX}"
       refY="${refY}"
       orient="${orient}">
-      ${shape}
+      ${markerContent}
     </marker>`;
   }
 }

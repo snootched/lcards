@@ -1432,15 +1432,20 @@ export class AdvancedRenderer {
   }
 
   /**
-   * Re-resolve and DOM-patch every entity-bound line's color on a HASS update.
+   * Re-resolve and DOM-patch every entity-bound or templated line's color on a
+   * HASS update.
    *
    * Unlike controls (which receive HASS directly) and rule-driven overlays (which
    * are subscribed via the Rules Engine's own watch mechanism), a line's `entity`
-   * state-color binding has no subscription of its own — render() only resolves
-   * color once, at initial paint. Called from
+   * state-color binding — or a plain Jinja2/JS template literal in `style.color`
+   * (Phase 8, no `entity` field needed since `states(...)` is called directly
+   * inside the template string) — has no subscription of its own; render() only
+   * resolves color once, at initial paint. Called from
    * MsdCardCoordinator._propagateHassToSystems() on every HASS update; cheap even
    * for many lines since it's just a handful of object-key lookups per line, no
-   * re-render of routing/geometry.
+   * re-render of routing/geometry, no DOM destruction (unlike a full reRender()
+   * — deliberately avoided here so running animations on unrelated overlays are
+   * never disturbed by a color-only update).
    *
    * @param {Object} hass - Current Home Assistant state object
    */
@@ -1452,7 +1457,12 @@ export class AdvancedRenderer {
     if (!cardInstance) return;
 
     for (const overlay of overlays) {
-      if (overlay.type !== 'line' || !overlay.entity) continue;
+      if (overlay.type !== 'line') continue;
+
+      const styleValue = overlay.finalStyle?.color ?? overlay.style?.color;
+      const isTemplateLiteral = typeof styleValue === 'string' &&
+        (styleValue.includes('{{') || styleValue.includes('{%') || styleValue.includes('[[['));
+      if (!overlay.entity && !isTemplateLiteral) continue;
 
       const el = this.overlayElementCache.get(overlay.id);
       if (!el) continue;
@@ -1460,7 +1470,6 @@ export class AdvancedRenderer {
       const lineRenderer = this._getRendererForOverlay(overlay);
       if (!lineRenderer || typeof lineRenderer._resolveLineColor !== 'function') continue;
 
-      const styleValue = overlay.finalStyle?.color ?? overlay.style?.color;
       const newColor = lineRenderer._resolveLineColor(
         styleValue,
         overlay,
@@ -1470,6 +1479,34 @@ export class AdvancedRenderer {
 
       const paths = el.querySelectorAll('.line-path, .line-selection-indicator');
       paths.forEach(p => p.setAttribute('stroke', newColor));
+
+      // "match_line" markers (Phase 9) — the cached <marker> defs only pick up a
+      // color change on the next full build (_buildDefinitions()'s cache-key
+      // includes the color precisely for this reason), which we deliberately
+      // don't force here (see class docblock). Patch the marker's shape fill/
+      // stroke attribute directly instead — same surgical, no-rebuild approach
+      // as the line stroke above.
+      const markerStyle = overlay.finalStyle ?? overlay.style ?? {};
+      ['marker_start', 'marker_mid', 'marker_end'].forEach((key, index) => {
+        const marker = markerStyle[key];
+        if (!marker || (marker.fill !== 'match_line' && marker.stroke !== 'match_line')) return;
+
+        const position = ['start', 'mid', 'end'][index];
+        const shape = el.querySelector(`marker#marker-${position}-${overlay.id} > *`);
+        if (!shape) return;
+
+        // The 'line' marker type (an orthogonal tick, an SVG <line> with no fill)
+        // renders its color via `stroke`, using the *fill* config field for it
+        // (see LineOverlay._createMarkerDefinition()'s 'line' case) — match that
+        // quirk here so "Match Line Color" on a fill field still patches the
+        // attribute that actually carries color for this one marker type.
+        if (marker.fill === 'match_line') {
+          shape.setAttribute(marker.type === 'line' ? 'stroke' : 'fill', newColor);
+        }
+        if (marker.stroke === 'match_line' && marker.type !== 'line') {
+          shape.setAttribute('stroke', newColor);
+        }
+      });
     }
   }
 

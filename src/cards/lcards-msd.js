@@ -523,6 +523,34 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 
     /**
+     * Pre-evaluate Jinja2/JS templates in MSD overlay config (e.g. a line's
+     * `style.color`) so `_resolveTemplateValue()` can substitute results
+     * during LineOverlay's synchronous color resolution.
+     *
+     * Deliberately does NOT call the pipeline's `reRender()` (a full
+     * `AdvancedRenderer.render()` pass) to pick up the fresh cache — that
+     * destroys and rebuilds every overlay's DOM (`AdvancedRenderer.render()`
+     * clears `overlayElementCache` and empties the overlay group), which kills
+     * running animations on completely unrelated overlays and can refire
+     * `on_load` triggers unexpectedly. Instead, re-ingest hass through the
+     * normal coordinator path: `MsdCardCoordinator.ingestHass()` already calls
+     * `AdvancedRenderer.updateLineEntityColors()` every tick, which (as of
+     * Phase 8) surgically DOM-patches template-literal line colors the same
+     * way it already patches `entity`-bound ones — no full re-render needed.
+     * @protected
+     * @override
+     */
+    async _processCustomTemplates() {
+        if (!this.config?.msd?.overlays) return;
+
+        const hasChanges = await this._preEvaluateStyleTemplates(this.config.msd.overlays);
+
+        if (hasChanges && this.hass && this._msdPipeline?.coordinator) {
+            this._msdPipeline.coordinator.ingestHass(this.hass);
+        }
+    }
+
+    /**
      * Handle HASS updates - forward to MSD coordinator
      * @param {Object} newHass - New HASS object
      * @param {Object} oldHass - Old HASS object
@@ -539,6 +567,22 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Note: coordinator is the MsdCardCoordinator instance from pipeline
         if (this._msdPipeline?.coordinator) {
             this._msdPipeline.coordinator.ingestHass(newHass);
+        }
+
+        // Re-evaluate Jinja2/JS templates (e.g. a line's style.color) whenever an
+        // entity referenced by one of them changes. Since we skip
+        // super._handleHassUpdate()/don't rely on the base class's generic
+        // _onHassChanged()-driven _scheduleTemplateUpdate() path here, trigger it
+        // directly from MSD's own always-fires-every-tick hass hook instead —
+        // _trackedEntities is still populated by the base class's
+        // _updateTrackedEntities() (auto-scans config for Jinja2 entity refs).
+        if (this._trackedEntities?.length > 0) {
+            const entityChanged = this._trackedEntities.some(entityId =>
+                oldHass?.states?.[entityId] !== newHass?.states?.[entityId]
+            );
+            if (entityChanged) {
+                this._processCustomTemplates();
+            }
         }
 
         // MSD has no single bound entity (unlike button/elbow) — background effects
@@ -820,6 +864,13 @@ export class LCARdSMSDCard extends LCARdSCard {
 
             // Register overlays with core rulesManager NOW that config is fully processed
             this._registerOverlaysWithRulesEngine();
+
+            // Ensure any Jinja2/JS template literals in overlay styles (e.g. a line's
+            // style.color) are evaluated and re-rendered at least once now that the
+            // pipeline (and hass) are available — the generic hass-change-triggered
+            // path in _processCustomTemplates() may race with this initialization on
+            // first load, since MSD's own reRender() isn't ready until this point.
+            await this._processCustomTemplates();
 
             lcardsLog.debug('[LCARdSMSDCard] ✅ MSD pipeline initialized successfully with SVG container mounted');
 
