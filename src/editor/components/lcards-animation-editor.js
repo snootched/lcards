@@ -30,6 +30,7 @@ export class LCARdSAnimationEditor extends LitElement {
       hass: { type: Object },
       animations: { type: Array, noAccessor: true }, // Custom getter/setter below — seeds _workingAnimations
       cardElement: { type: Object },  // Card element for target discovery
+      searchRootSelector: { type: String }, // Optional: scope target discovery to a sub-element (e.g. '#__msd-base-content') instead of the whole card
       systemAnimationIds: { type: Array }, // IDs from componentDef.animations — no delete, toggle only
       _workingAnimations: { state: true }, // Internal editing state — never overwritten by parent re-renders
       _expandedIndex: { type: Number },
@@ -348,40 +349,6 @@ export class LCARdSAnimationEditor extends LitElement {
         --mdc-icon-size: 20px;
       }
 
-      .validation-message {
-        font-size: 14px;
-        margin-top: 4px;
-        padding: 8px 12px;
-        border-radius: var(--ha-card-border-radius, 12px);
-      }
-
-      .validation-message.valid {
-        color: var(--success-color, #4caf50);
-        background: rgba(76, 175, 80, 0.1);
-      }
-
-      .validation-message.error {
-        color: var(--error-color, #f44336);
-        background: rgba(244, 67, 54, 0.1);
-      }
-
-      .validation-summary {
-        font-size: 13px;
-        padding: 8px 12px;
-        border-radius: var(--ha-card-border-radius, 12px);
-        text-align: center;
-        margin-top: 8px;
-      }
-
-      .validation-summary.valid {
-        color: var(--success-color);
-        background: rgba(76, 175, 80, 0.1);
-      }
-
-      .validation-summary.error {
-        color: var(--warning-color);
-        background: rgba(255, 152, 0, 0.1);
-      }
 
       .animation-item.is-disabled .animation-icon {
         opacity: 0.35;
@@ -2740,10 +2707,29 @@ export class LCARdSAnimationEditor extends LitElement {
         description="Select which element(s) to animate"
         ?expanded=${true}>
 
+        <lcards-message
+            type="info"
+            message="If the element list below looks empty or incomplete, click Refresh — the live preview reloads periodically and this list can go stale.">
+        </lcards-message>
+        <ha-button
+            outlined
+            @click=${() => {
+              // Just re-rendering this component isn't enough — .cardElement is
+              // a reference the PARENT (Studio dialog) passes in, re-fetched via
+              // its own _getLivePreviewCardElement() only when IT re-renders.
+              // The live preview replaces the whole <lcards-msd-card> element on
+              // every reload, so re-rendering here alone would keep re-querying
+              // the same stale/detached reference. Ask the parent to refresh it.
+              this.dispatchEvent(new CustomEvent('refresh-targets', { bubbles: true, composed: true }));
+            }}>
+          <ha-icon icon="mdi:refresh" slot="icon"></ha-icon>
+          Refresh Element List
+        </ha-button>
+
         <div class="mode-selector">
           <ha-radio-group
             .value=${targetMode}
-            @value-changed=${e => this._setTargetMode(index, e.detail.value)}>
+            @change=${e => this._setTargetMode(index, e.target.value)}>
             <ha-radio-option value="single">Single Element</ha-radio-option>
             <ha-radio-option value="multiple">Multiple Elements</ha-radio-option>
           </ha-radio-group>
@@ -2857,15 +2843,32 @@ export class LCARdSAnimationEditor extends LitElement {
       return options;
     }
 
-    const root = this.cardElement.shadowRoot || this.cardElement.renderRoot;
+    const fullRoot = this.cardElement.shadowRoot || this.cardElement.renderRoot;
 
-    if (!root) {
+    if (!fullRoot) {
       lcardsLog.warn('[AnimationEditor] Card element has no shadow/render root:', {
         element: this.cardElement.tagName,
         hasShadowRoot: !!this.cardElement.shadowRoot,
         hasRenderRoot: !!this.cardElement.renderRoot
       });
       return options;
+    }
+
+    // Optionally scope discovery to a sub-element (e.g. MSD's base_svg group)
+    // instead of the whole card, so this only ever offers targets that will
+    // actually resolve for whichever scope this animation gets registered
+    // against — otherwise a target picked from elsewhere on the card would
+    // silently fail to resolve at runtime (no error, just no match).
+    let root = fullRoot;
+    if (this.searchRootSelector) {
+      const scopedRoot = fullRoot.querySelector(this.searchRootSelector);
+      if (scopedRoot) {
+        root = scopedRoot;
+      } else {
+        lcardsLog.warn('[AnimationEditor] searchRootSelector not found, falling back to whole-card discovery:', {
+          searchRootSelector: this.searchRootSelector
+        });
+      }
     }
 
     try {
@@ -2931,6 +2934,36 @@ export class LCARdSAnimationEditor extends LitElement {
         });
       });
 
+      // Discover generic tag-based selectors (e.g. "path" matches every <path>
+      // element at once) — a bulk-targeting shortcut for animations meant to
+      // apply to many/all elements of a kind (e.g. "draw" across every path in
+      // an SVG), without needing to individually pick each one via id/class.
+      const EXCLUDED_TAGS = new Set(['svg', 'defs', 'style', 'script', 'title', 'desc', 'metadata', 'symbol']);
+      const tagCounts = new Map();
+      root.querySelectorAll('*').forEach(el => {
+        const tag = el.tagName.toLowerCase();
+        if (EXCLUDED_TAGS.has(tag)) return;
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+      });
+      tagCounts.forEach((count, tag) => {
+        options.push({
+          value: tag,
+          label: `All <${tag}> elements (${count} found)`,
+          isTagOption: true
+        });
+      });
+
+      // NOTE: a "Top-level <tag> only, excluding nested" bulk option (via a
+      // :scope-based CSS trick) was tried here and removed — it still produced
+      // incorrect scaling/positioning even after fixing an initial scoping bug,
+      // and wasn't worth further speculative CSS-selector debugging without a
+      // way to test live in a browser. For animations that need to target a
+      // specific element within a nested group structure (e.g. a whole SVG's
+      // outermost group, to avoid compounding transforms on its own nested
+      // children), pick that element's specific #id from the list instead —
+      // already confirmed reliable, and it's how targeting works everywhere
+      // else in the app.
+
       lcardsLog.debug('[AnimationEditor] Discovered targets:', {
         count: options.length
       });
@@ -2939,8 +2972,12 @@ export class LCARdSAnimationEditor extends LitElement {
       lcardsLog.error('[AnimationEditor] Error discovering targets:', error);
     }
 
-    // Sort alphabetically
-    options.sort((a, b) => a.label.localeCompare(b.label));
+    // Sort "All <tag> elements" bulk options to the top (as their own
+    // alphabetical group), then everything else alphabetically after them.
+    options.sort((a, b) => {
+      if (!!a.isTagOption !== !!b.isTagOption) return a.isTagOption ? -1 : 1;
+      return a.label.localeCompare(b.label);
+    });
 
     return options;
   }
@@ -3061,14 +3098,15 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _validateSelector(selector) {
     if (!selector) {
-      return { valid: true, count: 0, message: '' };
+      return { valid: true, count: 0, message: '', type: null };
     }
 
     if (!this.cardElement?.shadowRoot && !this.cardElement?.renderRoot) {
       return {
         valid: false,
         count: 0,
-        message: '⚠️ Cannot validate - card preview not available'
+        message: 'Cannot validate — card preview not available',
+        type: 'warning'
       };
     }
 
@@ -3082,21 +3120,24 @@ export class LCARdSAnimationEditor extends LitElement {
         return {
           valid: true,  // Valid syntax, just no matches
           count: 0,
-          message: '⚠️ No elements match this selector'
+          message: 'No elements match this selector',
+          type: 'warning'
         };
       }
 
       return {
         valid: true,
         count: count,
-        message: `✅ ${count} element${count === 1 ? '' : 's'} matched`
+        message: `${count} element${count === 1 ? '' : 's'} matched`,
+        type: 'success'
       };
 
     } catch (error) {
       return {
         valid: false,
         count: 0,
-        message: `❌ Invalid selector: ${error.message}`
+        message: `Invalid selector: ${error.message}`,
+        type: 'error'
       };
     }
   }
@@ -3106,11 +3147,10 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _renderValidation(selector) {
     const validation = this._validateSelector(selector);
+    if (!validation.type) return html``;
 
     return html`
-      <div class="validation-message ${validation.valid ? 'valid' : 'error'}">
-        ${validation.message}
-      </div>
+      <lcards-message type=${validation.type} .message=${validation.message}></lcards-message>
     `;
   }
 
@@ -3129,14 +3169,13 @@ export class LCARdSAnimationEditor extends LitElement {
       totalCount += result.count;
     });
 
-    return html`
-      <div class="validation-summary ${hasErrors ? 'error' : 'valid'}">
-        ${hasErrors
-          ? html`⚠️ Some selectors are invalid`
-          : html`✅ ${totalCount} total element${totalCount === 1 ? '' : 's'} matched`
-        }
-      </div>
-    `;
+    if (hasErrors) {
+      return html`<lcards-message type="error" message="Some selectors are invalid"></lcards-message>`;
+    }
+    if (totalCount === 0) {
+      return html`<lcards-message type="warning" message="No elements match any selector"></lcards-message>`;
+    }
+    return html`<lcards-message type="success" message="${totalCount} total element${totalCount === 1 ? '' : 's'} matched"></lcards-message>`;
   }
 }
 

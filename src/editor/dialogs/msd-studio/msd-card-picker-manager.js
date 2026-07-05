@@ -150,7 +150,14 @@ export class MSDCardPickerManager {
                 return;
             }
 
-            // Fire ll-create-card event on each view element
+            // Fire ll-create-card event on each view element. Note: calling
+            // stopPropagation()/preventDefault() on `event` here has no effect on
+            // whether HA's own listener opens hui-dialog-create-card — dispatchEvent()
+            // is synchronous, so by the time it returns, any listener along the path
+            // (e.g. hui-view's own ll-create-card handler, which calls showDialog())
+            // has already fully run. There is no way to suppress the dialog from
+            // opening; the cleanup below (finding and closing it) is the only
+            // mechanism that actually keeps it from staying visible.
             for (const element of viewElements) {
                 lcardsLog.trace(`[MSDCardPickerManager] Firing ll-create-card on ${element.tagName}...`);
 
@@ -164,48 +171,56 @@ export class MSDCardPickerManager {
                 });
 
                 element.dispatchEvent(event);
-
-                // Immediately stop propagation and prevent default to avoid opening the dialog
-                event.stopPropagation();
-                event.preventDefault();
             }
 
-            // Wait a moment for picker to load
-            await new Promise(resolve => setTimeout(resolve, 50));
-
-            // Close any dialogs that might have opened (hui-dialog-create-card in home-assistant shadowRoot)
+            // Poll for hui-dialog-create-card and close it as soon as it appears,
+            // instead of a single fixed-delay check. HA's showDialog() (make-dialog-
+            // manager.ts) lazy-loads the dialog via an async dialogImport().then(...)
+            // chain the first time it's shown in a session — how long that takes is
+            // not guaranteed, so a fixed wait can fire before the dialog actually
+            // attaches, silently missing it and leaving it visible on screen.
             const homeAssistant = document.querySelector('home-assistant');
-            if (homeAssistant?.shadowRoot) {
-                const createCardDialog = homeAssistant.shadowRoot.querySelector('hui-dialog-create-card');
-                if (createCardDialog) {
-                    lcardsLog.trace('[MSDCardPickerManager] Found hui-dialog-create-card, closing it...');
+            const maxCloseAttempts = 20; // ~1s at 50ms/attempt
+            let closed = false;
+            for (let attempt = 0; attempt < maxCloseAttempts && !closed; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 50));
 
-                    // Try multiple methods to close the dialog
+                const createCardDialog = homeAssistant?.shadowRoot?.querySelector('hui-dialog-create-card');
+                if (!createCardDialog) continue;
+
+                lcardsLog.trace(`[MSDCardPickerManager] Found hui-dialog-create-card (attempt ${attempt + 1}), closing it...`);
+
+                // Try multiple methods to close the dialog
+                // @ts-ignore - TS2339: auto-suppressed
+                if (typeof createCardDialog.closeDialog === 'function') {
                     // @ts-ignore - TS2339: auto-suppressed
-                    if (typeof createCardDialog.closeDialog === 'function') {
-                        // @ts-ignore - TS2339: auto-suppressed
-                        createCardDialog.closeDialog();
+                    createCardDialog.closeDialog();
+                // @ts-ignore - TS2551: auto-suppressed
+                } else if (createCardDialog.close) {
                     // @ts-ignore - TS2551: auto-suppressed
-                    } else if (createCardDialog.close) {
-                        // @ts-ignore - TS2551: auto-suppressed
-                        createCardDialog.close();
+                    createCardDialog.close();
+                // @ts-ignore - TS2339: auto-suppressed
+                } else if (createCardDialog.opened !== undefined) {
                     // @ts-ignore - TS2339: auto-suppressed
-                    } else if (createCardDialog.opened !== undefined) {
-                        // @ts-ignore - TS2339: auto-suppressed
-                        createCardDialog.opened = false;
-                    }
-
-                    // Also try removing it from DOM as last resort
-                    try {
-                        createCardDialog.remove();
-                        lcardsLog.trace('[MSDCardPickerManager] Removed hui-dialog-create-card from DOM');
-                    } catch (e) {
-                        lcardsLog.trace('[MSDCardPickerManager] Could not remove dialog:', e.message);
-                    }
+                    createCardDialog.opened = false;
                 }
+
+                // Also try removing it from DOM as last resort
+                try {
+                    createCardDialog.remove();
+                    lcardsLog.trace('[MSDCardPickerManager] Removed hui-dialog-create-card from DOM');
+                } catch (e) {
+                    lcardsLog.trace('[MSDCardPickerManager] Could not remove dialog:', e.message);
+                }
+
+                closed = true;
             }
 
-            // Wait for picker to load
+            if (!closed) {
+                lcardsLog.trace('[MSDCardPickerManager] hui-dialog-create-card never appeared within the poll window');
+            }
+
+            // Give hui-card-picker's own lazy-load a final moment to settle
             await new Promise(resolve => setTimeout(resolve, 100));
 
             if (customElements.get("hui-card-picker")) {

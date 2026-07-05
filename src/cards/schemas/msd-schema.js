@@ -27,6 +27,7 @@ import {
     backgroundAnimationSchema,
     entitySchema,
     stateColorSchema,
+    animationSchema,
 } from './common-schemas.js';
 
 /**
@@ -94,6 +95,17 @@ export function getMsdSchema(options = {}) {
             optional: true,
             default: true,
             description: 'Whether the base SVG is painted as the visible background. Set false to use background_animation (e.g. a static image or animated layers) as the visual background instead, while the SVG is still parsed for anchors as normal.'
+          },
+
+          animations: {
+            type: 'array',
+            optional: true,
+            description: 'Animations targeting elements inside the base SVG (by id/class, same target syntax as overlay animations)',
+            items: animationSchema,
+            'x-ui': {
+              control: 'animation-editor',
+              label: 'Base SVG Animations'
+            }
           }
         }
       },

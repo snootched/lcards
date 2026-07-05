@@ -2236,6 +2236,19 @@ export class LCARdSCard extends LCARdSNativeCard {
             });
         });
 
+        // Scan for map_range descriptors ({ map_range: { entity, ... } }) anywhere
+        // in the config — most commonly an animation's duration/delay/params
+        // (see resolveAnimParams.js), but this walk isn't field-specific. Without
+        // this, an entity referenced only via map_range is invisible here, which
+        // (for cards like MSD whose own hass propagation doesn't forward to
+        // window.lcards.core.ingestHass()/AnimationManager on every tick) means
+        // the entity change never reaches AnimationManager's live speed-adjust
+        // binding (Phase 10) at all — not a bug in that binding itself, just
+        // nothing telling the core singleton a relevant entity changed.
+        this._extractMapRangeEntities(this.config).forEach(entityId => {
+            trackedEntities.add(entityId);
+        });
+
         // Explicit escape-hatch: user-defined entity list.
         // Use this for JS/token templates that reference entities that cannot be
         // auto-detected (e.g. `[[[return hass.states[myVar].state]]]`).
@@ -2281,6 +2294,34 @@ export class LCARdSCard extends LCARdSNativeCard {
             // `type` is always the card type identifier (e.g. 'custom:lcards-button')
             if (key === 'type') continue;
             this._extractAllConfigStrings(value, out);
+        }
+        return out;
+    }
+
+    /**
+     * Recursively collect every `map_range.entity` reference from a config
+     * object, regardless of which field it lives under (duration/delay/params
+     * for animations today, but intentionally not field-specific — see
+     * resolveAnimParams.js's map_range descriptor shape).
+     * Used by `_updateTrackedEntities` so an entity referenced only via
+     * map_range still triggers hass-change forwarding.
+     *
+     * @private
+     * @param {*} node - Config node (object, array, or scalar)
+     * @param {Set<string>} [out] - Accumulator set
+     * @returns {Set<string>} Collected entity IDs
+     */
+    _extractMapRangeEntities(node, out = new Set()) {
+        if (!node || typeof node !== 'object') return out;
+        if (Array.isArray(node)) {
+            node.forEach(item => this._extractMapRangeEntities(item, out));
+            return out;
+        }
+        if (node.map_range && typeof node.map_range === 'object' && typeof node.map_range.entity === 'string') {
+            out.add(node.map_range.entity);
+        }
+        for (const value of Object.values(node)) {
+            this._extractMapRangeEntities(value, out);
         }
         return out;
     }

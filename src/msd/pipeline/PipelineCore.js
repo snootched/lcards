@@ -321,13 +321,15 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     errors: initialRenderResult?.errors || 0
   });
 
+  // Resolve the base content group once — used for both filters (below) and
+  // animation-scope registration (Phase 11), regardless of whether filters are
+  // configured. (__ prefix = internal/reserved ID, not an anchor)
+  const baseContentGroup = /** @type {HTMLElement|null} */ (mountEl?.querySelector('#__msd-base-content'));
+
   // Apply base SVG filters after initial render
   if (cardModel.baseSvg?.filters) {
     lcardsLog.trace('[PipelineCore] 🎨 Applying initial base SVG filters:', cardModel.baseSvg.filters);
     try {
-      // Target the base content group (__ prefix = internal/reserved ID, not an anchor)
-      const baseContentGroup = /** @type {HTMLElement|null} */ (mountEl?.querySelector('#__msd-base-content'));
-
       lcardsLog.trace('[PipelineCore] 🔍 Filter application details:', {
         hasMountEl: !!mountEl,
         mountElTag: (/** @type {any} */ (mountEl))?.tagName,
@@ -364,6 +366,28 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       }
     } catch (filterError) {
       lcardsLog.error('[PipelineCore] ❌ Failed to apply base SVG filters:', filterError);
+    }
+  }
+
+  // Register base_svg as an animatable AnimationManager scope (Phase 11), so
+  // animations can target elements inside the base SVG blueprint by id/class —
+  // previously only whole-group CSS-filter crossfades were possible (above).
+  // A bare { animations } stub is sufficient (same minimal-registration pattern
+  // already used by non-overlay callers, e.g. lcards-data-grid.js) — no need to
+  // shape this like a real overlay config.
+  if (cardModel.baseSvg?.animations?.length > 0) {
+    if (baseContentGroup && coordinator.animationManager) {
+      lcardsLog.trace('[PipelineCore] 🎬 Registering base_svg animation scope:', {
+        animationCount: cardModel.baseSvg.animations.length
+      });
+      await coordinator.animationManager.onOverlayRendered(
+        '__msd_base_svg',
+        baseContentGroup,
+        { animations: cardModel.baseSvg.animations },
+        coordinator
+      );
+    } else {
+      lcardsLog.warn('[PipelineCore] ⚠️ Cannot register base_svg animations — missing base content group or animationManager');
     }
   }
 

@@ -93,6 +93,20 @@ export const studioSubformDialogStyles = css`
         color: var(--primary-text-color);
     }
 
+    /* Wraps a live card preview (card editor sub-form, and the control form's
+       own card preview) - background matches HA's own .element-preview
+       treatment in hui-dialog-edit-card; padding is more generous than HA's
+       (4px) since a small padded card reads as cramped inside Studio's larger
+       preview panes. Shared by both preview surfaces so they look consistent
+       with each other, not just with HA. Distinct from .subform-preview.padded's
+       --secondary-background-color (used by the line editor's SVG canvas),
+       which should not change. */
+    .card-editor-preview-surface {
+        background: var(--primary-background-color);
+        padding: var(--ha-space-6);
+        border-radius: var(--ha-border-radius-md);
+    }
+
     /* Vertical stack of fields with consistent spacing - replaces the
        repeated inline style="display:flex;flex-direction:column;gap:16px"
        (and per-field style="margin-top:12px") pattern in subform tab content */

@@ -88,7 +88,12 @@ registerAnimationPreset('pulse', (def) => {
       ease,
       loop,
       alternate,
-      complete: (anim) => {
+      // anime.js v4's real callback name is `onComplete`, not `complete` — the
+      // latter isn't a recognized parameter (confirmed via anime.js's own
+      // isKey() helper: `a => !globals.defaults.hasOwnProperty(a)`), so it was
+      // being silently misinterpreted as a bogus tween property (attempting to
+      // animate a function value) instead of ever firing as a callback.
+      onComplete: (anim) => {
         // Ensure final values after animation completes
         if (anim && anim.animatables && anim.animatables.length > 0) {
           const target = anim.animatables[0].target;
@@ -138,7 +143,10 @@ registerAnimationPreset('fade', (def) => {
       ease,
       loop,
       alternate,
-      complete: alternate ? (anim) => {
+      // anime.js v4's real callback name is `onComplete`, not `complete` — see
+      // the `pulse` preset above for why (the latter is silently misinterpreted
+      // as a bogus tween property and never fires as a callback).
+      onComplete: alternate ? (anim) => {
         // Ensure element returns to starting opacity after alternate completes
         if (anim.animatables && anim.animatables[0] && anim.animatables[0].target) {
           anim.animatables[0].target.style.opacity = from;
@@ -232,12 +240,38 @@ registerAnimationPreset('draw', (def) => {
     setup: (element) => {
       if (!element) return;
 
+      // createDrawable's proxy drives the reveal by calling setAttribute()
+      // on 'stroke-dasharray'/'stroke-dashoffset' — the XML PRESENTATION
+      // ATTRIBUTE, not the CSS property. An element's own inline `style=""`
+      // always wins over its presentation attribute for the same property
+      // (the mirror image of the transform-attribute-vs-CSS-property bug
+      // fixed earlier in _migrateTransformAttrToStyle) — so authoring tools
+      // that bake `stroke-dasharray:none` into the inline style (extremely
+      // common; confirmed on this SVG's own paths) permanently mask every
+      // value the proxy sets, even though the attribute is genuinely
+      // changing tick by tick. Strip any inline declaration for these two
+      // properties so the attribute-driven animation can actually paint.
+      element.style.removeProperty('stroke-dasharray');
+      element.style.removeProperty('stroke-dashoffset');
+
       // Use anime.js v4 createDrawable to prepare the path for animation
       if (window.lcards?.animejs?.svg?.createDrawable) {
         const [drawable] = window.lcards.animejs.svg.createDrawable(element);
 
         // Store drawable reference for animateElement to use
         element._drawable = drawable;
+        lcardsLog.debug('[draw preset] createDrawable succeeded', {
+          id: element.id, hasDrawable: !!drawable,
+          pathLengthAttr: element.getAttribute('pathLength'),
+          strokeDasharray: element.getAttribute('stroke-dasharray'),
+          strokeDashoffset: element.getAttribute('stroke-dashoffset')
+        });
+      } else {
+        lcardsLog.warn('[draw preset] window.lcards.animejs.svg.createDrawable not available', {
+          id: element.id,
+          hasAnimejs: !!window.lcards?.animejs,
+          hasSvg: !!window.lcards?.animejs?.svg
+        });
       }
     }
   };

@@ -576,7 +576,16 @@ export class LCARdSMSDCard extends LCARdSCard {
      *
      * NOTE: We don't call super._handleHassUpdate() because MSD has its own
      * coordinator that handles HASS distribution to subsystems (renderer, controls).
-     * The core rulesManager receives HASS automatically via BaseService.updateHass().
+     *
+     * CORRECTED: this used to assume "the core rulesManager receives HASS
+     * automatically via BaseService.updateHass()" — that was only ever true by
+     * accident, when some *other* card on the same dashboard happened to call
+     * window.lcards.core.ingestHass() and trigger the global cascade to every
+     * BaseService singleton (rulesManager, animationManager, etc.), since MSD's
+     * own hass setter (above) never calls the base class's _onHassChanged(),
+     * which is the only other place that forwarding happens. Confirmed via a
+     * live map_range animation-speed test (Phase 10) that never live-updated
+     * with only the MSD card on the page. Now forwarded explicitly below.
      */
     _handleHassUpdate(newHass, oldHass) {
         lcardsLog.trace('[LCARdSMSDCard] _handleHassUpdate called');
@@ -588,18 +597,22 @@ export class LCARdSMSDCard extends LCARdSCard {
         }
 
         // Re-evaluate Jinja2/JS templates (e.g. a line's style.color) whenever an
-        // entity referenced by one of them changes. Since we skip
-        // super._handleHassUpdate()/don't rely on the base class's generic
-        // _onHassChanged()-driven _scheduleTemplateUpdate() path here, trigger it
-        // directly from MSD's own always-fires-every-tick hass hook instead —
-        // _trackedEntities is still populated by the base class's
-        // _updateTrackedEntities() (auto-scans config for Jinja2 entity refs).
+        // entity referenced by one of them changes, and forward to the global
+        // core singleton so every other BaseService (rulesManager,
+        // animationManager, etc.) sees the change too — _trackedEntities is
+        // populated by the base class's _updateTrackedEntities() (auto-scans
+        // config for Jinja2 entity refs and, as of Phase 10, map_range.entity
+        // refs too), and window.lcards.core.ingestHass() dedupes multiple calls
+        // per tick, so calling it here is safe even if another card also does.
         if (this._trackedEntities?.length > 0) {
             const entityChanged = this._trackedEntities.some(entityId =>
                 oldHass?.states?.[entityId] !== newHass?.states?.[entityId]
             );
             if (entityChanged) {
                 this._processCustomTemplates();
+                if (window.lcards?.core) {
+                    window.lcards.core.ingestHass(newHass);
+                }
             }
         }
 
@@ -1568,6 +1581,14 @@ export class LCARdSMSDCard extends LCARdSCard {
                     nestedSvg.removeAttribute('width');
                     nestedSvg.removeAttribute('height');
                 });
+
+                // NOTE: transform-attribute normalization for animation targets was
+                // tried here (unconditionally, on every element in the SVG) and
+                // caused a static-rendering regression (base SVG no longer centered
+                // even with zero animations) — reverted. Moved to a per-element,
+                // just-in-time migration inside animateElement() (lcards-anim-helpers.js)
+                // instead, scoped to only the specific element(s) an animation is
+                // about to touch, so the vast majority of the SVG is never modified.
 
                 // Get all child nodes
                 const children = Array.from(svgEl.childNodes);

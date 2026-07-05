@@ -26,6 +26,7 @@ export async function buildCardModel(mergedConfig) {
     let baseSvgSource = null;
     let baseSvgFilters = null;
     let baseSvgFilterPreset = null;
+    let baseSvgAnimations = null;
 
     if (typeof mergedConfig.base_svg === 'string') {
       baseSvgSource = mergedConfig.base_svg;
@@ -33,6 +34,7 @@ export async function buildCardModel(mergedConfig) {
       baseSvgSource = mergedConfig.base_svg.source;
       baseSvgFilters = mergedConfig.base_svg.filters;
       baseSvgFilterPreset = mergedConfig.base_svg.filter_preset;
+      baseSvgAnimations = mergedConfig.base_svg.animations;
     }
 
     lcardsLog.trace('[CardModel] Resolved base_svg source:', baseSvgSource);
@@ -80,7 +82,8 @@ export async function buildCardModel(mergedConfig) {
     // Build baseSvg object for model
     const baseSvg = {
       source: baseSvgSource,
-      filters: resolvedFilters
+      filters: resolvedFilters,
+      animations: Array.isArray(baseSvgAnimations) ? baseSvgAnimations : []
     };
 
     // Copy anchors from config - these are used by OverlayUtils.resolvePosition()

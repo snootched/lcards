@@ -137,6 +137,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _controlFormZIndex: { type: Number, state: true },
             _controlFormCard: { type: Object, state: true },
             _controlFormActiveSubtab: { type: String, state: true }, // 'placement' or 'card'
+            // Card Editor Sub-form (nested inside the Control form's Card tab)
+            _showCardEditorForm: { type: Boolean, state: true },
+            _cardEditorTempConfig: { type: Object, state: true },
             // Lines Tab Properties
             _showLineForm: { type: Boolean, state: true },
             _editingLineId: { type: String, state: true },
@@ -265,6 +268,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormZIndex = null;
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
+
+        // Card Editor Sub-form State (nested inside Control form's Card tab)
+        this._showCardEditorForm = false;
+        this._cardEditorTempConfig = null;
 
         // Lines Tab State
         this._showLineForm = false;
@@ -1889,7 +1896,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div style="display: flex; flex-direction: column; gap: 12px;">
                         <ha-radio-group
                             .value=${this._viewBoxMode}
-                            @value-changed=${e => this._handleViewBoxModeChange(e.detail.value)}>
+                            @change=${e => this._handleViewBoxModeChange(e.target.value)}>
                             <ha-radio-option value="auto">Auto-detect from SVG</ha-radio-option>
                             <ha-radio-option value="custom">Custom viewBox</ha-radio-option>
                         </ha-radio-group>
@@ -1940,6 +1947,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .filters=${baseSvg.filters || []}
                         @filters-changed=${this._handleFiltersChanged}>
                     </lcards-filter-editor>
+
+                </lcards-form-section>
+
+                <!-- Animations Section -->
+                <lcards-form-section
+                    header="Animations"
+                    description="Animate elements inside the base SVG by id/class — separate from the whole-group filter crossfades above"
+                    icon="mdi:play-box-outline"
+                    ?expanded=${false}>
+
+                    <lcards-animation-editor
+                        .hass=${this.hass}
+                        .animations=${baseSvg.animations || []}
+                        .cardElement=${this._getLivePreviewCardElement()}
+                        .searchRootSelector=${'#__msd-base-content'}
+                        @animations-changed=${(e) => {
+                            this._setNestedValue('msd.base_svg.animations', e.detail.value);
+                        }}
+                        @refresh-targets=${() => this.requestUpdate()}>
+                    </lcards-animation-editor>
 
                 </lcards-form-section>
 
@@ -2052,6 +2079,22 @@ export class LCARdSMSDStudioDialog extends LitElement {
     // ============================
     // Anchors Tab Helper Methods
     // ============================
+
+    /**
+     * Get the live-rendered <lcards-msd-card> instance inside the Studio's own
+     * preview pane, if currently mounted. Shared getter for anything needing
+     * live DOM access to the preview (e.g. the animation editor's target
+     * picker, Phase 11) — same traversal `getBaseSvgAnchors()` already does
+     * for anchor harvesting, extracted here since it's duplicated ad hoc
+     * throughout this file.
+     * @returns {Element|null}
+     * @private
+     */
+    _getLivePreviewCardElement() {
+        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
+        const cardContainer = livePreview?.shadowRoot?.querySelector('.preview-card-container');
+        return cardContainer?.querySelector('lcards-msd-card') || null;
+    }
 
     /**
      * Get anchors extracted from base SVG
@@ -8586,130 +8629,140 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _openCardEditorModal() {
-        // Create dialog element
-        const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - TS2339: auto-suppressed
-        dialog.headerTitle = 'Edit Card Configuration';
+        // Deep copy so edits don't mutate the control form's config until Save
+        this._cardEditorTempConfig = JSON.parse(JSON.stringify(this._controlFormCard));
+        this._showCardEditorForm = true;
+        lcardsLog.debug('[MSDStudio] Opening card editor form with config:', this._cardEditorTempConfig);
+        this.requestUpdate();
+    }
 
-        // Style the dialog to be large enough for editors
-        dialog.style.setProperty('--ha-dialog-width-md', '90vw');
+    /**
+     * Close the card editor sub-form without saving.
+     * @private
+     */
+    _closeCardEditorForm() {
+        this._showCardEditorForm = false;
+        this._cardEditorTempConfig = null;
+        this.requestUpdate();
+    }
 
-        // Create container for editor
-        const container = document.createElement('div');
-        container.style.padding = '24px';
-        container.style.minHeight = '400px';
+    /**
+     * Commit the card editor sub-form's temp config back into the control
+     * form's card, then close.
+     * @private
+     */
+    _saveCardEditorForm() {
+        let config = this._cardEditorTempConfig;
 
-        // Create the card editor
-        const lovelace = this._getLovelace();
-        const editor = document.createElement('hui-card-element-editor');
-        // @ts-ignore - TS2339: auto-suppressed
-        editor.hass = this.hass;
-        // @ts-ignore - TS2339: auto-suppressed
-        editor.lovelace = lovelace;
-
-        // Deep copy initial config
-        const initialConfig = JSON.parse(JSON.stringify(this._controlFormCard));
-
-        // hui-card-element-editor uses .value property for config
-        // @ts-ignore - TS2339: auto-suppressed
-        editor.value = initialConfig;
-
-        // Track config changes - initialize with current config
-        let tempConfig = initialConfig;
-
-        lcardsLog.debug('[MSDStudio] Opening card editor with config:', initialConfig);
-
-        // Listen for config-changed event (HA standard)
-        editor.addEventListener('config-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
-            lcardsLog.trace('[MSDStudio] config-changed event:', e.detail);
-            // @ts-ignore - TS2339: auto-suppressed
-            if (e.detail && e.detail.config) {
-                // @ts-ignore - TS2339: auto-suppressed
-                const newValue = e.detail.config;
-                if (typeof newValue === 'object' && !Array.isArray(newValue) && newValue.type) {
-                    tempConfig = newValue;
-                    lcardsLog.trace('[MSDStudio] Card config updated:', tempConfig);
-                } else {
-                    lcardsLog.warn('[MSDStudio] Ignoring invalid config from config-changed:', newValue);
-                }
+        // Ensure we have a valid config with type
+        if (!config || !config.type) {
+            lcardsLog.error('[MSDStudio] Invalid card config from card editor form - missing type:', config);
+            if (this._controlFormCard?.type) {
+                config = { ...config, type: this._controlFormCard.type };
             }
-        });
+        }
 
-        // Also listen for value-changed as fallback
-        editor.addEventListener('value-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
-            lcardsLog.trace('[MSDStudio] value-changed event:', e.detail);
+        // Deep clone to avoid reference issues
+        this._controlFormCard = JSON.parse(JSON.stringify(config));
+        lcardsLog.debug('[MSDStudio] Card config saved:', this._controlFormCard);
 
-            // @ts-ignore - TS2339: auto-suppressed
-            if (e.detail && e.detail.value) {
-                // @ts-ignore - TS2339: auto-suppressed
-                const newValue = e.detail.value;
+        this._closeCardEditorForm();
+    }
 
-                // Defensive check - ensure we have a proper object with a type property
-                if (typeof newValue === 'object' && !Array.isArray(newValue) && newValue.type) {
-                    tempConfig = newValue;
-                    lcardsLog.trace('[MSDStudio] Card editor config updated from value-changed:', tempConfig);
-                } else {
-                    lcardsLog.warn('[MSDStudio] Ignoring invalid card config from value-changed:', newValue);
-                }
-            }
-        });
-
-        container.appendChild(editor);
-        dialog.appendChild(container);
-
-        // Add action buttons
-        const actionsDiv = document.createElement('div');
-        actionsDiv.slot = 'footer';
-
-        const saveButton = document.createElement('ha-button');
-        saveButton.textContent = 'Save';
-        saveButton.addEventListener('click', () => {
-            lcardsLog.debug('[MSDStudio] Saving card config from modal:', tempConfig);
-
-            // Ensure we have a valid config with type
-            if (!tempConfig || !tempConfig.type) {
-                lcardsLog.error('[MSDStudio] Invalid card config - missing type:', tempConfig);
-                // Try to preserve the type from original config
-                if (this._controlFormCard?.type) {
-                    tempConfig = { ...tempConfig, type: this._controlFormCard.type };
-                }
-            }
-
-            // Deep clone to avoid reference issues
-            this._controlFormCard = JSON.parse(JSON.stringify(tempConfig));
-            lcardsLog.debug('[MSDStudio] Card config saved:', this._controlFormCard);
-
+    /**
+     * Handle config-changed/value-changed events from hui-card-element-editor
+     * inside the card editor sub-form. Updates the reactive temp config that
+     * drives both the editor and the live hui-card preview.
+     * @param {CustomEvent} e
+     * @private
+     */
+    _handleCardEditorConfigChanged(e) {
+        const newValue = e.detail?.config ?? e.detail?.value;
+        if (newValue && typeof newValue === 'object' && !Array.isArray(newValue) && newValue.type) {
+            this._cardEditorTempConfig = newValue;
+            lcardsLog.trace('[MSDStudio] Card editor form config updated:', newValue);
             this.requestUpdate();
-            // @ts-ignore - TS2339: auto-suppressed
-            dialog.open = false;
-        });
+        } else {
+            lcardsLog.warn('[MSDStudio] Ignoring invalid card config from editor:', newValue);
+        }
+    }
 
-        const cancelButton = document.createElement('ha-button');
-        cancelButton.textContent = 'Cancel';
-        // @ts-ignore - TS2339: auto-suppressed
-        cancelButton.addEventListener('click', () => { dialog.open = false; });
+    /**
+     * Render the card editor sub-form dialog — same .subform-* shell as the
+     * line/control forms (Phase 6), with a live hui-card preview pane instead
+     * of the bare editor-only modal this replaced. hui-card is HA's own
+     * per-card wrapper (used for every card on every dashboard, so it's not
+     * lazy-loaded the way hui-card-picker/hui-dialog-edit-card are) — setting
+     * .hass/.config/.preview on it directly mirrors exactly what HA's own
+     * hui-dialog-edit-card does for its preview pane.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderCardEditorFormDialog() {
+        const lovelace = this._getLovelace();
 
-        actionsDiv.appendChild(cancelButton);
-        actionsDiv.appendChild(saveButton);
-        dialog.appendChild(actionsDiv);
+        return html`
+            <ha-dialog
+                class="subform-dialog"
+                open
+                @closed=${(e) => { e.stopPropagation(); this._closeCardEditorForm(); }}
+                .headerTitle=${'Edit Card Configuration'}
+                prevent-scrim-close>
 
-        // Cleanup when dialog closes
-        dialog.addEventListener('closed', () => {
-            dialog.remove();
-        });
+                <div class="subform-layout">
+                    <div class="subform-config">
+                        <div class="subform-tab-content">
+                            <hui-card-element-editor
+                                .hass=${this.hass}
+                                .lovelace=${lovelace}
+                                .value=${this._cardEditorTempConfig}
+                                @config-changed=${this._handleCardEditorConfigChanged}
+                                @value-changed=${this._handleCardEditorConfigChanged}>
+                            </hui-card-element-editor>
+                        </div>
+                    </div>
 
-        // Add to DOM and open
-        document.body.appendChild(dialog);
+                    <div class="subform-preview sticky">
+                        <div class="subform-preview-label">Live Preview</div>
+                        ${this._renderCardEditorPreview()}
+                    </div>
+                </div>
 
-        // Small delay to ensure dialog is ready
-        setTimeout(() => {
-            // @ts-ignore - TS2339: auto-suppressed
-            dialog.open = true;
-        }, 10);
+                <div slot="footer">
+                    <ha-button @click=${this._closeCardEditorForm} appearance="plain">
+                        <ha-icon icon="mdi:close" slot="start"></ha-icon>
+                        Cancel
+                    </ha-button>
+                    <ha-button @click=${this._saveCardEditorForm}>
+                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
+                        Save
+                    </ha-button>
+                </div>
+            </ha-dialog>
+        `;
+    }
 
-        lcardsLog.debug('[MSDStudio] Opened card editor modal');
+    /**
+     * Render the live preview pane for the card editor sub-form.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderCardEditorPreview() {
+        if (!this._cardEditorTempConfig?.type) {
+            return html`<lcards-message type="info">Select a card type to see a preview.</lcards-message>`;
+        }
+        if (!customElements.get('hui-card')) {
+            return html`<lcards-message type="warning">Live preview unavailable in this context.</lcards-message>`;
+        }
+        return html`
+            <div class="card-editor-preview-surface">
+                <hui-card
+                    .hass=${this.hass}
+                    .config=${this._cardEditorTempConfig}
+                    .preview=${true}>
+                </hui-card>
+            </div>
+        `;
     }
 
     /**
@@ -8784,10 +8837,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <!-- Card Preview -->
                 ${cardType && cardType !== 'none' ? html`
-                    <div style="padding: 20px; background: #0a0a0a; border-radius: 8px; border: 1px solid #333;">
-                        <div style="font-size: 12px; font-weight: 500; margin-bottom: 12px; color: #999;">Card Preview</div>
-                        <div style="display: flex; justify-content: center; align-items: center; min-height: ${size[1] + 20}px; background: #000; border-radius: 4px; padding: 10px;">
-                            <div style="width: ${size[0]}px; height: ${size[1]}px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.4);">
+                    <div style="padding: var(--ha-space-4); background: var(--card-background-color); border-radius: var(--ha-border-radius-md); border: var(--ha-border-width-sm) solid var(--divider-color);">
+                        <div style="font-size: 12px; font-weight: 500; margin-bottom: var(--ha-space-3); color: var(--secondary-text-color);">Card Preview</div>
+                        <div class="card-editor-preview-surface" style="display: flex; justify-content: center; align-items: center; min-height: ${size[1] + 20}px;">
+                            <div style="width: ${size[0]}px; height: ${size[1]}px; overflow: hidden; box-shadow: var(--ha-box-shadow-s);">
                                 ${this._renderControlCardPreview()}
                             </div>
                         </div>
@@ -11840,10 +11893,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-animation-editor
                         .hass=${this.hass}
                         .animations=${this._lineFormData.animations || []}
+                        .cardElement=${this._getLivePreviewCardElement()}
                         @animations-changed=${(e) => {
                             this._lineFormData.animations = e.detail.value;
                             this.requestUpdate();
                         }}
+                        @refresh-targets=${() => this.requestUpdate()}
                     ></lcards-animation-editor>
                 </lcards-form-section>
             </div>
@@ -12460,7 +12515,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Esc - Exit mode or close dialogs
         if (e.key === 'Escape') {
             e.preventDefault();
-            if (this._showLineForm) {
+            if (this._showCardEditorForm) {
+                this._closeCardEditorForm();
+            } else if (this._showLineForm) {
                 this._closeLineForm();
             } else if (this._showControlForm) {
                 this._closeControlForm();
@@ -12950,6 +13007,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             <!-- Control Form Dialog -->
             ${this._showControlForm ? this._renderControlFormDialog() : ''}
+
+            <!-- Card Editor Sub-form Dialog (nested inside Control form's Card tab) -->
+            ${this._showCardEditorForm ? this._renderCardEditorFormDialog() : ''}
 
             <!-- Line Form Dialog -->
             ${this._showLineForm ? this._renderLineFormDialog() : ''}
