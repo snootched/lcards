@@ -14,6 +14,7 @@
  */
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolvePresetParams } from '../../../../utils/lcards-anim-helpers.js';
 
 /**
  * Timeline animation presets
@@ -47,7 +48,7 @@ export const TIMELINE_PRESETS = {
    * }
    */
   'timeline-cascade': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const steps = p.steps || [];
     const loop = p.loop !== undefined ? p.loop : false;
 
@@ -88,7 +89,7 @@ export const TIMELINE_PRESETS = {
    * }
    */
   'timeline-attention': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const scaleMax = p.scale_max !== undefined ? p.scale_max : 1.15;
     const shakeIntensity = p.shake_intensity !== undefined ? p.shake_intensity : 5;
     const durationScale = p.duration_scale || 200;

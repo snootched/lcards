@@ -14,17 +14,7 @@
  */
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { resolveEasing } from '../../../../utils/lcards-anim-helpers.js';
-
-/**
- * Helper function to resolve easing configuration
- */
-function getResolvedEasing(params) {
-  if (params.ease_params) {
-    return resolveEasing({ type: params.ease, params: params.ease_params });
-  }
-  return params.ease;
-}
+import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
 
 /**
  * Stagger animation presets
@@ -61,7 +51,7 @@ export const STAGGER_PRESETS = {
    * }
    */
   'stagger-grid': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const grid = p.grid || [1, 1];
     const from = p.from || 'start';
     const delay = p.delay !== undefined ? p.delay : 100;
@@ -123,7 +113,7 @@ export const STAGGER_PRESETS = {
    * }
    */
   'stagger-wave': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const delay = p.delay !== undefined ? p.delay : 100;
     const direction = p.direction || 'normal';
     const property = p.property || 'translateY';
@@ -176,7 +166,7 @@ export const STAGGER_PRESETS = {
    * }
    */
   'stagger-radial': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const from = p.from || 'center';
     const delay = p.delay !== undefined ? p.delay : 50;
     const property = p.property || 'scale';
@@ -240,7 +230,7 @@ export const STAGGER_PRESETS = {
    * - loop         (default: true)
    */
   'stagger-flash': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const leadColor    = p.lead_color  || 'var(--primary-color)';
     const trailColor   = p.trail_color || '#444444';
     const leadPct      = Math.min(50, Math.max(1, p.lead_pct !== undefined ? p.lead_pct : 20));

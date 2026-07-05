@@ -19,17 +19,7 @@
  */
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { resolveEasing } from '../../../../utils/lcards-anim-helpers.js';
-
-/**
- * Helper function to resolve easing configuration
- */
-function getResolvedEasing(params) {
-  if (params.ease_params) {
-    return resolveEasing({ type: params.ease, params: params.ease_params });
-  }
-  return params.ease;
-}
+import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
 
 /**
  * Detect whether an element lives in the SVG namespace.
@@ -156,7 +146,7 @@ export const TEXT_PRESETS = {
    *         from_opacity, from_y, ease, loop
    */
   'text-reveal': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const split     = p.split     || 'chars';
     const direction = p.direction || 'first';
     const stagger   = p.stagger   !== undefined ? p.stagger   : 50;
@@ -224,7 +214,7 @@ export const TEXT_PRESETS = {
    *       not by an interpolated CSS/SVG property.
    */
   'text-scramble': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const duration  = p.duration  || 800;
     const stagger   = p.stagger   !== undefined ? p.stagger    : 40;
     const delay     = p.delay     !== undefined ? p.delay      : 0;
@@ -304,7 +294,7 @@ export const TEXT_PRESETS = {
    *   loop         (default false) – repeat
    */
   'text-glitch': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const intensity  = p.intensity   !== undefined ? p.intensity  : 5;
     const duration   = p.duration    || 300;
     const stagger    = p.stagger     !== undefined ? p.stagger    : 50;
@@ -379,7 +369,7 @@ export const TEXT_PRESETS = {
    * params: speed, loop
    */
   'text-typewriter': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const speed = p.speed !== undefined ? p.speed : 100;
     const loop  = p.loop  !== undefined ? p.loop  : false;
 

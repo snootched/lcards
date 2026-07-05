@@ -347,6 +347,23 @@ export class CoreValidationService {
   }
 
   /**
+   * Checks whether a value's actual runtime type satisfies any of a schema's
+   * expected type names, including the JSON-Schema 'integer' type — which
+   * `_resolveActualType()` never produces on its own, since JS's `typeof`
+   * has no distinct integer type (whole and fractional numbers are both
+   * 'number'). Without this, any `type: 'integer'` field with a whole-number
+   * value fails validation unconditionally (confirmed: this broke `loop: N`
+   * on animation presets, and the identically-shaped `cardZIndexSchema`
+   * z_index field carries the same latent bug).
+   * @private
+   */
+  _typeMatches(actualType, expectedTypes, data) {
+    if (expectedTypes.includes(actualType)) return true;
+    if (actualType === 'number' && expectedTypes.includes('integer') && Number.isInteger(data)) return true;
+    return false;
+  }
+
+  /**
    * Validate object against schema definition
    * @private
    */
@@ -411,7 +428,7 @@ export class CoreValidationService {
 
       // Don't report as type error if the actual type is one of the expected types
       // (the real issue is likely a property/format validation failure)
-      if (!expectedTypes.includes(actualType)) {
+      if (!this._typeMatches(actualType, expectedTypes, data)) {
         result.errors.push({
           type: 'invalid_type',
           field: path,
@@ -559,7 +576,7 @@ export class CoreValidationService {
     const expectedTypes = Array.isArray(schema.type) ? schema.type : [schema.type];
     const actualType = this._resolveActualType(data);
 
-    if (!expectedTypes.includes(actualType)) {
+    if (!this._typeMatches(actualType, expectedTypes, data)) {
       result.errors.push({
         type: 'invalid_type',
         field: path,

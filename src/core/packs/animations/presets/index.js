@@ -21,28 +21,10 @@
 
 import { registerAnimationPreset } from '../../../animation/presets.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { resolveEasing } from '../../../../utils/lcards-anim-helpers.js';
+import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
 import { TIMELINE_PRESETS } from './timeline-presets.js';
 import { STAGGER_PRESETS } from './stagger-presets.js';
 import { TEXT_PRESETS } from './text-presets.js';
-
-/**
- * Helper function to resolve easing configuration
- * Handles both string easings and object-based parametric easings
- * @param {any} params - Params object or ease string/config with {ease, ease_params}
- * @returns {string|function} Resolved easing value for anime.js
- */
-function getResolvedEasing(params) {
-  // If ease_params is present, create config object for resolveEasing
-  if (params.ease_params) {
-    return resolveEasing({
-      type: params.ease,
-      params: params.ease_params
-    });
-  }
-  // Otherwise just return the ease string
-  return params.ease;
-}
 
 /**
  * Register all builtin animation presets
@@ -72,7 +54,7 @@ export function registerBuiltinAnimationPresets() {
  * - alternate (default: true)
  */
 registerAnimationPreset('pulse', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const maxScale = p.max_scale !== undefined ? p.max_scale : (p.scale !== undefined ? p.scale : 1.15);
   const maxBrightness = p.max_brightness !== undefined ? p.max_brightness : 1.4;
   const duration = p.duration || 1200;
@@ -128,13 +110,13 @@ registerAnimationPreset('pulse', (def) => {
  * - alternate (default: false)
  */
 registerAnimationPreset('fade', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const from = p.from !== undefined ? p.from : 1;
   const to = p.to !== undefined ? p.to : 0.3;
   const duration = p.duration || 1000;
   const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : false;
-  const alternate = p.alternate || false;
+  const alternate = p.alternate !== undefined ? p.alternate : false;
 
   return {
     anime: {
@@ -171,7 +153,7 @@ registerAnimationPreset('fade', (def) => {
  * - alternate (default: true)
  */
 registerAnimationPreset('glow', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const color = p.color || p.glow_color || 'var(--lcars-blue, #66ccff)';
   const blurMin = p.blur_min !== undefined ? p.blur_min : 0;
   const blurMax = p.blur_max !== undefined ? p.blur_max : 10;
@@ -208,12 +190,12 @@ registerAnimationPreset('glow', (def) => {
  * - draw (default: ['0 0', '0 1']) - Draw values or config object
  */
 registerAnimationPreset('draw', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const duration = p.duration || 2000;
   const ease = getResolvedEasing(p) || 'easeInOutSine';
   const reverse = p.reverse || false;
-  const loop = p.loop || false;
-  const alternate = p.alternate || false;
+  const loop = p.loop !== undefined ? p.loop : false;
+  const alternate = p.alternate !== undefined ? p.alternate : false;
 
   // Draw-specific config
   const drawCfg = p.draw || {};
@@ -292,7 +274,7 @@ registerAnimationPreset('draw', (def) => {
  * Note: The setup function will auto-detect dash values from the element's stroke-dasharray attribute
  */
 registerAnimationPreset('march', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
 
   // Support both 'speed' (in seconds) and 'duration' (in ms) params
   let speed;
@@ -437,7 +419,7 @@ registerAnimationPreset('march', (def) => {
  * - alternate (default: true)
  */
 registerAnimationPreset('blink', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const maxOpacity = p.max_opacity !== undefined ? p.max_opacity : 1;
   const minOpacity = p.min_opacity !== undefined ? p.min_opacity : 0.3;
   const duration = p.duration || 1200;
@@ -474,7 +456,7 @@ registerAnimationPreset('blink', (def) => {
  * - alternate (default: true)
  */
 registerAnimationPreset('shimmer', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const colorFrom = p.color_from;
   const colorTo = p.color_to || p.shimmer_color;
   const opacityFrom = p.opacity_from !== undefined ? p.opacity_from : 1;
@@ -516,7 +498,7 @@ registerAnimationPreset('shimmer', (def) => {
  * - alternate (default: true)
  */
 registerAnimationPreset('strobe', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const duration = p.duration || 100;
   const maxOpacity = p.max_opacity !== undefined ? p.max_opacity : 1;
   const minOpacity = p.min_opacity !== undefined ? p.min_opacity : 0;
@@ -547,7 +529,7 @@ registerAnimationPreset('strobe', (def) => {
  * - loop (default: true)
  */
 registerAnimationPreset('flicker', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const maxOpacity = p.max_opacity !== undefined ? p.max_opacity : 1;
   const minOpacity = p.min_opacity !== undefined ? p.min_opacity : 0.3;
   const duration = p.duration || 1000;
@@ -589,14 +571,14 @@ registerAnimationPreset('flicker', (def) => {
  * - loop (default: false)
  */
 registerAnimationPreset('cascade', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const stagger = p.stagger || 100;
   const property = p.property || 'opacity';
   const from = p.from !== undefined ? p.from : 0;
   const to = p.to !== undefined ? p.to : 1;
   const duration = p.duration || 1000;
   const ease = getResolvedEasing(p) || 'easeOutExpo';
-  const loop = p.loop || false;
+  const loop = p.loop !== undefined ? p.loop : false;
 
   return {
     anime: {
@@ -675,7 +657,7 @@ registerAnimationPreset('cascade', (def) => {
  * ```
  */
 registerAnimationPreset('cascade-color', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   // Resolve default colours from theme tokens so all cascade implementations share
   // the same source of truth (colors.grid.cascadeStart/Mid/End in lcardsDefaultTokens).
   const _tm = window.lcards?.core?.themeManager;
@@ -801,13 +783,13 @@ registerAnimationPreset('cascade-color', (def) => {
  * - alternate (default: false)
  */
 registerAnimationPreset('ripple', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const scaleMax = p.scale_max !== undefined ? p.scale_max : 1.5;
   const opacityMin = p.opacity_min !== undefined ? p.opacity_min : 0;
   const duration = p.duration || 1000;
   const ease = getResolvedEasing(p) || 'easeOutExpo';
-  const loop = p.loop || false;
-  const alternate = p.alternate || false;
+  const loop = p.loop !== undefined ? p.loop : false;
+  const alternate = p.alternate !== undefined ? p.alternate : false;
 
   return {
     anime: {
@@ -838,13 +820,13 @@ registerAnimationPreset('ripple', (def) => {
  * - alternate (default: false)
  */
 registerAnimationPreset('scale', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const scale = p.scale !== undefined ? p.scale : 1.1;
   const from = p.from !== undefined ? p.from : 1;
   const duration = p.duration || 200;
   const ease = getResolvedEasing(p) || 'easeOutQuad';
   const loop = p.loop !== undefined ? p.loop : false;
-  const alternate = p.alternate || false;
+  const alternate = p.alternate !== undefined ? p.alternate : false;
 
   return {
     anime: {
@@ -870,7 +852,7 @@ registerAnimationPreset('scale', (def) => {
  * - ease (default: 'easeOutQuad')
  */
 registerAnimationPreset('scale-reset', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const duration = p.duration || 200;
   const ease = getResolvedEasing(p) || 'easeOutQuad';
 
@@ -905,7 +887,7 @@ registerAnimationPreset('scale-reset', (def) => {
  * - alternate (default: false)
  */
 registerAnimationPreset('slide', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   // Support both 'from' (editor) and 'direction' (legacy) parameters
   const from = p.from || p.direction || 'right';
   const distance = p.distance !== undefined ? p.distance : 100;
@@ -982,7 +964,7 @@ registerAnimationPreset('slide', (def) => {
  * - alternate (default: false)
  */
 registerAnimationPreset('rotate', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
 
   // Support direction shorthand or explicit from/to
   let from, to;
@@ -1034,7 +1016,7 @@ registerAnimationPreset('rotate', (def) => {
  * - loop (default: false)
  */
 registerAnimationPreset('shake', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const intensity = p.intensity !== undefined ? p.intensity : 10;
   const duration = p.duration || 500;
   const frequency = p.frequency !== undefined ? p.frequency : 4;
@@ -1075,7 +1057,7 @@ registerAnimationPreset('shake', (def) => {
  * - alternate (default: false)
  */
 registerAnimationPreset('bounce', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const scaleMax = p.scale_max !== undefined ? p.scale_max : 1.2;
   const duration = p.duration || 800;
   const bounces = p.bounces !== undefined ? p.bounces : 3;
@@ -1138,7 +1120,7 @@ registerAnimationPreset('bounce', (def) => {
  * - alternate (default: false)
  */
 registerAnimationPreset('color-shift', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const colorFrom = p.color_from;
   const colorTo = p.color_to;
   const property = p.property || 'color';
@@ -1179,7 +1161,7 @@ registerAnimationPreset('color-shift', (def) => {
  * - alternate (default: true)
  */
 registerAnimationPreset('border-pulse', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const colorFrom = p.color_from;
   const colorTo = p.color_to;
   const widthFrom = p.width_from;
@@ -1237,7 +1219,7 @@ registerAnimationPreset('border-pulse', (def) => {
  * - alternate (default: false)
  */
 registerAnimationPreset('skew', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const duration = p.duration || 600;
   const ease = getResolvedEasing(p) || 'easeInOutQuad';
   const loop = p.loop !== undefined ? p.loop : false;
@@ -1291,7 +1273,7 @@ registerAnimationPreset('skew', (def) => {
  * - loop (default: true)
  */
 registerAnimationPreset('scan-line', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const direction = p.direction || 'horizontal';
   const color = p.color || 'rgba(255,255,255,0.3)';
   const duration = p.duration || 2000;
@@ -1331,7 +1313,7 @@ registerAnimationPreset('scan-line', (def) => {
  * - loop (default: false)
  */
 registerAnimationPreset('glitch', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const intensity = p.intensity !== undefined ? p.intensity : 5;
   const frequency = p.frequency !== undefined ? p.frequency : 10;
   const duration = p.duration || 1000;
@@ -1384,7 +1366,7 @@ registerAnimationPreset('glitch', (def) => {
  *   { preset: 'set', properties: { opacity: 0.5, fill: 'red' } }
  */
 registerAnimationPreset('set', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const properties = p.properties || {};
 
   return {
@@ -1418,12 +1400,12 @@ registerAnimationPreset('set', (def) => {
  * }
  */
 registerAnimationPreset('motionpath', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const path = p.path; // Required
   const duration = p.duration || 4000;
   const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : false;
-  const alternate = p.alternate || false;
+  const alternate = p.alternate !== undefined ? p.alternate : false;
   const rotate = p.rotate !== undefined ? p.rotate : true;
   const anchor = p.anchor || '50% 50%';
 
@@ -1511,11 +1493,11 @@ registerAnimationPreset('motionpath', (def) => {
  * }
  */
 registerAnimationPreset('sequence', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const steps = p.steps;
   const defaultDuration = p.duration || 2000;
   const loop = p.loop !== undefined ? p.loop : false;
-  const defaultEasing = p.ease || 'easeOutQuad';
+  const defaultEasing = getResolvedEasing(p) || 'easeOutQuad';
 
   if (!Array.isArray(steps) || steps.length === 0) {
     lcardsLog.warn('[AnimationPresets] sequence requires steps array with at least one step');
@@ -1563,7 +1545,7 @@ registerAnimationPreset('sequence', (def) => {
  * - alternate (default: true)
  */
 registerAnimationPreset('grid-stagger', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const grid = p.grid || [10, 10];
   const from = p.from || 'center';
   const property = p.property || 'scale';
@@ -1611,7 +1593,7 @@ registerAnimationPreset('grid-stagger', (def) => {
  * - composition (default: 'blend') - 'blend' or 'replace'
  */
 registerAnimationPreset('chaos', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const properties = p.properties || ['x', 'y', 'rotate'];
   const defaultRange = { x: [-50, 50], y: [-50, 50], rotate: [-15, 15] };
   const range = { ...defaultRange, ...(p.range || {}) };
@@ -1670,7 +1652,7 @@ registerAnimationPreset('chaos', (def) => {
  * - loop (default: false)
  */
 registerAnimationPreset('physics-spring', (def) => {
-  const p = def.params || def;
+  const p = resolvePresetParams(def);
   const property = p.property || 'scale';
   const from = p.from;
   const to = p.to;

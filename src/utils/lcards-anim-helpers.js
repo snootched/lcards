@@ -778,6 +778,14 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             // resolved duration/ease/loop/alternate here, every time).
             const _batchProbeResult = _batchPresetFn(_batchProbeParams);
 
+            lcardsLog.debug('[animateElement] Stagger-batch probe result:', {
+              type,
+              elementsFound: elements.length,
+              hasStaggerMarker: _batchProbeResult?.anime?.delay?._stagger === true,
+              probeAnimeKeys: _batchProbeResult?.anime ? Object.keys(_batchProbeResult.anime) : null,
+              probeDelay: _batchProbeResult?.anime?.delay
+            });
+
             if (_batchProbeResult?.anime?.delay?._stagger === true) {
               // Build final batch params by merging preset anime output.
               // Start from probe params then let the preset output overwrite — this
@@ -810,6 +818,11 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
                 // e.g. 'from', 'grid', 'property', 'from_value', 'to_value', 'trigger'
                 // are consumed by the preset/AnimationManager and are not valid anime.js params.
                 const _batchFinalParams = _cleanAnimeParams(_batchResolvedParams);
+                lcardsLog.debug('[animateElement] Calling batch anime() with:', {
+                  elementCount: elements.length,
+                  finalParamKeys: Object.keys(_batchFinalParams),
+                  delayIsFunction: typeof _batchFinalParams.delay === 'function'
+                });
                 const _batchInstance = window.lcards.anim.anime(elements, _batchFinalParams);
                 if (onInstanceCreated) onInstanceCreated(_batchInstance);
               }
