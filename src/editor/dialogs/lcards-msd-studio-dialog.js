@@ -7486,7 +7486,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _saveControl() {
         const overlays = [...(this._workingConfig.msd?.overlays || [])];
 
+        // Look up the entry by the stable editing id (immune to in-progress ID renames),
+        // not the mutable form field — otherwise renaming while editing creates a duplicate
+        // instead of updating the original (see _saveAnchor for the equivalent correct pattern).
+        const existingIndex = this._editingControlId
+            ? overlays.findIndex(o => o.id === this._editingControlId)
+            : -1;
+        const existingOverlay = existingIndex >= 0 ? overlays[existingIndex] : null;
+
         const controlOverlay = {
+            // Preserve any fields this form doesn't manage (e.g. `animations` — there's
+            // no Animations tab for controls yet, so a hand-typed animations: block in
+            // YAML mode would otherwise be silently deleted the next time this control
+            // is saved via the GUI). Explicitly-managed fields below always win.
+            ...(existingOverlay || {}),
             type: 'control',
             id: this._controlFormId,
             position: this._controlFormPosition,
@@ -7499,18 +7512,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // position_side only applies when position references another control's id
         // (not a named anchor/coordinates), and only needs saving when non-default.
+        // Now that the base object may carry a stale position_side from `existingOverlay`
+        // (see spread above), the non-applicable branch must explicitly delete it —
+        // previously safe by omission when the object was always built fresh.
         const positionTargetIsControl = typeof this._controlFormPosition === 'string' &&
             overlays.some(o => o.type === 'control' && o.id === this._controlFormPosition);
         if (positionTargetIsControl && this._controlFormPositionSide && this._controlFormPositionSide !== 'center') {
             controlOverlay.position_side = this._controlFormPositionSide;
+        } else {
+            delete controlOverlay.position_side;
         }
 
-        // Look up the entry by the stable editing id (immune to in-progress ID renames),
-        // not the mutable form field — otherwise renaming while editing creates a duplicate
-        // instead of updating the original (see _saveAnchor for the equivalent correct pattern).
-        const existingIndex = this._editingControlId
-            ? overlays.findIndex(o => o.id === this._editingControlId)
-            : -1;
         if (existingIndex >= 0) {
             overlays[existingIndex] = controlOverlay;
         } else {

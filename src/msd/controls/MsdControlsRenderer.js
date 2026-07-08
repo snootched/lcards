@@ -1249,6 +1249,11 @@ export class MsdControlsRenderer {
       // Use overlay ID directly as the foreignObject ID
       foreignObject.setAttribute('data-msd-control-id', overlayId);
       foreignObject.setAttribute('id', overlayId);  // ← ID matches overlay ID directly
+      // Line/other overlays get this from AdvancedRenderer — controls need it too so
+      // PipelineCore's animated-overlay DOM lookup (`[data-overlay-id="..."]`) can find
+      // them; without it, AnimationManager.onOverlayRendered() is silently never called
+      // for any control, regardless of preset.
+      foreignObject.setAttribute('data-overlay-id', overlayId);
 
       // Ensure proper event handling
       foreignObject.style.pointerEvents = 'auto';

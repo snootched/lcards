@@ -990,6 +990,15 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           animeParams = rest;
         }
 
+        if (/** @type {any} */ (element)._motionPath) {
+          // motionpath preset: merge in the real translateX/translateY/(rotate)
+          // anime.js v4 tween properties computed by setup() from the resolved
+          // path element (see presets/index.js's `motionpath` factory) — these
+          // aren't known until the actual DOM element/path exist, so they can't
+          // be part of the preset factory's own returned `anime` object.
+          animeParams = { ...animeParams, ...(/** @type {any} */ (element)._motionPath) };
+        }
+
         // Strip LCARdS-internal meta-params before calling anime.animate()
         const cleanedAnimeParams = _cleanAnimeParams(animeParams);
 

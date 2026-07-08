@@ -194,5 +194,5 @@ rm.getAllRules()                     // array of all registered rules
 
 ## See Also
 
-- [Rule-Based Animations](../animations/rule-based-animations.md)
+- [Rule-Based Animations](../../core/animations/rule-based-animations.md)
 - [Debug API](../../development/debug-api.md)

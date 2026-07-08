@@ -6,6 +6,8 @@
  * Factory functions (like getTextSchema) are used when customization is needed.
  */
 
+import { ANIMATION_PRESET_PARAMS_SCHEMAS, ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE } from './animation-preset-params-schemas.js';
+
 // ============================================================================
 // COLOR VALUE PRIMITIVES
 // ============================================================================
@@ -280,11 +282,11 @@ export const animationSchema = {
             examples: ['pulse', 'flash', 'bounce', 'shake', 'glow']
         },
         duration: {
-            type: 'number',
+            type: ['number', 'object'],
             minimum: 0,
             maximum: 10000,
             default: 500,
-            description: 'Animation duration in milliseconds (0-10000)'
+            description: 'Animation duration in milliseconds (0-10000). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'
         },
         ease: {
             type: ['string', 'object'],
@@ -305,11 +307,11 @@ export const animationSchema = {
             description: 'Whether animation should alternate direction on each loop'
         },
         delay: {
-            type: 'number',
+            type: ['number', 'object'],
             minimum: 0,
             maximum: 10000,
             default: 0,
-            description: 'Delay before animation starts (milliseconds)'
+            description: 'Delay before animation starts (milliseconds). Also accepts a map_range descriptor, matching rulesSchema\'s equivalent field.'
         },
         entity: {
             type: 'string',
@@ -353,26 +355,39 @@ export const animationSchema = {
                 { below: 100 }
             ]
         },
-        color: {
+        id: {
             type: 'string',
-            pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|theme:|rgb\\(|rgba\\(|var\\(--)',
-            description: 'Animation colour (for glow/flash effects)',
-            examples: ['#FF9900', 'theme:colors.ui.active', 'rgba(255, 153, 0, 0.5)']
+            pattern: '^[a-zA-Z0-9_-]+$',
+            description: 'Optional identifier for this animation entry (referenced by system animations, debugging).'
         },
-        scale: {
-            type: 'number',
-            minimum: 0.1,
-            maximum: 10,
-            default: 1,
-            description: 'Scale factor for animation (0.1-10, default: 1)'
+        enabled: {
+            type: 'boolean',
+            default: true,
+            description: 'Set false to disable this animation entry without deleting it.'
         },
-        max_scale: {
-            type: 'number',
-            minimum: 0.1,
-            maximum: 10,
-            description: 'Maximum scale during animation (0.1-10)'
+        target: {
+            type: 'string',
+            description: 'CSS selector for a single animation target element.'
+        },
+        targets: {
+            type: ['string', 'array'],
+            items: { type: 'string' },
+            description: 'CSS selector(s) for multiple animation target elements.'
+        },
+        params: {
+            type: 'object',
+            discriminatedBy: {
+                field: 'preset',
+                schemas: ANIMATION_PRESET_PARAMS_SCHEMAS,
+                default: { type: 'object', additionalProperties: true }
+            },
+            description: 'Preset-specific parameters. Shape depends on the sibling `preset` field.'
         }
     },
+    // 'warn', not false: an unrecognized top-level field here is worth surfacing but
+    // must never itself block a card from initializing — same reasoning as the
+    // per-preset params schemas (see animation-preset-params-schemas.js).
+    additionalProperties: 'warn',
     required: ['trigger', 'preset']
 };
 
@@ -784,6 +799,11 @@ export const rulesSchema = {
                                 },
                                 params: {
                                     type: 'object',
+                                    discriminatedBy: {
+                                        field: 'preset',
+                                        schemas: ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE,
+                                        default: { type: 'object', additionalProperties: true }
+                                    },
                                     description: 'Preset-specific parameters. Values may be static or use map_range to proportionally interpolate from an entity value.',
                                     additionalProperties: true,
                                     examples: [

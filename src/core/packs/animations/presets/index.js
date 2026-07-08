@@ -1379,6 +1379,58 @@ registerAnimationPreset('set', (def) => {
   };
 });
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * Builds a raw SVG shape element centered on its own local origin (0,0), for
+ * motionpath's self-contained "tracer" mode — deliberately NOT the same geometry
+ * as LineOverlay._createMarkerDefinition() (which centers shapes in a vb×vb box
+ * for use inside an SVG <marker> viewBox/refX/refY wrapper); a free-floating
+ * element positioned via anime.js translateX/translateY needs to be centered at
+ * 0,0 instead, so there's no marker-specific wrapping to reuse here — only the
+ * same field vocabulary (type/size/fill/stroke/stroke_width), reused deliberately
+ * to match line markers' styling options.
+ * @param {{type?: string, size?: number, width?: number, height?: number, fill?: string, stroke?: string, stroke_width?: number}} shapeConfig
+ * @returns {SVGElement}
+ */
+function _buildMotionpathTracerShape(shapeConfig) {
+  const size = shapeConfig.size || 10;
+  const fill = shapeConfig.fill || 'currentColor';
+  const stroke = shapeConfig.stroke || 'none';
+  const strokeWidth = shapeConfig.stroke_width || 0;
+
+  let el;
+  switch (shapeConfig.type) {
+    case 'rect': {
+      const w = shapeConfig.width || size;
+      const h = shapeConfig.height || size;
+      el = document.createElementNS(SVG_NS, 'rect');
+      el.setAttribute('x', String(-w / 2));
+      el.setAttribute('y', String(-h / 2));
+      el.setAttribute('width', String(w));
+      el.setAttribute('height', String(h));
+      break;
+    }
+    case 'diamond': {
+      const half = size / 2;
+      el = document.createElementNS(SVG_NS, 'path');
+      el.setAttribute('d', `M 0 ${-half} L ${half} 0 L 0 ${half} L ${-half} 0 Z`);
+      break;
+    }
+    case 'circle':
+    default:
+      el = document.createElementNS(SVG_NS, 'circle');
+      el.setAttribute('cx', '0');
+      el.setAttribute('cy', '0');
+      el.setAttribute('r', String(size / 2));
+      break;
+  }
+  el.setAttribute('fill', fill);
+  el.setAttribute('stroke', stroke);
+  el.setAttribute('stroke-width', String(strokeWidth));
+  return el;
+}
+
 /**
  * Motionpath - Follow SVG path animation
  * Uses anime.js v4 createMotionPath() for smooth path following
@@ -1391,12 +1443,24 @@ registerAnimationPreset('set', (def) => {
  * - alternate (default: false)
  * - rotate (default: true) - Auto-rotate element along path
  * - anchor (default: '50% 50%') - Transform origin for rotation
+ * - shape (optional) - { type: 'circle'|'rect'|'diamond', size, width, height, fill,
+ *   stroke, stroke_width }. When set, motionpath creates and animates its own shape
+ *   element (a "tracer") instead of moving `target`/`targets` — for cases like a
+ *   traveling dot suggesting energy flow along a line. Mutually exclusive with
+ *   target/targets (shape wins if both are set). Field names deliberately match
+ *   line markers' (marker_start/marker_end) styling options.
  *
- * Example:
+ * Example (move an existing target):
  * {
  *   preset: 'motionpath',
  *   targets: '.follower',
  *   params: { path: '#circuit-path', duration: 3000, rotate: true }
+ * }
+ *
+ * Example (self-contained tracer, no separate target needed):
+ * {
+ *   preset: 'motionpath',
+ *   params: { path: '#line_2', duration: 3000, shape: { type: 'circle', size: 10, fill: 'var(--lcards-orange)' } }
  * }
  */
 registerAnimationPreset('motionpath', (def) => {
@@ -1419,12 +1483,11 @@ registerAnimationPreset('motionpath', (def) => {
       duration,
       ease,
       loop,
-      alternate,
-      // AnimationManager will transform this using createMotionPath()
-      motionPath: {
-        path,
-        rotate
-      }
+      alternate
+      // translateX/translateY/(rotate) are added by animateElement() itself, reading
+      // element._motionPath (set below in setup()) — createMotionPath() needs a real,
+      // shadow-DOM-resolved path element, which only exists once `element` is known,
+      // not at preset-factory time. See the `_motionPath` check in lcards-anim-helpers.js.
     },
     styles: {
       transformOrigin: anchor
@@ -1434,8 +1497,10 @@ registerAnimationPreset('motionpath', (def) => {
 
       // Resolve path element or string
       let pathElement = path;
-      if (typeof path === 'string' && path.startsWith('#') || path.startsWith('.')) {
-        // Try to find path in same root
+      if (typeof path === 'string' && (path.startsWith('#') || path.startsWith('.'))) {
+        // Try to find path in same root (shadow-DOM aware — a plain global
+        // querySelector, which is all anime.js's own getPath() does internally,
+        // would miss elements inside the card's shadow root).
         const root = element.getRootNode();
         pathElement = root.querySelector(path);
         if (!pathElement) {
@@ -1444,11 +1509,87 @@ registerAnimationPreset('motionpath', (def) => {
         }
       }
 
+      const shapeConfig = (p.shape && typeof p.shape === 'object') ? p.shape : null;
+
+      // Self-reference is only nonsensical in "move an existing target" mode. In
+      // tracer mode, `element` is just the scope owner used for path resolution —
+      // pointing `path` at that same overlay (e.g. a tracer animation declared
+      // directly on line_2's own `animations:`, with `path: "#line_2"`) is the
+      // expected, common case, not a mistake.
+      if (!shapeConfig && pathElement === element) {
+        lcardsLog.warn('[motionpath preset] `path` resolves to the same element being animated — ' +
+          'the animated element (`target`/`targets`) and the route it follows (`params.path`) must be ' +
+          'two different elements (e.g. animate a control along a line\'s id, not a line along itself). ' +
+          'Set `params.shape` instead if you want motionpath to create its own traveling shape.');
+        return;
+      }
+
+      // `path` commonly resolves to a wrapper (e.g. an MSD line overlay's own
+      // <g id="line_2">, LineOverlay.js — the actual <path class="line-path"> geometry
+      // lives nested inside it) rather than a real SVGGeometryElement. anime.js's
+      // createMotionPath() needs the latter (it calls $path.getTotalLength(), which
+      // only exists on path/circle/rect/ellipse/line/polyline/polygon) — drill down
+      // to find it rather than crash lazily the first time the tween is evaluated.
+      if (pathElement && typeof (/** @type {any} */ (pathElement)).getTotalLength !== 'function') {
+        // Prefer the dedicated `.line-path` class (MSD's actual drawable route)
+        // explicitly, before falling back to a generic direct-child search. A plain
+        // comma-separated `path, circle, ...` selector matches the FIRST element in
+        // document order across all of them — which can be a marker's own decorative
+        // arrowhead <path> nested in <defs>/<marker> (document order puts <defs>
+        // before the real path), not the line itself. `:scope > ...` also keeps the
+        // fallback from ever recursing into <defs>/<marker> content, which sits two
+        // levels deep, not as a direct child.
+        const geometryChild = /** @type {any} */ (pathElement).querySelector?.('.line-path')
+          || /** @type {any} */ (pathElement).querySelector?.(
+            ':scope > path, :scope > circle, :scope > rect, :scope > ellipse, :scope > line, :scope > polyline, :scope > polygon'
+          );
+        if (!geometryChild) {
+          lcardsLog.warn(`[motionpath preset] "${path}" has no path/shape geometry to follow ` +
+            '(resolved to a <g> or similar wrapper with no path/circle/etc. child).');
+          return;
+        }
+        pathElement = geometryChild;
+      }
+
+      if (shapeConfig) {
+        if (def.target || def.targets) {
+          lcardsLog.warn('[motionpath preset] `params.shape` and `target`/`targets` were both set — ' +
+            'shape wins, the explicit target is ignored.');
+        }
+
+        // Deterministic id so a re-trigger reuses/repositions the same tracer
+        // instead of piling up duplicate shapes on every animation restart.
+        const root = element.getRootNode();
+        const tracerId = `__motionpath-tracer-${p.id || `${element.id || 'anim'}-${p.trigger || 'on_load'}`}`;
+        const existingTracer = root.querySelector(`#${tracerId}`);
+        if (existingTracer) existingTracer.remove();
+
+        if (!pathElement.parentNode) {
+          lcardsLog.warn('[motionpath preset] Could not insert tracer shape — path element has no parent.');
+          return;
+        }
+
+        const shapeEl = _buildMotionpathTracerShape(shapeConfig);
+        shapeEl.setAttribute('id', tracerId);
+        /** @type {any} */ (shapeEl).style.pointerEvents = 'none';
+        // Sibling of the path, same coordinate space/viewBox — no extra transform
+        // ancestors to throw off the translateX/translateY math.
+        pathElement.parentNode.appendChild(shapeEl);
+
+        element._animTargets = shapeEl;
+      }
+
       // Use anime.js v4 createMotionPath
       if (window.lcards?.animejs?.svg?.createMotionPath) {
         try {
           const motionPath = window.lcards.animejs.svg.createMotionPath(pathElement);
-          element._motionPath = motionPath;
+          if (!motionPath) {
+            lcardsLog.warn(`[motionpath preset] createMotionPath() failed — is "${path}" a valid SVG geometry element (path/circle/line/etc.)?`);
+            return;
+          }
+          // rotate:false means "translate only" — omit the rotate tween property
+          // entirely so anime.js never touches the element's rotation.
+          element._motionPath = rotate ? motionPath : { translateX: motionPath.translateX, translateY: motionPath.translateY };
         } catch (e) {
           lcardsLog.error('[motionpath preset] Failed to create motion path:', e);
         }

@@ -487,17 +487,25 @@ export class CoreValidationService {
             }
           });
         } else if (prop in data) {
-          this._validateAgainstSchema(data[prop], propSchema, result, fieldPath);
+          const effectiveSchema = propSchema.discriminatedBy
+            ? this._resolveDiscriminatedSchema(propSchema, data, result, fieldPath)
+            : propSchema;
+          this._validateAgainstSchema(data[prop], effectiveSchema, result, fieldPath);
         }
       }
     }
 
-    // Check for additional properties if additionalProperties is false
-    if (schema.additionalProperties === false && schema.properties) {
+    // Check for additional properties if additionalProperties is false (hard error)
+    // or 'warn' (non-blocking) — 'warn' is for schemas where an unrecognized field is
+    // a real signal worth surfacing (e.g. a stale/leftover field from switching presets)
+    // but is harmless at runtime and must never block a save the way a genuine type
+    // mismatch on a recognized field should.
+    if ((schema.additionalProperties === false || schema.additionalProperties === 'warn') && schema.properties) {
       const allowedProps = Object.keys(schema.properties);
+      const bucket = schema.additionalProperties === false ? result.errors : result.warnings;
       for (const prop of Object.keys(data)) {
         if (!allowedProps.includes(prop)) {
-          result.errors.push({
+          bucket.push({
             type: 'invalid_property',
             field: path ? `${path}.${prop}` : prop,
             message: `Unexpected property "${prop}"`,
@@ -510,6 +518,44 @@ export class CoreValidationService {
         }
       }
     }
+  }
+
+  /**
+   * Resolves a property's effective schema when it declares `discriminatedBy`,
+   * a small custom keyword (not standard JSON-Schema) that picks a sub-schema
+   * based on a sibling property's value in the SAME parent object being
+   * validated — e.g. an animation's `params` shape depends on its sibling
+   * `preset` field. `_validateObject`'s property loop keeps `parentData` bound
+   * to the whole object for its entire body, so the sibling value is already
+   * available at the point `params` gets validated — no plumbing changes
+   * needed anywhere else in the validator.
+   *
+   * The discriminator field (e.g. `preset`) must stay free-form, not an enum —
+   * it's a public extension point (custom/plugin-registered presets), so an
+   * unrecognized value falls back permissively (a warning, not an error)
+   * rather than blocking saves.
+   *
+   * Shape: { field: 'preset', schemas: { pulse: {...}, draw: {...} }, default: {...} }
+   * @private
+   */
+  _resolveDiscriminatedSchema(propSchema, parentData, result, fieldPath) {
+    const { field, schemas, default: defaultSchema } = propSchema.discriminatedBy;
+    const discriminatorValue = parentData ? parentData[field] : undefined;
+
+    if (discriminatorValue !== undefined && schemas &&
+        Object.prototype.hasOwnProperty.call(schemas, discriminatorValue)) {
+      return schemas[discriminatorValue];
+    }
+
+    if (discriminatorValue !== undefined) {
+      result.warnings.push({
+        type: 'unrecognized_discriminator',
+        field: fieldPath,
+        message: `No params schema for ${field}="${discriminatorValue}" — validated generically`,
+        context: { field: fieldPath, [field]: discriminatorValue }
+      });
+    }
+    return defaultSchema || { type: propSchema.type || 'object', additionalProperties: true };
   }
 
   /**

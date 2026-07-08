@@ -228,6 +228,28 @@ export class AnimationManager extends BaseService {
         }
       });
 
+      // Also register a (possibly empty) scope for any overlay that a RulesEngine
+      // rule targets directly by ID (apply.animations[].overlay), even if that
+      // overlay has no animations of its own. Without this, onOverlayRendered()
+      // never runs for such an overlay (PipelineCore.js gates it on
+      // registeredAnimations having an entry), so AnimationManager has no scope to
+      // attach a rule-triggered animation to — confirmed live: "Scope not found for
+      // overlay: X" followed by "Cannot play animation" for a rule-only-targeted
+      // line overlay. Scoped to direct `overlay:` id targeting only for now — tag/
+      // type/pattern targeting would need each overlay's tags/type available here,
+      // which this config shape doesn't carry; a rule using those targeting modes
+      // against an overlay with no animations of its own will still hit this gap.
+      const allRules = window.lcards?.core?.rulesManager?.getAllRules?.() || [];
+      const overlayIds = new Set(overlays.map(o => o.id));
+      allRules.forEach(rule => {
+        (rule.apply?.animations || []).forEach(animCmd => {
+          if (animCmd.overlay && overlayIds.has(animCmd.overlay) && !this.registeredAnimations.has(animCmd.overlay)) {
+            this.registeredAnimations.set(animCmd.overlay, []);
+            lcardsLog.debug(`[AnimationManager] Registered empty animation scope for rule-targeted overlay: ${animCmd.overlay} (rule: ${rule.id})`);
+          }
+        });
+      });
+
       // Store timeline configs (will be initialized when overlays are ready)
       if (options.timelines) {
         Object.entries(options.timelines).forEach(([timelineId, timelineConfig]) => {

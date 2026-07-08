@@ -23,6 +23,23 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import './shared/lcards-color-picker.js';
 import './shared/lcards-form-section.js';
+import { LCARdSFormFieldHelper as FormField } from './shared/lcards-form-field.js';
+import { ANIMATION_PRESET_PARAMS_SCHEMAS } from '../../cards/schemas/animation-preset-params-schemas.js';
+
+/**
+ * Presets whose params are rendered generically via FormField.renderField(),
+ * driven by ANIMATION_PRESET_PARAMS_SCHEMAS, instead of a hand-written `case`
+ * branch in _renderPresetParams(). Migrated preset-by-preset (Phase 13.5) —
+ * starting with the 6 presets that previously had no dedicated UI at all
+ * (pure net-new, nothing to regress). Presets NOT in this set keep their
+ * existing hardcoded `case` branch unchanged, including a few (skew, rotate,
+ * bounce) deliberately excluded long-term: their field *shape* changes based
+ * on another field's value, which the generic renderer has no concept of.
+ */
+// 'grid-stagger' deliberately excluded — deprecated, functionally broken (never staggers,
+// see docs/plan Phase 12.6), removed from the preset dropdown but not the registry itself
+// so existing configs referencing it still resolve without erroring.
+const SCHEMA_DRIVEN_PRESETS = new Set(['glitch', 'motionpath', 'sequence', 'chaos', 'physics-spring']);
 
 export class LCARdSAnimationEditor extends LitElement {
   static get properties() {
@@ -668,12 +685,13 @@ export class LCARdSAnimationEditor extends LitElement {
             .selector=${{
               select: {
                 mode: 'dropdown',
+                custom_value: true,
                 options: this._getPresetOptions()
               }
             }}
             .value=${preset}
             .label=${'Select animation type'}
-            @value-changed=${(e) => this._updateAnimation(index, 'preset', e.detail.value)}
+            @value-changed=${(e) => this._updatePreset(index, e.detail.value)}
           ></ha-selector>
           ${this._getPresetHelp(preset) ? html`
             <lcards-message type="info" .message=${this._getPresetHelp(preset)}></lcards-message>
@@ -697,6 +715,18 @@ export class LCARdSAnimationEditor extends LitElement {
       ? { hideStartDelay: true, hideAlternate: true, hideEasing: true }
       : {};
     const commonParams = this._renderCommonParams(params, index, commonParamOpts);
+
+    if (SCHEMA_DRIVEN_PRESETS.has(preset)) {
+      return html`
+        <lcards-form-section
+          header="Preset Parameters"
+          icon="mdi:tune-variant"
+          ?expanded=${true}>
+          ${this._renderSchemaDrivenParams(preset, params, index)}
+        </lcards-form-section>
+        ${commonParams}
+      `;
+    }
 
     // Preset-specific parameters
     let specificParams = /** @type {any} */ ('');
@@ -1714,6 +1744,161 @@ export class LCARdSAnimationEditor extends LitElement {
     `;
   }
 
+  /**
+   * Renders one preset's params fields generically, driven by
+   * ANIMATION_PRESET_PARAMS_SCHEMAS[preset], via the shared FormField.renderField()
+   * (the same renderer already used by lcards-slider-editor.js) — for presets in
+   * SCHEMA_DRIVEN_PRESETS only. Array/object-shaped fields (flagged in the schema
+   * via x-ui-hints.widget: 'json') render as a raw JSON textarea instead, the same
+   * pattern already used by hand in several of the hardcoded `case` branches above.
+   *
+   * FormField.renderField() calls back into this.hass / _getSchemaForPath /
+   * _getConfigValue / _setConfigValue — the last three resolve against
+   * `_schemaRenderCtx` (presetSchema/params/index, set once per preset-params
+   * render, not per-field — see the comment at its assignment below for why).
+   * Nested fields (see _renderNestedObjectField()) use a dot-separated path
+   * (e.g. "shape.fill") so the adapter methods can resolve/write the correct
+   * location purely from the path string, which is what actually stays fresh
+   * across a later, asynchronous user interaction — the shared context wouldn't.
+   */
+  _renderSchemaDrivenParams(preset, params, index) {
+    const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[preset];
+    if (!presetSchema?.properties) return '';
+
+    // Canonical fields (duration/ease/loop/alternate/delay) are already covered by
+    // _renderCommonParams() above — skip them here to avoid rendering them twice.
+    const CANONICAL_KEYS = new Set(['duration', 'ease', 'loop', 'alternate', 'delay']);
+
+    // Set once per preset-params render, not per-field: _getSchemaForPath/_getConfigValue
+    // are read synchronously during render (safe either way), but _setConfigValue only
+    // fires later, on a real user interaction — by which point a per-field-reassigned
+    // context would already reflect whichever field rendered LAST, not the one whose
+    // callback is actually firing. Keeping presetSchema/params/index constant across
+    // the whole pass (nesting is derived from the field's own path string instead,
+    // see _setConfigValue) avoids that staleness entirely.
+    this._schemaRenderCtx = { presetSchema, params, index };
+
+    return html`
+      <div class="param-grid">
+        ${Object.entries(presetSchema.properties)
+          .filter(([key]) => !CANONICAL_KEYS.has(key))
+          .map(([key, fieldSchema]) => {
+            if (fieldSchema['x-ui-hints']?.widget === 'json') {
+              return this._renderJsonParamField(key, fieldSchema, params, index);
+            }
+            if (fieldSchema.type === 'object' && fieldSchema.properties) {
+              return this._renderNestedObjectField(key, fieldSchema, params);
+            }
+            return FormField.renderField(this, key, {});
+          })}
+      </div>
+    `;
+  }
+
+  /**
+   * Structured sub-form for a fixed-shape nested object field (e.g. motionpath's
+   * `shape: {type, size, fill, stroke, ...}`) — one level of nesting, rendered via
+   * the same FormField.renderField() as top-level fields, using a dot-separated
+   * path (e.g. "shape.fill") so the adapter methods below can resolve/write the
+   * right location from the path string alone. Only for schemas with a small,
+   * known set of sub-properties; genuinely open-ended/dynamic-key objects (e.g.
+   * chaos's `range`) stay on the JSON-textarea path — there's no fixed field list
+   * to build a form from for those.
+   * @private
+   */
+  _renderNestedObjectField(key, fieldSchema, params) {
+    const hints = fieldSchema['x-ui-hints'] || {};
+    const label = hints.label || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+    return html`
+      <div class="param-full">
+        <lcards-form-section .header=${label} .description=${fieldSchema.description || ''} ?expanded=${true}>
+          <div class="param-grid">
+            ${Object.entries(fieldSchema.properties || {}).map(([subKey]) =>
+              FormField.renderField(this, `${key}.${subKey}`, {}))}
+          </div>
+        </lcards-form-section>
+      </div>
+    `;
+  }
+
+  /** @private — resolves a possibly dot-separated "parent.sub" path against presetSchema.properties */
+  _resolveNestedFieldSchema(path) {
+    const presetSchema = this._schemaRenderCtx?.presetSchema;
+    if (!presetSchema?.properties) return null;
+    if (path.includes('.')) {
+      const [parentKey, subKey] = path.split('.');
+      return presetSchema.properties[parentKey]?.properties?.[subKey] ?? null;
+    }
+    return presetSchema.properties[path] ?? null;
+  }
+
+  /** @private — adapter for FormField.renderField(), see _renderSchemaDrivenParams() */
+  _getSchemaForPath(path) {
+    return this._resolveNestedFieldSchema(path);
+  }
+
+  /** @private — adapter for FormField.renderField(), see _renderSchemaDrivenParams() */
+  _getConfigValue(path) {
+    const params = this._schemaRenderCtx?.params;
+    if (!params) return undefined;
+    if (path.includes('.')) {
+      const [parentKey, subKey] = path.split('.');
+      const parent = params[parentKey];
+      return (parent && typeof parent === 'object') ? parent[subKey] : undefined;
+    }
+    return params[path];
+  }
+
+  /**
+   * @private — adapter for FormField.renderField(), see _renderSchemaDrivenParams().
+   * Nesting is decided entirely by whether `path` itself contains a "." — never by
+   * separately-tracked render-time state, which would already be stale by the time
+   * this fires (see the comment in _renderSchemaDrivenParams()).
+   */
+  _setConfigValue(path, value) {
+    const index = this._schemaRenderCtx?.index;
+    if (path.includes('.')) {
+      const [parentKey, subKey] = path.split('.');
+      const currentParams = this.animations[index]?.params || {};
+      const currentParent = (currentParams[parentKey] && typeof currentParams[parentKey] === 'object') ? currentParams[parentKey] : {};
+      const updatedParent = { ...currentParent, [subKey]: value };
+      this._updateParam(index, parentKey, updatedParent);
+      return;
+    }
+    this._updateParam(index, path, value);
+  }
+
+  /**
+   * Raw JSON-textarea editing for array/object-shaped preset params (e.g. chaos's
+   * `properties`/`range`, sequence's `steps`) — lifted from the identical
+   * try/catch-JSON.parse pattern already hand-written in several of this file's
+   * hardcoded `case` branches, so schema-driven presets get the same behavior
+   * instead of a second, subtly-different implementation.
+   * @private
+   */
+  _renderJsonParamField(key, fieldSchema, params, index) {
+    const hints = fieldSchema['x-ui-hints'] || {};
+    const label = hints.label || key;
+    const currentValue = params[key] ?? fieldSchema.default;
+    return html`
+      <div class="param-full">
+        <ha-input
+          .label=${label}
+          .value=${JSON.stringify(currentValue ?? '')}
+          .helper=${fieldSchema.description || ''}
+          @input=${(e) => {
+            try {
+              this._updateParam(index, key, JSON.parse(e.target.value));
+            } catch (err) {
+              // Invalid JSON while typing — don't update until it parses again
+            }
+          }}>
+        </ha-input>
+      </div>
+    `;
+  }
+
   _renderCommonParams(params, index, options = {}) {
     return html`
       <lcards-form-section
@@ -2398,6 +2583,7 @@ export class LCARdSAnimationEditor extends LitElement {
       { value: 'glow', label: 'Glow - Drop shadow pulsing' },
       { value: 'draw', label: 'Draw - SVG stroke drawing' },
       { value: 'march', label: 'Marching Ants - Dashed line animation' },
+      { value: 'scan-line', label: 'Scan Line - Sweeping gradient scan' },
 
       // Visual Effects
       { value: 'blink', label: 'Blink - Rapid opacity toggle' },
@@ -2419,6 +2605,8 @@ export class LCARdSAnimationEditor extends LitElement {
       { value: 'border-pulse', label: 'Border Pulse - Border animation' },
       { value: 'skew', label: 'Skew - Slant transformation' },
       { value: 'motionpath', label: 'Motion Path - Follow SVG path' },
+      { value: 'sequence', label: 'Sequence - Multi-step timeline of tweens' },
+      { value: 'chaos', label: 'Chaos - Randomized multi-property glitch motion' },
       { value: 'glitch', label: 'Glitch - Digital distortion' },
       { value: 'physics-spring', label: 'Physics Spring - Spring physics simulation' },
 
@@ -2507,10 +2695,7 @@ export class LCARdSAnimationEditor extends LitElement {
       ease: 'inOutQuad',
       loop: true,
       alternate: true,
-      params: {
-        max_scale: 1.15,
-        max_brightness: 1.4
-      }
+      params: {}
     };
 
     this._workingAnimations = [...this.animations, newAnimation];
@@ -2611,6 +2796,21 @@ export class LCARdSAnimationEditor extends LitElement {
     this._fireChange();
   }
 
+  _updatePreset(index, newPreset) {
+    const updated = [...this.animations];
+    const current = updated[index];
+    if (current.preset === newPreset) return;
+    // Preset-specific fields never carry meaning across a different preset (e.g.
+    // pulse's max_scale/max_brightness are meaningless to sequence or physics-spring)
+    // and left-behind values only cause confusion or, for presets that assume specific
+    // params shapes (e.g. sequence's steps array), runtime failures. Canonical fields
+    // (trigger/duration/loop/alternate/delay/ease/target/targets/id/enabled) all live
+    // at the top level and are untouched by a preset switch.
+    updated[index] = { ...current, preset: newPreset, params: {} };
+    this._workingAnimations = updated;
+    this._fireChange();
+  }
+
   _updateParam(index, paramKey, value) {
     // These are canonical top-level animation fields, not preset-specific params.
     // Always write them at the top level so TriggerManager and AnimationManager
@@ -2654,9 +2854,7 @@ export class LCARdSAnimationEditor extends LitElement {
         preset: 'pulse',
         duration: 1000,
         loop: true,
-        params: {
-          max_scale: 1.1
-        }
+        params: {}
       };
     }
     this._workingAnimations = updated;
@@ -2700,12 +2898,28 @@ export class LCARdSAnimationEditor extends LitElement {
   _renderTargetSelector(animation, index) {
     const targetMode = animation.targets ? 'multiple' : 'single';
 
+    // Collapsed by default — expanded (Single/Multiple picker) is easy to mistake
+    // for something you need to interact with, and clicking around in it risks
+    // setting an explicit target by accident. Leaving it collapsed with a plain
+    // "Default (this element)" label makes the common case (do nothing) obvious
+    // without inviting a click; it only auto-expands once a real target is set,
+    // same convention as the Stacking Order (z_index) section's secondary label.
+    const hasExplicitTarget = !!(animation.target || (Array.isArray(animation.targets) ? animation.targets.length > 0 : animation.targets));
+    // "Target" is already the section header (lcards-form-section renders header
+    // + secondary side by side) — don't repeat the word here.
+    const secondaryText = !hasExplicitTarget
+      ? 'Default (this element)'
+      : (animation.targets
+          ? Array.isArray(animation.targets) ? animation.targets.join(', ') : animation.targets
+          : animation.target);
+
     return html`
       <lcards-form-section
         header="Target"
         icon="mdi:crosshairs-gps"
         description="Select which element(s) to animate"
-        ?expanded=${true}>
+        secondary=${secondaryText}
+        ?expanded=${hasExplicitTarget}>
 
         <lcards-message
             type="info"

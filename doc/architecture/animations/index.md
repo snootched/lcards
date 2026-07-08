@@ -93,6 +93,7 @@ The LCARdS animation system consists of several integrated components:
 | `on_tap` | ActionHelpers | Single overlay | User tap interactions |
 | `on_hold` | ActionHelpers | Single overlay | User hold interactions |
 | `on_hover` | ActionHelpers | Single overlay | Mouse hover effects |
+| `on_leave` | ActionHelpers | Single overlay | Mouse/pointer leave |
 | `on_double_tap` | ActionHelpers | Single overlay | Double-tap actions |
 | `on_entity_change` | TriggerManager | Single overlay | Simple state reactions |
 | `on_datasource_change` | AnimationManager | Single overlay | Datasource value changes |
@@ -128,8 +129,8 @@ Look for key log messages:
 
 ## See Also
 
-- [Entity Change Triggers](./entity-change-triggers.md)
-- [Rule-based Animations](./rule-based-animations.md)
+- [Entity Change Triggers](../../core/animations/entity-change-triggers.md)
+- [Rule-based Animations](../../core/animations/rule-based-animations.md)
 - [DataSource Buffers](../internals/datasource-buffers.md)
 - [Animation Manager](../subsystems/animation-manager.md)
 - [anime.js v4 Documentation](https://animejs.com)
