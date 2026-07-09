@@ -26,7 +26,8 @@
 const simpleColorSchema = {
   type: 'string',
   pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-  description: 'Colour value (hex, rgb, theme token, or CSS variable)'
+  description: 'Colour value (hex, rgb, theme token, or CSS variable)',
+  'x-ui-hints': { widget: 'lcards-color-picker' }
 };
 
 /**
@@ -125,7 +126,12 @@ export const drawParamsSchema = {
         { type: 'array', items: { type: 'string' }, description: "e.g. ['0 0', '0 1']" },
         { type: 'object', properties: { values: { type: 'array', items: { type: 'string' }, required: true } } }
       ],
-      description: "Draw values or {values: [...]}. Defaults to ['0 0','0 1'] (or reversed) based on `reverse`."
+      description: "Draw values or {values: [...]}. Defaults to ['0 0','0 1'] (or reversed) based on `reverse`.",
+      // A oneOf with an array branch hits a known, separately-tracked bug in
+      // FormField's oneOf/choose handling (_prepareValueForSelector has no
+      // Array.isArray branch, so an array value always resets to the first
+      // choice) — bypass via the code editor rather than ship a broken toggle.
+      'x-ui-hints': { widget: 'json', label: 'Draw Values' }
     }
   },
   additionalProperties: 'warn'
@@ -216,17 +222,18 @@ export const cascadeParamsSchema = {
 
 export const cascadeColorParamsSchema = {
   type: 'object',
-  description: 'Params for the "cascade-color" preset — staggered color cascade across a grid/row of targets.',
+  description: 'Params for the "cascade-color" preset — staggered color cascade across a grid/row of targets. NOTE: the default `property` ("color") is correct for its primary intended use (data-grid cells, plain HTML/CSS-rendered) but won\'t visibly work on an SVG-shape target (LCARdS\'s own button/elbow/slider/MSD cards) — set `property` to `fill` or `stroke` for those.',
   properties: {
     ..._CANONICAL_REDECLARED,
     colors: {
       type: 'array', minItems: 3, items: { ...simpleColorSchema },
-      description: 'Only indices [0],[1],[2] are used; defaults to 3 theme tokens if omitted.'
+      description: 'Only indices [0],[1],[2] are used; defaults to 3 theme tokens if omitted.',
+      'x-ui-hints': { widget: 'json', label: 'Colors' }
     },
-    property: { type: 'string', default: 'color', description: 'Passthrough key used inside keyframe objects.' },
+    property: { type: 'string', default: 'color', description: "Passthrough key used inside keyframe objects. 'fill'/'stroke' for SVG shapes, 'color'/'background-color' only for plain HTML/CSS-rendered targets." },
     mode: {
       type: 'string', enum: ['css', 'animejs'],
-      description: "Auto-computed from interactive/stagger_from/axis if unset. NOTE: if explicitly set, it is NOT auto-upgraded even when interactive/stagger_from/axis are also set (contradicts the preset's own doc comment — known quirk, see Phase 13.6)."
+      description: "Both modes actually run through anime.js — despite the naming, this isn't a CSS-vs-anime.js engine choice. 'animejs' mode adds per-cell stagger (interactive/stagger_from/axis) on top of the base cascade; 'css' mode is the plain synchronized version. Auto-computed from interactive/stagger_from/axis when unset, and force-upgraded to 'animejs' whenever any of those are set even if `mode` was also set explicitly — those fields have no effect at all in 'css' mode, so silently ignoring them would be more surprising than the override."
     },
     interactive: { type: 'boolean', default: false, description: "Only wired up (mouseenter/mouseleave pause/play) when mode==='animejs'." },
     stagger_from: { type: 'string', enum: ['first', 'last', 'center', 'random'], description: 'Not validated in code today — documented values only.' },
@@ -332,25 +339,12 @@ export const bounceParamsSchema = {
 
 export const colorShiftParamsSchema = {
   type: 'object',
-  description: 'Params for the "color-shift" preset.',
+  description: 'Params for the "color-shift" preset. NOTE: the default `property` ("color") only visibly works on plain HTML/CSS-rendered targets — LCARdS\'s own cards (button/elbow/slider/MSD) draw their shapes as SVG paths, which don\'t respond to the CSS `color` property at all. Set `property` to `fill` or `stroke` when targeting an SVG shape.',
   properties: {
     ..._CANONICAL_REDECLARED,
     color_from: { ...simpleColorSchema, description: 'Required — omitting either color_from or color_to makes the preset a no-op with a warning.' },
     color_to: { ...simpleColorSchema, description: 'Required, see color_from.' },
-    property: { type: 'string', default: 'color', description: "e.g. 'fill', 'stroke', 'background-color'." }
-  },
-  additionalProperties: 'warn'
-};
-
-export const borderPulseParamsSchema = {
-  type: 'object',
-  description: 'Params for the "border-pulse" preset. At least one complete pair (color or width) must be supplied, else the preset is a no-op with a warning.',
-  properties: {
-    ..._CANONICAL_REDECLARED,
-    color_from: { ...simpleColorSchema, description: 'Must be paired with color_to, else warns and drops the color animation.' },
-    color_to: { ...simpleColorSchema },
-    width_from: { oneOf: [{ type: 'number' }, { type: 'string' }], description: 'Must be paired with width_to, else warns and drops the width animation.' },
-    width_to: { oneOf: [{ type: 'number' }, { type: 'string' }] }
+    property: { type: 'string', default: 'color', description: "'fill'/'stroke' for SVG shapes (LCARdS's own cards), 'color'/'background-color' only for plain HTML/CSS-rendered targets." }
   },
   additionalProperties: 'warn'
 };
@@ -364,17 +358,6 @@ export const skewParamsSchema = {
     skewY: { type: 'number', default: 0, description: 'Degrees.' },
     from_skewX: { type: 'number', default: 0 },
     from_skewY: { type: 'number', default: 0 }
-  },
-  additionalProperties: 'warn'
-};
-
-export const scanLineParamsSchema = {
-  type: 'object',
-  description: "Params for the \"scan-line\" preset. `direction` is not a strict 2-value enum in code — any value other than 'horizontal' triggers the vertical/else branch.",
-  properties: {
-    ..._CANONICAL_REDECLARED,
-    direction: { type: 'string', enum: ['horizontal', 'vertical'], default: 'horizontal' },
-    color: { ...simpleColorSchema, default: 'rgba(255,255,255,0.3)' }
   },
   additionalProperties: 'warn'
 };
@@ -397,7 +380,7 @@ export const setParamsSchema = {
     properties: {
       type: 'object', additionalProperties: true, default: {},
       description: "Free-form key→value map spread directly into anime params, e.g. {opacity: 0.5, fill: 'red'}. Completely unvalidated shape.",
-      'x-ui-hints': { widget: 'json', label: 'Properties (JSON object)' }
+      'x-ui-hints': { widget: 'json', label: 'Properties' }
     }
   },
   additionalProperties: 'warn'
@@ -434,7 +417,7 @@ export const motionpathParamsSchema = {
 
 export const sequenceParamsSchema = {
   type: 'object',
-  description: "Params for the \"sequence\" preset — timeline of steps. Each step may set its own duration/ease (falling back to this preset's own duration/ease as per-step defaults). NOTE: the documented `at` step-positioning field is not actually read by the shared timeline consumer (which reads `offset`) — likely non-functional today, see Phase 13.6.",
+  description: "Params for the \"sequence\" preset — timeline of steps. Each step may set its own duration/ease (falling back to this preset's own duration/ease as per-step defaults). Step positioning uses `offset`; the preset factory also accepts the older `at` name as a fallback (translated to `offset` internally) — `offset` wins if a step sets both.",
   properties: {
     duration: { type: 'number', minimum: 0, maximum: 10000, default: 2000, description: 'Fallback duration for steps missing their own duration.' },
     ease: { type: ['string', 'object'], description: "Fallback easing for steps missing their own ease. Default 'easeOutQuad'." },
@@ -444,10 +427,10 @@ export const sequenceParamsSchema = {
       items: {
         type: 'object',
         additionalProperties: true,
-        description: 'Arbitrary anime.js tween properties at the top level, plus optional duration/ease/at overrides.'
+        description: 'Arbitrary anime.js tween properties at the top level, plus optional duration/ease/offset (or legacy at) overrides.'
       },
       description: 'Required, at least one step.',
-      'x-ui-hints': { widget: 'json', label: 'Steps (JSON array)' }
+      'x-ui-hints': { widget: 'json', label: 'Steps' }
     }
   },
   additionalProperties: 'warn'
@@ -491,14 +474,14 @@ export const chaosParamsSchema = {
       items: { type: 'string' },
       default: ['x', 'y', 'rotate'],
       description: "'x'/'y' tokens are remapped to translateX/translateY; other tokens (e.g. 'rotate','opacity') used verbatim as the anime property name. Not validated as an array in code today — a non-array truthy value will throw.",
-      'x-ui-hints': { widget: 'json', label: 'Properties (JSON array)' }
+      'x-ui-hints': { widget: 'json', label: 'Properties' }
     },
     range: {
       type: 'object',
       additionalProperties: { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } },
       default: { x: [-50, 50], y: [-50, 50], rotate: [-15, 15] },
       description: 'Min/max range per property. Keys should match `properties`. Each value must be a 2-element array or that property\'s animation is silently skipped.',
-      'x-ui-hints': { widget: 'json', label: 'Range (JSON object)' }
+      'x-ui-hints': { widget: 'json', label: 'Range' }
     },
     duration_min: { type: 'number', minimum: 0, default: 200, description: 'Replaces the canonical `duration` entirely for this preset.' },
     duration_max: { type: 'number', minimum: 0, default: 800 },
@@ -549,7 +532,12 @@ export const staggerGridParamsSchema = {
         { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } }
       ],
       default: 'start',
-      description: 'Not validated in code today.'
+      description: 'Not validated in code today.',
+      // A oneOf with an array branch hits a known, separately-tracked bug in
+      // FormField's oneOf/choose handling (_prepareValueForSelector has no
+      // Array.isArray branch, so an array value always resets to the first
+      // choice) — bypass via the code editor rather than ship a broken toggle.
+      'x-ui-hints': { widget: 'json', label: 'From' }
     },
     property: { type: 'string', default: 'scale' },
     from_value: { type: 'number', default: 0.8 },
@@ -593,7 +581,9 @@ export const staggerRadialParamsSchema = {
         { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } }
       ],
       default: 'center',
-      description: "'center' or an [x,y] pixel position. Unvalidated."
+      description: "'center' or an [x,y] pixel position. Unvalidated.",
+      // See stagger-grid.from's comment — same known oneOf/array selector bug.
+      'x-ui-hints': { widget: 'json', label: 'From' }
     },
     property: { type: 'string', default: 'scale' },
     from_value: { type: 'number', default: 0 },
@@ -692,7 +682,7 @@ export const textTypewriterParamsSchema = {
 
 export const timelineCascadeParamsSchema = {
   type: 'object',
-  description: 'Params for the "timeline-cascade" preset — multi-step timeline. Canonical duration/ease/alternate/delay at the top level are not used at all here; only `loop` is read at top level. Timing/easing lives per-step.',
+  description: 'Params for the "timeline-cascade" preset — multi-step timeline. Timing/easing for each step lives in that step\'s own config; the top-level canonical `duration`/`ease` are genuinely inert (confirmed against anime.js\'s own source: Timeline recomputes its own duration from its children regardless, and `ease` isn\'t read by the underlying Timer class at all — only a separate `playbackEase` is). `loop`/`alternate`/`delay`, however, do still apply — they govern the whole timeline\'s repeat/reverse/start-delay behavior, since Timeline extends Timer and inherits those from the same top-level params.',
   properties: {
     loop: { type: 'boolean', default: false },
     steps: {
@@ -710,7 +700,7 @@ export const timelineCascadeParamsSchema = {
         },
         additionalProperties: true
       },
-      'x-ui-hints': { widget: 'json', label: 'Steps (JSON array)' }
+      'x-ui-hints': { widget: 'json', label: 'Steps' }
     }
   },
   additionalProperties: 'warn'
@@ -718,7 +708,7 @@ export const timelineCascadeParamsSchema = {
 
 export const timelineAttentionParamsSchema = {
   type: 'object',
-  description: 'Params for the "timeline-attention" preset — 3-phase scale/shake/settle sequence. Completely ignores the canonical top-level `duration` and `ease` — durations are hardcoded to the duration_* fields below, and each phase\'s easing is hardcoded in source with no override. Only `loop` (top-level) is honored generically.',
+  description: 'Params for the "timeline-attention" preset — 3-phase scale/shake/settle sequence. The top-level canonical `duration`/`ease` are genuinely inert (durations are hardcoded to the duration_* fields below, and each phase\'s easing is hardcoded in source with no override — confirmed via anime.js\'s own source that Timeline discards a top-level duration and never reads `ease` at all). `loop`/`alternate`/`delay` do still apply at the whole-timeline level (repeat/reverse/start-delay), inherited from the underlying Timer class.',
   properties: {
     scale_max: { type: 'number', minimum: 1, default: 1.15 },
     shake_intensity: { type: 'number', minimum: 0, default: 5, description: 'Used to build a fixed 5-point translateX keyframe array.' },
@@ -755,9 +745,7 @@ export const ANIMATION_PRESET_PARAMS_SCHEMAS = {
   shake: shakeParamsSchema,
   bounce: bounceParamsSchema,
   'color-shift': colorShiftParamsSchema,
-  'border-pulse': borderPulseParamsSchema,
   skew: skewParamsSchema,
-  'scan-line': scanLineParamsSchema,
   glitch: glitchParamsSchema,
   set: setParamsSchema,
   motionpath: motionpathParamsSchema,

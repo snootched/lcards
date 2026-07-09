@@ -304,18 +304,6 @@ Random position and colour shifts for a malfunction effect.
 
 > `ease` is hardcoded to `linear` and `alternate` has no effect — both are ignored if set.
 
-### `scan-line`
-
-Moving highlight gradient across the element.
-
-| Param | Default | Description |
-|-------|---------|-------------|
-| `direction` | `horizontal` | `horizontal` or anything else (conventionally `vertical`) — only the literal value `horizontal` is special-cased in code, so any other value behaves as vertical |
-| `color` | `rgba(255,255,255,0.3)` | Scan line colour |
-| `duration` | `2000` | Duration (ms) |
-| `ease` | `linear` | Easing function |
-| `loop` | `true` | Loop continuously |
-
 ---
 
 ## Color Animation Presets
@@ -328,36 +316,23 @@ Animates a colour property from one value to another.
 |-------|---------|-------------|
 | `color_from` | — | Starting colour (required) |
 | `color_to` | — | Target colour (required) |
-| `property` | `color` | CSS property: `color`, `fill`, `stroke`, `background-color`, etc. |
+| `property` | `color` | `fill`/`stroke` for SVG shapes (LCARdS's own button/elbow/slider/MSD cards, which draw their shapes as SVG paths — the CSS `color` property has no effect on them). `color`/`background-color` only work on plain HTML/CSS-rendered targets. |
 | `duration` | `1000` | Duration (ms) |
 | `ease` | `inOutQuad` | Easing function |
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
 
-### `border-pulse`
-
-Animate border colour and/or width. At least one pair (`color_from`/`color_to` or `width_from`/`width_to`) must be specified.
-
-| Param | Default | Description |
-|-------|---------|-------------|
-| `color_from` | — | Starting border colour |
-| `color_to` | — | Ending border colour |
-| `width_from` | — | Starting border width |
-| `width_to` | — | Ending border width |
-| `duration` | `1000` | Duration (ms) |
-| `ease` | `inOutSine` | Easing function |
-| `loop` | `true` | Loop continuously |
-| `alternate` | `true` | Reverse on each loop |
-
 ### `cascade-color`
 
 LCARS-style colour cascade through three keyframe colours. Uses theme tokens for default colours.
 
+> The default `property` ("color") is correct for this preset's primary intended use — data-grid cells, which are plain HTML/CSS-rendered — but won't visibly work if targeted at an SVG shape (LCARdS's own button/elbow/slider/MSD cards). Set `property` to `fill` or `stroke` for those.
+
 | Param | Default | Description |
 |-------|---------|-------------|
 | `colors` | theme cascade colours | Array of 3 colours: `[start, mid, end]` — only the first 3 entries are used |
-| `property` | `color` | CSS property to animate |
-| `mode` | auto-computed | `css` or `animejs`. Auto-computed from `interactive`/`stagger_from`/`axis` when unset — set it explicitly and it will **not** be re-computed even if you also set those, which can look inconsistent with the auto behavior. If in doubt, leave unset. |
+| `property` | `color` | CSS property to animate — see note above |
+| `mode` | auto-computed | `css` or `animejs` — despite the naming, both actually run through anime.js; `animejs` mode just adds per-cell stagger/hover-pause on top of the base cascade. Auto-computed from `interactive`/`stagger_from`/`axis` when unset, and force-upgraded to `animejs` whenever any of those are set, even if `mode` was also given explicitly (those fields have no effect at all in `css` mode). Not currently exposed in the GUI editor for this preset — colors/timing only; set it via YAML if you need it. |
 | `duration` | `5000` | ms per full cycle |
 | `ease` | `linear` | Easing function |
 | `loop` | `true` | Loop continuously |
@@ -504,7 +479,7 @@ A lead/trail colour sweep across targets, driven by the Web Animations API direc
 
 ## Timeline Presets
 
-Multi-phase animations built with anime.js's `createTimeline()`. Unlike most presets, the canonical top-level `duration`/`ease`/`alternate`/`delay` fields aren't used — timing/easing lives per-phase instead (only `loop` is honored generically).
+Multi-phase animations built with anime.js's `createTimeline()`. The canonical top-level `duration`/`ease` are inert — timing/easing for each phase lives in that phase's own config instead. `loop`, `alternate`, and `delay`, however, still apply at the whole-timeline level (repeat, reverse, and start-delay for the entire sequence), since a Timeline inherits that behavior from the same underlying mechanism a single animation uses.
 
 ### `timeline-cascade`
 
@@ -651,7 +626,7 @@ Timeline-based animation with multiple steps at specified offsets. Uses `anime.j
         offset: 500
 ```
 
-> Use `offset`, not `at` — `at` is not read anywhere and silently has no effect on step positioning.
+> Prefer `offset` — the older `at` name is also accepted as a fallback (translated internally), but `offset` wins if a step sets both.
 
 ### `grid-stagger`
 

@@ -495,6 +495,27 @@ export class CoreValidationService {
       }
     }
 
+    // Check the standard JSON-Schema array-form `required` (e.g. animationSchema's
+    // `required: ['trigger', 'preset']`) — historically never read anywhere in this
+    // validator (only the nonstandard per-property `required: true`, above, was ever
+    // enforced), so this was a completely inert declaration. Surfaced as a warning,
+    // not an error: enforcing it as a hard error risks newly rejecting existing saved
+    // configs that have always silently lacked a "required" field without issue: a
+    // flood of surprise failures is worse than a quiet, actionable warning.
+    if (Array.isArray(schema.required)) {
+      for (const prop of schema.required) {
+        if (!(prop in data)) {
+          const fieldPath = path ? `${path}.${prop}` : prop;
+          result.warnings.push({
+            type: 'missing_recommended_field',
+            field: fieldPath,
+            message: `Missing recommended property "${prop}"`,
+            context: { field: fieldPath, prop }
+          });
+        }
+      }
+    }
+
     // Check for additional properties if additionalProperties is false (hard error)
     // or 'warn' (non-blocking) — 'warn' is for schemas where an unrecognized field is
     // a real signal worth surfacing (e.g. a stale/leftover field from switching presets)

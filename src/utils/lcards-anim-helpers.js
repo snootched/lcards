@@ -889,6 +889,18 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
                 Object.assign(params, presetResult.anime);
               }
 
+              // `_timeline` is a top-level sibling of `.anime` on presetResult (see
+              // sequence/timeline-cascade/timeline-attention), not nested inside it —
+              // the Object.assign above only ever copies `.anime`'s own keys, so this
+              // marker needs its own explicit copy. Without it, _processAnimationMarkers()
+              // never sees params._timeline === true and every timeline-based preset
+              // silently falls through to a plain anime.animate() call instead, with a
+              // raw `steps` array passed through as a bogus, non-animatable property —
+              // an instance gets created but nothing visible ever happens.
+              if (presetResult._timeline) {
+                params._timeline = true;
+              }
+
               // Resolve CSS variables in animation params (for theme reactivity)
               const resolvedParams = resolveAnimationCssVariables(params);
               Object.assign(params, resolvedParams);

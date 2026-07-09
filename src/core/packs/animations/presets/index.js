@@ -682,8 +682,12 @@ registerAnimationPreset('cascade-color', (def) => {
   const staggerDelay = p.stagger_delay !== undefined ? p.stagger_delay : 100;
   const axis = p.axis || 'row';
 
-  // Force anime.js mode if advanced features requested
-  const mode = p.mode || (interactive || staggerFrom || (axis && axis !== 'row') ? 'animejs' : 'css');
+  // Force anime.js mode if advanced features requested — even if `mode` was set
+  // explicitly, since interactive/stagger_from/axis have no effect at all in css
+  // mode; silently ignoring them there would be more surprising than overriding
+  // an explicit-but-incompatible mode choice.
+  const advancedFeatureRequested = interactive || staggerFrom || (axis && axis !== 'row');
+  const mode = advancedFeatureRequested ? 'animejs' : (p.mode || 'css');
   const useAnimejs = mode === 'animejs';
 
   if (!Array.isArray(colors) || colors.length < 3) {
@@ -1148,64 +1152,6 @@ registerAnimationPreset('color-shift', (def) => {
 });
 
 /**
- * Border Pulse - Animate border properties
- *
- * Parameters:
- * - color_from (optional) - Starting border color
- * - color_to (optional) - Ending border color
- * - width_from (optional) - Starting border width
- * - width_to (optional) - Ending border width
- * - duration (default: 1000)
- * - ease (default: 'easeInOutSine')
- * - loop (default: true)
- * - alternate (default: true)
- */
-registerAnimationPreset('border-pulse', (def) => {
-  const p = resolvePresetParams(def);
-  const colorFrom = p.color_from;
-  const colorTo = p.color_to;
-  const widthFrom = p.width_from;
-  const widthTo = p.width_to;
-  const duration = p.duration || 1000;
-  const ease = getResolvedEasing(p) || 'easeInOutSine';
-  const loop = p.loop !== undefined ? p.loop : true;
-  const alternate = p.alternate !== undefined ? p.alternate : true;
-
-  // Build animation object based on what properties are specified
-  const animeParams = {
-    duration,
-    ease,
-    loop,
-    alternate
-  };
-
-  // Add border-color animation if colors specified
-  if (colorFrom && colorTo) {
-    animeParams['border-color'] = [colorFrom, colorTo];
-  } else if (colorFrom || colorTo) {
-    lcardsLog.warn('[AnimationPresets] border-pulse: both color_from and color_to must be specified for color animation');
-  }
-
-  // Add border-width animation if widths specified
-  if (widthFrom !== undefined && widthTo !== undefined) {
-    animeParams['border-width'] = [widthFrom, widthTo];
-  } else if (widthFrom !== undefined || widthTo !== undefined) {
-    lcardsLog.warn('[AnimationPresets] border-pulse: both width_from and width_to must be specified for width animation');
-  }
-
-  // Check if any animation was configured
-  if (!animeParams['border-color'] && !animeParams['border-width']) {
-    lcardsLog.warn('[AnimationPresets] border-pulse: no valid animation parameters (specify color_from/color_to or width_from/width_to)');
-    return { anime: {}, styles: {} };
-  }
-
-  return {
-    anime: animeParams,
-    styles: {}
-  };
-});
-
-/**
  * Skew - Skew/slant transformation
  *
  * Parameters:
@@ -1258,47 +1204,6 @@ registerAnimationPreset('skew', (def) => {
     styles: {
       transformOrigin: 'center',
       transformBox: 'fill-box'
-    }
-  };
-});
-
-/**
- * Scan Line - Moving gradient/line across element
- *
- * Parameters:
- * - direction (default: 'horizontal') - 'horizontal' or 'vertical'
- * - color (default: 'rgba(255,255,255,0.3)') - Scan line color
- * - duration (default: 2000)
- * - ease (default: 'linear')
- * - loop (default: true)
- */
-registerAnimationPreset('scan-line', (def) => {
-  const p = resolvePresetParams(def);
-  const direction = p.direction || 'horizontal';
-  const color = p.color || 'rgba(255,255,255,0.3)';
-  const duration = p.duration || 2000;
-  const ease = getResolvedEasing(p) || 'linear';
-  const loop = p.loop !== undefined ? p.loop : true;
-
-  // Use background-position animation for gradient movement
-  // Create a linear gradient that will be animated
-  const isHorizontal = direction === 'horizontal';
-
-  // Set up the gradient and animate background-position
-  const gradientAngle = isHorizontal ? '90deg' : '0deg';
-  const positionProp = isHorizontal ? 'background-position-x' : 'background-position-y';
-
-  return {
-    anime: {
-      [positionProp]: isHorizontal ? ['0%', '100%'] : ['0%', '100%'],
-      duration,
-      ease,
-      loop
-    },
-    styles: {
-      backgroundImage: `linear-gradient(${gradientAngle}, transparent 0%, transparent 40%, ${color} 50%, transparent 60%, transparent 100%)`,
-      backgroundSize: isHorizontal ? '200% 100%' : '100% 200%',
-      backgroundRepeat: 'no-repeat'
     }
   };
 });
@@ -1652,11 +1557,20 @@ registerAnimationPreset('sequence', (def) => {
     anime: {
       loop,
       defaultEasing,
-      steps: steps.map(step => ({
-        ...step,
-        duration: step.duration || defaultDuration,
-        ease: step.ease || defaultEasing
-      }))
+      steps: steps.map(step => {
+        // `at` was the originally-documented step-positioning field, but the shared
+        // timeline consumer (_processAnimationMarkers, lcards-anim-helpers.js) only
+        // ever reads `offset` — `at` silently did nothing. Translate it here rather
+        // than just renaming the field, so existing configs using `at` start working
+        // instead of staying silently broken; `offset` wins if a step sets both.
+        const { at, ...rest } = step;
+        return {
+          ...rest,
+          offset: step.offset !== undefined ? step.offset : at,
+          duration: step.duration || defaultDuration,
+          ease: step.ease || defaultEasing
+        };
+      })
     },
     styles: {}
   };
