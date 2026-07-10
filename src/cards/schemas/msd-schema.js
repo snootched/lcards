@@ -231,6 +231,26 @@ export function getMsdSchema(options = {}) {
               optional: true,
               description: 'HA card config embedded in this control overlay'
             },
+            triggers_update: {
+              oneOf: [
+                {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Extra entity IDs (or MSD data-source refs) this overlay depends on, beyond what static analysis of `card` can detect. HA entity IDs are folded into a control overlay\'s HASS change-detection set; non-entity refs are subscribed as MSD data-source updates (existing behavior, any overlay type).'
+                },
+                {
+                  type: 'string',
+                  enum: ['all'],
+                  description: 'Control overlays only: this control receives every HASS update unconditionally, bypassing the per-control entity-diff optimization. Use when the embedded card\'s entity dependencies genuinely can\'t be enumerated (e.g. wildcard/device-class auto-discovery alert cards). Prefer the array form when possible.'
+                }
+              ],
+              optional: true,
+              'x-ui': {
+                control: 'yaml',
+                label: 'Triggers Update',
+                helper: 'Array of entity IDs, or "all" for control overlays — declares extra HASS dependencies static analysis can\'t detect'
+              }
+            },
             z_index: {
               type: 'number',
               optional: true,
@@ -642,6 +662,18 @@ export function getMsdSchema(options = {}) {
             optional: true,
             description: 'Show routing grid'
           }
+        }
+      },
+
+      triggers_update: {
+        type: 'string',
+        enum: ['all'],
+        optional: true,
+        description: 'Card-wide escape hatch: every control overlay receives every HASS update unconditionally, bypassing the per-control entity-diff optimization for the whole card. Discouraged — prefer the per-overlay control `triggers_update: all` scoped to just the problem control.',
+        'x-ui': {
+          control: 'select',
+          label: 'Update All Controls (discouraged)',
+          helper: 'Bypasses per-control HASS optimization for the entire card. Prefer per-overlay triggers_update: all instead.'
         }
       }
 

@@ -176,7 +176,7 @@ export class MsdCardCoordinator extends BaseService {
     };
     this.router = new RouterCore(routingConfig, cardModel.anchors, cardModel.viewBox);
     this.renderer = new AdvancedRenderer(mountEl, this.router, this); // Pass 'this' as systemsManager
-    this.controlsRenderer = new MsdControlsRenderer(this.renderer);
+    this.controlsRenderer = new MsdControlsRenderer(this.renderer, mergedConfig);
 
     // Set HASS context on controls renderer immediately if available
     if (this._hass && this.controlsRenderer) {

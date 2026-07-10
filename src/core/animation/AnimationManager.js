@@ -336,6 +336,7 @@ export class AnimationManager extends BaseService {
         });
         existingScope.runningInstances.clear();
         this._clearAllSpeedBindingsForScope(overlayId, existingScope);
+        this._runElementCleanupFns(existingScope.element);
         if (existingScope.triggerManager) {
           existingScope.triggerManager.destroy();
         }
@@ -1326,6 +1327,31 @@ export class AnimationManager extends BaseService {
   }
 
   /**
+   * Run and clear any DOM-cleanup callbacks a preset's setup() attached
+   * directly to the element (e.g. cascade-color's interactive hover
+   * pause/resume listeners, stashed via element._cleanupFns). These live
+   * outside anime.js's own scope/instance tracking, so scope.revert() and
+   * runningInstances teardown never touch them — this must be called
+   * explicitly from every scope-teardown path (recreation and destroy) or
+   * the listeners leak onto a detached element.
+   *
+   * @param {Element} element
+   * @private
+   */
+  _runElementCleanupFns(element) {
+    const cleanupFns = /** @type {any} */ (element)?._cleanupFns;
+    if (!Array.isArray(cleanupFns) || cleanupFns.length === 0) return;
+    cleanupFns.forEach(fn => {
+      try {
+        fn();
+      } catch (error) {
+        lcardsLog.warn('[AnimationManager] Error running element cleanup fn:', error);
+      }
+    });
+    /** @type {any} */ (element)._cleanupFns = [];
+  }
+
+  /**
    * Destroy scope and cleanup for an overlay
    * Called when overlay is removed
    *
@@ -1360,6 +1386,8 @@ export class AnimationManager extends BaseService {
       if (scopeData.triggerManager) {
         scopeData.triggerManager.destroy();
       }
+
+      this._runElementCleanupFns(scopeData.element);
 
       // Revert and cleanup scope
       if (scopeData.scope && typeof scopeData.scope.revert === 'function') {

@@ -27,6 +27,7 @@ import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { ProvenanceTracker } from '../utils/provenance-tracker.js';
 import { escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
+import { extractAllConfigStrings } from '../utils/extractConfigStrings.js';
 import {
     haFormatState,
     haFormatEntityName,
@@ -2272,9 +2273,10 @@ export class LCARdSCard extends LCARdSNativeCard {
 
     /**
      * Recursively collect every string value from a config object.
-     * Skips the `type` key (card type string, never an entity reference).
      * Used by `_updateTrackedEntities` to scan all template fields for
      * Jinja2 entity dependencies without enumerating every possible field name.
+     * Delegates to the shared implementation (also used by MsdControlsRenderer's
+     * control-overlay entity harvesting) — see extractConfigStrings.js.
      *
      * @private
      * @param {*} node - Config node (object, array, or scalar)
@@ -2282,20 +2284,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @returns {Set<string>} Collected string values
      */
     _extractAllConfigStrings(node, out = new Set()) {
-        if (!node || typeof node !== 'object') {
-            if (typeof node === 'string') out.add(node);
-            return out;
-        }
-        if (Array.isArray(node)) {
-            node.forEach(item => this._extractAllConfigStrings(item, out));
-            return out;
-        }
-        for (const [key, value] of Object.entries(node)) {
-            // `type` is always the card type identifier (e.g. 'custom:lcards-button')
-            if (key === 'type') continue;
-            this._extractAllConfigStrings(value, out);
-        }
-        return out;
+        return extractAllConfigStrings(node, out);
     }
 
     /**

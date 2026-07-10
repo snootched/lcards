@@ -749,26 +749,40 @@ registerAnimationPreset('cascade-color', (def) => {
 
   // Add interactive controls if requested
   if (interactive) {
-    result.setup = (element, animeInstance) => {
-      if (!element || !animeInstance) return;
+    // setup() runs BEFORE the anime.js instance exists (animateElement() calls
+    // it with only `element`, never a second argument), so the pause/resume
+    // wiring can't happen here directly. Stash it on the element instead —
+    // animateElement() invokes `_pendingInstanceSetup(animeInstance)` itself
+    // right after the real instance is created, mirroring the existing
+    // _drawable/_animTargets/_motionPath "communicate via element property"
+    // convention used elsewhere for preset state that depends on something
+    // not available until later in the pipeline.
+    result.setup = (element) => {
+      if (!element) return;
 
-      const handleMouseEnter = () => {
-        if (animeInstance.pause) animeInstance.pause();
+      element._pendingInstanceSetup = (animeInstance) => {
+        if (!animeInstance) return;
+
+        const handleMouseEnter = () => {
+          if (animeInstance.pause) animeInstance.pause();
+        };
+
+        const handleMouseLeave = () => {
+          if (animeInstance.play) animeInstance.play();
+        };
+
+        element.addEventListener('mouseenter', handleMouseEnter);
+        element.addEventListener('mouseleave', handleMouseLeave);
+
+        // Store cleanup function — consumed by AnimationManager's scope
+        // teardown (recreation and destroyOverlayScope) so these listeners
+        // don't leak onto a detached element.
+        if (!element._cleanupFns) element._cleanupFns = [];
+        element._cleanupFns.push(() => {
+          element.removeEventListener('mouseenter', handleMouseEnter);
+          element.removeEventListener('mouseleave', handleMouseLeave);
+        });
       };
-
-      const handleMouseLeave = () => {
-        if (animeInstance.play) animeInstance.play();
-      };
-
-      element.addEventListener('mouseenter', handleMouseEnter);
-      element.addEventListener('mouseleave', handleMouseLeave);
-
-      // Store cleanup function
-      if (!element._cleanupFns) element._cleanupFns = [];
-      element._cleanupFns.push(() => {
-        element.removeEventListener('mouseenter', handleMouseEnter);
-        element.removeEventListener('mouseleave', handleMouseLeave);
-      });
     };
   }
 

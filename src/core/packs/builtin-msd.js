@@ -63,20 +63,6 @@ export const BUILTIN_MSD_SVG_PACK = {
         author: 'anomaly',
         license: 'CC-BY-SA-4.0',
       },
-    },
-    'enterprise-d-shuttlecraft15-anomaly-custom': {
-      url: '/lcards/msd/enterprise-d-shuttlecraft15-anomaly-custom.svg',
-      metadata: {
-        ship: 'Shuttlecraft 15',
-        registry: 'NCC-1701-D-15',
-        class: 'Type-6 Shuttle',
-        era: 'TNG (2360s-2370s)',
-        variant: 'Modified ViewBox Size',
-        description: 'Modified size - Type-6 shuttlecraft systems display with anomaly indicators',
-        author: 'anomaly',
-        source: 'Bundled with LCARdS',
-        license: 'CC-BY-SA-4.0'
-      }
     }
   }
 };

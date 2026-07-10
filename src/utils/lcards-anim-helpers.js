@@ -1029,6 +1029,21 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           params: cleanedAnimeParams
         });
 
+        // Some presets (e.g. cascade-color's interactive mode) need the real
+        // anime.js instance to wire up behavior — setup() runs before the
+        // instance exists, so it can't do this itself. It stashes a callback
+        // on the element for us to invoke now that the instance is real (see
+        // the _drawable/_animTargets/_motionPath convention above).
+        if (typeof (/** @type {any} */ (element)._pendingInstanceSetup) === 'function') {
+          const pendingInstanceSetup = /** @type {any} */ (element)._pendingInstanceSetup;
+          delete /** @type {any} */ (element)._pendingInstanceSetup;
+          try {
+            pendingInstanceSetup(animeInstance);
+          } catch (setupError) {
+            lcardsLog.error('[animateElement] Error in pending instance setup:', setupError);
+          }
+        }
+
         // Call callback with the created instance (for tracking)
         if (onInstanceCreated && typeof onInstanceCreated === 'function') {
           onInstanceCreated(animeInstance);

@@ -50,10 +50,16 @@
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { createCardElement, applyHassToCard } from '../../utils/ha-card-factory.js';
+import { extractAllConfigStrings } from '../../utils/extractConfigStrings.js';
+import { TemplateParser } from '../../core/templates/TemplateParser.js';
+import { isHAEntity } from '../utils/HADomains.js';
 
 export class MsdControlsRenderer {
-  constructor(renderer) {
+  constructor(renderer, cardConfig = null) {
     this.renderer = renderer;
+    // Resolved contents of the card's own `msd:` config block — used only for
+    // the card-wide triggers_update: 'all' escape hatch (see setHass()).
+    this._cardConfig = cardConfig || null;
     this.controlElements = new Map(); // overlayId -> { element, config }
     this.hass = null;
     this.lastRenderArgs = null;
@@ -74,6 +80,12 @@ export class MsdControlsRenderer {
     // Maps control overlay ID to Set of entity IDs it uses
     this._controlEntityMap = new Map(); // overlayId -> Set<entityId>
 
+    // Overlays with triggers_update: 'all' — always included in the affected
+    // batch on any hass change, bypassing the entity-diff gate for just that
+    // control (see #387: for cards whose entity dependencies genuinely can't
+    // be enumerated, e.g. wildcard/device-class auto-discovery).
+    this._alwaysUpdateControls = new Set(); // Set<overlayId>
+
     // DEBUGGING: Log when MsdControlsRenderer is created
     lcardsLog.debug('[MsdControlsRenderer] 🎮 Constructor called', {
       manualHassForwarding: this._manualHassForwarding,
@@ -90,6 +102,20 @@ export class MsdControlsRenderer {
    */
   _extractControlEntities(overlay) {
     const entities = new Set();
+
+    // Explicit escape hatch (array form): overlay.triggers_update — same field
+    // already used by line overlays for MSD data-source subscriptions
+    // (ModelBuilder.js/OverlayBase.js). Entity-shaped entries are folded into
+    // this control's own change-detection set here; non-entity entries are
+    // MSD data-source refs, unrelated to this method. The 'all' string form
+    // is handled separately by the caller (_registerControl), not here.
+    if (Array.isArray(overlay.triggers_update)) {
+      overlay.triggers_update.forEach(ref => {
+        if (typeof ref === 'string' && isHAEntity(ref)) {
+          entities.add(ref);
+        }
+      });
+    }
 
     if (!overlay.card) return entities;
 
@@ -124,6 +150,29 @@ export class MsdControlsRenderer {
         });
       }
     }
+
+    // Pattern 4: generic scan of every string value anywhere in the card
+    // config (mirrors LCARdSCard._extractAllConfigStrings — skips `type`).
+    // Catches entity refs nested under arbitrary key names (e.g. a
+    // third-party card's own `alerts: [{entity: 'binary_sensor.x'}]` shape,
+    // which Patterns 1-3 can't see since they only look at fixed key names),
+    // plus entity refs embedded inside Jinja2 templates in any field.
+    extractAllConfigStrings(cardConfig).forEach(str => {
+      // 4a. Jinja2 templates anywhere, e.g. state: "{{ states('sensor.x') }}"
+      TemplateParser.extractJinja2Entities(str).forEach(id => entities.add(id));
+
+      // 4b. Treat the raw string itself as a candidate plain entity ID.
+      // isHAEntity() already gates on a known HA domain prefix; when hass is
+      // available, also confirm it's a real registered entity (avoids
+      // false-positive noise from unrelated dotted strings that happen to
+      // share a domain prefix). When hass isn't available yet (rare — only
+      // possible before the very first hass tick), err permissive: including
+      // an extra candidate only costs an occasional unnecessary update, never
+      // a missed one.
+      if (isHAEntity(str) && (!this.hass?.states || this.hass.states[str])) {
+        entities.add(str);
+      }
+    });
 
     return entities;
   }
@@ -171,10 +220,10 @@ export class MsdControlsRenderer {
     const affected = [];
 
     this._controlEntityMap.forEach((entities, overlayId) => {
-      // Check if this control uses any changed entities
-      const hasChangedEntity = Array.from(entities).some(e =>
-        changedEntities.has(e)
-      );
+      // triggers_update: 'all' controls are always affected, regardless of
+      // which entities actually changed (see #387).
+      const hasChangedEntity = this._alwaysUpdateControls.has(overlayId) ||
+        Array.from(entities).some(e => changedEntities.has(e));
 
       if (hasChangedEntity) {
         const element = this.controlElements.get(overlayId);
@@ -204,6 +253,16 @@ export class MsdControlsRenderer {
 
     // ⚠️ FEATURE FLAG: Manual HASS Forwarding
     if (this._manualHassForwarding) {
+      // Card-wide escape hatch (msd.triggers_update: 'all', see #387) —
+      // discouraged last resort: bypasses the entity-diff gate entirely and
+      // refreshes every registered control on every hass tick. Reuses the
+      // existing unconditional-update method rather than duplicating it.
+      if (this._cardConfig?.triggers_update === 'all') {
+        lcardsLog.debug('[MsdControlsRenderer] 🔄 Card-wide triggers_update:"all" — updating ALL controls unconditionally');
+        this._updateAllControlsHass(hass);
+        return;
+      }
+
       // 🔄 MANUAL MODE: Optimized entity-based forwarding
       lcardsLog.debug('[MsdControlsRenderer] 🔄 Manual HASS forwarding ENABLED - using entity-based optimization');
 
@@ -463,6 +522,7 @@ export class MsdControlsRenderer {
       svgContainer.innerHTML = '';
       this.controlElements.clear();
       this._controlEntityMap.clear(); // Also clear entity tracking
+      this._alwaysUpdateControls.clear();
 
       for (const overlay of controlOverlays) {
         try {
@@ -503,13 +563,24 @@ export class MsdControlsRenderer {
     // Store control element
     this.controlElements.set(overlayId, element);
 
-    // Extract and track entities
-    const entities = this._extractControlEntities(overlay);
+    // triggers_update: 'all' — always update this control, skip entity
+    // tracking entirely (see #387: for cards whose dependencies can't be
+    // statically enumerated at all, e.g. wildcard/device-class matching).
+    const alwaysUpdate = overlay.triggers_update === 'all';
+    if (alwaysUpdate) {
+      this._alwaysUpdateControls.add(overlayId);
+    } else {
+      this._alwaysUpdateControls.delete(overlayId); // safety on re-registration
+    }
+
+    // Extract and track entities (empty Set is fine/unused when alwaysUpdate)
+    const entities = alwaysUpdate ? new Set() : this._extractControlEntities(overlay);
     this._controlEntityMap.set(overlayId, entities);
 
     lcardsLog.debug(`[MsdControlsRenderer] Registered control ${overlayId}`, {
       entityCount: entities.size,
-      entities: Array.from(entities)
+      entities: Array.from(entities),
+      alwaysUpdate
     });
   }
 
@@ -538,6 +609,7 @@ export class MsdControlsRenderer {
       lcardsLog.debug('[MsdControlsRenderer] Clearing existing control element entry for', overlay.id);
       this.controlElements.delete(overlay.id);
       this._controlEntityMap.delete(overlay.id); // Also clear entity tracking
+      this._alwaysUpdateControls.delete(overlay.id);
     }
 
     lcardsLog.debug('[MsdControlsRenderer] Creating control overlay', overlay.id, {
@@ -876,34 +948,7 @@ export class MsdControlsRenderer {
       lcardsLog.debug(`[MsdControls] Injected overlay ID as card ID: ${overlayId}`);
     }
 
-    // FIXED: More precise detection for LCARdS and custom-button-card based cards
-    const cardType = finalConfig.type;
-    const isCustomButtonCard = cardType === 'custom:lcards-button-card' ||
-                               cardType === 'lcards-button-card' ||
-                               cardType === 'custom:button-card' ||
-                               cardType === 'button-card';
-
-    // Do NOT treat regular HA built-in cards as custom-button-cards
-    const isBuiltInCard = cardType === 'button' || cardType === 'light' || cardType === 'switch' ||
-                          cardType.startsWith('hui-');
-
-    if (isCustomButtonCard && !isBuiltInCard && finalConfig.entity) {
-      lcardsLog.debug(`[MsdControlsRenderer] Adding triggers_update for LCARdS card with entity: ${finalConfig.entity}`);
-
-      // Ensure triggers_update includes the entity
-      if (isCustomButtonCard && !isBuiltInCard) {
-        lcardsLog.debug(`[MsdControlsRenderer] Setting triggers_update to 'all' for LCARdS card: ${finalConfig.entity}`);
-
-        // FIXED: Use 'all' so the card sees ALL HASS updates, not just specific entities
-        finalConfig.triggers_update = 'all';
-
-        lcardsLog.debug(`[MsdControlsRenderer] LCARdS card configured with triggers_update: 'all'`);
-      }
-
-      lcardsLog.debug(`[MsdControlsRenderer] LCARdS card configured with triggers_update:`, finalConfig.triggers_update);
-    } else if (isBuiltInCard) {
-      lcardsLog.debug(`[MsdControlsRenderer] Skipping triggers_update for built-in HA card: ${cardType}`);
-    }    // Mark as MSD-generated
+    // Mark as MSD-generated
     finalConfig._msdGenerated = true;
 
     return finalConfig;
@@ -1434,6 +1479,7 @@ export class MsdControlsRenderer {
     }
     this.controlElements.clear();
     this._controlEntityMap.clear(); // Also clear entity tracking
+    this._alwaysUpdateControls.clear();
 
     // Remove SVG controls container
     const targetContainer = this.renderer?.container || this.renderer?.mountEl;

@@ -189,6 +189,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._validationErrors = [];
         this._cardPickerRequestId = 0; // Track card picker requests
         this._pendingCardPickerRequests = new Map(); // Map requestId -> resolve/reject
+        // Base SVG tab's "Performance (Advanced)" section expanded state — own
+        // state, not derived from msd.triggers_update on every render (same
+        // reasoning as _controlFormTriggersUpdateExpanded). null = not yet
+        // lazily initialized from the loaded config (see _renderBaseSvgTab).
+        this._baseSvgPerformanceExpanded = null;
         this._debugSettings = {
             // Debug toggles
             anchors: true,
@@ -266,6 +271,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPositionSide = 'center';
         this._controlFormObstacle = false;
         this._controlFormZIndex = null;
+        // 'specific' (use _controlFormTriggersUpdateEntities) or 'all' (see #387)
+        this._controlFormTriggersUpdateMode = 'specific';
+        this._controlFormTriggersUpdateEntities = [];
+        // Own state, NOT derived from the two fields above on every render — see
+        // the section's ?expanded binding for why (a purely-derived value fights
+        // the user mid-interaction, e.g. collapsing the instant they switch mode
+        // before picking an entity).
+        this._controlFormTriggersUpdateExpanded = false;
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
 
@@ -1189,15 +1202,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <div class="grid-settings-content">
                     <!-- Enable/Disable Grid -->
-                    <ha-formfield label="Show Grid">
-                        <ha-switch
-                            ?checked=${this._showGrid}
-                            @change=${(e) => {
-                                this._showGrid = e.target.checked;
-                                this._updateDebugSetting('grid', e.target.checked);
-                            }}>
-                        </ha-switch>
-                    </ha-formfield>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Show Grid'}
+                        .selector=${{ boolean: {} }}
+                        .value=${this._showGrid}
+                        @value-changed=${(e) => {
+                            this._showGrid = e.detail.value;
+                            this._updateDebugSetting('grid', e.detail.value);
+                        }}>
+                    </ha-selector>
 
                     ${this._showGrid ? html`
                         <!-- Grid Spacing Slider -->
@@ -1222,12 +1236,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
 
                         <!-- Snap to Grid -->
-                        <ha-formfield label="Snap to Grid" style="margin-top: 12px;">
-                            <ha-switch
-                                ?checked=${this._enableSnapping}
-                                @change=${(e) => this._enableSnapping = e.target.checked}>
-                            </ha-switch>
-                        </ha-formfield>
+                        <ha-selector
+                            style="margin-top: 12px; display: block;"
+                            .hass=${this.hass}
+                            .label=${'Snap to Grid'}
+                            .selector=${{ boolean: {} }}
+                            .value=${this._enableSnapping}
+                            @value-changed=${(e) => { this._enableSnapping = e.detail.value; }}>
+                        </ha-selector>
 
                         <!-- Grid Color -->
                         <div style="margin-top: 12px;">
@@ -1798,6 +1814,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const baseSvg = this._workingConfig.msd.base_svg;
         const viewBox = this._workingConfig.msd.view_box || [];
 
+        // Lazy one-time init from the loaded config — see the constructor's
+        // _baseSvgPerformanceExpanded comment for why this isn't recomputed
+        // reactively on every render.
+        if (this._baseSvgPerformanceExpanded === null) {
+            this._baseSvgPerformanceExpanded = this._workingConfig.msd?.triggers_update === 'all';
+        }
+
         return html`
             <div style="padding: 8px;">
                 <!-- SVG Source Section -->
@@ -1861,30 +1884,29 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     description="Control whether the base SVG is shown as the visual background"
                     icon="mdi:eye-outline"
                     ?expanded=${false}>
-                    <ha-formfield .label=${'Render base SVG as visible background'} style="display: block;">
-                        <ha-switch
-                            .checked=${baseSvg.render_visual !== false}
-                            @change=${(e) => {
-                                this._setNestedValue('msd.base_svg.render_visual', e.target.checked);
-                            }}>
-                        </ha-switch>
-                    </ha-formfield>
-                    <div style="font-size: 13px; color: var(--secondary-text-color); margin-top: 8px;">
-                        Turn off to use a Background Layer (below) as the visual background instead — the SVG is still parsed for anchors either way.
-                    </div>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Render base SVG as visible background'}
+                        .helper=${'Turn off to use a Background Layer (below) as the visual background instead — the SVG is still parsed for anchors either way.'}
+                        .selector=${{ boolean: {} }}
+                        .value=${baseSvg.render_visual !== false}
+                        @value-changed=${(e) => {
+                            this._setNestedValue('msd.base_svg.render_visual', e.detail.value);
+                        }}>
+                    </ha-selector>
 
-                    <ha-formfield .label=${'Dim base SVG in this preview (not saved)'} style="display: block; margin-top: 16px;">
-                        <ha-switch
-                            .checked=${this._baseSvgPreviewDimmed === true}
-                            @change=${(e) => {
-                                this._baseSvgPreviewDimmed = e.target.checked;
-                                this._applyBaseSvgPreviewDimming();
-                            }}>
-                        </ha-switch>
-                    </ha-formfield>
-                    <div style="font-size: 13px; color: var(--secondary-text-color); margin-top: 8px;">
-                        Editor convenience only — makes lines/controls easier to see while working here. Never affects the saved config or the live card.
-                    </div>
+                    <ha-selector
+                        style="margin-top: 12px; display: block;"
+                        .hass=${this.hass}
+                        .label=${'Dim base SVG in this preview (not saved)'}
+                        .helper=${'Editor convenience only — makes lines/controls easier to see while working here. Never affects the saved config or the live card.'}
+                        .selector=${{ boolean: {} }}
+                        .value=${this._baseSvgPreviewDimmed === true}
+                        @value-changed=${(e) => {
+                            this._baseSvgPreviewDimmed = e.detail.value;
+                            this._applyBaseSvgPreviewDimming();
+                        }}>
+                    </ha-selector>
                 </lcards-form-section>
 
                 <!-- ViewBox Section -->
@@ -1892,7 +1914,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     header="ViewBox"
                     description="Configure the coordinate system for your MSD display"
                     icon="mdi:grid"
-                    ?expanded=${true}>
+                    ?expanded=${false}>
                     <div style="display: flex; flex-direction: column; gap: 12px;">
                         <ha-radio-group
                             .value=${this._viewBoxMode}
@@ -1937,10 +1959,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <!-- Filters Section -->
                 <lcards-form-section
-                    header="Filters"
+                    header="Filters (base_svg)"
                     description="Apply stackable visual filters to the base SVG"
                     icon="mdi:auto-fix"
-                    ?expanded=${true}>
+                    ?expanded=${false}>
 
                     <lcards-filter-editor
                         .hass=${this.hass}
@@ -1952,7 +1974,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <!-- Animations Section -->
                 <lcards-form-section
-                    header="Animations"
+                    header="Animations (base_svg)"
                     description="Animate elements inside the base SVG by id/class — separate from the whole-group filter crossfades above"
                     icon="mdi:play-box-outline"
                     ?expanded=${false}>
@@ -1972,7 +1994,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <!-- Background Layers Section -->
                 <lcards-form-section
-                    header="Background Layers"
+                    header="Background Effects (MSD Background)"
                     description="Animated or static-image backgrounds (grids, starfields, images, etc.) — same layer system used by buttons/elbows"
                     icon="mdi:layers-triple-outline"
                     ?expanded=${false}>
@@ -1985,6 +2007,50 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         }}>
                     </lcards-background-animation-editor>
 
+                </lcards-form-section>
+
+                <!-- Performance (Advanced) Section -->
+                <lcards-form-section
+                    header="Performance (Advanced)"
+                    description="Card-wide override for how controls receive updates"
+                    icon="mdi:speedometer-slow"
+                    secondary=${this._workingConfig.msd?.triggers_update === 'all' ? 'Always update all controls' : 'Default (per-control optimization)'}
+                    ?expanded=${this._baseSvgPerformanceExpanded}
+                    @expanded-changed=${(e) => {
+                        this._baseSvgPerformanceExpanded = e.detail.expanded;
+                    }}>
+
+                    <lcards-message type="warning">
+                        Discouraged — bypasses the per-control update optimization for every
+                        control on this card, refreshing all of them on every Home Assistant
+                        state change. This also means any animations configured on those controls
+                        (e.g. on_entity_change triggers) get re-evaluated far more often than
+                        intended — for state that isn't actually relevant to them — which can
+                        show up as animations flickering, restarting, or resetting to their
+                        starting state unexpectedly. Prefer the "Update Behavior" option on the
+                        individual control that needs it (Controls tab); use this only as a last
+                        resort or a quick diagnostic.
+                    </lcards-message>
+
+                    <ha-selector
+                        style="margin-top: 12px; display: block;"
+                        .hass=${this.hass}
+                        .label=${'Update all controls on every HASS change'}
+                        .selector=${{ boolean: {} }}
+                        .value=${this._workingConfig.msd?.triggers_update === 'all'}
+                        @value-changed=${(e) => {
+                            if (e.detail.value) {
+                                this._setNestedValue('msd.triggers_update', 'all');
+                                this._baseSvgPerformanceExpanded = true;
+                            } else {
+                                if (this._workingConfig.msd) {
+                                    delete this._workingConfig.msd.triggers_update;
+                                }
+                                this._schedulePreviewUpdate();
+                                this.requestUpdate();
+                            }
+                        }}>
+                    </ha-selector>
                 </lcards-form-section>
             </div>
         `;
@@ -2785,6 +2851,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPositionSide = 'center';
         this._controlFormObstacle = false;
         this._controlFormZIndex = null;
+        this._controlFormTriggersUpdateMode = 'specific';
+        this._controlFormTriggersUpdateEntities = [];
+        this._controlFormTriggersUpdateExpanded = false;
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
@@ -7383,6 +7452,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPositionSide = 'center';
         this._controlFormObstacle = false;
         this._controlFormZIndex = null;
+        this._controlFormTriggersUpdateMode = 'specific';
+        this._controlFormTriggersUpdateEntities = [];
+        this._controlFormTriggersUpdateExpanded = false;
         this._controlFormCard = { type: '' };
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
@@ -7404,6 +7476,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPositionSide = control.position_side || 'center';
         this._controlFormObstacle = control.obstacle === true;
         this._controlFormZIndex = control.z_index ?? null;
+        this._controlFormTriggersUpdateMode = control.triggers_update === 'all' ? 'all' : 'specific';
+        this._controlFormTriggersUpdateEntities = Array.isArray(control.triggers_update) ? control.triggers_update : [];
+        this._controlFormTriggersUpdateExpanded = this._controlFormTriggersUpdateMode === 'all' ||
+            this._controlFormTriggersUpdateEntities.length > 0;
         this._controlFormCard = control.card || { type: '' };
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
@@ -7494,6 +7570,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             : -1;
         const existingOverlay = existingIndex >= 0 ? overlays[existingIndex] : null;
 
+        const triggersUpdate = this._controlFormTriggersUpdateMode === 'all'
+            ? 'all'
+            : (this._controlFormTriggersUpdateEntities?.length ? [...this._controlFormTriggersUpdateEntities] : undefined);
+
         const controlOverlay = {
             // Preserve any fields this form doesn't manage (e.g. `animations` — there's
             // no Animations tab for controls yet, so a hand-typed animations: block in
@@ -7507,6 +7587,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             attachment: this._controlFormAttachment,
             obstacle: this._controlFormObstacle || undefined,
             z_index: this._controlFormZIndex ?? undefined,
+            triggers_update: triggersUpdate,
             card: this._controlFormCard
         };
 
@@ -7787,18 +7868,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     description="Control how lines route around this overlay"
                     icon="mdi:vector-polyline-remove"
                     ?expanded=${false}>
-                    <ha-formfield .label=${'Treat as obstacle for line routing'}>
-                        <ha-switch
-                            .checked=${this._controlFormObstacle === true}
-                            @change=${(e) => {
-                                this._controlFormObstacle = e.target.checked;
-                                this.requestUpdate();
-                            }}>
-                        </ha-switch>
-                    </ha-formfield>
-                    <div class="helper-text">
-                        When enabled, lines with route: auto will avoid this control overlay
-                    </div>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Treat as obstacle for line routing'}
+                        .helper=${'When enabled, lines with route: auto will avoid this control overlay'}
+                        .selector=${{ boolean: {} }}
+                        .value=${this._controlFormObstacle === true}
+                        @value-changed=${(e) => {
+                            this._controlFormObstacle = e.detail.value;
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
                 </lcards-form-section>
 
                 <lcards-form-section
@@ -7818,6 +7898,64 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         }}
                         helper-text="Higher values paint on top. Leave blank to use the default (200 — controls paint over lines).">
                     </ha-input>
+                </lcards-form-section>
+
+                <lcards-form-section
+                    header="Update Behavior (Advanced)"
+                    description="Fine-tune which entity changes cause this control to refresh"
+                    icon="mdi:refresh-circle"
+                    secondary=${this._controlFormTriggersUpdateMode === 'all'
+                        ? 'Always update'
+                        : (this._controlFormTriggersUpdateEntities?.length
+                            ? `${this._controlFormTriggersUpdateEntities.length} extra ${this._controlFormTriggersUpdateEntities.length === 1 ? 'entity' : 'entities'}`
+                            : 'Default (auto-detected)')}
+                    ?expanded=${this._controlFormTriggersUpdateExpanded}
+                    @expanded-changed=${(e) => {
+                        this._controlFormTriggersUpdateExpanded = e.detail.expanded;
+                    }}>
+
+                    <lcards-message type="info">
+                        LCARdS already auto-detects most entities this card's config depends on.
+                        Only needed when the embedded card references an entity in a way that
+                        can't be statically detected (e.g. a dynamically-computed key, or a card
+                        that matches entities by wildcard/device class at runtime) — otherwise the
+                        card would stop updating after its first render.
+                    </lcards-message>
+
+                    <ha-radio-group
+                        style="margin-top: 12px; display: block;"
+                        .value=${this._controlFormTriggersUpdateMode}
+                        @change=${(e) => {
+                            this._controlFormTriggersUpdateMode = e.target.value;
+                            this._controlFormTriggersUpdateExpanded = true;
+                            this.requestUpdate();
+                        }}>
+                        <ha-radio-option value="specific">Specific entities</ha-radio-option>
+                        <ha-radio-option value="all">Always update (any entity change)</ha-radio-option>
+                    </ha-radio-group>
+
+                    ${this._controlFormTriggersUpdateMode === 'specific' ? html`
+                        <ha-selector
+                            style="margin-top: 12px; display: block;"
+                            .hass=${this.hass}
+                            .selector=${{ entity: { multiple: true } }}
+                            .value=${this._controlFormTriggersUpdateEntities}
+                            .label=${'Extra Entities'}
+                            .helper=${"Entities this control depends on beyond what's auto-detected"}
+                            @value-changed=${(e) => {
+                                this._controlFormTriggersUpdateEntities = e.detail.value || [];
+                                this._controlFormTriggersUpdateExpanded = true;
+                                this.requestUpdate();
+                            }}>
+                        </ha-selector>
+                    ` : html`
+                        <lcards-message type="warning" style="margin-top: 12px;">
+                            This control refreshes on every Home Assistant state change,
+                            bypassing the per-control optimization. Only use this if the embedded
+                            card's dependencies genuinely can't be enumerated — prefer "Specific
+                            entities" whenever possible.
+                        </lcards-message>
+                    `}
                 </lcards-form-section>
             </div>
         `;
@@ -11538,7 +11676,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                     <div style="font-size: 14px; font-weight: 500; color: var(--primary-text-color);">${label}</div>
-                    <ha-formfield .label=${'Match Line Color'}>
+                    <ha-formfield alignEnd spaceBetween .label=${'Match Line Color'}>
                         <ha-switch
                             .checked=${matchesLine}
                             @change=${(e) => {
@@ -11682,18 +11820,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ha-input>
 
                         ${this._lineFormData.style.marker_start.type === 'rect' ? html`
-                            <ha-formfield .label=${'Filled'} style="display: block; margin-top: 12px;">
-                                <ha-switch
-                                    .checked=${this._lineFormData.style.marker_start.filled === true}
-                                    @change=${(e) => {
-                                        this._lineFormData.style = {
-                                            ...this._lineFormData.style,
-                                            marker_start: { ...this._lineFormData.style.marker_start, filled: e.target.checked }
-                                        };
-                                        this.requestUpdate();
-                                    }}>
-                                </ha-switch>
-                            </ha-formfield>
+                            <ha-selector
+                                style="display: block; margin-top: 12px;"
+                                .hass=${this.hass}
+                                .label=${'Filled'}
+                                .selector=${{ boolean: {} }}
+                                .value=${this._lineFormData.style.marker_start.filled === true}
+                                @value-changed=${(e) => {
+                                    this._lineFormData.style = {
+                                        ...this._lineFormData.style,
+                                        marker_start: { ...this._lineFormData.style.marker_start, filled: e.detail.value }
+                                    };
+                                    this.requestUpdate();
+                                }}>
+                            </ha-selector>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
                                 <ha-input
                                     type="number"
@@ -11812,18 +11952,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ha-input>
 
                         ${this._lineFormData.style.marker_end.type === 'rect' ? html`
-                            <ha-formfield .label=${'Filled'} style="display: block; margin-top: 12px;">
-                                <ha-switch
-                                    .checked=${this._lineFormData.style.marker_end.filled === true}
-                                    @change=${(e) => {
-                                        this._lineFormData.style = {
-                                            ...this._lineFormData.style,
-                                            marker_end: { ...this._lineFormData.style.marker_end, filled: e.target.checked }
-                                        };
-                                        this.requestUpdate();
-                                    }}>
-                                </ha-switch>
-                            </ha-formfield>
+                            <ha-selector
+                                style="display: block; margin-top: 12px;"
+                                .hass=${this.hass}
+                                .label=${'Filled'}
+                                .selector=${{ boolean: {} }}
+                                .value=${this._lineFormData.style.marker_end.filled === true}
+                                @value-changed=${(e) => {
+                                    this._lineFormData.style = {
+                                        ...this._lineFormData.style,
+                                        marker_end: { ...this._lineFormData.style.marker_end, filled: e.detail.value }
+                                    };
+                                    this.requestUpdate();
+                                }}>
+                            </ha-selector>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
                                 <ha-input
                                     type="number"
@@ -12109,19 +12251,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                                         <!-- Toggle for complex pattern (only show for simple patterns) -->
                                         ${(lineStylePreset === 'dotted' || lineStylePreset === 'dashed' || lineStylePreset === 'custom') ? html`
-                                            <ha-formfield label="Add secondary dash/gap" style="margin-top: 12px;">
-                                                <ha-checkbox
-                                                    ?checked=${dash2 > 0}
-                                                    @change=${(e) => {
-                                                        if (e.target.checked) {
-                                                            this._lineFormData.style = { ...this._lineFormData.style, dash_array: `${dash1},${gap1},2,2` };
-                                                        } else {
-                                                            this._lineFormData.style = { ...this._lineFormData.style, dash_array: `${dash1},${gap1}` };
-                                                        }
-                                                        this.requestUpdate();
-                                                    }}>
-                                                </ha-checkbox>
-                                            </ha-formfield>
+                                            <ha-selector
+                                                style="margin-top: 12px; display: block;"
+                                                .hass=${this.hass}
+                                                .label=${'Add secondary dash/gap'}
+                                                .selector=${{ boolean: {} }}
+                                                .value=${dash2 > 0}
+                                                @value-changed=${(e) => {
+                                                    if (e.detail.value) {
+                                                        this._lineFormData.style = { ...this._lineFormData.style, dash_array: `${dash1},${gap1},2,2` };
+                                                    } else {
+                                                        this._lineFormData.style = { ...this._lineFormData.style, dash_array: `${dash1},${gap1}` };
+                                                    }
+                                                    this.requestUpdate();
+                                                }}>
+                                            </ha-selector>
                                         ` : ''}
 
                                         ${dash2 > 0 ? html`
