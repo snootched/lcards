@@ -724,11 +724,6 @@ export const rulesSchema = {
                                 type: 'object',
                                 description: 'SVG filter properties to update'
                             },
-                            filter_preset: {
-                                type: 'string',
-                                description: 'Named filter preset to apply',
-                                examples: ['dimmed', 'bright', 'red-alert']
-                            },
                             transition: {
                                 type: 'number',
                                 minimum: 0,
@@ -835,7 +830,7 @@ export const rulesSchema = {
                 examples: [
                     { overlays: { temp_display: { style: { color: 'var(--lcars-red)' } } } },
                     { overlays: { 'tag:warning': { style: { opacity: 1 } } }, animations: ['pulse'] },
-                    { base_svg: { filter_preset: 'red-alert', transition: 500 }, profiles: ['alert_mode'] }
+                    { base_svg: { filters: [{ mode: 'svg', type: 'tint', value: { color: 'rgba(180,0,0,0.35)' } }], transition: 500 }, profiles: ['alert_mode'] }
                 ]
             },
             stop: {

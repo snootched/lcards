@@ -699,38 +699,25 @@ export class MsdCardCoordinator extends BaseService {
         tagName: baseSvgElement.tagName
       });
 
-      // Resolve filters (preset or explicit)
+      // Resolve filters
       let filters = null;
 
-      if (baseSvgConfig.filter_preset) {
-        const preset = this.themeManager?.getFilterPreset(baseSvgConfig.filter_preset);
-        if (preset) {
-          filters = { ...preset };
-          lcardsLog.debug(`[MsdCardCoordinator] Resolved filter preset '${baseSvgConfig.filter_preset}':`, filters);
-        } else {
-          lcardsLog.warn(`[MsdCardCoordinator] Unknown filter preset: ${baseSvgConfig.filter_preset}`);
-          return;
-        }
-      }
-
-      // Merge explicit filters
       if (baseSvgConfig.filters) {
         // If filters is an array (new format), use it directly
         if (Array.isArray(baseSvgConfig.filters)) {
           filters = baseSvgConfig.filters;
           lcardsLog.debug('[MsdCardCoordinator] Using array-based filters:', filters);
         } else {
-          // Legacy object format - merge with preset
-          filters = filters ? { ...filters, ...baseSvgConfig.filters } : { ...baseSvgConfig.filters };
+          // Legacy object format
+          filters = { ...baseSvgConfig.filters };
         }
       }
 
-      // Check if this is a clear/remove operation (preset: "none" or empty filters)
-      const isClearOperation = baseSvgConfig.filter_preset === 'none' ||
-                               (filters && (
+      // Check if this is a clear/remove operation (empty filters)
+      const isClearOperation = filters && (
                                  (Array.isArray(filters) && filters.length === 0) ||
                                  (!Array.isArray(filters) && Object.keys(filters).length === 0)
-                               ));
+                               );
 
       const transition = baseSvgConfig.transition || 1000; // Default 1s transition
 

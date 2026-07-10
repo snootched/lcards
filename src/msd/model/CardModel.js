@@ -22,10 +22,9 @@ export async function buildCardModel(mergedConfig) {
 
     // Handle base_svg in multiple formats:
     // Format 1: base_svg: "builtin:template-name"
-    // Format 2: base_svg: { source: "builtin:template-name", filters?: [...], filter_preset?: "..." }
+    // Format 2: base_svg: { source: "builtin:template-name", filters?: [...] }
     let baseSvgSource = null;
     let baseSvgFilters = null;
-    let baseSvgFilterPreset = null;
     let baseSvgAnimations = null;
 
     if (typeof mergedConfig.base_svg === 'string') {
@@ -33,41 +32,12 @@ export async function buildCardModel(mergedConfig) {
     } else if (mergedConfig.base_svg && typeof mergedConfig.base_svg === 'object' && mergedConfig.base_svg.source) {
       baseSvgSource = mergedConfig.base_svg.source;
       baseSvgFilters = mergedConfig.base_svg.filters;
-      baseSvgFilterPreset = mergedConfig.base_svg.filter_preset;
       baseSvgAnimations = mergedConfig.base_svg.animations;
     }
 
     lcardsLog.trace('[CardModel] Resolved base_svg source:', baseSvgSource);
 
-    // Resolve filter preset if specified (merge with explicit filters)
-    let resolvedFilters = null;
-    if (baseSvgFilterPreset || baseSvgFilters) {
-      // Get ThemeManager instance to resolve preset
-      const themeManager = window.lcards?.core?.themeManager;
-
-      if (baseSvgFilterPreset && themeManager) {
-        const presetFilters = themeManager.getFilterPreset(baseSvgFilterPreset);
-        if (presetFilters) {
-          resolvedFilters = { ...presetFilters };
-          lcardsLog.trace('[CardModel] Resolved filter preset:', baseSvgFilterPreset, presetFilters);
-        } else {
-          lcardsLog.warn('[CardModel] Unknown filter preset:', baseSvgFilterPreset);
-        }
-      }
-
-      // Merge explicit filters
-      if (baseSvgFilters) {
-        // If filters is an array (new format), use it directly
-        if (Array.isArray(baseSvgFilters)) {
-          resolvedFilters = baseSvgFilters;
-          lcardsLog.trace('[CardModel] Using array-based filters:', resolvedFilters);
-        } else {
-          // Legacy object format - merge with preset
-          resolvedFilters = resolvedFilters ? { ...resolvedFilters, ...baseSvgFilters } : { ...baseSvgFilters };
-          lcardsLog.trace('[CardModel] Applied explicit filters (object format):', resolvedFilters);
-        }
-      }
-    }
+    const resolvedFilters = baseSvgFilters || null;
 
     // Use viewBox already extracted by ConfigProcessor (set as mergedConfig.view_box)
     if (mergedConfig.view_box && Array.isArray(mergedConfig.view_box) && mergedConfig.view_box.length === 4) {

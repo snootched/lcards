@@ -32,15 +32,9 @@ import {
 
 /**
  * Get complete MSD card schema
- * @param {Object} [options] - Schema options
- * @param {Array<string>} [options.availableFilterPresets] - Available filter preset names
  * @returns {Object} Complete MSD schema
  */
-export function getMsdSchema(options = {}) {
-  const {
-    availableFilterPresets = ['dimmed', 'subtle', 'backdrop', 'faded', 'red-alert', 'monochrome', 'none']
-  } = options;
-
+export function getMsdSchema() {
   // Define the MSD configuration object schema
   const msdConfigSchema = {
     type: 'object',
@@ -66,17 +60,6 @@ export function getMsdSchema(options = {}) {
               placeholder: 'builtin:ncc-1701-a-blue'
             },
             errorMessage: 'base_svg.source is required'
-          },
-
-          filter_preset: {
-            type: 'string',
-            enum: availableFilterPresets,
-            optional: true,
-            description: 'CSS filter preset to apply to base SVG',
-            'x-ui': {
-              control: 'select',
-              label: 'Filter Preset'
-            }
           },
 
           filters: {

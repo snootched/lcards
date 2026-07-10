@@ -65,30 +65,24 @@ msd:
 | Field | Type | Description |
 |-------|------|-------------|
 | `source` | string | SVG source — `builtin:<name>`, `/local/path.svg`, or `none` |
-| `filter_preset` | string | Named filter preset — see table below |
-| `filters` | list | Additional CSS/SVG filters — see [Base SVG Filters](./base-svg-filters.md) |
+| `filters` | list | CSS/SVG filters (opacity, blur, brightness, tint, etc.) — see [Base SVG Filters](./base-svg-filters.md) |
 
-### Filter Presets
+### Filters
 
-Filter presets apply a CSS filter combination to the base SVG to shift the visual weight, letting overlays stand out:
-
-| Preset | Opacity | Effect |
-|--------|---------|--------|
-| `dimmed` | 0.5 | Moderate de-emphasis, brightness 0.8 |
-| `subtle` | 0.6 | Gentle — slight blur + 20% desaturate |
-| `backdrop` | 0.3 | Heavy dimming, 3 px blur, brightness 0.6 |
-| `faded` | 0.4 | Washed-out — 50% desaturate, contrast 0.7 |
-| `red-alert` | 1.0 | Brightened with +10° hue rotation — a deliberate shift that warms the SVG palette slightly; combine with rules-based card colour changes for a full alert look |
-| `monochrome` | 0.6 | Full greyscale, contrast 0.8 |
-| `none` | — | Remove all filters |
+Filters shift the visual weight of the base SVG so overlays stand out, or
+apply a color tint. See [Base SVG Filters](./base-svg-filters.md) for the
+full type reference and a set of copy-paste recipes (dimmed, subtle,
+backdrop, faded, red wash, monochrome).
 
 ```yaml
 base_svg:
   source: builtin:ncc-1701-a-blue
-  filter_preset: dimmed
+  filters:
+    opacity: 0.5
+    brightness: 0.8
 ```
 
-Rules can change `filter_preset` dynamically — see the rules example below.
+Rules can change `filters` dynamically — see the rules example below.
 
 ---
 
@@ -219,7 +213,8 @@ rules:
       above: 95
     apply:
       base_svg:
-        filter_preset: red-alert
+        filters:
+          - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
         transition: 500          # Crossfade in ms
       overlays:
         engine-status:
@@ -244,7 +239,9 @@ type: custom:lcards-msd-card
 msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
-    filter_preset: dimmed
+    filters:
+      opacity: 0.5
+      brightness: 0.8
 
   anchors:
     bridge: [520, 380]
@@ -291,7 +288,8 @@ rules:
       above: 90
     apply:
       base_svg:
-        filter_preset: red-alert
+        filters:
+          - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
         transition: 500
       overlays:
         bridge-card:

@@ -450,6 +450,8 @@ export class LCARdSFilterEditor extends LitElement {
                 return this._renderOpacityParams(filter, index);
             case 'drop-shadow':
                 return this._renderDropShadowParams(filter, index);
+            case 'tint':
+                return this._renderTintParams(filter, index);
             // SVG Filter Primitives
             case 'feGaussianBlur':
                 return this._renderFeGaussianBlurParams(filter, index);
@@ -680,6 +682,39 @@ export class LCARdSFilterEditor extends LitElement {
         const shadow = { ...(filter.value || {}) };
         shadow[param] = value;
         filter.value = shadow;
+
+        const updatedFilters = [...this.filters];
+        updatedFilters[index] = filter;
+        this._emitChange(updatedFilters);
+    }
+
+    /**
+     * Render tint filter parameters
+     * @private
+     */
+    _renderTintParams(filter, index) {
+        const tint = filter.value || { color: 'rgba(0,0,0,0.4)' };
+
+        return html`
+            <lcards-color-picker
+                // @ts-ignore - TS2339: auto-suppressed
+                .hass=${this.hass}
+                .value=${tint.color || 'rgba(0,0,0,0.4)'}
+                .label=${'Tint Color'}
+                @value-changed=${(e) => this._updateTintParam(index, 'color', e.detail.value)}>
+            </lcards-color-picker>
+        `;
+    }
+
+    /**
+     * Update tint parameter
+     * @private
+     */
+    _updateTintParam(index, param, value) {
+        const filter = { ...this.filters[index] };
+        const tint = { ...(filter.value || {}) };
+        tint[param] = value;
+        filter.value = tint;
 
         const updatedFilters = [...this.filters];
         updatedFilters[index] = filter;
@@ -1091,7 +1126,8 @@ export class LCARdSFilterEditor extends LitElement {
             { value: 'feComposite', label: 'Composite (SVG)' },
             { value: 'feMorphology', label: 'Morphology (SVG)' },
             { value: 'feTurbulence', label: 'Turbulence/Noise (SVG)' },
-            { value: 'feDisplacementMap', label: 'Displacement Map (SVG)' }
+            { value: 'feDisplacementMap', label: 'Displacement Map (SVG)' },
+            { value: 'tint', label: 'Color Tint (SVG)' }
         ];
     }
 
@@ -1122,7 +1158,8 @@ export class LCARdSFilterEditor extends LitElement {
             'feComposite': 'mdi:vector-combine',
             'feMorphology': 'mdi:shape',
             'feTurbulence': 'mdi:waves',
-            'feDisplacementMap': 'mdi:image-filter-drama'
+            'feDisplacementMap': 'mdi:image-filter-drama',
+            'tint': 'mdi:format-color-fill'
         };
         return iconMap[type] || 'mdi:filter';
     }
@@ -1186,7 +1223,8 @@ export class LCARdSFilterEditor extends LitElement {
             'feComposite': 'Combines two inputs using Porter-Duff compositing operators or arithmetic operations.',
             'feMorphology': 'Erodes (thins) or dilates (fattens) shapes. Useful for creating outline effects or adjusting edge thickness.',
             'feTurbulence': 'Generates Perlin noise patterns for organic textures. Commonly used with displacement maps for distortion.',
-            'feDisplacementMap': 'Warps/distorts the image based on color values from another source. Perfect for wavy, liquid, or turbulent effects.'
+            'feDisplacementMap': 'Warps/distorts the image based on color values from another source. Perfect for wavy, liquid, or turbulent effects.',
+            'tint': 'Composites a flat color wash over the content — a cheap way to apply an alert/status tint. Requires an SVG root (not supported on data-grid).'
         };
         return descriptions[type] || '';
     }
@@ -1204,6 +1242,10 @@ export class LCARdSFilterEditor extends LitElement {
         if (type === 'drop-shadow') {
             const shadow = value || {};
             return `${shadow.x || 0}px ${shadow.y || 0}px ${shadow.blur || '0px'} ${shadow.color || '#000000'}`;
+        }
+
+        if (type === 'tint') {
+            return (value || {}).color || 'Not set';
         }
 
         if (typeof value === 'string') {
@@ -1292,12 +1334,14 @@ export class LCARdSFilterEditor extends LitElement {
 
         // Auto-detect mode based on filter type
         if (property === 'type') {
-            const svgFilterTypes = ['feGaussianBlur', 'feColorMatrix', 'feOffset', 'feBlend', 'feComposite', 'feMorphology', 'feTurbulence', 'feDisplacementMap'];
+            const svgFilterTypes = ['feGaussianBlur', 'feColorMatrix', 'feOffset', 'feBlend', 'feComposite', 'feMorphology', 'feTurbulence', 'feDisplacementMap', 'tint'];
             const newMode = svgFilterTypes.includes(value) ? 'svg' : 'css';
             updatedFilters[index].mode = newMode;
 
             // Reset value to appropriate default for the new filter type
-            if (newMode === 'svg') {
+            if (value === 'tint') {
+                updatedFilters[index].value = { color: 'rgba(0,0,0,0.4)' };
+            } else if (newMode === 'svg') {
                 updatedFilters[index].value = {};
             } else {
                 // CSS filter defaults

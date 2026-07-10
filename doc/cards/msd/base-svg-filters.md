@@ -1,7 +1,7 @@
 # Base SVG Filters Reference
 
 > **Visual filters for base SVG layer**
-> Apply opacity, blur, brightness, and other effects to make overlays more prominent
+> Apply opacity, blur, brightness, tint, and other effects to make overlays more prominent
 
 ## Overview
 
@@ -9,14 +9,7 @@ Apply visual filters to the base SVG layer to make overlays more prominent while
 
 ## Quick Start
 
-**Apply a preset**:
-```yaml
-base_svg:
-  source: builtin:ncc-1701-a-blue
-  filter_preset: dimmed
-```
-
-**Custom filters**:
+**Simple filters** (legacy object format, CSS filters only):
 ```yaml
 base_svg:
   source: builtin:ncc-1701-a-blue
@@ -25,13 +18,13 @@ base_svg:
     blur: "3px"
 ```
 
-**Combine preset with overrides**:
+**Stackable filters** (array format, supports CSS and SVG filter primitives):
 ```yaml
 base_svg:
   source: builtin:ncc-1701-a-blue
-  filter_preset: dimmed
   filters:
-    opacity: 0.3  # Override preset's 0.5
+    - { mode: css, type: opacity, value: 0.5 }
+    - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
 ```
 
 ---
@@ -128,25 +121,31 @@ filters:
 
 **Use cases**: High-contrast themes, special effects.
 
----
-
-## Built-in Presets
-
-### `none`
-Clear all filters (remove filtering).
+### Tint (SVG)
+Composites a flat color wash over the base SVG — a real color tint, not an
+approximation. Requires array format with `mode: svg` (SVG filters need an
+`<svg>` root, so this isn't available on non-SVG cards like data-grid). The
+color's alpha channel controls how much of the artwork shows through.
 
 ```yaml
-# No filters applied
-filter_preset: none
+filters:
+  - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
 ```
 
-**Best for**: Removing filters, returning to unfiltered state.
+**Use cases**: Alert/status washes, theme-colored overlays, quick visual state changes.
 
-### `dimmed`
-Reduces opacity and brightness for subtle background.
+---
+
+## Common Filter Recipes
+
+Copy-paste `filters:` arrays for common effects. These replace the old
+built-in `filter_preset` shorthand — the raw `filters:` array is equally
+concise and doesn't require a separate indirection layer.
+
+### Dimmed
+Reduces opacity and brightness for a subtle background.
 
 ```yaml
-# Equivalent to:
 filters:
   opacity: 0.5
   brightness: 0.8
@@ -154,11 +153,10 @@ filters:
 
 **Best for**: General use, balanced visibility.
 
-### `subtle`
+### Subtle
 Light dimming with slight blur and desaturation.
 
 ```yaml
-# Equivalent to:
 filters:
   opacity: 0.6
   blur: "1px"
@@ -167,11 +165,10 @@ filters:
 
 **Best for**: Maintaining detail while reducing emphasis.
 
-### `backdrop`
+### Backdrop
 Heavy dimming with blur for strong overlay emphasis.
 
 ```yaml
-# Equivalent to:
 filters:
   opacity: 0.3
   blur: "3px"
@@ -180,11 +177,10 @@ filters:
 
 **Best for**: Data-heavy displays, prominent overlays.
 
-### `faded`
-Desaturated and dimmed for muted background.
+### Faded
+Desaturated and dimmed for a muted background.
 
 ```yaml
-# Equivalent to:
 filters:
   opacity: 0.4
   grayscale: 0.5
@@ -193,24 +189,21 @@ filters:
 
 **Best for**: Minimal aesthetic, reduced visual clutter.
 
-### `red-alert`
-Full opacity with slight warm hue rotation for alert state.
+### Red Wash (alert)
+A real red color tint using the SVG `tint` filter, rather than the old
+`red-alert` preset's hue-rotate approximation.
 
 ```yaml
-# Equivalent to:
 filters:
-  opacity: 1.0
-  brightness: 1.2
-  hue_rotate: 10
+  - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
 ```
 
 **Best for**: Alert states, emergency displays.
 
-### `monochrome`
+### Monochrome
 Full grayscale with reduced contrast.
 
 ```yaml
-# Equivalent to:
 filters:
   opacity: 0.6
   grayscale: 1.0
@@ -218,6 +211,11 @@ filters:
 ```
 
 **Best for**: Professional displays, reduced color distraction.
+
+### Clear all filters
+```yaml
+filters: []
+```
 
 ---
 
@@ -244,38 +242,6 @@ overlays:
 - Pure data displays
 - Custom overlay compositions
 - Testing/prototyping
-
----
-
-## Theme Overrides
-
-Themes can define custom filter presets.
-
-**Theme YAML**:
-```yaml
-lcars-custom:
-  name: "LCARS Custom"
-  msd:
-    filter_presets:
-      dimmed:
-        opacity: 0.3  # Override built-in 0.5
-        blur: "2px"   # Add blur
-
-      custom-preset:
-        opacity: 0.4
-        grayscale: 0.8
-        contrast: 1.1
-```
-
-**Card Config**:
-```yaml
-theme: lcars-custom
-base_svg:
-  source: builtin:ncc-1701-a-blue
-  filter_preset: dimmed  # Uses theme override
-```
-
-**Priority**: Theme presets override built-in presets, explicit filters override everything.
 
 ---
 

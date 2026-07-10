@@ -4,19 +4,48 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { ColorUtils } from '../../core/themes/ColorUtils.js';
 
 // Counter for unique filter IDs
 let filterIdCounter = 0;
+
+/**
+ * Resolve a color value (literal, theme: token, var(), or computed token like
+ * alpha(var(--x), 0.5)) down to a concrete color usable in a raw SVG attribute.
+ * Mirrors the theme:-strip + resolver.resolve + bare-var() cleanup steps in
+ * LCARdSCard._resolveColorValue() — SVG attributes set via setAttribute() don't
+ * get browser var() resolution the way CSS/Lit-bound values do.
+ * @param {string} rawColor
+ * @param {Element} [element] - Context element for CSS custom property scoping
+ * @returns {string}
+ */
+function resolveFilterColor(rawColor, element) {
+  if (typeof rawColor !== 'string' || !rawColor) return rawColor;
+
+  let value = rawColor;
+  const resolver = window.lcards?.core?.themeManager?.resolver;
+  if (resolver) {
+    const tokenPath = value.startsWith('theme:') ? value.slice(6) : value;
+    value = resolver.resolve(tokenPath, value, { element });
+  }
+
+  if (typeof value === 'string' && value.trim().startsWith('var(')) {
+    return ColorUtils.resolveCssVariable(value, rawColor, element) || rawColor;
+  }
+
+  return value || rawColor;
+}
 
 /**
  * Generate SVG filter primitive element from filter config
  * @param {Object} filter - Filter configuration {mode, type, value}
  * @param {string} inputSource - Input for this primitive (e.g., 'SourceGraphic', 'result1')
  * @param {string} resultName - Result name for this primitive's output
+ * @param {Element} [contextElement] - Element used to scope theme/CSS-var color resolution
  * @returns {SVGElement|null} SVG filter primitive element (DOM node)
  * @private
  */
-function generateSvgFilterPrimitive(filter, inputSource, resultName) {
+function generateSvgFilterPrimitive(filter, inputSource, resultName, contextElement) {
   const { type, value } = filter;
   const v = value || {};
 
@@ -102,6 +131,15 @@ function generateSvgFilterPrimitive(filter, inputSource, resultName) {
       element.setAttribute('baseFrequency', v.baseFrequency ?? 0.05);
       element.setAttribute('numOctaves', v.numOctaves ?? 1);
       element.setAttribute('seed', v.seed ?? 0);
+      if (resultName) element.setAttribute('result', resultName);
+      break;
+
+    case 'feFlood':
+      element = document.createElementNS(SVG_NS, 'feFlood');
+      element.setAttribute('flood-color', resolveFilterColor(v.color ?? 'rgba(0,0,0,0.5)', contextElement));
+      if (v.opacity !== undefined) {
+        element.setAttribute('flood-opacity', v.opacity);
+      }
       if (resultName) element.setAttribute('result', resultName);
       break;
 
@@ -234,6 +272,30 @@ export function generateFilterString(filters, normalize = false) {
 }
 
 /**
+ * Expand compound filter types into their constituent SVG primitives.
+ *
+ * 'tint' is a friendly compound type — a single { color } entry — that expands
+ * into a chained feFlood (the color source) + feComposite (operator: 'over',
+ * in2: 'SourceGraphic', both already feComposite's own defaults) pair, producing
+ * a flat color wash composited over the existing content.
+ *
+ * @param {Array} svgFilters - Array of SVG-mode filter entries {type, value}
+ * @returns {Array} Expanded array of primitive-only filter entries
+ */
+function expandCompoundFilters(svgFilters) {
+  const expanded = [];
+  for (const filter of svgFilters) {
+    if (filter.type === 'tint') {
+      expanded.push({ mode: 'svg', type: 'feFlood', value: { color: filter.value?.color } });
+      expanded.push({ mode: 'svg', type: 'feComposite', value: {} });
+    } else {
+      expanded.push(filter);
+    }
+  }
+  return expanded;
+}
+
+/**
  * Apply filters to a base SVG element (typically #msd-base-content group)
  * Handles both CSS filters and SVG filter primitives
  * @param {HTMLElement} svgElement - The SVG element/group to apply filters to
@@ -259,7 +321,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
 
   if (Array.isArray(filters)) {
     cssFilters = filters.filter(f => f.mode === 'css' || !f.mode);
-    svgFilters = filters.filter(f => f.mode === 'svg');
+    svgFilters = expandCompoundFilters(filters.filter(f => f.mode === 'svg'));
   } else if (filters && typeof filters === 'object') {
     // Legacy object format - all CSS
     cssFilters = [filters];
@@ -311,7 +373,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
         const isLast = index === svgFilters.length - 1;
         const resultName = isLast ? null : `effect${index}`;
 
-        const primitiveElement = generateSvgFilterPrimitive(filter, currentInput, resultName);
+        const primitiveElement = generateSvgFilterPrimitive(filter, currentInput, resultName, svgElement);
         if (primitiveElement) {
           filterElement.appendChild(primitiveElement);
 

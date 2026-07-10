@@ -160,8 +160,7 @@ apply:
 ```yaml
 apply:
   base_svg:
-    filter_preset: "red-alert"   # Named preset
-    filters:                     # Or custom filter properties
+    filters:
       opacity: 0.3
       brightness: 0.7
       blur: "2px"
@@ -174,9 +173,21 @@ apply:
     transition: 1500             # Transition duration in ms (default 300)
 ```
 
-Built-in presets: `none` (clear), `dimmed`, `subtle`, `backdrop`, `faded`, `red-alert`, `monochrome`.
+Or a stackable array, which also supports a color `tint`:
 
-Use `filter_preset: "none"` or `filters: {}` to clear all filters.
+```yaml
+apply:
+  base_svg:
+    filters:
+      - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
+    transition: 1500
+```
+
+See [Base SVG Filters](../../cards/msd/base-svg-filters.md) for the full
+type reference and copy-paste recipes (dimmed, subtle, backdrop, faded, red
+wash, monochrome).
+
+Use `filters: []` or `filters: {}` to clear all filters.
 
 ### Animations
 
@@ -308,7 +319,8 @@ rules:
           style:
             color: var(--lcars-red)
       base_svg:
-        filter_preset: red-alert
+        filters:
+          - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
         transition: 500
 
   - id: temp-warning
@@ -346,7 +358,9 @@ rules:
         - time_between: "22:00-06:00"
     apply:
       base_svg:
-        filter_preset: dimmed
+        filters:
+          opacity: 0.5
+          brightness: 0.8
         transition: 2000
       overlays:
         tag:nav:
@@ -361,7 +375,7 @@ rules:
         - time_between: "06:00-22:00"
     apply:
       base_svg:
-        filter_preset: "none"
+        filters: []
         transition: 2000
       overlays:
         tag:nav:
@@ -395,7 +409,8 @@ rules:
           preset: pulse
           loop: true
       base_svg:
-        filter_preset: red-alert
+        filters:
+          - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
         transition: 500
 ```
 
