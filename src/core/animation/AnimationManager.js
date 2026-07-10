@@ -401,6 +401,11 @@ export class AnimationManager extends BaseService {
         await this.registerAnimation(overlayId, animDef, { batchShouldFire: shouldFireOnLoad });
       }
 
+      // Now that every animDef in this batch is in TriggerManager's registrations,
+      // set up trigger listeners (entity subscriptions + check_on_load) so they see
+      // the full set of same-trigger entries, not just the first one (#386).
+      triggerManager.finalizeRegistrations();
+
       // Mark on_load as fired AFTER the entire batch has been processed,
       // so all animations in this call get a chance to fire.
       if (shouldFireOnLoad) {
@@ -1600,6 +1605,9 @@ export class AnimationManager extends BaseService {
         // For on_entity_change triggers, setup is handled by the card
         // (card tracks entity changes and calls playSegmentAnimation)
       }
+
+      // Same rationale as onOverlayRendered() — must run after the full batch (#386).
+      scopeData.triggerManager.finalizeRegistrations();
 
       lcardsLog.debug(`[AnimationManager] ✅ Registered ${animations.length} animations for segment: ${scopeKey}`);
 

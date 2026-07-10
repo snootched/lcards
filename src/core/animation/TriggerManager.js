@@ -45,6 +45,11 @@ export class TriggerManager {
     /** @type {boolean} Set to true in destroy() — guards deferred callbacks after teardown */
     this._destroyed = false;
 
+    /** @type {Set<string>} Triggers whose setupTriggerListener() has already run.
+     *  Guards finalizeRegistrations() against duplicate entity subscriptions /
+     *  duplicate check_on_load firing if it is ever invoked more than once. */
+    this._triggerListenersSetup = new Set();
+
     lcardsLog.debug(`[TriggerManager] Created for overlay: ${overlayId}`);
   }
 
@@ -55,23 +60,47 @@ export class TriggerManager {
    * @param {Object} animDef - Animation definition
    */
   register(trigger, animDef) {
-    // Track if this is the first animation for this trigger
-    const isFirstForTrigger = !this.registrations.has(trigger);
-
     // Initialize registration array for this trigger if needed
-    if (isFirstForTrigger) {
+    if (!this.registrations.has(trigger)) {
       this.registrations.set(trigger, []);
     }
 
     // Add animation definition to this trigger
     this.registrations.get(trigger).push(animDef);
 
-    // Setup trigger listener after adding animation (except for on_load which is handled immediately)
-    if (isFirstForTrigger && trigger !== 'on_load') {
-      this.setupTriggerListener(trigger);
-    }
-
+    // NOTE: listener setup intentionally deferred — see finalizeRegistrations().
+    // register() is called repeatedly inside batch loops. Setting up the trigger
+    // listener here, on the first call for a trigger, used to run
+    // on_entity_change's synchronous check_on_load pass against a
+    // partially-populated registrations array — before later entries sharing the
+    // same trigger (e.g. multiple `while`-gated on_entity_change entries for the
+    // same entity) were pushed, so only the first-registered entry's `while`
+    // condition was ever evaluated (#386). Callers MUST call
+    // finalizeRegistrations() once after their full batch of register() calls.
     lcardsLog.debug(`[TriggerManager] Registered animation for ${this.overlayId} on trigger: ${trigger}`);
+  }
+
+  /**
+   * Finalize a batch of register() calls: set up the trigger listener for every
+   * distinct trigger currently in `this.registrations`, exactly once per trigger
+   * for the lifetime of this TriggerManager instance. Must be called once, after
+   * the full batch of register() calls for a given render/registration pass
+   * completes, so that setupTriggerListener() — and, for on_entity_change, its
+   * synchronous check_on_load pass — sees every animDef registered for that
+   * trigger, not just the first one pushed (#386).
+   *
+   * Idempotent: safe to call multiple times, and a no-op when there are zero
+   * registrations (e.g. an overlay with no on_entity_change entries at all).
+   */
+  finalizeRegistrations() {
+    this.registrations.forEach((_animDefs, trigger) => {
+      // on_load is fired immediately by AnimationManager.registerAnimation(),
+      // not via setupTriggerListener() — register() always excluded it too.
+      if (trigger === 'on_load') return;
+      if (this._triggerListenersSetup.has(trigger)) return;
+      this._triggerListenersSetup.add(trigger);
+      this.setupTriggerListener(trigger);
+    });
   }
 
   /**
