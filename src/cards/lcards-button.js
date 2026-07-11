@@ -66,6 +66,7 @@ import { applyBaseSvgFilters } from '../msd/utils/BaseSvgFilters.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
 import { CANVAS_TEXTURE_PRESETS } from '../core/packs/textures/presets/index.js';
 import { linearMap } from '../utils/linearMap.js';
+import { compareThreshold } from '../utils/comparison-utils.js';
 import { CanvasTextureRenderer } from '../core/packs/textures/CanvasTextureRenderer.js';
 
 // Import unified schema
@@ -1401,13 +1402,21 @@ export class LCARdSButton extends LCARdSCard {
      * Returns null when no range matches (i.e. the static `this.config.preset`
      * or 'default' should be used instead).
      *
+     * `above`/`below` are strict (>/<); `at_least`/`at_most` are inclusive
+     * (>=/<=) — matching the same operator vocabulary used by range-based
+     * colors, animation `while` conditions, and Rules Engine conditions
+     * elsewhere in the codebase. A range entry may combine any subset of
+     * the four for a two-sided tile. Prior to this, `above` here meant
+     * `>=` — a behavior change: use `at_least` to get the old gapless-tiling
+     * idiom explicitly instead of relying on `above`'s old inclusive meaning.
+     *
      * YAML example:
      *   ranges_attribute: brightness_pct   # evaluate light brightness as 0-100
      *   ranges:
      *     - preset: condition_red
-     *       above: 80
+     *       at_least: 80                   # value >= 80
      *     - preset: condition_yellow
-     *       above: 50
+     *       above: 50                      # 50 < value < 80
      *       below: 80
      *     - preset: condition_green
      *       equals: "ok"
@@ -1416,7 +1425,7 @@ export class LCARdSButton extends LCARdSCard {
      * Ranges are evaluated in order; the FIRST match wins.
      *
      * @private
-     * @param {Array<{preset:string, attribute?:string, above?:number, below?:number, equals?:*, color?:Object}>} rangesConfig
+     * @param {Array<{preset:string, attribute?:string, above?:number, at_least?:number, below?:number, at_most?:number, equals?:*, color?:Object}>} rangesConfig
      * @returns {Object|null} The matched range entry (containing .preset and optionally .color), or null if none match
      */
     _evaluateRangePreset(rangesConfig) {
@@ -1441,8 +1450,12 @@ export class LCARdSButton extends LCARdSCard {
 
             // Numeric range check — skip if value is null/undefined or non-numeric
             if (rawVal !== null && rawVal !== undefined && !Number.isNaN(numVal)) {
-                const aboveOk = range.above === undefined || numVal >= Number(range.above);
-                const belowOk = range.below === undefined || numVal <  Number(range.below);
+                const aboveOk =
+                    (range.above    === undefined || compareThreshold(numVal, 'above', Number(range.above))) &&
+                    (range.at_least === undefined || compareThreshold(numVal, 'at_least', Number(range.at_least)));
+                const belowOk =
+                    (range.below   === undefined || compareThreshold(numVal, 'below', Number(range.below))) &&
+                    (range.at_most === undefined || compareThreshold(numVal, 'at_most', Number(range.at_most)));
                 if (aboveOk && belowOk) {
                     return range;
                 }

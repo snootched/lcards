@@ -58,6 +58,7 @@ import { getBaseSvgAnchors, resolveControlPosition, resolvePositionWithSide } fr
 import { msdStudioStyles } from './msd-studio/msd-studio-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import { studioSubformDialogStyles } from './studio-subform-dialog-styles.js';
+import { searchableSelectStyles } from '../components/shared/searchable-select-styles.js';
 
 // Native HA Card Picker & Editor Integration
 import { MSDCardPickerManager } from './msd-studio/msd-card-picker-manager.js';
@@ -814,7 +815,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Order matters: msdStudioStyles must come after studioDialogStyles so
         // its intentional overrides (33.3/66.6 split, .preview-panel overflow,
         // tab-group spacing, zoom-controls tint) win the cascade.
-        return [editorStyles, studioDialogStyles, msdStudioStyles, studioSubformDialogStyles];
+        return [editorStyles, studioDialogStyles, msdStudioStyles, studioSubformDialogStyles, searchableSelectStyles];
     }
 
     /**
@@ -1813,6 +1814,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         const baseSvg = this._workingConfig.msd.base_svg;
         const viewBox = this._workingConfig.msd.view_box || [];
+        const availableSvgs = this._getAvailableSvgs();
 
         // Lazy one-time init from the loaded config — see the constructor's
         // _baseSvgPerformanceExpanded comment for why this isn't recomputed
@@ -1854,7 +1856,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .selector=${{
                                     select: {
                                         mode: 'dropdown',
-                                        options: this._getAvailableSvgs()
+                                        custom_value: availableSvgs.length >= 10,
+                                        options: availableSvgs
                                     }
                                 }}
                                 .value=${baseSvg.source || ''}
@@ -7762,6 +7765,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .selector=${{
                             select: {
                                 mode: 'dropdown',
+                                custom_value: anchorOptions.length >= 10,
                                 options: anchorOptions
                             }
                         }}
@@ -8037,7 +8041,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <div style="padding: 16px;">
                             <ha-selector
                                 .hass=${this.hass}
-                                .selector=${{ select: { options: cards.map(card => ({ value: card.type, label: card.name, icon: card.icon })) }}}
+                                .selector=${{ select: { mode: 'dropdown', custom_value: cards.length >= 10, options: cards.map(card => ({ value: card.type, label: card.name, icon: card.icon })) }}}
                                 .value=${cardType}
                                 .label=${"Card Type"}
                                 @keydown=${(e) => {
@@ -11076,6 +11080,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .selector=${{
                                     select: {
                                         mode: 'dropdown',
+                                        custom_value: allSourceOptions.length >= 10,
                                         options: allSourceOptions
                                     }
                                 }}
@@ -11131,6 +11136,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .selector=${{
                                     select: {
                                         mode: 'dropdown',
+                                        custom_value: allSourceOptions.length >= 10,
                                         options: allSourceOptions
                                     }
                                 }}
@@ -11769,6 +11775,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .hass=${this.hass}
                         .selector=${{
                             select: {
+                                mode: 'dropdown',
                                 options: [
                                     { value: 'none', label: 'None' },
                                     { value: 'arrow', label: 'Arrow' },
@@ -11904,6 +11911,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .hass=${this.hass}
                         .selector=${{
                             select: {
+                                mode: 'dropdown',
                                 options: [
                                     { value: 'none', label: 'None' },
                                     { value: 'arrow', label: 'Arrow' },

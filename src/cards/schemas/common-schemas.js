@@ -341,18 +341,22 @@ export const animationSchema = {
         },
         while: {
             type: 'object',
-            description: 'Lifecycle condition for looping animations (requires the top-level loop: true field). The animation plays while the condition is true and stops automatically when it becomes false. Note: to_state/from_state are fire-and-forget gates \u2014 they control when the animation starts but will not stop it. Use while to auto-stop a looping animation.',
+            description: 'Lifecycle condition for looping animations (requires the top-level loop: true field). The animation plays while the condition is true and stops automatically when it becomes false. Note: to_state/from_state are fire-and-forget gates \u2014 they control when the animation starts but will not stop it. Use while to auto-stop a looping animation. Numeric bounds also accept at_least/at_most for inclusive comparisons.',
             properties: {
                 state:     { type: 'string', description: 'Play while entity value equals this string' },
                 not_state: { type: 'string', description: 'Play while entity value does NOT equal this string' },
                 above:     { type: 'number', description: 'Play while numeric entity value is strictly above this threshold' },
-                below:     { type: 'number', description: 'Play while numeric entity value is strictly below this threshold' }
+                at_least:  { type: 'number', description: 'Play while numeric entity value is greater than or equal to this threshold' },
+                below:     { type: 'number', description: 'Play while numeric entity value is strictly below this threshold' },
+                at_most:   { type: 'number', description: 'Play while numeric entity value is less than or equal to this threshold' }
             },
             examples: [
                 { state: 'on' },
                 { not_state: 'unavailable' },
                 { above: 50 },
-                { below: 100 }
+                { at_least: 50 },
+                { below: 100 },
+                { at_most: 100 }
             ]
         },
         id: {
@@ -694,10 +698,11 @@ export const rulesSchema = {
             },
             when: {
                 type: 'object',
-                description: 'Condition(s) that must be met for rule to apply. Supports 20+ condition types including entity state, time, performance, DataSources, and logical composition (all/any/not).',
+                description: 'Condition(s) that must be met for rule to apply. Supports 20+ condition types including entity state, time, performance, DataSources, and logical composition (all/any/not). Numeric comparisons accept above/below (strict) and at_least/at_most (inclusive).',
                 additionalProperties: true,
                 examples: [
                     { entity: 'sensor.temperature', above: 25 },
+                    { entity: 'sensor.temperature', at_least: 25 },
                     { all: [{ entity: 'light.bedroom', state: 'on' }, { time: { after: '22:00' } }] },
                     { datasource: 'cpu_usage', above: 80 }
                 ]

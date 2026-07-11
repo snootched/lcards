@@ -992,11 +992,19 @@ export function getButtonSchema(options = {}) {
                         },
                         above: {
                             type: 'number',
-                            description: 'Match when value is >= this threshold'
+                            description: 'Match when value is > this threshold (strictly greater)'
+                        },
+                        at_least: {
+                            type: 'number',
+                            description: 'Match when value is >= this threshold (inclusive)'
                         },
                         below: {
                             type: 'number',
-                            description: 'Match when value is < this threshold'
+                            description: 'Match when value is < this threshold (strictly less)'
+                        },
+                        at_most: {
+                            type: 'number',
+                            description: 'Match when value is <= this threshold (inclusive)'
                         },
                         equals: {
                             description: 'Match when value equals this (string comparison)',

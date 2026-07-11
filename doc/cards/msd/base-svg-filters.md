@@ -121,11 +121,130 @@ filters:
 
 **Use cases**: High-contrast themes, special effects.
 
-### Tint (SVG)
-Composites a flat color wash over the base SVG — a real color tint, not an
-approximation. Requires array format with `mode: svg` (SVG filters need an
-`<svg>` root, so this isn't available on non-SVG cards like data-grid). The
-color's alpha channel controls how much of the artwork shows through.
+### Drop Shadow
+Creates a drop shadow behind the element.
+
+```yaml
+filters:
+  - { mode: css, type: drop-shadow, value: { x: 2, y: 2, blur: '4px', color: '#000000' } }
+```
+
+**Use cases**: Depth/emphasis via a classic drop shadow.
+
+---
+
+## SVG Filter Primitives
+
+Lower-level SVG `<filter>` primitives, for effects the CSS filter list above
+can't express. Requires array format with `mode: svg` — SVG filters need an
+`<svg>` root, so these aren't available on non-SVG cards like data-grid.
+Chain multiple primitives in the same `filters:` array to compose more
+complex effects (each primitive's output feeds the next).
+
+### feGaussianBlur
+SVG blur filter — smoother than CSS blur, chains with other SVG filters.
+
+```yaml
+filters:
+  - { mode: svg, type: feGaussianBlur, value: { stdDeviation: 4 } }
+```
+
+**Use cases**: Softening, glow bases, chaining with feOffset for shadows.
+
+### feColorMatrix
+Powerful color transformation using matrix operations. Supports hue
+rotation, saturation, luminance-to-alpha, and custom 4x5 color mapping
+matrices.
+
+```yaml
+filters:
+  - { mode: svg, type: feColorMatrix, value: { type: saturate, values: 1.5 } }
+```
+
+**Use cases**: Advanced color remapping beyond CSS saturate/hue-rotate.
+
+### feOffset
+Shifts the filter result by dx/dy pixels. Essential for creating shadow
+effects when combined with blur.
+
+```yaml
+filters:
+  - { mode: svg, type: feOffset, value: { dx: 3, dy: 3 } }
+```
+
+**Use cases**: Building custom shadow effects when chained with feGaussianBlur/feBlend.
+
+### feBlend
+Blends the current filter result with another input (SourceGraphic by
+default) using any of the 16 standard CSS blend modes (multiply, screen,
+overlay, etc.).
+
+```yaml
+filters:
+  - { mode: svg, type: feBlend, value: { mode: screen } }
+```
+
+**Use cases**: Glow effects — try screen/lighten mode after a blur.
+
+### feComposite
+Combines two inputs (the previous filter result and SourceGraphic by
+default) using Porter-Duff compositing operators, or a custom arithmetic
+formula.
+
+```yaml
+filters:
+  - { mode: svg, type: feComposite, value: { operator: over } }
+```
+
+**Use cases**: Advanced layering/compositing beyond simple blend modes.
+
+### feMorphology
+Erodes (thins) or dilates (fattens) shapes. Useful for creating outline
+effects or adjusting edge thickness.
+
+```yaml
+filters:
+  - { mode: svg, type: feMorphology, value: { operator: dilate, radius: 2 } }
+```
+
+**Use cases**: Outline/edge-thickness effects.
+
+### feTurbulence
+Generates Perlin noise patterns for organic textures. Commonly used with
+feDisplacementMap for distortion/warping effects.
+
+```yaml
+filters:
+  - { mode: svg, type: feTurbulence, value: { baseFrequency: 0.02, numOctaves: 3 } }
+```
+
+**Use cases**: Organic noise textures, paired with feDisplacementMap.
+
+### feDisplacementMap
+Warps/distorts the image based on color values from another source. Perfect
+for wavy, liquid, or turbulent effects.
+
+```yaml
+filters:
+  - { mode: svg, type: feTurbulence, value: { baseFrequency: 0.02, numOctaves: 3 } }
+  - { mode: svg, type: feDisplacementMap, value: { scale: 20 } }
+```
+
+**Use cases**: Wavy, liquid, or turbulent distortion effects.
+
+::: tip
+Add a Turbulence filter right before this one — Turbulence generates the
+displacement map this filter distorts by.
+:::
+
+### Tint
+
+The one friendly *compound* SVG type — internally expands to a chained
+`feFlood`+`feComposite` pair, so it composites a flat color wash over the
+base SVG (a real color tint, not an approximation) from a single filter
+entry. Same SVG-only requirement as the primitives above — not available on
+non-SVG cards like data-grid. The color's alpha channel controls how much
+of the artwork shows through.
 
 ```yaml
 filters:
@@ -138,9 +257,7 @@ filters:
 
 ## Common Filter Recipes
 
-Copy-paste `filters:` arrays for common effects. These replace the old
-built-in `filter_preset` shorthand — the raw `filters:` array is equally
-concise and doesn't require a separate indirection layer.
+Copy-paste `filters:` arrays for common effects.
 
 ### Dimmed
 Reduces opacity and brightness for a subtle background.

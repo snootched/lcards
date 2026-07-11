@@ -114,7 +114,9 @@ All operators work on both `entity` state and `entity_attr` values.
 | `equals` | string / number | `equals: "on"` | Exact equality (`==`) |
 | `not_equals` | string / number | `not_equals: "off"` | Not equal (`!=`) |
 | `above` | number | `above: 25` | Numeric greater-than (`>`) |
+| `at_least` | number | `at_least: 25` | Numeric greater-than-or-equal (`>=`) |
 | `below` | number | `below: 90` | Numeric less-than (`<`) |
+| `at_most` | number | `at_most: 90` | Numeric less-than-or-equal (`<=`) |
 | `in` | list | `in: ["on", "idle"]` | State is in list |
 | `not_in` | list | `not_in: ["off", "unavailable"]` | State is not in list |
 | `regex` | string | `regex: "^heat"` | State matches regular expression |

@@ -21,6 +21,7 @@ import { FlowTextureEffect }     from '../../textures/effects/FlowTextureEffect.
 import { ShimmerTextureEffect }  from '../../textures/effects/ShimmerTextureEffect.js';
 import { ScanlineTextureEffect } from '../../textures/effects/ScanlineTextureEffect.js';
 import { ImageEffect }            from '../effects/ImageEffect.js';
+import { SolidEffect }            from '../effects/SolidEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 
 /**
@@ -34,6 +35,23 @@ export const BACKGROUND_PRESETS = {
   'grid': {
     name: 'Grid',
     description: 'Configurable grid with major/minor line divisions',
+    guide: {
+      summary: 'Orthogonal grid of scrolling lines, with optional emphasised "major" lines every N rows/columns. Supports both spacing-based sizing (line_spacing) and explicit cell counts (num_rows/num_cols), plus an optional cell fill color.',
+      params: [
+        { key: 'line_spacing', default: 40, description: 'Pixel spacing between minor lines.' },
+        { key: 'line_width_minor', default: 1, description: 'Minor line thickness in px.' },
+        { key: 'line_width_major', default: 2, description: 'Major (emphasised) line thickness in px.' },
+        { key: 'color', default: 'rgba(255, 153, 102, 0.3)', description: 'Minor line color.' },
+        { key: 'color_major', description: 'Major line color — falls back to color if unset.' },
+        { key: 'major_row_interval', default: 0, description: 'Draw a major line every N rows (0 = disabled).' },
+        { key: 'major_col_interval', default: 0, description: 'Draw a major line every N columns (0 = disabled).' },
+        { key: 'scroll_speed_x', default: 20, description: 'Horizontal scroll speed in px/s.' },
+        { key: 'scroll_speed_y', default: 20, description: 'Vertical scroll speed in px/s.' },
+        { key: 'fill_color', default: 'transparent', description: 'Solid fill painted behind each cell.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: grid\n    config:\n      line_spacing: 40\n      color: 'rgba(255,153,102,0.3)'\n      major_row_interval: 5\n      major_col_interval: 5"
+    },
 
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid] Creating grid effect');
@@ -82,6 +100,19 @@ export const BACKGROUND_PRESETS = {
   'grid-diagonal': {
     name: 'Diagonal Grid',
     description: 'Diagonal hatched grid pattern',
+    guide: {
+      summary: 'A 45-degree hatched variant of the grid effect — same scrolling-line mechanism as Grid, fixed to a diagonal pattern.',
+      params: [
+        { key: 'line_spacing', default: 30, description: 'Pixel spacing between lines.' },
+        { key: 'line_width', default: 1, description: 'Line thickness in px.' },
+        { key: 'color', default: 'rgba(255, 153, 102, 0.25)', description: 'Line color.' },
+        { key: 'scroll_speed_x', default: 15, description: 'Horizontal scroll speed in px/s.' },
+        { key: 'scroll_speed_y', default: 15, description: 'Vertical scroll speed in px/s.' },
+        { key: 'fill_color', default: 'transparent', description: 'Solid fill painted behind each cell.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: grid-diagonal\n    config:\n      line_spacing: 30\n      color: 'rgba(255,153,102,0.25)'"
+    },
 
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid-diagonal] Creating diagonal grid effect');
@@ -115,6 +146,23 @@ export const BACKGROUND_PRESETS = {
   'grid-hexagonal': {
     name: 'Hexagonal Grid',
     description: 'Honeycomb hexagonal grid with major/minor divisions',
+    guide: {
+      summary: 'A honeycomb hex-grid variant of the grid effect, with the same major/minor emphasis and scrolling mechanism, sized by hex radius instead of line spacing.',
+      params: [
+        { key: 'hex_radius', default: 40, description: 'Hexagon size in px.' },
+        { key: 'line_width_minor', default: 1, description: 'Minor line thickness in px.' },
+        { key: 'line_width_major', default: 2, description: 'Major line thickness in px.' },
+        { key: 'color', default: 'rgba(255, 153, 102, 0.3)', description: 'Minor line color.' },
+        { key: 'color_major', default: 'rgba(255, 153, 102, 0.6)', description: 'Major line color.' },
+        { key: 'major_row_interval', default: 3, description: 'Draw a major line every N rows.' },
+        { key: 'major_col_interval', default: 3, description: 'Draw a major line every N columns.' },
+        { key: 'scroll_speed_x', default: 20, description: 'Horizontal scroll speed in px/s.' },
+        { key: 'scroll_speed_y', default: 20, description: 'Vertical scroll speed in px/s.' },
+        { key: 'fill_color', default: 'transparent', description: 'Solid fill painted behind each cell.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: grid-hexagonal\n    config:\n      hex_radius: 40\n      color: 'rgba(255,153,102,0.3)'"
+    },
 
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid-hexagonal] Creating hexagonal grid effect');
@@ -152,6 +200,24 @@ export const BACKGROUND_PRESETS = {
   'starfield': {
     name: 'Starfield',
     description: 'Scrolling starfield with parallax depth layers',
+    guide: {
+      summary: 'Randomly-placed stars that scroll across the canvas, split into parallax layers so nearer "layers" drift faster than farther ones for a sense of depth.',
+      params: [
+        { key: 'seed', description: 'Random seed — same seed always generates the same star layout.' },
+        { key: 'count', default: 150, description: 'Number of stars.' },
+        { key: 'min_radius', default: 0.5, description: 'Smallest star radius in px.' },
+        { key: 'max_radius', default: 2, description: 'Largest star radius in px.' },
+        { key: 'min_opacity', default: 0.3, description: 'Dimmest star opacity.' },
+        { key: 'max_opacity', default: 1.0, description: 'Brightest star opacity.' },
+        { key: 'colors', default: ['#ffffff'], description: 'Star color(s) — also accepts a single color.' },
+        { key: 'scroll_speed_x', default: 30, description: 'Horizontal scroll speed in px/s.' },
+        { key: 'scroll_speed_y', default: 0, description: 'Vertical scroll speed in px/s.' },
+        { key: 'parallax_layers', default: 3, description: 'Number of depth layers — more layers = more depth.' },
+        { key: 'depth_factor', default: 0.5, description: 'Speed variation between layers.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: 'background_animation:\n  - preset: starfield\n    config:\n      count: 200\n      scroll_speed_x: 30'
+    },
 
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:starfield] Creating starfield effect');
@@ -197,6 +263,24 @@ export const BACKGROUND_PRESETS = {
   'nebula': {
     name: 'Nebula',
     description: 'Layered nebula clouds with organic turbulence',
+    guide: {
+      summary: 'Soft, drifting cloud blobs built from Perlin-noise turbulence, layered and scrolled to give an organic nebula look.',
+      params: [
+        { key: 'seed', description: 'Random seed — same seed always generates the same cloud layout.' },
+        { key: 'cloud_count', default: 4, description: 'Number of cloud blobs.' },
+        { key: 'min_radius', default: 0.15, description: 'Smallest cloud radius, as a fraction of canvas size (0-1).' },
+        { key: 'max_radius', default: 0.4, description: 'Largest cloud radius, as a fraction of canvas size (0-1).' },
+        { key: 'min_opacity', default: 0.3, description: 'Dimmest cloud opacity.' },
+        { key: 'max_opacity', default: 0.8, description: 'Brightest cloud opacity.' },
+        { key: 'colors', default: ['#FF00FF'], description: 'Cloud color(s) — also accepts a single color.' },
+        { key: 'turbulence', default: 0.5, description: 'How ragged/organic the cloud edges are.' },
+        { key: 'noise_scale', default: 0.003, description: 'Noise detail — lower = larger, smoother features.' },
+        { key: 'scroll_speed_x', default: 5, description: 'Horizontal scroll speed in px/s.' },
+        { key: 'scroll_speed_y', default: 5, description: 'Vertical scroll speed in px/s.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: nebula\n    config:\n      colors: ['#8000ff', '#ff0080']\n      cloud_count: 5"
+    },
 
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:nebula] Creating nebula effect');
@@ -240,6 +324,25 @@ export const BACKGROUND_PRESETS = {
   'contour-field': {
     name: 'Contour Field',
     description: 'Topographic-style banded noise field (LCARS star-chart contour look)',
+    guide: {
+      summary: 'Paints a drifting noise field, then slices it into color bands — like a topographic map. Noise shapes the raw terrain (how big and rough the features are). Contour Bands controls how that terrain is sliced into rings — the full peaks-and-valleys range, always present underneath. Fill floods/drains a waterline over that terrain without changing it, for empty "space" between blobs. Colour sets what fills each ring.',
+      params: [
+        { key: 'seed', description: 'Random seed — same seed + settings always generates the same field.' },
+        { key: 'noise_scale', default: 0.005, description: 'Smaller = a few large drifting blobs; larger = many small, busy ripples.' },
+        { key: 'num_octaves', default: 2, description: 'Layers of fine detail — 1 = smooth blobs, 8 = rough, cloud-like fuzz.' },
+        { key: 'num_bands', default: 5, description: 'Low = bold stepped contour rings; high = a smooth, near-continuous gradient.' },
+        { key: 'cell_size', default: 1, description: 'Sample resolution — larger is blockier/cheaper, smaller is crisper/costlier.' },
+        { key: 'fill_level', default: 0.45, description: '0 = no water, full terrain visible; raise it to flood the lowest rings.' },
+        { key: 'fill_color', description: 'Color painted over flooded rings — leave empty for literal transparency.' },
+        { key: 'blend_colors', default: true, description: 'On = colors fade smoothly between rings; off = hard-cutoff flat rings.' },
+        { key: 'colors', description: 'One color, or several stops spread across the full contour range.' },
+        { key: 'scroll_speed_x', default: -3, description: 'Horizontal scroll speed in px/s.' },
+        { key: 'scroll_speed_y', default: 0.45, description: 'Vertical scroll speed in px/s.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: contour-field\n    config:\n      num_bands: 8\n      colors: ['#130b81']",
+      tip: 'Lower Band Count + Cell Size for a blocky, retro-LCARS look; raise them for a smooth, photographic nebula look.'
+    },
 
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:contour-field] Creating contour field effect');
@@ -286,6 +389,22 @@ export const BACKGROUND_PRESETS = {
   'cascade': {
     name: 'Data Cascade',
     description: 'LCARS waterfall colour-cycling data grid (decorative)',
+    guide: {
+      summary: 'A grid of characters that color-cycle from a start color through to an end color, evoking a Matrix-style/LCARS data waterfall. Purely decorative — the characters themselves are randomized, not meaningful data.',
+      params: [
+        { key: 'format', default: 'hex', description: 'Character set — e.g. hex digits.' },
+        { key: 'pattern', default: 'default', description: "Cell layout pattern — set to 'custom' to use a hand-authored timing array (YAML only)." },
+        { key: 'speed_multiplier', default: 1.0, description: 'Overall cycling speed multiplier.' },
+        { key: 'colors.start', default: 'var(--lcards-blue-light)', description: 'Color a cell starts at.' },
+        { key: 'colors.text', default: 'var(--lcards-blue-darkest)', description: 'Color a cell settles at mid-cycle.' },
+        { key: 'colors.end', default: 'var(--lcards-moonlight)', description: 'Color a cell ends at.' },
+        { key: 'font_size', default: 10, description: 'Character font size in px.' },
+        { key: 'gap', default: 4, description: 'Spacing between cells in px.' },
+        { key: 'refresh_interval', default: 0, description: 'How often cells re-randomize (0 = continuous).' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: cascade\n    config:\n      format: hex\n      speed_multiplier: 1.5"
+    },
 
     createEffects(config = {}, cardInstance = null) {
       lcardsLog.debug('[Preset:cascade] Creating cascade effect');
@@ -326,6 +445,25 @@ export const BACKGROUND_PRESETS = {
   'level': {
     name: 'Level',
     description: 'Animated fill-bar with gradient, dual wave, sloshing physics and bloom glow',
+    guide: {
+      summary: 'An animated tank/gauge-style fill bar — the fill level rises to fill_pct, with an optional gradient, a wavy top edge (up to two overlapping waves), sloshing physics, and an edge glow.',
+      params: [
+        { key: 'color_a', default: 'rgba(0,200,100,0.7)', description: 'Primary fill color (or gradient start).' },
+        { key: 'color_b', description: 'Gradient end color — omit for a flat fill.' },
+        { key: 'gradient_crossover', default: 80, description: 'Percent of fill height where the gradient crosses over.' },
+        { key: 'fill_pct', default: 50, description: 'Fill level, 0-100.' },
+        { key: 'direction', default: 'up', description: "Fill direction — 'up' | 'down' | 'left' | 'right'." },
+        { key: 'edge_glow', default: true, description: 'Whether to draw a glow along the fill edge.' },
+        { key: 'wave_height', default: 4, description: 'Primary wave amplitude in px.' },
+        { key: 'wave_speed', default: 20, description: 'Primary wave speed.' },
+        { key: 'wave_count', default: 4, description: 'Primary wave count across the width.' },
+        { key: 'wave2_height', default: 0, description: 'Secondary wave amplitude in px (0 = disabled).' },
+        { key: 'slosh_amount', default: 0, description: 'Sloshing displacement amount (0 = disabled).' },
+        { key: 'slosh_period', default: 3, description: 'Sloshing cycle period in seconds.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: level\n    config:\n      fill_pct: 65\n      color_a: 'rgba(0,200,100,0.7)'"
+    },
 
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:level] Creating level effect');
@@ -356,6 +494,18 @@ export const BACKGROUND_PRESETS = {
   'fluid': {
     name: 'Fluid',
     description: 'Swirling noise field — organic, continuously morphing colour wash',
+    guide: {
+      summary: 'A single-color noise-driven wash that continuously swirls and morphs, like flowing liquid or smoke.',
+      params: [
+        { key: 'color', default: 'rgba(100,180,255,0.8)', description: 'Wash color.' },
+        { key: 'base_frequency', default: 0.010, description: 'Noise detail — lower = larger features.' },
+        { key: 'num_octaves', default: 4, description: 'Layers of noise detail.' },
+        { key: 'scroll_speed_x', default: 7, description: 'Horizontal drift speed.' },
+        { key: 'scroll_speed_y', default: 10, description: 'Vertical drift speed.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: fluid\n    config:\n      color: 'rgba(100,180,255,0.8)'"
+    },
     createEffects(config) {
       return [new FluidTextureEffect({
         color:          config.color          ?? 'rgba(100,180,255,0.8)',
@@ -371,6 +521,18 @@ export const BACKGROUND_PRESETS = {
   'plasma': {
     name: 'Plasma',
     description: 'Two-colour plasma bands — vivid alternating colour field',
+    guide: {
+      summary: 'A classic two-color "plasma" noise field, alternating vividly between Color A and Color B as it drifts.',
+      params: [
+        { key: 'color_a', default: 'rgba(80,0,255,0.9)', description: 'First plasma color.' },
+        { key: 'color_b', default: 'rgba(255,40,120,0.9)', description: 'Second plasma color.' },
+        { key: 'base_frequency', default: 0.012, description: 'Noise detail — lower = larger features.' },
+        { key: 'scroll_speed_x', default: 8, description: 'Horizontal drift speed.' },
+        { key: 'scroll_speed_y', default: 5, description: 'Vertical drift speed.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: plasma\n    config:\n      color_a: 'rgba(80,0,255,0.9)'\n      color_b: 'rgba(255,40,120,0.9)'"
+    },
     createEffects(config) {
       return [new PlasmaTextureEffect({
         color_a:        config.color_a        ?? 'rgba(80,0,255,0.9)',
@@ -386,6 +548,18 @@ export const BACKGROUND_PRESETS = {
   'flow': {
     name: 'Flow',
     description: 'Directional streaming streaks',
+    guide: {
+      summary: 'Noise-driven streaks that stream in one direction, like flowing energy conduits or data streams.',
+      params: [
+        { key: 'color', default: 'rgba(0,200,255,0.7)', description: 'Streak color.' },
+        { key: 'base_frequency', default: 0.012, description: 'Noise detail — lower = larger features.' },
+        { key: 'wave_scale', default: 8, description: 'Streak waviness.' },
+        { key: 'scroll_speed_x', default: 50, description: 'Horizontal stream speed.' },
+        { key: 'scroll_speed_y', default: 0, description: 'Vertical stream speed.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: flow\n    config:\n      color: 'rgba(0,200,255,0.7)'\n      scroll_speed_x: 60"
+    },
     createEffects(config) {
       return [new FlowTextureEffect({
         color:          config.color          ?? 'rgba(0,200,255,0.7)',
@@ -401,6 +575,17 @@ export const BACKGROUND_PRESETS = {
   'shimmer': {
     name: 'Shimmer',
     description: 'Sweeping highlight band across the full background',
+    guide: {
+      summary: 'A single highlight band that periodically sweeps across the canvas at an angle, like light catching a metallic surface.',
+      params: [
+        { key: 'color', default: 'rgba(255,255,255,0.55)', description: 'Highlight color.' },
+        { key: 'highlight_width', default: 0.35, description: 'Band width as a fraction of canvas size.' },
+        { key: 'speed', default: 2.5, description: 'Sweep speed.' },
+        { key: 'angle', default: 30, description: 'Sweep angle in degrees.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: shimmer\n    config:\n      color: 'rgba(255,255,255,0.55)'\n      speed: 2.5"
+    },
     createEffects(config) {
       return [new ShimmerTextureEffect({
         color:           config.color           ?? 'rgba(255,255,255,0.55)',
@@ -415,6 +600,17 @@ export const BACKGROUND_PRESETS = {
   'scanlines': {
     name: 'Scanlines',
     description: 'CRT-style scanline overlay',
+    guide: {
+      summary: 'A static CRT-style scanline pattern — evenly spaced horizontal or vertical lines overlaid on the canvas.',
+      params: [
+        { key: 'color', default: 'rgba(0,0,0,0.25)', description: 'Scanline color.' },
+        { key: 'line_spacing', default: 4, description: 'Pixel spacing between lines.' },
+        { key: 'line_width', default: 1.5, description: 'Line thickness in px.' },
+        { key: 'direction', default: 'horizontal', description: "'horizontal' | 'vertical'." },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: scanlines\n    config:\n      line_spacing: 4\n      direction: horizontal"
+    },
     createEffects(config) {
       return [new ScanlineTextureEffect({
         color:          config.color          ?? 'rgba(0,0,0,0.25)',
@@ -437,6 +633,17 @@ export const BACKGROUND_PRESETS = {
   'image': {
     name: 'Background Image',
     description: 'User-supplied image rendered behind the entire card',
+    guide: {
+      summary: 'Renders a static or entity-reactive image behind the whole card. Accepts /local/ paths, builtin:key references, and external https:// URLs — source also supports template syntax for entity-reactive images (e.g. an entity_picture).',
+      params: [
+        { key: 'source', description: '/local/ path, builtin:key, https:// URL, or a template string.' },
+        { key: 'size', default: 'cover', description: "'cover' | 'contain' | 'stretch'." },
+        { key: 'position', default: 'center', description: 'CSS background-position keyword.' },
+        { key: 'repeat', default: false, description: 'Tile the image instead of scaling it.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: "background_animation:\n  - preset: image\n    config:\n      source: '/local/images/bridge.jpg'\n      size: cover"
+    },
 
     createEffects(config) {
       return [new ImageEffect({
@@ -445,6 +652,32 @@ export const BACKGROUND_PRESETS = {
         position: config.position ?? 'center',
         repeat:   config.repeat   ?? false,
         opacity:  config.opacity  ?? 1,
+      })];
+    }
+  },
+
+  /**
+   * Flat, single-colour fill rendered behind the card SVG.
+   * Tints the layer behind base_svg without touching base_svg's own artwork.
+   */
+  'solid': {
+    name: 'Solid Colour',
+    description: 'Flat colour fill rendered behind the card SVG',
+    guide: {
+      summary: 'A single flat color, filling the whole background canvas. Renders behind base_svg — the tint shows through any transparent regions of the SVG artwork on top, without touching the artwork itself. The cheapest, simplest background_animation preset — a single fill per frame, no procedural noise.',
+      params: [
+        { key: 'color', default: 'rgba(0, 0, 0, 0.4)', description: 'Fill color — the alpha channel controls how much shows through base_svg.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity, multiplies with any alpha already in color.' }
+      ],
+      example: "background_animation:\n  - preset: solid\n    config:\n      color: 'rgba(180, 0, 0, 0.35)'"
+    },
+
+    createEffects(config = {}) {
+      lcardsLog.debug('[Preset:solid] Creating solid fill effect');
+
+      return [new SolidEffect({
+        color:   config.color   ?? 'rgba(0, 0, 0, 0.4)',
+        opacity: config.opacity ?? 1,
       })];
     }
   },

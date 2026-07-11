@@ -8,18 +8,24 @@
  * @module utils/state-color-resolver
  */
 
+import { compareThreshold, compareBetween } from './comparison-utils.js';
+
 /**
  * Evaluate numeric range-keyed color conditions, picking the most specific match.
  *
  * Supported key formats:
- *   above:N      → value > N  (strictly greater)
- *   below:N      → value < N  (strictly less)
- *   between:N:M  → N <= value <= M  (inclusive both ends)
+ *   above:N              → value > N   (strictly greater)
+ *   at_least:N           → value >= N  (inclusive)
+ *   below:N              → value < N   (strictly less)
+ *   at_most:N            → value <= N  (inclusive)
+ *   between:N:M          → N <= value <= M  (inclusive both ends)
+ *   between_exclusive:N:M → N < value < M   (exclusive both ends)
  *
- * Specificity order for overlapping matches:
- *   1. between — sorted by range width ascending  (narrowest wins)
- *   2. above   — sorted by threshold descending   (highest threshold wins)
- *   3. below   — sorted by threshold ascending    (lowest threshold wins)
+ * Specificity order for overlapping matches (at_least/at_most join the same
+ * family as above/below; between_exclusive joins the same family as between):
+ *   1. between/between_exclusive — sorted by range width ascending (narrowest wins)
+ *   2. above/at_least             — sorted by threshold descending (highest threshold wins)
+ *   3. below/at_most              — sorted by threshold ascending  (lowest threshold wins)
  *
  * @param {number} value - The numeric entity state value
  * @param {Object} colorConfig - The color config object containing possible range keys
@@ -31,19 +37,37 @@ function _resolveRangeColor(value, colorConfig) {
     for (const key of Object.keys(colorConfig)) {
         if (key.startsWith('above:')) {
             const threshold = parseFloat(key.slice(6));
-            if (!isNaN(threshold) && value > threshold) {
+            if (!isNaN(threshold) && compareThreshold(value, 'above', threshold)) {
+                candidates.push({ type: 'above', threshold, key });
+            }
+        } else if (key.startsWith('at_least:')) {
+            const threshold = parseFloat(key.slice(9));
+            if (!isNaN(threshold) && compareThreshold(value, 'at_least', threshold)) {
                 candidates.push({ type: 'above', threshold, key });
             }
         } else if (key.startsWith('below:')) {
             const threshold = parseFloat(key.slice(6));
-            if (!isNaN(threshold) && value < threshold) {
+            if (!isNaN(threshold) && compareThreshold(value, 'below', threshold)) {
                 candidates.push({ type: 'below', threshold, key });
+            }
+        } else if (key.startsWith('at_most:')) {
+            const threshold = parseFloat(key.slice(8));
+            if (!isNaN(threshold) && compareThreshold(value, 'at_most', threshold)) {
+                candidates.push({ type: 'below', threshold, key });
+            }
+        } else if (key.startsWith('between_exclusive:')) {
+            const m = key.match(/^between_exclusive:(-?[\d.]+):(-?[\d.]+)$/);
+            if (m) {
+                const lo = parseFloat(m[1]), hi = parseFloat(m[2]);
+                if (!isNaN(lo) && !isNaN(hi) && compareBetween(value, lo, hi, true)) {
+                    candidates.push({ type: 'between', lo, hi, width: hi - lo, key });
+                }
             }
         } else {
             const m = key.match(/^between:(-?[\d.]+):(-?[\d.]+)$/);
             if (m) {
                 const lo = parseFloat(m[1]), hi = parseFloat(m[2]);
-                if (!isNaN(lo) && !isNaN(hi) && value >= lo && value <= hi) {
+                if (!isNaN(lo) && !isNaN(hi) && compareBetween(value, lo, hi, false)) {
                     candidates.push({ type: 'between', lo, hi, width: hi - lo, key });
                 }
             }

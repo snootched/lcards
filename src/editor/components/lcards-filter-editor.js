@@ -38,7 +38,10 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-color-picker.js';
-import './shared/lcards-message.js';
+import { FILTER_TYPE_DOCS_URL } from './shared/docs-links.js';
+import { infoGuideStyles } from './shared/info-guide-styles.js';
+import { searchableSelectStyles } from './shared/searchable-select-styles.js';
+import { FILTER_TYPE_INFO } from './filter-type-info.js';
 
 export class LCARdSFilterEditor extends LitElement {
 
@@ -46,7 +49,8 @@ export class LCARdSFilterEditor extends LitElement {
         return {
             hass: { type: Object },
             filters: { type: Array }, // Array of filter objects
-            _expandedFilters: { type: Object } // Track which filters are expanded
+            _expandedFilters: { type: Object }, // Track which filters are expanded
+            _expandedGuideIndices: { state: true } // Set<number> — which filters' "How this filter works" info guide is open
         };
     }
 
@@ -56,12 +60,13 @@ export class LCARdSFilterEditor extends LitElement {
         this.hass = undefined;
         this.filters = [];
         this._expandedFilters = {};
+        this._expandedGuideIndices = new Set();
         this._draggedIndex = null;
         lcardsLog.debug('[FilterEditor] Initialized');
     }
 
     static get styles() {
-        return css`
+        return [css`
             :host {
                 display: block;
             }
@@ -209,7 +214,7 @@ export class LCARdSFilterEditor extends LitElement {
             .filter-chain-info strong {
                 color: var(--primary-color);
             }
-        `;
+        `, infoGuideStyles, searchableSelectStyles];
     }
 
     render() {
@@ -296,13 +301,15 @@ export class LCARdSFilterEditor extends LitElement {
         return html`
             <div
                 class="filter-item ${isDragging ? 'dragging' : ''}"
-                draggable="true"
-                @dragstart=${(e) => this._handleDragStart(e, index)}
-                @dragend=${(e) => this._handleDragEnd(e)}
                 @dragover=${(e) => this._handleDragOver(e, index)}
                 @drop=${(e) => this._handleDrop(e, index)}>
                 <!-- Filter Header -->
-                <div class="filter-header" @click=${() => this._toggleExpanded(index)}>
+                <div
+                    class="filter-header"
+                    draggable="true"
+                    @dragstart=${(e) => this._handleDragStart(e, index)}
+                    @dragend=${(e) => this._handleDragEnd(e)}
+                    @click=${() => this._toggleExpanded(index)}>
                     <!-- Drag Handle -->
                     <ha-icon
                         class="drag-handle"
@@ -369,7 +376,6 @@ export class LCARdSFilterEditor extends LitElement {
     _renderFilterForm(filter, index) {
         const filterMode = filter.mode || 'css';
         const filterType = filter.type || 'blur';
-        const description = this._getFilterDescription(filterType);
 
         return html`
             <lcards-form-section
@@ -382,6 +388,8 @@ export class LCARdSFilterEditor extends LitElement {
                     .hass=${this.hass}
                     .selector=${{
                         select: {
+                            mode: 'dropdown',
+                            custom_value: true,
                             options: this._getFilterTypeOptions()
                         }
                     }}
@@ -389,14 +397,82 @@ export class LCARdSFilterEditor extends LitElement {
                     .label=${'Filter Effect'}
                     @value-changed=${(e) => this._updateFilter(index, 'type', e.detail.value)}>
                 </ha-selector>
-
-                ${description ? html`
-                    <lcards-message type="info" .message=${description}></lcards-message>
-                ` : ''}
             </lcards-form-section>
+
+            ${this._renderFilterInfoGuide(filterType, index)}
 
             ${this._renderFilterParameters(filter, index)}
         `;
+    }
+
+    /**
+     * Collapsible "How this filter works" info guide — sourced from
+     * FILTER_TYPE_INFO (filter-type-info.js), the single maintained content
+     * source for filter-type help text (filters have no per-type schema to
+     * source this from the way animation presets do).
+     * @private
+     */
+    _renderFilterInfoGuide(type, index) {
+        const info = FILTER_TYPE_INFO[type];
+        if (!info) return '';
+
+        const expanded = this._expandedGuideIndices.has(index);
+        const docsUrl = `${FILTER_TYPE_DOCS_URL}#${type.toLowerCase()}`;
+
+        return html`
+            <div class="preset-info-guide">
+                <div class="preset-info-guide-header" @click=${() => this._toggleGuideExpanded(index)}>
+                    <ha-icon icon="mdi:information-outline"></ha-icon>
+                    <span>How ${this._getFilterDisplayName(type)} works</span>
+                    <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
+                </div>
+                ${expanded ? html`
+                    <div class="preset-info-guide-body">
+                        ${this._splitIntoSentences(info.description).map(s => html`<p>${s}</p>`)}
+                        ${info.params?.length ? html`
+                            <strong>Params:</strong>
+                            <ul>
+                                ${info.params.map(p => html`
+                                    <li>
+                                        <code>${p.key}</code>${p.default !== undefined ? html` (default: <code>${JSON.stringify(p.default)}</code>)` : ''}
+                                        ${p.description ? ` — ${p.description}` : ''}
+                                    </li>
+                                `)}
+                            </ul>
+                        ` : ''}
+                        <strong>Example:</strong>
+                        <pre class="preset-info-guide-example">${info.example}</pre>
+                        ${info.tip ? html`
+                            <p class="preset-info-guide-tip"><strong>Tip:</strong> ${info.tip}</p>
+                        ` : ''}
+                        <div class="preset-info-guide-links">
+                            <a href=${docsUrl} target="_blank" rel="noopener noreferrer">View full docs →</a>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * @private
+     */
+    _toggleGuideExpanded(index) {
+        const updated = new Set(this._expandedGuideIndices);
+        if (updated.has(index)) {
+            updated.delete(index);
+        } else {
+            updated.add(index);
+        }
+        this._expandedGuideIndices = updated;
+    }
+
+    /**
+     * @private
+     */
+    _splitIntoSentences(text) {
+        if (!text) return [];
+        return text.split(/(?<=[.!?])\s+(?=[A-Z`])/);
     }
 
     /**
@@ -504,7 +580,6 @@ export class LCARdSFilterEditor extends LitElement {
                 .label=${'Brightness'}
                 @value-changed=${(e) => this._updateFilter(index, 'value', e.detail.value)}>
             </ha-selector>
-            <lcards-message type="info" .message=${'0 = black, 1 = normal, 2+ = brighter'}></lcards-message>
         `;
     }
 
@@ -522,7 +597,6 @@ export class LCARdSFilterEditor extends LitElement {
                 .label=${'Contrast'}
                 @value-changed=${(e) => this._updateFilter(index, 'value', e.detail.value)}>
             </ha-selector>
-            <lcards-message type="info" .message=${'0 = gray, 1 = normal, 2+ = higher contrast'}></lcards-message>
         `;
     }
 
@@ -540,7 +614,6 @@ export class LCARdSFilterEditor extends LitElement {
                 .label=${'Saturation'}
                 @value-changed=${(e) => this._updateFilter(index, 'value', e.detail.value)}>
             </ha-selector>
-            <lcards-message type="info" .message=${'0 = grayscale, 1 = normal, 2+ = oversaturated'}></lcards-message>
         `;
     }
 
@@ -558,7 +631,6 @@ export class LCARdSFilterEditor extends LitElement {
                 .label=${'Hue Rotation (degrees)'}
                 @value-changed=${(e) => this._updateFilter(index, 'value', `${e.detail.value}deg`)}>
             </ha-selector>
-            <lcards-message type="info" .message=${'Rotates colors around the color wheel (0-360°)'}></lcards-message>
         `;
     }
 
@@ -576,7 +648,6 @@ export class LCARdSFilterEditor extends LitElement {
                 .label=${'Grayscale Amount'}
                 @value-changed=${(e) => this._updateFilter(index, 'value', e.detail.value)}>
             </ha-selector>
-            <lcards-message type="info" .message=${'0 = color, 1 = fully grayscale'}></lcards-message>
         `;
     }
 
@@ -594,7 +665,6 @@ export class LCARdSFilterEditor extends LitElement {
                 .label=${'Sepia Amount'}
                 @value-changed=${(e) => this._updateFilter(index, 'value', e.detail.value)}>
             </ha-selector>
-            <lcards-message type="info" .message=${'0 = normal, 1 = full sepia tone (vintage effect)'}></lcards-message>
         `;
     }
 
@@ -612,7 +682,6 @@ export class LCARdSFilterEditor extends LitElement {
                 .label=${'Invert Amount'}
                 @value-changed=${(e) => this._updateFilter(index, 'value', e.detail.value)}>
             </ha-selector>
-            <lcards-message type="info" .message=${'0 = normal, 1 = fully inverted (negative)'}></lcards-message>
         `;
     }
 
@@ -630,7 +699,6 @@ export class LCARdSFilterEditor extends LitElement {
                 .label=${'Opacity'}
                 @value-changed=${(e) => this._updateFilter(index, 'value', e.detail.value)}>
             </ha-selector>
-            <lcards-message type="info" .message=${'0 = transparent, 1 = fully opaque'}></lcards-message>
         `;
     }
 
@@ -741,7 +809,6 @@ export class LCARdSFilterEditor extends LitElement {
                 .label=${'Standard Deviation'}
                 @value-changed=${(e) => this._updateSvgFilterParam(index, 'stdDeviation', e.detail.value)}>
             </ha-selector>
-            <lcards-message type="info" .message=${'Amount of blur (0 = no blur, higher = more blur)'}></lcards-message>
         `;
     }
 
@@ -781,7 +848,6 @@ export class LCARdSFilterEditor extends LitElement {
                     @value-changed=${(e) => this._updateSvgFilterParam(index, 'values', e.detail.value)}
                     style="margin-top: 12px;">
                 </ha-selector>
-                <lcards-message type="info" .message=${'0 = grayscale, 1 = normal, >1 = oversaturated'}></lcards-message>
             ` : ''}
 
             ${value.type === 'hueRotate' ? html`
@@ -806,8 +872,6 @@ export class LCARdSFilterEditor extends LitElement {
                     style="margin-top: 12px;">
                 </ha-input>
             ` : ''}
-
-            <lcards-message type="info" .message=${'Combines two inputs: Uses previous filter + SourceGraphic. Advanced compositing for complex layering effects.'}></lcards-message>
         `;
     }
 
@@ -835,7 +899,6 @@ export class LCARdSFilterEditor extends LitElement {
                     @input=${(e) => this._updateSvgFilterParam(index, 'dy', e.target.value)}>
                 </ha-input>
             </div>
-            <lcards-message type="info" .message=${'Offset in pixels (positive = right/down, negative = left/up)'}></lcards-message>
         `;
     }
 
@@ -876,7 +939,6 @@ export class LCARdSFilterEditor extends LitElement {
                 .label=${'Blend Mode'}
                 @value-changed=${(e) => this._updateSvgFilterParam(index, 'mode', e.detail.value)}>
             </ha-selector>
-            <lcards-message type="info" .message=${'Blends with previous filter: Uses output from the filter above. Try after Blur for glow effects (screen/lighten mode).'}></lcards-message>
         `;
     }
 
@@ -922,8 +984,6 @@ export class LCARdSFilterEditor extends LitElement {
                     </div>
                 </div>
             ` : ''}
-
-            <lcards-message type="info" .message=${'Combines two inputs: Uses previous filter + SourceGraphic. Advanced compositing for complex layering effects.'}></lcards-message>
         `;
     }
 
@@ -960,7 +1020,6 @@ export class LCARdSFilterEditor extends LitElement {
                 @value-changed=${(e) => this._updateSvgFilterParam(index, 'radius', e.detail.value)}
                 style="margin-top: 12px;">
             </ha-selector>
-            <lcards-message type="info" .message=${'Erode makes shapes thinner, dilate makes them fatter'}></lcards-message>
         `;
     }
 
@@ -1015,8 +1074,6 @@ export class LCARdSFilterEditor extends LitElement {
                 @input=${(e) => this._updateSvgFilterParam(index, 'seed', e.target.value)}
                 style="margin-top: 12px;">
             </ha-input>
-
-            <lcards-message type="info" .message=${'Generates Perlin noise patterns for organic textures'}></lcards-message>
         `;
     }
 
@@ -1074,8 +1131,6 @@ export class LCARdSFilterEditor extends LitElement {
                     @value-changed=${(e) => this._updateSvgFilterParam(index, 'yChannelSelector', e.detail.value)}>
                 </ha-selector>
             </div>
-
-            <lcards-message type="info" icon="mdi:lightbulb-on" .message=${'Perfect combo: Add Turbulence filter right before this! Turbulence generates the displacement map for distortion effects.'}></lcards-message>
         `;
     }
 
@@ -1191,42 +1246,10 @@ export class LCARdSFilterEditor extends LitElement {
             'feComposite': 'Composite',
             'feMorphology': 'Morphology',
             'feTurbulence': 'Turbulence',
-            'feDisplacementMap': 'Displacement Map'
+            'feDisplacementMap': 'Displacement Map',
+            'tint': 'Color Tint'
         };
         return nameMap[type] || type;
-    }
-
-    /**
-     * Get filter description
-     * @param {string} type - Filter type
-     * @returns {string}
-     * @private
-     */
-    _getFilterDescription(type) {
-        const descriptions = {
-            // CSS Filters
-            'blur': 'Applies Gaussian blur to soften edges and create depth effects.',
-            'brightness': 'Adjusts the brightness level. 1 = normal, <1 = darker, >1 = brighter.',
-            'contrast': 'Adjusts the contrast. 1 = normal, <1 = less contrast, >1 = more contrast.',
-            'saturate': 'Adjusts color saturation. 0 = grayscale, 1 = normal, >1 = oversaturated.',
-            'hue-rotate': 'Rotates colors around the color wheel (0-360 degrees).',
-            'grayscale': 'Converts to grayscale. 0 = full color, 1 = complete grayscale.',
-            'sepia': 'Applies sepia tone effect. 0 = normal, 1 = full sepia.',
-            'invert': 'Inverts colors. 0 = normal, 1 = fully inverted.',
-            'opacity': 'Adjusts transparency. 0 = fully transparent, 1 = fully opaque.',
-            'drop-shadow': 'Creates a drop shadow behind the element.',
-            // SVG Filter Primitives
-            'feGaussianBlur': 'SVG blur filter - smoother than CSS blur, chains with other SVG filters.',
-            'feColorMatrix': 'Powerful color transformation using matrix operations. Supports hue rotation, saturation, and custom color mapping.',
-            'feOffset': 'Shifts the filter result by dx/dy pixels. Essential for creating shadow effects when combined with blur.',
-            'feBlend': 'Blends the current filter result with another input using various blend modes (multiply, screen, overlay, etc.).',
-            'feComposite': 'Combines two inputs using Porter-Duff compositing operators or arithmetic operations.',
-            'feMorphology': 'Erodes (thins) or dilates (fattens) shapes. Useful for creating outline effects or adjusting edge thickness.',
-            'feTurbulence': 'Generates Perlin noise patterns for organic textures. Commonly used with displacement maps for distortion.',
-            'feDisplacementMap': 'Warps/distorts the image based on color values from another source. Perfect for wavy, liquid, or turbulent effects.',
-            'tint': 'Composites a flat color wash over the content — a cheap way to apply an alert/status tint. Requires an SVG root (not supported on data-grid).'
-        };
-        return descriptions[type] || '';
     }
 
     /**

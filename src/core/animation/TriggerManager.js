@@ -23,6 +23,7 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { compareThreshold } from '../../utils/comparison-utils.js';
 
 export class TriggerManager {
   constructor(overlayId, element, animationManager) {
@@ -356,7 +357,9 @@ export class TriggerManager {
    *   state     {string}  — value equals this
    *   not_state {string}  — value does not equal this
    *   above     {number}  — numeric value > threshold
+   *   at_least  {number}  — numeric value >= threshold
    *   below     {number}  — numeric value < threshold
+   *   at_most   {number}  — numeric value <= threshold
    *
    * @param {Object} anim         - Animation definition containing .while
    * @param {*}      currentValue - Resolved entity value (string or number)
@@ -368,9 +371,11 @@ export class TriggerManager {
     if (w.state     !== undefined) return String(currentValue) === String(w.state);
     if (w.not_state !== undefined) return String(currentValue) !== String(w.not_state);
     const numVal = Number(currentValue);
-    if (w.above !== undefined) return Number.isFinite(numVal) && numVal > Number(w.above);
-    if (w.below !== undefined) return Number.isFinite(numVal) && numVal < Number(w.below);
-    lcardsLog.warn(`[TriggerManager] 'while' has no recognised key (state/not_state/above/below) for overlay: ${this.overlayId}`);
+    if (w.above    !== undefined) return Number.isFinite(numVal) && compareThreshold(numVal, 'above', Number(w.above));
+    if (w.at_least !== undefined) return Number.isFinite(numVal) && compareThreshold(numVal, 'at_least', Number(w.at_least));
+    if (w.below    !== undefined) return Number.isFinite(numVal) && compareThreshold(numVal, 'below', Number(w.below));
+    if (w.at_most  !== undefined) return Number.isFinite(numVal) && compareThreshold(numVal, 'at_most', Number(w.at_most));
+    lcardsLog.warn(`[TriggerManager] 'while' has no recognised key (state/not_state/above/at_least/below/at_most) for overlay: ${this.overlayId}`);
     return null;
   }
 

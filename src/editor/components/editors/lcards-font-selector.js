@@ -19,6 +19,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { searchableSelectStyles } from '../shared/searchable-select-styles.js';
 
 export class LCARdSFontSelector extends LitElement {
 
@@ -49,7 +50,7 @@ export class LCARdSFontSelector extends LitElement {
     }
 
     static get styles() {
-        return css`
+        return [css`
             :host {
                 display: block;
             }
@@ -115,7 +116,7 @@ export class LCARdSFontSelector extends LitElement {
                 padding: 4px 8px;
                 font-style: italic;
             }
-        `;
+        `, searchableSelectStyles];
     }
 
     connectedCallback() {
@@ -210,6 +211,7 @@ export class LCARdSFontSelector extends LitElement {
                 .selector=${{
                     select: {
                         mode: 'dropdown',
+                        custom_value: options.length >= 10,
                         options: options
                     }
                 }}

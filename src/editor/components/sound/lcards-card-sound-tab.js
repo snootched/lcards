@@ -27,6 +27,7 @@ import { fireEvent } from 'custom-card-helpers';
 import { SOUND_EVENT_LABELS } from '../../../core/sound/SoundManager.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { editorStyles } from '../../base/editor-styles.js';
+import { searchableSelectStyles } from '../shared/searchable-select-styles.js';
 import '../shared/lcards-form-section.js';
 
 export class LCARdSCardSoundTab extends LitElement {
@@ -283,7 +284,8 @@ export class LCARdSCardSoundTab extends LitElement {
                                   label: `${a.key} (${a.pack})`
                                 }))
                               ],
-                              mode: 'dropdown'
+                              mode: 'dropdown',
+                              custom_value: (2 + this._audioAssets.length) >= 10
                             }
                           }}
                           .value=${overrideValue}
@@ -434,7 +436,8 @@ export class LCARdSCardSoundTab extends LitElement {
           opacity: 0.5;
           pointer-events: none;
         }
-      `
+      `,
+      searchableSelectStyles
     ];
   }
 }

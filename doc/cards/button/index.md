@@ -481,11 +481,21 @@ The alert component displays a Starfleet alert symbol with animated bar elements
 |-------|------|-------------|
 | `ranges[].preset` | string | Component preset name to apply when this range matches (required) |
 | `ranges[].attribute` | string | Override `ranges_attribute` for this entry only |
-| `ranges[].above` | number | Match when value is ≥ this threshold |
-| `ranges[].below` | number | Match when value is < this threshold |
+| `ranges[].above` | number | Match when value is > this threshold (strictly greater) |
+| `ranges[].at_least` | number | Match when value is ≥ this threshold (inclusive) |
+| `ranges[].below` | number | Match when value is < this threshold (strictly less) |
+| `ranges[].at_most` | number | Match when value is ≤ this threshold (inclusive) |
 | `ranges[].equals` | string / number / boolean | Match when value equals this |
 | `ranges[].color.shape` | string | Transient shape fill override while this range is active |
 | `ranges[].color.bars` | string | Transient bars stroke override while this range is active |
+
+::: warning Behavior change
+`above`/`below` are now strict (`>`/`<`), matching every other comparison
+system in LCARdS. Previously `above` here meant `>=`. If you have an
+existing `ranges:` config relying on a value landing exactly on an `above`
+boundary, use the new `at_least` key instead to get the old inclusive
+behavior explicitly (see the example below).
+:::
 
 ```yaml
 type: custom:lcards-button
@@ -496,11 +506,12 @@ preset: default          # default, red, yellow, blue, green, grey, black
 entity: sensor.threat_level
 ranges:
   - preset: red
-    above: 80
+    at_least: 80          # value >= 80
   - preset: yellow
-    above: 50
+    at_least: 50
+    below: 80              # 50 <= value < 80 — tiles with no gap against red/default
   - preset: default
-    above: 0
+    below: 50              # value < 50
 ```
 
 ---

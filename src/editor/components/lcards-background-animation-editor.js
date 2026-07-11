@@ -28,6 +28,9 @@ import './shared/lcards-color-list.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
 import './editors/lcards-color-section.js';
+import { BACKGROUND_PRESET_DOCS_URL } from './shared/docs-links.js';
+import { infoGuideStyles } from './shared/info-guide-styles.js';
+import { searchableSelectStyles } from './shared/searchable-select-styles.js';
 
 export class LCARdSBackgroundAnimationEditor extends LitElement {
   static get properties() {
@@ -38,12 +41,13 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       _draggedIndex: { type: Number },
       _expandedEffects: { type: Object },
       _imageSrcModes:  { type: Object, state: true },
-      _insetEnabled: { type: Boolean, state: true }
+      _insetEnabled: { type: Boolean, state: true },
+      _expandedGuideIndices: { state: true } // Set<number> — which effects' "How this effect works" info guide is open
     };
   }
 
   static get styles() {
-    return css`
+    return [css`
       :host {
         display: block;
         width: 100%;
@@ -242,7 +246,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           padding: 16px;
         }
       }
-    `;
+    `, infoGuideStyles, searchableSelectStyles];
   }
 
   constructor() {
@@ -257,6 +261,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     this._imageSrcModes   = {};
     this._currentEffectIndex = null; // Track current effect for color section
     this._insetEnabled = false;
+    this._expandedGuideIndices = new Set();
   }
 
   /**
@@ -491,6 +496,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           .selector=${{
             select: {
               mode: 'dropdown',
+              custom_value: true,
               options: this._getPresetOptions()
             }
           }}
@@ -501,12 +507,88 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         ></ha-selector>
       </lcards-form-section>
 
+      ${this._renderEffectInfoGuide(preset, index)}
+
       <!-- Preset Configuration -->
       ${this._renderPresetConfig(effect, index)}
 
       <!-- Zoom Wrapper -->
       ${this._renderZoomSection(effect, index)}
     `;
+  }
+
+  /**
+   * Collapsible "How this effect works" info guide — sourced from
+   * BACKGROUND_PRESETS[preset].guide (presets/index.js), the single
+   * maintained content source for preset help text. Always includes the
+   * entity-binding note, since map_range/template binding is a generic
+   * renderer-level mechanism that applies to any config field of any preset,
+   * not just some.
+   * @private
+   */
+  _renderEffectInfoGuide(preset, index) {
+    const presetInfo = BACKGROUND_PRESETS[preset];
+    if (!presetInfo?.guide) return '';
+
+    const expanded = this._expandedGuideIndices.has(index);
+    const docsUrl = `${BACKGROUND_PRESET_DOCS_URL}#${preset}`;
+    const guide = presetInfo.guide;
+
+    return html`
+      <div class="preset-info-guide">
+        <div class="preset-info-guide-header" @click=${() => this._toggleGuideExpanded(index)}>
+          <ha-icon icon="mdi:information-outline"></ha-icon>
+          <span>How ${presetInfo.name} works</span>
+          <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
+        </div>
+        ${expanded ? html`
+          <div class="preset-info-guide-body">
+            ${this._splitIntoSentences(guide.summary).map(s => html`<p>${s}</p>`)}
+            ${guide.params?.length ? html`
+              <strong>Params:</strong>
+              <ul>
+                ${guide.params.map(p => html`
+                  <li>
+                    <code>${p.key}</code>${p.default !== undefined ? html` (default: <code>${JSON.stringify(p.default)}</code>)` : ''}
+                    ${p.description ? ` — ${p.description}` : ''}
+                  </li>
+                `)}
+              </ul>
+            ` : ''}
+            <strong>Example:</strong>
+            <pre class="preset-info-guide-example">${guide.example}</pre>
+            ${guide.tip ? html`
+              <p class="preset-info-guide-tip"><strong>Tip:</strong> ${guide.tip}</p>
+            ` : ''}
+            ${this._renderEntityBindingNote()}
+            <div class="preset-info-guide-links">
+              <a href=${docsUrl} target="_blank" rel="noopener noreferrer">View full docs →</a>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * @private
+   */
+  _toggleGuideExpanded(index) {
+    const updated = new Set(this._expandedGuideIndices);
+    if (updated.has(index)) {
+      updated.delete(index);
+    } else {
+      updated.add(index);
+    }
+    this._expandedGuideIndices = updated;
+  }
+
+  /**
+   * @private
+   */
+  _splitIntoSentences(text) {
+    if (!text) return [];
+    return text.split(/(?<=[.!?])\s+(?=[A-Z`])/);
   }
 
   _renderPresetConfig(effect, index) {
@@ -555,6 +637,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     // Image preset uses dedicated image section
     if (preset === 'image') {
       return html`${this._renderImageBackgroundSection(config, index)}`;
+    }
+
+    // Solid preset uses its own minimal colour/opacity section
+    if (preset === 'solid') {
+      return html`${this._renderSolidSection(config, index)}`;
     }
 
     // Grid presets use pattern/major-minor/scrolling/color sections
@@ -737,19 +824,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
   _renderContourFieldSection(config, index) {
     return html`
-      <ha-alert alert-type="info">
-        <b>Contour Field</b> paints a drifting noise field, then slices it into colour bands — like
-        a topographic map.
-        <br><br> <b>Noise</b> shapes the raw terrain (how big and rough the features
-        are).
-        <br><br> <b>Contour Bands</b> controls how that terrain is sliced into rings — the full
-        peaks-and-valleys range, always present underneath.
-        <br><br> <b>Fill</b> floods/drains a
-        waterline over that terrain without changing it, for empty "space" between blobs.
-        <br><br> <b>Colour</b> sets what fills each ring. Lower "Band Count" + "Cell Size" for a blocky,
-        retro-LCARS look; raise them for a smooth, photographic nebula look.
-      </ha-alert>
-
       <lcards-form-section
         header="Noise"
         icon="mdi:waves"
@@ -1103,7 +1177,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
             <!-- Asset picker -->
             <ha-selector
               .hass=${this.hass}
-              .selector=${{ select: { mode: 'dropdown', options: availableImages }}}
+              .selector=${{ select: { mode: 'dropdown', custom_value: availableImages.length >= 10, options: availableImages }}}
               .value=${availableImages.some(o => o.value === source) ? source : (availableImages[0]?.value ?? '')}
               .label=${'Built-in Image'}
               .helper=${'Images and SVGs registered in the Asset Library'}
@@ -1124,9 +1198,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           `}
 
           ${showHttpWarning ? html`
-            <div style="grid-column:1/-1;padding:6px 8px;border-radius:4px;background:rgba(255,193,7,0.15);color:#ffa000;font-size:12px;line-height:1.4;">
-              ⚠ http:// URLs will be blocked as mixed content when Home Assistant is served over HTTPS.
-              Use an https:// URL or a /local/ path instead.
+            <div style="grid-column:1/-1">
+              <lcards-message type="warning" .message=${'http:// URLs will be blocked as mixed content when Home Assistant is served over HTTPS. Use an https:// URL or a /local/ path instead.'}></lcards-message>
             </div>
           ` : ''}
 
@@ -1238,7 +1311,30 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           </div>
         </lcards-form-section>
       ` : ''}
-      ${this._renderEntityBindingNote()}
+    `;
+  }
+
+  /**
+   * Solid preset — flat colour fill rendered behind the card SVG.
+   * @private
+   */
+  _renderSolidSection(config, index) {
+    return html`
+      <lcards-form-section header="Colour" icon="mdi:palette" ?expanded=${true}>
+        <lcards-color-picker
+          .hass=${this.hass}
+          .value=${config.color ?? 'rgba(0, 0, 0, 0.4)'}
+          .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-']}
+          ?showPreview=${true}
+          @value-changed=${(e) => this._updateEffectConfig(index, 'color', e.detail.value)}
+        ></lcards-color-picker>
+      </lcards-form-section>
+
+      <lcards-form-section header="Parameters" icon="mdi:tune" ?expanded=${true}>
+        <div class="param-grid">
+          ${this._renderField({ key: 'opacity', label: 'Opacity', type: 'number', min: 0, max: 1, step: 0.05, default: 1 }, config, index)}
+        </div>
+      </lcards-form-section>
     `;
   }
 
@@ -1390,7 +1486,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       'flow':         'mdi:wave',
       'shimmer':      'mdi:shimmer',
       'scanlines':    'mdi:television-scan',
-      'image':        'mdi:image'
+      'image':        'mdi:image',
+      'solid':        'mdi:square-rounded'
     };
     return icons[preset] || 'mdi:blur';
   }

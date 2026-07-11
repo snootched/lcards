@@ -68,7 +68,7 @@ A `when` block evaluates to `true` or `false`. When it matches, the `apply` bloc
 |------|-----|---------|
 | Entity state | `entity` | `entity: light.x` + `state: "on"` |
 | Entity attribute | `entity_attr` | `entity_attr: light.x` + `attribute: brightness` + `above: 128` |
-| Numeric range | `above` / `below` | `above: 18` (or combined: `above: 18` + `below: 26`) |
+| Numeric range | `above` / `below` (also `at_least`/`at_most` for inclusive bounds) | `above: 18` (or combined: `above: 18` + `below: 26`) |
 | Not equal / in list | `not_equals`, `in`, `not_in` | `not_in: ["off", "unavailable"]` |
 | Regex | `regex` | `regex: "^heat"` |
 | Map range | `map_range_cond` | Map raw sensor value to a new scale, then compare |

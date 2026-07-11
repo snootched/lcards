@@ -45,7 +45,9 @@ const ENTITY_OPERATORS = [
     { value: 'equals',     label: 'equals' },
     { value: 'not_equals', label: 'not equals' },
     { value: 'above',      label: 'above' },
+    { value: 'at_least',   label: 'at least (≥)' },
     { value: 'below',      label: 'below' },
+    { value: 'at_most',    label: 'at most (≤)' },
     { value: 'in',         label: 'in list' },
     { value: 'not_in',     label: 'not in list' },
     { value: 'regex',      label: 'regex match' }
@@ -207,11 +209,11 @@ export class LCARdSConditionGroupEditor extends LitElement {
         if (cond.weekday_in !== undefined) return { _type: 'weekday_in', weekdays: cond.weekday_in || [] };
         if (cond.sun_elevation !== undefined) {
             const se = cond.sun_elevation || {};
-            return { _type: 'sun_elevation', above: se.above, below: se.below };
+            return { _type: 'sun_elevation', above: se.above, below: se.below, at_least: se.at_least, at_most: se.at_most };
         }
         if (cond.perf_metric !== undefined) {
             const pm = cond.perf_metric || {};
-            return { _type: 'perf_metric', metric: pm.key || '', above: pm.above, below: pm.below };
+            return { _type: 'perf_metric', metric: pm.key || '', above: pm.above, below: pm.below, at_least: pm.at_least, at_most: pm.at_most };
         }
         if (cond.flag !== undefined) {
             const f = cond.flag || {};
@@ -235,7 +237,7 @@ export class LCARdSConditionGroupEditor extends LitElement {
      * @returns {{ key: string, value: * }} Operator name and its value
      */
     _detectOperator(cond) {
-        for (const op of ['equals', 'not_equals', 'above', 'below', 'in', 'not_in', 'regex']) {
+        for (const op of ['equals', 'not_equals', 'above', 'at_least', 'below', 'at_most', 'in', 'not_in', 'regex']) {
             if (cond[op] !== undefined) return { key: op, value: cond[op] };
         }
         // 'state' is an alias for 'equals'
@@ -275,13 +277,17 @@ export class LCARdSConditionGroupEditor extends LitElement {
             case 'sun_elevation': {
                 const s = {};
                 if (cond.above !== undefined && cond.above !== '') s.above = Number(cond.above);
+                if (cond.at_least !== undefined && cond.at_least !== '') s.at_least = Number(cond.at_least);
                 if (cond.below !== undefined && cond.below !== '') s.below = Number(cond.below);
+                if (cond.at_most !== undefined && cond.at_most !== '') s.at_most = Number(cond.at_most);
                 return { sun_elevation: s };
             }
             case 'perf_metric': {
                 const p = { key: cond.metric || '' };
                 if (cond.above !== undefined && cond.above !== '') p.above = Number(cond.above);
+                if (cond.at_least !== undefined && cond.at_least !== '') p.at_least = Number(cond.at_least);
                 if (cond.below !== undefined && cond.below !== '') p.below = Number(cond.below);
+                if (cond.at_most !== undefined && cond.at_most !== '') p.at_most = Number(cond.at_most);
                 return { perf_metric: p };
             }
             case 'flag':
@@ -566,6 +572,22 @@ export class LCARdSConditionGroupEditor extends LitElement {
                             @value-changed=${(e) => set('below', e.detail.value)}>
                         </ha-selector>
                     </div>
+                    <div class="inline-grid">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'At Least (degrees, ≥)'}
+                            .selector=${{ number: { min: -90, max: 90, mode: 'box' } }}
+                            .value=${cond.at_least ?? ''}
+                            @value-changed=${(e) => set('at_least', e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'At Most (degrees, ≤)'}
+                            .selector=${{ number: { min: -90, max: 90, mode: 'box' } }}
+                            .value=${cond.at_most ?? ''}
+                            @value-changed=${(e) => set('at_most', e.detail.value)}>
+                        </ha-selector>
+                    </div>
                 `;
             case 'perf_metric':
                 return html`
@@ -590,6 +612,22 @@ export class LCARdSConditionGroupEditor extends LitElement {
                             .selector=${{ number: { mode: 'box' } }}
                             .value=${cond.below ?? ''}
                             @value-changed=${(e) => set('below', e.detail.value)}>
+                        </ha-selector>
+                    </div>
+                    <div class="inline-grid">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'At Least (≥)'}
+                            .selector=${{ number: { mode: 'box' } }}
+                            .value=${cond.at_least ?? ''}
+                            @value-changed=${(e) => set('at_least', e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'At Most (≤)'}
+                            .selector=${{ number: { mode: 'box' } }}
+                            .value=${cond.at_most ?? ''}
+                            @value-changed=${(e) => set('at_most', e.detail.value)}>
                         </ha-selector>
                     </div>
                 `;

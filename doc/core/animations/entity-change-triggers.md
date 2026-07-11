@@ -61,7 +61,9 @@ Use exactly one key:
 | `state` | entity value equals this string |
 | `not_state` | entity value does NOT equal this string |
 | `above` | numeric value strictly greater than threshold |
+| `at_least` | numeric value greater than or equal to threshold |
 | `below` | numeric value strictly less than threshold |
+| `at_most` | numeric value less than or equal to threshold |
 
 ### `check_on_load`
 

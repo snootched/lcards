@@ -104,8 +104,11 @@ style:
 | `zero` | Entity state parses to exactly `0` — checked before range conditions |
 | `non_zero` | Entity state is any non-zero number — catch-all used only when no range condition matched |
 | `above:N` | Numeric state > `N` — e.g. `above:50` |
+| `at_least:N` | Numeric state ≥ `N` — e.g. `at_least:50` |
 | `below:N` | Numeric state < `N` — e.g. `below:20` |
+| `at_most:N` | Numeric state ≤ `N` — e.g. `at_most:20` |
 | `between:N:M` | Numeric state `N ≤ value ≤ M` — e.g. `between:20:80` |
+| `between_exclusive:N:M` | Numeric state `N < value < M` — e.g. `between_exclusive:20:80` |
 | Any custom string | Exact match against entity state — e.g. `heat`, `cooling`, `buffering` |
 
 :::details Active / inactive state lists
@@ -121,10 +124,10 @@ For each colour field, the resolved value is determined in this order:
 0. **`state_attribute` match** — if [`state_attribute`](#exact-match-keys-from-an-attribute--state_attribute) is set, `String(entity.attributes[state_attribute])` is looked up first; a matching key wins immediately
 1. **Exact state match** — e.g. the entity state is `"heat"` and a `heat:` key exists
 2. **`zero`** — numeric value is exactly `0` and a `zero:` key exists
-3. **Range conditions** (`above:N`, `below:N`, `between:N:M`) — all matching ranges are evaluated and the most specific one wins:
-   - `between` — narrowest range (smallest `M − N`) wins
-   - `above` — highest threshold wins
-   - `below` — lowest threshold wins
+3. **Range conditions** (`above:N`/`at_least:N`, `below:N`/`at_most:N`, `between:N:M`/`between_exclusive:N:M`) — all matching ranges are evaluated and the most specific one wins:
+   - `between`/`between_exclusive` — narrowest range (smallest `M − N`) wins
+   - `above`/`at_least` — highest threshold wins
+   - `below`/`at_most` — lowest threshold wins
 4. **`non_zero`** — numeric value is non-zero and no range matched
 5. **Classified state** — `active`, `inactive`, or `unavailable` per the table above
 6. **`default`** — final fallback

@@ -25,6 +25,9 @@ import './shared/lcards-color-picker.js';
 import './shared/lcards-form-section.js';
 import { LCARdSFormFieldHelper as FormField } from './shared/lcards-form-field.js';
 import { ANIMATION_PRESET_PARAMS_SCHEMAS } from '../../cards/schemas/animation-preset-params-schemas.js';
+import { ANIMATION_PRESET_DOCS_URL } from './shared/docs-links.js';
+import { infoGuideStyles } from './shared/info-guide-styles.js';
+import { searchableSelectStyles } from './shared/searchable-select-styles.js';
 
 /**
  * Presets whose params are rendered generically via FormField.renderField(),
@@ -75,12 +78,6 @@ const SCHEMA_DRIVEN_PRESETS = new Set([
   // Timeline presets
   'timeline-cascade', 'timeline-attention'
 ]);
-
-// Base URL for the hosted VitePress docs site — used only to link out to the
-// full preset-reference page from each preset's info guide (see
-// _renderPresetInfoGuide()). Anchors match preset names exactly since every
-// preset-reference.md heading is a bare `### \`presetName\`` with no extra text.
-const DOCS_BASE_URL = 'http://lcards.unimatrix01.ca';
 
 /**
  * Per-preset canonical (duration/ease/loop/alternate/delay) fields to hide
@@ -163,6 +160,9 @@ const ANIMEJS_REFERENCE_URLS = {
 // Everything else uses the default plain-tween mechanism.
 const ANIMEJS_DEFAULT_REFERENCE_URL = `${ANIMEJS_DOCS_BASE}/animation`;
 
+// 'while' condition types whose value is a numeric threshold rather than a state string.
+const NUMERIC_WHILE_TYPES = ['above', 'at_least', 'below', 'at_most'];
+
 export class LCARdSAnimationEditor extends LitElement {
   static get properties() {
     return {
@@ -229,7 +229,7 @@ export class LCARdSAnimationEditor extends LitElement {
   }
 
   static get styles() {
-    return css`
+    return [css`
       :host {
         display: block;
         width: 100%;
@@ -265,102 +265,6 @@ export class LCARdSAnimationEditor extends LitElement {
       .animation-icon {
         color: var(--primary-color);
         --mdc-icon-size: 24px;
-      }
-
-      .preset-info-guide {
-        background: var(--primary-background-color);
-        border: var(--ha-border-width-sm) solid var(--divider-color);
-        border-radius: var(--ha-card-border-radius, 12px);
-        margin: 12px 0;
-        font-size: 13px;
-        overflow: hidden;
-      }
-
-      .preset-info-guide-header {
-        display: flex;
-        align-items: center;
-        gap: var(--ha-space-2);
-        padding: var(--ha-space-3) var(--ha-space-3);
-        cursor: pointer;
-        user-select: none;
-        color: var(--primary-color);
-        font-weight: 500;
-      }
-
-      .preset-info-guide-header:hover {
-        background: color-mix(in srgb, var(--primary-color) 6%, transparent);
-      }
-
-      .preset-info-guide-header .guide-chevron {
-        margin-left: auto;
-        transition: transform 0.2s;
-      }
-
-      .preset-info-guide-header .guide-chevron.expanded {
-        transform: rotate(180deg);
-      }
-
-      .preset-info-guide-body {
-        padding: 0 var(--ha-space-3) var(--ha-space-3) var(--ha-space-3);
-        border-top: var(--ha-border-width-sm) solid var(--divider-color);
-        color: var(--primary-text-color);
-      }
-
-      .preset-info-guide-body p {
-        margin: var(--ha-space-3) 0;
-        line-height: 1.6;
-        max-width: 65ch;
-      }
-
-      .preset-info-guide-body ul {
-        margin: 0 0 var(--ha-space-3) 0;
-        padding-left: var(--ha-space-5);
-        max-width: 65ch;
-      }
-
-      .preset-info-guide-body li {
-        margin-bottom: var(--ha-space-2);
-        line-height: 1.5;
-      }
-
-      .preset-info-guide-body code {
-        background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
-        padding: 2px 6px;
-        border-radius: var(--ha-border-radius-sm, 4px);
-        font-family: monospace;
-        font-size: 12px;
-      }
-
-      .preset-info-guide-links {
-        display: flex;
-        gap: var(--ha-space-4);
-        flex-wrap: wrap;
-      }
-
-      .preset-info-guide-body a {
-        color: var(--primary-color);
-      }
-
-      .preset-info-guide-example {
-        background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
-        border: var(--ha-border-width-sm) solid var(--divider-color);
-        border-radius: var(--ha-border-radius-sm, 4px);
-        padding: var(--ha-space-2) var(--ha-space-3);
-        margin: var(--ha-space-2) 0 var(--ha-space-3) 0;
-        font-family: monospace;
-        font-size: 12px;
-        line-height: 1.5;
-        white-space: pre;
-        overflow-x: auto;
-        max-width: 100%;
-      }
-
-      .preset-info-guide-missing-note {
-        margin: 0 0 var(--ha-space-3) 0;
-        line-height: 1.5;
-        max-width: 65ch;
-        color: var(--secondary-text-color);
-        font-size: 12px;
       }
 
       .animation-info {
@@ -629,7 +533,7 @@ export class LCARdSAnimationEditor extends LitElement {
           padding: 16px;
         }
       }
-    `;
+    `, infoGuideStyles, searchableSelectStyles];
   }
 
   constructor() {
@@ -1321,6 +1225,7 @@ export class LCARdSAnimationEditor extends LitElement {
           .selector=${{
             select: {
               mode: 'dropdown',
+              custom_value: true,
               options: [
                 // Linear
                 { value: 'linear', label: 'Linear' },
@@ -1734,7 +1639,7 @@ export class LCARdSAnimationEditor extends LitElement {
   _renderEntityChangeTriggerConfig(anim, index) {
     const whileType  = this._getWhileConditionType(anim);
     const whileValue = this._getWhileConditionValue(anim);
-    const whileIsNumeric = whileType === 'above' || whileType === 'below';
+    const whileIsNumeric = NUMERIC_WHILE_TYPES.includes(whileType);
 
     return html`
       <div style="margin-top: 16px; padding: 12px; background: var(--secondary-background-color); border-radius: 6px;">
@@ -1785,7 +1690,9 @@ export class LCARdSAnimationEditor extends LitElement {
               { value: 'state',     label: 'State equals' },
               { value: 'not_state', label: 'State not equals' },
               { value: 'above',     label: 'Above (numeric >)' },
-              { value: 'below',     label: 'Below (numeric <)' }
+              { value: 'at_least',  label: 'At Least (numeric ≥)' },
+              { value: 'below',     label: 'Below (numeric <)' },
+              { value: 'at_most',   label: 'At Most (numeric ≤)' }
             ]}}}
             .value=${whileType}
             .label=${'Play while...'}
@@ -1828,7 +1735,9 @@ export class LCARdSAnimationEditor extends LitElement {
     if ('state'     in w) return 'state';
     if ('not_state' in w) return 'not_state';
     if ('above'     in w) return 'above';
+    if ('at_least'  in w) return 'at_least';
     if ('below'     in w) return 'below';
+    if ('at_most'   in w) return 'at_most';
     return 'none';
   }
 
@@ -1847,7 +1756,7 @@ export class LCARdSAnimationEditor extends LitElement {
       updated[index] = rest;
     } else {
       const currentVal = this._getWhileConditionValue(updated[index]);
-      const isNumeric  = condType === 'above' || condType === 'below';
+      const isNumeric  = NUMERIC_WHILE_TYPES.includes(condType);
       const val = currentVal !== '' ? (isNumeric ? (Number(currentVal) || 0) : currentVal) : (isNumeric ? 0 : '');
       updated[index] = { ...updated[index], while: { [condType]: val } };
     }
@@ -1858,7 +1767,7 @@ export class LCARdSAnimationEditor extends LitElement {
   /** Handle while condition VALUE change */
   _updateWhileConditionValue(index, condType, rawValue) {
     const updated  = [...this.animations];
-    const isNumeric = condType === 'above' || condType === 'below';
+    const isNumeric = NUMERIC_WHILE_TYPES.includes(condType);
     const val = isNumeric ? Number(rawValue) : rawValue;
     updated[index] = { ...updated[index], while: { [condType]: val } };
     this._workingAnimations = updated;
@@ -2055,7 +1964,7 @@ export class LCARdSAnimationEditor extends LitElement {
     const CANONICAL_KEYS = new Set(['duration', 'ease', 'loop', 'alternate', 'delay']);
     const paramEntries = Object.entries(presetSchema.properties || {})
       .filter(([key]) => !CANONICAL_KEYS.has(key));
-    const docsUrl = `${DOCS_BASE_URL}/core/animations/preset-reference.html#${preset}`;
+    const docsUrl = `${ANIMATION_PRESET_DOCS_URL}#${preset}`;
     const animejsUrl = (preset === 'march' || preset === 'stagger-flash')
       ? null
       : (ANIMEJS_REFERENCE_URLS[preset] || ANIMEJS_DEFAULT_REFERENCE_URL);

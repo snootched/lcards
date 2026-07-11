@@ -8,6 +8,10 @@
       <img src="https://img.shields.io/github/downloads/snootched/lcards/latest/total?logo=startrek&logoColor=37a6d1&label=Latest%20Release%20Downloads&color=37a6d1" alt="downloads" />
     </a>
 
+    <a href="https://github.com/snootched/lcards/releases" target="_blank" rel="noopener">
+      <img src="https://img.shields.io/github/stars/snootched/lcards?style=flat&logo=stardock&logoColor=37a6d1&color=37a6d1" alt="stars" />
+    </a>
+
     <a href="https://github.com/snootched/lcards/blob/main/LICENSE" target="_blank" rel="noopener">
        <img src="https://img.shields.io/badge/license-MIT-37a6d1?logo=opensourceinitiative&logoColor=white" alt="license">
     </a>
