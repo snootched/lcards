@@ -70,6 +70,17 @@ export class ThemeManager extends BaseService {
      * @type {ReturnType<typeof setTimeout>|null}
      */
     this._overridesChangedTimer = null;
+
+    /**
+     * Serialization queue for setAlertMode(). injectAlertMode() is async (CSS
+     * var writes plus a requestAnimationFrame wait, or a longer transition
+     * effect), so back-to-back calls — e.g. rapid alert-mode switching —
+     * could otherwise resolve out of order and let an earlier, now-stale
+     * call's writes clobber a later call's result. Each call chains onto
+     * this promise so calls are applied in the order they were issued.
+     * @type {Promise<void>}
+     */
+    this._alertModeQueue = Promise.resolve();
   }
 
   /**
@@ -523,10 +534,33 @@ export class ThemeManager extends BaseService {
   /**
    * Set alert mode
    *
+   * Calls are serialized through _alertModeQueue (see constructor) so that
+   * rapid successive calls always finish applying in the order they were
+   * issued — otherwise an earlier call's async work could complete after a
+   * later one's and clobber it, leaving the DOM/currentAlertMode stuck on a
+   * stale mode.
+   *
    * @param {string} mode - Alert mode ('red_alert', 'blue_alert', etc.)
    * @returns {Promise<void>}
    */
-  async setAlertMode(mode, opts = {}) {
+  setAlertMode(mode, opts = {}) {
+    const run = () => this._applyAlertMode(mode, opts);
+    const result = this._alertModeQueue.then(run, run);
+    // Keep the queue alive even if this call's work throws — otherwise every
+    // subsequent setAlertMode() call would chain onto a permanently-rejected
+    // promise and never run. The rejection itself still propagates to whoever
+    // awaits `result` (this call's own return value).
+    this._alertModeQueue = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  /**
+   * @param {string} mode
+   * @param {Object} [opts]
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _applyAlertMode(mode, opts = {}) {
     if (!ALERT_MODE_TRANSFORMS[mode]) {
       lcardsLog.warn(`[ThemeManager] Unknown alert mode: ${mode}`);
       return;

@@ -23,7 +23,7 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { compareThreshold } from '../../utils/comparison-utils.js';
+import { compareNumericBounds } from '../../utils/comparison-utils.js';
 
 export class TriggerManager {
   constructor(overlayId, element, animationManager) {
@@ -353,13 +353,17 @@ export class TriggerManager {
   /**
    * Evaluate a 'while' condition block against a resolved entity value.
    *
-   * Supported keys (use exactly one):
-   *   state     {string}  — value equals this
-   *   not_state {string}  — value does not equal this
+   * Supported keys:
+   *   state     {string}  — value equals this (used alone)
+   *   not_state {string}  — value does not equal this (used alone)
    *   above     {number}  — numeric value > threshold
    *   at_least  {number}  — numeric value >= threshold
    *   below     {number}  — numeric value < threshold
    *   at_most   {number}  — numeric value <= threshold
+   *
+   * The 4 numeric keys AND-combine when multiple are present, e.g.
+   * `{ at_least: 20, at_most: 80 }` expresses an inclusive range and
+   * `{ above: 20, below: 80 }` an exclusive one.
    *
    * @param {Object} anim         - Animation definition containing .while
    * @param {*}      currentValue - Resolved entity value (string or number)
@@ -370,11 +374,8 @@ export class TriggerManager {
     if (!w || typeof w !== 'object') return null;
     if (w.state     !== undefined) return String(currentValue) === String(w.state);
     if (w.not_state !== undefined) return String(currentValue) !== String(w.not_state);
-    const numVal = Number(currentValue);
-    if (w.above    !== undefined) return Number.isFinite(numVal) && compareThreshold(numVal, 'above', Number(w.above));
-    if (w.at_least !== undefined) return Number.isFinite(numVal) && compareThreshold(numVal, 'at_least', Number(w.at_least));
-    if (w.below    !== undefined) return Number.isFinite(numVal) && compareThreshold(numVal, 'below', Number(w.below));
-    if (w.at_most  !== undefined) return Number.isFinite(numVal) && compareThreshold(numVal, 'at_most', Number(w.at_most));
+    const hasBound = w.above !== undefined || w.at_least !== undefined || w.below !== undefined || w.at_most !== undefined;
+    if (hasBound) return compareNumericBounds(currentValue, w);
     lcardsLog.warn(`[TriggerManager] 'while' has no recognised key (state/not_state/above/at_least/below/at_most) for overlay: ${this.overlayId}`);
     return null;
   }

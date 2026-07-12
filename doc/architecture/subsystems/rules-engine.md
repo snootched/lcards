@@ -119,6 +119,23 @@ rules:
 | `perf_metric` | `{ key, above?, at_least?, below?, at_most? }` | Internal performance metric comparison |
 | `random_chance` | number 0–1 | True with given probability each evaluation |
 
+The 4 numeric operators (`above`/`at_least`/`below`/`at_most`) AND-combine
+when more than one is present on the same condition, so a range is
+expressed by combining two of them:
+
+```yaml
+when:
+  entity: sensor.cpu_temp
+  at_least: 20   # inclusive range: 20 <= value <= 80
+  at_most: 80
+```
+
+The condition-group editor's operator dropdown offers this as ready-made
+"between" / "between (exclusive)" options for entity and entity-attribute
+conditions. `sun_elevation`/`perf_metric` already expose all 4 bound fields
+at once, so a range needs no special operator there — just fill in two of
+the four fields.
+
 ---
 
 ## Targeting

@@ -1944,7 +1944,11 @@ export class LCARdSButton extends LCARdSCard {
             const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
 
             // Handle special cases
-            if (key === 'fill' || key === 'stroke' || key === 'opacity') {
+            if (key === 'fill' || key === 'stroke') {
+                // Full pipeline required: SVG fill/stroke attributes cannot handle
+                // var() or an unresolved theme: string written via setAttribute().
+                element.setAttribute(attrName, this._resolveColorValue(value, value));
+            } else if (key === 'opacity') {
                 element.setAttribute(attrName, value);
             } else if (key === 'strokeWidth' || key === 'stroke-width') {
                 element.setAttribute('stroke-width', value);
@@ -2194,6 +2198,54 @@ export class LCARdSButton extends LCARdSCard {
             });
         }
 
+        // Subscribe to alert mode changes so colors resolved from live CSS vars
+        // (e.g. var(--lcars-alert-red), which the alert-mode "wash" rewrites)
+        // repaint once the new values are actually committed — see
+        // _handleAlertModeChange for why this can't rely on the entity-state
+        // hass update alone.
+        this._subscribeToAlertMode();
+    }
+
+    /**
+     * Subscribe to alert mode changes via ThemeManager.
+     *
+     * Some color configs (e.g. explicit `var(--lcars-alert-red)` state maps)
+     * resolve via a live getComputedStyle() read of a CSS custom property that
+     * the alert-mode "wash" (paletteInjector.transformAndApplyAlertMode())
+     * rewrites asynchronously, gated behind a requestAnimationFrame. The
+     * entity-state hass update that drives this card's own range/preset
+     * switch fires synchronously and renders on the next microtask — faster
+     * than that rAF-gated write — so a render triggered only by the hass
+     * update can capture the PREVIOUS mode's CSS var value, one mode behind.
+     *
+     * ThemeManager fires this subscription AFTER the CSS variables are
+     * confirmed written, so requestUpdate() here is guaranteed to re-resolve
+     * against the settled values. Mirrors LCARdSSlider._subscribeToAlertMode().
+     * @private
+     */
+    _subscribeToAlertMode() {
+        this._alertModeUnsubscribe?.();
+        this._alertModeUnsubscribe = null;
+
+        const themeManager = window.lcards?.core?.themeManager;
+        if (themeManager?.subscribeToAlertMode) {
+            this._alertModeUnsubscribe = themeManager.subscribeToAlertMode(
+                this._handleAlertModeChange.bind(this)
+            );
+            lcardsLog.debug('[LCARdSButton] Subscribed to ThemeManager alert mode changes');
+        } else {
+            lcardsLog.warn('[LCARdSButton] ThemeManager.subscribeToAlertMode not available — alert mode subscription skipped');
+        }
+    }
+
+    /**
+     * Called when alert mode changes (red/yellow/blue/green/gray).
+     * @param {string} newMode
+     * @private
+     */
+    _handleAlertModeChange(newMode) {
+        lcardsLog.debug(`[LCARdSButton] Alert mode changed to ${newMode} — requesting update`);
+        this.requestUpdate();
     }
 
     /**
@@ -5466,6 +5518,9 @@ export class LCARdSButton extends LCARdSCard {
 
             resolvedColor = this._resolveMatchLightColor(resolvedColor);
 
+            // Full pipeline required: SVG fill attributes cannot handle var() or match-light.
+            resolvedColor = this._resolveColorValue(String(resolvedColor), String(resolvedColor));
+
             // Resolve background color based on entity state (supports state-based color map)
             // Full pipeline required: SVG fill attributes cannot handle var() or match-light.
             const resolvedBackground = field.background
@@ -5850,6 +5905,9 @@ export class LCARdSButton extends LCARdSCard {
                 });
             }
             resolvedColor = this._resolveMatchLightColor(resolvedColor);
+
+            // Full pipeline required: SVG fill attributes cannot handle var() or match-light.
+            resolvedColor = this._resolveColorValue(String(resolvedColor), String(resolvedColor));
 
             // ── Build <text> element ──────────────────────────────────────────
             const textAttrs = [
@@ -6750,6 +6808,9 @@ export class LCARdSButton extends LCARdSCard {
      * Cleanup on disconnect
      */
     disconnectedCallback() {
+        this._alertModeUnsubscribe?.();
+        this._alertModeUnsubscribe = null;
+
         // Clean up action listeners
         if (this._actionCleanup) {
             this._actionCleanup();

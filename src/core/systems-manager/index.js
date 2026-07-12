@@ -112,8 +112,14 @@ export class CoreSystemsManager {
       Object.entries(hass.states).forEach(([entityId, newState]) => {
         const oldState = this._entityStates.get(entityId);
 
+        // last_changed only bumps when the state STRING transitions; last_updated
+        // bumps on any change including attribute-only updates (e.g. brightness on
+        // an already-"on" light). Checking last_changed alone silently drops
+        // attribute-only changes — entity subscribers (on_entity_change animations
+        // watching an `attribute`, e.g. brightness_pct) never fire for them.
         if (!oldState || oldState.state !== newState.state ||
-            oldState.last_changed !== newState.last_changed) {
+            oldState.last_changed !== newState.last_changed ||
+            oldState.last_updated !== newState.last_updated) {
           changedEntities.add(entityId);
           // Trace log for subscribed entities
           if (this._entitySubscriptions.has(entityId)) {

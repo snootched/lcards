@@ -2,7 +2,7 @@ import { linearMap } from '../../utils/linearMap.js';
 import { TemplateDetector } from '../templates/TemplateDetector.js';
 import { TemplateParser } from '../templates/TemplateParser.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { compareThreshold } from '../../utils/comparison-utils.js';
+import { compareNumericBounds } from '../../utils/comparison-utils.js';
 
 export function compileRule(rule, issues) {
   const raw = rule.when;
@@ -531,11 +531,8 @@ function compareValue(valRaw, c) {
       return false;
     }
   }
-  if (c.above != null && isNum && !compareThreshold(num, 'above', c.above)) return false;
-  if (c.at_least != null && isNum && !compareThreshold(num, 'at_least', c.at_least)) return false;
-  if (c.below != null && isNum && !compareThreshold(num, 'below', c.below)) return false;
-  if (c.at_most != null && isNum && !compareThreshold(num, 'at_most', c.at_most)) return false;
-  if (c.above != null || c.at_least != null || c.below != null || c.at_most != null) return true;
+  const hasBound = c.above != null || c.at_least != null || c.below != null || c.at_most != null;
+  if (hasBound) return isNum && compareNumericBounds(num, c);
   // If only equals-like handled earlier; default false unless no operator (treated as truthy existence)
   return c.equals == null && c.not_equals == null && c.in == null && c.not_in == null && c.regex == null ? !!valRaw : false;
 }
@@ -563,21 +560,14 @@ function evalWeekdayIn(list, ctx) {
 function evalSunElevation(cmp, ctx) {
   const elev = ctx.sun?.elevation;
   if (!Number.isFinite(elev)) return false;
-  if (cmp.above != null && !compareThreshold(elev, 'above', cmp.above)) return false;
-  if (cmp.at_least != null && !compareThreshold(elev, 'at_least', cmp.at_least)) return false;
-  if (cmp.below != null && !compareThreshold(elev, 'below', cmp.below)) return false;
-  if (cmp.at_most != null && !compareThreshold(elev, 'at_most', cmp.at_most)) return false;
-  return true;
+  return compareNumericBounds(elev, cmp);
 }
 
 function evalPerfMetric(c, ctx) {
   const val = ctx.getPerf?.(c.key);
   const num = Number(val);
   if (!Number.isFinite(num)) return false;
-  if (c.above != null && !compareThreshold(num, 'above', c.above)) return false;
-  if (c.at_least != null && !compareThreshold(num, 'at_least', c.at_least)) return false;
-  if (c.below != null && !compareThreshold(num, 'below', c.below)) return false;
-  if (c.at_most != null && !compareThreshold(num, 'at_most', c.at_most)) return false;
+  if (!compareNumericBounds(num, c)) return false;
   if (c.equals != null) return num == c.equals;
   return true;
 }

@@ -1009,8 +1009,10 @@ export class LCARdSSlider extends LCARdSButton {
                 colorConfig,
                 fallback
             });
-            // resolveStateColor can return string | number | null; coerce to string for SVG attributes
-            return resolved != null ? String(resolved) : fallback;
+            // resolveStateColor can return string | number | null; coerce to string, then run
+            // through the full pipeline (theme: safety net + var() materialization) since this
+            // value is written to SVG attributes.
+            return resolved != null ? this._resolveColorValue(String(resolved), fallback) : fallback;
         }
         return this._resolveColorValue(colorConfig, fallback);
     }

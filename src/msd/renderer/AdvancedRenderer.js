@@ -7,6 +7,7 @@
 import { RendererUtils } from './RendererUtils.js';
 import { OverlayUtils } from './OverlayUtils.js';
 import { AttachmentPointManager } from './AttachmentPointManager.js';
+import { ColorUtils } from '../../core/themes/ColorUtils.js';
 
 import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -1470,12 +1471,18 @@ export class AdvancedRenderer {
       const lineRenderer = this._getRendererForOverlay(overlay);
       if (!lineRenderer || typeof lineRenderer._resolveLineColor !== 'function') continue;
 
-      const newColor = lineRenderer._resolveLineColor(
+      const rawColor = lineRenderer._resolveLineColor(
         styleValue,
         overlay,
         cardInstance,
         'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))'
       );
+      // Full pipeline required: setAttribute() cannot handle var() —
+      // _resolveLineColor() only performs token/state resolution for literal
+      // string colors, so materialize any remaining var(...) here before writing
+      // it to the DOM. `el` scopes the lookup so inherited/section-scoped CSS
+      // vars resolve correctly.
+      const newColor = ColorUtils.resolveCssVariable(rawColor, '#ff7700', el);
 
       const paths = el.querySelectorAll('.line-path, .line-selection-indicator');
       paths.forEach(p => p.setAttribute('stroke', newColor));

@@ -341,7 +341,7 @@ export const animationSchema = {
         },
         while: {
             type: 'object',
-            description: 'Lifecycle condition for looping animations (requires the top-level loop: true field). The animation plays while the condition is true and stops automatically when it becomes false. Note: to_state/from_state are fire-and-forget gates \u2014 they control when the animation starts but will not stop it. Use while to auto-stop a looping animation. Numeric bounds also accept at_least/at_most for inclusive comparisons.',
+            description: 'Lifecycle condition for looping animations (requires the top-level loop: true field). The animation plays while the condition is true and stops automatically when it becomes false. Note: to_state/from_state are fire-and-forget gates \u2014 they control when the animation starts but will not stop it. Use while to auto-stop a looping animation. The 4 numeric bound keys (above/at_least/below/at_most) AND-combine when more than one is present, so a range can be expressed by combining two of them \u2014 e.g. { at_least: 20, at_most: 80 } for an inclusive range, or { above: 20, below: 80 } for an exclusive one.',
             properties: {
                 state:     { type: 'string', description: 'Play while entity value equals this string' },
                 not_state: { type: 'string', description: 'Play while entity value does NOT equal this string' },
@@ -356,7 +356,9 @@ export const animationSchema = {
                 { above: 50 },
                 { at_least: 50 },
                 { below: 100 },
-                { at_most: 100 }
+                { at_most: 100 },
+                { at_least: 20, at_most: 80 },
+                { above: 20, below: 80 }
             ]
         },
         id: {

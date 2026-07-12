@@ -54,7 +54,9 @@ Use `to_state` alone when you only care about the destination. Use `from_state` 
 
 ### `while` condition keys
 
-Use exactly one key:
+`state`/`not_state` are used alone. The 4 numeric bound keys AND-combine
+when more than one is present, so a range condition is expressed by
+combining two of them:
 
 | Key | Meaning |
 |-----|---------|
@@ -64,6 +66,21 @@ Use exactly one key:
 | `at_least` | numeric value greater than or equal to threshold |
 | `below` | numeric value strictly less than threshold |
 | `at_most` | numeric value less than or equal to threshold |
+
+```yaml alternatives
+# Inclusive range: play while 20 <= value <= 80
+while:
+  at_least: 20
+  at_most: 80
+
+# Exclusive range: play while 20 < value < 80
+while:
+  above: 20
+  below: 80
+```
+
+The animation editor's "Play while..." dropdown offers these as ready-made
+"Between (inclusive)" / "Between (exclusive)" options.
 
 ### `check_on_load`
 
@@ -91,6 +108,11 @@ Use `attribute` to watch a specific entity attribute instead of the main state:
 ```
 
 `brightness_pct` is a special computed attribute that converts the raw HA brightness value (0–255) to a 0–100 percentage for easier threshold comparisons.
+
+The animation editor's Attribute field is a searchable dropdown listing the
+selected `entity`'s actual attributes (with `brightness_pct` injected right
+after `brightness`), not just a free-text box — pick an entity first to
+populate it.
 
 `attribute` applies to `from_state`, `to_state`, and `while` alike.
 

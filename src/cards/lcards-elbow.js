@@ -615,6 +615,11 @@ export class LCARdSElbow extends LCARdSButton {
         // Subscribe to theme input_number entities if configured to use them
         this._subscribeToThemeEntities();
 
+        // Note: alert-mode subscription is handled by the inherited
+        // LCARdSButton._handleFirstUpdate() call above (this.requestUpdate()
+        // on alert mode change repaints the elbow's theme-token-derived
+        // bar/segment colors too — _getElbowColor() resolves tokens live).
+
         // Mount symbiont card if configured.
         // Seed _lastSymbiontConfigJson here so the dirty-check in setConfig
         // doesn't treat the first post-mount setConfig call (e.g. after an
@@ -948,6 +953,9 @@ export class LCARdSElbow extends LCARdSButton {
      */
     disconnectedCallback() {
         this._unsubscribeThemeEntities();
+
+        // Note: alert-mode unsubscribe is handled by the inherited
+        // LCARdSButton.disconnectedCallback() via the super call below.
 
         // Clean up viewport resize listener
         if (this._cssUnitResizeHandler) {
@@ -3366,6 +3374,14 @@ export class LCARdSElbow extends LCARdSButton {
                     return;
                 }
                 this._symbiontWrapper = null;
+
+                // Attach to DOM BEFORE applyHassToCard/applyCardConfig — LCARdS
+                // cards initialize singletons (theme manager, etc.) in
+                // connectedCallback/firstUpdated, so attaching first ensures
+                // setConfig() lands on a fully-initialised card (mirrors
+                // PortalOverlayManager._mountContent()'s established ordering).
+                this._symbiontElement = cardElement;
+                this._attachSymbiontToContainer();
 
                 // Apply HASS BEFORE config (required — same order as MSD controls)
                 if (this.hass) {

@@ -48,10 +48,20 @@ const ENTITY_OPERATORS = [
     { value: 'at_least',   label: 'at least (≥)' },
     { value: 'below',      label: 'below' },
     { value: 'at_most',    label: 'at most (≤)' },
+    { value: 'between',           label: 'between (≥ and ≤)' },
+    { value: 'between_exclusive', label: 'between (exclusive, > and <)' },
     { value: 'in',         label: 'in list' },
     { value: 'not_in',     label: 'not in list' },
     { value: 'regex',      label: 'regex match' }
 ];
+
+// Composite range operators — each maps to two atomic condition keys that
+// AND-combine (compileConditions.js's compareValue already ANDs every
+// present bound key).
+const COMBO_OPERATOR_BOUNDS = {
+    between:           { loKey: 'at_least', hiKey: 'at_most' }, // inclusive both ends
+    between_exclusive: { loKey: 'above',    hiKey: 'below' }    // exclusive both ends
+};
 
 const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -237,6 +247,12 @@ export class LCARdSConditionGroupEditor extends LitElement {
      * @returns {{ key: string, value: * }} Operator name and its value
      */
     _detectOperator(cond) {
+        // Combo (range) operators take priority over their atomic keys when both bounds are present.
+        for (const [comboKey, { loKey, hiKey }] of Object.entries(COMBO_OPERATOR_BOUNDS)) {
+            if (cond[loKey] !== undefined && cond[hiKey] !== undefined) {
+                return { key: comboKey, value: { lo: cond[loKey], hi: cond[hiKey] } };
+            }
+        }
         for (const op of ['equals', 'not_equals', 'above', 'at_least', 'below', 'at_most', 'in', 'not_in', 'regex']) {
             if (cond[op] !== undefined) return { key: op, value: cond[op] };
         }
@@ -257,13 +273,23 @@ export class LCARdSConditionGroupEditor extends LitElement {
         switch (type) {
             case 'entity': {
                 const op = cond.operator || 'equals';
+                const combo = COMBO_OPERATOR_BOUNDS[op];
+                if (combo) {
+                    const v = cond.value || {};
+                    return { entity: cond.entity || '', [combo.loKey]: Number(v.lo ?? 0), [combo.hiKey]: Number(v.hi ?? 100) };
+                }
                 const val = cond.value !== undefined ? cond.value : '';
                 return { entity: cond.entity || '', [op]: val };
             }
             case 'entity_attr': {
                 const op = cond.operator || 'equals';
-                const val = cond.value !== undefined ? cond.value : '';
+                const combo = COMBO_OPERATOR_BOUNDS[op];
                 // Schema uses 'entity' (not 'entity_attr') plus 'attribute' key
+                if (combo) {
+                    const v = cond.value || {};
+                    return { entity: cond.entity || '', attribute: cond.attribute || '', [combo.loKey]: Number(v.lo ?? 0), [combo.hiKey]: Number(v.hi ?? 100) };
+                }
+                const val = cond.value !== undefined ? cond.value : '';
                 return { entity: cond.entity || '', attribute: cond.attribute || '', [op]: val };
             }
             case 'jinja2':
@@ -782,13 +808,30 @@ export class LCARdSConditionGroupEditor extends LitElement {
                 .value=${cond.operator || 'equals'}
                 @value-changed=${(e) => set('operator', e.detail.value)}>
             </ha-selector>
-            <ha-selector
-                .hass=${this.hass}
-                .label=${'Value'}
-                .selector=${{ text: {} }}
-                .value=${cond.value !== undefined ? String(cond.value) : (cond.state !== undefined ? String(cond.state) : '')}
-                @value-changed=${(e) => set('value', e.detail.value)}>
-            </ha-selector>
+            ${COMBO_OPERATOR_BOUNDS[cond.operator] ? html`
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Min'}
+                    .selector=${{ text: {} }}
+                    .value=${cond.value?.lo !== undefined ? String(cond.value.lo) : ''}
+                    @value-changed=${(e) => set('value', { ...(cond.value || {}), lo: e.detail.value })}>
+                </ha-selector>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Max'}
+                    .selector=${{ text: {} }}
+                    .value=${cond.value?.hi !== undefined ? String(cond.value.hi) : ''}
+                    @value-changed=${(e) => set('value', { ...(cond.value || {}), hi: e.detail.value })}>
+                </ha-selector>
+            ` : html`
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Value'}
+                    .selector=${{ text: {} }}
+                    .value=${cond.value !== undefined ? String(cond.value) : (cond.state !== undefined ? String(cond.state) : '')}
+                    @value-changed=${(e) => set('value', e.detail.value)}>
+                </ha-selector>
+            `}
         `;
     }
 }

@@ -77,7 +77,9 @@ const color = theme.palette.moonlight;
 
 Alert mode changes are triggered by calling `themeManager.setAlertMode(mode)`. This is typically driven by `AlertMode` service, which watches the `input_select.lcars_alert_mode` helper via `HelperManager` and calls `setAlertMode()` whenever it changes.
 
-When `setAlertMode(mode)` is called, it:
+`setAlertMode()` calls are serialized — each call chains onto an internal queue, so back-to-back calls (e.g. rapid alert-mode switching) always finish applying in the order they were issued, even though the work itself is async. Returns a `Promise<void>` that resolves once this call's own turn has fully applied.
+
+When a call reaches the front of the queue, it:
 1. Loads user-customised transform parameters from HA helpers (unless `opts.skipHelperLoad` is set, e.g. from the Alert Lab editor)
 2. Calls `paletteInjector` which writes new values to CSS custom properties on `:root`
 3. Clears the `ThemeTokenResolver` cache so fresh resolves pick up the new values
@@ -142,7 +144,7 @@ Scoped overrides require the `scoped_storage` backend capability — they degrad
 | `resolveToken(path)` | `string\|null` | Resolve a dot-path token against the active theme |
 | `getToken(path, fallback?)` | `string` | Resolve token with a default fallback value |
 | `getAlertMode()` | `string` | Current alert mode (`'green'`, `'red'`, `'yellow'`) |
-| `setAlertMode(mode)` | `void` | Trigger alert mode change (updates CSS vars + fires events) |
+| `setAlertMode(mode)` | `Promise<void>` | Trigger alert mode change (updates CSS vars + fires events); calls are serialized/queued |
 | `getRegisteredThemes()` | `Map<id, Theme>` | All loaded theme objects |
 
 ---

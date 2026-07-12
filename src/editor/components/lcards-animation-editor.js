@@ -28,6 +28,7 @@ import { ANIMATION_PRESET_PARAMS_SCHEMAS } from '../../cards/schemas/animation-p
 import { ANIMATION_PRESET_DOCS_URL } from './shared/docs-links.js';
 import { infoGuideStyles } from './shared/info-guide-styles.js';
 import { searchableSelectStyles } from './shared/searchable-select-styles.js';
+import { getAttributeOptions } from '../../utils/attribute-options.js';
 
 /**
  * Presets whose params are rendered generically via FormField.renderField(),
@@ -162,6 +163,12 @@ const ANIMEJS_DEFAULT_REFERENCE_URL = `${ANIMEJS_DOCS_BASE}/animation`;
 
 // 'while' condition types whose value is a numeric threshold rather than a state string.
 const NUMERIC_WHILE_TYPES = ['above', 'at_least', 'below', 'at_most'];
+// Composite range types — each maps to two atomic while-condition keys that
+// AND-combine (see TriggerManager._evaluateWhileCondition).
+const COMBO_WHILE_BOUNDS = {
+  between:           { loKey: 'at_least', hiKey: 'at_most' }, // inclusive both ends
+  between_exclusive: { loKey: 'above',    hiKey: 'below' }    // exclusive both ends
+};
 
 export class LCARdSAnimationEditor extends LitElement {
   static get properties() {
@@ -1640,6 +1647,7 @@ export class LCARdSAnimationEditor extends LitElement {
     const whileType  = this._getWhileConditionType(anim);
     const whileValue = this._getWhileConditionValue(anim);
     const whileIsNumeric = NUMERIC_WHILE_TYPES.includes(whileType);
+    const whileBounds = this._getWhileConditionBounds(anim);
 
     return html`
       <div style="margin-top: 16px; padding: 12px; background: var(--secondary-background-color); border-radius: 6px;">
@@ -1655,13 +1663,21 @@ export class LCARdSAnimationEditor extends LitElement {
           style="margin-bottom: 12px;">
         </ha-selector>
 
-        <ha-input
-          label="Attribute (optional)"
-          .value=${anim.attribute || ''}
+        <ha-selector
+          .hass=${this.hass}
+          .label=${'Attribute (optional)'}
           .helper=${'Attribute to read instead of entity state. Applies to from_state, to_state, and while. Use brightness_pct for a computed 0\u2013100 light brightness percentage.'}
-          @input=${(e) => this._updateAnimation(index, 'attribute', e.target.value || undefined)}
+          .selector=${{ select: { mode: 'dropdown', custom_value: true, options: [
+            { value: '__none__', label: '\u2014 Use entity state' },
+            ...getAttributeOptions(this.hass, anim.entity || this.cardElement?.config?.entity)
+          ] } }}
+          .value=${anim.attribute || '__none__'}
+          @value-changed=${(e) => {
+            const v = (e.detail.value ?? '').trim();
+            this._updateAnimation(index, 'attribute', (v === '__none__' || !v) ? undefined : v);
+          }}
           style="width: 100%; margin-bottom: 12px;">
-        </ha-input>
+        </ha-selector>
 
         <lcards-message type="warning" .message=${'\u26a0\ufe0f from_state and to_state are fire-and-forget gates \u2014 they control when an animation starts but will NOT stop a looping animation. To automatically stop a loop when a condition clears, add a While Condition below.'}></lcards-message>
 
@@ -1682,7 +1698,7 @@ export class LCARdSAnimationEditor extends LitElement {
         </ha-input>
 
         <label class="field-label" style="margin-top: 8px; display: block;">While Condition <span style="font-size: 0.85em; opacity: 0.7;">(requires loop: true)</span></label>
-        <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: flex-start;">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: flex-start; flex-wrap: wrap;">
           <ha-selector
             .hass=${this.hass}
             .selector=${{ select: { options: [
@@ -1692,14 +1708,31 @@ export class LCARdSAnimationEditor extends LitElement {
               { value: 'above',     label: 'Above (numeric >)' },
               { value: 'at_least',  label: 'At Least (numeric ≥)' },
               { value: 'below',     label: 'Below (numeric <)' },
-              { value: 'at_most',   label: 'At Most (numeric ≤)' }
+              { value: 'at_most',   label: 'At Most (numeric ≤)' },
+              { value: 'between',           label: 'Between (inclusive, ≥ and ≤)' },
+              { value: 'between_exclusive', label: 'Between (exclusive, > and <)' }
             ]}}}
             .value=${whileType}
             .label=${'Play while...'}
             @value-changed=${(e) => this._updateWhileConditionType(index, e.detail.value)}
-            style="flex: 1;">
+            style="flex: 1; min-width: 160px;">
           </ha-selector>
-          ${whileType !== 'none' ? html`
+          ${whileBounds ? html`
+            <ha-input
+              label="Min"
+              type="number"
+              .value=${String(whileBounds.lo ?? '')}
+              @input=${(e) => this._updateWhileConditionBoundValue(index, whileBounds.loKey, e.target.value)}
+              style="flex: 1; min-width: 100px;">
+            </ha-input>
+            <ha-input
+              label="Max"
+              type="number"
+              .value=${String(whileBounds.hi ?? '')}
+              @input=${(e) => this._updateWhileConditionBoundValue(index, whileBounds.hiKey, e.target.value)}
+              style="flex: 1; min-width: 100px;">
+            </ha-input>
+          ` : whileType !== 'none' ? html`
             <ha-input
               label="Value"
               type=${whileIsNumeric ? 'number' : 'text'}
@@ -1734,6 +1767,9 @@ export class LCARdSAnimationEditor extends LitElement {
     if (!w || typeof w !== 'object') return 'none';
     if ('state'     in w) return 'state';
     if ('not_state' in w) return 'not_state';
+    // Combo (range) types take priority over their atomic keys when both bounds are present.
+    if ('at_least' in w && 'at_most' in w) return 'between';
+    if ('above'    in w && 'below'   in w) return 'between_exclusive';
     if ('above'     in w) return 'above';
     if ('at_least'  in w) return 'at_least';
     if ('below'     in w) return 'below';
@@ -1741,19 +1777,31 @@ export class LCARdSAnimationEditor extends LitElement {
     return 'none';
   }
 
-  /** Return the current while condition value as a string */
+  /** Return the current while condition value as a string (atomic types only) */
   _getWhileConditionValue(anim) {
     const type = this._getWhileConditionType(anim);
-    if (type === 'none') return '';
+    if (type === 'none' || COMBO_WHILE_BOUNDS[type]) return '';
     return String(anim.while[type] ?? '');
   }
 
-  /** Handle while condition TYPE change (e.g. 'state' → 'above') */
+  /** Return { loKey, hiKey, lo, hi } for a combo (range) while condition type, or null */
+  _getWhileConditionBounds(anim) {
+    const type = this._getWhileConditionType(anim);
+    const combo = COMBO_WHILE_BOUNDS[type];
+    if (!combo) return null;
+    const w = anim.while || {};
+    return { loKey: combo.loKey, hiKey: combo.hiKey, lo: w[combo.loKey], hi: w[combo.hiKey] };
+  }
+
+  /** Handle while condition TYPE change (e.g. 'state' → 'above' → 'between') */
   _updateWhileConditionType(index, condType) {
     const updated = [...this.animations];
+    const combo = COMBO_WHILE_BOUNDS[condType];
     if (condType === 'none') {
       const { while: _removed, ...rest } = updated[index];
       updated[index] = rest;
+    } else if (combo) {
+      updated[index] = { ...updated[index], while: { [combo.loKey]: 0, [combo.hiKey]: 100 } };
     } else {
       const currentVal = this._getWhileConditionValue(updated[index]);
       const isNumeric  = NUMERIC_WHILE_TYPES.includes(condType);
@@ -1764,12 +1812,20 @@ export class LCARdSAnimationEditor extends LitElement {
     this._fireChange();
   }
 
-  /** Handle while condition VALUE change */
+  /** Handle while condition VALUE change (atomic types only) */
   _updateWhileConditionValue(index, condType, rawValue) {
     const updated  = [...this.animations];
     const isNumeric = NUMERIC_WHILE_TYPES.includes(condType);
     const val = isNumeric ? Number(rawValue) : rawValue;
     updated[index] = { ...updated[index], while: { [condType]: val } };
+    this._workingAnimations = updated;
+    this._fireChange();
+  }
+
+  /** Handle a single bound edit for a combo (range) while condition, keeping the other bound intact */
+  _updateWhileConditionBoundValue(index, key, rawValue) {
+    const updated = [...this.animations];
+    updated[index] = { ...updated[index], while: { ...updated[index].while, [key]: Number(rawValue) } };
     this._workingAnimations = updated;
     this._fireChange();
   }

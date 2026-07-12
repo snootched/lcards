@@ -121,14 +121,26 @@ All operators work on both `entity` state and `entity_attr` values.
 | `not_in` | list | `not_in: ["off", "unavailable"]` | State is not in list |
 | `regex` | string | `regex: "^heat"` | State matches regular expression |
 
-`above` and `below` can be combined in a single condition to express a range:
+The 4 numeric operators AND-combine when more than one is present on the
+same condition, so a range is expressed by combining two of them:
 
-```yaml
+```yaml alternatives
+# Exclusive range: 18 < value < 26
 when:
   entity: sensor.temperature
   above: 18
   below: 26
+
+# Inclusive range: 18 <= value <= 26
+when:
+  entity: sensor.temperature
+  at_least: 18
+  at_most: 26
 ```
+
+The condition-group editor's operator dropdown offers these as ready-made
+"between" / "between (exclusive)" options — pick one and it fills in both
+bound fields for you.
 
 ### Examples
 
