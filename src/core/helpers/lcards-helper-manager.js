@@ -688,14 +688,20 @@ export class LCARdSHelperManager extends BaseService {
    * the undocumented WebSocket API for reliability across HA versions.
    *
    * HA's set_options resets the current value to the first option, so we
-   * capture the current value first and restore it afterwards if it still
-   * exists in the new options list.
+   * restore it afterwards if it's present in the new options list.
    *
    * @param {string} key - Helper registry key (e.g., 'sound_scheme')
    * @param {string[]} options - New options list
+   * @param {string} [preferredValue] - Value to restore/ensure selected after
+   *   the options update, if present in `options`. Defaults to the entity's
+   *   current live value. Pass this explicitly when the caller may sync in
+   *   multiple waves with an initially-incomplete `options` list (e.g. a
+   *   scheme registered after an earlier wave's set_options call has already
+   *   reset the live value to options[0]) — the live value can no longer be
+   *   trusted as "what the user actually selected" once that's happened.
    * @returns {Promise<boolean>}
    */
-  async updateSelectOptions(key, options) {
+  async updateSelectOptions(key, options, preferredValue) {
     if (!this.hass) return false;
 
     const definition = getHelperDefinition(key);
@@ -716,14 +722,28 @@ export class LCARdSHelperManager extends BaseService {
     const entityState = hass.states?.[definition.entity_id];
     const currentValue = entityState?.state;
     const currentOptions = entityState?.attributes?.options;
+    const restoreTarget = preferredValue ?? currentValue;
 
-    // Skip if the option list is already correct — avoids HA resetting the selection
-    // to the first option between set_options and the restore select_option call.
+    // Skip the options update if the list is already correct — but still check
+    // whether the live value needs restoring, in case an earlier sync wave's
+    // restore attempt couldn't find `restoreTarget` in an incomplete options
+    // list at the time and it's only just become valid.
     const alreadyMatches = Array.isArray(currentOptions) &&
       currentOptions.length === options.length &&
       options.every((o, i) => currentOptions[i] === o);
     if (alreadyMatches) {
-      lcardsLog.debug(`[HelperManager] ${key} options already match — skipping sync`);
+      if (restoreTarget && restoreTarget !== currentValue && options.includes(restoreTarget)) {
+        try {
+          await hass.callService('input_select', 'select_option', {
+            entity_id: definition.entity_id,
+            option: restoreTarget
+          });
+          lcardsLog.debug(`[HelperManager] Restored ${key} selection: ${restoreTarget}`);
+        } catch (restoreErr) {
+          lcardsLog.warn(`[HelperManager] Failed to restore ${key} selection:`, restoreErr.message);
+        }
+      }
+      lcardsLog.debug(`[HelperManager] ${key} options already match — skipping options update`);
       return true;
     }
 
@@ -734,14 +754,14 @@ export class LCARdSHelperManager extends BaseService {
       });
       lcardsLog.debug(`[HelperManager] Updated ${key} options:`, options);
 
-      // Restore previous selection if it is still a valid option
-      if (currentValue && options.includes(currentValue)) {
+      // Restore the target selection if it's a valid option
+      if (restoreTarget && options.includes(restoreTarget)) {
         try {
           await hass.callService('input_select', 'select_option', {
             entity_id: definition.entity_id,
-            option: currentValue
+            option: restoreTarget
           });
-          lcardsLog.debug(`[HelperManager] Restored ${key} selection: ${currentValue}`);
+          lcardsLog.debug(`[HelperManager] Restored ${key} selection: ${restoreTarget}`);
         } catch (restoreErr) {
           lcardsLog.warn(`[HelperManager] Failed to restore ${key} selection:`, restoreErr.message);
         }

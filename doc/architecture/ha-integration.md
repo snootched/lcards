@@ -59,6 +59,7 @@ graph TB
 | `frontend.py` | Registers static HTTP paths and injects `lcards.js` (with `?log=` param) into every HA frontend session |
 | `config_flow.py` | Initial setup flow (single-instance, no user input) + options flow (panel, log level, sidebar customisation) |
 | `websocket_api.py` | Registers `lcards/info`, `lcards/subscribe`, and all `lcards/storage/*` WebSocket commands |
+| `media_source.py` | `MediaSource` platform — exposes bundled `images/`/`sounds/` as a browsable "LCARdS" folder in HA's native media browser (auto-discovered, no explicit wiring) |
 | `storage.py` | `LCARdSStorage` — HA Store-backed flat key/value persistence (`.storage/lcards`) |
 | `services.py` | Registers the `lcards.*` HA action namespace — 9 services covering alert modes and frontend control |
 | `services.yaml` | Action descriptions and field selectors shown in Developer Tools → Actions |
@@ -120,6 +121,31 @@ A single directory registration serves the entire `custom_components/lcards/` di
 | `/lcards/brand/*` | `brand/` | Brand icons and graphics |
 
 All asset URLs in the JS bundle reference the `/lcards/` prefix, which maps directly to `custom_components/lcards/` via the integration's static path registration.
+
+---
+
+## Media Source Platform
+
+`media_source.py` exposes the bundled `images/` and `sounds/` directories as a browsable, read-only **"LCARdS"** folder inside Home Assistant's native media browser — the Media sidebar panel, any media-picker dialog, and every `ha-selector` of type `media` (including the ones LCARdS's own editors use, see [Asset Manager — media-source:// Resolution Flow](subsystems/asset-manager#media-source-resolution-flow)).
+
+**Discovery is automatic and requires no explicit registration call.** HA's own `media_source` integration scans every loaded integration (including custom ones) for a `media_source.py` module exposing `async_get_media_source(hass)`, via `homeassistant.helpers.integration_platform.async_process_integration_platforms`. The moment this file exists, `hass.data[MEDIA_SOURCE_DATA]["lcards"]` is set and LCARdS appears as a top-level media source — no `manifest.json` dependency is strictly required for discovery (LCARdS declares `"after_dependencies": ["media_source"]` defensively, purely to order its own setup after `media_source`'s HTTP views/WS commands are ready).
+
+```mermaid
+graph LR
+    Discover["media_source integration\nasync_process_integration_platforms()"] -->|"finds media_source.py"| Get["async_get_media_source(hass)"]
+    Get --> Src["LCARdSMediaSource"]
+    Src -->|"async_browse_media()"| Browse["Browse tree:\nLCARdS → Images/Sounds → files"]
+    Src -->|"async_resolve_media()"| Resolve["PlayMedia(url='/lcards/...')"]
+    Resolve -->|"reuses"| StaticPath["existing /lcards static path\n(frontend.py)"]
+```
+
+`LCARdSMediaSource` (extends `MediaSource`) is deliberately simple and read-only — no upload/delete machinery, unlike HA core's `local_source.py`:
+
+- **`async_browse_media()`** walks the two allowed root directories (`images/`, `sounds/`) one level at a time, mapping each file's identifier to its path relative to `custom_components/lcards/` (e.g. `images/bedroom.jpg`, `sounds/lcards_alerts/alert_klaxon_1.mp3`). Only `image/*` and `audio/*` MIME types are surfaced (via `mimetypes.guess_type`).
+- **`async_resolve_media()`** does **not** serve files itself — it returns `PlayMedia(url=f"/lcards/{identifier}", ...)`, pointing straight at the static path `frontend.py` already registers. No new HTTP view is needed.
+- Path-traversal is guarded by resolving the requested identifier and checking it stays under the integration's own directory (`Path.relative_to()`), mirroring the check in HA core's `local_source.py`.
+
+This is intentionally scoped to LCARdS's own **bundled, read-only** assets. It does not expose user-uploaded or `/local/`-registered images — those already live in HA's own `media_source.local` tree.
 
 ---
 

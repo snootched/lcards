@@ -28,6 +28,7 @@ import {
   STORAGE_KEY_SOUND_VOLUME,
   STORAGE_KEY_SOUND_ENABLED,
   STORAGE_KEY_SOUND_SCHEME,
+  STORAGE_KEY_CUSTOM_SOUND_SCHEMES,
 } from '../services/ScopedSettingsConstants.js';
 
 /**
@@ -155,10 +156,39 @@ export class SoundManager extends BaseService {
      */
     this._syncInProgress = false;
 
+    /** @type {boolean} True if a sync was requested while one was already in-flight —
+     * triggers exactly one follow-up sync once the current one finishes, so a scheme
+     * registered mid-sync (e.g. custom schemes loading from storage while the
+     * pack-provided scheme sync's `set_options` network round trip is still pending)
+     * is never silently dropped from the HA helper's options list.
+     */
+    this._syncPending = false;
+
     /** @type {boolean} Whether a microtask-deferred sync has already been scheduled.
      * Prevents multiple rapid registerSchemes() calls from each triggering a separate sync.
      */
     this._syncScheduled = false;
+
+    /** @type {Function[]} Resolve callbacks for pending waitForSchemeSync() callers. */
+    this._syncSettledResolvers = [];
+
+    /** @type {boolean} True once _doLoadCustomSchemes() has settled (found custom
+     * schemes or not) — registerSchemes() only auto-syncs once this is true, so the
+     * very first scheme-options sync always sees the complete pack+custom list.
+     * See registerSchemes() for why syncing with an incomplete list is unsafe.
+     */
+    this._startupSchemesSettled = false;
+
+    /**
+     * The scheme name every sync should try to (re-)select once it's present
+     * in the options list — captured once, lazily, on the first sync this
+     * session, before any set_options call has had a chance to reset the
+     * live helper value to its first option. Updated when the live value is
+     * later observed to be a different, already-registered scheme (the user
+     * explicitly picked something new after startup settled).
+     * @type {string|null|undefined}
+     */
+    this._schemeRestoreValue = undefined;
 
     /**
      * In-memory cache of per-event sound overrides for the current user (user scope).
@@ -196,6 +226,14 @@ export class SoundManager extends BaseService {
     this._overridesLoadPromise = null;
 
     /**
+     * Promise that resolves once persisted custom sound schemes have been loaded
+     * from backend storage and registered. Set on the first call to
+     * _ensureCustomSchemesLoaded() that finds a valid integration.
+     * @type {Promise<void>|null}
+     */
+    this._customSchemesLoadPromise = null;
+
+    /**
      * Scoped-settings cache fields.
      * Populated asynchronously by _ensureOverridesLoaded(). While undefined the
      * synchronous getters fall back to the live HA helpers.
@@ -230,11 +268,17 @@ export class SoundManager extends BaseService {
    */
   updateHass(hass) {
     lcardsLog.trace('[SoundManager] updateHass received');
-    if (!this._schemesOptionsSynced && this._soundSchemes.size > 0) {
-      this._scheduleSyncSchemeHelperOptions();
-    }
+    // NOTE: the scheme-options sync is intentionally NOT triggered from here.
+    // _ensureCustomSchemesLoaded() below (via _doLoadCustomSchemes()) is the
+    // sole trigger for the first sync each session, once custom schemes have
+    // had their one chance to load — see registerSchemes() for why syncing
+    // any earlier, with a possibly-incomplete scheme list, is unsafe.
+
     // One-shot: load overrides from backend once IntegrationService has probed
     this._ensureOverridesLoaded();
+
+    // One-shot: load persisted custom sound schemes from backend once IntegrationService has probed
+    this._ensureCustomSchemesLoaded();
 
     // Subscribe to persistent notifications via WebSocket once we have a connection.
     // This is independent of any card being on the dashboard.
@@ -505,9 +549,21 @@ export class SoundManager extends BaseService {
       this._soundSchemes.set(name, schemes[name]);
       lcardsLog.debug(`[SoundManager] Registered sound scheme: ${name}`);
     });
-    // Defer the sync to the next microtask — if multiple packs register schemes in
-    // the same tick only a single sync fires after all of them have been added.
-    this._scheduleSyncSchemeHelperOptions();
+    // Startup registers schemes in two waves — pack-provided schemes register
+    // synchronously first, custom schemes load from backend storage moments
+    // later (an async round trip gated on the integration probe). Syncing
+    // after the FIRST wave would push an options list to the live HA entity
+    // that doesn't yet include the custom ones; input_select.set_options
+    // unconditionally resets the entity's *value* to the first option on any
+    // change, and since the entity is shared across every open tab, an
+    // incomplete list from one tab's early sync can stomp a value another
+    // tab (or this one, moments later) already correctly set. So: don't sync
+    // at all until _doLoadCustomSchemes() has settled (see below) — after
+    // that point every registerSchemes() call (e.g. saving a new scheme
+    // live) is a single, safe, immediate sync as before.
+    if (this._startupSchemesSettled) {
+      this._scheduleSyncSchemeHelperOptions();
+    }
   }
 
   /**
@@ -542,6 +598,161 @@ export class SoundManager extends BaseService {
       label,
       category: EVENT_CATEGORY[key] || 'other'
     }));
+  }
+
+  /**
+   * True if a scheme name is a user-created custom scheme (vs. pack-provided).
+   * @param {string} name
+   * @returns {boolean}
+   */
+  isCustomScheme(name) {
+    return typeof name === 'string' && name.startsWith('custom:');
+  }
+
+  /**
+   * One-shot load of persisted custom sound schemes from backend storage,
+   * registering them alongside pack-provided schemes. Mirrors
+   * _ensureOverridesLoaded()'s wait-for-integration-then-load-once pattern.
+   * Safe to call multiple times — always returns the same in-flight or
+   * completed promise.
+   * @returns {Promise<void>}
+   * @private
+   */
+  _ensureCustomSchemesLoaded() {
+    if (this._customSchemesLoadPromise) return this._customSchemesLoadPromise;
+    const integration = this._core?.integrationService;
+    if (!integration) return Promise.resolve(); // Core not ready yet — will retry on next updateHass()
+    this._customSchemesLoadPromise = this._doLoadCustomSchemes(integration);
+    return this._customSchemesLoadPromise;
+  }
+
+  /**
+   * Perform the actual custom-schemes load. Called once via _ensureCustomSchemesLoaded().
+   * @param {Object} integration
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _doLoadCustomSchemes(integration) {
+    await integration.onReady();
+
+    if (integration.available) {
+      const stored = await integration.readStorage(STORAGE_KEY_CUSTOM_SOUND_SCHEMES);
+      if (stored && Object.keys(stored).length > 0) {
+        Object.keys(stored).forEach(name => this._soundSchemes.set(name, stored[name]));
+        lcardsLog.debug(`[SoundManager] Loaded ${Object.keys(stored).length} custom sound scheme(s) from storage`);
+      }
+    }
+
+    // This is the first safe point to sync — pack schemes (registered
+    // synchronously, earlier in core init) and custom schemes (just above)
+    // have both had their one chance to register, whether or not any custom
+    // schemes were actually found. Every later registerSchemes() call syncs
+    // immediately, since there's no longer a second wave that could race it.
+    this._startupSchemesSettled = true;
+    this._scheduleSyncSchemeHelperOptions();
+  }
+
+  /**
+   * Read-modify-write the full custom_sound_schemes backend object.
+   * @param {(existing: Object) => Object} mutate - Receives the current stored
+   *   map, returns the new map to persist.
+   * @returns {Promise<{ok: boolean, error?: string}>}
+   * @private
+   */
+  async _writeCustomSchemes(mutate) {
+    const integration = this._core?.integrationService;
+    if (!integration?.available) {
+      return { ok: false, error: 'Backend unavailable — cannot save.' };
+    }
+    const existing = (await integration.readStorage(STORAGE_KEY_CUSTOM_SOUND_SCHEMES)) || {};
+    const updated = mutate(existing);
+    const wrote = await integration.writeStorage({ [STORAGE_KEY_CUSTOM_SOUND_SCHEMES]: updated });
+    if (!wrote) return { ok: false, error: 'Failed to save — backend write error.' };
+    return { ok: true };
+  }
+
+  /**
+   * Persist a user-created sound scheme, built from a snapshot of the current
+   * global per-event overrides, and register it immediately so it appears in
+   * the Sound Scheme dropdown without a reload.
+   *
+   * @param {string} name - Display name; slugified and prefixed 'custom:' to
+   *   form the full scheme name (e.g. "Bridge Ops" → "custom:bridge-ops").
+   * @param {Object} overridesMap - event type → assetKey | media-source id | null
+   * @returns {Promise<{ok: boolean, name?: string, error?: string}>}
+   */
+  async saveCustomScheme(name, overridesMap) {
+    const slug = String(name ?? '').trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    if (!slug) return { ok: false, error: 'Please enter a scheme name.' };
+
+    const fullName = `custom:${slug}`;
+    if (this._soundSchemes.has(fullName)) {
+      return { ok: false, error: 'A custom scheme with this name already exists.' };
+    }
+
+    const result = await this._writeCustomSchemes(existing => ({ ...existing, [fullName]: overridesMap }));
+    if (!result.ok) return result;
+
+    this.registerSchemes({ [fullName]: overridesMap });
+    lcardsLog.info(`[SoundManager] Saved custom sound scheme: ${fullName}`);
+    return { ok: true, name: fullName };
+  }
+
+  /**
+   * Overwrite an existing custom scheme's event map with a new snapshot
+   * (typically the current global per-event overrides), and register the
+   * change immediately.
+   *
+   * @param {string} fullName - Full scheme name (must already be registered
+   *   and start with 'custom:').
+   * @param {Object} overridesMap - event type → assetKey | media-source id | null
+   * @returns {Promise<{ok: boolean, error?: string}>}
+   */
+  async updateCustomScheme(fullName, overridesMap) {
+    if (!this.isCustomScheme(fullName)) {
+      return { ok: false, error: 'Not a custom scheme.' };
+    }
+    if (!this._soundSchemes.has(fullName)) {
+      return { ok: false, error: 'Custom scheme not found.' };
+    }
+
+    const result = await this._writeCustomSchemes(existing => ({ ...existing, [fullName]: overridesMap }));
+    if (!result.ok) return result;
+
+    this._soundSchemes.set(fullName, overridesMap);
+    lcardsLog.info(`[SoundManager] Updated custom sound scheme: ${fullName}`);
+    return { ok: true };
+  }
+
+  /**
+   * Permanently delete a custom scheme (backend storage + in-memory registry).
+   * No-op error if the target isn't a custom scheme — pack-provided schemes
+   * cannot be deleted this way.
+   *
+   * @param {string} fullName - Full scheme name (must start with 'custom:').
+   * @returns {Promise<{ok: boolean, error?: string}>}
+   */
+  async deleteCustomScheme(fullName) {
+    if (!this.isCustomScheme(fullName)) {
+      return { ok: false, error: 'Not a custom scheme.' };
+    }
+
+    const result = await this._writeCustomSchemes(existing => {
+      const { [fullName]: _removed, ...rest } = existing;
+      return rest;
+    });
+    if (!result.ok) return result;
+
+    this._soundSchemes.delete(fullName);
+    // Remove it from the HA input_select's options too, same as registerSchemes()
+    // adds new ones — otherwise it stays selectable there as a dead option.
+    if (this._startupSchemesSettled) {
+      this._scheduleSyncSchemeHelperOptions();
+    }
+    lcardsLog.info(`[SoundManager] Deleted custom sound scheme: ${fullName}`);
+    return { ok: true };
   }
 
   // ============================================================================
@@ -713,6 +924,18 @@ export class SoundManager extends BaseService {
   }
 
   /**
+   * Replace the entire global override map in a single write. Used by the
+   * Config Panel's explicit "Save" action (_saveOverrideChanges() in
+   * lcards-sound-config-tab.js) to commit a staged batch of per-event edits
+   * at once, instead of one backend write per dropdown change.
+   * @param {Object} overridesMap - event type → assetKey | media-source id | null
+   * @returns {Promise<void>}
+   */
+  async saveGlobalOverrides(overridesMap) {
+    await this._saveOverrides({ ...overridesMap }, 'global');
+  }
+
+  /**
    * Re-read all device/user scoped settings from the backend and update the
    * in-memory caches (_cachedVolume, _cachedScheme, _cachedEnabled).
    *
@@ -796,18 +1019,61 @@ export class SoundManager extends BaseService {
   }
 
   /**
-   * Get the active sound scheme event map.
-   * Returns cached scoped value if available, else falls back to HA helper.
+   * Resolve the name of the currently active sound scheme.
+   * Returns cached scoped value if available, else the HA helper's value,
+   * else 'none' (the helper's own default_value when missing entirely).
+   * 'none' is a genuine empty scheme — see _getActiveScheme() — not a
+   * "not configured yet, fall back to something" sentinel; a scheme-level
+   * silence distinct from the master sound_enabled toggle, since per-event
+   * overrides (global/user/device) still apply on top of it.
+   * @returns {string}
+   * @private
+   */
+  _getActiveSchemeName() {
+    return this._cachedScheme
+      ?? this._core?.helperManager?.getHelperValue('sound_scheme')
+      ?? 'none';
+  }
+
+  /**
+   * Get the active sound scheme event map. 'none' resolves to {} (every
+   * event silent by default, per the "omitted events → silence" rule),
+   * since 'none' is never a real key in _soundSchemes.
    * @returns {Object}
    * @private
    */
   _getActiveScheme() {
-    const name = this._cachedScheme
-      ?? this._core?.helperManager?.getHelperValue('sound_scheme');
-    // 'none' = not yet configured (same as missing entity) → fall through to first scheme
-    // Explicit silence is done via the master sound_enabled toggle, not the scheme picker
-    if (name && name !== 'none') return this._soundSchemes.get(name) || {};
-    return this._soundSchemes.values().next().value || {};
+    return this._soundSchemes.get(this._getActiveSchemeName()) ?? {};
+  }
+
+  /**
+   * Return a shallow copy of a registered scheme's raw event map — e.g. for
+   * displaying/editing a custom scheme's own definition directly in the
+   * Config Panel, as opposed to the separate global/user/device override
+   * layers that sit on top of pack-provided schemes.
+   * @param {string} name - Full scheme name.
+   * @returns {Object}
+   */
+  getSchemeMapping(name) {
+    return { ...(this._soundSchemes.get(name) ?? {}) };
+  }
+
+  /**
+   * Return a shallow copy of the currently *active* scheme's raw event map,
+   * resolving the 'none' fallback the same way playback does (falls through
+   * to the first registered scheme — see _getActiveSchemeName()).
+   *
+   * Used when promoting the global override layer into a new named scheme:
+   * the override layer only ever contains the events someone explicitly
+   * touched, so a new scheme built from *just* that would silence every
+   * other event once it's active (custom schemes have no further fallback).
+   * Merging this full mapping in first, with overrides layered on top,
+   * produces a complete, standalone scheme that behaves identically to what
+   * was actually playing at save time.
+   * @returns {Object}
+   */
+  getActiveSchemeMapping() {
+    return { ...this._getActiveScheme() };
   }
 
   /**
@@ -905,12 +1171,22 @@ export class SoundManager extends BaseService {
    * Return effective per-event overrides for playback: global merged with user merged
    * with device, where device-scope values win on a per-event basis.
    * Returns an empty object if the async load has not yet completed.
+   *
+   * The global tier is skipped entirely when the active scheme is a custom
+   * (user-created) scheme — its own event map (edited in place via the Config
+   * Panel, see updateCustomScheme()) already represents the full desired
+   * mapping, so layering the separate global-override map on top of it would
+   * let stale overrides from a previous built-in-scheme session silently mask
+   * the custom scheme's own settings. User/device tiers still always apply —
+   * they're a per-person/per-device personalization layer independent of
+   * which scheme (built-in or custom) is globally active.
    * @returns {Object}
    * @private
    */
   _getOverrides() {
+    const skipGlobal = this.isCustomScheme(this._getActiveSchemeName());
     return {
-      ...(this._globalOverridesCache ?? {}),
+      ...(skipGlobal ? {} : (this._globalOverridesCache ?? {})),
       ...(this._overridesCache       ?? {}),
       ...(this._deviceOverridesCache ?? {}),
     };
@@ -962,10 +1238,16 @@ export class SoundManager extends BaseService {
    * Sites that allow autoplay (browser site settings) will hear sounds on page load;
    * others will have play() silently rejected until the first user gesture.
    *
-   * @param {string} assetKey - Asset key registered in AssetManager
+   * @param {string} assetKey - Asset key registered in AssetManager, or a
+   *   `media-source://…` content ID picked via the HA media library.
    * @private
    */
   _playAsset(assetKey) {
+    if (typeof assetKey === 'string' && assetKey.startsWith('media-source://')) {
+      this._playMediaSourceAsset(assetKey);
+      return;
+    }
+
     // Read URL directly from registry metadata — no async required
     const registry = this._core?.assetManager?.getRegistry('audio');
     const entry = registry?.assets?.get(assetKey);
@@ -981,6 +1263,38 @@ export class SoundManager extends BaseService {
         this._audioCache.set(assetKey, new Audio(url));
       }
       const audio = this._audioCache.get(assetKey);
+      audio.volume = this._getVolume();
+      audio.currentTime = 0;
+      audio.play().catch(() => {}); // Suppress AbortError from rapid replays
+    } catch (e) {
+      lcardsLog.warn('[SoundManager] Audio playback error:', e);
+    }
+  }
+
+  /**
+   * Resolve and play a `media-source://…` sound reference (HA media library item).
+   *
+   * Re-resolves on every call (cheap — AssetManager caches the resolved URL for
+   * 15 minutes) and rebuilds the cached `Audio` element whenever the resolved
+   * URL has changed, since media-source URLs may carry an expiring signed token
+   * unlike the permanent URLs used by bundled `audio_assets`.
+   *
+   * @param {string} mediaContentId - A `media-source://…` content ID.
+   * @private
+   */
+  async _playMediaSourceAsset(mediaContentId) {
+    const url = await this._core?.assetManager?.resolveMediaSourceUrl?.(mediaContentId);
+    if (!url) {
+      lcardsLog.warn(`[SoundManager] Failed to resolve media source: ${mediaContentId}`);
+      return;
+    }
+
+    try {
+      let audio = this._audioCache.get(mediaContentId);
+      if (!audio || audio.src !== url) {
+        audio = new Audio(url);
+        this._audioCache.set(mediaContentId, audio);
+      }
       audio.volume = this._getVolume();
       audio.currentTime = 0;
       audio.play().catch(() => {}); // Suppress AbortError from rapid replays
@@ -1047,13 +1361,21 @@ export class SoundManager extends BaseService {
   /**
    * Sync the sound_scheme input_select options to match all registered schemes.
    * Non-fatal if helper doesn't exist yet.
+   *
+   * `updateSelectOptions()` does a real network round trip (`input_select.set_options`
+   * plus a value-restore call), so a second registration can easily land while one
+   * is still in flight — e.g. custom schemes loading from storage shortly after
+   * pack-provided schemes register at startup. Rather than dropping that second
+   * request (which would leave the new scheme name selectable in LCARdS's own UI
+   * but rejected by HA as "not a valid option" — the actual entity never got
+   * updated), queue exactly one follow-up sync to run once the current one
+   * finishes, reading whatever the full scheme list looks like by then.
    * @private
    */
   async _syncSchemeHelperOptions() {
-    // Prevent concurrent syncs — a second call while one is in-flight would read
-    // stale/reset HA state and clobber the restore from the first call.
     if (this._syncInProgress) {
-      lcardsLog.debug('[SoundManager] _syncSchemeHelperOptions: sync already in progress, skipping');
+      this._syncPending = true;
+      lcardsLog.debug('[SoundManager] _syncSchemeHelperOptions: sync in progress, queuing follow-up');
       return;
     }
     this._syncInProgress = true;
@@ -1062,8 +1384,23 @@ export class SoundManager extends BaseService {
       this._syncInProgress = false;
       return;
     }
+
+    const liveValue = helperManager.getHelperValue('sound_scheme');
+    // Capture once per session (before any set_options call could have reset
+    // it), or refresh if the live value is a different, already-registered
+    // scheme — that means the user explicitly changed the selection after
+    // startup settled, not a set_options side effect from an earlier wave.
+    if (this._schemeRestoreValue === undefined
+        || (liveValue && liveValue !== this._schemeRestoreValue && this._soundSchemes.has(liveValue))) {
+      this._schemeRestoreValue = liveValue ?? null;
+    }
+
     try {
-      const updated = await helperManager.updateSelectOptions('sound_scheme', this.getSchemeNames());
+      const updated = await helperManager.updateSelectOptions(
+        'sound_scheme',
+        this.getSchemeNames(),
+        this._schemeRestoreValue
+      );
       if (updated) {
         this._schemesOptionsSynced = true;
         lcardsLog.debug('[SoundManager] Synced sound_scheme helper options:', this.getSchemeNames());
@@ -1072,7 +1409,36 @@ export class SoundManager extends BaseService {
       lcardsLog.debug('[SoundManager] Could not sync sound_scheme options:', e.message);
     } finally {
       this._syncInProgress = false;
+      if (this._syncPending) {
+        this._syncPending = false;
+        this._syncSchemeHelperOptions();
+      } else {
+        // Truly settled — nothing else queued. Wake anyone waiting via
+        // waitForSchemeSync() (e.g. a caller about to explicitly switch the
+        // active scheme right after registering a new one, which must not
+        // race this sync's own restore-previous-value step).
+        const resolvers = this._syncSettledResolvers;
+        this._syncSettledResolvers = [];
+        resolvers.forEach(resolve => resolve());
+      }
     }
+  }
+
+  /**
+   * Resolve once any in-flight or queued scheme-options sync has fully
+   * settled. Callers that are about to explicitly change the active scheme
+   * right after a registerSchemes()-triggering call (e.g. saving a new
+   * custom scheme and switching to it) should await this first — otherwise
+   * the sync's own "restore the previously-active scheme" step is a
+   * separate, independently-timed service call that can land after the
+   * explicit switch and silently revert it.
+   * @returns {Promise<void>}
+   */
+  waitForSchemeSync() {
+    if (!this._syncInProgress && !this._syncPending && !this._syncScheduled) {
+      return Promise.resolve();
+    }
+    return new Promise(resolve => this._syncSettledResolvers.push(resolve));
   }
 
 }

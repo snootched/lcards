@@ -19,6 +19,7 @@ import { STORAGE_KEY_SOUND_VOLUME, STORAGE_KEY_SOUND_SCHEME, STORAGE_KEY_SOUND_E
 import { originBadge } from './shared/scoped-field-helpers.js';
 import '../../editor/components/shared/lcards-form-section.js';
 import '../../editor/components/shared/lcards-message.js';
+import '../../editor/components/sound/lcards-sound-source-selector.js';
 import './lcards-preview-chip.js';
 import './shared/lcards-scope-selector.js';
 
@@ -67,6 +68,17 @@ export class LCARdSSoundConfigTab extends LitElement {
     /** Admin: basic settings (volume/scheme/enabled) for the currently-viewed admin target; null = own */
     _adminTargetBasic:  { type: Object,   state: true },
     _confirmResetOverrides: { type: Boolean, state: true },
+    /** True while the "Save as new scheme" inline form is open */
+    _savingScheme:      { type: Boolean,  state: true },
+    /** Draft name typed into the "Save as new scheme" form */
+    _newSchemeName:     { type: String,   state: true },
+    /** Validation/backend error from the last save attempt, if any */
+    _saveSchemeError:   { type: String,   state: true },
+    /** True while the "delete this custom scheme" inline confirm is open */
+    _confirmDeleteScheme: { type: Boolean, state: true },
+    /** True when the Per-Event Overrides table has staged (unsaved) edits —
+     * global or the active custom scheme's own mapping, see _setOverride() */
+    _overridesDirty:    { type: Boolean,  state: true },
   };
 
   constructor() {
@@ -97,6 +109,11 @@ export class LCARdSSoundConfigTab extends LitElement {
     /** @type {Object|null} Basic settings for admin-selected target; null = own */
     this._adminTargetBasic = null;
     this._confirmResetOverrides = false;
+    this._savingScheme    = false;
+    this._newSchemeName   = '';
+    this._saveSchemeError = null;
+    this._confirmDeleteScheme = false;
+    this._overridesDirty = false;
   }
 
   connectedCallback() {
@@ -161,12 +178,36 @@ export class LCARdSSoundConfigTab extends LitElement {
     if (sm) {
       this._schemeNames = sm.getSchemeNames();
       this._eventTypes  = sm.getEventTypes();
-      // Explicitly read the global scope — the Global Settings panel shows/edits
-      // the shared overrides that apply to every user.
-      this._overrides   = sm.getOverrides('global');
+      this._reloadOverridesForActiveScheme();
     }
 
     this.requestUpdate();
+  }
+
+  /**
+   * Recompute `_overrides` from whichever source is authoritative for the
+   * currently-active scheme:
+   * - Built-in (pack-provided) scheme active → the global override layer
+   *   (`sound_overrides`, global tier) — unchanged from prior behaviour.
+   * - Custom (user-created) scheme active → that scheme's own event map,
+   *   edited in place (see _setOverride()); there is no separate override
+   *   layer for custom schemes.
+   *
+   * Global overrides are never touched by this — they simply stop being
+   * displayed/consulted while a custom scheme is active, and reappear
+   * exactly as they were when switching back to a built-in scheme.
+   */
+  _reloadOverridesForActiveScheme() {
+    const sm = window.lcards?.core?.soundManager;
+    if (!sm) return;
+    const schemeValue = this._getHelperValue('sound_scheme') || 'none';
+    this._overrides = sm.isCustomScheme(schemeValue)
+      ? sm.getSchemeMapping(schemeValue)
+      : sm.getOverrides('global');
+    // Any staged-but-unsaved edits (global or the previously-active custom
+    // scheme's own mapping) are discarded by this reload — matches clicking
+    // Discard, and switching away from a scheme with unsaved changes.
+    this._overridesDirty = false;
   }
 
   /**
@@ -185,6 +226,10 @@ export class LCARdSSoundConfigTab extends LitElement {
         this._helpers = this._helpers.map(h =>
           h.key === key ? { ...h, currentValue: newValue } : h
         );
+        // The Active Scheme selector determines which source the Per-Event
+        // Overrides table displays/edits — reload whenever it changes
+        // (including externally, e.g. another browser tab).
+        if (key === 'sound_scheme') this._reloadOverridesForActiveScheme();
         this.requestUpdate();
         lcardsLog.trace(`[SoundConfigTab] Helper updated: ${key} = ${newValue}`);
       });
@@ -641,19 +686,58 @@ export class LCARdSSoundConfigTab extends LitElement {
     window.lcards?.core?.soundManager?.previewEvent(eventType);
   }
 
-  async _setOverride(eventType, value) {
+  /**
+   * Set a per-event override in local (staged) state only — regardless of
+   * whether a built-in or custom scheme is active. Nothing hits the backend
+   * until the user clicks the explicit "Save" button (_saveOverrideChanges()).
+   *
+   * Both contexts are staged for the same reason: auto-saving each individual
+   * dropdown change made a partially-edited staging session indistinguishable
+   * from a deliberately-committed one — for global overrides that raced with
+   * "Save as new scheme" / scheme switching; for a custom scheme's own
+   * mapping it meant there was no way to undo a single accidental edit
+   * without wiping the whole scheme via "Clear all" (which reverts to empty/
+   * silent, not to what was last saved — a custom scheme has no memory of
+   * whatever it may have originally been cloned from).
+   */
+  _setOverride(eventType, value) {
+    const current = { ...this._overrides };
+    if (value === '__scheme__') delete current[eventType];
+    else if (value === '__mute__') current[eventType] = null;
+    else current[eventType] = value;
+
+    this._overrides = current;
+    this._overridesDirty = true;
+    this.requestUpdate();
+  }
+
+  /**
+   * Commit staged override edits to the backend in one write — the active
+   * custom scheme's own mapping, or the global override layer.
+   */
+  async _saveOverrideChanges() {
     const sm = window.lcards?.core?.soundManager;
     if (!sm) return;
-    // '__mute__' means null (silence); '__scheme__' means clear override (use scheme).
-    // Always write to 'global' scope — this is the Global Settings section.
-    if (value === '__mute__') {
-      await sm.setOverride(eventType, null, 'global');
-    } else if (value === '__scheme__') {
-      await sm.setOverride(eventType, null, 'global');
+    const schemeValue = this._getHelperValue('sound_scheme') || 'none';
+
+    if (sm.isCustomScheme(schemeValue)) {
+      const result = await sm.updateCustomScheme(schemeValue, this._overrides);
+      if (!result.ok) {
+        lcardsLog.error('[SoundConfigTab] Failed to save custom scheme changes:', result.error);
+        this.requestUpdate();
+        return;
+      }
     } else {
-      await sm.setOverride(eventType, value, 'global');
+      await sm.saveGlobalOverrides(this._overrides);
     }
-    this._overrides = sm.getOverrides('global');
+
+    this._overridesDirty = false;
+    this.requestUpdate();
+  }
+
+  /** Discard staged override edits, reverting to the last-saved state. */
+  _discardOverrideChanges() {
+    this._reloadOverridesForActiveScheme();
     this.requestUpdate();
   }
 
@@ -667,12 +751,129 @@ export class LCARdSSoundConfigTab extends LitElement {
     this.requestUpdate();
   }
 
-  _resetOverrides() {
+  /**
+   * Clear all global overrides, restoring the active built-in scheme's own
+   * defaults. Only reachable for built-in schemes — custom schemes have no
+   * "defaults" to reset to (see the reset-overrides-btn render condition),
+   * they're only editable/duplicatable.
+   */
+  async _resetOverrides() {
     const sm = window.lcards?.core?.soundManager;
     if (!sm) return;
-    sm.clearAllOverrides('global');
+    await sm.clearAllOverrides('global');
     this._overrides = sm.getOverrides('global');
+    this._overridesDirty = false;
     this._confirmResetOverrides = false;
+    this.requestUpdate();
+  }
+
+  _askSaveScheme() {
+    this._savingScheme = true;
+    this._newSchemeName = '';
+    this._saveSchemeError = null;
+    this.requestUpdate();
+  }
+
+  _cancelSaveScheme() {
+    this._savingScheme = false;
+    this._saveSchemeError = null;
+    this.requestUpdate();
+  }
+
+  /**
+   * Snapshot into a brand-new named scheme, then switch to viewing it. This
+   * is a pure read of local state — it never writes to or clears the global
+   * override layer, regardless of whether the source was global or a custom
+   * scheme.
+   *
+   * `this._overrides` is read as-is, staged/unsaved edits included — this is
+   * the intended way to promote a batch of staged global edits straight into
+   * a scheme without ever explicitly saving them to the global layer at all.
+   * Because edits are staged rather than auto-saved (see "Overrides vs. the
+   * Active Scheme selector" in the architecture doc), whatever's actually
+   * persisted in the global layer belongs entirely to the user's own
+   * separate, explicit "Save" actions — this method must never touch it, or
+   * an unrelated override saved in an earlier session gets silently wiped
+   * out just because *this* session happened to stage an edit for the same
+   * event and promote it into a scheme.
+   *
+   * If the snapshot came from the global override layer (a built-in scheme
+   * was active), the override layer only ever holds events someone
+   * explicitly touched — merge in the active scheme's full mapping first
+   * (getActiveSchemeMapping(), overrides layered on top) so the new scheme
+   * is a complete, standalone snapshot instead of silencing every event
+   * that was never individually overridden.
+   *
+   * If the snapshot came from an already-active *custom* scheme (cloning
+   * it), `this._overrides` already IS that scheme's complete own mapping
+   * (see _reloadOverridesForActiveScheme()).
+   */
+  async _confirmSaveScheme() {
+    const sm = window.lcards?.core?.soundManager;
+    if (!sm) return;
+
+    const sourceScheme = this._getHelperValue('sound_scheme') || 'none';
+    const sourcedFromGlobal = !sm.isCustomScheme(sourceScheme);
+    const snapshot = sourcedFromGlobal
+      ? { ...sm.getActiveSchemeMapping(), ...this._overrides }
+      : { ...this._overrides };
+
+    const result = await sm.saveCustomScheme(this._newSchemeName, snapshot);
+    if (!result.ok) {
+      this._saveSchemeError = result.error;
+      this.requestUpdate();
+      return;
+    }
+
+    // saveCustomScheme() above registers the new scheme, which triggers a
+    // background options-sync (adds it to the HA input_select's option
+    // list). That sync does its own "restore the previously-active scheme"
+    // service call — a separate, independently-timed network round trip
+    // that could otherwise land AFTER our explicit switch below and
+    // silently revert it back to whatever was active before this save.
+    // Wait for it to fully settle first so our switch always happens last.
+    await sm.waitForSchemeSync();
+
+    this._schemeNames = sm.getSchemeNames();
+    this._savingScheme = false;
+    this._saveSchemeError = null;
+    await this._setHelperValue('sound_scheme', result.name);
+    this._reloadOverridesForActiveScheme();
+    this.requestUpdate();
+  }
+
+  _askDeleteScheme() {
+    this._confirmDeleteScheme = true;
+    this.requestUpdate();
+  }
+
+  _cancelDeleteScheme() {
+    this._confirmDeleteScheme = false;
+    this.requestUpdate();
+  }
+
+  async _deleteScheme(schemeName) {
+    const sm = window.lcards?.core?.soundManager;
+    if (!sm) return;
+    const result = await sm.deleteCustomScheme(schemeName);
+    this._confirmDeleteScheme = false;
+    if (!result.ok) {
+      lcardsLog.error('[SoundConfigTab] Failed to delete custom scheme:', result.error);
+      this.requestUpdate();
+      return;
+    }
+    // deleteCustomScheme() above triggered a background options-sync (removes
+    // the deleted scheme from the HA input_select's options) — wait for it to
+    // settle before our own explicit switch, for the same reason as in
+    // _confirmSaveScheme(): its restore-previous-value step must not race
+    // and revert our switch.
+    await sm.waitForSchemeSync();
+
+    this._schemeNames = sm.getSchemeNames();
+    // The deleted scheme can no longer be selected — fall back to 'none',
+    // which re-sources the table from the (untouched) global overrides.
+    await this._setHelperValue('sound_scheme', 'none');
+    this._reloadOverridesForActiveScheme();
     this.requestUpdate();
   }
 
@@ -810,13 +1011,16 @@ export class LCARdSSoundConfigTab extends LitElement {
           <div class="control-row">
             <div class="control-label">
               Active Scheme
-              <span class="hint">Select a sound scheme provided by audio packs</span>
+              <span class="hint">"None (silent)" plays nothing by default — per-event overrides below still apply on top of it</span>
             </div>
             <div class="scheme-row">
               <ha-selector
                 .hass=${this.hass}
                 .selector=${{ select: {
-                  options: this._schemeNames.map(s => ({ value: s, label: s === 'none' ? 'None (silent)' : s })),
+                  options: this._schemeNames.map(s => ({
+                    value: s,
+                    label: s === 'none' ? 'None (silent)' : (s.startsWith('custom:') ? `🛠️ ${s.slice(7)} (custom)` : s)
+                  })),
                   mode: 'dropdown'
                 }}}
                 .value=${schemeValue}
@@ -832,113 +1036,174 @@ export class LCARdSSoundConfigTab extends LitElement {
                   Preview
                 </ha-button>
               ` : ''}
-            </div>
-          </div>
-        </lcards-form-section>
-
-        <!-- ── PER-EVENT OVERRIDES ── -->
-        <lcards-form-section
-          header="Per-Event Overrides"
-          icon="mdi:tune-variant"
-          description="Override individual events regardless of the active scheme"
-          ?expanded=${false}
-          ?outlined=${true}
-          class="${!masterEnabled ? 'dimmed' : ''}">
-
-          ${this._audioAssets.length === 0 ? html`
-            <div class="empty-hint">
-              <ha-icon icon="mdi:information-outline"></ha-icon>
-              No audio assets registered. Load an audio pack to enable overrides.
-            </div>
-          ` : ''}
-
-          ${this._eventTypes.length > 0 ? html`
-            <div class="overrides-header-row">
-              <lcards-message
-                type="info"
-                message="Overrides are stored in LCARdS Integration persistent storage.  See Storage tab for details."
-              ></lcards-message>
-              ${Object.keys(this._overrides).length > 0 ? html`
-                <ha-button @click=${this._askResetOverrides} class="reset-overrides-btn" variant="warning">
-                  <ha-icon slot="start" icon="mdi:restore"></ha-icon>
-                  Reset all to scheme defaults
+              ${window.lcards?.core?.soundManager?.isCustomScheme(schemeValue) ? html`
+                <ha-button
+                  @click=${this._askDeleteScheme}
+                  variant="danger"
+                  ?disabled=${!masterEnabled}
+                >
+                  <ha-icon slot="start" icon="mdi:delete"></ha-icon>
+                  Delete
                 </ha-button>
               ` : ''}
             </div>
-            ${this._confirmResetOverrides ? html`
-              <div class="banner warning">
-                <ha-icon icon="mdi:alert"></ha-icon>
-                <span>This will <strong>clear all ${Object.keys(this._overrides).length} override${Object.keys(this._overrides).length !== 1 ? 's' : ''}</strong> and restore scheme defaults. Are you sure?</span>
-                <div class="confirm-actions">
-                  <ha-button class="danger-btn" variant="danger" @click=${this._resetOverrides}>Yes, reset all</ha-button>
-                  <ha-button @click=${this._cancelResetOverrides}>Cancel</ha-button>
-                </div>
+          </div>
+          ${this._confirmDeleteScheme ? html`
+            <div class="banner warning">
+              <ha-icon icon="mdi:alert"></ha-icon>
+              <span>Permanently delete the custom scheme <strong>${schemeValue.slice(7)}</strong>? This cannot be undone.</span>
+              <div class="confirm-actions">
+                <ha-button class="danger-btn" variant="danger" @click=${() => this._deleteScheme(schemeValue)}>Yes, delete</ha-button>
+                <ha-button @click=${this._cancelDeleteScheme}>Cancel</ha-button>
               </div>
-            ` : ''}
-            <div class="overrides-table-wrapper">
-              <table class="overrides-table">
-                <thead>
-                  <tr>
-                    <th>Event</th>
-                    <th>Category</th>
-                    <th>Override</th>
-                    <th style="width:60px;"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${this._eventTypes.map(evt => {
-                    const overrideValue = this._overrideValueFor(evt.key);
-                    const isCustom = overrideValue !== '__scheme__';
-                    return html`
-                      <tr class="${isCustom ? 'has-override' : ''}">
-                        <td class="event-label">${evt.label}</td>
-                        <td>
-                          <ha-assist-chip
-                            .filled=${true}
-                            .label=${CATEGORY_LABELS[evt.category] || evt.category}
-                            style="
-                              --ha-assist-chip-filled-container-color: ${CATEGORY_CHIP_BG[evt.category] || 'var(--secondary-background-color)'};
-                              --md-assist-chip-label-text-color: ${CATEGORY_CHIP_FG[evt.category] || 'var(--primary-text-color)'};
-                              --md-sys-color-on-surface: ${CATEGORY_CHIP_FG[evt.category] || 'var(--primary-text-color)'};
-                            "
-                          ></ha-assist-chip>
-                        </td>
-                        <td>
-                          <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{ select: {
-                              options: [
-                                { value: '__scheme__', label: '— Use scheme default —' },
-                                { value: '__mute__',   label: '🔇 Mute this event' },
-                                ...this._audioAssets.map(a => ({ value: a.key, label: `${a.key} (${a.pack})` }))
-                              ],
-                              mode: 'dropdown'
-                            }}}
-                            .value=${overrideValue}
-                            ?disabled=${!masterEnabled}
-                            @value-changed=${(e) => this._setOverride(evt.key, e.detail.value)}
-                          ></ha-selector>
-                        </td>
-                        <td>
-                          ${overrideValue !== '__mute__' ? html`
-                            <ha-icon-button
-                              .label=${'Preview'}
-                              @click=${() => overrideValue === '__scheme__'
-                                ? this._previewEvent(evt.key)
-                                : this._previewAsset(overrideValue)}
-                              ?disabled=${!masterEnabled}
-                            >
-                              <ha-icon icon="mdi:play"></ha-icon>
-                            </ha-icon-button>
-                          ` : ''}
-                        </td>
-                      </tr>
-                    `;
-                  })}
-                </tbody>
-              </table>
             </div>
           ` : ''}
+
+          <!-- ── PER-EVENT OVERRIDES (subsection — reflects whichever scheme is selected above;
+               global overrides still apply on top of 'none', which is a genuine empty scheme) ── -->
+          <lcards-form-section
+              header="Per-Event Overrides"
+              icon="mdi:tune-variant"
+              description=${window.lcards?.core?.soundManager?.isCustomScheme(schemeValue)
+                ? `Editing "${schemeValue.slice(7)}" directly — click Save to commit changes to this custom scheme`
+                : 'Override individual events on top of the active (built-in) scheme — click Save to commit changes'}
+              ?expanded=${false}
+              ?outlined=${true}
+              class="${!masterEnabled ? 'dimmed' : ''}">
+
+              ${this._audioAssets.length === 0 ? html`
+                <div class="empty-hint">
+                  <ha-icon icon="mdi:information-outline"></ha-icon>
+                  No audio assets registered. Load an audio pack to enable overrides.
+                </div>
+              ` : ''}
+
+              ${this._eventTypes.length > 0 ? html`
+                <lcards-message
+                  type="info"
+                  message="Overrides are stored in LCARdS Integration persistent storage.  See Storage tab for details."
+                ></lcards-message>
+
+                <!-- ── One dynamic action area — save-scheme form, reset confirm, or the
+                     steady-state action row are mutually exclusive, so they share a single slot
+                     instead of stacking as separate banners. ── -->
+                ${this._savingScheme ? html`
+                  <div class="banner info save-scheme-banner">
+                    <div class="save-scheme-header">
+                      <ha-icon icon="mdi:content-save-plus"></ha-icon>
+                      <span>Save the current ${Object.keys(this._overrides).length} event${Object.keys(this._overrides).length !== 1 ? 's' : ''} as a new, named sound scheme. Nothing currently active is changed.</span>
+                    </div>
+                    <ha-selector
+                      .hass=${this.hass}
+                      .selector=${{ text: {} }}
+                      .value=${this._newSchemeName}
+                      .label=${'Scheme Name'}
+                      @value-changed=${(e) => { this._newSchemeName = e.detail.value; }}
+                    ></ha-selector>
+                    ${this._saveSchemeError ? html`<span class="error-text">${this._saveSchemeError}</span>` : ''}
+                    <div class="confirm-actions">
+                      <ha-button @click=${this._confirmSaveScheme}>Save</ha-button>
+                      <ha-button @click=${this._cancelSaveScheme}>Cancel</ha-button>
+                    </div>
+                  </div>
+                ` : this._confirmResetOverrides ? html`
+                  <div class="banner warning">
+                    <ha-icon icon="mdi:alert"></ha-icon>
+                    <span>This will <strong>clear all ${Object.keys(this._overrides).length} event${Object.keys(this._overrides).length !== 1 ? 's' : ''}</strong> and restore scheme defaults. Are you sure?</span>
+                    <div class="confirm-actions">
+                      <ha-button class="danger-btn" variant="danger" @click=${this._resetOverrides}>Yes, reset all</ha-button>
+                      <ha-button @click=${this._cancelResetOverrides}>Cancel</ha-button>
+                    </div>
+                  </div>
+                ` : (this._overridesDirty || Object.keys(this._overrides).length > 0) ? html`
+                  <div class="overrides-action-row ${this._overridesDirty ? 'dirty' : ''}">
+                    ${this._overridesDirty ? html`
+                      <span class="dirty-indicator">
+                        <ha-icon icon="mdi:content-save-alert"></ha-icon>
+                        Unsaved changes
+                      </span>
+                      <ha-button @click=${this._saveOverrideChanges}>
+                        <ha-icon slot="start" icon="mdi:content-save"></ha-icon>
+                        Save
+                      </ha-button>
+                      <ha-button class="danger-btn" variant="danger" @click=${this._discardOverrideChanges}>Discard</ha-button>
+                    ` : ''}
+                    ${Object.keys(this._overrides).length > 0 ? html`
+                      <ha-button @click=${this._askSaveScheme} class="save-scheme-btn">
+                        <ha-icon slot="start" icon="mdi:content-save-plus"></ha-icon>
+                        Save as new scheme…
+                      </ha-button>
+                    ` : ''}
+                    ${!window.lcards?.core?.soundManager?.isCustomScheme(schemeValue) && Object.keys(this._overrides).length > 0 ? html`
+                      <ha-button @click=${this._askResetOverrides} class="reset-overrides-btn" variant="warning">
+                        <ha-icon slot="start" icon="mdi:restore"></ha-icon>
+                        Reset to scheme defaults
+                      </ha-button>
+                    ` : ''}
+                  </div>
+                ` : ''}
+
+                <div class="overrides-table-wrapper">
+                  <table class="overrides-table">
+                    <thead>
+                      <tr>
+                        <th>Event</th>
+                        <th>Category</th>
+                        <th>Override</th>
+                        <th style="width:60px;"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${this._eventTypes.map(evt => {
+                        const overrideValue = this._overrideValueFor(evt.key);
+                        const isCustom = overrideValue !== '__scheme__';
+                        return html`
+                          <tr class="${isCustom ? 'has-override' : ''}">
+                            <td class="event-label">${evt.label}</td>
+                            <td>
+                              <ha-assist-chip
+                                .filled=${true}
+                                .label=${CATEGORY_LABELS[evt.category] || evt.category}
+                                style="
+                                  --ha-assist-chip-filled-container-color: ${CATEGORY_CHIP_BG[evt.category] || 'var(--secondary-background-color)'};
+                                  --md-assist-chip-label-text-color: ${CATEGORY_CHIP_FG[evt.category] || 'var(--primary-text-color)'};
+                                  --md-sys-color-on-surface: ${CATEGORY_CHIP_FG[evt.category] || 'var(--primary-text-color)'};
+                                "
+                              ></ha-assist-chip>
+                            </td>
+                            <td>
+                              <lcards-sound-source-selector
+                                .hass=${this.hass}
+                                .value=${overrideValue}
+                                .audioAssets=${this._audioAssets}
+                                .schemeLabel=${window.lcards?.core?.soundManager?.isCustomScheme(schemeValue)
+                                  ? '— Not set in this scheme (silent) —'
+                                  : '— Use scheme default —'}
+                                ?disabled=${!masterEnabled}
+                                @value-changed=${(e) => this._setOverride(evt.key, e.detail.value)}
+                              ></lcards-sound-source-selector>
+                            </td>
+                            <td>
+                              ${overrideValue !== '__mute__' ? html`
+                                <ha-icon-button
+                                  .label=${'Preview'}
+                                  @click=${() => overrideValue === '__scheme__'
+                                    ? this._previewEvent(evt.key)
+                                    : this._previewAsset(overrideValue)}
+                                  ?disabled=${!masterEnabled}
+                                >
+                                  <ha-icon icon="mdi:play"></ha-icon>
+                                </ha-icon-button>
+                              ` : ''}
+                            </td>
+                          </tr>
+                        `;
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ` : ''}
+            </lcards-form-section>
         </lcards-form-section>
 
           </div><!-- /nested-sections -->
@@ -1235,20 +1500,14 @@ export class LCARdSSoundConfigTab extends LitElement {
                           ></ha-assist-chip>
                         </td>
                         <td>
-                          <ha-selector
+                          <lcards-sound-source-selector
                             .hass=${this.hass}
-                            .selector=${{ select: {
-                              options: [
-                                { value: '__scheme__',  label: '🎵 Use scheme default' },
-                                { value: '__mute__',    label: '🔇 Mute this event' },
-                                ...this._audioAssets.map(a => ({ value: a.key, label: `${a.key} (${a.pack})` }))
-                              ],
-                              mode: 'dropdown'
-                            }}}
                             .value=${scopedVal}
+                            .audioAssets=${this._audioAssets}
+                            .schemeLabel=${'🎵 Use scheme default'}
                             ?disabled=${!masterEnabled}
                             @value-changed=${(e) => this._setScopedOverride(evt.key, e.detail.value, scope)}
-                          ></ha-selector>
+                          ></lcards-sound-source-selector>
                         </td>
                         <td>
                           ${scopedVal !== '__mute__' ? html`
@@ -1321,8 +1580,30 @@ export class LCARdSSoundConfigTab extends LitElement {
       border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
       color: var(--primary-text-color);
     }
+    .banner.info {
+      background: color-mix(in srgb, var(--info-color, #03a9f4) 15%, transparent);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 40%, transparent);
+      color: var(--primary-text-color);
+    }
     .banner ha-button {
       margin-left: auto;
+    }
+    .save-scheme-banner {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .save-scheme-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .save-scheme-header ha-icon {
+      flex-shrink: 0;
+    }
+    .error-text {
+      color: var(--error-color, #db4437);
+      font-size: 0.85em;
     }
     .confirm-actions {
       display: flex;
@@ -1416,14 +1697,29 @@ export class LCARdSSoundConfigTab extends LitElement {
     .event-label {
       white-space: nowrap;
     }
-    .overrides-header-row {
+    .overrides-action-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 8px;
-      padding: 0 4px 8px;
+      flex-wrap: wrap;
+      padding: 8px 4px;
+      margin-top: 4px;
     }
-    .reset-overrides-btn {
+    .overrides-action-row.dirty {
+      background: color-mix(in srgb, var(--warning-color, #ff9800) 10%, transparent);
+      border-radius: var(--ha-border-radius-md);
+      padding: 8px 12px;
+    }
+    .dirty-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9em;
+      font-weight: 500;
+      color: var(--warning-color, #ff9800);
+    }
+    .reset-overrides-btn,
+    .save-scheme-btn {
       flex-shrink: 0;
     }
 

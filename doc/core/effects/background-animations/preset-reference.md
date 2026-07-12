@@ -733,7 +733,7 @@ config:
 
 | Config key | Default | Description |
 |---|---|---|
-| `url` | `''` | `/local/` path, `https://` URL, `builtin:<key>`, or a template string |
+| `url` | `''` | `/local/` path, `https://` URL, `builtin:<key>`, `media-source://…` content ID (HA media library item), or a template string |
 | `size` | `'cover'` | `cover` — fill (may crop) · `contain` — fit (may letterbox) · `fill` — stretch · `<n>px` — explicit size for the shorter axis |
 | `position` | `'center'` | CSS `background-position`: keywords (`top left`) or percentages (`50% 0%`) |
 | `opacity` | `1` | Layer opacity. Use with other stacked effects for blending. |
@@ -780,10 +780,23 @@ background_animation:
         url: 'builtin:bedroom'
         size: cover
         opacity: 0.8
+
+# Image picked from the HA Media Library
+background_animation:
+  effects:
+    - preset: image
+      config:
+        url: 'media-source://media_source/local/bedroom.jpg'
+        size: cover
+        opacity: 0.8
 ```
 
 ::: info SVG files
 `.svg` files work as image sources — they load via an `<img>` element and paint into Canvas2D. SVG files must be self-contained (no external resource references). Files without explicit `width`/`height` attributes are rendered at canvas size automatically.
+:::
+
+::: info HA Media Library
+The editor's "Image Source" field offers a **Browse HA Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `url`. This is resolved to a real URL at render time via `AssetManager.resolveMediaSourceUrl()`, cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../../../architecture/subsystems/asset-manager.md).
 :::
 
 ::: warning HTTP URLs

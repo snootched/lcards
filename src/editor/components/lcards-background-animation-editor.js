@@ -206,7 +206,13 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
       .param-grid {
         display: grid;
-        grid-template-columns: 1fr;
+        /* minmax(0, 1fr) — a bare 1fr track's automatic minimum is content-based
+           (min-content), so a long unbroken string (e.g. a picked HA media path)
+           inside any field blows the track — and everything else in the row —
+           wider than the section. Flooring the minimum at 0 lets descendants'
+           own overflow/ellipsis rules (e.g. ha-selector-media's .title) actually
+           take effect instead of forcing the grid to grow to fit them. */
+        grid-template-columns: minmax(0, 1fr);
         gap: 16px;
       }
 
@@ -217,6 +223,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       ha-selector {
         max-width: 100%;
         width: 100%;
+        min-width: 0;
       }
 
       ha-icon-button {
@@ -235,7 +242,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
       @media (max-width: 600px) {
         .param-grid {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
         }
 
         .effect-header {
@@ -1137,7 +1144,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
    * When switching to 'asset' mode and the current value is not a builtin reference,
    * automatically select the first available image.
    * @param {number} index
-   * @param {string} mode  'asset' | 'custom'
+   * @param {string} mode  'asset' | 'custom' | 'media'
    * @param {string} currentSource
    */
   _handleImageSrcModeChange(index, mode, currentSource) {
@@ -1152,10 +1159,17 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
   _renderImageBackgroundSection(config, index) {
     const source = config.source ?? config.url ?? '';
-    const mode   = this._imageSrcModes[index] ?? (source.startsWith('builtin:') ? 'asset' : 'custom');
+    const mode   = this._imageSrcModes[index] ?? (
+      source.startsWith('builtin:') ? 'asset' :
+      source.startsWith('media-source://') ? 'media' :
+      'custom'
+    );
     const availableImages = this._getAvailableImages();
     const showHttpWarning = mode === 'custom' && source.startsWith('http:') &&
       typeof location !== 'undefined' && location.protocol === 'https:';
+    const mediaValue = source.startsWith('media-source://')
+      ? { media_content_id: source, media_content_type: '' }
+      : undefined;
 
     return html`
       <lcards-form-section header="Image" icon="mdi:image" ?expanded=${true}>
@@ -1165,7 +1179,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
             .hass=${this.hass}
             .selector=${{ select: { mode: 'dropdown', options: [
               { value: 'asset',  label: 'Asset Library (builtin images & SVGs)' },
-              { value: 'custom', label: 'Custom URL / Template' }
+              { value: 'custom', label: 'Custom URL / Template' },
+              { value: 'media',  label: 'Browse HA Media' }
             ]}}}
             .value=${mode}
             .label=${'Image Source'}
@@ -1182,6 +1197,17 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
               .label=${'Built-in Image'}
               .helper=${'Images and SVGs registered in the Asset Library'}
               @value-changed=${(e) => this._updateEffectConfig(index, 'source', e.detail.value)}
+              style="grid-column: 1 / -1"
+            ></ha-selector>
+          ` : mode === 'media' ? html`
+            <!-- HA media library picker -->
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ media: { accept: ['image/*'] } }}
+              .value=${mediaValue}
+              .label=${'HA Media'}
+              .helper=${'Browse or upload an image via the Home Assistant media library'}
+              @value-changed=${(e) => this._updateEffectConfig(index, 'source', e.detail.value?.media_content_id ?? '')}
               style="grid-column: 1 / -1"
             ></ha-selector>
           ` : html`

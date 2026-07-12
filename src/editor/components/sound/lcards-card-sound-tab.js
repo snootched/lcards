@@ -29,6 +29,7 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { editorStyles } from '../../base/editor-styles.js';
 import { searchableSelectStyles } from '../shared/searchable-select-styles.js';
 import '../shared/lcards-form-section.js';
+import './lcards-sound-source-selector.js';
 
 export class LCARdSCardSoundTab extends LitElement {
 
@@ -271,27 +272,15 @@ export class LCARdSCardSoundTab extends LitElement {
                     <tr class="${isCustom ? 'has-override' : ''}">
                       <td class="event-label">${label}</td>
                       <td>
-                        <ha-selector
+                        <lcards-sound-source-selector
                           // @ts-ignore - TS2339: auto-suppressed
                           .hass=${this.hass}
-                          .selector=${{
-                            select: {
-                              options: [
-                                { value: '__scheme__', label: '— (use global)' },
-                                { value: '__mute__',   label: '🔇 Mute this event' },
-                                ...this._audioAssets.map(a => ({
-                                  value: a.key,
-                                  label: `${a.key} (${a.pack})`
-                                }))
-                              ],
-                              mode: 'dropdown',
-                              custom_value: (2 + this._audioAssets.length) >= 10
-                            }
-                          }}
                           .value=${overrideValue}
+                          .audioAssets=${this._audioAssets}
+                          .schemeLabel=${'— (use global)'}
                           ?disabled=${!masterEnabled}
                           @value-changed=${(e) => this._setOverride(evtKey, e.detail.value)}
-                        ></ha-selector>
+                        ></lcards-sound-source-selector>
                       </td>
                       <td>
                         ${overrideValue !== '__mute__' ? html`

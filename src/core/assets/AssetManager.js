@@ -14,6 +14,9 @@ import { BaseService } from '../BaseService.js';
 import { sanitizeSvg } from '../../utils/lcards-svg-helpers.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
+/** How long a resolved `media-source://…` URL is trusted before re-resolving. */
+const MEDIA_SOURCE_CACHE_TTL_MS = 15 * 60 * 1000;
+
 /**
  * Asset type definitions with validation rules
  */
@@ -146,8 +149,20 @@ export class AssetManager extends BaseService {
     super();
     this.registries = new Map();
     this.config = ASSET_TYPES;
+    this._hass = null;
+    // media_content_id -> { url, mimeType, resolvedAt }
+    this._mediaSourceCache = new Map();
 
     lcardsLog.debug('[AssetManager] Initialized');
+  }
+
+  /**
+   * Store the current HASS instance so resolveMediaSourceUrl() can issue
+   * websocket calls. Called by LCARdSCore.ingestHass() via BaseService.
+   * @param {Object} hass - Home Assistant instance
+   */
+  updateHass(hass) {
+    this._hass = hass;
   }
 
   /**
@@ -460,6 +475,47 @@ export class AssetManager extends BaseService {
       const svgAsset = this.getRegistry('svg').assets.get(key);
       return svgAsset?.url ?? null;
     } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * Resolve a `media-source://…` content ID to a real, browser-loadable URL
+   * via the HA `media_source/resolve_media` websocket command.
+   *
+   * Results are cached in memory for MEDIA_SOURCE_CACHE_TTL_MS — resolved
+   * URLs may carry a signed, expiring token, so this is a short-lived cache
+   * rather than a permanent one (unlike the `builtin:` image registry).
+   *
+   * @param {string} mediaContentId - A `media-source://…` content ID.
+   * @returns {Promise<string|null>} Resolved URL, or null on failure.
+   */
+  async resolveMediaSourceUrl(mediaContentId) {
+    if (!mediaContentId) return null;
+
+    const cached = this._mediaSourceCache.get(mediaContentId);
+    if (cached && (Date.now() - cached.resolvedAt) < MEDIA_SOURCE_CACHE_TTL_MS) {
+      return cached.url;
+    }
+
+    if (!this._hass?.connection) {
+      lcardsLog.warn('[AssetManager] resolveMediaSourceUrl() called with no HASS connection available');
+      return null;
+    }
+
+    try {
+      const result = await this._hass.connection.sendMessagePromise({
+        type: 'media_source/resolve_media',
+        media_content_id: mediaContentId,
+      });
+      this._mediaSourceCache.set(mediaContentId, {
+        url: result.url,
+        mimeType: result.mime_type,
+        resolvedAt: Date.now(),
+      });
+      return result.url;
+    } catch (error) {
+      lcardsLog.error(`[AssetManager] Failed to resolve media source "${mediaContentId}":`, error);
       return null;
     }
   }

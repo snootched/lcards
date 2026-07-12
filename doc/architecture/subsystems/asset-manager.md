@@ -78,6 +78,7 @@ window.lcards.core.assetManager.register('image', 'living-room', null, {
 | `loadSvg(key)` | `Promise<string>` | Load SVG by key; cached after first fetch |
 | `hasSvg(key)` | `boolean` | True if SVG is already cached |
 | `resolveImageUrl(key)` | `string\|null` | Resolve an image key → URL (no I/O). Used by `ImageLoader` for `builtin:key` references. |
+| `resolveMediaSourceUrl(mediaContentId)` | `Promise<string\|null>` | Resolve a `media-source://…` content ID to a real URL via the HA `media_source/resolve_media` websocket command. Result is cached for 15 minutes (resolved URLs may carry an expiring signed token). Used by `ImageLoader` for `media-source://…` references. |
 | `listImages()` | `string[]` | All registered image asset keys |
 | `listFonts()` | `Object[]` | All registered font asset entries |
 | `listTypes()` | `string[]` | All registered asset categories |
@@ -119,10 +120,37 @@ card config: url = 'builtin:bedroom'
 
 ---
 
+## Media Source Resolution Flow
+
+Lets a user pick an image from Home Assistant's native media library (local media, uploads, or any other registered `media_source` platform — including LCARdS's own bundled assets, see [Media Source Platform](../ha-integration#media-source-platform)) as a card background or shape texture, via the editor's **Browse HA Media** mode:
+
+```
+card config: source = 'media-source://media_source/local/bedroom.jpg'
+    │
+    ↓ ImageLoader.loadImage('media-source://media_source/local/bedroom.jpg')
+      │
+      ↓ assetManager.resolveMediaSourceUrl('media-source://media_source/local/bedroom.jpg')
+        │
+        ↓ hass.connection.sendMessagePromise({ type: 'media_source/resolve_media', media_content_id })
+          → { url: '/media/local/bedroom.jpg', mime_type: 'image/jpeg' }
+        │
+        ↓ cached for 15 minutes (resolved URLs may carry an expiring signed token)
+      │
+      ↓ new Image() with resolved URL
+        → browser fetches & caches the image
+      │
+      ↓ ctx.drawImage(img, ...) in ImageEffect / ImageTextureEffect
+```
+
+`AssetManager` requires a live `hass` instance to issue this websocket call — it receives one via `updateHass()`, wired into `LCARdSCore._updateHass()` alongside the other singletons.
+
+---
+
 ## Caching
 
 - **SVG / Font / Audio**: Cached by key in `AssetRegistry.assets` after first fetch. Session-scoped; cleared on page reload.
 - **Image**: `AssetManager` stores only the URL. `ImageLoader` maintains its own `Map<url, Promise<HTMLImageElement>>` cache (also session-scoped).
+- **Media source**: `AssetManager` caches resolved `media-source://…` URLs for 15 minutes (`MEDIA_SOURCE_CACHE_TTL_MS`), then re-resolves — resolved URLs can carry an expiring signed token, unlike `builtin:key` URLs which are permanent.
 
 ---
 
@@ -151,3 +179,4 @@ am.getRegistry('image')        // raw registry map for images
 
 - [Pack System](pack-system.md)
 - [Component Manager](component-manager.md)
+- [Media Source Platform](../ha-integration.md#media-source-platform) — the reverse direction: LCARdS's own bundled assets exposed as a browsable HA media source

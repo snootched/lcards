@@ -42,6 +42,15 @@ export const STORAGE_KEY_SOUND_CATEGORY_ENABLED = 'sound_category_enabled';
 /** Backend key for active sound scheme override (string: scheme name). */
 export const STORAGE_KEY_SOUND_SCHEME = 'sound_scheme';
 
+/**
+ * Backend key for user-created sound schemes (global flat key, not scoped —
+ * read/written via IntegrationService.readStorage()/writeStorage() directly).
+ * Flat map of { [fullSchemeName]: { [eventType]: assetKey|mediaSourceId|null } }.
+ * Scheme names are prefixed 'custom:' to distinguish them from pack-provided
+ * schemes in the Sound Scheme dropdown.
+ */
+export const STORAGE_KEY_CUSTOM_SOUND_SCHEMES = 'custom_sound_schemes';
+
 // ---------------------------------------------------------------------------
 // Theme settings storage keys (used by ThemeManager + ScopedSettingsService)
 // ---------------------------------------------------------------------------
