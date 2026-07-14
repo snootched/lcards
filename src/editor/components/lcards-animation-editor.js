@@ -61,9 +61,13 @@ import { getAttributeOptions } from '../../utils/attribute-options.js';
  * real `skewX`/`skewY`; rotate wrote `angle`/`origin`, neither of which the
  * factory reads at all — `origin` in particular is hardcoded in the factory,
  * not configurable) — fixed in place, since they're staying hardcoded.
- * 'grid-stagger' is also excluded — deprecated, functionally broken (never
- * staggers, see docs/plan Phase 12.6), removed from the preset dropdown but
- * not the registry itself so existing configs referencing it still resolve.
+ * 'grid-stagger' was removed entirely (2026.07.x) — it never staggered
+ * correctly (a confirmed, unfixed bug in its per-element delay calculation)
+ * and had already been pulled from this dropdown for that reason; `preset:
+ * grid-stagger` in an existing config no longer resolves. Migrate to
+ * 'stagger-grid' — see the 2026.07.x release notes for the field mapping
+ * (stagger_duration → delay, wave_duration → duration, and `from` value
+ * differences; there's no equivalent for `from: random`).
  */
 const SCHEMA_DRIVEN_PRESETS = new Set([
   // Original 6 (previously had no dedicated UI at all)
@@ -132,7 +136,7 @@ const PRESET_HIDDEN_CANONICAL_FIELDS = {
  * anime.js v4 documentation URL for the primary mechanism each preset uses
  * under the hood, shown as a secondary link in the info guide alongside the
  * LCARdS docs link. Determined via a full read of every preset factory
- * (not guessed from the name) — e.g. `cascade`/`grid-stagger` call
+ * (not guessed from the name) — e.g. `cascade` calls
  * `stagger()` directly even though `cascade-color` (default mode) is a
  * plain tween despite superficially sounding related. Every URL below was
  * verified to resolve with a live fetch before being hardcoded here.
@@ -146,7 +150,6 @@ const ANIMEJS_REFERENCE_URLS = {
   motionpath: `${ANIMEJS_DOCS_BASE}/svg/createmotionpath`,
   'physics-spring': `${ANIMEJS_DOCS_BASE}/easings/spring`,
   cascade: `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
-  'grid-stagger': `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
   'stagger-grid': `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
   'stagger-wave': `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
   'stagger-radial': `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
@@ -930,7 +933,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .selector=${{ number: { min: 1, max: 10, step: 1, mode: 'slider' } }}
               .value=${params.bounces ?? 3}
               .label=${'Number of Bounces'}
-              .helper=${'When > 1, this preset forces easeOutQuad easing and multiplies duration by this count — see the info guide above.'}
+              .helper=${'When > 1, this preset forces outQuad easing and multiplies duration by this count — see the info guide above.'}
               @value-changed=${(e) => this._updateParam(index, 'bounces', e.detail.value)}>
             </ha-selector>
           </div>

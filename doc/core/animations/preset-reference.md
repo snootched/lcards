@@ -19,6 +19,8 @@ Scale and brightness breathing effect.
 | `loop` | `true` | Loop continuously |
 | `alternate` | `true` | Reverse on each loop |
 
+<AnimationPlayground preset="pulse" />
+
 ### `glow`
 
 Animated drop-shadow bloom.
@@ -33,6 +35,8 @@ Animated drop-shadow bloom.
 | `loop` | `true` | Loop continuously |
 | `alternate` | `true` | Reverse on each loop |
 
+<AnimationPlayground preset="glow" />
+
 ### `shake`
 
 Horizontal vibrate effect.
@@ -44,6 +48,8 @@ Horizontal vibrate effect.
 | `frequency` | `4` | Number of side-to-side shakes |
 | `ease` | `inOutSine` | Easing function |
 | `loop` | `false` | Loop continuously |
+
+<AnimationPlayground preset="shake" />
 
 ### `bounce`
 
@@ -58,7 +64,9 @@ Elastic scale bounce.
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
 
-> **`ease`/`duration` are only used as documented when `bounces` is `1` or less.** With the default `bounces: 3`, the code force-overrides `ease` to `easeOutQuad` and multiplies `duration` by `bounces` (2400ms by default) — your own `ease`/`duration` values are silently discarded in that case. Set `bounces: 1` if you need your own easing/duration to actually take effect.
+> **`ease`/`duration` are only used as documented when `bounces` is `1` or less.** With the default `bounces: 3`, the code force-overrides `ease` to `outQuad` and multiplies `duration` by `bounces` (2400ms by default) — your own `ease`/`duration` values are silently discarded in that case. Set `bounces: 1` if you need your own easing/duration to actually take effect.
+
+<AnimationPlayground preset="bounce" />
 
 ### `rotate`
 
@@ -74,6 +82,8 @@ Rotation animation.
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
 
+<AnimationPlayground preset="rotate" />
+
 ### `blink`
 
 Slow opacity blink.
@@ -87,6 +97,8 @@ Slow opacity blink.
 | `loop` | `true` | Loop continuously |
 | `alternate` | `true` | Reverse on each loop |
 
+<AnimationPlayground preset="blink" />
+
 ### `strobe`
 
 Rapid opacity flicker.
@@ -99,6 +111,8 @@ Rapid opacity flicker.
 | `ease` | `linear` | Easing function |
 | `loop` | `true` | Loop continuously |
 | `alternate` | `true` | Reverse on each loop |
+
+<AnimationPlayground preset="strobe" />
 
 ### `skew`
 
@@ -115,6 +129,8 @@ Skew/slant transformation.
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
 
+<AnimationPlayground preset="skew" />
+
 ---
 
 ### `fade`
@@ -130,6 +146,8 @@ Simple opacity transition.
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
 
+<AnimationPlayground preset="fade" />
+
 ### `slide`
 
 Slide in from a direction.
@@ -139,11 +157,13 @@ Slide in from a direction.
 | `from` | `right` | Entry side: `left`, `right`, `top`, `bottom` (alias: `direction`) — prefer these four |
 | `distance` | `100` | Distance in px (or `%` string) |
 | `duration` | `600` | Duration (ms) |
-| `ease` | `easeOutQuad` | Easing function |
+| `ease` | `outQuad` | Easing function |
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
 
 > A legacy `up`/`down` pair is also accepted, but confusingly maps the *opposite* way you'd expect versus `top`/`bottom` (`up` behaves like `bottom`, `down` behaves like `top`) — use `left`/`right`/`top`/`bottom` instead to avoid the mix-up.
+
+<AnimationPlayground preset="slide" />
 
 ### `scale`
 
@@ -157,6 +177,8 @@ Simple scale transform animation. Ideal for button feedback.
 | `ease` | `outQuad` | Easing function |
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
+
+<AnimationPlayground preset="scale" />
 
 ### `scale-reset`
 
@@ -178,6 +200,8 @@ animations:
     trigger: on_leave
 ```
 
+<AnimationPlayground preset="scale-reset" />
+
 ---
 
 ## Text Animation Presets
@@ -194,10 +218,12 @@ Characters, words, or lines appear in sequence with a stagger effect.
 | `direction` | `first` | Stagger origin: `first`, `last`, `center`, `random`, or a numeric index |
 | `stagger` | `50` | Delay between units (ms) |
 | `duration` | `800` | Duration per unit (ms) |
-| `ease` | `easeOutQuad` | Easing function |
+| `ease` | `outQuad` | Easing function |
 | `from_opacity` | `0` | Starting opacity of each unit |
 | `from_y` | `20` | Starting Y offset (px) |
 | `loop` | `false` | Loop continuously |
+
+<AnimationPlayground preset="text-reveal" />
 
 ### `text-scramble`
 
@@ -212,6 +238,8 @@ Matrix-style character scramble before settling on the real text.
 | `characters` | `A-Z 0-9 !@#$%^&*` | Pool of random characters to cycle through |
 | `loop` | `false` | Loop continuously |
 
+<AnimationPlayground preset="text-scramble" />
+
 ### `text-glitch`
 
 Rapid position and opacity jitter for a glitch/malfunction effect.
@@ -224,6 +252,8 @@ Rapid position and opacity jitter for a glitch/malfunction effect.
 | `color_shift` | `false` | Also jitters colour — HTML text targets only, silently ignored on SVG text |
 | `loop` | `false` | Loop continuously |
 
+<AnimationPlayground preset="text-glitch" />
+
 ### `text-typewriter`
 
 Characters appear one at a time at a fixed speed.
@@ -232,6 +262,8 @@ Characters appear one at a time at a fixed speed.
 |-------|---------|-------------|
 | `speed` | `100` | ms per character |
 | `loop` | `false` | Loop continuously |
+
+<AnimationPlayground preset="text-typewriter" />
 
 ---
 
@@ -252,6 +284,8 @@ Fill colour and opacity animation for shimmering effects.
 | `loop` | `true` | Loop continuously |
 | `alternate` | `true` | Reverse on each loop |
 
+<AnimationPlayground preset="shimmer" />
+
 ### `flicker`
 
 Randomised opacity animation for flickering effects.
@@ -263,6 +297,8 @@ Randomised opacity animation for flickering effects.
 | `duration` | `1000` | Duration (ms) |
 | `ease` | `linear` | Easing function |
 | `loop` | `true` | Loop continuously |
+
+<AnimationPlayground preset="flicker" />
 
 ### `cascade`
 
@@ -278,6 +314,8 @@ Staggered animation across multiple target elements.
 | `ease` | `outExpo` | Easing function |
 | `loop` | `false` | Loop continuously |
 
+<AnimationPlayground preset="cascade" />
+
 ### `ripple`
 
 Expanding scale with opacity fade.
@@ -291,6 +329,8 @@ Expanding scale with opacity fade.
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
 
+<AnimationPlayground preset="ripple" />
+
 ### `glitch`
 
 Random position and colour shifts for a malfunction effect.
@@ -303,6 +343,8 @@ Random position and colour shifts for a malfunction effect.
 | `loop` | `false` | Loop continuously |
 
 > `ease` is hardcoded to `linear` and `alternate` has no effect — both are ignored if set.
+
+<AnimationPlayground preset="glitch" />
 
 ---
 
@@ -321,6 +363,8 @@ Animates a colour property from one value to another.
 | `ease` | `inOutQuad` | Easing function |
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
+
+<AnimationPlayground preset="color-shift" />
 
 ### `cascade-color`
 
@@ -343,6 +387,10 @@ LCARS-style colour cascade through three keyframe colours. Uses theme tokens for
 | `axis` | `row` | Stagger axis: `row` or `column` |
 | `interactive` | `false` | Pause on hover, resume on leave — only wired up in `animejs` mode |
 
+> A single `cascade-color` instance targeting a whole grid changes every matched cell **in sync** — that's correct, expected behavior for one instance (`mode: css`'s `delay` is one flat value, not a per-element stagger). The row-by-row "waterfall" look (including the `niagara` timing pattern) comes from declaring **multiple separate instances**, one per row, each with its own `delay`/`duration` — see the `@example User Config (data-grid)` above, or [`lcards-data-grid`'s `animation.pattern`](../../cards/data-grid/index.md) option, which automates exactly that. The demo below forces `stagger_from` to show real per-cell staggering (`animejs` mode) so the effect is visible from a single instance — that's a demo-only override, not this preset's real default.
+
+<AnimationPlayground preset="cascade-color" />
+
 ---
 
 ## SVG-Specific Presets
@@ -355,9 +403,11 @@ SVG path drawing animation using `strokeDashoffset`. Apply to `<path>` elements.
 |-------|---------|-------------|
 | `reverse` | `false` | Draw in reverse direction |
 | `duration` | `2000` | Duration (ms) |
-| `ease` | `easeInOutSine` | Easing function |
+| `ease` | `inOutSine` | Easing function |
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
+
+<AnimationPlayground preset="draw" />
 
 ### `march`
 
@@ -371,13 +421,15 @@ CSS-based marching dashed line animation. More performant than JS for continuous
 | `direction` | `forward` | `forward` or `reverse` |
 | `loop` | `true` | `true` = infinite marching (the default), `false`/`0` = play once, a number = that many iterations |
 
+<AnimationPlayground preset="march" />
+
 ---
 
 ## Stagger Presets
 
 Animate multiple target elements at once with anime.js's `stagger()` helper — each target starts a fixed step later than the previous one. Requires multiple elements matched by `target`/`targets` (a single-element animation just plays with no visible stagger).
 
-> Naming note: `stagger-grid` here is unrelated to the deprecated [`grid-stagger`](#grid-stagger) in Advanced Presets — different fields, different defaults. Prefer `stagger-grid` (this one actually staggers correctly).
+> Naming note: `stagger-grid` here is unrelated to the similarly-named `grid-stagger`, which was [removed in 2026.07.x](#grid-stagger-removed-in-2026-07-x) — if you're migrating an old `grid-stagger` config, see that section for the field mapping.
 
 ### `stagger-grid`
 
@@ -406,6 +458,8 @@ Stagger across a `[cols, rows]` grid of targets, with a configurable wave origin
     delay: 50
 ```
 
+<AnimationPlayground preset="stagger-grid" />
+
 ### `stagger-wave`
 
 A wave ripples through a linear sequence of targets.
@@ -417,7 +471,7 @@ A wave ripples through a linear sequence of targets.
 | `property` | `translateY` | CSS property to animate |
 | `amplitude` | `-20` | Peak displacement, used in a 3-point `[0, amplitude, 0]` path |
 | `duration` | `800` | Duration per element (ms) |
-| `ease` | `easeOutElastic` | Easing function |
+| `ease` | `outElastic` | Easing function |
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
 
@@ -429,6 +483,8 @@ A wave ripples through a linear sequence of targets.
     delay: 80
     amplitude: -30
 ```
+
+<AnimationPlayground preset="stagger-wave" />
 
 ### `stagger-radial`
 
@@ -442,7 +498,7 @@ Stagger radiating outward from a point.
 | `from_value` | `0` | Starting value |
 | `to_value` | `1` | Ending value |
 | `duration` | `800` | Duration per element (ms) |
-| `ease` | `easeOutExpo` | Easing function |
+| `ease` | `outExpo` | Easing function |
 | `loop` | `false` | Loop continuously |
 
 > `alternate` isn't read by this preset — setting it has no effect.
@@ -456,6 +512,8 @@ Stagger radiating outward from a point.
     delay: 40
     property: opacity
 ```
+
+<AnimationPlayground preset="stagger-radial" />
 
 ### `stagger-flash`
 
@@ -474,6 +532,8 @@ A lead/trail colour sweep across targets, driven by the Web Animations API direc
 | `with_opacity` | `true` | Also fade opacity as part of the sweep |
 | `trail_opacity` | `0.25` | Opacity left behind after the sweep passes (only if `with_opacity`) |
 | `loop` | `true` | Maps to the WAAPI `iterations` option (`Infinity` vs `1`) — not the generic anime.js loop mechanism |
+
+<AnimationPlayground preset="stagger-flash" />
 
 ---
 
@@ -502,6 +562,8 @@ A generic multi-step timeline you fully define yourself.
         offset: "<"
 ```
 
+<AnimationPlayground preset="timeline-cascade" />
+
 ### `timeline-attention`
 
 A fixed 3-phase "look at me" sequence: scale up, shake, settle back.
@@ -514,6 +576,8 @@ A fixed 3-phase "look at me" sequence: scale up, shake, settle back.
 | `duration_shake` | `300` | Duration of phase 2 — shake (ms) |
 | `duration_settle` | `400` | Duration of phase 3 — settle back (ms) |
 | `loop` | `false` | Loop the full sequence |
+
+<AnimationPlayground preset="timeline-attention" />
 
 ---
 
@@ -538,6 +602,8 @@ animations:
         opacity: 0.5
         fill: red
 ```
+
+<AnimationPlayground preset="set" />
 
 ### `motionpath`
 
@@ -599,6 +665,8 @@ Field names deliberately mirror line markers' (`marker_start`/`marker_end`) styl
       fill: "var(--lcards-orange)"
 ```
 
+<AnimationPlayground preset="motionpath" />
+
 ---
 
 ## Advanced Presets
@@ -628,26 +696,28 @@ Timeline-based animation with multiple steps at specified offsets. Uses `anime.j
 
 > Prefer `offset` — the older `at` name is also accepted as a fallback (translated internally), but `offset` wins if a step sets both.
 
-### `grid-stagger`
+<AnimationPlayground preset="sequence" />
 
-::: warning Deprecated — does not actually stagger
-`grid-stagger` never staggers multiple elements correctly — a confirmed, unfixed bug in how it builds its per-element delay internally. Every element ends up with identical (non-staggered) timing regardless of config. It's kept registered only for backward compatibility with existing configs and has been removed from the editor's preset picker. For a working staggered-grid effect, use [`stagger-grid`](#stagger-grid) instead — a similarly-named but different, functioning preset.
+### `grid-stagger` (removed in 2026.07.x)
+
+::: danger Removed — migrate to `stagger-grid`
+`grid-stagger` never staggered multiple elements correctly — a confirmed bug in how it built its per-element delay internally, every element got identical (non-staggered) timing regardless of config. It had already been pulled from the editor's preset picker; as of 2026.07.x it's removed from the registry entirely, so `preset: grid-stagger` in an existing config no longer resolves.
+
+Migrate to [`stagger-grid`](#stagger-grid) — same general idea, but **not** a drop-in rename:
+
+| `grid-stagger` field | `stagger-grid` equivalent | Notes |
+|---|---|---|
+| `stagger_duration` | `delay` | Renamed — `stagger-grid` repurposes the canonical `delay` field for the per-element step |
+| `wave_duration` | `duration` | Renamed — and unlike `grid-stagger`, `stagger-grid` **does** read the canonical `duration` field |
+| `from: center` | `from: center` | Same |
+| `from: first` | `from: start` | Renamed value |
+| `from: last` | `from: end` | Renamed value |
+| `from: random` | — | No equivalent |
+| — | `from: edges` | `stagger-grid`-only, no `grid-stagger` equivalent |
+| `grid`, `property`, `from_value`, `to_value`, `loop`, `alternate` | same names | Field names match, but check defaults — they differ from `grid-stagger`'s |
+
+See the 2026.07.x release notes for the full breaking-change entry.
 :::
-
-Staggered animation across grid elements, with waves emanating from a chosen origin.
-
-| Param | Default | Description |
-|-------|---------|-------------|
-| `grid` | `[10, 10]` | Grid dimensions `[cols, rows]` |
-| `from` | `center` | Wave origin: `center`, `first`, `last`, `random`, or `[x, y]` |
-| `property` | `scale` | CSS property to animate |
-| `from_value` | `1` | Starting value |
-| `to_value` | `1.5` | Ending value |
-| `stagger_duration` | `50` | Delay between elements (ms) |
-| `wave_duration` | `1000` | Duration per element animation (ms) |
-| `ease` | `inOutQuad` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `true` | Reverse on each loop |
 
 ### `chaos`
 
@@ -665,6 +735,8 @@ Randomised multi-property animation for glitch and malfunction effects.
 
 > The canonical top-level `duration` field isn't used at all here — `duration_min`/`duration_max` replace it entirely.
 
+<AnimationPlayground preset="chaos" />
+
 ### `physics-spring`
 
 Spring-physics animation using anime.js v4 spring easing. Produces natural, organic motion.
@@ -681,6 +753,8 @@ Spring-physics animation using anime.js v4 spring easing. Produces natural, orga
 | `loop` | `false` | Loop continuously — this one canonical field genuinely is respected |
 
 > The canonical `ease`/`duration`/`alternate` fields are entirely bypassed here — spring dynamics determine the effective duration/motion internally.
+
+<AnimationPlayground preset="physics-spring" />
 
 ---
 

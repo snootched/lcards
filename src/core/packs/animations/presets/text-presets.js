@@ -153,7 +153,7 @@ export const TEXT_PRESETS = {
     const duration  = p.duration  || 800;
     const fromOpacity = p.from_opacity !== undefined ? p.from_opacity : 0;
     const fromY       = p.from_y      !== undefined ? p.from_y      : 20;
-    const ease = getResolvedEasing(p) || 'easeOutQuad';
+    const ease = getResolvedEasing(p) || 'outQuad'; // v4 easing name (was 'easeOutQuad')
     const loop = p.loop !== undefined ? p.loop : false;
 
     return {
@@ -303,7 +303,7 @@ export const TEXT_PRESETS = {
 
     const htmlAnimConfig = {
       duration,
-      ease: 'easeInOutQuad',
+      ease: 'inOutQuad', // v4 easing name (was 'easeInOutQuad')
       loop,
       delay: { _stagger: true, value: stagger, from: 'first' },
       // Function form: called once per element, generates unique random displacement per char
@@ -339,7 +339,7 @@ export const TEXT_PRESETS = {
               dx:       [0, dxVal, 0],
               dy:       [0, dyVal, 0],
               duration,
-              ease:     'easeInOutQuad',
+              ease:     'inOutQuad', // v4 easing name (was 'easeInOutQuad')
               loop,
               delay:    i * stagger
             });

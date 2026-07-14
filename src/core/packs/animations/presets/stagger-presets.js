@@ -56,7 +56,7 @@ export const STAGGER_PRESETS = {
    * - from_value (default: 0.8) - Starting value
    * - to_value (default: 1) - Ending value
    * - duration (default: 600)
-   * - ease (default: 'easeOutQuad')
+   * - ease (default: 'outQuad')
    * - loop (default: false)
    *
    * Example (Alert bars):
@@ -117,7 +117,7 @@ export const STAGGER_PRESETS = {
    * - property (default: 'translateY') - Property to animate
    * - amplitude (default: -20) - Wave amplitude (distance)
    * - duration (default: 800)
-   * - ease (default: 'easeOutElastic')
+   * - ease (default: 'outElastic')
    * - loop (default: false)
    * - alternate (default: true)
    *
@@ -135,7 +135,7 @@ export const STAGGER_PRESETS = {
     const property = p.property || 'translateY';
     const amplitude = p.amplitude !== undefined ? p.amplitude : -20;
     const duration = p.duration || 800;
-    const ease = getResolvedEasing(p) || 'easeOutElastic';
+    const ease = getResolvedEasing(p) || 'outElastic'; // v4 easing name (was 'easeOutElastic')
     const loop = p.loop !== undefined ? p.loop : false;
     const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -171,7 +171,7 @@ export const STAGGER_PRESETS = {
    * - from_value (default: 0) - Starting value
    * - to_value (default: 1) - Ending value
    * - duration (default: 800)
-   * - ease (default: 'easeOutExpo')
+   * - ease (default: 'outExpo')
    * - loop (default: false)
    *
    * Example:
@@ -189,7 +189,7 @@ export const STAGGER_PRESETS = {
     const fromValue = p.from_value !== undefined ? p.from_value : 0;
     const toValue = p.to_value !== undefined ? p.to_value : 1;
     const duration = p.duration || 800;
-    const ease = getResolvedEasing(p) || 'easeOutExpo';
+    const ease = getResolvedEasing(p) || 'outExpo'; // v4 easing name (was 'easeOutExpo')
     const loop = p.loop !== undefined ? p.loop : false;
 
     return {

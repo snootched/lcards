@@ -2,6 +2,7 @@ import DefaultTheme from 'vitepress/theme'
 import { enhanceAppWithTabs } from 'vitepress-plugin-tabs/client'
 import { onMounted, onUnmounted, h } from 'vue'
 import HomeBadges from './HomeBadges.vue'
+import AnimationPlayground from './AnimationPlayground.vue'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -44,6 +45,11 @@ export default {
 
   enhanceApp({ app }: { app: any }) {
     enhanceAppWithTabs(app)
+    // Live anime.js preset demos (imports real src/core/packs/animations code
+    // client-side) — registered globally so any doc page can drop in
+    // <AnimationPlayground preset="pulse" />. Runs client-only; SSR just
+    // renders the loading-shell fallback in the component's own template.
+    app.component('AnimationPlayground', AnimationPlayground)
   },
 
   Layout() {

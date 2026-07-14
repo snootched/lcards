@@ -34,7 +34,7 @@ AnimationManager
     │
     ├─ AnimationRegistry  (shared, caches anime instances by key)
     ├─ datasourceSubscriptions (datasource_id → cleanup fn)
-    └─ timelines Map (timelineId → anime.timeline instance)
+    └─ timelines Map (timelineId → createTimeline() instance)
 ```
 
 ---
@@ -53,7 +53,7 @@ AnimationManager
 
 ## anime.js v4 Note
 
-LCARdS uses **anime.js v4**. The `anime.timeline()` API changed from v3. Always pass targets as CSS selectors or DOM element references resolved at runtime — not stale references cached at config time.
+LCARdS uses **anime.js v4**. The timeline API (`anime.createTimeline()`, renamed from v3's `anime.timeline()`) changed from v3. Always pass targets as CSS selectors or DOM element references resolved at runtime — not stale references cached at config time.
 
 ---
 

@@ -49,7 +49,7 @@ export function registerBuiltinAnimationPresets() {
  * - max_scale (default: 1.15) or scale - How much to grow
  * - max_brightness (default: 1.4) - How much to brighten (1.0 = normal)
  * - duration (default: 1200)
- * - ease (default: 'easeInOutSine')
+ * - ease (default: 'inOutSine')
  * - loop (default: true) - Can be true, false, or a number (e.g., 3 for 3 iterations)
  * - alternate (default: true)
  */
@@ -58,7 +58,7 @@ registerAnimationPreset('pulse', (def) => {
   const maxScale = p.max_scale !== undefined ? p.max_scale : (p.scale !== undefined ? p.scale : 1.15);
   const maxBrightness = p.max_brightness !== undefined ? p.max_brightness : 1.4;
   const duration = p.duration || 1200;
-  const ease = getResolvedEasing(p) || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'inOutSine'; // v4 easing name (was 'easeInOutSine')
   const loop = p.loop !== undefined ? p.loop : true;
   const alternate = p.alternate !== undefined ? p.alternate : true;
 
@@ -148,7 +148,7 @@ registerAnimationPreset('fade', (def) => {
  * - blur_min (default: 0)
  * - blur_max (default: 10)
  * - duration (default: 1500)
- * - ease (default: 'easeInOutSine')
+ * - ease (default: 'inOutSine')
  * - loop (default: true) - Can be true, false, or a number (e.g., 3 for 3 iterations)
  * - alternate (default: true)
  */
@@ -158,7 +158,7 @@ registerAnimationPreset('glow', (def) => {
   const blurMin = p.blur_min !== undefined ? p.blur_min : 0;
   const blurMax = p.blur_max !== undefined ? p.blur_max : 10;
   const duration = p.duration || 1500;
-  const ease = getResolvedEasing(p) || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'inOutSine'; // v4 easing name (was 'easeInOutSine')
   const loop = p.loop !== undefined ? p.loop : true;
   const alternate = p.alternate !== undefined ? p.alternate : true;
 
@@ -183,7 +183,7 @@ registerAnimationPreset('glow', (def) => {
  *
  * Parameters:
  * - duration (default: 2000)
- * - ease (default: 'easeInOutSine')
+ * - ease (default: 'inOutSine')
  * - reverse (default: false) - If true, draws from end to start
  * - loop (default: false)
  * - alternate (default: false)
@@ -192,7 +192,7 @@ registerAnimationPreset('glow', (def) => {
 registerAnimationPreset('draw', (def) => {
   const p = resolvePresetParams(def);
   const duration = p.duration || 2000;
-  const ease = getResolvedEasing(p) || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'inOutSine'; // v4 easing name (was 'easeInOutSine')
   const reverse = p.reverse || false;
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
@@ -451,7 +451,7 @@ registerAnimationPreset('blink', (def) => {
  * - opacity_from (default: 1)
  * - opacity_to (default: 0.5)
  * - duration (default: 1500)
- * - ease (default: 'easeInOutSine')
+ * - ease (default: 'inOutSine')
  * - loop (default: true)
  * - alternate (default: true)
  */
@@ -462,7 +462,7 @@ registerAnimationPreset('shimmer', (def) => {
   const opacityFrom = p.opacity_from !== undefined ? p.opacity_from : 1;
   const opacityTo = p.opacity_to !== undefined ? p.opacity_to : 0.5;
   const duration = p.duration || 1500;
-  const ease = getResolvedEasing(p) || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'inOutSine'; // v4 easing name (was 'easeInOutSine')
   const loop = p.loop !== undefined ? p.loop : true;
   const alternate = p.alternate !== undefined ? p.alternate : true;
 
@@ -567,7 +567,7 @@ registerAnimationPreset('flicker', (def) => {
  * - from (default: 0)
  * - to (default: 1)
  * - duration (default: 1000)
- * - ease (default: 'easeOutExpo')
+ * - ease (default: 'outExpo')
  * - loop (default: false)
  */
 registerAnimationPreset('cascade', (def) => {
@@ -577,7 +577,7 @@ registerAnimationPreset('cascade', (def) => {
   const from = p.from !== undefined ? p.from : 0;
   const to = p.to !== undefined ? p.to : 1;
   const duration = p.duration || 1000;
-  const ease = getResolvedEasing(p) || 'easeOutExpo';
+  const ease = getResolvedEasing(p) || 'outExpo'; // v4 easing name (was 'easeOutExpo')
   const loop = p.loop !== undefined ? p.loop : false;
 
   return {
@@ -796,7 +796,7 @@ registerAnimationPreset('cascade-color', (def) => {
  * - scale_max (default: 1.5)
  * - opacity_min (default: 0)
  * - duration (default: 1000)
- * - ease (default: 'easeOutExpo')
+ * - ease (default: 'outExpo')
  * - loop (default: false)
  * - alternate (default: false)
  */
@@ -805,7 +805,7 @@ registerAnimationPreset('ripple', (def) => {
   const scaleMax = p.scale_max !== undefined ? p.scale_max : 1.5;
   const opacityMin = p.opacity_min !== undefined ? p.opacity_min : 0;
   const duration = p.duration || 1000;
-  const ease = getResolvedEasing(p) || 'easeOutExpo';
+  const ease = getResolvedEasing(p) || 'outExpo'; // v4 easing name (was 'easeOutExpo')
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -833,7 +833,7 @@ registerAnimationPreset('ripple', (def) => {
  * - scale (default: 1.1) - Target scale factor
  * - from (default: 1) - Starting scale
  * - duration (default: 200)
- * - ease (default: 'easeOutQuad')
+ * - ease (default: 'outQuad')
  * - loop (default: false) - Can be true, false, or a number (e.g., 3 for 3 iterations)
  * - alternate (default: false)
  */
@@ -842,7 +842,7 @@ registerAnimationPreset('scale', (def) => {
   const scale = p.scale !== undefined ? p.scale : 1.1;
   const from = p.from !== undefined ? p.from : 1;
   const duration = p.duration || 200;
-  const ease = getResolvedEasing(p) || 'easeOutQuad';
+  const ease = getResolvedEasing(p) || 'outQuad'; // v4 easing name (was 'easeOutQuad')
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -867,12 +867,12 @@ registerAnimationPreset('scale', (def) => {
  *
  * Parameters:
  * - duration (default: 200)
- * - ease (default: 'easeOutQuad')
+ * - ease (default: 'outQuad')
  */
 registerAnimationPreset('scale-reset', (def) => {
   const p = resolvePresetParams(def);
   const duration = p.duration || 200;
-  const ease = getResolvedEasing(p) || 'easeOutQuad';
+  const ease = getResolvedEasing(p) || 'outQuad'; // v4 easing name (was 'easeOutQuad')
 
   return {
     anime: {
@@ -900,7 +900,7 @@ registerAnimationPreset('scale-reset', (def) => {
  * - direction (default: 'up') - 'up', 'down', 'left', 'right'
  * - distance (default: 100) - Distance to slide in pixels
  * - duration (default: 600)
- * - ease (default: 'easeOutQuad')
+ * - ease (default: 'outQuad')
  * - loop (default: false)
  * - alternate (default: false)
  */
@@ -910,7 +910,7 @@ registerAnimationPreset('slide', (def) => {
   const from = p.from || p.direction || 'right';
   const distance = p.distance !== undefined ? p.distance : 100;
   const duration = p.duration || 600;
-  const ease = getResolvedEasing(p) || 'easeOutQuad';
+  const ease = getResolvedEasing(p) || 'outQuad'; // v4 easing name (was 'easeOutQuad')
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -1030,7 +1030,7 @@ registerAnimationPreset('rotate', (def) => {
  * - intensity (default: 10) - Shake distance in pixels
  * - duration (default: 500)
  * - frequency (default: 4) - Number of shakes
- * - ease (default: 'easeInOutSine')
+ * - ease (default: 'inOutSine')
  * - loop (default: false)
  */
 registerAnimationPreset('shake', (def) => {
@@ -1038,7 +1038,7 @@ registerAnimationPreset('shake', (def) => {
   const intensity = p.intensity !== undefined ? p.intensity : 10;
   const duration = p.duration || 500;
   const frequency = p.frequency !== undefined ? p.frequency : 4;
-  const ease = getResolvedEasing(p) || 'easeInOutSine';
+  const ease = getResolvedEasing(p) || 'inOutSine'; // v4 easing name (was 'easeInOutSine')
   const loop = p.loop !== undefined ? p.loop : false;
 
   // Generate keyframes for shake effect
@@ -1070,7 +1070,7 @@ registerAnimationPreset('shake', (def) => {
  * - scale_max (default: 1.2) - Maximum scale factor
  * - duration (default: 800)
  * - bounces (default: 3) - Number of bounces
- * - ease (default: 'easeOutElastic')
+ * - ease (default: 'outElastic')
  * - loop (default: false)
  * - alternate (default: false)
  */
@@ -1079,7 +1079,7 @@ registerAnimationPreset('bounce', (def) => {
   const scaleMax = p.scale_max !== undefined ? p.scale_max : 1.2;
   const duration = p.duration || 800;
   const bounces = p.bounces !== undefined ? p.bounces : 3;
-  const ease = getResolvedEasing(p) || 'easeOutElastic';
+  const ease = getResolvedEasing(p) || 'outElastic'; // v4 easing name (was 'easeOutElastic')
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -1098,7 +1098,7 @@ registerAnimationPreset('bounce', (def) => {
       anime: {
         keyframes,
         duration: duration * bounces,
-        ease: 'easeOutQuad', // Use simpler easing for keyframes
+        ease: 'outQuad', // v4 easing name (was 'easeOutQuad') — simpler easing for keyframes
         loop,
         alternate
       },
@@ -1133,7 +1133,7 @@ registerAnimationPreset('bounce', (def) => {
  * - color_to (required) - Ending color
  * - property (default: 'color') - CSS property to animate ('color', 'fill', 'stroke', 'background-color', etc.)
  * - duration (default: 1000)
- * - ease (default: 'easeInOutQuad')
+ * - ease (default: 'inOutQuad')
  * - loop (default: false)
  * - alternate (default: false)
  */
@@ -1143,7 +1143,7 @@ registerAnimationPreset('color-shift', (def) => {
   const colorTo = p.color_to;
   const property = p.property || 'color';
   const duration = p.duration || 1000;
-  const ease = getResolvedEasing(p) || 'easeInOutQuad';
+  const ease = getResolvedEasing(p) || 'inOutQuad'; // v4 easing name (was 'easeInOutQuad')
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -1174,14 +1174,14 @@ registerAnimationPreset('color-shift', (def) => {
  * - from_skewX (default: 0) - Starting horizontal skew
  * - from_skewY (default: 0) - Starting vertical skew
  * - duration (default: 600)
- * - ease (default: 'easeInOutQuad')
+ * - ease (default: 'inOutQuad')
  * - loop (default: false)
  * - alternate (default: false)
  */
 registerAnimationPreset('skew', (def) => {
   const p = resolvePresetParams(def);
   const duration = p.duration || 600;
-  const ease = getResolvedEasing(p) || 'easeInOutQuad';
+  const ease = getResolvedEasing(p) || 'inOutQuad'; // v4 easing name (was 'easeInOutQuad')
   const loop = p.loop !== undefined ? p.loop : false;
   const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -1538,7 +1538,7 @@ registerAnimationPreset('motionpath', (def) => {
  *     - '<' for previous step start time
  * - duration (default: 2000) - Not used if steps have individual durations
  * - loop (default: false) - Loop entire sequence
- * - ease (default: 'easeOutQuad') - Default easing for steps without ease
+ * - ease (default: 'outQuad') - Default easing for steps without ease
  *
  * Example:
  * {
@@ -1557,7 +1557,7 @@ registerAnimationPreset('sequence', (def) => {
   const steps = p.steps;
   const defaultDuration = p.duration || 2000;
   const loop = p.loop !== undefined ? p.loop : false;
-  const defaultEasing = getResolvedEasing(p) || 'easeOutQuad';
+  const defaultEasing = getResolvedEasing(p) || 'outQuad'; // v4 easing name (was 'easeOutQuad')
 
   if (!Array.isArray(steps) || steps.length === 0) {
     lcardsLog.warn('[AnimationPresets] sequence requires steps array with at least one step');
@@ -1591,62 +1591,6 @@ registerAnimationPreset('sequence', (def) => {
 });
 
 /**
- * Grid Stagger - Staggered animation based on grid position
- *
- * Animates elements in a grid pattern with staggered delays based on position.
- * Creates wave-like effects emanating from a chosen origin point.
- *
- * Parameters:
- * - grid (default: [10, 10]) - Grid dimensions [cols, rows]
- * - from (default: 'center') - Origin point:
- *   - 'center': Wave from center
- *   - 'first': Wave from top-left
- *   - 'last': Wave from bottom-right
- *   - 'random': Random order
- *   - [x, y]: Custom grid position (0-based)
- * - property (default: 'scale') - Property to animate
- * - from_value (default: 1) - Starting value
- * - to_value (default: 1.5) - Ending value
- * - stagger_duration (default: 50) - Delay between each element (ms)
- * - wave_duration (default: 1000) - Duration of individual element animation
- * - ease (default: 'easeInOutQuad')
- * - loop (default: false)
- * - alternate (default: true)
- */
-registerAnimationPreset('grid-stagger', (def) => {
-  const p = resolvePresetParams(def);
-  const grid = p.grid || [10, 10];
-  const from = p.from || 'center';
-  const property = p.property || 'scale';
-  const fromValue = p.from_value !== undefined ? p.from_value : 1;
-  const toValue = p.to_value !== undefined ? p.to_value : 1.5;
-  const staggerDuration = p.stagger_duration !== undefined ? p.stagger_duration : 50;
-  const waveDuration = p.wave_duration || 1000;
-  const ease = getResolvedEasing(p) || 'easeInOutQuad';
-  const loop = p.loop !== undefined ? p.loop : false;
-  const alternate = p.alternate !== undefined ? p.alternate : true;
-
-  return {
-    anime: {
-      [property]: [fromValue, toValue],
-      duration: waveDuration,
-      ease,
-      // Use anime.js v4 stagger with grid positioning
-      delay: window.lcards?.animejs?.stagger?.(staggerDuration, {
-        grid: grid,
-        from: from
-      }) || ((el, i) => i * staggerDuration),
-      loop,
-      alternate
-    },
-    styles: {
-      transformOrigin: 'center',
-      transformBox: 'fill-box'
-    }
-  };
-});
-
-/**
  * Chaos - Randomized multi-property animation for glitch/malfunction effects
  *
  * Creates unpredictable, chaotic motion by randomizing multiple properties
@@ -1657,7 +1601,7 @@ registerAnimationPreset('grid-stagger', (def) => {
  * - range (default: { x: [-50, 50], y: [-50, 50], rotate: [-15, 15] }) - Min/max for each property
  * - duration_min (default: 200) - Minimum animation duration
  * - duration_max (default: 800) - Maximum animation duration
- * - ease (default: 'easeInOutQuad')
+ * - ease (default: 'inOutQuad')
  * - loop (default: true)
  * - composition (default: 'blend') - 'blend' or 'replace'
  */
@@ -1668,7 +1612,7 @@ registerAnimationPreset('chaos', (def) => {
   const range = { ...defaultRange, ...(p.range || {}) };
   const durationMin = p.duration_min !== undefined ? p.duration_min : 200;
   const durationMax = p.duration_max !== undefined ? p.duration_max : 800;
-  const ease = getResolvedEasing(p) || 'easeInOutQuad';
+  const ease = getResolvedEasing(p) || 'inOutQuad'; // v4 easing name (was 'easeInOutQuad')
   const loop = p.loop !== undefined ? p.loop : true;
   const composition = p.composition || 'blend';
 
@@ -1736,13 +1680,18 @@ registerAnimationPreset('physics-spring', (def) => {
     return { anime: {}, styles: {} };
   }
 
-  // Use anime.js v4 spring as easing function
-  const springEasing = window.lcards?.animejs?.spring?.({
+  // Use anime.js v4 spring as easing function. `createSpring` is the real
+  // export on the raw anime.js module (there is no bare `.spring` — the
+  // `window.lcards.anim.spring` alias in src/lcards.js is `anime.createSpring`
+  // under a different name) — the old `.spring` reference here always
+  // resolved to undefined, silently falling through to the fallback string
+  // below on every call.
+  const springEasing = window.lcards?.animejs?.createSpring?.({
     stiffness,
     damping,
     mass,
     velocity
-  }) || 'easeOutElastic';
+  }) || 'outElastic'; // v4 easing name (was 'easeOutElastic')
 
   return {
     anime: {

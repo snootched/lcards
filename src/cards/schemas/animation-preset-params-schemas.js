@@ -150,7 +150,7 @@ export const marchParamsSchema = {
       ..._CANONICAL_REDECLARED.loop, default: true,
       description: 'Maps to CSS animation-iteration-count: true→infinite, false/0→1, N→N. Uses CSS keyframes, not the generic anime.js loop mechanism.'
     },
-    speed: { type: 'number', minimum: 0, description: 'Seconds per cycle. Takes precedence over `duration` if present.' },
+    speed: { type: 'number', minimum: 0, description: 'Seconds per cycle. Takes precedence over `duration` if present.', 'x-ui-hints': { label: 'Speed (sec/cycle — lower = faster)' } },
     direction: { type: 'string', enum: ['forward', 'reverse'], default: 'forward' },
     dash_length: { type: 'number', minimum: 0, description: 'Auto-detected from the element\'s stroke-dasharray if absent; fallback 10.' },
     gap_length: { type: 'number', minimum: 0, description: 'Auto-detected from the element\'s stroke-dasharray if absent; fallback 5.' }
@@ -331,7 +331,7 @@ export const bounceParamsSchema = {
     scale_max: { type: 'number', minimum: 1, maximum: 3, default: 1.2 },
     bounces: {
       type: 'number', minimum: 1, default: 3,
-      description: "If > 1, `ease` is force-overridden to 'easeOutQuad' and `duration` is multiplied by `bounces` (see Phase 13.6 re: whether ease should stay overridable here). If <= 1, the user's ease/duration are used unmodified."
+      description: "If > 1, `ease` is force-overridden to 'outQuad' and `duration` is multiplied by `bounces` (see Phase 13.6 re: whether ease should stay overridable here). If <= 1, the user's ease/duration are used unmodified."
     }
   },
   additionalProperties: 'warn'
@@ -420,7 +420,7 @@ export const sequenceParamsSchema = {
   description: "Params for the \"sequence\" preset — timeline of steps. Each step may set its own duration/ease (falling back to this preset's own duration/ease as per-step defaults). Step positioning uses `offset`; the preset factory also accepts the older `at` name as a fallback (translated to `offset` internally) — `offset` wins if a step sets both.",
   properties: {
     duration: { type: 'number', minimum: 0, maximum: 10000, default: 2000, description: 'Fallback duration for steps missing their own duration.' },
-    ease: { type: ['string', 'object'], description: "Fallback easing for steps missing their own ease. Default 'easeOutQuad'." },
+    ease: { type: ['string', 'object'], description: "Fallback easing for steps missing their own ease. Default 'outQuad'." },
     loop: { ..._CANONICAL_REDECLARED.loop, default: false },
     steps: {
       type: 'array', minItems: 1,
@@ -432,33 +432,6 @@ export const sequenceParamsSchema = {
       description: 'Required, at least one step.',
       'x-ui-hints': { widget: 'json', label: 'Steps' }
     }
-  },
-  additionalProperties: 'warn'
-};
-
-export const gridStaggerParamsSchema = {
-  type: 'object',
-  description: 'Params for the "grid-stagger" preset. Distinct from "stagger-grid" in stagger-presets.js — different field names, different default grid, and this one does not validate `grid`\'s shape (will misbehave silently on malformed input). Does not use the top-level `duration` field at all.',
-  properties: {
-    ..._CANONICAL_REDECLARED,
-    alternate: { ..._CANONICAL_REDECLARED.alternate, default: true, description: 'Defaults to true here — unusual among motion presets, most default false.' },
-    grid: {
-      type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' }, default: [10, 10],
-      description: 'Not validated in code today (unlike stagger-grid, which warns on bad shape).',
-      'x-ui-hints': { widget: 'json', label: 'Grid [cols, rows]' }
-    },
-    from: {
-      oneOf: [
-        { type: 'string', enum: ['center', 'first', 'last', 'random'] },
-        { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } }
-      ],
-      default: 'center'
-    },
-    property: { type: 'string', default: 'scale' },
-    from_value: { type: 'number', default: 1 },
-    to_value: { type: 'number', default: 1.5 },
-    stagger_duration: { type: 'number', minimum: 0, default: 50, description: 'Per-element delay step. NOT the canonical `delay` field, which is unused here.' },
-    wave_duration: { type: 'number', minimum: 0, default: 1000, description: 'Per-element animation duration. The top-level `duration` field is not used by this preset at all.' }
   },
   additionalProperties: 'warn'
 };
@@ -515,7 +488,7 @@ export const staggerGridParamsSchema = {
   description: 'Params for the "stagger-grid" preset — stagger across a [cols, rows] grid of targets.',
   properties: {
     ..._CANONICAL_REDECLARED,
-    ease: { ..._CANONICAL_REDECLARED.ease, description: "Default 'outQuad' (bare anime v4 easing-name style, unlike most other presets' 'easeOutQuad'-style default)." },
+    ease: { ..._CANONICAL_REDECLARED.ease, description: "Default 'outQuad'." },
     alternate: { ..._CANONICAL_REDECLARED.alternate, default: false },
     delay: {
       ..._CANONICAL_REDECLARED.delay, default: 100,
@@ -655,7 +628,7 @@ export const textScrambleParamsSchema = {
 
 export const textGlitchParamsSchema = {
   type: 'object',
-  description: "Params for the \"text-glitch\" preset. `ease` (canonical) is hardcoded to 'easeInOutQuad' — ignored.",
+  description: "Params for the \"text-glitch\" preset. `ease` (canonical) is hardcoded to 'inOutQuad' — ignored.",
   properties: {
     intensity: { type: 'number', minimum: 0, default: 5, description: 'Max px/SVG-unit displacement.' },
     duration: { type: 'number', minimum: 0, default: 300, description: 'ms per glitch cycle.' },
@@ -708,8 +681,9 @@ export const timelineCascadeParamsSchema = {
 
 export const timelineAttentionParamsSchema = {
   type: 'object',
-  description: 'Params for the "timeline-attention" preset — 3-phase scale/shake/settle sequence. The top-level canonical `duration`/`ease` are genuinely inert (durations are hardcoded to the duration_* fields below, and each phase\'s easing is hardcoded in source with no override — confirmed via anime.js\'s own source that Timeline discards a top-level duration and never reads `ease` at all). `loop`/`alternate`/`delay` do still apply at the whole-timeline level (repeat/reverse/start-delay), inherited from the underlying Timer class.',
+  description: 'Params for the "timeline-attention" preset — 3-phase scale/shake/settle sequence. The top-level canonical `duration`/`ease` are genuinely inert (durations are hardcoded to the duration_* fields below, and each phase\'s easing is hardcoded in source with no override — confirmed via anime.js\'s own source that Timeline discards a top-level duration and never reads `ease` at all). Of the remaining canonical fields, only `loop` is actually forwarded by the preset factory (repeats the whole 3-phase sequence) — `alternate`/`delay` are never read by this preset\'s code despite being generically available on the Timeline class, so they were deliberately left out of this schema.',
   properties: {
+    loop: { type: 'boolean', default: false, description: 'Repeats the whole 3-phase sequence.' },
     scale_max: { type: 'number', minimum: 1, default: 1.15 },
     shake_intensity: { type: 'number', minimum: 0, default: 5, description: 'Used to build a fixed 5-point translateX keyframe array.' },
     duration_scale: { type: 'number', minimum: 0, default: 200, description: 'Duration of phase 1 (scale up).' },
@@ -750,7 +724,6 @@ export const ANIMATION_PRESET_PARAMS_SCHEMAS = {
   set: setParamsSchema,
   motionpath: motionpathParamsSchema,
   sequence: sequenceParamsSchema,
-  'grid-stagger': gridStaggerParamsSchema,
   chaos: chaosParamsSchema,
   'physics-spring': physicsSpringParamsSchema,
   'stagger-grid': staggerGridParamsSchema,
