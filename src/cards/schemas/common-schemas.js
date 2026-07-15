@@ -7,6 +7,8 @@
  */
 
 import { ANIMATION_PRESET_PARAMS_SCHEMAS, ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE } from './animation-preset-params-schemas.js';
+import { BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE } from './background-animation-params-schemas.js';
+import { FILTER_PARAMS_SCHEMAS } from './filter-params-schemas.js';
 
 // ============================================================================
 // COLOR VALUE PRIMITIVES
@@ -432,12 +434,18 @@ export const filterSchema = {
             description: 'Filter type - depends on mode (CSS: blur, brightness, etc. / SVG: feGaussianBlur, feColorMatrix, etc.)'
         },
         value: {
-            oneOf: [
-                { type: 'string', description: 'Simple value for CSS filters (e.g., "5px", "1.5", "180deg")' },
-                { type: 'number', description: 'Numeric value for CSS filters (e.g., 1.5, 0.8)' },
-                { type: 'object', description: 'Object parameters for SVG filters', additionalProperties: true }
-            ],
-            description: 'Filter parameters - simple value for CSS filters, object for SVG filters'
+            discriminatedBy: {
+                field: 'type',
+                schemas: FILTER_PARAMS_SCHEMAS,
+                default: {
+                    oneOf: [
+                        { type: 'string', description: 'Simple value for CSS filters (e.g., "5px", "1.5", "180deg")' },
+                        { type: 'number', description: 'Numeric value for CSS filters (e.g., 1.5, 0.8)' },
+                        { type: 'object', description: 'Object parameters for SVG filters', additionalProperties: true }
+                    ]
+                }
+            },
+            description: 'Filter parameters - shape depends on the sibling `type` field. Simple value for CSS filters, object for SVG filters.'
         }
     },
     required: ['type']
@@ -1479,7 +1487,12 @@ const backgroundAnimationEffectSchema = {
         },
         config: {
             type: 'object',
-            description: 'Preset-specific configuration options. Supports entity-reactive values via map_range descriptor ({ map_range: { attribute, input, output } }) or template strings ([[[...]]]). entity_id defaults to the card-bound entity.'
+            discriminatedBy: {
+                field: 'preset',
+                schemas: BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE,
+                default: { type: 'object', additionalProperties: true }
+            },
+            description: 'Preset-specific configuration options. Shape depends on the sibling `preset` field. Supports entity-reactive values via map_range descriptor ({ map_range: { attribute, input, output } }) or template strings ([[[...]]]). entity_id defaults to the card-bound entity.'
         },
         enabled: {
             type: 'boolean',

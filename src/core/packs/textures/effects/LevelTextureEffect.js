@@ -29,7 +29,7 @@ function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
  *
  *  Fill geometry
  *    fill_pct     {number}  0–100 (default 50)
- *    direction    {string}  'up' | 'right' (default 'up')
+ *    direction    {string}  'up' | 'down' | 'left' | 'right' (default 'up')
  *
  *  Edge glow
  *    edge_glow        {boolean} Enable glow at fill edge (default true)
@@ -169,10 +169,35 @@ export class LevelTextureEffect extends BaseTextureEffect {
 
     _draw(ctx, w, h) {
         const pct = clamp(this._fillPct, 0, 100) / 100;
-        if (this._direction === 'right') {
-            this._drawHorizontal(ctx, w, h, pct);
-        } else {
-            this._drawVertical(ctx, w, h, pct);
+        switch (this._direction) {
+            case 'right':
+                this._drawHorizontal(ctx, w, h, pct);
+                break;
+            case 'left':
+                // Mirror horizontally and reuse the 'right' geometry unchanged,
+                // rather than re-deriving separate sign logic for every wave/
+                // glow/gradient coordinate — a Canvas2D reflection (scale
+                // factor magnitude 1) leaves line widths and colours
+                // untouched, so this is a true mirror of the tested 'right'
+                // path, not a re-implementation that could drift from it.
+                ctx.save();
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1);
+                this._drawHorizontal(ctx, w, h, pct);
+                ctx.restore();
+                break;
+            case 'down':
+                // Same mirroring approach, vertically, reusing 'up'.
+                ctx.save();
+                ctx.translate(0, h);
+                ctx.scale(1, -1);
+                this._drawVertical(ctx, w, h, pct);
+                ctx.restore();
+                break;
+            case 'up':
+            default:
+                this._drawVertical(ctx, w, h, pct);
+                break;
         }
     }
 

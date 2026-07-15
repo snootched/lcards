@@ -360,7 +360,7 @@ background_animation:
 
 ## Shape Texture
 
-Elbow cards support the same `shape_texture` feature as button cards — an SVG-native texture or animation clipped to the elbow shape fill (simple and segmented styles). Configuration is identical.
+Elbow cards support the same `shape_texture` feature as button cards — a Canvas2D texture or animation clipped to the elbow shape fill (simple and segmented styles). Configuration is identical.
 
 See [Button card — Shape Texture](../button/#shape-texture) for the full preset reference and examples.
 

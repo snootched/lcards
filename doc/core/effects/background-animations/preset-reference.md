@@ -34,7 +34,9 @@ config:
   scroll_speed_y: 20         # Vertical scroll speed (px/sec)
 
   # Pattern
-  pattern: "both"            # "both" | "horizontal" | "vertical"
+  pattern: "both"            # "both" | "horizontal" | "vertical" | "diagonal" | "hexagonal" | "dots"
+  dot_radius: 2              # Dot radius in px — only used when pattern is "dots"
+  hex_radius: 40             # Hexagon size in px — only used when pattern is "hexagonal"
   show_border_lines: true    # Draw lines at canvas edges
   fill_color: ""             # Optional cell background fill (empty = transparent)
 ```
@@ -45,6 +47,8 @@ config:
 - **Enhanced**: Set intervals > 0 — adds emphasised major lines at regular intervals
 - **Spacing-based**: Use `line_spacing` for a uniform grid
 - **Cell-based**: Use `num_rows` / `num_cols` for an exact cell count
+
+`pattern: diagonal` and `pattern: hexagonal` (sized by `hex_radius`) produce the same line pattern as the dedicated [`grid-diagonal`](#grid-diagonal)/[`grid-hexagonal`](#grid-hexagonal) presets below, but combined with `grid`'s other options (`num_rows`/`num_cols`, major/minor intervals) — the dedicated presets remain as convenience shorthands with their own tuned defaults, so either works. `pattern: dots` is a separate mode: a field of dots instead of lines, sized by `dot_radius`.
 
 **Examples:**
 
@@ -75,7 +79,27 @@ config:
     color: "rgba(102, 204, 255, 0.5)"
     fill_color: "rgba(102, 204, 255, 0.08)"
     line_width: 2
+
+# Dot field
+- preset: grid
+  config:
+    pattern: dots
+    line_spacing: 30
+    dot_radius: 2
+    color: "rgba(255, 153, 102, 0.4)"
+
+# Honeycomb, sized via the base grid preset
+- preset: grid
+  config:
+    pattern: hexagonal
+    hex_radius: 25
+    major_row_interval: 3
+    major_col_interval: 3
+    color: "rgba(255, 153, 102, 0.3)"
+    color_major: "rgba(255, 153, 102, 0.6)"
 ```
+
+<EffectPlayground preset="grid" />
 
 ---
 
@@ -115,6 +139,8 @@ config:
     color: "rgba(255, 153, 102, 0.4)"
     fill_color: "rgba(255, 153, 102, 0.06)"
 ```
+
+<EffectPlayground preset="grid-diagonal" />
 
 ---
 
@@ -173,6 +199,8 @@ Major hexagons are determined by global tile position (row, column) modulo the i
     major_row_interval: 0
     major_col_interval: 0
 ```
+
+<EffectPlayground preset="grid-hexagonal" />
 
 ---
 
@@ -259,6 +287,8 @@ Stars are distributed across depth layers with farther layers moving slower. Whe
     opacity_fade_in: 15
     opacity_fade_out: 75
 ```
+
+<EffectPlayground preset="starfield" />
 
 ---
 
@@ -353,6 +383,8 @@ Each cloud's pixel positions are displaced via 2D Perlin noise — `turbulence` 
 
 > Nebula works well with slow scroll speeds (3–10 px/sec). Combine with zoom for deep cosmic depth.
 
+<EffectPlayground preset="nebula" />
+
 ---
 
 ## `contour-field`
@@ -432,6 +464,8 @@ config:
 Lower `num_bands` + `cell_size` for a blocky, retro-LCARS look; raise them for a smooth, photographic nebula look.
 :::
 
+<EffectPlayground preset="contour-field" />
+
 ---
 
 ## `cascade`
@@ -483,7 +517,7 @@ config:
 | `colors.text` | `var(--lcards-blue-darkest)` | Colour at mid-cycle snap (75–90%) |
 | `colors.end` | `var(--lcars-moonlight)` | Colour at cycle end (90–100%) |
 | `pattern` | `'default'` | `default` (authentic LCARS rhythm), `niagara` (uniform waterfall), `fast`, `custom` |
-| `timing` | — | Custom array of `{ duration, delay }` (used when `pattern: custom`) |
+| `timing` | — | Custom array of `{ duration, delay }`, one per row (applied round-robin if there are more rows than entries), used when `pattern: custom`. **`duration` is milliseconds, `delay` is seconds** — easy to mix up since only one of the two is ms. |
 | `speed_multiplier` | 1.0 | Multiplier applied to all row durations |
 | `duration` | null | Override all row durations in ms (takes precedence over pattern) |
 | `opacity` | 1 | Overall effect opacity |
@@ -548,9 +582,26 @@ config:
     refresh_interval: 2000
     font_size: 8
     opacity: 0.6
+
+# Custom per-row timing — duration is ms, delay is seconds
+- preset: cascade
+  config:
+    format: digit
+    pattern: custom
+    timing:
+      - { duration: 1500, delay: 0.1 }
+      - { duration: 2200, delay: 0.3 }
+      - { duration: 900,  delay: 0.05 }
+    colors:
+      start: "var(--lcars-blue)"
+      text: "var(--lcards-blue-darkest)"
+      end: "var(--lcars-moonlight)"
+    opacity: 0.6
 ```
 
 > Use `opacity: 0.4–0.7` so card content remains readable. Combine with `grid` or `starfield` for layered depth.
+
+<EffectPlayground preset="cascade" />
 
 ---
 
@@ -621,6 +672,8 @@ config:
     slosh_period: 2.5
 ```
 
+<EffectPlayground preset="level" />
+
 ---
 
 ## Texture Presets
@@ -642,6 +695,8 @@ config:
   opacity: 1
 ```
 
+<EffectPlayground preset="fluid" />
+
 ### `plasma`
 
 Two-colour plasma bands — a vivid, classic alternating colour field.
@@ -656,6 +711,8 @@ config:
   scroll_speed_y: 5
   opacity: 1
 ```
+
+<EffectPlayground preset="plasma" />
 
 ### `flow`
 
@@ -672,6 +729,8 @@ config:
   opacity: 1
 ```
 
+<EffectPlayground preset="flow" />
+
 ### `shimmer`
 
 A single highlight band that periodically sweeps across the canvas at an angle.
@@ -685,6 +744,8 @@ config:
   angle: 30                 # Sweep angle in degrees
   opacity: 1
 ```
+
+<EffectPlayground preset="shimmer" />
 
 ### `scanlines`
 
@@ -711,20 +772,24 @@ config:
     color: "rgba(0,0,0,0.15)"
 ```
 
+<EffectPlayground preset="scanlines" />
+
 ---
 
 ## `image`
 
 User-supplied image rendered as a full-bleed canvas background behind the card SVG. Drawn at `z-index: -1` and composited with any other effects in the stack.
 
-The `url` supports all LCARdS template syntaxes — `{entity.attributes.entity_picture}`, `[[[JS]]]`, etc. Templates are evaluated on every HASS update, so the image automatically follows entity attribute changes.
+> **Correction:** every example on this page previously used `url:` as the config key — that never worked. `ImageEffect` (and the real editor UI) only ever read/write `source:`. Fixed below.
+
+The `source` field supports all LCARdS template syntaxes — `{entity.attributes.entity_picture}`, `[[[JS]]]`, etc. Templates are evaluated on every HASS update, so the image automatically follows entity attribute changes.
 
 **Configuration:**
 
 ```yaml
 preset: image
 config:
-  url: '/local/images/bedroom.jpg'  # Required
+  source: '/local/images/bedroom.jpg'  # Required
   size: 'cover'                      # 'cover' | 'contain' | 'fill' | '<n>px'
   position: 'center'                 # CSS background-position string
   opacity: 1                         # Composite opacity (0–1)
@@ -733,8 +798,8 @@ config:
 
 | Config key | Default | Description |
 |---|---|---|
-| `url` | `''` | `/local/` path, `https://` URL, `builtin:<key>`, `media-source://…` content ID (HA media library item), or a template string |
-| `size` | `'cover'` | `cover` — fill (may crop) · `contain` — fit (may letterbox) · `fill` — stretch · `<n>px` — explicit size for the shorter axis |
+| `source` | `''` | `/local/` path, `https://` URL, `builtin:<key>`, `media-source://…` content ID (HA media library item), or a template string |
+| `size` | `'cover'` | `cover` — fill (may crop) · `contain` — fit (may letterbox) · `fill` — stretch · `<n>px` — explicit width in px, height scales to match the image's aspect ratio |
 | `position` | `'center'` | CSS `background-position`: keywords (`top left`) or percentages (`50% 0%`) |
 | `opacity` | `1` | Layer opacity. Use with other stacked effects for blending. |
 | `repeat` | `false` | Tile the image — useful for textures or patterns |
@@ -747,7 +812,7 @@ background_animation:
   effects:
     - preset: image
       config:
-        url: '/local/images/Areas/Bedroom.jpg'
+        source: '/local/images/Areas/Bedroom.jpg'
         size: cover
         opacity: 0.85
 
@@ -756,7 +821,7 @@ background_animation:
   effects:
     - preset: image
       config:
-        url: '{entity.attributes.entity_picture}'
+        source: '{entity.attributes.entity_picture}'
         size: cover
 
 # Image + grid overlay
@@ -764,7 +829,7 @@ background_animation:
   effects:
     - preset: image
       config:
-        url: '/local/backgrounds/lcars-panel.jpg'
+        source: '/local/backgrounds/lcars-panel.jpg'
         size: cover
         opacity: 0.6
     - preset: grid
@@ -777,7 +842,7 @@ background_animation:
   effects:
     - preset: image
       config:
-        url: 'builtin:bedroom'
+        source: 'builtin:bedroom'
         size: cover
         opacity: 0.8
 
@@ -786,7 +851,7 @@ background_animation:
   effects:
     - preset: image
       config:
-        url: 'media-source://media_source/local/bedroom.jpg'
+        source: 'media-source://media_source/local/bedroom.jpg'
         size: cover
         opacity: 0.8
 ```
@@ -796,8 +861,10 @@ background_animation:
 :::
 
 ::: info HA Media Library
-The editor's "Image Source" field offers a **Browse HA Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `url`. This is resolved to a real URL at render time via `AssetManager.resolveMediaSourceUrl()`, cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../../../architecture/subsystems/asset-manager.md).
+The editor's "Image Source" field offers a **Browse HA Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `source`. This is resolved to a real URL at render time via `AssetManager.resolveMediaSourceUrl()`, cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../../../architecture/subsystems/asset-manager.md).
 :::
+
+No live demo here — a meaningful preview needs a real image, and there's no built-in asset that resolves outside a full HA + LCARdS runtime (the demos on this page only load the renderer itself, not the full asset-manager pack system `builtin:`/media-library references depend on).
 
 ::: warning HTTP URLs
 Using an `http://` URL on an HTTPS dashboard is blocked by the browser's mixed-content policy. Use `/local/` paths or `https://` URLs instead. The editor shows a warning when an HTTP URL is detected.
@@ -834,6 +901,8 @@ config:
   config:
     color: "rgba(255,255,255,0.15)"
 ```
+
+<EffectPlayground preset="solid" />
 
 ---
 

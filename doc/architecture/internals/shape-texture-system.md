@@ -187,7 +187,7 @@ Animated level-indicator fill bar that rises from the bottom (or fills from the 
 | `color_b` | `null` | Secondary colour (top/right). When set, a gradient is drawn from `color_a` to `color_b`. |
 | `gradient_crossover` | `80` | 0–100 — percentage of fill height that stays `color_a` before transitioning to `color_b`. |
 | `fill_pct` | `50` | Fill percentage 0–100; supports templates. |
-| `direction` | `'up'` | `'up'` (bottom→top) \| `'right'` (left→right) |
+| `direction` | `'up'` | `'up'` (bottom→top) \| `'down'` (top→bottom) \| `'right'` (left→right) \| `'left'` (right→left) |
 | `edge_glow` | `true` | Bloom highlight on the leading edge. |
 | `edge_glow_color` | `rgba(255,255,255,0.7)` | Edge glow colour. |
 | `edge_glow_width` | `6` | Glow spread radius in px. |
@@ -200,7 +200,7 @@ Animated level-indicator fill bar that rises from the bottom (or fills from the 
 | `slosh_amount` | `0` | 0–1 tilt intensity. Makes the fluid rock as if in a vessel. |
 | `slosh_period` | `3` | Seconds per slosh cycle. |
 
-`direction: 'right'` does not support waves — the leading edge is always flat.
+All four `direction` values render waves on the leading edge — `down`/`left` are mirror-reflections of `up`/`right`, so the same `wave_height`/`wave_speed`/`wave_count` parameters apply symmetrically.
 
 ### `scanlines`
 

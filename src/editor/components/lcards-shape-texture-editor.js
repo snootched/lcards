@@ -651,6 +651,8 @@ export class LCARdSShapeTextureEditor extends LitElement {
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ select: { options: [
                             { value: 'up',    label: 'Fill upward (bottom → top)' },
+                            { value: 'down',  label: 'Fill downward (top → bottom)' },
+                            { value: 'left',  label: 'Fill leftward (right → left)' },
                             { value: 'right', label: 'Fill rightward (left → right)' }
                         ], mode: 'dropdown' } }}
                         .value=${cfg.direction ?? defaults.direction ?? 'up'}

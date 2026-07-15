@@ -47,6 +47,9 @@ export const BACKGROUND_PRESETS = {
         { key: 'major_col_interval', default: 0, description: 'Draw a major line every N columns (0 = disabled).' },
         { key: 'scroll_speed_x', default: 20, description: 'Horizontal scroll speed in px/s.' },
         { key: 'scroll_speed_y', default: 20, description: 'Vertical scroll speed in px/s.' },
+        { key: 'pattern', default: 'both', description: "Line pattern: 'both' | 'horizontal' | 'vertical' | 'diagonal' | 'hexagonal' | 'dots'. The diagonal/hexagonal presets below hardcode this — set it directly here if you want it combined with grid's other options (num_rows/num_cols, major/minor intervals)." },
+        { key: 'dot_radius', default: 2, description: "Dot radius in px — only used when pattern is 'dots'." },
+        { key: 'hex_radius', default: 40, description: "Hexagon size in px — only used when pattern is 'hexagonal'." },
         { key: 'fill_color', default: 'transparent', description: 'Solid fill painted behind each cell.' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
@@ -86,6 +89,8 @@ export const BACKGROUND_PRESETS = {
         pattern: config.pattern ?? 'both',
         showBorderLines: config.show_border_lines ?? true,
         fillColor: config.fill_color ?? 'transparent',
+        dotRadius: config.dot_radius,
+        hexRadius: config.hex_radius ?? resolveToken('components.backgroundAnimation.grid.spacing.hexRadius', 40),
 
         opacity: config.opacity ?? 1
       };
@@ -392,8 +397,9 @@ export const BACKGROUND_PRESETS = {
     guide: {
       summary: 'A grid of characters that color-cycle from a start color through to an end color, evoking a Matrix-style/LCARS data waterfall. Purely decorative — the characters themselves are randomized, not meaningful data.',
       params: [
-        { key: 'format', default: 'hex', description: 'Character set — e.g. hex digits.' },
-        { key: 'pattern', default: 'default', description: "Cell layout pattern — set to 'custom' to use a hand-authored timing array (YAML only)." },
+        { key: 'format', default: 'hex', description: "Character set: 'digit' | 'float' | 'alpha' | 'hex' | 'mixed'." },
+        { key: 'pattern', default: 'default', description: "Row timing pattern: 'default' (authentic LCARS rhythm) | 'niagara' (uniform waterfall) | 'fast' | 'custom' (use the timing param below)." },
+        { key: 'timing', description: "Only used when pattern is 'custom' — an array of { duration, delay } objects, one per row, applied round-robin if there are more rows than entries. duration is in milliseconds; delay is in SECONDS (converted ×1000 internally) — easy to mix up since duration is not." },
         { key: 'speed_multiplier', default: 1.0, description: 'Overall cycling speed multiplier.' },
         { key: 'colors.start', default: 'var(--lcards-blue-light)', description: 'Color a cell starts at.' },
         { key: 'colors.text', default: 'var(--lcards-blue-darkest)', description: 'Color a cell settles at mid-cycle.' },

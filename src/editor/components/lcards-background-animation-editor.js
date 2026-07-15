@@ -668,7 +668,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       fields.push({ key: 'line_spacing', label: 'Line Spacing (px)', type: 'number', min: 10, max: 200, step: 5, default: 40 });
     }
     if (preset === 'grid-hexagonal') {
-      fields.push({ key: 'hex_radius', label: 'Hex Radius (px)', type: 'number', min: 10, max: 100, step: 5, default: 30 });
+      fields.push({ key: 'hex_radius', label: 'Hex Radius (px)', type: 'number', min: 1, max: 150, step: 1, default: 40 });
     }
 
     // Line width fields
@@ -676,9 +676,18 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       fields.push({ key: 'line_width', label: 'Line Width', type: 'number', min: 0.5, max: 10, step: 0.5, default: 1 });
     }
 
-    // Pattern selector
+    // Pattern selector — GridEffect actually supports 6 patterns; only 3 were
+    // ever exposed here (diagonal/hexagonal have their own dedicated presets
+    // too, but GridEffect also honours them directly on the base 'grid'
+    // preset; 'dots' had no UI path to it at all before this).
     if (preset === 'grid') {
-      fields.push({ key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical'], default: 'both' });
+      fields.push({ key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical', 'diagonal', 'hexagonal', 'dots'], default: 'both' });
+      if (config.pattern === 'dots') {
+        fields.push({ key: 'dot_radius', label: 'Dot Radius (px)', type: 'number', min: 0.5, max: 10, step: 0.5, default: 2 });
+      }
+      if (config.pattern === 'hexagonal') {
+        fields.push({ key: 'hex_radius', label: 'Hex Radius (px)', type: 'number', min: 1, max: 150, step: 1, default: 40 });
+      }
     }
 
     // Border lines toggle

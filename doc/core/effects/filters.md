@@ -99,6 +99,7 @@ Multiple SVG filter primitives in the same `filters:` array are chained in seque
 | `feMorphology` | `operator` (`erode` / `dilate`), `radius` | Shrink or grow shapes |
 | `feTurbulence` | `type` (`turbulence` / `fractalNoise`), `baseFrequency`, `numOctaves`, `seed` | Generate noise texture |
 | `feDisplacementMap` | `scale`, `xChannelSelector`, `yChannelSelector`, `in2` | Distort using a displacement map |
+| `tint` | `color` | Flat colour wash composited over the content (e.g. an alert tint). Expands internally to a chained `feFlood` + `feComposite` pair. |
 
 ### SVG examples
 
@@ -143,6 +144,75 @@ filters:
       type: saturate
       values: 0.6
 ```
+
+---
+
+## Live Demos
+
+Every filter type below runs live in your browser — the actual `applyBaseSvgFilters()` source, not a hand-copied approximation — with tweakable controls and a copy-pasteable YAML snippet.
+
+### CSS Filters
+
+#### `blur`
+<FilterPlayground type="blur" />
+
+#### `brightness`
+<FilterPlayground type="brightness" />
+
+#### `contrast`
+<FilterPlayground type="contrast" />
+
+#### `saturate`
+<FilterPlayground type="saturate" />
+
+#### `hue-rotate`
+<FilterPlayground type="hue-rotate" />
+
+#### `grayscale`
+<FilterPlayground type="grayscale" />
+
+#### `sepia`
+<FilterPlayground type="sepia" />
+
+#### `invert`
+<FilterPlayground type="invert" />
+
+#### `opacity`
+<FilterPlayground type="opacity" />
+
+#### `drop-shadow`
+<FilterPlayground type="drop-shadow" />
+
+### SVG Filters
+
+#### `feGaussianBlur`
+<FilterPlayground type="feGaussianBlur" />
+
+#### `feColorMatrix`
+<FilterPlayground type="feColorMatrix" />
+
+#### `feOffset`
+<FilterPlayground type="feOffset" />
+
+#### `feBlend`
+<FilterPlayground type="feBlend" />
+
+#### `feComposite`
+<FilterPlayground type="feComposite" />
+
+#### `feMorphology`
+<FilterPlayground type="feMorphology" />
+
+#### `feTurbulence`
+<FilterPlayground type="feTurbulence" />
+
+#### `feDisplacementMap`
+<FilterPlayground type="feDisplacementMap" />
+
+> `feDisplacementMap` distorts using a displacement map from another source — on its own (without a `feTurbulence` primitive feeding it real noise) this demo has nothing to displace *by*, so it may look like a no-op. Chain it after `feTurbulence` in a real config to see the distortion.
+
+#### `tint`
+<FilterPlayground type="tint" />
 
 ---
 

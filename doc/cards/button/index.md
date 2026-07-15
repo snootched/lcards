@@ -561,7 +561,7 @@ SVG elements with `id` attributes become interactive segments.
 
 ## Shape Texture
 
-`shape_texture` renders an SVG-native texture or animation **inside** the button shape fill — clipped to the shape boundary. Available in **preset mode only**. Elbow cards also support this feature.
+`shape_texture` renders a Canvas2D texture or animation **inside** the button shape fill — clipped to the shape boundary. Available in **preset mode only**. Elbow cards also support this feature.
 
 ```yaml
 shape_texture:
