@@ -596,6 +596,23 @@ export class LCARdSMSDCard extends LCARdSCard {
             this._msdPipeline.coordinator.ingestHass(newHass);
         }
 
+        // Always forward to the global core singleton on the very first tick
+        // (oldHass is null) — mirrors the base LCARdSCard.set hass()'s own
+        // "!oldHass" fallback, which this override bypasses entirely (see the
+        // class-level note above). Without this, a card with no tracked
+        // entities below (no Jinja2/map_range refs — e.g. a plain base_svg-
+        // only config) never reaches the ingest call at all, so
+        // window.lcards.core.assetManager (and every other core singleton)
+        // never receives HASS unless some *other* LCARdS card on the same
+        // dashboard happens to trigger the global cascade first. Confirmed
+        // via a cold-load base_svg media-source:// load that hung
+        // indefinitely waiting on AssetManager._hass with no other LCARdS
+        // card present to trigger it — not a brief startup race, the
+        // tracked-entity-gated call below simply never fired.
+        if (!oldHass && window.lcards?.core) {
+            window.lcards.core.ingestHass(newHass);
+        }
+
         // Re-evaluate Jinja2/JS templates (e.g. a line's style.color) whenever an
         // entity referenced by one of them changes, and forward to the global
         // core singleton so every other BaseService (rulesManager,
@@ -782,8 +799,11 @@ export class LCARdSMSDCard extends LCARdSCard {
         const svgSource = baseSvgConfig?.source;
         lcardsLog.debug('[LCARdSMSDCard] Loading SVG from source:', svgSource);
 
-        // ✅ FIX: Parse source to extract asset key
+        // Parse source to extract asset key
         // Source format: "builtin:ncc-1701-a-blue" → asset key: "ncc-1701-a-blue"
+        // media-source://… items are registered/fetched under the content ID
+        // itself (see AssetManager.loadSvgFromMediaSource), so assetKey stays
+        // equal to svgSource for those — just here for the logging below.
         let assetKey = svgSource;
         if (svgSource?. startsWith('builtin:')) {
             assetKey = svgSource.replace('builtin:', '');
@@ -791,8 +811,14 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         lcardsLog.debug('[LCARdSMSDCard] Resolved asset key:', assetKey);
 
-        // ✅ FIX: Use get() method, not loadSvg()
-        this._svgContent = await assetManager.get('svg', assetKey);
+        if (svgSource?.startsWith('media-source://')) {
+            // HA media library item — needs an async resolve step before it's
+            // fetchable, unlike builtin:/plain-path sources below.
+            this._svgContent = await assetManager.loadSvgFromMediaSource(svgSource);
+        } else {
+            // ✅ FIX: Use get() method, not loadSvg()
+            this._svgContent = await assetManager.get('svg', assetKey);
+        }
 
         if (this._svgContent) {
             lcardsLog.debug('[LCARdSMSDCard] SVG loaded successfully:', {
@@ -1534,6 +1560,25 @@ export class LCARdSMSDCard extends LCARdSCard {
                     url: source,
                     source: 'user'
                 });
+            }
+        } else if (source.startsWith('media-source://')) {
+            // Content ID itself as the key (no filename to reliably derive).
+            // Resolving the real URL needs its own async media_source/resolve_media
+            // round-trip before anything can be registered — unlike the /local/
+            // branch above, which can register synchronously since it already
+            // has a fetchable URL. Kick off that resolve+register+fetch chain via
+            // loadSvgFromMediaSource() and bail out now; the generic
+            // "not yet loaded" fallback below would only log a spurious warning
+            // since nothing is registered yet at this exact synchronous point.
+            svgKey = source;
+            if (!assetManager.getRegistry('svg').has(svgKey)) {
+                assetManager.loadSvgFromMediaSource(svgKey).then(loadedContent => {
+                    if (loadedContent) {
+                        lcardsLog.debug('[LCARdSMSDCard] SVG loaded from media source, triggering re-render:', svgKey);
+                        this.requestUpdate();
+                    }
+                });
+                return '';
             }
         }
 

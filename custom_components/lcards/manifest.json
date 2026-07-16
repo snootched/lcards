@@ -9,10 +9,13 @@
     "http",
     "lovelace"
   ],
+  "after_dependencies": [
+    "media_source"
+  ],
   "documentation": "https://lcards.unimatrix01.ca",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/snootched/lcards/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "2026.7.02"
+  "version": "2026.7.13"
 }

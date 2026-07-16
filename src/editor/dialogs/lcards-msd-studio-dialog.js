@@ -99,7 +99,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _debugSettings: { type: Object, state: true },
             // Base SVG Tab Properties
             _viewBoxMode: { type: String, state: true }, // 'auto' or 'custom'
-            _svgSourceMode: { type: String, state: true }, // 'asset', 'custom', or 'none'
+            _svgSourceMode: { type: String, state: true }, // 'asset', 'custom', 'media', or 'none'
             _extractedViewBox: { type: Array, state: true }, // viewBox auto-extracted from SVG (not in user config)
             _customFiltersEnabled: { type: Boolean, state: true },
             // Anchors Tab Properties
@@ -1017,6 +1017,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._previewUpdateTimer = setTimeout(() => {
             this._previewUpdateTimer = null;
             this.requestUpdate();
+
+            // Explicitly force the live-preview child to rebuild rather than
+            // relying on its own .config property binding to detect the
+            // change. _workingConfig is mutated in place everywhere in this
+            // file (_setNestedValue, _saveShape, etc.), never reassigned to
+            // a new object — so lit-html's default reference-equality dirty
+            // check on .config=${this._workingConfig} sees the *same*
+            // reference on every render and skips re-invoking the setter,
+            // meaning the child's own updated(changedProps) never sees
+            // 'config' as changed and never rebuilds the preview card. This
+            // was masked almost all the time by .hass also being watched
+            // there (its updated() ORs on 'config'/'hass') — HA hands a
+            // fresh hass object on every tick, so a tick arriving shortly
+            // after any edit "accidentally" refreshed the preview anyway.
+            // Confirmed via a real repro where no hass tick landed soon
+            // enough — the preview stayed stuck on the previous base_svg
+            // indefinitely despite the config genuinely having updated.
+            this.shadowRoot?.querySelector('lcards-msd-live-preview')?._forceRefresh();
         }, 300);
     }
 
@@ -1079,6 +1097,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._svgSourceMode = 'none';
         } else if (source.startsWith('builtin:') || (!source.includes('/') && !source.includes('http'))) {
             this._svgSourceMode = 'asset';
+        } else if (source.startsWith('media-source://')) {
+            this._svgSourceMode = 'media';
         } else {
             this._svgSourceMode = 'custom';
         }
@@ -1483,6 +1503,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
         } else if (source.startsWith('http://') || source.startsWith('https://')) {
             svgKey = source.split('/').pop().replace('.svg', '');
             isExternal = true;
+        } else if (source.startsWith('media-source://')) {
+            // Registered/cached under the content ID itself, not a derived
+            // filename key — see AssetManager.loadSvgFromMediaSource().
+            svgKey = source;
+            isExternal = true;
         } else if (source) {
             // Fallback: try using source directly as key (for cases where builtin: prefix might be missing)
             svgKey = source;
@@ -1791,7 +1816,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
     /**
      * Handle SVG source mode change
-     * @param {string} mode - 'asset', 'custom', or 'none'
+     * @param {string} mode - 'asset', 'custom', 'media', or 'none'
      * @private
      */
     _handleSvgSourceModeChange(mode) {
@@ -1804,10 +1829,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 this._handleViewBoxModeChange('custom');
             }
         } else if (mode === 'asset') {
-            // Set to first available SVG or empty
-            const svgs = this._getAvailableSvgs();
-            if (svgs.length > 0 && this._workingConfig.msd?.base_svg?.source === 'none') {
-                this._setNestedValue('msd.base_svg.source', svgs[0].value);
+            // Reset to the first available SVG whenever the current source
+            // isn't already a builtin: value — covers switching from 'none',
+            // 'custom' (a /local/ or https:// path), or 'media' (a
+            // media-source:// id). Without this, a leftover non-builtin value
+            // stays in config and — since this selector allows custom_value
+            // once there are 10+ builtin options — shows up in the Asset
+            // Library dropdown as a stray unmatched entry instead of a normal
+            // builtin selection.
+            const currentSource = this._workingConfig.msd?.base_svg?.source;
+            if (!currentSource || !currentSource.startsWith('builtin:')) {
+                const svgs = this._getAvailableSvgs();
+                if (svgs.length > 0 && svgs[0].value) {
+                    this._setNestedValue('msd.base_svg.source', svgs[0].value);
+                }
             }
         }
 
@@ -1828,10 +1863,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         try {
             const svgKeys = assetManager.listAssets('svg');
-            const options = svgKeys.map(key => ({
-                value: `builtin:${key}`,
-                label: key
-            }));
+            // Only genuinely curated, pack-provided SVGs belong in this
+            // dropdown — listAssets() returns every registered key,
+            // including ones dynamically registered from a user's Custom
+            // Path or HA Media pick (see _getSvgContentForRender's
+            // auto-register branch and AssetManager.loadSvgFromMediaSource),
+            // which persist in the registry for the rest of the page session
+            // once picked. Pack-provided entries always carry a `pack`
+            // metadata field (see AssetManager.preloadFromPack); dynamic ones
+            // never do. Without this filter, a previously-picked
+            // media-source:// id or /local/ path leaks into this list
+            // permanently as a mangled, unresolvable "builtin:<raw value>"
+            // entry — and since _handleSvgSourceModeChange resets to
+            // svgs[0] when switching into this mode, it could even become
+            // the newly-selected value if it happened to sort first.
+            const options = svgKeys
+                .filter(key => !!assetManager.getMetadata('svg', key)?.pack)
+                .map(key => ({
+                    value: `builtin:${key}`,
+                    label: key
+                }));
 
             // Sort alphabetically
             options.sort((a, b) => a.label.localeCompare(b.label));
@@ -1965,6 +2016,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     options: [
                                         { value: 'asset', label: 'Asset Library' },
                                         { value: 'custom', label: 'Custom Path' },
+                                        { value: 'media', label: 'Browse HA Media' },
                                         { value: 'none', label: 'None (ViewBox Only)' }
                                     ]
                                 }
@@ -1996,6 +2048,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 @input=${(e) => this._handleSvgSourceChange(e.target.value)}
                                 helper-text="Enter custom path (e.g., /local/my-ship.svg)">
                             </ha-input>
+                        ` : this._svgSourceMode === 'media' ? html`
+                            <!-- HA media library picker — filtered to SVG's real MIME type
+                                 (image/svg+xml), not the broader image/* used for raster
+                                 backgrounds elsewhere, since base_svg needs actual SVG markup. -->
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ media: { accept: ['image/svg+xml'] } }}
+                                .value=${baseSvg.source?.startsWith('media-source://')
+                                    ? { media_content_id: baseSvg.source, media_content_type: '' }
+                                    : undefined}
+                                .label=${'HA Media'}
+                                .helper=${'Browse or upload an SVG via the Home Assistant media library'}
+                                @value-changed=${(e) => this._handleSvgSourceChange(e.detail.value?.media_content_id ?? '')}>
+                            </ha-selector>
                         ` : html`
                             <ha-alert alert-type="info">
                                 No base SVG will be rendered. Overlays will be drawn on a transparent canvas using the viewBox coordinates below.

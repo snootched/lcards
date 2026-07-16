@@ -76,6 +76,11 @@ export function getSvgContent(base_svg) {
     svgKey = base_svg.replace('builtin:', '');
   } else if (base_svg && base_svg.startsWith('/local/')) {
     svgKey = base_svg.split('/').pop().replace('.svg','');
+  } else if (base_svg && base_svg.startsWith('media-source://')) {
+    // Registered/cached under the content ID itself — see
+    // AssetManager.loadSvgFromMediaSource(). Sync-only read like the
+    // branches above: only finds it if already fetched by something else.
+    svgKey = base_svg;
   }
 
   if (!svgKey) return null;

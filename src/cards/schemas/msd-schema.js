@@ -52,8 +52,8 @@ export function getMsdSchema() {
           source: {
             type: 'string',
             minLength: 1,
-            description: 'SVG source: builtin:key, /local/path.svg, or "none"',
-            examples: ['builtin:ncc-1701-a-blue', '/local/my-ship.svg', 'none'],
+            description: 'SVG source: builtin:key, /local/path.svg, a media-source://… content ID (picked via the HA media library), or "none"',
+            examples: ['builtin:ncc-1701-a-blue', '/local/my-ship.svg', 'media-source://media_source/local/my-ship.svg', 'none'],
             'x-ui': {
               control: 'text',
               label: 'SVG Source',

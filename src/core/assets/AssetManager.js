@@ -498,6 +498,17 @@ export class AssetManager extends BaseService {
       return cached.url;
     }
 
+    // On a cold page load, a card can reach an early, hass-dependent call
+    // like this (base_svg loads as part of the card's own _onConnected,
+    // before the MSD pipeline even initializes) before LCARdSCore's own
+    // HASS-distribution cascade (ingestHass → updateHass on every core
+    // singleton, including this one) has run for the first time. Wait
+    // briefly for it rather than failing outright — the connection is
+    // virtually always available within a beat or two of that.
+    if (!this._hass?.connection) {
+      await this._waitForHassConnection();
+    }
+
     if (!this._hass?.connection) {
       lcardsLog.warn('[AssetManager] resolveMediaSourceUrl() called with no HASS connection available');
       return null;
@@ -518,6 +529,47 @@ export class AssetManager extends BaseService {
       lcardsLog.error(`[AssetManager] Failed to resolve media source "${mediaContentId}":`, error);
       return null;
     }
+  }
+
+  /**
+   * Bounded poll for `this._hass.connection` to become available. Covers
+   * the brief window during a cold page load where a card's own lifecycle
+   * can reach an async media-resolution call before LCARdSCore's HASS-
+   * distribution cascade has run for the first time — stops as soon as the
+   * connection appears, or after ~3s if it genuinely never does.
+   * @private
+   */
+  async _waitForHassConnection(maxAttempts = 20, intervalMs = 150) {
+    for (let i = 0; i < maxAttempts && !this._hass?.connection; i++) {
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  /**
+   * Load SVG content from an HA media library item (`media-source://…`).
+   *
+   * Unlike `builtin:`/`/local/` SVGs, the content ID isn't a directly
+   * fetchable URL — it needs an async `media_source/resolve_media`
+   * round-trip first (via `resolveMediaSourceUrl()`) before it can be
+   * registered and fetched through the normal `get()` path. Registered
+   * and cached under the content ID itself (not a derived filename — media
+   * library content IDs don't reliably map to one), so repeat calls for
+   * the same item are a plain cache hit and skip re-resolving.
+   *
+   * @param {string} mediaContentId - A `media-source://…` content ID.
+   * @returns {Promise<string|null>} SVG content, or null on failure.
+   */
+  async loadSvgFromMediaSource(mediaContentId) {
+    if (!mediaContentId) return null;
+
+    const registry = this.getRegistry('svg');
+    if (!registry.has(mediaContentId)) {
+      const url = await this.resolveMediaSourceUrl(mediaContentId);
+      if (!url) return null;
+      this.register('svg', mediaContentId, null, { url, source: 'media' });
+    }
+
+    return this.get('svg', mediaContentId);
   }
 
   /**

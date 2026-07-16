@@ -63,8 +63,10 @@ msd:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `source` | string | SVG source — `builtin:<name>`, `/local/path.svg`, or `none` |
+| `source` | string | SVG source — `builtin:<name>`, `/local/path.svg`, a `media-source://…` content ID picked via the HA media library, or `none` |
 | `filters` | list | CSS/SVG filters (opacity, blur, brightness, tint, etc.) — see [Base SVG Filters](./base-svg-filters.md) |
+
+In MSD Studio's Base SVG tab, the "Browse HA Media" source mode lets you pick an SVG uploaded to Home Assistant's media library, filtered to SVG's actual MIME type (`image/svg+xml`) so only SVG files show up — alongside the existing Asset Library (built-in ships) and Custom Path (typed `/local/…` or URL) modes.
 
 ### Filters
 

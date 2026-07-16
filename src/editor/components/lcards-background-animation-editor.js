@@ -1142,8 +1142,18 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   _getAvailableImages() {
     const am = window.lcards?.core?.assetManager;
     if (!am) return [];
-    const svgKeys   = am.listAssets?.('svg')   ?? [];
-    const imgKeys   = am.listImages?.()        ?? [];
+    // Only genuinely curated, pack-provided assets belong here —
+    // listAssets()/listImages() return every registered key, including ones
+    // dynamically registered from a user's Custom URL or HA Media pick
+    // (they persist in the registry for the rest of the page session once
+    // picked), which never carry a `pack` metadata field the way
+    // pack-provided entries always do. Without this filter, a previously-
+    // picked media-source:// id or custom URL leaks into this list
+    // permanently as a mangled, unresolvable "builtin:<raw value>" entry —
+    // see the matching fix in lcards-msd-studio-dialog.js's _getAvailableSvgs().
+    const isPackAsset = (type, key) => !!am.getMetadata?.(type, key)?.pack;
+    const svgKeys   = (am.listAssets?.('svg') ?? []).filter(key => isPackAsset('svg', key));
+    const imgKeys   = (am.listImages?.()      ?? []).filter(key => isPackAsset('image', key));
     const all       = [...new Set([...svgKeys, ...imgKeys])].sort();
     return all.map(key => ({ value: `builtin:${key}`, label: key }));
   }
