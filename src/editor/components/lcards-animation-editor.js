@@ -557,6 +557,13 @@ export class LCARdSAnimationEditor extends LitElement {
     this._expandedIndex = null;
     this._pendingDeleteIndex = null;
     this._expandedGuideIndices = new Set();
+    this._targetRediscoveryTimer = null;
+    this._targetRediscoveryAttempts = 0;
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    clearTimeout(this._targetRediscoveryTimer);
   }
 
   render() {
@@ -2484,10 +2491,12 @@ export class LCARdSAnimationEditor extends LitElement {
       const scopedRoot = fullRoot.querySelector(this.searchRootSelector);
       if (scopedRoot) {
         root = scopedRoot;
+        this._targetRediscoveryAttempts = 0;
       } else {
         lcardsLog.warn('[AnimationEditor] searchRootSelector not found, falling back to whole-card discovery:', {
           searchRootSelector: this.searchRootSelector
         });
+        this._requestTargetRediscovery();
       }
     }
 
@@ -2600,6 +2609,44 @@ export class LCARdSAnimationEditor extends LitElement {
     });
 
     return options;
+  }
+
+  /**
+   * Self-heal a failed scoped target lookup by asking the parent to refresh
+   * .cardElement — exactly what the manual "Refresh Element List" button
+   * does (see its click handler for why re-rendering this component alone
+   * can't fix it: .cardElement is a reference the parent owns, and the live
+   * preview replaces the whole <lcards-msd-card> element on every reload).
+   *
+   * This runs from within _getTargetOptions() itself rather than being
+   * triggered by a guessed proxy event (e.g. "tab just switched to
+   * Animation") — a target section only actually queries the DOM once its
+   * "Target" sub-section is expanded (it's collapsed by default until a
+   * target is set), which can happen well after the tab switch and after
+   * .cardElement has already gone stale again. Reacting to the real failure
+   * itself, whenever it happens, covers every trigger path uniformly.
+   *
+   * Also force our own re-render unconditionally, not just the parent's —
+   * if the parent recomputes the exact same .cardElement reference (element
+   * wasn't swapped, its internal content just wasn't finished rendering yet
+   * at the last query), Lit's property diffing sees no change and would
+   * never re-invoke our render()/_getTargetOptions() again on its own.
+   *
+   * Bounded (10 attempts, 250ms apart — reset to 0 on the next successful
+   * lookup) so a selector that never resolves (e.g. the overlay was deleted
+   * mid-edit) doesn't retry forever.
+   * @private
+   */
+  _requestTargetRediscovery() {
+    if (this._targetRediscoveryTimer || this._targetRediscoveryAttempts >= 10) {
+      return;
+    }
+    this._targetRediscoveryAttempts++;
+    this._targetRediscoveryTimer = setTimeout(() => {
+      this._targetRediscoveryTimer = null;
+      this.dispatchEvent(new CustomEvent('refresh-targets', { bubbles: true, composed: true }));
+      this.requestUpdate();
+    }, 250);
   }
 
   /**

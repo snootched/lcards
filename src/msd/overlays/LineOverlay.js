@@ -216,8 +216,6 @@ export class LineOverlay extends OverlayBase {
         this._buildMarkers(pathResult, lineStyle, overlay.id)
       ].filter(Boolean);
 
-      lcardsLog.trace(`[LineOverlay] Rendered line ${overlay.id} with ${lineStyle.features.length} features`);
-
       const markup = `<g id="${overlay.id}"
                 data-overlay-id="${overlay.id}"
                   data-overlay-type="line"
@@ -233,14 +231,12 @@ export class LineOverlay extends OverlayBase {
         metadata: {
           routingStrategy: pathResult.meta?.strategy || 'unknown',
           pathLength: pathResult.d.length,
-          featuresCount: lineStyle.features.length,
           hasAnimations: animationAttributes.hasAnimations
         },
         provenance: this._getRendererProvenance(overlay.id, {
           overlay_type: 'line',
           routing_strategy: pathResult.meta?.strategy || 'unknown',
           path_length: pathResult.d.length,
-          features_count: lineStyle.features.length,
           has_animations: animationAttributes.hasAnimations
         })
       };
@@ -381,7 +377,15 @@ export class LineOverlay extends OverlayBase {
       dashOffset: Number(style.dash_offset || 0),
 
       // Fill properties
-      fill: style.fill || 'none',
+      fill: this._resolveLineColor(
+        style.fill,
+        overlay,
+        cardInstance,
+        'none',
+        resolveToken,
+        scalingContext,
+        'defaultFillColor'
+      ),
       fillOpacity: Number(style.fill_opacity || 1),
 
       // Gradient and pattern support
@@ -394,25 +398,8 @@ export class LineOverlay extends OverlayBase {
       markerEnd: this._parseMarkerConfig(style.marker_end),
 
       // Animation states
-      animatable: style.animatable !== false,
-      pulseSpeed: Number(style.pulse_speed || 0),
-      flowSpeed: Number(style.flow_speed || 0),
-
-      // LCARS-specific features
-      segment_colors: this._parseSegmentColors(style.segment_colors),
-      status_indicator: style.status_indicator || null,
-
-      // Track enabled features
-      features: []
+      animatable: style.animatable !== false
     };
-
-    // Build feature list
-    if (lineStyle.gradient) lineStyle.features.push('gradient');
-    if (lineStyle.pattern) lineStyle.features.push('pattern');
-    if (lineStyle.markerStart || lineStyle.markerMid || lineStyle.markerEnd) lineStyle.features.push('markers');
-    if (lineStyle.segment_colors) lineStyle.features.push('segments');
-    if (lineStyle.pulseSpeed > 0) lineStyle.features.push('pulse');
-    if (lineStyle.flowSpeed > 0) lineStyle.features.push('flow');
 
     // Debug logging for dash_array
     if (lineStyle.dashArray) {
@@ -461,7 +448,7 @@ export class LineOverlay extends OverlayBase {
    *
    * @private
    */
-  _resolveLineColor(styleValue, overlay, cardInstance, fallback, resolveToken, context = {}) {
+  _resolveLineColor(styleValue, overlay, cardInstance, fallback, resolveToken, context = {}, tokenPath = 'defaultColor') {
     if (typeof styleValue !== 'object' || styleValue === null) {
       // Literal color string: check for a pre-evaluated Jinja2/JS template result
       // (populated by LCARdSMSDCard._processCustomTemplates()) before falling
@@ -470,7 +457,12 @@ export class LineOverlay extends OverlayBase {
       const resolved = (typeof styleValue === 'string' && typeof cardInstance?._resolveTemplateValue === 'function')
         ? cardInstance._resolveTemplateValue(styleValue)
         : styleValue;
-      return this._resolveStyleProperty(resolved, 'defaultColor', resolveToken, fallback, context);
+      // tokenPath is only consulted when styleValue is absent (theme "give me a
+      // sensible default" lookup) — callers resolving `fill` must pass a distinct
+      // path from `color`'s, otherwise an unset fill silently inherits whatever
+      // theme token the stroke color falls back to (e.g. a UI-tertiary accent),
+      // filling shapes/enclosed line paths that were never configured to have one.
+      return this._resolveStyleProperty(resolved, tokenPath, resolveToken, fallback, context);
     }
 
     if (!cardInstance || typeof cardInstance._resolveColorValue !== 'function') {
@@ -637,10 +629,8 @@ export class LineOverlay extends OverlayBase {
    */
   _prepareAnimationAttributes(overlay, style) {
     return {
-      hasAnimations: style.animatable !== false || style.pulse_speed > 0 || style.flow_speed > 0,
-      animatable: style.animatable !== false,
-      pulseSpeed: style.pulse_speed || 0,
-      flowSpeed: style.flow_speed || 0
+      hasAnimations: style.animatable !== false,
+      animatable: style.animatable !== false
     };
   }
 
@@ -874,11 +864,6 @@ export class LineOverlay extends OverlayBase {
   _parseMarkerConfig(markerConfig) {
     if (!markerConfig) return null;
     return markerConfig; // Simplified
-  }
-
-  _parseSegmentColors(segmentColors) {
-    if (!segmentColors) return null;
-    return segmentColors; // Simplified
   }
 
   _createGradientDefinition(gradient, gradientId) {

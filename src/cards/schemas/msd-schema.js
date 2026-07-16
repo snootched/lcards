@@ -155,8 +155,31 @@ export function getMsdSchema() {
             },
             type: {
               type: 'string',
-              enum: ['line', 'control'],
-              errorMessage: 'Only "line" and "control" overlay types supported. Use LCARdS cards for buttons/charts.'
+              enum: ['line', 'control', 'shape'],
+              errorMessage: 'Only "line", "control", and "shape" overlay types supported. Use LCARdS cards for buttons/charts.'
+            },
+            kind: {
+              type: 'string',
+              enum: ['polyline', 'rect', 'circle'],
+              optional: true,
+              description: 'Shape overlays only: geometry primitive. polyline uses `points` (+ optional `closed`); rect/circle use `position` + `size` like control overlays.'
+            },
+            points: {
+              type: 'array',
+              optional: true,
+              description: 'Shape overlays (kind: polyline) only: ordered vertex list. Each entry is either [x, y] in viewBox units or a static anchor-name string. Minimum 2 points.',
+              items: {
+                oneOf: [
+                  { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } },
+                  { type: 'string' }
+                ]
+              }
+            },
+            closed: {
+              type: 'boolean',
+              optional: true,
+              default: false,
+              description: 'Shape overlays (kind: polyline) only: close the path back to its first point and allow `style.fill`.'
             },
             entity: {
               ...entitySchema,
@@ -176,11 +199,98 @@ export function getMsdSchema() {
             style: {
               type: 'object',
               optional: true,
-              description: 'Line overlay styling (color, width, opacity, markers, etc.)',
+              description: 'Line/shape overlay styling (color, width, opacity, dash pattern, markers, gradient/pattern fill, etc.)',
               properties: {
                 color: {
                   ...stateColorSchema,
-                  description: 'Line stroke color: a literal/token/CSS value, or a state-color object resolved against `entity` (same state-color pipeline as buttons/sliders — requires `entity` to be set)'
+                  description: 'Stroke color: a literal/token/CSS value, or a state-color object resolved against `entity` (same state-color pipeline as buttons/sliders — requires `entity` to be set)'
+                },
+                width: {
+                  type: 'number',
+                  optional: true,
+                  default: 2,
+                  description: 'Stroke width in viewBox units (alias: stroke_width)'
+                },
+                opacity: {
+                  type: 'number',
+                  min: 0,
+                  max: 1,
+                  optional: true,
+                  default: 1,
+                  description: 'Stroke opacity'
+                },
+                line_cap: {
+                  type: 'string',
+                  enum: ['butt', 'round', 'square'],
+                  optional: true,
+                  default: 'butt',
+                  description: 'Stroke line cap style. No effect on closed shapes (rect/circle/closed polyline).'
+                },
+                line_join: {
+                  type: 'string',
+                  enum: ['miter', 'round', 'bevel'],
+                  optional: true,
+                  description: 'Stroke line join style at path vertices. Meaningful for polyline and rect; no effect on circle/ellipse.'
+                },
+                miter_limit: {
+                  type: 'number',
+                  optional: true,
+                  default: 4,
+                  description: 'Miter limit, used when line_join is "miter"'
+                },
+                dash_array: {
+                  type: ['string', 'array'],
+                  optional: true,
+                  description: 'Dash pattern, e.g. "5,5" or [5, 5]'
+                },
+                dash_offset: {
+                  type: 'number',
+                  optional: true,
+                  default: 0,
+                  description: 'Dash pattern offset'
+                },
+                fill: {
+                  ...stateColorSchema,
+                  description: 'Fill color: a literal/token/CSS value, or a state-color object resolved against `entity` (same state-color pipeline as `color`). Only visible on closed shapes (rect, circle, closed polyline).'
+                },
+                fill_opacity: {
+                  type: 'number',
+                  min: 0,
+                  max: 1,
+                  optional: true,
+                  default: 1,
+                  description: 'Fill opacity'
+                },
+                gradient: {
+                  type: 'object',
+                  optional: true,
+                  description: 'Gradient fill/stroke configuration (linear or radial)'
+                },
+                pattern: {
+                  type: 'object',
+                  optional: true,
+                  description: 'Pattern fill configuration (dots, lines, diagonal, grid, or custom SVG content)'
+                },
+                marker_start: {
+                  type: ['string', 'object'],
+                  optional: true,
+                  description: 'Marker (arrowhead/dot/etc.) at the path start. Polyline shapes only — meaningless for rect/circle.'
+                },
+                marker_mid: {
+                  type: ['string', 'object'],
+                  optional: true,
+                  description: 'Marker at each interior path vertex. Polyline shapes only — meaningless for rect/circle.'
+                },
+                marker_end: {
+                  type: ['string', 'object'],
+                  optional: true,
+                  description: 'Marker at the path end. Polyline shapes only — meaningless for rect/circle.'
+                },
+                animatable: {
+                  type: 'boolean',
+                  optional: true,
+                  default: true,
+                  description: 'Whether this overlay is eligible as an anime.js animation target'
                 }
               }
             },
@@ -188,12 +298,12 @@ export function getMsdSchema() {
             position: {
               type: ['string', 'array'],
               optional: true,
-              description: 'Control overlay position: named anchor (e.g. "hub") or absolute coordinates [x, y]. The anchor is the center of the card by default.'
+              description: 'Control overlay, or shape overlay (kind: rect/circle): named anchor (e.g. "hub") or absolute coordinates [x, y]. The anchor is the center of the card/shape by default.'
             },
             size: {
               type: 'array',
               optional: true,
-              description: 'Control overlay size [width, height] in SVG coordinates'
+              description: 'Control overlay, or shape overlay (kind: rect/circle) size [width, height] in SVG coordinates. For kind: circle, an ellipse is drawn with rx=width/2, ry=height/2 (use equal width/height for a perfect circle).'
             },
             attachment: {
               type: 'string',
@@ -314,14 +424,14 @@ export function getMsdSchema() {
               enum: ['miter', 'round', 'bevel'],
               optional: true,
               default: 'round',
-              description: 'How line corners are rendered'
+              description: 'Line overlays, or shape overlays (kind: polyline): how corners are rendered. For shape kind: rect, maps to rx/ry (round only); no effect on circle/ellipse.'
             },
             corner_radius: {
               type: 'number',
               min: 0,
               optional: true,
               default: 34,
-              description: 'Corner cut size in pixels — arc radius for round corners, or diagonal chamfer size for bevel corners'
+              description: 'Line overlays, or shape overlays (kind: polyline): corner cut size in pixels — arc radius for round corners, or diagonal chamfer size for bevel corners. For shape kind: rect, sets rx/ry directly.'
             },
             corner_angle: {
               type: 'number',
@@ -329,14 +439,14 @@ export function getMsdSchema() {
               max: 90,
               optional: true,
               default: 45,
-              description: 'Bevel corners only: angle of the diagonal cut in degrees (0=cut flush with incoming edge, 90=flush with outgoing edge, 45=symmetric diagonal), matching the elbow card\'s diagonal-cap angle'
+              description: 'Bevel corners only (line overlays, or shape overlays of kind: polyline): angle of the diagonal cut in degrees (0=cut flush with incoming edge, 90=flush with outgoing edge, 45=symmetric diagonal), matching the elbow card\'s diagonal-cap angle'
             },
             smoothing_mode: {
               type: 'string',
               enum: ['none', 'chaikin'],
               optional: true,
               default: 'none',
-              description: 'Path smoothing algorithm'
+              description: 'Line overlays, or shape overlays (kind: polyline) only: path smoothing algorithm'
             },
             smoothing_iterations: {
               type: 'number',
@@ -344,7 +454,7 @@ export function getMsdSchema() {
               max: 5,
               optional: true,
               default: 0,
-              description: 'Number of smoothing iterations to apply'
+              description: 'Line overlays, or shape overlays (kind: polyline) only: number of smoothing iterations to apply'
             }
           }
         },
@@ -622,29 +732,6 @@ export function getMsdSchema() {
           control: 'yaml',
           label: 'Routing Channels',
           helper: 'Define channels: channel_id: { bounds: [x,y,w,h], mode: prefer|avoid|force, direction: auto|horizontal|vertical }'
-        }
-      },
-
-      debug: {
-        type: 'object',
-        optional: true,
-        description: 'Debug configuration',
-        properties: {
-          enabled: {
-            type: 'boolean',
-            optional: true,
-            description: 'Enable debug mode'
-          },
-          show_anchors: {
-            type: 'boolean',
-            optional: true,
-            description: 'Show anchor points'
-          },
-          show_routing: {
-            type: 'boolean',
-            optional: true,
-            description: 'Show routing grid'
-          }
         }
       },
 

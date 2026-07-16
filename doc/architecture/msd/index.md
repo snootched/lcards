@@ -29,7 +29,8 @@ User config (YAML)
     ▼  (produces resolvedModel)
 4. AdvancedRenderer       → produce SVG markup + overlay DOM elements
     │   ├─ OverlayBase instances (control overlays)
-    │   └─ LineOverlay instances (SVG line routing)
+    │   ├─ LineOverlay instances (SVG line routing)
+    │   └─ ShapeOverlay instances (polyline/rect/circle geometry)
     │
     ▼
 5. AnimationManager.initialize(overlays)
@@ -51,6 +52,7 @@ Rendered card (Shadow DOM updated)
 | `AdvancedRenderer` | `msd/renderer/AdvancedRenderer.js` | Main render orchestrator; creates `OverlayBase` / `LineOverlay` instances per overlay |
 | `OverlayBase` | `msd/overlays/OverlayBase.js` | Base class for control overlays — position, size, embedded HA card |
 | `LineOverlay` | `msd/overlays/LineOverlay.js` | SVG line routing, avoid-obstacle algorithm, attachment point resolution |
+| `ShapeOverlay` | `msd/overlays/ShapeOverlay.js` | Renders `shape` overlays (`polyline`/`rect`/`circle`) — sibling of `LineOverlay`, not a subclass; shares its style-resolution logic by adaptation, not inheritance |
 | `AttachmentPointManager` | `msd/renderer/AttachmentPointManager.js` | Resolves named attachment points on overlays for line endpoints |
 | `ViewportScaling` | `msd/renderer/ViewportScaling.js` | Scales overlay coords for the current dashboard viewport |
 | `AnchorProcessor` | `msd/pipeline/AnchorProcessor.js` | Extracts named coordinate anchors from the base SVG |
@@ -63,6 +65,7 @@ Rendered card (Shadow DOM updated)
 |---|---|---|
 | `control` | `OverlayBase` | Positions an arbitrary HA card (including LCARdS cards) at SVG coordinates |
 | `line` | `LineOverlay` | SVG polyline from source overlay to target overlay with smart routing |
+| `shape` | `ShapeOverlay` | Freeform geometry: `kind: polyline` (routed path via `RouterCore` forced to `manual` mode), `rect`/`circle` (native `<rect>`/`<ellipse>`, reusing controls' `position`+`size` convention) |
 
 ---
 
@@ -97,6 +100,17 @@ Manual routing waypoints can override the algorithm — see [Manual Routing](../
 
 ---
 
+## Shape Attachment Points
+
+`shape` overlays register into `AttachmentPointManager` the same way controls do, so a `line` can `attach_to` one. This happens inline in `AdvancedRenderer`'s render loop, right after each shape renders (before any line that might target it):
+
+- **`rect`/`circle`** — `OverlayUtils.computeAttachmentPoints()` (the same bbox-corner math controls use) registers the standard 9-point grid, *plus* kebab-case aliases for the 4 corners (`top-left`, `top-right`, `bottom-left`, `bottom-right`) alongside the camelCase keys. The alias matters: `LineOverlay._resolveAttachTo()` lowercases `attach_side` before building its virtual-anchor lookup key, and `'topLeft'.toLowerCase()` → `'topleft'` matches neither casing — only the kebab-case alias survives that transform. Controls have carried this same alias for the same reason since `MsdControlsRenderer._computeAttachmentPointsFromBox`; shape registration mirrors it explicitly rather than inheriting it.
+- **`polyline`** — each resolved vertex is registered individually as `<overlayId>.vertex<N>` (`AttachmentPointManager.setAnchor`), since the fixed 9-key bbox struct can't represent an arbitrary vertex count.
+
+The MSD Studio editor's Connect Mode overlay (`_renderAttachmentPointsOverlay()` in the Studio dialog) and its drag-snap detector (`_getAttachmentTargetAt()`) both render/detect shape attachment points using this same convention, so clicking or drag-snapping onto a shape in the editor produces an `attach_side` value that resolves correctly at runtime.
+
+---
+
 ## Delta Updates
 
 After the initial render, overlay state changes (templates, rule patches, entity state) are applied as targeted DOM mutations rather than full re-renders. `AdvancedRenderer` tracks `overlayElementCache` per overlay ID and patches only the affected element.
@@ -121,5 +135,6 @@ _msdPipeline.coordinator       // MsdCardCoordinator reference
 - [MSD Card — User Guide](../../cards/msd/)
 - [Control Overlay](../../cards/msd/control-overlay.md)
 - [Line Overlay](../../cards/msd/line-overlay.md)
+- [Shape Overlay](../../cards/msd/shape-overlay.md)
 - [Manual Routing](../../cards/msd/manual-routing.md)
 - [Card Foundation](../cards/lcards-card-foundation.md)

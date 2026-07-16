@@ -2,7 +2,7 @@
 
 `custom:lcards-msd-card`
 
-Master Systems Display — a zoomable SVG canvas on which you position any Home Assistant card as an overlay. Lines (routes) connect anchors across the canvas. Supports rules-based automation of both overlay styles and base SVG filters.
+Master Systems Display — a zoomable SVG canvas on which you position any Home Assistant card as an overlay. Lines (routes) connect anchors across the canvas, and shapes (polylines, rectangles, circles) add freeform decorative or structural geometry — rooms, zones, conduits. Supports rules-based automation of overlay styles and base SVG filters.
 
 ---
 
@@ -54,9 +54,8 @@ msd:
 | `base_svg` | object | SVG source and filters (required) |
 | `view_box` | string / array | `"auto"` or `[minX, minY, width, height]` |
 | `anchors` | object | Named `[x, y]` anchor points for overlay placement |
-| `overlays` | list | Control and line overlays — see below |
+| `overlays` | list | Control, line, and shape overlays — see below |
 | `routing` | object | Global line routing settings |
-| `debug` | object | Debug visualisation options |
 
 ---
 
@@ -113,7 +112,6 @@ Embeds any HA card at a position on the canvas.
 | `position` | array | Explicit `[x, y]` position (overrides `anchor`) |
 | `size` | array | `[width, height]` in px |
 | `card` | object | Any HA card config |
-| `visible` | boolean | Show/hide overlay (`true` by default) |
 | `z_index` | number | Stacking order (higher = in front) |
 | `tags` | list | Tags for rule targeting |
 
@@ -128,6 +126,8 @@ Embeds any HA card at a position on the canvas.
     entity: sensor.warp_core_status
     preset: lozenge
 ```
+
+Full reference: [Control Overlay](./control-overlay.md) — attachment points, `card:` examples, rules integration.
 
 ### Line Overlay
 
@@ -169,6 +169,36 @@ Routes a line between two anchors on the canvas.
   corner_radius: 6
 ```
 
+Full reference: [Line Overlay](./line-overlay.md) — attachment sides, gaps, dynamic/state-based color, gradients, patterns, markers, animations.
+
+### Shape Overlay
+
+Freeform geometry — polylines, rectangles, circles — for rooms, zones, conduits, and other decorative or structural shapes. Shares its complete styling system with the line overlay (dashed strokes, state-based color/fill, animations), and lines can attach to a shape's corners or vertices the same way they attach to controls.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Shape ID (required) |
+| `type` | string | `shape` |
+| `kind` | string | `polyline`, `rect`, or `circle` |
+| `points` | list | `polyline` only: ordered `[x, y]`/anchor-name vertices |
+| `position` / `size` | array | `rect`/`circle` only: same convention as control overlays |
+
+```yaml
+- id: engineering-bay
+  type: shape
+  kind: rect
+  position: [560, 460]
+  size: [200, 140]
+  corner_style: round
+  corner_radius: 12
+  style:
+    color: var(--lcars-orange)
+    width: 2
+    fill: alpha(var(--lcars-orange), 0.12)
+```
+
+Full reference: [Shape Overlay](./shape-overlay.md) — all three kinds, attachment points, drawing/editing in MSD Studio.
+
 ---
 
 ## `routing` Object
@@ -180,24 +210,6 @@ Global defaults that apply to all lines unless overridden per-line:
 | `default_mode` | string | `manhattan` | Default routing mode |
 | `clearance` | number | `0` | Global obstacle clearance in px |
 | `auto_upgrade_simple_lines` | boolean | `true` | Auto-upgrade to smart routing when needed |
-
----
-
-## `debug` Object
-
-Visualisation aids — useful while building your layout:
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | boolean | `false` | Enable debug overlays |
-| `show_anchors` | boolean | `false` | Show anchor points as circles |
-| `show_routing` | boolean | `false` | Show line routing paths |
-
-```yaml
-debug:
-  enabled: true
-  show_anchors: true
-```
 
 ---
 
@@ -276,10 +288,6 @@ msd:
   routing:
     default_mode: manhattan
     clearance: 10
-
-  debug:
-    enabled: false
-    show_anchors: false
 
 rules:
   - id: reactor-alert

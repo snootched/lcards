@@ -15,6 +15,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 // Instance-based overlay architecture
 import { OverlayBase } from '../overlays/OverlayBase.js';
 import { LineOverlay } from '../overlays/LineOverlay.js';
+import { ShapeOverlay } from '../overlays/ShapeOverlay.js';
 
 export class AdvancedRenderer {
   constructor(mountEl, routerCore, coordinator = null) {
@@ -217,6 +218,41 @@ export class AdvancedRenderer {
           svgMarkupAccum += markup;
           const el = overlayGroup.querySelector(`[data-overlay-id="${ov.id}"]`);
           if (el) this.overlayElementCache.set(ov.id, el);
+
+          // Shape attachment-point registration ("connect to each other"): must
+          // happen here, before _buildVirtualAnchorsFromAllOverlays runs below and
+          // before Phase 2b renders any line that might attach_to this shape.
+          // rect/circle get the same bbox-corner registration a control gets
+          // (reusing OverlayUtils.computeAttachmentPoints — the identical math
+          // MsdControlsRenderer itself delegates to); polyline vertices are
+          // registered individually since the fixed 9-key bbox struct can't
+          // represent an arbitrary vertex count.
+          if (ov.type === 'shape' && result?.metadata?.attachment) {
+            const attachment = result.metadata.attachment;
+            if (attachment.type === 'bbox') {
+              const attachmentPoints = OverlayUtils.computeAttachmentPoints(ov, this._staticAnchors);
+              if (attachmentPoints) {
+                // Kebab-case aliases alongside the camelCase keys: LineOverlay's
+                // _resolveAttachTo() lowercases attach_side before building its
+                // virtual-anchor lookup key — 'top-left'.toLowerCase() stays
+                // 'top-left' (hyphen untouched), but 'topLeft'.toLowerCase()
+                // becomes 'topleft', matching neither. Controls register the
+                // same aliases for exactly this reason (see
+                // MsdControlsRenderer._computeAttachmentPointsFromBox) — without
+                // this, a line's attach_side: top-left against a shape silently
+                // fails to resolve and falls back to the bare (wrong) position.
+                attachmentPoints.points['top-left'] = attachmentPoints.points.topLeft;
+                attachmentPoints.points['top-right'] = attachmentPoints.points.topRight;
+                attachmentPoints.points['bottom-left'] = attachmentPoints.points.bottomLeft;
+                attachmentPoints.points['bottom-right'] = attachmentPoints.points.bottomRight;
+                this.attachmentManager.setAttachmentPoints(ov.id, attachmentPoints);
+              }
+            } else if (attachment.type === 'vertices' && Array.isArray(attachment.points)) {
+              attachment.points.forEach((pt, i) => {
+                this.attachmentManager.setAnchor(`${ov.id}.vertex${i}`, pt);
+              });
+            }
+          }
         }
 
         processedCount++;
@@ -348,7 +384,7 @@ export class AdvancedRenderer {
     // final paint order without re-rendering anything. Defaults reproduce today's
     // actual behavior when z_index is unset, so this is non-breaking by default.
     const declOrder = new Map(overlays.map((o, i) => [o.id, i]));
-    const DEFAULT_Z_BY_TYPE = { control: 200, line: 100 };
+    const DEFAULT_Z_BY_TYPE = { control: 200, line: 100, shape: 50 };
     overlays
       .map(o => ({ o, el: this.overlayElementCache.get(o.id) }))
       .filter(x => x.el)
@@ -819,6 +855,18 @@ export class AdvancedRenderer {
       return /** @type {any} */ (lineOverlay);
     }
 
+    // Shape overlays (freeform polyline/rect/circle) use ShapeOverlay class —
+    // raw drawn SVG like line, not an embedded HA card like control, so it must
+    // follow line's instance-based pattern (not delegate to MsdControlsRenderer)
+    // to get animation targeting (getDefaultAnimationTarget) and attachment-point
+    // registration wired up.
+    if (overlay.type === 'shape') {
+      const shapeOverlay = new ShapeOverlay(overlay, this.coordinator, this.routerCore);
+      // @ts-ignore - TS2322: ShapeOverlay extends OverlayBase; compatible at runtime
+      this.overlayRenderers.set((/** @type {any} */ (overlay)).id, shapeOverlay);
+      return /** @type {any} */ (shapeOverlay);
+    }
+
     // UNIFIED CARD PATTERN:
     // All other overlays are card-based and handled by MsdControlsRenderer
     // This includes:
@@ -883,8 +931,10 @@ export class AdvancedRenderer {
         // Instance-based overlay - currently only LineOverlay uses this pattern
         lcardsLog.trace(`[AdvancedRenderer] 🎯 Using instance-based renderer for ${overlay.id}`);
 
-        if (overlay.type === 'line') {
-          // Lines need complete anchor set (static + virtual) for overlay-to-overlay connections
+        if (overlay.type === 'line' || overlay.type === 'shape') {
+          // Lines need complete anchor set (static + virtual) for overlay-to-overlay connections;
+          // shapes only ever resolve against static anchors (_getCompleteAnchors is a no-op for
+          // any type other than 'line'), but still need cardInstance for entity-bound style.color.
           const completeAnchors = this._getCompleteAnchors(anchors, overlay.type);
           // cardInstance needed for state-color resolution when style.color is bound to overlay.entity
           result = renderer.render(overlay, completeAnchors, viewBox, svgContainer, this._resolveCardInstance());
@@ -1458,7 +1508,7 @@ export class AdvancedRenderer {
     if (!cardInstance) return;
 
     for (const overlay of overlays) {
-      if (overlay.type !== 'line') continue;
+      if (overlay.type !== 'line' && overlay.type !== 'shape') continue;
 
       const styleValue = overlay.finalStyle?.color ?? overlay.style?.color;
       const isTemplateLiteral = typeof styleValue === 'string' &&
@@ -1468,24 +1518,57 @@ export class AdvancedRenderer {
       const el = this.overlayElementCache.get(overlay.id);
       if (!el) continue;
 
-      const lineRenderer = this._getRendererForOverlay(overlay);
-      if (!lineRenderer || typeof lineRenderer._resolveLineColor !== 'function') continue;
+      // ShapeOverlay deliberately doesn't extend LineOverlay (see ShapeOverlay's
+      // class docblock), so it has its own _resolveShapeColor method with the
+      // same signature/behavior as _resolveLineColor rather than inheriting it.
+      const overlayRenderer = this._getRendererForOverlay(overlay);
+      const resolveColorMethod = overlay.type === 'shape' ? '_resolveShapeColor' : '_resolveLineColor';
+      if (!overlayRenderer || typeof overlayRenderer[resolveColorMethod] !== 'function') continue;
 
-      const rawColor = lineRenderer._resolveLineColor(
+      const rawColor = overlayRenderer[resolveColorMethod](
         styleValue,
         overlay,
         cardInstance,
         'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))'
       );
       // Full pipeline required: setAttribute() cannot handle var() —
-      // _resolveLineColor() only performs token/state resolution for literal
-      // string colors, so materialize any remaining var(...) here before writing
-      // it to the DOM. `el` scopes the lookup so inherited/section-scoped CSS
-      // vars resolve correctly.
+      // _resolveLineColor()/_resolveShapeColor() only performs token/state
+      // resolution for literal string colors, so materialize any remaining
+      // var(...) here before writing it to the DOM. `el` scopes the lookup so
+      // inherited/section-scoped CSS vars resolve correctly.
       const newColor = ColorUtils.resolveCssVariable(rawColor, '#ff7700', el);
 
-      const paths = el.querySelectorAll('.line-path, .line-selection-indicator');
+      // Class-name selector (not tag-based) so this matches shape's <rect>/
+      // <ellipse> main elements (kind: rect/circle) as well as <path> (line, and
+      // shape kind: polyline) — all share the same .{line,shape}-path /
+      // .{line,shape}-selection-indicator class convention regardless of tag.
+      const paths = el.querySelectorAll('.line-path, .line-selection-indicator, .shape-path, .shape-selection-indicator');
       paths.forEach(p => p.setAttribute('stroke', newColor));
+
+      // Fill: same live-refresh treatment as stroke above, previously missing
+      // entirely — style.fill resolved correctly once at initial render (or on
+      // a full re-render), but every subsequent HASS update only ever touched
+      // stroke, so an entity-bound fill would silently stop tracking the
+      // entity's state after the first paint (e.g. a rule-free, plain
+      // `entity:` + `style.fill: {default, above:80, below:20}` binding never
+      // updates once the entity's value crosses a threshold). Deliberately
+      // NOT applied to .line-selection-indicator/.shape-selection-indicator —
+      // those are the editor-only selection halo, hardcoded to fill="none" by
+      // the renderer, never meant to pick up the resolved color.
+      const fillStyleValue = overlay.finalStyle?.fill ?? overlay.style?.fill;
+      if (fillStyleValue != null) {
+        const rawFill = overlayRenderer[resolveColorMethod](
+          fillStyleValue,
+          overlay,
+          cardInstance,
+          'none',
+          undefined,
+          undefined,
+          'defaultFillColor'
+        );
+        const newFill = ColorUtils.resolveCssVariable(rawFill, 'none', el);
+        el.querySelectorAll('.line-path, .shape-path').forEach(p => p.setAttribute('fill', newFill));
+      }
 
       // "match_line" markers (Phase 9) — the cached <marker> defs only pick up a
       // color change on the next full build (_buildDefinitions()'s cache-key

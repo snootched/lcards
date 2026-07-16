@@ -267,20 +267,6 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
         lcardsLog.trace('[PipelineCore] AnimationManager notified about all rendered overlays');
       }
 
-      lcardsLog.trace('[PipelineCore] Starting renderDebugAndControls()...');
-      // Make debug and controls rendering more defensive.
-      // NOTE: Controls are now rendered by AdvancedRenderer.
-      // This only handles debug visualization overlays (anchors, bounding boxes, etc.)
-      try {
-        await coordinator.renderDebugAndControls(resolvedModel, mountEl);
-        lcardsLog.trace('[PipelineCore] renderDebugAndControls() completed successfully');
-      } catch (debugControlsError) {
-        lcardsLog.error('[PipelineCore] ❌ renderDebugAndControls() FAILED:', debugControlsError);
-        lcardsLog.error('[PipelineCore] ❌ Debug/Controls error stack:', debugControlsError.stack);
-        // Don't fail the entire render - just log the error
-        lcardsLog.warn('[PipelineCore] ⚠️ Continuing without debug/controls rendering due to error');
-      }
-
       const renderTime = performance.now() - startTime;
       lcardsLog.trace(`[PipelineCore] reRender() COMPLETED in ${renderTime.toFixed(2)}ms`);
 
@@ -738,16 +724,6 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
     getEntity: (id) => coordinator.entityRuntime.getEntity(id),
     getActiveProfiles: () => [],
     getAnchors: () => ({ ...cardModel.anchors }),
-
-    // Add debug API powered by DebugManager
-    debug: {
-      enable: (feature) => coordinator.debugManager.enable(feature),
-      disable: (feature) => coordinator.debugManager.disable(feature),
-      toggle: (feature) => coordinator.debugManager.toggle(feature),
-      setScale: (scale) => coordinator.debugManager.setScale(scale),
-      status: () => coordinator.debugManager.getSnapshot(),
-      onChange: (callback) => coordinator.debugManager.onChange(callback)
-    },
 
     getDataSourceManager: () => coordinator.dataSourceManager,
     _reRenderCallback: reRender,

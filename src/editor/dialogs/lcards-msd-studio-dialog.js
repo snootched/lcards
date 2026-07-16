@@ -71,7 +71,8 @@ const MODES = {
     PLACE_CONTROL: 'place_control',
     CONNECT_LINE: 'connect_line',
     DRAW_CHANNEL: 'draw_channel',
-    ADD_WAYPOINT: 'add_waypoint'
+    ADD_WAYPOINT: 'add_waypoint',
+    DRAW_SHAPE: 'draw_shape'
 };
 
 // Tab constants
@@ -80,6 +81,7 @@ const TABS = {
     ANCHORS: 'anchors',
     CONTROLS: 'controls',
     LINES: 'lines',
+    SHAPES: 'shapes',
     ROUTING: 'routing',
     YAML: 'yaml'
 };
@@ -147,6 +149,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _lineFormData: { type: Object, state: true }, // Complete line form data with correct schema
             _lineFormActiveSubtab: { type: String, state: true }, // 'connection' or 'style'
             _connectLineState: { type: Object, state: true }, // { source: null, tempLineElement: null }
+            // Shapes Tab Properties
+            _showShapeForm: { type: Boolean, state: true },
+            _editingShapeId: { type: String, state: true },
+            _shapeFormData: { type: Object, state: true },
+            _shapeFormActiveSubtab: { type: String, state: true }, // 'geometry' or 'style'
+            _drawShapeState: { type: Object, state: true }, // { kind, points: [[x,y],...], drawing, currentPoint }
+            // Shape edit-mode: drag-to-move/resize (rect/circle, mirrors control drag/resize)
+            // and drag-to-move-vertex (polyline, mirrors line waypoint drag)
+            _selectedShapeId: { type: String, state: true },
+            _shapeDragState: { type: Object, state: true },
+            _shapeResizeState: { type: Object, state: true },
+            _shapeVertexDragState: { type: Object, state: true },
             // Channels Tab Properties
             _editingChannelId: { type: String, state: true },
             _channelFormData: { type: Object, state: true },
@@ -309,6 +323,66 @@ export class LCARdSMSDStudioDialog extends LitElement {
         };
         this._lineFormActiveSubtab = 'basic';
         this._connectLineState = { source: null, tempLineElement: null };
+
+        // Shapes Tab State
+        this._showShapeForm = false;
+        this._editingShapeId = null;
+        this._shapeFormData = {
+            id: '',
+            kind: 'rect',
+            position: [0, 0],
+            size: [100, 60],
+            points: [],
+            closed: false,
+            entity: '',
+            state_attribute: '',
+            ranges_attribute: '',
+            z_index: null,
+            corner_style: 'round',
+            corner_radius: 8,
+            corner_angle: 45,
+            smoothing_mode: 'none',
+            smoothing_iterations: 0,
+            animations: [],
+            style: {
+                color: { default: 'var(--lcars-orange)' },
+                width: 2,
+                opacity: 1,
+                dash_array: '',
+                fill: { default: 'none' },
+                fill_opacity: 1,
+                line_cap: 'butt',
+                line_join: '',
+                miter_limit: 4
+            }
+        };
+        this._shapeFormActiveSubtab = 'geometry';
+        this._drawShapeState = {
+            kind: null,
+            points: [],
+            drawing: false,
+            currentPoint: null
+        };
+
+        // Shape edit-mode state
+        this._selectedShapeId = null;
+        this._shapeDragState = {
+            active: false,
+            shapeId: null,
+            startPos: null,
+            originalPos: null,
+            offsetX: 0,
+            offsetY: 0
+        };
+        this._shapeResizeState = {
+            active: false,
+            shapeId: null,
+            handle: null,
+            startPos: null,
+            startSize: null,
+            startPosition: null
+        };
+        this._shapeVertexDragState = null; // { shapeId, vertexIndex, startX, startY } while dragging
 
         // Channels Tab State
         this._editingChannelId = null;
@@ -847,6 +921,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (this._activeMode !== MODES.CONNECT_LINE) {
             this._connectLineState = { source: null, tempLineElement: null };
         }
+        // Leaving DRAW_SHAPE abandons any in-progress points (same cancel-on-exit
+        // convention as DRAW_CHANNEL) — a shape is only committed once its form is
+        // saved, so nothing is lost by discarding an unfinished draw.
+        if (this._activeMode !== MODES.DRAW_SHAPE) {
+            this._drawShapeState = {
+                kind: null,
+                points: [],
+                drawing: false,
+                currentPoint: null
+            };
+        }
 
         // Clear waypoint markers if switching away from ADD_WAYPOINT
         // (but don't call _exitWaypointMode as it resets mode to VIEW)
@@ -1135,6 +1220,43 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </button>
                         `)}
 
+                        <!-- Draw Shape buttons: one per kind, since DRAW_SHAPE is a single
+                             mode whose behavior branches on _drawShapeState.kind. All three
+                             share the same mode identifier, so _setMode's own toggle-by-
+                             identity check can't distinguish "switch kind while staying in
+                             draw mode" from "toggle the whole mode off" — handled explicitly
+                             here instead. -->
+                        ${[
+                            { kind: 'polyline', icon: 'mdi:vector-polyline', tooltip: 'Draw Polyline/Path' },
+                            { kind: 'rect', icon: 'mdi:rectangle-outline', tooltip: 'Draw Rectangle' },
+                            { kind: 'circle', icon: 'mdi:circle-outline', tooltip: 'Draw Circle' }
+                        ].map(btn => html`
+                            <button
+                                class="canvas-toolbar-button ${this._activeMode === MODES.DRAW_SHAPE && this._drawShapeState.kind === btn.kind ? 'active' : ''}"
+                                @click=${async (e) => {
+                                    e.stopPropagation();
+                                    if (this._activeMode === MODES.DRAW_SHAPE) {
+                                        if (this._drawShapeState.kind === btn.kind) {
+                                            // Same kind clicked again: toggle off (mirrors _setMode's own toggle-off + reset)
+                                            this._activeMode = MODES.VIEW;
+                                            this._drawShapeState = { kind: null, points: [], drawing: false, currentPoint: null };
+                                        } else {
+                                            // Different kind: switch within DRAW_SHAPE, discard in-progress points
+                                            this._drawShapeState = { kind: btn.kind, points: [], drawing: false, currentPoint: null };
+                                        }
+                                        this.requestUpdate();
+                                    } else {
+                                        // Entering DRAW_SHAPE from elsewhere: let _setMode clean up whatever mode we're leaving
+                                        await this._setMode(MODES.DRAW_SHAPE);
+                                        this._drawShapeState = { kind: btn.kind, points: [], drawing: false, currentPoint: null };
+                                        this.requestUpdate();
+                                    }
+                                }}
+                                title="${btn.tooltip}">
+                                <ha-icon icon="${btn.icon}"></ha-icon>
+                            </button>
+                        `)}
+
                         <!-- Divider -->
                         <div class="canvas-toolbar-divider"></div>
 
@@ -1292,6 +1414,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             { id: TABS.ANCHORS, label: 'Anchors', icon: 'mdi:map-marker' },
             { id: TABS.CONTROLS, label: 'Controls', icon: 'mdi:widgets' },
             { id: TABS.LINES, label: 'Lines', icon: 'mdi:vector-line' },
+            { id: TABS.SHAPES, label: 'Shapes', icon: 'mdi:shape' },
             { id: TABS.ROUTING, label: 'Routing', icon: 'mdi:routes' },
             { id: TABS.YAML, label: 'YAML', icon: 'mdi:code-braces' }
         ];
@@ -1323,6 +1446,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 return this._renderControlsTab();
             case TABS.LINES:
                 return this._renderLinesTab();
+            case TABS.SHAPES:
+                return this._renderShapesTab();
             case TABS.ROUTING:
                 return this._renderRoutingTab();
             case TABS.YAML:
@@ -2543,6 +2668,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._lineClickTimer = null;
         }
 
+        // Finish an in-progress polyline shape (open-ended click-to-append, same
+        // as ADD_WAYPOINT's precedent — double-click is the "I'm done" signal)
+        if (this._activeMode === MODES.DRAW_SHAPE && this._drawShapeState.kind === 'polyline') {
+            event.stopPropagation();
+            event.preventDefault();
+            this._finishDrawShapePolyline();
+            return;
+        }
+
         // Check if double-clicked on a line path element or hit area
         // @ts-ignore - TS2339: auto-suppressed
         if ((clickedElement.tagName === 'path' && clickedElement.classList.contains('line-path')) ||
@@ -2580,6 +2714,45 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     lcardsLog.warn('[MSDStudioDialog] Line not found:', lineId);
                 }
 
+                event.stopPropagation();
+                event.preventDefault();
+                return;
+            }
+        }
+
+        // Cancel pending single-click timer for shapes
+        if (this._shapeClickTimer) {
+            clearTimeout(this._shapeClickTimer);
+            this._shapeClickTimer = null;
+        }
+
+        // Check if double-clicked on a shape's path/rect/ellipse or hit area.
+        // shape-path renders as <path> for polyline, <rect> for rect, <ellipse>
+        // for circle — rect/circle have no separate hit-area (pointer-events:
+        // all is set directly on the main element instead).
+        // @ts-ignore - TS2339: auto-suppressed
+        if (clickedElement.classList?.contains('shape-path') ||
+            // @ts-ignore - TS2339: auto-suppressed
+            (clickedElement.tagName === 'path' && clickedElement.classList.contains('shape-hit-area'))) {
+            let shapeId;
+            // @ts-ignore - TS2339: auto-suppressed
+            if (clickedElement.classList.contains('shape-hit-area')) {
+                // @ts-ignore - TS2339: auto-suppressed
+                const visiblePath = clickedElement.nextElementSibling;
+                shapeId = visiblePath?.getAttribute('data-shape-id');
+            } else {
+                // @ts-ignore - TS2339: auto-suppressed
+                shapeId = clickedElement.getAttribute('data-shape-id');
+            }
+
+            if (shapeId) {
+                const overlays = this._workingConfig.msd?.overlays || [];
+                const shapeOverlay = overlays.find(o => o.id === shapeId && o.type === 'shape');
+                if (shapeOverlay) {
+                    this._editShape(shapeOverlay);
+                } else {
+                    lcardsLog.warn('[MSDStudioDialog] Shape not found:', shapeId);
+                }
                 event.stopPropagation();
                 event.preventDefault();
                 return;
@@ -2647,11 +2820,46 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     return;
                 }
             }
+
+            // Check for polyline shape clicks (rect/circle are selected directly via
+            // their always-visible bbox handles when "Bounding Boxes" is on — see
+            // _renderShapeHandles — so only polyline needs click-to-select here,
+            // since its vertex markers only render for the selected shape).
+            // @ts-ignore - TS2339: auto-suppressed
+            if ((clickedElement.tagName === 'path' && clickedElement.classList.contains('shape-path')) ||
+                // @ts-ignore - TS2339: auto-suppressed
+                (clickedElement.tagName === 'path' && clickedElement.classList.contains('shape-hit-area'))) {
+                let shapeId;
+                // @ts-ignore - TS2339: auto-suppressed
+                if (clickedElement.classList.contains('shape-hit-area')) {
+                    // @ts-ignore - TS2339: auto-suppressed
+                    const visiblePath = clickedElement.nextElementSibling;
+                    shapeId = visiblePath?.getAttribute('data-shape-id');
+                } else {
+                    // @ts-ignore - TS2339: auto-suppressed
+                    shapeId = clickedElement.getAttribute('data-shape-id');
+                }
+                if (shapeId) {
+                    if (this._shapeClickTimer) {
+                        clearTimeout(this._shapeClickTimer);
+                        this._shapeClickTimer = null;
+                    }
+                    this._shapeClickTimer = setTimeout(() => {
+                        this._selectedShapeId = shapeId;
+                        this.requestUpdate();
+                        this._shapeClickTimer = null;
+                    }, 250);
+                    event.stopPropagation();
+                    return;
+                }
+            }
+
             // If in VIEW mode and clicked background, deselect
             if (this._activeMode === MODES.VIEW) {
                 // Don't deselect if the click was the tail of a pan drag
                 if (this._panJustEnded) return;
                 this._selectedLineId = null;
+                this._selectedShapeId = null;
                 this.requestUpdate();
                 return;
             }
@@ -2715,6 +2923,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._handleConnectLineClick(event);
         } else if (this._activeMode === MODES.DRAW_CHANNEL) {
             this._handleDrawChannelClick(event);
+        } else if (this._activeMode === MODES.DRAW_SHAPE) {
+            this._handleDrawShapeClick(event);
         }
     }
 
@@ -2748,7 +2958,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return;
         }
 
-        // Track cursor for crosshair guidelines (when enabled OR in placement modes)
+        // Handle active shape drag/resize (rect/circle)
+        if (this._shapeDragState.active) {
+            this._handleShapeDrag(event);
+            return;
+        }
+        if (this._shapeResizeState.active) {
+            this._handleShapeResize(event);
+            return;
+        }
+
+        // Track cursor for crosshair guidelines (when enabled OR in placement modes).
+        // This is independent of — not mutually exclusive with — the draw-channel/
+        // draw-shape tracking below: crosshairs default ON, so an if/else-if chain
+        // here previously meant the rubber-band preview for both DRAW_CHANNEL and
+        // DRAW_SHAPE never ran while crosshairs were enabled (the default state).
         const shouldTrackCursor = this._showCrosshairs ||
             this._activeMode === MODES.PLACE_ANCHOR ||
             this._activeMode === MODES.PLACE_CONTROL;
@@ -2760,11 +2984,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 this.requestUpdate();
             }
         }
+
         // Track mouse for draw channel rectangle
-        else if (this._activeMode === MODES.DRAW_CHANNEL && this._drawChannelState.drawing) {
+        if (this._activeMode === MODES.DRAW_CHANNEL && this._drawChannelState.drawing) {
             const coords = this._getPreviewCoordinates(event);
             if (coords) {
                 this._drawChannelState.currentPoint = [coords.x, coords.y];
+                this.requestUpdate();
+            }
+        }
+        // Track mouse for draw shape rubber-band preview (rect/circle bbox drag,
+        // or the "next segment" line while building a polyline)
+        if (this._activeMode === MODES.DRAW_SHAPE && this._drawShapeState.points.length > 0) {
+            const coords = this._getPreviewCoordinates(event);
+            if (coords) {
+                this._drawShapeState.currentPoint = [coords.x, coords.y];
                 this.requestUpdate();
             }
         }
@@ -3005,7 +3239,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Clear mousedown tracking
         this._mouseDownPos = null;
 
-        if (!this._dragState.active && !this._resizeState.active && !this._anchorDragState.active && !this._channelResizeState.active) return;
+        if (!this._dragState.active && !this._resizeState.active && !this._anchorDragState.active && !this._channelResizeState.active
+            && !this._shapeDragState.active && !this._shapeResizeState.active) return;
 
         if (this._dragState.active) {
             lcardsLog.debug('[MSDStudio] Drag end:', this._dragState.controlId);
@@ -3063,6 +3298,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 handle: null,
                 startPos: null,
                 startBounds: null
+            };
+        }
+
+        if (this._shapeDragState.active) {
+            lcardsLog.debug('[MSDStudio] Shape drag end:', this._shapeDragState.shapeId);
+
+            const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+            if (previewPanel) previewPanel.classList.remove('dragging');
+
+            this._shapeDragState = {
+                active: false, shapeId: null, startPos: null, originalPos: null, offsetX: 0, offsetY: 0
+            };
+        }
+
+        if (this._shapeResizeState.active) {
+            lcardsLog.debug('[MSDStudio] Shape resize end:', this._shapeResizeState.shapeId);
+
+            this._shapeResizeState = {
+                active: false, shapeId: null, handle: null, startPos: null, startSize: null, startPosition: null
             };
         }
 
@@ -3278,6 +3532,325 @@ export class LCARdSMSDStudioDialog extends LitElement {
         control.size = [this._roundToPrecision(newWidth), this._roundToPrecision(newHeight)];
         control.position = [this._roundToPrecision(newX), this._roundToPrecision(newY)];
 
+        this.requestUpdate();
+    }
+
+    // ============================
+    // Shape Drag/Resize Methods (rect/circle) — mirrors Control Drag/Resize
+    // Methods above exactly, operating on a shape overlay's position/size
+    // instead of a control's. Kept as separate state/handlers (not reusing
+    // _dragState/_resizeState) so this can't regress working control dragging.
+    // ============================
+
+    /**
+     * Handle shape drag start (whole-shape move)
+     * @param {MouseEvent} event
+     * @param {string} shapeId
+     * @private
+     */
+    _handleShapeDragStart(event, shapeId) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        const shape = this._findControl(shapeId);
+        if (!shape || !Array.isArray(shape.position)) {
+            lcardsLog.warn('[MSDStudio] Shape not found or has no literal position for drag:', shapeId);
+            return;
+        }
+
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) return;
+
+        const currentPosition = [...shape.position];
+        this._shapeDragState = {
+            active: true,
+            shapeId,
+            startPos: [coords.x, coords.y],
+            originalPos: currentPosition,
+            offsetX: coords.x - currentPosition[0],
+            offsetY: coords.y - currentPosition[1]
+        };
+
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (previewPanel) previewPanel.classList.add('dragging');
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle shape drag move
+     * @param {MouseEvent} event
+     * @private
+     */
+    _handleShapeDrag(event) {
+        if (!this._shapeDragState.active) return;
+
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) return;
+
+        let newX = coords.x - this._shapeDragState.offsetX;
+        let newY = coords.y - this._shapeDragState.offsetY;
+
+        if (this._enableSnapping && this._gridSpacing) {
+            newX = Math.round(newX / this._gridSpacing) * this._gridSpacing;
+            newY = Math.round(newY / this._gridSpacing) * this._gridSpacing;
+        }
+
+        const shape = this._findControl(this._shapeDragState.shapeId);
+        if (!shape) return;
+
+        shape.position = [this._roundToPrecision(newX), this._roundToPrecision(newY)];
+        this.requestUpdate();
+    }
+
+    /**
+     * Render resize handles for a shape (identical 8-handle layout to controls)
+     * @param {string} shapeId
+     * @param {number} pixelWidth
+     * @param {number} pixelHeight
+     * @param {boolean} isResizing
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeResizeHandles(shapeId, pixelWidth, pixelHeight, isResizing) {
+        const handles = ['tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'];
+        return html`
+            ${handles.map(handle => {
+                const isActive = isResizing && this._shapeResizeState.handle === handle;
+                return html`
+                    <div
+                        class="resize-handle ${handle} ${isActive ? 'active' : ''}"
+                        data-handle="${handle}"
+                        @mousedown=${(e) => this._handleShapeResizeStart(e, shapeId, handle)}>
+                    </div>
+                `;
+            })}
+        `;
+    }
+
+    /**
+     * Handle shape resize start
+     * @param {MouseEvent} event
+     * @param {string} shapeId
+     * @param {string} handle
+     * @private
+     */
+    _handleShapeResizeStart(event, shapeId, handle) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        const shape = this._findControl(shapeId);
+        if (!shape || !Array.isArray(shape.position)) {
+            lcardsLog.warn('[MSDStudio] Shape not found or has no literal position for resize:', shapeId);
+            return;
+        }
+
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) return;
+
+        this._shapeResizeState = {
+            active: true,
+            shapeId,
+            handle,
+            startPos: [coords.x, coords.y],
+            startSize: shape.size ? [...shape.size] : [100, 60],
+            startPosition: [...shape.position]
+        };
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle shape resize move — identical corner/edge math to control resize
+     * @param {MouseEvent} event
+     * @private
+     */
+    _handleShapeResize(event) {
+        if (!this._shapeResizeState.active) return;
+
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) return;
+
+        const deltaX = coords.x - this._shapeResizeState.startPos[0];
+        const deltaY = coords.y - this._shapeResizeState.startPos[1];
+
+        const shape = this._findControl(this._shapeResizeState.shapeId);
+        if (!shape) return;
+
+        const [startWidth, startHeight] = this._shapeResizeState.startSize;
+        const [startX, startY] = this._shapeResizeState.startPosition;
+        const handle = this._shapeResizeState.handle;
+
+        let newWidth = startWidth;
+        let newHeight = startHeight;
+        let newX = startX;
+        let newY = startY;
+
+        switch (handle) {
+            case 'tl':
+                newWidth = startWidth - deltaX; newHeight = startHeight - deltaY;
+                newX = startX + deltaX; newY = startY + deltaY;
+                break;
+            case 't':
+                newHeight = startHeight - deltaY; newY = startY + deltaY;
+                break;
+            case 'tr':
+                newWidth = startWidth + deltaX; newHeight = startHeight - deltaY; newY = startY + deltaY;
+                break;
+            case 'r':
+                newWidth = startWidth + deltaX;
+                break;
+            case 'br':
+                newWidth = startWidth + deltaX; newHeight = startHeight + deltaY;
+                break;
+            case 'b':
+                newHeight = startHeight + deltaY;
+                break;
+            case 'bl':
+                newWidth = startWidth - deltaX; newHeight = startHeight + deltaY; newX = startX + deltaX;
+                break;
+            case 'l':
+                newWidth = startWidth - deltaX; newX = startX + deltaX;
+                break;
+        }
+
+        const minSize = 10;
+        if (newWidth < minSize) {
+            newWidth = minSize;
+            if (handle.includes('l')) newX = startX + startWidth - minSize;
+        }
+        if (newHeight < minSize) {
+            newHeight = minSize;
+            if (handle.includes('t')) newY = startY + startHeight - minSize;
+        }
+
+        if (this._enableSnapping && this._gridSpacing) {
+            newWidth = Math.round(newWidth / this._gridSpacing) * this._gridSpacing;
+            newHeight = Math.round(newHeight / this._gridSpacing) * this._gridSpacing;
+            newX = Math.round(newX / this._gridSpacing) * this._gridSpacing;
+            newY = Math.round(newY / this._gridSpacing) * this._gridSpacing;
+        }
+
+        shape.size = [this._roundToPrecision(newWidth), this._roundToPrecision(newHeight)];
+        shape.position = [this._roundToPrecision(newX), this._roundToPrecision(newY)];
+
+        this.requestUpdate();
+    }
+
+    // ============================
+    // Shape Vertex Drag Methods (polyline) — mirrors Waypoint drag handling
+    // (_handleWaypointMouseDown/_handleWaypointMouseMove/_handleWaypointMouseUp)
+    // exactly: self-contained global mousemove/mouseup listeners added/removed
+    // per-drag, rather than routing through the shared _handlePreviewMouseMove/
+    // _handleDragEnd used by control drag/resize.
+    // ============================
+
+    /**
+     * Handle mouse down on a polyline shape's vertex marker — start drag
+     * @param {MouseEvent} e
+     * @param {string} shapeId
+     * @param {number} vertexIndex
+     * @private
+     */
+    _handleShapeVertexMouseDown(e, shapeId, vertexIndex) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        this._shapeVertexDragInProgress = true;
+        this._shapeVertexDragState = { shapeId, vertexIndex, startX: e.clientX, startY: e.clientY };
+
+        this._boundShapeVertexMouseMove = this._handleShapeVertexMouseMove.bind(this);
+        this._boundShapeVertexMouseUp = this._handleShapeVertexMouseUp.bind(this);
+        document.addEventListener('mousemove', this._boundShapeVertexMouseMove);
+        document.addEventListener('mouseup', this._boundShapeVertexMouseUp);
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle polyline vertex drag move
+     * @param {MouseEvent} e
+     * @private
+     */
+    _handleShapeVertexMouseMove(e) {
+        if (!this._shapeVertexDragState) return;
+        e.preventDefault();
+
+        const { shapeId, vertexIndex } = this._shapeVertexDragState;
+        const coords = this._getPreviewCoordinatesFromMouseEvent(e);
+        if (!coords) return;
+
+        let { x, y } = coords;
+        if (this._enableSnapping && this._gridSpacing > 0) {
+            const snapped = snapToGrid(x, y, this._gridSpacing, true);
+            x = snapped[0];
+            y = snapped[1];
+        }
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const shape = overlays.find(o => o.id === shapeId && o.type === 'shape');
+        if (shape && Array.isArray(shape.points) && shape.points[vertexIndex] !== undefined) {
+            shape.points[vertexIndex] = [this._roundToPrecision(x), this._roundToPrecision(y)];
+
+            if (this._shapeFormData?.id === shapeId && this._shapeFormData.points) {
+                this._shapeFormData.points[vertexIndex] = shape.points[vertexIndex];
+            }
+
+            this._schedulePreviewUpdate();
+            this.requestUpdate();
+        }
+    }
+
+    /**
+     * Handle polyline vertex drag end
+     * @param {MouseEvent} e
+     * @private
+     */
+    _handleShapeVertexMouseUp(e) {
+        if (!this._shapeVertexDragState) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        this._shapeVertexDragState = null;
+
+        if (this._boundShapeVertexMouseMove) {
+            document.removeEventListener('mousemove', this._boundShapeVertexMouseMove);
+            this._boundShapeVertexMouseMove = null;
+        }
+        if (this._boundShapeVertexMouseUp) {
+            document.removeEventListener('mouseup', this._boundShapeVertexMouseUp);
+            this._boundShapeVertexMouseUp = null;
+        }
+
+        setTimeout(() => { this._shapeVertexDragInProgress = false; }, 150);
+        this.requestUpdate();
+    }
+
+    /**
+     * Delete a single vertex from the selected polyline (double-click a vertex
+     * marker) — mirrors _handleWaypointDoubleClick's delete-on-double-click.
+     * @param {MouseEvent} e
+     * @param {string} shapeId
+     * @param {number} vertexIndex
+     * @private
+     */
+    _handleShapeVertexDoubleClick(e, shapeId, vertexIndex) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const shape = overlays.find(o => o.id === shapeId && o.type === 'shape');
+        if (!shape || !Array.isArray(shape.points) || shape.points.length <= 2) {
+            lcardsLog.warn('[MSDStudio] Cannot delete vertex — polyline needs at least 2 points');
+            return;
+        }
+
+        shape.points.splice(vertexIndex, 1);
+        if (this._shapeFormData?.id === shapeId) {
+            this._shapeFormData.points = [...shape.points];
+        }
+
+        this._schedulePreviewUpdate();
         this.requestUpdate();
     }
 
@@ -3659,6 +4232,54 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         }
 
+        // Check shapes: 9-point bbox grid for rect/circle (same convention as
+        // controls above — shapes position from top-left directly, no
+        // attachment-offset map needed), one point per vertex for polyline.
+        // A polyline vertex snap always returns a side ('vertexN') since there's
+        // no bare-id fallback anchor registered for polylines at runtime — only
+        // per-vertex ones (see AdvancedRenderer.js's shape attachment registration).
+        const shapes = this._getShapeOverlays();
+        for (const shape of shapes) {
+            if (shape.kind === 'polyline') {
+                if (!Array.isArray(shape.points)) continue;
+                for (let i = 0; i < shape.points.length; i++) {
+                    const pt = shape.points[i];
+                    if (!Array.isArray(pt) || pt.length < 2) continue;
+                    const [px, py] = pt;
+                    const dist = Math.sqrt(Math.pow(mouseX - px, 2) + Math.pow(mouseY - py, 2));
+                    if (dist < threshold) {
+                        lcardsLog.trace('[MSDStudio] Snap found on shape vertex:', shape.id, 'vertex:', i, 'dist:', dist);
+                        return { type: 'shape', id: shape.id, side: `vertex${i}` };
+                    }
+                }
+                continue;
+            }
+
+            if (!Array.isArray(shape.position) || !Array.isArray(shape.size)) continue;
+            const [x, y] = shape.position;
+            const [w, h] = shape.size;
+
+            const points = {
+                'center': [x + w/2, y + h/2],
+                'top': [x + w/2, y],
+                'bottom': [x + w/2, y + h],
+                'left': [x, y + h/2],
+                'right': [x + w, y + h/2],
+                'top-left': [x, y],
+                'top-right': [x + w, y],
+                'bottom-left': [x, y + h],
+                'bottom-right': [x + w, y + h]
+            };
+
+            for (const [side, [px, py]] of Object.entries(points)) {
+                const dist = Math.sqrt(Math.pow(mouseX - px, 2) + Math.pow(mouseY - py, 2));
+                if (dist < threshold) {
+                    lcardsLog.trace('[MSDStudio] Snap found on shape:', shape.id, 'side:', side, 'dist:', dist);
+                    return { type: 'shape', id: shape.id, side: side === 'center' ? null : side };
+                }
+            }
+        }
+
         // Check anchors (single point - gap is controlled by anchor_gap property)
         const userAnchors = this._workingConfig.msd?.anchors || {};
         const baseSvgAnchors = this._getBaseSvgAnchors();
@@ -3807,8 +4428,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // Update anchor
             line.anchor = target.id;
 
-            // Set anchor_side only if attaching to a control (not an anchor point)
-            if (target.type === 'control' && target.side) {
+            // Set anchor_side only if attaching to a control or shape (not an anchor point)
+            if ((target.type === 'control' || target.type === 'shape') && target.side) {
                 line.anchor_side = target.side;
             } else {
                 // Anchor point or center attachment - remove anchor_side
@@ -3828,8 +4449,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 }
             }
 
-            // Set attach_side only if attaching to a control (not an anchor point)
-            if (target.type === 'control' && target.side) {
+            // Set attach_side only if attaching to a control or shape (not an anchor point)
+            if ((target.type === 'control' || target.type === 'shape') && target.side) {
                 line.attach_side = target.side;
             } else {
                 // Anchor point or center attachment - remove attach_side
@@ -4175,6 +4796,76 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._activeMode = MODES.VIEW;
             this.requestUpdate();
         }
+    }
+
+    /**
+     * Handle draw shape click. Dispatches by kind:
+     * - polyline: open-ended click-to-append (mirrors _handleAddWaypointClick's
+     *   pattern) — finished via double-click (_finishDrawShapePolyline)
+     * - rect/circle: 2-click bbox (mirrors _handleDrawChannelClick exactly) —
+     *   first click is one corner, second click the opposite corner
+     * @param {MouseEvent} event - Click event
+     * @private
+     */
+    _handleDrawShapeClick(event) {
+        const coords = this._getPreviewCoordinates(event);
+        if (!coords) {
+            lcardsLog.warn('[MSDStudio] Could not get preview coordinates');
+            return;
+        }
+
+        const kind = this._drawShapeState.kind;
+
+        if (kind === 'polyline') {
+            this._drawShapeState.points = [...this._drawShapeState.points, [coords.x, coords.y]];
+            this._drawShapeState.drawing = true;
+            lcardsLog.trace('[MSDStudio] Added polyline point:', coords, 'total:', this._drawShapeState.points.length);
+            this.requestUpdate();
+            return;
+        }
+
+        // rect/circle: 2-click bbox
+        if (!this._drawShapeState.points.length) {
+            this._drawShapeState.points = [[coords.x, coords.y]];
+            this._drawShapeState.drawing = true;
+            lcardsLog.trace('[MSDStudio] Draw shape started at:', coords);
+            this.requestUpdate();
+            return;
+        }
+
+        const [startX, startY] = this._drawShapeState.points[0];
+        const x = Math.min(startX, coords.x);
+        const y = Math.min(startY, coords.y);
+        const width = Math.abs(coords.x - startX);
+        const height = Math.abs(coords.y - startY);
+
+        this._drawShapeState = { kind: null, points: [], drawing: false, currentPoint: null };
+        this._activeMode = MODES.VIEW;
+
+        if (width < 1 || height < 1) {
+            lcardsLog.warn('[MSDStudio] Shape too small, ignoring');
+            this.requestUpdate();
+            return;
+        }
+
+        this._openShapeForm(kind, { position: [x, y], size: [width, height] });
+    }
+
+    /**
+     * Finish an in-progress polyline shape draw (triggered by double-click) and
+     * open the shape form pre-filled with the collected points.
+     * @private
+     */
+    _finishDrawShapePolyline() {
+        const points = this._drawShapeState.points;
+        if (points.length < 2) {
+            lcardsLog.warn('[MSDStudio] Polyline needs at least 2 points to finish');
+            return;
+        }
+
+        this._drawShapeState = { kind: null, points: [], drawing: false, currentPoint: null };
+        this._activeMode = MODES.VIEW;
+        this._openShapeForm('polyline', { points });
     }
 
     /**
@@ -5563,6 +6254,220 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Render interactive drag/resize handles for rect/circle shape overlays —
+     * mirrors _renderBoundingBoxes exactly (same toggle, same bbox+8-handle
+     * layout), simplified since a shape's position is always its literal
+     * top-left corner (no attachment-offset concept like controls have).
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeHandles() {
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!this._showBoundingBoxes) return '';
+
+        const shapes = (this._workingConfig.msd?.overlays || [])
+            .filter(o => o.type === 'shape' && (o.kind === 'rect' || o.kind === 'circle') && Array.isArray(o.position));
+        // @ts-ignore - TS2322: auto-suppressed
+        if (shapes.length === 0) return '';
+
+        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!livePreview) return '';
+        const livePreviewShadow = livePreview.shadowRoot;
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!livePreviewShadow) return '';
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!cardContainer) return '';
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!msdCard) return '';
+        // @ts-ignore - TS2339: auto-suppressed
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!shadowRoot) return '';
+        const svg = shadowRoot.querySelector('svg');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!svg) return '';
+
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        }
+
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        const scale = Math.max(viewBoxWidth / rect.width, viewBoxHeight / rect.height);
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        return html`
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 998;">
+                ${shapes.map(shape => {
+                    const [vbX, vbY] = shape.position;
+                    const [width, height] = shape.size || [100, 60];
+
+                    const svgPixelX = (vbX - viewBoxX) / scale + offsetX;
+                    const svgPixelY = (vbY - viewBoxY) / scale + offsetY;
+                    const pixelWidth = width / scale;
+                    const pixelHeight = height / scale;
+                    const pixelX = (rect.left - panelRect.left) + svgPixelX;
+                    const pixelY = (rect.top - panelRect.top) + svgPixelY;
+
+                    const isDragging = this._shapeDragState.active && this._shapeDragState.shapeId === shape.id;
+                    const isResizing = this._shapeResizeState.active && this._shapeResizeState.shapeId === shape.id;
+                    const borderRadius = shape.kind === 'circle' ? '50%' : '0';
+
+                    return html`
+                        <div
+                            class="interactive-bbox ${isDragging ? 'bbox-dragging' : ''} ${isResizing ? 'bbox-resizing' : ''}"
+                            data-shape-id="${shape.id}"
+                            style="
+                                position: absolute;
+                                left: ${pixelX}px;
+                                top: ${pixelY}px;
+                                width: ${pixelWidth}px;
+                                height: ${pixelHeight}px;
+                                border: 2px solid #00CC88;
+                                border-radius: ${borderRadius};
+                                opacity: 0.6;
+                                pointer-events: auto;
+                            "
+                            @mousedown=${(e) => this._handleShapeDragStart(e, shape.id)}
+                            @dblclick=${(e) => { e.stopPropagation(); this._editShape(shape); }}>
+                            ${this._renderShapeResizeHandles(shape.id, pixelWidth, pixelHeight, isResizing)}
+                        </div>
+                        <div style="
+                            position: absolute;
+                            left: ${pixelX + 4}px;
+                            top: ${pixelY + 4}px;
+                            background: rgba(0, 204, 136, 0.8);
+                            color: white;
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            font-family: 'Courier New', monospace;
+                            font-size: 10px;
+                            white-space: nowrap;
+                            pointer-events: none;
+                        ">
+                            ${shape.id}
+                        </div>
+                    `;
+                })}
+            </div>
+        `;
+    }
+
+    /**
+     * Render draggable vertex markers for the currently-selected polyline shape
+     * — mirrors _renderWaypointMarkers exactly (same marker style/drag/double-
+     * click-to-delete convention), operating on a shape's `points` instead of a
+     * line's `waypoints`.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeVertexMarkers() {
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!this._selectedShapeId) return '';
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const selectedShape = overlays.find(o => o.id === this._selectedShapeId && o.type === 'shape' && o.kind === 'polyline');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!selectedShape || !Array.isArray(selectedShape.points) || selectedShape.points.length === 0) return '';
+
+        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!livePreview) return '';
+        const livePreviewShadow = livePreview.shadowRoot;
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!livePreviewShadow) return '';
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!cardContainer) return '';
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!msdCard) return '';
+        // @ts-ignore - TS2339: auto-suppressed
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!shadowRoot) return '';
+        const svg = shadowRoot.querySelector('svg');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!svg) return '';
+
+        const viewBox = svg.getAttribute('viewBox')?.split(' ').map(Number);
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!viewBox || viewBox.length !== 4) return '';
+        const [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        const rect = svg.getBoundingClientRect();
+        const panelRect = this.shadowRoot.querySelector('.preview-panel')?.getBoundingClientRect();
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!panelRect) return '';
+
+        const scale = Math.max(viewBoxWidth / rect.width, viewBoxHeight / rect.height);
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        const vbToPixel = (vbX, vbY) => {
+            const svgX = (vbX - viewBoxX) / scale + offsetX;
+            const svgY = (vbY - viewBoxY) / scale + offsetY;
+            return [svgX + (rect.left - panelRect.left), svgY + (rect.top - panelRect.top)];
+        };
+
+        return html`
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000;">
+                ${selectedShape.points.map((pt, i) => {
+                    if (!Array.isArray(pt) || pt.length < 2) return '';
+                    const [pixelX, pixelY] = vbToPixel(pt[0], pt[1]);
+                    const isDragging = this._shapeVertexDragState?.shapeId === selectedShape.id &&
+                                        this._shapeVertexDragState?.vertexIndex === i;
+
+                    return html`
+                        <div
+                            class="waypoint-marker editing ${isDragging ? 'dragging' : ''}"
+                            style="
+                                position: absolute;
+                                left: ${pixelX}px;
+                                top: ${pixelY}px;
+                                transform: translate(-50%, -50%);
+                                width: 24px;
+                                height: 24px;
+                                border-radius: 50%;
+                                background: ${isDragging ? '#FFAA00' : '#00CC88'};
+                                border: 2px solid #FFF;
+                                cursor: move;
+                                pointer-events: auto;
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                                z-index: ${isDragging ? '1002' : '1001'};
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-family: 'Antonio', sans-serif;
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: #000;
+                            "
+                            @mousedown=${(e) => this._handleShapeVertexMouseDown(e, selectedShape.id, i)}
+                            @dblclick=${(e) => this._handleShapeVertexDoubleClick(e, selectedShape.id, i)}
+                            title="Point ${i + 1} (Drag to move, Double-click to delete)">
+                            ${i + 1}
+                        </div>
+                    `;
+                })}
+            </div>
+        `;
+    }
+
+    /**
      * Render persistent routing paths
      * Shows all line routing paths when toggled on in Lines tab
      * @returns {TemplateResult}
@@ -6772,7 +7677,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             };
         };
 
-        // 9-point attachment positions for controls (relative offsets)
+        // 9-point attachment positions for controls (relative offsets) — also
+        // reused below for rect/circle shapes, which position from top-left
+        // directly (no attachment-offset map needed, unlike controls).
         // Edge points: ±1.0 = AT the edge; center: 0 = at center
         // These match the snap detection coordinates in _getAttachmentTargetAt
         const controlAttachmentPoints = [
@@ -6954,6 +7861,81 @@ export class LCARdSMSDStudioDialog extends LitElement {
             });
         });
 
+        // Render attachment points for shapes: 9-point bbox grid (rect/circle,
+        // same relative math as controls above, matching the kebab-case corner
+        // aliases AdvancedRenderer now registers) or one dot per vertex
+        // (polyline — anchor-referenced points are skipped rather than
+        // resolved, same simplification _renderShapeVertexMarkers already
+        // makes since those aren't literal coordinates to project to
+        // pixel-space). Distinct color from anchors (cyan) and controls
+        // (orange) — matches the existing shape bounding-box/vertex-marker
+        // green used elsewhere in this file.
+        const shapes = this._getShapeOverlays();
+        const shapeElements = shapes.map(shape => {
+            const isSourceAt = (pointName) =>
+                this._connectLineState.source?.type === 'shape' &&
+                this._connectLineState.source?.id === shape.id &&
+                this._connectLineState.source?.point === pointName;
+
+            const renderDot = (pointName, px, py) => {
+                const isSource = isSourceAt(pointName);
+                return html`
+                    <div
+                        class="attachment-point"
+                        data-connection-type="shape"
+                        data-connection-id="${shape.id}"
+                        data-connection-point="${pointName}"
+                        @click=${this._handleAttachmentPointClick}
+                        style="
+                            position: absolute;
+                            left: ${px}px;
+                            top: ${py}px;
+                            transform: translate(-50%, -50%);
+                            width: 12px;
+                            height: 12px;
+                            background: ${isSource ? '#2196F3' : '#00CC88'};
+                            border: 2px solid ${isSource ? '#1976D2' : '#009966'};
+                            border-radius: 50%;
+                            cursor: pointer;
+                            box-shadow: 0 0 8px ${isSource ? 'rgba(33, 150, 243, 0.8)' : 'rgba(0, 204, 136, 0.6)'};
+                            transition: all 0.2s;
+                            pointer-events: auto;
+                            z-index: 1000;
+                        "
+                        @mouseenter=${(e) => e.target.style.transform = 'translate(-50%, -50%) scale(1.5)'}
+                        @mouseleave=${(e) => e.target.style.transform = 'translate(-50%, -50%) scale(1)'}
+                    ></div>
+                `;
+            };
+
+            if (shape.kind === 'polyline') {
+                if (!Array.isArray(shape.points)) return '';
+                return shape.points.map((pt, i) => {
+                    if (!Array.isArray(pt) || pt.length < 2) return '';
+                    const pixelPos = toPixelPos(pt[0], pt[1]);
+                    return renderDot(`vertex${i}`, pixelPos.x, pixelPos.y);
+                });
+            }
+
+            // rect/circle: shapes position from top-left directly, no
+            // attachment-offset map needed (unlike controls' `attachment` field).
+            if (!Array.isArray(shape.position) || !Array.isArray(shape.size)) return '';
+            const [vbX, vbY] = shape.position;
+            const [width, height] = shape.size;
+            const topLeft = toPixelPos(vbX, vbY);
+            const bottomRight = toPixelPos(vbX + width, vbY + height);
+            const centerX = (topLeft.x + bottomRight.x) / 2;
+            const centerY = (topLeft.y + bottomRight.y) / 2;
+            const pixelWidth = bottomRight.x - topLeft.x;
+            const pixelHeight = bottomRight.y - topLeft.y;
+
+            return controlAttachmentPoints.map(point => renderDot(
+                point.name,
+                centerX + (point.dx * pixelWidth / 2),
+                centerY + (point.dy * pixelHeight / 2)
+            ));
+        });
+
         return html`
             <div style="
                 position: absolute;
@@ -6966,6 +7948,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             ">
                 ${anchorElements}
                 ${controlElements}
+                ${shapeElements}
             </div>
         `;
     }
@@ -7008,20 +7991,92 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @returns {TemplateResult}
      * @private
      */
+    /**
+     * Build a viewBox-space → panel-relative-pixel-space coordinate converter,
+     * using the exact same scale/offset math as _getPreviewCoordinatesWithPixels
+     * (crosshairs) and the shape drag-handle renderers — the canonical, correct
+     * way to position an absolutely-positioned overlay element (or a no-viewBox
+     * <svg>'s content, where 1 unit = 1 CSS pixel) so it visually lines up with
+     * the live MSD preview underneath it. Using raw viewBox-unit coordinates
+     * directly as pixel positions (as the draw-channel/draw-shape rubber-band
+     * overlays used to) is off by the viewBox→panel scale factor — the "follows
+     * the cursor but positioning/speed is wrong, sometimes off-panel entirely"
+     * symptom.
+     * @returns {((vbX: number, vbY: number) => [number, number]) | null}
+     * @private
+     */
+    _getViewBoxToPixelConverter() {
+        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return null;
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return null;
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return null;
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return null;
+        // @ts-ignore - TS2339: auto-suppressed
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return null;
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return null;
+
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        } else {
+            const svgViewBox = svg.getAttribute('viewBox');
+            if (svgViewBox) {
+                const parts = svgViewBox.split(/\s+/).map(Number);
+                if (parts.length === 4) [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = parts;
+            }
+        }
+
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (!previewPanel) return null;
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        const scale = Math.max(viewBoxWidth / rect.width, viewBoxHeight / rect.height);
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        return (vbX, vbY) => {
+            const svgX = (vbX - viewBoxX) / scale + offsetX;
+            const svgY = (vbY - viewBoxY) / scale + offsetY;
+            return [svgX + (rect.left - panelRect.left), svgY + (rect.top - panelRect.top)];
+        };
+    }
+
     _renderDrawChannelOverlay() {
         if (this._activeMode !== MODES.DRAW_CHANNEL || !this._drawChannelState.drawing || !this._drawChannelState.currentPoint) {
             // @ts-ignore - TS2322: auto-suppressed
             return '';
         }
 
-        const [startX, startY] = this._drawChannelState.startPoint;
-        const [currentX, currentY] = this._drawChannelState.currentPoint;
+        // startPoint/currentPoint are viewBox-space coordinates (from
+        // _getPreviewCoordinates, used for saving to config) — this overlay's
+        // <svg> has no viewBox of its own (1 unit = 1 CSS pixel, matching the
+        // panel's own rendered size), so viewBox units must first be converted
+        // through the same scale/offset math the (working) crosshairs and drag
+        // handles use, not used directly as pixel positions. Using them
+        // directly is off by the viewBox→panel scale factor — exactly "follows
+        // the cursor but positioning/speed are wrong," and can place the
+        // rendered point outside the visible panel entirely once the viewBox is
+        // larger than the panel's rendered pixel size (the common case).
+        const vbToPixel = this._getViewBoxToPixelConverter();
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!vbToPixel) return '';
 
-        // Calculate rectangle bounds
-        const x = Math.min(startX, currentX);
-        const y = Math.min(startY, currentY);
-        const width = Math.abs(currentX - startX);
-        const height = Math.abs(currentY - startY);
+        const [startPx, startPy] = vbToPixel(...this._drawChannelState.startPoint);
+        const [currentPx, currentPy] = vbToPixel(...this._drawChannelState.currentPoint);
+
+        const x = Math.min(startPx, currentPx);
+        const y = Math.min(startPy, currentPy);
+        const width = Math.abs(currentPx - startPx);
+        const height = Math.abs(currentPy - startPy);
 
         return html`
             <div style="
@@ -7043,6 +8098,89 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         stroke="#00FF00"
                         stroke-width="2"
                         stroke-dasharray="5,5" />
+                </svg>
+            </div>
+        `;
+    }
+
+    /**
+     * Render the live in-progress preview for DRAW_SHAPE mode: a rubber-band
+     * bbox rectangle for rect/circle (mirrors _renderDrawChannelOverlay exactly),
+     * or the accumulated polyline-so-far plus a dashed "next segment" line to the
+     * cursor for the open-ended polyline kind.
+     * @returns {TemplateResult|string}
+     * @private
+     */
+    _renderDrawShapeOverlay() {
+        if (this._activeMode !== MODES.DRAW_SHAPE || !this._drawShapeState.drawing) {
+            // @ts-ignore - TS2322: auto-suppressed
+            return '';
+        }
+
+        const { kind, points, currentPoint } = this._drawShapeState;
+
+        // points/currentPoint are viewBox-space (see _getViewBoxToPixelConverter's
+        // docblock for why these can't be used directly as pixel positions).
+        const vbToPixel = this._getViewBoxToPixelConverter();
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!vbToPixel) return '';
+
+        if (kind === 'polyline') {
+            if (points.length === 0) return '';
+            const pixelPoints = points.map(p => vbToPixel(p[0], p[1]));
+            const committedPath = pixelPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0]} ${p[1]}`).join(' ');
+            const lastPixelPoint = pixelPoints[pixelPoints.length - 1];
+            const previewSegment = currentPoint
+                ? (() => {
+                    const [cpx, cpy] = vbToPixel(currentPoint[0], currentPoint[1]);
+                    return `M ${lastPixelPoint[0]} ${lastPixelPoint[1]} L ${cpx} ${cpy}`;
+                })()
+                : '';
+
+            // Built as an SVG markup STRING + unsafeSVG(), not nested html``
+            // TemplateResults — each html`` call parses independently via its
+            // own <template>.innerHTML (HTML namespace), so a TemplateResult
+            // interpolated as a *child* of an <svg> from a different template
+            // (as this used to do, one per point plus the two paths) produces
+            // wrong-namespace elements browsers silently refuse to paint. See
+            // the identical fix/explanation on _renderShapeStylePreviewVertical.
+            const circles = pixelPoints.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#00FF00" />`).join('');
+            const previewSegmentMarkup = previewSegment
+                ? `<path d="${previewSegment}" fill="none" stroke="#00FF00" stroke-width="2" stroke-dasharray="5,5" />`
+                : '';
+            const svgContent = `<path d="${committedPath}" fill="none" stroke="#00FF00" stroke-width="2" />${circles}${previewSegmentMarkup}`;
+
+            return html`
+                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000;">
+                    <svg style="width: 100%; height: 100%; position: absolute;">
+                        ${unsafeSVG(svgContent)}
+                    </svg>
+                </div>
+            `;
+        }
+
+        // rect/circle rubber-band bbox
+        if (!currentPoint) return '';
+        const [startPx, startPy] = vbToPixel(points[0][0], points[0][1]);
+        const [currentPx, currentPy] = vbToPixel(currentPoint[0], currentPoint[1]);
+        const x = Math.min(startPx, currentPx);
+        const y = Math.min(startPy, currentPy);
+        const width = Math.abs(currentPx - startPx);
+        const height = Math.abs(currentPy - startPy);
+
+        const bboxContent = kind === 'circle'
+            ? `<ellipse
+                    cx="${x + width / 2}px" cy="${y + height / 2}px"
+                    rx="${width / 2}px" ry="${height / 2}px"
+                    fill="rgba(0, 255, 0, 0.2)" stroke="#00FF00" stroke-width="2" stroke-dasharray="5,5" />`
+            : `<rect
+                    x="${x}px" y="${y}px" width="${width}px" height="${height}px"
+                    fill="rgba(0, 255, 0, 0.2)" stroke="#00FF00" stroke-width="2" stroke-dasharray="5,5" />`;
+
+        return html`
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000;">
+                <svg style="width: 100%; height: 100%; position: absolute;">
+                    ${unsafeSVG(bboxContent)}
                 </svg>
             </div>
         `;
@@ -9213,6 +10351,466 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Render Shapes tab
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapesTab() {
+        const shapes = this._getShapeOverlays();
+        const shapeCount = shapes.length;
+
+        return html`
+            <div style="padding: 8px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
+                    <ha-button @click=${() => this._openShapeForm()}>
+                        <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                        Add Shape
+                    </ha-button>
+
+                    <!-- Right-aligned visualization helpers -->
+                    <div style="flex: 1;"></div>
+                    <ha-icon-button
+                        class="${this._showBoundingBoxes ? 'active' : ''}"
+                        @click=${() => { this._showBoundingBoxes = !this._showBoundingBoxes; this.requestUpdate(); }}
+                        .label=${'Bounding Boxes'}>
+                        <ha-icon icon="mdi:border-outside"></ha-icon>
+                    </ha-icon-button>
+                    <ha-icon-button
+                        class="${this._showAttachmentPoints ? 'active' : ''}"
+                        @click=${() => { this._showAttachmentPoints = !this._showAttachmentPoints; this.requestUpdate(); }}
+                        .label=${'Attachment Points'}>
+                        <ha-icon icon="mdi:target-variant"></ha-icon>
+                    </ha-icon-button>
+                </div>
+
+                <lcards-form-section
+                    header="Shape Overlays"
+                    description="Freeform decorative/structural geometry — polylines, rectangles, circles. Draw directly on the canvas with the toolbar buttons, or add one here."
+                    icon="mdi:shape"
+                    ?expanded=${true}>
+
+                    ${shapeCount === 0 ? html`
+                        <lcards-message type="info">
+                            <strong>No shape overlays defined yet.</strong>
+                            <p style="margin: 8px 0; font-size: 13px;">
+                                Use the Draw Polyline/Rectangle/Circle buttons on the canvas
+                                toolbar, or click "Add Shape" to create one manually.
+                            </p>
+                        </lcards-message>
+                    ` : html`
+                        <div class="line-list">
+                            ${shapes.map(shape => this._renderShapeItem(shape))}
+                        </div>
+                    `}
+                </lcards-form-section>
+
+                ${this._renderShapeHelp()}
+            </div>
+        `;
+    }
+
+    /**
+     * Render "About Shape Overlays" info box — mirrors _renderControlHelp/
+     * _renderLineHelp exactly.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeHelp() {
+        return html`
+            <lcards-message type="info" style="margin-top: 16px;">
+                <strong>About Shape Overlays:</strong>
+                <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
+                    <li>Shapes draw freeform geometry on your MSD: polylines (walls, connectors), rectangles and circles (rooms, zones)</li>
+                    <li>Use the Draw Polyline/Rectangle/Circle buttons on the canvas toolbar for click-to-place drawing with live preview</li>
+                    <li>Select a shape to drag its points (polyline) or resize handles (rectangle/circle) directly on the canvas</li>
+                    <li>Full style parity with lines: dashed/gradient strokes, state-based fill, animations, and rules reactivity</li>
+                    <li>Lines can attach to a shape's corners (rectangle/circle) or vertices (polyline) just like they attach to controls</li>
+                </ul>
+            </lcards-message>
+        `;
+    }
+
+    /**
+     * Get shape overlays from config
+     * @returns {Array}
+     * @private
+     */
+    _getShapeOverlays() {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        return overlays.filter(o => o.type === 'shape');
+    }
+
+    /**
+     * Render single shape item
+     * @param {Object} shape - Shape overlay config
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeItem(shape) {
+        const id = shape.id || 'unnamed';
+        const kind = shape.kind || 'polyline';
+        const rawColor = shape.style?.color;
+        const strokeColor = (typeof rawColor === 'object' && rawColor !== null)
+            ? (rawColor.default || Object.values(rawColor)[0] || 'var(--lcars-orange)')
+            : (rawColor || 'var(--lcars-orange)');
+        const kindIcon = kind === 'rect' ? 'mdi:rectangle-outline' : kind === 'circle' ? 'mdi:circle-outline' : 'mdi:vector-polyline';
+        const geometryStr = kind === 'polyline'
+            ? `${(shape.points || []).length} points${shape.closed ? ' (closed)' : ''}`
+            : `${(shape.size || [0, 0]).join('×')}`;
+
+        return html`
+            <div class="list-item-card">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <!-- Shape Preview -->
+                    <div style="
+                        width: 40px;
+                        height: 40px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        border: 1px solid var(--divider-color);
+                        border-radius: 4px;
+                        background: var(--card-background-color);
+                    ">
+                        <ha-icon icon="${kindIcon}" style="color: ${strokeColor};"></ha-icon>
+                    </div>
+
+                    <!-- Shape Info -->
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                            ${id}
+                            <span style="
+                                font-size: 10px;
+                                padding: 2px 6px;
+                                background: var(--primary-color);
+                                color: var(--text-primary-color);
+                                border-radius: 3px;
+                                font-weight: 500;
+                            ">${kind}</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace;">
+                            ${geometryStr}
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="display: flex; gap: 8px;">
+                        <ha-icon-button
+                            @click=${() => this._editShape(shape)}
+                            .label=${'Edit'}
+                            .path=${'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z'}>
+                        </ha-icon-button>
+                        <ha-icon-button
+                            @click=${() => this._duplicateShape(shape)}
+                            .label=${'Duplicate'}
+                            .path=${'M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z'}>
+                        </ha-icon-button>
+                        <ha-icon-button
+                            @click=${() => this._deleteShape(shape)}
+                            .label=${'Delete'}
+                            .path=${'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z'}>
+                        </ha-icon-button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Generate a unique shape overlay id
+     * @returns {string}
+     * @private
+     */
+    _generateShapeId() {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        let num = overlays.filter(o => o.type === 'shape').length + 1;
+        let id = `shape_${num}`;
+        while (overlays.find(o => o.id === id)) {
+            num++;
+            id = `shape_${num}`;
+        }
+        return id;
+    }
+
+    /**
+     * Open the shape form for a new shape. Optionally pre-filled with a kind and
+     * geometry (position/size for rect/circle, points for polyline) — used by the
+     * canvas draw handlers (_handleDrawShapeClick/_finishDrawShapePolyline) as
+     * well as the plain "Add Shape" button (no overrides, defaults to a rect).
+     * @param {string} [kind] - 'polyline'|'rect'|'circle', defaults to 'rect'
+     * @param {Object} [geometry] - { position, size } or { points }
+     * @private
+     */
+    _openShapeForm(kind = 'rect', geometry = {}) {
+        this._editingShapeId = null;
+        this._shapeFormData = {
+            id: this._generateShapeId(),
+            kind,
+            position: geometry.position || [100, 100],
+            size: geometry.size || [100, 60],
+            points: geometry.points || (kind === 'polyline' ? [[100, 100], [200, 100]] : []),
+            closed: false,
+            entity: '',
+            state_attribute: '',
+            ranges_attribute: '',
+            z_index: null,
+            corner_style: 'round',
+            corner_radius: kind === 'rect' ? 8 : 34,
+            corner_angle: 45,
+            smoothing_mode: 'none',
+            smoothing_iterations: 0,
+            animations: [],
+            style: {
+                color: { default: 'var(--lcars-orange)' },
+                width: 2,
+                opacity: 1,
+                dash_array: '',
+                fill: { default: 'none' },
+                fill_opacity: 1,
+                line_cap: 'butt',
+                line_join: '',
+                miter_limit: 4,
+                marker_end: null,
+                marker_start: null
+            }
+        };
+        this._shapeFormActiveSubtab = 'geometry';
+        this._showShapeForm = true;
+        this.requestUpdate();
+    }
+
+    /**
+     * Edit an existing shape
+     * @param {Object} shape - Shape overlay config
+     * @private
+     */
+    _editShape(shape) {
+        this._editingShapeId = shape.id;
+
+        // style.color/style.fill may be a legacy plain string (pre-dating state-color
+        // support) — normalize both to the state-color object shape lcards-color-
+        // section-v2 expects, mirroring _editLine's identical normalization.
+        const rawColor = shape.style?.color;
+        const normalizedColor = (typeof rawColor === 'object' && rawColor !== null)
+            ? rawColor
+            : { default: rawColor || 'var(--lcars-orange)' };
+        const rawFill = shape.style?.fill;
+        const normalizedFill = (typeof rawFill === 'object' && rawFill !== null)
+            ? rawFill
+            : { default: rawFill || 'none' };
+
+        this._shapeFormData = {
+            id: shape.id,
+            kind: shape.kind || 'polyline',
+            position: shape.position || [100, 100],
+            size: shape.size || [100, 60],
+            points: shape.points || [],
+            closed: shape.closed === true,
+            entity: shape.entity || '',
+            state_attribute: shape.state_attribute || '',
+            ranges_attribute: shape.ranges_attribute || '',
+            z_index: shape.z_index ?? null,
+            corner_style: shape.corner_style || 'round',
+            corner_radius: shape.corner_radius ?? (shape.kind === 'rect' ? 8 : 34),
+            corner_angle: shape.corner_angle ?? 45,
+            smoothing_mode: shape.smoothing_mode || 'none',
+            smoothing_iterations: shape.smoothing_iterations || 0,
+            animations: shape.animations || [],
+            style: {
+                color: normalizedColor,
+                width: shape.style?.width || 2,
+                opacity: shape.style?.opacity ?? 1,
+                dash_array: shape.style?.dash_array || '',
+                fill: normalizedFill,
+                fill_opacity: shape.style?.fill_opacity ?? 1,
+                line_cap: shape.style?.line_cap || 'butt',
+                line_join: shape.style?.line_join || '',
+                miter_limit: shape.style?.miter_limit ?? 4,
+                marker_end: shape.style?.marker_end || null,
+                marker_start: shape.style?.marker_start || null
+            }
+        };
+        this._shapeFormActiveSubtab = 'geometry';
+        this._showShapeForm = true;
+        this.requestUpdate();
+    }
+
+    /**
+     * Duplicate shape: clone it with a fresh unique ID and open it for editing.
+     * @param {Object} shape - Shape overlay config
+     * @private
+     */
+    _duplicateShape(shape) {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const newId = this._generateShapeId();
+        const cloned = { ...JSON.parse(JSON.stringify(shape)), id: newId };
+        this._setNestedValue('msd.overlays', [...overlays, cloned]);
+        this._editShape(cloned);
+    }
+
+    /**
+     * Delete a shape overlay (with confirmation)
+     * @param {Object} shape - Shape overlay config
+     * @private
+     */
+    async _deleteShape(shape) {
+        if (!await this._showConfirmDialog('Delete Shape', `Delete shape "${shape.id}"?`)) {
+            return;
+        }
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const index = overlays.findIndex(o => o.id === shape.id);
+        if (index >= 0) {
+            overlays.splice(index, 1);
+            lcardsLog.debug('[MSDStudio] Deleted shape:', shape.id);
+            this.requestUpdate();
+            this._schedulePreviewUpdate();
+        }
+    }
+
+    /**
+     * Save shape form. Mirrors _saveLine's direct-mutation pattern exactly (no
+     * _updateConfig — see class-level precedent) — build a plain overlay object
+     * with only non-default fields, find-or-push into msd.overlays by the stable
+     * editing id.
+     * @param {boolean} [keepOpen=false]
+     * @private
+     */
+    _saveShape(keepOpen = false) {
+        if (!this._shapeFormData.id) {
+            lcardsLog.warn('[MSDStudio] Cannot save shape without ID');
+            return;
+        }
+
+        const kind = this._shapeFormData.kind;
+        const shapeOverlay = {
+            type: 'shape',
+            id: this._shapeFormData.id,
+            kind
+        };
+
+        if (kind === 'polyline') {
+            shapeOverlay.points = this._shapeFormData.points || [];
+            if (this._shapeFormData.closed) {
+                shapeOverlay.closed = true;
+            }
+        } else {
+            shapeOverlay.position = this._shapeFormData.position || [0, 0];
+            shapeOverlay.size = this._shapeFormData.size || [100, 60];
+        }
+
+        if (this._shapeFormData.z_index != null) {
+            shapeOverlay.z_index = this._shapeFormData.z_index;
+        }
+        if (this._shapeFormData.entity) {
+            shapeOverlay.entity = this._shapeFormData.entity;
+        }
+        if (this._shapeFormData.state_attribute) {
+            shapeOverlay.state_attribute = this._shapeFormData.state_attribute;
+        }
+        if (this._shapeFormData.ranges_attribute) {
+            shapeOverlay.ranges_attribute = this._shapeFormData.ranges_attribute;
+        }
+
+        if (this._shapeFormData.corner_style && this._shapeFormData.corner_style !== 'round') {
+            shapeOverlay.corner_style = this._shapeFormData.corner_style;
+        } else if (this._shapeFormData.corner_style === 'round' && this._shapeFormData.corner_radius > 0) {
+            // 'round' is the schema default, but must still be persisted explicitly —
+            // ShapeOverlay only applies rx/ry (rect) or corner rounding (polyline)
+            // when corner_style is exactly 'round', not merely absent/undefined.
+            shapeOverlay.corner_style = 'round';
+        }
+        if (this._shapeFormData.corner_radius != null && this._shapeFormData.corner_radius !== 0) {
+            shapeOverlay.corner_radius = this._shapeFormData.corner_radius;
+        }
+        if (kind === 'polyline') {
+            if (this._shapeFormData.corner_style === 'bevel' && this._shapeFormData.corner_angle != null && this._shapeFormData.corner_angle !== 45) {
+                shapeOverlay.corner_angle = this._shapeFormData.corner_angle;
+            }
+            if (this._shapeFormData.smoothing_mode && this._shapeFormData.smoothing_mode !== 'none') {
+                shapeOverlay.smoothing_mode = this._shapeFormData.smoothing_mode;
+            }
+            if (this._shapeFormData.smoothing_iterations != null && this._shapeFormData.smoothing_iterations !== 0) {
+                shapeOverlay.smoothing_iterations = this._shapeFormData.smoothing_iterations;
+            }
+        }
+
+        if (this._shapeFormData.animations && this._shapeFormData.animations.length > 0) {
+            shapeOverlay.animations = this._shapeFormData.animations;
+        }
+
+        /** @type {Object<string, any>} */
+        const style = {};
+        const formStyle = this._shapeFormData.style || {};
+        if (formStyle.color != null) {
+            const c = formStyle.color;
+            // Simplify {default: X} with nothing else configured back to a plain
+            // string — keeps saved YAML clean for the common non-state-color case.
+            const keys = (typeof c === 'object' && c !== null) ? Object.keys(c) : null;
+            style.color = (keys && keys.length === 1 && keys[0] === 'default') ? c.default : c;
+        }
+        if (formStyle.width != null) style.width = formStyle.width;
+        if (formStyle.opacity != null && formStyle.opacity !== 1) style.opacity = formStyle.opacity;
+        if (formStyle.dash_array) style.dash_array = formStyle.dash_array;
+        if (formStyle.fill != null) {
+            const f = formStyle.fill;
+            const keys = (typeof f === 'object' && f !== null) ? Object.keys(f) : null;
+            const simplified = (keys && keys.length === 1 && keys[0] === 'default') ? f.default : f;
+            // Only persist if it's not the inert 'none' default (a plain string here,
+            // never an object — state-bound fill always has more than one key).
+            if (simplified !== 'none') style.fill = simplified;
+        }
+        if (formStyle.fill_opacity != null && formStyle.fill_opacity !== 1) style.fill_opacity = formStyle.fill_opacity;
+        if (kind === 'polyline') {
+            if (formStyle.line_cap && formStyle.line_cap !== 'butt') style.line_cap = formStyle.line_cap;
+            if (formStyle.line_join) style.line_join = formStyle.line_join;
+            if (formStyle.miter_limit != null && formStyle.miter_limit !== 4) style.miter_limit = formStyle.miter_limit;
+            if (formStyle.marker_end) style.marker_end = formStyle.marker_end;
+            if (formStyle.marker_start) style.marker_start = formStyle.marker_start;
+        }
+        if (Object.keys(style).length > 0) {
+            shapeOverlay.style = style;
+        }
+
+        if (!this._workingConfig.msd) {
+            this._workingConfig.msd = {};
+        }
+        if (!this._workingConfig.msd.overlays) {
+            this._workingConfig.msd.overlays = [];
+        }
+
+        const existingIndex = this._editingShapeId
+            ? this._workingConfig.msd.overlays.findIndex(o => o.id === this._editingShapeId)
+            : -1;
+        if (existingIndex >= 0) {
+            const existingOverlay = this._workingConfig.msd.overlays[existingIndex];
+            if (existingOverlay._editorSelected) {
+                shapeOverlay._editorSelected = true;
+            }
+            this._workingConfig.msd.overlays[existingIndex] = shapeOverlay;
+            lcardsLog.debug('[MSDStudio] Updated shape:', this._shapeFormData.id);
+        } else {
+            this._workingConfig.msd.overlays.push(shapeOverlay);
+            lcardsLog.debug('[MSDStudio] Added shape:', this._shapeFormData.id);
+        }
+
+        if (!keepOpen) {
+            this._closeShapeForm();
+        }
+        this._schedulePreviewUpdate();
+    }
+
+    /**
+     * Close shape form dialog
+     * @private
+     */
+    _closeShapeForm() {
+        this._showShapeForm = false;
+        this._editingShapeId = null;
+        this.requestUpdate();
+    }
+
+    /**
      * Render single line item
      * @param {Object} line - Line overlay config
      * @returns {TemplateResult}
@@ -10699,6 +12297,784 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Handle shape form subtab change
+     * @param {CustomEvent} event
+     * @private
+     */
+    _handleShapeFormTabChange(event) {
+        event.stopPropagation();
+        // @ts-ignore - TS2339: auto-suppressed
+        const tabId = event.target.activeTab?.getAttribute('value');
+        if (tabId) {
+            this._shapeFormActiveSubtab = tabId;
+            this.requestUpdate();
+        }
+    }
+
+    /**
+     * Route to appropriate shape form subtab content
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeFormTabContent() {
+        switch (this._shapeFormActiveSubtab) {
+            case 'geometry':
+                return this._renderShapeFormGeometry();
+            case 'style':
+                return this._renderShapeFormStyle();
+            case 'animation':
+                return this._renderShapeFormAnimation();
+            default:
+                return this._renderShapeFormGeometry();
+        }
+    }
+
+    /**
+     * Render shape form animation subtab — mirrors _renderLineFormAnimation
+     * exactly, against _shapeFormData.animations.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeFormAnimation() {
+        // Scope target discovery to this shape's own rendered
+        // [data-overlay-id="..."] group — otherwise the picker harvests every
+        // id/class in the whole card (base_svg, every other overlay, etc.),
+        // most of which will never actually resolve for an animation
+        // registered against this overlay. Attribute selector (not #id) since
+        // overlay ids are user-editable text and needn't be valid CSS
+        // identifiers (e.g. could start with a digit) — this is also the
+        // exact selector the render pipeline itself uses to find overlay
+        // roots (PipelineCore/AdvancedRenderer). Falls back to whole-card
+        // discovery if the id isn't in the live preview yet (e.g. a
+        // brand-new shape that hasn't been saved once).
+        const shapeId = this._editingShapeId || this._shapeFormData.id;
+        return html`
+            <div class="subform-field-stack">
+                <lcards-form-section
+                    header="Shape Animations"
+                    description="Configure animations for this shape"
+                    icon="mdi:animation"
+                    ?expanded=${true}>
+
+                    <lcards-animation-editor
+                        .hass=${this.hass}
+                        .animations=${this._shapeFormData.animations || []}
+                        .cardElement=${this._getLivePreviewCardElement()}
+                        .searchRootSelector=${shapeId ? `[data-overlay-id="${shapeId}"]` : ''}
+                        @animations-changed=${(e) => {
+                            this._shapeFormData.animations = e.detail.value;
+                            this.requestUpdate();
+                        }}
+                        @refresh-targets=${() => this.requestUpdate()}
+                    ></lcards-animation-editor>
+                </lcards-form-section>
+            </div>
+        `;
+    }
+
+    /**
+     * Render shape form geometry subtab: kind selector plus kind-conditional
+     * fields (ordered points list + closed toggle for polyline; position+size,
+     * same convention as controls, for rect/circle).
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeFormGeometry() {
+        const kind = this._shapeFormData.kind;
+
+        return html`
+            <div class="subform-field-stack">
+                <lcards-form-section header="Shape Kind" icon="mdi:shape" ?expanded=${true}>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ select: { options: [
+                            { value: 'polyline', label: 'Polyline / Path' },
+                            { value: 'rect', label: 'Rectangle' },
+                            { value: 'circle', label: 'Circle / Ellipse' }
+                        ] } }}
+                        .value=${kind}
+                        .label=${'Kind'}
+                        @value-changed=${(e) => {
+                            const newKind = e.detail.value;
+                            this._shapeFormData = { ...this._shapeFormData, kind: newKind };
+                            if (newKind === 'polyline' && (!this._shapeFormData.points || this._shapeFormData.points.length < 2)) {
+                                this._shapeFormData.points = [[100, 100], [200, 100]];
+                            }
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
+                </lcards-form-section>
+
+                ${kind === 'polyline' ? html`
+                    <lcards-form-section header="Points" description="Ordered vertex list, in viewBox units" icon="mdi:vector-point" ?expanded=${true}>
+                        ${(this._shapeFormData.points || []).map((pt, i) => html`
+                            <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+                                <span style="width: 20px; font-size: 12px; color: var(--secondary-text-color);">${i + 1}</span>
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ number: { mode: 'box' } }}
+                                    .value=${Array.isArray(pt) ? pt[0] : 0}
+                                    .label=${'X'}
+                                    @value-changed=${(e) => {
+                                        const points = [...this._shapeFormData.points];
+                                        points[i] = [Number(e.detail.value), Array.isArray(pt) ? pt[1] : 0];
+                                        this._shapeFormData = { ...this._shapeFormData, points };
+                                        this.requestUpdate();
+                                    }}
+                                    style="flex: 1;">
+                                </ha-selector>
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ number: { mode: 'box' } }}
+                                    .value=${Array.isArray(pt) ? pt[1] : 0}
+                                    .label=${'Y'}
+                                    @value-changed=${(e) => {
+                                        const points = [...this._shapeFormData.points];
+                                        points[i] = [Array.isArray(pt) ? pt[0] : 0, Number(e.detail.value)];
+                                        this._shapeFormData = { ...this._shapeFormData, points };
+                                        this.requestUpdate();
+                                    }}
+                                    style="flex: 1;">
+                                </ha-selector>
+                                <ha-icon-button
+                                    @click=${() => {
+                                        const points = this._shapeFormData.points.filter((_, idx) => idx !== i);
+                                        this._shapeFormData = { ...this._shapeFormData, points };
+                                        this.requestUpdate();
+                                    }}
+                                    ?disabled=${(this._shapeFormData.points || []).length <= 2}
+                                    .label=${'Remove point'}
+                                    .path=${'M19,13H5V11H19V13Z'}>
+                                </ha-icon-button>
+                            </div>
+                        `)}
+                        <ha-button
+                            @click=${() => {
+                                const points = [...(this._shapeFormData.points || [])];
+                                const last = points[points.length - 1] || [100, 100];
+                                points.push([Array.isArray(last) ? last[0] + 50 : 150, Array.isArray(last) ? last[1] : 100]);
+                                this._shapeFormData = { ...this._shapeFormData, points };
+                                this.requestUpdate();
+                            }}
+                            style="margin-top: 12px;">
+                            <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                            Add Point
+                        </ha-button>
+
+                        <ha-selector
+                            style="margin-top: 16px; display: block;"
+                            .hass=${this.hass}
+                            .label=${'Closed (connect back to first point, allows fill)'}
+                            .selector=${{ boolean: {} }}
+                            .value=${!!this._shapeFormData.closed}
+                            @value-changed=${(e) => {
+                                this._shapeFormData = { ...this._shapeFormData, closed: e.detail.value };
+                                this.requestUpdate();
+                            }}>
+                        </ha-selector>
+                    </lcards-form-section>
+                ` : html`
+                    <lcards-form-section header="Position &amp; Size" icon="mdi:arrow-expand-all" ?expanded=${true}>
+                        <div class="subform-columns-2">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { mode: 'box' } }}
+                                .value=${(this._shapeFormData.position || [0, 0])[0]}
+                                .label=${'X'}
+                                @value-changed=${(e) => {
+                                    const position = [...(this._shapeFormData.position || [0, 0])];
+                                    position[0] = Number(e.detail.value);
+                                    this._shapeFormData = { ...this._shapeFormData, position };
+                                    this.requestUpdate();
+                                }}>
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { mode: 'box' } }}
+                                .value=${(this._shapeFormData.position || [0, 0])[1]}
+                                .label=${'Y'}
+                                @value-changed=${(e) => {
+                                    const position = [...(this._shapeFormData.position || [0, 0])];
+                                    position[1] = Number(e.detail.value);
+                                    this._shapeFormData = { ...this._shapeFormData, position };
+                                    this.requestUpdate();
+                                }}>
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { mode: 'box', min: 1 } }}
+                                .value=${(this._shapeFormData.size || [100, 60])[0]}
+                                .label=${'Width'}
+                                @value-changed=${(e) => {
+                                    const size = [...(this._shapeFormData.size || [100, 60])];
+                                    size[0] = Number(e.detail.value);
+                                    this._shapeFormData = { ...this._shapeFormData, size };
+                                    this.requestUpdate();
+                                }}>
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { mode: 'box', min: 1 } }}
+                                .value=${(this._shapeFormData.size || [100, 60])[1]}
+                                .label=${'Height'}
+                                @value-changed=${(e) => {
+                                    const size = [...(this._shapeFormData.size || [100, 60])];
+                                    size[1] = Number(e.detail.value);
+                                    this._shapeFormData = { ...this._shapeFormData, size };
+                                    this.requestUpdate();
+                                }}>
+                            </ha-selector>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 12px; color: var(--secondary-text-color);">
+                            Corner rounding, smoothing, and stroke details are on the Style tab.
+                        </div>
+                    </lcards-form-section>
+                `}
+
+                <lcards-form-section
+                    header="Stacking Order"
+                    description="Control paint order relative to other lines and controls"
+                    icon="mdi:layers-outline"
+                    secondary=${this._shapeFormData.z_index != null ? `Z-Index: ${this._shapeFormData.z_index} (custom)` : 'Z-Index: 50 (default)'}
+                    ?expanded=${this._shapeFormData.z_index != null}>
+                    <ha-input
+                        type="number"
+                        label="Z-Index"
+                        .value=${this._shapeFormData.z_index != null ? String(this._shapeFormData.z_index) : ''}
+                        @input=${(e) => {
+                            const raw = e.target.value;
+                            this._shapeFormData.z_index = raw === '' ? null : Number(raw);
+                            this.requestUpdate();
+                        }}
+                        helper-text="Higher values paint on top. Leave blank to use the default (50 — shapes paint under lines and controls).">
+                    </ha-input>
+                </lcards-form-section>
+            </div>
+        `;
+    }
+
+    /**
+     * Adapter exposing _shapeFormData through the generic editor interface
+     * lcards-color-section-v2 expects — mirrors _getLineColorEditorAdapter exactly.
+     * @returns {Object}
+     * @private
+     */
+    _getShapeColorEditorAdapter() {
+        const dialog = this;
+        return {
+            hass: this.hass,
+            config: this._shapeFormData,
+            _getConfigValue(path) {
+                return path.split('.').reduce((obj, key) => obj?.[key], dialog._shapeFormData);
+            },
+            _setConfigValue(path, value) {
+                const keys = path.split('.');
+                const lastKey = keys.pop();
+                let target = dialog._shapeFormData;
+                for (const key of keys) {
+                    if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+                    target = target[key];
+                }
+                target[lastKey] = value;
+                dialog.requestUpdate();
+            }
+        };
+    }
+
+    /**
+     * Render the shape's color config: entity + state_attribute + ranges_attribute
+     * plus the state-color editor — mirrors _renderLineColorSection exactly,
+     * against _shapeFormData instead of _lineFormData.
+     * @returns {TemplateResult}
+     * @private
+     */
+    /**
+     * Render the entity/state_attribute/ranges_attribute pickers — shared by
+     * BOTH the Color and Fill sections below, since an overlay has exactly one
+     * entity binding (ShapeOverlay._resolveShapeColor reads overlay.entity for
+     * both style.color and style.fill resolution). Previously this lived
+     * *inside* the Color section only, with Fill just carrying a description
+     * note pointing back at it — easy to miss, and state-bound fill silently
+     * resolved to nothing if a user reasonably assumed Fill had (or needed)
+     * its own entity picker and never set one. Pulling it out into its own
+     * section, positioned between them, makes the shared binding unmissable.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeEntityBindingSection() {
+        const entityId = this._shapeFormData.entity || '';
+        const attrOptions = entityId && this.hass?.states?.[entityId]
+            ? Object.keys(this.hass.states[entityId].attributes || {}).sort().map(attr => ({ value: attr, label: attr }))
+            : [];
+        const rangesAttrOptions = [...attrOptions];
+        const brightnessIdx = rangesAttrOptions.findIndex(o => o.value === 'brightness');
+        if (brightnessIdx >= 0) {
+            rangesAttrOptions.splice(brightnessIdx + 1, 0, { value: 'brightness_pct', label: 'brightness_pct  (auto 0–100%)' });
+        }
+
+        return html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ entity: {} }}
+                .value=${entityId}
+                .label=${'Entity'}
+                .helper=${"Bind this shape's color and/or fill to an entity's state (optional) — leave blank for fixed colors"}
+                @value-changed=${(e) => {
+                    this._shapeFormData.entity = e.detail.value || '';
+                    this.requestUpdate();
+                }}
+                style="display: block; margin-bottom: 12px;">
+            </ha-selector>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'State Attribute'}
+                    .helper=${'Match this attribute\'s value instead of raw entity state'}
+                    .disabled=${!entityId}
+                    .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '— Use entity state' }, ...attrOptions], custom_value: true } }}
+                    .value=${this._shapeFormData.state_attribute || '__none__'}
+                    @value-changed=${(e) => {
+                        const v = (e.detail.value ?? '').trim();
+                        this._shapeFormData.state_attribute = (v === '__none__' || !v) ? '' : v;
+                        this.requestUpdate();
+                    }}>
+                </ha-selector>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Range Attribute'}
+                    .helper=${'Attribute compared against above:/below:/between: keys'}
+                    .disabled=${!entityId}
+                    .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '— Use entity state' }, ...rangesAttrOptions], custom_value: true } }}
+                    .value=${this._shapeFormData.ranges_attribute || '__none__'}
+                    @value-changed=${(e) => {
+                        let v = (e.detail.value ?? '').trim();
+                        if (v === 'brightness') v = 'brightness_pct';
+                        this._shapeFormData.ranges_attribute = (v === '__none__' || !v) ? '' : v;
+                        this.requestUpdate();
+                    }}>
+                </ha-selector>
+            </div>
+        `;
+    }
+
+    /**
+     * Render shape form style subtab: mirrors _renderLineFormStyle's widget
+     * vocabulary (color picker, width/opacity sliders, dash-pattern preset
+     * dropdown) plus a Fill section (meaningful for closed shapes). Marker/
+     * line_cap fields are hidden for rect/circle (meaningless — no path vertices).
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeFormStyle() {
+        const kind = this._shapeFormData.kind;
+        /** @type {Object<string, any>} */
+        const style = this._shapeFormData.style || {};
+        const dashArray = style.dash_array || '';
+        let dashPreset = 'solid';
+        if (dashArray === '5,5') dashPreset = 'dashed';
+        else if (dashArray === '2,2') dashPreset = 'dotted';
+        else if (dashArray === '8,4,2,4') dashPreset = 'dash-dot';
+        else if (dashArray) dashPreset = 'custom';
+
+        return html`
+            <div class="subform-field-stack">
+                <!-- Line Style | Shape, side by side -->
+                <div class="subform-columns-2">
+                    <lcards-form-section header="Line Style" description="Width, opacity and dash pattern" icon="mdi:ruler" ?expanded=${true}>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, max: 30, step: 0.5, mode: 'slider' } }}
+                            .value=${style.width ?? 2}
+                            .label=${'Width'}
+                            @value-changed=${(e) => {
+                                this._shapeFormData.style = { ...this._shapeFormData.style, width: e.detail.value };
+                                this.requestUpdate();
+                            }}
+                            style="margin-top: 12px;">
+                        </ha-selector>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, max: 1, step: 0.01, mode: 'slider' } }}
+                            .value=${style.opacity ?? 1}
+                            .label=${'Opacity'}
+                            @value-changed=${(e) => {
+                                this._shapeFormData.style = { ...this._shapeFormData.style, opacity: e.detail.value };
+                                this.requestUpdate();
+                            }}
+                            style="margin-top: 12px;">
+                        </ha-selector>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ select: { options: [
+                                { value: 'solid', label: 'Solid' },
+                                { value: 'dashed', label: 'Dashed' },
+                                { value: 'dotted', label: 'Dotted' },
+                                { value: 'dash-dot', label: 'Dash-Dot' },
+                                { value: 'custom', label: 'Custom' }
+                            ] } }}
+                            .value=${dashPreset}
+                            .label=${'Pattern'}
+                            @value-changed=${(e) => {
+                                const preset = e.detail.value;
+                                let newDashArray = dashArray;
+                                if (preset === 'dashed') newDashArray = '5,5';
+                                else if (preset === 'dotted') newDashArray = '2,2';
+                                else if (preset === 'dash-dot') newDashArray = '8,4,2,4';
+                                else if (preset === 'solid') newDashArray = '';
+                                if (preset !== 'custom') {
+                                    this._shapeFormData.style = { ...this._shapeFormData.style, dash_array: newDashArray };
+                                    this.requestUpdate();
+                                }
+                            }}
+                            style="margin-top: 12px;">
+                        </ha-selector>
+
+                        <!-- Dash Pattern Customization (conditional - all non-solid presets) -->
+                        ${dashPreset !== 'solid' ? html`
+                            <lcards-form-section
+                                header="${dashPreset === 'custom' ? 'Custom' : 'Customize'} Dash Pattern"
+                                icon="mdi:dots-horizontal"
+                                ?nested=${true}
+                                ?expanded=${true}>
+
+                                ${(() => {
+                                    const parts = (dashArray || '').split(',').map(p => parseFloat(p.trim()) || 0);
+                                    const dash1 = parts[0] || 5;
+                                    const gap1 = parts[1] || 5;
+                                    const dash2 = parts[2] || 0;
+                                    const gap2 = parts[3] || 0;
+
+                                    return html`
+                                        <ha-selector
+                                            .hass=${this.hass}
+                                            .selector=${{ number: { min: 0, max: 50, step: 1, mode: 'slider' } }}
+                                            .value=${dash1}
+                                            .label=${'Dash Length'}
+                                            @value-changed=${(e) => {
+                                                const newDash1 = e.detail.value;
+                                                const pattern = dash2 > 0 ? `${newDash1},${gap1},${dash2},${gap2}` : `${newDash1},${gap1}`;
+                                                this._shapeFormData.style = { ...this._shapeFormData.style, dash_array: pattern };
+                                                this.requestUpdate();
+                                            }}>
+                                        </ha-selector>
+
+                                        <ha-selector
+                                            .hass=${this.hass}
+                                            .selector=${{ number: { min: 0, max: 50, step: 1, mode: 'slider' } }}
+                                            .value=${gap1}
+                                            .label=${'Gap Length'}
+                                            @value-changed=${(e) => {
+                                                const newGap1 = e.detail.value;
+                                                const pattern = dash2 > 0 ? `${dash1},${newGap1},${dash2},${gap2}` : `${dash1},${newGap1}`;
+                                                this._shapeFormData.style = { ...this._shapeFormData.style, dash_array: pattern };
+                                                this.requestUpdate();
+                                            }}
+                                            style="margin-top: 12px;">
+                                        </ha-selector>
+
+                                        <ha-selector
+                                            style="margin-top: 12px; display: block;"
+                                            .hass=${this.hass}
+                                            .label=${'Add secondary dash/gap'}
+                                            .selector=${{ boolean: {} }}
+                                            .value=${dash2 > 0}
+                                            @value-changed=${(e) => {
+                                                const pattern = e.detail.value ? `${dash1},${gap1},2,2` : `${dash1},${gap1}`;
+                                                this._shapeFormData.style = { ...this._shapeFormData.style, dash_array: pattern };
+                                                this.requestUpdate();
+                                            }}>
+                                        </ha-selector>
+
+                                        ${dash2 > 0 ? html`
+                                            <ha-selector
+                                                .hass=${this.hass}
+                                                .selector=${{ number: { min: 0, max: 50, step: 1, mode: 'slider' } }}
+                                                .value=${dash2}
+                                                .label=${'Secondary Dash'}
+                                                @value-changed=${(e) => {
+                                                    const pattern = `${dash1},${gap1},${e.detail.value},${gap2}`;
+                                                    this._shapeFormData.style = { ...this._shapeFormData.style, dash_array: pattern };
+                                                    this.requestUpdate();
+                                                }}
+                                                style="margin-top: 12px;">
+                                            </ha-selector>
+
+                                            <ha-selector
+                                                .hass=${this.hass}
+                                                .selector=${{ number: { min: 0, max: 50, step: 1, mode: 'slider' } }}
+                                                .value=${gap2}
+                                                .label=${'Secondary Gap'}
+                                                @value-changed=${(e) => {
+                                                    const pattern = `${dash1},${gap1},${dash2},${e.detail.value}`;
+                                                    this._shapeFormData.style = { ...this._shapeFormData.style, dash_array: pattern };
+                                                    this.requestUpdate();
+                                                }}
+                                                style="margin-top: 12px;">
+                                            </ha-selector>
+                                        ` : ''}
+
+                                        <div style="margin-top: 12px; font-size: 12px; color: var(--secondary-text-color); font-family: monospace;">
+                                            Pattern: ${dash2 > 0 ? `${dash1},${gap1},${dash2},${gap2}` : `${dash1},${gap1}`}
+                                        </div>
+                                    `;
+                                })()}
+                            </lcards-form-section>
+                        ` : ''}
+                    </lcards-form-section>
+
+                    <lcards-form-section header="Shape" description="Corner and smoothing settings" icon="mdi:vector-curve" ?expanded=${true}>
+                        ${kind === 'polyline' ? html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ select: { options: [
+                                    { value: 'miter', label: 'Miter (Sharp)' },
+                                    { value: 'round', label: 'Round (Arc)' },
+                                    { value: 'bevel', label: 'Bevel (Cut)' }
+                                ] } }}
+                                .value=${this._shapeFormData.corner_style || 'round'}
+                                .label=${'Corner Style'}
+                                @value-changed=${(e) => {
+                                    this._shapeFormData = { ...this._shapeFormData, corner_style: e.detail.value };
+                                    this.requestUpdate();
+                                }}>
+                            </ha-selector>
+                        ` : html`
+                            <div style="font-size: 13px; color: var(--secondary-text-color); margin-bottom: 8px;">
+                                ${kind === 'rect' ? 'Rectangle corners: sharp or rounded.' : 'Corner settings not applicable to circle/ellipse.'}
+                            </div>
+                            ${kind === 'rect' ? html`
+                                <ha-selector
+                                    style="display: block; margin-bottom: 12px;"
+                                    .hass=${this.hass}
+                                    .label=${'Rounded Corners'}
+                                    .selector=${{ boolean: {} }}
+                                    .value=${this._shapeFormData.corner_style === 'round'}
+                                    @value-changed=${(e) => {
+                                        this._shapeFormData = { ...this._shapeFormData, corner_style: e.detail.value ? 'round' : 'miter' };
+                                        this.requestUpdate();
+                                    }}>
+                                </ha-selector>
+                            ` : ''}
+                        `}
+
+                        ${(this._shapeFormData.corner_style === 'round' && kind !== 'circle') ? html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                                .value=${this._shapeFormData.corner_radius ?? (kind === 'rect' ? 8 : 34)}
+                                .label=${'Corner Radius'}
+                                @value-changed=${(e) => {
+                                    this._shapeFormData = { ...this._shapeFormData, corner_radius: e.detail.value };
+                                    this.requestUpdate();
+                                }}
+                                style="margin-top: 12px;">
+                            </ha-selector>
+                        ` : ''}
+
+                        ${(kind === 'polyline' && this._shapeFormData.corner_style === 'bevel') ? html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                                .value=${this._shapeFormData.corner_radius ?? 34}
+                                .label=${'Cut Size'}
+                                @value-changed=${(e) => {
+                                    this._shapeFormData = { ...this._shapeFormData, corner_radius: e.detail.value };
+                                    this.requestUpdate();
+                                }}
+                                style="margin-top: 12px;">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, max: 90, step: 1, mode: 'slider', unit_of_measurement: '°' } }}
+                                .value=${this._shapeFormData.corner_angle ?? 45}
+                                .label=${'Cut Angle'}
+                                @value-changed=${(e) => {
+                                    this._shapeFormData = { ...this._shapeFormData, corner_angle: e.detail.value };
+                                    this.requestUpdate();
+                                }}
+                                style="margin-top: 12px;">
+                            </ha-selector>
+                        ` : ''}
+
+                        ${kind === 'polyline' ? html`
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ select: { options: [
+                                    { value: 'none', label: 'None' },
+                                    { value: 'chaikin', label: 'Chaikin (Corner-cutting)' }
+                                ] } }}
+                                .value=${this._shapeFormData.smoothing_mode || 'none'}
+                                .label=${'Smoothing Mode'}
+                                @value-changed=${(e) => {
+                                    this._shapeFormData = { ...this._shapeFormData, smoothing_mode: e.detail.value };
+                                    this.requestUpdate();
+                                }}
+                                style="margin-top: 12px;">
+                            </ha-selector>
+
+                            ${(this._shapeFormData.smoothing_mode === 'chaikin') ? html`
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ number: { min: 0, max: 5, step: 1, mode: 'slider' } }}
+                                    .value=${this._shapeFormData.smoothing_iterations || 0}
+                                    .label=${'Smoothing Iterations'}
+                                    @value-changed=${(e) => {
+                                        this._shapeFormData = { ...this._shapeFormData, smoothing_iterations: e.detail.value };
+                                        this.requestUpdate();
+                                    }}
+                                    style="margin-top: 12px;">
+                                </ha-selector>
+                            ` : ''}
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ select: { options: [
+                                    { value: 'butt', label: 'Butt (Flat)' },
+                                    { value: 'round', label: 'Round' },
+                                    { value: 'square', label: 'Square (Extended)' }
+                                ] } }}
+                                .value=${style.line_cap || 'butt'}
+                                .label=${'Line Cap'}
+                                @value-changed=${(e) => {
+                                    this._shapeFormData.style = { ...this._shapeFormData.style, line_cap: e.detail.value };
+                                    this.requestUpdate();
+                                }}
+                                style="margin-top: 12px;">
+                            </ha-selector>
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ select: { options: [
+                                    { value: 'miter', label: 'Miter (Sharp)' },
+                                    { value: 'round', label: 'Round' },
+                                    { value: 'bevel', label: 'Bevel (Cut)' }
+                                ] } }}
+                                .value=${style.line_join || this._shapeFormData.corner_style || 'miter'}
+                                .label=${'Line Join'}
+                                @value-changed=${(e) => {
+                                    this._shapeFormData.style = { ...this._shapeFormData.style, line_join: e.detail.value };
+                                    this.requestUpdate();
+                                }}
+                                style="margin-top: 12px;">
+                            </ha-selector>
+
+                            ${(style.line_join === 'miter' || (!style.line_join && this._shapeFormData.corner_style === 'miter')) ? html`
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{ number: { min: 1, max: 20, step: 0.5, mode: 'slider' } }}
+                                    .value=${style.miter_limit || 4}
+                                    .label=${'Miter Limit'}
+                                    @value-changed=${(e) => {
+                                        this._shapeFormData.style = { ...this._shapeFormData.style, miter_limit: e.detail.value };
+                                        this.requestUpdate();
+                                    }}
+                                    style="margin-top: 12px;">
+                                </ha-selector>
+                            ` : ''}
+                        ` : ''}
+                    </lcards-form-section>
+                </div>
+
+                <!-- Shared entity binding for both Color and Fill below -->
+                <lcards-form-section header="Entity Binding" description="Optional — powers state-based color and/or fill below" icon="mdi:target" ?expanded=${true}>
+                    ${this._renderShapeEntityBindingSection()}
+                </lcards-form-section>
+
+                <lcards-form-section header="Color" description="Stroke color — fixed, or state/range keys bound to the entity above" icon="mdi:palette" ?expanded=${true}>
+                    <lcards-color-section-v2
+                        .editor=${this._getShapeColorEditorAdapter()}
+                        .config=${this._shapeFormData}
+                        .entityId=${this._shapeFormData.entity || ''}
+                        basePath="style.color"
+                        header="Shape Color"
+                        description="Fixed color, or add state/range keys to bind it to the entity above"
+                        ?expanded=${true}>
+                    </lcards-color-section-v2>
+                </lcards-form-section>
+
+                <lcards-form-section header="Fill" description="Only visible on closed shapes — fixed, or state/range keys bound to the same entity above" icon="mdi:format-color-fill" ?expanded=${true}>
+                    <lcards-color-section-v2
+                        .editor=${this._getShapeColorEditorAdapter()}
+                        .config=${this._shapeFormData}
+                        .entityId=${this._shapeFormData.entity || ''}
+                        basePath="style.fill"
+                        header="Fill Color"
+                        description="Fixed color, or add state/range keys to bind it to the entity above"
+                        ?expanded=${true}>
+                    </lcards-color-section-v2>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ number: { min: 0, max: 1, step: 0.01, mode: 'slider' } }}
+                        .value=${style.fill_opacity ?? 1}
+                        .label=${'Fill Opacity'}
+                        @value-changed=${(e) => {
+                            this._shapeFormData.style = { ...this._shapeFormData.style, fill_opacity: e.detail.value };
+                            this.requestUpdate();
+                        }}
+                        style="margin-top: 12px;">
+                    </ha-selector>
+                </lcards-form-section>
+            </div>
+        `;
+    }
+
+    /**
+     * Render shape form dialog. Simpler than the Line form (2 subtabs, no live
+     * preview panel) — appropriate for "simple designs and enhancements", not a
+     * full-featured editor.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeFormDialog() {
+        const isEditing = !!this._editingShapeId;
+        const title = isEditing ? `Edit Shape: ${this._shapeFormData.id}` : 'Add Shape';
+
+        return html`
+            <ha-dialog
+                class="subform-dialog"
+                open
+                @closed=${(e) => { e.stopPropagation(); this._closeShapeForm(); }}
+                .headerTitle=${title}
+                prevent-scrim-close>
+
+                <div class="subform-layout">
+                    <div class="subform-config">
+                        <ha-tab-group @wa-tab-show=${this._handleShapeFormTabChange} class="subform-tabs">
+                            <ha-tab-group-tab value="geometry" ?active=${this._shapeFormActiveSubtab === 'geometry'}>Geometry</ha-tab-group-tab>
+                            <ha-tab-group-tab value="style" ?active=${this._shapeFormActiveSubtab === 'style'}>Style</ha-tab-group-tab>
+                            <ha-tab-group-tab value="animation" ?active=${this._shapeFormActiveSubtab === 'animation'}>Animation</ha-tab-group-tab>
+                        </ha-tab-group>
+
+                        <div class="subform-tab-content">
+                            ${this._renderShapeFormTabContent()}
+                        </div>
+                    </div>
+
+                    <div class="subform-preview padded">
+                        <div class="subform-preview-label">Live Preview</div>
+                        ${this._renderShapeStylePreviewVertical()}
+                    </div>
+                </div>
+
+                <div slot="footer">
+                    <ha-button @click=${this._closeShapeForm} appearance="plain">
+                        <ha-icon icon="mdi:close" slot="start"></ha-icon>
+                        Cancel
+                    </ha-button>
+                    <ha-button @click=${() => this._saveShape()}>
+                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
+                        Save
+                    </ha-button>
+                </div>
+            </ha-dialog>
+        `;
+    }
+
+    /**
      * Handle waypoint drag start
      * @param {DragEvent} e - Drag event
      * @param {number} index - Waypoint index
@@ -10870,25 +13246,32 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Convert attachment point name to side format
-     * @param {string} point - Point name (e.g., 'top-left', 'middle-center')
-     * @returns {string} - Side format (e.g., 'top-left', 'center')
+     * Normalize/validate an attachment point name into the side format the
+     * runtime resolver expects.
+     *
+     * The point names this actually receives come from controlAttachmentPoints
+     * / the shape corner grid in _renderAttachmentPointsOverlay ('top-left',
+     * 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom',
+     * 'bottom-right') or a shape's 'vertexN' — already exactly what
+     * LineOverlay._resolveAttachTo needs. This used to map from a *different*,
+     * longer-form convention ('top-center', 'middle-left', 'middle-right',
+     * 'bottom-center') that no caller here has ever actually produced, so
+     * every cardinal-side (non-corner) dot click silently saved 'center'
+     * instead of the side actually clicked.
+     * @param {string} point - Point name
+     * @returns {string} - Side format (e.g., 'top-left', 'top', 'center', 'vertex2')
      * @private
      */
     _convertPointToSide(point) {
-        // Map attachment point names to side names
-        const mapping = {
-            'top-left': 'top-left',
-            'top-center': 'top',
-            'top-right': 'top-right',
-            'middle-left': 'left',
-            'center': 'center',
-            'middle-right': 'right',
-            'bottom-left': 'bottom-left',
-            'bottom-center': 'bottom',
-            'bottom-right': 'bottom-right'
-        };
-        return mapping[point] || 'center';
+        const validSides = new Set([
+            'top-left', 'top', 'top-right',
+            'left', 'center', 'right',
+            'bottom-left', 'bottom', 'bottom-right'
+        ]);
+        if (validSides.has(point) || /^vertex\d+$/.test(point || '')) {
+            return point;
+        }
+        return 'center';
     }
 
     /**
@@ -11024,7 +13407,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Build complete anchor dropdown options - INCLUDING base_svg anchors
         const userAnchors = this._workingConfig.msd?.anchors || {};
         const baseSvgAnchors = this._getBaseSvgAnchors();
-        const overlays = this._getControlOverlays();
+        const overlays = [...this._getControlOverlays(), ...this._getShapeOverlays()];
 
         const userAnchorOptions = Object.keys(userAnchors).map(name => ({
             value: name,
@@ -11038,7 +13421,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         const overlayOptions = overlays.map(o => ({
             value: o.id,
-            label: `Overlay: ${o.id}`
+            label: `Overlay: ${o.id} (${o.type})`
         }));
 
         const allSourceOptions = [...userAnchorOptions, ...baseSvgAnchorOptions, ...overlayOptions];
@@ -11098,7 +13481,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     .label=${'Anchor Side'}
                                     .helper=${'Select attachment point on the source'}
                                     @value-changed=${(e) => {
-                                        this._lineFormData.anchor_side = e.detail.value;
+                                        // lcards-position-picker emits long-form edge names
+                                        // (top-center, center-left, ...); attachment points are
+                                        // keyed short-form (top, left, ...) — normalize on the way out.
+                                        // See the Control form's Attachment Point field for the
+                                        // same established pattern.
+                                        const edgeAliases = { 'top-center': 'top', 'bottom-center': 'bottom', 'center-left': 'left', 'center-right': 'right' };
+                                        this._lineFormData.anchor_side = edgeAliases[e.detail.value] || e.detail.value;
                                         this.requestUpdate();
                                     }}>
                                 </lcards-position-picker>
@@ -11154,7 +13543,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     .label=${'Attach Side'}
                                     .helper=${'Select attachment point on the target'}
                                     @value-changed=${(e) => {
-                                        this._lineFormData.attach_side = e.detail.value;
+                                        // lcards-position-picker emits long-form edge names
+                                        // (top-center, center-left, ...); attachment points are
+                                        // keyed short-form (top, left, ...) — normalize on the way out.
+                                        // See the Control form's Attachment Point field for the
+                                        // same established pattern.
+                                        const edgeAliases = { 'top-center': 'top', 'bottom-center': 'bottom', 'center-left': 'left', 'center-right': 'right' };
+                                        this._lineFormData.attach_side = edgeAliases[e.detail.value] || e.detail.value;
                                         this.requestUpdate();
                                     }}>
                                 </lcards-position-picker>
@@ -12044,6 +14439,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderLineFormAnimation() {
+        // See _renderShapeFormAnimation for why this is scoped via
+        // searchRootSelector (same pre-existing gap, this line form just
+        // predates that fix) and why an attribute selector, not #id.
+        const lineId = this._editingLineId || this._lineFormData.id;
         return html`
             <div class="subform-field-stack">
                 <lcards-form-section
@@ -12056,6 +14455,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .hass=${this.hass}
                         .animations=${this._lineFormData.animations || []}
                         .cardElement=${this._getLivePreviewCardElement()}
+                        .searchRootSelector=${lineId ? `[data-overlay-id="${lineId}"]` : ''}
                         @animations-changed=${(e) => {
                             this._lineFormData.animations = e.detail.value;
                             this.requestUpdate();
@@ -12643,6 +15043,114 @@ export class LCARdSMSDStudioDialog extends LitElement {
         `;
     }
 
+    /**
+     * Render the shape form's live vertical style preview — mirrors
+     * _renderLineStylePreviewVertical's approach exactly (reuse RouterCore for
+     * real routing/corner/smoothing on the polyline kind; hand-roll the SVG
+     * output directly from form style values, same as the line preview does
+     * rather than constructing a full ShapeOverlay instance).
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeStylePreviewVertical() {
+        const kind = this._shapeFormData.kind;
+        const style = this._shapeFormData.style || {};
+
+        // style.color/style.fill may be state-color objects — resolve a
+        // representative candidate value the same way _editShape() normalizes
+        // them, then flag (but don't attempt to evaluate) template strings.
+        const resolveCandidate = (raw, fallback) => {
+            const candidate = (typeof raw === 'object' && raw !== null)
+                ? (raw.default || raw.active || Object.values(raw)[0])
+                : raw;
+            const isTemplate = typeof candidate === 'string' &&
+                (candidate.includes('{{') || candidate.includes('{%') || candidate.includes('[[['));
+            return { value: isTemplate ? fallback : (candidate || fallback), isTemplate };
+        };
+        const colorResult = resolveCandidate(style.color, 'var(--lcars-orange)');
+        const fillResult = resolveCandidate(style.fill, 'none');
+        const color = colorResult.value;
+        const fill = fillResult.value;
+        const isTemplateColor = colorResult.isTemplate || fillResult.isTemplate;
+
+        const width = style.width ?? 2;
+        const opacity = style.opacity ?? 1;
+        const dashArray = style.dash_array || '';
+        const fillOpacity = style.fill_opacity ?? 1;
+
+        // Built as an SVG markup STRING, not a nested html`` TemplateResult — a
+        // TemplateResult created by its own separate html`` call is parsed via
+        // its own <template>.innerHTML (HTML namespace) unless that literal
+        // itself starts with <svg>, so interpolating one as a *child* of an
+        // <svg> from a different template produces wrong-namespace elements
+        // that browsers silently refuse to paint (exactly what "black box"
+        // looks like). unsafeSVG() parses a string through an actual <svg>
+        // context instead, matching the same fix already used just above for
+        // the line preview's marker defs.
+        let bodyMarkup;
+        if (kind === 'polyline') {
+            const linecap = style.line_cap || 'butt';
+            const linejoin = style.line_join || this._shapeFormData.corner_style || 'miter';
+
+            // Route two fixed mock endpoints through the REAL routing/corner-
+            // rounding/smoothing engine, same as the line preview, so this
+            // reflects actual production geometry.
+            let pathD = 'M 20,40 L 20,240 L 180,240';
+            try {
+                const router = new RouterCore({}, {}, [0, 0, 200, 280]);
+                const previewOverlay = {
+                    id: 'shape-style-preview',
+                    _raw: {
+                        route: 'manual',
+                        corner_style: this._shapeFormData.corner_style,
+                        corner_radius: this._shapeFormData.corner_radius,
+                        corner_angle: this._shapeFormData.corner_angle,
+                        smoothing_mode: this._shapeFormData.smoothing_mode,
+                        smoothing_iterations: this._shapeFormData.smoothing_iterations
+                    }
+                };
+                const req = router.buildRouteRequest(previewOverlay, [20, 40], [180, 240]);
+                const routeResult = router.computePath(req);
+                if (routeResult?.d) pathD = this._shapeFormData.closed ? `${routeResult.d} Z` : routeResult.d;
+            } catch (e) {
+                lcardsLog.warn('[MSDStudio] Shape style preview routing failed, using fallback path', e);
+            }
+
+            bodyMarkup = `<path
+                    d="${pathD}"
+                    stroke="${color}"
+                    stroke-width="${width}"
+                    stroke-opacity="${opacity}"
+                    stroke-dasharray="${dashArray}"
+                    stroke-linecap="${linecap}"
+                    stroke-linejoin="${linejoin}"
+                    fill="${this._shapeFormData.closed ? fill : 'none'}"
+                    fill-opacity="${fillOpacity}"
+                />`;
+        } else if (kind === 'rect') {
+            const radius = this._shapeFormData.corner_style === 'round' ? (this._shapeFormData.corner_radius ?? 8) : 0;
+            bodyMarkup = `<rect x="20" y="40" width="160" height="200" rx="${radius}" ry="${radius}"
+                      stroke="${color}" stroke-width="${width}" stroke-opacity="${opacity}"
+                      stroke-dasharray="${dashArray}" fill="${fill}" fill-opacity="${fillOpacity}" />`;
+        } else {
+            bodyMarkup = `<ellipse cx="100" cy="140" rx="80" ry="100"
+                         stroke="${color}" stroke-width="${width}" stroke-opacity="${opacity}"
+                         stroke-dasharray="${dashArray}" fill="${fill}" fill-opacity="${fillOpacity}" />`;
+        }
+
+        return html`
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #0a0a0a; border-radius: 8px; border: 1px solid #333; overflow: hidden;">
+                ${isTemplateColor ? html`
+                    <lcards-message type="info" message="Templates aren't evaluated in this preview — showing the default color." style="width: 100%;">
+                    </lcards-message>
+                ` : ''}
+                <svg viewBox="0 0 200 280" preserveAspectRatio="xMidYMid meet" style="flex: 1; width: 100%; min-height: 0; max-height: 500px; color: ${color};">
+                    ${unsafeSVG(bodyMarkup)}
+                </svg>
+            </div>
+        `;
+    }
+
     // ============================
     // Keyboard Shortcuts & Validation
     // ============================
@@ -12683,6 +15191,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 this._closeCardEditorForm();
             } else if (this._showLineForm) {
                 this._closeLineForm();
+            } else if (this._showShapeForm) {
+                this._closeShapeForm();
             } else if (this._showControlForm) {
                 this._closeControlForm();
             } else if (this._showAnchorForm) {
@@ -12691,6 +15201,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 this._closeChannelForm();
             } else if (this._activeMode !== MODES.VIEW) {
                 this._setMode(MODES.VIEW);
+            } else if (this._selectedShapeId) {
+                this._selectedShapeId = null;
+                this.requestUpdate();
             }
             return;
         }
@@ -13057,7 +15570,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 header-title="MSD Configuration Studio">
 
                 <div slot="footer">
-                    <ha-button @click=${() => window.open('https://github.com/snootched/LCARdS', '_blank')} appearance="plain">
+                    <ha-button @click=${() => window.open('https://lcards.unimatrix01.ca/cards/msd/', '_blank')} appearance="plain">
                         <ha-icon icon="mdi:book-open-variant" slot="start"></ha-icon>
                         Documentation
                     </ha-button>
@@ -13105,7 +15618,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     <lcards-msd-live-preview
                                         .hass=${this.hass}
                                         .config=${this._workingConfig}
-                                        .debugSettings=${this._getDebugSettings()}
                                         .showRefreshButton=${true}>
                                     </lcards-msd-live-preview>
                                 </div>
@@ -13115,13 +15627,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                             <!-- Overlays rendered OUTSIDE scroll container to prevent scroll affecting them -->
                             ${this._renderDrawChannelOverlay()}
+                            ${this._renderDrawShapeOverlay()}
                             ${this._renderCrosshairGuidelines()}
                             ${this._renderGridOverlay()}
                             ${this._renderAnchorMarkers()}
                             ${this._renderBoundingBoxes()}
+                            ${this._renderShapeHandles()}
                             ${this._renderRoutingPaths()}
                             ${this._renderLineEndpointMarkers()}
                             ${this._renderWaypointMarkers()}
+                            ${this._renderShapeVertexMarkers()}
                             ${this._renderDragAttachPoints()}
                             ${this._renderChannelsOverlay()}
                             ${this._renderAnchorHighlight()}
@@ -13177,6 +15692,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             <!-- Line Form Dialog -->
             ${this._showLineForm ? this._renderLineFormDialog() : ''}
+
+            <!-- Shape Form Dialog -->
+            ${this._showShapeForm ? this._renderShapeFormDialog() : ''}
 
             <!-- Channel Form Dialog -->
             ${this._editingChannelId !== null ? this._renderChannelFormDialog() : ''}

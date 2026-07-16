@@ -1687,6 +1687,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             // Apply style properties based on overlay type
             if (overlayType === 'line') {
                 this._applyLineStyleToDOM(/** @type {SVGElement} */ (overlayEl), patch.style);
+            } else if (overlayType === 'shape') {
+                this._applyShapeStyleToDOM(/** @type {SVGElement} */ (overlayEl), patch.style);
             } else if (overlayType === 'control') {
                 this._applyControlStyleToDOM(/** @type {HTMLElement} */ (overlayEl), patch.style);
             } else {
@@ -1720,7 +1722,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             width: 'stroke-width',
             opacity: 'opacity',
             dash_array: 'stroke-dasharray',
-            dasharray: 'stroke-dasharray'
+            dasharray: 'stroke-dasharray',
+            fill: 'fill'
         };
 
         for (const [configKey, value] of Object.entries(style)) {
@@ -1734,6 +1737,49 @@ export class LCARdSMSDCard extends LCARdSCard {
                 const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
 
                 // Apply to all target elements (group children or the element itself)
+                targetElements.forEach(el => {
+                    el.setAttribute(svgAttr, resolvedValue);
+                });
+            }
+        }
+    }
+
+    /**
+     * Apply shape style patch to SVG element. Mirrors _applyLineStyleToDOM exactly
+     * (same style-key mapping, same "resolve then materialize var()" pipeline) —
+     * the only difference is the child-element selector, since shape's rect/circle
+     * kinds render native <rect>/<ellipse> elements, not <path>/<line>/<polyline>.
+     * @param {SVGElement} shapeEl - SVG group, path, rect, or ellipse element
+     * @param {Object} style - Style properties to apply
+     * @private
+     */
+    _applyShapeStyleToDOM(shapeEl, style) {
+        let targetElements = /** @type {SVGElement[]} */ ([shapeEl]);
+        if (shapeEl.tagName.toLowerCase() === 'g') {
+            const children = shapeEl.querySelectorAll('path, rect, ellipse');
+            if (children.length > 0) {
+                targetElements = /** @type {SVGElement[]} */ (Array.from(children));
+            }
+        }
+
+        const styleMapping = {
+            color: 'stroke',
+            stroke: 'stroke',
+            width: 'stroke-width',
+            opacity: 'opacity',
+            dash_array: 'stroke-dasharray',
+            dasharray: 'stroke-dasharray',
+            fill: 'fill'
+        };
+
+        for (const [configKey, value] of Object.entries(style)) {
+            const svgAttr = styleMapping[configKey];
+
+            if (svgAttr && value !== null && value !== undefined) {
+                const _res = window.lcards?.core?.themeManager?.resolver;
+                const afterResolver = (typeof value === 'string' && _res) ? _res.resolve(value, value) : value;
+                const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
+
                 targetElements.forEach(el => {
                     el.setAttribute(svgAttr, resolvedValue);
                 });
