@@ -317,6 +317,9 @@ registerAnimationPreset('march', (def) => {
       // Auto-detect dash values from element's stroke-dasharray attribute if not explicitly provided
       let dashLength = p.dash_length;
       let gapLength = p.gap_length;
+      // Full pattern repeat length, used below for the CSS keyframe's
+      // dashoffset cycle so the loop restarts in the same visual phase.
+      let totalLength;
 
       if (!dashLength || !gapLength) {
         // Try getAttribute first (SVG attribute)
@@ -333,6 +336,16 @@ registerAnimationPreset('march', (def) => {
           if (parts.length >= 2) {
             dashLength = dashLength || parts[0];
             gapLength = gapLength || parts[1];
+            // The pattern's true repeat length is the sum of EVERY value,
+            // not just the first dash+gap pair — a multi-segment dasharray
+            // like "33,23,15,6" repeats every 33+23+15+6, not just 33+23.
+            // Cycling the CSS keyframe over a shorter length than the real
+            // pattern meant each loop restart snapped the dashes to a
+            // different phase instead of continuing seamlessly. SVG also
+            // duplicates an odd-length dasharray to make it even (e.g.
+            // "5,3,2" behaves as "5,3,2,5,3,2"), so double the sum then.
+            const sum = parts.reduce((total, v) => total + v, 0);
+            totalLength = parts.length % 2 === 0 ? sum : sum * 2;
           }
         }
       }
@@ -340,8 +353,9 @@ registerAnimationPreset('march', (def) => {
       // Fallback to defaults if still not set
       dashLength = dashLength || 10;
       gapLength = gapLength || 5;
-
-      const totalLength = dashLength + gapLength;
+      if (totalLength === undefined) {
+        totalLength = dashLength + gapLength;
+      }
 
       // For seamless infinite loop, animate the full pattern length
       // Start at totalLength and animate to 0 (forward) or start at 0 and animate to totalLength (reverse)

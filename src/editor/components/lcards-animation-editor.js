@@ -2068,6 +2068,7 @@ export class LCARdSAnimationEditor extends LitElement {
                 No known default to show for: ${missingFields.map(f => html`<code>${f}</code>`)} — add these yourself before using this example.
               </p>
             ` : ''}
+            ${this._renderMapRangeNote()}
             <div class="preset-info-guide-links">
               <a href=${docsUrl} target="_blank" rel="noopener noreferrer">View full docs →</a>
               ${animejsUrl ? html`<a href=${animejsUrl} target="_blank" rel="noopener noreferrer">anime.js reference →</a>` : ''}
@@ -2075,6 +2076,30 @@ export class LCARdSAnimationEditor extends LitElement {
           </div>
         ` : ''}
       </div>
+    `;
+  }
+
+  /**
+   * Entity-reactive parameters note — map_range lets `duration`, `delay`,
+   * or any preset param (resolveAnimParams.js walks all three) live-track
+   * an entity's value instead of being a static number, e.g. animation
+   * speed scaling with power draw. Not GUI-editable (no form field for it
+   * anywhere in this editor) — this is purely a discoverability note so
+   * users know it exists and where to add it, mirroring
+   * lcards-background-animation-editor.js's _renderEntityBindingNote() for
+   * the same gap in that sibling editor. `entity` is required here (unlike
+   * that editor's own note, which can omit it and default to the card's
+   * bound entity) — resolveAnimParams.js has no such fallback.
+   * @returns {TemplateResult}
+   * @private
+   */
+  _renderMapRangeNote() {
+    return html`
+      <lcards-message type="info">
+        <strong>Entity-reactive parameters:</strong> <code>duration</code>, <code>delay</code>, and any preset param above can live-track an entity's value instead of a fixed number — edit this animation's YAML directly to use it:<br><br>
+        <code>speed: { map_range: { entity: sensor.grid_power, input: [0, 5000], output: [8, 0.5] } }</code><br><br>
+        <code>output</code> can also be a two-color pair (<code>['#00ff88', '#ff4400']</code>) to interpolate color instead of a number.
+      </lcards-message>
     `;
   }
 
