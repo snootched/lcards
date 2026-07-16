@@ -1,6 +1,9 @@
 {
   "domain": "lcards",
   "name": "LCARdS",
+  "after_dependencies": [
+    "media_source"
+  ],
   "codeowners": [
     "@snootched"
   ],
@@ -8,9 +11,6 @@
   "dependencies": [
     "http",
     "lovelace"
-  ],
-  "after_dependencies": [
-    "media_source"
   ],
   "documentation": "https://lcards.unimatrix01.ca",
   "iot_class": "local_push",
