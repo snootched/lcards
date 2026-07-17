@@ -10,6 +10,8 @@
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { AnchorProcessor } from './AnchorProcessor.js';
+import { SvgStructureAnalyzer } from './SvgStructureAnalyzer.js';
+import { getSvgViewBox, resolveEffectiveViewBox } from '../../utils/lcards-anchor-helpers.js';
 
 /**
  * Process and validate MSD config using CoreConfigManager.
@@ -37,14 +39,25 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
   let anchors = {};
 
   if (svgContent) {
-    // Extract viewBox from SVG
-    viewBox = window.lcards?.getSvgViewBox?.(svgContent);
+    // Resolve viewBox once: explicit user config > SVG-native > last-resort default.
+    // Reused below for both anchor-percent resolution and the final merged config,
+    // so the two can never again disagree.
+    viewBox = resolveEffectiveViewBox(msdSubConfig.view_box, svgContent);
+
+    // Algorithmically-derived landmark anchors (bow/stern/nacelle-tip/hull-center),
+    // computed from the SVG's own rendered silhouette - lowest precedence, a
+    // hand-drawn SVG anchor or explicit config anchor always overrides. Uses
+    // getSvgViewBox() directly rather than the `viewBox` value above, since
+    // coordinate mapping needs the SVG's real native viewBox regardless of any
+    // explicit user override in effect for `viewBox`.
+    const computedAnchors = await SvgStructureAnalyzer.analyzeAnchors(svgContent, getSvgViewBox(svgContent));
 
     // Extract and merge anchors
     const anchorResult = AnchorProcessor.processAnchors(
       svgContent,
       msdSubConfig.anchors || {},
-      viewBox || [0, 0, 1920, 1080]
+      viewBox,
+      computedAnchors
     );
 
     anchors = anchorResult.anchors;
@@ -52,6 +65,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
     lcardsLog.trace('[ConfigProcessor] SVG metadata extracted:', {
       viewBox,
       anchorCount: anchorResult.metadata.totalCount,
+      computedAnchors: anchorResult.metadata.computedAnchorCount,
       svgAnchors: anchorResult.metadata.svgAnchorCount,
       userAnchors: anchorResult.metadata.userAnchorCount
     });
@@ -71,7 +85,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
   // This ensures anchors/viewBox flow through the merge pipeline with provenance
   const enhancedConfig = {
     ...userMsdConfig,
-    view_box: viewBox || msdSubConfig.view_box || [0, 0, 1920, 1080],
+    view_box: viewBox,
     anchors: anchors,  // Put extracted anchors here - will be at top-level after processConfig
     _svgMetadata: {
       extractedViewBox: viewBox,

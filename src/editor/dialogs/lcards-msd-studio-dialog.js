@@ -531,8 +531,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
         document.addEventListener('card-picker-result', this._boundCardPickerResultHandler);
         lcardsLog.debug('[MSDStudio] Listening for card-picker-result events from editor');
 
-        // Detect SVG source mode from config
+        // Detect SVG source mode and viewBox mode from config
         this._detectSvgSourceMode();
+        this._detectViewBoxMode();
+        // Eagerly attempt viewBox extraction (populates _extractedViewBox for
+        // _previewNaturalSize and friends) — a no-op via its own internal
+        // guards if the SVG isn't registered yet or mode is 'custom'; the
+        // live-DOM-read fallback in _previewNaturalSize covers the rest.
+        this._autoExtractViewBox();
 
         // Check HA component availability
         this._haComponentsAvailable = !!customElements.get('hui-card-element-editor');
@@ -815,14 +821,27 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * Returns the natural (unscaled) pixel size for the wrapper, derived from the
      * config viewBox.  This gives the wrapper a concrete height so that the
      * height:100% chain inside lcards-msd-live-preview resolves correctly.
+     *
+     * Explicit config and `_extractedViewBox` (populated asynchronously by
+     * `_autoExtractViewBox()`) are both checked first, but neither is
+     * guaranteed to be ready yet on an early render pass — falls back to
+     * reading the viewBox actually applied to the live preview's rendered
+     * `<svg>` (via `_getPreviewSvgAndViewBox()`) before the hardcoded
+     * last-resort default, so the wrapper self-corrects to the right size
+     * the moment the preview mounts, regardless of extraction timing.
      * @returns {{ width: number, height: number }}
      * @private
      */
     get _previewNaturalSize() {
         const vb = this._workingConfig?.msd?.view_box || this._extractedViewBox;
-        const vbW = (Array.isArray(vb) && vb.length >= 4 && vb[2] > 0) ? vb[2] : 1920;
-        const vbH = (Array.isArray(vb) && vb.length >= 4 && vb[3] > 0) ? vb[3] : 1080;
-        return { width: vbW, height: vbH };
+        if (Array.isArray(vb) && vb.length >= 4 && vb[2] > 0 && vb[3] > 0) {
+            return { width: vb[2], height: vb[3] };
+        }
+        const preview = this._getPreviewSvgAndViewBox();
+        if (preview) {
+            return { width: preview.viewBoxWidth, height: preview.viewBoxHeight };
+        }
+        return { width: 1920, height: 1080 };
     }
 
     /**
@@ -1102,6 +1121,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
         } else {
             this._svgSourceMode = 'custom';
         }
+    }
+
+    /**
+     * Detect viewBox mode from config. Without this, `_viewBoxMode` stays at
+     * its constructor default ('auto') even when opening the dialog on a
+     * card that already has an explicit `view_box` set — the Auto/Custom
+     * toggle would silently disagree with the loaded config until the user
+     * manually touched it.
+     * @private
+     */
+    _detectViewBoxMode() {
+        const viewBox = this._workingConfig.msd?.view_box;
+        this._viewBoxMode = (Array.isArray(viewBox) && viewBox.length === 4) ? 'custom' : 'auto';
     }
 
     /**
@@ -1866,7 +1898,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // Only genuinely curated, pack-provided SVGs belong in this
             // dropdown — listAssets() returns every registered key,
             // including ones dynamically registered from a user's Custom
-            // Path or HA Media pick (see _getSvgContentForRender's
+            // Path or HA Media pick (see _fetchRawSvgContent's
             // auto-register branch and AssetManager.loadSvgFromMediaSource),
             // which persist in the registry for the rest of the page session
             // once picked. Pack-provided entries always carry a `pack`
@@ -4601,48 +4633,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _getPreviewCoordinates(event) {
-        // Find the preview panel and then the lcards-msd-live-preview component
-        const previewPanel = event.currentTarget;
-        // @ts-ignore - TS2339: auto-suppressed
-        const livePreview = previewPanel.querySelector('lcards-msd-live-preview');
-
-        if (!livePreview) {
-            lcardsLog.warn('[MSDStudio] No live preview component found');
+        const preview = this._getPreviewSvgAndViewBox();
+        if (!preview) {
+            lcardsLog.warn('[MSDStudio] No preview SVG found for coordinate conversion');
             return null;
         }
-
-        // Access the live preview's shadow root to find the card container
-        const livePreviewShadow = livePreview.shadowRoot;
-        if (!livePreviewShadow) {
-            lcardsLog.warn('[MSDStudio] No shadow root on live preview');
-            return null;
-        }
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        if (!cardContainer) {
-            lcardsLog.warn('[MSDStudio] No card container in live preview');
-            return null;
-        }
-
-        // Find the MSD card element in the container
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        if (!msdCard) {
-            lcardsLog.warn('[MSDStudio] No MSD card in preview');
-            return null;
-        }
-
-        // Access shadow root to find SVG element
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        if (!shadowRoot) {
-            lcardsLog.warn('[MSDStudio] No shadow root on MSD card');
-            return null;
-        }
-
-        const svg = shadowRoot.querySelector('svg');
-        if (!svg) {
-            lcardsLog.warn('[MSDStudio] No SVG found in preview');
-            return null;
-        }
+        const { svg, viewBoxX: vbX, viewBoxY: vbY, viewBoxWidth: vbWidth, viewBoxHeight: vbHeight } = preview;
 
         // Get bounding rect of SVG element
         // NOTE: rect is already in transformed screen space due to CSS transform
@@ -4653,30 +4649,27 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        // Get viewBox from config
-        const viewBox = this._workingConfig.msd?.view_box;
-        let vbX = 0, vbY = 0, vbWidth = 1920, vbHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [vbX, vbY, vbWidth, vbHeight] = viewBox;
-        } else if (viewBox === 'auto') {
-            // Try to extract from SVG viewBox attribute
-            const svgViewBox = svg.getAttribute('viewBox');
-            if (svgViewBox) {
-                const parts = svgViewBox.split(/\s+/).map(Number);
-                if (parts.length === 4) {
-                    [vbX, vbY, vbWidth, vbHeight] = parts;
-                }
-            }
-        }
-
-        // Calculate scale from screen pixels to viewBox units
+        // Calculate scale from screen pixels to viewBox units. SVG uses
+        // preserveAspectRatio="xMidYMid meet" (the default), so both axes share a
+        // single scale factor - the LARGER of the two per-axis ratios - with the
+        // shorter axis letterboxed/pillarboxed (centered) rather than stretched.
+        // Same formula as the (correct) siblings: _getPreviewCoordinatesWithPixels(),
+        // _getViewBoxToPixelConverter(), getPreviewCoordinatesFromMouseEvent().
         const scaleX = vbWidth / rect.width;
         const scaleY = vbHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
 
-        // Convert to viewBox coordinates
-        let coordX = vbX + (x * scaleX);
-        let coordY = vbY + (y * scaleY);
+        // Actual rendered size of the viewBox content, and the letterbox/pillarbox
+        // centering offset preserveAspectRatio introduces when the panel's aspect
+        // ratio doesn't match the viewBox's.
+        const renderedWidth = vbWidth / scale;
+        const renderedHeight = vbHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        // Convert to viewBox coordinates (letterbox-adjusted)
+        let coordX = vbX + ((x - offsetX) * scale);
+        let coordY = vbY + ((y - offsetY) * scale);
 
         // Apply snap-to-grid if enabled (check both toolbar toggle and tab setting)
         const snapEnabled = this._enableSnapping || this._snapToGrid;
@@ -4689,7 +4682,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         lcardsLog.trace('[MSDStudio] Converted coordinates:', {
             screen: { x, y },
             viewBox: { x: coordX, y: coordY },
-            scale: { x: scaleX, y: scaleY },
+            scale,
             rect: { width: rect.width, height: rect.height }
         });
 
@@ -4704,24 +4697,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _getPreviewCoordinatesWithPixels(event) {
         const previewPanel = event.currentTarget;
-        // @ts-ignore - TS2339: auto-suppressed
-        const livePreview = previewPanel.querySelector('lcards-msd-live-preview');
-        if (!livePreview) return null;
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        if (!livePreviewShadow) return null;
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        if (!cardContainer) return null;
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        if (!msdCard) return null;
-
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        if (!shadowRoot) return null;
-
-        const svg = shadowRoot.querySelector('svg');
-        if (!svg) return null;
+        const preview = this._getPreviewSvgAndViewBox();
+        if (!preview) return null;
+        const { svg, viewBoxX: vbX, viewBoxY: vbY, viewBoxWidth: vbWidth, viewBoxHeight: vbHeight } = preview;
 
         // Get bounding rect of SVG element relative to viewport
         // NOTE: rect is already in transformed screen space due to CSS transform on parent
@@ -4735,22 +4713,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // No need to apply inverse zoom - rect is already transformed
         const svgX = event.clientX - rect.left;
         const svgY = event.clientY - rect.top;
-
-        // Get viewBox from config
-        const viewBox = this._workingConfig.msd?.view_box;
-        let vbX = 0, vbY = 0, vbWidth = 1920, vbHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [vbX, vbY, vbWidth, vbHeight] = viewBox;
-        } else if (viewBox === 'auto') {
-            const svgViewBox = svg.getAttribute('viewBox');
-            if (svgViewBox) {
-                const parts = svgViewBox.split(/\s+/).map(Number);
-                if (parts.length === 4) {
-                    [vbX, vbY, vbWidth, vbHeight] = parts;
-                }
-            }
-        }
 
         // Calculate scale from screen pixels to viewBox units
         const scaleX = vbWidth / rect.width;
@@ -5297,6 +5259,46 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Locate the live preview's rendered <svg> element and derive the viewBox
+     * actually in effect for it: explicit config `view_box` wins when set,
+     * otherwise read the value the SVG itself is actually rendering with
+     * (rather than a hardcoded guess) — keeps every coordinate-conversion
+     * helper below consistent with what's really on screen, including when
+     * Auto mode resolves the viewBox from a base SVG whose native dimensions
+     * aren't the historical 1920x1200/1920x1080 assumption.
+     * @returns {?{msdCard: Element, svg: SVGSVGElement, viewBoxX: number, viewBoxY: number, viewBoxWidth: number, viewBoxHeight: number}}
+     * @private
+     */
+    _getPreviewSvgAndViewBox() {
+        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
+        if (!livePreview) return null;
+        const livePreviewShadow = livePreview.shadowRoot;
+        if (!livePreviewShadow) return null;
+        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
+        if (!cardContainer) return null;
+        const msdCard = cardContainer.querySelector('lcards-msd-card');
+        if (!msdCard) return null;
+        // @ts-ignore - TS2339: auto-suppressed
+        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
+        if (!shadowRoot) return null;
+        const svg = shadowRoot.querySelector('svg');
+        if (!svg) return null;
+
+        const viewBox = this._workingConfig.msd?.view_box;
+        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
+        if (Array.isArray(viewBox) && viewBox.length === 4) {
+            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        } else {
+            const vb = svg.viewBox.baseVal;
+            if (vb && vb.width > 0 && vb.height > 0) {
+                ({ x: viewBoxX, y: viewBoxY, width: viewBoxWidth, height: viewBoxHeight } = vb);
+            }
+        }
+
+        return { msdCard, svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight };
+    }
+
+    /**
      * Render anchor highlight overlay
      * Shows pulsing highlight around selected anchor
      * @returns {TemplateResult}
@@ -5325,39 +5327,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // This requires finding the SVG element in the live preview
         // For simplicity, we'll use a setTimeout approach to calculate after render
 
-        // Try to find the SVG to calculate pixel position
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const preview = this._getPreviewSvgAndViewBox();
         // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreview) return '';
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreviewShadow) return '';
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!cardContainer) return '';
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!msdCard) return '';
-
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!shadowRoot) return '';
-
-        const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!svg) return '';
-
-        // Get viewBox from config
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        }
+        if (!preview) return '';
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
@@ -5476,21 +5449,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (!control) return '';
 
         // Get MSD card to access resolved model with complete anchors
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const preview = this._getPreviewSvgAndViewBox();
         // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreview) return '';
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreviewShadow) return '';
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!cardContainer) return '';
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!msdCard) return '';
+        if (!preview) return '';
+        const { msdCard, svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         // Resolve position - handle anchor-based positioning (string reference),
         // including control-to-control positioning (position_side).
@@ -5530,23 +5492,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const attachmentOffset = offsetMap[attachment] || offsetMap['top-left'];
         vbX += attachmentOffset[0];
         vbY += attachmentOffset[1];
-
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!shadowRoot) return '';
-
-        const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!svg) return '';
-
-        // Get viewBox from config
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        }
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
@@ -5687,38 +5632,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const [endX, endY] = endPos;
 
         // Get SVG element and calculate pixel positions
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const preview = this._getPreviewSvgAndViewBox();
         // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreview) return '';
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreviewShadow) return '';
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!cardContainer) return '';
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!msdCard) return '';
-
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!shadowRoot) return '';
-
-        const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!svg) return '';
-
-        // Get viewBox from config
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        }
+        if (!preview) return '';
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
@@ -5844,13 +5761,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         lcardsLog.trace('[MSDStudio] _renderGridOverlay called, _showGrid:', this._showGrid);
 
-        // Get viewBox from config
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+        // Get SVG for coordinate conversion (also the source of truth for viewBox)
+        const preview = this._getPreviewSvgAndViewBox();
+        if (!preview) {
+            lcardsLog.trace('[MSDStudio] Could not find preview SVG for grid overlay');
+            // @ts-ignore - TS2322: auto-suppressed
+            return '';
         }
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const gridColor = this._debugSettings.grid_color || '#cccccc';
         const spacing = this._gridSpacing || 50;
@@ -5866,50 +5784,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const maxY = viewBoxY + viewBoxHeight;
         for (let y = Math.ceil(viewBoxY / spacing) * spacing; y <= maxY; y += spacing) {
             horizontalLines.push(y);
-        }
-
-        // Get SVG for coordinate conversion
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
-        if (!livePreview) {
-            lcardsLog.trace('[MSDStudio] Could not find lcards-msd-live-preview');
-            // @ts-ignore - TS2322: auto-suppressed
-            return '';
-        }
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        if (!livePreviewShadow) {
-            lcardsLog.trace('[MSDStudio] Could not find livePreview.shadowRoot');
-            // @ts-ignore - TS2322: auto-suppressed
-            return '';
-        }
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        if (!cardContainer) {
-            lcardsLog.trace('[MSDStudio] Could not find .preview-card-container');
-            // @ts-ignore - TS2322: auto-suppressed
-            return '';
-        }
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        if (!msdCard) {
-            lcardsLog.trace('[MSDStudio] Could not find lcards-msd-card');
-            // @ts-ignore - TS2322: auto-suppressed
-            return '';
-        }
-
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        if (!shadowRoot) {
-            lcardsLog.trace('[MSDStudio] Could not find msdCard.shadowRoot');
-            // @ts-ignore - TS2322: auto-suppressed
-            return '';
-        }
-
-        const svg = shadowRoot.querySelector('svg');
-        if (!svg) {
-            lcardsLog.trace('[MSDStudio] Could not find svg');
-            // @ts-ignore - TS2322: auto-suppressed
-            return '';
         }
 
         lcardsLog.trace('[MSDStudio] Found SVG, calculating grid...');
@@ -6016,37 +5890,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (Object.keys(allAnchors).length === 0) return '';
 
         // Get SVG for coordinate conversion
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const preview = this._getPreviewSvgAndViewBox();
         // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreview) return '';
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreviewShadow) return '';
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!cardContainer) return '';
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!msdCard) return '';
-
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!shadowRoot) return '';
-
-        const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!svg) return '';
-
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        }
+        if (!preview) return '';
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
@@ -6162,37 +6009,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (controls.length === 0) return '';
 
         // Get SVG for coordinate conversion
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const preview = this._getPreviewSvgAndViewBox();
         // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreview) return '';
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreviewShadow) return '';
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!cardContainer) return '';
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!msdCard) return '';
-
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!shadowRoot) return '';
-
-        const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!svg) return '';
-
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        }
+        if (!preview) return '';
+        const { msdCard, svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
@@ -6336,31 +6156,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // @ts-ignore - TS2322: auto-suppressed
         if (shapes.length === 0) return '';
 
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const preview = this._getPreviewSvgAndViewBox();
         // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreview) return '';
-        const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreviewShadow) return '';
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!cardContainer) return '';
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!msdCard) return '';
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!shadowRoot) return '';
-        const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!svg) return '';
-
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        }
+        if (!preview) return '';
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
@@ -6561,37 +6360,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const allAnchors = { ...userAnchors, ...baseSvgAnchors };
 
         // Get SVG for coordinate conversion
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const preview = this._getPreviewSvgAndViewBox();
         // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreview) return '';
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreviewShadow) return '';
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!cardContainer) return '';
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!msdCard) return '';
-
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!shadowRoot) return '';
-
-        const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!svg) return '';
-
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        }
+        if (!preview) return '';
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
@@ -6960,37 +6732,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         lcardsLog.trace('[MSDStudio] Found', Object.keys(channels).length, 'channels');
 
         // Get SVG for coordinate conversion
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const preview = this._getPreviewSvgAndViewBox();
         // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreview) return '';
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreviewShadow) return '';
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!cardContainer) return '';
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!msdCard) return '';
-
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!shadowRoot) return '';
-
-        const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!svg) return '';
-
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        }
+        if (!preview) return '';
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
@@ -7538,38 +7283,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const [x, y, width, height] = channel.bounds;
 
         // Get SVG element and calculate pixel positions
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const preview = this._getPreviewSvgAndViewBox();
         // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreview) return '';
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreviewShadow) return '';
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!cardContainer) return '';
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!msdCard) return '';
-
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!shadowRoot) return '';
-
-        const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!svg) return '';
-
-        // Get viewBox from config
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        }
+        if (!preview) return '';
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
@@ -7680,38 +7397,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const controls = this._getControlOverlays();
 
         // Try to find the SVG to calculate pixel positions
-        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
+        const preview = this._getPreviewSvgAndViewBox();
         // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreview) return '';
-
-        const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!livePreviewShadow) return '';
-
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!cardContainer) return '';
-
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!msdCard) return '';
-
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!shadowRoot) return '';
-
-        const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!svg) return '';
-
-        // Get viewBox from config
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        }
+        if (!preview) return '';
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         // Get SVG rect and calculate position helpers
         const rect = svg.getBoundingClientRect();
@@ -8072,31 +7761,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _getViewBoxToPixelConverter() {
-        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
-        if (!livePreview) return null;
-        const livePreviewShadow = livePreview.shadowRoot;
-        if (!livePreviewShadow) return null;
-        const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        if (!cardContainer) return null;
-        const msdCard = cardContainer.querySelector('lcards-msd-card');
-        if (!msdCard) return null;
-        // @ts-ignore - TS2339: auto-suppressed
-        const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        if (!shadowRoot) return null;
-        const svg = shadowRoot.querySelector('svg');
-        if (!svg) return null;
-
-        const viewBox = this._workingConfig.msd?.view_box;
-        let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-        if (Array.isArray(viewBox) && viewBox.length === 4) {
-            [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-        } else {
-            const svgViewBox = svg.getAttribute('viewBox');
-            if (svgViewBox) {
-                const parts = svgViewBox.split(/\s+/).map(Number);
-                if (parts.length === 4) [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = parts;
-            }
-        }
+        const preview = this._getPreviewSvgAndViewBox();
+        if (!preview) return null;
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
@@ -13827,7 +13494,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                                 this._lineFormData.waypoints = [];
                                             }
                                             // Add waypoint at approximate center of viewBox
-                                            const viewBox = this._workingConfig.msd?.view_box || [0, 0, 1920, 1080];
+                                            const viewBox = this._workingConfig.msd?.view_box || this._extractedViewBox || [0, 0, 1920, 1080];
                                             const centerX = viewBox[0] + viewBox[2] / 2;
                                             const centerY = viewBox[1] + viewBox[3] / 2;
                                             this._lineFormData.waypoints.push([centerX, centerY]);
@@ -13934,7 +13601,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                                         // Toggle between coordinate and anchor format
                                                         if (typeof wp === 'string') {
                                                             // Convert anchor to coordinates (center of viewBox)
-                                                            const viewBox = this._workingConfig.msd?.view_box || [0, 0, 1920, 1080];
+                                                            const viewBox = this._workingConfig.msd?.view_box || this._extractedViewBox || [0, 0, 1920, 1080];
                                                             this._lineFormData.waypoints[index] = [viewBox[0] + viewBox[2] / 2, viewBox[1] + viewBox[3] / 2];
                                                         } else {
                                                             // Convert coordinates to anchor

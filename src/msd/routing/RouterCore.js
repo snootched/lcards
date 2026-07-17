@@ -95,6 +95,31 @@ export class RouterCore {
     this.invalidate('*');
   }
 
+  /**
+   * Update the viewBox used for grid sizing/origin math (_computeGrid) and
+   * route/grid cache keys. RouterCore otherwise captures `viewBox` once at
+   * construction and never re-reads it — a live (non-remount) config update
+   * that changes view_box would silently leave routed lines pinned to the OLD
+   * origin/dimensions forever without this.
+   * @param {[number,number,number,number]} viewBox - Resolved [minX, minY, width, height]
+   */
+  setViewBox(viewBox) {
+    if (!Array.isArray(viewBox) || viewBox.length !== 4) return;
+    const [x, y, w, h] = viewBox;
+    if (![x, y, w, h].every(n => typeof n === 'number' && Number.isFinite(n))) return;
+    const prev = this.viewBox;
+    if (Array.isArray(prev) && prev.length === 4 &&
+        prev[0] === x && prev[1] === y && prev[2] === w && prev[3] === h) {
+      return; // unchanged - avoid pointless cache churn
+    }
+    this.viewBox = viewBox;
+    // _cacheKey()/_computeGrid()'s gridKey already fold viewBox in, so stale
+    // entries simply stop being matched - this clear is memory hygiene only
+    // (_gridCache has no eviction policy, unlike the LRU-capped _cache).
+    this._gridCache.clear();
+    this.invalidate('*');
+  }
+
   stats() {
     return {
       size: this._cache.size,
@@ -327,7 +352,10 @@ export class RouterCore {
     const [x2,y2] = req.b;
     const avoidKey = req.avoidIds.sort().join(',');
     const chanKey = req.channels.sort().join(',');
-    return `${req.id}@${x1},${y1}-${x2},${y2}|${req.modeFull}|${req.modeHint}|A:${avoidKey}|C:${chanKey}|R:${req._rev}|O:${this._obsVersion}|P:${req.proximity}|CR:${req.cornerRadius}|CS:${req.cornerStyle}|SM:${req.smoothingMode}|SI:${req.smoothingIterations}`;
+    // viewBox is included so a pan/resize (unchanged anchors/mode/obstacles)
+    // can't hit a route cached under the previous origin/dimensions.
+    const vb = this.viewBox || [0,0,400,200];
+    return `${req.id}@${x1},${y1}-${x2},${y2}|${req.modeFull}|${req.modeHint}|A:${avoidKey}|C:${chanKey}|R:${req._rev}|O:${this._obsVersion}|P:${req.proximity}|CR:${req.cornerRadius}|CS:${req.cornerStyle}|SM:${req.smoothingMode}|SI:${req.smoothingIterations}|VB:${vb[0]},${vb[1]},${vb[2]},${vb[3]}`;
   }
 
   computePath(req) {
@@ -448,6 +476,8 @@ export class RouterCore {
 
   _computeGrid(req, flags={}) {
     const vb = this.viewBox || [0,0,400,200];
+    const originX = vb[0];
+    const originY = vb[1];
     const width = vb[2];
     const height = vb[3];
     const baseRes = Number(this.config.grid_resolution || 64);
@@ -456,17 +486,26 @@ export class RouterCore {
     const rows = Math.max(2, Math.ceil(height / res));
     const clearance = Math.max(0, req.clearance || this.config.clearance || 0);
 
-    const gridKey = `${res}|${this._obsVersion}|${clearance}`;
+    // Cache key includes the full viewBox (origin + size), not just
+    // resolution/obstacles/clearance — without this, panning or resizing the
+    // viewBox with an unchanged resolution/obstacle-version/clearance would
+    // silently reuse a grid built for the previous origin/dimensions.
+    const gridKey = `${res}|${this._obsVersion}|${clearance}|${originX},${originY},${width},${height}`;
     let occ = this._gridCache.get(gridKey);
     if (!occ) {
-      occ = this._buildOccupancy(cols, rows, res, clearance);
+      occ = this._buildOccupancy(cols, rows, res, clearance, originX, originY);
       this._gridCache.set(gridKey, occ);
     }
 
-    const w2c = (x)=>Math.min(cols-1, Math.max(0, Math.round(x / res)));
-    const h2c = (y)=>Math.min(rows-1, Math.max(0, Math.round(y / res)));
-    const c2x = (c)=> c * res;
-    const c2y = (r)=> r * res;
+    // World coordinates are relative to the viewBox's own origin (vb[0]/vb[1]),
+    // which is not always [0,0] — a custom view_box can legitimately pan into
+    // negative minX/minY. Without subtracting/adding the origin here, any
+    // sufficiently negative world coordinate would clamp to grid cell 0
+    // regardless of its true position.
+    const w2c = (x)=>Math.min(cols-1, Math.max(0, Math.round((x - originX) / res)));
+    const h2c = (y)=>Math.min(rows-1, Math.max(0, Math.round((y - originY) / res)));
+    const c2x = (c)=> c * res + originX;
+    const c2y = (r)=> r * res + originY;
 
     const start = { c: w2c(req.a[0]), r: h2c(req.a[1]) };
     const goal  = { c: w2c(req.b[0]), r: h2c(req.b[1]) };
@@ -555,6 +594,17 @@ export class RouterCore {
         pts[pts.length-1] = [wx,wy];
       }
     }
+    // Guard: start and goal can legitimately collapse into the same grid cell
+    // (always possible for close anchors; far more likely with any two
+    // sufficiently negative world coordinates prior to the origin-aware w2c/h2c
+    // above). When that happens `pts` has length 1, and without this guard the
+    // two snap assignments below both target pts[0] — the second clobbering the
+    // first, losing the start coordinate and rendering as a bare "M x,y" with no
+    // "L" (an invisible line). Must run before origStart/origEnd are captured.
+    if (pts.length < 2) {
+      pts = [pts[0], pts[0].slice()];
+    }
+
     // Ensure final destination snapping
     const origStart = pts[0].slice();
     const origEnd = pts[pts.length-1].slice();
@@ -678,15 +728,20 @@ export class RouterCore {
     };
   }
 
-  _buildOccupancy(cols, rows, res, clearance) {
+  _buildOccupancy(cols, rows, res, clearance, originX = 0, originY = 0) {
     // 0 = free, 1 = blocked
     const occ = Array.from({ length: rows }, () => new Uint8Array(cols));
     if (!this._obstacles.length) return occ;
     for (const ob of this._obstacles) {
-      const x1 = ob.x1 - clearance;
-      const y1 = ob.y1 - clearance;
-      const x2 = ob.x2 + clearance;
-      const y2 = ob.y2 + clearance;
+      // Obstacle bounds are world coordinates; make them grid-relative before
+      // the floor/clamp below, same as w2c/h2c in _computeGrid — otherwise an
+      // obstacle entirely in negative-origin territory silently never gets
+      // marked (c0/r0 clamp to 0, c1/r1 stay negative, the marking loop below
+      // never executes).
+      const x1 = ob.x1 - clearance - originX;
+      const y1 = ob.y1 - clearance - originY;
+      const x2 = ob.x2 + clearance - originX;
+      const y2 = ob.y2 + clearance - originY;
 
       // Mark grid cells that actually intersect with obstacle bounds
       // Use floor for all bounds to avoid expanding obstacles beyond their actual size

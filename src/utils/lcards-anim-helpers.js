@@ -666,7 +666,7 @@ function createCssAnimationHandle(element, baseDurationMs) {
  * Deliberately scoped to only the element(s) actually being animated, applied
  * just-in-time right before anime.js touches them — NOT proactively across an
  * entire SVG at load time. An earlier attempt at the latter (in
- * LCARdSMSDCard._getSvgContentForRender()) caused an unrelated static-rendering
+ * LCARdSMSDCard._wrapSvgContentForRender()) caused an unrelated static-rendering
  * regression (the base SVG losing its overall centering with zero animations
  * active) that wasn't tracked down; limiting the blast radius to only the
  * handful of elements an animation targets avoids whatever that interaction

@@ -17,6 +17,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { initMsdPipeline } from '../msd/index.js';
 import { getMsdSchema } from './schemas/msd-schema.js';
+import { resolveEffectiveViewBox } from '../utils/lcards-anchor-helpers.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
 
 // Import editor component for getConfigElement()
@@ -181,6 +182,75 @@ export class LCARdSMSDCard extends LCARdSCard {
 
             // DON'T load SVG here - singletons may not be initialized yet
             // SVG loading will happen in _onFirstUpdated() when AssetManager is guaranteed available
+
+            // Live (non-remount) config update to an ALREADY-initialized pipeline: re-resolve
+            // view_box and push it into RouterCore/cardModel so routed lines/attachment points
+            // re-pan/re-size along with the base SVG. No-op on first mount - _initializeMsdPipeline()
+            // resolves view_box correctly via ConfigProcessor on that path already.
+            this._reconcileViewBoxIfChanged();
+        }
+    }
+
+    /**
+     * Re-resolve view_box against the latest raw config and push the RESOLVED
+     * value into the already-initialized pipeline's RouterCore + cardModel.
+     *
+     * _onConfigUpdated() only ever sees the RAW `view_box` from config (e.g.
+     * undefined in "Auto" mode) - the actually-rendered, resolved value
+     * (explicit config > SVG-native > last-resort default) is computed inside
+     * ConfigProcessor.processAndValidateConfig(), which only runs once, during
+     * _initializeMsdPipeline(). A live setConfig() on an already-mounted card
+     * (e.g. HA pushing a dashboard/YAML edit without remounting the element -
+     * unlike the MSD Studio dialog's live preview, which always destroys and
+     * recreates the card) would otherwise leave RouterCore's grid sizing/origin
+     * math pinned to whatever view_box was in effect at first mount, even
+     * though _wrapSvgContentForRender() correctly re-pans the visible base SVG
+     * on every render from the fresh raw config.
+     *
+     * Mirrors the existing "lightweight reconcile" pattern in
+     * _onRulePatchesChanged(): reach into the coordinator's already-built
+     * cardModel/router and update them directly, then request a re-render,
+     * rather than tearing down and re-running the full pipeline init.
+     * @private
+     */
+    _reconcileViewBoxIfChanged() {
+        // Guard against a real race in _initializeMsdPipeline(): it flips
+        // _msdInitialized = true BEFORE this._msdPipeline is assigned (to unblock
+        // the loading-spinner->SVG-container render switch), so checking
+        // _msdInitialized alone isn't sufficient - coordinator/router/cardModel may
+        // still be null/stale mid-first-init. On first mount this is also correctly
+        // a no-op: the normal init path resolves view_box itself already.
+        if (!this._msdInitialized) return;
+        const coordinator = this._msdPipeline?.coordinator;
+        const cardModel = coordinator?.modelBuilder?.cardModel;
+        if (!coordinator?.router || !cardModel) return;
+
+        // Same resolution ConfigProcessor uses on first mount: explicit config >
+        // SVG-native > last-resort default. this._svgContent is preserved across
+        // reconnects/live-updates (see _loadAndInitializeMsd), so it's safe to reuse
+        // here even though this path never re-loads the SVG itself.
+        const resolved = resolveEffectiveViewBox(this._msdConfig?.view_box, this._svgContent);
+
+        const prev = coordinator.router.viewBox;
+        const unchanged = Array.isArray(prev) && prev.length === 4 &&
+            prev[0] === resolved[0] && prev[1] === resolved[1] &&
+            prev[2] === resolved[2] && prev[3] === resolved[3];
+        if (unchanged) return;
+
+        lcardsLog.debug('[LCARdSMSDCard] view_box changed on live config update - reconciling router/cardModel', {
+            from: prev, to: resolved
+        });
+
+        // ModelBuilder.computeResolvedModel() reads cardModel.viewBox fresh on every
+        // reRender() call, so updating it here is sufficient for AdvancedRenderer/
+        // attachment points to pick it up on the re-render triggered below.
+        cardModel.viewBox = resolved;
+        // RouterCore keeps its own copy captured at construction time and never
+        // re-reads cardModel.viewBox afterward - must be told explicitly.
+        coordinator.router.setViewBox(resolved);
+
+        if (coordinator._reRenderCallback) {
+            coordinator._reRenderCallback();
         }
     }
 
@@ -1328,7 +1398,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         const overlayCount = this._msdConfig?.overlays ? Object.keys(this._msdConfig.overlays).length : 0;
         const dataSourceCount = this._fullConfig?.data_sources ? Object.keys(this._fullConfig.data_sources).length : 0;
         const rulesCount = this._fullConfig?.rules ? this._fullConfig.rules.length : 0;
-        const viewBox = this._msdConfig?.view_box || [0, 0, 1920, 1200];
+        const viewBox = resolveEffectiveViewBox(this._msdConfig?.view_box, null);
 
         return html`
             <div style="
@@ -1461,21 +1531,21 @@ export class LCARdSMSDCard extends LCARdSCard {
     _renderSvgContainer() {
         lcardsLog.trace('[LCARdSMSDCard] _renderSvgContainer called');
 
-        // Get viewBox from config (will be extracted by pipeline)
-        const viewBox = this._msdConfig?.view_box || [0, 0, 1920, 1200];
-        const [vbX, vbY, vbW, vbH] = viewBox;
-        const aspect = vbW && vbH ? (vbW / vbH) : 2;
         const source = this._msdConfig?.base_svg?.source;
-
-        lcardsLog.debug('[LCARdSMSDCard] Rendering SVG container:', {
-            source,
-            viewBox,
-            aspect,
-            hasSvgContent: !!this._svgContent
-        });
 
         // For "none" source, create empty SVG container
         if (source === 'none') {
+            const viewBox = resolveEffectiveViewBox(this._msdConfig?.view_box, null);
+            const [vbX, vbY, vbW, vbH] = viewBox;
+            const aspect = vbW && vbH ? (vbW / vbH) : 2;
+
+            lcardsLog.debug('[LCARdSMSDCard] Rendering SVG container:', {
+                source,
+                viewBox,
+                aspect,
+                hasSvgContent: !!this._svgContent
+            });
+
             return html`
                 <div id="msd-v1-comprehensive-wrapper" style="
                     width: 100%;
@@ -1503,8 +1573,22 @@ export class LCARdSMSDCard extends LCARdSCard {
             `;
         }
 
-        // For builtin/user SVGs, get the SVG content
-        const svgContent = this._getSvgContentForRender();
+        // For builtin/user SVGs: fetch the raw content first so the viewBox can be
+        // resolved once here and shared between the wrapper's aspect-ratio and the
+        // inner SVG's own viewBox attribute — previously these were resolved
+        // independently in two places and could disagree.
+        const rawSvgContent = this._fetchRawSvgContent();
+        const viewBox = resolveEffectiveViewBox(this._msdConfig?.view_box, rawSvgContent || null);
+        const [vbX, vbY, vbW, vbH] = viewBox;
+        const aspect = vbW && vbH ? (vbW / vbH) : 2;
+        const svgContent = rawSvgContent ? this._wrapSvgContentForRender(rawSvgContent, viewBox) : '';
+
+        lcardsLog.debug('[LCARdSMSDCard] Rendering SVG container:', {
+            source,
+            viewBox,
+            aspect,
+            hasSvgContent: !!this._svgContent
+        });
 
         return html`
             <div id="msd-v1-comprehensive-wrapper" style="
@@ -1530,11 +1614,13 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 
     /**
-     * Get SVG content for rendering with proper base content wrapping
-     * Uses AssetManager for asset retrieval
+     * Resolve and fetch the raw SVG content for the current base_svg source.
+     * Triggers an async load (and a re-render on completion) if not yet cached.
+     * Uses AssetManager for asset retrieval.
+     * @returns {string} Raw SVG text, or '' if unavailable/still loading.
      * @private
      */
-    _getSvgContentForRender() {
+    _fetchRawSvgContent() {
         const source = this._msdConfig?.base_svg?.source;
         if (!source || source === 'none') {
             return '';
@@ -1601,16 +1687,24 @@ export class LCARdSMSDCard extends LCARdSCard {
             return ''; // Return empty until loaded
         }
 
-        // Wrap SVG content in #__msd-base-content group (like YAML template did)
-        // AND apply proper viewBox to outer wrapper for correct scaling
+        return svgContent;
+    }
+
+    /**
+     * Wrap raw SVG content in a #__msd-base-content group (like YAML template did)
+     * and apply the given viewBox to the outer wrapper for correct scaling.
+     * @param {string} svgContent - Raw SVG text, as returned by _fetchRawSvgContent()
+     * @param {number[]} viewBox - Resolved [minX, minY, width, height] to apply
+     * @returns {string} Wrapped SVG markup, or the original content on failure
+     * @private
+     */
+    _wrapSvgContentForRender(svgContent, viewBox) {
         try {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = svgContent;
             const svgEl = tempDiv.querySelector('svg');
 
             if (svgEl) {
-                // Get viewBox from config (CardModel extracts this from SVG or uses default)
-                const viewBox = this._msdConfig?.view_box || [0, 0, 1920, 1200];
                 const [vbX, vbY, vbW, vbH] = viewBox;
 
                 // Apply viewBox to outer SVG element for proper coordinate system

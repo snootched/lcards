@@ -19,12 +19,15 @@ export class AnchorProcessor {
    * @param {string} svgContent - SVG content string (null for base_svg: "none")
    * @param {Object} userAnchors - User-defined anchors from config
    * @param {Array} viewBox - SVG viewBox [x, y, width, height]
+   * @param {Object} [computedAnchors] - Algorithmically-derived anchors (SvgStructureAnalyzer),
+   *   lowest precedence - a hand-drawn SVG anchor or explicit config anchor always wins.
    * @returns {Object} { anchors, metadata } - Resolved anchors with provenance
    */
-  static processAnchors(svgContent, userAnchors = {}, viewBox) {
+  static processAnchors(svgContent, userAnchors = {}, viewBox, computedAnchors = {}) {
     lcardsLog.trace('[AnchorProcessor] Processing anchors:', {
       hasSvgContent: !!svgContent,
       userAnchorCount: Object.keys(userAnchors).length,
+      computedAnchorCount: Object.keys(computedAnchors).length,
       viewBox
     });
 
@@ -34,10 +37,11 @@ export class AnchorProcessor {
     // Resolve percentage coordinates in user anchors
     const resolvedUserAnchors = this._resolvePercentages(userAnchors, viewBox);
 
-    // Merge: SVG anchors < user anchors (user overrides SVG)
-    const merged = { ...svgAnchors, ...resolvedUserAnchors };
+    // Merge: computed anchors < SVG anchors < user anchors (each layer overrides the previous)
+    const merged = { ...computedAnchors, ...svgAnchors, ...resolvedUserAnchors };
 
     lcardsLog.trace('[AnchorProcessor] Anchors processed:', {
+      computedAnchorCount: Object.keys(computedAnchors).length,
       svgAnchorCount: Object.keys(svgAnchors).length,
       userAnchorCount: Object.keys(resolvedUserAnchors).length,
       totalCount: Object.keys(merged).length,
@@ -48,6 +52,7 @@ export class AnchorProcessor {
     return {
       anchors: merged,
       metadata: {
+        computedAnchorCount: Object.keys(computedAnchors).length,
         svgAnchorCount: Object.keys(svgAnchors).length,
         userAnchorCount: Object.keys(resolvedUserAnchors).length,
         totalCount: Object.keys(merged).length,

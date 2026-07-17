@@ -11,7 +11,22 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 
 /**
  * Get base SVG anchors from the rendered preview
- * Extracts anchors defined in the base SVG using findSvgAnchors utility
+ *
+ * Reads `getResolvedModel().anchors` off the live preview's actual
+ * `<lcards-msd-card>` - the real pipeline's own already-merged result
+ * (computed landmark anchors < SVG-embedded anchors < user anchors, see
+ * AnchorProcessor.processAnchors()) - rather than re-deriving anchors
+ * independently here. An earlier version of this function called
+ * findSvgAnchors() directly against `svg.outerHTML` (the *rendered*,
+ * `__msd-base-content`-wrapped DOM, not the raw fetched SVG string the
+ * pipeline itself parses); that's a different string than what the pipeline
+ * hashes/extracts from, so a same-approach cache lookup for computed anchors
+ * reliably missed. Delegating to the pipeline's own resolved model sidesteps
+ * that whole class of "does my independent re-derivation match reality"
+ * risk, for both computed and SVG-embedded anchors at once - and matches
+ * the pattern already used elsewhere in this dialog (e.g. the highlight and
+ * animation-target-picker code, which read
+ * `msdCard._msdPipeline?.getResolvedModel()?.anchors` directly).
  *
  * @param {Object} config - Working config object
  * @param {ShadowRoot} dialogShadowRoot - Dialog's shadow root
@@ -25,13 +40,7 @@ export function getBaseSvgAnchors(config, dialogShadowRoot) {
         return {};
     }
 
-    // Check if findSvgAnchors is available
-    if (!window.lcards?.findSvgAnchors) {
-        lcardsLog.warn('[MSDStudio] window.lcards.findSvgAnchors not available');
-        return {};
-    }
-
-    // Get the SVG content from the live preview
+    // Get the live preview's actual card instance
     const livePreview = dialogShadowRoot?.querySelector('lcards-msd-live-preview');
     if (!livePreview) return {};
 
@@ -45,20 +54,13 @@ export function getBaseSvgAnchors(config, dialogShadowRoot) {
     if (!msdCard) return {};
 
     // @ts-ignore - TS2339: auto-suppressed
-    const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-    if (!shadowRoot) return {};
+    const resolvedAnchors = msdCard._msdPipeline?.getResolvedModel?.()?.anchors || {};
 
-    const svg = shadowRoot.querySelector('svg');
-    if (!svg) return {};
-
-    // Extract SVG content
-    const svgContent = svg.outerHTML;
-    const extractedAnchors = window.lcards.findSvgAnchors(svgContent);
-
-    // Filter out any anchors that are overridden by user
+    // Filter out any anchors that are overridden by user (shown separately
+    // in the editable "User Anchors" section)
     const userAnchors = config.msd?.anchors || {};
     const baseSvgAnchors = {};
-    for (const [name, position] of Object.entries(extractedAnchors)) {
+    for (const [name, position] of Object.entries(resolvedAnchors)) {
         if (!userAnchors[name]) {
             baseSvgAnchors[name] = position;
         }
