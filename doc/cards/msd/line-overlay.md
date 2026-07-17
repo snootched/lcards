@@ -143,6 +143,8 @@ For independent axis control use `anchor_gap_x` / `anchor_gap_y` (overrides `anc
 | `grid` | Grid-constrained routing |
 | `manual` | Explicit `waypoints` list |
 
+`route_hint`/`route_hint_last` steer the first/last segment direction for every pathfinding mode (`manhattan`, `smart`, `grid`, and `auto` once it upgrades to one of those) — not just `manhattan`. If you don't set them explicitly, `anchor_side`/`attach_side` set to `left`/`right`/`top`/`bottom` auto-derive the equivalent hint (`left`/`right` → horizontal, `top`/`bottom` → vertical), even when `anchor`/`attach_to` is a plain coordinate or named point anchor with no attachment-point geometry of its own — the side still expresses "leave/arrive from this direction." Corner sides (`top-left`, etc.) and `center` are ambiguous for a single axis and fall back to an automatic direction based on which axis has the larger distance between the two endpoints.
+
 ```yaml
 # Straight line
 - id: direct_line

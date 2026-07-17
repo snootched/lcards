@@ -212,20 +212,26 @@ export class RouterCore {
       lcardsLog.debug(`[RouterCore] Line '${raw.id}': Parsed route_hint='${modeHint}' (source: ${hintSourceFirst}), route_hint_last='${modeHintLast}' (source: ${hintSourceLast || 'none'})`);
     }
 
-    // Improved destination overlay detection:
-    // 1. If attach_side is present we treat destination as an overlay (even if anchor not yet resolved)
-    // 2. If attach_to is not an existing anchor id we assume it is an overlay id (will be resolved later)
-    let isDestinationOverlay = false;
-    if (raw.attach_side) {
-      isDestinationOverlay = true;
-    } else if (typeof raw.attach_to === 'string' && raw.attach_to) {
-      if (!this.anchors[raw.attach_to]) {
-        isDestinationOverlay = true;
+    // Derive modeHint (first segment) from anchor_side, and modeHintLast
+    // (last segment) from attach_side, whenever route_hint/route_hint_last
+    // aren't set explicitly. This applies regardless of whether the
+    // anchor/attach_to resolves to a real overlay with attachment-point
+    // geometry or a plain point coordinate: a point anchor can't be
+    // repositioned to "its right side", but the side still expresses a
+    // routing-direction intent (leave/arrive from that side) on its own.
+    // Corner values (top-left, etc.) and 'center' are ambiguous for a single
+    // axis and fall through to the geometry-based fallback below.
+    if (!modeHint) {
+      const anchorSide = (raw.anchor_side || '').toLowerCase();
+      if (anchorSide === 'left' || anchorSide === 'right') {
+        modeHint = 'xy'; // first segment horizontal
+        hintSourceFirst = 'anchor_side';
+      } else if (anchorSide === 'top' || anchorSide === 'bottom') {
+        modeHint = 'yx'; // first segment vertical
+        hintSourceFirst = 'anchor_side';
       }
     }
-
-    // Auto-set modeHintLast based on attach_side when not explicitly provided
-    if (!modeHintLast && isDestinationOverlay) {
+    if (!modeHintLast) {
       const attachSide = (raw.attach_side || '').toLowerCase();
       if (attachSide === 'left' || attachSide === 'right') {
         modeHintLast = 'yx'; // final horizontal
@@ -520,6 +526,14 @@ export class RouterCore {
 
     // Get turn penalty from config (default: 2)
     const turnPenalty = Number(this.config.turn_penalty ?? 2);
+    // Penalty applied when a move disagrees with the configured route_hint
+    // (first segment) / route_hint_last (final segment). req.modeHint is
+    // always populated (explicit config, attach_side-derived, or geometry
+    // fallback — see buildRouteRequest()) but was previously never consulted
+    // here, so grid/smart routes ignored route_hint entirely. A penalty
+    // (rather than a hard constraint) still lets A* route around a real
+    // obstacle sitting in the hinted direction.
+    const hintPenalty = Number(this.config.route_hint_penalty ?? 6);
 
     gScore.set(key(start.c,start.r),0);
     open.push({ c:start.c, r:start.r, f:h(start.c,start.r) });
@@ -543,10 +557,27 @@ export class RouterCore {
 
         const nk = key(nc,nr);
         const newDir = `${dc},${dr}`;
+        const isHorizontalMove = dr === 0;
 
         // Add turn penalty if direction changed (but not on first move)
         const isDirectionChange = curDir && curDir !== newDir;
-        const moveCost = 1 + (isDirectionChange ? turnPenalty : 0);
+        let moveCost = 1 + (isDirectionChange ? turnPenalty : 0);
+
+        // Bias the very first move away from the start anchor toward
+        // route_hint: 'xy' wants a horizontal first move, 'yx' vertical
+        // (same convention as _computeManhattan's firstMode).
+        if (!curDir && req.modeHint) {
+          const wantsHorizontalFirst = req.modeHint === 'xy';
+          if (wantsHorizontalFirst !== isHorizontalMove) moveCost += hintPenalty;
+        }
+        // Bias the final move into the goal toward route_hint_last:
+        // 'xy' means the last segment is vertical, 'yx' horizontal (see
+        // _computeManhattan's lastMode comment for the same convention).
+        if (nc === goal.c && nr === goal.r && req.modeHintLast) {
+          const wantsHorizontalLast = req.modeHintLast === 'yx';
+          if (wantsHorizontalLast !== isHorizontalMove) moveCost += hintPenalty;
+        }
+
         const gNew = gCur + moveCost;
 
         if (gNew < (gScore.get(nk) ?? Infinity)) {
@@ -611,51 +642,54 @@ export class RouterCore {
     pts[0] = [req.a[0], req.a[1]];
     pts[pts.length-1] = [req.b[0], req.b[1]];
 
-    // NEW: If snapping created diagonals, insert proper Manhattan elbows
+    // Snapping the grid-rounded path back onto the exact anchor/attach
+    // coordinates can leave the first/last segment diagonal. Direction is
+    // decided by req.modeHint/modeHintLast (route_hint / route_hint_last, or
+    // their attach_side/geometry-derived defaults — buildRouteRequest()
+    // always populates both).
+    //
+    // If the grid's own first/last leg ALREADY runs in the hinted direction
+    // (common — grid corners live at cell-center coordinates, only slightly
+    // off the anchor's exact coordinate), extend that same leg to the exact
+    // coordinate by adjusting the corner in place rather than inserting a
+    // new point. Inserting unconditionally (the previous approach) leaves
+    // the grid's original corner in the array too, producing a spurious
+    // "wrong way, then back" leg between the new elbow and the old one —
+    // e.g. anchor at y=-104 with the grid's real corner at cell-center
+    // y=-132 rendered as a ~28px detour up and back down before continuing.
+    // Only insert a genuine new elbow when the grid's leg runs the other way.
     // Check first segment
-    if (pts.length >= 2 && pts[0][0] !== origStart[0] && pts[0][1] !== origStart[1]) {
-      // First point was diagonal-snapped, check if it created diagonal with second point
-      if (pts[0][0] !== pts[1][0] && pts[0][1] !== pts[1][1]) {
-        // Diagonal exists - insert elbow maintaining grid's original direction
-        if (origStart[0] === pts[1][0]) {
-          // Was vertical from grid, keep that
+    if (pts.length >= 2) {
+      const gridFirstHorizontal = origStart[1] === pts[1][1];
+      const gridFirstVertical = origStart[0] === pts[1][0];
+      const wantsHorizontalFirst = req.modeHint !== 'yx';
+      if (wantsHorizontalFirst && gridFirstHorizontal) {
+        pts[1] = [pts[1][0], pts[0][1]];
+      } else if (!wantsHorizontalFirst && gridFirstVertical) {
+        pts[1] = [pts[0][0], pts[1][1]];
+      } else if (pts[0][0] !== pts[1][0] && pts[0][1] !== pts[1][1]) {
+        if (wantsHorizontalFirst) {
           pts.splice(1, 0, [pts[1][0], pts[0][1]]);
-        } else if (origStart[1] === pts[1][1]) {
-          // Was horizontal from grid, keep that
-          pts.splice(1, 0, [pts[0][0], pts[1][1]]);
         } else {
-          // Grid had elbow, respect the direction toward grid point
-          const dx = Math.abs(origStart[0] - pts[0][0]);
-          const dy = Math.abs(origStart[1] - pts[0][1]);
-          if (dx > dy) {
-            pts.splice(1, 0, [origStart[0], pts[0][1]]);
-          } else {
-            pts.splice(1, 0, [pts[0][0], origStart[1]]);
-          }
+          pts.splice(1, 0, [pts[0][0], pts[1][1]]);
         }
       }
     }
     // Check last segment
-    const lastIdx = pts.length - 1;
-    if (lastIdx >= 1 && pts[lastIdx][0] !== origEnd[0] && pts[lastIdx][1] !== origEnd[1]) {
-      // Last point was diagonal-snapped, check if it created diagonal with second-to-last
-      if (pts[lastIdx-1][0] !== pts[lastIdx][0] && pts[lastIdx-1][1] !== pts[lastIdx][1]) {
-        // Diagonal exists - insert elbow maintaining grid's original direction
-        if (origEnd[0] === pts[lastIdx-1][0]) {
-          // Was vertical from grid, keep that
+    let lastIdx = pts.length - 1;
+    if (lastIdx >= 1) {
+      const gridLastHorizontal = origEnd[1] === pts[lastIdx-1][1];
+      const gridLastVertical = origEnd[0] === pts[lastIdx-1][0];
+      const wantsHorizontalLast = req.modeHintLast === 'yx';
+      if (wantsHorizontalLast && gridLastHorizontal) {
+        pts[lastIdx-1] = [pts[lastIdx-1][0], pts[lastIdx][1]];
+      } else if (!wantsHorizontalLast && gridLastVertical) {
+        pts[lastIdx-1] = [pts[lastIdx][0], pts[lastIdx-1][1]];
+      } else if (pts[lastIdx-1][0] !== pts[lastIdx][0] && pts[lastIdx-1][1] !== pts[lastIdx][1]) {
+        if (wantsHorizontalLast) {
           pts.splice(lastIdx, 0, [pts[lastIdx-1][0], pts[lastIdx][1]]);
-        } else if (origEnd[1] === pts[lastIdx-1][1]) {
-          // Was horizontal from grid, keep that
-          pts.splice(lastIdx, 0, [pts[lastIdx][0], pts[lastIdx-1][1]]);
         } else {
-          // Grid had elbow, respect the direction toward grid point
-          const dx = Math.abs(origEnd[0] - pts[lastIdx][0]);
-          const dy = Math.abs(origEnd[1] - pts[lastIdx][1]);
-          if (dx > dy) {
-            pts.splice(lastIdx, 0, [origEnd[0], pts[lastIdx][1]]);
-          } else {
-            pts.splice(lastIdx, 0, [pts[lastIdx][0], origEnd[1]]);
-          }
+          pts.splice(lastIdx, 0, [pts[lastIdx][0], pts[lastIdx-1][1]]);
         }
       }
     }
