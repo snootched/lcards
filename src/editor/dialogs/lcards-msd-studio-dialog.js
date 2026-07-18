@@ -254,6 +254,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Debounce timer for preview updates
         this._previewUpdateTimer = null;
+        // rAF handle for polling until the rebuilt preview's SVG has mounted
+        this._previewReadyRafHandle = null;
 
         // Base SVG Tab State
         this._viewBoxMode = 'auto';
@@ -577,6 +579,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         super.disconnectedCallback();
         if (this._previewUpdateTimer) {
             clearTimeout(this._previewUpdateTimer);
+        }
+        if (this._previewReadyRafHandle) {
+            cancelAnimationFrame(this._previewReadyRafHandle);
+            this._previewReadyRafHandle = null;
         }
 
         // Cleanup Native HA Card Picker & Editor Managers
@@ -4959,7 +4965,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             x: Math.round(coordX),
             y: Math.round(coordY),
             pixelX,
-            pixelY
+            pixelY,
+            panelWidth: panelRect.width,
+            panelHeight: panelRect.height
         };
     }
 
@@ -5341,7 +5349,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         if (!this._cursorPosition || !showCrosshairs) return '';
 
-        let { x, y, pixelX, pixelY } = this._cursorPosition;
+        let { x, y, pixelX, pixelY, panelWidth, panelHeight } = this._cursorPosition;
 
         // Calculate snapped coordinates for display
         const snapEnabled = this._enableSnapping || this._snapToGrid;
@@ -5359,6 +5367,30 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         const lineColor = snapEnabled ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 153, 0, 0.5)';
+
+        // Flip the floating tooltip's quadrant near the right/top edges so it's
+        // never clipped by the overlay's overflow:hidden container. Anchor via
+        // `right` (not a `left` offset by an estimated width) when flipped, so
+        // the tooltip hugs the crosshair the same way it does on the right side
+        // regardless of its actual rendered width.
+        const TOOLTIP_GAP = 15;
+        const TOOLTIP_WIDTH_ESTIMATE = 130; // only used to decide when to flip
+        const TOOLTIP_HEIGHT_ESTIMATE = 30;
+
+        const flipLeft = (snappedPixelX + TOOLTIP_GAP + TOOLTIP_WIDTH_ESTIMATE) > panelWidth;
+        let tooltipLeft = null;
+        let tooltipRight = null;
+        if (flipLeft) {
+            tooltipRight = Math.max(4, panelWidth - snappedPixelX + TOOLTIP_GAP);
+        } else {
+            tooltipLeft = Math.max(4, Math.min(snappedPixelX + TOOLTIP_GAP, panelWidth - 4));
+        }
+
+        let tooltipTop = snappedPixelY - 30;
+        if (tooltipTop < 0) {
+            tooltipTop = snappedPixelY + 20;
+        }
+        tooltipTop = Math.max(4, Math.min(tooltipTop, panelHeight - TOOLTIP_HEIGHT_ESTIMATE - 4));
 
         return html`
             <div style="
@@ -5434,8 +5466,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <!-- Floating coordinate tooltip near cursor -->
                 <div style="
                     position: absolute;
-                    left: ${snappedPixelX + 15}px;
-                    top: ${snappedPixelY - 30}px;
+                    ${tooltipLeft !== null ? `left: ${tooltipLeft}px;` : `right: ${tooltipRight}px;`}
+                    top: ${tooltipTop}px;
                     background: rgba(0, 0, 0, 0.85);
                     color: ${snapEnabled ? '#00FF00' : '#FF9900'};
                     padding: 4px 8px;
@@ -5491,6 +5523,29 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         return { msdCard, svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight };
+    }
+
+    /**
+     * Poll (bounded, via rAF) after a preview-ready event until the rebuilt
+     * preview's <svg> is actually resolvable, re-rendering as soon as it is.
+     * `preview-ready` fires once the new card's data pipeline resolves, which
+     * does not guarantee its shadow DOM has painted an <svg> yet — without
+     * this, grid/crosshair/anchor overlays blank out until an unrelated
+     * requestUpdate() (e.g. mousemove) happens to run later.
+     * @param {number} retriesLeft
+     * @private
+     */
+    _handlePreviewReady(retriesLeft = 30) {
+        this.requestUpdate();
+        if (this._getPreviewSvgAndViewBox()) {
+            this._previewReadyRafHandle = null;
+            return;
+        }
+        if (retriesLeft <= 0) {
+            this._previewReadyRafHandle = null;
+            return;
+        }
+        this._previewReadyRafHandle = requestAnimationFrame(() => this._handlePreviewReady(retriesLeft - 1));
     }
 
     /**
@@ -6011,6 +6066,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get grid opacity from settings
         const gridOpacity = this._debugSettings.grid_opacity ?? 0.3;
+        const boundaryOpacity = Math.min(gridOpacity + 0.2, 1.0);
+        const labelStyle = `
+            background: rgba(0, 0, 0, 0.7);
+            color: ${gridColor};
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            white-space: nowrap;
+            opacity: ${boundaryOpacity};
+            pointer-events: none;
+        `;
 
         return html`
             <div style="
@@ -6030,8 +6097,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     width: 100%;
                     height: 100%;
                     border: 2px dashed ${gridColor};
-                    opacity: ${Math.min(gridOpacity + 0.2, 1.0)};
+                    opacity: ${boundaryOpacity};
                 "></div>
+
+                <!-- View box dimension labels -->
+                <div style="position: absolute; left: 4px; top: 4px; ${labelStyle}">
+                    (${Math.round(viewBoxX)}, ${Math.round(viewBoxY)})
+                </div>
+                <div style="position: absolute; right: 4px; bottom: 4px; ${labelStyle}">
+                    (${Math.round(viewBoxX + viewBoxWidth)}, ${Math.round(viewBoxY + viewBoxHeight)})
+                </div>
+                <div style="position: absolute; left: 50%; top: -18px; transform: translateX(-50%); ${labelStyle}">
+                    ${Math.round(viewBoxWidth)} × ${Math.round(viewBoxHeight)}
+                </div>
 
                 <!-- Grid Lines -->
                 ${verticalLines.map((x) => {
@@ -15991,7 +16069,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                         .hass=${this.hass}
                                         .config=${this._workingConfig}
                                         .showRefreshButton=${true}
-                                        @preview-ready=${() => this.requestUpdate()}>
+                                        @preview-ready=${() => this._handlePreviewReady()}>
                                     </lcards-msd-live-preview>
                                 </div>
 
