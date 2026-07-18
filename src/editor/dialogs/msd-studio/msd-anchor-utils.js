@@ -10,6 +10,42 @@
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 
 /**
+ * Fixed set of ids SvgStructureAnalyzer.detectAnchors() ever emits (see
+ * SvgStructureAnalyzer.js) - used purely client-side, in the Studio dialog,
+ * to distinguish "computed" landmark anchors from "harvested" named-element
+ * anchors within the combined base-SVG anchor map. The merged anchor map
+ * itself (AnchorProcessor.processAnchors()) carries no per-anchor
+ * provenance, so this is a name-based classification, not a real source tag -
+ * if a user's own <g id="hull_center">, say, collided with a landmark name,
+ * it would be classified as "computed" here too. Acceptable: landmark ids
+ * are deliberately unlikely/unusual names to author by hand.
+ */
+const LANDMARK_ANCHOR_IDS = new Set([
+    'hull_center', 'extremity_bow', 'extremity_stern', 'extremity_top', 'extremity_bottom', 'lateral_a', 'lateral_b'
+]);
+
+/**
+ * Split a base-SVG anchor map (name -> [x, y]) into computed landmark
+ * anchors (SvgStructureAnalyzer) and harvested named-element anchors
+ * (findSvgAnchors), for separate display/management in the Studio dialog.
+ *
+ * @param {Object} baseSvgAnchors - Combined base-SVG anchor map
+ * @returns {{ computed: Object, harvested: Object }}
+ */
+export function splitBaseSvgAnchorsBySource(baseSvgAnchors) {
+    const computed = {};
+    const harvested = {};
+    for (const [name, position] of Object.entries(baseSvgAnchors)) {
+        if (LANDMARK_ANCHOR_IDS.has(name)) {
+            computed[name] = position;
+        } else {
+            harvested[name] = position;
+        }
+    }
+    return { computed, harvested };
+}
+
+/**
  * Get base SVG anchors from the rendered preview
  *
  * Reads `getResolvedModel().anchors` off the live preview's actual

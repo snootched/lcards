@@ -278,9 +278,47 @@ export class LCARdSMSDLivePreview extends LitElement {
             container.appendChild(card);
 
             lcardsLog.debug('[MSDLivePreview] Preview card configured and appended');
+
+            // card.setConfig() only *starts* the card's own async pipeline
+            // init (see LCARdSCard's _processConfigAsync comment) - it
+            // doesn't return anything awaitable here, so nothing tells a
+            // parent (e.g. the Studio dialog) when the freshly-created
+            // card's resolved model actually becomes available. Anything
+            // reading `card._msdPipeline?.getResolvedModel()` synchronously
+            // right after this call (or shortly after, on the *previous*
+            // debounce cycle's stale card) sees a null/empty pipeline.
+            // Notify once the new card's own pipeline reference lands (or
+            // we give up), so listeners can re-render with fresh data
+            // instead of silently going stale until something unrelated
+            // happens to force another re-render.
+            this._waitForPipelineReady(card).then(() => {
+                this.dispatchEvent(new CustomEvent('preview-ready', { bubbles: true, composed: true }));
+            });
         } catch (error) {
             lcardsLog.error('[MSDLivePreview] Failed to update preview:', error);
             this._renderErrorInContainer(container, error);
+        }
+    }
+
+    /**
+     * Wait for a freshly-created preview card's MSD pipeline to finish
+     * initializing (its `_msdPipeline` reactive property going from null to
+     * set), or give up after a timeout (e.g. pipeline init failed - the card
+     * itself already handles that error case and re-renders empty/error UI,
+     * we just shouldn't hang forever waiting for a value that'll never come).
+     * @param {Element} card - The <lcards-msd-card> just appended
+     * @param {number} [timeoutMs=5000]
+     * @private
+     */
+    async _waitForPipelineReady(card, timeoutMs = 5000) {
+        const start = Date.now();
+        // @ts-ignore - TS2339: auto-suppressed
+        while (!card._msdPipeline && Date.now() - start < timeoutMs) {
+            // @ts-ignore - TS2339: auto-suppressed
+            await card.updateComplete;
+            // @ts-ignore - TS2339: auto-suppressed
+            if (card._msdPipeline) break;
+            await new Promise((resolve) => setTimeout(resolve, 50));
         }
     }
 

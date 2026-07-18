@@ -80,6 +80,20 @@ export function getMsdSchema() {
             description: 'Whether the base SVG is painted as the visible background. Set false to use background_animation (e.g. a static image or animated layers) as the visual background instead, while the SVG is still parsed for anchors as normal.'
           },
 
+          harvest_landmarks: {
+            type: 'boolean',
+            optional: true,
+            default: true,
+            description: 'Compute geometric landmark anchors (hull_center, extremity_bow/stern/top/bottom, lateral_a/b) from the base SVG silhouette.'
+          },
+
+          harvest_svg_elements: {
+            type: 'boolean',
+            optional: true,
+            default: true,
+            description: 'Harvest anchors from named <circle>/<ellipse>/<text>/<rect>/<g> elements embedded in the base SVG.'
+          },
+
           animations: {
             type: 'array',
             optional: true,

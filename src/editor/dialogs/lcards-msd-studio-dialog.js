@@ -57,7 +57,7 @@ import { select } from 'd3-selection';
 
 // Extracted utilities
 import { getPreviewCoordinatesFromMouseEvent, snapToGrid } from './msd-studio/msd-coordinate-utils.js';
-import { getBaseSvgAnchors, resolveControlPosition, resolvePositionWithSide } from './msd-studio/msd-anchor-utils.js';
+import { getBaseSvgAnchors, resolveControlPosition, resolvePositionWithSide, splitBaseSvgAnchorsBySource } from './msd-studio/msd-anchor-utils.js';
 import { msdStudioStyles } from './msd-studio/msd-studio-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import { studioSubformDialogStyles } from './studio-subform-dialog-styles.js';
@@ -275,6 +275,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._cursorPosition = null;
         this._highlightedAnchor = null;
         this._showAnchorMarkers = false;
+        this._anchorFilterQuery = '';  // Editor-only list filter, never saved to config
         this._showBoundingBoxes = false;
         this._showRoutingPaths = false;
         this._showRoutingChannels = false;  // Hidden by default, use Routing Channels toggle
@@ -2317,9 +2318,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const anchors = this._workingConfig.msd.anchors;
         const anchorEntries = Object.entries(anchors);
 
-        // Get base_svg extracted anchors (if any)
+        // Get base_svg extracted anchors (if any), split into computed
+        // (SvgStructureAnalyzer landmarks) vs harvested (named SVG elements) -
+        // both are "base_svg" anchors, but conflating them under one label
+        // was misleading: harvested anchors can carry noisy, tool-generated
+        // ids (e.g. "g293"), while computed anchors are always a fixed,
+        // meaningful set (hull_center, extremity_*, lateral_*).
         const baseSvgAnchors = this._getBaseSvgAnchors();
-        const baseSvgEntries = Object.entries(baseSvgAnchors);
+        const { computed: computedAnchors, harvested: harvestedAnchors } = splitBaseSvgAnchorsBySource(baseSvgAnchors);
+        const harvestedEntries = Object.entries(harvestedAnchors);
+        const computedEntries = Object.entries(computedAnchors);
+
+        const filterQuery = (this._anchorFilterQuery || '').trim().toLowerCase();
+        const applyFilter = (entries) => entries.filter(([name]) => !filterQuery || name.toLowerCase().includes(filterQuery));
+        const filteredHarvestedEntries = applyFilter(harvestedEntries);
+        const filteredComputedEntries = applyFilter(computedEntries);
+        const filteredAnchorEntries = applyFilter(anchorEntries);
+
+        const baseSvg = this._workingConfig.msd.base_svg || {};
 
         return html`
             <div style="padding: 8px;">
@@ -2345,22 +2361,114 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </ha-icon-button>
                 </div>
 
-                <!-- Base SVG Anchors (Read-Only) -->
-                ${baseSvgEntries.length > 0 ? html`
+                <!-- Base SVG Harvesting Controls -->
+                <lcards-form-section
+                    header="Anchor Harvesting"
+                    description="Control which automatic anchor sources run against the base SVG"
+                    icon="mdi:image-search-outline"
+                    ?expanded=${false}
+                    style="margin-bottom: 16px;">
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Harvest SVG elements'}
+                        .helper=${'Named <circle>/<ellipse>/<text>/<rect>/<g> elements embedded in the base SVG.'}
+                        .selector=${{ boolean: {} }}
+                        .value=${baseSvg.harvest_svg_elements !== false}
+                        @value-changed=${(e) => {
+                            this._setNestedValue('msd.base_svg.harvest_svg_elements', e.detail.value);
+                        }}>
+                    </ha-selector>
+
+                    <ha-selector
+                        style="margin-top: 12px; display: block;"
+                        .hass=${this.hass}
+                        .label=${'Compute landmark anchors'}
+                        .helper=${'hull_center, extremity_bow/stern/top/bottom, lateral_a/b - derived from the SVG silhouette.'}
+                        .selector=${{ boolean: {} }}
+                        .value=${baseSvg.harvest_landmarks !== false}
+                        @value-changed=${(e) => {
+                            this._setNestedValue('msd.base_svg.harvest_landmarks', e.detail.value);
+                        }}>
+                    </ha-selector>
+                </lcards-form-section>
+
+                <div style="position: relative; margin-bottom: 16px;">
+                    <ha-input
+                        label="Filter anchors"
+                        placeholder="Filter by name..."
+                        .value=${this._anchorFilterQuery}
+                        @input=${(e) => { this._anchorFilterQuery = e.target.value; this.requestUpdate(); }}
+                        style="width: 100%;">
+                        <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
+                    </ha-input>
+                    ${this._anchorFilterQuery ? html`
+                        <ha-icon-button
+                            style="position: absolute; right: 4px; top: 4px;"
+                            @click=${() => { this._anchorFilterQuery = ''; this.requestUpdate(); }}
+                            .label=${'Clear filter'}
+                            .path=${'M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z'}>
+                        </ha-icon-button>
+                    ` : ''}
+                </div>
+
+                <!-- Base SVG: Harvested (named <circle>/<ellipse>/<text>/<rect>/<g> elements, read-only) -->
+                ${harvestedEntries.length > 0 ? html`
                     <lcards-form-section
-                        header="Base SVG Anchors"
-                        description="Anchors extracted from base SVG (read-only)"
+                        header="Base SVG: Harvested"
+                        description="Named elements harvested from the base SVG (read-only)"
                         icon="mdi:image-marker"
                         ?expanded=${false}
                         style="margin-bottom: 16px;">
                         <lcards-message type="info" style="margin-bottom: 12px;">
-                            These anchors are automatically extracted from your base SVG file.
-                            You can reference them in control/line overlays but cannot edit them here.
-                            <strong>Define custom anchors with the same name to override.</strong>
+                            These anchors come from named <code>&lt;circle&gt;</code>/<code>&lt;ellipse&gt;</code>/<code>&lt;text&gt;</code>/<code>&lt;rect&gt;</code>/<code>&lt;g&gt;</code>
+                            elements in your base SVG file - ids may be tool-generated and not very meaningful (e.g. "g293").
+                            <strong>Define a custom anchor with the same name to override, or use Promote to copy one (and rename it) into User Anchors.</strong>
                         </lcards-message>
-                        <div style="display: flex; flex-direction: column; gap: 12px;">
-                            ${baseSvgEntries.map(([name, position]) => this._renderBaseSvgAnchorItem(name, position))}
+                        <div style="display: flex; margin-bottom: 12px;">
+                            <ha-button @click=${() => this._promoteAllAnchors(filteredHarvestedEntries)}>
+                                <ha-icon icon="mdi:content-duplicate" slot="start"></ha-icon>
+                                Promote All${filterQuery ? ` (${filteredHarvestedEntries.length})` : ''}
+                            </ha-button>
                         </div>
+                        ${filteredHarvestedEntries.length === 0 ? html`
+                            <div style="text-align: center; padding: 16px; color: var(--secondary-text-color);">
+                                No harvested anchors match "${this._anchorFilterQuery}".
+                            </div>
+                        ` : html`
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                ${filteredHarvestedEntries.map(([name, position]) => this._renderBaseSvgAnchorItem(name, position))}
+                            </div>
+                        `}
+                    </lcards-form-section>
+                ` : ''}
+
+                <!-- Base SVG: Computed (SvgStructureAnalyzer landmarks, read-only) -->
+                ${computedEntries.length > 0 ? html`
+                    <lcards-form-section
+                        header="Base SVG: Computed"
+                        description="Geometric landmark anchors computed from the SVG silhouette (read-only)"
+                        icon="mdi:target"
+                        ?expanded=${false}
+                        style="margin-bottom: 16px;">
+                        <lcards-message type="info" style="margin-bottom: 12px;">
+                            These anchors are algorithmically derived from your base SVG's silhouette.
+                            <strong>Define a custom anchor with the same name to override, or use Promote to copy one into User Anchors.</strong>
+                        </lcards-message>
+                        <div style="display: flex; margin-bottom: 12px;">
+                            <ha-button @click=${() => this._promoteAllAnchors(filteredComputedEntries)}>
+                                <ha-icon icon="mdi:content-duplicate" slot="start"></ha-icon>
+                                Promote All${filterQuery ? ` (${filteredComputedEntries.length})` : ''}
+                            </ha-button>
+                        </div>
+                        ${filteredComputedEntries.length === 0 ? html`
+                            <div style="text-align: center; padding: 16px; color: var(--secondary-text-color);">
+                                No computed anchors match "${this._anchorFilterQuery}".
+                            </div>
+                        ` : html`
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                ${filteredComputedEntries.map(([name, position]) => this._renderBaseSvgAnchorItem(name, position))}
+                            </div>
+                        `}
                     </lcards-form-section>
                 ` : ''}
 
@@ -2375,9 +2483,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <ha-icon icon="mdi:map-marker-off" style="--mdc-icon-size: 48px; opacity: 0.5;"></ha-icon>
                             <p>No user anchors defined. Click "Add Anchor" or "Place on Canvas" to create one.</p>
                         </div>
+                    ` : filteredAnchorEntries.length === 0 ? html`
+                        <div style="text-align: center; padding: 16px; color: var(--secondary-text-color);">
+                            No user anchors match "${this._anchorFilterQuery}".
+                        </div>
                     ` : html`
                         <div style="display: flex; flex-direction: column; gap: 12px;">
-                            ${anchorEntries.map(([name, position]) => this._renderAnchorItem(name, position))}
+                            ${filteredAnchorEntries.map(([name, position]) => this._renderAnchorItem(name, position))}
                         </div>
                     `}
                 </lcards-form-section>
@@ -2439,6 +2551,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
+                        <ha-icon-button
+                            @click=${() => this._promoteAnchorToUser(name, position)}
+                            .label=${'Promote to User Anchor'}
+                            .path=${'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z'}>
+                        </ha-icon-button>
                         <ha-icon-button
                             @click=${() => this._highlightAnchorInPreview(name)}
                             .label=${'Highlight'}
@@ -2591,6 +2708,62 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Open the anchor form pre-filled from a harvested base-SVG anchor, so the
+     * user can rename it (e.g. "g293" -> "shuttlebay") before it's saved as a
+     * new msd.anchors entry. Unlike _editAnchor(), _editingAnchorName is left
+     * null - this always creates a new user anchor, never renames one, since
+     * the source name isn't a msd.anchors key to begin with.
+     * @param {string} name - Harvested anchor name
+     * @param {Array} position - Anchor position [x, y]
+     * @private
+     */
+    _promoteAnchorToUser(name, position) {
+        this._showAnchorForm = true;
+        this._editingAnchorName = null;
+        this._anchorFormName = name;
+        this._anchorFormPosition = Array.isArray(position) ? [...position] : [0, 0];
+        this._anchorFormUnit = 'vb';
+        this.requestUpdate();
+    }
+
+    /**
+     * Bulk-copy a set of harvested base-SVG anchors into msd.anchors under
+     * their existing (harvested) names, skipping any that would collide with
+     * an already-defined user anchor. No renaming - use per-row Promote (or
+     * the normal Edit flow afterward) for that.
+     * @param {Array<[string, Array]>} entries - [name, [x, y]] pairs to promote
+     * @private
+     */
+    async _promoteAllAnchors(entries) {
+        const existingAnchors = this._workingConfig.msd?.anchors || {};
+        const toPromote = entries.filter(([name]) => !existingAnchors[name]);
+
+        if (toPromote.length === 0) {
+            await this._showDialog('Nothing to Promote', 'All listed anchors already exist as user anchors.', 'info');
+            return;
+        }
+
+        const confirmed = await this._showConfirmDialog(
+            'Promote All',
+            `Copy ${toPromote.length} base SVG anchor${toPromote.length === 1 ? '' : 's'} into User Anchors?`,
+            { confirmLabel: 'Promote', variant: 'primary' }
+        );
+        if (!confirmed) return;
+
+        for (const [name, position] of toPromote) {
+            const roundedPosition = [
+                this._roundToPrecision(position[0]),
+                this._roundToPrecision(position[1])
+            ];
+            this._setNestedValue(`msd.anchors.${name}`, roundedPosition);
+        }
+
+        lcardsLog.info(`[MSDStudio] Promoted ${toPromote.length} base SVG anchors to user anchors`);
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
+    /**
      * Save anchor (create or update)
      * @private
      */
@@ -2656,10 +2829,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      * @param {string} title - Dialog title
      * @param {string} message - Dialog message
+     * @param {Object} [options]
+     * @param {string} [options.confirmLabel='Delete'] - Confirm button text
+     * @param {string} [options.variant='danger'] - Confirm button variant
      * @returns {Promise<boolean>} True if confirmed, false if cancelled
      */
     // @ts-ignore - TS2393: auto-suppressed
-    async _showConfirmDialog(title, message) {
+    async _showConfirmDialog(title, message, options = {}) {
+        const { confirmLabel = 'Delete', variant = 'danger' } = options;
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
             // @ts-ignore - TS2339: auto-suppressed
@@ -2687,8 +2864,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // Confirm button
             const confirmButton = document.createElement('ha-button');
             confirmButton.slot = 'footer';
-            confirmButton.textContent = 'Delete';
-            confirmButton.setAttribute('variant', 'danger');
+            confirmButton.textContent = confirmLabel;
+            confirmButton.setAttribute('variant', variant);
             confirmButton.addEventListener('click', () => {
                 // @ts-ignore - TS2339: auto-suppressed
                 dialog.open = false;
@@ -15716,7 +15893,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     async _confirmAction(message) {
-        return await this._showConfirmDialog('Confirm Action', message);
+        return await this._showConfirmDialog('Confirm Action', message, { confirmLabel: 'Discard', variant: 'danger' });
     }
 
     /**
@@ -15763,60 +15940,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
             document.body.appendChild(dialog);
         });
     }
-
-    /**
-     * Show HA-style confirmation dialog
-     * @param {string} title - Dialog title
-     * @param {string} message - Dialog message (supports HTML)
-     * @returns {Promise<boolean>} True if confirmed
-     * @private
-     */
-    // @ts-ignore - TS2393: auto-suppressed
-    async _showConfirmDialog(title, message) {
-        return new Promise((resolve) => {
-            const dialog = document.createElement('ha-dialog');
-            // @ts-ignore - TS2339: auto-suppressed
-            dialog.headerTitle = title;
-            // @ts-ignore - TS2339: auto-suppressed
-            dialog.open = true;
-
-            const content = document.createElement('div');
-            content.innerHTML = message;
-            content.style.padding = '16px';
-            dialog.appendChild(content);
-
-            const cancelButton = document.createElement('ha-button');
-            cancelButton.textContent = 'Cancel';
-            cancelButton.setAttribute('appearance', 'plain');
-            cancelButton.addEventListener('click', () => {
-                // @ts-ignore - TS2339: auto-suppressed
-                dialog.open = false;
-                resolve(false);
-            });
-
-            const confirmButton = document.createElement('ha-button');
-            confirmButton.textContent = 'Discard';
-            confirmButton.setAttribute('variant', 'danger');
-            confirmButton.addEventListener('click', () => {
-                // @ts-ignore - TS2339: auto-suppressed
-                dialog.open = false;
-                resolve(true);
-            });
-
-            const footerDiv = document.createElement('div');
-            footerDiv.slot = 'footer';
-            footerDiv.appendChild(cancelButton);
-            footerDiv.appendChild(confirmButton);
-            dialog.appendChild(footerDiv);
-
-            dialog.addEventListener('closed', () => {
-                dialog.remove();
-            });
-
-            document.body.appendChild(dialog);
-        });
-    }
-
 
     /**
      * Render component
@@ -15881,7 +16004,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     <lcards-msd-live-preview
                                         .hass=${this.hass}
                                         .config=${this._workingConfig}
-                                        .showRefreshButton=${true}>
+                                        .showRefreshButton=${true}
+                                        @preview-ready=${() => this.requestUpdate()}>
                                     </lcards-msd-live-preview>
                                 </div>
 

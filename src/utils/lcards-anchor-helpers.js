@@ -1,9 +1,9 @@
 /**
  * @fileoverview SVG anchor-point extraction helpers.
  *
- * Locates named anchor elements (circle and text nodes with IDs) inside inline
- * SVG content and returns their coordinates for use by overlay positioning
- * logic.
+ * Locates named anchor elements (circle, ellipse, text, rect, and g nodes
+ * with IDs) inside inline SVG content and returns their coordinates for use
+ * by overlay positioning logic.
  *
  * @module utils/lcards-anchor-helpers
  */
@@ -11,7 +11,8 @@
 import { lcardsLog } from './lcards-logging.js';
 
 /**
- * Find anchor points in SVG content by parsing circle and text elements with IDs.
+ * Find anchor points in SVG content by parsing circle, ellipse, text, rect,
+ * and g elements with IDs.
  *
  * Resolves each element's position through the browser's native `getCTM()`
  * rather than reading `cx`/`cy`/`x`/`y` as absolute coordinates — real-world
@@ -56,6 +57,16 @@ export function findSvgAnchors(svgContent) {
       }
     });
 
+    svgRoot.querySelectorAll('ellipse[id]').forEach(el => {
+      const id = el.id;
+      if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
+      const cx = parseFloat(el.getAttribute('cx'));
+      const cy = parseFloat(el.getAttribute('cy'));
+      if (Number.isFinite(cx) && Number.isFinite(cy)) {
+        anchors[id] = resolvePoint(el, cx, cy);
+      }
+    });
+
     svgRoot.querySelectorAll('text[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
@@ -66,8 +77,24 @@ export function findSvgAnchors(svgContent) {
       }
     });
 
-    // <g id="anchor"> - unconditionally overwrites a same-id circle/text match,
-    // matching this function's pre-existing (if perhaps accidental) precedence.
+    // rect has no single native "position" attribute pair like circle/ellipse
+    // do - use its bounding-box center (x/y default to 0 per SVG spec when
+    // omitted; width/height don't, so require those to be present/finite).
+    svgRoot.querySelectorAll('rect[id]').forEach(el => {
+      const id = el.id;
+      if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
+      const x = parseFloat(el.getAttribute('x')) || 0;
+      const y = parseFloat(el.getAttribute('y')) || 0;
+      const width = parseFloat(el.getAttribute('width'));
+      const height = parseFloat(el.getAttribute('height'));
+      if (Number.isFinite(width) && Number.isFinite(height)) {
+        anchors[id] = resolvePoint(el, x + width / 2, y + height / 2);
+      }
+    });
+
+    // <g id="anchor"> - unconditionally overwrites a same-id match from any
+    // element type above, matching this function's pre-existing (if perhaps
+    // accidental) precedence.
     svgRoot.querySelectorAll('g[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;

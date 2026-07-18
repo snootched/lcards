@@ -49,15 +49,20 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
     // hand-drawn SVG anchor or explicit config anchor always overrides. Uses
     // getSvgViewBox() directly rather than the `viewBox` value above, since
     // coordinate mapping needs the SVG's real native viewBox regardless of any
-    // explicit user override in effect for `viewBox`.
-    const computedAnchors = await SvgStructureAnalyzer.analyzeAnchors(svgContent, getSvgViewBox(svgContent));
+    // explicit user override in effect for `viewBox`. Skipped entirely (not just
+    // discarded) when harvest_landmarks is disabled, since the raster/mask work
+    // itself is the expensive part.
+    const computedAnchors = msdSubConfig.base_svg?.harvest_landmarks !== false
+      ? await SvgStructureAnalyzer.analyzeAnchors(svgContent, getSvgViewBox(svgContent))
+      : {};
 
     // Extract and merge anchors
     const anchorResult = AnchorProcessor.processAnchors(
       svgContent,
       msdSubConfig.anchors || {},
       viewBox,
-      computedAnchors
+      computedAnchors,
+      { harvestSvgElements: msdSubConfig.base_svg?.harvest_svg_elements !== false }
     );
 
     anchors = anchorResult.anchors;
