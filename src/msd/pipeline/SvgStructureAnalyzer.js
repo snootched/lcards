@@ -35,8 +35,8 @@ const CLOSING_RADIUS = 14;
 
 const _maskCache = new Map();
 const _maskCacheOrder = [];
-const _shieldCache = new Map();
-const _shieldCacheOrder = [];
+const _shieldRawCache = new Map();
+const _shieldRawCacheOrder = [];
 
 function cacheSet(map, order, key, value) {
   map.set(key, value);
@@ -257,7 +257,7 @@ function dilate(mask, W, H, radius) {
 
 // Same computation as dilate(), but yields back to the event loop every few
 // rows instead of running as one uninterrupted O(W*H*radius^2) block. Used
-// specifically for analyzeShieldBubble()'s dilate step, which (unlike
+// specifically for analyzeShieldBubbleRaw()'s dilate step, which (unlike
 // closeMask()'s one-time, cached, fixed-small-radius dilate) re-runs at a
 // user-controlled radius on every Preview click, over a raster padMask()
 // already grew to accommodate that same radius - the cost compounds
@@ -387,15 +387,102 @@ function traceBoundary(mask, W, H, startX, startY) {
   return points;
 }
 
-function simplifyPolyline(points, tolerance) {
-  if (points.length < 3 || tolerance <= 0) return points;
-  const out = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const [px, py] = out[out.length - 1];
-    const [x, y] = points[i];
-    if (Math.hypot(x - px, y - py) >= tolerance) out.push(points[i]);
+function perpendicularDistance(p, a, b) {
+  const [px, py] = p, [ax, ay] = a, [bx, by] = b;
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(px - ax, py - ay);
+  // Distance from p to the infinite line through a/b (not clamped to the
+  // segment) - standard for RDP, which only ever calls this with a/b as a
+  // chain's fixed endpoints, so "beyond the segment" isn't a real case here.
+  return Math.abs(dy * px - dx * py + bx * ay - by * ax) / Math.sqrt(len2);
+}
+
+// Classic open-polyline Douglas-Peucker: keeps the two endpoints fixed,
+// recursively keeps whichever intermediate point is farthest (perpendicular
+// distance) from the current start-end chord if that distance exceeds
+// tolerance, discards everything else. Corner-preserving, unlike a simple
+// distance-from-last-kept-point decimation.
+function rdpOpen(points, tolerance) {
+  if (points.length < 3) return points;
+  const start = points[0], end = points[points.length - 1];
+  let maxDist = -1, idx = -1;
+  for (let i = 1; i < points.length - 1; i++) {
+    const d = perpendicularDistance(points[i], start, end);
+    if (d > maxDist) { maxDist = d; idx = i; }
   }
-  return out;
+  if (maxDist <= tolerance) return [start, end];
+  const left = rdpOpen(points.slice(0, idx + 1), tolerance);
+  const right = rdpOpen(points.slice(idx), tolerance);
+  return left.slice(0, -1).concat(right);
+}
+
+// RDP is defined over an open chain with two fixed endpoints; a closed
+// trace loop has no natural "start"/"end" (traceBoundary()'s own start
+// pixel is an arbitrary raster artifact - using it directly as both anchors
+// could produce one near-zero-length chain). Instead, split the loop at its
+// two farthest-apart points into two open chains sharing those endpoints,
+// run standard RDP on each independently, then recombine.
+function simplifyClosedPolyline(points, tolerance) {
+  if (points.length < 4 || tolerance <= 0) return points;
+
+  let iA = 0, iB = 1, best = -1;
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      const d = Math.hypot(points[i][0] - points[j][0], points[i][1] - points[j][1]);
+      if (d > best) { best = d; iA = i; iB = j; }
+    }
+  }
+  if (iA > iB) { [iA, iB] = [iB, iA]; }
+
+  const chain1 = points.slice(iA, iB + 1);
+  const chain2 = points.slice(iB).concat(points.slice(0, iA + 1));
+  if (chain1.length < 2 || chain2.length < 2) return points;
+
+  const simplified1 = rdpOpen(chain1, tolerance);
+  const simplified2 = rdpOpen(chain2, tolerance);
+
+  // simplified1 ends at points[iB] === simplified2's start (drop when
+  // joining), and simplified2 ends at points[iA] === simplified1's start
+  // (also drop - the result is a closed loop represented with implicit
+  // wraparound, same convention the original raw trace/old algorithm used,
+  // so the first element must not be repeated at the end).
+  return simplified1.slice(0, -1).concat(simplified2.slice(0, -1));
+}
+
+// Blends a closed boundary toward a best-fit ellipse, point-for-point:
+// point count is unchanged (roundness only affects position), unlike
+// simplifyClosedPolyline which changes point count via tolerance. Ellipse
+// is axis-aligned max-projection (rx/ry = max |x-cx|/|y-cy| over all
+// points) rather than a PCA/covariance-eigendecomposition fit - simpler, no
+// eigensolve, and guarantees the ellipse ENCLOSES the silhouette (a PCA fit
+// can clip corners/extremities inward, wrong for a "smooth toward an
+// enclosing bubble" control). Ship silhouettes fed into this feature are
+// already X-axis-aligned by this file's own anchor convention (bow at
+// max-X, see detectAnchors), so axis-aligned costs little accuracy vs. a
+// rotated fit.
+function blendTowardEllipse(points, roundness) {
+  if (!points?.length || roundness <= 0) return points;
+  const t = Math.min(1, roundness);
+
+  let cx = 0, cy = 0;
+  for (const [x, y] of points) { cx += x; cy += y; }
+  const n = points.length;
+  const centroid = { x: cx / n, y: cy / n };
+
+  let rx = 0, ry = 0;
+  for (const [x, y] of points) {
+    rx = Math.max(rx, Math.abs(x - centroid.x));
+    ry = Math.max(ry, Math.abs(y - centroid.y));
+  }
+  if (rx <= 0 || ry <= 0) return points;
+
+  return points.map((p) => {
+    const angle = angleFromCentroidDeg(p, centroid) * Math.PI / 180;
+    const ex = centroid.x + rx * Math.cos(angle);
+    const ey = centroid.y + ry * Math.sin(angle);
+    return [p[0] + (ex - p[0]) * t, p[1] + (ey - p[1]) * t];
+  });
 }
 
 function rasterToSvgPoint(x, y, viewBox, W, H) {
@@ -446,15 +533,22 @@ export class SvgStructureAnalyzer {
   }
 
   /**
+   * Expensive tier: dilate + trace only, no simplification. Returns the raw
+   * closed boundary in UNPADDED RASTER space (not SVG space) plus the
+   * raster W/H needed to map it later, so a caller can cheaply re-simplify/
+   * re-blend against the same raw trace without re-running this. Cached by
+   * content hash + dilateRadius only (simplify/roundness aren't inputs to
+   * this expensive step, so re-tuning them shouldn't invalidate this cache
+   * tier or re-trigger the dilate/trace work).
    * @param {string} svgContent
    * @param {[number,number,number,number]} viewBox
-   * @param {{dilateRadius?: number, simplifyTolerance?: number}} [options]
-   * @returns {Promise<Array<[number,number]>>} closed boundary points in SVG viewBox space
+   * @param {{dilateRadius?: number}} [options]
+   * @returns {Promise<{points: Array<[number,number]>, viewBox: [number,number,number,number], W: number, H: number}>}
    */
-  static async analyzeShieldBubble(svgContent, viewBox, { dilateRadius = 18, simplifyTolerance = 2 } = {}) {
-    if (!svgContent) return [];
-    const cacheKey = `${computeObjectHash(svgContent)}|r:${dilateRadius}|s:${simplifyTolerance}`;
-    const cached = _shieldCache.get(cacheKey);
+  static async analyzeShieldBubbleRaw(svgContent, viewBox, { dilateRadius = 18 } = {}) {
+    if (!svgContent) return { points: [], viewBox, W: 0, H: 0 };
+    const cacheKey = `${computeObjectHash(svgContent)}|r:${dilateRadius}`;
+    const cached = _shieldRawCache.get(cacheKey);
     if (cached) return cached;
 
     try {
@@ -466,23 +560,61 @@ export class SvgStructureAnalyzer {
       const { mask: paddedMask, W: paddedW, H: paddedH } = padMask(mask, W, H, pad);
       const shieldMask = await dilateAsync(paddedMask, paddedW, paddedH, dilateRadius);
       const start = findStart(shieldMask, paddedW, paddedH);
-      if (!start) return [];
+      if (!start) return { points: [], viewBox, W, H };
       const raw = traceBoundary(shieldMask, paddedW, paddedH, start[0], start[1]);
-      const simplified = simplifyPolyline(raw, simplifyTolerance);
-      // Un-pad back to the original (native) raster's coordinate origin
-      // before mapping to SVG space - rasterToSvgPoint's scale factor is
-      // derived from the original W/H, not the padded dimensions.
-      const points = simplified.map(([x, y]) => rasterToSvgPoint(x - pad, y - pad, viewBox, W, H));
-      cacheSet(_shieldCache, _shieldCacheOrder, cacheKey, points);
-      return points;
+      // Un-pad back to the original (native) raster's coordinate origin -
+      // rasterToSvgPoint's scale factor is derived from the original W/H,
+      // not the padded dimensions, so downstream mapping needs this space.
+      const points = raw.map(([x, y]) => /** @type {[number,number]} */ ([x - pad, y - pad]));
+      const result = { points, viewBox, W, H };
+      cacheSet(_shieldRawCache, _shieldRawCacheOrder, cacheKey, result);
+      return result;
     } catch (e) {
-      lcardsLog.warn('[SvgStructureAnalyzer] Shield-bubble computation failed', e);
-      return [];
+      lcardsLog.warn('[SvgStructureAnalyzer] Shield-bubble raw trace failed', e);
+      return { points: [], viewBox, W: 0, H: 0 };
     }
   }
 
   /**
-   * Split a closed boundary polyline (as returned by analyzeShieldBubble)
+   * Cheap tier: real Douglas-Peucker simplification (closed-curve, see
+   * simplifyClosedPolyline) over an already-traced raw boundary. Synchronous
+   * and safe to call on every tolerance-slider tick without re-tracing.
+   * @param {Array<[number,number]>} points - raw closed boundary, any space
+   * @param {number} tolerance
+   * @returns {Array<[number,number]>}
+   */
+  static simplifyClosedPolyline(points, tolerance) {
+    return simplifyClosedPolyline(points, tolerance);
+  }
+
+  /**
+   * Cheap tier: blend a closed boundary toward a best-fit enclosing ellipse.
+   * Synchronous, point-count-preserving - see blendTowardEllipse.
+   * @param {Array<[number,number]>} points
+   * @param {number} roundness - 0..1
+   * @returns {Array<[number,number]>}
+   */
+  static blendTowardEllipse(points, roundness) {
+    return blendTowardEllipse(points, roundness);
+  }
+
+  /**
+   * Batch-maps raster-space points (as returned by analyzeShieldBubbleRaw,
+   * after any simplify/blend post-processing) to SVG viewBox space. Thin
+   * public wrapper around the module-private rasterToSvgPoint.
+   * @param {Array<[number,number]>} rasterPoints
+   * @param {[number,number,number,number]} viewBox
+   * @param {number} W - unpadded raster width the points were traced against
+   * @param {number} H
+   * @returns {Array<[number,number]>}
+   */
+  static mapRasterPointsToViewBox(rasterPoints, viewBox, W, H) {
+    return rasterPoints.map(([x, y]) => /** @type {[number,number]} */ (rasterToSvgPoint(x, y, viewBox, W, H)));
+  }
+
+  /**
+   * Split a closed boundary polyline (as returned by analyzeShieldBubbleRaw,
+   * after simplify/blend post-processing)
    * into N open sub-polylines of EQUAL ARC LENGTH along the already-traced
    * perimeter, each sharing an exact interpolated boundary point with its
    * neighbors so adjacent sections render with no visible gap between them.

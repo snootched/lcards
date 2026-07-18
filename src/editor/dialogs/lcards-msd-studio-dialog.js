@@ -38,6 +38,8 @@ import { LineOverlay } from '../../msd/overlays/LineOverlay.js';
 import { SvgStructureAnalyzer } from '../../msd/pipeline/SvgStructureAnalyzer.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
+import '../components/shared/lcards-shield-bubble-diagram.js';
+import { infoGuideStyles } from '../components/shared/info-guide-styles.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-position-picker.js';
 import '../components/lcards-msd-live-preview.js';
@@ -378,16 +380,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             drawing: false,
             currentPoint: null
         };
-        this._shieldBubbleState = {
-            active: false,
-            loading: false,
-            dilateRadius: 18,
-            simplifyTolerance: 4,
-            mode: 'single',
-            sectionCount: 4,
-            points: null,
-            error: null
-        };
+        this._shieldBubbleState = this._defaultShieldBubbleState();
 
         // Shape edit-mode state
         this._selectedShapeId = null;
@@ -933,7 +926,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Order matters: msdStudioStyles must come after studioDialogStyles so
         // its intentional overrides (33.3/66.6 split, .preview-panel overflow,
         // tab-group spacing, zoom-controls tint) win the cascade.
-        return [editorStyles, studioDialogStyles, msdStudioStyles, studioSubformDialogStyles, searchableSelectStyles];
+        return [editorStyles, studioDialogStyles, msdStudioStyles, studioSubformDialogStyles, searchableSelectStyles, infoGuideStyles];
     }
 
     /**
@@ -10222,6 +10215,32 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Shared initial/reset shape for _shieldBubbleState, used by both the
+     * constructor and the post-Accept reset so the two can't drift apart.
+     * @returns {Object}
+     * @private
+     */
+    _defaultShieldBubbleState() {
+        return {
+            active: false,
+            loading: false,
+            dilateRadius: 18,
+            simplifyTolerance: 4,
+            roundness: 0,
+            mode: 'single',
+            sectionCount: 4,
+            startAngleDeg: 0,
+            rawPoints: null,
+            rawW: 0,
+            rawH: 0,
+            rawViewBox: null,
+            points: null,
+            error: null,
+            guideExpanded: false
+        };
+    }
+
+    /**
      * Open the Suggest Shield Bubble panel and kick off the first generation
      * against current default params.
      * @private
@@ -10232,13 +10251,34 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Re-run SvgStructureAnalyzer.analyzeShieldBubble() against the current
-     * panel params and store the raw closed-loop result for the preview
-     * renderer / Accept handler to consume. Triggered explicitly by the
-     * panel's Preview button (not auto-triggered on every param change -
-     * see _renderShieldBubblePanel's docblock for why). analyzeShieldBubble()
-     * has its own two-tier cache (content hash + dilate/simplify params), so
-     * re-previewing a previously-used param combination is cheap.
+     * Cheap, synchronous re-derivation of state.points from state.rawPoints:
+     * simplify (RDP) -> blend toward ellipse -> map to SVG space. Called on
+     * every tolerance/roundness change (live, no debounce needed - this is
+     * O(n) over an already-decimated-by-RDP point count) and once right
+     * after a fresh async raw trace completes. No-op if rawPoints is empty -
+     * callers that touch tolerance/roundness before the first successful
+     * Preview leave state.points as whatever it already was, same as today.
+     * @private
+     */
+    _recomputeShieldBubblePoints() {
+        const state = this._shieldBubbleState;
+        if (!state.rawPoints?.length) return;
+        const simplified = SvgStructureAnalyzer.simplifyClosedPolyline(state.rawPoints, state.simplifyTolerance);
+        const blended = SvgStructureAnalyzer.blendTowardEllipse(simplified, state.roundness);
+        const points = SvgStructureAnalyzer.mapRasterPointsToViewBox(blended, state.rawViewBox, state.rawW, state.rawH);
+        this._shieldBubbleState = { ...this._shieldBubbleState, points };
+    }
+
+    /**
+     * Re-run SvgStructureAnalyzer.analyzeShieldBubbleRaw() against the
+     * current dilate radius and store the raw closed-loop trace for
+     * _recomputeShieldBubblePoints() to consume. Triggered explicitly by the
+     * panel's Preview button - unlike simplifyTolerance/roundness (live,
+     * synchronous, see _recomputeShieldBubblePoints), dilateRadius still
+     * requires an explicit click since it drives the actual expensive
+     * dilate+trace pipeline (see _renderShieldBubblePanel's docblock).
+     * analyzeShieldBubbleRaw() has its own cache (content hash + dilate
+     * radius only), so re-previewing a previously-used radius is cheap.
      * @private
      */
     async _regenerateShieldBubblePreview() {
@@ -10283,15 +10323,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // points are already correct to use as overlay points directly.
             const viewBox = getSvgViewBox(svgContent);
 
-            const points = await SvgStructureAnalyzer.analyzeShieldBubble(svgContent, viewBox, {
-                dilateRadius: this._shieldBubbleState.dilateRadius,
-                simplifyTolerance: this._shieldBubbleState.simplifyTolerance
+            const { points: rawPoints, W: rawW, H: rawH, viewBox: rawViewBox } = await SvgStructureAnalyzer.analyzeShieldBubbleRaw(svgContent, viewBox, {
+                dilateRadius: this._shieldBubbleState.dilateRadius
             });
 
-            this._shieldBubbleState = { ...this._shieldBubbleState, points, loading: false };
+            this._shieldBubbleState = { ...this._shieldBubbleState, rawPoints, rawW, rawH, rawViewBox, loading: false };
+            this._recomputeShieldBubblePoints();
         } catch (e) {
             lcardsLog.error('[MSDStudio] Shield-bubble generation failed:', e);
-            this._shieldBubbleState = { ...this._shieldBubbleState, loading: false, error: e.message, points: null };
+            this._shieldBubbleState = { ...this._shieldBubbleState, loading: false, error: e.message, points: null, rawPoints: null };
         }
         this.requestUpdate();
 
@@ -10306,7 +10346,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _cancelShieldBubble() {
-        this._shieldBubbleState = { ...this._shieldBubbleState, active: false, points: null, error: null };
+        this._shieldBubbleState = {
+            ...this._shieldBubbleState,
+            active: false, points: null, error: null,
+            rawPoints: null, rawW: 0, rawH: 0, rawViewBox: null
+        };
     }
 
     /**
@@ -10380,7 +10424,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 style: { ...baseStyle }
             });
         } else {
-            const sections = SvgStructureAnalyzer.splitBoundaryIntoSections(state.points, state.sectionCount);
+            const sections = SvgStructureAnalyzer.splitBoundaryIntoSections(state.points, state.sectionCount, { startAngleDeg: state.startAngleDeg });
             const names = this._shieldSectionNames(state.sectionCount);
             sections.forEach((pts, i) => {
                 newOverlays.push({
@@ -10395,10 +10439,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         this._setNestedValue('msd.overlays', [...overlays, ...newOverlays]);
-        this._shieldBubbleState = {
-            active: false, loading: false, dilateRadius: 18, simplifyTolerance: 4,
-            mode: 'single', sectionCount: 4, points: null, error: null
-        };
+        this._shieldBubbleState = this._defaultShieldBubbleState();
     }
 
     /**
@@ -10411,15 +10452,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * "spinner replaces button content while busy" pattern is already
      * proven working elsewhere in this codebase, e.g.
      * lcards-storage-explorer-tab.js's Save button), error state,
-     * Accept/Cancel. Changing a param no longer auto-recalculates - the
-     * user reviews the new values and clicks Preview when ready, avoiding
-     * both the recalc-while-still-adjusting UX issue and the debounce/
-     * coalescing complexity that came with trying to auto-trigger safely.
+     * Accept/Cancel. dilateRadius still requires clicking Preview (drives
+     * the expensive dilate+trace pipeline), but simplifyTolerance/roundness
+     * are live - see _recomputeShieldBubblePoints - since they're cheap
+     * synchronous post-processing over an already-traced raw boundary.
      * @returns {TemplateResult}
      * @private
      */
     _renderShieldBubblePanel() {
         const state = this._shieldBubbleState;
+        const sections = state.mode === 'sections' && state.points?.length
+            ? SvgStructureAnalyzer.splitBoundaryIntoSections(state.points, state.sectionCount, { startAngleDeg: state.startAngleDeg })
+            : null;
         return html`
             <lcards-form-section
                 header="Suggest Shield Bubble"
@@ -10454,6 +10498,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 this.requestUpdate();
                             }}>
                         </ha-selector>
+
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { mode: 'box', min: -180, max: 180, step: 1 } }}
+                            .value=${state.startAngleDeg}
+                            .label=${'Section start angle (° from bow, clockwise)'}
+                            @value-changed=${(e) => {
+                                this._shieldBubbleState = { ...this._shieldBubbleState, startAngleDeg: Number(e.detail.value) };
+                                this.requestUpdate();
+                            }}>
+                        </ha-selector>
                     ` : ''}
 
                     <ha-selector
@@ -10467,16 +10522,46 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         }}>
                     </ha-selector>
 
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{ number: { mode: 'box', min: 0, max: 20, step: 0.5 } }}
-                        .value=${state.simplifyTolerance}
-                        .label=${'Simplify tolerance (higher = fewer points)'}
-                        @value-changed=${(e) => {
-                            this._shieldBubbleState = { ...this._shieldBubbleState, simplifyTolerance: Number(e.detail.value) };
-                            this.requestUpdate();
-                        }}>
-                    </ha-selector>
+                    <div class="subform-field-stack" style="gap: var(--ha-space-1);">
+                        <label style="font-size: 14px; color: var(--primary-text-color);">
+                            Simplify tolerance: ${state.simplifyTolerance} (higher = fewer points)
+                        </label>
+                        <input
+                            type="range"
+                            min="0" max="20" step="0.5"
+                            .value=${String(state.simplifyTolerance)}
+                            style="width: 100%;"
+                            @input=${(e) => {
+                                this._shieldBubbleState = { ...this._shieldBubbleState, simplifyTolerance: parseFloat(e.target.value) };
+                                this._recomputeShieldBubblePoints();
+                                this.requestUpdate();
+                            }}>
+                    </div>
+
+                    <div class="subform-field-stack" style="gap: var(--ha-space-1);">
+                        <label style="font-size: 14px; color: var(--primary-text-color);">
+                            Roundness: ${Math.round(state.roundness * 100)}% (blend toward best-fit ellipse)
+                        </label>
+                        <input
+                            type="range"
+                            min="0" max="1" step="0.01"
+                            .value=${String(state.roundness)}
+                            style="width: 100%;"
+                            @input=${(e) => {
+                                this._shieldBubbleState = { ...this._shieldBubbleState, roundness: parseFloat(e.target.value) };
+                                this._recomputeShieldBubblePoints();
+                                this.requestUpdate();
+                            }}>
+                    </div>
+
+                    <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace;">
+                        ${state.points?.length || 0} points
+                        ${sections ? html`
+                            <br>${this._shieldSectionNames(state.sectionCount).map((name, i) => `${name}: ${sections[i]?.length || 0} pts`).join(' · ')}
+                        ` : ''}
+                    </div>
+
+                    ${this._renderShieldBubbleGuide()}
 
                     ${state.error ? html`<lcards-message type="error">${state.error}</lcards-message>` : ''}
 
@@ -10500,6 +10585,49 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </div>
             </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Toggle the "How shield bubble generation works" info guide open/closed.
+     * A plain boolean (not a Set-indexed pattern like the animation/filter
+     * editors' per-index guides) since there's exactly one non-repeating
+     * shield-bubble panel, not a list of items each needing independent
+     * expand state.
+     * @private
+     */
+    _toggleShieldBubbleGuide() {
+        this._shieldBubbleState = { ...this._shieldBubbleState, guideExpanded: !this._shieldBubbleState.guideExpanded };
+        this.requestUpdate();
+    }
+
+    /**
+     * Collapsible "How shield bubble generation works" guide, explaining
+     * dilate radius / simplify tolerance / roundness with an illustrative
+     * diagram. Reuses the same preset-info-guide markup/classes as
+     * lcards-animation-editor.js's _renderPresetInfoGuide and
+     * lcards-filter-editor.js's equivalent.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShieldBubbleGuide() {
+        const expanded = this._shieldBubbleState.guideExpanded;
+        return html`
+            <div class="preset-info-guide">
+                <div class="preset-info-guide-header" @click=${() => this._toggleShieldBubbleGuide()}>
+                    <ha-icon icon="mdi:information-outline"></ha-icon>
+                    <span>How shield bubble generation works</span>
+                    <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
+                </div>
+                ${expanded ? html`
+                    <div class="preset-info-guide-body">
+                        <p><strong>Dilate radius</strong> offsets the traced boundary outward from the ship's own silhouette by this many pixels before tracing. This is the expensive step - it only re-runs when you click Preview.</p>
+                        <p><strong>Simplify tolerance</strong> reduces the point count by dropping points that don't meaningfully change the outline's shape (corner-preserving simplification) - higher values mean fewer points but a coarser silhouette. Updates live as you drag.</p>
+                        <p><strong>Roundness</strong> blends the traced outline toward a smooth best-fit oval, from 0% (exact traced shape) to 100% (pure ellipse) - useful for a cleaner, more stylized shield-bubble look instead of a literal hull outline. Updates live as you drag.</p>
+                        <lcards-shield-bubble-diagram></lcards-shield-bubble-diagram>
+                    </div>
+                ` : ''}
+            </div>
         `;
     }
 
@@ -10529,7 +10657,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (state.mode === 'single') {
             svgContent = `<path d="${toPath(state.points, true)}" fill="rgba(255,159,10,0.15)" stroke="#FF9F0A" stroke-width="2" stroke-dasharray="6,4" />`;
         } else {
-            const sections = SvgStructureAnalyzer.splitBoundaryIntoSections(state.points, state.sectionCount);
+            const sections = SvgStructureAnalyzer.splitBoundaryIntoSections(state.points, state.sectionCount, { startAngleDeg: state.startAngleDeg });
             const palette = ['#FF9F0A', '#0AFFEF', '#FF0A8C', '#8CFF0A', '#0A8CFF', '#FF0A0A', '#FFF00A', '#B00AFF'];
             svgContent = sections.map((pts, i) =>
                 `<path d="${toPath(pts, false)}" fill="none" stroke="${palette[i % palette.length]}" stroke-width="3" stroke-dasharray="6,4" />`
