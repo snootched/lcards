@@ -1369,7 +1369,7 @@ export class LCARdSSoundConfigTab extends LitElement {
         <!-- ── LOADING / SETTINGS BODY ── -->
         ${(this._scopedLoading && !isAdminTarget) || this._scopedOverridesLoading ? html`
           <div class="scoped-loading">
-            <ha-circular-progress indeterminate size="s"></ha-circular-progress>
+            <ha-spinner size="small"></ha-spinner>
             Loading…
           </div>
         ` : html`

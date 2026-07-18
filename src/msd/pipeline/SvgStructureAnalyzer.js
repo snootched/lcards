@@ -255,6 +255,41 @@ function dilate(mask, W, H, radius) {
   return out;
 }
 
+// Same computation as dilate(), but yields back to the event loop every few
+// rows instead of running as one uninterrupted O(W*H*radius^2) block. Used
+// specifically for analyzeShieldBubble()'s dilate step, which (unlike
+// closeMask()'s one-time, cached, fixed-small-radius dilate) re-runs at a
+// user-controlled radius on every Preview click, over a raster padMask()
+// already grew to accommodate that same radius - the cost compounds
+// multiplicatively at high radius values and was measured to genuinely
+// freeze the tab (not just "feel slow") for several seconds, blocking even
+// devtools interaction. Yielding trades a bit of total wall-clock time for
+// keeping the main thread responsive and letting the browser actually paint
+// (the loading spinner) throughout, not just once before blocking.
+async function dilateAsync(mask, W, H, radius) {
+  const out = new Uint8Array(W * H);
+  const r2 = radius * radius;
+  const YIELD_EVERY_ROWS = 8;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (mask[y * W + x]) { out[y * W + x] = 1; continue; }
+      let hit = false;
+      for (let dy = -radius; dy <= radius && !hit; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (dx * dx + dy * dy > r2) continue;
+          const xx = x + dx, yy = y + dy;
+          if (xx >= 0 && yy >= 0 && xx < W && yy < H && mask[yy * W + xx]) { hit = true; break; }
+        }
+      }
+      out[y * W + x] = hit ? 1 : 0;
+    }
+    if (y % YIELD_EVERY_ROWS === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+  return out;
+}
+
 function erode(mask, W, H, radius) {
   const out = new Uint8Array(W * H);
   const r2 = radius * radius;
@@ -280,6 +315,25 @@ function erode(mask, W, H, radius) {
 // unlike dilation alone.
 function closeMask(mask, W, H, radius) {
   return erode(dilate(mask, W, H, radius), W, H, radius);
+}
+
+// Embed a mask into a larger, zero-padded array of size (W+2*pad, H+2*pad).
+// getOrBuildMask's mask is tight to the SVG's own native silhouette - zero
+// margin - so dilating right up against its raster edge silently clips the
+// growth exactly there, no matter how large a radius is requested. Shield-
+// bubble analysis needs room to grow beyond the native artwork's own
+// bounds (e.g. into a much larger custom view_box with space to spare), so
+// it pads before dilating; anchor detection doesn't need this and keeps
+// using the tight, shared, unpadded mask as-is.
+function padMask(mask, W, H, pad) {
+  const paddedW = W + pad * 2, paddedH = H + pad * 2;
+  const out = new Uint8Array(paddedW * paddedH);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (mask[y * W + x]) out[(y + pad) * paddedW + (x + pad)] = 1;
+    }
+  }
+  return { mask: out, W: paddedW, H: paddedH };
 }
 
 function largestConnectedComponent(mask, W, H) {
@@ -357,6 +411,23 @@ function anchorsFromMask(mask, W, H, viewBox) {
   return result;
 }
 
+function angleFromCentroidDeg(point, centroid) {
+  return Math.atan2(point[1] - centroid.y, point[0] - centroid.x) * 180 / Math.PI;
+}
+
+// Same idea as RouterCore._computeManual's "remove duplicate consecutive
+// points" pass - the seeded boundary point at a section's seam can land
+// extremely close to (or exactly on top of) the adjacent raw data point.
+function dedupeConsecutive(points) {
+  const out = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const [px, py] = out[out.length - 1];
+    const [x, y] = points[i];
+    if (Math.hypot(x - px, y - py) > 1e-6) out.push(points[i]);
+  }
+  return out;
+}
+
 export class SvgStructureAnalyzer {
   /**
    * @param {string} svgContent
@@ -388,17 +459,161 @@ export class SvgStructureAnalyzer {
 
     try {
       const { mask, W, H } = await getOrBuildMask(svgContent, viewBox);
-      const shieldMask = dilate(mask, W, H, dilateRadius);
-      const start = findStart(shieldMask, W, H);
+      // Pad by the dilate radius (plus a small buffer so the boundary trace
+      // has room to walk the fully-rounded dilation shape without hitting
+      // the padded array's own edge and clipping it flat) - see padMask().
+      const pad = Math.ceil(dilateRadius) + 4;
+      const { mask: paddedMask, W: paddedW, H: paddedH } = padMask(mask, W, H, pad);
+      const shieldMask = await dilateAsync(paddedMask, paddedW, paddedH, dilateRadius);
+      const start = findStart(shieldMask, paddedW, paddedH);
       if (!start) return [];
-      const raw = traceBoundary(shieldMask, W, H, start[0], start[1]);
+      const raw = traceBoundary(shieldMask, paddedW, paddedH, start[0], start[1]);
       const simplified = simplifyPolyline(raw, simplifyTolerance);
-      const points = simplified.map(([x, y]) => rasterToSvgPoint(x, y, viewBox, W, H));
+      // Un-pad back to the original (native) raster's coordinate origin
+      // before mapping to SVG space - rasterToSvgPoint's scale factor is
+      // derived from the original W/H, not the padded dimensions.
+      const points = simplified.map(([x, y]) => rasterToSvgPoint(x - pad, y - pad, viewBox, W, H));
       cacheSet(_shieldCache, _shieldCacheOrder, cacheKey, points);
       return points;
     } catch (e) {
       lcardsLog.warn('[SvgStructureAnalyzer] Shield-bubble computation failed', e);
       return [];
     }
+  }
+
+  /**
+   * Split a closed boundary polyline (as returned by analyzeShieldBubble)
+   * into N open sub-polylines of EQUAL ARC LENGTH along the already-traced
+   * perimeter, each sharing an exact interpolated boundary point with its
+   * neighbors so adjacent sections render with no visible gap between them.
+   *
+   * Deliberately arc-length-based, not angle-from-centroid-based (an earlier
+   * version bucketed points by angle-from-centroid while walking the trace,
+   * assuming that angle increases ~monotonically once per revolution - true
+   * for a simple, roughly convex/star-shaped hull, but false for a strongly
+   * non-convex one, e.g. twin nacelles on pylons far out to the sides: the
+   * angle-from-centroid genuinely doubles back locally while tracing along a
+   * nacelle's outer edge, which silently stitched unrelated, non-adjacent
+   * arcs of the perimeter into the same "section" - confirmed via real
+   * NCC-1701 output showing 300-600 unit teleport jumps within single
+   * sections). Cutting by arc length instead has no such assumption to
+   * violate: walking forward along a simple closed curve, distance traveled
+   * only ever increases, so there is no "did it backtrack" ambiguity,
+   * regardless of how non-convex the shape is.
+   *
+   * startAngleDeg (0 = +X axis, SVG/raster space y-down, increasing
+   * clockwise) is used ONLY to choose which arc-length position section 0 is
+   * CENTERED on - purely a labeling/orientation choice (e.g. so a caller's
+   * "fore" section actually sits near the bow), entirely decoupled from how
+   * section sizes are computed. In this file's own anchor convention
+   * (detectAnchors above), extremity_bow sits at maxX - i.e. the bow/fore
+   * direction is +X - so the default startAngleDeg=0 centers section 0 near
+   * the bow, matching the 4-way 'fore' name a caller assigns to it.
+   *
+   * @param {Array<[number,number]>} closedPoints - ordered closed-loop boundary
+   * @param {number} sectionCount - N >= 2
+   * @param {{startAngleDeg?: number}} [options]
+   * @returns {Array<Array<[number,number]>>} sectionCount open polylines, each
+   *   with >= 2 points, ordered starting from startAngleDeg going clockwise;
+   *   section i's last point === section (i+1) % N's first point (by value).
+   */
+  static splitBoundaryIntoSections(closedPoints, sectionCount, { startAngleDeg = 0 } = {}) {
+    if (!Array.isArray(closedPoints) || !Number.isInteger(sectionCount) || sectionCount < 2 ||
+        closedPoints.length < sectionCount * 2) {
+      return [];
+    }
+
+    const n = closedPoints.length;
+    let cx = 0, cy = 0;
+    for (const [x, y] of closedPoints) { cx += x; cy += y; }
+    const centroid = { x: cx / n, y: cy / n };
+
+    // Per-segment lengths in original trace order (segLen[i] = distance from
+    // closedPoints[i] to closedPoints[(i+1)%n]; segLen[n-1] is the closing
+    // segment), and each point's cumulative arc-length position.
+    const segLen = new Array(n);
+    const cumAtIdx = new Array(n);
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      cumAtIdx[i] = acc;
+      const a = closedPoints[i], b = closedPoints[(i + 1) % n];
+      segLen[i] = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      acc += segLen[i];
+    }
+    const totalLength = acc;
+    if (totalLength <= 0) return [];
+    const sectionLength = totalLength / sectionCount;
+    const mod = (v) => ((v % totalLength) + totalLength) % totalLength;
+
+    // Pick the point whose angle-from-centroid is closest to startAngleDeg -
+    // a pure labeling choice (section 0's arc-length center), unrelated to
+    // how the actual cuts are computed below.
+    let bowIdx = 0, bestDiff = Infinity;
+    for (let i = 0; i < n; i++) {
+      const diff = Math.abs(((angleFromCentroidDeg(closedPoints[i], centroid) - startAngleDeg + 540) % 360) - 180);
+      if (diff < bestDiff) { bestDiff = diff; bowIdx = i; }
+    }
+
+    // Rotate the traversal to start exactly at section 0's own opening cut
+    // (bowIdx's arc-length position, offset back by half a section) rather
+    // than at closedPoints[0] (wherever traceBoundary()/findStart() happened
+    // to begin) - same reasoning as the earlier angle-based version: the
+    // slice active at the array's wrap point would otherwise get its closing
+    // boundary computed before its opening one.
+    const firstCut = mod(cumAtIdx[bowIdx] - sectionLength / 2);
+    let rotateStart = 0;
+    for (let i = 0; i < n; i++) {
+      if (cumAtIdx[i] >= firstCut) { rotateStart = i; break; }
+    }
+
+    // Seed section 0's exact opening point once and reuse the identical
+    // value as the closing point of whichever section is active at the very
+    // end of the walk, guaranteeing they're exactly equal (not just close).
+    const seedPrevIdx = (rotateStart - 1 + n) % n;
+    const seedPrevLen = cumAtIdx[seedPrevIdx];
+    const seedLen = cumAtIdx[rotateStart];
+    const seedLenUnwrapped = seedLen < seedPrevLen ? seedLen + totalLength : seedLen;
+    const seedStep = seedLenUnwrapped - seedPrevLen;
+    const seedFrac = seedStep > 0 ? (mod(firstCut - seedPrevLen)) / seedStep : 0;
+    const a0 = closedPoints[seedPrevIdx], b0 = closedPoints[rotateStart];
+    const seedPt = [a0[0] + (b0[0] - a0[0]) * seedFrac, a0[1] + (b0[1] - a0[1]) * seedFrac];
+
+    const sections = Array.from({ length: sectionCount }, () => []);
+    let currentSlice = 0;
+    sections[0].push(seedPt, closedPoints[rotateStart]);
+    let cum = 0; // arc length walked since rotateStart, in this rotated frame - always increasing
+
+    for (let k = 1; k < n; k++) {
+      const idx = (rotateStart + k) % n;
+      const prevIdx = (rotateStart + k - 1) % n;
+      const stepLen = segLen[prevIdx];
+      const prevCum = cum;
+      cum += stepLen;
+
+      // Walk every section boundary crossed within this one segment -
+      // usually zero or one, but a very fine sectionCount relative to a long
+      // segment can cross more than one.
+      let boundary = (currentSlice + 1) * sectionLength;
+      let guard = 0;
+      while (boundary <= cum && guard++ <= sectionCount) {
+        const frac = stepLen > 0 ? (boundary - prevCum) / stepLen : 0;
+        const a = closedPoints[prevIdx], b = closedPoints[idx];
+        const cutPt = [a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac];
+        const nextSlice = (currentSlice + 1) % sectionCount;
+        sections[currentSlice].push(cutPt);
+        sections[nextSlice].push(cutPt);
+        currentSlice = nextSlice;
+        boundary += sectionLength;
+      }
+
+      sections[currentSlice].push(closedPoints[idx]);
+    }
+
+    // Close the loop: whichever section is active after processing all
+    // remaining points must end exactly back at seedPt (reused, not
+    // recomputed, for exact equality with section 0's own first point).
+    sections[currentSlice].push(seedPt);
+
+    return sections.map(dedupeConsecutive);
   }
 }

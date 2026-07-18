@@ -35,6 +35,7 @@ import { editorStyles } from '../base/editor-styles.js';
 import { OverlayUtils } from '../../msd/renderer/OverlayUtils.js';
 import { RouterCore } from '../../msd/routing/RouterCore.js';
 import { LineOverlay } from '../../msd/overlays/LineOverlay.js';
+import { SvgStructureAnalyzer } from '../../msd/pipeline/SvgStructureAnalyzer.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
 import '../components/editors/lcards-color-section.js';
@@ -74,6 +75,16 @@ const MODES = {
     ADD_WAYPOINT: 'add_waypoint',
     DRAW_SHAPE: 'draw_shape'
 };
+
+// Above this many points, a polyline shape's per-vertex X/Y form (one
+// un-virtualized row per point, two ha-selector number inputs each) is
+// slow/heavy enough to freeze the browser tab on open - found via a
+// bulk-generated Suggest Shield Bubble shape with 800+ YAML lines' worth of
+// points. Gated in _renderShapeFormGeometry() rather than virtualized/paged:
+// hand-editing hundreds of individual coordinates via number spinners isn't
+// a realistic workflow anyway - canvas drag-to-edit or the YAML tab are the
+// actually-usable paths for a shape this large.
+const MAX_INLINE_EDITABLE_SHAPE_POINTS = 60;
 
 // Tab constants
 const TABS = {
@@ -161,6 +172,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _shapeDragState: { type: Object, state: true },
             _shapeResizeState: { type: Object, state: true },
             _shapeVertexDragState: { type: Object, state: true },
+            // Shield-Bubble Suggest - editor-only ephemeral state, never persisted to
+            // config (matches the _showBoundingBoxes/_baseSvgPreviewDimmed precedent,
+            // not a config flag - see .github/instructions/msd.instructions.md)
+            _shieldBubbleState: { type: Object, state: true },
             // Channels Tab Properties
             _editingChannelId: { type: String, state: true },
             _channelFormData: { type: Object, state: true },
@@ -362,6 +377,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
             points: [],
             drawing: false,
             currentPoint: null
+        };
+        this._shieldBubbleState = {
+            active: false,
+            loading: false,
+            dilateRadius: 18,
+            simplifyTolerance: 4,
+            mode: 'single',
+            sectionCount: 4,
+            points: null,
+            error: null
         };
 
         // Shape edit-mode state
@@ -6246,6 +6271,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const selectedShape = overlays.find(o => o.id === this._selectedShapeId && o.type === 'shape' && o.kind === 'polyline');
         // @ts-ignore - TS2322: auto-suppressed
         if (!selectedShape || !Array.isArray(selectedShape.points) || selectedShape.points.length === 0) return '';
+        // Same cap as _renderShapeFormGeometry's points-form gate, and for
+        // the same reason: one interactive draggable marker <div> per point,
+        // re-rendered far more often than the form (canvas mousemove, not
+        // just form-open) - the dominant real cost for a bulk-generated
+        // shape with hundreds of points. Drag-to-edit isn't a realistic way
+        // to adjust that many points anyway; the YAML tab is.
+        if (selectedShape.points.length > MAX_INLINE_EDITABLE_SHAPE_POINTS) return '';
 
         const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
         // @ts-ignore - TS2322: auto-suppressed
@@ -7665,6 +7697,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             if (shape.kind === 'polyline') {
                 if (!Array.isArray(shape.points)) return '';
+                // Same cap as _renderShapeFormGeometry/_renderShapeVertexMarkers,
+                // and more consequential here: this runs for EVERY polyline
+                // shape at once (not just a selected one) whenever the
+                // Attachment Points toggle or Connect Mode is active.
+                if (shape.points.length > MAX_INLINE_EDITABLE_SHAPE_POINTS) return '';
                 return shape.points.map((pt, i) => {
                     if (!Array.isArray(pt) || pt.length < 2) return '';
                     const pixelPos = toPixelPos(pt[0], pt[1]);
@@ -10099,6 +10136,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <ha-icon icon="mdi:plus" slot="start"></ha-icon>
                         Add Shape
                     </ha-button>
+                    <ha-button @click=${() => this._openShieldBubblePanel()} ?disabled=${!this._hasBaseSvgContent()}>
+                        <ha-icon icon="mdi:shield-outline" slot="start"></ha-icon>
+                        Suggest Shield Bubble
+                    </ha-button>
 
                     <!-- Right-aligned visualization helpers -->
                     <div style="flex: 1;"></div>
@@ -10115,6 +10156,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <ha-icon icon="mdi:target-variant"></ha-icon>
                     </ha-icon-button>
                 </div>
+
+                ${this._shieldBubbleState?.active ? this._renderShieldBubblePanel() : ''}
 
                 <lcards-form-section
                     header="Shape Overlays"
@@ -10160,6 +10203,345 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <li>Lines can attach to a shape's corners (rectangle/circle) or vertices (polyline) just like they attach to controls</li>
                 </ul>
             </lcards-message>
+        `;
+    }
+
+    /**
+     * Whether the card currently has a usable base_svg to analyze (source set
+     * and not 'none'). Gates the Suggest Shield Bubble trigger button so it's
+     * disabled rather than failing after a click - the live preview is
+     * already rendering this exact base_svg by the time a user is on the
+     * Shapes tab, so the asset registry entry is populated in the
+     * overwhelming common case.
+     * @returns {boolean}
+     * @private
+     */
+    _hasBaseSvgContent() {
+        const source = this._workingConfig.msd?.base_svg?.source;
+        return !!source && source !== 'none';
+    }
+
+    /**
+     * Open the Suggest Shield Bubble panel and kick off the first generation
+     * against current default params.
+     * @private
+     */
+    async _openShieldBubblePanel() {
+        this._shieldBubbleState = { ...this._shieldBubbleState, active: true, error: null };
+        await this._regenerateShieldBubblePreview();
+    }
+
+    /**
+     * Re-run SvgStructureAnalyzer.analyzeShieldBubble() against the current
+     * panel params and store the raw closed-loop result for the preview
+     * renderer / Accept handler to consume. Triggered explicitly by the
+     * panel's Preview button (not auto-triggered on every param change -
+     * see _renderShieldBubblePanel's docblock for why). analyzeShieldBubble()
+     * has its own two-tier cache (content hash + dilate/simplify params), so
+     * re-previewing a previously-used param combination is cheap.
+     * @private
+     */
+    async _regenerateShieldBubblePreview() {
+        const source = this._workingConfig.msd?.base_svg?.source;
+        if (!source || source === 'none') return;
+        if (this._shieldBubbleState.loading) {
+            // Already computing - remember to run again with whatever the
+            // latest params are once this one finishes, instead of silently
+            // dropping the newer request. The Preview button disables while
+            // loading, so this is mainly a defensive backstop against a
+            // double-click landing before that disabled state commits.
+            this._shieldBubblePendingRegenerate = true;
+            return;
+        }
+
+        this._shieldBubbleState = { ...this._shieldBubbleState, loading: true, error: null };
+        this.requestUpdate();
+        // Force a real paint before the (mostly-synchronous, once the mask
+        // is cached) analyzeShieldBubble() call below blocks the main
+        // thread - without this, the loading:true DOM update above never
+        // gets a chance to actually render before dilate()/traceBoundary()'s
+        // tight CPU loops start.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        try {
+            const { getSvgContent, getSvgViewBox } = await import('../../utils/lcards-anchor-helpers.js');
+            const svgContent = getSvgContent(source);
+            if (!svgContent) throw new Error('Base SVG not yet loaded');
+            // Deliberately the SVG's own NATIVE viewBox, not the card's
+            // effective/custom view_box (resolveEffectiveViewBox) - mirrors
+            // ConfigProcessor.js's analyzeAnchors() call and its own comment:
+            // SvgStructureAnalyzer rasterizes the raw, unwrapped svgContent
+            // string, which only ever renders at its own native viewBox
+            // regardless of any card-level pan/crop override. Passing the
+            // custom viewBox instead (this function's original bug) sizes
+            // the raster canvas for the WRONG box, so drawImage force-
+            // stretches the actual (native-sized) artwork to fill it -
+            // producing a translated (native origin != custom origin) and/or
+            // severely rescaled (native size != custom size) silhouette.
+            // Content coordinates don't change with a pan/crop view_box
+            // (same reasoning as computed anchors), so native-space output
+            // points are already correct to use as overlay points directly.
+            const viewBox = getSvgViewBox(svgContent);
+
+            const points = await SvgStructureAnalyzer.analyzeShieldBubble(svgContent, viewBox, {
+                dilateRadius: this._shieldBubbleState.dilateRadius,
+                simplifyTolerance: this._shieldBubbleState.simplifyTolerance
+            });
+
+            this._shieldBubbleState = { ...this._shieldBubbleState, points, loading: false };
+        } catch (e) {
+            lcardsLog.error('[MSDStudio] Shield-bubble generation failed:', e);
+            this._shieldBubbleState = { ...this._shieldBubbleState, loading: false, error: e.message, points: null };
+        }
+        this.requestUpdate();
+
+        if (this._shieldBubblePendingRegenerate) {
+            this._shieldBubblePendingRegenerate = false;
+            await this._regenerateShieldBubblePreview();
+        }
+    }
+
+    /**
+     * Close the panel without committing anything - no config mutation.
+     * @private
+     */
+    _cancelShieldBubble() {
+        this._shieldBubbleState = { ...this._shieldBubbleState, active: false, points: null, error: null };
+    }
+
+    /**
+     * Section id name list for a given section count, ordered to match
+     * SvgStructureAnalyzer.splitBoundaryIntoSections()'s traversal order
+     * (slice 0 at startAngleDeg=0 = the bow/+X side per that method's own
+     * JSDoc, proceeding around the loop). All names share the `shield_`
+     * prefix so `pattern:^shield_` bulk-targets every section (and the
+     * single-shape `shield_bubble` id) uniformly in RulesEngine rules.
+     * @param {number} count
+     * @returns {string[]}
+     * @private
+     */
+    _shieldSectionNames(count) {
+        if (count === 4) return ['shield_fore', 'shield_starboard', 'shield_aft', 'shield_port'];
+        return Array.from({ length: count }, (_, i) => `shield_section_${i + 1}`);
+    }
+
+    /**
+     * Generate a unique overlay id from a desired base name: use it as-is if
+     * free, otherwise suffix _2, _3, ... Distinct from _generateShapeId()
+     * (always produces shape_N off the shape count) since shield-bubble ids
+     * need semantic, pattern:-matchable names instead.
+     * @param {string} base
+     * @returns {string}
+     * @private
+     */
+    _generateUniqueOverlayId(base) {
+        const overlays = this._workingConfig.msd?.overlays || [];
+        if (!overlays.find(o => o.id === base)) return base;
+        let n = 2;
+        while (overlays.find(o => o.id === `${base}_${n}`)) n++;
+        return `${base}_${n}`;
+    }
+
+    /**
+     * Commit the current shield-bubble preview as one or more real
+     * shape/polyline overlays. Follows _duplicateShape's established
+     * "already-have-a-complete-overlay, just append" idiom (_setNestedValue)
+     * rather than _saveShape() - that method reads from the single-shape
+     * edit-form's own instance state, not a passed-in overlay object, so
+     * it's the wrong shape of function for a batch generate-and-add action.
+     * @private
+     */
+    _acceptShieldBubble() {
+        const state = this._shieldBubbleState;
+        if (!state?.points?.length) return;
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const newOverlays = [];
+
+        // Stroke-only default: a shield-bubble's typical use is a
+        // highlight/animation outline (glow/march/draw presets tracing the
+        // hull), and a filled shape would occlude the artwork underneath -
+        // fully editable afterward via the normal Edit flow.
+        const baseStyle = {
+            color: { default: 'var(--lcars-orange)' },
+            width: 2,
+            opacity: 0.9,
+            fill: { default: 'none' },
+            fill_opacity: 1
+        };
+
+        if (state.mode === 'single') {
+            newOverlays.push({
+                type: 'shape',
+                kind: 'polyline',
+                id: this._generateUniqueOverlayId('shield_bubble'),
+                points: state.points,
+                closed: true,
+                style: { ...baseStyle }
+            });
+        } else {
+            const sections = SvgStructureAnalyzer.splitBoundaryIntoSections(state.points, state.sectionCount);
+            const names = this._shieldSectionNames(state.sectionCount);
+            sections.forEach((pts, i) => {
+                newOverlays.push({
+                    type: 'shape',
+                    kind: 'polyline',
+                    id: this._generateUniqueOverlayId(names[i]),
+                    points: pts,
+                    closed: false,
+                    style: { ...baseStyle }
+                });
+            });
+        }
+
+        this._setNestedValue('msd.overlays', [...overlays, ...newOverlays]);
+        this._shieldBubbleState = {
+            active: false, loading: false, dilateRadius: 18, simplifyTolerance: 4,
+            mode: 'single', sectionCount: 4, points: null, error: null
+        };
+    }
+
+    /**
+     * Render the Suggest Shield Bubble control panel: mode toggle, section
+     * count (sections mode only), dilate-radius/simplify-tolerance controls,
+     * an explicit Preview button (spinner rendered inline inside the button
+     * itself while loading - deliberately not a standalone spinner element:
+     * a free-floating <ha-spinner> here proved impossible to visually
+     * confirm across several rounds of fixes/debugging, whereas this exact
+     * "spinner replaces button content while busy" pattern is already
+     * proven working elsewhere in this codebase, e.g.
+     * lcards-storage-explorer-tab.js's Save button), error state,
+     * Accept/Cancel. Changing a param no longer auto-recalculates - the
+     * user reviews the new values and clicks Preview when ready, avoiding
+     * both the recalc-while-still-adjusting UX issue and the debounce/
+     * coalescing complexity that came with trying to auto-trigger safely.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShieldBubblePanel() {
+        const state = this._shieldBubbleState;
+        return html`
+            <lcards-form-section
+                header="Suggest Shield Bubble"
+                description="Generate a shield-bubble outline (or angular sections) from the base SVG's own silhouette. Adjust settings, then click Preview. Nothing is saved to config until you Accept."
+                icon="mdi:shield-outline"
+                ?expanded=${true}
+                style="margin-bottom: 16px;">
+
+                <div class="subform-field-stack">
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ select: { options: [
+                            { value: 'single', label: 'Single shape' },
+                            { value: 'sections', label: 'N sections' }
+                        ] } }}
+                        .value=${state.mode}
+                        .label=${'Mode'}
+                        @value-changed=${(e) => {
+                            this._shieldBubbleState = { ...this._shieldBubbleState, mode: e.detail.value };
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
+
+                    ${state.mode === 'sections' ? html`
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { mode: 'box', min: 2, max: 16, step: 1 } }}
+                            .value=${state.sectionCount}
+                            .label=${'Section count'}
+                            @value-changed=${(e) => {
+                                this._shieldBubbleState = { ...this._shieldBubbleState, sectionCount: Number(e.detail.value) };
+                                this.requestUpdate();
+                            }}>
+                        </ha-selector>
+                    ` : ''}
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ number: { mode: 'box', min: 0, max: 100, step: 1 } }}
+                        .value=${state.dilateRadius}
+                        .label=${'Dilate radius (px offset from hull)'}
+                        @value-changed=${(e) => {
+                            this._shieldBubbleState = { ...this._shieldBubbleState, dilateRadius: Number(e.detail.value) };
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ number: { mode: 'box', min: 0, max: 20, step: 0.5 } }}
+                        .value=${state.simplifyTolerance}
+                        .label=${'Simplify tolerance (higher = fewer points)'}
+                        @value-changed=${(e) => {
+                            this._shieldBubbleState = { ...this._shieldBubbleState, simplifyTolerance: Number(e.detail.value) };
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
+
+                    ${state.error ? html`<lcards-message type="error">${state.error}</lcards-message>` : ''}
+
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <ha-button @click=${() => this._regenerateShieldBubblePreview()} ?disabled=${state.loading}>
+                            ${state.loading ? html`
+                                <ha-spinner size="small" slot="start"></ha-spinner>
+                                Generating…
+                            ` : html`
+                                <ha-icon icon="mdi:refresh" slot="start"></ha-icon>
+                                Preview
+                            `}
+                        </ha-button>
+                        <ha-button @click=${() => this._acceptShieldBubble()} ?disabled=${!state.points?.length || state.loading}>
+                            <ha-icon icon="mdi:check" slot="start"></ha-icon>
+                            Accept
+                        </ha-button>
+                        <ha-button @click=${() => this._cancelShieldBubble()}>
+                            Cancel
+                        </ha-button>
+                    </div>
+                </div>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Ephemeral (never-saved) preview of the current shield-bubble
+     * generation, shown on the live canvas while the Suggest panel is open.
+     * Single mode: one dashed closed outline. Sections mode:
+     * SvgStructureAnalyzer.splitBoundaryIntoSections() applied to the same
+     * points, each section in a distinct color so boundaries are visually
+     * obvious before commit.
+     * @returns {TemplateResult|string}
+     * @private
+     */
+    _renderShieldBubblePreview() {
+        const state = this._shieldBubbleState;
+        if (!state?.active || !state.points?.length) return '';
+
+        const vbToPixel = this._getViewBoxToPixelConverter();
+        if (!vbToPixel) return '';
+
+        const toPath = (pts, closed) => {
+            const pixelPts = pts.map(p => vbToPixel(p[0], p[1]));
+            return pixelPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0]} ${p[1]}`).join(' ') + (closed ? ' Z' : '');
+        };
+
+        let svgContent;
+        if (state.mode === 'single') {
+            svgContent = `<path d="${toPath(state.points, true)}" fill="rgba(255,159,10,0.15)" stroke="#FF9F0A" stroke-width="2" stroke-dasharray="6,4" />`;
+        } else {
+            const sections = SvgStructureAnalyzer.splitBoundaryIntoSections(state.points, state.sectionCount);
+            const palette = ['#FF9F0A', '#0AFFEF', '#FF0A8C', '#8CFF0A', '#0A8CFF', '#FF0A0A', '#FFF00A', '#B00AFF'];
+            svgContent = sections.map((pts, i) =>
+                `<path d="${toPath(pts, false)}" fill="none" stroke="${palette[i % palette.length]}" stroke-width="3" stroke-dasharray="6,4" />`
+            ).join('');
+        }
+
+        return html`
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000;">
+                <svg style="width: 100%; height: 100%; position: absolute;">
+                    ${unsafeSVG(svgContent)}
+                </svg>
+            </div>
         `;
     }
 
@@ -12140,7 +12522,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 ${kind === 'polyline' ? html`
                     <lcards-form-section header="Points" description="Ordered vertex list, in viewBox units" icon="mdi:vector-point" ?expanded=${true}>
-                        ${(this._shapeFormData.points || []).map((pt, i) => html`
+                        ${(this._shapeFormData.points || []).length > MAX_INLINE_EDITABLE_SHAPE_POINTS ? html`
+                            <lcards-message type="info">
+                                <strong>${(this._shapeFormData.points || []).length} points — too many to edit individually here.</strong>
+                                <p style="margin: 8px 0; font-size: 13px;">
+                                    Rendering one row per point (X/Y fields) for a shape this large freezes the
+                                    browser. Drag points directly on the canvas, or edit the raw
+                                    coordinates in the YAML tab instead.
+                                </p>
+                                <ha-button
+                                    @click=${() => {
+                                        this._closeShapeForm();
+                                        this._activeTab = TABS.YAML;
+                                        this.requestUpdate();
+                                    }}>
+                                    <ha-icon icon="mdi:code-braces" slot="start"></ha-icon>
+                                    Edit in YAML
+                                </ha-button>
+                            </lcards-message>
+                        ` : (this._shapeFormData.points || []).map((pt, i) => html`
                             <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
                                 <span style="width: 20px; font-size: 12px; color: var(--secondary-text-color);">${i + 1}</span>
                                 <ha-selector
@@ -12181,6 +12581,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 </ha-icon-button>
                             </div>
                         `)}
+                        ${(this._shapeFormData.points || []).length > MAX_INLINE_EDITABLE_SHAPE_POINTS ? '' : html`
                         <ha-button
                             @click=${() => {
                                 const points = [...(this._shapeFormData.points || [])];
@@ -12193,6 +12594,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <ha-icon icon="mdi:plus" slot="start"></ha-icon>
                             Add Point
                         </ha-button>
+                        `}
 
                         <ha-selector
                             style="margin-top: 16px; display: block;"
@@ -15361,6 +15763,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <!-- Overlays rendered OUTSIDE scroll container to prevent scroll affecting them -->
                             ${this._renderDrawChannelOverlay()}
                             ${this._renderDrawShapeOverlay()}
+                            ${this._renderShieldBubblePreview()}
                             ${this._renderCrosshairGuidelines()}
                             ${this._renderGridOverlay()}
                             ${this._renderAnchorMarkers()}

@@ -1317,7 +1317,7 @@ export class LCARdSTemplateSandbox extends LitElement {
     if (this._isEvaluating) {
       return html`
         <div class="loading-indicator">
-          <ha-circular-progress indeterminate size="s"></ha-circular-progress>
+          <ha-spinner size="small"></ha-spinner>
           <span>Evaluating template...</span>
         </div>
       `;
@@ -1449,7 +1449,7 @@ export class LCARdSTemplateSandbox extends LitElement {
     if (this._isEvaluating) {
       return html`
         <div class="loading-indicator">
-          <ha-circular-progress indeterminate size="s"></ha-circular-progress>
+          <ha-spinner size="small"></ha-spinner>
           <span>Evaluating template...</span>
         </div>
       `;

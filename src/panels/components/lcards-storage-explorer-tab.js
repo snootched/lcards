@@ -343,7 +343,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
           <!-- ── LOADING ── -->
           ${this._loading ? html`
             <div class="loading-row">
-              <ha-circular-progress indeterminate size="s"></ha-circular-progress>
+              <ha-spinner size="small"></ha-spinner>
               <span>Loading storage…</span>
             </div>
           ` : ''}
@@ -432,7 +432,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
               @click=${(e) => { e.stopPropagation(); this._saveEdit(key); }}
               ?disabled=${isSaving}
             >
-              ${isSaving ? html`<ha-circular-progress indeterminate size="s"></ha-circular-progress>` : 'Save'}
+              ${isSaving ? html`<ha-spinner size="small"></ha-spinner>` : 'Save'}
             </ha-button>
             <ha-button @click=${(e) => { e.stopPropagation(); this._cancelEdit(); }}>Cancel</ha-button>
           `}

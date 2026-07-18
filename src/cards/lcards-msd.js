@@ -763,7 +763,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         if (!this._msdInitialized) {
             return html`
                 <div class="lcards-msd-loading">
-                    <ha-circular-progress indeterminate size="s"></ha-circular-progress>
+                    <ha-spinner size="small"></ha-spinner>
                     <p>Initializing MSD...</p>
                 </div>
             `;

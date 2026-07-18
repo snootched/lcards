@@ -2895,7 +2895,7 @@ yaxis:
 
                                 ${this._previewLoading ? html`
                                     <div class="preview-loading">
-                                        <ha-circular-progress indeterminate size="s"></ha-circular-progress>
+                                        <ha-spinner size="small"></ha-spinner>
                                         <div style="margin-top: 12px; color: var(--secondary-text-color);">Updating chart...</div>
                                     </div>
                                 ` : ''}

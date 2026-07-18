@@ -1399,7 +1399,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     if (this._isLoading) {
       return html`
         <div class="loading-state">
-          <ha-circular-progress indeterminate size="s"></ha-circular-progress>
+          <ha-spinner size="small"></ha-spinner>
           <p>Loading theme browser...</p>
         </div>
       `;
@@ -4338,7 +4338,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           </div>
           <div class="overrides-summary">
             ${this._overridesLoading
-              ? html`<ha-circular-progress indeterminate size="s"></ha-circular-progress>`
+              ? html`<ha-spinner size="small"></ha-spinner>`
               : html`<span>${overriddenCount} override${overriddenCount !== 1 ? 's' : ''} in this scope</span>`}
           </div>
         </div>
