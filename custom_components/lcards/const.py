@@ -3,7 +3,7 @@ import logging
 
 DOMAIN = "lcards"
 FRONTEND_SCRIPT_URL = "lcards.js"
-DOMAIN_VERSION = "2026.7.13"
+DOMAIN_VERSION = "2026.7.18"
 
 # Options
 CONF_SHOW_PANEL = "show_panel"
