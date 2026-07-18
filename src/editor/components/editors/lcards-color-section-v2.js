@@ -563,7 +563,13 @@ export class LCARdSColorSectionV2 extends LitElement {
             // Convert string to object with 'default' state
             return { default: value };
         } else if (typeof value === 'object' && value !== null) {
-            return value;
+            // Copy, not the live reference — callers (_handleColorChange,
+            // _deleteState) mutate the returned object in place, and the
+            // config value can be a reference shared across multiple
+            // overlays (e.g. shield-bubble sections all sharing one
+            // baseStyle.color at generation time), so mutating in place
+            // would corrupt every overlay still holding that reference.
+            return { ...value };
         }
 
         // Return empty object if no states configured

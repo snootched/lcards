@@ -10669,6 +10669,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
             fill_opacity: 1
         };
 
+        // Each overlay needs its own color/fill objects — {...baseStyle} only
+        // copies the top-level style object, so every section would otherwise
+        // share the exact same color/fill object identity, and editing one
+        // section's color would corrupt all the others.
+        const cloneStyle = () => ({ ...baseStyle, color: { ...baseStyle.color }, fill: { ...baseStyle.fill } });
+
         if (state.mode === 'single') {
             newOverlays.push({
                 type: 'shape',
@@ -10676,7 +10682,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 id: this._generateUniqueOverlayId('shield_bubble'),
                 points: state.points,
                 closed: true,
-                style: { ...baseStyle }
+                style: cloneStyle()
             });
         } else {
             const sections = SvgStructureAnalyzer.splitBoundaryIntoSections(state.points, state.sectionCount, { startAngleDeg: state.startAngleDeg });
@@ -10688,7 +10694,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     id: this._generateUniqueOverlayId(names[i]),
                     points: pts,
                     closed: false,
-                    style: { ...baseStyle }
+                    style: cloneStyle()
                 });
             });
         }

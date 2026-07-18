@@ -20,6 +20,7 @@
 import { OverlayBase } from './OverlayBase.js';
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { ColorUtils } from '../../core/themes/ColorUtils.js';
 
 /**
  * LineOverlay - Instance-based line overlay
@@ -342,14 +343,14 @@ export class LineOverlay extends OverlayBase {
 
     const lineStyle = {
       // Core stroke properties with token integration
-      color: this._resolveLineColor(
+      color: this._materializeColor(this._resolveLineColor(
         style.color || style.stroke,
         overlay,
         cardInstance,
         'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))',
         resolveToken,
         scalingContext
-      ),
+      ), 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))', cardInstance),
 
       width: Number(this._resolveStyleProperty(
         style.width || style.stroke_width,
@@ -377,7 +378,7 @@ export class LineOverlay extends OverlayBase {
       dashOffset: Number(style.dash_offset || 0),
 
       // Fill properties
-      fill: this._resolveLineColor(
+      fill: this._materializeColor(this._resolveLineColor(
         style.fill,
         overlay,
         cardInstance,
@@ -385,7 +386,7 @@ export class LineOverlay extends OverlayBase {
         resolveToken,
         scalingContext,
         'defaultFillColor'
-      ),
+      ), 'none', cardInstance),
       fillOpacity: Number(style.fill_opacity || 1),
 
       // Gradient and pattern support
@@ -449,25 +450,29 @@ export class LineOverlay extends OverlayBase {
    * @private
    */
   _resolveLineColor(styleValue, overlay, cardInstance, fallback, resolveToken, context = {}, tokenPath = 'defaultColor') {
-    if (typeof styleValue !== 'object' || styleValue === null) {
-      // Literal color string: check for a pre-evaluated Jinja2/JS template result
-      // (populated by LCARdSMSDCard._processCustomTemplates()) before falling
-      // through to token/literal resolution — scoped to color only, matching
-      // button/elbow's convention (width/opacity never get template eval).
-      const resolved = (typeof styleValue === 'string' && typeof cardInstance?._resolveTemplateValue === 'function')
-        ? cardInstance._resolveTemplateValue(styleValue)
-        : styleValue;
+    if (styleValue === undefined || styleValue === null) {
       // tokenPath is only consulted when styleValue is absent (theme "give me a
       // sensible default" lookup) — callers resolving `fill` must pass a distinct
       // path from `color`'s, otherwise an unset fill silently inherits whatever
       // theme token the stroke color falls back to (e.g. a UI-tertiary accent),
       // filling shapes/enclosed line paths that were never configured to have one.
-      return this._resolveStyleProperty(resolved, tokenPath, resolveToken, fallback, context);
+      return this._resolveStyleProperty(styleValue, tokenPath, resolveToken, fallback, context);
     }
 
     if (!cardInstance || typeof cardInstance._resolveColorValue !== 'function') {
-      return styleValue.default ?? fallback;
+      return (typeof styleValue === 'object') ? (styleValue.default ?? fallback) : styleValue;
     }
+
+    // A plain string may be a literal, a var(...), a theme: token, or a computed
+    // expression (alpha()/darken()/.../match-brightness) — all of which need the
+    // full _resolveColorValue pipeline (computed-token resolution, match-brightness
+    // substitution, template eval, CSS var resolution), not just the bare-token-path
+    // shortcut _resolveStyleProperty offers, which left those raw/unresolved and
+    // rendered as an invalid SVG paint value (black). Editors that flatten a
+    // single-state {default: X} object down to plain string X for clean YAML rely
+    // on this: wrapping it back into that shape here routes both forms through the
+    // exact same pipeline the entity-bound state-color object branch below uses.
+    const stateColorValue = (typeof styleValue === 'object') ? styleValue : { default: styleValue };
 
     const entityId = overlay?.entity;
     const entityObj = entityId ? cardInstance.hass?.states?.[entityId] : null;
@@ -481,7 +486,7 @@ export class LineOverlay extends OverlayBase {
       cardInstance.config.ranges_attribute = overlay?.ranges_attribute;
     }
     try {
-      return cardInstance._resolveColorValue(styleValue, fallback);
+      return cardInstance._resolveColorValue(stateColorValue, fallback);
     } finally {
       cardInstance._entity = savedEntity;
       if (cardInstance.config) {
@@ -489,6 +494,42 @@ export class LineOverlay extends OverlayBase {
         cardInstance.config.ranges_attribute = savedRangesAttribute;
       }
     }
+  }
+
+  /**
+   * Final materialization pass after _resolveLineColor, covering two gaps in
+   * the pipeline it delegates to (cardInstance._resolveColorValue):
+   *
+   * 1. A computed expression (alpha()/darken()/etc) that, for whatever reason,
+   *    reached here still unevaluated — e.g. state-color-resolver.js's and
+   *    _resolveColorValue's own computed-token passes both gate on
+   *    `window.lcards.core.themeManager.resolver` being set, and this is the
+   *    last point before the value is baked into a markup *string* (this runs
+   *    before the element exists in the DOM). Retried here with an explicit
+   *    element context.
+   * 2. A resolved value like `color-mix(in srgb, var(--x) 50%, transparent)`
+   *    still containing a *nested* var() — _resolveColorValue's own
+   *    materialization step only unwraps a value that IS (starts with) a bare
+   *    var(...), not one containing one elsewhere in the string.
+   *
+   * Without this, e.g. `alpha(var(--lcars-black-cherry), 0.5)` reaches the SVG
+   * fill attribute still wrapped in the unevaluated `alpha(...)` call — invalid
+   * paint syntax the browser can't parse, silently rendering opaque black
+   * instead of the intended translucent fill.
+   * @private
+   */
+  _materializeColor(value, fallback, cardInstance) {
+    if (typeof value !== 'string') return value;
+
+    const resolver = window.lcards?.core?.themeManager?.resolver;
+    if (resolver && typeof resolver.resolve === 'function') {
+      value = resolver.resolve(value, value, { element: cardInstance });
+    } else if (/^(darken|lighten|alpha|saturate|desaturate|mix|base)\(/.test(value)) {
+      lcardsLog.warn('[LineOverlay] Computed color expression left unresolved — themeManager.resolver unavailable at render time:', value);
+    }
+
+    if (typeof value !== 'string' || !value.includes('var(')) return value;
+    return ColorUtils.resolveCssVariable(value, fallback, cardInstance) || fallback;
   }
 
   /**

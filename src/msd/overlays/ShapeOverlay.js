@@ -26,6 +26,7 @@
 import { OverlayBase } from './OverlayBase.js';
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { ColorUtils } from '../../core/themes/ColorUtils.js';
 
 const VALID_KINDS = ['polyline', 'rect', 'circle'];
 
@@ -376,14 +377,14 @@ export class ShapeOverlay extends OverlayBase {
     const scalingContext = this._getScalingContext(viewBox);
 
     return {
-      color: this._resolveShapeColor(
+      color: this._materializeColor(this._resolveShapeColor(
         style.color || style.stroke,
         overlay,
         cardInstance,
         'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))',
         resolveToken,
         scalingContext
-      ),
+      ), 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))', cardInstance),
 
       width: Number(this._resolveStyleProperty(
         style.width || style.stroke_width,
@@ -408,7 +409,7 @@ export class ShapeOverlay extends OverlayBase {
       dashArray: style.dash_array || null,
       dashOffset: Number(style.dash_offset || 0),
 
-      fill: this._resolveShapeColor(
+      fill: this._materializeColor(this._resolveShapeColor(
         style.fill,
         overlay,
         cardInstance,
@@ -416,7 +417,7 @@ export class ShapeOverlay extends OverlayBase {
         resolveToken,
         scalingContext,
         'defaultFillColor'
-      ),
+      ), 'none', cardInstance),
       fillOpacity: Number(style.fill_opacity || 1),
 
       gradient: this._parseGradientConfig(style.gradient),
@@ -458,20 +459,28 @@ export class ShapeOverlay extends OverlayBase {
    * @private
    */
   _resolveShapeColor(styleValue, overlay, cardInstance, fallback, resolveToken, context = {}, tokenPath = 'defaultColor') {
-    if (typeof styleValue !== 'object' || styleValue === null) {
-      const resolved = (typeof styleValue === 'string' && typeof cardInstance?._resolveTemplateValue === 'function')
-        ? cardInstance._resolveTemplateValue(styleValue)
-        : styleValue;
+    if (styleValue === undefined || styleValue === null) {
       // tokenPath is only consulted when styleValue is absent (theme "give me a
       // sensible default" lookup) — callers resolving `fill` must pass a distinct
       // path from `color`'s, otherwise an unset fill silently inherits whatever
       // theme token the stroke color falls back to.
-      return this._resolveStyleProperty(resolved, tokenPath, resolveToken, fallback, context);
+      return this._resolveStyleProperty(styleValue, tokenPath, resolveToken, fallback, context);
     }
 
     if (!cardInstance || typeof cardInstance._resolveColorValue !== 'function') {
-      return styleValue.default ?? fallback;
+      return (typeof styleValue === 'object') ? (styleValue.default ?? fallback) : styleValue;
     }
+
+    // A plain string may be a literal, a var(...), a theme: token, or a computed
+    // expression (alpha()/darken()/.../match-brightness) — all of which need the
+    // full _resolveColorValue pipeline (computed-token resolution, match-brightness
+    // substitution, CSS var resolution), not just the bare-token-path shortcut
+    // _resolveStyleProperty offers, which left those raw/unresolved and rendered as
+    // an invalid SVG paint value (black). _saveShape flattens a single-state
+    // {default: X} object down to plain string X to keep saved YAML clean, so
+    // wrapping it back into that shape here routes both forms through the exact
+    // same pipeline the entity-bound state-color object branch below already uses.
+    const stateColorValue = (typeof styleValue === 'object') ? styleValue : { default: styleValue };
 
     const entityId = overlay?.entity;
     const entityObj = entityId ? cardInstance.hass?.states?.[entityId] : null;
@@ -485,7 +494,7 @@ export class ShapeOverlay extends OverlayBase {
       cardInstance.config.ranges_attribute = overlay?.ranges_attribute;
     }
     try {
-      return cardInstance._resolveColorValue(styleValue, fallback);
+      return cardInstance._resolveColorValue(stateColorValue, fallback);
     } finally {
       cardInstance._entity = savedEntity;
       if (cardInstance.config) {
@@ -493,6 +502,42 @@ export class ShapeOverlay extends OverlayBase {
         cardInstance.config.ranges_attribute = savedRangesAttribute;
       }
     }
+  }
+
+  /**
+   * Final materialization pass after _resolveShapeColor, covering two gaps in
+   * the pipeline it delegates to (cardInstance._resolveColorValue):
+   *
+   * 1. A computed expression (alpha()/darken()/etc) that, for whatever reason,
+   *    reached here still unevaluated — e.g. state-color-resolver.js's and
+   *    _resolveColorValue's own computed-token passes both gate on
+   *    `window.lcards.core.themeManager.resolver` being set, and this is the
+   *    last point before the value is baked into a markup *string* (this runs
+   *    before the element exists in the DOM). Retried here with an explicit
+   *    element context.
+   * 2. A resolved value like `color-mix(in srgb, var(--x) 50%, transparent)`
+   *    still containing a *nested* var() — _resolveColorValue's own
+   *    materialization step only unwraps a value that IS (starts with) a bare
+   *    var(...), not one containing one elsewhere in the string.
+   *
+   * Without this, e.g. `alpha(var(--lcars-black-cherry), 0.5)` reaches the SVG
+   * fill attribute still wrapped in the unevaluated `alpha(...)` call — invalid
+   * paint syntax the browser can't parse, silently rendering opaque black
+   * instead of the intended translucent fill.
+   * @private
+   */
+  _materializeColor(value, fallback, cardInstance) {
+    if (typeof value !== 'string') return value;
+
+    const resolver = window.lcards?.core?.themeManager?.resolver;
+    if (resolver && typeof resolver.resolve === 'function') {
+      value = resolver.resolve(value, value, { element: cardInstance });
+    } else if (/^(darken|lighten|alpha|saturate|desaturate|mix|base)\(/.test(value)) {
+      lcardsLog.warn('[ShapeOverlay] Computed color expression left unresolved — themeManager.resolver unavailable at render time:', value);
+    }
+
+    if (typeof value !== 'string' || !value.includes('var(')) return value;
+    return ColorUtils.resolveCssVariable(value, fallback, cardInstance) || fallback;
   }
 
   /**
