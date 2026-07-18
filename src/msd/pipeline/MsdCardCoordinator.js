@@ -149,7 +149,7 @@ export class MsdCardCoordinator extends BaseService {
    * Complete systems initialization after card model is built
    * This is the second phase that happens after overlays can safely be processed
    */
-  async completeSystems(mergedConfig, cardModel, mountEl, hass) {
+  async completeSystems(mergedConfig, cardModel, mountEl, hass, isEditMode = false) {
     lcardsLog.trace('[MsdCardCoordinator] 🔧 Completing systems initialization');
 
     // REMOVED: RulesEngine setup - now handled by card via _registerOverlayForRules()
@@ -168,7 +168,7 @@ export class MsdCardCoordinator extends BaseService {
     };
     this.router = new RouterCore(routingConfig, cardModel.anchors, cardModel.viewBox);
     this.renderer = new AdvancedRenderer(mountEl, this.router, this); // Pass 'this' as systemsManager
-    this.controlsRenderer = new MsdControlsRenderer(this.renderer, mergedConfig);
+    this.controlsRenderer = new MsdControlsRenderer(this.renderer, mergedConfig, isEditMode);
 
     // Set HASS context on controls renderer immediately if available
     if (this._hass && this.controlsRenderer) {

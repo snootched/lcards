@@ -25,9 +25,13 @@ import { lcardsCore } from '../../core/lcards-core.js';
  * @param {HTMLElement|ShadowRoot} mountEl - Mount/root element (may be a shadowRoot).
  * @param {Object|null} hass - Home Assistant instance (if available).
  * @param {string|null} cardGuid - Card instance GUID for HUD registration
+ * @param {boolean} [isEditMode=false] - True when rendering inside the MSD
+ *   Studio editor dialog (#387) — forwarded to MsdControlsRenderer so its
+ *   hui-card-wrapped controls keep Studio's live preview "always show"
+ *   behavior instead of honoring `visibility:` at design time.
  * @returns {Promise<Object>} Pipeline API
  */
-export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass = null, cardGuid = null) {
+export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass = null, cardGuid = null, isEditMode = false) {
   lcardsLog.info('[PipelineCore] 🚀 Starting MSD pipeline initialization with SVG extraction', {
     hasCardGuid: !!cardGuid,
     cardGuid
@@ -142,7 +146,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   // Complete systems initialization with card model
   lcardsLog.trace('[PipelineCore] Completing systems initialization');
   try {
-    await coordinator.completeSystems(mergedConfig, cardModel, mountEl, hass);
+    await coordinator.completeSystems(mergedConfig, cardModel, mountEl, hass, isEditMode);
   } catch (error) {
     lcardsLog.error('[PipelineCore] ❌ Systems completion failed:', error);
     throw new Error(`Systems completion failed: ${error.message}`);

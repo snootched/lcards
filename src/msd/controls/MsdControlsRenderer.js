@@ -49,13 +49,13 @@
 
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { createCardElement, applyHassToCard } from '../../utils/ha-card-factory.js';
+import { createCardElement, applyHassToCard, createHuiCardWrapper } from '../../utils/ha-card-factory.js';
 import { extractAllConfigStrings } from '../../utils/extractConfigStrings.js';
 import { TemplateParser } from '../../core/templates/TemplateParser.js';
 import { isHAEntity } from '../utils/HADomains.js';
 
 export class MsdControlsRenderer {
-  constructor(renderer, cardConfig = null) {
+  constructor(renderer, cardConfig = null, isEditMode = false) {
     this.renderer = renderer;
     // Resolved contents of the card's own `msd:` config block — used only for
     // the card-wide triggers_update: 'all' escape hatch (see setHass()).
@@ -65,6 +65,14 @@ export class MsdControlsRenderer {
     this.lastRenderArgs = null;
     this._isRendering = false;
     this._lastSignature = null;
+
+    // True only when rendering inside the MSD Studio editor dialog (#387) —
+    // forwarded to hui-card.editMode so Studio's live preview keeps its
+    // current "always show" behavior instead of newly hiding a control
+    // whenever its visibility condition happens to be false at design time,
+    // matching the same "edit mode ignores visibility" convention stock HA
+    // dashboards and lcards-layout-view/lcards-layout-card already use.
+    this._editMode = !!isEditMode;
 
     // ⚠️ FEATURE FLAG: Manual HASS Forwarding
     // Default: true (required for foreignObject-embedded cards)
@@ -313,12 +321,14 @@ export class MsdControlsRenderer {
 
     controls.forEach(({ overlayId, element }) => {
       try {
-        // Find the actual card element inside the wrapper
-        const cardElement = element.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
+        // Find the actual card element inside the wrapper (#387: prefer the
+        // reference stashed at creation time — see createControlElement()).
+        const cardElement = element._msdCardElement ||
+                           element.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
                            element.firstElementChild;
 
         if (cardElement) {
-          this._applyHassToCard(cardElement, hass, overlayId);
+          this._forwardHassToControl(cardElement, hass, overlayId);
         }
       } catch (error) {
         lcardsLog.error(`[MsdControlsRenderer] Failed to update control ${overlayId}:`, error);
@@ -338,12 +348,14 @@ export class MsdControlsRenderer {
 
     for (const [overlayId, wrapperElement] of this.controlElements) {
       try {
-        // Find the actual card element inside the wrapper
-        const cardElement = wrapperElement.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
+        // Find the actual card element inside the wrapper (#387: prefer the
+        // reference stashed at creation time — see createControlElement()).
+        const cardElement = wrapperElement._msdCardElement ||
+                           wrapperElement.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
                            wrapperElement.firstElementChild;
 
         if (cardElement) {
-          this._applyHassToCard(cardElement, hass, overlayId);
+          this._forwardHassToControl(cardElement, hass, overlayId);
         }
       } catch (error) {
             lcardsLog.warn('[MsdControls] ❌ Config stored for deferred application:', overlayId);
@@ -351,6 +363,32 @@ export class MsdControlsRenderer {
     }
   }
 
+
+  /**
+   * Forward a fresh hass object to a control's card element, whichever
+   * pipeline created it (#387).
+   *
+   * hui-card-wrapped controls (the preferred path — see createControlElement())
+   * just need plain property assignment: hui-card's own `hass` setter
+   * evaluates `config.visibility` and only redistributes hass to the real
+   * inner card when conditions pass — that IS the visibility fix, so nothing
+   * else should reach past it into the inner card directly.
+   *
+   * Raw-card controls (the hui-card-unavailable fallback path) still go
+   * through `_applyHassToCard()`'s existing per-card-type branching exactly
+   * as before.
+   * @private
+   * @param {any} cardElement - Element found inside the control wrapper
+   * @param {Object} hass - Home Assistant object
+   * @param {string} controlId - Control identifier for logging
+   */
+  _forwardHassToControl(cardElement, hass, controlId) {
+    if (cardElement.tagName?.toLowerCase() === 'hui-card') {
+      cardElement.hass = hass;
+    } else {
+      this._applyHassToCard(cardElement, hass, controlId);
+    }
+  }
 
   /**
    * Apply HASS context to a specific control card
@@ -566,7 +604,19 @@ export class MsdControlsRenderer {
     // triggers_update: 'all' — always update this control, skip entity
     // tracking entirely (see #387: for cards whose dependencies can't be
     // statically enumerated at all, e.g. wildcard/device-class matching).
-    const alwaysUpdate = overlay.triggers_update === 'all';
+    //
+    // Also always-update any control with a `visibility:` array (#387): HA's
+    // visibility conditions include entity-keyed types (state/numeric_state)
+    // but also entity-less ones (screen/user, and any and/or/not nesting of
+    // either) that this entity-diff gate has no way to key off. Rather than
+    // parsing/recursing HA's condition shapes to tell them apart (fragile —
+    // would need to stay in sync with condition types HA adds later), simply
+    // treat any control that opts into visibility as always-update, so the
+    // hui-card wrapper (see createControlElement()) keeps getting fresh hass
+    // every tick to re-evaluate its condition, instead of freezing forever
+    // after its first render.
+    const hasVisibility = Array.isArray(overlay.card?.visibility) && overlay.card.visibility.length > 0;
+    const alwaysUpdate = overlay.triggers_update === 'all' || hasVisibility;
     if (alwaysUpdate) {
       this._alwaysUpdateControls.add(overlayId);
     } else {
@@ -640,10 +690,12 @@ export class MsdControlsRenderer {
 
       // Apply initial HASS if available
       if (this.hass && this._manualHassForwarding) {
-        const cardElement = controlElement.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
+        // #387: prefer the reference stashed moments ago in createControlElement().
+        const cardElement = controlElement._msdCardElement ||
+                           controlElement.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
                            controlElement.firstElementChild;
         if (cardElement) {
-          this._applyHassToCard(cardElement, this.hass, overlay.id);
+          this._forwardHassToControl(cardElement, this.hass, overlay.id);
         }
       }
 
@@ -723,6 +775,28 @@ export class MsdControlsRenderer {
   }
   */
 
+  /**
+   * Inject (once per instance) a stylesheet rule that gives a `<hui-card>`
+   * control wrapper a sane fill default (`display:block`, 100% width/height).
+   * Deliberately a class-based rule, not inline style — see the comment at
+   * the call site in `createControlElement()` for why inline would clobber
+   * hui-card's own `visibility:`-driven `style.display` toggling (#387).
+   * @private
+   */
+  _ensureHuiCardWrapperStyles() {
+    if (this._huiCardStylesInjected) return;
+    this._huiCardStylesInjected = true;
+
+    const svg = this.getSvgControlsContainer()?.closest?.('svg');
+    if (!svg || svg.querySelector('#msd-hui-card-wrapper-style')) return;
+
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.id = 'msd-hui-card-wrapper-style';
+    style.textContent =
+      '.msd-control-wrapper > hui-card { display: block; width: 100%; height: 100%; box-sizing: border-box; }';
+    svg.insertBefore(style, svg.firstChild);
+  }
+
   async createControlElement(overlay) {
     const cardDef = this. resolveCardDefinition(overlay);
     if (!cardDef) {
@@ -741,36 +815,62 @@ export class MsdControlsRenderer {
         entityCount: cardDef.entities?.length
       });
 
-      cardElement = await createCardElement(cardType, overlay.id);
+      if (customElements.get('hui-card')) {
+        // PREFERRED (#387): wrap in HA's own universal `hui-card` element so
+        // its native `visibility:` conditional evaluation runs — the same
+        // mechanism a card gets automatically on a real dashboard, and the
+        // same fix already used by lcards-layout-card.js's `_createChild()`.
+        // hui-card evaluates `config.visibility` in its own `hass` setter and
+        // only forwards hass to the real inner card when conditions pass;
+        // cards never need to implement visibility themselves.
+        const config = this._buildCardConfig(cardDef, overlay.id);
+        cardElement = createHuiCardWrapper(config, this.hass, { editMode: this._editMode });
 
-      // Fallback:  Create a placeholder
-      if (!cardElement) {
-        lcardsLog.warn(`[MsdControls] Could not create card element for type: ${cardType}, creating fallback`);
-        cardElement = this._createFallbackCard(cardType, cardDef);
-      } else {
-        lcardsLog.debug('[MsdControls] Card element created successfully:', {
-          overlayId: overlay.id,
+        // hui-card ships no layout CSS of its own (unstyled custom elements
+        // default to `display:inline`) — give it a sane fill default via a
+        // stylesheet CLASS rule, never inline style. This matters: hui-card
+        // toggles its OWN `style.display` inline (`''`/`none`) to implement
+        // `visibility:` — createHuiCardWrapper() above already ran that
+        // check synchronously via `.load()` before returning. Setting
+        // `cardElement.style.display = 'block'` here would silently
+        // overwrite whatever hui-card just computed, permanently pinning
+        // the control visible regardless of its condition. A class-based
+        // rule never competes with hui-card's inline toggling (inline always
+        // wins the cascade), so it only ever supplies the default hui-card
+        // itself leaves alone (`style.display === ''`, i.e. "visible").
+        this._ensureHuiCardWrapperStyles();
+
+        lcardsLog.debug('[MsdControls] Created hui-card wrapper for:', overlay.id, {
           cardType,
-          tagName: cardElement.tagName,
-          hasSetConfig: typeof cardElement.setConfig === 'function'
+          editMode: this._editMode
         });
+      } else {
+        // FALLBACK: hui-card unavailable (defensive — real HA always has it
+        // registered). Today's pre-#387 pipeline, unchanged: no visibility
+        // support for controls that hit this branch.
+        cardElement = await createCardElement(cardType, overlay.id);
+
+        if (!cardElement) {
+          lcardsLog.warn(`[MsdControls] Could not create card element for type: ${cardType}, creating fallback`);
+          cardElement = this._createFallbackCard(cardType, cardDef);
+        } else {
+          lcardsLog.debug('[MsdControls] Card element created successfully:', {
+            overlayId: overlay.id,
+            cardType,
+            tagName: cardElement.tagName,
+            hasSetConfig: typeof cardElement.setConfig === 'function'
+          });
+        }
+
+        // Apply HASS context first
+        if (this.hass) {
+          applyHassToCard(cardElement, this.hass, overlay.id);
+        }
+
+        // Then apply configuration
+        // For LCARdS cards, pass overlay ID to ensure consistent rule targeting
+        await this._configureCard(cardElement, cardDef, overlay);
       }
-
-      // FIXED: Apply HASS context BEFORE configuration
-      lcardsLog.debug('[MsdControls] Applying HASS and config:', {
-        overlayId: overlay. id,
-        hasHass: !!this.hass,
-        hasSetConfig: typeof cardElement.setConfig === 'function'
-      });
-
-      // Apply HASS context first
-      if (this.hass) {
-        applyHassToCard(cardElement, this.hass, overlay.id);
-      }
-
-      // Then apply configuration
-      // For LCARdS cards, pass overlay ID to ensure consistent rule targeting
-      await this._configureCard(cardElement, cardDef, overlay);
 
       // Create wrapper for positioning
       const wrapper = document.createElement('div');
@@ -780,6 +880,15 @@ export class MsdControlsRenderer {
       wrapper.style.pointerEvents = 'auto';
       wrapper.style.touchAction = 'manipulation';
       wrapper.appendChild(cardElement);
+
+      // #387: stash a direct reference to the card element this method just
+      // created (hui-card wrapper or raw fallback card) instead of making
+      // every hass-forwarding call site re-derive it later via fragile
+      // querySelector/firstElementChild guessing — which can resolve to the
+      // wrong node (e.g. matches something unrelated nested inside the real
+      // card's light DOM) and silently route hass through the wrong branch.
+      // We already know exactly what we built; just remember it.
+      wrapper._msdCardElement = cardElement;
 
       // Event isolation
       this._setupEventIsolation(wrapper, cardElement, overlay);
@@ -1162,9 +1271,31 @@ export class MsdControlsRenderer {
     // With a locked viewBox="0 0 W H" and SVG width="100%", 1 SVG unit maps to
     // (foreignObject-CSS-px / W) — content scales proportionally with the MSD card. ✓
     const [designWidth, designHeight] = size;
-    const cardEl = element.firstElementChild;
+    const sizeAttr = `${designWidth},${designHeight}`;
+    const cardEl = element._msdCardElement || element.firstElementChild;
     if (cardEl) {
-      cardEl.setAttribute('data-msd-design-size', `${designWidth},${designHeight}`);
+      cardEl.setAttribute('data-msd-design-size', sizeAttr);
+
+      // #387: when cardEl is a <hui-card> wrapper, the attribute above lands
+      // on the wrapper, not the real LCARdS card instance that
+      // _setupAutoSizing() actually reads it from (`this.getAttribute(...)`
+      // on the card host itself). hui-card materialises its real inner
+      // element asynchronously at `._element` (see createHuiCardWrapper()'s
+      // doc comment) — poll briefly and tag it too once it exists. In
+      // practice this resolves synchronously for lcards-* types (they're
+      // always pre-registered before MSD ever runs), so the first check
+      // below wins immediately; the retry is a safety net for slower cases.
+      if (cardEl.tagName?.toLowerCase() === 'hui-card') {
+        const tagInnerElement = (attempt = 0) => {
+          const inner = /** @type {any} */ (cardEl)._element;
+          if (inner) {
+            inner.setAttribute('data-msd-design-size', sizeAttr);
+          } else if (attempt < 20) {
+            setTimeout(() => tagInnerElement(attempt + 1), 100);
+          }
+        };
+        tagInnerElement();
+      }
     }
 
     // Configure the control element for SVG embedding

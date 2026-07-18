@@ -117,6 +117,12 @@ export class LCARdSMSDCard extends LCARdSCard {
         this._msdInitialized = false;
         this._configIssues = null;
         this._backgroundRenderer = null;
+        // True once _detectPreviewMode() has confirmed this instance is
+        // rendering inside the MSD Studio editor dialog (#387) — forwarded
+        // into the pipeline so MsdControlsRenderer's hui-card-wrapped
+        // controls keep Studio's "always show" preview behavior instead of
+        // honoring `visibility:` at design time.
+        this._isStudioPreview = false;
     }
 
     // ============================================================================
@@ -968,7 +974,8 @@ export class LCARdSMSDCard extends LCARdSCard {
                 this._svgContent,
                 mount,
                 this.hass,
-                this._msdInstanceGuid
+                this._msdInstanceGuid,
+                this._isStudioPreview
             );
 
             if (!pipelineResult || !pipelineResult.enabled) {
@@ -1156,6 +1163,7 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         // Tier 1: Studio editor (always allow full render for live preview)
         const isInStudioDialog = this._checkForAncestor(['lcards-msd-studio-dialog']);
+        this._isStudioPreview = isInStudioDialog; // see #387: forwarded to MsdControlsRenderer's edit-mode signal
         if (isInStudioDialog) {
             lcardsLog.debug('[LCARdSMSDCard] Studio dialog detected - Tier 1: live preview mode');
             return false; // NOT preview - allow full render
