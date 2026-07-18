@@ -11903,129 +11903,113 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 open
                 @closed=${(e) => { e.stopPropagation(); this._closeChannelForm(); }}
                 .headerTitle=${isNew ? 'Add Routing Channel' : `Edit Channel: ${channelId}`}
-                style="--ha-dialog-width-md: 700px;">
+                style="--ha-dialog-width-md: 640px;">
 
                 <div style="padding: 8px 16px;">
-                    <!-- Two-column layout for compact display -->
+                    <ha-input
+                        label="Channel ID"
+                        .value=${data.id}
+                        ?disabled=${!isNew}
+                        @input=${(e) => this._updateChannelFormField('id', e.target.value)}
+                        placeholder="power_corridor"
+                        helper-text=${isNew ? 'Unique identifier (e.g., power_corridor)' : ''}
+                        style="width: 100%; margin-bottom: 16px;">
+                    </ha-input>
+
+                    <!-- Full width: the 4-input bounds row needs more room than a
+                         two-column layout can spare without forcing it to scroll. -->
+                    <lcards-form-section
+                        header="Channel Bounds"
+                        description="Rectangle this channel covers, in viewBox units (x, y, w, h)"
+                        icon="mdi:vector-rectangle"
+                        ?expanded=${true}
+                        style="margin-bottom: 16px;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px;">
+                            <ha-input
+                                type="number"
+                                .value=${String(data.bounds[0])}
+                                @input=${(e) => this._updateChannelBounds(0, Number(e.target.value))}
+                                label="X">
+                            </ha-input>
+                            <ha-input
+                                type="number"
+                                .value=${String(data.bounds[1])}
+                                @input=${(e) => this._updateChannelBounds(1, Number(e.target.value))}
+                                label="Y">
+                            </ha-input>
+                            <ha-input
+                                type="number"
+                                .value=${String(data.bounds[2])}
+                                @input=${(e) => this._updateChannelBounds(2, Number(e.target.value))}
+                                label="W">
+                            </ha-input>
+                            <ha-input
+                                type="number"
+                                .value=${String(data.bounds[3])}
+                                @input=${(e) => this._updateChannelBounds(3, Number(e.target.value))}
+                                label="H">
+                            </ha-input>
+                        </div>
+                    </lcards-form-section>
+
+                    <!-- Two-column layout for the remaining, single-field settings -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px;">
 
                         <!-- Left Column -->
                         <div style="display: flex; flex-direction: column; gap: 16px;">
-                            <!-- Channel ID -->
-                            <div>
-                                <label class="form-label">Channel ID</label>
-                                <ha-input
-                                    .value=${data.id}
-                                    ?disabled=${!isNew}
-                                    @input=${(e) => this._updateChannelFormField('id', e.target.value)}
-                                    placeholder="power_corridor"
-                                    style="width: 100%;">
-                                </ha-input>
-                                ${isNew ? html`
-                                    <div class="form-helper">Unique identifier (e.g., power_corridor)</div>
-                                ` : ''}
-                            </div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Channel Mode'}
+                                .helper=${'How lines interact with this channel'}
+                                .selector=${{
+                                    select: {
+                                        options: [
+                                            { value: 'prefer', label: 'Prefer (bundling)' },
+                                            { value: 'avoid', label: 'Avoid (repel)' },
+                                            { value: 'force', label: 'Force (mandatory)' }
+                                        ]
+                                    }
+                                }}
+                                .value=${data.mode}
+                                @value-changed=${(e) => this._updateChannelFormField('mode', e.detail.value)}>
+                            </ha-selector>
 
-                            <!-- Channel Mode -->
-                            <div>
-                                <label class="form-label">Channel Mode</label>
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .selector=${{
-                                        select: {
-                                            options: [
-                                                { value: 'prefer', label: 'Prefer (bundling)' },
-                                                { value: 'avoid', label: 'Avoid (repel)' },
-                                                { value: 'force', label: 'Force (mandatory)' }
-                                            ]
-                                        }
-                                    }}
-                                    .value=${data.mode}
-                                    @value-changed=${(e) => this._updateChannelFormField('mode', e.detail.value)}>
-                                </ha-selector>
-                                <div class="form-helper">How lines interact with this channel</div>
-                            </div>
-
-                            <!-- Channel Direction -->
-                            <div>
-                                <label class="form-label">Flow Direction</label>
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .selector=${{
-                                        select: {
-                                            options: [
-                                                { value: 'auto', label: 'Auto-detect' },
-                                                { value: 'horizontal', label: 'Horizontal →' },
-                                                { value: 'vertical', label: 'Vertical ↓' }
-                                            ]
-                                        }
-                                    }}
-                                    .value=${data.direction || 'auto'}
-                                    @value-changed=${(e) => this._updateChannelFormField('direction', e.detail.value)}>
-                                </ha-selector>
-                            </div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Flow Direction'}
+                                .selector=${{
+                                    select: {
+                                        options: [
+                                            { value: 'auto', label: 'Auto-detect' },
+                                            { value: 'horizontal', label: 'Horizontal →' },
+                                            { value: 'vertical', label: 'Vertical ↓' }
+                                        ]
+                                    }
+                                }}
+                                .value=${data.direction || 'auto'}
+                                @value-changed=${(e) => this._updateChannelFormField('direction', e.detail.value)}>
+                            </ha-selector>
                         </div>
 
                         <!-- Right Column -->
                         <div style="display: flex; flex-direction: column; gap: 16px;">
-                            <!-- Bounds Configuration -->
-                            <div>
-                                <label class="form-label">Channel Bounds (x, y, w, h)</label>
-                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-                                    <ha-input
-                                        type="number"
-                                        .value=${String(data.bounds[0])}
-                                        @input=${(e) => this._updateChannelBounds(0, Number(e.target.value))}
-                                        label="X"
-                                        style="width: 100%;">
-                                    </ha-input>
-                                    <ha-input
-                                        type="number"
-                                        .value=${String(data.bounds[1])}
-                                        @input=${(e) => this._updateChannelBounds(1, Number(e.target.value))}
-                                        label="Y"
-                                        style="width: 100%;">
-                                    </ha-input>
-                                    <ha-input
-                                        type="number"
-                                        .value=${String(data.bounds[2])}
-                                        @input=${(e) => this._updateChannelBounds(2, Number(e.target.value))}
-                                        label="W"
-                                        style="width: 100%;">
-                                    </ha-input>
-                                    <ha-input
-                                        type="number"
-                                        .value=${String(data.bounds[3])}
-                                        @input=${(e) => this._updateChannelBounds(3, Number(e.target.value))}
-                                        label="H"
-                                        style="width: 100%;">
-                                    </ha-input>
-                                </div>
-                            </div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Channel Weight (0-1)'}
+                                .helper=${'Influence strength (higher = stronger)'}
+                                .selector=${{ number: { min: 0, max: 1, step: 0.1, mode: 'slider' } }}
+                                .value=${data.weight || 0.5}
+                                @value-changed=${(e) => this._updateChannelFormField('weight', e.detail.value)}>
+                            </ha-selector>
 
-                            <!-- Weight -->
-                            <div>
-                                <label class="form-label">Channel Weight (0-1)</label>
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .selector=${{ number: { min: 0, max: 1, step: 0.1, mode: 'slider' } }}
-                                    .value=${data.weight || 0.5}
-                                    @value-changed=${(e) => this._updateChannelFormField('weight', e.detail.value)}>
-                                </ha-selector>
-                                <div class="form-helper">Influence strength (higher = stronger)</div>
-                            </div>
-
-                            <!-- Line Spacing -->
-                            <div>
-                                <label class="form-label">Line Spacing (vb units)</label>
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider' } }}
-                                    .value=${data.line_spacing ?? 8}
-                                    @value-changed=${(e) => this._updateChannelFormField('line_spacing', e.detail.value)}>
-                                </ha-selector>
-                                <div class="form-helper">Gap between bundled lines (typical: 5-20)</div>
-                            </div>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .label=${'Line Spacing (vb units)'}
+                                .helper=${'Gap between bundled lines (typical: 5-20)'}
+                                .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider' } }}
+                                .value=${data.line_spacing ?? 8}
+                                @value-changed=${(e) => this._updateChannelFormField('line_spacing', e.detail.value)}>
+                            </ha-selector>
                         </div>
                     </div>
 
@@ -12067,9 +12051,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <!-- Dialog Actions -->
                 <div slot="footer">
                     <ha-button @click=${this._closeChannelForm} appearance="plain">
+                        <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
                     </ha-button>
                     <ha-button @click=${this._saveChannel}>
+                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
                         ${isNew ? 'Add' : 'Save'}
                     </ha-button>
                 </div>
