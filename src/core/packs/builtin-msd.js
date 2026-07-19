@@ -63,6 +63,20 @@ export const BUILTIN_MSD_SVG_PACK = {
         author: 'anomaly',
         license: 'CC-BY-SA-4.0',
       },
+    },
+
+    'ncc-1701-kelvin': {
+      url: '/lcards/msd/ncc-1701-kelvin.svg',
+      metadata: {
+        ship: 'USS Enterprise',
+        registry: 'NCC-1701',
+        class: 'Constitution-class',
+        era: 'Kelvin Timeline Films (2009-2016)',
+        description: 'Kelvin-timeline Enterprise master systems display',
+        author: 'charner1963',
+        source: 'https://freesvg.org/new-spaceship-enterprise-vector-drawing',
+        license: 'Public Domain'
+      }
     }
   }
 };
