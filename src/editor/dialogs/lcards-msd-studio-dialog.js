@@ -295,6 +295,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._zoomBaseHeight = 0;     // Natural (unscaled) wrapper height, set from viewBox
         this._fitPending = false;     // Guard: fit-to-viewport scheduled but not yet applied
         this._panJustEnded = false;   // True for one tick after a pan drag, suppresses click deselect
+        this._zoomGestureStartTransform = null; // Transform captured on zoom 'start', to detect a real pan vs. a stationary click
 
         // Controls Tab State
         this._showControlForm = false;
@@ -799,24 +800,39 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 lcardsLog.trace('[MSDStudio][ZOOM] Transform applied:', { x: t.x, y: t.y, k: t.k });
             })
-            .on('start', () => {
+            .on('start', (event) => {
                 // Add panning class to the container for grab cursor feedback.
                 // d3-zoom fires start for both scroll-zoom and drag-pan; the CSS
                 // rule only shows grabbing when the cursor would be grab (view mode).
                 if (this._zoomContainer) {
                     this._zoomContainer.classList.add('panning');
                 }
+                // Capture the transform at gesture start so 'end' can tell a real
+                // pan/zoom apart from a stationary click. The filter above allows
+                // any bare left mousedown in VIEW mode to start a d3-zoom gesture
+                // (needed to support click-and-drag panning), but d3-zoom fires
+                // 'start'/'end' for that gesture even with zero movement — i.e. for
+                // every plain click, not just actual drags.
+                this._zoomGestureStartTransform = event.transform;
             })
-            .on('end', () => {
+            .on('end', (event) => {
                 if (this._zoomContainer) {
                     this._zoomContainer.classList.remove('panning');
                 }
-                // Signal to _handlePreviewClick that a pan just finished so it
-                // does not deselect the current line. d3-zoom suppresses clicks
-                // after a drag via stopImmediatePropagation, but defensively guard
-                // here too in case the suppression is bypassed.
-                this._panJustEnded = true;
-                setTimeout(() => { this._panJustEnded = false; }, 0);
+                // Only signal a pan/zoom to _handlePreviewClick (suppressing its
+                // click-to-deselect logic) if the transform actually changed —
+                // otherwise this fires on every stationary click in VIEW mode
+                // (see 'start' above), permanently blocking deselection whenever
+                // a line/shape is selected, since selecting one no longer switches
+                // out of VIEW mode.
+                const start = this._zoomGestureStartTransform;
+                const end = event.transform;
+                const actuallyPanned = !start || start.x !== end.x || start.y !== end.y || start.k !== end.k;
+                this._zoomGestureStartTransform = null;
+                if (actuallyPanned) {
+                    this._panJustEnded = true;
+                    setTimeout(() => { this._panJustEnded = false; }, 0);
+                }
                 // Request update after pan/zoom ends to refresh overlay positions
                 // Fixes issue where anchors/controls stay in old position after shift+drag
                 this.requestUpdate();
@@ -1427,7 +1443,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }
                                 }}
                                 .value=${this._gridSpacing}
-                                .label=${'Grid Size (px)'}
+                                .label=${'Grid Size (vb units)'}
                                 @value-changed=${(e) => {
                                     this._gridSpacing = e.detail.value;
                                     this._updateDebugSetting('gridSpacing', e.detail.value);
@@ -4153,6 +4169,35 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this.requestUpdate();
     }
 
+    /**
+     * Insert a new vertex at a segment's midpoint (click on a segment-insert
+     * marker rendered between two adjacent polyline vertices, or between the
+     * last and first vertex for a closed shape).
+     * @param {MouseEvent} e
+     * @param {string} shapeId
+     * @param {number} insertIndex - array index the new point is spliced into
+     * @param {number} midX - viewBox X of the segment midpoint
+     * @param {number} midY - viewBox Y of the segment midpoint
+     * @private
+     */
+    _handleShapeSegmentInsertClick(e, shapeId, insertIndex, midX, midY) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const shape = overlays.find(o => o.id === shapeId && o.type === 'shape');
+        if (!shape || !Array.isArray(shape.points)) return;
+
+        shape.points.splice(insertIndex, 0, [this._roundToPrecision(midX), this._roundToPrecision(midY)]);
+
+        if (this._shapeFormData?.id === shapeId) {
+            this._shapeFormData.points = [...shape.points];
+        }
+
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
     // ============================
     // Anchor Drag Methods
     // ============================
@@ -5174,9 +5219,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         }
 
-        // Switch to ADD_WAYPOINT mode automatically
-        this._activeMode = MODES.ADD_WAYPOINT;
-
+        // Deliberately leave _activeMode untouched (stays VIEW, same as shape
+        // selection) rather than auto-switching into ADD_WAYPOINT mode. That
+        // used to force every click that wasn't an anchor/waypoint marker or
+        // one of two hardcoded "empty area" container classes through
+        // _addWaypointAtPosition, silently appending a waypoint wherever the
+        // click landed — including clicks meant to deselect the line, which
+        // zigzagged the route and multiplied segment-insert markers pointlessly.
+        // Waypoint markers, dragging, deleting, and segment-insert markers all
+        // key off _showWaypointMarkers + _selectedLineId, not _activeMode, so
+        // they keep working unchanged. ADD_WAYPOINT mode itself is unchanged
+        // and still reachable via its toolbar button for the deliberate
+        // click-anywhere-to-append workflow.
         lcardsLog.info(`[MSDStudio] Selected line: ${lineId} (waypoint markers enabled, static indicator added)`);
 
         this.requestUpdate();
@@ -6504,6 +6558,79 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Render small "insert point" markers at the midpoint of each segment of
+     * the currently-selected polyline shape (one between each adjacent pair of
+     * vertices, plus one on the closing segment — last vertex back to the
+     * first — when the shape is `closed`). Clicking one splices a new vertex
+     * into `shape.points` at the correct array index. Deliberately styled and
+     * classed differently from the real vertex markers rendered by
+     * _renderShapeVertexMarkers (smaller, diamond, its own CSS class) so it
+     * can't be confused with — or accidentally matched by logic that checks
+     * for — a real vertex marker.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeSegmentInsertMarkers() {
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!this._selectedShapeId) return '';
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const selectedShape = overlays.find(o => o.id === this._selectedShapeId && o.type === 'shape' && o.kind === 'polyline');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!selectedShape || !Array.isArray(selectedShape.points) || selectedShape.points.length < 2) return '';
+        // Same cap as _renderShapeVertexMarkers, same rationale (one interactive
+        // marker per segment on top of one per vertex would double the DOM cost
+        // for a bulk-generated shape with hundreds of points).
+        if (selectedShape.points.length > MAX_INLINE_EDITABLE_SHAPE_POINTS) return '';
+
+        const vbToPixel = this._getViewBoxToPixelConverter();
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!vbToPixel) return '';
+
+        const points = selectedShape.points;
+        const segments = [];
+        for (let i = 0; i < points.length - 1; i++) {
+            segments.push({ a: points[i], b: points[i + 1], insertIndex: i + 1 });
+        }
+        if (selectedShape.closed) {
+            segments.push({ a: points[points.length - 1], b: points[0], insertIndex: points.length });
+        }
+
+        return html`
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000;">
+                ${segments.map(({ a, b, insertIndex }) => {
+                    if (!Array.isArray(a) || a.length < 2 || !Array.isArray(b) || b.length < 2) return '';
+                    const midX = (a[0] + b[0]) / 2;
+                    const midY = (a[1] + b[1]) / 2;
+                    const [pixelX, pixelY] = vbToPixel(midX, midY);
+
+                    return html`
+                        <div
+                            class="shape-segment-insert-marker"
+                            style="
+                                position: absolute;
+                                left: ${pixelX}px;
+                                top: ${pixelY}px;
+                                transform: translate(-50%, -50%) rotate(45deg);
+                                width: 12px;
+                                height: 12px;
+                                background: rgba(0, 204, 136, 0.55);
+                                border: 1px dashed #FFF;
+                                cursor: pointer;
+                                pointer-events: auto;
+                                box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+                                z-index: 1000;
+                            "
+                            @click=${(e) => this._handleShapeSegmentInsertClick(e, selectedShape.id, insertIndex, midX, midY)}
+                            title="Click to insert a point here">
+                        </div>
+                    `;
+                })}
+            </div>
+        `;
+    }
+
+    /**
      * Render draggable vertex markers for the currently-selected polyline shape
      * — mirrors _renderWaypointMarkers exactly (same marker style/drag/double-
      * click-to-delete convention), operating on a shape's `points` instead of a
@@ -7136,6 +7263,98 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Render small "insert point" markers at the midpoint of each segment of
+     * the selected line's resolved path — the resolved sequence being
+     * [start-anchor, ...waypoints, end-anchor]. Unlike _renderWaypointMarkers,
+     * this renders even when the line has zero waypoints (a single segment
+     * from start to end), so a waypoint can be placed precisely without going
+     * through ADD_WAYPOINT mode's append-only click behavior. Clicking a
+     * marker splices a new waypoint into `line.waypoints` at the index that
+     * segment corresponds to. Deliberately styled/classed differently from the
+     * real waypoint markers (smaller, diamond, its own CSS class) so it can't
+     * be confused with — or accidentally matched by logic that checks for — a
+     * real waypoint marker (see the `.waypoint-marker` class check in
+     * _handlePreviewClick's ADD_WAYPOINT branch).
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderWaypointInsertMarkers() {
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!this._showWaypointMarkers || !this._selectedLineId) return '';
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const selectedLine = overlays.find(o => o.id === this._selectedLineId && o.type === 'line');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!selectedLine) return '';
+
+        const start = this._resolvePositionWithSide(selectedLine.anchor, selectedLine.anchor_side);
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!start) return '';
+        let endTarget = selectedLine.attach_to;
+        if (Array.isArray(endTarget)) {
+            endTarget = endTarget[endTarget.length - 1];
+        }
+        const end = this._resolvePositionWithSide(endTarget, selectedLine.attach_side);
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!end) return '';
+
+        const vbToPixel = this._getViewBoxToPixelConverter();
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!vbToPixel) return '';
+
+        const userAnchors = this._workingConfig.msd?.anchors || {};
+        const baseSvgAnchors = this._getBaseSvgAnchors();
+        const allAnchors = { ...baseSvgAnchors, ...userAnchors };
+
+        const waypoints = Array.isArray(selectedLine.waypoints) ? selectedLine.waypoints : [];
+        const resolveEntry = (entry) => {
+            if (Array.isArray(entry) && entry.length >= 2) return [entry[0], entry[1]];
+            if (typeof entry === 'string' && allAnchors[entry]) return allAnchors[entry];
+            return null;
+        };
+
+        const segments = [];
+        for (let i = 0; i <= waypoints.length; i++) {
+            const segStart = i === 0 ? start : resolveEntry(waypoints[i - 1]);
+            const segEnd = i === waypoints.length ? end : resolveEntry(waypoints[i]);
+            if (!segStart || !segEnd) continue;
+            segments.push({ segStart, segEnd, insertIndex: i });
+        }
+
+        return html`
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000;">
+                ${segments.map(({ segStart, segEnd, insertIndex }) => {
+                    const midX = (segStart[0] + segEnd[0]) / 2;
+                    const midY = (segStart[1] + segEnd[1]) / 2;
+                    const [pixelX, pixelY] = vbToPixel(midX, midY);
+
+                    return html`
+                        <div
+                            class="waypoint-insert-marker"
+                            style="
+                                position: absolute;
+                                left: ${pixelX}px;
+                                top: ${pixelY}px;
+                                transform: translate(-50%, -50%) rotate(45deg);
+                                width: 12px;
+                                height: 12px;
+                                background: rgba(0, 255, 136, 0.5);
+                                border: 1px dashed #FFF;
+                                cursor: pointer;
+                                pointer-events: auto;
+                                box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+                                z-index: 1000;
+                            "
+                            @click=${(e) => this._handleWaypointInsertClick(e, selectedLine.id, insertIndex, midX, midY)}
+                            title="Click to insert a waypoint here">
+                        </div>
+                    `;
+                })}
+            </div>
+        `;
+    }
+
+    /**
      * Render waypoint markers for manual lines
      * Shows draggable circles at each waypoint position
      * Only shows markers for the selected line
@@ -7463,6 +7682,48 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 this.requestUpdate();
             }
         }
+    }
+
+    /**
+     * Insert a new waypoint at a segment's midpoint (click on a segment-insert
+     * marker rendered between two adjacent resolved points of the line's path
+     * — the resolved sequence being [start-anchor, ...waypoints, end-anchor]).
+     * `insertIndex` is the position within `line.waypoints` the new point is
+     * spliced into (0 for the start-anchor→first-waypoint segment, up to
+     * `waypoints.length` for the last-waypoint→end-anchor segment).
+     * @param {MouseEvent} e
+     * @param {string} lineId
+     * @param {number} insertIndex
+     * @param {number} midX - viewBox X of the segment midpoint
+     * @param {number} midY - viewBox Y of the segment midpoint
+     * @private
+     */
+    _handleWaypointInsertClick(e, lineId, insertIndex, midX, midY) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const line = overlays.find(o => o.id === lineId && o.type === 'line');
+        if (!line) return;
+
+        if (line.route !== 'manual') {
+            line.route = 'manual';
+        }
+        if (!Array.isArray(line.waypoints)) {
+            line.waypoints = [];
+        }
+
+        line.waypoints.splice(insertIndex, 0, [this._roundToPrecision(midX), this._roundToPrecision(midY)]);
+
+        if (this._lineFormData?.id === lineId) {
+            this._lineFormData.route = 'manual';
+            this._lineFormData.waypoints = [...line.waypoints];
+        }
+
+        lcardsLog.debug(`[MSDStudio] Inserted waypoint at index ${insertIndex} on line ${lineId}`);
+
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
     }
 
     /**
@@ -16093,7 +16354,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${this._renderShapeHandles()}
                             ${this._renderRoutingPaths()}
                             ${this._renderLineEndpointMarkers()}
+                            ${this._renderWaypointInsertMarkers()}
                             ${this._renderWaypointMarkers()}
+                            ${this._renderShapeSegmentInsertMarkers()}
                             ${this._renderShapeVertexMarkers()}
                             ${this._renderDragAttachPoints()}
                             ${this._renderChannelsOverlay()}
