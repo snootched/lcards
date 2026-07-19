@@ -39,6 +39,21 @@ export const studioDialogStyles = css`
         flex-direction: column;
     }
 
+    /* .dialog-content is the direct light-DOM child slotted into that body —
+       without its own flex sizing it defaults to its content's natural
+       height, which can exceed the body and force the *whole dialog* to
+       scroll instead of just .tab-content. Keeping it in the same flex chain
+       (flex:1, min-height:0, overflow:hidden) means only .tab-content (which
+       opts in below) ever actually scrolls; the tab headers and canvas
+       toolbar stay put. */
+    .dialog-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+    }
+
     /* Split Panel Layout (50/50 ratio - balanced config and preview) */
     .studio-layout {
         flex: 1;
@@ -67,12 +82,13 @@ export const studioDialogStyles = css`
         min-height: 0;
     }
 
+    /* Never scrolls — always consumes exactly the space it's given. Overflow
+       within the canvas is handled by d3-zoom pan/zoom, not a scrollbar. */
     .preview-panel {
         position: relative;
         display: flex;
         flex-direction: column;
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow: hidden;
         min-height: 0;
     }
 

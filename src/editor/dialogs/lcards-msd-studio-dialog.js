@@ -384,6 +384,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
             drawing: false,
             currentPoint: null
         };
+        // Pending mousedown-drag candidate for rect/circle draw shapes — kept
+        // separate from _drawShapeState so a plain click-then-click still
+        // behaves exactly as before if no drag ever happens (see
+        // _handlePreviewMouseDown/_handlePreviewMouseMove/_handleDragEnd).
+        this._shapeDrawDragCandidate = null;
         this._shieldBubbleState = this._defaultShieldBubbleState();
 
         // Shape edit-mode state
@@ -540,9 +545,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         }, 50);
 
-        // Add keyboard event listener
+        // Add keyboard event listener. Capture phase on window, registered
+        // here in connectedCallback (before the nested <ha-dialog>/<wa-dialog>
+        // child even connects), so this runs during the top-down capture
+        // sweep — before the event ever reaches wa-dialog's own bubble-phase
+        // @keydown handler (ha-dialog.ts), which unconditionally
+        // stopPropagation()s Escape to close the dialog. Without this, Escape
+        // never reached this handler at all.
         this._boundKeyDownHandler = this._handleKeyDown.bind(this);
-        document.addEventListener('keydown', this._boundKeyDownHandler);
+        window.addEventListener('keydown', this._boundKeyDownHandler, true);
 
         // Add document mouseup listener for drag end
         this._boundMouseUpHandler = this._handleDragEnd.bind(this);
@@ -590,9 +601,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._eventInterceptor?.cleanupEventInterception();
         this._cardPickerManager?.cleanup();
 
-        // Remove keyboard event listener
+        // Remove keyboard event listener (capture flag must match addEventListener)
         if (this._boundKeyDownHandler) {
-            document.removeEventListener('keydown', this._boundKeyDownHandler);
+            window.removeEventListener('keydown', this._boundKeyDownHandler, true);
         }
         // Remove document mouseup listener
         if (this._boundMouseUpHandler) {
@@ -754,7 +765,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Create zoom behavior with constraints
         this._zoomBehavior = zoom()
-            .scaleExtent([0.25, 4])  // 25% to 400% zoom range
+            .scaleExtent([0.25, 10])  // 25% to 1000% zoom range
             .filter((event) => {
                 // Block zoom during active drawing/placement modes
                 const blockingModes = ['place_anchor', 'place_control', 'draw_channel', 'connect_line'];
@@ -893,8 +904,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _fitToViewport() {
         if (!this._zoomBehavior || !this._zoomContainer) return;
         const containerRect = this._zoomContainer.getBoundingClientRect();
+        // .preview-scroll-container reserves top padding (see
+        // msd-studio-styles.js) so content doesn't render directly under the
+        // floating canvas toolbar — getBoundingClientRect() includes that
+        // padding in its height, but it isn't usable drawing space. Reading
+        // it from computed style (rather than duplicating the CSS value here)
+        // keeps this correct if that padding ever changes. Without
+        // subtracting it, the fit is computed against more vertical room
+        // than actually exists below the reserved strip, pushing the bottom
+        // of the diagram past the visible/clipped area.
+        const topInset = parseFloat(getComputedStyle(this._zoomContainer).paddingTop) || 0;
         const availW = containerRect.width;
-        const availH = containerRect.height;
+        const availH = containerRect.height - topInset;
         if (!availW || !availH) return;
 
         // Always re-read from viewBox so a SVG change is picked up immediately
@@ -905,6 +926,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Scale to fit with 32px padding on each axis; never zoom beyond 1:1
         const k = Math.min(1, (availW - 32) / natW, (availH - 32) / natH);
         const tx = (availW - natW * k) / 2;
+        // No +topInset here: the zoom transform translates .msd-zoom-wrapper,
+        // a normal in-flow child of the padded container, so it already sits
+        // topInset below the container's border-box top before any transform
+        // is applied — adding topInset again would double-count it and push
+        // the content further down than the fit actually intends.
         const ty = Math.max(16, (availH - natH * k) / 2);
 
         select(this._zoomContainer).call(
@@ -991,6 +1017,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 drawing: false,
                 currentPoint: null
             };
+            this._shapeDrawDragCandidate = null;
         }
 
         // Clear waypoint markers if switching away from ADD_WAYPOINT
@@ -1121,7 +1148,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         if (!this._zoomBehavior || !this._zoomContainer) {
             // Fallback to old system if d3-zoom not initialized
-            this._previewZoom = Math.max(0.25, Math.min(4.0, this._previewZoom * factor));
+            this._previewZoom = Math.max(0.25, Math.min(10.0, this._previewZoom * factor));
             this.requestUpdate();
             return;
         }
@@ -1337,11 +1364,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                             // Different kind: switch within DRAW_SHAPE, discard in-progress points
                                             this._drawShapeState = { kind: btn.kind, points: [], drawing: false, currentPoint: null };
                                         }
+                                        this._shapeDrawDragCandidate = null;
                                         this.requestUpdate();
                                     } else {
                                         // Entering DRAW_SHAPE from elsewhere: let _setMode clean up whatever mode we're leaving
                                         await this._setMode(MODES.DRAW_SHAPE);
                                         this._drawShapeState = { kind: btn.kind, points: [], drawing: false, currentPoint: null };
+                                        this._shapeDrawDragCandidate = null;
                                         this.requestUpdate();
                                     }
                                 }}
@@ -3244,11 +3273,60 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Arm a pending drag candidate for rect/circle draw shapes, so a
+     * mousedown+drag+mouseup can commit the shape in one motion (promoted to
+     * an active draw in _handlePreviewMouseMove once the pointer moves past a
+     * small threshold, committed on release in _handleDragEnd). Deliberately
+     * separate from _drawShapeState: if no drag ever happens, this is simply
+     * left unconverted and the existing click-then-click flow in
+     * _handleDrawShapeClick proceeds completely unaffected.
+     * @param {MouseEvent} event - Mouse down event
+     * @private
+     */
+    _handlePreviewMouseDown(event) {
+        if (
+            this._activeMode !== MODES.DRAW_SHAPE ||
+            (this._drawShapeState.kind !== 'rect' && this._drawShapeState.kind !== 'circle') ||
+            this._drawShapeState.points.length !== 0
+        ) {
+            return;
+        }
+
+        const coords = this._getPreviewCoordinates(event);
+        if (!coords) return;
+
+        this._shapeDrawDragCandidate = {
+            startClientX: event.clientX,
+            startClientY: event.clientY,
+            startCoords: [coords.x, coords.y],
+            converted: false
+        };
+    }
+
+    /**
      * Handle preview mousemove for crosshair and draw modes
      * @param {MouseEvent} event - Mouse event
      * @private
      */
     _handlePreviewMouseMove(event) {
+        // Promote a pending draw-shape drag candidate into an active draw
+        // once the pointer has moved past a small click-vs-drag threshold.
+        // Once promoted, the existing DRAW_SHAPE tracking below (which now
+        // sees points.length > 0) takes over the rubber-band preview as-is.
+        if (this._shapeDrawDragCandidate && !this._shapeDrawDragCandidate.converted) {
+            const dx = event.clientX - this._shapeDrawDragCandidate.startClientX;
+            const dy = event.clientY - this._shapeDrawDragCandidate.startClientY;
+            if (Math.hypot(dx, dy) > 4) {
+                this._shapeDrawDragCandidate.converted = true;
+                this._drawShapeState = {
+                    kind: this._drawShapeState.kind,
+                    points: [this._shapeDrawDragCandidate.startCoords],
+                    drawing: true,
+                    currentPoint: null
+                };
+            }
+        }
+
         // Handle active drag
         if (this._dragState.active) {
             this._handleDrag(event);
@@ -3330,6 +3408,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Clear draw channel current point
         if (this._drawChannelState.drawing) {
             this._drawChannelState.currentPoint = null;
+        }
+
+        // Clear an unconverted draw-shape drag candidate — if the drag was
+        // already promoted (converted), leave it: the eventual mouseup will
+        // still be caught by the document-level _handleDragEnd and finish it
+        // correctly from that event's own coordinates, even outside the canvas.
+        if (this._shapeDrawDragCandidate && !this._shapeDrawDragCandidate.converted) {
+            this._shapeDrawDragCandidate = null;
         }
 
         this.requestUpdate();
@@ -3553,6 +3639,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _handleDragEnd(event) {
         // Clear mousedown tracking
         this._mouseDownPos = null;
+
+        // Commit a rect/circle draw-shape drag on release. Document-level (not
+        // container-scoped) so this still fires and computes the correct end
+        // point even if the mouse was released outside the preview canvas.
+        if (this._shapeDrawDragCandidate?.converted) {
+            const coords = this._getPreviewCoordinates(event);
+            if (coords && this._drawShapeState.points.length) {
+                this._finishDrawShapeRect(this._drawShapeState.kind, this._drawShapeState.points[0], [coords.x, coords.y]);
+                this.requestUpdate();
+            } else {
+                this._shapeDrawDragCandidate = null;
+            }
+        }
 
         if (!this._dragState.active && !this._resizeState.active && !this._anchorDragState.active && !this._channelResizeState.active
             && !this._shapeDragState.active && !this._shapeResizeState.active) return;
@@ -5104,18 +5203,39 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (!this._drawShapeState.points.length) {
             this._drawShapeState.points = [[coords.x, coords.y]];
             this._drawShapeState.drawing = true;
+            // This click's own mousedown may have armed a drag candidate
+            // (_handlePreviewMouseDown) — since we got here via a plain click
+            // (no drag promoted it in _handlePreviewMouseMove), invalidate it
+            // so a later mousemove during the *second* click doesn't mistake
+            // this stale candidate for a new drag-to-draw gesture.
+            this._shapeDrawDragCandidate = null;
             lcardsLog.trace('[MSDStudio] Draw shape started at:', coords);
             this.requestUpdate();
             return;
         }
 
-        const [startX, startY] = this._drawShapeState.points[0];
-        const x = Math.min(startX, coords.x);
-        const y = Math.min(startY, coords.y);
-        const width = Math.abs(coords.x - startX);
-        const height = Math.abs(coords.y - startY);
+        this._finishDrawShapeRect(kind, this._drawShapeState.points[0], [coords.x, coords.y]);
+    }
+
+    /**
+     * Finish a rect/circle draw shape given its two opposite corners
+     * (viewBox-space) — shared by the click-click flow (_handleDrawShapeClick)
+     * and the click-drag flow (_handleDragEnd/_handlePreviewMouseDown).
+     * @param {string} kind - 'rect' or 'circle'
+     * @param {[number, number]} startPoint - First corner
+     * @param {[number, number]} endPoint - Opposite corner
+     * @private
+     */
+    _finishDrawShapeRect(kind, startPoint, endPoint) {
+        const [startX, startY] = startPoint;
+        const [endX, endY] = endPoint;
+        const x = Math.min(startX, endX);
+        const y = Math.min(startY, endY);
+        const width = Math.abs(endX - startX);
+        const height = Math.abs(endY - startY);
 
         this._drawShapeState = { kind: null, points: [], drawing: false, currentPoint: null };
+        this._shapeDrawDragCandidate = null;
         this._activeMode = MODES.VIEW;
 
         if (width < 1 || height < 1) {
@@ -5128,12 +5248,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Finish an in-progress polyline shape draw (triggered by double-click) and
-     * open the shape form pre-filled with the collected points.
+     * Finish an in-progress polyline shape draw (triggered by double-click or
+     * Enter) and open the shape form pre-filled with the collected points.
      * @private
      */
     _finishDrawShapePolyline() {
-        const points = this._drawShapeState.points;
+        let points = this._drawShapeState.points;
+
+        // A double-click always fires two `click` events immediately before
+        // `dblclick` (browser event order: click, click, dblclick), and both
+        // land at ~the same spot — each already appended a point via
+        // _handleDrawShapeClick, so the last entry here duplicates the one
+        // before it. Drop it so the double-click's endpoint isn't counted twice.
+        if (points.length >= 2) {
+            const [x1, y1] = points[points.length - 2];
+            const [x2, y2] = points[points.length - 1];
+            if (Math.abs(x1 - x2) <= 2 && Math.abs(y1 - y2) <= 2) {
+                points = points.slice(0, -1);
+            }
+        }
+
         if (points.length < 2) {
             lcardsLog.warn('[MSDStudio] Polyline needs at least 2 points to finish');
             return;
@@ -8398,6 +8532,34 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         const { kind, points, currentPoint } = this._drawShapeState;
 
+        // Discoverability hint for the finish/cancel shortcuts (see
+        // _handleKeyDown's Escape/Enter branches and _handlePreviewDoubleClick) —
+        // styled like the existing floating coordinate tooltip below.
+        // Bottom-left, same corner as .zoom-controls (bottom-center) — capped
+        // to a narrow width so it wraps to 2 lines instead of extending far
+        // enough right to reach the centered zoom bar.
+        const hintText = kind === 'polyline'
+            ? 'Click to add point · Enter/dbl-click to finish · Esc to cancel'
+            : 'Drag, or click twice, to draw · Esc to cancel';
+        const hint = html`
+            <div style="
+                position: absolute;
+                bottom: 12px;
+                left: 12px;
+                max-width: 260px;
+                background: rgba(0, 0, 0, 0.85);
+                color: #00FF00;
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 13px;
+                font-weight: 600;
+                line-height: 1.4;
+                white-space: normal;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+            ">${hintText}</div>
+        `;
+
         // points/currentPoint are viewBox-space (see _getViewBoxToPixelConverter's
         // docblock for why these can't be used directly as pixel positions).
         const vbToPixel = this._getViewBoxToPixelConverter();
@@ -8434,12 +8596,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <svg style="width: 100%; height: 100%; position: absolute;">
                         ${unsafeSVG(svgContent)}
                     </svg>
+                    ${hint}
                 </div>
             `;
         }
 
-        // rect/circle rubber-band bbox
-        if (!currentPoint) return '';
+        // rect/circle rubber-band bbox — the first corner is already placed
+        // once we get here, but currentPoint (and so the bbox preview) only
+        // exists after the first mousemove; still show the hint immediately.
+        if (!currentPoint) {
+            return html`
+                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000;">
+                    ${hint}
+                </div>
+            `;
+        }
         const [startPx, startPy] = vbToPixel(points[0][0], points[0][1]);
         const [currentPx, currentPy] = vbToPixel(currentPoint[0], currentPoint[1]);
         const x = Math.min(startPx, currentPx);
@@ -8461,6 +8632,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <svg style="width: 100%; height: 100%; position: absolute;">
                     ${unsafeSVG(bboxContent)}
                 </svg>
+                ${hint}
             </div>
         `;
     }
@@ -15955,9 +16127,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return;
         }
 
-        // Esc - Exit mode or close dialogs
+        // Esc - Exit mode or close dialogs. stopPropagation so wa-dialog's own
+        // Escape handling (ha-dialog.ts) never runs once we've handled it —
+        // otherwise it still calls open=false, which is only silently
+        // no-op'd by prevent-scrim-close's veto instead of doing nothing.
         if (e.key === 'Escape') {
             e.preventDefault();
+            e.stopPropagation();
             if (this._showCardEditorForm) {
                 this._closeCardEditorForm();
             } else if (this._showLineForm) {
@@ -15976,6 +16152,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 this._selectedShapeId = null;
                 this.requestUpdate();
             }
+            return;
+        }
+
+        // Enter - Finish an in-progress polyline (second way to finish,
+        // alongside double-click; _finishDrawShapePolyline already no-ops
+        // with a warning if fewer than 2 points, so no extra guard needed).
+        if (e.key === 'Enter' && this._activeMode === MODES.DRAW_SHAPE && this._drawShapeState.kind === 'polyline') {
+            e.preventDefault();
+            e.stopPropagation();
+            this._finishDrawShapePolyline();
             return;
         }
 
@@ -16284,6 +16470,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 open
                 @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
                 prevent-scrim-close
+                flexcontent
                 header-title="MSD Configuration Studio">
 
                 <div slot="footer">
@@ -16324,6 +16511,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                  data-mode="${this._activeMode}"
                                  @click=${this._handlePreviewClick}
                                  @dblclick=${this._handlePreviewDoubleClick}
+                                 @mousedown=${this._handlePreviewMouseDown}
                                  @mousemove=${this._handlePreviewMouseMove}
                                  @mouseleave=${this._handlePreviewMouseLeave}>
 
