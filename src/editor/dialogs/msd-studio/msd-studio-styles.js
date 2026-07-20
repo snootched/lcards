@@ -477,6 +477,14 @@ export const msdStudioStyles = css`
         opacity: 0.8;
     }
 
+    .channel-dragging {
+        cursor: grabbing !important;
+        border-color: #FF9900 !important;
+        border-width: 3px !important;
+        box-shadow: 0 0 16px rgba(255, 153, 0, 0.8);
+        opacity: 0.8;
+    }
+
     /* Responsive - only MSD-specific rules; .studio-layout/.config-panel
        single-column fallback comes from the shared studioDialogStyles */
     @media (max-width: 1024px) {

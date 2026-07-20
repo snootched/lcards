@@ -300,12 +300,23 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Controls Tab State
         this._showControlForm = false;
         this._editingControlId = null;
+        // Draw-on-canvas state for Place Control (2-click bbox, or
+        // click-drag, mirroring _drawChannelState/_channelDrawDragCandidate)
+        this._placeControlDrawState = {
+            startPoint: null,
+            currentPoint: null,
+            drawing: false
+        };
+        this._controlDrawDragCandidate = null;
         this._controlFormId = '';
         this._controlFormPosition = [0, 0];
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
         this._controlFormPositionSide = 'center';
-        this._controlFormObstacle = false;
+        // Default new controls to obstacle:true so routed lines get real
+        // avoidance against them out of the box (see RouterCore.js's
+        // _computeManhattan/goal-cell fixes for why this is now safe).
+        this._controlFormObstacle = true;
         this._controlFormZIndex = null;
         // 'specific' (use _controlFormTriggersUpdateEntities) or 'all' (see #387)
         this._controlFormTriggersUpdateMode = 'specific';
@@ -413,12 +424,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Channels Tab State
         this._editingChannelId = null;
+        // Matches the schema _openChannelForm/_editChannel/_saveChannel and
+        // _renderChannelFormDialog actually read (mode/direction/weight/
+        // line_spacing) — the old type/priority/color fields aren't part of
+        // the current channel config shape at all.
         this._channelFormData = {
             id: '',
-            type: 'bundling',
+            mode: 'prefer',
+            direction: 'auto',
             bounds: [0, 0, 100, 50],
-            priority: 10,
-            color: '#00FF00'
+            weight: 0.5,
+            line_spacing: 8
         };
         this._drawChannelState = {
             startPoint: null,
@@ -426,6 +442,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             drawing: false,
             tempRectElement: null
         };
+        // Pending mousedown-drag candidate for draw-channel, mirroring
+        // _shapeDrawDragCandidate (see _handlePreviewMouseDown/MouseMove/_handleDragEnd).
+        this._channelDrawDragCandidate = null;
 
         // Drag State
         this._dragState = {
@@ -460,6 +479,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             active: false,
             channelId: null,
             handle: null,  // 'tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'
+            startPos: null,
+            startBounds: null
+        };
+
+        // Channel Drag (move) State — mirrors _dragState (controls)
+        this._channelDragState = {
+            active: false,
+            channelId: null,
             startPos: null,
             startBounds: null
         };
@@ -1003,9 +1030,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 drawing: false,
                 tempRectElement: null
             };
+            this._channelDrawDragCandidate = null;
         }
         if (this._activeMode !== MODES.CONNECT_LINE) {
             this._connectLineState = { source: null, tempLineElement: null };
+        }
+        // Leaving PLACE_CONTROL abandons any in-progress draw (mirrors
+        // DRAW_CHANNEL) — the control is only created once the form is saved.
+        if (this._activeMode !== MODES.PLACE_CONTROL) {
+            this._placeControlDrawState = { startPoint: null, currentPoint: null, drawing: false };
+            this._controlDrawDragCandidate = null;
         }
         // Leaving DRAW_SHAPE abandons any in-progress points (same cancel-on-exit
         // convention as DRAW_CHANNEL) — a shape is only committed once its form is
@@ -3285,22 +3319,50 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _handlePreviewMouseDown(event) {
         if (
-            this._activeMode !== MODES.DRAW_SHAPE ||
-            (this._drawShapeState.kind !== 'rect' && this._drawShapeState.kind !== 'circle') ||
-            this._drawShapeState.points.length !== 0
+            this._activeMode === MODES.DRAW_SHAPE &&
+            (this._drawShapeState.kind === 'rect' || this._drawShapeState.kind === 'circle') &&
+            this._drawShapeState.points.length === 0
         ) {
+            const coords = this._getPreviewCoordinates(event);
+            if (!coords) return;
+
+            this._shapeDrawDragCandidate = {
+                startClientX: event.clientX,
+                startClientY: event.clientY,
+                startCoords: [coords.x, coords.y],
+                converted: false
+            };
             return;
         }
 
-        const coords = this._getPreviewCoordinates(event);
-        if (!coords) return;
+        // Same drag-candidate treatment for routing channels, mirroring the
+        // shape flow above exactly (see _finishDrawChannel/_handleDragEnd).
+        if (this._activeMode === MODES.DRAW_CHANNEL && !this._drawChannelState.startPoint) {
+            const coords = this._getPreviewCoordinates(event);
+            if (!coords) return;
 
-        this._shapeDrawDragCandidate = {
-            startClientX: event.clientX,
-            startClientY: event.clientY,
-            startCoords: [coords.x, coords.y],
-            converted: false
-        };
+            this._channelDrawDragCandidate = {
+                startClientX: event.clientX,
+                startClientY: event.clientY,
+                startCoords: [coords.x, coords.y],
+                converted: false
+            };
+            return;
+        }
+
+        // Same drag-candidate treatment for Place Control (see
+        // _finishPlaceControl/_handleDragEnd).
+        if (this._activeMode === MODES.PLACE_CONTROL && !this._placeControlDrawState.startPoint) {
+            const coords = this._getPreviewCoordinates(event);
+            if (!coords) return;
+
+            this._controlDrawDragCandidate = {
+                startClientX: event.clientX,
+                startClientY: event.clientY,
+                startCoords: [coords.x, coords.y],
+                converted: false
+            };
+        }
     }
 
     /**
@@ -3327,6 +3389,38 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         }
 
+        // Same promotion for a pending draw-channel drag candidate — once
+        // converted, the existing DRAW_CHANNEL tracking below (which now sees
+        // drawing:true) takes over the rubber-band preview as-is.
+        if (this._channelDrawDragCandidate && !this._channelDrawDragCandidate.converted) {
+            const dx = event.clientX - this._channelDrawDragCandidate.startClientX;
+            const dy = event.clientY - this._channelDrawDragCandidate.startClientY;
+            if (Math.hypot(dx, dy) > 4) {
+                this._channelDrawDragCandidate.converted = true;
+                this._drawChannelState = {
+                    startPoint: this._channelDrawDragCandidate.startCoords,
+                    currentPoint: null,
+                    drawing: true,
+                    tempRectElement: null
+                };
+            }
+        }
+
+        // Same promotion for a pending Place Control drag candidate — once
+        // converted, the tracking block below takes over the rubber-band preview.
+        if (this._controlDrawDragCandidate && !this._controlDrawDragCandidate.converted) {
+            const dx = event.clientX - this._controlDrawDragCandidate.startClientX;
+            const dy = event.clientY - this._controlDrawDragCandidate.startClientY;
+            if (Math.hypot(dx, dy) > 4) {
+                this._controlDrawDragCandidate.converted = true;
+                this._placeControlDrawState = {
+                    startPoint: this._controlDrawDragCandidate.startCoords,
+                    currentPoint: null,
+                    drawing: true
+                };
+            }
+        }
+
         // Handle active drag
         if (this._dragState.active) {
             this._handleDrag(event);
@@ -3348,6 +3442,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Handle active channel resize
         if (this._channelResizeState.active) {
             this._handleChannelResize(event);
+            return;
+        }
+
+        // Handle active channel drag (move)
+        if (this._channelDragState.active) {
+            this._handleChannelDrag(event);
             return;
         }
 
@@ -3386,6 +3486,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 this.requestUpdate();
             }
         }
+        // Track mouse for Place Control rubber-band preview
+        if (this._activeMode === MODES.PLACE_CONTROL && this._placeControlDrawState.drawing) {
+            const coords = this._getPreviewCoordinates(event);
+            if (coords) {
+                this._placeControlDrawState.currentPoint = [coords.x, coords.y];
+                this.requestUpdate();
+            }
+        }
         // Track mouse for draw shape rubber-band preview (rect/circle bbox drag,
         // or the "next segment" line while building a polyline)
         if (this._activeMode === MODES.DRAW_SHAPE && this._drawShapeState.points.length > 0) {
@@ -3409,6 +3517,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (this._drawChannelState.drawing) {
             this._drawChannelState.currentPoint = null;
         }
+        // Clear Place Control current point
+        if (this._placeControlDrawState.drawing) {
+            this._placeControlDrawState.currentPoint = null;
+        }
 
         // Clear an unconverted draw-shape drag candidate — if the drag was
         // already promoted (converted), leave it: the eventual mouseup will
@@ -3416,6 +3528,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // correctly from that event's own coordinates, even outside the canvas.
         if (this._shapeDrawDragCandidate && !this._shapeDrawDragCandidate.converted) {
             this._shapeDrawDragCandidate = null;
+        }
+        if (this._channelDrawDragCandidate && !this._channelDrawDragCandidate.converted) {
+            this._channelDrawDragCandidate = null;
+        }
+        if (this._controlDrawDragCandidate && !this._controlDrawDragCandidate.converted) {
+            this._controlDrawDragCandidate = null;
         }
 
         this.requestUpdate();
@@ -3455,21 +3573,74 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Handle place control click.
+     * Handle place control click — 2-click bbox draw (mirrors
+     * _handleDrawChannelClick exactly; click-drag is handled the same way
+     * too, via _controlDrawDragCandidate/_handleDragEnd).
      * @param {MouseEvent} event - Click event
      * @private
      */
     _handlePlaceControlClick(event) {
         lcardsLog.debug(`[MSDStudio] _handlePlaceControlClick ENTRY - mode: ${this._activeMode}`);
 
-        // Get coordinates from click
         const coords = this._getPreviewCoordinates(event);
         if (!coords) {
             lcardsLog.warn('[MSDStudio] Could not get preview coordinates');
             return;
         }
 
-        lcardsLog.debug('[MSDStudio] Place control at:', coords);
+        if (!this._placeControlDrawState.startPoint) {
+            // First click: start drawing. Invalidate any drag candidate this
+            // click's own mousedown may have armed (see _handleDrawChannelClick
+            // for why — avoids a stale candidate confusing the second click).
+            this._placeControlDrawState.startPoint = [coords.x, coords.y];
+            this._placeControlDrawState.drawing = true;
+            this._controlDrawDragCandidate = null;
+            lcardsLog.trace('[MSDStudio] Place control draw started at:', coords);
+            this.requestUpdate();
+            return;
+        }
+
+        this._finishPlaceControl(this._placeControlDrawState.startPoint, [coords.x, coords.y]);
+    }
+
+    /**
+     * Finish a Place Control draw given its two opposite corners
+     * (viewBox-space) and open the control form pre-filled with the drawn
+     * position/size — shared by the click-click flow
+     * (_handlePlaceControlClick) and the click-drag flow
+     * (_handleDragEnd/_handlePreviewMouseDown).
+     *
+     * A near-zero drag (a plain click, or two clicks in nearly the same
+     * spot) falls back to the old fixed 100x100-centered-on-click behavior,
+     * so simply clicking still works exactly as before for anyone who
+     * doesn't want to bother drawing a size.
+     * @param {[number, number]} startPoint - First corner
+     * @param {[number, number]} endPoint - Opposite corner
+     * @private
+     */
+    _finishPlaceControl(startPoint, endPoint) {
+        const [startX, startY] = startPoint;
+        const [endX, endY] = endPoint;
+        const rawWidth = Math.abs(endX - startX);
+        const rawHeight = Math.abs(endY - startY);
+
+        let centerX, centerY, width, height;
+        if (rawWidth < 10 && rawHeight < 10) {
+            centerX = startX;
+            centerY = startY;
+            width = 100;
+            height = 100;
+        } else {
+            const x = Math.min(startX, endX);
+            const y = Math.min(startY, endY);
+            width = rawWidth;
+            height = rawHeight;
+            centerX = x + width / 2;
+            centerY = y + height / 2;
+        }
+
+        this._placeControlDrawState = { startPoint: null, currentPoint: null, drawing: false };
+        this._controlDrawDragCandidate = null;
 
         // Generate control ID
         const overlays = this._workingConfig.msd?.overlays || [];
@@ -3480,14 +3651,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
             controlId = `control_${controlNum}`;
         }
 
-        // Open control form with pre-filled position
+        // Open control form with the drawn box. position is the box's
+        // center to match the attachment: 'center' default (see
+        // _editControl/the form's own defaults) — not the top-left corner.
         this._editingControlId = controlId;
         this._controlFormId = controlId;
-        this._controlFormPosition = [coords.x, coords.y];
-        this._controlFormSize = [100, 100];
+        this._controlFormPosition = [Math.round(centerX), Math.round(centerY)];
+        this._controlFormSize = [Math.round(width), Math.round(height)];
         this._controlFormAttachment = 'center';
         this._controlFormPositionSide = 'center';
-        this._controlFormObstacle = false;
+        // Default new controls to obstacle:true so routed lines get real
+        // avoidance against them out of the box (see RouterCore.js's
+        // _computeManhattan/goal-cell fixes for why this is now safe).
+        this._controlFormObstacle = true;
         this._controlFormZIndex = null;
         this._controlFormTriggersUpdateMode = 'specific';
         this._controlFormTriggersUpdateEntities = [];
@@ -3653,8 +3829,30 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         }
 
+        // Same treatment for a routing-channel drag (see _handlePreviewMouseDown/MouseMove).
+        if (this._channelDrawDragCandidate?.converted) {
+            const coords = this._getPreviewCoordinates(event);
+            if (coords && this._drawChannelState.startPoint) {
+                this._finishDrawChannel(this._drawChannelState.startPoint, [coords.x, coords.y]);
+                this.requestUpdate();
+            } else {
+                this._channelDrawDragCandidate = null;
+            }
+        }
+
+        // Same treatment for a Place Control drag (see _handlePreviewMouseDown/MouseMove).
+        if (this._controlDrawDragCandidate?.converted) {
+            const coords = this._getPreviewCoordinates(event);
+            if (coords && this._placeControlDrawState.startPoint) {
+                this._finishPlaceControl(this._placeControlDrawState.startPoint, [coords.x, coords.y]);
+                this.requestUpdate();
+            } else {
+                this._controlDrawDragCandidate = null;
+            }
+        }
+
         if (!this._dragState.active && !this._resizeState.active && !this._anchorDragState.active && !this._channelResizeState.active
-            && !this._shapeDragState.active && !this._shapeResizeState.active) return;
+            && !this._channelDragState.active && !this._shapeDragState.active && !this._shapeResizeState.active) return;
 
         if (this._dragState.active) {
             lcardsLog.debug('[MSDStudio] Drag end:', this._dragState.controlId);
@@ -3710,6 +3908,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 active: false,
                 channelId: null,
                 handle: null,
+                startPos: null,
+                startBounds: null
+            };
+        }
+
+        if (this._channelDragState.active) {
+            lcardsLog.debug('[MSDStudio] Channel drag end:', this._channelDragState.channelId);
+
+            // Clear channel drag state
+            this._channelDragState = {
+                active: false,
+                channelId: null,
                 startPos: null,
                 startBounds: null
             };
@@ -4430,6 +4640,79 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Handle channel drag (move) start — mirrors _handleDragStart (controls),
+     * simplified since channel.bounds is always a plain [x,y,w,h] array
+     * (never an anchor-reference string like a control's position can be).
+     * @param {MouseEvent} event - Mouse down event
+     * @param {string} channelId - Channel ID
+     * @private
+     */
+    _handleChannelDragStart(event, channelId) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        const channels = this._workingConfig.msd?.channels || {};
+        const channel = channels[channelId];
+        if (!channel || !channel.bounds) {
+            lcardsLog.warn('[MSDStudio] Channel not found or has no bounds for drag:', channelId);
+            return;
+        }
+
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) {
+            lcardsLog.warn('[MSDStudio] Could not get coordinates for channel drag start');
+            return;
+        }
+
+        this._channelDragState = {
+            active: true,
+            channelId,
+            startPos: [coords.x, coords.y],
+            startBounds: [...channel.bounds]
+        };
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle channel drag (move) move
+     * @param {MouseEvent} event - Mouse move event
+     * @private
+     */
+    _handleChannelDrag(event) {
+        if (!this._channelDragState.active) return;
+
+        const coords = this._getPreviewCoordinatesFromMouseEvent(event);
+        if (!coords) return;
+
+        const deltaX = coords.x - this._channelDragState.startPos[0];
+        const deltaY = coords.y - this._channelDragState.startPos[1];
+
+        const channels = this._workingConfig.msd?.channels || {};
+        const channel = channels[this._channelDragState.channelId];
+        if (!channel) return;
+
+        const [startX, startY, width, height] = this._channelDragState.startBounds;
+        let newX = startX + deltaX;
+        let newY = startY + deltaY;
+
+        // Apply grid snapping if enabled (same convention as channel resize)
+        if (this._enableSnapping && this._gridSpacing) {
+            newX = Math.round(newX / this._gridSpacing) * this._gridSpacing;
+            newY = Math.round(newY / this._gridSpacing) * this._gridSpacing;
+        }
+
+        channel.bounds = [
+            this._roundToPrecision(newX),
+            this._roundToPrecision(newY),
+            width,
+            height
+        ];
+
+        this.requestUpdate();
+    }
+
+    /**
      * Handle channel resize start
      * @param {MouseEvent} event - Mouse down event
      * @param {string} channelId - Channel ID
@@ -4590,17 +4873,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return;
         }
 
-        // Open channel form in edit mode
-        this._editingChannelId = channelId;
-        this._channelFormData = {
-            id: channelId,
-            type: channel.type || 'bundling',
-            bounds: channel.bounds ? [...channel.bounds] : [0, 0, 100, 50],
-            priority: channel.priority || 10,
-            color: channel.color || '#00FF00'
-        };
-
-        this.requestUpdate();
+        // Open channel form in edit mode — delegate to _editChannel rather
+        // than duplicating its field population (this used to hand-roll a
+        // stale id/type/bounds/priority/color object that doesn't match the
+        // mode/direction/weight/line_spacing schema _renderChannelFormDialog
+        // actually reads, leaving Channel Mode etc. blank).
+        this._editChannel(channelId, channel);
     }
 
     // ============================
@@ -5128,49 +5406,71 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         if (!this._drawChannelState.startPoint) {
-            // First click: start drawing
+            // First click: start drawing. This click's own mousedown may have
+            // armed a drag candidate (_handlePreviewMouseDown) — since we got
+            // here via a plain click (no drag promoted it in
+            // _handlePreviewMouseMove), invalidate it so a mousemove during
+            // the *second* click doesn't mistake this stale candidate for a
+            // new drag-to-draw gesture (mirrors _handleDrawShapeClick).
             this._drawChannelState.startPoint = [coords.x, coords.y];
             this._drawChannelState.drawing = true;
+            this._channelDrawDragCandidate = null;
             lcardsLog.trace('[MSDStudio] Draw channel started at:', coords);
         } else {
-            // Second click: finish drawing
-            const startX = this._drawChannelState.startPoint[0];
-            const startY = this._drawChannelState.startPoint[1];
-            const endX = coords.x;
-            const endY = coords.y;
-
-            // Calculate bounds [x, y, width, height]
-            const x = Math.min(startX, endX);
-            const y = Math.min(startY, endY);
-            const width = Math.abs(endX - startX);
-            const height = Math.abs(endY - startY);
-
-            lcardsLog.trace('[MSDStudio] Draw channel finished:', { x, y, width, height });
-
-            // Reset draw state
-            this._drawChannelState.startPoint = null;
-            this._drawChannelState.drawing = false;
-
-            // Detect lines that may intersect this channel
-            const channelBounds = { x, y, width, height };
-            const intersectingLines = this._findLinesIntersectingChannel(channelBounds);
-
-            // Open channel form with pre-filled bounds
-            this._editingChannelId = '';
-            this._channelFormData = {
-                id: this._generateChannelId(),
-                type: 'bundling',
-                bounds: [x, y, width, height],
-                priority: 10,
-                color: '#00FF00',
-                // Add suggested lines if any were found
-                suggestedLines: intersectingLines.length > 0 ? intersectingLines.map(line => line.id) : null
-            };
-
-            // Exit draw mode
-            this._activeMode = MODES.VIEW;
-            this.requestUpdate();
+            this._finishDrawChannel(this._drawChannelState.startPoint, [coords.x, coords.y]);
         }
+    }
+
+    /**
+     * Finish a routing-channel draw given its two opposite corners
+     * (viewBox-space) — shared by the click-click flow
+     * (_handleDrawChannelClick) and the click-drag flow
+     * (_handleDragEnd/_handlePreviewMouseDown).
+     * @param {[number, number]} startPoint - First corner
+     * @param {[number, number]} endPoint - Opposite corner
+     * @private
+     */
+    _finishDrawChannel(startPoint, endPoint) {
+        const [startX, startY] = startPoint;
+        const [endX, endY] = endPoint;
+
+        // Calculate bounds [x, y, width, height]
+        const x = Math.min(startX, endX);
+        const y = Math.min(startY, endY);
+        const width = Math.abs(endX - startX);
+        const height = Math.abs(endY - startY);
+
+        lcardsLog.trace('[MSDStudio] Draw channel finished:', { x, y, width, height });
+
+        // Reset draw state
+        this._drawChannelState.startPoint = null;
+        this._drawChannelState.drawing = false;
+        this._channelDrawDragCandidate = null;
+
+        // Detect lines that may intersect this channel
+        const channelBounds = { x, y, width, height };
+        const intersectingLines = this._findLinesIntersectingChannel(channelBounds);
+
+        // Open channel form with pre-filled bounds. Matches the schema
+        // _openChannelForm/_editChannel/_saveChannel actually use (mode,
+        // direction, weight, line_spacing) — not the legacy type/priority/
+        // color fields, which _renderChannelFormDialog doesn't read at all,
+        // leaving Channel Mode blank instead of defaulting to "Prefer".
+        this._editingChannelId = '';
+        this._channelFormData = {
+            id: this._generateChannelId(),
+            mode: 'prefer',
+            direction: 'auto',
+            bounds: [x, y, width, height],
+            weight: 0.5,
+            line_spacing: 8,
+            // Add suggested lines if any were found
+            suggestedLines: intersectingLines.length > 0 ? intersectingLines.map(line => line.id) : null
+        };
+
+        // Exit draw mode
+        this._activeMode = MODES.VIEW;
+        this.requestUpdate();
     }
 
     /**
@@ -7318,6 +7618,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     const color = channel.color || '#00FFAA';
                     const isResizing = this._channelResizeState.active && this._channelResizeState.channelId === channelId;
+                    const isDragging = this._channelDragState.active && this._channelDragState.channelId === channelId;
 
                     // Determine direction: explicit or auto-detect from shape
                     let direction = (channel.direction || 'auto').toLowerCase();
@@ -7336,7 +7637,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     return html`
                         <!-- Channel rectangle (interactive) -->
                         <div
-                            class="interactive-channel ${isResizing ? 'channel-resizing' : ''}"
+                            class="interactive-channel ${isResizing ? 'channel-resizing' : ''} ${isDragging ? 'channel-dragging' : ''}"
                             data-channel-id="${channelId}"
                             style="
                                 position: absolute;
@@ -7350,6 +7651,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 pointer-events: auto;
                                 cursor: grab;
                             "
+                            @mousedown=${(e) => this._handleChannelDragStart(e, channelId)}
                             @dblclick=${(e) => this._handleChannelDoubleClick(e, channelId)}>
 
                             <!-- Resize Handles (only render when not dragging) -->
@@ -8464,9 +8766,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     _renderDrawChannelOverlay() {
-        if (this._activeMode !== MODES.DRAW_CHANNEL || !this._drawChannelState.drawing || !this._drawChannelState.currentPoint) {
+        if (this._activeMode !== MODES.DRAW_CHANNEL || !this._drawChannelState.drawing) {
             // @ts-ignore - TS2322: auto-suppressed
             return '';
+        }
+
+        const hint = this._renderModeHintLabel('Drag, or click twice, to draw · Esc to cancel');
+
+        if (!this._drawChannelState.currentPoint) {
+            return html`
+                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000;">
+                    ${hint}
+                </div>
+            `;
         }
 
         // startPoint/currentPoint are viewBox-space coordinates (from
@@ -8507,48 +8819,96 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         y="${y}px"
                         width="${width}px"
                         height="${height}px"
-                        fill="rgba(0, 255, 0, 0.2)"
-                        stroke="#00FF00"
+                        fill="rgba(0, 255, 255, 0.2)"
+                        stroke="#00FFFF"
                         stroke-width="2"
                         stroke-dasharray="5,5" />
                 </svg>
+                ${hint}
             </div>
         `;
     }
 
     /**
-     * Render the live in-progress preview for DRAW_SHAPE mode: a rubber-band
-     * bbox rectangle for rect/circle (mirrors _renderDrawChannelOverlay exactly),
-     * or the accumulated polyline-so-far plus a dashed "next segment" line to the
-     * cursor for the open-ended polyline kind.
+     * Render the live in-progress preview for PLACE_CONTROL mode — a
+     * rubber-band bbox rectangle, mirroring _renderDrawChannelOverlay exactly.
      * @returns {TemplateResult|string}
      * @private
      */
-    _renderDrawShapeOverlay() {
-        if (this._activeMode !== MODES.DRAW_SHAPE || !this._drawShapeState.drawing) {
+    _renderPlaceControlOverlay() {
+        if (this._activeMode !== MODES.PLACE_CONTROL || !this._placeControlDrawState.drawing) {
             // @ts-ignore - TS2322: auto-suppressed
             return '';
         }
 
-        const { kind, points, currentPoint } = this._drawShapeState;
+        const hint = this._renderModeHintLabel('Drag, or click twice, to size the control · Esc to cancel');
 
-        // Discoverability hint for the finish/cancel shortcuts (see
-        // _handleKeyDown's Escape/Enter branches and _handlePreviewDoubleClick) —
-        // styled like the existing floating coordinate tooltip below.
-        // Bottom-left, same corner as .zoom-controls (bottom-center) — capped
-        // to a narrow width so it wraps to 2 lines instead of extending far
-        // enough right to reach the centered zoom bar.
-        const hintText = kind === 'polyline'
-            ? 'Click to add point · Enter/dbl-click to finish · Esc to cancel'
-            : 'Drag, or click twice, to draw · Esc to cancel';
-        const hint = html`
+        if (!this._placeControlDrawState.currentPoint) {
+            return html`
+                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000;">
+                    ${hint}
+                </div>
+            `;
+        }
+
+        const vbToPixel = this._getViewBoxToPixelConverter();
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!vbToPixel) return '';
+
+        const [startPx, startPy] = vbToPixel(...this._placeControlDrawState.startPoint);
+        const [currentPx, currentPy] = vbToPixel(...this._placeControlDrawState.currentPoint);
+
+        const x = Math.min(startPx, currentPx);
+        const y = Math.min(startPy, currentPy);
+        const width = Math.abs(currentPx - startPx);
+        const height = Math.abs(currentPy - startPy);
+
+        return html`
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                pointer-events: none;
+                z-index: 1000;
+            ">
+                <svg style="width: 100%; height: 100%; position: absolute;">
+                    <rect
+                        x="${x}px"
+                        y="${y}px"
+                        width="${width}px"
+                        height="${height}px"
+                        fill="rgba(0, 255, 255, 0.2)"
+                        stroke="#00FFFF"
+                        stroke-width="2"
+                        stroke-dasharray="5,5" />
+                </svg>
+                ${hint}
+            </div>
+        `;
+    }
+
+    /**
+     * Floating bottom-left hint shown while an interactive canvas mode is
+     * active (draw shape/channel/control, connect line) — see
+     * _handleKeyDown's Escape/Enter branches for the shortcuts this
+     * documents. Same corner as .zoom-controls (bottom-center), capped to a
+     * narrow width so longer text wraps to ~2 lines instead of extending far
+     * enough right to reach the centered zoom bar.
+     * @param {string} text
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderModeHintLabel(text) {
+        return html`
             <div style="
                 position: absolute;
                 bottom: 12px;
                 left: 12px;
                 max-width: 260px;
                 background: rgba(0, 0, 0, 0.85);
-                color: #00FF00;
+                color: #00FFFF;
                 padding: 5px 10px;
                 border-radius: 4px;
                 font-family: 'Courier New', monospace;
@@ -8557,8 +8917,44 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 line-height: 1.4;
                 white-space: normal;
                 box-shadow: 0 2px 6px rgba(0,0,0,0.5);
-            ">${hintText}</div>
+            ">${text}</div>
         `;
+    }
+
+    /**
+     * Hint shown while CONNECT_LINE mode is active — this mode has no
+     * rubber-band overlay of its own (source/target are picked by clicking
+     * existing anchor/control attachment points, not a drag), so it needs
+     * its own small render hook rather than piggybacking on a draw-* overlay.
+     * @returns {TemplateResult|string}
+     * @private
+     */
+    _renderConnectLineHint() {
+        if (this._activeMode !== MODES.CONNECT_LINE) return '';
+
+        const hintText = this._connectLineState.source
+            ? 'Click a target anchor/control point to connect · Esc to cancel'
+            : 'Click a source anchor/control point to start · Esc to cancel';
+
+        return html`
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000;">
+                ${this._renderModeHintLabel(hintText)}
+            </div>
+        `;
+    }
+
+    _renderDrawShapeOverlay() {
+        if (this._activeMode !== MODES.DRAW_SHAPE || !this._drawShapeState.drawing) {
+            // @ts-ignore - TS2322: auto-suppressed
+            return '';
+        }
+
+        const { kind, points, currentPoint } = this._drawShapeState;
+
+        const hintText = kind === 'polyline'
+            ? 'Click to add point · Enter/dbl-click to finish · Esc to cancel'
+            : 'Drag, or click twice, to draw · Esc to cancel';
+        const hint = this._renderModeHintLabel(hintText);
 
         // points/currentPoint are viewBox-space (see _getViewBoxToPixelConverter's
         // docblock for why these can't be used directly as pixel positions).
@@ -8585,11 +8981,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // (as this used to do, one per point plus the two paths) produces
             // wrong-namespace elements browsers silently refuse to paint. See
             // the identical fix/explanation on _renderShapeStylePreviewVertical.
-            const circles = pixelPoints.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#00FF00" />`).join('');
+            const circles = pixelPoints.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#00FFFF" />`).join('');
             const previewSegmentMarkup = previewSegment
-                ? `<path d="${previewSegment}" fill="none" stroke="#00FF00" stroke-width="2" stroke-dasharray="5,5" />`
+                ? `<path d="${previewSegment}" fill="none" stroke="#00FFFF" stroke-width="2" stroke-dasharray="5,5" />`
                 : '';
-            const svgContent = `<path d="${committedPath}" fill="none" stroke="#00FF00" stroke-width="2" />${circles}${previewSegmentMarkup}`;
+            const svgContent = `<path d="${committedPath}" fill="none" stroke="#00FFFF" stroke-width="2" />${circles}${previewSegmentMarkup}`;
 
             return html`
                 <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000;">
@@ -8622,10 +9018,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             ? `<ellipse
                     cx="${x + width / 2}px" cy="${y + height / 2}px"
                     rx="${width / 2}px" ry="${height / 2}px"
-                    fill="rgba(0, 255, 0, 0.2)" stroke="#00FF00" stroke-width="2" stroke-dasharray="5,5" />`
+                    fill="rgba(0, 255, 255, 0.2)" stroke="#00FFFF" stroke-width="2" stroke-dasharray="5,5" />`
             : `<rect
                     x="${x}px" y="${y}px" width="${width}px" height="${height}px"
-                    fill="rgba(0, 255, 0, 0.2)" stroke="#00FF00" stroke-width="2" stroke-dasharray="5,5" />`;
+                    fill="rgba(0, 255, 255, 0.2)" stroke="#00FFFF" stroke-width="2" stroke-dasharray="5,5" />`;
 
         return html`
             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1000;">
@@ -9042,7 +9438,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormSize = [100, 100];
         this._controlFormAttachment = 'center';
         this._controlFormPositionSide = 'center';
-        this._controlFormObstacle = false;
+        // Default new controls to obstacle:true (see the constructor default
+        // for why this is now safe to do).
+        this._controlFormObstacle = true;
         this._controlFormZIndex = null;
         this._controlFormTriggersUpdateMode = 'specific';
         this._controlFormTriggersUpdateEntities = [];
@@ -12042,7 +12440,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <!-- Basic Routing -->
                     <div style="margin-bottom: 16px;">
                         <div style="font-weight: 500; margin-bottom: 8px;">Grid-Based Routing</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
                             <ha-input
                                 label="Clearance (px)"
                                 type="number"
@@ -12076,7 +12474,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <!-- Path Smoothing -->
                     <div style="margin-bottom: 16px;">
                         <div style="font-weight: 500; margin-bottom: 8px;">Path Smoothing</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
                             <ha-select
                                 label="Smoothing Mode"
                                 .value=${routing.smoothing_mode ?? 'none'}
@@ -12112,7 +12510,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 (When auto-upgraded with obstacles/channels)
                             </span>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
                             <ha-input
                                 label="Proximity Band (px)"
                                 type="number"
@@ -12164,7 +12562,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 (Only when route_channels defined)
                             </span>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
                             <ha-input
                                 label="Force Penalty"
                                 type="number"
@@ -12224,7 +12622,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <!-- Cost Function Weights -->
                     <div>
                         <div style="font-weight: 500; margin-bottom: 8px;">Cost Function Weights</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
                             <ha-input
                                 label="Bend Cost"
                                 type="number"
@@ -14253,11 +14651,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Clear connect line state
+     * Clear connect line state and exit CONNECT_LINE mode. Both callers
+     * (_handleAttachmentPointClick, _handleConnectLineClick) invoke this
+     * right after opening the line form on a completed connection — unlike
+     * every other draw-finish path (_finishDrawChannel, _finishPlaceControl,
+     * etc.), this one never used to exit the mode, leaving _activeMode stuck
+     * on CONNECT_LINE (and so _renderConnectLineHint's hint visible) even
+     * after the form was saved/closed.
      * @private
      */
     _clearConnectLineState() {
         this._connectLineState = { source: null, tempLineElement: null };
+        this._activeMode = MODES.VIEW;
         this.requestUpdate();
     }
 
@@ -16534,6 +16939,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <!-- Overlays rendered OUTSIDE scroll container to prevent scroll affecting them -->
                             ${this._renderDrawChannelOverlay()}
                             ${this._renderDrawShapeOverlay()}
+                            ${this._renderPlaceControlOverlay()}
+                            ${this._renderConnectLineHint()}
                             ${this._renderShieldBubblePreview()}
                             ${this._renderCrosshairGuidelines()}
                             ${this._renderGridOverlay()}

@@ -9,6 +9,54 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { getValidChannelTypes, WAYPOINT_CONFIG } from './routing-constants.js';
 
+// anchor_side/attach_side ('left'/'right'/'top'/'bottom') as outward unit
+// vectors — unlike modeHint/modeHintLast ('xy'/'yx'), which only preserve an
+// axis, these carry the actual departure/arrival direction. Used by both
+// _computeManhattan (lead-out/lead-in stubs) and _computeGrid (direction-
+// aware A* hint bias) — only ever consulted when a hint's source is
+// genuinely 'anchor_side'/'attach_side' (not an explicit route_hint override
+// or the geometry fallback, neither of which carry a real direction).
+const CARDINAL_DIR = { left: [-1,0], right: [1,0], top: [0,-1], bottom: [0,1] };
+const MIN_STUB_LENGTH = 24; // viewBox units — floor even when cornerRadius is 0
+
+/**
+ * Lead-out/lead-in stub length for a given request. _applyCornerRounding
+ * clamps each corner's radius to half its shorter adjacent segment length
+ * (RouterCore.js, cornerRadii loop) — a fixed stub shorter than 2x the
+ * configured corner radius silently caps the rounding at the stub, however
+ * large cornerRadius is actually set to. Scaling with cornerRadius keeps the
+ * stub long enough to let the full configured radius render.
+ * @param {object} req
+ * @returns {number}
+ */
+function stubLengthFor(req) {
+  return Math.max(MIN_STUB_LENGTH, (req.cornerRadius || 0) * 2);
+}
+
+// Fractions of [width, height] to add to `position` to get the box's actual
+// top-left corner, matching MsdControlsRenderer._applyAttachmentOffset
+// exactly (that one multiplies by literal width/height; these are the same
+// offsets expressed as fractions so setOverlays can apply them directly to
+// whatever size a given obstacle has). `position` is the point named by
+// `attachment` — e.g. attachment:'center' means position is the box's
+// CENTER, not its corner — so treating position as the top-left corner
+// unconditionally (as setOverlays used to) registers the obstacle up to half
+// the control's width/height away from where it's actually drawn.
+const ATTACHMENT_OFFSET_FRAC = {
+  'top-left': [0, 0],
+  'top': [-0.5, 0],
+  'top-center': [-0.5, 0],
+  'top-right': [-1, 0],
+  'left': [0, -0.5],
+  'center': [-0.5, -0.5],
+  'middle-center': [-0.5, -0.5],
+  'right': [-1, -0.5],
+  'bottom-left': [0, -1],
+  'bottom': [-0.5, -1],
+  'bottom-center': [-0.5, -1],
+  'bottom-right': [-1, -1]
+};
+
 /**
  * Path-routing engine for MSD line overlays.
  *
@@ -79,8 +127,16 @@ export class RouterCore {
       // Determine bounds. Prefer size+position (raw.position / raw.size) else anchor if available.
       let x = 0, y = 0, w = 0, h = 0;
       if (Array.isArray(raw.position) && Array.isArray(raw.size)) {
-        [x,y] = raw.position;
+        const [px, py] = raw.position;
         [w,h] = raw.size;
+        // raw.position is the point named by attachment, not necessarily the
+        // box's top-left corner (see ATTACHMENT_OFFSET_FRAC) — applying the
+        // wrong corner here registers the obstacle up to half the control's
+        // width/height away from where it's actually drawn, which can steer
+        // the pathfinder around empty space (or through the real control).
+        const offset = ATTACHMENT_OFFSET_FRAC[raw.attachment] || ATTACHMENT_OFFSET_FRAC['top-left'];
+        x = px + offset[0] * w;
+        y = py + offset[1] * h;
       } else if (raw.anchor && this.anchors[raw.anchor]) {
         const [ax,ay] = this.anchors[raw.anchor];
         x = ax - 1; y = ay - 1; w = 2; h = 2;
@@ -118,6 +174,92 @@ export class RouterCore {
     // (_gridCache has no eviction policy, unlike the LRU-capped _cache).
     this._gridCache.clear();
     this.invalidate('*');
+  }
+
+  /**
+   * Distance a point can travel in `dir` before leaving the routed viewBox
+   * (minus a small margin so a stub doesn't render flush against the very
+   * edge). A radius-driven stub length has no awareness of where the anchor
+   * actually sits on the canvas — for an anchor already close to an edge
+   * (e.g. anchor_side:'top' on a control near y=0), pushing the full stub
+   * length in that direction can land past the edge entirely.
+   * @param {number[]} point
+   * @param {number[]} dir - one of CARDINAL_DIR's values
+   * @returns {number}
+   */
+  _maxStubBeforeEdge(point, dir) {
+    const vb = this.viewBox;
+    if (!Array.isArray(vb) || vb.length !== 4) return Infinity;
+    const [vx, vy, vw, vh] = vb;
+    const margin = 2;
+    if (dir[0] === -1) return point[0] - vx - margin;
+    if (dir[0] === 1) return (vx + vw) - point[0] - margin;
+    if (dir[1] === -1) return point[1] - vy - margin;
+    if (dir[1] === 1) return (vy + vh) - point[1] - margin;
+    return Infinity;
+  }
+
+  /**
+   * Effective lead-out/lead-in stub length for a given direction, clamped so
+   * it never pushes the stub point outside the routed viewBox. Shared by
+   * _applyCardinalStubs (grid/smart) and _computeManhattan's stub fallback,
+   * which both build lead-out/lead-in segments the same way. This is ONLY
+   * the viewBox clamp — see _noOvershootStub for the separate, more
+   * precise fix for overshoot/reversal (an earlier version conflated the
+   * two into one "clamp against the other endpoint's raw coordinate"
+   * heuristic, which broke once anchor/attach sides could interact more
+   * subtly — see _noOvershootStub's docblock).
+   * @param {number} desiredLength
+   * @param {number[]} dir
+   * @param {number[]} point - the endpoint the stub extends from
+   * @returns {number}
+   */
+  _clampStubLength(desiredLength, dir, point) {
+    const edgeLimit = this._maxStubBeforeEdge(point, dir);
+    return Math.max(0, Math.min(desiredLength, edgeLimit));
+  }
+
+  /**
+   * If extending `point` by `length` in `dir` would land past `otherPoint`'s
+   * own coordinate on dir's axis (in dir's direction), shorten it to land
+   * exactly even with otherPoint instead.
+   *
+   * `otherPoint` must be the OTHER endpoint's own already-stub-adjusted
+   * position (e.g. p2s, not raw p2) — comparing against the raw endpoint
+   * broke in two ways: when both anchor_side/attach_side land on the same
+   * axis, each stub independently "safe" against the raw other point can
+   * still end up on the wrong relative side of the OTHER stub once both are
+   * applied (the two stubs interact, not just each stub vs. the raw point);
+   * when a direction is perpendicular to the axis being checked, the raw
+   * other point's coordinate on that axis is coincidental, not a real
+   * constraint, and clamping against it shrinks the stub for no reason.
+   * Comparing against the other stub's own resolved position handles both:
+   * same-axis stubs correctly see each other's actual reach, and a
+   * perpendicular stub's own axis is untouched by the other side at all so
+   * its "other point" reference is unaffected by this distinction.
+   * @param {number} length
+   * @param {number[]} dir
+   * @param {number[]} point - the endpoint this stub extends from
+   * @param {number[]} otherPoint - the OTHER stub's own resolved endpoint
+   * @returns {number}
+   */
+  _noOvershootStub(length, dir, point, otherPoint) {
+    const axisIsX = dir[0] !== 0;
+    const sign = axisIsX ? dir[0] : dir[1];
+    const start = axisIsX ? point[0] : point[1];
+    const otherCoord = axisIsX ? otherPoint[0] : otherPoint[1];
+    const distToOther = otherCoord - start;
+    // If the other point sits on the OPPOSITE side of us from the direction
+    // we're traveling, it's behind us and can never be "passed" by moving
+    // further away from it — e.g. anchor_side:'top' (moving to smaller y)
+    // compared against an attach point far below (much larger y) has no
+    // overshoot risk at all; treating that as an overshoot (an earlier
+    // version of this check did) computes a nonsensical "corrected" length
+    // using a reference point nowhere near where we're actually headed.
+    if (Math.sign(distToOther) === -sign) return length;
+    const wouldBe = start + sign * length;
+    const overshoots = sign > 0 ? wouldBe > otherCoord : wouldBe < otherCoord;
+    return overshoots ? Math.abs(distToOther) : length;
   }
 
   stats() {
@@ -259,6 +401,11 @@ export class RouterCore {
       if (!hintSourceLast) hintSourceLast = hintSourceFirst;
     }
 
+    // Always-on (not gated behind an explicit route_hint) so anchor_side/
+    // attach_side-derived hints — and whether they were actually recognized
+    // as such — are visible without needing to set route_hint explicitly.
+    lcardsLog.debug(`[RouterCore] Line '${raw.id}': anchor_side='${raw.anchor_side || ''}' -> modeHint='${modeHint}' (source: ${hintSourceFirst}), attach_side='${raw.attach_side || ''}' -> modeHintLast='${modeHintLast}' (source: ${hintSourceLast})`);
+
     const smoothingIterations = Number(
       raw.smoothing_iterations ||
       raw.corner_smoothing_iterations ||
@@ -328,6 +475,12 @@ export class RouterCore {
       modeFull,
       modeHint,
       modeHintLast,
+      // Raw side strings (not just the axis-reduced modeHint/modeHintLast) —
+      // _computeManhattan needs the actual left/right/top/bottom direction,
+      // not just "this segment is horizontal/vertical", to depart/arrive on
+      // the correct side instead of just the correct axis.
+      anchorSide: (raw.anchor_side || '').toLowerCase(),
+      attachSide: (raw.attach_side || '').toLowerCase(),
       _hintSourceFirst: hintSourceFirst,
       _hintSourceLast: hintSourceLast,
       _modeAutoUpgraded: modeAutoUpgraded,
@@ -364,6 +517,49 @@ export class RouterCore {
     return `${req.id}@${x1},${y1}-${x2},${y2}|${req.modeFull}|${req.modeHint}|A:${avoidKey}|C:${chanKey}|R:${req._rev}|O:${this._obsVersion}|P:${req.proximity}|CR:${req.cornerRadius}|CS:${req.cornerStyle}|SM:${req.smoothingMode}|SI:${req.smoothingIterations}|VB:${vb[0]},${vb[1]},${vb[2]},${vb[3]}`;
   }
 
+  /**
+   * When anchor_side/attach_side resolves to a real cardinal direction
+   * ('left'/'right'/'top'/'bottom'), build short, fixed lead-out/lead-in
+   * stub points in that exact direction (same stubLengthFor()/logic
+   * _computeManhattan uses for its own algorithm) and return a request whose
+   * a/b are the *stub* endpoints — so whichever pathfinder runs between them
+   * can't second-guess the required departure/arrival side, it just finds a
+   * path between two points that are already offset the required way.
+   * @param {object} req
+   * @returns {{ stubReq: object, prefix: number[][], suffix: number[][] }}
+   */
+  _applyCardinalStubs(req) {
+    const anchorDir = req._hintSourceFirst === 'anchor_side' ? CARDINAL_DIR[req.anchorSide] : null;
+    const attachDir = req._hintSourceLast === 'attach_side' ? CARDINAL_DIR[req.attachSide] : null;
+    if (!anchorDir && !attachDir) {
+      return { stubReq: req, prefix: [], suffix: [] };
+    }
+    const stubLength = stubLengthFor(req);
+    const [x1, y1] = req.a;
+    const [x2, y2] = req.b;
+    const p1 = [x1, y1];
+    const p2 = [x2, y2];
+
+    // Two-step clamp: first the viewBox edge (independent per stub), then
+    // — using each stub's own edge-clamped position as the OTHER stub's
+    // reference — shorten either stub that would otherwise land past where
+    // the other one ends up (see _noOvershootStub).
+    const anchorFull = anchorDir ? this._clampStubLength(stubLength, anchorDir, p1) : stubLength;
+    const attachFull = attachDir ? this._clampStubLength(stubLength, attachDir, p2) : stubLength;
+    const p1sFull = anchorDir ? [x1 + anchorDir[0]*anchorFull, y1 + anchorDir[1]*anchorFull] : p1;
+    const p2sFull = attachDir ? [x2 + attachDir[0]*attachFull, y2 + attachDir[1]*attachFull] : p2;
+    const anchorStub = anchorDir ? this._noOvershootStub(anchorFull, anchorDir, p1, p2sFull) : stubLength;
+    const attachStub = attachDir ? this._noOvershootStub(attachFull, attachDir, p2, p1sFull) : stubLength;
+
+    const p1s = anchorDir ? [x1 + anchorDir[0]*anchorStub, y1 + anchorDir[1]*anchorStub] : p1;
+    const p2s = attachDir ? [x2 + attachDir[0]*attachStub, y2 + attachDir[1]*attachStub] : p2;
+    return {
+      stubReq: { ...req, a: p1s, b: p2s },
+      prefix: anchorDir ? [p1] : [],
+      suffix: attachDir ? [p2] : []
+    };
+  }
+
   computePath(req) {
     const key = this._cacheKey(req);
       const cached = this._cache.get(key);
@@ -372,34 +568,64 @@ export class RouterCore {
       }
       let result;
       const mode = req.modeFull;
-      try {
-        // Special handling for force channels - use forced routing instead of grid
-        const hasForceChannels = req.channels?.length > 0 &&
-          this._channels.some(c => req.channels.includes(c.id) && c.mode === 'force');
+      // Special handling for force channels - use forced routing instead of grid
+      const hasForceChannels = req.channels?.length > 0 &&
+        this._channels.some(c => req.channels.includes(c.id) && c.mode === 'force');
+      const usesForceRouting = hasForceChannels && (mode === 'smart' || mode === 'grid');
 
+      // A cardinal anchor_side/attach_side ('left'/'right'/'top'/'bottom')
+      // must be honored absolutely, regardless of routing mode — not just
+      // biased. _computeManhattan already guarantees this for its own
+      // algorithm via fixed lead-out/lead-in stub segments; do the same here
+      // for grid/smart routing by pathfinding between the *stub* endpoints
+      // and splicing the guaranteed-direction segments back on afterward —
+      // so "left" always means "always departs/arrives from the left" no
+      // matter what the pathfinder decides in between. Excluded: manual
+      // (fully user-controlled via waypoints), direct (meant to stay a
+      // literal, unprocessed 2-point line), and force-channel routing
+      // (_computeWaypoint has its own internal _computeManhattan(req)
+      // fallback when no waypoints match — feeding it an already-stubbed
+      // request would double-apply the stub on that fallback path).
+      const { stubReq, prefix, suffix } = (mode !== 'manual' && mode !== 'direct' && !usesForceRouting)
+        ? this._applyCardinalStubs(req)
+        : { stubReq: req, prefix: [], suffix: [] };
+      lcardsLog.debug(`[RouterCore] Line '${req.id}': a=${JSON.stringify(req.a)} b=${JSON.stringify(req.b)} -> stubReq.a=${JSON.stringify(stubReq.a)} stubReq.b=${JSON.stringify(stubReq.b)} prefix=${JSON.stringify(prefix)} suffix=${JSON.stringify(suffix)}`);
+      try {
         lcardsLog.debug(`[RouterCore] Route '${req.id}': mode=${mode}, channels=${req.channels?.join(',') || 'none'}, hasForce=${hasForceChannels}`);
 
         if (mode === 'manual') {
           lcardsLog.debug(`[RouterCore] Using manual routing for '${req.id}' with ${req.waypoints?.length || 0} waypoints`);
           result = this._computeManual(req);
-        } else if (hasForceChannels && (mode === 'smart' || mode === 'grid')) {
+        } else if (mode === 'direct') {
+          result = this._computeDirect(req);
+        } else if (usesForceRouting) {
           lcardsLog.debug(`[RouterCore] Using forced routing for '${req.id}'`);
           result = this._computeWaypoint(req);
         } else if (mode === 'grid') {
-          result = this._computeGrid(req);
+          result = this._computeGrid(stubReq);
         } else if (mode === 'smart') {
           // Compute base grid, then refine with A* for smart routing
-            const gridBase = this._computeGrid(req, { smart: true });
+            const gridBase = this._computeGrid(stubReq, { smart: true });
           if (gridBase) {
-            result = this._refineSmart(req, gridBase);
+            result = this._refineSmart(stubReq, gridBase);
           }
         }
       } catch (e) {
         lcardsLog.warn('[MSD v1] smart/grid router error; fallback to manhattan', e);
       }
+      lcardsLog.debug(`[RouterCore] Line '${req.id}': inner result.pts (pre-splice) = ${JSON.stringify(result?.pts)}`);
       if (!result) {
         result = this._computeManhattan(req);
+      } else if (prefix.length || suffix.length) {
+        const pts = [...prefix, ...result.pts, ...suffix];
+        result = {
+          ...result,
+          pts,
+          d: this._polylineToPath(pts),
+          meta: { ...result.meta, segments: pts.length - 1, bends: Math.max(0, pts.length - 2) }
+        };
       }
+      lcardsLog.debug(`[RouterCore] Line '${req.id}': final pts (post-splice) = ${JSON.stringify(result?.pts)}`);
 
       if (result && req.cornerStyle === 'round' && req.cornerRadius > 0) {
         const arcApplied = this._applyCornerRounding(result, req.cornerRadius, req.id);
@@ -538,7 +764,18 @@ export class RouterCore {
     gScore.set(key(start.c,start.r),0);
     open.push({ c:start.c, r:start.r, f:h(start.c,start.r) });
 
-    const blocked = (c,r)=> occ[r] && occ[r][c] === 1;
+    // _buildOccupancy rasterizes an obstacle's own boundary cell too — the
+    // exact cell its own attach point sits on. The start cell already never
+    // hits this check (pushed onto the open set directly, above); the goal
+    // cell did, though, so a route between two obstacle-flagged overlays
+    // could never step into its own goal, silently falling back to
+    // _computeManhattan (see computePath). Exempting both explicitly here
+    // only affects the single start/goal cell each route touches — it
+    // doesn't weaken avoidance of any other obstacle along the path.
+    const blocked = (c,r) => {
+      if ((c === start.c && r === start.r) || (c === goal.c && r === goal.r)) return false;
+      return occ[r] && occ[r][c] === 1;
+    };
 
     const maxIterations = cols*rows * 4; // guard
     let iterations = 0;
@@ -567,15 +804,54 @@ export class RouterCore {
         // route_hint: 'xy' wants a horizontal first move, 'yx' vertical
         // (same convention as _computeManhattan's firstMode).
         if (!curDir && req.modeHint) {
-          const wantsHorizontalFirst = req.modeHint === 'xy';
-          if (wantsHorizontalFirst !== isHorizontalMove) moveCost += hintPenalty;
+          if (req._hintSourceFirst === 'anchor_side') {
+            // Not a full direction requirement — computePath's stub-splice
+            // (_applyCardinalStubs) already guarantees the correct departure
+            // side externally via a fixed lead-out segment, so forcing a
+            // specific axis here too is redundant and can force an
+            // unnecessary extra step (e.g. anchor_side:left + a target
+            // straight below: the stub already went left, this pathfinder
+            // just needs to go down immediately). Only block the one
+            // direction that's a true reversal of the stub's own departure
+            // — arriving back at the exact point the stub just left,
+            // wasting its reach — which is the mirror of the last-move
+            // block below. Perpendicular or continuing-forward moves are
+            // both fine and left unbiased.
+            const anchorSideDir = CARDINAL_DIR[req.anchorSide];
+            if (anchorSideDir && dc === -anchorSideDir[0] && dr === -anchorSideDir[1]) continue;
+          } else {
+            const wantsHorizontalFirst = req.modeHint === 'xy';
+            if (wantsHorizontalFirst !== isHorizontalMove) moveCost += hintPenalty;
+          }
         }
-        // Bias the final move into the goal toward route_hint_last:
-        // 'xy' means the last segment is vertical, 'yx' horizontal (see
+        // Bias the final move into the goal toward route_hint_last: 'xy'
+        // means the last segment is vertical, 'yx' horizontal (see
         // _computeManhattan's lastMode comment for the same convention).
         if (nc === goal.c && nr === goal.r && req.modeHintLast) {
-          const wantsHorizontalLast = req.modeHintLast === 'yx';
-          if (wantsHorizontalLast !== isHorizontalMove) moveCost += hintPenalty;
+          if (req._hintSourceLast === 'attach_side') {
+            // Hard block, but only the exact OPPOSITE of the fixed suffix
+            // segment's own direction — that's the one approach that's a
+            // true reversal (arrive still heading outward, then immediately
+            // reverse inward for the fixed stub right where they meet, a
+            // visible pinch). A perpendicular approach is just a normal
+            // corner, not a reversal, and allowing it matters: blocking
+            // every direction except one exact match forces the path to
+            // detour by at least one full grid cell to line up with that
+            // single allowed approach, even when a perpendicular or
+            // near-immediate approach would already be correct (e.g. two
+            // controls only slightly offset — the previous all-but-one-
+            // direction block was forcing an entire extra grid cell of
+            // travel just to satisfy it). CARDINAL_DIR[attachSide] is the
+            // side's OUTWARD normal — arriving while still moving that way
+            // is the only case that reverses for the fixed suffix segment,
+            // which then travels the opposite (inward) way into the real
+            // endpoint.
+            const sideDir = CARDINAL_DIR[req.attachSide];
+            if (sideDir && sideDir[0] === dc && sideDir[1] === dr) continue;
+          } else {
+            const wantsHorizontalLast = req.modeHintLast === 'yx';
+            if (wantsHorizontalLast !== isHorizontalMove) moveCost += hintPenalty;
+          }
         }
 
         const gNew = gCur + moveCost;
@@ -662,34 +938,66 @@ export class RouterCore {
     if (pts.length >= 2) {
       const gridFirstHorizontal = origStart[1] === pts[1][1];
       const gridFirstVertical = origStart[0] === pts[1][0];
-      const wantsHorizontalFirst = req.modeHint !== 'yx';
-      if (wantsHorizontalFirst && gridFirstHorizontal) {
-        pts[1] = [pts[1][0], pts[0][1]];
-      } else if (!wantsHorizontalFirst && gridFirstVertical) {
-        pts[1] = [pts[0][0], pts[1][1]];
-      } else if (pts[0][0] !== pts[1][0] && pts[0][1] !== pts[1][1]) {
-        if (wantsHorizontalFirst) {
+      if (req._hintSourceFirst === 'anchor_side') {
+        // The stub (computePath's _applyCardinalStubs) already guarantees
+        // the true departure direction externally, via a separate fixed
+        // segment before req.a — this inner leg just needs to connect
+        // orthogonally to the exact stub point, on whichever axis the
+        // grid's own path already shares with it. Re-enforcing a specific
+        // axis here too (the modeHint-driven branches below) is redundant
+        // and, when the grid's own natural axis differs, inserts a spurious
+        // near-zero elbow that starves corner rounding right at the stub —
+        // e.g. a 2-3px "phantom" segment between the stub's exact endpoint
+        // and the grid's nearest cell, capping that corner's radius far
+        // below the configured value even though real room exists nearby.
+        if (gridFirstHorizontal) {
+          pts[1] = [pts[1][0], pts[0][1]];
+        } else if (gridFirstVertical) {
+          pts[1] = [pts[0][0], pts[1][1]];
+        } else if (pts[0][0] !== pts[1][0] && pts[0][1] !== pts[1][1]) {
           pts.splice(1, 0, [pts[1][0], pts[0][1]]);
-        } else {
-          pts.splice(1, 0, [pts[0][0], pts[1][1]]);
+        }
+      } else {
+        const wantsHorizontalFirst = req.modeHint !== 'yx';
+        if (wantsHorizontalFirst && gridFirstHorizontal) {
+          pts[1] = [pts[1][0], pts[0][1]];
+        } else if (!wantsHorizontalFirst && gridFirstVertical) {
+          pts[1] = [pts[0][0], pts[1][1]];
+        } else if (pts[0][0] !== pts[1][0] && pts[0][1] !== pts[1][1]) {
+          if (wantsHorizontalFirst) {
+            pts.splice(1, 0, [pts[1][0], pts[0][1]]);
+          } else {
+            pts.splice(1, 0, [pts[0][0], pts[1][1]]);
+          }
         }
       }
     }
-    // Check last segment
+    // Check last segment (same relaxation for attach_side-derived hints —
+    // see the first-segment comment above)
     let lastIdx = pts.length - 1;
     if (lastIdx >= 1) {
       const gridLastHorizontal = origEnd[1] === pts[lastIdx-1][1];
       const gridLastVertical = origEnd[0] === pts[lastIdx-1][0];
-      const wantsHorizontalLast = req.modeHintLast === 'yx';
-      if (wantsHorizontalLast && gridLastHorizontal) {
-        pts[lastIdx-1] = [pts[lastIdx-1][0], pts[lastIdx][1]];
-      } else if (!wantsHorizontalLast && gridLastVertical) {
-        pts[lastIdx-1] = [pts[lastIdx][0], pts[lastIdx-1][1]];
-      } else if (pts[lastIdx-1][0] !== pts[lastIdx][0] && pts[lastIdx-1][1] !== pts[lastIdx][1]) {
-        if (wantsHorizontalLast) {
+      if (req._hintSourceLast === 'attach_side') {
+        if (gridLastHorizontal) {
+          pts[lastIdx-1] = [pts[lastIdx-1][0], pts[lastIdx][1]];
+        } else if (gridLastVertical) {
+          pts[lastIdx-1] = [pts[lastIdx][0], pts[lastIdx-1][1]];
+        } else if (pts[lastIdx-1][0] !== pts[lastIdx][0] && pts[lastIdx-1][1] !== pts[lastIdx][1]) {
           pts.splice(lastIdx, 0, [pts[lastIdx-1][0], pts[lastIdx][1]]);
-        } else {
-          pts.splice(lastIdx, 0, [pts[lastIdx][0], pts[lastIdx-1][1]]);
+        }
+      } else {
+        const wantsHorizontalLast = req.modeHintLast === 'yx';
+        if (wantsHorizontalLast && gridLastHorizontal) {
+          pts[lastIdx-1] = [pts[lastIdx-1][0], pts[lastIdx][1]];
+        } else if (!wantsHorizontalLast && gridLastVertical) {
+          pts[lastIdx-1] = [pts[lastIdx][0], pts[lastIdx-1][1]];
+        } else if (pts[lastIdx-1][0] !== pts[lastIdx][0] && pts[lastIdx-1][1] !== pts[lastIdx][1]) {
+          if (wantsHorizontalLast) {
+            pts.splice(lastIdx, 0, [pts[lastIdx-1][0], pts[lastIdx][1]]);
+          } else {
+            pts.splice(lastIdx, 0, [pts[lastIdx][0], pts[lastIdx-1][1]]);
+          }
         }
       }
     }
@@ -1122,6 +1430,23 @@ export class RouterCore {
   }
 
   /**
+   * route: 'direct' — a literal 2-point straight line, no elbow, no
+   * obstacle avoidance, matching its own documentation (LineOverlay docs /
+   * Studio UI both describe it this way — before this method existed,
+   * 'direct' fell through to _computeManhattan and got the same elbow shape
+   * as every other unrecognized mode).
+   * @param {object} req - Route request
+   */
+  _computeDirect(req) {
+    const pts = [req.a, req.b];
+    return {
+      d: this._polylineToPath(pts),
+      pts,
+      meta: { strategy: 'direct', cost: this._costSimple(pts), segments: 1, bends: 0 }
+    };
+  }
+
+  /**
    * Manhattan routing supporting independent first and last segment hints.
    * @param {object} req - Route request with modeHint and modeHintLast
    */
@@ -1130,8 +1455,106 @@ export class RouterCore {
     const [x2, y2] = req.b;
     const firstMode = (req.modeHint === 'yx') ? 'yx' : 'xy';
     const lastMode  = (req.modeHintLast === 'yx') ? 'yx' : 'xy';
+
+    // anchor_side/attach_side ('left'/'right'/'top'/'bottom') carry a real
+    // outward direction, unlike modeHint/modeHintLast which only ever
+    // preserve an axis ('xy'/'yx') — 'left' means "depart/arrive from the
+    // left", not just "this segment is horizontal". Only apply when the hint
+    // actually came from anchor_side/attach_side (not an explicit
+    // route_hint/route_hint_last override or the geometry fallback below),
+    // so every other case keeps behaving exactly as before.
+    const anchorDir = req._hintSourceFirst === 'anchor_side' ? CARDINAL_DIR[req.anchorSide] : null;
+    const attachDir = req._hintSourceLast === 'attach_side' ? CARDINAL_DIR[req.attachSide] : null;
+
     let pts;
-    if (x1 === x2 || y1 === y2) {
+    if (anchorDir || attachDir) {
+      const p1 = [x1,y1], p2 = [x2,y2];
+
+      // Try the plain lastMode-only elbow first (no stub at all) — for many
+      // geometries it already departs/arrives the correct way on its own
+      // (e.g. the anchor and target just happen to already be offset in the
+      // right direction), and using it directly gives corner rounding the
+      // full natural segment length to work with. Forcing a stub on top
+      // unconditionally would only shorten that, or worse — if the natural
+      // offset is smaller than the stub length, force an unwanted overshoot.
+      const naturalElbow = lastMode === 'xy' ? [x2, y1] : [x1, y2];
+      const matchesDir = (from, to, dir) => {
+        const axisIsX = dir[0] !== 0;
+        const delta = axisIsX ? (to[0] - from[0]) : (to[1] - from[1]);
+        const wantSign = axisIsX ? dir[0] : dir[1];
+        return Math.sign(delta) === Math.sign(wantSign);
+      };
+      const firstLegOk = !anchorDir || matchesDir(p1, naturalElbow, anchorDir);
+      // Arrival should continue in the OPPOSITE direction of attachDir's own
+      // outward normal (inward, toward the real endpoint) — same convention
+      // as the A* hint bias's sign fix above.
+      const lastLegOk = !attachDir || matchesDir(naturalElbow, p2, [-attachDir[0], -attachDir[1]]);
+
+      if (firstLegOk && lastLegOk) {
+        pts = [p1, naturalElbow, p2];
+      } else {
+        // Natural elbow departs/arrives the wrong way — fall back to fixed
+        // lead-out/lead-in stub segments in the correct direction, without
+        // which firstMode was computed but never consulted (below), so the
+        // elbow shape came from lastMode alone: a line could ride back along
+        // its own source box's edge, and only the *axis* (not the side) of
+        // its final approach into the target was guaranteed.
+        const stubLength = stubLengthFor(req);
+        // Same two-step clamp as _applyCardinalStubs (grid/smart) — edge
+        // first, then shorten either stub that would land past the OTHER
+        // stub's own resolved position (see _noOvershootStub).
+        const anchorFull = anchorDir ? this._clampStubLength(stubLength, anchorDir, p1) : stubLength;
+        const attachFull = attachDir ? this._clampStubLength(stubLength, attachDir, p2) : stubLength;
+        const p1sFull = anchorDir ? [x1 + anchorDir[0]*anchorFull, y1 + anchorDir[1]*anchorFull] : p1;
+        const p2sFull = attachDir ? [x2 + attachDir[0]*attachFull, y2 + attachDir[1]*attachFull] : p2;
+        const anchorStubLen = anchorDir ? this._noOvershootStub(anchorFull, anchorDir, p1, p2sFull) : stubLength;
+        const attachStubLen = attachDir ? this._noOvershootStub(attachFull, attachDir, p2, p1sFull) : stubLength;
+        const p1s = anchorDir ? [x1 + anchorDir[0]*anchorStubLen, y1 + anchorDir[1]*anchorStubLen] : p1;
+        const p2s = attachDir ? [x2 + attachDir[0]*attachStubLen, y2 + attachDir[1]*attachStubLen] : p2;
+
+        // There are only two possible single-bend elbows connecting p1s to
+        // p2s — bend at (p2s.x, p1s.y) or at (p1s.x, p2s.y). Bend continues
+        // the departure stub's own axis first (if present), else arrives via
+        // the arrival stub's axis last — same convention the lastMode-only
+        // logic above used, just correctly directional now.
+        const elbowA = [p2s[0], p1s[1]]; // p1s -> elbowA is horizontal
+        const elbowB = [p1s[0], p2s[1]]; // p1s -> elbowB is vertical
+        let elbow = anchorDir
+          ? (anchorDir[0] !== 0 ? elbowA : elbowB)
+          : (attachDir[0] !== 0 ? elbowB : elbowA);
+
+        // If p1s and p2s are already closer together (in the departure axis)
+        // than stubLength pushed past, "continue the departure axis"
+        // overshoots past the target and has to reverse back to reach it —
+        // e.g. anchor_side:left with a target only slightly to the left:
+        // continuing further left past a large stub, then reversing right,
+        // is worse than just turning immediately. Swap elbows in that case.
+        if (anchorDir) {
+          const axisIsX = anchorDir[0] !== 0;
+          const legDelta = axisIsX ? (elbow[0] - p1s[0]) : (elbow[1] - p1s[1]);
+          const wantSign = axisIsX ? anchorDir[0] : anchorDir[1];
+          if (legDelta !== 0 && Math.sign(legDelta) !== Math.sign(wantSign)) {
+            elbow = elbow === elbowA ? elbowB : elbowA;
+          }
+        } else if (attachDir) {
+          // Symmetric check for the attachDir-only case: the elbow->p2s leg
+          // should move in the direction attachDir's fixed final stub will
+          // then continue (inward, opposite attachDir's own outward normal)
+          // — else the path arrives at the elbow already past p2s and has
+          // to reverse into the fixed stub.
+          const axisIsX = attachDir[0] !== 0;
+          const legDelta = axisIsX ? (p2s[0] - elbow[0]) : (p2s[1] - elbow[1]);
+          const wantSign = axisIsX ? -attachDir[0] : -attachDir[1];
+          if (legDelta !== 0 && Math.sign(legDelta) !== Math.sign(wantSign)) {
+            elbow = elbow === elbowA ? elbowB : elbowA;
+          }
+        }
+
+        const raw = [p1, p1s, elbow, p2s, p2];
+        pts = raw.filter((pt,i) => i === 0 || pt[0] !== raw[i-1][0] || pt[1] !== raw[i-1][1]);
+        if (pts.length < 2) pts = [p1, p2];
+      }
+    } else if (x1 === x2 || y1 === y2) {
       pts = [[x1,y1],[x2,y2]];
     } else {
       // We honor lastMode for the final segment orientation.
