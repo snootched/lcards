@@ -663,6 +663,56 @@ export function getMsdSchema() {
             description: 'Minimum coverage improvement to accept shaping (0-1)'
           },
 
+          // Trunk-and-branch (spontaneous line bundling)
+          trunk_bundling_enabled: {
+            type: 'boolean',
+            optional: true,
+            default: true,
+            description: 'Lines whose paths run close and parallel spontaneously bundle together and branch apart where needed'
+          },
+          trunk_proximity: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 32,
+            description: 'Maximum distance to a trunk lane to be considered "nearby" (pixels)'
+          },
+          trunk_min_overlap: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 60,
+            description: 'Minimum shared travel distance for joining a trunk to be worthwhile (pixels)'
+          },
+          trunk_min_length: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 60,
+            description: 'Minimum straight-run length to register as a new joinable trunk (pixels)'
+          },
+          trunk_max_join_candidates: {
+            type: 'number',
+            min: 1,
+            optional: true,
+            default: 2,
+            description: 'Maximum number of discovered trunks a single line will try to chain through'
+          },
+          trunk_bundle_weight: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 0.5,
+            description: 'Reward strength for joining a discovered trunk (same role as a channel\'s weight)'
+          },
+          trunk_line_spacing: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 8,
+            description: 'Default lane spacing for lines bundled on a discovered trunk (pixels)'
+          },
+
           // Cost function weights
           cost_defaults: {
             type: 'object',

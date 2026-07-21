@@ -108,6 +108,32 @@ export class RouterCore {
     this._channelShapingMaxAttempts = Number(this.config.channel_shaping_max_attempts ?? 12);
     this._channelShapingSpan = Number(this.config.channel_shaping_span ?? 32);
     this._channelMinCoverageGain = Number(this.config.channel_min_coverage_gain ?? 0.04);
+
+    // Trunk-and-branch: lines whose paths happen to run close and parallel
+    // spontaneously bundle together (cable-raceway aesthetic), branching
+    // apart only where their destinations actually diverge. Channels are
+    // unified into this as "pre-seeded" trunks — always known in advance,
+    // discoverable by any line whether or not it lists them in its own
+    // route_channels — so a config channel and a trunk discovered from an
+    // already-routed line's own path are the same shape and go through the
+    // same leg-composition machinery (_computeCorridorRouted). See
+    // _discoverTrunkCandidates/_registerTrunkSegments for the two halves of
+    // the mechanism (finding a trunk to join; growing the registry after a
+    // line finishes routing).
+    this._trunkBundlingEnabled = this.config.trunk_bundling_enabled !== false;
+    this._trunkProximity = Number(this.config.trunk_proximity ?? 32);
+    this._trunkMinOverlap = Number(this.config.trunk_min_overlap ?? 60);
+    this._trunkMinLength = Number(this.config.trunk_min_length ?? 60);
+    this._trunkMaxJoinCandidates = Number(this.config.trunk_max_join_candidates ?? 2);
+    this._trunkBundleWeight = Number(this.config.trunk_bundle_weight ?? 0.5);
+    this._trunkLineSpacing = Number(this.config.trunk_line_spacing ?? 8);
+    // Seeded eagerly, same reasoning as _channels itself: bounds are static
+    // config known at construction, so there's no lazy-rebuild story needed.
+    // origin/sourceLineId/runIndex distinguish a config-sourced trunk (never
+    // purged, never merges away) from one discovered at runtime from a
+    // line's own routed path (purged/re-registered on that line's recompute
+    // — see _purgeTrunksForLine).
+    this._trunks = this._channels.map(c => ({ ...c, origin: 'channel', sourceLineId: null, runIndex: null }));
   }
 
   invalidate(id='*') {
@@ -611,14 +637,16 @@ export class RouterCore {
       }
       let result;
       const mode = req.modeFull;
-      // Force channels are mandatory; prefer channels are an optional
-      // candidate (see _computeChannelRouted's own comment for why a plain
-      // per-cell cost bias alone can't reliably pull a route toward one).
-      const hasForceChannels = req.channels?.length > 0 &&
-        this._channels.some(c => req.channels.includes(c.id) && c.mode === 'force');
-      const hasPreferChannels = req.channels?.length > 0 &&
-        this._channels.some(c => req.channels.includes(c.id) && c.mode === 'prefer');
-      const usesChannelRouting = (hasForceChannels || hasPreferChannels) && (mode === 'smart' || mode === 'grid');
+      // Force channels are mandatory; prefer channels/trunks are optional
+      // candidates (see _computeCorridorRouted's own comment for why a
+      // plain per-cell cost bias alone can't reliably pull a route toward
+      // one). explicitCorridors is the same derivation _computeChannelRouted
+      // used to do internally, hoisted up here so it can be merged with
+      // discovered trunks below.
+      const explicitCorridors = req.channels?.length > 0
+        ? req.channels.map(id => this._channels.find(c => c.id === id && (c.mode === 'force' || c.mode === 'prefer'))).filter(Boolean)
+        : [];
+      const hasForceChannels = explicitCorridors.some(c => c.mode === 'force');
 
       // A cardinal anchor_side/attach_side ('left'/'right'/'top'/'bottom')
       // must be honored absolutely, regardless of routing mode — not just
@@ -629,8 +657,8 @@ export class RouterCore {
       // so "left" always means "always departs/arrives from the left" no
       // matter what the pathfinder decides in between. Excluded: manual
       // (fully user-controlled via waypoints) and direct (meant to stay a
-      // literal, unprocessed 2-point line). Channel-forced routing
-      // (_computeChannelRouted) now goes through the SAME stub-eligible path —
+      // literal, unprocessed 2-point line). Corridor-routed lines
+      // (_computeCorridorRouted) go through the SAME stub-eligible path —
       // it only ever applies the outer anchor_side/attach_side hint at the
       // true first/last leg boundary (every interior leg boundary uses
       // 'channel_axis' instead), so there's no risk of double-applying the
@@ -640,6 +668,23 @@ export class RouterCore {
         ? this._applyCardinalStubs(req)
         : { stubReq: req, prefix: [], suffix: [] };
       lcardsLog.debug(`[RouterCore] Line '${req.id}': a=${JSON.stringify(req.a)} b=${JSON.stringify(req.b)} -> stubReq.a=${JSON.stringify(stubReq.a)} stubReq.b=${JSON.stringify(stubReq.b)} prefix=${JSON.stringify(prefix)} suffix=${JSON.stringify(suffix)}`);
+
+      // Trunk-and-branch: discover any nearby, joinable trunks (config
+      // channels the line never referenced, or runs already registered
+      // from another line's finished route — see _discoverTrunkCandidates)
+      // and merge them with the line's own explicit corridors. A discovered
+      // trunk is never mandatory the way a force channel is — it's folded
+      // into the same optional-candidate cost comparison prefer channels
+      // already use below.
+      const discoveredTrunks = (mode === 'smart' || mode === 'grid')
+        ? this._discoverTrunkCandidates(stubReq, new Set(explicitCorridors.map(c => c.id)))
+        : [];
+      if (discoveredTrunks.length) {
+        lcardsLog.debug(`[RouterCore] Line '${req.id}': discovered ${discoveredTrunks.length} joinable trunk(s): ${discoveredTrunks.map(t => `${t.id}(overlap=${t.overlap.toFixed(1)})`).join(', ')}`);
+      }
+      const corridors = this._mergeCorridors(explicitCorridors, discoveredTrunks, stubReq);
+      const usesCorridorRouting = corridors.length > 0 && (mode === 'smart' || mode === 'grid');
+
       try {
         lcardsLog.debug(`[RouterCore] Route '${req.id}': mode=${mode}, channels=${req.channels?.join(',') || 'none'}, hasForce=${hasForceChannels}`);
 
@@ -654,24 +699,24 @@ export class RouterCore {
           result = this._computeManual(req);
         } else if (mode === 'direct') {
           result = this._computeDirect(req);
-        } else if (usesChannelRouting) {
-          const chained = this._computeChannelRouted(stubReq, mode === 'smart');
+        } else if (usesCorridorRouting) {
+          const chained = this._computeCorridorRouted(stubReq, mode === 'smart', corridors);
           if (hasForceChannels || !chained) {
             // Force channels are mandatory — always use the chained route
             // regardless of cost. (chained should never be null here since
             // hasForceChannels guarantees at least one matching channel,
             // but the null-check keeps this branch safe either way.)
-            lcardsLog.debug(`[RouterCore] Using channel-forced routing for '${req.id}' (mandatory)`);
+            lcardsLog.debug(`[RouterCore] Using corridor-forced routing for '${req.id}' (mandatory)`);
             result = chained;
           } else {
-            // Prefer-only: the chained route is an optional candidate —
-            // only worth it if actually bundling through the channel(s)
-            // costs less overall than the plain route. Compare real,
-            // distance-based total costs (both already include whatever
-            // channelDelta reward they legitimately earn).
+            // Prefer-channel/trunk-only: the chained route is an optional
+            // candidate — only worth it if actually bundling through the
+            // corridor(s) costs less overall than the plain route. Compare
+            // real, distance-based total costs (both already include
+            // whatever channelDelta reward they legitimately earn).
             const plain = computePlain();
             const useChained = plain ? chained.meta.cost <= plain.meta.cost : true;
-            lcardsLog.debug(`[RouterCore] Route '${req.id}': prefer-channel candidate cost=${chained.meta.cost.toFixed(1)} vs plain cost=${plain?.meta.cost?.toFixed(1) ?? 'n/a'} -> using ${useChained ? 'chained' : 'plain'}`);
+            lcardsLog.debug(`[RouterCore] Route '${req.id}': corridor candidate cost=${chained.meta.cost.toFixed(1)} vs plain cost=${plain?.meta.cost?.toFixed(1) ?? 'n/a'} -> using ${useChained ? 'chained' : 'plain'}`);
             result = useChained ? chained : plain;
           }
         } else if (mode === 'grid' || mode === 'smart') {
@@ -700,6 +745,17 @@ export class RouterCore {
       } else if (result && req.cornerStyle === 'bevel' && req.cornerRadius > 0) {
         const bevelApplied = this._applyCornerBeveling(result, req.cornerRadius, req.cornerAngle, req.id);
         if (bevelApplied) result = bevelApplied;
+      }
+      // Trunk registration must happen here: after corner-rounding/beveling
+      // (confirmed neither touches pts, only d) and before smoothing
+      // (confirmed it DOES replace pts with curved points — registering
+      // after smoothing would poison the trunk registry with non-axis-
+      // aligned "segments"). Only runs on the cache-miss path reached here
+      // (a cache hit returns early above), so nothing about this line
+      // changing means nothing about its trunk registrations should either.
+      if (result) {
+        this._purgeTrunksForLine(req.id);
+        this._registerTrunkSegments(req.id, result.pts);
       }
       // Apply smoothing AFTER corner arcs (arcs preserved, path rebuilt as polyline if smoothing > 0)
       if (result && req.smoothingMode !== 'none' && req.smoothingIterations > 0) {
@@ -1107,6 +1163,83 @@ export class RouterCore {
         } else if (pts[lastIdx-1][0] !== pts[lastIdx][0] && pts[lastIdx-1][1] !== pts[lastIdx][1]) {
           pts.splice(lastIdx, 0, [pts[lastIdx-1][0], pts[lastIdx][1]]);
         }
+      } else if (req._hintSourceLast === 'channel_axis') {
+        // Hard requirement, unlike attach_side (soft, reversal-only) or the
+        // generic geometry-preference branch below: a corridor crossing's
+        // arrival direction is non-negotiable — arriving on the wrong axis
+        // means the rendered path doesn't actually travel along the
+        // corridor's own configured direction. The generic branches only
+        // ever recognize "already matches" or "genuinely diagonal" — they
+        // silently do nothing when the segment is ALREADY orthogonal but on
+        // the WRONG axis, which can happen once the first-segment fix above
+        // (which doesn't know about this hard constraint) has already
+        // picked a shape. Confirmed as a real bug: a short trunk-join leg's
+        // first-segment fix picked the geometry-preferred axis, incidentally
+        // leaving the last segment orthogonal on the axis this hard
+        // requirement forbids.
+        // NOTE: deliberately NOT reusing gridLastHorizontal/gridLastVertical
+        // here — those compare origEnd (the grid's pre-snap natural last
+        // point) against pts[lastIdx-1], which is a reasonable proxy for a
+        // simple 2-point leg (where pts[lastIdx-1] is the true start) but
+        // becomes a stale, unrelated comparison once the path has 3+ points
+        // (pts[lastIdx-1] is then a real interior elbow that may coincidentally
+        // share a coordinate with origEnd for reasons that have nothing to do
+        // with whether the ACTUAL final segment is orthogonal). Confirmed as
+        // a real bug: a 4-point channel-crossing leg had a genuinely diagonal
+        // final segment while gridLastHorizontal still read true by
+        // coincidence, so this hard check must test the real, current
+        // segment directly instead.
+        const actuallyHorizontal = pts[lastIdx-1][1] === pts[lastIdx][1];
+        const actuallyVertical = pts[lastIdx-1][0] === pts[lastIdx][0];
+        const wantsHorizontalLast = req._channelAxisHorizontalLast;
+        const alreadyCorrect = wantsHorizontalLast ? actuallyHorizontal : actuallyVertical;
+        if (!alreadyCorrect) {
+          if (!actuallyHorizontal && !actuallyVertical) {
+            // Genuinely diagonal. The naive fix (insert
+            // [pts[lastIdx-1][0], pts[lastIdx][1]] or its mirror) can leave
+            // a needlessly SHORT segment when pts[lastIdx-1] is itself just
+            // the grid's rough cell-center approximation sitting close to
+            // (but not exactly on) the true snap coordinate — confirmed as a
+            // real case: a grid corner 5px off from the exact required
+            // point produced a tiny reversal-adjacent segment that then
+            // capped corner-rounding far below the configured radius. If
+            // the point before pts[lastIdx-1] already shares the coordinate
+            // the new elbow would keep from pts[lastIdx-1], pts[lastIdx-1]
+            // is redundant — replace it instead of inserting alongside it,
+            // collapsing the rough grid corner directly into the exact one.
+            const newElbow = wantsHorizontalLast
+              ? [pts[lastIdx-1][0], pts[lastIdx][1]]
+              : [pts[lastIdx][0], pts[lastIdx-1][1]];
+            const precedingStillValid = lastIdx >= 2 && (
+              wantsHorizontalLast
+                ? pts[lastIdx-2][0] === newElbow[0]
+                : pts[lastIdx-2][1] === newElbow[1]
+            );
+            if (precedingStillValid) {
+              pts[lastIdx-1] = newElbow;
+            } else {
+              pts.splice(lastIdx, 0, newElbow);
+            }
+          } else if (lastIdx >= 2) {
+            // Already orthogonal, but on the wrong axis. Can't fix by
+            // inserting a point built from pts[lastIdx-1]/pts[lastIdx]
+            // alone — combining their own coordinates just reproduces one
+            // of them, since they already share an axis. Replace
+            // pts[lastIdx-1] using the point before it as the "free"
+            // reference coordinate instead, which keeps the PRECEDING
+            // segment orthogonal too (possibly on a different axis than
+            // before — still valid, since all that's required there is
+            // axis-alignment, not a specific one).
+            pts[lastIdx-1] = wantsHorizontalLast
+              ? [pts[lastIdx-2][0], pts[lastIdx][1]]
+              : [pts[lastIdx][0], pts[lastIdx-2][1]];
+          }
+          // lastIdx === 1 with an already-wrong-axis 2-point path is a
+          // narrow residual edge case (pts[lastIdx-1] is the true start,
+          // req.a, which must not move) — left unfixed rather than risk a
+          // worse detour; needs req.a/req.b already perfectly axis-aligned
+          // on exactly the wrong axis, not observed in practice.
+        }
       } else {
         const wantsHorizontalLast = req.modeHintLast === 'yx';
         if (wantsHorizontalLast && gridLastHorizontal) {
@@ -1122,7 +1255,6 @@ export class RouterCore {
         }
       }
     }
-
     // If compression produced a single diagonal segment, insert a Manhattan elbow.
     if (pts.length === 2) {
       const [sx, sy] = pts[0];
@@ -1329,6 +1461,167 @@ export class RouterCore {
   }
 
   /**
+   * Removes every trunk this line previously registered (origin:'discovered'
+   * with sourceLineId === lineId), before re-scanning its freshly-computed
+   * path. Mirrors invalidate(id)'s own scan-and-purge pattern (line ~113),
+   * applied to _trunks instead of _cache. Channel-seeded entries
+   * (sourceLineId: null) never match and always survive — only a full
+   * config-driven reconstruction of this RouterCore instance touches those.
+   * @param {string} lineId
+   * @private
+   */
+  _purgeTrunksForLine(lineId) {
+    this._trunks = this._trunks.filter(t => t.sourceLineId !== lineId);
+  }
+
+  /**
+   * Scans a finished route's points for long-enough straight (axis-aligned)
+   * runs and registers each as a trunk another line could later discover
+   * and join. Must run on the pre-smoothing polyline — _applySmoothing
+   * replaces pts with curved points, which would poison the registry with
+   * non-axis-aligned "segments." A run shorter than _trunkMinLength isn't
+   * registered at all: a short post-stub jog (or a corridor nudge — see
+   * _pushBundledApproachLegs) is not something another line should try to
+   * join.
+   * @param {string} lineId
+   * @param {number[][]} pts
+   * @private
+   */
+  _registerTrunkSegments(lineId, pts) {
+    if (!this._trunkBundlingEnabled) return;
+    // Compact collinear runs first — a straight route commonly has interior
+    // points that aren't real corners at all (e.g. both ends of a stub
+    // splice happening to continue in the same direction the inner path
+    // already travels), and scanning raw consecutive pairs would register
+    // each such sub-run as its own separate, artificially-short trunk
+    // instead of the one real corridor they together represent. Same
+    // helper _computeCorridorRouted's own leg concatenation already relies
+    // on for this exact purpose.
+    const compacted = this._compactPolyline(pts);
+    let runIndex = 0;
+    for (let i = 1; i < compacted.length; i++) {
+      const a = compacted[i - 1], b = compacted[i];
+      const horizontal = a[1] === b[1];
+      const vertical = a[0] === b[0];
+      if (!horizontal && !vertical) continue; // shouldn't happen pre-smoothing; guard anyway
+      const length = horizontal ? Math.abs(b[0] - a[0]) : Math.abs(b[1] - a[1]);
+      if (length < this._trunkMinLength) continue;
+      this._mergeOrRegisterTrunk(lineId, runIndex++, a, b, horizontal);
+    }
+  }
+
+  /**
+   * Extends an existing nearby, same-direction, overlapping trunk's
+   * flow-span rather than spawning a coincident duplicate (without this, a
+   * force-channel line's own through-leg would register as a SEPARATE
+   * trunk sitting right on top of the channel's own pre-seeded one, and
+   * two lines merely occupying slightly different lanes of the same shared
+   * run would each spawn their own trunk instead of recognizing the one
+   * that's already there). The merge test is purely geometric — agnostic
+   * to origin — so a line that routes through a channel naturally merges
+   * into that channel's own seeded trunk. Otherwise registers a new entry
+   * with id `trunk:${lineId}:${runIndex}` — a pure function of
+   * (sourceLineId, runIndex), never a monotonic counter, so re-registering
+   * a line with unchanged geometry is a no-op and re-registering with
+   * changed geometry can't leak a stale entry under an old id (see
+   * _purgeTrunksForLine, which always runs first).
+   * @param {string} lineId
+   * @param {number} runIndex
+   * @param {number[]} a
+   * @param {number[]} b
+   * @param {boolean} horizontal
+   * @private
+   */
+  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal) {
+    const flow = horizontal ? 0 : 1;
+    const cross = horizontal ? 1 : 0;
+    const flowLo = Math.min(a[flow], b[flow]);
+    const flowHi = Math.max(a[flow], b[flow]);
+    const crossCoord = a[cross]; // a[cross] === b[cross] by construction (axis-aligned)
+
+    const existing = this._trunks.find(t => {
+      if (t.direction !== (horizontal ? 'horizontal' : 'vertical')) return false;
+      if (t.sourceLineId === lineId) return false;
+      const tCrossCenter = horizontal ? (t.y1 + t.y2) / 2 : (t.x1 + t.x2) / 2;
+      if (Math.abs(tCrossCenter - crossCoord) > this._trunkProximity) return false;
+      const tFlowLo = horizontal ? t.x1 : t.y1;
+      const tFlowHi = horizontal ? t.x2 : t.y2;
+      return Math.min(flowHi, tFlowHi) - Math.max(flowLo, tFlowLo) >= -this._trunkProximity;
+    });
+    if (existing) {
+      if (horizontal) {
+        existing.x1 = Math.min(existing.x1, flowLo);
+        existing.x2 = Math.max(existing.x2, flowHi);
+      } else {
+        existing.y1 = Math.min(existing.y1, flowLo);
+        existing.y2 = Math.max(existing.y2, flowHi);
+      }
+      return;
+    }
+
+    const half = this._trunkLineSpacing / 2;
+    this._trunks.push({
+      id: `trunk:${lineId}:${runIndex}`,
+      x1: horizontal ? flowLo : crossCoord - half,
+      y1: horizontal ? crossCoord - half : flowLo,
+      x2: horizontal ? flowHi : crossCoord + half,
+      y2: horizontal ? crossCoord + half : flowHi,
+      direction: horizontal ? 'horizontal' : 'vertical',
+      weight: this._trunkBundleWeight,
+      mode: 'prefer',
+      line_spacing: this._trunkLineSpacing,
+      origin: 'discovered',
+      sourceLineId: lineId,
+      runIndex
+    });
+  }
+
+  /**
+   * Finds trunks (config-seeded channels and/or previously-discovered runs
+   * from other lines) worth trying to join for this request — two
+   * independently-tunable thresholds, not a vague "check if it's close":
+   * flow-axis overlap between the line's own span and the trunk's span
+   * must be >= trunk_min_overlap (joining is only worth it for a real
+   * shared stretch, not a coincidental few-pixel graze), and the
+   * perpendicular distance from the line's approximate path to the
+   * trunk's lane center must be <= trunk_proximity. Runs on stubReq.a/b
+   * alone — not an already-computed plain route — so a line with no
+   * nearby trunk never pays for an extra pathfinding pass.
+   * @param {object} stubReq
+   * @param {Set<string>} excludeIds - ids already present as explicit corridors in the chain
+   * @returns {Array<object>} candidate trunks (each tagged with `overlap`), sorted by overlap desc, capped at trunk_max_join_candidates
+   * @private
+   */
+  _discoverTrunkCandidates(stubReq, excludeIds) {
+    if (!this._trunkBundlingEnabled || !this._trunks.length) return [];
+    const [a, b] = [stubReq.a, stubReq.b];
+    const candidates = [];
+    for (const t of this._trunks) {
+      if (excludeIds.has(t.id) || t.sourceLineId === stubReq.id) continue;
+      const horizontal = t.direction === 'horizontal';
+      const flow = horizontal ? 0 : 1;
+      const cross = horizontal ? 1 : 0;
+      const lineFlowLo = Math.min(a[flow], b[flow]);
+      const lineFlowHi = Math.max(a[flow], b[flow]);
+      const tFlowLo = horizontal ? t.x1 : t.y1;
+      const tFlowHi = horizontal ? t.x2 : t.y2;
+      const overlap = Math.min(lineFlowHi, tFlowHi) - Math.max(lineFlowLo, tFlowLo);
+      if (overlap < this._trunkMinOverlap) continue;
+      const tCrossCenter = horizontal ? (t.y1 + t.y2) / 2 : (t.x1 + t.x2) / 2;
+      // Mirrors _channelCrossingPoints' own throughCoord averaging — a
+      // rough approximation of where this line's path would sit on the
+      // cross axis, good enough for a "is this worth trying" gate (the
+      // actual join geometry is computed precisely later, only if this
+      // candidate is used).
+      const lineCrossApprox = (a[cross] + b[cross]) / 2;
+      if (Math.abs(lineCrossApprox - tCrossCenter) > this._trunkProximity) continue;
+      candidates.push({ ...t, overlap });
+    }
+    candidates.sort((p, q) => q.overlap - p.overlap);
+    return candidates.slice(0, this._trunkMaxJoinCandidates);
+  }
+
+  /**
    * Entry/exit boundary points for one force-channel crossing, generalizing
    * _computeWaypoint's enter/exit clamp math to an arbitrary position in a
    * chain of channels. approachPoint/departPoint are reference points on
@@ -1531,8 +1824,19 @@ export class RouterCore {
     // lane (the baseline is shared by every offset line; only the
     // `laneIndex * lineSpacing` term needs to differ between them), just
     // comfortably long enough to round properly too.
+    // Clamped to the actual distance available to `to` — unreachable/inert
+    // for today's config-channel callers (a real channel entry is
+    // typically far enough from the anchor that this never binds), but
+    // load-bearing once a discovered trunk's entry point can legitimately
+    // sit close to a line's own anchor (the exact scenario this whole
+    // feature targets: near-adjacent departures). Without the clamp, the
+    // nudge can overshoot past `to` and produce a reversal — the same
+    // class of bug _noOvershootStub was built to prevent for cardinal
+    // stubs, applied here to the corridor nudge instead.
+    const rawOffset = stubLengthFor(stubReq) + laneIndex * lineSpacing;
+    const available = Math.abs(to[flow] - from[flow]);
     const corridorOffset = lineSpacing && laneIndex > 0 && from[flow] !== to[flow]
-      ? Math.sign(to[flow] - from[flow]) * (stubLengthFor(stubReq) + laneIndex * lineSpacing)
+      ? Math.sign(to[flow] - from[flow]) * Math.min(rawOffset, available)
       : 0;
     if (!corridorOffset) {
       // No real bundling need — either this line is alone at this channel,
@@ -1567,6 +1871,35 @@ export class RouterCore {
   }
 
   /**
+   * Orders the corridors a line will chain through. Explicit route_channels
+   * keep their authored order unchanged — load-bearing for force-channel
+   * chains, where the user's declared sequence is the only signal
+   * expressing intent. Discovered trunks have no authored order at all, so
+   * they're appended, sorted by ascending flow-distance from the line's own
+   * start point. A suboptimal merge order here can only make the resulting
+   * chain lose the cost-comparison against the plain route more often —
+   * never produce a broken path, since each leg is still independently
+   * pathfound and direction-guaranteed.
+   * @param {Array<object>} explicitCorridors
+   * @param {Array<object>} discoveredTrunks
+   * @param {object} stubReq
+   * @returns {Array<object>}
+   * @private
+   */
+  _mergeCorridors(explicitCorridors, discoveredTrunks, stubReq) {
+    if (!discoveredTrunks.length) return explicitCorridors;
+    const distTo = (t) => {
+      const horizontal = t.direction === 'horizontal';
+      const flow = horizontal ? 0 : 1;
+      const lo = horizontal ? t.x1 : t.y1;
+      const hi = horizontal ? t.x2 : t.y2;
+      return Math.min(Math.abs(stubReq.a[flow] - lo), Math.abs(stubReq.a[flow] - hi));
+    };
+    const sorted = discoveredTrunks.slice().sort((p, q) => distTo(p) - distTo(q));
+    return [...explicitCorridors, ...sorted];
+  }
+
+  /**
    * Channel-forced routing: composes the force AND prefer channels
    * referenced by stubReq (in their declared route_channels order) into
    * legs — approach, through, approach, through, ..., depart — each
@@ -1595,13 +1928,17 @@ export class RouterCore {
    * total discount, while even a one-turn detour costs more than that.
    * @param {object} stubReq - already stub-shifted request (see computePath)
    * @param {boolean} smart - whether to run _refineSmart per leg
-   * @returns {object|null} route result, or null if no force/prefer channels referenced
+   * @param {Array<object>} corridors - explicit force/prefer channels AND/OR
+   *   discovered trunks to chain through, in the order they should be
+   *   visited (see _mergeCorridors — explicit route_channels keep their
+   *   authored order; discovered trunks are appended by proximity). A
+   *   channel and a discovered trunk are indistinguishable here — both are
+   *   plain {id,x1,y1,x2,y2,direction,weight,line_spacing} objects.
+   * @returns {object|null} route result, or null if `corridors` is empty
    * @private
    */
-  _computeChannelRouted(stubReq, smart) {
-    const chainChannels = stubReq.channels
-      .map(id => this._channels.find(c => c.id === id && (c.mode === 'force' || c.mode === 'prefer')))
-      .filter(Boolean);
+  _computeCorridorRouted(stubReq, smart, corridors) {
+    const chainChannels = corridors;
     if (!chainChannels.length) return null;
 
     const legs = [];
@@ -1660,7 +1997,13 @@ export class RouterCore {
     }
     pts = this._compactPolyline(pts);
 
-    const channelInfo = this._channelDelta(pts, stubReq); // reporting only — geometry already guaranteed by leg construction
+    // Reporting only — geometry already guaranteed by leg construction.
+    // _corridorDelta (not _channelDelta) because a discovered trunk is
+    // never present in this._channels, so _channelDelta (which filters
+    // this._channels by req.channels) could never see it — this is the
+    // one piece of the routing pipeline that actually needs to know about
+    // trunks that aren't config-sourced channels.
+    const channelInfo = this._corridorDelta(pts, chainChannels, stubReq.id);
     const bendW = (this.config?.cost_defaults?.bend ?? 10);
     const proxW = (this.config?.cost_defaults?.proximity ?? 4);
     const { penalty: proxPenalty } = this._segmentProximityPenalty(pts, stubReq.clearance, stubReq.proximity, proxW);
@@ -1668,7 +2011,7 @@ export class RouterCore {
       d: this._polylineToPath(pts),
       pts,
       meta: {
-        strategy: 'channel-forced',
+        strategy: 'corridor-routed',
         cost: this._costComposite(pts, bendW, proxW, proxPenalty, channelInfo.delta),
         segments: pts.length - 1,
         bends: Math.max(0, pts.length - 2),
@@ -2019,8 +2362,13 @@ export class RouterCore {
   }
 
   /**
-   * Calculate channel influence on route cost
-   * Supports bundling (prefer), avoiding, force, and waypoint channel types
+   * Calculate channel influence on route cost — thin wrapper over
+   * _corridorDelta for the existing "channel referenced by id" call
+   * pattern (_computeGrid/_refineSmart's own post-hoc reporting). Kept
+   * separate from _corridorDelta so those callers don't need to know
+   * about corridors that aren't config-sourced channels (discovered
+   * trunks, see _computeCorridorRouted) — they only ever report on what a
+   * line's own req.channels explicitly named.
    * @param {Array} pts - Route points
    * @param {object} req - Route request
    * @returns {object} Channel delta with coverage stats and waypoint tracking
@@ -2030,10 +2378,26 @@ export class RouterCore {
     if (!this._channels.length || !req.channels || !req.channels.length) {
       return { delta: 0, inside: 0, outside: 0, coverage: 0, forcedOutside: false };
     }
-
     // Filter to requested channel IDs (ignore unknown)
     const chanSet = new Set(req.channels);
     const chans = this._channels.filter(c => chanSet.has(c.id));
+    return this._corridorDelta(pts, chans, req.id);
+  }
+
+  /**
+   * Calculate corridor influence on route cost — supports bundling
+   * (prefer), avoiding, force, and (via mode:'prefer') discovered trunks,
+   * for an EXPLICIT corridor list rather than one derived from
+   * this._channels ∩ req.channels. This is what makes a discovered trunk
+   * (never present in this._channels, so invisible to _channelDelta)
+   * visible to the cost-comparison decision in computePath.
+   * @param {Array} pts - Route points
+   * @param {Array} chans - Normalized channel/trunk objects to measure against
+   * @param {string} [routeId] - for debug logging only
+   * @returns {object} Channel delta with coverage stats
+   * @private
+   */
+  _corridorDelta(pts, chans, routeId = null) {
     if (!chans.length) return { delta: 0, inside: 0, outside: 0, coverage: 0, forcedOutside: false };
 
     let inside = 0;
@@ -2080,7 +2444,7 @@ export class RouterCore {
         if (chanInside === 0) {
           delta += this._channelForcePenalty;
           forcedOutside = true;
-          lcardsLog.debug(`[RouterCore] Route '${req.id}' missed forced channel '${chan.id}'`);
+          lcardsLog.debug(`[RouterCore] Route '${routeId}' missed forced channel '${chan.id}'`);
         } else {
           // Reward for passing through
           delta -= chanInside * chan.weight;
