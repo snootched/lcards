@@ -18,6 +18,13 @@ import { getValidChannelTypes, WAYPOINT_CONFIG } from './routing-constants.js';
 // or the geometry fallback, neither of which carry a real direction).
 const CARDINAL_DIR = { left: [-1,0], right: [1,0], top: [0,-1], bottom: [0,1] };
 const MIN_STUB_LENGTH = 24; // viewBox units — floor even when cornerRadius is 0
+// Floor for a single A* grid-cell step cost. A full-weight 'prefer' channel
+// discount (_buildChannelCostGrid) is a large negative delta added to the
+// base step cost of 1 — without a floor above zero, a strong enough
+// discount could drive a cell's cost to zero or negative, breaking A*'s
+// admissibility guarantee against the h() heuristic (line ~751) and risking
+// non-optimal or non-terminating search behavior.
+const MIN_STEP_COST = 0.05;
 
 /**
  * Lead-out/lead-in stub length for a given request. _applyCornerRounding
@@ -77,8 +84,15 @@ export class RouterCore {
     this._obstacles = [];
     this._obsVersion = 0;
     this._gridCache = new Map(); // resolution|obsVersion -> occupancy grid
+    // Separate from _gridCache: obstacle occupancy is global (every line sees
+    // the same obstacles), but channel cost bias is opt-in per-line via
+    // route_channels — folding it into the shared occupancy cache would leak
+    // one line's prefer/avoid bias onto every other line at the same grid
+    // resolution/viewBox. Keyed on the referencing line's own channel subset
+    // (see _channelCostKey), not just resolution/viewBox.
+    this._channelCostCache = new Map();
     this._channels = this._normalizeChannels(this.config.channels || {});
-    this._channelLineCount = new Map(); // channelId -> count of lines routed through
+    this._channelLineIndex = new Map(); // channelId -> Map(lineId -> stable bundling lane index)
 
     // Debug logging for channel detection
     if (this._channels.length > 0) {
@@ -148,6 +162,7 @@ export class RouterCore {
     this._obsVersion++;
     // Invalidate grids & route cache referencing old obstacles
     this._gridCache.clear();
+    this._channelCostCache.clear();
     this.invalidate('*');
   }
 
@@ -173,6 +188,7 @@ export class RouterCore {
     // entries simply stop being matched - this clear is memory hygiene only
     // (_gridCache has no eviction policy, unlike the LRU-capped _cache).
     this._gridCache.clear();
+    this._channelCostCache.clear();
     this.invalidate('*');
   }
 
@@ -281,7 +297,29 @@ export class RouterCore {
    */
   _getChannelArray(raw) {
     const channels = raw.route_channels || raw.routeChannels || [];
-    return Array.isArray(channels) ? channels : [];
+    // .slice() defensively — callers (e.g. _cacheKey) sort this array, and
+    // without a copy that mutates the raw config's own route_channels array
+    // in place (see _cacheKey's comment).
+    return Array.isArray(channels) ? channels.slice() : [];
+  }
+
+  /**
+   * Sorted, comma-joined key for the subset of a line's referenced channels
+   * that actually contribute per-cell A* cost bias — 'prefer'/'avoid' only.
+   * Force-mode channels contribute no per-cell bias (handled structurally as
+   * mandatory-waypoint legs, see _computeForceRouted) so they're excluded
+   * here even if referenced by the same line.
+   * @param {string[]} channelIds - req.channels
+   * @returns {string}
+   * @private
+   */
+  _channelCostKey(channelIds) {
+    if (!channelIds || !channelIds.length) return '';
+    return channelIds
+      .filter(id => this._channels.some(c => c.id === id && (c.mode === 'prefer' || c.mode === 'avoid')))
+      .slice()
+      .sort()
+      .join(',');
   }
 
   /**
@@ -509,8 +547,13 @@ export class RouterCore {
   _cacheKey(req) {
     const [x1,y1] = req.a;
     const [x2,y2] = req.b;
-    const avoidKey = req.avoidIds.sort().join(',');
-    const chanKey = req.channels.sort().join(',');
+    // .slice() before sort — Array.prototype.sort mutates in place, and
+    // req.channels' declared order is meaningful (force-channel chain
+    // sequencing in _computeForceRouted uses route_channels' authored
+    // order). Sorting it here for the cache key must not permanently
+    // reorder the overlay's own raw config.
+    const avoidKey = req.avoidIds.slice().sort().join(',');
+    const chanKey = req.channels.slice().sort().join(',');
     // viewBox is included so a pan/resize (unchanged anchors/mode/obstacles)
     // can't hit a route cached under the previous origin/dimensions.
     const vb = this.viewBox || [0,0,400,200];
@@ -568,10 +611,14 @@ export class RouterCore {
       }
       let result;
       const mode = req.modeFull;
-      // Special handling for force channels - use forced routing instead of grid
+      // Force channels are mandatory; prefer channels are an optional
+      // candidate (see _computeChannelRouted's own comment for why a plain
+      // per-cell cost bias alone can't reliably pull a route toward one).
       const hasForceChannels = req.channels?.length > 0 &&
         this._channels.some(c => req.channels.includes(c.id) && c.mode === 'force');
-      const usesForceRouting = hasForceChannels && (mode === 'smart' || mode === 'grid');
+      const hasPreferChannels = req.channels?.length > 0 &&
+        this._channels.some(c => req.channels.includes(c.id) && c.mode === 'prefer');
+      const usesChannelRouting = (hasForceChannels || hasPreferChannels) && (mode === 'smart' || mode === 'grid');
 
       // A cardinal anchor_side/attach_side ('left'/'right'/'top'/'bottom')
       // must be honored absolutely, regardless of routing mode — not just
@@ -581,34 +628,54 @@ export class RouterCore {
       // and splicing the guaranteed-direction segments back on afterward —
       // so "left" always means "always departs/arrives from the left" no
       // matter what the pathfinder decides in between. Excluded: manual
-      // (fully user-controlled via waypoints), direct (meant to stay a
-      // literal, unprocessed 2-point line), and force-channel routing
-      // (_computeWaypoint has its own internal _computeManhattan(req)
-      // fallback when no waypoints match — feeding it an already-stubbed
-      // request would double-apply the stub on that fallback path).
-      const { stubReq, prefix, suffix } = (mode !== 'manual' && mode !== 'direct' && !usesForceRouting)
+      // (fully user-controlled via waypoints) and direct (meant to stay a
+      // literal, unprocessed 2-point line). Channel-forced routing
+      // (_computeChannelRouted) now goes through the SAME stub-eligible path —
+      // it only ever applies the outer anchor_side/attach_side hint at the
+      // true first/last leg boundary (every interior leg boundary uses
+      // 'channel_axis' instead), so there's no risk of double-applying the
+      // stub the way the old _computeWaypoint's internal _computeManhattan
+      // fallback could.
+      const { stubReq, prefix, suffix } = (mode !== 'manual' && mode !== 'direct')
         ? this._applyCardinalStubs(req)
         : { stubReq: req, prefix: [], suffix: [] };
       lcardsLog.debug(`[RouterCore] Line '${req.id}': a=${JSON.stringify(req.a)} b=${JSON.stringify(req.b)} -> stubReq.a=${JSON.stringify(stubReq.a)} stubReq.b=${JSON.stringify(stubReq.b)} prefix=${JSON.stringify(prefix)} suffix=${JSON.stringify(suffix)}`);
       try {
         lcardsLog.debug(`[RouterCore] Route '${req.id}': mode=${mode}, channels=${req.channels?.join(',') || 'none'}, hasForce=${hasForceChannels}`);
 
+        const computePlain = () => {
+          if (mode === 'grid') return this._computeGrid(stubReq);
+          const gridBase = this._computeGrid(stubReq, { smart: true });
+          return gridBase ? this._refineSmart(stubReq, gridBase) : null;
+        };
+
         if (mode === 'manual') {
           lcardsLog.debug(`[RouterCore] Using manual routing for '${req.id}' with ${req.waypoints?.length || 0} waypoints`);
           result = this._computeManual(req);
         } else if (mode === 'direct') {
           result = this._computeDirect(req);
-        } else if (usesForceRouting) {
-          lcardsLog.debug(`[RouterCore] Using forced routing for '${req.id}'`);
-          result = this._computeWaypoint(req);
-        } else if (mode === 'grid') {
-          result = this._computeGrid(stubReq);
-        } else if (mode === 'smart') {
-          // Compute base grid, then refine with A* for smart routing
-            const gridBase = this._computeGrid(stubReq, { smart: true });
-          if (gridBase) {
-            result = this._refineSmart(stubReq, gridBase);
+        } else if (usesChannelRouting) {
+          const chained = this._computeChannelRouted(stubReq, mode === 'smart');
+          if (hasForceChannels || !chained) {
+            // Force channels are mandatory — always use the chained route
+            // regardless of cost. (chained should never be null here since
+            // hasForceChannels guarantees at least one matching channel,
+            // but the null-check keeps this branch safe either way.)
+            lcardsLog.debug(`[RouterCore] Using channel-forced routing for '${req.id}' (mandatory)`);
+            result = chained;
+          } else {
+            // Prefer-only: the chained route is an optional candidate —
+            // only worth it if actually bundling through the channel(s)
+            // costs less overall than the plain route. Compare real,
+            // distance-based total costs (both already include whatever
+            // channelDelta reward they legitimately earn).
+            const plain = computePlain();
+            const useChained = plain ? chained.meta.cost <= plain.meta.cost : true;
+            lcardsLog.debug(`[RouterCore] Route '${req.id}': prefer-channel candidate cost=${chained.meta.cost.toFixed(1)} vs plain cost=${plain?.meta.cost?.toFixed(1) ?? 'n/a'} -> using ${useChained ? 'chained' : 'plain'}`);
+            result = useChained ? chained : plain;
           }
+        } else if (mode === 'grid' || mode === 'smart') {
+          result = computePlain();
         }
       } catch (e) {
         lcardsLog.warn('[MSD v1] smart/grid router error; fallback to manhattan', e);
@@ -729,6 +796,18 @@ export class RouterCore {
       this._gridCache.set(gridKey, occ);
     }
 
+    // Per-cell prefer/avoid channel cost bias — separate cache from
+    // occupancy (see _channelCostCache's constructor comment): keyed on this
+    // line's own referenced channel subset, not just resolution/viewBox,
+    // since bias is opt-in per line rather than global like obstacles.
+    const chanKey = this._channelCostKey(req.channels);
+    const chanCostKey = `${chanKey}|${res}|${originX},${originY},${width},${height}`;
+    let chanCost = this._channelCostCache.get(chanCostKey);
+    if (!chanCost) {
+      chanCost = this._buildChannelCostGrid(cols, rows, res, originX, originY, req.channels);
+      this._channelCostCache.set(chanCostKey, chanCost);
+    }
+
     // World coordinates are relative to the viewBox's own origin (vb[0]/vb[1]),
     // which is not always [0,0] — a custom view_box can legitimately pan into
     // negative minX/minY. Without subtracting/adding the origin here, any
@@ -748,7 +827,27 @@ export class RouterCore {
     const gScore = new Map();
     const came = new Map();
     const direction = new Map(); // Track direction to each cell
-    const h = (c,r)=> Math.abs(c-goal.c)+Math.abs(r-goal.r);
+    // Plain Manhattan-distance heuristic assumes a minimum step cost of 1 —
+    // admissible (never overestimates true remaining cost) as long as every
+    // real step costs >= 1. A 'prefer' channel discount (_buildChannelCostGrid)
+    // can drop a step's cost as low as MIN_STEP_COST, which breaks that
+    // assumption: the heuristic can then OVERESTIMATE the true cost of a
+    // discounted route, causing A* to pop the goal via a costlier
+    // undiscounted path before ever fully exploring the genuinely cheaper
+    // discounted one — a real optimality violation, confirmed empirically
+    // (a route through a wide, closely-adjacent prefer channel that should
+    // undercut the direct path was not found without this). Fall back to
+    // h=0 (uniform-cost/Dijkstra, always admissible) whenever this request
+    // references any 'prefer'-mode channel; grids here are small enough
+    // (bounded by maxIterations below) that the performance cost is
+    // negligible. 'avoid'-only or no-channel requests keep the informed
+    // heuristic — positive-only deltas only ever make costs higher, so
+    // admissibility is unaffected and the search stays fast.
+    const hasPreferChannel = req.channels?.some(id =>
+      this._channels.some(c => c.id === id && c.mode === 'prefer'));
+    const h = hasPreferChannel
+      ? () => 0
+      : (c,r)=> Math.abs(c-goal.c)+Math.abs(r-goal.r);
 
     // Get turn penalty from config (default: 2)
     const turnPenalty = Number(this.config.turn_penalty ?? 2);
@@ -798,7 +897,15 @@ export class RouterCore {
 
         // Add turn penalty if direction changed (but not on first move)
         const isDirectionChange = curDir && curDir !== newDir;
-        let moveCost = 1 + (isDirectionChange ? turnPenalty : 0);
+        // Prefer/avoid channel bias on the destination cell being entered —
+        // consistent with blocked(nc,nr) above already gating on the
+        // destination cell. Floored so a full-weight 'prefer' discount can
+        // never drive a step's cost to zero/negative (see MIN_STEP_COST).
+        // 'prefer' only rewards a move along the channel's own configured
+        // direction (horizOnly/vertOnly); 'avoid' (anyDir) applies regardless.
+        const chanDelta = (chanCost.anyDir[nr]?.[nc] || 0) +
+          (isHorizontalMove ? (chanCost.horizOnly[nr]?.[nc] || 0) : (chanCost.vertOnly[nr]?.[nc] || 0));
+        let moveCost = Math.max(MIN_STEP_COST, 1 + chanDelta) + (isDirectionChange ? turnPenalty : 0);
 
         // Bias the very first move away from the start anchor toward
         // route_hint: 'xy' wants a horizontal first move, 'yx' vertical
@@ -819,6 +926,15 @@ export class RouterCore {
             // both fine and left unbiased.
             const anchorSideDir = CARDINAL_DIR[req.anchorSide];
             if (anchorSideDir && dc === -anchorSideDir[0] && dr === -anchorSideDir[1]) continue;
+          } else if (req._hintSourceFirst === 'channel_axis') {
+            // Force-channel leg boundary: this leg's very first move must
+            // cross exactly along the channel's flow axis (unlike the
+            // anchor_side reversal-only block above, ANY off-axis first move
+            // is wrong here — a channel is entered horizontally or it isn't
+            // a horizontal crossing at all). Plain boolean, not the
+            // 'xy'/'yx' string convention, to avoid its first-vs-last sign
+            // inversion (see _channelAxisHorizontalFirst/Last on the request).
+            if (isHorizontalMove !== req._channelAxisHorizontalFirst) continue;
           } else {
             const wantsHorizontalFirst = req.modeHint === 'xy';
             if (wantsHorizontalFirst !== isHorizontalMove) moveCost += hintPenalty;
@@ -848,6 +964,11 @@ export class RouterCore {
             // endpoint.
             const sideDir = CARDINAL_DIR[req.attachSide];
             if (sideDir && sideDir[0] === dc && sideDir[1] === dr) continue;
+          } else if (req._hintSourceLast === 'channel_axis') {
+            // Symmetric to the first-move case above: this leg's arrival
+            // into the goal must cross exactly along the channel's flow
+            // axis. Hard block (not a penalty) on any off-axis arrival.
+            if (isHorizontalMove !== req._channelAxisHorizontalLast) continue;
           } else {
             const wantsHorizontalLast = req.modeHintLast === 'yx';
             if (wantsHorizontalLast !== isHorizontalMove) moveCost += hintPenalty;
@@ -1019,27 +1140,13 @@ export class RouterCore {
     const bendW = (this.config?.cost_defaults?.bend ?? 10);
     const proxW = (this.config?.cost_defaults?.proximity ?? 4);
     const { penalty: proxPenalty } = this._segmentProximityPenalty(pts, req.clearance, req.proximity, proxW);
-    let channelInfo = this._channelDelta(pts, req);
-    let shapingMeta = null;
-
-    // Check if any of the line's referenced channels have prefer or force mode
-    const referencedChannels = req.channels?.length ? this._channels.filter(c => req.channels.includes(c.id)) : [];
-    const hasPreferOrForce = referencedChannels.some(c => c.mode === 'prefer' || c.mode === 'force');
-    const hasForce = referencedChannels.some(c => c.mode === 'force');
-
-    if (hasPreferOrForce) {
-      const desired = hasForce ? 1.0 : this._channelTargetCoverage;
-      if (channelInfo.coverage < desired) {
-        const shapeRes = this._shapeForChannels(req, pts, channelInfo, desired);
-        if (shapeRes && shapeRes.accepted) {
-          pts = shapeRes.pts;
-          channelInfo = this._channelDelta(pts, req); // recompute
-          shapingMeta = shapeRes.meta;
-        } else if (shapeRes) {
-          shapingMeta = shapeRes.meta;
-        }
-      }
-    }
+    // Reporting only — geometry for prefer/avoid channels is now decided
+    // during the A* search itself via the per-cell cost bias (chanCost,
+    // above), not by nudging the already-found path afterward. Force
+    // channels never reach this method at the top level (computePath routes
+    // them through _computeForceRouted instead), so there's nothing left
+    // here that needs to *shape* pts toward a channel.
+    const channelInfo = this._channelDelta(pts, req);
     const totalCost = this._costComposite(pts, bendW, proxW, proxPenalty, channelInfo.delta);
     const d = this._polylineToPath(pts);
     return {
@@ -1062,8 +1169,7 @@ export class RouterCore {
             outsidePx: channelInfo.outside,
             coveragePct: Number((channelInfo.coverage*100).toFixed(1)),
             deltaCost: channelInfo.delta,
-            forcedOutside: channelInfo.forcedOutside,
-            ...(shapingMeta ? { shaping: shapingMeta } : {})
+            forcedOutside: channelInfo.forcedOutside
           }
         } : {})
       }
@@ -1103,6 +1209,69 @@ export class RouterCore {
   }
 
   /**
+   * Per-cell additive A* traversal-cost delta from a line's referenced
+   * 'prefer'/'avoid' channels — negative (discount) inside a prefer channel,
+   * positive (penalty) inside an avoid channel, scaled by that channel's own
+   * `weight`. Unlike _buildOccupancy (global obstacles, shared by every
+   * line), this is built per referencing line's own channel subset — a line
+   * that doesn't reference a channel must see zero bias from it. Mirrors
+   * _buildOccupancy's floor/clamp cell-marking loop for consistency.
+   *
+   * Returns three grids rather than one: a 'prefer' discount is only
+   * awarded to a move that actually travels along the channel's configured
+   * `direction` — otherwise a line that merely clips through the box on an
+   * unrelated (e.g. perpendicular) leg gets full credit for "using" the
+   * channel with no incentive to ever turn and travel through it the way
+   * it's configured, which is exactly what a direction-agnostic single
+   * grid produced in practice (confirmed: a line's vertical leg happened to
+   * pass through a horizontal channel's x-range and got the discount
+   * without ever entering horizontally). 'avoid' has no such distinction —
+   * avoiding an area is symmetric regardless of approach direction — so it
+   * always lands in `anyDir`.
+   * @param {number} cols
+   * @param {number} rows
+   * @param {number} res - grid resolution (viewBox units per cell)
+   * @param {number} originX
+   * @param {number} originY
+   * @param {string[]} channelIds - req.channels (the line's route_channels)
+   * @returns {{ anyDir: Float32Array[], horizOnly: Float32Array[], vertOnly: Float32Array[] }}
+   */
+  _buildChannelCostGrid(cols, rows, res, originX, originY, channelIds) {
+    const anyDir = Array.from({ length: rows }, () => new Float32Array(cols));
+    const horizOnly = Array.from({ length: rows }, () => new Float32Array(cols));
+    const vertOnly = Array.from({ length: rows }, () => new Float32Array(cols));
+    if (!channelIds || !channelIds.length) return { anyDir, horizOnly, vertOnly };
+    const idSet = new Set(channelIds);
+    const relevant = this._channels.filter(c => idSet.has(c.id) && (c.mode === 'prefer' || c.mode === 'avoid'));
+    if (!relevant.length) return { anyDir, horizOnly, vertOnly };
+    // Scaled against the existing flat per-step costs in _computeGrid's A*
+    // loop (base 1, turnPenalty default 2, hintPenalty default 6) so weight
+    // has a real, monotonic effect without either doing nothing or
+    // dominating the search entirely at weight:1.
+    const preferBias = Number(this.config.channel_prefer_bias ?? 0.9);
+    const avoidBias = Number(this.config.channel_avoid_bias ?? 3);
+    for (const chan of relevant) {
+      const c0 = Math.max(0, Math.floor((chan.x1 - originX) / res));
+      const r0 = Math.max(0, Math.floor((chan.y1 - originY) / res));
+      const c1 = Math.min(cols - 1, Math.floor((chan.x2 - originX) / res));
+      const r1 = Math.min(rows - 1, Math.floor((chan.y2 - originY) / res));
+      let target, delta;
+      if (chan.mode === 'avoid') {
+        target = anyDir;
+        delta = avoidBias * chan.weight * this._channelAvoidMultiplier;
+      } else {
+        target = chan.direction === 'horizontal' ? horizOnly : vertOnly;
+        delta = -preferBias * chan.weight;
+      }
+      for (let r = r0; r <= r1; r++) {
+        const row = target[r];
+        for (let c = c0; c <= c1; c++) row[c] += delta; // overlapping channels sum
+      }
+    }
+    return { anyDir, horizOnly, vertOnly };
+  }
+
+  /**
    * Get bundling offset for a line in a channel
    * Distributes lines evenly with spacing to avoid overlap
    * @param {string} channelId - Channel identifier
@@ -1114,13 +1283,21 @@ export class RouterCore {
   _getChannelLineOffset(channelId, lineId, spacing) {
     if (!spacing || spacing === 0) return 0;
 
-    // Get or initialize line count for this channel
-    if (!this._channelLineCount.has(channelId)) {
-      this._channelLineCount.set(channelId, 0);
+    // Stable per-(channelId, lineId) index rather than a monotonic call
+    // counter — a counter that only ever increments means every full
+    // route-cache invalidation (obstacle change, viewBox change, config
+    // edit) causes every affected line to recompute and re-call this,
+    // permanently advancing the counter further, so the same line could get
+    // a *different* bundling lane after a later invalidation than it had
+    // before even though nothing about that line or channel changed.
+    if (!this._channelLineIndex.has(channelId)) {
+      this._channelLineIndex.set(channelId, new Map());
     }
-
-    const lineIndex = this._channelLineCount.get(channelId);
-    this._channelLineCount.set(channelId, lineIndex + 1);
+    const lineMap = this._channelLineIndex.get(channelId);
+    if (!lineMap.has(lineId)) {
+      lineMap.set(lineId, lineMap.size);
+    }
+    const lineIndex = lineMap.get(lineId);
 
     // Center the bundle: offset both positively and negatively
     // Line 0: -spacing, Line 1: 0, Line 2: +spacing, Line 3: +2*spacing, etc.
@@ -1131,300 +1308,384 @@ export class RouterCore {
   }
 
   /**
-   * Simple waypoint routing for waypoint-type channels
-   * Creates Manhattan-style paths that go through waypoint channel centers
-   * Only forces detour if simple Manhattan doesn't already pass through
-   * Respects channel direction (horizontal vs vertical flow)
-   * Now includes line bundling with configurable spacing
-   * @param {object} req - Route request with waypoint channels
-   * @returns {object} Route result with path through waypoints
+   * Raw (non-centered) 0,1,2,... lane index for a line at a channel —
+   * companion to _getChannelLineOffset, used where a centered ±offset
+   * would be unsafe (see _pushBundledApproachLegs's corridorOffset: a
+   * centered offset can point BACKWARD relative to the line's own
+   * established travel direction, and two different lines' centered
+   * offsets can share the same magnitude — e.g. -8/+8 — which collide once
+   * reduced to a same-direction distance). A monotonic per-line index has
+   * neither problem: applied in a single safe direction it's always
+   * distinct and never negative. Must be called AFTER
+   * _getChannelLineOffset for the same (channelId, lineId) in the same
+   * leg-building pass, since that call is what populates the map.
+   * @param {string} channelId
+   * @param {string} lineId
+   * @returns {number}
    * @private
    */
-  _computeWaypoint(req) {
-    const [x1, y1] = req.a;
-    const [x2, y2] = req.b;
+  _getChannelLineIndex(channelId, lineId) {
+    return this._channelLineIndex.get(channelId)?.get(lineId) ?? 0;
+  }
 
-    // Get force channels
-    const chanSet = new Set(req.channels);
-    const waypoints = this._channels
-      .filter(c => chanSet.has(c.id) && c.mode === 'force')
-      .map(c => ({
-        id: c.id,
-        cx: (c.x1 + c.x2) / 2,
-        cy: (c.y1 + c.y2) / 2,
-        x1: c.x1,
-        x2: c.x2,
-        y1: c.y1,
-        y2: c.y2,
-        direction: c.direction  // 'horizontal' or 'vertical'
-      }));
+  /**
+   * Entry/exit boundary points for one force-channel crossing, generalizing
+   * _computeWaypoint's enter/exit clamp math to an arbitrary position in a
+   * chain of channels. approachPoint/departPoint are reference points on
+   * either side (the previous cursor and the next channel's center, or the
+   * true endpoint for the last channel in the chain) used only to pick which
+   * edge is the "near" one and to center the bundled crossing lane — not
+   * themselves part of the returned path.
+   * @param {object} chan - normalized channel {x1,y1,x2,y2,direction,weight,line_spacing,id}
+   * @param {number[]} approachPoint
+   * @param {number[]} departPoint
+   * @param {string} lineId - req.id, for bundling offset lookup
+   * @returns {{ entry: number[], exit: number[], horizontal: boolean, entryAlreadyInside: boolean, exitAlreadyInside: boolean, laneOffset: number, laneIndex: number, lineSpacing: number }}
+   * @private
+   */
+  _channelCrossingPoints(chan, approachPoint, departPoint, lineId) {
+    const horizontal = chan.direction === 'horizontal';
+    const flow = horizontal ? 0 : 1;   // axis index the line travels along through the channel
+    const cross = horizontal ? 1 : 0;  // axis index perpendicular to flow (bundling axis)
+    const lo = horizontal ? chan.x1 : chan.y1;
+    const hi = horizontal ? chan.x2 : chan.y2;
+    const crossLo = horizontal ? chan.y1 : chan.x1;
+    const crossHi = horizontal ? chan.y2 : chan.x2;
 
-    if (waypoints.length === 0) {
-      // No waypoints, fall back to manhattan
-      return this._computeManhattan(req);
-    }
+    const offset = this._getChannelLineOffset(chan.id, lineId, chan.line_spacing);
+    let throughCoord = (
+      Math.max(crossLo, Math.min(crossHi, approachPoint[cross])) +
+      Math.max(crossLo, Math.min(crossHi, departPoint[cross]))
+    ) / 2 + offset;
+    throughCoord = Math.max(crossLo, Math.min(crossHi, throughCoord));
 
-    // For simplicity, use first waypoint (TODO: support multiple waypoints with ordering)
-    const wp = waypoints[0];
+    const approachFlow = approachPoint[flow];
+    const departFlow = departPoint[flow];
 
-    // Determine which Manhattan orientation to try
-    // Priority: 1) User's explicit route_hint, 2) Channel direction, 3) Geometry
-    let preferredMode;
-    if (req.modeHint === 'xy' || req.modeHint === 'yx') {
-      // User explicitly specified a hint - use it
-      preferredMode = req.modeHint;
-      lcardsLog.debug(`[RouterCore] Using explicit route_hint: ${preferredMode} for waypoint '${wp.id}'`);
-    } else {
-      // Fall back to channel direction matching
-      // Horizontal channel → prefer xy mode (horizontal segment through channel)
-      // Vertical channel → prefer yx mode (vertical segment through channel)
-      preferredMode = wp.direction === 'horizontal' ? 'xy' : 'yx';
-    }
-    const alternateMode = preferredMode === 'xy' ? 'yx' : 'xy';
+    // Clamping each reference point independently to the channel's
+    // flow-axis span unifies every case that used to need separate
+    // branches: outside on either side snaps to the near edge; already
+    // inside is a no-op (keeps its own coordinate); both on the same side
+    // both snap to that same near edge (a short graze, not a full
+    // traversal-and-back). Critically, this also fixes a real overshoot
+    // bug the branch-based version had: when the DEPART reference sits
+    // BETWEEN lo and hi (e.g. the true final endpoint's flow coordinate
+    // happens to fall within the channel's span, even though it's actually
+    // far away on the cross axis), the old logic still forced the exit all
+    // the way to the far edge — then had to reverse back toward the depart
+    // point's real (shorter) coordinate to continue. Confirmed in the
+    // field: a real line whose destination's x fell inside a horizontal
+    // channel's x-range produced exactly this there-and-back reversal.
+    // Clamping the depart point directly gives the true minimal exit
+    // coordinate in every case.
+    const entryFlow = Math.max(lo, Math.min(hi, approachFlow));
+    const exitFlow = Math.max(lo, Math.min(hi, departFlow));
 
-    // Check if simple Manhattan routing already passes through the waypoint
-    const tryManhattan = (mode) => {
-      if (x1 === x2 || y1 === y2) {
-        return [[x1, y1], [x2, y2]]; // Direct line
-      }
-      if (mode === 'xy') {
-        // Horizontal first: [start] → [x2, y1] → [x2, y2]
-        return [[x1, y1], [x2, y1], [x2, y2]];
-      } else {
-        // Vertical first: [start] → [x1, y2] → [x2, y2]
-        return [[x1, y1], [x1, y2], [x2, y2]];
-      }
-    };
+    // True when clamping didn't move the reference point at all — i.e. the
+    // approach/depart point was already within the channel's flow-axis
+    // span, so the leg touching that boundary is fundamentally a
+    // cross-axis-only move (only throughCoord differs). Hard-constraining
+    // such a leg's direction to the channel's flow axis anyway is
+    // geometrically incompatible with "start and end share this flow
+    // coordinate" and forces an artificial there-and-back detour just to
+    // satisfy it (confirmed empirically on both boundaries). The caller
+    // should relax that leg's hint to a plain geometry fallback instead of
+    // a hard 'channel_axis' block when true.
+    const entryAlreadyInside = entryFlow === approachFlow;
+    const exitAlreadyInside = exitFlow === departFlow;
 
-    // Check if a Manhattan path intersects the waypoint WITH CORRECT DIRECTION
-    const pathIntersectsWaypointCorrectly = (pts, requiredDirection) => {
-      for (let i = 1; i < pts.length; i++) {
-        const [px1, py1] = pts[i-1];
-        const [px2, py2] = pts[i];
-
-        // Determine segment orientation
-        const isHorizontal = py1 === py2 && px1 !== px2;
-        const isVertical = px1 === px2 && py1 !== py2;
-
-        // Check if this segment passes through waypoint bounds
-        const segMinX = Math.min(px1, px2);
-        const segMaxX = Math.max(px1, px2);
-        const segMinY = Math.min(py1, py2);
-        const segMaxY = Math.max(py1, py2);
-
-        // Check overlap with waypoint rectangle
-        if (segMaxX >= wp.x1 && segMinX <= wp.x2 &&
-            segMaxY >= wp.y1 && segMinY <= wp.y2) {
-          // Found intersection - now check if direction matches
-          if (requiredDirection === 'horizontal' && isHorizontal) {
-            return true;  // Horizontal segment through horizontal channel ✓
-          }
-          if (requiredDirection === 'vertical' && isVertical) {
-            return true;  // Vertical segment through vertical channel ✓
-          }
-          // Wrong direction through channel
-          return false;
-        }
-      }
-      return false;
-    };
-
-    // Try preferred direction first (matches channel flow direction)
-    const preferredPath = tryManhattan(preferredMode);
-    if (pathIntersectsWaypointCorrectly(preferredPath, wp.direction)) {
-      lcardsLog.debug(`[RouterCore] Waypoint '${wp.id}': Simple Manhattan (${preferredMode}) matches ${wp.direction} channel direction`);
-      const d = this._polylineToPath(preferredPath);
-      const channelInfo = this._channelDelta(preferredPath, req);
-
-      return {
-        d,
-        pts: preferredPath,
-        meta: {
-          strategy: 'waypoint-manhattan',
-          cost: this._costSimple(preferredPath),
-          segments: preferredPath.length - 1,
-          bends: Math.max(0, preferredPath.length - 2),
-          waypoint: {
-            id: wp.id,
-            direction: wp.direction,
-            natural: true  // Path naturally passes through in correct direction
-          },
-          ...(req._modeAutoUpgraded ? {
-            modeAutoUpgraded: true,
-            autoUpgradeReason: req._autoUpgradeReason
-          } : {}),
-          ...(req.channels?.length ? {
-            channel: {
-              mode: channelInfo.mode,
-              insidePx: channelInfo.inside,
-              outsidePx: channelInfo.outside,
-              coveragePct: Number((channelInfo.coverage*100).toFixed(1)),
-              deltaCost: channelInfo.delta,
-              forcedOutside: channelInfo.forcedOutside
-            }
-          } : {})
-        }
-      };
-    }
-
-    // Alternate direction won't work - it would pass through in wrong direction
-    lcardsLog.debug(`[RouterCore] Waypoint '${wp.id}': Simple Manhattan doesn't pass through in ${wp.direction} direction - forcing detour`);
-
-    // Force route through waypoint with correct direction
-    // Priority: 1) User's explicit route_hint, 2) Channel direction
-    let detourDirection = wp.direction; // Default to channel direction
-    if (req.modeHint === 'xy' || req.modeHint === 'yx') {
-      // User explicitly specified a hint - respect it for detour routing
-      // CRITICAL: The channel direction determines HOW the line flows THROUGH the channel
-      // - If we want to go HORIZONTAL first (xy), the channel must flow VERTICALLY (so we approach horizontally)
-      // - If we want to go VERTICAL first (yx), the channel must flow HORIZONTALLY (so we approach vertically)
-      // This is INVERTED from what you might expect!
-      detourDirection = (req.modeHint === 'xy') ? 'vertical' : 'horizontal';
-      lcardsLog.debug(`[RouterCore] Waypoint '${wp.id}': route_hint=${req.modeHint} → detour flows ${detourDirection} (approach is ${req.modeHint === 'xy' ? 'horizontal' : 'vertical'})`);
-    } else {
-      lcardsLog.debug(`[RouterCore] Waypoint '${wp.id}': Using channel direction (${wp.direction}) for detour`);
-    }
-
-    lcardsLog.debug(`[RouterCore] Waypoint '${wp.id}': Forcing ${detourDirection} detour through center (${wp.cx}, ${wp.cy})`);
-
-    // Calculate bundling offset for this line
-    const channel = this._channels.find(c => c.id === wp.id);
-    const lineOffset = this._getChannelLineOffset(wp.id, req.id, channel?.line_spacing || 0);
-
-    const pts = [];
-    pts.push([x1, y1]);
-
-    if (detourDirection === 'horizontal') {
-      // Horizontal flow through channel
-      // Determine optimal Y position within channel based on where we're coming from/going to
-      const entryY = Math.max(wp.y1, Math.min(wp.y2, y1));  // Clamp to channel bounds
-      const exitY = Math.max(wp.y1, Math.min(wp.y2, y2));
-      let throughY = (entryY + exitY) / 2;  // Midpoint between entry and exit
-
-      // Apply bundling offset (perpendicular to flow direction)
-      throughY += lineOffset;
-      throughY = Math.max(wp.y1, Math.min(wp.y2, throughY));  // Keep within bounds
-
-      // Move to channel entry
-      if (y1 !== throughY) {
-        pts.push([x1, throughY]);
-      }
-
-      // Horizontal segment through channel (enter at left edge, exit at right edge)
-      const enterX = Math.max(wp.x1, Math.min(wp.x2, x1));
-      const exitX = Math.max(wp.x1, Math.min(wp.x2, x2));
-
-      if (x1 < wp.x1) {
-        // Entering from left - route to left edge, across, to right edge
-        if (throughY !== pts[pts.length - 1][1]) pts.push([x1, throughY]);
-        pts.push([wp.x1, throughY]);  // Left edge
-        pts.push([exitX, throughY]);  // Exit point
-      } else if (x1 > wp.x2) {
-        // Entering from right - route to right edge, across, to left edge
-        if (throughY !== pts[pts.length - 1][1]) pts.push([x1, throughY]);
-        pts.push([wp.x2, throughY]);  // Right edge
-        pts.push([exitX, throughY]);  // Exit point
-      } else {
-        // Already inside channel horizontally
-        pts.push([exitX, throughY]);
-      }
-
-      // Exit to destination
-      if (throughY !== y2) {
-        pts.push([exitX, y2]);
-      }
-      if (exitX !== x2) {
-        pts.push([x2, y2]);
-      }
-    } else {
-      // Vertical flow through channel
-      // Determine optimal X position within channel
-      const entryX = Math.max(wp.x1, Math.min(wp.x2, x1));
-      const exitX = Math.max(wp.x1, Math.min(wp.x2, x2));
-      let throughX = (entryX + exitX) / 2;
-
-      // Apply bundling offset (perpendicular to flow direction)
-      throughX += lineOffset;
-      throughX = Math.max(wp.x1, Math.min(wp.x2, throughX));  // Keep within bounds
-
-      // Move to channel entry
-      if (x1 !== throughX) {
-        pts.push([throughX, y1]);
-      }
-
-      // Vertical segment through channel
-      const enterY = Math.max(wp.y1, Math.min(wp.y2, y1));
-      const exitY = Math.max(wp.y1, Math.min(wp.y2, y2));
-
-      if (y1 < wp.y1) {
-        // Entering from top
-        if (throughX !== pts[pts.length - 1][0]) pts.push([throughX, y1]);
-        pts.push([throughX, wp.y1]);  // Top edge
-        pts.push([throughX, exitY]);  // Exit point
-      } else if (y1 > wp.y2) {
-        // Entering from bottom
-        if (throughX !== pts[pts.length - 1][0]) pts.push([throughX, y1]);
-        pts.push([throughX, wp.y2]);  // Bottom edge
-        pts.push([throughX, exitY]);  // Exit point
-      } else {
-        // Already inside channel vertically
-        pts.push([throughX, exitY]);
-      }
-
-      // Exit to destination
-      if (throughX !== x2) {
-        pts.push([x2, exitY]);
-      }
-      if (exitY !== y2) {
-        pts.push([x2, y2]);
-      }
-    }
-
-    // Ensure we end at destination
-    if (pts[pts.length - 1][0] !== x2 || pts[pts.length - 1][1] !== y2) {
-      pts.push([x2, y2]);
-    }
-
-    // Remove duplicate points
-    const cleaned = [pts[0]];
-    for (let i = 1; i < pts.length; i++) {
-      const last = cleaned[cleaned.length - 1];
-      if (pts[i][0] !== last[0] || pts[i][1] !== last[1]) {
-        cleaned.push(pts[i]);
-      }
-    }
-
-    const d = this._polylineToPath(cleaned);
-    const channelInfo = this._channelDelta(cleaned, req);
-
+    const entry = horizontal ? [entryFlow, throughCoord] : [throughCoord, entryFlow];
+    const exit  = horizontal ? [exitFlow, throughCoord]  : [throughCoord, exitFlow];
+    // laneIndex (raw 0,1,2,...) is exposed alongside the centered laneOffset
+    // for the approach/depart legs' own shared corridor (see
+    // _pushBundledApproachLegs) — a centered offset can point backward
+    // relative to a line's established travel direction, and two lines'
+    // centered offsets can share a magnitude (e.g. -8/+8), so the corridor
+    // uses the raw index in a single safe direction instead.
     return {
-      d,
-      pts: cleaned,
+      entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside,
+      laneOffset: offset,
+      laneIndex: this._getChannelLineIndex(chan.id, lineId),
+      lineSpacing: chan.line_spacing
+    };
+  }
+
+  /**
+   * Build a synthetic single-leg request reusing a base request's routing
+   * config (clearance, proximity, cornerRadius, channels, etc.) with new
+   * endpoints and per-leg direction hints. firstHint/lastHint are one of:
+   * `{ source: 'anchor_side'|'attach_side'|<other>, mode, anchorSide/attachSide }`
+   * for the true start/end of the whole line, `{ source: 'channel_axis',
+   * horizontal }` for a force-channel leg boundary, or `{ source: 'geometry' }`
+   * for a boundary that isn't a real edge-crossing (see _channelCrossingPoints'
+   * entryAlreadyInside) and should just fall back to the same dx/dy-based
+   * axis preference buildRouteRequest uses for a line with no explicit hint
+   * — hard-constraining such a boundary to the channel's flow axis would be
+   * geometrically incompatible with it (start and end already share that
+   * axis's coordinate) and forces an artificial detour.
+   *
+   * modeHint/modeHintLast strings are set in addition to the boolean
+   * _channelAxisHorizontal* fields because other code (the post-A* grid-snap
+   * relaxation and the diagonal-elbow fallback) branches on those strings
+   * directly and isn't aware of 'channel_axis'. NOTE the two hint strings use
+   * opposite conventions for "horizontal": modeHint:'xy' means horizontal
+   * *first*, but modeHintLast:'xy' means vertical *last* ('yx' is horizontal
+   * last) — see the A* loop's wantsHorizontalFirst/wantsHorizontalLast checks.
+   * @param {object} base
+   * @param {number[]} a
+   * @param {number[]} b
+   * @param {object} firstHint
+   * @param {object} lastHint
+   * @returns {object}
+   * @private
+   */
+  _buildLegRequest(base, a, b, firstHint, lastHint) {
+    const geomAxis = () => {
+      const dx = Math.abs(b[0] - a[0]), dy = Math.abs(b[1] - a[1]);
+      return dx >= dy ? 'xy' : 'yx';
+    };
+    const modeHint = firstHint.source === 'geometry'
+      ? geomAxis()
+      : (firstHint.mode ?? (firstHint.horizontal ? 'xy' : 'yx'));
+    const modeHintLast = lastHint.source === 'geometry'
+      ? geomAxis() // buildRouteRequest mirrors modeHint's own value when neither is explicit — same convention here
+      : (lastHint.mode ?? (lastHint.horizontal ? 'yx' : 'xy'));
+    return {
+      ...base,
+      a, b,
+      modeHint,
+      modeHintLast,
+      _hintSourceFirst: firstHint.source,
+      _hintSourceLast: lastHint.source,
+      anchorSide: firstHint.anchorSide ?? base.anchorSide,
+      attachSide: lastHint.attachSide ?? base.attachSide,
+      _channelAxisHorizontalFirst: firstHint.source === 'channel_axis' ? firstHint.horizontal : undefined,
+      _channelAxisHorizontalLast: lastHint.source === 'channel_axis' ? lastHint.horizontal : undefined
+    };
+  }
+
+  /**
+   * Pushes the "between crossings" leg (departure from an anchor/previous
+   * exit toward the next channel entry, or toward the true final endpoint).
+   * A single unsplit leg lets the pathfinder pick its own bend order, which
+   * typically minimizes bends by traveling the long (flow) direction first
+   * and correcting the short (cross) distance only right at the end —
+   * meaning two lines that share a similar departure point (e.g. the same
+   * stub x-coordinate from vertically-stacked same-anchor_side controls)
+   * run visually coincident for nearly their whole length, diverging only
+   * in the final few pixels before each one's own bundled lane. Confirmed
+   * as a real, reported issue: "two of the lines touch each other before
+   * coming into the channel."
+   *
+   * When `lineSpacing` is set and this line has more than one sibling at
+   * the channel (laneIndex/lineSpacing — see _getChannelLineIndex), splits
+   * into three legs that nudge onto this line's own corridor immediately,
+   * travel the whole shared stretch already separated, then correct back
+   * to the true boundary coordinate at the very end. The nudge uses the
+   * RAW per-line lane index (0,1,2,...), not the crossing's own centered
+   * ±offset: a centered value can point backward relative to the leg's
+   * established travel direction (confirmed: produced a real reversal
+   * right after the anchor's own stub), and two different lines' centered
+   * offsets can share a magnitude (e.g. -8/+8), which would collide once
+   * reduced to a single safe direction. The raw index, always applied in
+   * this leg's own net flow direction (`Math.sign(to[flow]-from[flow])`),
+   * is always non-negative and always distinct per line, so it can never
+   * reverse and never collide. Without meaningful spacing (single line, or
+   * line_spacing:0), a plain two-leg cross-then-flow split is still used so
+   * the correction at least happens early rather than late.
+   *
+   * The interior boundaries (the nudge and the cross-axis correction) are
+   * intentionally left unconstrained ('geometry') rather than hard-blocked
+   * to the channel's flow axis: they're small, interior adjustments, not
+   * real edge-crossings — the actual directional guarantee only needs to
+   * hold at the TRUE boundaries, which are the fixed stub segment already
+   * spliced on before `from`, and `to` itself (the real channel entry/exit
+   * or endpoint).
+   * @param {object[]} legs - leg array to push onto
+   * @param {object} stubReq - base request (for _buildLegRequest)
+   * @param {number[]} from
+   * @param {number[]} to
+   * @param {boolean} horizontal - the RELEVANT channel's own flow axis (the
+   *   one being approached, or — for the trailing leg — the one just
+   *   departed), not necessarily related to `from`/`to`'s own geometry
+   * @param {number} laneIndex - this line's raw 0,1,2,... lane index at
+   *   that channel (see _getChannelLineIndex)
+   * @param {number} lineSpacing - that channel's line_spacing
+   * @param {object} firstHint - the true hint governing departure from `from`
+   * @param {object} lastHint - the true hint governing arrival at `to`
+   * @private
+   */
+  _pushBundledApproachLegs(legs, stubReq, from, to, horizontal, laneIndex, lineSpacing, firstHint, lastHint) {
+    const flow = horizontal ? 0 : 1;
+    // Baseline uses the SAME threshold as the cardinal-side lead-out/lead-in
+    // stubs (2x corner radius, floored at MIN_STUB_LENGTH) — a nudge whose
+    // length is just the raw per-line spacing (e.g. 8px) caps the corner-
+    // rounding formula's own lenIn/2 clamp at 4px regardless of the
+    // configured radius, and a consecutive-corner adjustment (in
+    // _applyCornerRounding, meant to prevent two REAL adjacent corners'
+    // trims from overlapping) then shrinks it further because it doesn't
+    // know a degenerate 180° pass-through point (the collinear stub-to-
+    // nudge boundary) isn't a real competing corner. Confirmed as a real
+    // regression: rendered as a near-sharp corner instead of the
+    // configured radius. Each line still gets a distinct, non-overlapping
+    // lane (the baseline is shared by every offset line; only the
+    // `laneIndex * lineSpacing` term needs to differ between them), just
+    // comfortably long enough to round properly too.
+    const corridorOffset = lineSpacing && laneIndex > 0 && from[flow] !== to[flow]
+      ? Math.sign(to[flow] - from[flow]) * (stubLengthFor(stubReq) + laneIndex * lineSpacing)
+      : 0;
+    if (!corridorOffset) {
+      // No real bundling need — either this line is alone at this channel,
+      // or it's line 0's own un-offset lane. Fall back to a single, unsplit
+      // leg with the TRUE hints, letting the pathfinder pick its own
+      // natural, hint-compatible shape exactly as it did before this
+      // feature existed. This is not just the simpler option: forcing a
+      // specific correction order unconditionally can directly conflict
+      // with the true boundary hint's own hard-blocked direction — e.g.
+      // anchor_side:'top' hard-blocks straight-down travel, but a blind
+      // cross-axis-first order for a horizontal channel with a top/bottom
+      // departure side IS straight-down travel. Confirmed as a real
+      // regression: produced a genuine reversal for exactly that
+      // combination.
+      legs.push(this._buildLegRequest(stubReq, from, to, firstHint, lastHint));
+      return;
+    }
+    // A real corridor to separate: nudge onto this line's own lane
+    // immediately (a small FLOW-axis move — safe regardless of firstHint,
+    // since it's perpendicular to whatever cross-axis direction firstHint
+    // might hard-block), travel the shared stretch there, then correct
+    // back to the true boundary coordinate. Both interior boundaries are
+    // left unconstrained ('geometry') — they're small interior
+    // adjustments, not real edge-crossings, so the true directional
+    // guarantee only needs to hold at the real boundaries: the fixed stub
+    // already spliced on before `from`, and `to` itself.
+    const nudge = horizontal ? [from[0] + corridorOffset, from[1]] : [from[0], from[1] + corridorOffset];
+    const mid = horizontal ? [nudge[0], to[1]] : [to[0], nudge[1]];
+    legs.push(this._buildLegRequest(stubReq, from, nudge, { source: 'geometry' }, { source: 'geometry' }));
+    legs.push(this._buildLegRequest(stubReq, nudge, mid, { source: 'geometry' }, { source: 'geometry' }));
+    legs.push(this._buildLegRequest(stubReq, mid, to, { source: 'channel_axis', horizontal }, lastHint));
+  }
+
+  /**
+   * Channel-forced routing: composes the force AND prefer channels
+   * referenced by stubReq (in their declared route_channels order) into
+   * legs — approach, through, approach, through, ..., depart — each
+   * computed by the SAME _computeGrid (and, in smart mode, _refineSmart)
+   * used everywhere else, so every leg automatically inherits obstacle
+   * avoidance and prefer/avoid cost bias. Only the true first leg's start
+   * and true last leg's end carry the outer request's real
+   * anchor_side/attach_side hints; every channel-boundary crossing gets a
+   * 'channel_axis' hard block instead (see the A* loop's
+   * _hintSourceFirst/_hintSourceLast === 'channel_axis' branches),
+   * guaranteeing the crossing itself follows the channel's configured
+   * direction with no U-turn.
+   *
+   * This candidate is MANDATORY for 'force' channels but OPTIONAL for
+   * 'prefer' ones — the caller (computePath) decides whether to actually
+   * use it. That split exists because a per-cell A* cost bias
+   * (_buildChannelCostGrid) can only ever discount a cell down to
+   * MIN_STEP_COST (never negative — A* needs non-negative edges to stay
+   * correct), which caps the total achievable reward at roughly
+   * `channel_width_in_cells × ~1` — nowhere near enough to outweigh a real
+   * detour to a channel that isn't already on the natural path. Building
+   * this candidate and comparing its REAL, distance-based cost (via
+   * _channelDelta, not grid cells) against the plain route's cost sidesteps
+   * that ceiling entirely — confirmed necessary in the field: at
+   * grid_resolution 64 a ~190px-wide prefer channel could get at most ~2.7
+   * total discount, while even a one-turn detour costs more than that.
+   * @param {object} stubReq - already stub-shifted request (see computePath)
+   * @param {boolean} smart - whether to run _refineSmart per leg
+   * @returns {object|null} route result, or null if no force/prefer channels referenced
+   * @private
+   */
+  _computeChannelRouted(stubReq, smart) {
+    const chainChannels = stubReq.channels
+      .map(id => this._channels.find(c => c.id === id && (c.mode === 'force' || c.mode === 'prefer')))
+      .filter(Boolean);
+    if (!chainChannels.length) return null;
+
+    const legs = [];
+    let cursor = stubReq.a;
+    // Mirrors entryAlreadyInside on the OTHER boundary: true when the
+    // previous channel's exit point didn't actually move from its own
+    // depart reference (already inside that channel's span), meaning the
+    // leg departing FROM it is fundamentally a cross-axis-only move too.
+    let prevExitAlreadyInside = false;
+    let lastLaneIndex = 0;
+    let lastLineSpacing = 0;
+    for (let k = 0; k < chainChannels.length; k++) {
+      const chan = chainChannels[k];
+      const next = chainChannels[k + 1];
+      const nextRef = next ? [(next.x1 + next.x2) / 2, (next.y1 + next.y2) / 2] : stubReq.b;
+      const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id);
+
+      this._pushBundledApproachLegs(legs, stubReq, cursor, entry, horizontal, laneIndex, lineSpacing,
+        k === 0
+          ? { source: stubReq._hintSourceFirst, mode: stubReq.modeHint, anchorSide: stubReq.anchorSide }
+          : (prevExitAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal: chainChannels[k - 1].direction === 'horizontal' }),
+        entryAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal });
+      legs.push(this._buildLegRequest(stubReq, entry, exit,
+        { source: 'channel_axis', horizontal },
+        { source: 'channel_axis', horizontal }));
+      cursor = exit;
+      prevExitAlreadyInside = exitAlreadyInside;
+      lastLaneIndex = laneIndex;
+      lastLineSpacing = lineSpacing;
+    }
+    const lastChan = chainChannels[chainChannels.length - 1];
+    this._pushBundledApproachLegs(legs, stubReq, cursor, stubReq.b, lastChan.direction === 'horizontal', lastLaneIndex, lastLineSpacing,
+      prevExitAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal: lastChan.direction === 'horizontal' },
+      { source: stubReq._hintSourceLast, mode: stubReq.modeHintLast, attachSide: stubReq.attachSide });
+
+    let pts = [];
+    let totalIterations = 0;
+    for (const legReq of legs) {
+      // Declared without an initializer (matching computePath's own
+      // result variable) so TS infers a union across every possible
+      // assignment below instead of narrowing to _computeGrid's return
+      // shape alone, which doesn't structurally match _computeManhattan's.
+      let legResult;
+      legResult = this._computeGrid(legReq);
+      if (smart && legResult) legResult = this._refineSmart(legReq, legResult);
+      if (!legResult) legResult = this._computeManhattan(legReq);
+      totalIterations += legResult.meta?.grid?.iterations || 0;
+      const legPts = legResult.pts;
+      if (!pts.length) {
+        pts.push(...legPts);
+      } else {
+        const last = pts[pts.length - 1];
+        const startIdx = (legPts[0][0] === last[0] && legPts[0][1] === last[1]) ? 1 : 0;
+        pts.push(...legPts.slice(startIdx));
+      }
+    }
+    pts = this._compactPolyline(pts);
+
+    const channelInfo = this._channelDelta(pts, stubReq); // reporting only — geometry already guaranteed by leg construction
+    const bendW = (this.config?.cost_defaults?.bend ?? 10);
+    const proxW = (this.config?.cost_defaults?.proximity ?? 4);
+    const { penalty: proxPenalty } = this._segmentProximityPenalty(pts, stubReq.clearance, stubReq.proximity, proxW);
+    return {
+      d: this._polylineToPath(pts),
+      pts,
       meta: {
-        strategy: 'waypoint-detour',
-        cost: this._costSimple(cleaned),
-        segments: cleaned.length - 1,
-        bends: Math.max(0, cleaned.length - 2),
-        waypoint: {
-          id: wp.id,
-          direction: detourDirection, // Use actual detour direction, not channel direction
-          center: [wp.cx, wp.cy],
-          natural: false  // Had to force detour to maintain direction
-        },
-        ...(req._modeAutoUpgraded ? {
+        strategy: 'channel-forced',
+        cost: this._costComposite(pts, bendW, proxW, proxPenalty, channelInfo.delta),
+        segments: pts.length - 1,
+        bends: Math.max(0, pts.length - 2),
+        grid: { iterations: totalIterations },
+        chainChannels: chainChannels.map((c, i) => ({ id: c.id, mode: c.mode, leg: i })),
+        ...(stubReq._modeAutoUpgraded ? {
           modeAutoUpgraded: true,
-          autoUpgradeReason: req._autoUpgradeReason
+          autoUpgradeReason: stubReq._autoUpgradeReason
         } : {}),
-        ...(req.channels?.length ? {
-          channel: {
-            mode: channelInfo.mode,
-            insidePx: channelInfo.inside,
-            outsidePx: channelInfo.outside,
-            coveragePct: Number((channelInfo.coverage*100).toFixed(1)),
-            deltaCost: channelInfo.delta,
-            forcedOutside: channelInfo.forcedOutside
-          }
-        } : {})
+        channel: {
+          mode: channelInfo.mode,
+          insidePx: channelInfo.inside,
+          outsidePx: channelInfo.outside,
+          coveragePct: Number((channelInfo.coverage * 100).toFixed(1)),
+          deltaCost: channelInfo.delta,
+          forcedOutside: channelInfo.forcedOutside
+        }
       }
     };
   }
@@ -1744,7 +2005,12 @@ export class RouterCore {
         return {
           id: c.id || `chan_${x}_${y}`,
           x1: x, y1: y, x2: x + w, y2: y + h,
-          weight: Number(c.weight || c.w || 0.5),
+          // `||` treats an explicit weight:0 as "not specified" and silently
+          // substitutes the 0.5 default — a real, meaningful configuration
+          // (reference this channel for bundling/observability, but exert
+          // zero pull) was indistinguishable from omitting weight entirely.
+          // ?? only falls through on null/undefined.
+          weight: Number(c.weight ?? c.w ?? 0.5),
           mode,  // 'prefer', 'avoid', or 'force'
           direction,  // 'horizontal' or 'vertical'
           line_spacing: Number(c.line_spacing ?? 8)  // Gap between bundled lines
@@ -1892,40 +2158,12 @@ export class RouterCore {
       }
     }
 
+    // Reporting only — see _computeGrid's identical comment. Prefer/avoid
+    // geometry is already decided by the A* search's per-cell cost bias
+    // (this smart pass's gridBase came from a _computeGrid call that already
+    // applied it); force channels never reach this method (computePath
+    // routes them through _computeForceRouted instead).
     const channelInfo = this._channelDelta(bestPts, req);
-    // Channel shaping (only prefer/force & if coverage below target)
-    let shapingMeta = null;
-
-    // Check if any of the line's referenced channels have prefer or force mode
-    const referencedChannels = req.channels?.length ? this._channels.filter(c => req.channels.includes(c.id)) : [];
-    const hasPreferOrForce = referencedChannels.some(c => c.mode === 'prefer' || c.mode === 'force');
-    const hasForce = referencedChannels.some(c => c.mode === 'force');
-
-    if (hasPreferOrForce) {
-      const desired = hasForce ? 1.0 : this._channelTargetCoverage;
-      if (channelInfo.coverage < desired) {
-        const shapeRes = this._shapeForChannels(req, bestPts, channelInfo, desired);
-        if (shapeRes && shapeRes.accepted) {
-          bestPts = shapeRes.pts;
-          // recompute penalties
-          const newChan = this._channelDelta(bestPts, req);
-          const { penalty: newProx } = this._segmentProximityPenalty(bestPts, req.clearance, req.proximity, proxW);
-            bestPenalty = newProx; // proximity might change slightly (rare) – reassign
-          shapingMeta = shapeRes.meta;
-          // recompute cost with new channel delta
-          bestCost = this._costComposite(bestPts, bendW, proxW, bestPenalty, newChan.delta);
-          // overwrite channelInfo for meta
-          channelInfo.inside = newChan.inside;
-          channelInfo.outside = newChan.outside;
-          channelInfo.coverage = newChan.coverage;
-          channelInfo.delta = newChan.delta;
-          channelInfo.forcedOutside = newChan.forcedOutside;
-        } else if (shapeRes) {
-          shapingMeta = shapeRes.meta;
-        }
-      }
-    }
-    // REPLACED duplicate const bestCost decl with in-place update earlier
     bestCost = this._costComposite(bestPts, bendW, proxW, bestPenalty, channelInfo.delta);
     const d = this._polylineToPath(bestPts);
     const baseMeta = gridBase.meta || {};
@@ -1946,8 +2184,7 @@ export class RouterCore {
         outsidePx: channelInfo.outside,
         coveragePct: Number((channelInfo.coverage*100).toFixed(1)),
         deltaCost: channelInfo.delta,
-        forcedOutside: channelInfo.forcedOutside,
-        ...(shapingMeta ? { shaping: shapingMeta } : {})
+        forcedOutside: channelInfo.forcedOutside
       };
     }
     return { d, pts: bestPts, meta: baseMeta };
@@ -1960,131 +2197,25 @@ export class RouterCore {
       const a = out[out.length-1];
       const b = pts[i];
       const c = pts[i+1];
-      // If a->b and b->c are collinear, skip b
-      if ((a[0] === b[0] && b[0] === c[0]) || (a[1] === b[1] && b[1] === c[1])) continue;
+      const sameX = a[0] === b[0] && b[0] === c[0];
+      const sameY = a[1] === b[1] && b[1] === c[1];
+      if (sameX || sameY) {
+        // Collinear on this axis — but only drop b if a->b->c is genuinely
+        // redundant (monotonic or stationary). If the two legs run in
+        // OPPOSITE directions along that axis, b marks a real reversal —
+        // dropping it wouldn't just tidy the polyline, it would silently
+        // erase the fact that a reversal happened at all. Confirmed via a
+        // force-channel chain whose mandatory crossing point got compacted
+        // away this way, making the rendered path skip the channel entirely
+        // while still reporting it as "visited" internally.
+        const d1 = sameX ? (b[1] - a[1]) : (b[0] - a[0]);
+        const d2 = sameX ? (c[1] - b[1]) : (c[0] - b[0]);
+        if (d1 === 0 || d2 === 0 || Math.sign(d1) === Math.sign(d2)) continue;
+      }
       out.push(b);
     }
     out.push(pts[pts.length-1]);
     return out;
-  }
-
-  _shapeForChannels(req, pts, channelInfo, desiredCoverage) {
-    const attemptsMax = this._channelShapingMaxAttempts;
-    const span = this._channelShapingSpan;
-    const minGain = this._channelMinCoverageGain;
-    const chanIds = new Set(req.channels);
-    const chans = this._channels.filter(c => chanIds.has(c.id));
-    if (!chans.length) return null;
-
-    const coverage0 = channelInfo.coverage;
-    let bestPts = pts.slice();
-    let bestCoverage = coverage0;
-    let accepted = false;
-    let attempts = 0;
-    let coverageHistory = [Number(coverage0.toFixed(4))];
-    const referencedChannels = req.channels?.length ? this._channels.filter(c => req.channels.includes(c.id)) : [];
-    const forceMode = referencedChannels.some(c => c.mode === 'force');
-
-    function midpoint(a,b){ return [(a[0]+b[0])/2,(a[1]+b[1])/2]; }
-    const inAny = (x,y)=>chans.some(c=> x>=c.x1 && x<=c.x2 && y>=c.y1 && y<=c.y2);
-
-    const segsOutside = () => {
-      const list = [];
-      for (let i=1;i<bestPts.length;i++){
-        const a=bestPts[i-1], b=bestPts[i];
-        const len=Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]);
-        if(!len) continue;
-        const [mx,my]=midpoint(a,b);
-        if(!inAny(mx,my)) list.push({i,len,a,b,mx,my});
-      }
-      return list.sort((x,y)=>y.len-x.len);
-    };
-
-    while (attempts < attemptsMax) {
-      attempts++;
-      const outsideSegs = segsOutside();
-      if (!outsideSegs.length) break; // fully inside
-      // pick the largest outside segment
-      const seg = outsideSegs[0];
-      // Try shifting its interior elbow(s) if any
-      // Identify candidate elbow indices around this segment
-      const elbowIndices = [];
-      if (seg.i-1 > 0) elbowIndices.push(seg.i-1);
-      if (seg.i < bestPts.length-1) elbowIndices.push(seg.i);
-
-      let improved = false;
-      for (const ei of elbowIndices) {
-        const copy = bestPts.map(p=>p.slice());
-        // shift target elbow towards nearest channel center
-        const e = copy[ei];
-        // Compute shortest move vector to enter any channel (axis aligned)
-        let bestMove = null;
-        let bestMoveDist = Infinity;
-        chans.forEach(c => {
-          // For a point outside, compute minimal axis step into rect
-            const dx = (e[0] < c.x1) ? (c.x1 - e[0]) :
-                       (e[0] > c.x2) ? (c.x2 - e[0]) : 0;
-            const dy = (e[1] < c.y1) ? (c.y1 - e[1]) :
-                       (e[1] > c.y2) ? (c.y2 - e[1]) : 0;
-          // Only consider moving along one axis per attempt (choose smaller non-zero)
-          if (dx !==0 && dy !==0) {
-            // pick smaller
-            if (Math.abs(dx) < Math.abs(dy)) {
-              if (Math.abs(dx) < bestMoveDist) { bestMoveDist = Math.abs(dx); bestMove = [dx,0]; }
-            } else {
-              if (Math.abs(dy) < bestMoveDist) { bestMoveDist = Math.abs(dy); bestMove = [0,dy]; }
-            }
-          } else if (dx !==0 || dy !==0) {
-            const d = Math.abs(dx||dy);
-            if (d < bestMoveDist) { bestMoveDist = d; bestMove = [dx,dy]; }
-          }
-        });
-        if (!bestMove) continue;
-        // scale move to span (limit)
-        const mv = [
-          bestMove[0] === 0 ? 0 : Math.sign(bestMove[0]) * Math.min(Math.abs(bestMove[0]), span),
-          bestMove[1] === 0 ? 0 : Math.sign(bestMove[1]) * Math.min(Math.abs(bestMove[1]), span)
-        ];
-        copy[ei] = [e[0] + mv[0], e[1] + mv[1]];
-        // Compact polyline if collinear introduced
-        const compact = this._compactPolyline(copy);
-        const newChan = this._channelDelta(compact, req);
-        const gain = newChan.coverage - bestCoverage;
-        if (gain >= minGain) {
-          bestPts = compact;
-          bestCoverage = newChan.coverage;
-          coverageHistory.push(Number(bestCoverage.toFixed(4)));
-          improved = true;
-          if (forceMode && bestCoverage >= 0.999) break;
-          if (!forceMode && bestCoverage >= desiredCoverage) break;
-        }
-      }
-      if (!improved) break;
-      if ((forceMode && bestCoverage >= 0.999) || (!forceMode && bestCoverage >= desiredCoverage)) {
-        accepted = true;
-        break;
-      }
-    }
-
-    // Force downgrade if still outside & force mode
-    let downgraded = false;
-    if (forceMode && bestCoverage < 0.999) {
-      downgraded = true;
-      // mark but caller meta will keep mode=force + forcedOutside flag (HUD can show downgrade)
-    }
-
-    return {
-      accepted,
-      pts: bestPts,
-      meta: {
-        attempts,
-        coverageBefore: Number(coverage0.toFixed(4)),
-        coverageAfter: Number(bestCoverage.toFixed(4)),
-        coverageHistory,
-        accepted,
-        downgraded
-      }
-    };
   }
 
   _applyCornerRounding(routeResult, radiusGlobal, routeId = null) {
@@ -2109,7 +2240,23 @@ export class RouterCore {
       const vOut = [pNext[0] - p[0], pNext[1] - p[1]];
       const lenIn = Math.sqrt(vIn[0] * vIn[0] + vIn[1] * vIn[1]);
       const lenOut = Math.sqrt(vOut[0] * vOut[0] + vOut[1] * vOut[1]);
-      let r = Math.min(radiusGlobal, lenIn / 2, lenOut / 2);
+      // A point where vIn/vOut point in the exact same direction (cross=0,
+      // dot>0) isn't a real corner — it's a straight pass-through (e.g. a
+      // collinear waypoint left over from stitching legs together) that
+      // the render loop below already skips (its tangentDist naturally
+      // goes to 0). Without this check it still gets a nonzero pre-calc
+      // radius here purely from lenIn/lenOut, which then falsely competes
+      // with a genuinely adjacent real corner for the same shared segment
+      // in the "adjust consecutive corners" step right below — shrinking
+      // that real corner's radius for no reason, since the degenerate
+      // point never actually consumes any of that segment itself.
+      // Confirmed as a real bug: a channel-bundling nudge point immediately
+      // after a collinear stub segment shrank the next real corner from 4
+      // to 2.6px, compounding an already-too-short segment.
+      const cross = vIn[0] * vOut[1] - vIn[1] * vOut[0];
+      const dot = vIn[0] * vOut[0] + vIn[1] * vOut[1];
+      const isStraightThrough = cross === 0 && dot > 0;
+      let r = isStraightThrough ? 0 : Math.min(radiusGlobal, lenIn / 2, lenOut / 2);
       cornerRadii.push({ index: i, radius: r, lenIn, lenOut });
     }
 
