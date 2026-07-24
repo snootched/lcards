@@ -522,7 +522,21 @@ export function getMsdSchema() {
             min: 5,
             optional: true,
             default: 64,
-            description: 'Grid cell size for grid-based routing (pixels)'
+            description: 'Grid cell size for grid-based routing (pixels; values below 5 are coerced to 32)'
+          },
+          turn_penalty: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 2,
+            description: 'A* cost for changing direction — higher values produce straighter paths with fewer turns'
+          },
+          route_hint_penalty: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 6,
+            description: 'A* cost for a first/last move that disagrees with route_hint/route_hint_last (soft, so obstacles still win)'
           },
 
           // Path smoothing (flat format)
@@ -632,35 +646,19 @@ export function getMsdSchema() {
             default: 1.0,
             description: 'Multiplier for avoid channel penalties'
           },
-          channel_target_coverage: {
+          channel_prefer_bias: {
             type: 'number',
             min: 0,
-            max: 1,
             optional: true,
-            default: 0.6,
-            description: 'Target channel coverage for prefer mode (0-1)'
+            default: 0.9,
+            description: 'Per-cell A* discount for traveling along a prefer channel\'s own direction (scaled by channel weight)'
           },
-          channel_shaping_max_attempts: {
-            type: 'number',
-            min: 1,
-            optional: true,
-            default: 12,
-            description: 'Maximum attempts for channel shaping'
-          },
-          channel_shaping_span: {
-            type: 'number',
-            min: 1,
-            optional: true,
-            default: 32,
-            description: 'Maximum shift distance during channel shaping (pixels)'
-          },
-          channel_min_coverage_gain: {
+          channel_avoid_bias: {
             type: 'number',
             min: 0,
-            max: 1,
             optional: true,
-            default: 0.04,
-            description: 'Minimum coverage improvement to accept shaping (0-1)'
+            default: 3,
+            description: 'Per-cell A* penalty for entering an avoid channel (scaled by channel weight and channel_avoid_multiplier)'
           },
 
           // Trunk-and-branch (spontaneous line bundling)
@@ -711,6 +709,35 @@ export function getMsdSchema() {
             optional: true,
             default: 8,
             description: 'Default lane spacing for lines bundled on a discovered trunk (pixels)'
+          },
+          trunk_discovery_max_passes: {
+            type: 'number',
+            min: 1,
+            optional: true,
+            default: 4,
+            description: 'Cap on discovery passes before rendering, so every line\'s trunk/crossing data is known regardless of YAML order (safety limit against rare oscillation)'
+          },
+
+          // Crossing avoidance (lines shouldn't cross each other unless necessary)
+          crossing_avoid_enabled: {
+            type: 'boolean',
+            optional: true,
+            default: true,
+            description: 'Penalize a line\'s path for cutting orthogonally across another already-routed line\'s segment'
+          },
+          crossing_avoid_bias: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 4,
+            description: 'Per-cell penalty for crossing another line\'s segment — a deterrent, not a hard block'
+          },
+          crossing_min_length: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 12,
+            description: 'Minimum straight-run length to register as avoidable (pixels) — smaller than trunk_min_length so short stub legs are still avoidable'
           },
 
           // Cost function weights

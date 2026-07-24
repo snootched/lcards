@@ -55,7 +55,8 @@ msd:
 | `view_box` | string / array | `"auto"` or `[minX, minY, width, height]` |
 | `anchors` | object | Named `[x, y]` anchor points for overlay placement |
 | `overlays` | list | Control, line, and shape overlays — see below |
-| `routing` | object | Global line routing settings |
+| `routing` | object | Global line routing settings — see below |
+| `channels` | object | Named routing corridors for guiding/bundling lines — see below |
 
 ---
 
@@ -225,13 +226,41 @@ Full reference: [Shape Overlay](./shape-overlay.md) — all three kinds, attachm
 
 ## `routing` Object
 
-Global defaults that apply to all lines unless overridden per-line:
+Global routing defaults that apply to all lines unless overridden per-line. The most commonly tuned:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `default_mode` | string | `manhattan` | Default routing mode |
 | `clearance` | number | `0` | Global obstacle clearance in px |
 | `auto_upgrade_simple_lines` | boolean | `true` | Auto-upgrade to smart routing when needed |
+| `trunk_bundling_enabled` | boolean | `true` | Nearby parallel lines bundle into shared trunks |
+| `trunk_line_spacing` | number | `8` | Lane gap between bundled lines (px) |
+| `trunk_proximity` | number | `32` | How close lines must run to bundle (px) |
+| `crossing_avoid_enabled` | boolean | `true` | Lines avoid crossing each other when a small detour suffices |
+| `crossing_avoid_bias` | number | `4` | Crossing penalty — higher accepts longer detours |
+
+Full reference — including channels, bundling behavior, and every advanced knob: [Line Routing & Channels](./routing.md).
+
+---
+
+## `channels` Object
+
+Named routing corridors that guide/force lines through authored regions, with automatic lane separation. Defined **directly under `msd:`** (not under `routing:`):
+
+```yaml
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 300]
+  channels:
+    main_bus:
+      bounds: [250, 90, 300, 20]
+      mode: force                # prefer | avoid | force
+      direction: horizontal
+      line_spacing: 10
+  overlays: []
+```
+
+Lines opt in with `route_channels: [main_bus]`. See [Line Routing & Channels](./routing.md#channels).
 
 ---
 

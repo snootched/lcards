@@ -663,21 +663,18 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
     validationService: coordinator.validationService,
 
     /**
-     * Inspect routing for a given overlay id and compute path data.
+     * Inspect routing for a given overlay id — READ-ONLY, from RouterCore's
+     * route cache (the line's real rendered route). This used to recompute
+     * a route from bare cardModel.anchors lookups, which (a) returned null
+     * for any line anchored to an overlay/control (those anchors aren't in
+     * cardModel.anchors), and (b) when it DID resolve, called computePath
+     * with endpoints resolved differently than LineOverlay's — REGISTERING
+     * synthetic geometry into the trunk/crossing registries under the real
+     * line's id. A debug inspection must never mutate routing state.
      * @param {string} id
      * @returns {Object|null}
      */
-    routingInspect: (id) => {
-      const resolvedModel = modelBuilder.getResolvedModel();
-      const ov = (resolvedModel?.overlays || []).find(o => o.id === id);
-      if (!ov) return null;
-      const raw = ov._raw || ov.raw || {};
-      const a1 = cardModel.anchors[raw.anchor];
-      const a2 = cardModel.anchors[raw.attach_to] || cardModel.anchors[raw.attachTo];
-      if (!a1 || !a2) return null;
-      const req = coordinator.router.buildRouteRequest(ov, a1, a2);
-      return coordinator.router.computePath(req);
-    },
+    routingInspect: (id) => coordinator.router.inspect(id),
 
     getResolvedModel: () => modelBuilder.getResolvedModel(),
 

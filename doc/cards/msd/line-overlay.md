@@ -57,7 +57,7 @@ overlays:
 | `waypoints` | array | — | Explicit coordinate/anchor-name list for `manual` routing |
 | `route_hint` | string | auto | Initial segment direction: `xy` (horizontal first) or `yx` |
 | `route_hint_last` | string | auto | Final segment direction (same values as `route_hint`) |
-| `route_channels` | list | — | Channel IDs this line routes through |
+| `route_channels` | list | — | Channel IDs this line routes through — see [Line Routing & Channels](./routing.md#channels) |
 | `clearance` | number | — | Min clearance around obstacles in px (overrides global default) |
 | `corner_style` | string | `round` | `miter`, `round`, or `bevel` — for routed corners |
 | `corner_radius` | number | `34` | Arc radius (round) or chamfer size (bevel), in px |
@@ -136,12 +136,14 @@ For independent axis control use `anchor_gap_x` / `anchor_gap_y` (overrides `anc
 
 | Mode | Description |
 |------|-------------|
-| `auto` | Smart pathfinding with obstacle avoidance (default) |
-| `direct` | Straight line between endpoints |
+| `auto` | Default — resolves to `manhattan` for simple layouts; upgrades to `smart` automatically when obstacles or channels are present |
+| `direct` | Straight line between endpoints — never pathfinds |
 | `manhattan` | L-shaped single bend |
-| `smart` | Multi-bend pathfinding |
-| `grid` | Grid-constrained routing |
+| `smart` | A* pathfinding + refinement — obstacle avoidance, trace bundling, crossing avoidance |
+| `grid` | A* pathfinding without the refinement pass |
 | `manual` | Explicit `waypoints` list |
+
+Routed lines automatically **bundle** with nearby parallel lines and **avoid crossing** other lines — see [Line Routing & Channels](./routing.md) for how that works, how to tune it, and how to guide lines with channels. Note that only `smart`/`grid` (or upgraded `auto`) lines participate: plain `manhattan` lines never bundle or avoid crossings.
 
 `route_hint`/`route_hint_last` steer the first/last segment direction for every pathfinding mode (`manhattan`, `smart`, `grid`, and `auto` once it upgrades to one of those) — not just `manhattan`. If you don't set them explicitly, `anchor_side`/`attach_side` set to `left`/`right`/`top`/`bottom` auto-derive the equivalent hint (`left`/`right` → horizontal, `top`/`bottom` → vertical), even when `anchor`/`attach_to` is a plain coordinate or named point anchor with no attachment-point geometry of its own — the side still expresses "leave/arrive from this direction." Corner sides (`top-left`, etc.) and `center` are ambiguous for a single axis and fall back to an automatic direction based on which axis has the larger distance between the two endpoints.
 
@@ -421,6 +423,7 @@ overlays:
 
 ## See Also
 
+- [Line Routing & Channels](./routing.md) — bundling, crossing avoidance, channels, global routing config
 - [Shape Overlay](./shape-overlay.md) — polylines/rects/circles sharing this exact style system
 - [Control Overlay](./control-overlay.md)
 - [Manual Routing](./manual-routing.md)

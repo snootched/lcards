@@ -7,7 +7,6 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { getValidChannelTypes, WAYPOINT_CONFIG } from './routing-constants.js';
 
 // anchor_side/attach_side ('left'/'right'/'top'/'bottom') as outward unit
 // vectors — unlike modeHint/modeHintLast ('xy'/'yx'), which only preserve an
@@ -91,8 +90,19 @@ export class RouterCore {
     // resolution/viewBox. Keyed on the referencing line's own channel subset
     // (see _channelCostKey), not just resolution/viewBox.
     this._channelCostCache = new Map();
+    // Keyed on the ASKING line's own id (a crossing entry never penalizes
+    // its own owner — see _buildCrossingCostGrid) plus _registryVersion, not
+    // _obsVersion: crossing/trunk registrations churn on essentially every
+    // line recompute, and _obsVersion is reserved for structural
+    // obstacle/viewBox changes — folding registry churn into it would force
+    // _gridCache/_channelCostCache to rebuild as if obstacles changed every
+    // time any line reroutes.
+    this._crossingCostCache = new Map();
     this._channels = this._normalizeChannels(this.config.channels || {});
-    this._channelLineIndex = new Map(); // channelId -> Map(lineId -> stable bundling lane index)
+    // NOTE: bundling lane assignment is deliberately NOT tracked in any
+    // stored map — it's derived fresh from trunk membership on every use
+    // (see _trunkLaneAssignment for why statefulness here broke
+    // discovery-loop convergence).
 
     // Debug logging for channel detection
     if (this._channels.length > 0) {
@@ -104,10 +114,12 @@ export class RouterCore {
 
     this._channelForcePenalty = Number(this.config.channel_force_penalty || 800);
     this._channelAvoidMultiplier = Number(this.config.channel_avoid_multiplier || 1.0);
-    this._channelTargetCoverage = Number(this.config.channel_target_coverage ?? 0.6);
-    this._channelShapingMaxAttempts = Number(this.config.channel_shaping_max_attempts ?? 12);
-    this._channelShapingSpan = Number(this.config.channel_shaping_span ?? 32);
-    this._channelMinCoverageGain = Number(this.config.channel_min_coverage_gain ?? 0.04);
+    // NOTE: the old channel "shaping" knobs (channel_target_coverage,
+    // channel_shaping_max_attempts, channel_shaping_span,
+    // channel_min_coverage_gain) were removed — the post-hoc path-shaping
+    // pass they configured was replaced by the per-cell A* cost bias
+    // (_buildChannelCostGrid) and the real-cost corridor comparison
+    // (_computeCorridorRouted), which have no equivalent parameters.
 
     // Trunk-and-branch: lines whose paths happen to run close and parallel
     // spontaneously bundle together (cable-raceway aesthetic), branching
@@ -117,7 +129,7 @@ export class RouterCore {
     // route_channels — so a config channel and a trunk discovered from an
     // already-routed line's own path are the same shape and go through the
     // same leg-composition machinery (_computeCorridorRouted). See
-    // _discoverTrunkCandidates/_registerTrunkSegments for the two halves of
+    // _discoverTrunkCandidates/_registerLineSegments for the two halves of
     // the mechanism (finding a trunk to join; growing the registry after a
     // line finishes routing).
     this._trunkBundlingEnabled = this.config.trunk_bundling_enabled !== false;
@@ -127,13 +139,49 @@ export class RouterCore {
     this._trunkMaxJoinCandidates = Number(this.config.trunk_max_join_candidates ?? 2);
     this._trunkBundleWeight = Number(this.config.trunk_bundle_weight ?? 0.5);
     this._trunkLineSpacing = Number(this.config.trunk_line_spacing ?? 8);
+    // Cap on how many discovery passes AdvancedRenderer's seed loop will run
+    // before giving up on reaching a fixed point (see _registryVersion) —
+    // guarantees termination even under a rare near-tie oscillation between
+    // two candidate joins. Read here so it travels with the rest of the
+    // trunk config rather than living only in the renderer.
+    this._trunkDiscoveryMaxPasses = Number(this.config.trunk_discovery_max_passes ?? 4);
     // Seeded eagerly, same reasoning as _channels itself: bounds are static
     // config known at construction, so there's no lazy-rebuild story needed.
     // origin/sourceLineId/runIndex distinguish a config-sourced trunk (never
     // purged, never merges away) from one discovered at runtime from a
     // line's own routed path (purged/re-registered on that line's recompute
     // — see _purgeTrunksForLine).
-    this._trunks = this._channels.map(c => ({ ...c, origin: 'channel', sourceLineId: null, runIndex: null }));
+    // members tracks each contributing line's OWN flow-axis sub-span
+    // (Map<lineId, [lo, hi]>) so a trunk's overall bounds can be correctly
+    // shrunk when one contributor is purged without discarding every other
+    // contributor's extension (see _recomputeTrunkBounds) — a bare
+    // Math.min/max accumulation with no per-contributor bookkeeping would
+    // let the originating line's own recompute silently erase another
+    // line's join. _baseX*/_baseY* preserve a channel's own configured
+    // bounds so purging every joining line still leaves the channel at its
+    // authored size, never smaller.
+    this._trunks = this._seedTrunksFromChannels();
+    // Bumped only when _trunks/_crossings actually mutate (see
+    // _purgeLineRegistrations/_registerLineSegments) and folded into
+    // _cacheKey. This is what lets a line whose upstream trunk/crossing
+    // dependencies changed since its own last computation get forced to
+    // recompute — without it, a repeated discovery pass over unchanged
+    // requests would just keep hitting the route cache and never re-examine
+    // newly-registered trunks from other lines.
+    this._registryVersion = 0;
+
+    // Crossing avoidance: a soft per-cell cost penalty (see
+    // _buildCrossingCostGrid) discourages a line's path from cutting
+    // orthogonally across another already-routed line's segment — traces
+    // shouldn't cross unless there's a real reason to. Separate registry
+    // from _trunks: bundling only cares about long, "worth joining" runs
+    // (trunk_min_length), but a short stub leg right off a control can
+    // still be crossed by another line and must still be avoidable, so
+    // crossing_min_length is deliberately much smaller.
+    this._crossingAvoidEnabled = this.config.crossing_avoid_enabled !== false;
+    this._crossingAvoidBias = Number(this.config.crossing_avoid_bias ?? 4);
+    this._crossingMinLength = Number(this.config.crossing_min_length ?? 12);
+    this._crossings = [];
   }
 
   invalidate(id='*') {
@@ -151,6 +199,23 @@ export class RouterCore {
         }
       }
     }
+  }
+
+  /**
+   * Fresh channel-seeded trunk rows — used at construction and again by
+   * setOverlays' registry reset (see below).
+   * @returns {Array<object>}
+   * @private
+   */
+  _seedTrunksFromChannels() {
+    return this._channels.map(c => ({
+      ...c,
+      origin: 'channel',
+      sourceLineId: null,
+      runIndex: null,
+      members: new Map(),
+      _baseX1: c.x1, _baseY1: c.y1, _baseX2: c.x2, _baseY2: c.y2
+    }));
   }
 
   setOverlays(overlays) {
@@ -189,6 +254,24 @@ export class RouterCore {
     // Invalidate grids & route cache referencing old obstacles
     this._gridCache.clear();
     this._channelCostCache.clear();
+    // Reset DISCOVERED routing state along with the route cache: a new
+    // overlay set is a new routing problem, and the converged bundle
+    // arrangement is a genuine near-tie in some layouts — multiple stable
+    // fixed points exist, and which one the discovery loop lands in
+    // depends on which line registered first. Persisting discovered
+    // trunks/crossings across config edits made that a function of EDIT
+    // HISTORY (confirmed live: reordering two lines in the YAML editor
+    // flipped a line between two equal-cost shapes, and the seeded state
+    // was self-sustaining forever after). Resetting here makes each
+    // config's outcome a pure function of the config + the sorted
+    // discovery loop. Costs nothing extra in practice — the route cache
+    // is already fully invalidated below, so every route recomputes on
+    // the next render regardless; the loop just re-converges from clean
+    // state. Channel rows are re-seeded (authored config, not history).
+    this._trunks = this._seedTrunksFromChannels();
+    this._crossings = [];
+    this._crossingCostCache.clear();
+    this._registryVersion++;
     this.invalidate('*');
   }
 
@@ -310,7 +393,10 @@ export class RouterCore {
       max: this._maxCache,
       rev: this._rev,
       obstacles: this._obstacles.length,
-      obsVersion: this._obsVersion
+      obsVersion: this._obsVersion,
+      registryVersion: this._registryVersion,
+      trunks: this._trunks.length,
+      crossings: this._crossings.length
     };
   }
 
@@ -583,7 +669,12 @@ export class RouterCore {
     // viewBox is included so a pan/resize (unchanged anchors/mode/obstacles)
     // can't hit a route cached under the previous origin/dimensions.
     const vb = this.viewBox || [0,0,400,200];
-    return `${req.id}@${x1},${y1}-${x2},${y2}|${req.modeFull}|${req.modeHint}|A:${avoidKey}|C:${chanKey}|R:${req._rev}|O:${this._obsVersion}|P:${req.proximity}|CR:${req.cornerRadius}|CS:${req.cornerStyle}|SM:${req.smoothingMode}|SI:${req.smoothingIterations}|VB:${vb[0]},${vb[1]},${vb[2]},${vb[3]}`;
+    // RV (registryVersion) makes a repeated computePath call for the SAME
+    // request recompute rather than cache-hit whenever any line's trunk/
+    // crossing registration has mutated since this entry was cached — the
+    // mechanism that lets a bounded discovery loop (see AdvancedRenderer
+    // _discoverLineRoutes) converge without ever calling invalidate().
+    return `${req.id}@${x1},${y1}-${x2},${y2}|${req.modeFull}|${req.modeHint}|A:${avoidKey}|C:${chanKey}|R:${req._rev}|O:${this._obsVersion}|P:${req.proximity}|CR:${req.cornerRadius}|CS:${req.cornerStyle}|SM:${req.smoothingMode}|SI:${req.smoothingIterations}|VB:${vb[0]},${vb[1]},${vb[2]},${vb[3]}|RV:${this._registryVersion}`;
   }
 
   /**
@@ -675,9 +766,14 @@ export class RouterCore {
       // and merge them with the line's own explicit corridors. A discovered
       // trunk is never mandatory the way a force channel is — it's folded
       // into the same optional-candidate cost comparison prefer channels
-      // already use below.
-      const discoveredTrunks = (mode === 'smart' || mode === 'grid')
-        ? this._discoverTrunkCandidates(stubReq, new Set(explicitCorridors.map(c => c.id)))
+      // already use below. A FORCE chain skips discovery entirely: the
+      // chained result is used unconditionally (no cost comparison), so a
+      // discovered trunk appended to it would become mandatory with no
+      // vetting at all — confirmed to chain force-channel users through
+      // each other's freshly-registered approach runs, zigzagging between
+      // near-parallel corridors and never converging.
+      const discoveredTrunks = (mode === 'smart' || mode === 'grid') && !hasForceChannels
+        ? this._discoverTrunkCandidates(stubReq, new Set(explicitCorridors.map(c => c.id)), explicitCorridors)
         : [];
       if (discoveredTrunks.length) {
         lcardsLog.debug(`[RouterCore] Line '${req.id}': discovered ${discoveredTrunks.length} joinable trunk(s): ${discoveredTrunks.map(t => `${t.id}(overlap=${t.overlap.toFixed(1)})`).join(', ')}`);
@@ -753,9 +849,13 @@ export class RouterCore {
       // aligned "segments"). Only runs on the cache-miss path reached here
       // (a cache hit returns early above), so nothing about this line
       // changing means nothing about its trunk registrations should either.
+      // No purge-then-re-register: _registerLineSegments diffs BOTH
+      // registries in place (update matching entries, then drop only
+      // genuinely stale ones), so an identical recompute is a strict
+      // version no-op — see its own comment for why that discipline is
+      // load-bearing for discovery-loop convergence.
       if (result) {
-        this._purgeTrunksForLine(req.id);
-        this._registerTrunkSegments(req.id, result.pts);
+        this._registerLineSegments(req.id, result.pts);
       }
       // Apply smoothing AFTER corner arcs (arcs preserved, path rebuilt as polyline if smoothing > 0)
       if (result && req.smoothingMode !== 'none' && req.smoothingIterations > 0) {
@@ -763,8 +863,16 @@ export class RouterCore {
         if (smoothApplied) result = smoothApplied;
       }
 
-      this._cache.set(key, result);
-      this._cacheOrder.push(key);
+      // Re-derive the storage key rather than reusing the lookup key from
+      // the top of this function: registration above may just have bumped
+      // _registryVersion, and the entry must be stored under the key a
+      // FUTURE identical request will actually compute (i.e. reflecting
+      // this call's own registration side effect), or every repeat of this
+      // exact request would perpetually miss and re-register, never
+      // reaching a stable cache hit.
+      const storeKey = this._cacheKey(req);
+      this._cache.set(storeKey, result);
+      this._cacheOrder.push(storeKey);
       if (this._cacheOrder.length > this._maxCache) {
         const oldest = this._cacheOrder.shift();
         if (oldest) this._cache.delete(oldest);
@@ -864,6 +972,19 @@ export class RouterCore {
       this._channelCostCache.set(chanCostKey, chanCost);
     }
 
+    // Per-cell crossing-avoidance penalty — see _buildCrossingCostGrid.
+    // Keyed on this line's own id (self-exclusion), any corridor-leg
+    // exemption list (see _computeCorridorRouted's legBase), and
+    // _registryVersion (not _obsVersion — registry churn is unrelated to
+    // obstacle changes).
+    const exemptIds = req._crossingExemptIds || [];
+    const crossCostKey = `${req.id}|E:${exemptIds.join(',')}|${res}|${originX},${originY},${width},${height}|${this._registryVersion}`;
+    let crossCost = this._crossingCostCache.get(crossCostKey);
+    if (!crossCost) {
+      crossCost = this._buildCrossingCostGrid(cols, rows, res, originX, originY, req.id, exemptIds);
+      this._crossingCostCache.set(crossCostKey, crossCost);
+    }
+
     // World coordinates are relative to the viewBox's own origin (vb[0]/vb[1]),
     // which is not always [0,0] — a custom view_box can legitimately pan into
     // negative minX/minY. Without subtracting/adding the origin here, any
@@ -961,7 +1082,33 @@ export class RouterCore {
         // direction (horizOnly/vertOnly); 'avoid' (anyDir) applies regardless.
         const chanDelta = (chanCost.anyDir[nr]?.[nc] || 0) +
           (isHorizontalMove ? (chanCost.horizOnly[nr]?.[nc] || 0) : (chanCost.vertOnly[nr]?.[nc] || 0));
-        let moveCost = Math.max(MIN_STEP_COST, 1 + chanDelta) + (isDirectionChange ? turnPenalty : 0);
+        // Crossing-avoidance penalty — a move that is horizontal crosses a
+        // VERTICAL registered segment (and vice versa); disjoint from
+        // chanDelta's horizOnly/vertOnly reward tables by construction (see
+        // _buildCrossingCostGrid), so parallel bundling through a trunk's
+        // cell is never also penalized here. Always >= 0, so it never
+        // threatens h()'s admissibility the way a 'prefer' discount does —
+        // no h=0 fallback needed for this term.
+        //
+        // Unlike chanDelta (checked at the destination cell only), a
+        // registered segment is geometrically zero-height/width — it marks
+        // exactly ONE row (for a horizontal segment) or column (vertical),
+        // never a span. A vertical move can arrive AT that row (destination
+        // = the marked row) or depart FROM it (source = the marked row,
+        // destination is the next row over) depending purely on which
+        // direction the path happens to approach from — checking only the
+        // destination cell would silently miss the "departing" case (a
+        // move whose destination is the row just past the wall never sees
+        // the wall's own marked row at all). Checking both the source and
+        // destination cell/row catches the crossing regardless of approach
+        // direction, without double-counting a single wall (a move's
+        // source and destination row/column are always distinct for a real
+        // move, so only one of the two terms can be nonzero for any one
+        // wall — summing just covers "whichever side it's marked on").
+        const crossDelta = isHorizontalMove
+          ? (crossCost.horiz[nr]?.[cur.c] || 0) + (crossCost.horiz[nr]?.[nc] || 0)
+          : (crossCost.vert[cur.r]?.[nc] || 0) + (crossCost.vert[nr]?.[nc] || 0);
+        let moveCost = Math.max(MIN_STEP_COST, 1 + chanDelta + crossDelta) + (isDirectionChange ? turnPenalty : 0);
 
         // Bias the very first move away from the start anchor toward
         // route_hint: 'xy' wants a horizontal first move, 'yx' vertical
@@ -1404,110 +1551,372 @@ export class RouterCore {
   }
 
   /**
-   * Get bundling offset for a line in a channel
-   * Distributes lines evenly with spacing to avoid overlap
-   * @param {string} channelId - Channel identifier
-   * @param {string} lineId - Line identifier
-   * @param {number} spacing - Gap between lines in pixels
-   * @returns {number} Offset in pixels (positive or negative)
-   * @private
+   * Per-cell additive A* traversal-cost penalty for moving ORTHOGONALLY
+   * across another already-routed line's registered segment — the mirror
+   * image of _buildChannelCostGrid's prefer-direction discount, but always
+   * non-negative (a deterrent, not a discount), so unlike a 'prefer' bias it
+   * never threatens A*'s heuristic admissibility (see MIN_STEP_COST/h()'s
+   * own comment) and needs no h=0/Dijkstra fallback.
+   *
+   * A horizontal registered segment only ever writes into `vert` (a
+   * VERTICAL move through one of its cells crosses it); a vertical segment
+   * only ever writes into `horiz`. This is deliberately disjoint from
+   * _buildChannelCostGrid's horizOnly/vertOnly reward tables — parallel
+   * travel through a trunk's cell keeps earning that reward and is
+   * structurally exempt from this penalty (they never populate the same
+   * grid from the same source segment), while a perpendicular move through
+   * that same cell only ever sees this penalty.
+   * @param {number} cols
+   * @param {number} rows
+   * @param {number} res
+   * @param {number} originX
+   * @param {number} originY
+   * @param {string} askingLineId - never penalize a line for crossing its own in-progress route
+   * @param {string[]} [exemptLineIds] - corridor-leg exemption (see _computeCorridorRouted): occupants of a corridor being joined don't repel the legs approaching it
+   * @returns {{ horiz: Float32Array[], vert: Float32Array[] }}
    */
-  _getChannelLineOffset(channelId, lineId, spacing) {
-    if (!spacing || spacing === 0) return 0;
-
-    // Stable per-(channelId, lineId) index rather than a monotonic call
-    // counter — a counter that only ever increments means every full
-    // route-cache invalidation (obstacle change, viewBox change, config
-    // edit) causes every affected line to recompute and re-call this,
-    // permanently advancing the counter further, so the same line could get
-    // a *different* bundling lane after a later invalidation than it had
-    // before even though nothing about that line or channel changed.
-    if (!this._channelLineIndex.has(channelId)) {
-      this._channelLineIndex.set(channelId, new Map());
+  _buildCrossingCostGrid(cols, rows, res, originX, originY, askingLineId, exemptLineIds = []) {
+    const horiz = Array.from({ length: rows }, () => new Float32Array(cols)); // penalizes horizontal moves
+    const vert = Array.from({ length: rows }, () => new Float32Array(cols)); // penalizes vertical moves
+    if (!this._crossingAvoidEnabled || !this._crossings.length) return { horiz, vert };
+    // Bundle-mates don't repel each other: lines sharing a trunk coordinate
+    // via lane assignment, and their entry/exit stubs necessarily sit right
+    // next to every other member's path — penalizing those as "crossings"
+    // pushes a trunk's own creator OFF its own centerline the moment a
+    // joiner registers its stubs (confirmed: an unobstructed straight
+    // creator detoured a full grid row to dodge its joiner's two stub
+    // cells, destabilizing the very trunk the joiner had just joined).
+    // Non-mates still see every penalty unchanged. Derived fresh from live
+    // membership; the caller's cache key already includes _registryVersion,
+    // which membership changes bump.
+    const mates = new Set(exemptLineIds);
+    for (const t of this._trunks) {
+      if (!t.members?.has(askingLineId)) continue;
+      for (const id of t.members.keys()) mates.add(id);
     }
-    const lineMap = this._channelLineIndex.get(channelId);
-    if (!lineMap.has(lineId)) {
-      lineMap.set(lineId, lineMap.size);
+    for (const seg of this._crossings) {
+      if (seg.lineId === askingLineId || mates.has(seg.lineId)) continue;
+      const target = seg.direction === 'horizontal' ? vert : horiz;
+      const c0 = Math.max(0, Math.floor((seg.x1 - originX) / res));
+      const r0 = Math.max(0, Math.floor((seg.y1 - originY) / res));
+      const c1 = Math.min(cols - 1, Math.floor((seg.x2 - originX) / res));
+      const r1 = Math.min(rows - 1, Math.floor((seg.y2 - originY) / res));
+      for (let r = r0; r <= r1; r++) {
+        const row = target[r];
+        for (let c = c0; c <= c1; c++) row[c] += this._crossingAvoidBias; // overlapping crossings sum
+      }
     }
-    const lineIndex = lineMap.get(lineId);
-
-    // Center the bundle: offset both positively and negatively
-    // Line 0: -spacing, Line 1: 0, Line 2: +spacing, Line 3: +2*spacing, etc.
-    const offset = (lineIndex * spacing) - (spacing / 2);
-
-    lcardsLog.debug(`[RouterCore] Channel '${channelId}': Line ${lineIndex} offset = ${offset} viewBox units (spacing: ${spacing})`);
-    return offset;
+    return { horiz, vert };
   }
 
   /**
-   * Raw (non-centered) 0,1,2,... lane index for a line at a channel —
-   * companion to _getChannelLineOffset, used where a centered ±offset
-   * would be unsafe (see _pushBundledApproachLegs's corridorOffset: a
-   * centered offset can point BACKWARD relative to the line's own
-   * established travel direction, and two different lines' centered
-   * offsets can share the same magnitude — e.g. -8/+8 — which collide once
-   * reduced to a same-direction distance). A monotonic per-line index has
-   * neither problem: applied in a single safe direction it's always
-   * distinct and never negative. Must be called AFTER
-   * _getChannelLineOffset for the same (channelId, lineId) in the same
-   * leg-building pass, since that call is what populates the map.
-   * @param {string} channelId
+   * Lane assignment for one line at one corridor (config channel or
+   * discovered trunk) — a PURE function of the corridor's current member
+   * set, recomputed fresh on every call. Deliberately NOT a stored,
+   * insertion-order map: a stateful "who registered first" assignment
+   * (the former _channelLineIndex) was the last piece of per-corridor
+   * bookkeeping with no purge/versioning discipline, and pre-seeding it at
+   * trunk creation to fix the creator-lane gap demonstrably broke
+   * discovery-loop convergence (transient trunks left permanent lane
+   * reservations behind — see ROUTING_ENGINE_BRIEF.md §7). A pure
+   * function of the CURRENT member set can't accumulate history-dependent
+   * drift across passes by construction; membership changes bump
+   * _registryVersion (see _registerLineSegments), which is what forces
+   * affected lines to recompute with fresh assignments.
+   *
+   * Discovered trunk: the creator (sourceLineId) implicitly holds lane 0
+   * at offset 0 — its own path IS the centerline (crossCenter), so it
+   * never moves. Joiners (member set minus creator, plus the asking line,
+   * sorted lexicographically for determinism) alternate sides:
+   * +s, -s, +2s, -2s, ... — uniform spacing, bundle centered on the
+   * creator, band growing symmetrically (_trunkBandHalfWidth).
+   *
+   * Config channel: no implicit centerline owner — every user (member set
+   * plus the asking line, sorted) gets a centered offset
+   * (i - (n-1)/2) * spacing: n=1 -> 0, n=2 -> ±s/2, n=3 -> -s/0/+s.
+   *
+   * laneIndex is the raw non-negative per-line position (creator 0,
+   * joiners 1,2,... / users 0,1,2,...) consumed by
+   * _pushBundledApproachLegs's nudge-distance formula, which needs a
+   * distinct, never-negative value per line (a centered ± offset can point
+   * backward relative to a leg's travel direction, and two lines' centered
+   * offsets can share a magnitude).
+   * @param {object} corridor - channel or discovered-trunk object (id is what's resolved against the live registry)
    * @param {string} lineId
-   * @returns {number}
+   * @returns {{ laneIndex: number, laneCount: number, offset: number }}
    * @private
    */
-  _getChannelLineIndex(channelId, lineId) {
-    return this._channelLineIndex.get(channelId)?.get(lineId) ?? 0;
+  _trunkLaneAssignment(corridor, lineId) {
+    // Always read the LIVE registry row — corridor may be a stale spread
+    // copy (see _discoverTrunkCandidates) or a bare config-channel object
+    // (every channel has a same-id trunk row seeded at construction).
+    const row = this._trunks.find(t => t.id === corridor.id) ?? corridor;
+    const spacing = Number(corridor.line_spacing ?? row.line_spacing ?? this._trunkLineSpacing) || 0;
+    const ids = new Set(row.members?.keys());
+    ids.add(lineId);
+    if (row.origin === 'discovered') {
+      ids.delete(row.sourceLineId);
+      const joiners = [...ids].sort();
+      const laneCount = joiners.length + 1;
+      const k = joiners.indexOf(lineId); // creator: -1 -> lane 0, centerline
+      if (k < 0 || !spacing) return { laneIndex: 0, laneCount, offset: 0 };
+      const offset = (k % 2 === 0 ? 1 : -1) * spacing * (Math.floor(k / 2) + 1);
+      return { laneIndex: k + 1, laneCount, offset };
+    }
+    const users = [...ids].sort();
+    const i = users.indexOf(lineId);
+    const n = users.length;
+    return { laneIndex: i, laneCount: n, offset: spacing ? (i - (n - 1) / 2) * spacing : 0 };
   }
 
   /**
-   * Removes every trunk this line previously registered (origin:'discovered'
-   * with sourceLineId === lineId), before re-scanning its freshly-computed
-   * path. Mirrors invalidate(id)'s own scan-and-purge pattern (line ~113),
-   * applied to _trunks instead of _cache. Channel-seeded entries
-   * (sourceLineId: null) never match and always survive — only a full
-   * config-driven reconstruction of this RouterCore instance touches those.
+   * Removes this line's own contribution from every trunk it's a member of.
+   * NOT part of the routine per-recompute flow — _registerLineSegments now
+   * diffs trunk membership in place (update matching entries, drop only
+   * stale ones), so nothing purges before re-registration anymore (a
+   * purge-then-recreate cycle unconditionally looks like a change, which
+   * defeats discovery-loop convergence — the "shell row" bug class, see
+   * _registerLineSegments). Kept as a standalone primitive for cases that
+   * genuinely want a full clear (e.g. a line removed from the MSD
+   * entirely), mirroring _purgeCrossingsForLine.
+   *
+   * A row is NEVER deleted here, even when its last member is removed —
+   * an emptied discovered row keeps its bounds untouched (shell row, not a
+   * real geometry change) so its original owner re-registering the same
+   * geometry finds it again via the normal geometric match and reports no
+   * change. A truly-abandoned shell just lingers — harmless, since a
+   * members.size===0 discovered row is skipped by _discoverTrunkCandidates
+   * and reactivates the instant its owner (or anyone matching) registers
+   * into it again.
    * @param {string} lineId
+   * @returns {boolean} whether anything changed (membership counts as a
+   *   change even when bounds don't move — lane assignment derives from
+   *   membership, see _trunkLaneAssignment)
    * @private
    */
   _purgeTrunksForLine(lineId) {
-    this._trunks = this._trunks.filter(t => t.sourceLineId !== lineId);
+    let changed = false;
+    for (const t of this._trunks) {
+      if (!t.members?.has(lineId)) continue;
+      t.members.delete(lineId);
+      changed = true;
+      // A channel trunk still has a meaningful, deterministic bounds to
+      // fall back to at zero members (its own configured span) — always
+      // safe/idempotent to recompute. A discovered trunk has no such
+      // fallback; leave its bounds exactly as they were (shell row) rather
+      // than trying to compute a bounds-of-nothing.
+      if (t.origin === 'discovered' && t.members.size === 0) continue;
+      this._recomputeTrunkBounds(t);
+    }
+    return changed;
   }
 
   /**
-   * Scans a finished route's points for long-enough straight (axis-aligned)
-   * runs and registers each as a trunk another line could later discover
-   * and join. Must run on the pre-smoothing polyline — _applySmoothing
-   * replaces pts with curved points, which would poison the registry with
-   * non-axis-aligned "segments." A run shorter than _trunkMinLength isn't
-   * registered at all: a short post-stub jog (or a corridor nudge — see
-   * _pushBundledApproachLegs) is not something another line should try to
-   * join.
+   * Recomputes a trunk's flow-axis bounds as the union of every current
+   * member's own sub-span (plus, for a channel-seeded trunk, its original
+   * configured bounds — a channel never shrinks below what it was
+   * authored as, even once every joining line has been purged).
+   *
+   * For a DISCOVERED trunk, additionally recomputes the cross-axis band as
+   * a pure function of the current joiner count, symmetric around the
+   * creator's own centerline (crossCenter): half-width grows by one
+   * line_spacing per side-pair of joiners (the alternating ± lane scheme in
+   * _trunkLaneAssignment), so a joiner's through-leg at ±k·spacing always
+   * measures as "inside" the band (_corridorDelta) once joined. Symmetric
+   * growth keeps the band's center — what trunk matching and discovery
+   * proximity test against — pinned to the creator's path regardless of
+   * how many lines join. Channel-origin trunks keep their authored
+   * cross-axis bounds untouched.
+   * @param {object} trunk
+   * @returns {boolean} whether the trunk's bounds actually changed
+   * @private
+   */
+  _recomputeTrunkBounds(trunk) {
+    const horizontal = trunk.direction === 'horizontal';
+    let lo = trunk.origin === 'channel' ? (horizontal ? trunk._baseX1 : trunk._baseY1) : Infinity;
+    let hi = trunk.origin === 'channel' ? (horizontal ? trunk._baseX2 : trunk._baseY2) : -Infinity;
+    for (const span of trunk.members.values()) {
+      lo = Math.min(lo, span[0]);
+      hi = Math.max(hi, span[1]);
+    }
+    let changed = horizontal ? (trunk.x1 !== lo || trunk.x2 !== hi) : (trunk.y1 !== lo || trunk.y2 !== hi);
+    if (horizontal) { trunk.x1 = lo; trunk.x2 = hi; } else { trunk.y1 = lo; trunk.y2 = hi; }
+    if (trunk.origin === 'discovered' && Number.isFinite(trunk.crossCenter)) {
+      const half = this._trunkBandHalfWidth(trunk, null);
+      const cLo = trunk.crossCenter - half;
+      const cHi = trunk.crossCenter + half;
+      if (horizontal) {
+        if (trunk.y1 !== cLo || trunk.y2 !== cHi) { trunk.y1 = cLo; trunk.y2 = cHi; changed = true; }
+      } else {
+        if (trunk.x1 !== cLo || trunk.x2 !== cHi) { trunk.x1 = cLo; trunk.x2 = cHi; changed = true; }
+      }
+    }
+    return changed;
+  }
+
+  /**
+   * Cross-axis half-width of a discovered trunk's band for a given member
+   * set — spacing/2 (the creator's own lane) plus one spacing per side-pair
+   * of joiners, matching _trunkLaneAssignment's alternating ± offsets so
+   * every assigned lane's through-leg midpoint falls inside the band.
+   * `extraLineId` (may be null) is counted as a prospective joiner if it
+   * isn't already a member — used by _discoverTrunkCandidates to size a
+   * candidate's band as if the asking line had already joined; without
+   * that, a first joiner's own through-leg at ±spacing would measure
+   * "outside" the not-yet-widened band, never earn the prefer reward, and
+   * the join could never win the cost comparison (a deadlock: the band
+   * only widens on join, but the join needs the widened band to be chosen).
+   * @param {object} trunk
+   * @param {string|null} extraLineId
+   * @returns {number}
+   * @private
+   */
+  _trunkBandHalfWidth(trunk, extraLineId) {
+    const spacing = trunk.line_spacing || this._trunkLineSpacing;
+    const joiners = new Set(trunk.members?.keys());
+    if (extraLineId) joiners.add(extraLineId);
+    joiners.delete(trunk.sourceLineId);
+    return spacing / 2 + spacing * Math.ceil(joiners.size / 2);
+  }
+
+  /**
+   * Removes every crossing-avoidance entry this line previously registered,
+   * unconditionally. NOT part of the routine per-recompute flow (see
+   * _registerLineSegments's targeted diff instead) — kept as a standalone
+   * primitive for cases that genuinely want a full clear (e.g. a line
+   * removed from the MSD entirely).
+   * @param {string} lineId
+   * @returns {boolean} whether any entry was actually removed
+   * @private
+   */
+  _purgeCrossingsForLine(lineId) {
+    const before = this._crossings.length;
+    this._crossings = this._crossings.filter(c => c.lineId !== lineId);
+    return this._crossings.length !== before;
+  }
+
+  /**
+   * Scans a finished route's points ONCE for straight (axis-aligned) runs
+   * and registers each into every applicable per-line registry — trunks
+   * (bundling, gated by _trunkMinLength) and crossings (avoidance, gated by
+   * the much smaller _crossingMinLength, since even a short stub leg must
+   * still be avoidable). One _compactPolyline call, one shared runIndex,
+   * one _registryVersion bump if anything actually changed. Must run on
+   * the pre-smoothing polyline — _applySmoothing replaces pts with curved
+   * points, which would poison both registries with non-axis-aligned
+   * "segments."
+   *
+   * BOTH registries use the same diff-in-place discipline (no purge before
+   * the scan): matching entries are updated in place (identical geometry
+   * reports changed=false), and only entries this scan did NOT touch are
+   * dropped afterward (genuinely stale leftovers from a shape change). A
+   * purge-then-recreate cycle would unconditionally look like a change on
+   * every recompute, permanently defeating the "steady state = no version
+   * bump = cache hits" property the discovery loop's bounded cost depends
+   * on — the same failure class fixed three separate times in this
+   * subsystem (trunk shell rows, blanket crossing purges, and the stateful
+   * lane map replaced by _trunkLaneAssignment).
+   *
+   * Trunk MEMBERSHIP changes (a line joining or leaving a row) always
+   * count as registry changes, even when the row's bounds don't move —
+   * lane assignment and lane count are derived from membership
+   * (_trunkLaneAssignment), so other bundled lines must be re-examined
+   * whenever the member set shifts.
    * @param {string} lineId
    * @param {number[][]} pts
    * @private
    */
-  _registerTrunkSegments(lineId, pts) {
-    if (!this._trunkBundlingEnabled) return;
+  _registerLineSegments(lineId, pts) {
     // Compact collinear runs first — a straight route commonly has interior
     // points that aren't real corners at all (e.g. both ends of a stub
     // splice happening to continue in the same direction the inner path
     // already travels), and scanning raw consecutive pairs would register
-    // each such sub-run as its own separate, artificially-short trunk
-    // instead of the one real corridor they together represent. Same
+    // each such sub-run as its own separate, artificially-short entry
+    // instead of the one real straight run they together represent. Same
     // helper _computeCorridorRouted's own leg concatenation already relies
     // on for this exact purpose.
     const compacted = this._compactPolyline(pts);
     let runIndex = 0;
+    let changed = false;
+    // Tracks which of this line's crossing ids this scan actually produced,
+    // and which trunk rows this scan claimed a member span in — see the
+    // diff-in-place discipline in the docblock above.
+    const touchedCrossingIds = this._crossingAvoidEnabled ? new Set() : null;
+    // Membership scanning runs whenever there are rows to match — even with
+    // trunk_bundling_enabled:false, config channels are seeded rows whose
+    // lane assignment derives from membership (_trunkLaneAssignment), so
+    // lines routing through a channel must still register into it. The
+    // toggle only disables CREATING new discovered rows (spontaneous
+    // bundling) — see _mergeOrRegisterTrunk's create gate.
+    const touchedTrunks = (this._trunkBundlingEnabled || this._trunks.length) ? new Set() : null;
     for (let i = 1; i < compacted.length; i++) {
       const a = compacted[i - 1], b = compacted[i];
       const horizontal = a[1] === b[1];
       const vertical = a[0] === b[0];
       if (!horizontal && !vertical) continue; // shouldn't happen pre-smoothing; guard anyway
+      const idx = runIndex++;
       const length = horizontal ? Math.abs(b[0] - a[0]) : Math.abs(b[1] - a[1]);
-      if (length < this._trunkMinLength) continue;
-      this._mergeOrRegisterTrunk(lineId, runIndex++, a, b, horizontal);
+      if (touchedTrunks && length >= this._trunkMinLength) {
+        if (this._mergeOrRegisterTrunk(lineId, idx, a, b, horizontal, touchedTrunks)) changed = true;
+      }
+      if (this._crossingAvoidEnabled && length >= this._crossingMinLength) {
+        touchedCrossingIds.add(`cross:${lineId}:${idx}`);
+        if (this._registerCrossingSegment(lineId, idx, a, b, horizontal)) changed = true;
+      }
     }
+    // Post-scan membership diff: this line leaves any trunk row the scan
+    // didn't re-claim (its shape moved away from that row). Rows are never
+    // deleted — see _purgeTrunksForLine's shell-row comment.
+    if (touchedTrunks) {
+      for (const t of this._trunks) {
+        if (!t.members?.has(lineId) || touchedTrunks.has(t)) continue;
+        t.members.delete(lineId);
+        changed = true;
+        if (t.origin === 'discovered' && t.members.size === 0) continue;
+        this._recomputeTrunkBounds(t);
+      }
+    }
+    if (touchedCrossingIds) {
+      for (let i = this._crossings.length - 1; i >= 0; i--) {
+        const c = this._crossings[i];
+        if (c.lineId === lineId && !touchedCrossingIds.has(c.id)) {
+          this._crossings.splice(i, 1);
+          changed = true;
+        }
+      }
+    }
+    if (changed) this._registryVersion++;
+  }
+
+  /**
+   * Registers one straight run as a crossing-avoidance occupancy entry.
+   * Pure per-line bookkeeping — no merging with other lines' entries (that
+   * would only matter for bundling, a different concern handled by
+   * _mergeOrRegisterTrunk). id is a pure function of (lineId, runIndex),
+   * same rationale as a trunk's id: re-registering unchanged geometry is a
+   * true no-op, and changed geometry can't leak a stale entry under an old
+   * id (see _registerLineSegments's post-scan diff, which removes stale
+   * leftover ids without ever deleting-then-recreating an unchanged one).
+   * @param {string} lineId
+   * @param {number} runIndex
+   * @param {number[]} a
+   * @param {number[]} b
+   * @param {boolean} horizontal
+   * @returns {boolean} whether a new entry was created or an existing one's span actually changed
+   * @private
+   */
+  _registerCrossingSegment(lineId, runIndex, a, b, horizontal) {
+    const id = `cross:${lineId}:${runIndex}`;
+    const x1 = Math.min(a[0], b[0]), x2 = Math.max(a[0], b[0]);
+    const y1 = Math.min(a[1], b[1]), y2 = Math.max(a[1], b[1]);
+    const existing = this._crossings.find(c => c.id === id);
+    if (existing) {
+      const changed = existing.x1 !== x1 || existing.y1 !== y1 || existing.x2 !== x2 || existing.y2 !== y2;
+      existing.x1 = x1; existing.y1 = y1; existing.x2 = x2; existing.y2 = y2;
+      return changed;
+    }
+    this._crossings.push({ id, lineId, runIndex, x1, y1, x2, y2, direction: horizontal ? 'horizontal' : 'vertical' });
+    return true;
   }
 
   /**
@@ -1521,18 +1930,38 @@ export class RouterCore {
    * to origin — so a line that routes through a channel naturally merges
    * into that channel's own seeded trunk. Otherwise registers a new entry
    * with id `trunk:${lineId}:${runIndex}` — a pure function of
-   * (sourceLineId, runIndex), never a monotonic counter, so re-registering
-   * a line with unchanged geometry is a no-op and re-registering with
-   * changed geometry can't leak a stale entry under an old id (see
-   * _purgeTrunksForLine, which always runs first).
+   * (creating lineId, runIndex), never a monotonic counter, so re-
+   * registering a line with unchanged geometry is a no-op and re-
+   * registering with changed geometry can't leak a stale entry under an
+   * old id (see _purgeTrunksForLine, which always runs first).
+   *
+   * Records this line's contribution in `members` and recomputes the
+   * trunk's overall bounds from the full member set (_recomputeTrunkBounds)
+   * rather than a raw Math.min/max against the trunk's PREVIOUS bounds —
+   * a raw accumulation can never shrink, so a line that's later purged
+   * (e.g. the very line that created this trunk, recomputing on its own
+   * next turn) would leave every other member's extension permanently
+   * stuck in the bounds forever, even after that member itself is gone.
+   *
+   * A trunk the line is ALREADY a member of is a valid match (its span is
+   * updated in place; an identical span reports changed=false) — there is
+   * no purge before the scan anymore, so "already a member" is the normal
+   * steady-state case, not a conflict. What IS excluded is a trunk this
+   * same scan already claimed for a different run of the same line
+   * (`touchedTrunks`) — one member span per trunk per line; a second
+   * qualifying run registers its own trunk instead. A NEW member always
+   * reports changed=true even when the row's bounds don't move, because
+   * lane assignment derives from membership (see _registerLineSegments).
    * @param {string} lineId
    * @param {number} runIndex
    * @param {number[]} a
    * @param {number[]} b
    * @param {boolean} horizontal
+   * @param {Set<object>|null} touchedTrunks - rows already claimed by this scan; the matched/created row is added
+   * @returns {boolean} whether membership or bounds actually changed
    * @private
    */
-  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal) {
+  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal, touchedTrunks = null) {
     const flow = horizontal ? 0 : 1;
     const cross = horizontal ? 1 : 0;
     const flowLo = Math.min(a[flow], b[flow]);
@@ -1541,39 +1970,59 @@ export class RouterCore {
 
     const existing = this._trunks.find(t => {
       if (t.direction !== (horizontal ? 'horizontal' : 'vertical')) return false;
-      if (t.sourceLineId === lineId) return false;
-      const tCrossCenter = horizontal ? (t.y1 + t.y2) / 2 : (t.x1 + t.x2) / 2;
+      if (touchedTrunks?.has(t)) return false;
+      const tCrossCenter = t.crossCenter ?? (horizontal ? (t.y1 + t.y2) / 2 : (t.x1 + t.x2) / 2);
       if (Math.abs(tCrossCenter - crossCoord) > this._trunkProximity) return false;
       const tFlowLo = horizontal ? t.x1 : t.y1;
       const tFlowHi = horizontal ? t.x2 : t.y2;
       return Math.min(flowHi, tFlowHi) - Math.max(flowLo, tFlowLo) >= -this._trunkProximity;
     });
     if (existing) {
-      if (horizontal) {
-        existing.x1 = Math.min(existing.x1, flowLo);
-        existing.x2 = Math.max(existing.x2, flowHi);
-      } else {
-        existing.y1 = Math.min(existing.y1, flowLo);
-        existing.y2 = Math.max(existing.y2, flowHi);
-      }
-      return;
+      touchedTrunks?.add(existing);
+      const prev = existing.members.get(lineId);
+      // Re-registering an exactly-unchanged contribution must NOT report a
+      // change — otherwise a converged discovery loop would never reach a
+      // fixed point (every pass would bump _registryVersion and force
+      // every other line to recompute forever, defeating the cap's "stop
+      // once nothing changed" exit condition).
+      if (prev && prev[0] === flowLo && prev[1] === flowHi) return false;
+      const isNewMember = !prev;
+      existing.members.set(lineId, [flowLo, flowHi]);
+      const boundsChanged = this._recomputeTrunkBounds(existing);
+      return isNewMember || boundsChanged;
     }
 
+    // Creating NEW rows is what trunk_bundling_enabled actually toggles —
+    // matching into existing rows (above) must keep working regardless,
+    // since config channels' lane assignment depends on membership.
+    if (!this._trunkBundlingEnabled) return false;
+
     const half = this._trunkLineSpacing / 2;
-    this._trunks.push({
+    // crossCenter records the creator's own path coordinate as a stable
+    // fact of the row — the centerline every lane offset is measured from
+    // (_trunkLaneAssignment) and the anchor the cross-axis band grows
+    // symmetrically around as joiners arrive (_recomputeTrunkBounds).
+    // Deriving it from the bounds midpoint instead would let band updates
+    // feed back into the centerline itself.
+    const trunk = {
       id: `trunk:${lineId}:${runIndex}`,
       x1: horizontal ? flowLo : crossCoord - half,
       y1: horizontal ? crossCoord - half : flowLo,
       x2: horizontal ? flowHi : crossCoord + half,
       y2: horizontal ? crossCoord + half : flowHi,
+      crossCenter: crossCoord,
       direction: horizontal ? 'horizontal' : 'vertical',
       weight: this._trunkBundleWeight,
       mode: 'prefer',
       line_spacing: this._trunkLineSpacing,
       origin: 'discovered',
       sourceLineId: lineId,
-      runIndex
-    });
+      runIndex,
+      members: new Map([[lineId, [flowLo, flowHi]]])
+    };
+    this._trunks.push(trunk);
+    touchedTrunks?.add(trunk);
+    return true;
   }
 
   /**
@@ -1589,15 +2038,50 @@ export class RouterCore {
    * nearby trunk never pays for an extra pathfinding pass.
    * @param {object} stubReq
    * @param {Set<string>} excludeIds - ids already present as explicit corridors in the chain
+   * @param {Array<object>} [explicitCorridors] - the chain's own corridor objects, for geometric-redundancy filtering
    * @returns {Array<object>} candidate trunks (each tagged with `overlap`), sorted by overlap desc, capped at trunk_max_join_candidates
    * @private
    */
-  _discoverTrunkCandidates(stubReq, excludeIds) {
+  _discoverTrunkCandidates(stubReq, excludeIds, explicitCorridors = []) {
     if (!this._trunkBundlingEnabled || !this._trunks.length) return [];
     const [a, b] = [stubReq.a, stubReq.b];
+    // A candidate that's geometrically redundant with a corridor already in
+    // the chain (same direction, centerline inside that corridor's own
+    // cross band ± proximity, overlapping flow span) can only ever add a
+    // zigzag — the line already travels that region via the explicit
+    // corridor, and chaining through both forces an entry/exit pair into
+    // each. Typical source: another channel user's own approach/through
+    // runs registering as discovered trunks right on top of the channel.
+    const redundantWithChain = (t, horizontal, tCrossCenter, tFlowLo, tFlowHi) =>
+      explicitCorridors.some(c => {
+        if ((c.direction === 'horizontal') !== horizontal) return false;
+        const cCrossLo = horizontal ? c.y1 : c.x1;
+        const cCrossHi = horizontal ? c.y2 : c.x2;
+        if (tCrossCenter < cCrossLo - this._trunkProximity || tCrossCenter > cCrossHi + this._trunkProximity) return false;
+        const cFlowLo = horizontal ? c.x1 : c.y1;
+        const cFlowHi = horizontal ? c.x2 : c.y2;
+        return Math.min(tFlowHi, cFlowHi) - Math.max(tFlowLo, cFlowLo) > 0;
+      });
     const candidates = [];
     for (const t of this._trunks) {
+      // Exclusions: explicitly-referenced corridors (already in the chain),
+      // and trunks this line itself CREATED — a creator joining its own
+      // trunk would be pure self-reference. Mere MEMBERSHIP is deliberately
+      // NOT an exclusion (it used to be): a joiner becomes a member the
+      // moment its bundled route registers, and excluding members meant a
+      // joined line's very next recompute couldn't see its own trunk
+      // anymore and silently reverted to an independent route, permanently
+      // ("join ratchet" — the bundle only survived as long as the route
+      // cache did, confirmed by the fixed-point regression test). A member
+      // re-discovering its trunk just re-evaluates the same join
+      // cost-comparison and re-lands on the same lane — that's what makes
+      // "joined" a genuine fixed point.
       if (excludeIds.has(t.id) || t.sourceLineId === stubReq.id) continue;
+      // A ghost shell — a discovered row whose every member (creator
+      // included) has moved away — keeps its row for cheap reactivation
+      // (see _purgeTrunksForLine) but shouldn't attract NEW joiners to a
+      // centerline nobody occupies anymore.
+      if (t.origin === 'discovered' && t.members?.size === 0) continue;
       const horizontal = t.direction === 'horizontal';
       const flow = horizontal ? 0 : 1;
       const cross = horizontal ? 1 : 0;
@@ -1607,7 +2091,7 @@ export class RouterCore {
       const tFlowHi = horizontal ? t.x2 : t.y2;
       const overlap = Math.min(lineFlowHi, tFlowHi) - Math.max(lineFlowLo, tFlowLo);
       if (overlap < this._trunkMinOverlap) continue;
-      const tCrossCenter = horizontal ? (t.y1 + t.y2) / 2 : (t.x1 + t.x2) / 2;
+      const tCrossCenter = t.crossCenter ?? (horizontal ? (t.y1 + t.y2) / 2 : (t.x1 + t.x2) / 2);
       // Mirrors _channelCrossingPoints' own throughCoord averaging — a
       // rough approximation of where this line's path would sit on the
       // cross axis, good enough for a "is this worth trying" gate (the
@@ -1615,7 +2099,19 @@ export class RouterCore {
       // candidate is used).
       const lineCrossApprox = (a[cross] + b[cross]) / 2;
       if (Math.abs(lineCrossApprox - tCrossCenter) > this._trunkProximity) continue;
-      candidates.push({ ...t, overlap });
+      if (redundantWithChain(t, horizontal, tCrossCenter, tFlowLo, tFlowHi)) continue;
+      const cand = { ...t, overlap };
+      // Prospective band: size this candidate's cross-axis bounds as if the
+      // asking line had already joined (see _trunkBandHalfWidth's comment
+      // for the deadlock this prevents). Only the request-local copy is
+      // widened — the registry row itself grows via _recomputeTrunkBounds
+      // when the join actually registers.
+      if (t.origin === 'discovered' && Number.isFinite(t.crossCenter)) {
+        const half = this._trunkBandHalfWidth(t, stubReq.id);
+        if (horizontal) { cand.y1 = t.crossCenter - half; cand.y2 = t.crossCenter + half; }
+        else { cand.x1 = t.crossCenter - half; cand.x2 = t.crossCenter + half; }
+      }
+      candidates.push(cand);
     }
     candidates.sort((p, q) => q.overlap - p.overlap);
     return candidates.slice(0, this._trunkMaxJoinCandidates);
@@ -1633,7 +2129,7 @@ export class RouterCore {
    * @param {number[]} approachPoint
    * @param {number[]} departPoint
    * @param {string} lineId - req.id, for bundling offset lookup
-   * @returns {{ entry: number[], exit: number[], horizontal: boolean, entryAlreadyInside: boolean, exitAlreadyInside: boolean, laneOffset: number, laneIndex: number, lineSpacing: number }}
+   * @returns {{ entry: number[], exit: number[], horizontal: boolean, entryAlreadyInside: boolean, exitAlreadyInside: boolean, laneOffset: number, laneIndex: number, laneCount: number, lineSpacing: number }}
    * @private
    */
   _channelCrossingPoints(chan, approachPoint, departPoint, lineId) {
@@ -1645,11 +2141,19 @@ export class RouterCore {
     const crossLo = horizontal ? chan.y1 : chan.x1;
     const crossHi = horizontal ? chan.y2 : chan.x2;
 
-    const offset = this._getChannelLineOffset(chan.id, lineId, chan.line_spacing);
-    let throughCoord = (
-      Math.max(crossLo, Math.min(crossHi, approachPoint[cross])) +
-      Math.max(crossLo, Math.min(crossHi, departPoint[cross]))
-    ) / 2 + offset;
+    const { laneIndex, laneCount, offset } = this._trunkLaneAssignment(chan, lineId);
+    // A discovered trunk's lanes are measured from the creator's own
+    // centerline (crossCenter) — not from wherever this line happens to
+    // approach — so a joiner always lands a whole lane offset BESIDE the
+    // creator's path, never averaged toward it. Config channels have no
+    // implicit centerline owner; their reference stays the approach/depart
+    // average within the authored band, exactly as before.
+    let throughCoord = Number.isFinite(chan.crossCenter)
+      ? chan.crossCenter + offset
+      : (
+          Math.max(crossLo, Math.min(crossHi, approachPoint[cross])) +
+          Math.max(crossLo, Math.min(crossHi, departPoint[cross]))
+        ) / 2 + offset;
     throughCoord = Math.max(crossLo, Math.min(crossHi, throughCoord));
 
     const approachFlow = approachPoint[flow];
@@ -1689,16 +2193,24 @@ export class RouterCore {
 
     const entry = horizontal ? [entryFlow, throughCoord] : [throughCoord, entryFlow];
     const exit  = horizontal ? [exitFlow, throughCoord]  : [throughCoord, exitFlow];
-    // laneIndex (raw 0,1,2,...) is exposed alongside the centered laneOffset
+    // laneIndex (raw 0,1,2,...) is exposed alongside the signed laneOffset
     // for the approach/depart legs' own shared corridor (see
-    // _pushBundledApproachLegs) — a centered offset can point backward
+    // _pushBundledApproachLegs) — a signed offset can point backward
     // relative to a line's established travel direction, and two lines'
-    // centered offsets can share a magnitude (e.g. -8/+8), so the corridor
-    // uses the raw index in a single safe direction instead.
+    // offsets can share a magnitude (e.g. -8/+8), so the corridor uses the
+    // raw index in a single safe direction instead.
+    //
+    // laneCount is how many distinct lines currently occupy this corridor
+    // (including the asker; for a discovered trunk, including its creator)
+    // — see _pushBundledApproachLegs for why this, not laneIndex, is the
+    // right gate for whether a nudge/split is actually needed. All three
+    // derive from live trunk membership (_trunkLaneAssignment), never from
+    // stored assignment state.
     return {
       entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside,
       laneOffset: offset,
-      laneIndex: this._getChannelLineIndex(chan.id, lineId),
+      laneIndex,
+      laneCount,
       lineSpacing: chan.line_spacing
     };
   }
@@ -1770,22 +2282,46 @@ export class RouterCore {
    * as a real, reported issue: "two of the lines touch each other before
    * coming into the channel."
    *
-   * When `lineSpacing` is set and this line has more than one sibling at
-   * the channel (laneIndex/lineSpacing — see _getChannelLineIndex), splits
-   * into three legs that nudge onto this line's own corridor immediately,
-   * travel the whole shared stretch already separated, then correct back
-   * to the true boundary coordinate at the very end. The nudge uses the
-   * RAW per-line lane index (0,1,2,...), not the crossing's own centered
-   * ±offset: a centered value can point backward relative to the leg's
-   * established travel direction (confirmed: produced a real reversal
-   * right after the anchor's own stub), and two different lines' centered
-   * offsets can share a magnitude (e.g. -8/+8), which would collide once
-   * reduced to a single safe direction. The raw index, always applied in
-   * this leg's own net flow direction (`Math.sign(to[flow]-from[flow])`),
-   * is always non-negative and always distinct per line, so it can never
-   * reverse and never collide. Without meaningful spacing (single line, or
-   * line_spacing:0), a plain two-leg cross-then-flow split is still used so
-   * the correction at least happens early rather than late.
+   * When `lineSpacing` is set and MORE THAN ONE line has registered at this
+   * channel/trunk so far (`laneCount > 1` — see `_channelCrossingPoints`'s
+   * `laneCount`, NOT this line's own `laneIndex`), splits into three legs
+   * that nudge onto this line's own corridor immediately, travel the whole
+   * shared stretch already separated, then correct back to the true
+   * boundary coordinate at the very end. The nudge uses the RAW per-line
+   * lane index (0,1,2,...), not the crossing's own centered ±offset: a
+   * centered value can point backward relative to the leg's established
+   * travel direction (confirmed: produced a real reversal right after the
+   * anchor's own stub), and two different lines' centered offsets can
+   * share a magnitude (e.g. -8/+8), which would collide once reduced to a
+   * single safe direction. The raw index, always applied in this leg's own
+   * net flow direction (`Math.sign(to[flow]-from[flow])`), is always
+   * non-negative and always distinct per line, so it can never reverse and
+   * never collide.
+   *
+   * Gating on `laneCount > 1` rather than `laneIndex > 0` is deliberate and
+   * fixes a real, confirmed bug: whichever single line happens to register
+   * FIRST at a corridor always has `laneIndex === 0`, and gating on that
+   * index alone meant lane 0 NEVER got this nudge treatment, regardless of
+   * how many siblings later joined — so lane 0 kept taking the single,
+   * unconstrained fallback below and could ride visually coincident with a
+   * sibling for nearly its whole length, the EXACT symptom this whole
+   * mechanism exists to prevent, just relocated onto lane 0 specifically.
+   * `laneCount` (how many DISTINCT lines have registered here, regardless
+   * of which index THIS line holds) is the correct gate: "is there really
+   * something to separate from," not "am I the second-or-later line."
+   * Because the discovery loop (`AdvancedRenderer._discoverLineRoutes`)
+   * re-evaluates every line multiple times as the registry fills in, lane
+   * 0's own later passes correctly see `laneCount` grow past 1 the moment
+   * a sibling joins, and self-correct into the split — something a single
+   * declaration-order pass could never guarantee for whichever line
+   * happened to arrive first.
+   *
+   * Without meaningful spacing (`lineSpacing` falsy) or with no real
+   * sibling (`laneCount <= 1`, this line is genuinely alone here), the
+   * plain unsplit fallback below is used — there's nothing to separate
+   * from, and forcing a specific correction order unconditionally can
+   * directly conflict with the true boundary hint's own hard-blocked
+   * direction (see the fallback's own comment).
    *
    * The interior boundaries (the nudge and the cross-axis correction) are
    * intentionally left unconstrained ('geometry') rather than hard-blocked
@@ -1802,13 +2338,15 @@ export class RouterCore {
    *   one being approached, or — for the trailing leg — the one just
    *   departed), not necessarily related to `from`/`to`'s own geometry
    * @param {number} laneIndex - this line's raw 0,1,2,... lane index at
-   *   that channel (see _getChannelLineIndex)
+   *   that channel (see _trunkLaneAssignment)
+   * @param {number} laneCount - how many distinct lines have registered at
+   *   that channel/trunk so far (see _channelCrossingPoints)
    * @param {number} lineSpacing - that channel's line_spacing
    * @param {object} firstHint - the true hint governing departure from `from`
    * @param {object} lastHint - the true hint governing arrival at `to`
    * @private
    */
-  _pushBundledApproachLegs(legs, stubReq, from, to, horizontal, laneIndex, lineSpacing, firstHint, lastHint) {
+  _pushBundledApproachLegs(legs, stubReq, from, to, horizontal, laneIndex, laneCount, lineSpacing, firstHint, lastHint) {
     const flow = horizontal ? 0 : 1;
     // Baseline uses the SAME threshold as the cardinal-side lead-out/lead-in
     // stubs (2x corner radius, floored at MIN_STUB_LENGTH) — a nudge whose
@@ -1835,22 +2373,22 @@ export class RouterCore {
     // stubs, applied here to the corridor nudge instead.
     const rawOffset = stubLengthFor(stubReq) + laneIndex * lineSpacing;
     const available = Math.abs(to[flow] - from[flow]);
-    const corridorOffset = lineSpacing && laneIndex > 0 && from[flow] !== to[flow]
+    const corridorOffset = lineSpacing && laneCount > 1 && from[flow] !== to[flow]
       ? Math.sign(to[flow] - from[flow]) * Math.min(rawOffset, available)
       : 0;
     if (!corridorOffset) {
-      // No real bundling need — either this line is alone at this channel,
-      // or it's line 0's own un-offset lane. Fall back to a single, unsplit
-      // leg with the TRUE hints, letting the pathfinder pick its own
-      // natural, hint-compatible shape exactly as it did before this
-      // feature existed. This is not just the simpler option: forcing a
-      // specific correction order unconditionally can directly conflict
-      // with the true boundary hint's own hard-blocked direction — e.g.
-      // anchor_side:'top' hard-blocks straight-down travel, but a blind
-      // cross-axis-first order for a horizontal channel with a top/bottom
-      // departure side IS straight-down travel. Confirmed as a real
-      // regression: produced a genuine reversal for exactly that
-      // combination.
+      // No real bundling need — this line is genuinely alone at this
+      // channel/trunk (laneCount <= 1) or there's no spacing configured.
+      // Fall back to a single, unsplit leg with the TRUE hints, letting
+      // the pathfinder pick its own natural, hint-compatible shape exactly
+      // as it did before this feature existed. This is not just the
+      // simpler option: forcing a specific correction order unconditionally
+      // can directly conflict with the true boundary hint's own
+      // hard-blocked direction — e.g. anchor_side:'top' hard-blocks
+      // straight-down travel, but a blind cross-axis-first order for a
+      // horizontal channel with a top/bottom departure side IS
+      // straight-down travel. Confirmed as a real regression: produced a
+      // genuine reversal for exactly that combination.
       legs.push(this._buildLegRequest(stubReq, from, to, firstHint, lastHint));
       return;
     }
@@ -1941,6 +2479,28 @@ export class RouterCore {
     const chainChannels = corridors;
     if (!chainChannels.length) return null;
 
+    // Prospective bundle-mate exemption: while routing TOWARD a corridor,
+    // crossing penalties from that corridor's own occupants must not apply
+    // — reaching an outer lane legitimately crosses the inner lanes
+    // (that's how a real raceway works), and penalizing those crossings
+    // made A* sneak AROUND the end of the occupants' registered runs
+    // instead (confirmed: a joiner's approach leg detoured sideways past
+    // the trunk's own flow start, polluting the trunk's bounds with the
+    // detour). _buildCrossingCostGrid's own membership-based exemption
+    // can't cover this — on a line's FIRST join evaluation it isn't a
+    // member yet. Applied to the leg requests only, never to stubReq
+    // itself: the plain-route candidate this chained result is compared
+    // against keeps full crossing penalties (it isn't joining anything).
+    const exemptIds = new Set();
+    for (const chan of chainChannels) {
+      const row = this._trunks.find(t => t.id === chan.id);
+      if (row?.sourceLineId) exemptIds.add(row.sourceLineId);
+      for (const id of row?.members?.keys() ?? []) exemptIds.add(id);
+    }
+    const legBase = exemptIds.size
+      ? { ...stubReq, _crossingExemptIds: [...exemptIds].sort() }
+      : stubReq;
+
     const legs = [];
     let cursor = stubReq.a;
     // Mirrors entryAlreadyInside on the OTHER boundary: true when the
@@ -1949,28 +2509,30 @@ export class RouterCore {
     // leg departing FROM it is fundamentally a cross-axis-only move too.
     let prevExitAlreadyInside = false;
     let lastLaneIndex = 0;
+    let lastLaneCount = 1;
     let lastLineSpacing = 0;
     for (let k = 0; k < chainChannels.length; k++) {
       const chan = chainChannels[k];
       const next = chainChannels[k + 1];
       const nextRef = next ? [(next.x1 + next.x2) / 2, (next.y1 + next.y2) / 2] : stubReq.b;
-      const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id);
+      const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, laneCount, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id);
 
-      this._pushBundledApproachLegs(legs, stubReq, cursor, entry, horizontal, laneIndex, lineSpacing,
+      this._pushBundledApproachLegs(legs, legBase, cursor, entry, horizontal, laneIndex, laneCount, lineSpacing,
         k === 0
           ? { source: stubReq._hintSourceFirst, mode: stubReq.modeHint, anchorSide: stubReq.anchorSide }
           : (prevExitAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal: chainChannels[k - 1].direction === 'horizontal' }),
         entryAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal });
-      legs.push(this._buildLegRequest(stubReq, entry, exit,
+      legs.push(this._buildLegRequest(legBase, entry, exit,
         { source: 'channel_axis', horizontal },
         { source: 'channel_axis', horizontal }));
       cursor = exit;
       prevExitAlreadyInside = exitAlreadyInside;
       lastLaneIndex = laneIndex;
+      lastLaneCount = laneCount;
       lastLineSpacing = lineSpacing;
     }
     const lastChan = chainChannels[chainChannels.length - 1];
-    this._pushBundledApproachLegs(legs, stubReq, cursor, stubReq.b, lastChan.direction === 'horizontal', lastLaneIndex, lastLineSpacing,
+    this._pushBundledApproachLegs(legs, legBase, cursor, stubReq.b, lastChan.direction === 'horizontal', lastLaneIndex, lastLaneCount, lastLineSpacing,
       prevExitAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal: lastChan.direction === 'horizontal' },
       { source: stubReq._hintSourceLast, mode: stubReq.modeHintLast, attachSide: stubReq.attachSide });
 
@@ -2477,7 +3039,11 @@ export class RouterCore {
       // Try shifting each elbow (not endpoints)
       const span = req.smart.detourSpan;
       const maxExtraBends = req.smart.maxExtraBends;
-      const minImprove = req.smart.min_improvement;
+      // req.smart.minImprovement (camelCase — see buildRouteRequest's smart
+      // block). This read used snake_case for years, yielding undefined —
+      // NaN in the acceptance comparison below — so smart refinement never
+      // accepted a single detour and all four smart_* knobs were inert.
+      const minImprove = req.smart.minImprovement;
       for (let i=1;i<bestPts.length-1;i++) {
         const elbow = bestPts[i];
         const prev = bestPts[i-1];

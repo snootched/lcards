@@ -278,6 +278,14 @@ export class AdvancedRenderer {
       attachmentPointCount: this.attachmentManager?._attachmentPoints?.size || 0
     });
 
+    // Repeatedly route every line (discarding markup) so RouterCore's
+    // trunk/crossing registries reflect every line's geometry BEFORE Pass
+    // 2b's real, declaration-order pass runs — see _discoverLineRoutes for
+    // why this removes the order-dependency a single pass would otherwise
+    // have (a line drawn later in YAML that would make an excellent trunk
+    // for an earlier line was previously invisible to it).
+    this._discoverLineRoutes(overlays);
+
     // Pass 2b: render line overlays (now ALL targets exist with attachment points)
     overlays.filter(o => o.type === 'line').forEach(ov => {
       try {
@@ -332,25 +340,15 @@ export class AdvancedRenderer {
           if (targetId) {
             if (!this._lineDeps.has(targetId)) this._lineDeps.set(targetId, new Set());
             this._lineDeps.get(targetId).add(ov.id);
-
-            // NEW: ensure RouterCore sees a route for overlay-destination line (HUD listing)
-            if (this.routerCore && raw.anchor) {
-              const anchorPt = this.attachmentManager.getAnchor(raw.anchor);
-
-              // Build virtual anchor ID for destination overlay
-              const attachSide = raw.attach_side || raw.attachSide || 'center';
-              const virtualAnchorId = attachSide === 'center' ? targetId : `${targetId}.${attachSide}`;
-              const targetPt = this.attachmentManager.getAnchor(virtualAnchorId);
-
-              if (anchorPt && targetPt) {
-                try {
-                  const req = this.routerCore.buildRouteRequest(ov, anchorPt, targetPt);
-                  this.routerCore.computePath(req);
-                } catch (e) {
-                  lcardsLog.debug('[AdvancedRenderer] 🔗 Route registration failed for overlay', ov.id, e);
-                }
-              }
-            }
+            // NOTE: no synthetic computePath here (a "HUD listing" call used
+            // to route bare-anchor -> virtual-anchor endpoints for the SAME
+            // line id). The renderOverlay call above already computed and
+            // cached this line's REAL route, so the HUD sees it — while the
+            // synthetic one, with its differently-resolved endpoints, was
+            // REGISTERING wrong geometry into the trunk/crossing registries
+            // under the real line's id, in declaration order, AFTER the
+            // discovery loop had converged — reintroducing exactly the
+            // declaration-order dependence the loop exists to remove.
           }
         }
 
@@ -612,19 +610,19 @@ export class AdvancedRenderer {
       // LineOverlay._resolveAttachTo builds the same key from the config's attach_side —
       // no write-back to the (potentially frozen) overlay object needed.
 
-      // Register in routerCore so HUD sees it as an anchor
+      // Register in routerCore so HUD sees it as an anchor. The anchor
+      // moved (or was just created), so drop this line's stale cached
+      // routes — but do NOT compute a synthetic route here: the endpoints
+      // this site can resolve (bare anchor -> gap point) are not the
+      // line's real anchor_side-resolved endpoints, and computePath
+      // REGISTERS whatever it routes into the trunk/crossing registries
+      // under the real line's id, in declaration order — polluting the
+      // registries the discovery loop later converges from. The real
+      // route (computed by LineOverlay via the discovery loop and Pass
+      // 2b) is what the HUD should — and now does — see.
       if (this.routerCore && this.routerCore.anchors) {
         this.routerCore.anchors[virtualAnchorId] = gapPt;
-        try {
-          this.routerCore.invalidate(line.id);
-          const srcAnchor = this.attachmentManager.getAnchor(raw.anchor) || this.routerCore.anchors[raw.anchor];
-          if (srcAnchor) {
-            const req = this.routerCore.buildRouteRequest(line, srcAnchor, gapPt);
-            this.routerCore.computePath(req);
-          }
-        } catch(e) {
-          lcardsLog.info('[AdvancedRenderer] Route registration (initial) failed', line.id, e);
-        }
+        this.routerCore.invalidate(line.id);
       }
       // Track dependency
       if (!this._lineDeps.has(dest)) this._lineDeps.set(dest, new Set());
@@ -686,18 +684,13 @@ export class AdvancedRenderer {
         this.attachmentManager.setAnchor(virtualAnchorId, gapPt);
 
         anchorMap[virtualAnchorId] = gapPt;
+        // Anchor moved: invalidate this line's cached routes so its next
+        // real render recomputes. No synthetic computePath — same reasoning
+        // as _buildDynamicOverlayAnchors (bare-anchor endpoints would
+        // register wrong geometry under the real line's id).
         if (this.routerCore && this.routerCore.anchors) {
           this.routerCore.anchors[virtualAnchorId] = gapPt;
-          try {
-            this.routerCore.invalidate(line.id);
-            const srcAnchor = anchorMap[raw.anchor] || this.routerCore.anchors[raw.anchor];
-            if (srcAnchor) {
-              const req = this.routerCore.buildRouteRequest(line, srcAnchor, gapPt);
-              this.routerCore.computePath(req);
-            }
-          } catch(e) {
-            lcardsLog.info('[AdvancedRenderer] Route registration (update) failed', line.id, e);
-          }
+          this.routerCore.invalidate(line.id);
         }
       });
     });
@@ -819,6 +812,90 @@ export class AdvancedRenderer {
    */
   _scheduleDeferredLineRefresh(overlays, anchorsRef, viewBox) {
     // No-op: Lines are now refreshed immediately during render
+  }
+
+  /**
+   * Repeatedly routes every line overlay (via LineOverlay.resolveRoute(),
+   * which computes a route but never touches the DOM) until RouterCore's
+   * trunk/crossing registry stops changing, or a safety cap is hit. This
+   * removes the order-dependency a single declaration-order pass would
+   * otherwise have: after this loop, every line's independent geometry has
+   * been registered regardless of YAML order, so Pass 2b's own real,
+   * sequential pass (unchanged, still declaration-order) sees the union of
+   * every other line's geometry rather than just earlier-declared lines'.
+   *
+   * Cost is bounded by RouterCore's own registry-version-keyed route
+   * cache, not by pass count: once a full sweep produces zero registry
+   * mutations, every subsequent lookup in this render is a cache hit,
+   * including this loop's own remaining iterations and Pass 2b's real
+   * pass — so a render where nothing's geometry actually changed pays
+   * nothing extra, and even a multi-way mutual dependency only pays for
+   * the lines still adjusting on each extra pass, not a full re-sweep at
+   * full price every time.
+   *
+   * Known, explicitly-scoped limitation: within Pass 2b's own single
+   * sequential pass afterward, a later line still sees earlier lines'
+   * POST-Pass-2b geometry while an earlier line only ever saw later lines'
+   * geometry as of THIS loop's convergence — a genuine three-way mutual
+   * dependency where the best arrangement only emerges after two other
+   * lines have already joined each other isn't guaranteed optimal.
+   * Fixing that would need iterating Pass 2b itself to convergence too,
+   * which is out of scope here.
+   * @param {Array<Object>} overlays
+   * @private
+   */
+  _discoverLineRoutes(overlays) {
+    if (!this.routerCore) return;
+    // Sorted by id — deliberately NOT declaration order. A join decision
+    // can be a genuine near-tie whose cost flips pass-to-pass (joining a
+    // trunk widens it, which changes the branch-point clamp for the NEXT
+    // evaluation, which can make joining look worse, which un-joins and
+    // narrows it back, which makes joining look better again — a real
+    // 2-cycle, confirmed empirically, not hypothetical). Declaration order
+    // determines WHICH pass within that cycle a line is FIRST evaluated
+    // on, so two different declaration orders can hit the pass cap at
+    // opposite phases of the same oscillation and land on different
+    // answers — exactly the order-dependency this loop exists to remove.
+    // A fixed, order-independent iteration sequence inside the loop itself
+    // guarantees both orders hit the cap at the same phase. Pass 2b (the
+    // real render below) is unaffected — it still iterates `overlays` in
+    // declaration order for z-ordering/DOM-insertion purposes.
+    const lineOverlays = overlays.filter(o => o.type === 'line').slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    if (!lineOverlays.length) return;
+    // The COMPLETE anchor set (static + attachmentManager virtual anchors),
+    // exactly what renderOverlay hands LineOverlay.render for the real
+    // pass. Passing bare _staticAnchors here (as this loop originally did)
+    // made resolveRoute's anchor resolution fail for every line anchored
+    // to an overlay/control — 'control_x.right' only exists in the merged
+    // set — so the whole loop silently no-opped and the FIRST real routing
+    // happened in Pass 2b's declaration-order pass, reintroducing exactly
+    // the YAML-order dependence this loop exists to remove (confirmed
+    // live: two equal-cost route shapes existed for a line, and which one
+    // won followed declaration order, not the sorted order below).
+    const completeAnchors = this._getCompleteAnchors(this._staticAnchors, 'line');
+    const maxPasses = this.routerCore._trunkDiscoveryMaxPasses ?? 4;
+    let lastVersion = -1;
+    let pass = 0;
+    while (this.routerCore._registryVersion !== lastVersion && pass < maxPasses) {
+      lastVersion = this.routerCore._registryVersion;
+      for (const ov of lineOverlays) {
+        try {
+          // @ts-ignore - TS2339: resolveRoute is LineOverlay-specific, not on OverlayBase; compatible at runtime since lineOverlays is already filtered to type==='line'
+          const resolved = (/** @type {any} */ (this._getRendererForOverlay(ov)))?.resolveRoute?.(ov, completeAnchors);
+          if (!resolved) {
+            // A line the discovery loop can't route is a line whose
+            // registrations Pass 2b will make in declaration order instead
+            // — worth surfacing, since that quietly weakens the loop's
+            // order-independence guarantee for this card.
+            lcardsLog.debug(`[AdvancedRenderer] Discovery pass could not resolve route for '${ov.id}' (anchors unresolved?)`);
+          }
+        } catch (e) {
+          lcardsLog.debug('[AdvancedRenderer] Discovery-pass route failed for', ov.id, e);
+        }
+      }
+      pass++;
+    }
+    lcardsLog.debug(`[AdvancedRenderer] Route discovery converged after ${pass} pass(es) (registryVersion=${this.routerCore._registryVersion})`);
   }
 
   /**

@@ -82,6 +82,37 @@ export class LineOverlay extends OverlayBase {
   }
 
   /**
+   * Resolves this line's anchors (if not already supplied) and computes its
+   * route — nothing else. No style/color resolution, no markup, no
+   * error-branch classification (that's render()'s job; this returns a
+   * single null on any failure since a caller like the discovery-loop seed
+   * pass only needs a yes/no signal). Shared by render() and
+   * AdvancedRenderer's _discoverLineRoutes() so a throwaway discovery-pass
+   * call doesn't pay for theme-token/color resolution (real CPU work in
+   * _resolveLineStyles, thrown away in a discovery call).
+   *
+   * anchor/anchor2 are accepted as optional params (defaulting to resolving
+   * them here) purely so render() — which must resolve them anyway to
+   * report WHICH specific validation failed — doesn't need to resolve them
+   * a second time; the discovery loop calls this with just (overlay,
+   * anchors) and lets it resolve them fresh.
+   * @param {Object} overlay
+   * @param {Object} anchors
+   * @param {number[]|null} [anchor]
+   * @param {number[]|null} [anchor2]
+   * @returns {{anchor: number[], anchor2: number[], pathResult: object}|null}
+   */
+  resolveRoute(overlay, anchors, anchor = this._resolveAnchor(overlay, anchors), anchor2 = this._resolveAttachTo(overlay, anchors)) {
+    if (!this.routerCore) return null;
+    if (!overlay.anchor && !overlay.attach_to) return null;
+    if (overlay.anchor && (!Array.isArray(anchor) || anchor.length !== 2)) return null;
+    if (overlay.attach_to && (!Array.isArray(anchor2) || anchor2.length !== 2)) return null;
+    const routeRequest = this.routerCore.buildRouteRequest(overlay, anchor, anchor2);
+    const pathResult = this.routerCore.computePath(routeRequest);
+    return pathResult?.d ? { anchor, anchor2, pathResult } : null;
+  }
+
+  /**
    * Render line overlay
    *
    * @param {Object} overlay - Overlay configuration
@@ -174,9 +205,10 @@ export class LineOverlay extends OverlayBase {
     }
 
     try {
-      // Get the computed path from RouterCore
-      const routeRequest = this.routerCore.buildRouteRequest(overlay, anchor, anchor2);
-      const pathResult = this.routerCore.computePath(routeRequest);
+      // Get the computed path from RouterCore — anchor/anchor2 already
+      // resolved and validated above, passed through so resolveRoute()
+      // doesn't re-resolve them.
+      const pathResult = this.resolveRoute(overlay, anchors, anchor, anchor2)?.pathResult ?? null;
 
       if (!pathResult?.d) {
         lcardsLog.warn(`[LineOverlay] No path computed for line ${overlay.id}`);

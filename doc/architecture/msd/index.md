@@ -51,7 +51,8 @@ Rendered card (Shadow DOM updated)
 | `ModelBuilder` | `msd/pipeline/ModelBuilder.js` | Resolves overlay geometry, binding to SVG anchors, viewport scaling |
 | `AdvancedRenderer` | `msd/renderer/AdvancedRenderer.js` | Main render orchestrator; creates `OverlayBase` / `LineOverlay` instances per overlay |
 | `OverlayBase` | `msd/overlays/OverlayBase.js` | Base class for control overlays — position, size, embedded HA card |
-| `LineOverlay` | `msd/overlays/LineOverlay.js` | SVG line routing, avoid-obstacle algorithm, attachment point resolution |
+| `RouterCore` | `msd/routing/RouterCore.js` | Pathfinding engine — A* routing, obstacle/crossing avoidance, trunk-and-branch bundling, channels; one instance per card. See [Routing Engine](./routing.md) |
+| `LineOverlay` | `msd/overlays/LineOverlay.js` | Per-line renderer — resolves anchors, requests the route from `RouterCore`, builds SVG markup |
 | `ShapeOverlay` | `msd/overlays/ShapeOverlay.js` | Renders `shape` overlays (`polyline`/`rect`/`circle`) — sibling of `LineOverlay`, not a subclass; shares its style-resolution logic by adaptation, not inheritance |
 | `AttachmentPointManager` | `msd/renderer/AttachmentPointManager.js` | Resolves named attachment points on overlays for line endpoints |
 | `ViewportScaling` | `msd/renderer/ViewportScaling.js` | Scales overlay coords for the current dashboard viewport |
@@ -89,14 +90,11 @@ overlays:
 
 ## Line Routing
 
-`LineOverlay` computes polyline paths between two overlay attachment points. The routing algorithm:
+All pathfinding lives in **`RouterCore`** (one instance per MSD card, shared by every line). `LineOverlay` resolves a line's endpoints and asks `RouterCore` for the path; `AdvancedRenderer` runs a **pre-render discovery loop** that routes every line (in a fixed sorted order) until the router's shared trunk/crossing registries stabilize — making bundling and crossing-avoidance outcomes independent of YAML declaration order — before the real render pass consumes the cached results.
 
-1. Resolves source/target attachment points (top/bottom/left/right/center or named)
-2. Picks orthogonal or diagonal routing strategy based on relative positions
-3. Applies obstacle avoidance by sampling other overlay bounding boxes
-4. Falls back to direct straight line if routing fails
+The engine provides: A* grid routing with obstacle avoidance, cardinal `anchor_side`/`attach_side` guarantees, trunk-and-branch bundling (parallel lines share evenly-spaced lanes; channels are pre-seeded trunks), crossing avoidance, and corner rounding/beveling/smoothing.
 
-Manual routing waypoints can override the algorithm — see [Manual Routing](../../cards/msd/manual-routing.md).
+Full internals — registries, derived lane assignment, convergence discipline, caching: [Routing Engine (RouterCore)](./routing.md). User-facing configuration: [Line Routing & Channels](../../cards/msd/routing.md). Manual waypoints: [Manual Routing](../../cards/msd/manual-routing.md).
 
 ---
 

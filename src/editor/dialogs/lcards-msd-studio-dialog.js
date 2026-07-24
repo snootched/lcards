@@ -12336,10 +12336,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <lcards-message type="info">
                             <strong>No routing channels defined.</strong>
                             <p style="margin: 8px 0; font-size: 13px;">
-                                Channels are rectangular regions that guide line routing:
-                                <br/>• <strong>Bundling</strong>: Lines prefer to route through these areas
-                                <br/>• <strong>Avoiding</strong>: Lines try to avoid these areas
-                                <br/>• <strong>Waypoint</strong>: Lines must pass through these areas
+                                Channels are rectangular corridors that guide line routing:
+                                <br/>• <strong>Prefer</strong>: Lines are rewarded for traveling through, and bundle into evenly-spaced lanes
+                                <br/>• <strong>Avoid</strong>: Lines are penalized for entering
+                                <br/>• <strong>Force</strong>: Lines referencing the channel must route through it
+                                <br/><br/>Lines opt in with <code>route_channels: [channel_id]</code> — and any line
+                                routing nearby can also discover and bundle with a channel automatically.
                             </p>
                         </lcards-message>
                     ` : html`
@@ -12384,10 +12386,87 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     ${this._renderRoutingModeInfoPanel(this._routingModeReference || 'auto')}
                 </lcards-form-section>
 
+                <!-- Trace Bundling & Crossing Avoidance (common tunables) -->
+                <lcards-form-section
+                    header="Trace Bundling & Crossings"
+                    description="Cable-raceway behavior: lines travel together and avoid cutting across each other"
+                    icon="mdi:transit-connection-variant"
+                    ?expanded=${false}
+                    style="margin-bottom: 16px;">
+
+                    <lcards-message type="info" style="margin-bottom: 16px;">
+                        <strong>How Traces Behave</strong>
+                        <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
+                            Lines act like cable raceways: paths that run close and parallel automatically
+                            <strong>bundle</strong> into a shared trunk — the first line keeps its path (the
+                            centerline) and later lines ride evenly-spaced lanes beside it, branching apart where
+                            their destinations diverge. Lines are also discouraged from <strong>crossing</strong>
+                            each other unless a crossing is genuinely cheaper than going around.
+                            <br/><br/>Applies to lines using <code>route: smart</code> or <code>route: grid</code>
+                            (or <code>route: auto</code> once obstacles/channels upgrade it). Declaration order in
+                            YAML never changes the outcome.
+                        </p>
+                    </lcards-message>
+
+                    <div style="display: flex; gap: 24px; margin-bottom: 16px;">
+                        <ha-formfield .label=${'Bundle parallel lines (trunk-and-branch)'}>
+                            <ha-switch
+                                .checked=${routing.trunk_bundling_enabled !== false}
+                                @change=${(e) => this._updateRoutingConfig('trunk_bundling_enabled', e.target.checked ? undefined : false)}>
+                            </ha-switch>
+                        </ha-formfield>
+                        <ha-formfield .label=${'Avoid line crossings'}>
+                            <ha-switch
+                                .checked=${routing.crossing_avoid_enabled !== false}
+                                @change=${(e) => this._updateRoutingConfig('crossing_avoid_enabled', e.target.checked ? undefined : false)}>
+                            </ha-switch>
+                        </ha-formfield>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+                        <ha-input
+                            label="Lane Spacing (px)"
+                            type="number"
+                            min="0"
+                            step="1"
+                            .value=${routing.trunk_line_spacing ?? ''}
+                            @input=${(e) => this._updateRoutingConfig('trunk_line_spacing', e.target.value ? parseFloat(e.target.value) : undefined)}
+                            helper-text="Gap between bundled lines (default: 8)">
+                        </ha-input>
+                        <ha-input
+                            label="Bundling Proximity (px)"
+                            type="number"
+                            min="0"
+                            step="1"
+                            .value=${routing.trunk_proximity ?? ''}
+                            @input=${(e) => this._updateRoutingConfig('trunk_proximity', e.target.value ? parseFloat(e.target.value) : undefined)}
+                            helper-text="How close lines must run to bundle (default: 32)">
+                        </ha-input>
+                        <ha-input
+                            label="Bundling Pull"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            .value=${routing.trunk_bundle_weight ?? ''}
+                            @input=${(e) => this._updateRoutingConfig('trunk_bundle_weight', e.target.value ? parseFloat(e.target.value) : undefined)}
+                            helper-text="How strongly joining a bundle is rewarded (default: 0.5)">
+                        </ha-input>
+                        <ha-input
+                            label="Crossing Penalty"
+                            type="number"
+                            min="0"
+                            step="1"
+                            .value=${routing.crossing_avoid_bias ?? ''}
+                            @input=${(e) => this._updateRoutingConfig('crossing_avoid_bias', e.target.value ? parseFloat(e.target.value) : undefined)}
+                            helper-text="Deterrent per crossing, not a hard block (default: 4; higher = longer detours accepted)">
+                        </ha-input>
+                    </div>
+                </lcards-form-section>
+
                 <!-- Global Routing Defaults (Advanced) -->
                 <lcards-form-section
                     header="Advanced Routing Configuration"
-                    description="Fine-tune global routing behavior for lines using route: auto"
+                    description="Deep router internals — rarely needed"
                     icon="mdi:tune"
                     ?expanded=${false}
                     style="margin-bottom: 16px;">
@@ -12410,8 +12489,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <div style="margin-bottom: 6px;"><strong>Grid-Based Routing</strong></div>
                             <div style="margin-left: 12px; margin-bottom: 8px;">
                                 • <strong>Clearance</strong>: Extra padding around obstacles (prevents lines from touching edges)<br/>
-                                • <strong>Grid Resolution</strong>: Cell size for pathfinding (smaller = more precise but slower)<br/>
-                                • <strong>Turn Penalty</strong>: Cost for direction changes (higher = straighter paths with fewer turns)
+                                • <strong>Grid Resolution</strong>: Cell size for pathfinding (smaller = more precise but slower; below 5 is coerced to 32)<br/>
+                                • <strong>Turn Penalty</strong>: Cost for direction changes (higher = straighter paths with fewer turns)<br/>
+                                • <strong>Hint Penalty</strong>: Cost for a first/last move disagreeing with route_hint (soft — obstacles still win)
                             </div>
 
                             <div style="margin-bottom: 6px;"><strong>Path Smoothing</strong></div>
@@ -12423,16 +12503,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                             <div style="margin-bottom: 6px;"><strong>Pathfinding Refinement</strong></div>
                             <div style="margin-left: 12px; margin-bottom: 8px;">
-                                • <strong>Proximity Band</strong>: Extra avoidance distance from obstacles<br/>
+                                • <strong>Proximity Band</strong>: Extra avoidance distance from obstacles (0 disables refinement)<br/>
                                 • <strong>Detour Span</strong>: How far the algorithm looks ahead for better paths<br/>
                                 • <strong>Max Extra Bends</strong>: Maximum additional turns allowed for optimization<br/>
                                 • <strong>Max Detours</strong>: How many alternate routes to consider per segment
                             </div>
 
                             <div style="margin-bottom: 6px;"><strong>Channel Routing</strong></div>
-                            <div style="margin-left: 12px;">
+                            <div style="margin-left: 12px; margin-bottom: 8px;">
                                 • <strong>Force Penalty</strong>: Cost when failing to use a forced channel<br/>
-                                • <strong>Avoid Multiplier</strong>: How strongly to avoid "avoid" channels
+                                • <strong>Avoid Multiplier</strong>: How strongly to avoid "avoid" channels<br/>
+                                • <strong>Prefer / Avoid Bias</strong>: Per-cell A* discount/penalty inside prefer/avoid channels
+                            </div>
+
+                            <div style="margin-bottom: 6px;"><strong>Bundling &amp; Crossing Internals</strong></div>
+                            <div style="margin-left: 12px;">
+                                • <strong>Min Trunk Length / Overlap</strong>: How long a straight run must be to bundle with, and how much shared travel makes joining worthwhile<br/>
+                                • <strong>Max Join Candidates</strong>: How many nearby trunks one line will consider chaining through<br/>
+                                • <strong>Discovery Passes</strong>: Safety cap on pre-render routing passes (order independence)<br/>
+                                • <strong>Min Crossing Length</strong>: Shortest line segment other lines will still avoid crossing
                             </div>
                         </div>
                     </lcards-message>
@@ -12467,6 +12556,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.turn_penalty ?? ''}
                                 @input=${(e) => this._updateRoutingConfig('turn_penalty', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 helper-text="Cost for direction changes (default: 2)">
+                            </ha-input>
+                            <ha-input
+                                label="Hint Penalty"
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                .value=${routing.route_hint_penalty ?? ''}
+                                @input=${(e) => this._updateRoutingConfig('route_hint_penalty', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                helper-text="Cost for ignoring route_hint (default: 6)">
                             </ha-input>
                         </div>
                     </div>
@@ -12581,40 +12679,74 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 helper-text="Avoid channel strength (default: 1.0)">
                             </ha-input>
                             <ha-input
-                                label="Target Coverage"
+                                label="Prefer Bias"
                                 type="number"
                                 min="0"
-                                max="1"
                                 step="0.1"
-                                .value=${routing.channel_target_coverage ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('channel_target_coverage', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Prefer mode target 0-1 (default: 0.6)">
+                                .value=${routing.channel_prefer_bias ?? ''}
+                                @input=${(e) => this._updateRoutingConfig('channel_prefer_bias', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                helper-text="Per-cell discount in prefer channels (default: 0.9)">
                             </ha-input>
                             <ha-input
-                                label="Shaping Max Attempts"
-                                type="number"
-                                min="1"
-                                .value=${routing.channel_shaping_max_attempts ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('channel_shaping_max_attempts', e.target.value ? parseInt(e.target.value) : undefined)}
-                                helper-text="Max shaping iterations (default: 12)">
-                            </ha-input>
-                            <ha-input
-                                label="Shaping Span (px)"
-                                type="number"
-                                min="1"
-                                .value=${routing.channel_shaping_span ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('channel_shaping_span', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Max shaping shift (default: 32)">
-                            </ha-input>
-                            <ha-input
-                                label="Min Coverage Gain"
+                                label="Avoid Bias"
                                 type="number"
                                 min="0"
-                                max="1"
-                                step="0.01"
-                                .value=${routing.channel_min_coverage_gain ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('channel_min_coverage_gain', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Min gain threshold 0-1 (default: 0.04)">
+                                step="0.5"
+                                .value=${routing.channel_avoid_bias ?? ''}
+                                @input=${(e) => this._updateRoutingConfig('channel_avoid_bias', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                helper-text="Per-cell penalty in avoid channels (default: 3)">
+                            </ha-input>
+                        </div>
+                    </div>
+
+                    <!-- Bundling & Crossing Internals -->
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-weight: 500; margin-bottom: 8px;">
+                            Bundling &amp; Crossing Internals
+                            <span style="font-weight: 400; font-size: 12px; color: var(--secondary-text-color); margin-left: 8px;">
+                                (Common tunables are in the Trace Bundling &amp; Crossings section above)
+                            </span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+                            <ha-input
+                                label="Min Trunk Length (px)"
+                                type="number"
+                                min="0"
+                                .value=${routing.trunk_min_length ?? ''}
+                                @input=${(e) => this._updateRoutingConfig('trunk_min_length', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                helper-text="Straight run needed to become a joinable trunk (default: 60)">
+                            </ha-input>
+                            <ha-input
+                                label="Min Overlap (px)"
+                                type="number"
+                                min="0"
+                                .value=${routing.trunk_min_overlap ?? ''}
+                                @input=${(e) => this._updateRoutingConfig('trunk_min_overlap', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                helper-text="Shared travel needed for joining to be worthwhile (default: 60)">
+                            </ha-input>
+                            <ha-input
+                                label="Max Join Candidates"
+                                type="number"
+                                min="1"
+                                .value=${routing.trunk_max_join_candidates ?? ''}
+                                @input=${(e) => this._updateRoutingConfig('trunk_max_join_candidates', e.target.value ? parseInt(e.target.value) : undefined)}
+                                helper-text="Trunks one line will consider chaining through (default: 2)">
+                            </ha-input>
+                            <ha-input
+                                label="Discovery Passes"
+                                type="number"
+                                min="1"
+                                .value=${routing.trunk_discovery_max_passes ?? ''}
+                                @input=${(e) => this._updateRoutingConfig('trunk_discovery_max_passes', e.target.value ? parseInt(e.target.value) : undefined)}
+                                helper-text="Pre-render routing pass cap (default: 4)">
+                            </ha-input>
+                            <ha-input
+                                label="Min Crossing Length (px)"
+                                type="number"
+                                min="0"
+                                .value=${routing.crossing_min_length ?? ''}
+                                @input=${(e) => this._updateRoutingConfig('crossing_min_length', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                helper-text="Shortest segment others still avoid crossing (default: 12)">
                             </ha-input>
                         </div>
                     </div>
@@ -13228,57 +13360,43 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const overlays = this._workingConfig.msd?.overlays || [];
         let updatedCount = 0;
 
-        // Import shared constants
-        import('./../../msd/routing/routing-constants.js').then(module => {
-            const { CHANNEL_SHAPING_DEFAULTS } = module;
-
-            for (const overlay of overlays) {
-                if (overlay.type === 'line' && lineIds.includes(overlay.id)) {
-                    // Add channel to route_channels array
-                    if (!overlay.route_channels) {
-                        overlay.route_channels = [];
-                    }
-                    if (!overlay.route_channels.includes(channelId)) {
-                        overlay.route_channels.push(channelId);
-                    }
-
-                    // Set channel mode
-                    overlay.route_channel_mode = mode;
-
-                    // Auto-configure smart routing (will be auto-upgraded by RouterCore)
-                    // Use schema-defined 'route' field - let auto-upgrade handle mode selection
-
-                    // Set optimal channel shaping parameters only if not already configured
-                    if (!overlay.channel_shaping_max_attempts) {
-                        overlay.channel_shaping_max_attempts = CHANNEL_SHAPING_DEFAULTS.MAX_ATTEMPTS;
-                    }
-                    if (!overlay.channel_shaping_span) {
-                        overlay.channel_shaping_span = CHANNEL_SHAPING_DEFAULTS.SPAN;
-                    }
-
-                    updatedCount++;
-                    lcardsLog.debug(`[MSDStudio] Updated line '${overlay.id}' with channel routing`);
+        for (const overlay of overlays) {
+            if (overlay.type === 'line' && lineIds.includes(overlay.id)) {
+                // Add channel to route_channels array. That's ALL a line needs:
+                // the channel's own config defines its mode/behavior (the old
+                // per-line route_channel_mode and channel_shaping_* keys were
+                // dead config — nothing in RouterCore has read them since the
+                // A* cost-bias rewrite), and route: auto upgrades to smart
+                // automatically once route_channels is present.
+                if (!overlay.route_channels) {
+                    overlay.route_channels = [];
                 }
+                if (!overlay.route_channels.includes(channelId)) {
+                    overlay.route_channels.push(channelId);
+                }
+
+                updatedCount++;
+                lcardsLog.debug(`[MSDStudio] Updated line '${overlay.id}' with channel routing`);
             }
+        }
 
-            // Update the config
-            this._setNestedValue('msd.overlays', overlays);
+        // Update the config
+        this._setNestedValue('msd.overlays', overlays);
 
-            // Clear the suggestions from the form
-            if (this._channelFormData) {
-                this._channelFormData.suggestedLines = null;
-            }
+        // Clear the suggestions from the form
+        if (this._channelFormData) {
+            this._channelFormData.suggestedLines = null;
+        }
 
-            // Show success message
-            this._showDialog(
-                'Lines Configured',
-                `Successfully configured ${updatedCount} line(s) to route through channel "${channelId}" with ${mode} mode.`,
-                'success'
-            );
+        // Show success message
+        this._showDialog(
+            'Lines Configured',
+            `Successfully configured ${updatedCount} line(s) to route through channel "${channelId}" (${mode} mode is set on the channel itself).`,
+            'success'
+        );
 
-            this._schedulePreviewUpdate();
-            this.requestUpdate();
-        });
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
     }
 
     /**
@@ -13525,12 +13643,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
             lineOverlay.smoothing_iterations = this._lineFormData.smoothing_iterations;
         }
 
-        // Channel routing
+        // Channel routing — route_channels is the only per-line channel key;
+        // behavior (prefer/avoid/force) is defined on the channel itself
+        // (the old per-line route_channel_mode was removed from RouterCore).
         if (this._lineFormData.route_channels && this._lineFormData.route_channels.length > 0) {
             lineOverlay.route_channels = this._lineFormData.route_channels;
-        }
-        if (this._lineFormData.route_channel_mode && this._lineFormData.route_channel_mode !== 'prefer') {
-            lineOverlay.route_channel_mode = this._lineFormData.route_channel_mode;
         }
 
         // Add style if present (using canonical property names)

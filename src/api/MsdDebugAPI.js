@@ -234,7 +234,7 @@ export class MsdDebugAPI {
         const namespaces = {
           routing: {
             desc: 'Routing and resolution debugging',
-            methods: ['inspect(overlayId, cardId?)', 'stats(cardId?)', 'invalidate(id, cardId?)', 'inspectAs(overlayId, mode, cardId?)']
+            methods: ['inspect(overlayId, cardId?)', 'stats(cardId?)', 'invalidate(id, cardId?)']
           },
           data: {
             desc: 'MSD entity data tracing across overlays',
@@ -513,66 +513,11 @@ export class MsdDebugAPI {
           }
         },
 
-        /**
-         * Inspect overlay routing with different mode
-         *
-         * Temporarily changes the route_mode_full for an overlay and
-         * inspects how it would be routed. Restores original mode after.
-         *
-         * @param {string} overlayId - Overlay ID to inspect
-         * @param {string} [mode='smart'] - Route mode to test ('smart', 'full', 'minimal')
-         * @param {string|null} [cardId=null] - Config ID for MSD card (e.g. 'bridge')
-         * @returns {Object|null} Routing inspection with tested mode
-         *
-         * @example
-         * const routing = msd.routing.inspectAs('button_1', 'full', 'bridge');
-         * console.log('Full mode routing:', routing);
-         */
-        inspectAs(overlayId, mode = 'smart', cardId = null) {
-          try {
-            const pipeline = _getMsdPipeline(cardId);
-            if (!pipeline) {
-              lcardsLog.warn('[MsdDebugAPI] No MSD card found or pipeline not ready');
-              return null;
-            }
-
-            // Try to get the model and manipulate routing mode
-            const model = typeof pipeline.getResolvedModel === 'function' ? pipeline.getResolvedModel() : null;
-            if (!model) {
-              lcardsLog.warn('[MsdDebugAPI] Could not get resolved model');
-              return null;
-            }
-
-            const ov = model.overlays.find(o => o.id === overlayId);
-            if (!ov) {
-              lcardsLog.warn('[MsdDebugAPI] Overlay not found:', overlayId);
-              return null;
-            }
-
-            // Temporarily change routing mode and inspect
-            ov._raw = ov._raw || {};
-            const original = ov._raw.route_mode_full;
-            ov._raw.route_mode_full = mode;
-
-            const coordinator = _getMsdCoordinator(cardId);
-            if (coordinator?.router?.invalidate) {
-              coordinator.router.invalidate('*');
-            }
-
-            const result = this.inspect(overlayId, cardId);
-
-            // Restore original
-            ov._raw.route_mode_full = original;
-            if (coordinator?.router?.invalidate) {
-              coordinator.router.invalidate('*');
-            }
-
-            return result;
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error in inspectAs:', error);
-            return null;
-          }
-        },
+        // NOTE: inspectAs(overlayId, mode) was removed — it wrote a config
+        // key RouterCore never reads (route_mode_full; the real key is
+        // `route`) and blanket-invalidated the entire route cache twice as
+        // a "debug" side effect. Debug inspection must never mutate routing
+        // state; use inspect() (read-only, from the route cache) instead.
 
         /**
          * Visualize routing paths (future enhancement)
