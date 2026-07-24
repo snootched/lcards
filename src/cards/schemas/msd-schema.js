@@ -402,7 +402,7 @@ export function getMsdSchema() {
               enum: ['auto', 'direct', 'manhattan', 'smart', 'grid', 'manual'],
               optional: true,
               default: 'auto',
-              description: 'Routing algorithm: auto (recommended), direct (straight line), manhattan (L-shaped), smart (intelligent pathfinding), grid (A* on grid), manual (explicit waypoints)'
+              description: 'Routing algorithm. auto (recommended): always full pathfinding — obstacle avoidance, trunk bundling, crossing avoidance — regardless of whether obstacles/channels are present. direct: straight line, no pathfinding. manual: explicit waypoints. Escape hatches for the cheap/non-participating alternative: manhattan (fixed 2-elbow shape, no pathfinding, no bundling, no crossing avoidance) or grid (pathfinding + bundling/crossing avoidance, without the extra local-search refinement pass smart adds). smart is what auto resolves to.'
             },
             waypoints: {
               type: 'array',
@@ -431,7 +431,7 @@ export function getMsdSchema() {
               type: 'number',
               min: 0,
               optional: true,
-              description: 'Minimum clearance around obstacles in pixels (overrides global default)'
+              description: 'Minimum clearance around obstacles in viewBox units (overrides global default)'
             },
             corner_style: {
               type: 'string',
@@ -445,7 +445,14 @@ export function getMsdSchema() {
               min: 0,
               optional: true,
               default: 34,
-              description: 'Line overlays, or shape overlays (kind: polyline): corner cut size in pixels — arc radius for round corners, or diagonal chamfer size for bevel corners. For shape kind: rect, sets rx/ry directly.'
+              description: 'Line overlays, or shape overlays (kind: polyline): corner cut size in viewBox units — arc radius for round corners, or diagonal chamfer size for bevel corners. For shape kind: rect, sets rx/ry directly.'
+            },
+            corner_radius_mode: {
+              type: 'string',
+              enum: ['auto', 'forced'],
+              optional: true,
+              default: 'auto',
+              description: 'Line overlays only (routing behavior, not shape overlay rendering): whether corner_radius is a target or a hard requirement for round/bevel corners. auto (default): corner size may shrink so the router stays free to avoid forcing a detour or an unnecessary line crossing near tight geometry. forced: always reserves room for the full configured radius, matching pre-2026.07 behavior — can force routing detours or crossings.'
             },
             corner_angle: {
               type: 'number',
@@ -489,23 +496,12 @@ export function getMsdSchema() {
             type: 'string',
             enum: ['manhattan', 'smart', 'grid', 'auto'],
             optional: true,
-            default: 'manhattan',
-            description: 'Default routing mode for all lines (manhattan: simple L-shaped, smart: multi-bend intelligent, grid: A* pathfinding, auto: let system decide)',
+            default: 'auto',
+            description: 'Card-wide override for every line whose own route is unset/auto (per-line route: still wins). auto (default): full pathfinding — obstacle avoidance, trunk bundling, crossing avoidance (this is what an unset line gets). manhattan/grid: force the whole card to the cheap/non-participating or no-refinement alternative instead. smart: same as auto, spelled out explicitly.',
             'x-ui': {
               control: 'select',
               label: 'Default Routing Mode',
-              helper: 'Global routing strategy applied to all lines unless overridden per-line'
-            }
-          },
-          auto_upgrade_simple_lines: {
-            type: 'boolean',
-            optional: true,
-            default: true,
-            description: 'Automatically upgrade manhattan to smart routing when channels or obstacles are detected',
-            'x-ui': {
-              control: 'checkbox',
-              label: 'Auto-Upgrade to Smart Routing',
-              helper: 'Automatically use smart routing when line complexity requires it'
+              helper: 'Global routing strategy applied to every line that leaves route unset — per-line route: always overrides this'
             }
           },
 
@@ -515,14 +511,14 @@ export function getMsdSchema() {
             min: 0,
             optional: true,
             default: 0,
-            description: 'Minimum clearance around obstacles (pixels)'
+            description: 'Minimum clearance around obstacles (viewBox units)'
           },
           grid_resolution: {
             type: 'number',
             min: 5,
             optional: true,
             default: 64,
-            description: 'Grid cell size for grid-based routing (pixels; values below 5 are coerced to 32)'
+            description: 'Grid cell size for grid-based routing (viewBox units; values below 5 are coerced to 32). Unset by default — auto-scales from view_box size instead of a fixed number (~1/12th of the shorter dimension, clamped to [16, 64]; 64 shown here is that ceiling, not a fixed default)'
           },
           turn_penalty: {
             type: 'number',
@@ -600,14 +596,14 @@ export function getMsdSchema() {
             min: 0,
             optional: true,
             default: 0,
-            description: 'Proximity band for smart routing (pixels)'
+            description: 'Proximity band for smart routing (viewBox units)'
           },
           smart_detour_span: {
             type: 'number',
             min: 1,
             optional: true,
             default: 48,
-            description: 'Maximum detour distance for smart routing (pixels)'
+            description: 'Maximum detour distance for smart routing (viewBox units)'
           },
           smart_max_extra_bends: {
             type: 'number',
@@ -621,7 +617,7 @@ export function getMsdSchema() {
             min: 0,
             optional: true,
             default: 4,
-            description: 'Minimum cost improvement to accept detour (pixels)'
+            description: 'Minimum cost improvement to accept detour (viewBox units)'
           },
           smart_max_detours_per_elbow: {
             type: 'number',
@@ -673,21 +669,21 @@ export function getMsdSchema() {
             min: 0,
             optional: true,
             default: 32,
-            description: 'Maximum distance to a trunk lane to be considered "nearby" (pixels)'
+            description: 'Maximum distance to a trunk lane to be considered "nearby" (viewBox units)'
           },
           trunk_min_overlap: {
             type: 'number',
             min: 0,
             optional: true,
             default: 60,
-            description: 'Minimum shared travel distance for joining a trunk to be worthwhile (pixels)'
+            description: 'Minimum shared travel distance for joining a trunk to be worthwhile (viewBox units)'
           },
           trunk_min_length: {
             type: 'number',
             min: 0,
             optional: true,
             default: 60,
-            description: 'Minimum straight-run length to register as a new joinable trunk (pixels)'
+            description: 'Minimum straight-run length to register as a new joinable trunk (viewBox units)'
           },
           trunk_max_join_candidates: {
             type: 'number',
@@ -708,7 +704,7 @@ export function getMsdSchema() {
             min: 0,
             optional: true,
             default: 8,
-            description: 'Default lane spacing for lines bundled on a discovered trunk (pixels)'
+            description: 'Default lane spacing for lines bundled on a discovered trunk (viewBox units)'
           },
           trunk_discovery_max_passes: {
             type: 'number',
@@ -737,7 +733,7 @@ export function getMsdSchema() {
             min: 0,
             optional: true,
             default: 12,
-            description: 'Minimum straight-run length to register as avoidable (pixels) — smaller than trunk_min_length so short stub legs are still avoidable'
+            description: 'Minimum straight-run length to register as avoidable (viewBox units) — smaller than trunk_min_length so short stub legs are still avoidable'
           },
 
           // Cost function weights

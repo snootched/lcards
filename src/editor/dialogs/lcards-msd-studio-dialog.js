@@ -2182,7 +2182,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 label="Custom SVG Path"
                                 .value=${baseSvg.source || ''}
                                 @input=${(e) => this._handleSvgSourceChange(e.target.value)}
-                                helper-text="Enter custom path (e.g., /local/my-ship.svg)">
+                                hint="Enter custom path (e.g., /local/my-ship.svg)">
                             </ha-input>
                         ` : this._svgSourceMode === 'media' ? html`
                             <!-- HA media library picker — filtered to SVG's real MIME type
@@ -2728,7 +2728,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             this.requestUpdate(); // Force re-render to update override message
                         }}
                         required
-                        helper-text="Unique identifier for this anchor"
+                        hint="Unique identifier for this anchor"
                         style="width: 100%; margin-bottom: 16px;">
                     </ha-input>
 
@@ -9216,7 +9216,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             auto: {
                 title: 'Auto (Recommended)',
                 icon: 'mdi:auto-fix',
-                description: 'Automatically chooses the best routing algorithm based on your layout. When obstacles or channels are detected, it upgrades to advanced pathfinding. Otherwise uses simple Manhattan routing. Best for most use cases.',
+                description: 'Always uses full pathfinding: automatically avoids obstacles, bundles with nearby parallel lines into shared trunks, and avoids crossing other lines — whether or not obstacles or channels are present. Best for most use cases. See Bundling and Crossing Avoidance below for how those two behaviors work.',
                 diagram: html`
                     <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
                         <!-- Source -->
@@ -9229,7 +9229,51 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <path d="M 40 40 L 75 40 L 75 15 L 125 15 L 125 40 L 160 40"
                               stroke="var(--lcars-orange)" stroke-width="3" fill="none"/>
                         <!-- Auto badge -->
-                        <text x="100" y="75" text-anchor="middle" font-size="10" fill="var(--secondary-text-color)">Auto-detects obstacles</text>
+                        <text x="100" y="75" text-anchor="middle" font-size="10" fill="var(--secondary-text-color)">Avoids obstacles automatically</text>
+                    </svg>
+                `
+            },
+            bundling: {
+                title: 'Bundling (Trunk-and-Branch)',
+                icon: 'mdi:transit-connection-variant',
+                description: 'Lines that run close and parallel automatically bundle into a shared trunk — the first line keeps its path as the centerline, and later lines ride evenly-spaced lanes beside it, branching apart where their destinations diverge. This happens spontaneously between any two auto-routed lines running near each other; no configuration or shared channel needed. Tunables: Trace Bundling & Crossings section.',
+                diagram: html`
+                    <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
+                        <!-- Source A -->
+                        <rect x="10" y="8" width="28" height="20" fill="var(--lcars-blue)" rx="4"/>
+                        <!-- Source B -->
+                        <rect x="10" y="52" width="28" height="20" fill="var(--lcars-blue)" rx="4"/>
+                        <!-- Target A -->
+                        <rect x="162" y="8" width="28" height="20" fill="var(--lcars-green)" rx="4"/>
+                        <!-- Target B -->
+                        <rect x="162" y="52" width="28" height="20" fill="var(--lcars-green)" rx="4"/>
+                        <!-- Line A: converges into shared trunk, then diverges -->
+                        <path d="M 38 18 L 70 18 L 70 37 L 130 37 L 130 18 L 162 18"
+                              stroke="var(--lcars-orange)" stroke-width="3" fill="none"/>
+                        <!-- Line B: converges into shared trunk (adjacent lane), then diverges -->
+                        <path d="M 38 62 L 70 62 L 70 43 L 130 43 L 130 62 L 162 62"
+                              stroke="var(--lcars-blue)" stroke-width="3" fill="none"/>
+                        <text x="100" y="75" text-anchor="middle" font-size="10" fill="var(--secondary-text-color)">Parallel lines bundle, then branch apart</text>
+                    </svg>
+                `
+            },
+            crossing: {
+                title: 'Crossing Avoidance',
+                icon: 'mdi:vector-intersection',
+                description: 'A line\'s path is discouraged from cutting across another line\'s already-drawn segment — a soft deterrent, not a hard block. If the only alternative is a long detour, the line crosses cleanly rather than pay for an expensive detour. Tunables: Trace Bundling & Crossings section (Crossing Penalty).',
+                diagram: html`
+                    <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
+                        <!-- Source -->
+                        <rect x="10" y="8" width="28" height="20" fill="var(--lcars-blue)" rx="4"/>
+                        <!-- Target -->
+                        <rect x="162" y="52" width="28" height="20" fill="var(--lcars-green)" rx="4"/>
+                        <!-- Another line's already-drawn segment -->
+                        <path d="M 60 40 L 140 40" stroke="var(--lcars-red)" stroke-width="3" fill="none"/>
+                        <text x="100" y="32" text-anchor="middle" font-size="9" fill="var(--lcars-red)">another line</text>
+                        <!-- This line detours sideways rather than cross it -->
+                        <path d="M 38 18 L 45 18 L 45 62 L 162 62"
+                              stroke="var(--lcars-orange)" stroke-width="3" fill="none"/>
+                        <text x="100" y="75" text-anchor="middle" font-size="10" fill="var(--secondary-text-color)">Detours around rather than crossing</text>
                     </svg>
                 `
             },
@@ -9323,7 +9367,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     }}
                     .value=${this._lineFormData.route_channels || []}
                     .label=${'Select Channels'}
-                    helper-text="Lines will route through selected channels based on channel behavior (prefer/avoid/force)"
+                    helper="Lines will route through selected channels based on channel behavior (prefer/avoid/force)"
                     @value-changed=${(e) => {
                         this._lineFormData.route_channels = e.detail.value || [];
                         this.requestUpdate();
@@ -9738,7 +9782,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     .value=${this._controlFormId}
                     @input=${(e) => this._controlFormId = e.target.value}
                     required
-                    helper-text="Unique identifier for this control">
+                    hint="Unique identifier for this control">
                 </ha-input>
 
                 <lcards-form-section
@@ -9887,7 +9931,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             this._controlFormZIndex = raw === '' ? null : Number(raw);
                             this.requestUpdate();
                         }}
-                        helper-text="Higher values paint on top. Leave blank to use the default (200 — controls paint over lines).">
+                        hint="Higher values paint on top. Leave blank to use the default (200 — controls paint over lines).">
                     </ha-input>
                 </lcards-form-section>
 
@@ -12301,6 +12345,159 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <div style="padding: 8px;">
+                <!-- Routing Modes Reference -->
+                <lcards-form-section
+                    header="Routing Modes Reference"
+                    description="Quick reference for routing behavior"
+                    icon="mdi:book-open-variant"
+                    ?expanded=${false}
+                    style="margin-bottom: 16px;">
+
+                    <!-- Topic selector for reference display -->
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{
+                            select: {
+                                options: [
+                                    { value: 'auto', label: 'Auto (Recommended)' },
+                                    { value: 'bundling', label: 'Bundling (Trunk-and-Branch)' },
+                                    { value: 'crossing', label: 'Crossing Avoidance' },
+                                    { value: 'direct', label: 'Direct (Straight Line)' },
+                                    { value: 'manual', label: 'Manual (Custom Waypoints)' }
+                                ]
+                            }
+                        }}
+                        .value=${this._routingModeReference || 'auto'}
+                        .label=${'Show Info For'}
+                        @value-changed=${(e) => {
+                            this._routingModeReference = e.detail.value;
+                            this.requestUpdate();
+                        }}
+                        style="margin-bottom: 16px;">
+                    </ha-selector>
+
+                    <!-- Display routing info panel -->
+                    ${this._renderRoutingModeInfoPanel(this._routingModeReference || 'auto')}
+                </lcards-form-section>
+
+                <!-- Common Routing Options (general grid/A* tunables users adjust most) -->
+                <lcards-form-section
+                    header="Common Routing Options"
+                    description="The big levers — how tightly lines can bend and detour, and how much they favor straight paths"
+                    icon="mdi:routes"
+                    ?expanded=${false}
+                    style="margin-bottom: 16px;">
+
+                    <lcards-message type="info" style="margin-bottom: 16px;">
+                        <strong>Applies to <code>auto</code> (default), <code>smart</code>, and <code>grid</code> lines</strong>
+                        <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
+                            <code>route: auto</code> always does full pathfinding, so these apply to it too — not
+                            just an explicit <code>smart</code>/<code>grid</code>. Only <code>manhattan</code> and
+                            <code>direct</code>/<code>manual</code> opt out. Separate from the canvas's own
+                            drawing/snap grid, which only affects the Studio's visual editing surface, not the
+                            routing engine.
+                        </p>
+                    </lcards-message>
+
+                    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 5, mode: 'box', unit_of_measurement: 'vb' } }}
+                            .value=${routing.grid_resolution}
+                            .label=${'Grid Resolution'}
+                            @value-changed=${(e) => this._updateRoutingConfig('grid_resolution', e.detail.value)}
+                            helper="Pathfinding cell size. Left blank: auto-scales from your view_box size (~1/12th of the shorter dimension, clamped 16-64). Smaller = tighter turns/detours, more precise, slower; values ≤ 4 are coerced to 32.">
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, step: 0.5, mode: 'box' } }}
+                            .value=${routing.turn_penalty}
+                            .label=${'Turn Penalty'}
+                            @value-changed=${(e) => this._updateRoutingConfig('turn_penalty', e.detail.value)}
+                            helper="Cost for direction changes (default: 2). Higher = straighter paths with fewer bends.">
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, mode: 'box', unit_of_measurement: 'vb' } }}
+                            .value=${routing.clearance}
+                            .label=${'Clearance'}
+                            @value-changed=${(e) => this._updateRoutingConfig('clearance', e.detail.value)}
+                            helper="Min distance from obstacles (default: 0).">
+                        </ha-selector>
+                    </div>
+                </lcards-form-section>
+
+                <!-- Trace Bundling & Crossing Avoidance (common tunables) -->
+                <lcards-form-section
+                    header="Trace Bundling & Crossings"
+                    description="Cable-raceway behavior: lines travel together and avoid cutting across each other"
+                    icon="mdi:transit-connection-variant"
+                    ?expanded=${false}
+                    style="margin-bottom: 16px;">
+
+                    <lcards-message type="info" style="margin-bottom: 16px;">
+                        <p style="margin: 0; font-size: 13px; line-height: 1.4;">
+                            Tunables for the automatic bundling and crossing-avoidance behavior every
+                            <code>route: auto</code> line gets by default. See the <strong>Bundling</strong> and
+                            <strong>Crossing Avoidance</strong> topics in Routing Modes Reference above for how it
+                            works. Only <code>route: manhattan</code> and <code>route: direct</code>/<code>manual</code>
+                            opt out — declaration order in YAML never changes the outcome.
+                        </p>
+                    </lcards-message>
+
+                    <ha-selector
+                        style="display: block; margin-bottom: 12px;"
+                        .hass=${this.hass}
+                        .selector=${{ boolean: {} }}
+                        .value=${routing.trunk_bundling_enabled !== false}
+                        .label=${'Bundle parallel lines (trunk-and-branch)'}
+                        @value-changed=${(e) => this._updateRoutingConfig('trunk_bundling_enabled', e.detail.value ? undefined : false)}>
+                    </ha-selector>
+                    <ha-selector
+                        style="display: block; margin-bottom: 16px;"
+                        .hass=${this.hass}
+                        .selector=${{ boolean: {} }}
+                        .value=${routing.crossing_avoid_enabled !== false}
+                        .label=${'Avoid line crossings'}
+                        @value-changed=${(e) => this._updateRoutingConfig('crossing_avoid_enabled', e.detail.value ? undefined : false)}>
+                    </ha-selector>
+
+                    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, mode: 'box', unit_of_measurement: 'vb' } }}
+                            .value=${routing.trunk_line_spacing}
+                            .label=${'Lane Spacing'}
+                            @value-changed=${(e) => this._updateRoutingConfig('trunk_line_spacing', e.detail.value)}
+                            helper="Gap between bundled lines (default: 8)">
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, mode: 'box', unit_of_measurement: 'vb' } }}
+                            .value=${routing.trunk_proximity}
+                            .label=${'Bundling Proximity'}
+                            @value-changed=${(e) => this._updateRoutingConfig('trunk_proximity', e.detail.value)}
+                            helper="How close lines must run to bundle (default: 32)">
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, step: 0.1, mode: 'box' } }}
+                            .value=${routing.trunk_bundle_weight}
+                            .label=${'Bundling Pull'}
+                            @value-changed=${(e) => this._updateRoutingConfig('trunk_bundle_weight', e.detail.value)}
+                            helper="How strongly joining a bundle is rewarded (default: 0.5)">
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, mode: 'box' } }}
+                            .value=${routing.crossing_avoid_bias}
+                            .label=${'Crossing Penalty'}
+                            @value-changed=${(e) => this._updateRoutingConfig('crossing_avoid_bias', e.detail.value)}
+                            helper="Deterrent per crossing, not a hard block (default: 4; higher = longer detours accepted)">
+                        </ha-selector>
+                    </div>
+                </lcards-form-section>
+
                 <!-- Channel Actions & Visualization Helpers -->
                 <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
                     <ha-button @click=${this._openChannelForm}>
@@ -12353,116 +12550,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     `}
                 </lcards-form-section>
 
-                <!-- Routing Modes Reference -->
-                <lcards-form-section
-                    header="Routing Modes Reference"
-                    description="Quick reference for routing behavior"
-                    icon="mdi:book-open-variant"
-                    ?expanded=${false}
-                    style="margin-bottom: 16px;">
-
-                    <!-- Mode selector for reference display -->
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{
-                            select: {
-                                options: [
-                                    { value: 'auto', label: 'Auto (Recommended)' },
-                                    { value: 'direct', label: 'Direct (Straight Line)' },
-                                    { value: 'manual', label: 'Manual (Custom Waypoints)' }
-                                ]
-                            }
-                        }}
-                        .value=${this._routingModeReference || 'auto'}
-                        .label=${'Show Info For'}
-                        @value-changed=${(e) => {
-                            this._routingModeReference = e.detail.value;
-                            this.requestUpdate();
-                        }}
-                        style="margin-bottom: 16px;">
-                    </ha-selector>
-
-                    <!-- Display routing info panel -->
-                    ${this._renderRoutingModeInfoPanel(this._routingModeReference || 'auto')}
-                </lcards-form-section>
-
-                <!-- Trace Bundling & Crossing Avoidance (common tunables) -->
-                <lcards-form-section
-                    header="Trace Bundling & Crossings"
-                    description="Cable-raceway behavior: lines travel together and avoid cutting across each other"
-                    icon="mdi:transit-connection-variant"
-                    ?expanded=${false}
-                    style="margin-bottom: 16px;">
-
-                    <lcards-message type="info" style="margin-bottom: 16px;">
-                        <strong>How Traces Behave</strong>
-                        <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                            Lines act like cable raceways: paths that run close and parallel automatically
-                            <strong>bundle</strong> into a shared trunk — the first line keeps its path (the
-                            centerline) and later lines ride evenly-spaced lanes beside it, branching apart where
-                            their destinations diverge. Lines are also discouraged from <strong>crossing</strong>
-                            each other unless a crossing is genuinely cheaper than going around.
-                            <br/><br/>Applies to lines using <code>route: smart</code> or <code>route: grid</code>
-                            (or <code>route: auto</code> once obstacles/channels upgrade it). Declaration order in
-                            YAML never changes the outcome.
-                        </p>
-                    </lcards-message>
-
-                    <div style="display: flex; gap: 24px; margin-bottom: 16px;">
-                        <ha-formfield .label=${'Bundle parallel lines (trunk-and-branch)'}>
-                            <ha-switch
-                                .checked=${routing.trunk_bundling_enabled !== false}
-                                @change=${(e) => this._updateRoutingConfig('trunk_bundling_enabled', e.target.checked ? undefined : false)}>
-                            </ha-switch>
-                        </ha-formfield>
-                        <ha-formfield .label=${'Avoid line crossings'}>
-                            <ha-switch
-                                .checked=${routing.crossing_avoid_enabled !== false}
-                                @change=${(e) => this._updateRoutingConfig('crossing_avoid_enabled', e.target.checked ? undefined : false)}>
-                            </ha-switch>
-                        </ha-formfield>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
-                        <ha-input
-                            label="Lane Spacing (px)"
-                            type="number"
-                            min="0"
-                            step="1"
-                            .value=${routing.trunk_line_spacing ?? ''}
-                            @input=${(e) => this._updateRoutingConfig('trunk_line_spacing', e.target.value ? parseFloat(e.target.value) : undefined)}
-                            helper-text="Gap between bundled lines (default: 8)">
-                        </ha-input>
-                        <ha-input
-                            label="Bundling Proximity (px)"
-                            type="number"
-                            min="0"
-                            step="1"
-                            .value=${routing.trunk_proximity ?? ''}
-                            @input=${(e) => this._updateRoutingConfig('trunk_proximity', e.target.value ? parseFloat(e.target.value) : undefined)}
-                            helper-text="How close lines must run to bundle (default: 32)">
-                        </ha-input>
-                        <ha-input
-                            label="Bundling Pull"
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            .value=${routing.trunk_bundle_weight ?? ''}
-                            @input=${(e) => this._updateRoutingConfig('trunk_bundle_weight', e.target.value ? parseFloat(e.target.value) : undefined)}
-                            helper-text="How strongly joining a bundle is rewarded (default: 0.5)">
-                        </ha-input>
-                        <ha-input
-                            label="Crossing Penalty"
-                            type="number"
-                            min="0"
-                            step="1"
-                            .value=${routing.crossing_avoid_bias ?? ''}
-                            @input=${(e) => this._updateRoutingConfig('crossing_avoid_bias', e.target.value ? parseFloat(e.target.value) : undefined)}
-                            helper-text="Deterrent per crossing, not a hard block (default: 4; higher = longer detours accepted)">
-                        </ha-input>
-                    </div>
-                </lcards-form-section>
-
                 <!-- Global Routing Defaults (Advanced) -->
                 <lcards-form-section
                     header="Advanced Routing Configuration"
@@ -12475,23 +12562,27 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-message type="info" style="margin-bottom: 16px;">
                         <strong>When These Settings Apply</strong>
                         <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                            These parameters affect lines with <code>route: auto</code> that are auto-upgraded to grid-based routing when:
-                            <br/>• <strong>Obstacles detected</strong>: Control overlays with <code>obstacle: true</code>
-                            <br/>• <strong>Channels configured</strong>: Line has <code>route_channels</code> specified
-                            <br/><br/>Lines with <code>route: direct</code> or <code>route: manual</code> are not affected by these settings.
+                            These parameters affect any line that does full pathfinding — <code>route: auto</code>
+                            (the default), <code>smart</code>, or <code>grid</code> — regardless of whether
+                            obstacles or channels are present.
+                            <br/><br/>Lines with <code>route: manhattan</code>, <code>direct</code>, or
+                            <code>manual</code> are not affected by these settings — they never pathfind.
                         </p>
+                        <div style="margin-top: 8px;">
+                            <a href="https://lcards.unimatrix01.ca/cards/msd/routing.html"
+                               target="_blank" rel="noopener noreferrer" style="font-size: 12px;">
+                                Routing Documentation ↗
+                            </a>
+                        </div>
                     </lcards-message>
 
                     <!-- Parameter Explanations -->
                     <lcards-message type="tip" style="margin-bottom: 16px;">
                         <strong>Parameter Guide</strong>
                         <div style="margin: 8px 0 0 0; font-size: 12px; line-height: 1.6;">
-                            <div style="margin-bottom: 6px;"><strong>Grid-Based Routing</strong></div>
-                            <div style="margin-left: 12px; margin-bottom: 8px;">
-                                • <strong>Clearance</strong>: Extra padding around obstacles (prevents lines from touching edges)<br/>
-                                • <strong>Grid Resolution</strong>: Cell size for pathfinding (smaller = more precise but slower; below 5 is coerced to 32)<br/>
-                                • <strong>Turn Penalty</strong>: Cost for direction changes (higher = straighter paths with fewer turns)<br/>
-                                • <strong>Hint Penalty</strong>: Cost for a first/last move disagreeing with route_hint (soft — obstacles still win)
+                            <div style="margin-bottom: 6px;">
+                                <strong>Grid Resolution, Turn Penalty, and Clearance</strong> are common tunables — see
+                                the Common Routing Options section above.
                             </div>
 
                             <div style="margin-bottom: 6px;"><strong>Path Smoothing</strong></div>
@@ -12517,86 +12608,51 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </div>
 
                             <div style="margin-bottom: 6px;"><strong>Bundling &amp; Crossing Internals</strong></div>
-                            <div style="margin-left: 12px;">
+                            <div style="margin-left: 12px; margin-bottom: 8px;">
                                 • <strong>Min Trunk Length / Overlap</strong>: How long a straight run must be to bundle with, and how much shared travel makes joining worthwhile<br/>
                                 • <strong>Max Join Candidates</strong>: How many nearby trunks one line will consider chaining through<br/>
                                 • <strong>Discovery Passes</strong>: Safety cap on pre-render routing passes (order independence)<br/>
                                 • <strong>Min Crossing Length</strong>: Shortest line segment other lines will still avoid crossing
                             </div>
+
+                            <div style="margin-bottom: 6px;"><strong>Cost Function Weights</strong></div>
+                            <div style="margin-left: 12px;">
+                                • <strong>Bend / Proximity Cost</strong>: Per-bend and per-obstacle-proximity cost terms in the pathfinding cost formula<br/>
+                                • <strong>Hint Penalty</strong>: Cost for a first/last move disagreeing with route_hint (soft — obstacles still win)
+                            </div>
                         </div>
                     </lcards-message>
-
-                    <!-- Basic Routing -->
-                    <div style="margin-bottom: 16px;">
-                        <div style="font-weight: 500; margin-bottom: 8px;">Grid-Based Routing</div>
-                        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
-                            <ha-input
-                                label="Clearance (px)"
-                                type="number"
-                                min="0"
-                                step="1"
-                                .value=${routing.clearance ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('clearance', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Min distance from obstacles (default: 0)">
-                            </ha-input>
-                            <ha-input
-                                label="Grid Resolution (px)"
-                                type="number"
-                                min="5"
-                                step="1"
-                                .value=${routing.grid_resolution ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('grid_resolution', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Grid cell size (default: 64)">
-                            </ha-input>
-                            <ha-input
-                                label="Turn Penalty"
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                .value=${routing.turn_penalty ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('turn_penalty', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Cost for direction changes (default: 2)">
-                            </ha-input>
-                            <ha-input
-                                label="Hint Penalty"
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                .value=${routing.route_hint_penalty ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('route_hint_penalty', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Cost for ignoring route_hint (default: 6)">
-                            </ha-input>
-                        </div>
-                    </div>
 
                     <!-- Path Smoothing -->
                     <div style="margin-bottom: 16px;">
                         <div style="font-weight: 500; margin-bottom: 8px;">Path Smoothing</div>
-                        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
-                            <ha-select
-                                label="Smoothing Mode"
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ select: { options: [
+                                    { value: 'none', label: 'None' },
+                                    { value: 'chaikin', label: 'Chaikin' }
+                                ] } }}
                                 .value=${routing.smoothing_mode ?? 'none'}
-                                @selected=${(e) => this._updateRoutingConfig('smoothing_mode', e.detail?.value ?? e.target?.value)}>
-                                <ha-dropdown-item .value=${'none'}>None</ha-dropdown-item>
-                                <ha-dropdown-item .value=${'chaikin'}>Chaikin</ha-dropdown-item>
-                            </ha-select>
-                            <ha-input
-                                label="Iterations"
-                                type="number"
-                                min="1"
-                                max="5"
-                                .value=${routing.smoothing_iterations ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('smoothing_iterations', e.target.value ? parseInt(e.target.value) : undefined)}
-                                helper-text="1-5 (default: 1)">
-                            </ha-input>
-                            <ha-input
-                                label="Max Points"
-                                type="number"
-                                min="1"
-                                .value=${routing.smoothing_max_points ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('smoothing_max_points', e.target.value ? parseInt(e.target.value) : undefined)}
-                                helper-text="Default: 160">
-                            </ha-input>
+                                .label=${'Smoothing Mode'}
+                                @value-changed=${(e) => this._updateRoutingConfig('smoothing_mode', e.detail.value)}>
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 1, max: 5, mode: 'box' } }}
+                                .value=${routing.smoothing_iterations}
+                                .label=${'Iterations'}
+                                @value-changed=${(e) => this._updateRoutingConfig('smoothing_iterations', e.detail.value)}
+                                helper="1-5 (default: 1)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 1, mode: 'box' } }}
+                                .value=${routing.smoothing_max_points}
+                                .label=${'Max Points'}
+                                @value-changed=${(e) => this._updateRoutingConfig('smoothing_max_points', e.detail.value)}
+                                helper="Default: 160">
+                            </ha-selector>
                         </div>
                     </div>
 
@@ -12605,50 +12661,50 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <div style="font-weight: 500; margin-bottom: 8px;">
                             Pathfinding Refinement
                             <span style="font-weight: 400; font-size: 12px; color: var(--secondary-text-color); margin-left: 8px;">
-                                (When auto-upgraded with obstacles/channels)
+                                (Off by default — only takes effect once Proximity Band is set above 0)
                             </span>
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
-                            <ha-input
-                                label="Proximity Band (px)"
-                                type="number"
-                                min="0"
-                                .value=${routing.smart_proximity ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('smart_proximity', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Obstacle avoidance distance (default: 0)">
-                            </ha-input>
-                            <ha-input
-                                label="Detour Span (px)"
-                                type="number"
-                                min="1"
-                                .value=${routing.smart_detour_span ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('smart_detour_span', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Max elbow shift (default: 48)">
-                            </ha-input>
-                            <ha-input
-                                label="Max Extra Bends"
-                                type="number"
-                                min="0"
-                                .value=${routing.smart_max_extra_bends ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('smart_max_extra_bends', e.target.value ? parseInt(e.target.value) : undefined)}
-                                helper-text="Max added bends (default: 3)">
-                            </ha-input>
-                            <ha-input
-                                label="Min Improvement (px)"
-                                type="number"
-                                min="0"
-                                .value=${routing.smart_min_improvement ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('smart_min_improvement', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Min cost gain (default: 4)">
-                            </ha-input>
-                            <ha-input
-                                label="Max Detours Per Elbow"
-                                type="number"
-                                min="1"
-                                .value=${routing.smart_max_detours_per_elbow ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('smart_max_detours_per_elbow', e.target.value ? parseInt(e.target.value) : undefined)}
-                                helper-text="Default: 4">
-                            </ha-input>
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, mode: 'box', unit_of_measurement: 'vb' } }}
+                                .value=${routing.smart_proximity}
+                                .label=${'Proximity Band'}
+                                @value-changed=${(e) => this._updateRoutingConfig('smart_proximity', e.detail.value)}
+                                helper="Extra obstacle avoidance distance (default: 0 — refinement is off until this is > 0)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 1, mode: 'box', unit_of_measurement: 'vb' } }}
+                                .value=${routing.smart_detour_span}
+                                .label=${'Detour Span'}
+                                @value-changed=${(e) => this._updateRoutingConfig('smart_detour_span', e.detail.value)}
+                                helper="Max elbow shift (default: 48)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, mode: 'box' } }}
+                                .value=${routing.smart_max_extra_bends}
+                                .label=${'Max Extra Bends'}
+                                @value-changed=${(e) => this._updateRoutingConfig('smart_max_extra_bends', e.detail.value)}
+                                helper="Max added bends (default: 3)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, mode: 'box', unit_of_measurement: 'vb' } }}
+                                .value=${routing.smart_min_improvement}
+                                .label=${'Min Improvement'}
+                                @value-changed=${(e) => this._updateRoutingConfig('smart_min_improvement', e.detail.value)}
+                                helper="Min cost gain (default: 4)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 1, mode: 'box' } }}
+                                .value=${routing.smart_max_detours_per_elbow}
+                                .label=${'Max Detours Per Elbow'}
+                                @value-changed=${(e) => this._updateRoutingConfig('smart_max_detours_per_elbow', e.detail.value)}
+                                helper="Default: 4">
+                            </ha-selector>
                         </div>
                     </div>
 
@@ -12660,42 +12716,39 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 (Only when route_channels defined)
                             </span>
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
-                            <ha-input
-                                label="Force Penalty"
-                                type="number"
-                                min="0"
-                                .value=${routing.channel_force_penalty ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('channel_force_penalty', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Penalty for exiting forced channels (default: 800)">
-                            </ha-input>
-                            <ha-input
-                                label="Avoid Multiplier"
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                .value=${routing.channel_avoid_multiplier ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('channel_avoid_multiplier', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Avoid channel strength (default: 1.0)">
-                            </ha-input>
-                            <ha-input
-                                label="Prefer Bias"
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                .value=${routing.channel_prefer_bias ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('channel_prefer_bias', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Per-cell discount in prefer channels (default: 0.9)">
-                            </ha-input>
-                            <ha-input
-                                label="Avoid Bias"
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                .value=${routing.channel_avoid_bias ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('channel_avoid_bias', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Per-cell penalty in avoid channels (default: 3)">
-                            </ha-input>
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, mode: 'box' } }}
+                                .value=${routing.channel_force_penalty}
+                                .label=${'Force Penalty'}
+                                @value-changed=${(e) => this._updateRoutingConfig('channel_force_penalty', e.detail.value)}
+                                helper="Penalty for exiting forced channels (default: 800)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, step: 0.1, mode: 'box' } }}
+                                .value=${routing.channel_avoid_multiplier}
+                                .label=${'Avoid Multiplier'}
+                                @value-changed=${(e) => this._updateRoutingConfig('channel_avoid_multiplier', e.detail.value)}
+                                helper="Avoid channel strength (default: 1.0)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, step: 0.1, mode: 'box' } }}
+                                .value=${routing.channel_prefer_bias}
+                                .label=${'Prefer Bias'}
+                                @value-changed=${(e) => this._updateRoutingConfig('channel_prefer_bias', e.detail.value)}
+                                helper="Per-cell discount in prefer channels (default: 0.9)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, step: 0.5, mode: 'box' } }}
+                                .value=${routing.channel_avoid_bias}
+                                .label=${'Avoid Bias'}
+                                @value-changed=${(e) => this._updateRoutingConfig('channel_avoid_bias', e.detail.value)}
+                                helper="Per-cell penalty in avoid channels (default: 3)">
+                            </ha-selector>
                         </div>
                     </div>
 
@@ -12707,70 +12760,78 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 (Common tunables are in the Trace Bundling &amp; Crossings section above)
                             </span>
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
-                            <ha-input
-                                label="Min Trunk Length (px)"
-                                type="number"
-                                min="0"
-                                .value=${routing.trunk_min_length ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('trunk_min_length', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Straight run needed to become a joinable trunk (default: 60)">
-                            </ha-input>
-                            <ha-input
-                                label="Min Overlap (px)"
-                                type="number"
-                                min="0"
-                                .value=${routing.trunk_min_overlap ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('trunk_min_overlap', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Shared travel needed for joining to be worthwhile (default: 60)">
-                            </ha-input>
-                            <ha-input
-                                label="Max Join Candidates"
-                                type="number"
-                                min="1"
-                                .value=${routing.trunk_max_join_candidates ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('trunk_max_join_candidates', e.target.value ? parseInt(e.target.value) : undefined)}
-                                helper-text="Trunks one line will consider chaining through (default: 2)">
-                            </ha-input>
-                            <ha-input
-                                label="Discovery Passes"
-                                type="number"
-                                min="1"
-                                .value=${routing.trunk_discovery_max_passes ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('trunk_discovery_max_passes', e.target.value ? parseInt(e.target.value) : undefined)}
-                                helper-text="Pre-render routing pass cap (default: 4)">
-                            </ha-input>
-                            <ha-input
-                                label="Min Crossing Length (px)"
-                                type="number"
-                                min="0"
-                                .value=${routing.crossing_min_length ?? ''}
-                                @input=${(e) => this._updateRoutingConfig('crossing_min_length', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Shortest segment others still avoid crossing (default: 12)">
-                            </ha-input>
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, mode: 'box', unit_of_measurement: 'vb' } }}
+                                .value=${routing.trunk_min_length}
+                                .label=${'Min Trunk Length'}
+                                @value-changed=${(e) => this._updateRoutingConfig('trunk_min_length', e.detail.value)}
+                                helper="Straight run needed to become a joinable trunk (default: 60)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, mode: 'box', unit_of_measurement: 'vb' } }}
+                                .value=${routing.trunk_min_overlap}
+                                .label=${'Min Overlap'}
+                                @value-changed=${(e) => this._updateRoutingConfig('trunk_min_overlap', e.detail.value)}
+                                helper="Shared travel needed for joining to be worthwhile (default: 60)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 1, mode: 'box' } }}
+                                .value=${routing.trunk_max_join_candidates}
+                                .label=${'Max Join Candidates'}
+                                @value-changed=${(e) => this._updateRoutingConfig('trunk_max_join_candidates', e.detail.value)}
+                                helper="Trunks one line will consider chaining through (default: 2)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 1, mode: 'box' } }}
+                                .value=${routing.trunk_discovery_max_passes}
+                                .label=${'Discovery Passes'}
+                                @value-changed=${(e) => this._updateRoutingConfig('trunk_discovery_max_passes', e.detail.value)}
+                                helper="Pre-render routing pass cap (default: 4)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, mode: 'box', unit_of_measurement: 'vb' } }}
+                                .value=${routing.crossing_min_length}
+                                .label=${'Min Crossing Length'}
+                                @value-changed=${(e) => this._updateRoutingConfig('crossing_min_length', e.detail.value)}
+                                helper="Shortest segment others still avoid crossing (default: 12)">
+                            </ha-selector>
                         </div>
                     </div>
 
                     <!-- Cost Function Weights -->
                     <div>
                         <div style="font-weight: 500; margin-bottom: 8px;">Cost Function Weights</div>
-                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
-                            <ha-input
-                                label="Bend Cost"
-                                type="number"
-                                min="0"
-                                .value=${routing.cost_defaults?.bend ?? ''}
-                                @input=${(e) => this._updateRoutingCostDefaults('bend', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Cost per bend (default: 10)">
-                            </ha-input>
-                            <ha-input
-                                label="Proximity Cost"
-                                type="number"
-                                min="0"
-                                .value=${routing.cost_defaults?.proximity ?? ''}
-                                @input=${(e) => this._updateRoutingCostDefaults('proximity', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                helper-text="Cost for obstacle proximity (default: 4)">
-                            </ha-input>
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, mode: 'box' } }}
+                                .value=${routing.cost_defaults?.bend}
+                                .label=${'Bend Cost'}
+                                @value-changed=${(e) => this._updateRoutingCostDefaults('bend', e.detail.value)}
+                                helper="Cost per bend (default: 10)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, mode: 'box' } }}
+                                .value=${routing.cost_defaults?.proximity}
+                                .label=${'Proximity Cost'}
+                                @value-changed=${(e) => this._updateRoutingCostDefaults('proximity', e.detail.value)}
+                                helper="Cost for obstacle proximity (default: 4)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, step: 0.5, mode: 'box' } }}
+                                .value=${routing.route_hint_penalty}
+                                .label=${'Hint Penalty'}
+                                @value-changed=${(e) => this._updateRoutingConfig('route_hint_penalty', e.detail.value)}
+                                helper="Cost for ignoring route_hint (default: 6)">
+                            </ha-selector>
                         </div>
                     </div>
                 </lcards-form-section>
@@ -12959,7 +13020,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         ?disabled=${!isNew}
                         @input=${(e) => this._updateChannelFormField('id', e.target.value)}
                         placeholder="power_corridor"
-                        helper-text=${isNew ? 'Unique identifier (e.g., power_corridor)' : ''}
+                        hint=${isNew ? 'Unique identifier (e.g., power_corridor)' : ''}
                         style="width: 100%; margin-bottom: 16px;">
                     </ha-input>
 
@@ -13366,8 +13427,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 // the channel's own config defines its mode/behavior (the old
                 // per-line route_channel_mode and channel_shaping_* keys were
                 // dead config — nothing in RouterCore has read them since the
-                // A* cost-bias rewrite), and route: auto upgrades to smart
-                // automatically once route_channels is present.
+                // A* cost-bias rewrite), and route: auto already does full
+                // pathfinding unconditionally, so route_channels just needs
+                // to be present for the line to consider the channel.
                 if (!overlay.route_channels) {
                     overlay.route_channels = [];
                 }
@@ -13452,6 +13514,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             clearance: undefined, // Will use MSD default
             corner_style: 'round',
             corner_radius: 34,
+            corner_radius_mode: 'auto',
             corner_angle: 45,
             smoothing_mode: 'none',
             smoothing_iterations: 0,
@@ -13511,6 +13574,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             waypoints: line.waypoints || [],
             corner_style: line.corner_style || 'round',
             corner_radius: line.corner_radius ?? 34,
+            corner_radius_mode: line.corner_radius_mode || 'auto',
             corner_angle: line.corner_angle ?? 45,
             smoothing_mode: line.smoothing_mode || 'none',
             smoothing_iterations: line.smoothing_iterations || 0,
@@ -13632,6 +13696,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
         if (this._lineFormData.corner_radius != null && this._lineFormData.corner_radius !== 34) {
             lineOverlay.corner_radius = this._lineFormData.corner_radius;
+        }
+        if (this._lineFormData.corner_radius_mode === 'forced') {
+            lineOverlay.corner_radius_mode = this._lineFormData.corner_radius_mode;
         }
         if (this._lineFormData.corner_style === 'bevel' && this._lineFormData.corner_angle != null && this._lineFormData.corner_angle !== 45) {
             lineOverlay.corner_angle = this._lineFormData.corner_angle;
@@ -14004,7 +14071,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             this._shapeFormData.z_index = raw === '' ? null : Number(raw);
                             this.requestUpdate();
                         }}
-                        helper-text="Higher values paint on top. Leave blank to use the default (50 — shapes paint under lines and controls).">
+                        hint="Higher values paint on top. Leave blank to use the default (50 — shapes paint under lines and controls).">
                     </ha-input>
                 </lcards-form-section>
             </div>
@@ -14321,7 +14388,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         ${(this._shapeFormData.corner_style === 'round' && kind !== 'circle') ? html`
                             <ha-selector
                                 .hass=${this.hass}
-                                .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                                .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'vb' } }}
                                 .value=${this._shapeFormData.corner_radius ?? (kind === 'rect' ? 8 : 34)}
                                 .label=${'Corner Radius'}
                                 @value-changed=${(e) => {
@@ -14335,7 +14402,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         ${(kind === 'polyline' && this._shapeFormData.corner_style === 'bevel') ? html`
                             <ha-selector
                                 .hass=${this.hass}
-                                .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                                .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'vb' } }}
                                 .value=${this._shapeFormData.corner_radius ?? 34}
                                 .label=${'Cut Size'}
                                 @value-changed=${(e) => {
@@ -14909,7 +14976,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         this.requestUpdate();
                     }}
                     required
-                    helper-text="Unique identifier for this line">
+                    hint="Unique identifier for this line">
                 </ha-input>
 
                 <!-- Horizontal Source → Target Layout -->
@@ -14959,13 +15026,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                                 <ha-input
                                     type="number"
-                                    label="Gap (px)"
+                                    label="Gap (vb units)"
                                     .value=${String(this._lineFormData.anchor_gap || 0)}
                                     @input=${(e) => {
                                         this._lineFormData.anchor_gap = Number(e.target.value);
                                         this.requestUpdate();
                                     }}
-                                    helper-text="Distance from point">
+                                    hint="Distance from point">
                                 </ha-input>
                             </div>
                         </div>
@@ -15021,13 +15088,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                                 <ha-input
                                     type="number"
-                                    label="Gap (px)"
+                                    label="Gap (vb units)"
                                     .value=${String(this._lineFormData.attach_gap || 0)}
                                     @input=${(e) => {
                                         this._lineFormData.attach_gap = Number(e.target.value);
                                         this.requestUpdate();
                                     }}
-                                    helper-text="Distance from point">
+                                    hint="Distance from point">
                                 </ha-input>
                             </div>
                         </div>
@@ -15049,7 +15116,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             this._lineFormData.z_index = raw === '' ? null : Number(raw);
                             this.requestUpdate();
                         }}
-                        helper-text="Higher values paint on top. Leave blank to use the default (100 — lines paint under controls).">
+                        hint="Higher values paint on top. Leave blank to use the default (100 — lines paint under controls).">
                     </ha-input>
                 </lcards-form-section>
             </div>
@@ -15066,27 +15133,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const routeInfoMap = {
             'direct': { icon: 'mdi:vector-line', title: 'Direct', description: 'Straight line from source to target' },
             'manual': { icon: 'mdi:map-marker-path', title: 'Manual', description: 'Draw custom path through explicit waypoints' },
-            'auto': { icon: 'mdi:routes', title: 'Auto', description: 'Intelligent pathfinding with obstacle avoidance' }
+            'auto': { icon: 'mdi:routes', title: 'Auto', description: 'Full pathfinding: obstacle avoidance, trunk bundling with nearby lines, and crossing avoidance — always, whether or not obstacles/channels are present' },
+            'manhattan': { icon: 'mdi:vector-polyline', title: 'Manhattan (Advanced)', description: 'A fixed single-bend elbow shape — no pathfinding, no obstacle avoidance, no bundling, no crossing avoidance. The cheap, fully predictable opt-out from Auto.' },
+            'grid': { icon: 'mdi:grid', title: 'Grid (Advanced)', description: 'Same full pathfinding as Auto — obstacle avoidance, bundling, crossing avoidance — but skips the extra local-search refinement pass Auto/Smart adds on top.' }
         };
         const routeInfo = routeInfoMap[routeMode] || routeInfoMap['auto'];
 
-        // Determine actual routing strategy that will be used
-        let actualStrategy = routeMode;
-        let strategyReason = '';
-
+        // Auto always runs full pathfinding now — there's no mode to
+        // "detect" anymore. This just surfaces what's actually nearby that
+        // it'll route around/through, since that's still useful context.
+        let autoContext = '';
         if (routeMode === 'auto') {
             const hasObstacles = this._getControlOverlays().some(c => c.obstacle === true);
             const hasChannels = this._lineFormData.route_channels && this._lineFormData.route_channels.length > 0;
 
             if (hasChannels) {
-                actualStrategy = 'smart (grid + channels)';
-                strategyReason = 'Channels configured';
+                autoContext = 'This line routes through its configured channel(s).';
             } else if (hasObstacles) {
-                actualStrategy = 'smart (grid + A*)';
-                strategyReason = 'Obstacles detected';
+                autoContext = 'Obstacles are present on this card — this line will avoid them.';
             } else {
-                actualStrategy = 'manhattan';
-                strategyReason = 'No obstacles/channels';
+                autoContext = 'No obstacles or channels on this card — a direct path with no avoidance needed. Still bundles with nearby parallel lines and avoids crossing them.';
             }
         }
 
@@ -15104,9 +15170,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .selector=${{
                             select: {
                                 options: [
-                                    { value: 'auto', label: 'Auto (Recommended - Smart routing)' },
+                                    { value: 'auto', label: 'Auto (Recommended)' },
                                     { value: 'direct', label: 'Direct (Straight line)' },
-                                    { value: 'manual', label: 'Manual (Custom waypoints)' }
+                                    { value: 'manual', label: 'Manual (Custom waypoints)' },
+                                    { value: 'manhattan', label: 'Manhattan (Advanced — opt out of bundling)' },
+                                    { value: 'grid', label: 'Grid (Advanced — skip refinement pass)' }
                                 ]
                             }
                         }}
@@ -15129,8 +15197,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     ${routeMode === 'auto' ? html`
                         <lcards-message
                             type="tip"
-                            .title=${`Active Strategy: ${actualStrategy}`}
-                            .message=${strategyReason}>
+                            .title=${'What this line will do'}
+                            .message=${autoContext}>
+                        </lcards-message>
+                    ` : ''}
+
+                    ${routeMode === 'manhattan' ? html`
+                        <lcards-message
+                            type="warning"
+                            .title=${'Opting out of bundling and crossing avoidance'}
+                            .message=${'This line won\'t bundle with nearby parallel lines, won\'t avoid obstacles, and won\'t avoid crossing other lines. Its geometry still registers, so other Auto/Smart/Grid lines can bundle alongside it or avoid crossing it.'}>
+                        </lcards-message>
+                    ` : ''}
+
+                    ${routeMode === 'grid' ? html`
+                        <lcards-message
+                            type="tip"
+                            .title=${'What this line will do'}
+                            .message=${'Same bundling, crossing avoidance, and obstacle avoidance as Auto — just without the extra refinement pass. Rarely needed; use Auto unless you have a specific reason to skip refinement.'}>
                         </lcards-message>
                     ` : ''}
 
@@ -15168,7 +15252,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             }}
                             .value=${this._lineFormData.route_hint || ''}
                             .label=${'Initial Direction'}
-                            helper-text="xy = horizontal then vertical, yx = vertical then horizontal"
+                            helper="xy = horizontal then vertical, yx = vertical then horizontal"
                             @value-changed=${(e) => {
                                 const val = e.detail.value;
                                 if (val === '') {
@@ -15193,7 +15277,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             }}
                             .value=${this._lineFormData.route_hint_last || ''}
                             .label=${'Final Direction'}
-                            helper-text="xy = horizontal then vertical, yx = vertical then horizontal"
+                            helper="xy = horizontal then vertical, yx = vertical then horizontal"
                             @value-changed=${(e) => {
                                 const val = e.detail.value;
                                 if (val === '') {
@@ -15381,7 +15465,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                             <ha-input
                                 type="number"
-                                label="Clearance (pixels)"
+                                label="Clearance (vb units)"
                                 .value=${String(this._lineFormData.clearance || '')}
                                 @input=${(e) => {
                                     const val = e.target.value;
@@ -15392,7 +15476,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }
                                     this.requestUpdate();
                                 }}
-                                helper-text="Minimum pixels from obstacles (leave empty for default: 8)"
+                                hint="Minimum distance from obstacles, vb units (leave empty for default: 8)"
                                 style="width: 100%;">
                             </ha-input>
                         </lcards-form-section>
@@ -15669,7 +15753,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     ${this._lineFormData.style?.marker_start?.type && this._lineFormData.style.marker_start.type !== 'none' ? html`
                         <ha-input
                             type="number"
-                            label="Size (pixels)"
+                            label="Size (vb units)"
                             .value=${String(this._lineFormData.style.marker_start.size ?? 10)}
                             step="1"
                             min="1"
@@ -15704,7 +15788,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
                                 <ha-input
                                     type="number"
-                                    label="Width (pixels)"
+                                    label="Width (vb units)"
                                     .value=${String(this._lineFormData.style.marker_start.width ?? this._lineFormData.style.marker_start.size ?? 10)}
                                     step="1"
                                     min="1"
@@ -15718,7 +15802,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 </ha-input>
                                 <ha-input
                                     type="number"
-                                    label="Height (pixels)"
+                                    label="Height (vb units)"
                                     .value=${String(this._lineFormData.style.marker_start.height ?? this._lineFormData.style.marker_start.size ?? 10)}
                                     step="1"
                                     min="1"
@@ -15802,7 +15886,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     ${this._lineFormData.style?.marker_end?.type && this._lineFormData.style.marker_end.type !== 'none' ? html`
                         <ha-input
                             type="number"
-                            label="Size (pixels)"
+                            label="Size (vb units)"
                             .value=${String(this._lineFormData.style.marker_end.size ?? 10)}
                             step="1"
                             min="1"
@@ -15837,7 +15921,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
                                 <ha-input
                                     type="number"
-                                    label="Width (pixels)"
+                                    label="Width (vb units)"
                                     .value=${String(this._lineFormData.style.marker_end.width ?? this._lineFormData.style.marker_end.size ?? 10)}
                                     step="1"
                                     min="1"
@@ -15851,7 +15935,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 </ha-input>
                                 <ha-input
                                     type="number"
-                                    label="Height (pixels)"
+                                    label="Height (vb units)"
                                     .value=${String(this._lineFormData.style.marker_end.height ?? this._lineFormData.style.marker_end.size ?? 10)}
                                     step="1"
                                     min="1"
@@ -16015,7 +16099,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 this._lineFormData.style = { ...this._lineFormData.style, opacity: e.detail.value };
                                 this.requestUpdate();
                             }}
-                            helper-text="Line opacity (0 = transparent, 1 = opaque)"
+                            helper="Line opacity (0 = transparent, 1 = opaque)"
                             style="margin-top: 12px;">
                         </ha-selector>
 
@@ -16227,14 +16311,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${(this._lineFormData.corner_style === 'round') ? html`
                                 <ha-selector
                                     .hass=${this.hass}
-                                    .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                                    .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'vb' } }}
                                     .value=${this._lineFormData.corner_radius ?? 34}
                                     .label=${'Corner Radius'}
                                     @value-changed=${(e) => {
                                         this._lineFormData.corner_radius = e.detail.value;
                                         this.requestUpdate();
                                     }}
-                                    helper-text="Arc radius for rounded corners (default: 34)"
+                                    helper="Arc radius for rounded corners (default: 34)"
                                     style="margin-top: 12px;">
                                 </ha-selector>
                             ` : ''}
@@ -16242,14 +16326,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${(this._lineFormData.corner_style === 'bevel') ? html`
                                 <ha-selector
                                     .hass=${this.hass}
-                                    .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
+                                    .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: 'vb' } }}
                                     .value=${this._lineFormData.corner_radius ?? 34}
                                     .label=${'Cut Size'}
                                     @value-changed=${(e) => {
                                         this._lineFormData.corner_radius = e.detail.value;
                                         this.requestUpdate();
                                     }}
-                                    helper-text="Diagonal chamfer cut size, same concept as the elbow card's corner size (default: 34)"
+                                    helper="Diagonal chamfer cut size, same concept as the elbow card's corner size (default: 34)"
                                     style="margin-top: 12px;">
                                 </ha-selector>
                                 <ha-selector
@@ -16261,7 +16345,29 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                         this._lineFormData.corner_angle = e.detail.value;
                                         this.requestUpdate();
                                     }}
-                                    helper-text="45° = symmetric diagonal, 0°/90° = flush with one edge (no visible cut) (default: 45)"
+                                    helper="45° = symmetric diagonal, 0°/90° = flush with one edge (no visible cut) (default: 45)"
+                                    style="margin-top: 12px;">
+                                </ha-selector>
+                            ` : ''}
+
+                            ${(this._lineFormData.corner_style === 'round' || this._lineFormData.corner_style === 'bevel') ? html`
+                                <ha-selector
+                                    .hass=${this.hass}
+                                    .selector=${{select: {
+                                        options: [
+                                            { value: 'auto', label: 'Auto (target size)' },
+                                            { value: 'forced', label: 'Forced (always full size)' }
+                                        ]
+                                    }}}
+                                    .value=${this._lineFormData.corner_radius_mode || 'auto'}
+                                    .label=${'Corner Size Mode'}
+                                    @value-changed=${(e) => {
+                                        this._lineFormData.corner_radius_mode = e.detail.value;
+                                        this.requestUpdate();
+                                    }}
+                                    helper=${this._lineFormData.corner_radius_mode === 'forced'
+                                        ? 'Forced always reserves the full corner size, which can cause routing detours or line crossings near tight geometry.'
+                                        : 'Auto (recommended): corner size may shrink so the router stays free to avoid forcing a detour or an unnecessary line crossing.'}
                                     style="margin-top: 12px;">
                                 </ha-selector>
                             ` : ''}
@@ -16276,7 +16382,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                         this._lineFormData.miter_limit = e.detail.value;
                                         this.requestUpdate();
                                     }}
-                                    helper-text="Max ratio before clipping sharp corners (default: 4)"
+                                    helper="Max ratio before clipping sharp corners (default: 4)"
                                     style="margin-top: 12px;">
                                 </ha-selector>
                             ` : ''}
@@ -16309,7 +16415,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                         this._lineFormData.smoothing_iterations = e.detail.value;
                                         this.requestUpdate();
                                     }}
-                                    helper-text="More iterations = smoother curves (default: 0)"
+                                    helper="More iterations = smoother curves (default: 0)"
                                     style="margin-top: 12px;">
                                 </ha-selector>
                             ` : ''}
@@ -16344,7 +16450,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     this._lineFormData.style = { ...this._lineFormData.style, line_cap: e.detail.value };
                                     this.requestUpdate();
                                 }}
-                                helper-text="How line endpoints are drawn">
+                                helper="How line endpoints are drawn">
                             </ha-selector>
 
                             <!-- Line Join -->
@@ -16365,7 +16471,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     this._lineFormData.style = { ...this._lineFormData.style, line_join: e.detail.value };
                                     this.requestUpdate();
                                 }}
-                                helper-text="How line segments connect"
+                                helper="How line segments connect"
                                 style="margin-top: 12px;">
                             </ha-selector>
                         </div>
@@ -16389,7 +16495,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }
                                     this.requestUpdate();
                                 }}
-                                helper-text="Override color with custom stroke (e.g., url(#gradient))"
+                                hint="Override color with custom stroke (e.g., url(#gradient))"
                                 style="width: 100%;">
                             </ha-input>
 
@@ -16402,7 +16508,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     this._lineFormData.style = { ...this._lineFormData.style, dash_offset: Number(e.target.value) || 0 };
                                     this.requestUpdate();
                                 }}
-                                helper-text="Shifts the dash pattern (pixels)"
+                                hint="Shifts the dash pattern (vb units)"
                                 style="margin-top: 12px; width: 100%;">
                             </ha-input>
                         </div>

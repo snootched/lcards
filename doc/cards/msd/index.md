@@ -133,7 +133,7 @@ Embeds any HA card at a position on the canvas.
 | `type` | string | `control` |
 | `anchor` | string | Anchor name to centre on |
 | `position` | array | Explicit `[x, y]` position (overrides `anchor`) |
-| `size` | array | `[width, height]` in px |
+| `size` | array | `[width, height]` in viewBox units |
 | `card` | object | Any HA card config |
 | `z_index` | number | Stacking order (higher = in front) |
 | `tags` | list | Tags for rule targeting |
@@ -166,19 +166,19 @@ Routes a line between two anchors on the canvas.
 | `waypoints` | list | Intermediate `[x, y]` points or anchor names |
 | `route_hint` | string | Initial segment direction: `xy` (horizontal first) or `yx` |
 | `corner_style` | string | `miter`, `round`, or `bevel` |
-| `corner_radius` | number | Radius for `round` corners in px |
+| `corner_radius` | number | Radius for `round` corners in viewBox units |
 | `route_channels` | list | Channel IDs this line routes through |
-| `clearance` | number | Min clearance around obstacles in px |
+| `clearance` | number | Min clearance around obstacles in viewBox units |
 
 #### Routing Algorithms
 
 | `route` value | Description |
 |--------------|-------------|
-| `auto` | System decides (recommended) |
+| `auto` | Recommended default — always full pathfinding: obstacle avoidance, trunk bundling, crossing avoidance |
 | `direct` | Straight line |
-| `manhattan` | L-shaped (single bend) |
-| `smart` | Intelligent multi-bend pathfinding |
-| `grid` | A* on pixel grid |
+| `manhattan` | L-shaped (single bend) — advanced opt-out, no bundling/crossing avoidance |
+| `smart` | What `auto` resolves to — A* pathfinding plus a refinement pass |
+| `grid` | Same as `smart` without the refinement pass — advanced opt-out |
 | `manual` | Explicit `waypoints` list |
 
 ```yaml
@@ -230,12 +230,11 @@ Global routing defaults that apply to all lines unless overridden per-line. The 
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `default_mode` | string | `manhattan` | Default routing mode |
-| `clearance` | number | `0` | Global obstacle clearance in px |
-| `auto_upgrade_simple_lines` | boolean | `true` | Auto-upgrade to smart routing when needed |
+| `default_mode` | string | `auto` | Card-wide routing mode override for lines that don't set `route` |
+| `clearance` | number | `0` | Global obstacle clearance in viewBox units |
 | `trunk_bundling_enabled` | boolean | `true` | Nearby parallel lines bundle into shared trunks |
-| `trunk_line_spacing` | number | `8` | Lane gap between bundled lines (px) |
-| `trunk_proximity` | number | `32` | How close lines must run to bundle (px) |
+| `trunk_line_spacing` | number | `8` | Lane gap between bundled lines (viewBox units) |
+| `trunk_proximity` | number | `32` | How close lines must run to bundle (viewBox units) |
 | `crossing_avoid_enabled` | boolean | `true` | Lines avoid crossing each other when a small detour suffices |
 | `crossing_avoid_bias` | number | `4` | Crossing penalty — higher accepts longer detours |
 
@@ -331,13 +330,12 @@ msd:
       type: line
       anchor: engineering
       attach_to: bridge
-      route: manhattan
+      route: auto
       route_hint: yx
       corner_style: round
       corner_radius: 6
 
   routing:
-    default_mode: manhattan
     clearance: 10
 
 rules:

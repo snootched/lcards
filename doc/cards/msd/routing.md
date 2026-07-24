@@ -12,18 +12,14 @@ Set per line with `route:`:
 
 | Mode | Description |
 |------|-------------|
-| `auto` | Default. Resolves to `manhattan` for simple layouts, and upgrades to `smart` automatically when obstacles exist (`obstacle: true` controls) or the line references channels |
+| `auto` | Default. Always full pathfinding — obstacle avoidance, trunk bundling, crossing avoidance — whether or not obstacles or channels are present. This is what `smart` means; `auto` just picks it automatically. |
 | `direct` | Literal straight line between endpoints — never pathfinds, never detours |
-| `manhattan` | Simple L-shaped single bend |
-| `smart` | A* pathfinding plus refinement — obstacle avoidance, bundling, crossing avoidance |
-| `grid` | A* pathfinding without the refinement pass |
+| `manhattan` | Simple L-shaped single bend — no pathfinding, no bundling, no crossing avoidance. The explicit opt-out for the cheap, non-participating alternative to `auto` |
+| `smart` | A* pathfinding plus refinement — obstacle avoidance, bundling, crossing avoidance. What `auto` resolves to |
+| `grid` | Same participation as `smart` (pathfinding, bundling, crossing avoidance) without the extra local-search refinement pass — a lighter-weight opt-out for when `smart`'s refinement isn't wanted |
 | `manual` | Explicit `waypoints` list — see [Manual Routing](./manual-routing.md) |
 
-::: warning `auto` is only smart when something triggers the upgrade
-With no obstacles and no channels, `route: auto` renders a plain manhattan elbow — and **manhattan lines never bundle or avoid crossings** (there is no pathfinding to influence). If you want trace bundling or crossing avoidance in a layout without obstacles, set `route: smart` explicitly.
-:::
-
-`direct` lines never move, but their geometry **is still registered** — other lines will still avoid crossing them and can bundle alongside them. This makes `route: direct` useful for "wall" or backbone lines that must stay exactly where you drew them.
+`direct`/`manhattan`/`manual` lines never move and never react to other lines, but their geometry **is still registered** — other lines will still avoid crossing them and can bundle alongside them. This makes `route: direct` (or a deliberate `route: manhattan`) useful for "wall" or backbone lines that must stay exactly where you drew them, and never get pulled into a bundle themselves.
 
 ---
 
@@ -36,13 +32,13 @@ Lines whose paths run close and parallel automatically bundle — no configurati
 - Each line **branches away** where its own destination diverges from the trunk.
 - The outcome **never depends on YAML declaration order** — the router pre-routes every line to a stable arrangement before rendering.
 
-Bundling applies to `smart`/`grid` lines (and `auto` once upgraded). Common tunables, set in the [`routing` object](#global-routing-configuration) or the Studio Routing tab's **Trace Bundling & Crossings** section:
+Bundling applies to any `auto` (the default), `smart`, or `grid` line — `manhattan`/`direct`/`manual` lines never join a bundle themselves (they can still be bundled *around*, since their geometry is still registered). Common tunables, set in the [`routing` object](#global-routing-configuration) or the Studio Routing tab's **Trace Bundling & Crossings** section:
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `trunk_bundling_enabled` | `true` | Master switch for spontaneous bundling |
-| `trunk_line_spacing` | `8` | Lane gap between bundled lines (px) |
-| `trunk_proximity` | `32` | How close a line must run to a trunk to bundle with it (px) |
+| `trunk_line_spacing` | `8` | Lane gap between bundled lines (viewBox units) |
+| `trunk_proximity` | `32` | How close a line must run to a trunk to bundle with it (viewBox units) |
 | `trunk_bundle_weight` | `0.5` | How strongly joining a bundle is rewarded — higher pulls lines in from further detours |
 
 A line only joins a trunk when doing so is actually cheaper overall than routing independently — bundling is a preference, never forced.
@@ -59,6 +55,19 @@ A line's path is penalized for cutting orthogonally across another line's alread
 | `crossing_avoid_bias` | `4` | Penalty per crossing. Higher values accept longer detours to avoid a crossing; the default deters casual crossings but yields when a detour would be substantial |
 
 Parallel travel is never penalized — bundle-mates riding adjacent lanes don't repel each other, and a line crossing *into* a bundle to reach an outer lane crosses the inner lanes freely (that's how a real raceway works).
+
+---
+
+## Corner Size: Target vs. Forced
+
+A line's `corner_radius` (round/bevel corners) needs *room* to render at full size — enough straight leg on either side of the bend. Where that room comes from depends on `corner_radius_mode`, a per-line overlay property:
+
+| Value | Behavior |
+|-------|----------|
+| `auto` (default) | `corner_radius` is a **target**. The router stays free to pick whatever departure/arrival shape crossing avoidance and bundling prefer; the rendered corner uses the full configured radius wherever the chosen path leaves room for it, and shrinks gracefully where it doesn't. |
+| `forced` | `corner_radius` is a **hard requirement**. The line always reserves a straight lead-out/lead-in run of `2 × corner_radius` before routing runs — guaranteeing the full radius renders everywhere, at the cost of removing that stretch from crossing avoidance's consideration entirely. Can force routing detours or unavoidable line crossings near tight geometry. |
+
+If lines with a large `corner_radius` and an `anchor_side`/`attach_side` hint are crossing each other in places that look avoidable, that's this tradeoff in `forced`-equivalent form — `auto` (the default) is the fix. Use `forced` only where a specific line's corner must render at an exact size regardless of what else is nearby.
 
 ---
 
@@ -90,7 +99,7 @@ msd:
       anchor: a_start
       attach_to: a_end
       route_channels: [main_bus]   # opt this line into the channel
-      route: auto                  # channels auto-upgrade auto -> smart
+      route: auto                  # default — always does full pathfinding
 ```
 
 | Mode | Behavior |
@@ -107,7 +116,7 @@ Lines opt in explicitly with `route_channels: [id, ...]` — and a line routing 
 
 ## Obstacles
 
-Any control overlay with `obstacle: true` is avoided by `smart`/`grid` routing (and triggers `auto`'s upgrade). `clearance` (global or per-line) adds padding around obstacles.
+Any control overlay with `obstacle: true` is avoided by `auto`/`smart`/`grid` routing. `clearance` (global or per-line) adds padding around obstacles.
 
 ---
 
@@ -129,12 +138,13 @@ msd:
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `default_mode` | `manhattan` | Routing mode for lines that don't set `route` |
-| `auto_upgrade_simple_lines` | `true` | Let `auto`/`manhattan` upgrade to `smart` when obstacles/channels exist |
-| `clearance` | `0` | Padding around obstacles (px) |
+| `default_mode` | `auto` | Card-wide override for lines that don't set `route` (per-line `route:` still wins). Set to `manhattan`/`grid` to downgrade the whole card |
+| `grid_resolution` | auto-scaled | Pathfinding cell size (viewBox units). Unset by default — scales to ~1/12th of the view_box's shorter dimension, clamped to `[16, 64]`; values below 5 are coerced to 32 |
+| `turn_penalty` | `2` | Cost per direction change — higher = straighter paths |
+| `clearance` | `0` | Padding around obstacles (viewBox units) |
 | `trunk_bundling_enabled` | `true` | Spontaneous bundling master switch |
-| `trunk_line_spacing` | `8` | Bundled lane gap (px) |
-| `trunk_proximity` | `32` | Bundling capture distance (px) |
+| `trunk_line_spacing` | `8` | Bundled lane gap (viewBox units) |
+| `trunk_proximity` | `32` | Bundling capture distance (viewBox units) |
 | `trunk_bundle_weight` | `0.5` | Bundling reward strength |
 | `crossing_avoid_enabled` | `true` | Crossing avoidance master switch |
 | `crossing_avoid_bias` | `4` | Penalty per crossing |
@@ -145,8 +155,6 @@ Deep internals — rarely needed. Exposed in the Studio Routing tab under **Adva
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `grid_resolution` | `64` | Pathfinding cell size (px); values below 5 are coerced to 32 |
-| `turn_penalty` | `2` | Cost per direction change — higher = straighter paths |
 | `route_hint_penalty` | `6` | Cost for a first/last move disagreeing with `route_hint` |
 | `smoothing_mode` / `smoothing_iterations` / `smoothing_max_points` | `none` / `1` / `160` | Chaikin path smoothing |
 | `smart_proximity` | `0` | Obstacle proximity band for the refinement pass (0 disables refinement) |
@@ -154,11 +162,11 @@ Deep internals — rarely needed. Exposed in the Studio Routing tab under **Adva
 | `channel_force_penalty` | `800` | Cost for a route that misses a forced channel |
 | `channel_avoid_multiplier` | `1.0` | Global multiplier on avoid-channel penalties |
 | `channel_prefer_bias` / `channel_avoid_bias` | `0.9` / `3` | Per-cell A* discount/penalty inside prefer/avoid channels |
-| `trunk_min_length` | `60` | Straight run needed to become a joinable trunk (px) |
-| `trunk_min_overlap` | `60` | Shared travel needed for joining to be worthwhile (px) |
+| `trunk_min_length` | `60` | Straight run needed to become a joinable trunk (viewBox units) |
+| `trunk_min_overlap` | `60` | Shared travel needed for joining to be worthwhile (viewBox units) |
 | `trunk_max_join_candidates` | `2` | Trunks one line will consider chaining through |
 | `trunk_discovery_max_passes` | `4` | Pre-render routing pass cap (order-independence safety limit) |
-| `crossing_min_length` | `12` | Shortest segment other lines still avoid crossing (px) |
+| `crossing_min_length` | `12` | Shortest segment other lines still avoid crossing (viewBox units) |
 | `cost_defaults.bend` / `cost_defaults.proximity` | `10` / `4` | Route cost weights |
 
 ---

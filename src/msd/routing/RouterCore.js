@@ -26,17 +26,51 @@ const MIN_STUB_LENGTH = 24; // viewBox units — floor even when cornerRadius is
 const MIN_STEP_COST = 0.05;
 
 /**
- * Lead-out/lead-in stub length for a given request. _applyCornerRounding
- * clamps each corner's radius to half its shorter adjacent segment length
- * (RouterCore.js, cornerRadii loop) — a fixed stub shorter than 2x the
- * configured corner radius silently caps the rounding at the stub, however
- * large cornerRadius is actually set to. Scaling with cornerRadius keeps the
- * stub long enough to let the full configured radius render.
+ * Corner-radius-driven minimum leg length for a given request.
+ * _applyCornerRounding clamps each corner's radius to half its shorter
+ * adjacent segment length (RouterCore.js, cornerRadii loop) — a leg shorter
+ * than 2x the configured corner radius silently caps the rendered rounding,
+ * however large cornerRadius is actually set to. Scaling with cornerRadius
+ * keeps the leg long enough to let the full configured radius render. Only
+ * meaningful when the corner style actually renders an arc/chamfer — a
+ * 'miter' line has no radius to make room for, so it always gets the bare
+ * floor regardless of whatever cornerRadius happens to be configured
+ * (harmless leftover from a style switch, previously charged the same
+ * inflated reservation for no visual benefit).
  * @param {object} req
  * @returns {number}
  */
 function stubLengthFor(req) {
-  return Math.max(MIN_STUB_LENGTH, (req.cornerRadius || 0) * 2);
+  const usesRadius = req.cornerStyle === 'round' || req.cornerStyle === 'bevel';
+  return usesRadius ? Math.max(MIN_STUB_LENGTH, (req.cornerRadius || 0) * 2) : MIN_STUB_LENGTH;
+}
+
+/**
+ * Lead-out/lead-in stub length for the two BLIND-splice call sites
+ * (_applyCardinalStubs, _computeManhattan's fallback): a fixed, unsearched
+ * segment spliced onto the true endpoint before any A-star/crossing-cost
+ * evaluation runs. Reserving a large corner-radius-driven length here means
+ * that length can never be routed around anything — including another
+ * line's already-registered crossing segment, no matter how strongly
+ * crossing_avoid_bias is configured. `corner_radius_mode: 'forced'`
+ * (opt-in) keeps today's guaranteed-full-radius behavior via
+ * stubLengthFor(); the default, 'auto', always uses the bare floor instead,
+ * leaving the search entirely free to decide the route — rendered corner
+ * radius still targets the full configured value wherever the chosen
+ * path's own leg lengths allow it (existing clamp in
+ * _applyCornerRounding, untouched by this).
+ *
+ * Deliberately NOT used by _pushBundledApproachLegs's bundled-corridor lane
+ * nudge (still plain stubLengthFor there): that leg is already
+ * independently pathfound through the crossing-cost grid inside
+ * _computeCorridorRouted's leg loop — it isn't a blind splice, so it isn't
+ * an instance of this problem — and shrinking it has its own previously-
+ * confirmed, unrelated regression (see that function's own comment).
+ * @param {object} req
+ * @returns {number}
+ */
+function cardinalStubLengthFor(req) {
+  return req.cornerRadiusMode === 'forced' ? stubLengthFor(req) : MIN_STUB_LENGTH;
 }
 
 // Fractions of [width, height] to add to `position` to get the box's actual
@@ -572,50 +606,22 @@ export class RouterCore {
       160
     );
 
-    // === Intelligent Routing Mode Selection ===
-    // Priority: explicit 'route' field > global default_mode > auto-detection > manhattan fallback
+    // === Routing Mode Selection ===
+    // Priority: explicit 'route' field > global default_mode > auto (= smart).
+    // 'auto' always means full pathfinding — obstacle avoidance, trunk
+    // bundling, crossing avoidance — regardless of whether obstacles or
+    // channels happen to be present anywhere on the card. There is no more
+    // conditional "upgrade": a line that wants the cheap, non-participating
+    // alternative opts out explicitly with route: manhattan (no pathfinding,
+    // no bundling, no crossing avoidance — a fixed 2-elbow shape) or
+    // route: grid (pathfinding + bundling/crossing avoidance, without the
+    // extra local-search refinement pass 'smart' adds on top). Both are
+    // honored exactly as written now — an explicit manhattan/grid choice is
+    // never silently overridden, unlike the old auto-upgrade behavior.
     let modeFull = (raw.route || '').toLowerCase().trim();
-    let modeAutoUpgraded = false;
-    let autoUpgradeReason = null;
-
-    // Step 1: If no explicit mode, check global default
     if (!modeFull || modeFull === 'auto') {
       const globalDefault = (this.config.default_mode || '').toLowerCase().trim();
-      if (globalDefault && globalDefault !== 'auto') {
-        modeFull = globalDefault;
-      }
-    }
-
-    // Step 2: Auto-upgrade if still no mode or manhattan + complexity detected
-    if (!modeFull || modeFull === 'auto' || modeFull === 'manhattan') {
-      const channels = this._getChannelArray(raw);
-      const hasChannels = channels.length > 0;
-      const hasObstacles = this._obstacles && this._obstacles.length > 0;
-
-      // Check if auto-upgrade is enabled (default: true)
-      const autoUpgradeEnabled = this.config.auto_upgrade_simple_lines !== false;
-
-      if (autoUpgradeEnabled && (!modeFull || modeFull === 'auto' || modeFull === 'manhattan')) {
-        // Upgrade to smart if channels are present
-        if (hasChannels) {
-          modeFull = 'smart';
-          modeAutoUpgraded = true;
-          autoUpgradeReason = 'channels_present';
-          lcardsLog.debug(`[RouterCore] Auto-upgraded route '${overlay.id}' to smart mode (${channels.length} channel(s) configured)`);
-        }
-        // Upgrade to smart if obstacles exist
-        else if (hasObstacles) {
-          modeFull = 'smart';
-          modeAutoUpgraded = true;
-          autoUpgradeReason = 'obstacles_present';
-          lcardsLog.debug(`[RouterCore] Auto-upgraded route '${overlay.id}' to smart mode (${this._obstacles.length} obstacle(s) detected)`);
-        }
-      }
-
-      // Step 3: Fallback to manhattan if no upgrade conditions met
-      if (!modeFull || modeFull === 'auto') {
-        modeFull = 'manhattan';
-      }
+      modeFull = (globalDefault && globalDefault !== 'auto') ? globalDefault : 'smart';
     }
 
     return {
@@ -633,12 +639,11 @@ export class RouterCore {
       attachSide: (raw.attach_side || '').toLowerCase(),
       _hintSourceFirst: hintSourceFirst,
       _hintSourceLast: hintSourceLast,
-      _modeAutoUpgraded: modeAutoUpgraded,
-      _autoUpgradeReason: autoUpgradeReason,
       avoidIds: Array.isArray(raw.avoid) ? raw.avoid.slice() : [],
       channels: this._getChannelArray(raw),
       cornerRadius: Number(raw.corner_radius || raw.cornerRadius || fs.corner_radius || 34),
       cornerStyle: (raw.corner_style || raw.cornerStyle || fs.corner_style || 'round').toLowerCase(),
+      cornerRadiusMode: (raw.corner_radius_mode || raw.cornerRadiusMode || fs.corner_radius_mode || 'auto').toLowerCase(),
       cornerAngle: Number(raw.corner_angle ?? raw.cornerAngle ?? fs.corner_angle ?? 45),
       smoothingMode,
       smoothingIterations,
@@ -674,7 +679,7 @@ export class RouterCore {
     // crossing registration has mutated since this entry was cached — the
     // mechanism that lets a bounded discovery loop (see AdvancedRenderer
     // _discoverLineRoutes) converge without ever calling invalidate().
-    return `${req.id}@${x1},${y1}-${x2},${y2}|${req.modeFull}|${req.modeHint}|A:${avoidKey}|C:${chanKey}|R:${req._rev}|O:${this._obsVersion}|P:${req.proximity}|CR:${req.cornerRadius}|CS:${req.cornerStyle}|SM:${req.smoothingMode}|SI:${req.smoothingIterations}|VB:${vb[0]},${vb[1]},${vb[2]},${vb[3]}|RV:${this._registryVersion}`;
+    return `${req.id}@${x1},${y1}-${x2},${y2}|${req.modeFull}|${req.modeHint}|A:${avoidKey}|C:${chanKey}|R:${req._rev}|O:${this._obsVersion}|P:${req.proximity}|CR:${req.cornerRadius}|CS:${req.cornerStyle}|CRM:${req.cornerRadiusMode}|SM:${req.smoothingMode}|SI:${req.smoothingIterations}|VB:${vb[0]},${vb[1]},${vb[2]},${vb[3]}|RV:${this._registryVersion}`;
   }
 
   /**
@@ -694,7 +699,7 @@ export class RouterCore {
     if (!anchorDir && !attachDir) {
       return { stubReq: req, prefix: [], suffix: [] };
     }
-    const stubLength = stubLengthFor(req);
+    const stubLength = cardinalStubLengthFor(req);
     const [x1, y1] = req.a;
     const [x2, y2] = req.b;
     const p1 = [x1, y1];
@@ -937,13 +942,38 @@ export class RouterCore {
     };
   }
 
+  /**
+   * grid_resolution's default when the config leaves it unset — scaled off
+   * the viewBox's own shorter dimension rather than a single flat number.
+   * A fixed default is only ever "right" by coincidence: it depends on how
+   * large the author's own view_box happens to be, which varies a lot
+   * across real MSDs (a few hundred units for a compact panel, thousands
+   * for a full ship blueprint). Targeting a roughly constant CELL COUNT
+   * across the shorter axis instead keeps routing granularity relative to
+   * the diagram's own scale, so a small MSD isn't stuck with a grid too
+   * coarse to route around a single control, and a huge one doesn't pay
+   * for needlessly fine A* search. Clamped to [16, 64] — 64 is today's old
+   * flat default (a ceiling, not a target: large viewBoxes behave exactly
+   * as before), 16 is a floor fine enough to be useful without users
+   * accidentally landing in genuinely slow territory just by picking a
+   * small view_box. Explicit `grid_resolution` in config always overrides
+   * this — this only ever runs when it's unset.
+   * @returns {number}
+   */
+  _defaultGridResolution() {
+    const vb = this.viewBox || [0, 0, 400, 200];
+    const shortSide = Math.min(vb[2], vb[3]);
+    const targetCellsAcross = 12;
+    return Math.min(64, Math.max(16, shortSide / targetCellsAcross));
+  }
+
   _computeGrid(req, flags={}) {
     const vb = this.viewBox || [0,0,400,200];
     const originX = vb[0];
     const originY = vb[1];
     const width = vb[2];
     const height = vb[3];
-    const baseRes = Number(this.config.grid_resolution || 64);
+    const baseRes = Number(this.config.grid_resolution || this._defaultGridResolution());
     const res = baseRes > 4 ? baseRes : 32;
     const cols = Math.max(2, Math.ceil(width / res));
     const rows = Math.max(2, Math.ceil(height / res));
@@ -1437,10 +1467,6 @@ export class RouterCore {
         segments: pts.length - 1,
         bends: Math.max(0, pts.length - 2),
         grid: { resolution: res, iterations },
-        ...(req._modeAutoUpgraded ? {
-          modeAutoUpgraded: true,
-          autoUpgradeReason: req._autoUpgradeReason
-        } : {}),
         ...(req.channels?.length ? {
           channel: {
             mode: channelInfo.mode,
@@ -2579,10 +2605,6 @@ export class RouterCore {
         bends: Math.max(0, pts.length - 2),
         grid: { iterations: totalIterations },
         chainChannels: chainChannels.map((c, i) => ({ id: c.id, mode: c.mode, leg: i })),
-        ...(stubReq._modeAutoUpgraded ? {
-          modeAutoUpgraded: true,
-          autoUpgradeReason: stubReq._autoUpgradeReason
-        } : {}),
         channel: {
           mode: channelInfo.mode,
           insidePx: channelInfo.inside,
@@ -2665,7 +2687,7 @@ export class RouterCore {
         // elbow shape came from lastMode alone: a line could ride back along
         // its own source box's edge, and only the *axis* (not the side) of
         // its final approach into the target was guaranteed.
-        const stubLength = stubLengthFor(req);
+        const stubLength = cardinalStubLengthFor(req);
         // Same two-step clamp as _applyCardinalStubs (grid/smart) — edge
         // first, then shorten either stub that would land past the OTHER
         // stub's own resolved position (see _noOvershootStub).
@@ -2745,10 +2767,6 @@ export class RouterCore {
         cost: this._costSimple(pts),
         segments: pts.length - 1,
         bends: Math.max(0, pts.length - 2),
-        ...(req._modeAutoUpgraded ? {
-          modeAutoUpgraded: true,
-          autoUpgradeReason: req._autoUpgradeReason
-        } : {}),
         hint: {
           first: req.modeHint,
             last: req.modeHintLast,

@@ -1,6 +1,6 @@
 # Routing Engine (RouterCore)
 
-`src/msd/routing/RouterCore.js` is the pathfinding engine behind every MSD line: one instance per MSD card (created by `MsdCardCoordinator`), shared by all line overlays on that card. It decides each line's pixel geometry — where it bends, how it avoids obstacles, and how multiple lines coordinate into bundles ("cable raceway" behavior).
+`src/msd/routing/RouterCore.js` is the pathfinding engine behind every MSD line: one instance per MSD card (created by `MsdCardCoordinator`), shared by all line overlays on that card. It decides each line's viewBox-space geometry — where it bends, how it avoids obstacles, and how multiple lines coordinate into bundles ("cable raceway" behavior).
 
 User-facing behavior and configuration: [Line Routing & Channels](../../cards/msd/routing.md). This page covers the internals.
 
@@ -10,6 +10,7 @@ RouterCore has **zero DOM dependencies** — it's pure geometry and graph search
 
 ## Request Lifecycle
 
+0. `buildRouteRequest` resolves the line's mode: explicit `route:` wins, then a card-wide `default_mode` (if set to something other than `auto`), otherwise `auto` resolves straight to `smart` — unconditionally, not gated on obstacles/channels being present. `manhattan` and `grid` are the explicit, always-honored opt-outs (never silently re-upgraded) for the cheap/non-participating and no-refinement-pass alternatives respectively.
 1. `AdvancedRenderer.render()` positions control overlays, waits for their DOM to settle, then resolves every overlay's anchor/attachment points.
 2. **Discovery loop** (`AdvancedRenderer._discoverLineRoutes`): before anything renders, every line is routed — iterated in a **fixed order sorted by overlay id, not YAML order** — repeatedly, until a full sweep causes zero registry mutations (capped by `trunk_discovery_max_passes`). This is what makes bundling outcomes independent of declaration order. The loop must use the same *complete* anchor set (static + attachment-manager virtual anchors) the render pass uses — with bare static anchors, control-anchored lines silently fail to resolve and the loop no-ops.
 3. **Render pass** (Pass 2b, declaration order for SVG z-ordering): each `LineOverlay.render()` calls `RouterCore.buildRouteRequest()` + `computePath()` — all cache hits once the loop has converged.
@@ -27,11 +28,22 @@ RouterCore has **zero DOM dependencies** — it's pure geometry and graph search
 
 ## A* and Cost Biases
 
-`_computeGrid` runs 4-direction A* over a coarse grid (`grid_resolution`) with a turn penalty, plus three per-cell bias layers looked up during the search:
+`_computeGrid` runs 4-direction A* over a coarse grid (`grid_resolution`) with a turn penalty, plus three per-cell bias layers looked up during the search. When `grid_resolution` isn't set in config, `_defaultGridResolution()` derives it from the viewBox's own shorter dimension (~1/12th of it, clamped to `[16, 64]`) rather than a flat number — a fixed default is only ever right by coincidence, since it depends entirely on how large the author's `view_box` happens to be. Recomputed from `this.viewBox` on every call rather than cached, so it stays correct across `setViewBox()`; explicit config always wins.
 
 - **Channel bias** (`_buildChannelCostGrid`): discount for moving *along* a prefer channel's flow direction; penalty inside avoid channels. A prefer discount can break the Manhattan heuristic's admissibility, so those searches fall back to h=0 (Dijkstra).
 - **Crossing penalty** (`_buildCrossingCostGrid`): penalizes moving *orthogonally* through another line's registered segment. Always non-negative, so no admissibility concerns. **Bundle-mates are exempt** — lines sharing a trunk, and (prospectively) the occupants of a corridor being joined (`_crossingExemptIds` on corridor legs) — because reaching an outer lane legitimately crosses inner lanes, and penalizing that made A* sneak around segment endpoints instead.
-- Cardinal `anchor_side`/`attach_side` guarantees are enforced *structurally* with fixed stub segments spliced around the search (`_applyCardinalStubs`), not as costs.
+- Cardinal `anchor_side`/`attach_side` guarantees are enforced *structurally* with fixed stub segments spliced around the search (`_applyCardinalStubs`), not as costs — see below for how long that stub is allowed to be.
+
+## Corner-Radius-Driven Stub Length
+
+`_applyCardinalStubs` and `_computeManhattan`'s own fallback stub logic both splice a **fixed, unsearched** lead-out/lead-in segment onto the true endpoint before any A*/crossing-cost evaluation runs — the pathfinder only ever searches between the *stub* endpoints. Reserving a large radius-driven length here (historically always `2 × cornerRadius`, so corner rounding always had room to render in full) means that length can never be routed around anything, including another line's already-registered crossing segment, regardless of `crossing_avoid_bias` — a structural precedence of corner geometry over crossing avoidance, not a cost tradeoff a bias knob can influence.
+
+Two functions split this:
+
+- `stubLengthFor(req)` — the corner-radius-driven length (`max(MIN_STUB_LENGTH, cornerRadius*2)`), gated on `cornerStyle` actually rendering an arc/chamfer (`round`/`bevel`; a `miter` line has nothing to make room for). Used unconditionally by `_pushBundledApproachLegs`'s bundled-corridor lane-nudge distance — that leg is independently pathfound through the crossing-cost grid inside `_computeCorridorRouted`'s leg loop, so it isn't a blind splice, and shrinking it has its own previously-confirmed, unrelated regression (near-sharp bundled-lane corners; see that function's own comment).
+- `cardinalStubLengthFor(req)` — used only by the two genuinely blind call sites (`_applyCardinalStubs`, `_computeManhattan`'s fallback). Returns `stubLengthFor(req)` when `req.cornerRadiusMode === 'forced'` (opt-in, matches pre-2026.07 behavior exactly); otherwise (`'auto'`, the default) always returns the bare `MIN_STUB_LENGTH` floor, leaving the full route shape — including whether/where to depart — to the crossing-aware search. Rendered corner radius still targets the configured value wherever the chosen path's own leg lengths allow it (`_applyCornerRounding`'s existing per-corner clamp is unaffected by any of this).
+
+`cornerRadiusMode` is a static per-request field resolved in `buildRouteRequest` exactly like `cornerRadius`/`cornerStyle` — no new stored state, nothing touching `_trunks`/`_crossings`/`_registryVersion`/lane assignment directly, and it's folded into `_cacheKey` (`CRM:`) alongside the existing `CR:`/`CS:` fields.
 
 ## Trunk-and-Branch (Bundling)
 
@@ -64,7 +76,6 @@ The regression suite encodes these directly: the fixed-point test (cache-cleared
 
 ## Pitfalls
 
-- `route: auto` without obstacles/channels resolves to **manhattan**, which never bundles or avoids crossings. Demos/tests of those features need `route: smart`.
 - `grid_resolution` values ≤ 4 are silently coerced to 32.
 - `channels` config lives at `msd.channels`, not `msd.routing.channels` (`MsdCardCoordinator` assembles RouterCore's config as `{ ...mergedConfig.routing, channels: mergedConfig.channels }`).
 - Never call `computePath` with endpoints other than the line's real resolved anchors "just to inspect" — registration is a side effect of routing, and synthetic requests pollute the registries under the real line's id. `RouterCore.inspect(id)` reads the cache without computing.

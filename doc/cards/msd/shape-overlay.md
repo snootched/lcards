@@ -62,7 +62,7 @@ overlays:
 | `position` | string / array | — | `rect`/`circle`: named anchor or `[x, y]` top-left corner |
 | `size` | array | — | `rect`/`circle`: `[width, height]` in viewBox units |
 | `corner_style` | string | `round` | `polyline`: `miter`, `round`, or `bevel`. `rect`: only `round` has an effect (sets `rx`/`ry`) — `miter`/`bevel` render as sharp corners. No effect on `circle` |
-| `corner_radius` | number | `34` | `polyline`: arc radius (round) or diagonal chamfer size (bevel), in px. `rect`: sets `rx`/`ry` directly |
+| `corner_radius` | number | `34` | `polyline`: arc radius (round) or diagonal chamfer size (bevel), in viewBox units. `rect`: sets `rx`/`ry` directly |
 | `corner_angle` | number | `45` | `polyline` + `corner_style: bevel` only: diagonal cut angle, 0–90° |
 | `smoothing_mode` | string | `none` | `polyline` only: `none` or `chaikin` |
 | `smoothing_iterations` | number | `0` | `polyline` only: smoothing pass count (0–5) |
@@ -167,7 +167,7 @@ overlays:
 
     # Corner/smoothing
     corner_style: string           # miter | round | bevel (default: round)
-    corner_radius: number          # px (default: 34)
+    corner_radius: number          # viewBox units (default: 34)
     corner_angle: number           # bevel only, 0-90 (default: 45)
     smoothing_mode: string         # none | chaikin (default: none)
     smoothing_iterations: number   # 0-5 (default: 0)

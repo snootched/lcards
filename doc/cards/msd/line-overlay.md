@@ -47,8 +47,8 @@ overlays:
 | `attach_to` | string | — | Destination overlay ID, anchor name, or `[x, y]` (required) |
 | `anchor_side` | string | auto | Attachment side on source — see [Attachment Points](#attachment-points) |
 | `attach_side` | string | auto | Attachment side on destination |
-| `anchor_gap` | number | `0` | Offset in px from source edge |
-| `attach_gap` | number | `0` | Offset in px from destination edge |
+| `anchor_gap` | number | `0` | Offset in viewBox units from source edge |
+| `attach_gap` | number | `0` | Offset in viewBox units from destination edge |
 | `anchor_gap_x` | number | — | Horizontal-only offset from source (overrides `anchor_gap` on X) |
 | `anchor_gap_y` | number | — | Vertical-only offset from source (overrides `anchor_gap` on Y) |
 | `attach_gap_x` | number | — | Horizontal-only offset from destination |
@@ -58,9 +58,10 @@ overlays:
 | `route_hint` | string | auto | Initial segment direction: `xy` (horizontal first) or `yx` |
 | `route_hint_last` | string | auto | Final segment direction (same values as `route_hint`) |
 | `route_channels` | list | — | Channel IDs this line routes through — see [Line Routing & Channels](./routing.md#channels) |
-| `clearance` | number | — | Min clearance around obstacles in px (overrides global default) |
+| `clearance` | number | — | Min clearance around obstacles in viewBox units (overrides global default) |
 | `corner_style` | string | `round` | `miter`, `round`, or `bevel` — for routed corners |
-| `corner_radius` | number | `34` | Arc radius (round) or chamfer size (bevel), in px |
+| `corner_radius` | number | `34` | Arc radius (round) or chamfer size (bevel), in viewBox units |
+| `corner_radius_mode` | string | `auto` | `auto` or `forced` — `round`/`bevel` only; see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
 | `corner_angle` | number | `45` | `bevel` only: diagonal cut angle, 0–90° |
 | `smoothing_mode` | string | `none` | `none` or `chaikin` |
 | `smoothing_iterations` | number | `0` | Smoothing pass count (0–5) |
@@ -244,7 +245,7 @@ style:
     opacity: 0.5
 ```
 
-Currently always renders as a repeating dot pattern (a 1px-radius circle tiled at `size` spacing) regardless of `pattern.type` — `type: lines`/`diagonal`/`grid`/custom SVG are accepted in config but not yet implemented differently from `dots`.
+Currently always renders as a repeating dot pattern (a 1-viewBox-unit-radius circle tiled at `size` spacing) regardless of `pattern.type` — `type: lines`/`diagonal`/`grid`/custom SVG are accepted in config but not yet implemented differently from `dots`.
 
 ### Markers (arrows)
 
@@ -252,7 +253,7 @@ Currently always renders as a repeating dot pattern (a 1px-radius circle tiled a
 style:
   marker_end:
     type: arrow            # arrow (alias: triangle) | dot | diamond | line | rect (alias: square)
-    size: 10                # px — a plain pixel size, default 10 (not a small/medium/large preset)
+    size: 10                # viewBox units — a plain numeric size, default 10 (not a small/medium/large preset)
     fill: var(--lcars-orange)   # defaults to line color
     stroke: none                # optional outline
     stroke_width: 0
@@ -353,8 +354,8 @@ overlays:
     attach_side: string           # Optional: Destination side (default: auto)
 
     # Gap System
-    anchor_gap: number            # Optional: Source offset in pixels (default: 0)
-    attach_gap: number            # Optional: Destination offset in pixels (default: 0)
+    anchor_gap: number            # Optional: Source offset in viewBox units (default: 0)
+    attach_gap: number            # Optional: Destination offset in viewBox units (default: 0)
     anchor_gap_x: number          # Optional: Source horizontal offset
     anchor_gap_y: number          # Optional: Source vertical offset
     attach_gap_x: number          # Optional: Destination horizontal offset
@@ -368,11 +369,12 @@ overlays:
     route_hint: string            # Optional: xy | yx (default: auto)
     route_hint_last: string       # Optional: xy | yx (default: auto)
     route_channels: [string]      # Optional: channel IDs to route through
-    clearance: number             # Optional: obstacle clearance in px
+    clearance: number             # Optional: obstacle clearance in viewBox units
 
     # Corner rendering / smoothing (routed corners, and manual waypoint paths)
     corner_style: string          # miter | round | bevel (default: round)
-    corner_radius: number         # px (default: 34)
+    corner_radius: number         # viewBox units (default: 34)
+    corner_radius_mode: string    # auto | forced (default: auto) — round/bevel only
     corner_angle: number          # bevel only, 0-90 (default: 45)
     smoothing_mode: string        # none | chaikin (default: none)
     smoothing_iterations: number  # 0-5 (default: 0)
@@ -405,7 +407,7 @@ overlays:
       # Markers
       marker_start:               # Start marker
         type: string              # arrow | dot | diamond | line | rect (aliases: triangle, square)
-        size: number               # px (default: 10)
+        size: number               # viewBox units (default: 10)
         fill: string               # Marker fill color, or "match_line"
         stroke: string              # Marker outline color, or "match_line"
         stroke_width: number         # Outline thickness
