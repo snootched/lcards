@@ -141,6 +141,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _showRoutingChannels: { type: Boolean, state: true },  // Show all routing channel areas
             _showAttachmentPoints: { type: Boolean, state: true },  // Show 9-point attachment grid
             _baseSvgPreviewDimmed: { type: Boolean, state: true },  // Editor-only: dim base SVG in live preview (never saved)
+            // Edit Mode (discussion #389) — see _toggleEditMode
+            _liveInteractionEnabled: { type: Boolean, state: true },
+            _altKeyHeld: { type: Boolean, state: true },
+            _editModeAutoShown: { type: Object, state: true },
             // Controls Tab Properties
             _showControlForm: { type: Boolean, state: true },
             _editingControlId: { type: String, state: true },
@@ -233,7 +237,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
             attachment_points: false,
             routing_channels: false,
             line_paths: true,
-            grid: false,
             show_coordinates: false,
             // Grid settings
             grid_color: '#cccccc',
@@ -282,6 +285,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._showRoutingPaths = false;
         this._showRoutingChannels = false;  // Hidden by default, use Routing Channels toggle
         this._baseSvgPreviewDimmed = false;  // Editor-only preview convenience, never saved to config
+
+        // Edit Mode (discussion #389) — default true = current behavior, live
+        // cards inside the preview stay fully interactive (their own tap
+        // actions work) same as always. Engaging Edit Mode pauses that so
+        // clicks land on the drag/resize handles instead — see
+        // _toggleEditMode/_applyLiveInteractionToActivePreview. Alt-held is a
+        // one-off bypass with the same effect, usable without leaving Live
+        // Preview mode (see the keydown/keyup handlers in connectedCallback).
+        this._liveInteractionEnabled = true;
+        this._altKeyHeld = false;
+        // Which of _showBoundingBoxes/_showAnchorMarkers/_showRoutingChannels
+        // Edit Mode itself force-enabled on entry, so leaving Edit Mode only
+        // hides what it auto-showed — never a toggle the user had already
+        // turned on themselves. null when Edit Mode isn't active.
+        this._editModeAutoShown = null;
 
         // Preview Zoom State
         this._previewZoom = 1.0;
@@ -639,6 +657,28 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Remove card picker result listener from document
         if (this._boundCardPickerResultHandler) {
             document.removeEventListener('card-picker-result', this._boundCardPickerResultHandler);
+        }
+
+        // Remove any self-contained drag/resize document listeners left behind
+        // by a drag in progress when the dialog closes (each of these 9 pairs
+        // is added at its own *Start handler and normally torn down by its own
+        // *MouseUp handler — this is just the "dialog closed mid-drag" safety net).
+        const dragListenerPairs = [
+            ['_boundDragMouseMove', 'mousemove'], ['_boundDragMouseUp', 'mouseup'],
+            ['_boundResizeMouseMove', 'mousemove'], ['_boundResizeMouseUp', 'mouseup'],
+            ['_boundAnchorDragMouseMove', 'mousemove'], ['_boundAnchorDragMouseUp', 'mouseup'],
+            ['_boundChannelDragMouseMove', 'mousemove'], ['_boundChannelDragMouseUp', 'mouseup'],
+            ['_boundChannelResizeMouseMove', 'mousemove'], ['_boundChannelResizeMouseUp', 'mouseup'],
+            ['_boundShapeDragMouseMove', 'mousemove'], ['_boundShapeDragMouseUp', 'mouseup'],
+            ['_boundShapeResizeMouseMove', 'mousemove'], ['_boundShapeResizeMouseUp', 'mouseup'],
+            ['_boundShapeVertexMouseMove', 'mousemove'], ['_boundShapeVertexMouseUp', 'mouseup'],
+            ['_boundWaypointMouseMove', 'mousemove'], ['_boundWaypointMouseUp', 'mouseup']
+        ];
+        for (const [field, eventType] of dragListenerPairs) {
+            if (this[field]) {
+                document.removeEventListener(eventType, this[field]);
+                this[field] = null;
+            }
         }
 
         this._baseSvgDimObserver?.disconnect();
@@ -1330,6 +1370,40 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @returns {TemplateResult}
      * @private
      */
+    /**
+     * Toggle Edit Mode (discussion #389) — pauses live-card click interception
+     * so overlays can be dragged/resized directly instead of triggering the
+     * live card's own action (e.g. toggling a light). Also auto-shows the
+     * bounding-box/anchor/channel overlays that are the actual drag/resize
+     * affordance, since with none of them visible there's nothing to grab —
+     * only remembering (and later restoring) the ones IT turned on, never
+     * touching a toggle the user already had set themselves.
+     * @private
+     */
+    _toggleEditMode() {
+        this._liveInteractionEnabled = !this._liveInteractionEnabled;
+
+        if (!this._liveInteractionEnabled) {
+            // Entering Edit Mode: force-show, remembering only what was OFF before.
+            this._editModeAutoShown = {
+                boundingBoxes: !this._showBoundingBoxes,
+                anchorMarkers: !this._showAnchorMarkers,
+                routingChannels: !this._showRoutingChannels
+            };
+            this._showBoundingBoxes = true;
+            this._showAnchorMarkers = true;
+            this._showRoutingChannels = true;
+        } else {
+            // Leaving Edit Mode: hide only what Edit Mode itself auto-showed.
+            if (this._editModeAutoShown?.boundingBoxes) this._showBoundingBoxes = false;
+            if (this._editModeAutoShown?.anchorMarkers) this._showAnchorMarkers = false;
+            if (this._editModeAutoShown?.routingChannels) this._showRoutingChannels = false;
+            this._editModeAutoShown = null;
+        }
+
+        this.requestUpdate();
+    }
+
     _renderCanvasToolbar() {
         const modeButtons = [
             { mode: MODES.VIEW, icon: 'mdi:cursor-default', tooltip: 'View Mode' },
@@ -1340,8 +1414,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             { mode: MODES.ADD_WAYPOINT, icon: 'mdi:map-marker-path', tooltip: 'Add Waypoint (Select line first)' }
         ];
 
-        const debugToggles = [
-            { key: 'snap_to_grid', prop: '_enableSnapping', icon: 'mdi:magnet', tooltip: 'Grid Snapping' },
+        // Overlay-visibility toggles only (what's drawn on the canvas) — Grid
+        // Snapping moved into the View-aids group below since it changes drag
+        // behavior, not what's visible.
+        const overlayToggles = [
             { key: 'show_anchor_markers', prop: '_showAnchorMarkers', icon: 'mdi:map-marker', tooltip: 'Anchors' },
             { key: 'show_bounding_boxes', prop: '_showBoundingBoxes', icon: 'mdi:border-outside', tooltip: 'Bounding Boxes' },
             { key: 'show_routing_paths', prop: '_showRoutingPaths', icon: 'mdi:vector-line', tooltip: 'Routing Paths' },
@@ -1361,90 +1437,112 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </button>
                 ` : html`
                     <div class="canvas-toolbar-buttons">
-                        <!-- Mode Controls -->
-                        ${modeButtons.map(btn => html`
-                            <button
-                                class="canvas-toolbar-button ${this._activeMode === btn.mode ? 'active' : ''}"
-                                @click=${async (e) => {
-                                    e.stopPropagation();
-                                    await this._setMode(btn.mode);
-                                }}
-                                title="${btn.tooltip}">
-                                <ha-icon icon="${btn.icon}"></ha-icon>
-                            </button>
-                        `)}
+                        <!-- Tools group: canvas mode selection — changes what clicking on
+                             the canvas does (place/draw/connect vs. plain view/select). -->
+                        <div class="canvas-toolbar-group">
+                            ${modeButtons.map(btn => html`
+                                <button
+                                    class="canvas-toolbar-button ${this._activeMode === btn.mode ? 'active' : ''}"
+                                    @click=${async (e) => {
+                                        e.stopPropagation();
+                                        await this._setMode(btn.mode);
+                                    }}
+                                    title="${btn.tooltip}">
+                                    <ha-icon icon="${btn.icon}"></ha-icon>
+                                </button>
+                            `)}
 
-                        <!-- Draw Shape buttons: one per kind, since DRAW_SHAPE is a single
-                             mode whose behavior branches on _drawShapeState.kind. All three
-                             share the same mode identifier, so _setMode's own toggle-by-
-                             identity check can't distinguish "switch kind while staying in
-                             draw mode" from "toggle the whole mode off" — handled explicitly
-                             here instead. -->
-                        ${[
-                            { kind: 'polyline', icon: 'mdi:vector-polyline', tooltip: 'Draw Polyline/Path' },
-                            { kind: 'rect', icon: 'mdi:rectangle-outline', tooltip: 'Draw Rectangle' },
-                            { kind: 'circle', icon: 'mdi:circle-outline', tooltip: 'Draw Circle' }
-                        ].map(btn => html`
-                            <button
-                                class="canvas-toolbar-button ${this._activeMode === MODES.DRAW_SHAPE && this._drawShapeState.kind === btn.kind ? 'active' : ''}"
-                                @click=${async (e) => {
-                                    e.stopPropagation();
-                                    if (this._activeMode === MODES.DRAW_SHAPE) {
-                                        if (this._drawShapeState.kind === btn.kind) {
-                                            // Same kind clicked again: toggle off (mirrors _setMode's own toggle-off + reset)
-                                            this._activeMode = MODES.VIEW;
-                                            this._drawShapeState = { kind: null, points: [], drawing: false, currentPoint: null };
+                            <!-- Draw Shape buttons: one per kind, since DRAW_SHAPE is a single
+                                 mode whose behavior branches on _drawShapeState.kind. All three
+                                 share the same mode identifier, so _setMode's own toggle-by-
+                                 identity check can't distinguish "switch kind while staying in
+                                 draw mode" from "toggle the whole mode off" — handled explicitly
+                                 here instead. -->
+                            ${[
+                                { kind: 'polyline', icon: 'mdi:vector-polyline', tooltip: 'Draw Polyline/Path' },
+                                { kind: 'rect', icon: 'mdi:rectangle-outline', tooltip: 'Draw Rectangle' },
+                                { kind: 'circle', icon: 'mdi:circle-outline', tooltip: 'Draw Circle' }
+                            ].map(btn => html`
+                                <button
+                                    class="canvas-toolbar-button ${this._activeMode === MODES.DRAW_SHAPE && this._drawShapeState.kind === btn.kind ? 'active' : ''}"
+                                    @click=${async (e) => {
+                                        e.stopPropagation();
+                                        if (this._activeMode === MODES.DRAW_SHAPE) {
+                                            if (this._drawShapeState.kind === btn.kind) {
+                                                // Same kind clicked again: toggle off (mirrors _setMode's own toggle-off + reset)
+                                                this._activeMode = MODES.VIEW;
+                                                this._drawShapeState = { kind: null, points: [], drawing: false, currentPoint: null };
+                                            } else {
+                                                // Different kind: switch within DRAW_SHAPE, discard in-progress points
+                                                this._drawShapeState = { kind: btn.kind, points: [], drawing: false, currentPoint: null };
+                                            }
+                                            this._shapeDrawDragCandidate = null;
+                                            this.requestUpdate();
                                         } else {
-                                            // Different kind: switch within DRAW_SHAPE, discard in-progress points
+                                            // Entering DRAW_SHAPE from elsewhere: let _setMode clean up whatever mode we're leaving
+                                            await this._setMode(MODES.DRAW_SHAPE);
                                             this._drawShapeState = { kind: btn.kind, points: [], drawing: false, currentPoint: null };
+                                            this._shapeDrawDragCandidate = null;
+                                            this.requestUpdate();
                                         }
-                                        this._shapeDrawDragCandidate = null;
-                                        this.requestUpdate();
-                                    } else {
-                                        // Entering DRAW_SHAPE from elsewhere: let _setMode clean up whatever mode we're leaving
-                                        await this._setMode(MODES.DRAW_SHAPE);
-                                        this._drawShapeState = { kind: btn.kind, points: [], drawing: false, currentPoint: null };
-                                        this._shapeDrawDragCandidate = null;
-                                        this.requestUpdate();
-                                    }
-                                }}
-                                title="${btn.tooltip}">
-                                <ha-icon icon="${btn.icon}"></ha-icon>
-                            </button>
-                        `)}
+                                    }}
+                                    title="${btn.tooltip}">
+                                    <ha-icon icon="${btn.icon}"></ha-icon>
+                                </button>
+                            `)}
+                        </div>
 
-                        <!-- Divider -->
-                        <div class="canvas-toolbar-divider"></div>
-
-                        <!-- Crosshairs Button -->
-                        <button
-                            class="canvas-toolbar-button ${this._showCrosshairs ? 'active' : ''}"
-                            @click=${(e) => { e.stopPropagation(); this._showCrosshairs = !this._showCrosshairs; this.requestUpdate(); }}
-                            title="Crosshairs">
-                            <ha-icon icon="mdi:crosshairs"></ha-icon>
-                        </button>
-
-                        <!-- Grid Settings Button (Special) -->
-                        <button
-                            class="canvas-toolbar-button ${this._showGrid ? 'active' : ''}"
-                            @click=${(e) => {
-                                e.stopPropagation();
-                                this._showGridSettings = !this._showGridSettings;
-                                this.requestUpdate();
-                            }}
-                            title="Grid Settings">
-                            <ha-icon icon="mdi:grid"></ha-icon>
-                        </button>
-
-                        <!-- Debug Toggles -->
-                        ${debugToggles.map(toggle => html`
+                        <!-- Interaction group: Edit Mode (discussion #389) — pauses live-card
+                             click interception so overlays can be dragged/resized directly. -->
+                        <div class="canvas-toolbar-group">
                             <button
-                                class="canvas-toolbar-button ${this[toggle.prop] ? 'active' : ''}"
-                                @click=${(e) => { e.stopPropagation(); this[toggle.prop] = !this[toggle.prop]; this.requestUpdate(); }}
-                                title="${toggle.tooltip}">
-                                <ha-icon icon="${toggle.icon}"></ha-icon>
+                                class="canvas-toolbar-button ${!this._liveInteractionEnabled ? 'active' : ''}"
+                                @click=${(e) => { e.stopPropagation(); this._toggleEditMode(); }}
+                                title="${this._liveInteractionEnabled ? 'Live Preview (click or press E for Edit Mode)' : 'Edit Mode (click or press E to return to Live Preview)'}">
+                                <ha-icon icon="${this._liveInteractionEnabled ? 'mdi:eye' : 'mdi:cursor-move'}"></ha-icon>
                             </button>
-                        `)}
+                        </div>
+
+                        <!-- View-aids group: canvas guides/behavior that don't change what's
+                             in the config, only how you see and interact with the canvas. -->
+                        <div class="canvas-toolbar-group">
+                            <button
+                                class="canvas-toolbar-button ${this._showCrosshairs ? 'active' : ''}"
+                                @click=${(e) => { e.stopPropagation(); this._showCrosshairs = !this._showCrosshairs; this.requestUpdate(); }}
+                                title="Crosshairs">
+                                <ha-icon icon="mdi:crosshairs"></ha-icon>
+                            </button>
+
+                            <button
+                                class="canvas-toolbar-button ${this._showGrid ? 'active' : ''}"
+                                @click=${(e) => {
+                                    e.stopPropagation();
+                                    this._showGridSettings = !this._showGridSettings;
+                                    this.requestUpdate();
+                                }}
+                                title="Grid Settings">
+                                <ha-icon icon="mdi:grid"></ha-icon>
+                            </button>
+
+                            <button
+                                class="canvas-toolbar-button ${this._enableSnapping ? 'active' : ''}"
+                                @click=${(e) => { e.stopPropagation(); this._enableSnapping = !this._enableSnapping; this.requestUpdate(); }}
+                                title="Grid Snapping">
+                                <ha-icon icon="mdi:magnet"></ha-icon>
+                            </button>
+                        </div>
+
+                        <!-- Overlays group: show/hide overlay-type visualizations on the canvas. -->
+                        <div class="canvas-toolbar-group">
+                            ${overlayToggles.map(toggle => html`
+                                <button
+                                    class="canvas-toolbar-button ${this[toggle.prop] ? 'active' : ''}"
+                                    @click=${(e) => { e.stopPropagation(); this[toggle.prop] = !this[toggle.prop]; this.requestUpdate(); }}
+                                    title="${toggle.tooltip}">
+                                    <ha-icon icon="${toggle.icon}"></ha-icon>
+                                </button>
+                            `)}
+                        </div>
                     </div>
 
                     <!-- Toggle Button (expanded state - right side) -->
@@ -1674,13 +1772,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <!-- Header -->
                     <div style="
                         display: flex;
+                        flex-wrap: wrap;
                         justify-content: space-between;
                         align-items: flex-start;
+                        gap: 8px;
                         margin-bottom: 12px;
                         border-bottom: 2px solid rgba(255,255,255,0.3);
                         padding-bottom: 10px;
                     ">
-                        <div style="flex: 1;">
+                        <div style="flex: 1; min-width: 0;">
                             <div style="font-size: 20px; font-weight: 700; letter-spacing: 1px; line-height: 1.2;">
                                 ${metadata.ship || svgKey}
                             </div>
@@ -1699,7 +1799,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 font-weight: 600;
                                 letter-spacing: 0.5px;
                                 text-transform: uppercase;
-                                white-space: nowrap;
+                                max-width: 100%;
+                                text-align: right;
+                                word-break: break-word;
                             ">
                                 ${metadata.era}
                             </div>
@@ -2253,8 +2355,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <ha-radio-option value="custom">Custom viewBox</ha-radio-option>
                         </ha-radio-group>
 
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px;">
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 8px;">
                             <ha-input
+                                style="width: 100%; box-sizing: border-box; min-width: 0;"
                                 type="number"
                                 label="Min X"
                                 .value=${String(viewBox[0] || 0)}
@@ -2262,6 +2365,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 @input=${(e) => this._updateViewBoxValue(0, e.target.value)}>
                             </ha-input>
                             <ha-input
+                                style="width: 100%; box-sizing: border-box; min-width: 0;"
                                 type="number"
                                 label="Min Y"
                                 .value=${String(viewBox[1] || 0)}
@@ -2269,6 +2373,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 @input=${(e) => this._updateViewBoxValue(1, e.target.value)}>
                             </ha-input>
                             <ha-input
+                                style="width: 100%; box-sizing: border-box; min-width: 0;"
                                 type="number"
                                 label="Width"
                                 .value=${String(viewBox[2] || 400)}
@@ -2276,6 +2381,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 @input=${(e) => this._updateViewBoxValue(2, e.target.value)}>
                             </ha-input>
                             <ha-input
+                                style="width: 100%; box-sizing: border-box; min-width: 0;"
                                 type="number"
                                 label="Height"
                                 .value=${String(viewBox[3] || 200)}
@@ -2624,10 +2730,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <div class="list-item-card" style="opacity: 0.85;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <ha-icon icon="mdi:image-marker" style="--mdc-icon-size: 32px; color: var(--info-color, #2196F3);"></ha-icon>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <ha-icon icon="mdi:image-marker" style="--mdc-icon-size: 32px; color: var(--info-color, #2196F3); flex-shrink: 0;"></ha-icon>
+                    <div style="flex: 1; min-width: 140px;">
+                        <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             ${name}
                             <span style="font-size: 11px; background: var(--info-color, #2196F3); color: white; padding: 2px 6px; border-radius: 4px;">BASE SVG</span>
                         </div>
@@ -2635,7 +2741,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             Position: [${x}, ${y}]
                         </div>
                     </div>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
                         <ha-icon-button
                             @click=${() => this._promoteAnchorToUser(name, position)}
                             .label=${'Promote to User Anchor'}
@@ -2664,15 +2770,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <div class="list-item-card">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <ha-icon icon="mdi:map-marker" style="--mdc-icon-size: 32px; color: var(--primary-color);"></ha-icon>
-                    <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <ha-icon icon="mdi:map-marker" style="--mdc-icon-size: 32px; color: var(--primary-color); flex-shrink: 0;"></ha-icon>
+                    <div style="flex: 1; min-width: 140px;">
                         <div style="font-weight: 600; margin-bottom: 4px;">${name}</div>
                         <div style="font-size: 12px; color: var(--secondary-text-color);">
                             Position: [${x}, ${y}]
                         </div>
                     </div>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
                         <ha-icon-button
                             @click=${() => this._editAnchor(name)}
                             .label=${'Edit'}
@@ -3421,45 +3527,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         }
 
-        // Handle active drag
-        if (this._dragState.active) {
-            this._handleDrag(event);
-            return;
-        }
-
-        // Handle active resize
-        if (this._resizeState.active) {
-            this._handleResize(event);
-            return;
-        }
-
-        // Handle active anchor drag
-        if (this._anchorDragState.active) {
-            this._handleAnchorDrag(event);
-            return;
-        }
-
-        // Handle active channel resize
-        if (this._channelResizeState.active) {
-            this._handleChannelResize(event);
-            return;
-        }
-
-        // Handle active channel drag (move)
-        if (this._channelDragState.active) {
-            this._handleChannelDrag(event);
-            return;
-        }
-
-        // Handle active shape drag/resize (rect/circle)
-        if (this._shapeDragState.active) {
-            this._handleShapeDrag(event);
-            return;
-        }
-        if (this._shapeResizeState.active) {
-            this._handleShapeResize(event);
-            return;
-        }
+        // Note: existing-overlay drag/resize (control/shape/anchor/channel move
+        // and resize) no longer dispatch from here — each owns a self-contained
+        // document-level mousemove listener attached at drag-start (see
+        // _handleDragStart and its 6 siblings), so this container-scoped
+        // handler is free to always run the crosshair/rubber-band tracking
+        // below without a drag-in-progress early return.
 
         // Track cursor for crosshair guidelines (when enabled OR in placement modes).
         // This is independent of — not mutually exclusive with — the draw-channel/
@@ -3753,6 +3826,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
             previewPanel.classList.add('dragging');
         }
 
+        // Self-contained document-level listeners (mirrors the Shape Vertex /
+        // Waypoint drag pattern) instead of relying on the single mousemove
+        // listener scoped to .preview-scroll-container — the bbox/handle
+        // overlays this drag starts from are rendered as DOM siblings of that
+        // container, not descendants, so a container-scoped listener misses
+        // mousemove whenever the cursor stays over those overlay elements
+        // (this is what made resize-to-shrink appear frozen, and what made
+        // repositioning glitchy near the panel edges).
+        if (this._boundDragMouseMove) document.removeEventListener('mousemove', this._boundDragMouseMove);
+        if (this._boundDragMouseUp) document.removeEventListener('mouseup', this._boundDragMouseUp);
+        this._boundDragMouseMove = this._handleDrag.bind(this);
+        this._boundDragMouseUp = this._handleDragMouseUp.bind(this);
+        document.addEventListener('mousemove', this._boundDragMouseMove);
+        document.addEventListener('mouseup', this._boundDragMouseUp);
+
         this.requestUpdate();
     }
 
@@ -3808,7 +3896,50 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Handle drag end
+     * Handle drag end (mouseup) — self-contained document-level counterpart
+     * to _handleDragStart's listener, mirrors _handleShapeVertexMouseUp.
+     * @param {MouseEvent} event - Mouse up event
+     * @private
+     */
+    _handleDragMouseUp(event) {
+        if (!this._dragState.active) return;
+
+        lcardsLog.debug('[MSDStudio] Drag end:', this._dragState.controlId);
+
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (previewPanel) {
+            previewPanel.classList.remove('dragging');
+        }
+
+        this._dragState = {
+            active: false,
+            controlId: null,
+            startPos: null,
+            originalPos: null,
+            offsetX: 0,
+            offsetY: 0
+        };
+
+        if (this._boundDragMouseMove) {
+            document.removeEventListener('mousemove', this._boundDragMouseMove);
+            this._boundDragMouseMove = null;
+        }
+        if (this._boundDragMouseUp) {
+            document.removeEventListener('mouseup', this._boundDragMouseUp);
+            this._boundDragMouseUp = null;
+        }
+
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
+    /**
+     * Global document-level mouseup handler (bound once for the dialog's
+     * lifetime in connectedCallback). Now scoped to just the click-drag
+     * new-overlay-placement candidates (draw shape/channel/place control) —
+     * the 7 existing-overlay drag/resize types each own their own
+     * self-contained start/move/up listener triplet instead (see
+     * _handleDragStart/_handleDragMouseUp and its siblings).
      * @param {MouseEvent} event - Mouse up event
      * @private
      */
@@ -3851,102 +3982,73 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         }
 
-        if (!this._dragState.active && !this._resizeState.active && !this._anchorDragState.active && !this._channelResizeState.active
-            && !this._channelDragState.active && !this._shapeDragState.active && !this._shapeResizeState.active) return;
+    }
 
-        if (this._dragState.active) {
-            lcardsLog.debug('[MSDStudio] Drag end:', this._dragState.controlId);
+    /**
+     * Offset from a control's configured anchor point (control.position,
+     * interpreted per its `attachment`) to the box's actual top-left corner.
+     * Single source of truth for logic previously duplicated verbatim in
+     * _renderBoundingBoxes, the control highlight renderer, and the
+     * attachment-points overlay — also used by resize (see _handleResizeStart/
+     * _handleResize) to convert between the anchor-point control.position
+     * stores and the top-left-corner coordinate space the resize math uses.
+     * @param {string} attachment
+     * @param {number} width
+     * @param {number} height
+     * @returns {[number, number]}
+     * @private
+     */
+    _getAttachmentOffset(attachment, width, height) {
+        const offsetMap = {
+            'top-left': [0, 0],
+            'top': [-width / 2, 0],
+            'top-center': [-width / 2, 0],
+            'top-right': [-width, 0],
+            'left': [0, -height / 2],
+            'center': [-width / 2, -height / 2],
+            'middle-center': [-width / 2, -height / 2],
+            'right': [-width, -height / 2],
+            'bottom-left': [0, -height],
+            'bottom': [-width / 2, -height],
+            'bottom-center': [-width / 2, -height],
+            'bottom-right': [-width, -height]
+        };
+        return offsetMap[attachment] || offsetMap['top-left'];
+    }
 
-            // Remove dragging class from preview panel
-            const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-            if (previewPanel) {
-                previewPanel.classList.remove('dragging');
-            }
-
-            // Clear drag state
-            this._dragState = {
-                active: false,
-                controlId: null,
-                startPos: null,
-                originalPos: null,
-                offsetX: 0,
-                offsetY: 0
-            };
+    /**
+     * Live dimension/coordinate readout shown only while a control/shape/
+     * channel is actively being dragged or resized — resize shows the
+     * current W × H, drag shows the current position (for controls, this is
+     * the configured attach/anchor point — control.position — not
+     * necessarily the visual top-left corner; see _getAttachmentOffset).
+     * Rendered as a child of the caller's already-positioned bbox/channel
+     * div, so it needs no pixel-coordinate math of its own.
+     * @param {boolean} isDragging
+     * @param {boolean} isResizing
+     * @param {[number, number]|null} dragPoint - live [x, y] while dragging
+     * @param {[number, number]|null} resizeSize - live [width, height] while resizing
+     * @returns {TemplateResult|string}
+     * @private
+     */
+    _renderLiveCoordBadge(isDragging, isResizing, dragPoint, resizeSize) {
+        if (isResizing && Array.isArray(resizeSize)) {
+            const [w, h] = resizeSize;
+            return html`
+                <div class="live-coord-badge" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                    ${Math.round(w)} × ${Math.round(h)}
+                </div>
+            `;
         }
-
-        if (this._resizeState.active) {
-            lcardsLog.debug('[MSDStudio] Resize end:', this._resizeState.controlId);
-
-            // Clear resize state
-            this._resizeState = {
-                active: false,
-                controlId: null,
-                handle: null,
-                startPos: null,
-                startSize: null,
-                startPosition: null
-            };
+        if (isDragging && Array.isArray(dragPoint)) {
+            const [x, y] = dragPoint;
+            return html`
+                <div class="live-coord-badge" style="bottom: -28px; left: 50%; transform: translateX(-50%);">
+                    ${Math.round(x)}, ${Math.round(y)}
+                </div>
+            `;
         }
-
-        if (this._anchorDragState.active) {
-            lcardsLog.debug('[MSDStudio] Anchor drag end:', this._anchorDragState.anchorName);
-
-            // Clear anchor drag state
-            this._anchorDragState = {
-                active: false,
-                anchorName: null,
-                startPos: null,
-                originalPos: null
-            };
-        }
-
-        if (this._channelResizeState.active) {
-            lcardsLog.debug('[MSDStudio] Channel resize end:', this._channelResizeState.channelId);
-
-            // Clear channel resize state
-            this._channelResizeState = {
-                active: false,
-                channelId: null,
-                handle: null,
-                startPos: null,
-                startBounds: null
-            };
-        }
-
-        if (this._channelDragState.active) {
-            lcardsLog.debug('[MSDStudio] Channel drag end:', this._channelDragState.channelId);
-
-            // Clear channel drag state
-            this._channelDragState = {
-                active: false,
-                channelId: null,
-                startPos: null,
-                startBounds: null
-            };
-        }
-
-        if (this._shapeDragState.active) {
-            lcardsLog.debug('[MSDStudio] Shape drag end:', this._shapeDragState.shapeId);
-
-            const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-            if (previewPanel) previewPanel.classList.remove('dragging');
-
-            this._shapeDragState = {
-                active: false, shapeId: null, startPos: null, originalPos: null, offsetX: 0, offsetY: 0
-            };
-        }
-
-        if (this._shapeResizeState.active) {
-            lcardsLog.debug('[MSDStudio] Shape resize end:', this._shapeResizeState.shapeId);
-
-            this._shapeResizeState = {
-                active: false, shapeId: null, handle: null, startPos: null, startSize: null, startPosition: null
-            };
-        }
-
-        // Schedule preview update to save changes
-        this._schedulePreviewUpdate();
-        this.requestUpdate();
+        return '';
     }
 
     // ============================
@@ -4033,6 +4135,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return;
         }
 
+        // control.position is the control's configured anchor point (e.g. its
+        // CENTER for the default attachment: 'center', not its top-left corner)
+        // — see _getAttachmentOffset. The resize math below operates in
+        // top-left-corner space (each handle's delta is applied directly to a
+        // corner), so convert once here and convert back on write in
+        // _handleResize. Without this, any handle that also repositions the
+        // box (tl/t/tr/l/bl) drifted at up to 1.5x the cursor's actual
+        // movement, worst for 'tl' where both axes compound at once.
+        const attachment = control.attachment || 'center';
+        const startOffset = this._getAttachmentOffset(attachment, currentSize[0], currentSize[1]);
+        const topLeftPosition = [currentPosition[0] + startOffset[0], currentPosition[1] + startOffset[1]];
+
         // Set resize state
         this._resizeState = {
             active: true,
@@ -4040,8 +4154,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
             handle,
             startPos: [coords.x, coords.y],
             startSize: currentSize,
-            startPosition: currentPosition
+            startPosition: topLeftPosition
         };
+
+        // Self-contained document-level listeners — see _handleDragStart for why.
+        if (this._boundResizeMouseMove) document.removeEventListener('mousemove', this._boundResizeMouseMove);
+        if (this._boundResizeMouseUp) document.removeEventListener('mouseup', this._boundResizeMouseUp);
+        this._boundResizeMouseMove = this._handleResize.bind(this);
+        this._boundResizeMouseUp = this._handleResizeMouseUp.bind(this);
+        document.addEventListener('mousemove', this._boundResizeMouseMove);
+        document.addEventListener('mouseup', this._boundResizeMouseUp);
 
         this.requestUpdate();
     }
@@ -4152,10 +4274,53 @@ export class LCARdSMSDStudioDialog extends LitElement {
             newY = Math.round(newY / this._gridSpacing) * this._gridSpacing;
         }
 
+        // newX/newY above are the box's top-left corner (the coordinate space
+        // this switch operates in) — convert back to the anchor-point space
+        // control.position actually stores (see _getAttachmentOffset and the
+        // matching forward conversion in _handleResizeStart), using the
+        // (possibly clamped/snapped) final width/height.
+        const attachment = control.attachment || 'center';
+        const endOffset = this._getAttachmentOffset(attachment, newWidth, newHeight);
+        const anchorX = newX - endOffset[0];
+        const anchorY = newY - endOffset[1];
+
         // Update control
         control.size = [this._roundToPrecision(newWidth), this._roundToPrecision(newHeight)];
-        control.position = [this._roundToPrecision(newX), this._roundToPrecision(newY)];
+        control.position = [this._roundToPrecision(anchorX), this._roundToPrecision(anchorY)];
 
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle resize end (mouseup) — self-contained counterpart to
+     * _handleResizeStart's listener, mirrors _handleShapeVertexMouseUp.
+     * @param {MouseEvent} event - Mouse up event
+     * @private
+     */
+    _handleResizeMouseUp(event) {
+        if (!this._resizeState.active) return;
+
+        lcardsLog.debug('[MSDStudio] Resize end:', this._resizeState.controlId);
+
+        this._resizeState = {
+            active: false,
+            controlId: null,
+            handle: null,
+            startPos: null,
+            startSize: null,
+            startPosition: null
+        };
+
+        if (this._boundResizeMouseMove) {
+            document.removeEventListener('mousemove', this._boundResizeMouseMove);
+            this._boundResizeMouseMove = null;
+        }
+        if (this._boundResizeMouseUp) {
+            document.removeEventListener('mouseup', this._boundResizeMouseUp);
+            this._boundResizeMouseUp = null;
+        }
+
+        this._schedulePreviewUpdate();
         this.requestUpdate();
     }
 
@@ -4198,6 +4363,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
         if (previewPanel) previewPanel.classList.add('dragging');
 
+        // Self-contained document-level listeners — see _handleDragStart for why.
+        if (this._boundShapeDragMouseMove) document.removeEventListener('mousemove', this._boundShapeDragMouseMove);
+        if (this._boundShapeDragMouseUp) document.removeEventListener('mouseup', this._boundShapeDragMouseUp);
+        this._boundShapeDragMouseMove = this._handleShapeDrag.bind(this);
+        this._boundShapeDragMouseUp = this._handleShapeDragMouseUp.bind(this);
+        document.addEventListener('mousemove', this._boundShapeDragMouseMove);
+        document.addEventListener('mouseup', this._boundShapeDragMouseUp);
+
         this.requestUpdate();
     }
 
@@ -4224,6 +4397,37 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (!shape) return;
 
         shape.position = [this._roundToPrecision(newX), this._roundToPrecision(newY)];
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle shape drag end (mouseup) — self-contained counterpart to
+     * _handleShapeDragStart's listener, mirrors _handleShapeVertexMouseUp.
+     * @param {MouseEvent} event
+     * @private
+     */
+    _handleShapeDragMouseUp(event) {
+        if (!this._shapeDragState.active) return;
+
+        lcardsLog.debug('[MSDStudio] Shape drag end:', this._shapeDragState.shapeId);
+
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        if (previewPanel) previewPanel.classList.remove('dragging');
+
+        this._shapeDragState = {
+            active: false, shapeId: null, startPos: null, originalPos: null, offsetX: 0, offsetY: 0
+        };
+
+        if (this._boundShapeDragMouseMove) {
+            document.removeEventListener('mousemove', this._boundShapeDragMouseMove);
+            this._boundShapeDragMouseMove = null;
+        }
+        if (this._boundShapeDragMouseUp) {
+            document.removeEventListener('mouseup', this._boundShapeDragMouseUp);
+            this._boundShapeDragMouseUp = null;
+        }
+
+        this._schedulePreviewUpdate();
         this.requestUpdate();
     }
 
@@ -4280,6 +4484,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             startSize: shape.size ? [...shape.size] : [100, 60],
             startPosition: [...shape.position]
         };
+
+        // Self-contained document-level listeners — see _handleDragStart for why.
+        if (this._boundShapeResizeMouseMove) document.removeEventListener('mousemove', this._boundShapeResizeMouseMove);
+        if (this._boundShapeResizeMouseUp) document.removeEventListener('mouseup', this._boundShapeResizeMouseUp);
+        this._boundShapeResizeMouseMove = this._handleShapeResize.bind(this);
+        this._boundShapeResizeMouseUp = this._handleShapeResizeMouseUp.bind(this);
+        document.addEventListener('mousemove', this._boundShapeResizeMouseMove);
+        document.addEventListener('mouseup', this._boundShapeResizeMouseUp);
 
         this.requestUpdate();
     }
@@ -4358,6 +4570,34 @@ export class LCARdSMSDStudioDialog extends LitElement {
         shape.size = [this._roundToPrecision(newWidth), this._roundToPrecision(newHeight)];
         shape.position = [this._roundToPrecision(newX), this._roundToPrecision(newY)];
 
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle shape resize end (mouseup) — self-contained counterpart to
+     * _handleShapeResizeStart's listener, mirrors _handleShapeVertexMouseUp.
+     * @param {MouseEvent} event
+     * @private
+     */
+    _handleShapeResizeMouseUp(event) {
+        if (!this._shapeResizeState.active) return;
+
+        lcardsLog.debug('[MSDStudio] Shape resize end:', this._shapeResizeState.shapeId);
+
+        this._shapeResizeState = {
+            active: false, shapeId: null, handle: null, startPos: null, startSize: null, startPosition: null
+        };
+
+        if (this._boundShapeResizeMouseMove) {
+            document.removeEventListener('mousemove', this._boundShapeResizeMouseMove);
+            this._boundShapeResizeMouseMove = null;
+        }
+        if (this._boundShapeResizeMouseUp) {
+            document.removeEventListener('mouseup', this._boundShapeResizeMouseUp);
+            this._boundShapeResizeMouseUp = null;
+        }
+
+        this._schedulePreviewUpdate();
         this.requestUpdate();
     }
 
@@ -4546,6 +4786,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             originalPos: [...currentPos]
         };
 
+        // Self-contained document-level listeners — see _handleDragStart for why.
+        if (this._boundAnchorDragMouseMove) document.removeEventListener('mousemove', this._boundAnchorDragMouseMove);
+        if (this._boundAnchorDragMouseUp) document.removeEventListener('mouseup', this._boundAnchorDragMouseUp);
+        this._boundAnchorDragMouseMove = this._handleAnchorDrag.bind(this);
+        this._boundAnchorDragMouseUp = this._handleAnchorDragMouseUp.bind(this);
+        document.addEventListener('mousemove', this._boundAnchorDragMouseMove);
+        document.addEventListener('mouseup', this._boundAnchorDragMouseUp);
+
         this.requestUpdate();
     }
 
@@ -4576,6 +4824,37 @@ export class LCARdSMSDStudioDialog extends LitElement {
             anchors[this._anchorDragState.anchorName] = [this._roundToPrecision(newX), this._roundToPrecision(newY)];
             this.requestUpdate();
         }
+    }
+
+    /**
+     * Handle anchor drag end (mouseup) — self-contained counterpart to
+     * _handleAnchorDragStart's listener, mirrors _handleShapeVertexMouseUp.
+     * @param {MouseEvent} event - Mouse up event
+     * @private
+     */
+    _handleAnchorDragMouseUp(event) {
+        if (!this._anchorDragState.active) return;
+
+        lcardsLog.debug('[MSDStudio] Anchor drag end:', this._anchorDragState.anchorName);
+
+        this._anchorDragState = {
+            active: false,
+            anchorName: null,
+            startPos: null,
+            originalPos: null
+        };
+
+        if (this._boundAnchorDragMouseMove) {
+            document.removeEventListener('mousemove', this._boundAnchorDragMouseMove);
+            this._boundAnchorDragMouseMove = null;
+        }
+        if (this._boundAnchorDragMouseUp) {
+            document.removeEventListener('mouseup', this._boundAnchorDragMouseUp);
+            this._boundAnchorDragMouseUp = null;
+        }
+
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
     }
 
     /**
@@ -4671,6 +4950,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             startBounds: [...channel.bounds]
         };
 
+        // Self-contained document-level listeners — see _handleDragStart for why.
+        if (this._boundChannelDragMouseMove) document.removeEventListener('mousemove', this._boundChannelDragMouseMove);
+        if (this._boundChannelDragMouseUp) document.removeEventListener('mouseup', this._boundChannelDragMouseUp);
+        this._boundChannelDragMouseMove = this._handleChannelDrag.bind(this);
+        this._boundChannelDragMouseUp = this._handleChannelDragMouseUp.bind(this);
+        document.addEventListener('mousemove', this._boundChannelDragMouseMove);
+        document.addEventListener('mouseup', this._boundChannelDragMouseUp);
+
         this.requestUpdate();
     }
 
@@ -4713,6 +5000,37 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Handle channel drag (move) end (mouseup) — self-contained counterpart
+     * to _handleChannelDragStart's listener, mirrors _handleShapeVertexMouseUp.
+     * @param {MouseEvent} event - Mouse up event
+     * @private
+     */
+    _handleChannelDragMouseUp(event) {
+        if (!this._channelDragState.active) return;
+
+        lcardsLog.debug('[MSDStudio] Channel drag end:', this._channelDragState.channelId);
+
+        this._channelDragState = {
+            active: false,
+            channelId: null,
+            startPos: null,
+            startBounds: null
+        };
+
+        if (this._boundChannelDragMouseMove) {
+            document.removeEventListener('mousemove', this._boundChannelDragMouseMove);
+            this._boundChannelDragMouseMove = null;
+        }
+        if (this._boundChannelDragMouseUp) {
+            document.removeEventListener('mouseup', this._boundChannelDragMouseUp);
+            this._boundChannelDragMouseUp = null;
+        }
+
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
+    /**
      * Handle channel resize start
      * @param {MouseEvent} event - Mouse down event
      * @param {string} channelId - Channel ID
@@ -4748,6 +5066,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             startPos: [coords.x, coords.y],
             startBounds: [...channel.bounds]
         };
+
+        // Self-contained document-level listeners — see _handleDragStart for why.
+        if (this._boundChannelResizeMouseMove) document.removeEventListener('mousemove', this._boundChannelResizeMouseMove);
+        if (this._boundChannelResizeMouseUp) document.removeEventListener('mouseup', this._boundChannelResizeMouseUp);
+        this._boundChannelResizeMouseMove = this._handleChannelResize.bind(this);
+        this._boundChannelResizeMouseUp = this._handleChannelResizeMouseUp.bind(this);
+        document.addEventListener('mousemove', this._boundChannelResizeMouseMove);
+        document.addEventListener('mouseup', this._boundChannelResizeMouseUp);
 
         this.requestUpdate();
     }
@@ -4850,6 +5176,38 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._roundToPrecision(newHeight)
         ];
 
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle channel resize end (mouseup) — self-contained counterpart to
+     * _handleChannelResizeStart's listener, mirrors _handleShapeVertexMouseUp.
+     * @param {MouseEvent} event - Mouse up event
+     * @private
+     */
+    _handleChannelResizeMouseUp(event) {
+        if (!this._channelResizeState.active) return;
+
+        lcardsLog.debug('[MSDStudio] Channel resize end:', this._channelResizeState.channelId);
+
+        this._channelResizeState = {
+            active: false,
+            channelId: null,
+            handle: null,
+            startPos: null,
+            startBounds: null
+        };
+
+        if (this._boundChannelResizeMouseMove) {
+            document.removeEventListener('mousemove', this._boundChannelResizeMouseMove);
+            this._boundChannelResizeMouseMove = null;
+        }
+        if (this._boundChannelResizeMouseUp) {
+            document.removeEventListener('mouseup', this._boundChannelResizeMouseUp);
+            this._boundChannelResizeMouseUp = null;
+        }
+
+        this._schedulePreviewUpdate();
         this.requestUpdate();
     }
 
@@ -5309,7 +5667,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             rect: { width: rect.width, height: rect.height }
         });
 
-        return { x: Math.round(coordX), y: Math.round(coordY) };
+        // Only round to whole viewBox units when snap is off — with snap on,
+        // coordX/coordY are already whole grid-spacing multiples from above.
+        // Otherwise return the raw float so click-to-place isn't coarser than
+        // a drag-reposition of the same overlay (which never rounds unless
+        // snap is on — see _handleDrag et al.).
+        return snapEnabled
+            ? { x: coordX, y: coordY }
+            : { x: this._roundToPrecision(coordX), y: this._roundToPrecision(coordY) };
     }
 
     /**
@@ -6213,21 +6578,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Apply attachment offset (same logic as MsdControlsRenderer and bounding box)
         const attachment = control.attachment || 'center';
-        const offsetMap = {
-            'top-left': [0, 0],
-            'top': [-width / 2, 0],
-            'top-center': [-width / 2, 0],
-            'top-right': [-width, 0],
-            'left': [0, -height / 2],
-            'center': [-width / 2, -height / 2],
-            'middle-center': [-width / 2, -height / 2],
-            'right': [-width, -height / 2],
-            'bottom-left': [0, -height],
-            'bottom': [-width / 2, -height],
-            'bottom-center': [-width / 2, -height],
-            'bottom-right': [-width, -height]
-        };
-        const attachmentOffset = offsetMap[attachment] || offsetMap['top-left'];
+        const attachmentOffset = this._getAttachmentOffset(attachment, width, height);
         vbX += attachmentOffset[0];
         vbY += attachmentOffset[1];
 
@@ -6827,21 +7178,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     // Apply attachment offset (same logic as MsdControlsRenderer)
                     const attachment = control.attachment || 'center';
-                    const offsetMap = {
-                        'top-left': [0, 0],
-                        'top': [-width / 2, 0],
-                        'top-center': [-width / 2, 0],
-                        'top-right': [-width, 0],
-                        'left': [0, -height / 2],
-                        'center': [-width / 2, -height / 2],
-                        'middle-center': [-width / 2, -height / 2],
-                        'right': [-width, -height / 2],
-                        'bottom-left': [0, -height],
-                        'bottom': [-width / 2, -height],
-                        'bottom-center': [-width / 2, -height],
-                        'bottom-right': [-width, -height]
-                    };
-                    const offset = offsetMap[attachment] || offsetMap['top-left'];
+                    const offset = this._getAttachmentOffset(attachment, width, height);
                     vbX += offset[0];
                     vbY += offset[1];
 
@@ -6877,6 +7214,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                             <!-- Resize Handles -->
                             ${this._renderResizeHandles(control.id, pixelWidth, pixelHeight, isResizing)}
+
+                            <!-- Live W×H / attach-point readout while actively dragging or resizing -->
+                            ${this._renderLiveCoordBadge(isDragging, isResizing, control.position, control.size)}
                         </div>
                         <!-- Control ID label -->
                         <div style="
@@ -6969,6 +7309,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             @mousedown=${(e) => this._handleShapeDragStart(e, shape.id)}
                             @dblclick=${(e) => { e.stopPropagation(); this._editShape(shape); }}>
                             ${this._renderShapeResizeHandles(shape.id, pixelWidth, pixelHeight, isResizing)}
+                            ${this._renderLiveCoordBadge(isDragging, isResizing, shape.position, shape.size)}
                         </div>
                         <div style="
                             position: absolute;
@@ -7656,6 +7997,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                             <!-- Resize Handles (only render when not dragging) -->
                             ${this._renderChannelResizeHandles(channelId, pixelWidth, pixelHeight, isResizing)}
+                            ${this._renderLiveCoordBadge(isDragging, isResizing, [x, y], [width, height])}
                         </div>
                         <!-- Channel ID label -->
                         <div style="
@@ -8504,22 +8846,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const attachment = control.attachment || 'center';
 
             // Apply attachment offset (same logic as MsdControlsRenderer)
-            const offsetMap = {
-                'top-left': [0, 0],
-                'top': [-width / 2, 0],
-                'top-center': [-width / 2, 0],
-                'top-right': [-width, 0],
-                'left': [0, -height / 2],
-                'center': [-width / 2, -height / 2],
-                'middle-center': [-width / 2, -height / 2],
-                'right': [-width, -height / 2],
-                'bottom-left': [0, -height],
-                'bottom': [-width / 2, -height],
-                'bottom-center': [-width / 2, -height],
-                'bottom-right': [-width, -height]
-            };
-
-            const offset = offsetMap[attachment] || offsetMap['top-left'];
+            const offset = this._getAttachmentOffset(attachment, width, height);
             const vbX = rawX + offset[0];
             const vbY = rawY + offset[1];
 
@@ -9399,15 +9726,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <div class="list-item-card">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <ha-icon icon="mdi:card-outline" style="--mdc-icon-size: 32px; color: var(--primary-color);"></ha-icon>
-                    <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <ha-icon icon="mdi:card-outline" style="--mdc-icon-size: 32px; color: var(--primary-color); flex-shrink: 0;"></ha-icon>
+                    <div style="flex: 1; min-width: 140px;">
                         <div style="font-weight: 600; margin-bottom: 4px;">${id}</div>
-                        <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace;">
+                        <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace; word-break: break-word;">
                             ${cardType} @ ${positionStr}
                         </div>
                     </div>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
                         <ha-icon-button
                             @click=${() => this._editControl(control)}
                             .label=${'Edit'}
@@ -11839,7 +12166,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <div class="list-item-card">
-                <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                     <!-- Shape Preview -->
                     <div style="
                         width: 40px;
@@ -11850,13 +12177,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         border: 1px solid var(--divider-color);
                         border-radius: 4px;
                         background: var(--card-background-color);
+                        flex-shrink: 0;
                     ">
                         <ha-icon icon="${kindIcon}" style="color: ${strokeColor};"></ha-icon>
                     </div>
 
                     <!-- Shape Info -->
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; min-width: 140px;">
+                        <div style="font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             ${id}
                             <span style="
                                 font-size: 10px;
@@ -11873,7 +12201,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
 
                     <!-- Action Buttons -->
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
                         <ha-icon-button
                             @click=${() => this._editShape(shape)}
                             .label=${'Edit'}
@@ -12225,7 +12553,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <div class="list-item-card">
-                <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                     <!-- Line Style Preview -->
                     <div style="
                         width: 40px;
@@ -12236,6 +12564,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         border: 1px solid var(--divider-color);
                         border-radius: 4px;
                         background: var(--card-background-color);
+                        flex-shrink: 0;
                     ">
                         <svg width="30" height="20" style="overflow: visible;">
                             <line
@@ -12249,8 +12578,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <!-- Line Info -->
-                <div style="flex: 1;">
-                    <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <div style="flex: 1; min-width: 140px;">
+                    <div style="font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         ${id}
                         <span style="
                             font-size: 10px;
@@ -12261,13 +12590,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             font-weight: 500;
                         ">${displayMode}</span>
                     </div>
-                    <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace;">
+                    <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace; word-break: break-word;">
                         ${sourceStr} → ${targetStr}
                     </div>
                 </div>
 
                 <!-- Action Buttons -->
-                <div style="display: flex; gap: 8px;">
+                <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
                     <ha-icon-button
                         @click=${() => this._editLine(line)}
                         .label=${'Edit'}
@@ -12913,6 +13242,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 display: flex;
                 align-items: center;
                 gap: 12px;
+                flex-wrap: wrap;
                 padding: 12px;
                 border: 2px solid ${typeColors[channel.type] || '#888'};
                 border-radius: 4px;
@@ -12939,8 +13269,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <!-- Channel Info -->
-                <div style="flex: 1; min-width: 0;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <div style="flex: 1; min-width: 140px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
                         <div style="font-weight: 600;">${id}</div>
                         <!-- Mode Badge -->
                         <span style="
@@ -15025,6 +15355,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 </lcards-position-picker>
 
                                 <ha-input
+                                    style="width: 100%; box-sizing: border-box;"
                                     type="number"
                                     label="Gap (vb units)"
                                     .value=${String(this._lineFormData.anchor_gap || 0)}
@@ -15087,6 +15418,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 </lcards-position-picker>
 
                                 <ha-input
+                                    style="width: 100%; box-sizing: border-box;"
                                     type="number"
                                     label="Gap (vb units)"
                                     .value=${String(this._lineFormData.attach_gap || 0)}
@@ -15169,6 +15501,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .hass=${this.hass}
                         .selector=${{
                             select: {
+                                mode: 'dropdown',
                                 options: [
                                     { value: 'auto', label: 'Auto (Recommended)' },
                                     { value: 'direct', label: 'Direct (Straight line)' },
@@ -15455,6 +15788,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </lcards-form-section>
                     ` : ''}
 
+                    <!-- Channel Routing (only for auto/direct modes) -->
+                    ${routeMode !== 'manual' ? this._renderChannelRoutingOptions() : ''}
+
                     <!-- Auto Routing: Clearance -->
                     ${routeMode === 'auto' ? html`
                         <lcards-form-section
@@ -15481,9 +15817,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </ha-input>
                         </lcards-form-section>
                     ` : ''}
-
-                <!-- Channel Routing (only for auto/direct modes) -->
-                ${routeMode !== 'manual' ? this._renderChannelRoutingOptions() : ''}
             </div>
         `;
     }
@@ -16052,8 +16385,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     ${this._renderLineColorSection()}
                 </lcards-form-section>
 
-                <!-- Two Column Layout for Style Controls -->
-                <div class="subform-columns-2">
+                <!-- Line Style / Line Shape stacked one-per-row (not the shared
+                     .subform-columns-2's default 1fr-1fr) — side by side caused
+                     horizontal scroll here, especially with the advanced stroke
+                     properties section expanded. -->
+                <div class="subform-columns-2" style="grid-template-columns: 1fr;">
 
                     <!-- Left Column: Width, Style -->
                     <lcards-form-section
@@ -16808,11 +17144,22 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return;
         }
 
-        // G - Toggle grid
+        // G - Toggle grid. _debugSettings.grid was a dead flag (write-only,
+        // never read by _renderGridOverlay) — the toolbar button and the grid
+        // settings popup checkbox both actually drive _showGrid.
         if (e.key === 'g' || e.key === 'G') {
             e.preventDefault();
-            this._debugSettings.grid = !this._debugSettings.grid;
-            this._schedulePreviewUpdate();
+            this._showGrid = !this._showGrid;
+            this.requestUpdate();
+            return;
+        }
+
+        // E - Toggle Edit Mode (discussion #389) — keyboard equivalent of the
+        // toolbar button, so a mouse-in-hand user can flip modes without
+        // reaching for it.
+        if (e.key === 'e' || e.key === 'E') {
+            e.preventDefault();
+            this._toggleEditMode();
             return;
         }
 

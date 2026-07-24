@@ -130,12 +130,17 @@ export const studioSubformDialogStyles = css`
         align-items: start;
     }
 
-    /* A wide primary control + a narrow fixed-width secondary control (e.g.
-       a position picker paired with a small numeric gap input) - distinct
-       from editorStyles' .form-row.two-controls (even 50/50 split) */
+    /* A primary control with a secondary control stacked below it (e.g. a
+       position picker paired with a small numeric gap input) - distinct
+       from editorStyles' .form-row.two-controls (even 50/50 split). Always
+       stacked, not side-by-side: this only ever appears inside a
+       .connection-source/.connection-target column (already squeezed to
+       ~1/3 of the dialog width by .line-connection-flow's 3-column grid),
+       where a fixed 120px second column routinely overflowed past the
+       picker's own minimum width. */
     .subform-row-aside {
         display: grid;
-        grid-template-columns: 1fr 120px;
+        grid-template-columns: 1fr;
         gap: var(--ha-space-3);
         align-items: start;
     }

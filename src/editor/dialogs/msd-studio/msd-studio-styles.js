@@ -147,7 +147,9 @@ export const msdStudioStyles = css`
         margin: 0 2px;
     }
 
-    /* Grid Settings Popup */
+    /* Grid Settings Popup — must sit above .canvas-toolbar (z-index: 1000),
+       which opens it and can now wrap to multiple rows tall enough to
+       otherwise cover this popup's top: 60px position. */
     .grid-settings-popup {
         position: absolute;
         top: 60px;
@@ -157,7 +159,7 @@ export const msdStudioStyles = css`
         border: 1px solid var(--divider-color);
         border-radius: 12px;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        z-index: 999;
+        z-index: 1001;
         animation: slideIn 0.2s ease;
     }
 
@@ -432,6 +434,25 @@ export const msdStudioStyles = css`
     .resize-handle.b  { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
     .resize-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
     .resize-handle.l  { top: 50%; left: -5px; transform: translateY(-50%); cursor: ew-resize; }
+
+    /* Live dimension/coordinate readout shown only while actively dragging or
+       resizing a control/shape/channel — see _renderLiveCoordBadge. Matches
+       the existing "Control ID label" diagnostic-badge styling (fixed blue,
+       not theme-tinted — intentional: this overlays arbitrary base_svg/canvas
+       content, same reasoning as anchor/bbox/route debug colors). */
+    .live-coord-badge {
+        position: absolute;
+        background: rgba(0, 136, 255, 0.9);
+        color: white;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
 
     /* Interactive Anchors */
     .interactive-anchor {
