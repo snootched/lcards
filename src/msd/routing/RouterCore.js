@@ -66,11 +66,29 @@ function stubLengthFor(req) {
  * _computeCorridorRouted's leg loop — it isn't a blind splice, so it isn't
  * an instance of this problem — and shrinking it has its own previously-
  * confirmed, unrelated regression (see that function's own comment).
+ *
+ * `minAutoLength` (only consulted in 'auto' mode) floors the bare
+ * MIN_STUB_LENGTH against the router's own RESOLVED grid_resolution (see
+ * RouterCore.prototype._resolvedGridResolution) — a stub shorter than one
+ * grid cell lands its own landing point inside the same cell _computeGrid
+ * would place the raw anchor in, triggering the same-grid-cell
+ * short-circuit (see _computeGrid's own comment) for virtually every leg
+ * immediately after the stub. Confirmed as a real, measured effect: on a
+ * large viewBox using the scalable default grid_resolution (which can
+ * reach up to 64, while MIN_STUB_LENGTH is a flat 24 regardless of canvas
+ * size), a line's very first post-stub decision routinely had no real
+ * grid cell of its own to search from, producing convoluted, hard-to-
+ * predict detours instead of the direct route a genuinely free search
+ * would find — worse, not better, than a shorter search would suggest.
+ * Callers that can't cheaply resolve this (e.g. a caller with no `this`)
+ * may omit it; MIN_STUB_LENGTH alone remains the floor.
  * @param {object} req
+ * @param {number} [minAutoLength] - the router's resolved grid_resolution;
+ *   only used in 'auto' cornerRadiusMode, ignored in 'forced'.
  * @returns {number}
  */
-function cardinalStubLengthFor(req) {
-  return req.cornerRadiusMode === 'forced' ? stubLengthFor(req) : MIN_STUB_LENGTH;
+function cardinalStubLengthFor(req, minAutoLength) {
+  return req.cornerRadiusMode === 'forced' ? stubLengthFor(req) : Math.max(MIN_STUB_LENGTH, minAutoLength || 0);
 }
 
 // Fractions of [width, height] to add to `position` to get the box's actual
@@ -699,7 +717,7 @@ export class RouterCore {
     if (!anchorDir && !attachDir) {
       return { stubReq: req, prefix: [], suffix: [] };
     }
-    const stubLength = cardinalStubLengthFor(req);
+    const stubLength = cardinalStubLengthFor(req, this._resolvedGridResolution());
     const [x1, y1] = req.a;
     const [x2, y2] = req.b;
     const p1 = [x1, y1];
@@ -778,13 +796,42 @@ export class RouterCore {
       // each other's freshly-registered approach runs, zigzagging between
       // near-parallel corridors and never converging.
       const discoveredTrunks = (mode === 'smart' || mode === 'grid') && !hasForceChannels
-        ? this._discoverTrunkCandidates(stubReq, new Set(explicitCorridors.map(c => c.id)), explicitCorridors)
+        ? this._discoverTrunkCandidates(req.id, req.a, req.b, new Set(explicitCorridors.map(c => c.id)), explicitCorridors)
         : [];
       if (discoveredTrunks.length) {
         lcardsLog.debug(`[RouterCore] Line '${req.id}': discovered ${discoveredTrunks.length} joinable trunk(s): ${discoveredTrunks.map(t => `${t.id}(overlap=${t.overlap.toFixed(1)})`).join(', ')}`);
       }
       const corridors = this._mergeCorridors(explicitCorridors, discoveredTrunks, stubReq);
       const usesCorridorRouting = corridors.length > 0 && (mode === 'smart' || mode === 'grid');
+
+      // Alternative corridor sets worth comparing on real cost, not just the
+      // one full union tried until now: chaining through EVERY discovered
+      // trunk together can cost more than joining just the single best one,
+      // when 2+ trunks are each independently "close enough" to pass
+      // discovery's proximity/overlap gates without actually being on the
+      // same natural path. Confirmed in the field (real user report): a
+      // line bundled with a short, off-axis trunk for part of its journey —
+      // forcing an actual crossing of that trunk's own line on the way out
+      // of it — even though a SECOND, better-aligned trunk alone already
+      // covered the line's full journey end-to-end, more cheaply, with no
+      // crossing at all.
+      //
+      // Tried solo regardless of `_isMember`: membership here only means
+      // this line's own rendered path happened to run near that trunk's
+      // centerline (_mergeOrRegisterTrunk's proximity match, evaluated
+      // AFTER the fact against whatever route was actually chosen) — it is
+      // NOT a record of a deliberate, cost-vetted join decision, and
+      // confirmed in the field to arrive before the SECOND trunk is even
+      // discovered (so a membership-based exclusion here never actually
+      // triggers for exactly the config that motivated this fix). A
+      // genuinely necessary multi-leg chain (e.g. a real horizontal/
+      // vertical/horizontal journey, each leg its own trunk) is unaffected:
+      // trying one of its trunks solo just produces a costlier, incomplete
+      // route that the comparison below naturally rejects in favor of the
+      // full chain — no special-casing needed, real cost already decides.
+      const corridorOptions = discoveredTrunks.length > 1
+        ? [corridors, ...discoveredTrunks.map(t => this._mergeCorridors(explicitCorridors, [t], stubReq))]
+        : [corridors];
 
       try {
         lcardsLog.debug(`[RouterCore] Route '${req.id}': mode=${mode}, channels=${req.channels?.join(',') || 'none'}, hasForce=${hasForceChannels}`);
@@ -801,24 +848,51 @@ export class RouterCore {
         } else if (mode === 'direct') {
           result = this._computeDirect(req);
         } else if (usesCorridorRouting) {
-          const chained = this._computeCorridorRouted(stubReq, mode === 'smart', corridors);
-          if (hasForceChannels || !chained) {
-            // Force channels are mandatory — always use the chained route
-            // regardless of cost. (chained should never be null here since
-            // hasForceChannels guarantees at least one matching channel,
-            // but the null-check keeps this branch safe either way.)
+          if (hasForceChannels) {
+            // Force channels are mandatory — always use the full merged
+            // chain regardless of cost (corridorOptions' per-trunk
+            // alternatives only ever apply to optional prefer/discovered
+            // trunks; hasForceChannels guarantees `corridors` itself is
+            // non-empty, so _computeCorridorRouted should never return null
+            // here, but the null-check keeps this branch safe either way).
+            const chained = this._computeCorridorRouted(stubReq, mode === 'smart', corridors);
             lcardsLog.debug(`[RouterCore] Using corridor-forced routing for '${req.id}' (mandatory)`);
             result = chained;
           } else {
-            // Prefer-channel/trunk-only: the chained route is an optional
-            // candidate — only worth it if actually bundling through the
-            // corridor(s) costs less overall than the plain route. Compare
-            // real, distance-based total costs (both already include
-            // whatever channelDelta reward they legitimately earn).
+            // Prefer-channel/trunk-only: every corridor OPTION (the full
+            // merged chain, plus — when 2+ fresh trunks exist — each on its
+            // own; see corridorOptions above) and the plain, uncorridored
+            // route are all optional candidates — only worth it if actually
+            // bundling costs less overall. Compared on an EFFECTIVE cost —
+            // each candidate's own reported meta.cost (distance+bends+
+            // channelDelta) plus _segmentCrossingPenalty(pts) — not
+            // meta.cost alone: a corridor "ride this trunk" leg's endpoints
+            // are fixed by the trunk itself, so a genuine crossing with
+            // another line's own path is often unavoidable for that
+            // candidate's shape, yet was never reflected in meta.cost at
+            // all. Confirmed as a real bug: a solo-trunk candidate with two
+            // real crossings beat a same-length alternative with only one,
+            // purely because crossings weren't part of either compared
+            // cost. meta.cost itself is left unmodified on the returned
+            // result — this penalty is a comparison-time tiebreaker, not a
+            // claim about the chosen route's own reported cost.
             const plain = computePlain();
-            const useChained = plain ? chained.meta.cost <= plain.meta.cost : true;
-            lcardsLog.debug(`[RouterCore] Route '${req.id}': corridor candidate cost=${chained.meta.cost.toFixed(1)} vs plain cost=${plain?.meta.cost?.toFixed(1) ?? 'n/a'} -> using ${useChained ? 'chained' : 'plain'}`);
-            result = useChained ? chained : plain;
+            const effectiveCost = (candidate) => candidate.meta.cost + this._segmentCrossingPenalty(candidate.pts, req.id);
+            let best = plain;
+            let bestCost = plain ? effectiveCost(plain) : Infinity;
+            let bestLabel = plain ? 'plain' : null;
+            for (const opt of corridorOptions) {
+              const candidate = this._computeCorridorRouted(stubReq, mode === 'smart', opt);
+              if (!candidate) continue;
+              const cost = effectiveCost(candidate);
+              if (!best || cost <= bestCost) {
+                best = candidate;
+                bestCost = cost;
+                bestLabel = opt.map(c => c.id).join('+');
+              }
+            }
+            lcardsLog.debug(`[RouterCore] Route '${req.id}': chose '${bestLabel ?? 'none'}' (effective cost=${Number.isFinite(bestCost) ? bestCost.toFixed(1) : 'n/a'}) among ${corridorOptions.length} corridor option(s) + plain`);
+            result = best;
           }
         } else if (mode === 'grid' || mode === 'smart') {
           result = computePlain();
@@ -830,7 +904,48 @@ export class RouterCore {
       if (!result) {
         result = this._computeManhattan(req);
       } else if (prefix.length || suffix.length) {
-        const pts = [...prefix, ...result.pts, ...suffix];
+        let pts = [...prefix, ...result.pts, ...suffix];
+        // A fixed cardinal stub's own landing point (result.pts[0] when
+        // prefix is set, or result.pts[last] when suffix is set) is purely
+        // an internal device (see _applyCardinalStubs) — unlike a
+        // channel_axis-forced crossing point (which only ever occurs
+        // INSIDE _computeCorridorRouted's own leg composition, never at
+        // this outermost splice), nothing downstream depends on it
+        // surviving. When the stub overshoots past where the route
+        // actually needs to go next (e.g. a discovered trunk's own
+        // lane-offset entry sits BEHIND the stub's fixed reach), the
+        // spliced result reverses direction right at that landing point.
+        // Confirmed as a real, unfixable-at-the-leg-level bug: the
+        // correction leg's own pathfinding is already locally correct —
+        // there's no better shape for a short, obstacle-free step
+        // backward — so this can only be resolved here, at the splice
+        // boundary, by dropping the redundant landing point and
+        // connecting the true anchor/attach point directly to wherever
+        // the route actually continues.
+        // Only collapse when the resulting DIRECT segment (skipping the
+        // landing point entirely) doesn't cut through an obstacle — the
+        // landing point being non-load-bearing for direction doesn't mean
+        // the detour around it was pointless: the stub's own path via that
+        // point may have been the only reason an obstacle got avoided in
+        // the first place. Confirmed as a real bug the naive unconditional
+        // version caused: collapsing a reversal produced a straight line
+        // directly through a control's own obstacle box, trading a visible
+        // "turnaround" for something worse.
+        const collapseReversal = (a, b, c) => {
+          const sameX = a[0] === b[0] && b[0] === c[0];
+          const sameY = a[1] === b[1] && b[1] === c[1];
+          if (!sameX && !sameY) return false;
+          const d1 = sameX ? (b[1] - a[1]) : (b[0] - a[0]);
+          const d2 = sameX ? (c[1] - b[1]) : (c[0] - b[0]);
+          if (d1 === 0 || d2 === 0 || Math.sign(d1) === Math.sign(d2)) return false;
+          return !this._segmentCrossesObstacle(a, c);
+        };
+        if (prefix.length === 1 && pts.length >= 3 && collapseReversal(pts[0], pts[1], pts[2])) {
+          pts = [pts[0], ...pts.slice(2)];
+        }
+        if (suffix.length === 1 && pts.length >= 3 && collapseReversal(pts[pts.length - 3], pts[pts.length - 2], pts[pts.length - 1])) {
+          pts = [...pts.slice(0, pts.length - 2), pts[pts.length - 1]];
+        }
         result = {
           ...result,
           pts,
@@ -861,7 +976,7 @@ export class RouterCore {
       // load-bearing for discovery-loop convergence.
       let joinedForeignTrunk = false;
       if (result) {
-        joinedForeignTrunk = this._registerLineSegments(req.id, result.pts);
+        joinedForeignTrunk = this._registerLineSegments(req.id, result.pts, req.a, req.b);
       }
       // Apply smoothing AFTER corner arcs (arcs preserved, path rebuilt as polyline if smoothing > 0)
       if (result && req.smoothingMode !== 'none' && req.smoothingIterations > 0) {
@@ -981,14 +1096,33 @@ export class RouterCore {
     return Math.min(64, Math.max(16, shortSide / targetCellsAcross));
   }
 
+  /**
+   * The grid_resolution actually in effect for this router right now —
+   * explicit config if set, else the scalable default — mirroring
+   * _computeGrid's own `baseRes = Number(this.config.grid_resolution ||
+   * this._defaultGridResolution())` exactly, including its own coercion
+   * (values <= 4 silently floor to 32; _computeGrid's own comment covers
+   * why). Recomputed fresh on every call rather than cached: viewBox (and
+   * therefore the scalable default) can change live via setViewBox(), and
+   * config could in principle too — this must never go stale the way a
+   * cached value could. Used by cardinalStubLengthFor's 'auto'-mode floor
+   * to keep the mandatory cardinal stub at least one grid cell long,
+   * regardless of how large grid_resolution's own default grows for a big
+   * viewBox.
+   * @returns {number}
+   */
+  _resolvedGridResolution() {
+    const baseRes = Number(this.config.grid_resolution || this._defaultGridResolution());
+    return baseRes > 4 ? baseRes : 32;
+  }
+
   _computeGrid(req, flags={}) {
     const vb = this.viewBox || [0,0,400,200];
     const originX = vb[0];
     const originY = vb[1];
     const width = vb[2];
     const height = vb[3];
-    const baseRes = Number(this.config.grid_resolution || this._defaultGridResolution());
-    const res = baseRes > 4 ? baseRes : 32;
+    const res = this._resolvedGridResolution();
     const cols = Math.max(2, Math.ceil(width / res));
     const rows = Math.max(2, Math.ceil(height / res));
     const clearance = Math.max(0, req.clearance || this.config.clearance || 0);
@@ -1103,7 +1237,67 @@ export class RouterCore {
 
     while(!open.isEmpty() && iterations++ < maxIterations) {
       const cur = open.pop();
-      if (cur.c === goal.c && cur.r === goal.r) { found = true; break; }
+      if (cur.c === goal.c && cur.r === goal.r) {
+        // A same-cell collapse — start and goal snap to the same grid
+        // cell — short-circuits here, on the very first pop, BEFORE the
+        // neighbor-expansion loop below ever runs. That loop is where
+        // EVERY directional-hint check lives (the anchor_side/anchor_stub
+        // reversal-block, the channel_axis hard axis-lock) — so any leg
+        // whose endpoints are closer than ~1 grid cell apart skipped every
+        // hint check entirely, regardless of source. Confirmed via
+        // execution: a corridor-approach leg's raw endpoints collapsed to
+        // the same cell at a real grid_resolution, and the exact reversal
+        // it represented rendered completely unvalidated. Re-check the
+        // RAW, un-snapped req.a->req.b displacement against whichever hard
+        // hints actually apply — same predicates the neighbor loop uses
+        // below, just evaluated once against the real coordinates instead
+        // of a single grid step. 'anchor_stub'/'attach_stub' are included
+        // here (not just 'anchor_side'/'attach_side'): the neighbor loop
+        // hard-blocks both identically (a soft cost-penalty version of
+        // 'anchor_stub' was tried and reverted — see that branch's own
+        // comment), so exempting them here would leave the same-cell path
+        // inconsistent with the multi-step path for the exact leg this fix
+        // targets. Only 'geometry'/no hint are truly unchecked, preserving
+        // today's collapse-acceptance behavior for genuinely unconstrained
+        // legs.
+        if (cur.c === start.c && cur.r === start.r) {
+          const dxRaw = req.b[0] - req.a[0];
+          const dyRaw = req.b[1] - req.a[1];
+          let hintViolated = false;
+          if (req._hintSourceFirst === 'anchor_side' || req._hintSourceFirst === 'anchor_stub') {
+            const dir = CARDINAL_DIR[req.anchorSide];
+            if (dir) {
+              const axisIsX = dir[0] !== 0;
+              const rawDelta = axisIsX ? dxRaw : dyRaw;
+              if (rawDelta !== 0 && Math.sign(rawDelta) === -(axisIsX ? dir[0] : dir[1])) hintViolated = true;
+            }
+          } else if (req._hintSourceFirst === 'channel_axis' && (req._channelAxisHorizontalFirst ? dxRaw : dyRaw) !== 0) {
+            // Only enforced when the REQUIRED axis itself has real raw
+            // distance to cover — mirrors the neighbor loop's own
+            // degenerate-axis relief (see its comment): this hint can
+            // describe a channel other than the one this exact leg
+            // crosses, and when that axis is already zero for this leg,
+            // "violating" it would only ever mean rejecting a collapse
+            // that has nowhere better to go anyway.
+            const isHorizontalDominant = Math.abs(dxRaw) >= Math.abs(dyRaw);
+            if (isHorizontalDominant !== req._channelAxisHorizontalFirst) hintViolated = true;
+          }
+          if (!hintViolated && (req._hintSourceLast === 'attach_side' || req._hintSourceLast === 'attach_stub')) {
+            const dir = CARDINAL_DIR[req.attachSide];
+            if (dir) {
+              const axisIsX = dir[0] !== 0;
+              const rawDelta = axisIsX ? dxRaw : dyRaw;
+              if (rawDelta !== 0 && Math.sign(rawDelta) === (axisIsX ? dir[0] : dir[1])) hintViolated = true;
+            }
+          } else if (!hintViolated && req._hintSourceLast === 'channel_axis' && (req._channelAxisHorizontalLast ? dxRaw : dyRaw) !== 0) {
+            const isHorizontalDominant = Math.abs(dxRaw) >= Math.abs(dyRaw);
+            if (isHorizontalDominant !== req._channelAxisHorizontalLast) hintViolated = true;
+          }
+          if (hintViolated) break; // found stays false -> null, caller falls back
+        }
+        found = true;
+        break;
+      }
       const gCur = gScore.get(key(cur.c,cur.r));
       const curDir = direction.get(key(cur.c,cur.r)); // Previous direction
 
@@ -1171,8 +1365,55 @@ export class RouterCore {
             // wasting its reach — which is the mirror of the last-move
             // block below. Perpendicular or continuing-forward moves are
             // both fine and left unbiased.
+            //
+            // EXCEPT when the goal requires ZERO travel on the CROSS axis
+            // (perpendicular to anchorSide's own direction) — the mirror
+            // image of channel_axis's degenerate-axis relief below: there,
+            // the REQUIRED axis had no distance to cover; here, ALL the
+            // distance is on the very axis this block restricts, and the
+            // cross axis offers no alternative progress at all. Blocking
+            // the one direct direction then forces an artificial detour
+            // (step off-axis, travel, step back) that adds bends for no
+            // obstacle-avoidance reason — and confirmed as a real bug: the
+            // detour's own last move (returning to the goal's cross-axis
+            // coordinate) can land in either direction with equal cost, so
+            // A* picks arbitrarily, and about half the time that choice
+            // then reverses against whatever leg comes immediately after
+            // this one, at a splice point (the goal itself) that's
+            // genuinely mandatory and can't be collapsed away afterward.
             const anchorSideDir = CARDINAL_DIR[req.anchorSide];
-            if (anchorSideDir && dc === -anchorSideDir[0] && dr === -anchorSideDir[1]) continue;
+            if (anchorSideDir) {
+              const crossIsY = anchorSideDir[0] !== 0;
+              const crossDegenerate = crossIsY ? (req.a[1] === req.b[1]) : (req.a[0] === req.b[0]);
+              if (!crossDegenerate && dc === -anchorSideDir[0] && dr === -anchorSideDir[1]) continue;
+            }
+          } else if (req._hintSourceFirst === 'anchor_stub') {
+            // Same exact-reversal shape (and same degenerate-cross-axis
+            // relief) as the 'anchor_side' branch above, and — despite this
+            // leg's start being a resolved stub/cursor, not the raw anchor
+            // (see _computeCorridorRouted's k===0 hint downgrade) — still a
+            // HARD block here, not a cost penalty. A soft penalty was tried
+            // and reverted: `route_hint_penalty` (default 6, a small flat
+            // one-time cost) is easily outweighed by even a modest
+            // detour-cost difference elsewhere in the grid, so A* started
+            // choosing small, GENUINELY UNNECESSARY backtracks whenever
+            // grid quantization happened to make one look marginally
+            // cheaper (confirmed: introduced NEW reversals at resolutions
+            // that had none before). The real fix for "a reversal really is
+            // the only option" lives entirely in _computeManhattan's
+            // degenerate-and-soft bailout (see anchorHard/attachHard
+            // there) — that fallback only activates when _computeGrid
+            // legitimately returns null, exactly the hard-block outcome
+            // this branch produces, so keeping this hard costs nothing: the
+            // genuinely-necessary case is still handled, just one level
+            // down, and A* itself never explores a needless reversal it
+            // shouldn't have.
+            const anchorSideDir = CARDINAL_DIR[req.anchorSide];
+            if (anchorSideDir) {
+              const crossIsY = anchorSideDir[0] !== 0;
+              const crossDegenerate = crossIsY ? (req.a[1] === req.b[1]) : (req.a[0] === req.b[0]);
+              if (!crossDegenerate && dc === -anchorSideDir[0] && dr === -anchorSideDir[1]) continue;
+            }
           } else if (req._hintSourceFirst === 'channel_axis') {
             // Force-channel leg boundary: this leg's very first move must
             // cross exactly along the channel's flow axis (unlike the
@@ -1181,7 +1422,25 @@ export class RouterCore {
             // a horizontal crossing at all). Plain boolean, not the
             // 'xy'/'yx' string convention, to avoid its first-vs-last sign
             // inversion (see _channelAxisHorizontalFirst/Last on the request).
-            if (isHorizontalMove !== req._channelAxisHorizontalFirst) continue;
+            //
+            // EXCEPT when this leg's own raw endpoints already share that
+            // exact axis's coordinate (zero available distance to cover on
+            // it). This hint can describe a DIFFERENT channel than the one
+            // this leg itself crosses — see _pushBundledApproachLegs's
+            // unsplit-fallback branch: firstHint there carries the
+            // PREVIOUS channel's own flow axis, as a "continue smoothly out
+            // of that corridor" preference, not a claim that THIS leg
+            // crosses it too. When the axis is degenerate for this leg,
+            // hard-blocking every move except one that covers zero real
+            // distance leaves no legal non-detour choice, forcing a
+            // synthetic out-and-back zigzag purely to satisfy an
+            // unsatisfiable preference. Confirmed as a real bug via a
+            // higher-line-count stress scenario: a leg whose fixed
+            // start/end shared an x-coordinate (a straight vertical
+            // correction) was forced to jog sideways and back for no
+            // geometric reason.
+            const axisFlow = req._channelAxisHorizontalFirst ? 0 : 1;
+            if (req.a[axisFlow] !== req.b[axisFlow] && isHorizontalMove !== req._channelAxisHorizontalFirst) continue;
           } else {
             const wantsHorizontalFirst = req.modeHint === 'xy';
             if (wantsHorizontalFirst !== isHorizontalMove) moveCost += hintPenalty;
@@ -1209,13 +1468,44 @@ export class RouterCore {
             // is the only case that reverses for the fixed suffix segment,
             // which then travels the opposite (inward) way into the real
             // endpoint.
+            //
+            // Mirrors anchor_side's own degenerate-cross-axis relief (see
+            // its comment): when the approach requires ZERO travel on the
+            // cross axis (perpendicular to attachSide's own direction),
+            // every bit of real distance is on the axis this block
+            // restricts, and blocking the one direct arrival direction
+            // forces an artificial detour with an arbitrary, potentially
+            // reversal-prone last move instead.
             const sideDir = CARDINAL_DIR[req.attachSide];
-            if (sideDir && sideDir[0] === dc && sideDir[1] === dr) continue;
+            if (sideDir) {
+              const crossIsY = sideDir[0] !== 0;
+              const crossDegenerate = crossIsY ? (req.a[1] === req.b[1]) : (req.a[0] === req.b[0]);
+              if (!crossDegenerate && sideDir[0] === dc && sideDir[1] === dr) continue;
+            }
+          } else if (req._hintSourceLast === 'attach_stub') {
+            // Hard mirror of 'attach_side' above (including the same
+            // degenerate-cross-axis relief) — see the 'anchor_stub' comment
+            // on the first-move side for why this stays a hard block
+            // otherwise (a soft cost penalty was tried and reverted: it let
+            // A* choose genuinely unnecessary reversals whenever grid
+            // quantization made one look marginally cheaper elsewhere).
+            const sideDir = CARDINAL_DIR[req.attachSide];
+            if (sideDir) {
+              const crossIsY = sideDir[0] !== 0;
+              const crossDegenerate = crossIsY ? (req.a[1] === req.b[1]) : (req.a[0] === req.b[0]);
+              if (!crossDegenerate && sideDir[0] === dc && sideDir[1] === dr) continue;
+            }
           } else if (req._hintSourceLast === 'channel_axis') {
             // Symmetric to the first-move case above: this leg's arrival
             // into the goal must cross exactly along the channel's flow
-            // axis. Hard block (not a penalty) on any off-axis arrival.
-            if (isHorizontalMove !== req._channelAxisHorizontalLast) continue;
+            // axis. Hard block (not a penalty) on any off-axis arrival —
+            // except, mirroring the first-move degenerate-axis relief
+            // above, when this leg's own raw endpoints already share that
+            // axis's coordinate (zero available distance on it), where the
+            // hard block would force the same kind of unsatisfiable,
+            // synthetic zigzag right before arrival instead of on departure.
+            const axisFlow = req._channelAxisHorizontalLast ? 0 : 1;
+            if (req.a[axisFlow] !== req.b[axisFlow] && isHorizontalMove !== req._channelAxisHorizontalLast) continue;
           } else {
             const wantsHorizontalLast = req.modeHintLast === 'yx';
             if (wantsHorizontalLast !== isHorizontalMove) moveCost += hintPenalty;
@@ -1306,7 +1596,7 @@ export class RouterCore {
     if (pts.length >= 2) {
       const gridFirstHorizontal = origStart[1] === pts[1][1];
       const gridFirstVertical = origStart[0] === pts[1][0];
-      if (req._hintSourceFirst === 'anchor_side') {
+      if (req._hintSourceFirst === 'anchor_side' || req._hintSourceFirst === 'anchor_stub') {
         // The stub (computePath's _applyCardinalStubs) already guarantees
         // the true departure direction externally, via a separate fixed
         // segment before req.a — this inner leg just needs to connect
@@ -1346,7 +1636,7 @@ export class RouterCore {
     if (lastIdx >= 1) {
       const gridLastHorizontal = origEnd[1] === pts[lastIdx-1][1];
       const gridLastVertical = origEnd[0] === pts[lastIdx-1][0];
-      if (req._hintSourceLast === 'attach_side') {
+      if (req._hintSourceLast === 'attach_side' || req._hintSourceLast === 'attach_stub') {
         if (gridLastHorizontal) {
           pts[lastIdx-1] = [pts[lastIdx-1][0], pts[lastIdx][1]];
         } else if (gridLastVertical) {
@@ -1666,21 +1956,40 @@ export class RouterCore {
    *
    * Discovered trunk: the creator (sourceLineId) implicitly holds lane 0
    * at offset 0 — its own path IS the centerline (crossCenter), so it
-   * never moves. Joiners (member set minus creator, plus the asking line,
-   * sorted lexicographically for determinism) alternate sides:
-   * +s, -s, +2s, -2s, ... — uniform spacing, bundle centered on the
-   * creator, band growing symmetrically (_trunkBandHalfWidth).
+   * never moves. Joiners (member set minus creator, plus the asking line)
+   * are grouped by their recorded NATURAL SIDE (see
+   * _mergeOrRegisterTrunk — which side of the centerline each joiner's own
+   * true, un-bundled endpoints actually lean toward, a pure function of
+   * their own geometry, never a prior pass's lane offset): negative-side
+   * joiners get negative offsets, non-negative/unknown-side joiners get
+   * positive, each side's own magnitude growing by that joiner's 1-based
+   * position within its OWN side group (lexicographic tie-break within a
+   * group). A joiner with no recorded side yet (never registered at this
+   * trunk before — e.g. a prospective candidate mid-discovery) falls into
+   * the non-negative group, matching the group most existing tests
+   * exercise. This replaces blind index-parity alternation (+s,-s,+2s,...
+   * by insertion-sorted order), which put two joiners on OPPOSITE sides of
+   * a shared trunk purely because their ids happened to sort that way —
+   * confirmed as a real, avoidable crossing between one joiner's own stub
+   * and the other's bundled lane.
    *
    * Config channel: no implicit centerline owner — every user (member set
    * plus the asking line, sorted) gets a centered offset
    * (i - (n-1)/2) * spacing: n=1 -> 0, n=2 -> ±s/2, n=3 -> -s/0/+s.
+   * Deliberately NOT made side-aware — there's no creator centerline to
+   * bias around here, and the reported crossing bug was specifically a
+   * discovered-trunk case; kept unchanged to bound this fix's scope.
    *
    * laneIndex is the raw non-negative per-line position (creator 0,
    * joiners 1,2,... / users 0,1,2,...) consumed by
    * _pushBundledApproachLegs's nudge-distance formula, which needs a
    * distinct, never-negative value per line (a centered ± offset can point
    * backward relative to a leg's travel direction, and two lines' centered
-   * offsets can share a magnitude).
+   * offsets can share a magnitude). For a discovered trunk it's now
+   * derived from the same side-grouped order the offset itself uses
+   * (negative-side group first, then non-negative), not raw lexicographic
+   * order — still just a distinct positive integer per line, direction
+   * itself is carried entirely by offset's sign.
    * @param {object} corridor - channel or discovered-trunk object (id is what's resolved against the live registry)
    * @param {string} lineId
    * @returns {{ laneIndex: number, laneCount: number, offset: number }}
@@ -1696,12 +2005,17 @@ export class RouterCore {
     ids.add(lineId);
     if (row.origin === 'discovered') {
       ids.delete(row.sourceLineId);
-      const joiners = [...ids].sort();
-      const laneCount = joiners.length + 1;
-      const k = joiners.indexOf(lineId); // creator: -1 -> lane 0, centerline
-      if (k < 0 || !spacing) return { laneIndex: 0, laneCount, offset: 0 };
-      const offset = (k % 2 === 0 ? 1 : -1) * spacing * (Math.floor(k / 2) + 1);
-      return { laneIndex: k + 1, laneCount, offset };
+      if (!ids.has(lineId) || !spacing) return { laneIndex: 0, laneCount: ids.size + 1, offset: 0 };
+      const sideOf = (id) => row.members?.get(id)?.[2] ?? 0;
+      const negatives = [...ids].filter(id => sideOf(id) < 0).sort();
+      const positives = [...ids].filter(id => sideOf(id) >= 0).sort();
+      const laneCount = negatives.length + positives.length + 1;
+      const negIdx = negatives.indexOf(lineId);
+      const inNegativeGroup = negIdx >= 0;
+      const withinGroupIdx = inNegativeGroup ? negIdx : positives.indexOf(lineId);
+      const offset = (inNegativeGroup ? -1 : 1) * spacing * (withinGroupIdx + 1);
+      const ordered = [...negatives, ...positives];
+      return { laneIndex: ordered.indexOf(lineId) + 1, laneCount, offset };
     }
     const users = [...ids].sort();
     const i = users.indexOf(lineId);
@@ -1796,16 +2110,31 @@ export class RouterCore {
 
   /**
    * Cross-axis half-width of a discovered trunk's band for a given member
-   * set — spacing/2 (the creator's own lane) plus one spacing per side-pair
-   * of joiners, matching _trunkLaneAssignment's alternating ± offsets so
-   * every assigned lane's through-leg midpoint falls inside the band.
+   * set — spacing/2 (the creator's own lane) plus one spacing per member of
+   * whichever NATURAL-SIDE group (see _mergeOrRegisterTrunk/
+   * _trunkLaneAssignment) is larger, matching _trunkLaneAssignment's own
+   * side-grouped offsets so every assigned lane's through-leg midpoint
+   * falls inside the band. Sizing by the LARGER group (not
+   * `ceil(joiners/2)`, which assumed joiners always split evenly across
+   * both sides — true only for the old lineId-alternation scheme) is
+   * load-bearing: confirmed as a real bug when two joiners both happened
+   * to share the same natural side, needing a real half-width of
+   * `spacing/2 + spacing*2`, while the old formula only ever budgeted
+   * `spacing/2 + spacing*1` — the resulting band clamp forced one joiner's
+   * real (`_trunkLaneAssignment`-computed) offset back inside the
+   * too-narrow band, producing an unnecessary correction leg with no
+   * directional guarantee, i.e. exactly the reversal-causing shape this
+   * whole area of the router exists to prevent.
    * `extraLineId` (may be null) is counted as a prospective joiner if it
    * isn't already a member — used by _discoverTrunkCandidates to size a
    * candidate's band as if the asking line had already joined; without
    * that, a first joiner's own through-leg at ±spacing would measure
    * "outside" the not-yet-widened band, never earn the prefer reward, and
    * the join could never win the cost comparison (a deadlock: the band
-   * only widens on join, but the join needs the widened band to be chosen).
+   * only widens on join, but the join needs the widened band to be
+   * chosen). A prospective (not-yet-registered) extraLineId has no
+   * recorded side yet, so — matching _trunkLaneAssignment's own fallback —
+   * it's sized as a worst-case addition to the non-negative group.
    * @param {object} trunk
    * @param {string|null} extraLineId
    * @returns {number}
@@ -1813,10 +2142,15 @@ export class RouterCore {
    */
   _trunkBandHalfWidth(trunk, extraLineId) {
     const spacing = trunk.line_spacing || this._trunkLineSpacing;
-    const joiners = new Set(trunk.members?.keys());
-    if (extraLineId) joiners.add(extraLineId);
-    joiners.delete(trunk.sourceLineId);
-    return spacing / 2 + spacing * Math.ceil(joiners.size / 2);
+    let negCount = 0, posCount = 0;
+    for (const [id, span] of trunk.members?.entries() ?? []) {
+      if (id === trunk.sourceLineId) continue;
+      if ((span?.[2] ?? 0) < 0) negCount++; else posCount++;
+    }
+    if (extraLineId && extraLineId !== trunk.sourceLineId && !trunk.members?.has(extraLineId)) {
+      posCount++; // unknown side -> non-negative group, same fallback as _trunkLaneAssignment
+    }
+    return spacing / 2 + spacing * Math.max(negCount, posCount);
   }
 
   /**
@@ -1864,6 +2198,11 @@ export class RouterCore {
    * whenever the member set shifts.
    * @param {string} lineId
    * @param {number[][]} pts
+   * @param {number[]} [rawA] - the line's true, un-stubbed start anchor
+   *   (req.a) — used only to derive each trunk contribution's natural
+   *   side (see _mergeOrRegisterTrunk), never for span/geometry.
+   * @param {number[]} [rawB] - the line's true, un-stubbed end/attach
+   *   point (req.b), same purpose as rawA.
    * @returns {boolean} whether this scan made lineId a brand-new member of
    *   a trunk it doesn't own (see _mergeOrRegisterTrunk's foreignJoinFlag
    *   comment) — computePath uses this to skip caching, so the next pass
@@ -1871,7 +2210,7 @@ export class RouterCore {
    *   instead of looking like an already-stable cache hit forever.
    * @private
    */
-  _registerLineSegments(lineId, pts) {
+  _registerLineSegments(lineId, pts, rawA = null, rawB = null) {
     // Compact collinear runs first — a straight route commonly has interior
     // points that aren't real corners at all (e.g. both ends of a stub
     // splice happening to continue in the same direction the inner path
@@ -1898,6 +2237,12 @@ export class RouterCore {
     // scan makes this line a brand-new member of a row it doesn't own,
     // so computePath knows not to cache this call's result.
     const foreignJoinFlag = { joined: false };
+    // Trunk-match candidates are deferred (see the length-ordered pass
+    // below) rather than matched immediately in positional order — crossing
+    // registration has no such ordering concern (every qualifying run gets
+    // its own independent entry, never competes with a sibling run for the
+    // same slot) and stays exactly as before.
+    const trunkCandidates = touchedTrunks ? [] : null;
     for (let i = 1; i < compacted.length; i++) {
       const a = compacted[i - 1], b = compacted[i];
       const horizontal = a[1] === b[1];
@@ -1905,12 +2250,35 @@ export class RouterCore {
       if (!horizontal && !vertical) continue; // shouldn't happen pre-smoothing; guard anyway
       const idx = runIndex++;
       const length = horizontal ? Math.abs(b[0] - a[0]) : Math.abs(b[1] - a[1]);
-      if (touchedTrunks && length >= this._trunkMinLength) {
-        if (this._mergeOrRegisterTrunk(lineId, idx, a, b, horizontal, touchedTrunks, foreignJoinFlag)) changed = true;
+      if (trunkCandidates && length >= this._trunkMinLength) {
+        trunkCandidates.push({ idx, a, b, horizontal, length });
       }
       if (this._crossingAvoidEnabled && length >= this._crossingMinLength) {
         touchedCrossingIds.add(`cross:${lineId}:${idx}`);
         if (this._registerCrossingSegment(lineId, idx, a, b, horizontal)) changed = true;
+      }
+    }
+    // Match LONGEST run first, not positional (flow-position) order. A
+    // short, purely-artifactual leg (e.g. a corridor-approach nudge —
+    // internal to how the route was constructed, never meant to represent
+    // an independent trunk-riding contribution) can coincidentally sit
+    // within trunk_proximity of an existing trunk's own centerline, exactly
+    // like a genuine trunk-riding run would. Processed in positional order,
+    // whichever run comes first claims the match via touchedTrunks — if
+    // that's the short artifactual one, the REAL, much longer trunk-riding
+    // run (processed later) finds the trunk already claimed and spawns its
+    // own spurious new one instead. Confirmed as a real, PRE-EXISTING bug,
+    // not introduced by any single change this session: reproduced with an
+    // already-shipped, entirely natural corridorOffset!=0 corridor join, no
+    // grace-zone/taper changes involved. Run length is a strictly better
+    // signal of "this line genuinely rides this trunk" than "whichever run
+    // happened to come first in the polyline" — this is the only thing
+    // that changes; _mergeOrRegisterTrunk itself, crossing registration,
+    // and ID assignment (idx stays tied to positional order) are untouched.
+    if (trunkCandidates) {
+      trunkCandidates.sort((x, y) => y.length - x.length);
+      for (const c of trunkCandidates) {
+        if (this._mergeOrRegisterTrunk(lineId, c.idx, c.a, c.b, c.horizontal, touchedTrunks, foreignJoinFlag, rawA, rawB)) changed = true;
       }
     }
     // Post-scan membership diff: this line leaves any trunk row the scan
@@ -2011,7 +2379,7 @@ export class RouterCore {
    * @returns {boolean} whether membership or bounds actually changed
    * @private
    */
-  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal, touchedTrunks = null, foreignJoinFlag = null) {
+  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal, touchedTrunks = null, foreignJoinFlag = null, rawA = null, rawB = null) {
     const flow = horizontal ? 0 : 1;
     const cross = horizontal ? 1 : 0;
     const flowLo = Math.min(a[flow], b[flow]);
@@ -2027,6 +2395,52 @@ export class RouterCore {
       const tFlowHi = horizontal ? t.x2 : t.y2;
       return Math.min(flowHi, tFlowHi) - Math.max(flowLo, tFlowLo) >= -this._trunkProximity;
     });
+    // Natural side: which side of THIS trunk row's own STABLE centerline
+    // (existing.crossCenter when joining a row, or crossCoord itself when
+    // creating one — crossCoord IS what becomes the new row's crossCenter,
+    // see below) the line's true, un-bundled journey actually leans
+    // toward — a pure function of the line's own raw endpoints (never a
+    // prior pass's own lane offset, which would just entrench whatever an
+    // earlier, possibly-arbitrary pass produced). Deliberately measured
+    // against the trunk's centerline, NOT against crossCoord (this
+    // specific segment's own registered position) — a joiner already
+    // riding an offset lane has crossCoord = crossCenter + itsOwnOffset,
+    // and comparing the raw endpoint to ITS OWN already-offset position
+    // instead of the shared centerline collapses the signal (confirmed:
+    // produced side=0 for every joiner in a test where each line's raw
+    // endpoint exactly matched its own registered segment). Used by
+    // _trunkLaneAssignment to bias which side a joiner lands on, instead
+    // of pure lineId lexicographic order — confirmed as a real bug: two
+    // joiners landed on OPPOSITE sides of a shared trunk purely because
+    // their ids happened to sort that way, producing an avoidable crossing
+    // between one line's own stub and the other's bundled lane. 0 (no
+    // lean either way, or raw endpoints unavailable) falls back to the old
+    // lexicographic-only behavior for that line — see _trunkLaneAssignment.
+    const centerlineForSide = existing
+      ? (existing.crossCenter ?? (horizontal ? (existing.y1 + existing.y2) / 2 : (existing.x1 + existing.x2) / 2))
+      : crossCoord;
+    // Reference point for natural side: whichever raw endpoint (anchor or
+    // attach) sits closer, on the FLOW axis, to THIS run — not the average
+    // of both. _registerLineSegments calls this once per straight run a
+    // line's route decomposes into, always passing the same whole-line
+    // rawA/rawB regardless of which run is being registered; averaging
+    // them ties every run's side to the line's overall start-to-end
+    // displacement, which a distant destination can dominate even for a
+    // run that's really about the ANCHOR end of the journey. Confirmed as
+    // a real bug via a live user report: a line whose anchor sat clearly
+    // south of a trunk it was joining right after departure got assigned
+    // a NORTH-side lane instead, purely because its own destination lay
+    // far enough north to pull the (anchor+attach)/2 average across the
+    // trunk's centerline — even though this run has nothing to do with
+    // the destination yet. Picking the flow-closer endpoint instead makes
+    // each run's side reflect the geometry actually local to it: a run
+    // near the anchor leans on the anchor's own side, a run near the
+    // attach point leans on that side instead.
+    const flowMid = (flowLo + flowHi) / 2;
+    const refPoint = (rawA && rawB)
+      ? (Math.abs(rawA[flow] - flowMid) <= Math.abs(rawB[flow] - flowMid) ? rawA : rawB)
+      : (rawA || rawB);
+    const naturalSide = refPoint ? Math.sign(refPoint[cross] - centerlineForSide) : 0;
     if (existing) {
       touchedTrunks?.add(existing);
       const prev = existing.members.get(lineId);
@@ -2034,8 +2448,11 @@ export class RouterCore {
       // change — otherwise a converged discovery loop would never reach a
       // fixed point (every pass would bump _registryVersion and force
       // every other line to recompute forever, defeating the cap's "stop
-      // once nothing changed" exit condition).
-      if (prev && prev[0] === flowLo && prev[1] === flowHi) return false;
+      // once nothing changed" exit condition). Natural side is included in
+      // the comparison: lane assignment derives from it too
+      // (_trunkLaneAssignment), so a changed side is a real change even
+      // when the span didn't move.
+      if (prev && prev[0] === flowLo && prev[1] === flowHi && (prev[2] ?? 0) === naturalSide) return false;
       const isNewMember = !prev;
       // A line becoming a member of a row it did NOT create happens purely
       // as a side effect of ITS OWN independent geometry coincidentally
@@ -2049,7 +2466,7 @@ export class RouterCore {
       // a stable cache hit forever, silently hiding the newly-eligible
       // trunk from ever being reconsidered by discovery.
       if (isNewMember && existing.sourceLineId !== lineId && foreignJoinFlag) foreignJoinFlag.joined = true;
-      existing.members.set(lineId, [flowLo, flowHi]);
+      existing.members.set(lineId, [flowLo, flowHi, naturalSide]);
       const boundsChanged = this._recomputeTrunkBounds(existing);
       return isNewMember || boundsChanged;
     }
@@ -2080,7 +2497,11 @@ export class RouterCore {
       origin: 'discovered',
       sourceLineId: lineId,
       runIndex,
-      members: new Map([[lineId, [flowLo, flowHi]]])
+      // The creator's own natural side is unused (see _trunkLaneAssignment
+      // — the creator is removed from the joiner set entirely, it always
+      // holds the centerline), stored anyway for shape consistency across
+      // every members entry.
+      members: new Map([[lineId, [flowLo, flowHi, naturalSide]]])
     };
     this._trunks.push(trunk);
     touchedTrunks?.add(trunk);
@@ -2095,18 +2516,42 @@ export class RouterCore {
    * must be >= trunk_min_overlap (joining is only worth it for a real
    * shared stretch, not a coincidental few-pixel graze), and the
    * perpendicular distance from the line's approximate path to the
-   * trunk's lane center must be <= trunk_proximity. Runs on stubReq.a/b
-   * alone — not an already-computed plain route — so a line with no
-   * nearby trunk never pays for an extra pathfinding pass.
-   * @param {object} stubReq
+   * trunk's lane center must be <= trunk_proximity.
+   *
+   * Runs on the line's TRUE raw anchor/attach points (`a`/`b` — req.a/b,
+   * pre-stub), not the stub-shifted `stubReq.a`/`stubReq.b` this used to
+   * take directly. Confirmed as a real, non-cosmetic bug: the mandatory
+   * cardinal stub (_applyCardinalStubs) exists purely to guarantee
+   * departure/arrival direction and, since the grid-resolution-aware floor
+   * (see cardinalStubLengthFor), to escape the same-grid-cell short-
+   * circuit — neither purpose has anything to do with "is my overall
+   * journey near this trunk." But because discovery used to read the
+   * stub-shifted position, stub length was silently doing double duty:
+   * whenever a stub's own direction ran along a trunk's CROSS axis (e.g. a
+   * horizontal stub approaching a vertical trunk), lengthening the stub
+   * for the same-cell fix also dragged the discovery reference point
+   * sideways — directly changing the cross-axis proximity verdict.
+   * Verified by a direct A/B test (same line, only the resolved
+   * grid_resolution changed): a longer stub caused a line to discover and
+   * bundle into a trunk a shorter stub did not, producing a completely
+   * different route topology, not just a different-looking corner. Using
+   * the true anchor makes "is this line's journey near that trunk" a
+   * function of the line's own real geometry again, independent of an
+   * unrelated implementation detail.
+   *
+   * Still no extra pathfinding pass paid for a line with no nearby trunk —
+   * `a`/`b` are the request's already-known endpoints, no route is
+   * computed to evaluate this.
+   * @param {string} lineId
+   * @param {number[]} a - the line's true raw anchor point (req.a, NOT stubReq.a)
+   * @param {number[]} b - the line's true raw attach point (req.b, NOT stubReq.b)
    * @param {Set<string>} excludeIds - ids already present as explicit corridors in the chain
    * @param {Array<object>} [explicitCorridors] - the chain's own corridor objects, for geometric-redundancy filtering
    * @returns {Array<object>} candidate trunks (each tagged with `overlap`), sorted by overlap desc, capped at trunk_max_join_candidates
    * @private
    */
-  _discoverTrunkCandidates(stubReq, excludeIds, explicitCorridors = []) {
+  _discoverTrunkCandidates(lineId, a, b, excludeIds, explicitCorridors = []) {
     if (!this._trunkBundlingEnabled || !this._trunks.length) return [];
-    const [a, b] = [stubReq.a, stubReq.b];
     // A candidate that's geometrically redundant with a corridor already in
     // the chain (same direction, centerline inside that corridor's own
     // cross band ± proximity, overlapping flow span) can only ever add a
@@ -2138,7 +2583,7 @@ export class RouterCore {
       // re-discovering its trunk just re-evaluates the same join
       // cost-comparison and re-lands on the same lane — that's what makes
       // "joined" a genuine fixed point.
-      if (excludeIds.has(t.id) || t.sourceLineId === stubReq.id) continue;
+      if (excludeIds.has(t.id) || t.sourceLineId === lineId) continue;
       // A ghost shell — a discovered row whose every member (creator
       // included) has moved away — keeps its row for cheap reactivation
       // (see _purgeTrunksForLine) but shouldn't attract NEW joiners to a
@@ -2174,7 +2619,7 @@ export class RouterCore {
       // self-corrects every pass regardless (see _registerLineSegments'
       // post-scan diff), so this can't pin a line to a trunk its geometry
       // has actually moved away from.
-      const isMember = t.members?.has(stubReq.id);
+      const isMember = t.members?.has(lineId);
       if (!isMember) {
         const lineCrossApprox = (a[cross] + b[cross]) / 2;
         if (Math.abs(lineCrossApprox - tCrossCenter) > this._trunkProximity) continue;
@@ -2187,7 +2632,7 @@ export class RouterCore {
       // widened — the registry row itself grows via _recomputeTrunkBounds
       // when the join actually registers.
       if (t.origin === 'discovered' && Number.isFinite(t.crossCenter)) {
-        const half = this._trunkBandHalfWidth(t, stubReq.id);
+        const half = this._trunkBandHalfWidth(t, lineId);
         if (horizontal) { cand.y1 = t.crossCenter - half; cand.y2 = t.crossCenter + half; }
         else { cand.x1 = t.crossCenter - half; cand.x2 = t.crossCenter + half; }
       }
@@ -2227,10 +2672,14 @@ export class RouterCore {
    * @param {number[]} approachPoint
    * @param {number[]} departPoint
    * @param {string} lineId - req.id, for bundling offset lookup
+   * @param {number} [taperBaseline] - minimum flow-axis room to reserve for
+   *   a cross-axis-only correction instead of leaving it a zero-length
+   *   kink (see the entryFlow/exitFlow grace-zone comment below); 0
+   *   preserves the old always-minimal-distance behavior
    * @returns {{ entry: number[], exit: number[], horizontal: boolean, entryAlreadyInside: boolean, exitAlreadyInside: boolean, laneOffset: number, laneIndex: number, laneCount: number, lineSpacing: number }}
    * @private
    */
-  _channelCrossingPoints(chan, approachPoint, departPoint, lineId) {
+  _channelCrossingPoints(chan, approachPoint, departPoint, lineId, taperBaseline = 0) {
     const horizontal = chan.direction === 'horizontal';
     const flow = horizontal ? 0 : 1;   // axis index the line travels along through the channel
     const cross = horizontal ? 1 : 0;  // axis index perpendicular to flow (bundling axis)
@@ -2273,19 +2722,61 @@ export class RouterCore {
     // channel's x-range produced exactly this there-and-back reversal.
     // Clamping the depart point directly gives the true minimal exit
     // coordinate in every case.
-    const entryFlow = Math.max(lo, Math.min(hi, approachFlow));
-    const exitFlow = Math.max(lo, Math.min(hi, departFlow));
+    let entryFlow = Math.max(lo, Math.min(hi, approachFlow));
+    let exitFlow = Math.max(lo, Math.min(hi, departFlow));
 
-    // True when clamping didn't move the reference point at all — i.e. the
-    // approach/depart point was already within the channel's flow-axis
-    // span, so the leg touching that boundary is fundamentally a
-    // cross-axis-only move (only throughCoord differs). Hard-constraining
-    // such a leg's direction to the channel's flow axis anyway is
-    // geometrically incompatible with "start and end share this flow
-    // coordinate" and forces an artificial there-and-back detour just to
-    // satisfy it (confirmed empirically on both boundaries). The caller
-    // should relax that leg's hint to a plain geometry fallback instead of
-    // a hard 'channel_axis' block when true.
+    // Grace zone: when the approach point already sits inside the channel's
+    // flow-axis span AND a real cross-axis lane correction is still
+    // required, reserve a small amount of flow-axis room instead of
+    // leaving the boundary at EXACTLY the approach point's own coordinate —
+    // otherwise the cross-axis correction becomes a zero-length kink with
+    // no adjacent segment length for corner-rounding to work with.
+    // `taperBaseline` (the same stubLengthFor(stubReq) baseline
+    // _pushBundledApproachLegs already uses for its own nudge) is reserved
+    // toward wherever the line actually continues, capped at HALF the
+    // total flow-axis room available. `laneCount > 1` mirrors
+    // _pushBundledApproachLegs's own gate.
+    //
+    // ENTRY side only, deliberately — an equivalent exit-side taper was
+    // tried and reverted: `departPoint` here is `_corridorRefPoint`'s own
+    // look-ahead reference for the NEXT channel in a chain (see
+    // _computeCorridorRouted's own comment on `nextRef`), not always the
+    // line's true final destination — tapering the exit away from that
+    // reference re-introduces a small mismatch with the next channel's own
+    // entry computation right at the chain boundary, producing a tiny
+    // (sub-pixel-scale) residual reversal there. The true final tail leg
+    // (last channel in the chain, departPoint genuinely is stubReq.b) has
+    // no such conflict, but isn't distinguished from an interior chain
+    // boundary at this call site, so exit tapering is skipped uniformly
+    // rather than risk it. The entry side has no equivalent look-ahead
+    // dependency, so it stays safe.
+    //
+    // An earlier version of this exact fix was reverted after it broke
+    // trunk-lanes.test.js (a trunk's own creator stopped holding its
+    // centerline, and a 2-line scenario stopped converging) — root-caused
+    // to a SEPARATE, pre-existing latent bug in _registerLineSegments (now
+    // fixed there: trunk-matching now prefers the LONGEST run, not
+    // positional order, so an artificially-lengthened nudge leg can no
+    // longer steal an existing trunk's match from the real, much longer
+    // trunk-riding run behind it). That fix is a prerequisite for this one
+    // to be safe — reintroducing this taper without it reproduces the
+    // exact same regression.
+    if (taperBaseline > 0 && laneCount > 1 && entryFlow === approachFlow && throughCoord !== approachPoint[cross]) {
+      const halfSpan = Math.abs(departFlow - approachFlow) / 2;
+      const dir = Math.sign(departFlow - approachFlow);
+      if (dir !== 0) entryFlow = Math.max(lo, Math.min(hi, approachFlow + dir * Math.min(taperBaseline, halfSpan)));
+    }
+
+    // True when the boundary sits at EXACTLY the approach/depart point's
+    // own coordinate — i.e. the leg touching that boundary is fundamentally
+    // a cross-axis-only move (only throughCoord differs), whether because
+    // clamping never moved it at all, or the grace-zone taper above didn't
+    // apply. Hard-constraining such a leg's direction to the channel's flow
+    // axis anyway is geometrically incompatible with "start and end share
+    // this flow coordinate" and forces an artificial there-and-back detour
+    // just to satisfy it (confirmed empirically on both boundaries). The
+    // caller should relax that leg's hint to a plain geometry fallback
+    // instead of a hard 'channel_axis' block when true.
     const entryAlreadyInside = entryFlow === approachFlow;
     const exitAlreadyInside = exitFlow === departFlow;
 
@@ -2475,6 +2966,21 @@ export class RouterCore {
       ? Math.sign(to[flow] - from[flow]) * Math.min(rawOffset, available)
       : 0;
     if (!corridorOffset) {
+      // NOTE: a cross-axis-only split (from[flow] === to[flow'] but
+      // from[cross] !== to[cross]) was tried here — unconditionally
+      // downgrading firstHint to 'geometry' whenever laneCount > 1 — and
+      // reverted. It regressed a case where the existing hard hint was
+      // harmless: a line routing around its own anchor box's obstacle
+      // needed a sideways-first move regardless, which the hard
+      // "don't reverse the stub's departure" block already produced for
+      // free; discarding that hint let the pathfinder wander into a
+      // slightly different, wobblier detour instead. The genuinely-needed
+      // case (a discovered trunk's real lane-offset entry falls behind the
+      // stub, forcing an actual reversal) is handled by
+      // _computeManhattan's degenerate-and-soft bailout once _computeGrid
+      // legitimately returns null for the (still hard-blocked, via 1a's
+      // 'anchor_stub'/'attach_stub' downgrade) unsplit fallback below —
+      // no separate softening needed here.
       // No real bundling need — this line is genuinely alone at this
       // channel/trunk (laneCount <= 1) or there's no spacing configured.
       // Fall back to a single, unsplit leg with the TRUE hints, letting
@@ -2622,6 +3128,21 @@ export class RouterCore {
 
     const legs = [];
     let cursor = stubReq.a;
+    // Every point that is a REAL, meaningful crossing along this chain —
+    // a channel's own entry/exit (from _channelCrossingPoints) and the
+    // two ends of the whole chained route (stubReq.a/.b). Collected by
+    // coordinate, not by which hint string happens to be attached to
+    // whichever leg touches the point: _pushBundledApproachLegs's own
+    // interior 'nudge'/'mid' correction points are explicitly documented
+    // as NOT real edge-crossings, yet the leg departing FROM 'mid' is
+    // still given a 'channel_axis' hint on that side purely to steer that
+    // leg's own search direction toward the channel's flow axis — using
+    // hint-source alone to decide "must this point survive?" would
+    // wrongly protect 'mid' too (confirmed: a real reversal at exactly
+    // such a point was missed this way before this was reworked to track
+    // geometric role instead of hint string). See
+    // _collapseSoftLegReversals for how this set is used.
+    const mandatoryPoints = new Set([this._ptKey(stubReq.a), this._ptKey(stubReq.b)]);
     // Mirrors entryAlreadyInside on the OTHER boundary: true when the
     // previous channel's exit point didn't actually move from its own
     // depart reference (already inside that channel's span), meaning the
@@ -2642,11 +3163,36 @@ export class RouterCore {
       // corner — confirmed rendering as a degenerate zero-length
       // corner-rounding arc).
       const nextRef = next ? this._corridorRefPoint(next, stubReq.id) : stubReq.b;
-      const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, laneCount, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id);
+      const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, laneCount, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id, stubLengthFor(legBase));
+      mandatoryPoints.add(this._ptKey(entry));
+      mandatoryPoints.add(this._ptKey(exit));
 
+      // k===0's `from` (cursor) is stubReq.a — the STUB's landing point,
+      // not the true raw anchor. _applyCardinalStubs already spent the
+      // hard, unconditional "don't reverse this direction" guarantee
+      // getting there (computePath:763-765, once, before trunk discovery
+      // even runs) — re-propagating the raw 'anchor_side' source here
+      // makes every downstream consumer (_computeGrid's reversal-block,
+      // _computeManhattan's stub+elbow construction) treat this inner
+      // correction leg as if it still needed that same hard guarantee,
+      // even when a discovered trunk's real lane-offset entry requires a
+      // short, legitimate step back toward (or past) the stub point.
+      // Downgraded to 'anchor_stub': _computeGrid still hard-blocks the
+      // exact reversal for this source too (a soft cost-penalty version
+      // was tried and reverted — it let A* choose genuinely unnecessary
+      // reversals whenever grid quantization made one look marginally
+      // cheaper). What actually changes for 'anchor_stub' vs 'anchor_side'
+      // is the FALLBACK when that hard block leaves no path: the
+      // corridor-routed leg loop (below) retries via _computeGrid again
+      // with the source relaxed to 'geometry' — still obstacle-aware,
+      // unlike _computeManhattan — before ever falling to Manhattan.
+      // Confirmed as a real bug: a line whose bundled entry point fell
+      // between its raw anchor and its own stub reach produced a same-axis
+      // 180-degree reversal that the un-downgraded hard block simply had
+      // no valid non-reversing shape to return for.
       this._pushBundledApproachLegs(legs, legBase, cursor, entry, horizontal, laneIndex, laneCount, lineSpacing,
         k === 0
-          ? { source: stubReq._hintSourceFirst, mode: stubReq.modeHint, anchorSide: stubReq.anchorSide }
+          ? { source: stubReq._hintSourceFirst === 'anchor_side' ? 'anchor_stub' : stubReq._hintSourceFirst, mode: stubReq.modeHint, anchorSide: stubReq.anchorSide }
           : (prevExitAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal: chainChannels[k - 1].direction === 'horizontal' }),
         entryAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal });
       legs.push(this._buildLegRequest(legBase, entry, exit,
@@ -2658,10 +3204,12 @@ export class RouterCore {
       lastLaneCount = laneCount;
       lastLineSpacing = lineSpacing;
     }
+    // Mirrors the k===0 downgrade above: `to` here is stubReq.b, the
+    // arrival stub's landing point, not the true raw attach point.
     const lastChan = chainChannels[chainChannels.length - 1];
     this._pushBundledApproachLegs(legs, legBase, cursor, stubReq.b, lastChan.direction === 'horizontal', lastLaneIndex, lastLaneCount, lastLineSpacing,
       prevExitAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal: lastChan.direction === 'horizontal' },
-      { source: stubReq._hintSourceLast, mode: stubReq.modeHintLast, attachSide: stubReq.attachSide });
+      { source: stubReq._hintSourceLast === 'attach_side' ? 'attach_stub' : stubReq._hintSourceLast, mode: stubReq.modeHintLast, attachSide: stubReq.attachSide });
 
     let pts = [];
     let totalIterations = 0;
@@ -2673,6 +3221,31 @@ export class RouterCore {
       let legResult;
       legResult = this._computeGrid(legReq);
       if (smart && legResult) legResult = this._refineSmart(legReq, legResult);
+      // A null result for a leg carrying 'anchor_stub'/'attach_stub' means
+      // the hard reversal-block correctly rejected the ONLY direction A*
+      // was willing to consider first/last — but this leg's start/end is
+      // already a resolved stub, not the raw anchor (see the k===0/last-leg
+      // hint downgrade above), so a short reversal really is a legitimate
+      // correction here, not a visible backtrack into the source box.
+      // Retry through _computeGrid again (NOT straight to _computeManhattan
+      // below) with those sources relaxed to 'geometry' — _computeGrid is
+      // still obstacle-aware, _computeManhattan never is. Confirmed as a
+      // real bug the naive alternative (falling straight to
+      // _computeManhattan's own softened elbow construction) caused: for a
+      // leg that also needed to route around an obstacle, the non-
+      // obstacle-aware Manhattan fallback drew a straight line directly
+      // through it. This retry only ever fires when the hard attempt
+      // genuinely failed — a leg that already finds a valid non-reversing,
+      // obstacle-avoiding path (the common case) is completely unaffected.
+      if (!legResult && (legReq._hintSourceFirst === 'anchor_stub' || legReq._hintSourceFirst === 'attach_stub' || legReq._hintSourceLast === 'anchor_stub' || legReq._hintSourceLast === 'attach_stub')) {
+        const relaxedLegReq = {
+          ...legReq,
+          _hintSourceFirst: (legReq._hintSourceFirst === 'anchor_stub' || legReq._hintSourceFirst === 'attach_stub') ? 'geometry' : legReq._hintSourceFirst,
+          _hintSourceLast: (legReq._hintSourceLast === 'anchor_stub' || legReq._hintSourceLast === 'attach_stub') ? 'geometry' : legReq._hintSourceLast
+        };
+        legResult = this._computeGrid(relaxedLegReq);
+        if (smart && legResult) legResult = this._refineSmart(relaxedLegReq, legResult);
+      }
       if (!legResult) legResult = this._computeManhattan(legReq);
       totalIterations += legResult.meta?.grid?.iterations || 0;
       const legPts = legResult.pts;
@@ -2684,6 +3257,26 @@ export class RouterCore {
         pts.push(...legPts.slice(startIdx));
       }
     }
+    // Generalized version of computePath's own outer stub-splice collapse
+    // (see its comment for the full rationale and the obstacle-crossing
+    // guard's own history): every leg here is pathfound independently, so
+    // a reversal can in principle appear at ANY splice between two legs,
+    // not just the outermost stub boundary — this session found and
+    // patched several distinct mechanisms that could produce one (see
+    // this file's other comments referencing 'anchor_stub'/'attach_stub'),
+    // and there is no way to prove no further mechanism exists. Rather
+    // than keep chasing individual causes, collapse any reversal found at
+    // a point that isn't one of this chain's real crossings (mandatoryPoints,
+    // built above from each channel's own entry/exit and the chain's own
+    // two ends — NOT from leg hint-source strings, which are ambiguous:
+    // _pushBundledApproachLegs's own interior 'mid' correction point
+    // carries a 'channel_axis' hint on its departure side purely to steer
+    // that leg's search direction, even though the point itself is
+    // explicitly documented as not a real edge-crossing — confirmed this
+    // matters: an early hint-string-based version of this backstop missed
+    // exactly this shape of reversal), and never when the direct
+    // replacement segment would cross an obstacle.
+    pts = this._collapseSoftLegReversals(pts, mandatoryPoints);
     pts = this._compactPolyline(pts);
 
     // Reporting only — geometry already guaranteed by leg construction.
@@ -2752,8 +3345,15 @@ export class RouterCore {
     // actually came from anchor_side/attach_side (not an explicit
     // route_hint/route_hint_last override or the geometry fallback below),
     // so every other case keeps behaving exactly as before.
-    const anchorDir = req._hintSourceFirst === 'anchor_side' ? CARDINAL_DIR[req.anchorSide] : null;
-    const attachDir = req._hintSourceLast === 'attach_side' ? CARDINAL_DIR[req.attachSide] : null;
+    // 'anchor_stub'/'attach_stub' (see _computeCorridorRouted's k===0 hint
+    // downgrade) carry the same direction preference but are NOT the true
+    // raw anchor/attach point — this leg's own start/end is already a
+    // resolved stub. anchorHard/attachHard distinguish the two below, for
+    // the degenerate-elbow bailout.
+    const anchorDir = (req._hintSourceFirst === 'anchor_side' || req._hintSourceFirst === 'anchor_stub') ? CARDINAL_DIR[req.anchorSide] : null;
+    const attachDir = (req._hintSourceLast === 'attach_side' || req._hintSourceLast === 'attach_stub') ? CARDINAL_DIR[req.attachSide] : null;
+    const anchorHard = req._hintSourceFirst === 'anchor_side';
+    const attachHard = req._hintSourceLast === 'attach_side';
 
     let pts;
     if (anchorDir || attachDir) {
@@ -2788,7 +3388,7 @@ export class RouterCore {
         // elbow shape came from lastMode alone: a line could ride back along
         // its own source box's edge, and only the *axis* (not the side) of
         // its final approach into the target was guaranteed.
-        const stubLength = cardinalStubLengthFor(req);
+        const stubLength = cardinalStubLengthFor(req, this._resolvedGridResolution());
         // Same two-step clamp as _applyCardinalStubs (grid/smart) — edge
         // first, then shorten either stub that would land past the OTHER
         // stub's own resolved position (see _noOvershootStub).
@@ -2839,9 +3439,40 @@ export class RouterCore {
           }
         }
 
-        const raw = [p1, p1s, elbow, p2s, p2];
-        pts = raw.filter((pt,i) => i === 0 || pt[0] !== raw[i-1][0] || pt[1] !== raw[i-1][1]);
-        if (pts.length < 2) pts = [p1, p2];
+        // Degenerate-and-soft bailout: when p1s/p2s already share a
+        // coordinate (e.g. this leg's start is already at its own
+        // viewBox-edge stub limit, so its stub length collapsed to 0),
+        // BOTH candidate elbows coincide with p1s or p2s — there is no
+        // non-degenerate detour this construction can produce, and the
+        // anti-reversal swap above has nothing real to swap to. For a
+        // HARD anchor/attach (the true raw-anchor case), keep today's
+        // behavior: the raw (possibly reversed) segment is still the
+        // correct output, since the hard guarantee has nowhere else to
+        // come from. For a SOFT source (this leg's start/end is already a
+        // resolved stub, not a raw anchor — see anchorHard/attachHard
+        // above), abandon this construction and fall through to the same
+        // plain, direction-agnostic elbow used below when neither
+        // anchorDir nor attachDir applies at all. Confirmed as the actual
+        // fix for a real reversal: a corridor-approach leg whose start was
+        // already stub-clamped to zero remaining room produced exactly
+        // this degenerate shape, and the raw reversed 2-point segment fell
+        // out untouched.
+        const elbowDegenerate =
+          (elbow[0] === p1s[0] && elbow[1] === p1s[1] && !anchorHard) ||
+          (elbow[0] === p2s[0] && elbow[1] === p2s[1] && !attachHard);
+        if (elbowDegenerate) {
+          if (x1 === x2 || y1 === y2) {
+            pts = [[x1, y1], [x2, y2]];
+          } else if (lastMode === 'xy') {
+            pts = [[x1, y1], [x2, y1], [x2, y2]];
+          } else {
+            pts = [[x1, y1], [x1, y2], [x2, y2]];
+          }
+        } else {
+          const raw = [p1, p1s, elbow, p2s, p2];
+          pts = raw.filter((pt,i) => i === 0 || pt[0] !== raw[i-1][0] || pt[1] !== raw[i-1][1]);
+          if (pts.length < 2) pts = [p1, p2];
+        }
       }
     } else if (x1 === x2 || y1 === y2) {
       pts = [[x1,y1],[x2,y2]];
@@ -2923,6 +3554,104 @@ export class RouterCore {
       }
     }
     return { penalty: total, detail };
+  }
+
+  /**
+   * Total crossing-avoidance penalty for a FINISHED candidate polyline,
+   * counting genuine perpendicular crossings against every OTHER line's
+   * registered segments (`this._crossings`) — the post-hoc counterpart to
+   * `_buildCrossingCostGrid`'s per-cell A* search bias, weighted by the same
+   * `crossing_avoid_bias`. Needed because a route's FINAL reported
+   * `meta.cost` (via `_costComposite`) never included this signal: the
+   * search-time bias can steer an individual leg's shape away from a
+   * crossing when there's room to maneuver, but a corridor "ride this
+   * trunk" leg's endpoints are fixed by the trunk itself, so the search often
+   * has no alternative shape to choose — and even when it does, the
+   * penalty it paid during search was never carried into the final cost
+   * used to compare WHOLE CANDIDATE ROUTES against each other (e.g.
+   * computePath's corridor-vs-plain, or solo-trunk-A-vs-solo-trunk-B,
+   * comparisons). Confirmed as a real bug: a solo-trunk candidate with two
+   * genuine line crossings won a cost comparison against a same-length
+   * alternative with only one, purely because crossings weren't part of
+   * either candidate's compared cost at all.
+   *
+   * No bundle-mate exemption is needed here (unlike _buildCrossingCostGrid,
+   * which steers a whole leg's shape and must not repel true bundle-mates
+   * apart) — mates run PARALLEL along a shared trunk lane, and this counts
+   * only genuine PERPENDICULAR crossings, so a parallel bundled run can
+   * never register as one regardless of membership.
+   * Weighted by `cost_defaults.crossing` (default 50), deliberately its OWN
+   * constant rather than reusing `crossing_avoid_bias` (the A* search's
+   * per-cell steering bias, default 4): that value is tuned to nudge a
+   * search that still has room to maneuver, not to meaningfully separate
+   * two already-finished ROUTES in a whole-candidate cost comparison —
+   * confirmed too weak for that job in the field (a real crossing-count
+   * difference of 2 vs 1 moved the comparison by barely 8 units, dwarfed by
+   * a much larger corridor-discount gap between the two candidates). A
+   * crossing is a discrete, countable defect (this or that many, not a
+   * function of how many grid cells wide it happens to render at whatever
+   * resolution), so this counts real geometric intersections directly,
+   * independent of grid_resolution.
+   * @param {number[][]} pts
+   * @param {string} askingLineId - never penalize a line for crossing its own registered segments
+   * @returns {number} pre-weighted penalty, added directly to a cost total (not multiplied further)
+   * @private
+   */
+  _segmentCrossingPenalty(pts, askingLineId) {
+    if (!this._crossingAvoidEnabled || !this._crossings.length) return 0;
+    const weight = Number(this.config?.cost_defaults?.crossing ?? 50);
+    let penalty = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      const vertical = a[0] === b[0];
+      if (!vertical && a[1] !== b[1]) continue; // not axis-aligned; shouldn't happen, skip defensively
+      const lo = vertical ? Math.min(a[1], b[1]) : Math.min(a[0], b[0]);
+      const hi = vertical ? Math.max(a[1], b[1]) : Math.max(a[0], b[0]);
+      for (const seg of this._crossings) {
+        if (seg.lineId === askingLineId) continue;
+        const segVertical = seg.direction === 'vertical';
+        if (segVertical === vertical) continue; // parallel; can't perpendicular-cross
+        const fixedCoord = vertical ? a[0] : a[1];
+        const segLo = segVertical ? seg.y1 : seg.x1;
+        const segHi = segVertical ? seg.y2 : seg.x2;
+        const segFixed = segVertical ? seg.x1 : seg.y1;
+        if (segFixed > lo && segFixed < hi && fixedCoord > segLo && fixedCoord < segHi) {
+          penalty += weight;
+        }
+      }
+    }
+    return penalty;
+  }
+
+  /**
+   * True if the axis-aligned segment a->b passes through the interior of
+   * any registered obstacle (strict overlap, not merely touching an edge —
+   * a segment that only grazes an obstacle's boundary isn't cutting
+   * through its rendered area). Used to gate the splice-boundary reversal
+   * collapse above: dropping a stub's landing point is only safe when the
+   * resulting direct segment doesn't newly cut through an obstacle the
+   * original (reversing) path happened to avoid via that very point.
+   * @param {number[]} a
+   * @param {number[]} b
+   * @returns {boolean}
+   * @private
+   */
+  _segmentCrossesObstacle(a, b) {
+    if (!this._obstacles.length) return false;
+    const vertical = a[0] === b[0];
+    if (!vertical && a[1] !== b[1]) return false; // only axis-aligned segments are checked
+    const x1 = Math.min(a[0], b[0]), x2 = Math.max(a[0], b[0]);
+    const y1 = Math.min(a[1], b[1]), y2 = Math.max(a[1], b[1]);
+    for (const ob of this._obstacles) {
+      if (vertical) {
+        if (a[0] <= ob.x1 || a[0] >= ob.x2) continue;
+        if (y2 > ob.y1 && y1 < ob.y2) return true;
+      } else {
+        if (a[1] <= ob.y1 || a[1] >= ob.y2) continue;
+        if (x2 > ob.x1 && x1 < ob.x2) return true;
+      }
+    }
+    return false;
   }
 
   _nearestObstacleBandOverlap(a, b, band) {
@@ -3239,6 +3968,70 @@ export class RouterCore {
     return { d, pts: bestPts, meta: baseMeta };
   }
 
+  /**
+   * String key for a point, used to test set membership by coordinate
+   * rather than by object identity or array index.
+   * @param {number[]} p
+   * @private
+   */
+  _ptKey(p) {
+    return p[0] + ',' + p[1];
+  }
+
+  /**
+   * Structural backstop for _computeCorridorRouted: a chained route is
+   * assembled from independently-pathfound legs, spliced together at
+   * whatever point each leg's own construction chose as its boundary (see
+   * _pushBundledApproachLegs / the k===0 and last-leg hint downgrades).
+   * This session found and fixed several distinct mechanisms that could
+   * make two adjacent legs meet at a splice point in a way that reverses
+   * direction on the same axis — each one a different root cause, in a
+   * different function, discovered only via real MSD configs (most
+   * recently via a higher-line-count stress scenario, after the earlier,
+   * hint-source-string-based version of this same backstop shipped:
+   * that version wrongly treated a 'channel_axis'-hinted interior 'mid'
+   * point from _pushBundledApproachLegs as sacred, even though that hint
+   * only steers the leg's own search direction — the point itself is
+   * explicitly documented as not a real edge-crossing, and missed exactly
+   * that reversal shape). Rather than assume no further mechanism exists,
+   * this collapses any reversal found at a point that isn't one of this
+   * chain's real crossings — `mandatoryPoints`, built in
+   * _computeCorridorRouted directly from each channel's own entry/exit
+   * and the whole chain's own two ends, by coordinate, independent of
+   * which hint string a leg touching that point happens to carry — mirroring
+   * computePath's own outer stub-splice collapse (including its
+   * obstacle-crossing guard: dropping the splice point must never trade a
+   * visible reversal for cutting through an obstacle the detour via that
+   * point was the only reason avoided).
+   * @param {number[][]} pts
+   * @param {Set<string>} mandatoryPoints
+   * @returns {number[][]}
+   * @private
+   */
+  _collapseSoftLegReversals(pts, mandatoryPoints) {
+    if (pts.length <= 2) return pts;
+    const out = [pts[0]];
+    for (let i = 1; i < pts.length - 1; i++) {
+      const a = out[out.length - 1];
+      const b = pts[i];
+      const c = pts[i + 1];
+      if (!mandatoryPoints.has(this._ptKey(b))) {
+        const sameX = a[0] === b[0] && b[0] === c[0];
+        const sameY = a[1] === b[1] && b[1] === c[1];
+        if (sameX || sameY) {
+          const d1 = sameX ? (b[1] - a[1]) : (b[0] - a[0]);
+          const d2 = sameX ? (c[1] - b[1]) : (c[0] - b[0]);
+          if (d1 !== 0 && d2 !== 0 && Math.sign(d1) !== Math.sign(d2) && !this._segmentCrossesObstacle(a, c)) {
+            continue; // drop b: a soft splice point that reversed direction
+          }
+        }
+      }
+      out.push(b);
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+
   _compactPolyline(pts) {
     if (pts.length <= 2) return pts;
     const out = [pts[0]];
@@ -3265,6 +4058,41 @@ export class RouterCore {
     }
     out.push(pts[pts.length-1]);
     return out;
+  }
+
+  /**
+   * Shortest distance from point `p` to any OTHER line's registered
+   * axis-aligned segment (`this._crossings`), used to keep corner-rounding
+   * from bulging into another line's rendered path — see
+   * _applyCornerRounding's own comment for why this is needed (rounding is
+   * otherwise entirely blind to other lines' geometry). Distance to an
+   * axis-aligned segment is the perpendicular distance when `p` projects
+   * onto the segment's span, else the distance to the nearer endpoint —
+   * the standard point-to-segment formula, specialized for
+   * horizontal/vertical segments only (every registered segment is one or
+   * the other).
+   * @param {number[]} p
+   * @param {string} askingLineId - never measure against a line's own segments
+   * @returns {number} Infinity if no other segments are registered
+   * @private
+   */
+  _distanceToNearestOtherLineSegment(p, askingLineId) {
+    if (!this._crossings.length) return Infinity;
+    let best = Infinity;
+    for (const seg of this._crossings) {
+      if (seg.lineId === askingLineId) continue;
+      let dx, dy;
+      if (seg.direction === 'horizontal') {
+        dx = p[0] < seg.x1 ? seg.x1 - p[0] : p[0] > seg.x2 ? p[0] - seg.x2 : 0;
+        dy = Math.abs(p[1] - seg.y1);
+      } else {
+        dy = p[1] < seg.y1 ? seg.y1 - p[1] : p[1] > seg.y2 ? p[1] - seg.y2 : 0;
+        dx = Math.abs(p[0] - seg.x1);
+      }
+      const d = Math.hypot(dx, dy);
+      if (d < best) best = d;
+    }
+    return best;
   }
 
   _applyCornerRounding(routeResult, radiusGlobal, routeId = null) {
@@ -3306,6 +4134,76 @@ export class RouterCore {
       const dot = vIn[0] * vOut[0] + vIn[1] * vOut[1];
       const isStraightThrough = cross === 0 && dot > 0;
       let r = isStraightThrough ? 0 : Math.min(radiusGlobal, lenIn / 2, lenOut / 2);
+      // Clamp against bulging into another line's own registered path.
+      // Corner rounding is otherwise entirely blind to other lines'
+      // geometry — the underlying straight polyline can have a real (if
+      // small) gap to another line, yet still round into it, because
+      // rounding never re-checks anything once the route's own shape is
+      // decided. Confirmed as a real bug via a live user report and a
+      // flattened-arc intersection check: two lines' straight polylines
+      // only grazed a shared corner point (zero real crossing), yet their
+      // independently-rounded corners — each shrunk small by short
+      // adjacent segments, so both already tightly packed near that same
+      // point — bulged into each other, producing a crossing that didn't
+      // exist in the underlying route at all.
+      //
+      // For an ORTHOGONAL corner (the overwhelming majority in this
+      // router), the fillet's center sits at a FIXED direction from the
+      // sharp corner point, independent of radius: `center = p +
+      // radius*(vOutUnit - vInUnit)` (magnitude sqrt(2), since perpendicular
+      // unit vectors) — the standard construction (tangent points sit
+      // exactly `radius` from the corner along each leg; the center is
+      // equidistant `radius` from both, offset perpendicular to each line).
+      // Every point on the actual SWEPT arc (the 90° quarter nearest the
+      // corner) is then within `radius` of that center. This lets the
+      // clearance check target the arc's OWN true position — a circle of
+      // `radius` centered at `center` — instead of conservatively assuming
+      // the whole arc could be anywhere within `radius` of the sharp
+      // corner point itself (the first version of this fix): that
+      // assumption is safe but often needlessly tight, since a corner can
+      // curve AWAY from a nearby line just as easily as toward it, and
+      // still forced a tiny radius even when the arc's own real sweep
+      // never came remotely close. Confirmed as a real case: a corner
+      // curving away from a line only 8 units away (by raw point distance)
+      // was clamped to ~7 despite the true arc never leaving a region ~1
+      // unit from where it started, when it had genuine room for a much
+      // larger, requested radius.
+      //
+      // Binary search (not a closed form) because the target function —
+      // distance from a moving center to the nearest OTHER line's nearest
+      // segment, minus the trial radius — has a kink wherever the nearest
+      // segment changes or the center's projection crosses a segment
+      // endpoint; 20 iterations is comfortably enough precision for a
+      // visual radius and cheap enough to run per corner. r=0 (a sharp,
+      // un-rounded corner) is always trivially safe as the search floor —
+      // zero radius means zero arc extent, regardless of raw clearance.
+      if (!isStraightThrough && routeId) {
+        const isOrthCorner = (vIn[0] === 0 || vIn[1] === 0) && (vOut[0] === 0 || vOut[1] === 0) &&
+          !(vIn[0] === 0 && vIn[1] === 0) && !(vOut[0] === 0 && vOut[1] === 0) &&
+          !(Math.sign(vIn[0]) === Math.sign(vOut[0]) && vIn[0] !== 0) &&
+          !(Math.sign(vIn[1]) === Math.sign(vOut[1]) && vIn[1] !== 0);
+        if (isOrthCorner && lenIn > 0 && lenOut > 0) {
+          const vInUnit = [vIn[0] / lenIn, vIn[1] / lenIn];
+          const vOutUnit = [vOut[0] / lenOut, vOut[1] / lenOut];
+          const offsetDir = [vOutUnit[0] - vInUnit[0], vOutUnit[1] - vInUnit[1]];
+          let lo = 0, hi = r;
+          for (let iter = 0; iter < 20; iter++) {
+            const mid = (lo + hi) / 2;
+            const center = [p[0] + mid * offsetDir[0], p[1] + mid * offsetDir[1]];
+            const clearance = this._distanceToNearestOtherLineSegment(center, routeId);
+            if (clearance - mid >= arcMin) lo = mid; else hi = mid;
+          }
+          r = lo;
+        } else {
+          // Non-orthogonal (rare in this Manhattan-style router — not
+          // rigorously covered by the fillet-center proof above, whose
+          // tangentDist formula depends on the corner's own angle) falls
+          // back to the original, safe-but-conservative point-distance
+          // bound instead.
+          const clearance = this._distanceToNearestOtherLineSegment(p, routeId);
+          if (clearance < r) r = Math.max(0, clearance - arcMin);
+        }
+      }
       cornerRadii.push({ index: i, radius: r, lenIn, lenOut });
     }
 
@@ -3322,8 +4220,22 @@ export class RouterCore {
         // Check if trim points overlap or leave insufficient space
         // Trigger when combined trims exceed 70% of segment (leaving less than 30% for the line)
         if (totalTrim >= segmentLength * 0.70) {
-          // Reduce both radii proportionally to use 65% of segment (leave 35% gap)
-          const scale = (segmentLength * 0.65) / totalTrim;
+          // Reduce both radii proportionally to leave a gap — normally 35%
+          // (use 65% of the segment), reserved so two GENUINELY separate
+          // corners that just happen to be moderately close still show a
+          // visibly distinct straight bit between them. For a very short
+          // shared segment (a handful of px — below this same function's
+          // own arcMin-based floor for a meaningful corner at all), that
+          // reasoning doesn't hold: there's no perceptibly "visible gap"
+          // left at 35% vs 5% either way, and insisting on one anyway
+          // forces BOTH radii below arcMin, rendering a sharp double-kink
+          // instead of any rounding at all. This is exactly the shape of a
+          // corridor-bundling nudge's own tiny cross-axis correction leg —
+          // genuinely two ends of ONE transition, not two independently
+          // competing corners — so use a much more generous 95% target
+          // there instead, letting a small but real, visible curve render.
+          const target = segmentLength <= arcMin * 4 ? 0.95 : 0.65;
+          const scale = (segmentLength * target) / totalTrim;
           curr.radius *= scale;
           next.radius *= scale;
         }
