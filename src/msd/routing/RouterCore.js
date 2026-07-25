@@ -859,8 +859,9 @@ export class RouterCore {
       // genuinely stale ones), so an identical recompute is a strict
       // version no-op — see its own comment for why that discipline is
       // load-bearing for discovery-loop convergence.
+      let joinedForeignTrunk = false;
       if (result) {
-        this._registerLineSegments(req.id, result.pts);
+        joinedForeignTrunk = this._registerLineSegments(req.id, result.pts);
       }
       // Apply smoothing AFTER corner arcs (arcs preserved, path rebuilt as polyline if smoothing > 0)
       if (result && req.smoothingMode !== 'none' && req.smoothingIterations > 0) {
@@ -875,12 +876,25 @@ export class RouterCore {
       // this call's own registration side effect), or every repeat of this
       // exact request would perpetually miss and re-register, never
       // reaching a stable cache hit.
-      const storeKey = this._cacheKey(req);
-      this._cache.set(storeKey, result);
-      this._cacheOrder.push(storeKey);
-      if (this._cacheOrder.length > this._maxCache) {
-        const oldest = this._cacheOrder.shift();
-        if (oldest) this._cache.delete(oldest);
+      //
+      // Skipped entirely when this call just made this line a NEW member of
+      // a trunk it doesn't own (joinedForeignTrunk) — that new membership is
+      // exactly what makes _discoverTrunkCandidates' membership bypass
+      // offer that trunk as a routing candidate, but only on a FUTURE call.
+      // Storing this call's result under the post-registration key would
+      // make the very next identical request look like an already-stable
+      // cache hit forever, silently hiding the newly-eligible trunk from
+      // ever being reconsidered (confirmed: without this, a line that
+      // coincidentally overlaps another line's trunk registers as a member
+      // with zero effect on its own geometry, permanently).
+      if (!joinedForeignTrunk) {
+        const storeKey = this._cacheKey(req);
+        this._cache.set(storeKey, result);
+        this._cacheOrder.push(storeKey);
+        if (this._cacheOrder.length > this._maxCache) {
+          const oldest = this._cacheOrder.shift();
+          if (oldest) this._cache.delete(oldest);
+        }
       }
       return { ...result, meta: { ...result.meta, cache_hit: false } };
   }
@@ -1850,6 +1864,11 @@ export class RouterCore {
    * whenever the member set shifts.
    * @param {string} lineId
    * @param {number[][]} pts
+   * @returns {boolean} whether this scan made lineId a brand-new member of
+   *   a trunk it doesn't own (see _mergeOrRegisterTrunk's foreignJoinFlag
+   *   comment) — computePath uses this to skip caching, so the next pass
+   *   gets a genuine chance to route through the newly-eligible trunk
+   *   instead of looking like an already-stable cache hit forever.
    * @private
    */
   _registerLineSegments(lineId, pts) {
@@ -1875,6 +1894,10 @@ export class RouterCore {
     // toggle only disables CREATING new discovered rows (spontaneous
     // bundling) — see _mergeOrRegisterTrunk's create gate.
     const touchedTrunks = (this._trunkBundlingEnabled || this._trunks.length) ? new Set() : null;
+    // See _mergeOrRegisterTrunk's comment on foreignJoinFlag: set when this
+    // scan makes this line a brand-new member of a row it doesn't own,
+    // so computePath knows not to cache this call's result.
+    const foreignJoinFlag = { joined: false };
     for (let i = 1; i < compacted.length; i++) {
       const a = compacted[i - 1], b = compacted[i];
       const horizontal = a[1] === b[1];
@@ -1883,7 +1906,7 @@ export class RouterCore {
       const idx = runIndex++;
       const length = horizontal ? Math.abs(b[0] - a[0]) : Math.abs(b[1] - a[1]);
       if (touchedTrunks && length >= this._trunkMinLength) {
-        if (this._mergeOrRegisterTrunk(lineId, idx, a, b, horizontal, touchedTrunks)) changed = true;
+        if (this._mergeOrRegisterTrunk(lineId, idx, a, b, horizontal, touchedTrunks, foreignJoinFlag)) changed = true;
       }
       if (this._crossingAvoidEnabled && length >= this._crossingMinLength) {
         touchedCrossingIds.add(`cross:${lineId}:${idx}`);
@@ -1912,6 +1935,7 @@ export class RouterCore {
       }
     }
     if (changed) this._registryVersion++;
+    return foreignJoinFlag.joined;
   }
 
   /**
@@ -1987,7 +2011,7 @@ export class RouterCore {
    * @returns {boolean} whether membership or bounds actually changed
    * @private
    */
-  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal, touchedTrunks = null) {
+  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal, touchedTrunks = null, foreignJoinFlag = null) {
     const flow = horizontal ? 0 : 1;
     const cross = horizontal ? 1 : 0;
     const flowLo = Math.min(a[flow], b[flow]);
@@ -2013,6 +2037,18 @@ export class RouterCore {
       // once nothing changed" exit condition).
       if (prev && prev[0] === flowLo && prev[1] === flowHi) return false;
       const isNewMember = !prev;
+      // A line becoming a member of a row it did NOT create happens purely
+      // as a side effect of ITS OWN independent geometry coincidentally
+      // landing near another line's trunk (_discoverTrunkCandidates' gate
+      // — see its own comment on the membership bypass — never offered
+      // this row as a routing candidate before now, since membership is
+      // exactly what makes it eligible next time). Flagged so computePath
+      // can skip caching this call's result: the cache-store key already
+      // folds in the _registryVersion bump this same call causes, which
+      // would otherwise make the NEXT lookup for this exact line look like
+      // a stable cache hit forever, silently hiding the newly-eligible
+      // trunk from ever being reconsidered by discovery.
+      if (isNewMember && existing.sourceLineId !== lineId && foreignJoinFlag) foreignJoinFlag.joined = true;
       existing.members.set(lineId, [flowLo, flowHi]);
       const boundsChanged = this._recomputeTrunkBounds(existing);
       return isNewMember || boundsChanged;
@@ -2122,11 +2158,29 @@ export class RouterCore {
       // rough approximation of where this line's path would sit on the
       // cross axis, good enough for a "is this worth trying" gate (the
       // actual join geometry is computed precisely later, only if this
-      // candidate is used).
-      const lineCrossApprox = (a[cross] + b[cross]) / 2;
-      if (Math.abs(lineCrossApprox - tCrossCenter) > this._trunkProximity) continue;
+      // candidate is used). Bypassed when this line is ALREADY a
+      // registered member of the trunk: membership was earned by an
+      // actually-computed segment's own crossCenter proximity
+      // (_mergeOrRegisterTrunk's "existing" matcher, which tests the real
+      // segment, not a whole-line proxy) — that's strictly more accurate
+      // than this average, and can disagree with it for a line whose
+      // journey has a short shared approach run near one end but a
+      // far/differently-angled destination (confirmed in the field: a
+      // line silently became a registered member of another line's trunk
+      // via its own independent route, yet this gate rejected offering
+      // that same trunk back to it on the next pass, so the membership
+      // had zero effect on the rendered path — perfect unbundled overlap
+      // instead of lane-separated bundling). Membership itself
+      // self-corrects every pass regardless (see _registerLineSegments'
+      // post-scan diff), so this can't pin a line to a trunk its geometry
+      // has actually moved away from.
+      const isMember = t.members?.has(stubReq.id);
+      if (!isMember) {
+        const lineCrossApprox = (a[cross] + b[cross]) / 2;
+        if (Math.abs(lineCrossApprox - tCrossCenter) > this._trunkProximity) continue;
+      }
       if (redundantWithChain(t, horizontal, tCrossCenter, tFlowLo, tFlowHi)) continue;
-      const cand = { ...t, overlap };
+      const cand = { ...t, overlap, _isMember: isMember };
       // Prospective band: size this candidate's cross-axis bounds as if the
       // asking line had already joined (see _trunkBandHalfWidth's comment
       // for the deadlock this prevents). Only the request-local copy is
@@ -2140,7 +2194,25 @@ export class RouterCore {
       candidates.push(cand);
     }
     candidates.sort((p, q) => q.overlap - p.overlap);
-    return candidates.slice(0, this._trunkMaxJoinCandidates);
+    if (candidates.length <= this._trunkMaxJoinCandidates) return candidates;
+    // trunk_max_join_candidates caps how many NEW trunks a line will start
+    // trying, not how many it's allowed to keep once already a genuine
+    // member of each — an already-established multi-trunk membership chain
+    // (e.g. a 3-leg horizontal/vertical/horizontal journey, each leg its
+    // own trunk) must not have one of its legs arbitrarily dropped just
+    // because a fourth, unrelated candidate happens to have more raw
+    // flow-axis overlap. Confirmed as a real failure mode: capping by
+    // overlap alone kept two same-direction (horizontal) trunks over the
+    // vertical one connecting them, producing a genuine zigzag (the line
+    // had to independently bridge the gap the dropped trunk would have
+    // covered, registering a brand-new uncoordinated trunk of its own in
+    // the process instead of reusing the existing one it was already
+    // riding). Existing members always survive; the cap only limits how
+    // many additional, not-yet-joined candidates get added on top.
+    const members = candidates.filter(c => c._isMember);
+    const fresh = candidates.filter(c => !c._isMember);
+    const freshSlots = Math.max(0, this._trunkMaxJoinCandidates - members.length);
+    return [...members, ...fresh.slice(0, freshSlots)];
   }
 
   /**
@@ -2501,6 +2573,27 @@ export class RouterCore {
    * @returns {object|null} route result, or null if `corridors` is empty
    * @private
    */
+
+  /**
+   * A corridor's own reference point on its lane-offset centerline, not its
+   * raw geometric midpoint — used as the "next corridor" lookahead when
+   * computing the PREVIOUS corridor's exit clamp. See the call site's
+   * comment for the overshoot-then-reverse bug this fixes.
+   * @param {object} chan
+   * @param {string} lineId
+   * @returns {number[]}
+   * @private
+   */
+  _corridorRefPoint(chan, lineId) {
+    const horizontal = chan.direction === 'horizontal';
+    const flowMid = horizontal ? (chan.x1 + chan.x2) / 2 : (chan.y1 + chan.y2) / 2;
+    const offset = Number.isFinite(chan.crossCenter) ? this._trunkLaneAssignment(chan, lineId).offset : 0;
+    const throughCoord = Number.isFinite(chan.crossCenter)
+      ? chan.crossCenter + offset
+      : (horizontal ? (chan.y1 + chan.y2) / 2 : (chan.x1 + chan.x2) / 2);
+    return horizontal ? [flowMid, throughCoord] : [throughCoord, flowMid];
+  }
+
   _computeCorridorRouted(stubReq, smart, corridors) {
     const chainChannels = corridors;
     if (!chainChannels.length) return null;
@@ -2540,7 +2633,15 @@ export class RouterCore {
     for (let k = 0; k < chainChannels.length; k++) {
       const chan = chainChannels[k];
       const next = chainChannels[k + 1];
-      const nextRef = next ? [(next.x1 + next.x2) / 2, (next.y1 + next.y2) / 2] : stubReq.b;
+      // The next corridor's own OFFSET entry, not its raw geometric
+      // midpoint — see _corridorRefPoint. Using the raw midpoint here can
+      // clamp THIS corridor's exit to its own flow boundary even when the
+      // next corridor's real (lane-offset) entry sits well inside that
+      // boundary, producing a needless overshoot-to-the-boundary then
+      // backtrack (a true 180-degree reversal on the same axis, not a real
+      // corner — confirmed rendering as a degenerate zero-length
+      // corner-rounding arc).
+      const nextRef = next ? this._corridorRefPoint(next, stubReq.id) : stubReq.b;
       const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, laneCount, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id);
 
       this._pushBundledApproachLegs(legs, legBase, cursor, entry, horizontal, laneIndex, laneCount, lineSpacing,
