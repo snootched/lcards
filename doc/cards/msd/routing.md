@@ -69,6 +69,10 @@ A line's `corner_radius` (round/bevel corners) needs *room* to render at full si
 
 If lines with a large `corner_radius` and an `anchor_side`/`attach_side` hint are crossing each other in places that look avoidable, that's this tradeoff in `forced`-equivalent form — `auto` (the default) is the fix. Use `forced` only where a specific line's corner must render at an exact size regardless of what else is nearby.
 
+**Stroke width is factored into corner clearance**: a corner's rounding radius is clamped by how close the *nearest edge* of a neighboring line's stroke is, not just its centerline — so a thick line (`style.width`) gets a more conservative (smaller) effective radius near other lines than a thin one at the same spacing. This is why increasing `style.width` can visibly tighten a corner that looked fine at the default width — that's the fix for an older, worse problem (a wide stroke's inner edge rendering squared-off because the radius math ignored width entirely); if you want the original wider corner back, increase line spacing (`trunk_line_spacing` / channel `line_spacing`) rather than reducing `style.width`.
+
+**Overriding the mandatory stub**: every routed line reserves a short, unsearched straight run right at departure/arrival (`stub_length` on the line overlay, viewBox units) before pathfinding starts. Leave it unset to use the router's own resolved default (grid-resolution-floored in `auto` corner mode, `2 × corner_radius` in `forced` mode — see above). Setting it below about one grid cell risks re-triggering an internal same-cell short-circuit for very short lines; check the router's own resolved value first via `window.lcards.debug.msd.routing.inspect(id).meta.debug` (see [Debugging](#debugging)) before tuning it down.
+
 ---
 
 ## Channels
@@ -165,6 +169,7 @@ Deep internals — rarely needed. Exposed in the Studio Routing tab under **Adva
 | `trunk_min_length` | `60` | Straight run needed to become a joinable trunk (viewBox units) |
 | `trunk_min_overlap` | `60` | Shared travel needed for joining to be worthwhile (viewBox units) |
 | `trunk_max_join_candidates` | `2` | Trunks one line will consider chaining through |
+| `trunk_bundle_discount_cap` | `2000` | Ceiling on the distance credited toward a *discovered* trunk's cost discount (viewBox units). A generous safety bound, not a practical tuning knob — only engages on unrealistically long shared runs, and never applies to a channel you authored yourself (`mode: force`/`prefer`) |
 | `trunk_discovery_max_passes` | `4` | Pre-render routing pass cap (order-independence safety limit) |
 | `crossing_min_length` | `12` | Shortest segment other lines still avoid crossing (viewBox units) |
 | `cost_defaults.bend` / `cost_defaults.proximity` | `10` / `4` | Route cost weights |
@@ -178,12 +183,28 @@ In the browser console:
 ```js
 // The line's actual routed points, straight from the route cache (read-only)
 window.lcards.debug.msd.routing.inspect('line_id')
+// .meta.debug tells you what the router actually resolved for this line:
+// { stubLength, gridResolution, cornerRadiusMode, cornerRadius }
 
 // Router state: cache size, obstacle count, trunk/crossing registry counts
 window.lcards.debug.msd.routing.stats()
+
+// Every discovered/configured trunk on this card: id, direction, creator,
+// member lines, and bounds — the same data the Studio "Discovered Trunks"
+// overlay (below) renders graphically
+window.lcards.debug.msd.routing.trunks('card_id')
 ```
 
+In the **MSD Studio** editor's canvas toolbar, two debug overlays make this visible without the console: **Routing Grid** (amber lines — the router's own resolved pathfinding grid, distinct from the drag-snap grid) and **Discovered Trunks** (cyan bands — every spontaneously-bundled corridor currently in effect, with member counts). Both are off by default; toggle them from the overlay-toggle button group.
+
 For the internals — how bundling, lane assignment, and the pre-render discovery loop actually work — see [Routing Engine Architecture](../../architecture/msd/routing.md).
+
+## Known Limitations
+
+A few rough edges are tracked and deliberately not yet fixed — not oversights, but tradeoffs where the only attempted fix caused a worse regression, or the fix is architecturally deep relative to how rarely the case comes up:
+
+- **`trunk_proximity` is a hard cutoff, not a graduated cost.** A line either qualifies to join a nearby trunk or it doesn't — right at the boundary, a 1-unit change in geometry can flip bundling on or off abruptly rather than trading off gradually. Widening the gate to soften this was tried and reverted: it fixed the cliff in isolation but changed bundling decisions in unrelated, already-correct configs. If bundling snaps on/off unexpectedly near `trunk_proximity`'s edge, that's this — adjust `trunk_proximity` itself rather than expecting a graduated response.
+- **A line with several mixed-direction trunk hops chained together** (e.g. joins a horizontal trunk, then a vertical one, then another) can occasionally pick a chain order that isn't the visually shortest one, showing up as a brief unnecessary backtrack at a chain boundary. Rare in practice — it needs several trunks chained in a row with mixed flow axes, which realistic small-to-medium diagrams don't usually produce (seen so far only in synthetic many-line stress tests).
 
 ## See Also
 

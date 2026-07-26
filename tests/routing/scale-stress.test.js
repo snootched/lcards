@@ -105,47 +105,54 @@ const RESOLUTIONS = [8, 16, 24, 32, 48, 64];
 const SCENARIOS = { fanRight: fanRightScenario, manyToOne: manyToOneScenario };
 
 // manyToOne (only — fanRight passes both checks below cleanly at every
-// resolution) surfaced two DISTINCT issues once several lines converge
-// through a shared, obstacle-adjacent corridor:
+// resolution) originally surfaced two DISTINCT issues once several lines
+// converge through a shared, obstacle-adjacent corridor. Both the
+// wrong-side-approach class below AND the obstacle-crossing gap are now
+// fixed (see RouterCore.js's own comments: _pointInsideObstacle rejection
+// plus the _buildOccupancy floor->round fix for the obstacle-crossing
+// case; the 'continuation' hint mechanism — a hard block on ONLY the exact
+// reversal of a known direction, not a full axis lock — for the
+// entry/arrival side, via _computeCorridorRouted's entryHint and
+// _computeGrid's last-move handling). A symmetric mechanism for the
+// DEPARTURE side (leaving a previous corridor's exit) was built and then
+// reverted: verified via the full test suite (revert, re-run, compare)
+// that it made no observable difference anywhere, including the one
+// scenario it targeted below — that scenario's real cause turned out to
+// be the deeper, different _mergeCorridors issue noted next, not a
+// missing departure-direction hint. Removed rather than left in as
+// unproven defensive code.
 //
-// 1. Reversal (res=16, line_0 at [948,112]->[948,85]->[...]): a discovered
-//    trunk's entry point is immediately followed (~one trunk_line_spacing
-//    later) by that same trunk's own exit — an inherently tight, near-
-//    degenerate crossing. The APPROACH leg into entry carries no
-//    directional hint at all (entryAlreadyInside collapses it to bare
-//    'geometry') and is independently obstacle-routed around a nearby
-//    control, arriving at entry from whichever side is locally cheapest —
-//    with no way to know the immediately-following leg will need to
-//    continue past it in the opposite direction. Deliberately left as
-//    `.todo()` (visibly tracked, not silently dropped) rather than fixed
-//    blind: a real fix needs the approach leg to carry a genuine SOFT (not
-//    hard — every hard version of a directional hint tried this session for
-//    OTHER cases caused new regressions) preference for arriving already
-//    leaning toward the trunk's own exit side; not attempted this session.
-//
-// 2. Obstacle crossing (a line's own trunk-riding segment through a point
-//    strictly inside another control's obstacle box): root cause confirmed
-//    real and NOT fixed — discovered-trunk entry/exit/lane-offset geometry
-//    (_channelCrossingPoints/_trunkLaneAssignment) has no obstacle
-//    awareness at all, and _computeGrid's goal-cell exemption (built for "a
-//    route's own anchor legitimately sits on ITS OWN control's boundary")
-//    gets misapplied to unrelated intermediate trunk-crossing points,
-//    letting a path cut straight through. Confirmed to persist across
-//    several unrelated changes this session (the multi-trunk solo-candidate
-//    fix incidentally avoided it for one specific line for a while; the
-//    natural-side-by-nearest-raw-endpoint fix changed which side of a trunk
-//    a DIFFERENT line approaches from, re-exposing it via a different line
-//    through a different obstacle) — the underlying gap is untouched by any
-//    of that; which specific line/obstacle pair it shows up on is just a
-//    function of which lane-offset choices happen to land where, not
-//    something any of those fixes actually address. Remains the most
-//    important remaining item for a future session (validate/nudge
-//    trunk-crossing geometry against obstacles; narrow the goal-cell
-//    exemption to true route endpoints).
+// 1. Reversal (res=8, line_2 at [240,405]->[240,653]->[240,645]):
+//    NOT the wrong-side-approach class above — confirmed via
+//    /tmp scratchpad tracing (never hand-derived) that both trunks'
+//    entry/exit points here are exactly right and correctly hinted; the
+//    double-back is forced by _mergeCorridors's own chain ordering.
+//    _mergeCorridors sorts discovered trunks by comparing stubReq.a's
+//    coordinate on EACH TRUNK'S OWN flow axis against that trunk's flow
+//    span (RouterCore.js's `distTo`) — a fine proxy when every chained
+//    trunk shares the line's own dominant travel axis, but this chain
+//    mixes a horizontal trunk (compared on x) and a vertical trunk
+//    (compared on y): two incomparable numbers being sorted against each
+//    other. Here it placed the horizontal trunk (whose own crossing point
+//    lands at y=653) before the vertical trunk (whose entry lands at
+//    y=645, objectively CLOSER to this line's own start at y=405) —
+//    forcing the path to pass y=645 on the way down to the mandatory
+//    y=653 point, then double back up to y=645 to satisfy the second
+//    trunk's own entry. Both crossing points are correctly-computed,
+//    individually-mandatory waypoints (_collapseSoftLegReversals correctly
+//    refuses to touch either) — the defect is in the ORDER they're
+//    chained in, not in either leg's own direction hint. A real fix needs
+//    a cross-trunk-direction-aware ordering metric (e.g. actual predicted
+//    crossing-point distance per candidate, not each trunk's own flow-span
+//    edge) verified for convergence/stability — deliberately not attempted
+//    this session, both for scope and because trunk-ordering changes have
+//    repeatedly needed their own dedicated regression pass historically
+//    (see project memory). Left as `.todo()` (visibly tracked, not
+//    silently dropped).
 for (const [name, buildScenario] of Object.entries(SCENARIOS)) {
-  const todo = name === 'manyToOne';
+  const reversalTodo = name === 'manyToOne';
 
-  test(`${name}: no line ever reverses, at any swept grid_resolution`, { todo }, () => {
+  test(`${name}: no line ever reverses, at any swept grid_resolution`, { todo: reversalTodo }, () => {
     for (const res of RESOLUTIONS) {
       const { results } = buildScenario(res);
       for (const [id, result] of results) {
@@ -155,7 +162,7 @@ for (const [name, buildScenario] of Object.entries(SCENARIOS)) {
     }
   });
 
-  test(`${name}: no line ever draws a segment through an obstacle, at any swept grid_resolution`, { todo }, () => {
+  test(`${name}: no line ever draws a segment through an obstacle, at any swept grid_resolution`, () => {
     for (const res of RESOLUTIONS) {
       const { results, obstacleBoxes } = buildScenario(res);
       for (const [id, result] of results) {

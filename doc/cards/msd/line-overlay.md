@@ -63,6 +63,7 @@ overlays:
 | `corner_radius` | number | `34` | Arc radius (round) or chamfer size (bevel), in viewBox units |
 | `corner_radius_mode` | string | `auto` | `auto` or `forced` — `round`/`bevel` only; see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
 | `corner_angle` | number | `45` | `bevel` only: diagonal cut angle, 0–90° |
+| `stub_length` | number | — | Overrides the mandatory cardinal departure/arrival stub length (viewBox units) — see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
 | `smoothing_mode` | string | `none` | `none` or `chaikin` |
 | `smoothing_iterations` | number | `0` | Smoothing pass count (0–5) |
 | `entity` | string | — | Entity to bind `style.color` / `style.fill` to (state-color object) — independent of any control's own entity |
@@ -376,6 +377,7 @@ overlays:
     corner_radius: number         # viewBox units (default: 34)
     corner_radius_mode: string    # auto | forced (default: auto) — round/bevel only
     corner_angle: number          # bevel only, 0-90 (default: 45)
+    stub_length: number           # Optional: overrides mandatory cardinal stub length (viewBox units)
     smoothing_mode: string        # none | chaikin (default: none)
     smoothing_iterations: number  # 0-5 (default: 0)
 

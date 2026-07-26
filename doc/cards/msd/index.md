@@ -4,9 +4,13 @@
 
 Master Systems Display — a zoomable SVG canvas on which you position any Home Assistant card as an overlay. Lines (routes) connect anchors across the canvas, and shapes (polylines, rectangles, circles) add freeform decorative or structural geometry — rooms, zones, conduits. Supports rules-based automation of overlay styles and base SVG filters.
 
+::: tip New to MSD?
+This page is the config reference. For a UI-only walkthrough of building your first MSD (no YAML) using MSD Studio, see [Quick Start](./quick-start.md).
+:::
+
 ---
 
-## Quick Start
+## Minimal Example
 
 ```yaml
 type: custom:lcards-msd-card

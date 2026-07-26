@@ -136,6 +136,28 @@ export function findIllegalReversal(pts) {
 }
 
 /**
+ * Finds the first segment in a polyline that changes BOTH x and y at once —
+ * structurally impossible for this Manhattan-only router to render or
+ * corner-round correctly (every downstream step, from _applyCornerRounding
+ * to trunk registration, assumes every segment is axis-aligned). Distinct
+ * from findIllegalReversal, which only ever looks at already-orthogonal
+ * segments; a diagonal segment is a strictly worse defect than a reversal
+ * (a rendering-breaking bug, not just a visual wobble) and was previously
+ * uncaught by any test in this suite.
+ * @param {number[][]} pts
+ * @returns {{ index: number, a: number[], b: number[] } | null}
+ */
+export function findDiagonalSegment(pts) {
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    if (a[0] !== b[0] && a[1] !== b[1]) {
+      return { index: i, a, b };
+    }
+  }
+  return null;
+}
+
+/**
  * True if the axis-aligned segment a->b strictly crosses through the
  * interior of any obstacle box (touching an edge doesn't count — only a
  * segment that actually cuts through the obstacle's rendered area).

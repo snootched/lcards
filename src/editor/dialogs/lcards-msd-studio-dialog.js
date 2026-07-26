@@ -140,6 +140,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _showRoutingPaths: { type: Boolean, state: true },  // Show all line routing paths
             _showRoutingChannels: { type: Boolean, state: true },  // Show all routing channel areas
             _showAttachmentPoints: { type: Boolean, state: true },  // Show 9-point attachment grid
+            _showRoutingGrid: { type: Boolean, state: true },  // Show the router's OWN search-grid resolution (distinct from the drag-snap _showGrid/_gridSpacing)
+            _showTrunks: { type: Boolean, state: true },  // Show spontaneously-discovered trunk-and-branch bundling rows (RouterCore.trunks())
             _baseSvgPreviewDimmed: { type: Boolean, state: true },  // Editor-only: dim base SVG in live preview (never saved)
             // Edit Mode (discussion #389) — see _toggleEditMode
             _liveInteractionEnabled: { type: Boolean, state: true },
@@ -284,6 +286,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._showBoundingBoxes = false;
         this._showRoutingPaths = false;
         this._showRoutingChannels = false;  // Hidden by default, use Routing Channels toggle
+        this._showRoutingGrid = false;  // Hidden by default — debug aid, not a drag/positioning tool
+        this._showTrunks = false;  // Hidden by default — debug aid, not a drag/positioning tool
         this._baseSvgPreviewDimmed = false;  // Editor-only preview convenience, never saved to config
 
         // Edit Mode (discussion #389) — default true = current behavior, live
@@ -1422,7 +1426,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             { key: 'show_bounding_boxes', prop: '_showBoundingBoxes', icon: 'mdi:border-outside', tooltip: 'Bounding Boxes' },
             { key: 'show_routing_paths', prop: '_showRoutingPaths', icon: 'mdi:vector-line', tooltip: 'Routing Paths' },
             { key: 'show_channels', prop: '_showRoutingChannels', icon: 'mdi:chart-timeline-variant', tooltip: 'Routing Channels' },
-            { key: 'show_attachment_points', prop: '_showAttachmentPoints', icon: 'mdi:target-variant', tooltip: 'Attachment Points' }
+            { key: 'show_attachment_points', prop: '_showAttachmentPoints', icon: 'mdi:target-variant', tooltip: 'Attachment Points' },
+            { key: 'show_routing_grid', prop: '_showRoutingGrid', icon: 'mdi:grid-large', tooltip: 'Routing Grid (router\'s own search resolution)' },
+            { key: 'show_trunks', prop: '_showTrunks', icon: 'mdi:source-branch', tooltip: 'Discovered Trunks (trunk-and-branch bundling)' }
         ];
 
         return html`
@@ -6977,6 +6983,218 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             background: ${gridColor};
                             opacity: ${gridOpacity};
                         "></div>
+                    `;
+                })}
+            </div>
+        `;
+    }
+
+    /**
+     * Render the ROUTER's OWN search-grid resolution as an overlay —
+     * distinct from _renderGridOverlay's _showGrid/_gridSpacing, which is a
+     * pure drag/positioning aid with no relationship to how lines actually
+     * route (see that state's own declaration comment). Requested live: a
+     * way to visually see the router's own grid_resolution and how changing
+     * it (or the viewBox size, which drives the scalable default) affects
+     * where lines are actually free to bend. Read-only — this cannot be
+     * dragged or snapped to; RouterCore.resolvedGridResolution() reports
+     * the same value _computeGrid's own A* search actually uses.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRoutingGridOverlay() {
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!this._showRoutingGrid) return '';
+
+        const preview = this._getPreviewSvgAndViewBox();
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!preview) return '';
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight, msdCard } = preview;
+
+        // @ts-ignore - TS2339: auto-suppressed
+        const router = msdCard._msdPipeline?.coordinator?.router;
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!router || typeof router.resolvedGridResolution !== 'function') return '';
+        const res = router.resolvedGridResolution();
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!(res > 0)) return '';
+
+        const gridColor = '#ffaa00';
+
+        const verticalLines = [];
+        const maxX = viewBoxX + viewBoxWidth;
+        for (let x = Math.ceil(viewBoxX / res) * res; x <= maxX; x += res) {
+            verticalLines.push(x);
+        }
+        const horizontalLines = [];
+        const maxY = viewBoxY + viewBoxHeight;
+        for (let y = Math.ceil(viewBoxY / res) * res; y <= maxY; y += res) {
+            horizontalLines.push(y);
+        }
+
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+        const baseSvgLeft = (rect.left - panelRect.left) + offsetX;
+        const baseSvgTop = (rect.top - panelRect.top) + offsetY;
+
+        return html`
+            <div style="
+                position: absolute;
+                left: ${baseSvgLeft}px;
+                top: ${baseSvgTop}px;
+                width: ${renderedWidth}px;
+                height: ${renderedHeight}px;
+                pointer-events: none;
+                z-index: 995;
+            ">
+                <div style="
+                    position: absolute;
+                    left: 4px;
+                    top: 4px;
+                    background: rgba(0, 0, 0, 0.7);
+                    color: ${gridColor};
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 10px;
+                    white-space: nowrap;
+                    opacity: 0.9;
+                ">routing grid: ${res % 1 === 0 ? res : res.toFixed(2)}vb</div>
+                ${verticalLines.map((x) => html`
+                    <div style="
+                        position: absolute;
+                        left: ${(x - viewBoxX) / scale}px;
+                        top: 0;
+                        width: 1px;
+                        height: 100%;
+                        background: ${gridColor};
+                        opacity: 0.25;
+                    "></div>
+                `)}
+                ${horizontalLines.map((y) => html`
+                    <div style="
+                        position: absolute;
+                        left: 0;
+                        top: ${(y - viewBoxY) / scale}px;
+                        width: 100%;
+                        height: 1px;
+                        background: ${gridColor};
+                        opacity: 0.25;
+                    "></div>
+                `)}
+            </div>
+        `;
+    }
+
+    /**
+     * Render every spontaneously-DISCOVERED trunk-and-branch bundling row
+     * (RouterCore.trunks(), origin:'discovered' only — config-authored
+     * `msd.channels` already have their own dedicated, interactive overlay,
+     * _renderChannelsOverlay, drawing from static config bounds rather than
+     * the router's own live-grown ones). Read-only, debug-only: requested
+     * live as a way to understand trunk bundling visually instead of
+     * reading window.lcards.debug.msd.routing.trunks() payloads directly.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderTrunksOverlay() {
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!this._showTrunks) return '';
+
+        const preview = this._getPreviewSvgAndViewBox();
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!preview) return '';
+        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight, msdCard } = preview;
+
+        // @ts-ignore - TS2339: auto-suppressed
+        const router = msdCard._msdPipeline?.coordinator?.router;
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!router || typeof router.trunks !== 'function') return '';
+        const trunks = router.trunks().filter(t => t.origin === 'discovered' && t.members.length > 0);
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!trunks.length) return '';
+
+        const rect = svg.getBoundingClientRect();
+        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!previewPanel) return '';
+        const panelRect = previewPanel.getBoundingClientRect();
+
+        const scaleX = viewBoxWidth / rect.width;
+        const scaleY = viewBoxHeight / rect.height;
+        const scale = Math.max(scaleX, scaleY);
+        const renderedWidth = viewBoxWidth / scale;
+        const renderedHeight = viewBoxHeight / scale;
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+        const baseSvgLeft = (rect.left - panelRect.left) + offsetX;
+        const baseSvgTop = (rect.top - panelRect.top) + offsetY;
+
+        const trunkColor = '#00e5ff';
+
+        return html`
+            <div style="
+                position: absolute;
+                left: ${baseSvgLeft}px;
+                top: ${baseSvgTop}px;
+                width: ${renderedWidth}px;
+                height: ${renderedHeight}px;
+                pointer-events: none;
+                z-index: 997;
+            ">
+                ${trunks.map(t => {
+                    const bandLeft = (t.bounds.x1 - viewBoxX) / scale;
+                    const bandTop = (t.bounds.y1 - viewBoxY) / scale;
+                    const bandWidth = (t.bounds.x2 - t.bounds.x1) / scale;
+                    const bandHeight = (t.bounds.y2 - t.bounds.y1) / scale;
+                    const horizontal = t.direction === 'horizontal';
+                    const centerlinePx = horizontal
+                        ? (t.crossCenter - viewBoxY) / scale - bandTop
+                        : (t.crossCenter - viewBoxX) / scale - bandLeft;
+                    return html`
+                        <div style="
+                            position: absolute;
+                            left: ${bandLeft}px;
+                            top: ${bandTop}px;
+                            width: ${bandWidth}px;
+                            height: ${bandHeight}px;
+                            background: ${trunkColor};
+                            opacity: 0.12;
+                            border: 1px dashed ${trunkColor};
+                            box-sizing: border-box;
+                        "></div>
+                        <div style="
+                            position: absolute;
+                            left: ${horizontal ? bandLeft : bandLeft + centerlinePx}px;
+                            top: ${horizontal ? bandTop + centerlinePx : bandTop}px;
+                            width: ${horizontal ? bandWidth : 1}px;
+                            height: ${horizontal ? 1 : bandHeight}px;
+                            background: ${trunkColor};
+                            opacity: 0.6;
+                        "></div>
+                        <div style="
+                            position: absolute;
+                            left: ${bandLeft + 3}px;
+                            top: ${bandTop + 2}px;
+                            background: rgba(0, 0, 0, 0.7);
+                            color: ${trunkColor};
+                            padding: 1px 5px;
+                            border-radius: 3px;
+                            font-family: 'Courier New', monospace;
+                            font-size: 9px;
+                            white-space: nowrap;
+                        ">${t.id} · ${t.members.length} line${t.members.length === 1 ? '' : 's'}</div>
                     `;
                 })}
             </div>
@@ -13842,6 +14060,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             z_index: null,
             // Advanced routing parameters (with defaults)
             clearance: undefined, // Will use MSD default
+            stub_length: undefined, // Will use the router's own auto/forced resolution
             corner_style: 'round',
             corner_radius: 34,
             corner_radius_mode: 'auto',
@@ -13899,6 +14118,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             z_index: line.z_index ?? null,
             // Advanced routing parameters
             clearance: line.clearance,
+            stub_length: line.stub_length,
             route_hint: line.route_hint,
             route_hint_last: line.route_hint_last,
             waypoints: line.waypoints || [],
@@ -14011,6 +14231,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Advanced routing parameters
         if (this._lineFormData.clearance != null) {
             lineOverlay.clearance = this._lineFormData.clearance;
+        }
+        if (this._lineFormData.stub_length != null) {
+            lineOverlay.stub_length = this._lineFormData.stub_length;
         }
         if (this._lineFormData.route_hint) {
             lineOverlay.route_hint = this._lineFormData.route_hint;
@@ -15815,6 +16038,23 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 hint="Minimum distance from obstacles, vb units (leave empty for default: 8)"
                                 style="width: 100%;">
                             </ha-input>
+
+                            <ha-input
+                                type="number"
+                                label="Stub Length (vb units)"
+                                .value=${String(this._lineFormData.stub_length ?? '')}
+                                @input=${(e) => {
+                                    const val = e.target.value;
+                                    if (val === '') {
+                                        delete this._lineFormData.stub_length;
+                                    } else {
+                                        this._lineFormData.stub_length = Number(val);
+                                    }
+                                    this.requestUpdate();
+                                }}
+                                hint="Overrides the mandatory departure/arrival stub length (leave empty to use the router's own auto/forced resolution — see Corner Size Mode on the Style tab). Going below one grid cell risks re-triggering an internal same-cell short-circuit; check window.lcards.debug.msd.routing.inspect(id).meta.debug for the router's resolved value first."
+                                style="width: 100%; margin-top: 12px;">
+                            </ha-input>
                         </lcards-form-section>
                     ` : ''}
             </div>
@@ -17514,6 +17754,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${this._renderShieldBubblePreview()}
                             ${this._renderCrosshairGuidelines()}
                             ${this._renderGridOverlay()}
+                            ${this._renderRoutingGridOverlay()}
                             ${this._renderAnchorMarkers()}
                             ${this._renderBoundingBoxes()}
                             ${this._renderShapeHandles()}
@@ -17525,6 +17766,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${this._renderShapeVertexMarkers()}
                             ${this._renderDragAttachPoints()}
                             ${this._renderChannelsOverlay()}
+                            ${this._renderTrunksOverlay()}
                             ${this._renderAnchorHighlight()}
                             ${this._renderControlHighlight()}
                             ${this._renderLineHighlight()}

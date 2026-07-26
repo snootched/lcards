@@ -234,7 +234,7 @@ export class MsdDebugAPI {
         const namespaces = {
           routing: {
             desc: 'Routing and resolution debugging',
-            methods: ['inspect(overlayId, cardId?)', 'stats(cardId?)', 'invalidate(id, cardId?)']
+            methods: ['inspect(overlayId, cardId?)', 'trunks(cardId?)', 'stats(cardId?)', 'invalidate(id, cardId?)']
           },
           data: {
             desc: 'MSD entity data tracing across overlays',
@@ -303,8 +303,11 @@ export class MsdDebugAPI {
       usage(namespace) {
         const examples = {
           routing: [
-            '// Inspect routing for an overlay',
+            '// Inspect routing for an overlay (pts/d/meta, incl. meta.debug.stubLength)',
             'msd.routing.inspect("my-overlay");',
+            '',
+            '// List every registered trunk row (bounds, centerline, members)',
+            'console.table(msd.routing.trunks());',
             '',
             '// Get routing stats',
             'msd.routing.stats();',
@@ -432,6 +435,36 @@ export class MsdDebugAPI {
             return null;
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error inspecting routing:', error);
+            return null;
+          }
+        },
+
+        /**
+         * List every registered trunk row — config-seeded channels and
+         * spontaneously-discovered (bundled) trunks alike — with its own
+         * bounds, centerline, and current member set.
+         *
+         * @param {string|null} [cardId=null] - Config ID for target MSD card (e.g. 'bridge')
+         * @returns {Array<object>|null} Trunk rows, or null if router unavailable
+         *
+         * @example
+         * window.lcards.debug.msd.routing.trunks()
+         * console.table(window.lcards.debug.msd.routing.trunks())
+         */
+        trunks(cardId = null) {
+          try {
+            const coordinator = _getMsdCoordinator(cardId);
+            if (!coordinator?.router) {
+              lcardsLog.warn('[MsdDebugAPI] No MSD router found');
+              return null;
+            }
+            if (typeof coordinator.router.trunks === 'function') {
+              return coordinator.router.trunks();
+            }
+            lcardsLog.warn('[MsdDebugAPI] router.trunks method not available');
+            return null;
+          } catch (error) {
+            lcardsLog.error('[DebugAPI] Error listing trunks:', error);
             return null;
           }
         },

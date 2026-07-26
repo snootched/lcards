@@ -320,6 +320,7 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview',         link: '/cards/msd/' },
+                { text: 'Quick Start',      link: '/cards/msd/quick-start' },
                 { text: 'Control Overlay',  link: '/cards/msd/control-overlay' },
                 { text: 'Line Overlay',     link: '/cards/msd/line-overlay' },
                 { text: 'Routing & Channels', link: '/cards/msd/routing' },

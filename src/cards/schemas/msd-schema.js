@@ -462,6 +462,12 @@ export function getMsdSchema() {
               default: 45,
               description: 'Bevel corners only (line overlays, or shape overlays of kind: polyline): angle of the diagonal cut in degrees (0=cut flush with incoming edge, 90=flush with outgoing edge, 45=symmetric diagonal), matching the elbow card\'s diagonal-cap angle'
             },
+            stub_length: {
+              type: 'number',
+              min: 0,
+              optional: true,
+              description: 'Line overlays only: overrides the mandatory cardinal stub length (viewBox units) departing/arriving anchor_side or attach_side, instead of the router\'s own auto-computed floor (which scales with grid_resolution and can force a longer straight lead-out than a specific line\'s own geometry needs). Leave unset for the default. Going below one grid cell risks re-triggering an internal same-cell short-circuit — use window.lcards.debug.msd.routing.inspect(id).meta.debug to see the router\'s own resolved value first.'
+            },
             smoothing_mode: {
               type: 'string',
               enum: ['none', 'chaikin'],
