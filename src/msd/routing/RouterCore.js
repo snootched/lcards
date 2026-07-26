@@ -1440,7 +1440,9 @@ export class RouterCore {
             // correction) was forced to jog sideways and back for no
             // geometric reason.
             const axisFlow = req._channelAxisHorizontalFirst ? 0 : 1;
-            if (req.a[axisFlow] !== req.b[axisFlow] && isHorizontalMove !== req._channelAxisHorizontalFirst) continue;
+            if (req.a[axisFlow] !== req.b[axisFlow]) {
+              if (isHorizontalMove !== req._channelAxisHorizontalFirst) continue;
+            }
           } else {
             const wantsHorizontalFirst = req.modeHint === 'xy';
             if (wantsHorizontalFirst !== isHorizontalMove) moveCost += hintPenalty;
@@ -1505,7 +1507,30 @@ export class RouterCore {
             // hard block would force the same kind of unsatisfiable,
             // synthetic zigzag right before arrival instead of on departure.
             const axisFlow = req._channelAxisHorizontalLast ? 0 : 1;
-            if (req.a[axisFlow] !== req.b[axisFlow] && isHorizontalMove !== req._channelAxisHorizontalLast) continue;
+            if (req.a[axisFlow] !== req.b[axisFlow]) {
+              if (isHorizontalMove !== req._channelAxisHorizontalLast) continue;
+            } else if (req._continuationDirLast) {
+              // The axis-lock just relieved itself (degenerate axis),
+              // leaving zero constraint at all — fall back to the same
+              // narrower "don't reverse a known continuation" check the
+              // dedicated 'continuation' source uses below. See
+              // _computeCorridorRouted's entryHint comment: this is
+              // exactly the shape that produced a real, reported
+              // reversal before this fallback existed.
+              const dir = req._continuationHorizontalLast ? [req._continuationDirLast, 0] : [0, req._continuationDirLast];
+              if (dc === -dir[0] && dr === -dir[1]) continue;
+            }
+          } else if (req._hintSourceLast === 'continuation') {
+            // Hard block on ONLY the exact reversal of a KNOWN continuation
+            // direction — the immediately-following leg's own flow
+            // direction (see _computeCorridorRouted's own comment on
+            // `continuationDir`), not a full-axis lock. Exactly the same
+            // shape as the attach_side/attach_stub blocks above, just
+            // sourced from a chained leg's own known direction instead of
+            // a user-authored CARDINAL_DIR[attachSide]. A perpendicular
+            // arrival is a normal corner and stays unconstrained.
+            const dir = req._continuationHorizontalLast ? [req._continuationDirLast, 0] : [0, req._continuationDirLast];
+            if (dc === -dir[0] && dr === -dir[1]) continue;
           } else {
             const wantsHorizontalLast = req.modeHintLast === 'yx';
             if (wantsHorizontalLast !== isHorizontalMove) moveCost += hintPenalty;
@@ -1615,6 +1640,32 @@ export class RouterCore {
         } else if (pts[0][0] !== pts[1][0] && pts[0][1] !== pts[1][1]) {
           pts.splice(1, 0, [pts[1][0], pts[0][1]]);
         }
+      } else if (req._hintSourceFirst === 'channel_axis') {
+        // Degenerate-axis relief, mirroring the last-move reshape's own
+        // (this session's fix): when this leg's raw endpoints already
+        // share the REQUIRED axis's own coordinate, forcing the
+        // reconstructed path onto the (unsatisfiable) required axis
+        // anyway would insert a spurious elbow trying to fake an
+        // impossible direction. Confirmed as a real, reported bug: this
+        // exact reshape (previously always falling into the generic soft
+        // branch below, which has no such relief) undid the neighbor
+        // loop's own correctly-directioned departure from a previous
+        // corridor's exit.
+        const wantsHorizontalFirst = req._channelAxisHorizontalFirst;
+        const requiredAxisFlow = wantsHorizontalFirst ? 0 : 1;
+        if (req.a[requiredAxisFlow] !== req.b[requiredAxisFlow]) {
+          if (wantsHorizontalFirst && gridFirstHorizontal) {
+            pts[1] = [pts[1][0], pts[0][1]];
+          } else if (!wantsHorizontalFirst && gridFirstVertical) {
+            pts[1] = [pts[0][0], pts[1][1]];
+          } else if (pts[0][0] !== pts[1][0] && pts[0][1] !== pts[1][1]) {
+            if (wantsHorizontalFirst) {
+              pts.splice(1, 0, [pts[1][0], pts[0][1]]);
+            } else {
+              pts.splice(1, 0, [pts[0][0], pts[1][1]]);
+            }
+          }
+        }
       } else {
         const wantsHorizontalFirst = req.modeHint !== 'yx';
         if (wantsHorizontalFirst && gridFirstHorizontal) {
@@ -1673,7 +1724,22 @@ export class RouterCore {
         const actuallyHorizontal = pts[lastIdx-1][1] === pts[lastIdx][1];
         const actuallyVertical = pts[lastIdx-1][0] === pts[lastIdx][0];
         const wantsHorizontalLast = req._channelAxisHorizontalLast;
-        const alreadyCorrect = wantsHorizontalLast ? actuallyHorizontal : actuallyVertical;
+        // Degenerate-axis relief, mirroring the main neighbor loop's own
+        // (this session's earlier fix): when this leg's raw endpoints
+        // already share the REQUIRED axis's own coordinate, forcing the
+        // reconstructed path's final segment onto that axis anyway is
+        // geometrically backwards — the leg's true, unavoidable direction
+        // is the OTHER axis, and the neighbor loop already validated
+        // (there, via the continuationDir fallback when this exact
+        // degenerate case applies) that its own natural final segment is
+        // correct. Confirmed as a real, reported bug: this reshape step
+        // had no equivalent relief at all, so it force-corrected an
+        // already-correct vertical final segment into a horizontal one,
+        // reintroducing the exact reversal the neighbor loop's own
+        // continuationDir fallback had just prevented.
+        const requiredAxisFlow = wantsHorizontalLast ? 0 : 1;
+        const requiredAxisDegenerate = req.a[requiredAxisFlow] === req.b[requiredAxisFlow];
+        const alreadyCorrect = requiredAxisDegenerate || (wantsHorizontalLast ? actuallyHorizontal : actuallyVertical);
         if (!alreadyCorrect) {
           if (!actuallyHorizontal && !actuallyVertical) {
             // Genuinely diagonal. The naive fix (insert
@@ -1800,12 +1866,27 @@ export class RouterCore {
       const x2 = ob.x2 + clearance - originX;
       const y2 = ob.y2 + clearance - originY;
 
-      // Mark grid cells that actually intersect with obstacle bounds
-      // Use floor for all bounds to avoid expanding obstacles beyond their actual size
-      const c0 = Math.max(0, Math.floor(x1 / res));
-      const r0 = Math.max(0, Math.floor(y1 / res));
-      const c1 = Math.min(cols-1, Math.floor(x2 / res));
-      const r1 = Math.min(rows-1, Math.floor(y2 / res));
+      // Mark every grid cell a real point somewhere inside the obstacle
+      // could snap to. Must match _computeGrid's own w2c/h2c conversion
+      // (Math.round, not floor) exactly — a floor-based range here can
+      // leave a gap: a world y strictly inside an obstacle (e.g. y=793
+      // inside a box spanning 760-810) can ROUND to a cell (17, at
+      // res=48) that a FLOOR-based marking (rows 15-16) never covered,
+      // silently letting a path point land there as if unobstructed.
+      // Confirmed as a real, reported bug: a discovered trunk's own
+      // crossing leg cut straight through a control's box because its own
+      // A* search never saw that cell as blocked at all — not a
+      // trunk-specific issue, a plain rounding mismatch between how
+      // obstacles get marked and how every path point gets snapped,
+      // latent since _buildOccupancy was written. Math.round on both
+      // bounds is provably correct here (not just a looser floor/ceil
+      // approximation): rounding is monotonic, so the set of cells any
+      // point in [lo,hi] can round into is exactly [round(lo/res),
+      // round(hi/res)] inclusive.
+      const c0 = Math.max(0, Math.round(x1 / res));
+      const r0 = Math.max(0, Math.round(y1 / res));
+      const c1 = Math.min(cols-1, Math.round(x2 / res));
+      const r1 = Math.min(rows-1, Math.round(y2 / res));
 
       for (let r=r0; r<=r1; r++) {
         const row = occ[r];
@@ -2854,7 +2935,19 @@ export class RouterCore {
       anchorSide: firstHint.anchorSide ?? base.anchorSide,
       attachSide: lastHint.attachSide ?? base.attachSide,
       _channelAxisHorizontalFirst: firstHint.source === 'channel_axis' ? firstHint.horizontal : undefined,
-      _channelAxisHorizontalLast: lastHint.source === 'channel_axis' ? lastHint.horizontal : undefined
+      _channelAxisHorizontalLast: lastHint.source === 'channel_axis' ? lastHint.horizontal : undefined,
+      // Carried whenever present, regardless of the hint's own primary
+      // source — see _computeCorridorRouted's entryHint comment: a
+      // 'channel_axis' hint on the ARRIVAL/last side can ALSO carry a
+      // continuationDir as a fallback for when its own axis-lock relieves
+      // itself (degenerate axis), not just a bare 'continuation' source.
+      // First-side equivalents (departure) were tried and reverted this
+      // session — verified via the full test suite to make no observable
+      // difference for the one scenario they were built for (a deeper,
+      // separate _mergeCorridors chain-ordering defect was the actual
+      // cause there; see scale-stress.test.js), so not carried here.
+      _continuationDirLast: lastHint.continuationDir,
+      _continuationHorizontalLast: lastHint.continuationDir !== undefined ? lastHint.horizontal : undefined
     };
   }
 
@@ -3007,8 +3100,28 @@ export class RouterCore {
     // already spliced on before `from`, and `to` itself.
     const nudge = horizontal ? [from[0] + corridorOffset, from[1]] : [from[0], from[1] + corridorOffset];
     const mid = horizontal ? [nudge[0], to[1]] : [to[0], nudge[1]];
+    // `mid` coincides EXACTLY with `to` whenever corridorOffset reached its
+    // full `available` clamp (the common case — corridorOffset's own
+    // magnitude is capped at `available`, i.e. |to[flow]-from[flow]|, so
+    // nudge[flow] lands exactly on to[flow] whenever rawOffset >=
+    // available). When that happens, the (nudge,mid) leg IS the true
+    // final arrival at `to` — its own hardcoded {geometry} last-hint
+    // otherwise leaves that arrival's direction completely unconstrained,
+    // with no visibility into whatever comes immediately after `to`
+    // (typically the mandatory entry->exit crossing this whole approach
+    // exists to reach). Confirmed as a real, reported bug: an unconstrained
+    // arrival detoured around an obstacle and came back from the wrong
+    // side, producing a same-axis reversal right at `to` — a mandatory
+    // point the post-hoc reversal backstop correctly refuses to collapse.
+    // The (mid,to) leg below still gets `lastHint` too, for the rarer case
+    // where they're NOT the same point (corridorOffset clamped by
+    // `rawOffset` instead, leaving genuine residual distance for a real
+    // third leg) — passing the real hint to whichever leg turns out to be
+    // the actual final arrival, without needing to know in advance which
+    // one that'll be.
+    const midIsTo = mid[0] === to[0] && mid[1] === to[1];
     legs.push(this._buildLegRequest(stubReq, from, nudge, { source: 'geometry' }, { source: 'geometry' }));
-    legs.push(this._buildLegRequest(stubReq, nudge, mid, { source: 'geometry' }, { source: 'geometry' }));
+    legs.push(this._buildLegRequest(stubReq, nudge, mid, { source: 'geometry' }, midIsTo ? lastHint : { source: 'geometry' }));
     legs.push(this._buildLegRequest(stubReq, mid, to, { source: 'channel_axis', horizontal }, lastHint));
   }
 
@@ -3103,6 +3216,14 @@ export class RouterCore {
   _computeCorridorRouted(stubReq, smart, corridors) {
     const chainChannels = corridors;
     if (!chainChannels.length) return null;
+    // A force channel is mandatory by definition (user-authored, always
+    // honored regardless of cost — see computePath's hasForceChannels
+    // branch, which uses this candidate unconditionally with no
+    // alternative to fall back to) — never reject one for landing inside
+    // an obstacle; that's a config issue for the user to resolve, not
+    // something to silently override. Only optional (prefer/discovered)
+    // chains are ever rejected below.
+    const hasForceChannel = chainChannels.some(c => c.mode === 'force');
 
     // Prospective bundle-mate exemption: while routing TOWARD a corridor,
     // crossing penalties from that corridor's own occupants must not apply
@@ -3164,6 +3285,18 @@ export class RouterCore {
       // corner-rounding arc).
       const nextRef = next ? this._corridorRefPoint(next, stubReq.id) : stubReq.b;
       const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, laneCount, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id, stubLengthFor(legBase));
+      // Reject this whole candidate chain outright if a trunk's own
+      // lane-offset entry/exit lands strictly inside an obstacle — see
+      // _pointInsideObstacle's own comment. This is a hard rejection, not
+      // a detour-and-continue: the boundary itself is the problem, not the
+      // path leading to it, and _computeGrid's own goal-cell exemption
+      // would otherwise let a leg cut straight through to reach it anyway.
+      // computePath's own corridor-vs-plain (and solo-trunk-vs-solo-trunk)
+      // comparison already treats a null candidate as simply unavailable,
+      // falling back to whichever OTHER candidate remains — exactly the
+      // right behavior here, since the plain route is fully obstacle-aware
+      // on its own.
+      if (!hasForceChannel && (this._pointInsideObstacle(entry) || this._pointInsideObstacle(exit))) return null;
       mandatoryPoints.add(this._ptKey(entry));
       mandatoryPoints.add(this._ptKey(exit));
 
@@ -3190,11 +3323,57 @@ export class RouterCore {
       // between its raw anchor and its own stub reach produced a same-axis
       // 180-degree reversal that the un-downgraded hard block simply had
       // no valid non-reversing shape to return for.
+      // When entry sits exactly at the approach's own flow coordinate
+      // (entryAlreadyInside), the approach leg used to get a bare
+      // 'geometry' hint — fully unconstrained, including on its own LAST
+      // move into `entry`. That leg's own A* search has zero visibility
+      // into the fact that the VERY NEXT leg (entry->exit, immediately
+      // following) needs to continue in a specific, already-known
+      // direction — so an obstacle detour elsewhere in this same leg can
+      // arrive at `entry` from whichever side is locally cheapest,
+      // including the exact wrong one, producing a same-axis reversal
+      // right at `entry` (mandatory, so the post-hoc collapse backstop
+      // correctly refuses to touch it). Confirmed as a real, reported bug
+      // (both in a higher-line-count stress scenario and, later, in this
+      // exact turnaround-regression config once an unrelated obstacle-grid
+      // fix shifted which cells were blocked). Fixed the same SAFE way
+      // attach_side/attach_stub already do — a hard block on ONLY the
+      // exact reversal of a known direction, never the full axis — using
+      // the entry->exit crossing's own already-known flow direction as
+      // that reference, instead of CARDINAL_DIR[someSide]. A soft,
+      // cost-based version of this was deliberately not attempted: this
+      // exact class of fix (soft penalty on a directional preference) was
+      // already tried elsewhere this session and reverted for letting A*
+      // choose genuinely unnecessary reversals under grid quantization.
+      //
+      // continuationDir is carried as SUPPLEMENTARY info on the hint
+      // regardless of entryAlreadyInside, not just used to pick the
+      // top-level hint source: the !entryAlreadyInside case still uses the
+      // full 'channel_axis' axis-lock as its PRIMARY guarantee (stronger
+      // than a reversal-only block, kept wherever it's actually
+      // satisfiable) — but that axis-lock has its own, EARLIER degenerate-
+      // axis relief (this session's own channel_axis fix: when this leg's
+      // raw endpoints already share the required axis's coordinate, the
+      // lock is unconditionally dropped to avoid an unsatisfiable, forced
+      // detour). Confirmed as a real, reported bug: exactly that relief
+      // firing left an 'channel_axis'-sourced arrival with ZERO actual
+      // constraint (same as bare 'geometry'), reproducing the identical
+      // wrong-side-approach reversal the entryAlreadyInside branch below
+      // was built to prevent. continuationDir is the fallback _computeGrid
+      // reaches for the moment the axis-lock relieves itself, so the
+      // narrower "don't reverse" guarantee still holds either way.
+      const continuationFlowIdx = horizontal ? 0 : 1;
+      const continuationDir = Math.sign(exit[continuationFlowIdx] - entry[continuationFlowIdx]);
+      const entryHint = !entryAlreadyInside
+        ? { source: 'channel_axis', horizontal, continuationDir }
+        : (continuationDir !== 0
+          ? { source: 'continuation', continuationDir, horizontal }
+          : { source: 'geometry' });
       this._pushBundledApproachLegs(legs, legBase, cursor, entry, horizontal, laneIndex, laneCount, lineSpacing,
         k === 0
           ? { source: stubReq._hintSourceFirst === 'anchor_side' ? 'anchor_stub' : stubReq._hintSourceFirst, mode: stubReq.modeHint, anchorSide: stubReq.anchorSide }
           : (prevExitAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal: chainChannels[k - 1].direction === 'horizontal' }),
-        entryAlreadyInside ? { source: 'geometry' } : { source: 'channel_axis', horizontal });
+        entryHint);
       legs.push(this._buildLegRequest(legBase, entry, exit,
         { source: 'channel_axis', horizontal },
         { source: 'channel_axis', horizontal }));
@@ -3650,6 +3829,33 @@ export class RouterCore {
         if (a[1] <= ob.y1 || a[1] >= ob.y2) continue;
         if (x2 > ob.x1 && x1 < ob.x2) return true;
       }
+    }
+    return false;
+  }
+
+  /**
+   * True if point `p` sits strictly inside any registered obstacle
+   * (touching a boundary edge doesn't count — matches
+   * _segmentCrossesObstacle's own convention). Used to reject a discovered
+   * trunk's own entry/exit boundary as a valid corridor candidate:
+   * _channelCrossingPoints computes lane-offset positions with zero
+   * obstacle awareness (the cross-axis offset is a pure function of lane
+   * count/spacing, never checked against what's actually there), and
+   * _computeGrid's own goal-cell exemption — built for "a route's TRUE
+   * anchor/attach point legitimately sits on its own control's obstacle
+   * boundary" — gets applied uniformly to every leg's goal, including an
+   * intermediate trunk-crossing point that has nothing to do with the
+   * obstacle it happens to land inside. Confirmed as a real, reported
+   * defect: a trunk's own lane offset placed a line's crossing point
+   * strictly inside a completely unrelated control's box, and the route
+   * cut straight through it instead of failing to reach an invalid target.
+   * @param {number[]} p
+   * @returns {boolean}
+   * @private
+   */
+  _pointInsideObstacle(p) {
+    for (const ob of this._obstacles) {
+      if (p[0] > ob.x1 && p[0] < ob.x2 && p[1] > ob.y1 && p[1] < ob.y2) return true;
     }
     return false;
   }
