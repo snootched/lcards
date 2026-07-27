@@ -152,8 +152,16 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     throw new Error(`Systems completion failed: ${error.message}`);
   }
 
-  // Initialize AnimationManager with overlays to register animations
-  if (coordinator.animationManager && mergedConfig.overlays) {
+  // Initialize AnimationManager with overlays to register animations.
+  // Skipped entirely in MSD Studio's live preview (isEditMode) — that card
+  // instance is fully destroyed and rebuilt on every edit/hass-tick (see
+  // lcards-msd-live-preview.js), so registering or playing animations there
+  // is pure wasted work torn down almost immediately, and was itself the
+  // source of visible main-thread jank plus a base_svg-registration race
+  // (see the isEditMode check further below) while editing.
+  if (isEditMode) {
+    lcardsLog.trace('[PipelineCore] Skipping AnimationManager overlay registration — Studio preview (isEditMode)');
+  } else if (coordinator.animationManager && mergedConfig.overlays) {
     lcardsLog.trace('[PipelineCore] 🎬 Initializing AnimationManager with overlays');
     try {
       // Set mountEl explicitly so AnimationManager can find overlay elements
@@ -246,7 +254,9 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       }
 
       // ANIMATION INTEGRATION: Notify AnimationManager about rendered overlays
-      if (coordinator.animationManager) {
+      // (skipped in Studio preview — see the isEditMode note near the
+      // AnimationManager.initialize() call above)
+      if (!isEditMode && coordinator.animationManager) {
         lcardsLog.trace('[PipelineCore] Notifying AnimationManager about rendered overlays...');
 
         for (const overlay of resolvedModel.overlays) {
@@ -365,7 +375,16 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   // A bare { animations } stub is sufficient (same minimal-registration pattern
   // already used by non-overlay callers, e.g. lcards-data-grid.js) — no need to
   // shape this like a real overlay config.
-  if (cardModel.baseSvg?.animations?.length > 0) {
+  // Skipped in Studio's preview (isEditMode) — see the isEditMode note near
+  // the AnimationManager.initialize() call above. This also happened to be
+  // where a pipeline-init-ordering race with #__msd-base-content showed up
+  // most visibly (the preview is rebuilt often enough to hit it repeatedly);
+  // not fixing that race here since it no longer runs in preview at all.
+  if (isEditMode) {
+    if (cardModel.baseSvg?.animations?.length > 0) {
+      lcardsLog.trace('[PipelineCore] Skipping base_svg animation registration — Studio preview (isEditMode)');
+    }
+  } else if (cardModel.baseSvg?.animations?.length > 0) {
     if (baseContentGroup && coordinator.animationManager) {
       lcardsLog.trace('[PipelineCore] 🎬 Registering base_svg animation scope:', {
         animationCount: cardModel.baseSvg.animations.length

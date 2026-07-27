@@ -377,8 +377,19 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Must come after pipeline init: _msdInitialized only flips to true (and the
         // SVG container, i.e. #msd-v1-comprehensive-wrapper, only actually mounts)
         // partway through _initializeMsdPipeline(), not at the updateComplete above.
+        // Skipped entirely in MSD Studio's live preview (_isStudioPreview) — that
+        // card instance is fully destroyed and rebuilt on every edit/hass-tick (see
+        // lcards-msd-live-preview.js), so a Canvas2D background animation there
+        // never gets to run for more than a moment before being torn down again;
+        // starting one is pure wasted work (and was itself a source of visible
+        // main-thread jank while editing, since every fresh instance pays a full
+        // bake with no chance to reach cheap steady-state panning).
         if (this._msdInitialized && this._msdConfig?.background_animation) {
-            this._initializeBackgroundAnimation();
+            if (!this._isStudioPreview) {
+                this._initializeBackgroundAnimation();
+            } else {
+                lcardsLog.trace('[LCARdSMSDCard] Skipping background_animation init — Studio preview');
+            }
         }
     }
 
