@@ -70,10 +70,16 @@ export class GridEffect extends BaseEffect {
   constructor(config = {}) {
     super(/** @type {any} */ (config));
 
-    // Sizing: cell-based or spacing-based
-    this.numRows = config.numRows;
-    this.numCols = config.numCols;
-    this.lineSpacing = config.lineSpacing ?? 40;
+    // Sizing: cell-based or spacing-based. Runtime floors here (matching the
+    // schema's documented minimums — background-animation-params-schemas.js)
+    // because a spacing/radius of 0 (or negative) collapses patternWidth/
+    // patternHeight to 0, which turns _computeGridDimensions()'s and draw()'s
+    // Math.ceil(canvasSize / spacing) tile counts into Infinity and hangs the
+    // tile loop — previously guarded only by the editor UI's slider minimum,
+    // not by the effect itself, so hand-written YAML could still hit it.
+    this.numRows = config.numRows !== undefined ? Math.max(1, config.numRows) : undefined;
+    this.numCols = config.numCols !== undefined ? Math.max(1, config.numCols) : undefined;
+    this.lineSpacing = Math.max(1, config.lineSpacing ?? 40);
 
     // Line styling (resolve CSS colors using ColorUtils)
     this.lineWidthMinor = config.lineWidthMinor ?? config.line_width ?? 1; // Support legacy naming
@@ -99,11 +105,12 @@ export class GridEffect extends BaseEffect {
     this.showBorderLines = config.showBorderLines ?? true;
 
     // Hexagonal pattern config
-    this.hexRadius = config.hexRadius ?? 40;
+    this.hexRadius = Math.max(1, config.hexRadius ?? 40);
 
-    // Dot grid pattern config (pattern='dots')
+    // Dot grid pattern config (pattern='dots') — dotRadius=0 is harmless (just
+    // draws nothing), only dotSpacing drives tile counts so only it needs a floor.
     this.dotRadius = config.dotRadius ?? config.dot_radius ?? 2;
-    this.dotSpacing = config.spacing ?? config.lineSpacing ?? 20;
+    this.dotSpacing = Math.max(1, config.spacing ?? config.lineSpacing ?? 20);
 
     // Scrolling state
     this.scrollX = config.scrollX ?? 0;
