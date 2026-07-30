@@ -35,6 +35,31 @@
  * leg geometry during route search — the corrected route now cleanly
  * rides a single trunk with a simple, direct shape. See project memory
  * for the full before/after.
+ *
+ * The third test below ("rides a single clean trunk...") originally pinned
+ * that specific single-trunk, 4-bend outcome as this fix's own regression
+ * guard. It legitimately changed again once `corner_room_weight` shipped
+ * (on by default): corner-room refinement improves the PLAIN route's cost
+ * (recovering its corners' full radius via a cheap elbow shift) enough that
+ * it now wins the plain-vs-corridor cost comparison outright, instead of
+ * the marginal trunk-bundling detour. Confirmed as a real improvement, not
+ * a regression, before updating this test's expectations: the new plain
+ * route (`strategy: 'smart'`, 3 bends) is diagonal-free, reversal-free, and
+ * renders with near-full 34px corners throughout — this file's first two
+ * tests (unaffected by this change) already independently guard the actual
+ * bug this file exists for.
+ *
+ * Changed again, same reasoning, once the grid-quantization alias guard
+ * shipped (`_taperAliasesRegisteredSegment`, see
+ * `channel-taper-grid-alias.test.js`): the 3-bend route above was itself a
+ * "briefly ride a second trunk before continuing" detour up to y=318 — the
+ * exact same false-positive shape that guard exists to prevent elsewhere,
+ * just reached here via `_pushBundledApproachLegs`'s own `corridorOffset`
+ * saturating against another line's registered row. Confirmed as a real
+ * improvement before updating the test again: the new route is a direct
+ * 1-bend path with a full, unshrunk 34px corner (`cornerShortfallAfter: 0`)
+ * and a strictly LOWER reported cost (774.4 vs 784.4) than the 3-bend
+ * version it replaced — not just different, cheaper.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -75,9 +100,11 @@ test('no reversal either, across the same range', () => {
   }
 });
 
-test('line_2 rides a single clean trunk instead of a marginal two-trunk detour, once the reshape bug is fixed', () => {
+test('line_2 rides a clean route (plain, once corner-room refinement recovers its corners) instead of a marginal two-trunk detour', () => {
   const { results } = runScenario(60);
   const line2 = results.get('line_2');
-  assert.equal(line2.meta.chainChannels.length, 1, `expected a single-trunk chain, got: ${JSON.stringify(line2.meta.chainChannels)}`);
-  assert.equal(line2.meta.bends, 4, `expected a clean 4-bend route, got: ${JSON.stringify(line2.pts)}`);
+  assert.equal(line2.meta.strategy, 'smart', `expected corner-room refinement to make the plain route win over a marginal trunk detour, got strategy: ${line2.meta.strategy}, chainChannels: ${JSON.stringify(line2.meta.chainChannels)}`);
+  assert.equal(line2.meta.bends, 1, `expected a direct 1-bend route once the grid-quantization alias guard removed the remaining detour, got: ${JSON.stringify(line2.pts)}`);
+  assert.equal(findDiagonalSegment(line2.pts), null);
+  assert.equal(findIllegalReversal(line2.pts), null);
 });

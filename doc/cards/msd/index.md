@@ -242,7 +242,7 @@ Global routing defaults that apply to all lines unless overridden per-line. The 
 | `crossing_avoid_enabled` | boolean | `true` | Lines avoid crossing each other when a small detour suffices |
 | `crossing_avoid_bias` | number | `4` | Crossing penalty — higher accepts longer detours |
 
-Full reference — including channels, bundling behavior, and every advanced knob: [Line Routing & Channels](./routing.md).
+New to routing? [Routing Concepts](./routing-concepts.md) covers the mental model first. Full reference — including channels, bundling behavior, and every advanced knob: [Line Routing & Channels](./routing.md).
 
 ---
 

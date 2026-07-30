@@ -4,6 +4,10 @@ MSD lines are routed like **cable raceways** on a circuit board: lines that trav
 
 Per-line properties (`route`, `route_hint`, `anchor_side`, `waypoints`, …) are documented in [Line Overlay](./line-overlay.md); this page covers the routing *system* and its global configuration.
 
+::: tip Just want the mental model?
+This page is the full config reference. For a short, diagram-driven overview of how the router decides a path, see [Routing Concepts](./routing-concepts.md).
+:::
+
 ---
 
 ## Routing Modes
@@ -73,6 +77,8 @@ If lines with a large `corner_radius` and an `anchor_side`/`attach_side` hint ar
 
 **Overriding the mandatory stub**: every routed line reserves a short, unsearched straight run right at departure/arrival (`stub_length` on the line overlay, viewBox units) before pathfinding starts. Leave it unset to use the router's own resolved default (grid-resolution-floored in `auto` corner mode, `2 × corner_radius` in `forced` mode — see above). Setting it below about one grid cell risks re-triggering an internal same-cell short-circuit for very short lines; check the router's own resolved value first via `window.lcards.debug.msd.routing.inspect(id).meta.debug` (see [Debugging](#debugging)) before tuning it down.
 
+**Recovering corner room automatically** (`corner_room_weight`, `smart`/`auto` lines only): a third lever, independent of `corner_radius_mode`. A tight detour — two bends close enough together that `corner_radius` has to shrink to fit — is exactly the shape `corner_room_weight` targets: the router's own local refinement pass (the same one that nudges elbows away from obstacles under `smart_proximity`) also tries nudging elbows to recover a squashed corner's radius, accepting the nudge only when it's cheap enough to be worth it. Unlike `forced` mode's blind stub reservation, this is a real cost comparison — a route that leaves more room for the configured corner is preferred over the plain-cheapest route only when the difference in distance/bends is small, never at the cost of a much longer detour. **On by default** (`corner_room_weight: 4`, both card-wide in `msd.routing` and per-line) — the LCARS rounded-corner look is the intended out-of-the-box result. Set to `0` (card-wide or per-line) to opt out.
+
 ---
 
 ## Channels
@@ -94,6 +100,7 @@ msd:
       direction: horizontal        # horizontal | vertical | auto (infer from shape)
       weight: 1                    # influence strength
       line_spacing: 10             # lane gap for bundled lines
+      discoverable: true           # default; false = only route_channels users may ever use this channel
   anchors:
     a_start: [50, 100]
     a_end: [550, 100]
@@ -112,7 +119,7 @@ msd:
 | `avoid` | Entering the channel costs extra — lines route around it when reasonable |
 | `force` | Lines referencing the channel **must** route through it, in the order listed in `route_channels` |
 
-Lines opt in explicitly with `route_channels: [id, ...]` — and a line routing *near* a channel can also discover and bundle with it automatically, exactly like a discovered trunk.
+Lines opt in explicitly with `route_channels: [id, ...]` — and, separately, *any* `auto`/`smart`/`grid` line routing near a channel can also discover and bundle with it automatically, exactly like a discovered trunk, **whether or not it lists that channel in `route_channels`**. This is what makes zero-config bundling work, but it also means a channel is never scoped to only the line(s) it was authored for by default — a nearby, unrelated line can still spontaneously join it. Set `discoverable: false` on a channel to opt it out of that automatic pass entirely; it then only ever affects lines that explicitly reference it via `route_channels` (default is `true`, matching existing behavior).
 
 **Lanes**: multiple lines through one channel get distinct, centered lanes — one line rides the channel's reference line, two ride `±line_spacing/2`, three ride `-spacing / 0 / +spacing`, and so on. Lanes are clamped to the channel's authored bounds, so make the channel at least `line_spacing × line_count` tall/wide for full separation.
 
@@ -161,7 +168,8 @@ Deep internals — rarely needed. Exposed in the Studio Routing tab under **Adva
 |-------|---------|-------------|
 | `route_hint_penalty` | `6` | Cost for a first/last move disagreeing with `route_hint` |
 | `smoothing_mode` / `smoothing_iterations` / `smoothing_max_points` | `none` / `1` / `160` | Chaikin path smoothing |
-| `smart_proximity` | `0` | Obstacle proximity band for the refinement pass (0 disables refinement) |
+| `smart_proximity` | `0` | Obstacle proximity band for the refinement pass (0 disables this trigger) |
+| `corner_room_weight` | `4` | How strongly the refinement pass tries to recover a squashed corner's `corner_radius` (0 disables this trigger). On by default — see [Corner Size: Target vs. Forced](#corner-size-target-vs-forced). Also settable per-line. |
 | `smart_detour_span` / `smart_max_extra_bends` / `smart_min_improvement` / `smart_max_detours_per_elbow` | `48` / `3` / `4` / `4` | Refinement pass limits |
 | `channel_force_penalty` | `800` | Cost for a route that misses a forced channel |
 | `channel_avoid_multiplier` | `1.0` | Global multiplier on avoid-channel penalties |
@@ -208,6 +216,7 @@ A few rough edges are tracked and deliberately not yet fixed — not oversights,
 
 ## See Also
 
+- [Routing Concepts](./routing-concepts.md) — the short, diagram-driven version of this page
 - [Line Overlay](./line-overlay.md) — per-line properties, styling, markers
 - [Manual Routing](./manual-routing.md) — explicit waypoints
 - [MSD Card](./index.md) — card-level configuration

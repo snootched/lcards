@@ -166,6 +166,23 @@ export const studioDialogStyles = css`
         padding: 4px;
     }
 
+    /* Group caption — sits inline as the first item in its group's row, next
+       to the buttons (not stacked above them, so the group's height/pill
+       shape never changes). Muted relative to the icons so it reads as a
+       label, not another control. */
+    .canvas-toolbar-group-label {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: white;
+        opacity: 0.7;
+        padding: 0 2px 0 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        user-select: none;
+    }
+
     .canvas-toolbar-button {
         width: 40px;
         height: 40px;

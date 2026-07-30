@@ -158,6 +158,84 @@ export function findDiagonalSegment(pts) {
 }
 
 /**
+ * Finds the first pair of non-adjacent segments within a SINGLE polyline
+ * that cross or overlap each other — a self-intersecting loop, distinct
+ * from findIllegalReversal/findDiagonalSegment (which only ever look at
+ * adjacent points) and from a cross-LINE crossing check (this compares a
+ * route against its own earlier legs, not against another line's route).
+ * Deliberately independent from RouterCore's own internal
+ * _polylineSelfIntersects — this is the test suite's own oracle, not a
+ * check that the implementation agrees with itself.
+ * @param {number[][]} pts
+ * @returns {{ i: number, j: number, a: number[], b: number[], c: number[], d: number[] } | null}
+ */
+export function findSelfCrossing(pts) {
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    const vertical = a[0] === b[0];
+    if (!vertical && a[1] !== b[1]) continue;
+    const lo = vertical ? Math.min(a[1], b[1]) : Math.min(a[0], b[0]);
+    const hi = vertical ? Math.max(a[1], b[1]) : Math.max(a[0], b[0]);
+    const fixedCoord = vertical ? a[0] : a[1];
+    for (let j = 1; j <= i - 2; j++) {
+      const c = pts[j - 1], d = pts[j];
+      const segVertical = c[0] === d[0];
+      const segLo = segVertical ? Math.min(c[1], d[1]) : Math.min(c[0], d[0]);
+      const segHi = segVertical ? Math.max(c[1], d[1]) : Math.max(c[0], d[0]);
+      const segFixed = segVertical ? c[0] : c[1];
+      if (segVertical !== vertical) {
+        if (segFixed > lo && segFixed < hi && fixedCoord > segLo && fixedCoord < segHi) {
+          return { i, j, a, b, c, d };
+        }
+        continue;
+      }
+      if (segFixed !== fixedCoord) continue;
+      if (Math.min(hi, segHi) - Math.max(lo, segLo) > 0) {
+        return { i, j, a, b, c, d };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Finds the first "notch" in a polyline — three consecutive segments that
+ * jog away from and back to the same cross-axis coordinate (V-H-V or H-V-H,
+ * spanning 4 points / 2 turns) for zero net displacement on that axis.
+ * Distinct from findIllegalReversal, which only catches a single-point
+ * 180-degree backtrack on ONE axis (3 points, same axis throughout) — a
+ * notch never reverses direction on any single axis (each individual turn
+ * is a genuine perpendicular corner), so _compactPolyline/
+ * _collapseSoftLegReversals (which only ever look for a same-axis sign
+ * flip at ONE point) can neither detect nor collapse it, even though it's
+ * provably pointless: the middle leg's whole round trip nets zero.
+ *
+ * NOT every match is necessarily a bug — a genuine obstacle sitting
+ * directly on the straight line between `a` and `d` can force exactly this
+ * shape legitimately. Callers with obstacles in their scenario should
+ * confirm the flagged detour isn't obstacle-necessitated (e.g. via
+ * segmentCrossesObstacle on the direct a->d line) before treating a match
+ * as a defect, mirroring findIllegalReversal's own caveat.
+ * @param {number[][]} pts
+ * @returns {{ index: number, a: number[], b: number[], c: number[], d: number[] } | null}
+ */
+export function findUnnecessaryDetour(pts) {
+  for (let i = 1; i < pts.length - 2; i++) {
+    const a = pts[i - 1], b = pts[i], c = pts[i + 1], d = pts[i + 2];
+    const vhv = a[0] === b[0] && a[1] !== b[1] &&
+      b[1] === c[1] && b[0] !== c[0] &&
+      c[0] === d[0] && c[1] !== d[1] &&
+      a[1] === d[1];
+    const hvh = a[1] === b[1] && a[0] !== b[0] &&
+      b[0] === c[0] && b[1] !== c[1] &&
+      c[1] === d[1] && c[0] !== d[0] &&
+      a[0] === d[0];
+    if (vhv || hvh) return { index: i, a, b, c, d };
+  }
+  return null;
+}
+
+/**
  * True if the axis-aligned segment a->b strictly crosses through the
  * interior of any obstacle box (touching an edge doesn't count — only a
  * segment that actually cuts through the obstacle's rendered area).

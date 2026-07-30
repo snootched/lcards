@@ -454,6 +454,12 @@ export function getMsdSchema() {
               default: 'auto',
               description: 'Line overlays only (routing behavior, not shape overlay rendering): whether corner_radius is a target or a hard requirement for round/bevel corners. auto (default): corner size may shrink so the router stays free to avoid forcing a detour or an unnecessary line crossing near tight geometry. forced: always reserves room for the full configured radius, matching pre-2026.07 behavior — can force routing detours or crossings.'
             },
+            corner_room_weight: {
+              type: 'number',
+              min: 0,
+              optional: true,
+              description: 'Line overlays only, round/bevel corner_style: how strongly the smart-routing refinement pass tries to recover this line\'s full corner_radius when a tight detour would otherwise shrink it. On by default (card-wide default in routing.corner_room_weight) — a route that leaves more room for the configured corner is preferred over the plain-cheapest route, when the difference is small. Set to 0 on a line to opt it out.'
+            },
             corner_angle: {
               type: 'number',
               min: 0,
@@ -631,6 +637,13 @@ export function getMsdSchema() {
             optional: true,
             default: 4,
             description: 'Maximum detour attempts per elbow'
+          },
+          corner_room_weight: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 4,
+            description: 'Card-wide default strength for recovering a line\'s full corner_radius near tight detours (see the per-line field of the same name for the full explanation). On by default — the LCARS rounded-corner look is the intended out-of-the-box result. Set to 0 to disable card-wide; individual lines can still opt back in via their own corner_room_weight.'
           },
 
           // Channel configuration
@@ -811,6 +824,12 @@ export function getMsdSchema() {
                 default: 8,
                 description: 'Gap between bundled lines in viewBox units (for prefer/force modes)'
               },
+              discoverable: {
+                type: 'boolean',
+                optional: true,
+                default: true,
+                description: 'Whether nearby lines that do NOT list this channel in their own route_channels may still spontaneously bundle into it. Default true matches automatic zero-config bundling; set false to scope this channel to only the lines that explicitly reference it via route_channels.'
+              },
               type: {
                 type: 'string',
                 enum: ['bundling', 'avoiding', 'waypoint'],
@@ -824,7 +843,7 @@ export function getMsdSchema() {
         'x-ui': {
           control: 'yaml',
           label: 'Routing Channels',
-          helper: 'Define channels: channel_id: { bounds: [x,y,w,h], mode: prefer|avoid|force, direction: auto|horizontal|vertical }'
+          helper: 'Define channels: channel_id: { bounds: [x,y,w,h], mode: prefer|avoid|force, direction: auto|horizontal|vertical, discoverable: true|false }'
         }
       },
 

@@ -91,7 +91,7 @@ The line will find the currently best route automatically and be drawn on the ca
 
 ## Step 5 — Save
 
-Skip **Shapes** and **Routing** for now — they're both optional. Shapes add decorative geometry (rooms, zones, conduit runs) once you want the canvas to feel more like a real schematic; Routing exposes global tuning knobs that are only worth touching once you've noticed something you specifically want to change (see [Routing & Channels](./routing.md)).
+Skip **Shapes** and **Routing** for now — they're both optional. Shapes add decorative geometry (rooms, zones, conduit runs) once you want the canvas to feel more like a real schematic; Routing exposes global tuning knobs that are only worth touching once you've noticed something you specifically want to change (curious how lines find their own path? see [Routing Concepts](./routing-concepts.md); full config reference: [Routing & Channels](./routing.md)).
 
 Click **Save** in the Studio's footer, then save the card/dashboard as you normally would in Lovelace.
 
@@ -105,6 +105,7 @@ That's a complete minimal MSD: a background, a live control, and a line connecti
 
 - [Control Overlay](./control-overlay.md) — every control placement/sizing option
 - [Line Overlay](./line-overlay.md) — routing modes, styling, markers, state-based color
+- [Routing Concepts](./routing-concepts.md) — the short version of how lines find their own path
 - [Routing & Channels](./routing.md) — how automatic bundling works, and how to guide it
 - [Shape Overlay](./shape-overlay.md) — rooms, zones, and freeform geometry
 - [MSD Card](./index.md) — full config reference, once you're ready to read/write the YAML directly

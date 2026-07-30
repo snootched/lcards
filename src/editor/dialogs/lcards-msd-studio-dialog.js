@@ -456,7 +456,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             direction: 'auto',
             bounds: [0, 0, 100, 50],
             weight: 0.5,
-            line_spacing: 8
+            line_spacing: 8,
+            discoverable: true
         };
         this._drawChannelState = {
             startPoint: null,
@@ -1446,6 +1447,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <!-- Tools group: canvas mode selection — changes what clicking on
                              the canvas does (place/draw/connect vs. plain view/select). -->
                         <div class="canvas-toolbar-group">
+                            <span class="canvas-toolbar-group-label">Tools</span>
                             ${modeButtons.map(btn => html`
                                 <button
                                     class="canvas-toolbar-button ${this._activeMode === btn.mode ? 'active' : ''}"
@@ -1501,6 +1503,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <!-- Interaction group: Edit Mode (discussion #389) — pauses live-card
                              click interception so overlays can be dragged/resized directly. -->
                         <div class="canvas-toolbar-group">
+                            <span class="canvas-toolbar-group-label">Interaction</span>
                             <button
                                 class="canvas-toolbar-button ${!this._liveInteractionEnabled ? 'active' : ''}"
                                 @click=${(e) => { e.stopPropagation(); this._toggleEditMode(); }}
@@ -1512,6 +1515,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <!-- View-aids group: canvas guides/behavior that don't change what's
                              in the config, only how you see and interact with the canvas. -->
                         <div class="canvas-toolbar-group">
+                            <span class="canvas-toolbar-group-label">View</span>
                             <button
                                 class="canvas-toolbar-button ${this._showCrosshairs ? 'active' : ''}"
                                 @click=${(e) => { e.stopPropagation(); this._showCrosshairs = !this._showCrosshairs; this.requestUpdate(); }}
@@ -1540,6 +1544,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                         <!-- Overlays group: show/hide overlay-type visualizations on the canvas. -->
                         <div class="canvas-toolbar-group">
+                            <span class="canvas-toolbar-group-label">Overlays</span>
                             ${overlayToggles.map(toggle => html`
                                 <button
                                     class="canvas-toolbar-button ${this[toggle.prop] ? 'active' : ''}"
@@ -5835,6 +5840,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             bounds: [x, y, width, height],
             weight: 0.5,
             line_spacing: 8,
+            discoverable: true,
             // Add suggested lines if any were found
             suggestedLines: intersectingLines.length > 0 ? intersectingLines.map(line => line.id) : null
         };
@@ -13084,8 +13090,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 <br/>• <strong>Prefer</strong>: Lines are rewarded for traveling through, and bundle into evenly-spaced lanes
                                 <br/>• <strong>Avoid</strong>: Lines are penalized for entering
                                 <br/>• <strong>Force</strong>: Lines referencing the channel must route through it
-                                <br/><br/>Lines opt in with <code>route_channels: [channel_id]</code> — and any line
-                                routing nearby can also discover and bundle with a channel automatically.
+                                <br/><br/>Lines opt in with <code>route_channels: [channel_id]</code> — and, separately,
+                                any line routing nearby can also discover and bundle with a channel automatically,
+                                whether or not it lists it in <code>route_channels</code>. Turn off "Discoverable by
+                                nearby lines" on a channel to scope it to only the lines that explicitly reference it.
                             </p>
                         </lcards-message>
                     ` : html`
@@ -13141,10 +13149,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                             <div style="margin-bottom: 6px;"><strong>Pathfinding Refinement</strong></div>
                             <div style="margin-left: 12px; margin-bottom: 8px;">
-                                • <strong>Proximity Band</strong>: Extra avoidance distance from obstacles (0 disables refinement)<br/>
+                                • <strong>Proximity Band</strong>: Extra avoidance distance from obstacles (0 disables this trigger)<br/>
+                                • <strong>Corner Room Weight</strong>: How strongly a tight detour's corner tries to recover its full corner_radius (0 disables this trigger; on by default)<br/>
                                 • <strong>Detour Span</strong>: How far the algorithm looks ahead for better paths<br/>
                                 • <strong>Max Extra Bends</strong>: Maximum additional turns allowed for optimization<br/>
-                                • <strong>Max Detours</strong>: How many alternate routes to consider per segment
+                                • <strong>Max Detours</strong>: How many alternate routes to consider per segment<br/>
+                                <em>Refinement runs whenever EITHER Proximity Band OR Corner Room Weight is above 0.</em>
                             </div>
 
                             <div style="margin-bottom: 6px;"><strong>Channel Routing</strong></div>
@@ -13208,7 +13218,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <div style="font-weight: 500; margin-bottom: 8px;">
                             Pathfinding Refinement
                             <span style="font-weight: 400; font-size: 12px; color: var(--secondary-text-color); margin-left: 8px;">
-                                (Off by default — only takes effect once Proximity Band is set above 0)
+                                (Runs whenever Proximity Band OR Corner Room Weight is above 0 — Corner Room Weight is on by default)
                             </span>
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
@@ -13218,7 +13228,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.smart_proximity}
                                 .label=${'Proximity Band'}
                                 @value-changed=${(e) => this._updateRoutingConfig('smart_proximity', e.detail.value)}
-                                helper="Extra obstacle avoidance distance (default: 0 — refinement is off until this is > 0)">
+                                helper="Extra obstacle avoidance distance (default: 0 — off unless > 0)">
+                            </ha-selector>
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, mode: 'box' } }}
+                                .value=${routing.corner_room_weight}
+                                .label=${'Corner Room Weight'}
+                                @value-changed=${(e) => this._updateRoutingConfig('corner_room_weight', e.detail.value)}
+                                helper="Recover corner_radius near tight detours (default: 4 — on; set 0 to disable)">
                             </ha-selector>
                             <ha-selector
                                 .hass=${this.hass}
@@ -13514,6 +13532,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             font-weight: 600;
                             white-space: nowrap;
                         ">${dirBadge.icon} ${dirBadge.label}</span>
+                        <!-- Discoverable Badge — only shown when explicitly scoped off,
+                             matching the boolean field's own "off = exception" framing
+                             (default true stays quiet, same as the other badges only
+                             ever showing the channel's actual configured value). -->
+                        ${channel.discoverable === false ? html`
+                            <span
+                                title="Only lines that explicitly list this channel in route_channels can use it"
+                                style="
+                                    display: inline-flex;
+                                    align-items: center;
+                                    padding: 2px 8px;
+                                    border-radius: 12px;
+                                    background: var(--secondary-text-color);
+                                    color: var(--primary-background-color);
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                    white-space: nowrap;
+                                ">Scoped</span>
+                        ` : ''}
                     </div>
                     <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         ${boundsStr}
@@ -13669,6 +13706,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </div>
                     </div>
 
+                    <ha-selector
+                        style="margin-top: 16px; display: block;"
+                        .hass=${this.hass}
+                        .label=${'Discoverable by nearby lines'}
+                        .helper=${'When off, only lines that explicitly list this channel in route_channels can ever use it — a nearby line that does NOT reference it will never spontaneously bundle into it, even if it routes close and parallel.'}
+                        .selector=${{ boolean: {} }}
+                        .value=${data.discoverable !== false}
+                        @value-changed=${(e) => this._updateChannelFormField('discoverable', e.detail.value)}>
+                    </ha-selector>
+
                     <!-- Smart Routing Suggestions (full width if present) -->
                     ${data.suggestedLines && data.suggestedLines.length > 0 ? html`
                         <div class="channel-suggestion-panel" style="margin-top: 16px;">
@@ -13736,7 +13783,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             direction: 'auto',
             bounds: [0, 0, 100, 50],
             weight: 0.5,
-            line_spacing: 8
+            line_spacing: 8,
+            discoverable: true
         };
         this.requestUpdate();
     }
@@ -13762,7 +13810,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             direction: channel.direction || 'auto',
             bounds: [...(channel.bounds || [0, 0, 100, 50])],
             weight: channel.weight || 0.5,
-            line_spacing: channel.line_spacing ?? 8
+            line_spacing: channel.line_spacing ?? 8,
+            // Matches RouterCore._normalizeChannels's own `c.discoverable !== false`
+            // — only an explicit false opts a channel out of spontaneous discovery.
+            discoverable: channel.discoverable !== false
         };
         this.requestUpdate();
     }
@@ -13823,7 +13874,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             direction: this._channelFormData.direction || 'auto',
             bounds: this._channelFormData.bounds,
             weight: this._channelFormData.weight || 0.5,
-            line_spacing: this._channelFormData.line_spacing ?? 8
+            line_spacing: this._channelFormData.line_spacing ?? 8,
+            discoverable: this._channelFormData.discoverable !== false
         };
 
         this._setNestedValue('msd.channels', this._workingConfig.msd.channels);
@@ -14064,6 +14116,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             corner_style: 'round',
             corner_radius: 34,
             corner_radius_mode: 'auto',
+            corner_room_weight: undefined, // Will use the card-wide routing.corner_room_weight default
             corner_angle: 45,
             smoothing_mode: 'none',
             smoothing_iterations: 0,
@@ -14125,6 +14178,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             corner_style: line.corner_style || 'round',
             corner_radius: line.corner_radius ?? 34,
             corner_radius_mode: line.corner_radius_mode || 'auto',
+            corner_room_weight: line.corner_room_weight,
             corner_angle: line.corner_angle ?? 45,
             smoothing_mode: line.smoothing_mode || 'none',
             smoothing_iterations: line.smoothing_iterations || 0,
@@ -14252,6 +14306,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
         if (this._lineFormData.corner_radius_mode === 'forced') {
             lineOverlay.corner_radius_mode = this._lineFormData.corner_radius_mode;
+        }
+        if (this._lineFormData.corner_room_weight != null) {
+            lineOverlay.corner_room_weight = this._lineFormData.corner_room_weight;
         }
         if (this._lineFormData.corner_style === 'bevel' && this._lineFormData.corner_angle != null && this._lineFormData.corner_angle !== 45) {
             lineOverlay.corner_angle = this._lineFormData.corner_angle;
@@ -16055,6 +16112,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 hint="Overrides the mandatory departure/arrival stub length (leave empty to use the router's own auto/forced resolution — see Corner Size Mode on the Style tab). Going below one grid cell risks re-triggering an internal same-cell short-circuit; check window.lcards.debug.msd.routing.inspect(id).meta.debug for the router's resolved value first."
                                 style="width: 100%; margin-top: 12px;">
                             </ha-input>
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ number: { min: 0, max: 20, step: 1, mode: 'slider' } }}
+                                .value=${this._lineFormData.corner_room_weight ?? 4}
+                                .label=${'Corner Room Weight'}
+                                @value-changed=${(e) => {
+                                    this._lineFormData.corner_room_weight = e.detail.value;
+                                    this.requestUpdate();
+                                }}
+                                helper="How hard this line fights to keep its full Corner Radius when a tight detour would otherwise squash it: 0 = never bend the route for it (this line opts out), higher = more willing to accept a longer or more-bent route to keep corners full. Card-wide default is 4; a line with a small custom Corner Radius may need a higher value for a similar effect."
+                                style="margin-top: 12px;">
+                            </ha-selector>
                         </lcards-form-section>
                     ` : ''}
             </div>

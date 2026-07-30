@@ -323,6 +323,7 @@ export default withMermaid(defineConfig({
                 { text: 'Quick Start',      link: '/cards/msd/quick-start' },
                 { text: 'Control Overlay',  link: '/cards/msd/control-overlay' },
                 { text: 'Line Overlay',     link: '/cards/msd/line-overlay' },
+                { text: 'Routing Concepts', link: '/cards/msd/routing-concepts' },
                 { text: 'Routing & Channels', link: '/cards/msd/routing' },
                 { text: 'Shape Overlay',    link: '/cards/msd/shape-overlay' },
                 { text: 'Manual Routing',   link: '/cards/msd/manual-routing' },
