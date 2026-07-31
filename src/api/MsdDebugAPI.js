@@ -234,7 +234,7 @@ export class MsdDebugAPI {
         const namespaces = {
           routing: {
             desc: 'Routing and resolution debugging',
-            methods: ['inspect(overlayId, cardId?)', 'trunks(cardId?)', 'stats(cardId?)', 'invalidate(id, cardId?)']
+            methods: ['inspect(overlayId, cardId?)', 'inspectAll(cardId?)', 'trunks(cardId?)', 'stats(cardId?)', 'invalidate(id, cardId?)']
           },
           data: {
             desc: 'MSD entity data tracing across overlays',
@@ -435,6 +435,38 @@ export class MsdDebugAPI {
             return null;
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error inspecting routing:', error);
+            return null;
+          }
+        },
+
+        /**
+         * Like inspect(), but for every overlay currently in the route
+         * cache at once — dumps a whole MSD's routing state in one call
+         * instead of inspecting each line individually.
+         *
+         * @param {string|null} [cardId=null] - Config ID for target MSD card (e.g. 'bridge')
+         * @returns {Array<object>|null} One entry per overlay id, same shape as inspect(), or null if not found
+         *
+         * @example
+         * window.lcards.debug.msd.routing.inspectAll()
+         * console.table(window.lcards.debug.msd.routing.inspectAll())
+         */
+        inspectAll(cardId = null) {
+          try {
+            const pipeline = _getMsdPipeline(cardId);
+            if (!pipeline) {
+              lcardsLog.warn('[MsdDebugAPI] No MSD card found or pipeline not ready');
+              return null;
+            }
+
+            if (typeof pipeline.routingInspectAll === 'function') {
+              return pipeline.routingInspectAll();
+            }
+
+            lcardsLog.warn('[MsdDebugAPI] routingInspectAll method not available');
+            return null;
+          } catch (error) {
+            lcardsLog.error('[DebugAPI] Error inspecting all routing:', error);
             return null;
           }
         },

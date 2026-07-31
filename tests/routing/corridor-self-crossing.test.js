@@ -22,10 +22,16 @@
  * enough discount elsewhere in the same candidate, exactly the failure
  * mode here) checked at the end of `_computeCorridorRouted`, mirroring
  * this function's own existing `_pointInsideObstacle` hard-reject
- * precedent (same `!hasForceChannel` gate: force channels are mandatory by
- * explicit user config, never silently overridden). `computePath`'s own
- * corridor-vs-plain comparison already treats a null candidate as simply
- * unavailable and falls back correctly — no changes needed there.
+ * precedent. Both checks exempt genuinely mandatory `force` channels from
+ * ever being rejected for their own necessary shape — force channels are
+ * mandatory by explicit user config, never silently overridden — but this
+ * scenario has NO force channel at all (both chained channels are
+ * `prefer`), so it always takes the unconditional-reject branch, unaffected
+ * by that exemption (see `force-prefer-chain-backtrack.test.js` for the
+ * MIXED force+prefer case this exemption's own scoping had to be narrowed
+ * for). `computePath`'s own corridor-vs-plain comparison already treats a
+ * null candidate as simply unavailable and falls back correctly — no
+ * changes needed there.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

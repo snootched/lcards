@@ -88,7 +88,10 @@ export class ShapeOverlay extends OverlayBase {
       );
 
       const animationAttributes = this._prepareAnimationAttributes(overlay, overlay.style || {});
-      const isSelected = overlay._editorSelected === true;
+      // Gated on _isStudioPreview (real DOM-ancestry check, not persisted
+      // config) so a stray _editorSelected flag can never paint the
+      // selection glow outside the Studio dialog itself.
+      const isSelected = overlay._editorSelected === true && cardInstance?._isStudioPreview === true;
 
       let geometry;
       if (kind === 'polyline') {

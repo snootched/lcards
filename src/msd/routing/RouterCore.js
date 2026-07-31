@@ -17,6 +17,13 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 // or the geometry fallback, neither of which carry a real direction).
 const CARDINAL_DIR = { left: [-1,0], right: [1,0], top: [0,-1], bottom: [0,1] };
 const MIN_STUB_LENGTH = 24; // viewBox units — floor even when cornerRadius is 0
+// Sentinel returned by _computeCorridorRoutedAttempt (never a real route
+// result) to tell its _computeCorridorRouted wrapper "a non-force member of
+// this chain conflicted with the chain's own mandatory force channel(s) —
+// drop it and retry force-only" — see _computeCorridorRouted's own comment.
+// A Symbol, not a string/null, so it can never collide with a legitimate
+// return value via `===`.
+const RETRY_FORCE_ONLY = Symbol('retry-force-only');
 // Default strength of _refineSmart's corner-shortfall scoring (see
 // buildRouteRequest's own req.cornerRoomWeight comment) — ships > 0 so the
 // LCARS-rounded-corner look is the out-of-the-box default, not an opt-in.
@@ -536,30 +543,7 @@ export class RouterCore {
    */
   inspect(overlayId) {
     if (!overlayId) return null;
-
-    // Cache keys are formatted as: `${req.id}@${x1},${y1}-${x2},${y2}|...`,
-    // including a trailing `RV:${_registryVersion}` component — a NEW key
-    // (and thus a NEW, separate _cache entry) every time this line
-    // recomputes across a multi-pass trunk-discovery convergence loop, even
-    // when its endpoints/config never change. `_cache` is a plain Map with
-    // pure append-only insertion order (`_cache.set` + `_cacheOrder.push`,
-    // no LRU touch-on-read anywhere) — so EARLIER, not-yet-converged passes'
-    // entries for this same overlay ID stay in the map, in EARLIER iteration
-    // position, until evicted at `_maxCache` (256). The old version of this
-    // loop `return`ed on the FIRST match, i.e. the OLDEST still-cached route
-    // for this ID — confirmed as a real, reported bug: live HA inspection
-    // during an active multi-line convergence returned a route from a
-    // mid-convergence pass (RV:2/3/7) while the actual rendered DOM (the
-    // final, converged state) was already correct and different. Now scans
-    // every match and keeps the LAST one seen — later Map-iteration
-    // position means later insertion, i.e. the most recently computed route
-    // for this ID, matching what's actually on screen.
-    let found = null;
-    for (const [key, routeResult] of this._cache.entries()) {
-      if (key.startsWith(`${overlayId}@`)) {
-        found = { key, routeResult };
-      }
-    }
+    const found = this._latestCacheEntries().get(overlayId);
     if (!found) return null;
     return {
       overlayId,
@@ -568,6 +552,56 @@ export class RouterCore {
       meta: found.routeResult.meta || {},
       cacheKey: found.key
     };
+  }
+
+  /**
+   * Debug introspection: like inspect(), but for every overlay currently in
+   * the route cache at once — dumping a whole card's routing state in one
+   * call instead of inspecting each line individually.
+   * @returns {Array<object>} one entry per overlay id, same shape as inspect()
+   */
+  inspectAll() {
+    return [...this._latestCacheEntries()].map(([overlayId, found]) => ({
+      overlayId,
+      pts: found.routeResult.pts || [],
+      d: found.routeResult.d || '',
+      meta: found.routeResult.meta || {},
+      cacheKey: found.key
+    }));
+  }
+
+  /**
+   * Shared scan behind inspect()/inspectAll(): the LATEST cache entry for
+   * every overlay id currently present in the route cache.
+   *
+   * Cache keys are formatted as: `${req.id}@${x1},${y1}-${x2},${y2}|...`,
+   * including a trailing `RV:${_registryVersion}` component — a NEW key
+   * (and thus a NEW, separate _cache entry) every time a line recomputes
+   * across a multi-pass trunk-discovery convergence loop, even when its
+   * endpoints/config never change. `_cache` is a plain Map with pure
+   * append-only insertion order (`_cache.set` + `_cacheOrder.push`, no LRU
+   * touch-on-read anywhere) — so EARLIER, not-yet-converged passes' entries
+   * for the same overlay id stay in the map, in EARLIER iteration position,
+   * until evicted at `_maxCache` (256). An old version of inspect() simply
+   * `return`ed on the FIRST match, i.e. the OLDEST still-cached route for an
+   * id — confirmed as a real, reported bug: live HA inspection during an
+   * active multi-line convergence returned a route from a mid-convergence
+   * pass (RV:2/3/7) while the actual rendered DOM (the final, converged
+   * state) was already correct and different. This scans every entry and
+   * keeps the LAST one seen per id — later Map-iteration position means
+   * later insertion, i.e. the most recently computed route, matching what's
+   * actually on screen.
+   * @returns {Map<string, {key: string, routeResult: object}>}
+   * @private
+   */
+  _latestCacheEntries() {
+    const latest = new Map();
+    for (const [key, routeResult] of this._cache.entries()) {
+      const at = key.indexOf('@');
+      if (at < 0) continue;
+      latest.set(key.slice(0, at), { key, routeResult });
+    }
+    return latest;
   }
 
   /**
@@ -1120,7 +1154,7 @@ export class RouterCore {
       // load-bearing for discovery-loop convergence.
       let joinedForeignTrunk = false;
       if (result) {
-        joinedForeignTrunk = this._registerLineSegments(req.id, result.pts, req.a, req.b, req.width);
+        joinedForeignTrunk = this._registerLineSegments(req.id, result.pts, req.a, req.b, req.width, result.cornerRadii || null);
       }
       // Apply smoothing AFTER corner arcs (arcs preserved, path rebuilt as polyline if smoothing > 0)
       if (result && req.smoothingMode !== 'none' && req.smoothingIterations > 0) {
@@ -2821,6 +2855,16 @@ export class RouterCore {
    *   side (see _mergeOrRegisterTrunk), never for span/geometry.
    * @param {number[]} [rawB] - the line's true, un-stubbed end/attach
    *   point (req.b), same purpose as rawA.
+   * @param {Array<{index:number,radius:number}>|null} [cornerRadii] - this
+   *   line's own resolved corner radii, straight from
+   *   `_applyCornerRounding`'s result (indexed against the RAW, pre-
+   *   compaction `pts` — see that function's own `cornerRadii[i-1]` usage).
+   *   Used to register how far each crossing segment's real occupied span
+   *   recedes from its sharp endpoints, so OTHER lines' own corner-rounding
+   *   clearance checks (`_distanceToNearestOtherLineSegment`) see the
+   *   actual rendered shape, not the pre-rounding sharp corner. `null`
+   *   (no rounding applied — bevel, sharp corners, or radius 0) registers
+   *   every trim as 0, identical to today's behavior.
    * @returns {boolean} whether this scan made lineId a brand-new member of
    *   a trunk it doesn't own (see _mergeOrRegisterTrunk's foreignJoinFlag
    *   comment) — computePath uses this to skip caching, so the next pass
@@ -2828,7 +2872,25 @@ export class RouterCore {
    *   instead of looking like an already-stable cache hit forever.
    * @private
    */
-  _registerLineSegments(lineId, pts, rawA = null, rawB = null, width = 0) {
+  _registerLineSegments(lineId, pts, rawA = null, rawB = null, width = 0, cornerRadii = null) {
+    // Corner-index lookup by COORDINATE (not array position): this
+    // function's own _compactPolyline call below drops collinear points
+    // that _applyCornerRounding's cornerRadii array still assigned an
+    // index to (it iterates the RAW pts directly, never compacts — see its
+    // own comment), so the two arrays' indices don't align. Every point
+    // that DOES survive compaction is a genuine subset of the raw pts at
+    // the identical coordinate, so a coordinate-keyed map reconciles them
+    // without needing the two functions to agree on indexing. A run's true
+    // start/end anchor points are correctly absent from this map (they're
+    // never corners), naturally defaulting a real endpoint's trim to 0.
+    let changed = false;
+    const radiusAt = new Map();
+    if (cornerRadii) {
+      for (let i = 1; i < pts.length - 1; i++) {
+        const c = cornerRadii[i - 1];
+        if (c && c.radius > 0) radiusAt.set(`${pts[i][0]},${pts[i][1]}`, c.radius);
+      }
+    }
     // Compact collinear runs first — a straight route commonly has interior
     // points that aren't real corners at all (e.g. both ends of a stub
     // splice happening to continue in the same direction the inner path
@@ -2839,7 +2901,6 @@ export class RouterCore {
     // on for this exact purpose.
     const compacted = this._compactPolyline(pts);
     let runIndex = 0;
-    let changed = false;
     // Tracks which of this line's crossing ids this scan actually produced,
     // and which trunk rows this scan claimed a member span in — see the
     // diff-in-place discipline in the docblock above.
@@ -2873,7 +2934,16 @@ export class RouterCore {
       }
       if (this._crossingAvoidEnabled && length >= this._crossingMinLength) {
         touchedCrossingIds.add(`cross:${lineId}:${idx}`);
-        if (this._registerCrossingSegment(lineId, idx, a, b, horizontal, width)) changed = true;
+        // trimLo/trimHi are keyed to the NORMALIZED x1/y1 (low) and x2/y2
+        // (high) ends _registerCrossingSegment stores — not run-traversal
+        // order, which can go either direction — so map whichever of a/b
+        // is the lower coordinate to trimLo regardless of travel direction.
+        const aIsLo = horizontal ? a[0] <= b[0] : a[1] <= b[1];
+        const trimA = radiusAt.get(`${a[0]},${a[1]}`) || 0;
+        const trimB = radiusAt.get(`${b[0]},${b[1]}`) || 0;
+        const trimLo = aIsLo ? trimA : trimB;
+        const trimHi = aIsLo ? trimB : trimA;
+        if (this._registerCrossingSegment(lineId, idx, a, b, horizontal, width, trimLo, trimHi)) changed = true;
       }
     }
     // Match LONGEST run first, not positional (flow-position) order. A
@@ -2940,23 +3010,35 @@ export class RouterCore {
    * @param {boolean} horizontal
    * @param {number} [width] - the line's own rendered stroke width, for
    *   _distanceToNearestOtherLineSegment's stroke-width-aware margin
+   * @param {number} [trimLo] - how far this segment's REAL occupied span is
+   *   shorter at its x1/y1 (low-coordinate) end, because that end sits at
+   *   this line's own rounded corner whose arc has already curved away —
+   *   see _registerLineSegments' own radiusAt map. 0 means that end is a
+   *   true anchor/attach point, or the corner there wasn't rounded.
+   * @param {number} [trimHi] - same, for the x2/y2 (high-coordinate) end.
    * @returns {boolean} whether a new entry was created or an existing one's span actually changed
    * @private
    */
-  _registerCrossingSegment(lineId, runIndex, a, b, horizontal, width = 0) {
+  _registerCrossingSegment(lineId, runIndex, a, b, horizontal, width = 0, trimLo = 0, trimHi = 0) {
     const id = `cross:${lineId}:${runIndex}`;
     const x1 = Math.min(a[0], b[0]), x2 = Math.max(a[0], b[0]);
     const y1 = Math.min(a[1], b[1]), y2 = Math.max(a[1], b[1]);
     const existing = this._crossings.find(c => c.id === id);
     if (existing) {
-      // A width-only change (e.g. a live style edit, no geometry change)
-      // still needs corner-rounding elsewhere to re-evaluate its own
-      // clearance against this segment, so it counts as a real change too.
-      const changed = existing.x1 !== x1 || existing.y1 !== y1 || existing.x2 !== x2 || existing.y2 !== y2 || existing.width !== width;
+      // A width- or trim-only change (e.g. a live style edit, or a
+      // neighbor's corner-rounding update growing this line's own trim on
+      // re-registration) still needs corner-rounding elsewhere to
+      // re-evaluate its own clearance against this segment, so it counts
+      // as a real change too — this is what lets the existing discovery
+      // loop converge on trims exactly the way it already converges on
+      // width, with no new plumbing.
+      const changed = existing.x1 !== x1 || existing.y1 !== y1 || existing.x2 !== x2 || existing.y2 !== y2 ||
+        existing.width !== width || existing.trimLo !== trimLo || existing.trimHi !== trimHi;
       existing.x1 = x1; existing.y1 = y1; existing.x2 = x2; existing.y2 = y2; existing.width = width;
+      existing.trimLo = trimLo; existing.trimHi = trimHi;
       return changed;
     }
-    this._crossings.push({ id, lineId, runIndex, x1, y1, x2, y2, width, direction: horizontal ? 'horizontal' : 'vertical' });
+    this._crossings.push({ id, lineId, runIndex, x1, y1, x2, y2, width, trimLo, trimHi, direction: horizontal ? 'horizontal' : 'vertical' });
     return true;
   }
 
@@ -3338,10 +3420,16 @@ export class RouterCore {
    *   a cross-axis-only correction instead of leaving it a zero-length
    *   kink (see the entryFlow/exitFlow grace-zone comment below); 0
    *   preserves the old always-minimal-distance behavior
+   * @param {boolean|null} [approachAxisHorizontal] - whether the PREVIOUS
+   *   channel in this same chain (the one `approachPoint` was just handed
+   *   off from) flows horizontally, or `null` when unknown/not applicable
+   *   (the true first channel in a chain, arriving from the raw anchor
+   *   stub instead of another channel) — see the taper gate below for why
+   *   this narrows when the grace-zone taper actually needs to engage
    * @returns {{ entry: number[], exit: number[], horizontal: boolean, entryAlreadyInside: boolean, exitAlreadyInside: boolean, laneOffset: number, laneIndex: number, laneCount: number, lineSpacing: number }}
    * @private
    */
-  _channelCrossingPoints(chan, approachPoint, departPoint, lineId, taperBaseline = 0) {
+  _channelCrossingPoints(chan, approachPoint, departPoint, lineId, taperBaseline = 0, approachAxisHorizontal = null) {
     const horizontal = chan.direction === 'horizontal';
     const flow = horizontal ? 0 : 1;   // axis index the line travels along through the channel
     const cross = horizontal ? 1 : 0;  // axis index perpendicular to flow (bundling axis)
@@ -3441,7 +3529,30 @@ export class RouterCore {
     // shared force channel (laneCount 1->2, taper engages) produced a long,
     // pointless zigzag instead of the clean route each line took alone.
     const entryWasAlreadyInside = entryFlow === approachFlow;
-    if (taperBaseline > 0 && laneCount > 1 && entryWasAlreadyInside && throughCoord !== approachPoint[cross]) {
+    // The taper's whole premise is "the incoming leg gives zero natural
+    // room for this channel's own cross-axis correction" — true when the
+    // PREVIOUS channel in the chain flows along the SAME axis as this one
+    // (arriving via a leg that only ever moved along the flow axis, so the
+    // cross-axis coordinate never had anywhere to come from). But when the
+    // previous channel's flow axis is PERPENDICULAR to this one's, the leg
+    // connecting them was already travelling along exactly the axis this
+    // correction needs — real, natural room already exists, and tapering
+    // anyway only relocates a single clean corner into an unnecessary
+    // extra dogleg. Confirmed as a real, reported bug: a line chained
+    // horizontal-channel -> vertical-channel, joining the vertical
+    // channel's shared lane (laneCount > 1), got its entry point shifted
+    // 68 units off its own natural position — turning what should have
+    // been one clean elbow (matching every other line entering the same
+    // channel directly) into a 3-corner jog. `approachAxisHorizontal` is
+    // `null` for the true first channel in a chain (arriving from the raw
+    // anchor stub, a case this taper was originally built and verified
+    // against — left untouched) and otherwise reflects the actual previous
+    // channel's own flow axis, straight from the k-loop's own
+    // `prevChannelHorizontal` tracking (no new state, reusing what
+    // _computeCorridorRoutedAttempt already computes for its continuation
+    // hints).
+    const noNaturalRoomFromApproach = approachAxisHorizontal === null || approachAxisHorizontal === horizontal;
+    if (taperBaseline > 0 && laneCount > 1 && entryWasAlreadyInside && throughCoord !== approachPoint[cross] && noNaturalRoomFromApproach) {
       const halfSpan = Math.abs(departFlow - approachFlow) / 2;
       const dir = Math.sign(departFlow - approachFlow);
       if (dir !== 0) {
@@ -3832,14 +3943,19 @@ export class RouterCore {
 
   /**
    * Orders the corridors a line will chain through. Explicit route_channels
-   * keep their authored order unchanged — load-bearing for force-channel
-   * chains, where the user's declared sequence is the only signal
-   * expressing intent. Discovered trunks have no authored order at all, so
-   * they're appended, sorted by ascending flow-distance from the line's own
-   * start point. A suboptimal merge order here can only make the resulting
-   * chain lose the cost-comparison against the plain route more often —
-   * never produce a broken path, since each leg is still independently
-   * pathfound and direction-guaranteed.
+   * are reordered by _orderCorridorChain (see its own docblock for why
+   * trusting the declared array order was wrong). Discovered trunks have no
+   * authored order at all, so they're appended after, sorted by ascending
+   * flow-distance from the line's own start point — deliberately NOT folded
+   * into the same permutation search as the explicit ones: an unbounded,
+   * dynamically-changing set of simultaneously discovered trunks with mixed
+   * flow axes is a genuinely harder, previously-investigated-and-abandoned
+   * problem (doc/architecture/msd/routing.md's Known Limitations), unlike
+   * the small, static, known-up-front explicit set. A suboptimal merge
+   * order here can only make the resulting chain lose the cost-comparison
+   * against the plain route more often — never produce a broken path,
+   * since each leg is still independently pathfound and direction-
+   * guaranteed.
    * @param {Array<object>} explicitCorridors
    * @param {Array<object>} discoveredTrunks
    * @param {object} stubReq
@@ -3847,7 +3963,8 @@ export class RouterCore {
    * @private
    */
   _mergeCorridors(explicitCorridors, discoveredTrunks, stubReq) {
-    if (!discoveredTrunks.length) return explicitCorridors;
+    const ordered = this._orderCorridorChain(explicitCorridors, stubReq);
+    if (!discoveredTrunks.length) return ordered;
     const distTo = (t) => {
       const horizontal = t.direction === 'horizontal';
       const flow = horizontal ? 0 : 1;
@@ -3856,7 +3973,69 @@ export class RouterCore {
       return Math.min(Math.abs(stubReq.a[flow] - lo), Math.abs(stubReq.a[flow] - hi));
     };
     const sorted = discoveredTrunks.slice().sort((p, q) => distTo(p) - distTo(q));
-    return [...explicitCorridors, ...sorted];
+    return [...ordered, ...sorted];
+  }
+
+  /**
+   * Determines the traversal order for a line's own EXPLICITLY configured
+   * route_channels by exact, exhaustive-permutation total-distance
+   * minimization over each channel's own centroid — rather than trusting
+   * the config array's declared order. Confirmed as a real, reported bug:
+   * the Studio UI's own channel picker (a plain checkbox list — see
+   * lcards-msd-studio-dialog.js's channel-routing-options section) has no
+   * ordering control at all, so "the declared array order expresses the
+   * user's intent" cannot actually be true in practice — whatever order
+   * channels happen to serialize in is arbitrary from the user's own
+   * point of view. A chain whose declared order didn't match the physical
+   * anchor->destination path produced a route that entered a later
+   * channel's own territory, backed out into an earlier one, then
+   * re-entered the later one a second time — a visible zigzag with no way
+   * for the user to fix it short of hand-editing YAML array order, which
+   * the UI never exposes as a concept at all.
+   *
+   * Deliberately scoped to EXPLICIT corridors only (not discovered trunks
+   * — see _mergeCorridors' own distance sort for those): a user-authored
+   * chain is, in practice, almost always 2-3 channels, small enough for an
+   * exact brute-force permutation search (capped below at 6 channels,
+   * 6!=720 permutations, comfortably sub-millisecond) — unlike discovered-
+   * trunk ordering, an unbounded, dynamically-changing set across
+   * discovery passes that this session's history already investigated and
+   * explicitly abandoned as needing "a genuinely different, convergence-
+   * verified ordering metric" (see doc/architecture/msd/routing.md's Known
+   * Limitations) — that harder problem is NOT what this function attempts.
+   * @param {Array<object>} explicitCorridors
+   * @param {object} stubReq
+   * @returns {Array<object>}
+   * @private
+   */
+  _orderCorridorChain(explicitCorridors, stubReq) {
+    if (explicitCorridors.length <= 1) return explicitCorridors;
+    if (explicitCorridors.length > 6) return explicitCorridors; // combinatorial safety cap; not a realistic authored shape
+    const centroid = (c) => [(c.x1 + c.x2) / 2, (c.y1 + c.y2) / 2];
+    const points = explicitCorridors.map(centroid);
+    let bestOrder = explicitCorridors.map((_, i) => i);
+    let bestCost = Infinity;
+    const permute = (arr, k) => {
+      if (k === arr.length) {
+        let cost = 0;
+        let cur = stubReq.a;
+        for (const idx of arr) {
+          const p = points[idx];
+          cost += Math.hypot(p[0] - cur[0], p[1] - cur[1]);
+          cur = p;
+        }
+        cost += Math.hypot(stubReq.b[0] - cur[0], stubReq.b[1] - cur[1]);
+        if (cost < bestCost) { bestCost = cost; bestOrder = arr.slice(); }
+        return;
+      }
+      for (let i = k; i < arr.length; i++) {
+        [arr[k], arr[i]] = [arr[i], arr[k]];
+        permute(arr, k + 1);
+        [arr[k], arr[i]] = [arr[i], arr[k]];
+      }
+    };
+    permute(bestOrder.slice(), 0);
+    return bestOrder.map(i => explicitCorridors[i]);
   }
 
   /**
@@ -3890,10 +4069,11 @@ export class RouterCore {
    * @param {boolean} smart - whether to run _refineSmart per leg
    * @param {Array<object>} corridors - explicit force/prefer channels AND/OR
    *   discovered trunks to chain through, in the order they should be
-   *   visited (see _mergeCorridors — explicit route_channels keep their
-   *   authored order; discovered trunks are appended by proximity). A
-   *   channel and a discovered trunk are indistinguishable here — both are
-   *   plain {id,x1,y1,x2,y2,direction,weight,line_spacing} objects.
+   *   visited (see _mergeCorridors — explicit route_channels are reordered
+   *   by total-distance minimization, see _orderCorridorChain; discovered
+   *   trunks are appended by proximity). A channel and a discovered trunk
+   *   are indistinguishable here — both are plain
+   *   {id,x1,y1,x2,y2,direction,weight,line_spacing} objects.
    * @returns {object|null} route result, or null if `corridors` is empty
    * @private
    */
@@ -3918,16 +4098,55 @@ export class RouterCore {
     return horizontal ? [flowMid, throughCoord] : [throughCoord, flowMid];
   }
 
+  /**
+   * Thin wrapper around _computeCorridorRoutedAttempt: on a RETRY_FORCE_ONLY
+   * sentinel (a non-force chain member conflicted with the chain's own
+   * mandatory force channel(s) — see the attempt's own comments at its
+   * obstacle-landing and self-intersect checks), drop every non-force
+   * member and retry once, force-only. Guaranteed non-recursive: both
+   * trigger sites require hasForceChannel true AND at least one non-force
+   * member, so `forceOnly` is always a proper, non-empty subset of
+   * `corridors` — on the retry every remaining channel is force, so
+   * neither check's "conflict" branch can ever fire again.
+   * _registerLineSegments runs once, at computePath level, strictly after
+   * this returns either way, so invoking the attempt twice here has no
+   * double-registration risk.
+   * @param {object} stubReq
+   * @param {boolean} smart
+   * @param {object[]} corridors
+   * @returns {object|null}
+   * @private
+   */
   _computeCorridorRouted(stubReq, smart, corridors) {
+    const attempt = this._computeCorridorRoutedAttempt(stubReq, smart, corridors);
+    if (attempt !== RETRY_FORCE_ONLY) return attempt;
+    const forceOnly = corridors.filter(c => c.mode === 'force');
+    const dropped = corridors.filter(c => c.mode !== 'force').map(c => c.id).join(',');
+    lcardsLog.debug(`[RouterCore] Route '${stubReq.id}': corridor chain conflicted with its own mandatory force channel(s); dropped optional corridor(s) [${dropped}], retrying force-only.`);
+    return this._computeCorridorRoutedAttempt(stubReq, smart, forceOnly);
+  }
+
+  _computeCorridorRoutedAttempt(stubReq, smart, corridors) {
     const chainChannels = corridors;
     if (!chainChannels.length) return null;
     // A force channel is mandatory by definition (user-authored, always
     // honored regardless of cost — see computePath's hasForceChannels
     // branch, which uses this candidate unconditionally with no
     // alternative to fall back to) — never reject one for landing inside
-    // an obstacle; that's a config issue for the user to resolve, not
-    // something to silently override. Only optional (prefer/discovered)
-    // chains are ever rejected below.
+    // an obstacle or for a self-crossing shape that's genuinely its own;
+    // that's a config issue for the user to resolve, not something to
+    // silently override. This `hasForceChannel` flag is chain-wide (true if
+    // ANY member is force) and is used below only to decide, at each hard-
+    // reject site, between three outcomes: a pure force-only chain (every
+    // member is force) never rejects; a pure prefer/trunk chain (no force
+    // member at all) rejects exactly as before; a MIXED chain whose fault
+    // traces to a specific NON-force member returns RETRY_FORCE_ONLY (see
+    // _computeCorridorRouted's wrapper) instead of either silently
+    // tolerating the fault (the old, chain-wide-exempt bug — a non-force
+    // leg or the tail leg backtracking through an already-visited channel's
+    // band was tolerated purely because some OTHER member happened to be
+    // force) or rejecting the whole candidate including its mandatory
+    // member.
     const hasForceChannel = chainChannels.some(c => c.mode === 'force');
 
     // Prospective bundle-mate exemption: while routing TOWARD a corridor,
@@ -4005,7 +4224,13 @@ export class RouterCore {
       // corner — confirmed rendering as a degenerate zero-length
       // corner-rounding arc).
       const nextRef = next ? this._corridorRefPoint(next, stubReq.id) : stubReq.b;
-      const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, laneCount, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id, stubLengthFor(legBase));
+      // null for k===0 (arriving from the raw anchor stub, not a previous
+      // channel in this chain — see _channelCrossingPoints' own taper-gate
+      // comment for why that case is deliberately left alone); otherwise
+      // the actual previous channel's own flow axis, already tracked here
+      // for the continuation-hint machinery below.
+      const approachAxisHorizontal = k > 0 ? prevChannelHorizontal : null;
+      const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, laneCount, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id, stubLengthFor(legBase), approachAxisHorizontal);
       // Reject this whole candidate chain outright if a trunk's own
       // lane-offset entry/exit lands strictly inside an obstacle — see
       // _pointInsideObstacle's own comment. This is a hard rejection, not
@@ -4017,7 +4242,22 @@ export class RouterCore {
       // falling back to whichever OTHER candidate remains — exactly the
       // right behavior here, since the plain route is fully obstacle-aware
       // on its own.
-      if (!hasForceChannel && (this._pointInsideObstacle(entry) || this._pointInsideObstacle(exit))) return null;
+      //
+      // Three-way branch (mirrors the self-intersect check below): `chan`
+      // itself being force is never rejected (mandatory, see this
+      // function's own opening comment) — but a NON-force channel's own
+      // entry/exit landing in an obstacle must still be rejected even when
+      // some OTHER channel elsewhere in the chain happens to be force
+      // (hasForceChannel is chain-wide; this specific chan's own fault
+      // isn't excused by an unrelated mandatory member). When the chain
+      // does have a force member, retry force-only rather than dropping
+      // the mandatory channel too.
+      if (this._pointInsideObstacle(entry) || this._pointInsideObstacle(exit)) {
+        if (chan.mode !== 'force') {
+          if (hasForceChannel) return RETRY_FORCE_ONLY;
+          return null;
+        }
+      }
       mandatoryPoints.add(this._ptKey(entry));
       mandatoryPoints.add(this._ptKey(exit));
 
@@ -4248,12 +4488,28 @@ export class RouterCore {
 
     // Reject the whole candidate if its own legs cross each other — see
     // _polylineSelfIntersects' own docblock for the full bug writeup.
-    // Force channels are exempt (mirrors the entry/exit _pointInsideObstacle
-    // rejection above): mandatory by explicit user config, never silently
-    // overridden. computePath's own corridor-vs-plain comparison already
-    // treats a null candidate as simply unavailable and falls back
-    // correctly.
-    if (!hasForceChannel && this._polylineSelfIntersects(pts)) return null;
+    // Three-way branch (mirrors the entry/exit _pointInsideObstacle check
+    // above), scoped to WHICH segments are actually exempt rather than the
+    // whole chain: a segment only gets to skip the reject when BOTH sides
+    // of the crossing are fully contained within some force channel's own
+    // bounds (_segmentInsideChannelBounds) — i.e. the crossing is
+    // attributable to a force channel's own necessary shape, not to an
+    // optional (prefer) leg or the tail leg riding along beside it.
+    // Confirmed as a real, reported bug: hasForceChannel used to gate this
+    // whole check chain-wide, so a MIXED force+prefer chain silently
+    // tolerated the prefer leg (or the tail leg toward attach_to)
+    // backtracking through an already-visited channel's own band, purely
+    // because some OTHER channel in the chain happened to be force.
+    const forceChans = chainChannels.filter(c => c.mode === 'force');
+    const isForceOwned = (i) => forceChans.some(fc => this._segmentInsideChannelBounds(pts[i - 1], pts[i], fc));
+    const isExempt = forceChans.length ? (i, j) => isForceOwned(i) && isForceOwned(j) : null;
+    if (this._polylineSelfIntersects(pts, isExempt)) {
+      if (forceChans.length === 0) return null; // no force channel at all — unchanged behavior
+      if (forceChans.length < chainChannels.length) return RETRY_FORCE_ONLY; // mixed chain — drop the optional member(s), retry force-only
+      // else: every channel in the chain is force — a pure force chain must
+      // never hard-fail on its own necessary shape (mirrors the entry/exit
+      // check's own unconditional exemption above) — fall through.
+    }
 
     // Reporting only — geometry already guaranteed by leg construction.
     // _corridorDelta (not _channelDelta) because a discovered trunk is
@@ -4678,10 +4934,16 @@ export class RouterCore {
    * same-axis reversal, off-viewBox — all hard rejects, never "just cost
    * more").
    * @param {number[][]} pts
+   * @param {(i: number, j: number) => boolean} [isExempt] - when provided,
+   *   a would-be crossing between segment `i` (pts[i-1]->pts[i]) and
+   *   segment `j` (pts[j-1]->pts[j]) is tolerated (not reported) if this
+   *   returns true — used by _computeCorridorRouted to scope its force-
+   *   channel exemption to the SPECIFIC segments a force channel's own
+   *   shape produced, not the whole candidate (see its own call site).
    * @returns {boolean}
    * @private
    */
-  _polylineSelfIntersects(pts) {
+  _polylineSelfIntersects(pts, isExempt = null) {
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], b = pts[i];
       const vertical = a[0] === b[0];
@@ -4696,14 +4958,44 @@ export class RouterCore {
         const segHi = segVertical ? Math.max(c[1], d[1]) : Math.max(c[0], d[0]);
         const segFixed = segVertical ? c[0] : c[1];
         if (segVertical !== vertical) {
-          if (segFixed > lo && segFixed < hi && fixedCoord > segLo && fixedCoord < segHi) return true;
+          if (segFixed > lo && segFixed < hi && fixedCoord > segLo && fixedCoord < segHi) {
+            if (!isExempt || !isExempt(i, j)) return true;
+          }
           continue;
         }
         if (segFixed !== fixedCoord) continue;
-        if (Math.min(hi, segHi) - Math.max(lo, segLo) > 0) return true;
+        if (Math.min(hi, segHi) - Math.max(lo, segLo) > 0) {
+          if (!isExempt || !isExempt(i, j)) return true;
+        }
       }
     }
     return false;
+  }
+
+  /**
+   * True iff BOTH endpoints of the axis-aligned segment a->b fall inside
+   * the given channel's own rectangle (inclusive of the boundary — unlike
+   * _pointInsideObstacle's strict-interior convention, a force channel's
+   * own entry/exit legitimately sit exactly ON the boundary edge by
+   * construction). Used by _computeCorridorRouted to classify whether a
+   * segment of a finished, already-compacted candidate "belongs" to a
+   * given channel, purely from final geometry — deliberately NOT threaded
+   * through as per-leg ownership metadata, since _compactPolyline (shared
+   * by several call sites, no leg-ownership concept) can legitimately
+   * merge a non-channel segment with a channel-owned one at a shared
+   * boundary point; re-deriving containment from the final points avoids
+   * that ambiguity entirely (a merged segment simply fails full
+   * containment, which is the safe direction — never under-detects a real
+   * backtrack).
+   * @param {number[]} a
+   * @param {number[]} b
+   * @param {{x1:number,y1:number,x2:number,y2:number}} chan
+   * @returns {boolean}
+   * @private
+   */
+  _segmentInsideChannelBounds(a, b, chan) {
+    const within = (p) => p[0] >= chan.x1 && p[0] <= chan.x2 && p[1] >= chan.y1 && p[1] <= chan.y2;
+    return within(a) && within(b);
   }
 
   /**
@@ -5364,16 +5656,29 @@ export class RouterCore {
    * @private
    */
   _distanceToNearestOtherLineSegment(p, askingLineId, askingWidth = 0) {
-    if (!this._crossings.length) return Infinity;
     let best = Infinity;
     for (const seg of this._crossings) {
       if (seg.lineId === askingLineId) continue;
+      // Shrink the segment's effective span by its OWN registered corner
+      // trims (see _registerLineSegments' own radiusAt map) before the
+      // usual point-to-segment math — otherwise a corner is clamped
+      // against space that segment's OWNER has already rounded away from,
+      // even though the real rendered path isn't there anymore. Defaults
+      // to 0 (today's exact behavior) when absent. Guarded by Math.min so
+      // an over-trimmed span can't invert (already structurally prevented
+      // by _estimateCornerRadii's own adjacent-corner cap, which is where
+      // these trim values come from — this is defense in depth, not the
+      // primary safeguard).
       let dx, dy;
       if (seg.direction === 'horizontal') {
-        dx = p[0] < seg.x1 ? seg.x1 - p[0] : p[0] > seg.x2 ? p[0] - seg.x2 : 0;
+        const effX1 = Math.min(seg.x1 + (seg.trimLo || 0), seg.x2);
+        const effX2 = Math.max(seg.x2 - (seg.trimHi || 0), effX1);
+        dx = p[0] < effX1 ? effX1 - p[0] : p[0] > effX2 ? p[0] - effX2 : 0;
         dy = Math.abs(p[1] - seg.y1);
       } else {
-        dy = p[1] < seg.y1 ? seg.y1 - p[1] : p[1] > seg.y2 ? p[1] - seg.y2 : 0;
+        const effY1 = Math.min(seg.y1 + (seg.trimLo || 0), seg.y2);
+        const effY2 = Math.max(seg.y2 - (seg.trimHi || 0), effY1);
+        dy = p[1] < effY1 ? effY1 - p[1] : p[1] > effY2 ? p[1] - effY2 : 0;
         dx = Math.abs(p[0] - seg.x1);
       }
       const d = Math.hypot(dx, dy) - (askingWidth + (seg.width || 0)) / 2;
@@ -5705,7 +6010,14 @@ export class RouterCore {
           count: arcCount,
           trimPx: Math.round(totalTrim)
         }
-      }
+      },
+      // Exposed so computePath can thread it into _registerLineSegments —
+      // see that function's own docblock for why other lines' clearance
+      // checks need to know how far THIS line's own corners recede from
+      // their sharp points, not just render them. Indexed against the raw
+      // (pre-compaction) `pts` exactly as this function's own render loop
+      // above consumes it (cornerRadii[i-1] for the corner at pts[i]).
+      cornerRadii
     };
     return newResult;
   }

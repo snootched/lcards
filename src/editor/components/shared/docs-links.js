@@ -17,3 +17,4 @@ export const DOCS_BASE_URL = project_url;
 export const ANIMATION_PRESET_DOCS_URL = `${DOCS_BASE_URL}/core/animations/preset-reference.html`;
 export const FILTER_TYPE_DOCS_URL = `${DOCS_BASE_URL}/cards/msd/base-svg-filters.html`;
 export const BACKGROUND_PRESET_DOCS_URL = `${DOCS_BASE_URL}/core/effects/background-animations/preset-reference.html`;
+export const ROUTING_CONCEPTS_DOCS_URL = `${DOCS_BASE_URL}/cards/msd/routing-concepts.html`;

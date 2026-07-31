@@ -239,8 +239,12 @@ export class LineOverlay extends OverlayBase {
 
       const animationAttributes = this._prepareAnimationAttributes(overlay, overlay.style || {});
 
-      // Check if this line is selected (for editor highlighting)
-      const isSelected = overlay._editorSelected === true;
+      // Check if this line is selected (for editor highlighting). Gated on
+      // _isStudioPreview (real DOM-ancestry check, not persisted config) so a
+      // stray _editorSelected flag — whether leaked into saved config or just
+      // stale in-memory state — can never paint the selection glow outside
+      // the Studio dialog itself.
+      const isSelected = overlay._editorSelected === true && cardInstance?._isStudioPreview === true;
 
       // Build SVG group with all features
       const svgParts = [

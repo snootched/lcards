@@ -40,6 +40,7 @@ import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
 import '../components/shared/lcards-shield-bubble-diagram.js';
 import { infoGuideStyles } from '../components/shared/info-guide-styles.js';
+import { ROUTING_CONCEPTS_DOCS_URL } from '../components/shared/docs-links.js';
 import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-position-picker.js';
 import '../components/lcards-msd-live-preview.js';
@@ -423,6 +424,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // _handlePreviewMouseDown/_handlePreviewMouseMove/_handleDragEnd).
         this._shapeDrawDragCandidate = null;
         this._shieldBubbleState = this._defaultShieldBubbleState();
+        this._routingCheatSheetExpanded = false;
 
         // Shape edit-mode state
         this._selectedShapeId = null;
@@ -1297,6 +1299,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return;
         }
 
+        // Strip transient editor-only state (e.g. the "selected" highlight flag)
+        // before it leaves the dialog — this is UI state, not config, and must
+        // never be persisted into the saved card/YAML. Without this, a line
+        // left selected when Save is clicked bakes a permanent glow into every
+        // future render, including outside the editor after a hard refresh.
+        for (const overlay of this._workingConfig.msd?.overlays || []) {
+            delete overlay._editorSelected;
+        }
+
         lcardsLog.debug('[MSDStudio] Saving config:', this._workingConfig);
 
         // Dispatch config-changed event
@@ -2069,6 +2080,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _handleSvgSourceModeChange(mode) {
+        const previousMode = this._svgSourceMode;
         this._svgSourceMode = mode;
 
         if (mode === 'none') {
@@ -2077,7 +2089,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             if (this._viewBoxMode === 'auto') {
                 this._handleViewBoxModeChange('custom');
             }
-        } else if (mode === 'asset') {
+        } else if (previousMode === 'none' && this._viewBoxMode === 'custom') {
+            // Coming from 'none' (which forces a custom view_box since there's
+            // no SVG to auto-extract from) back to a real SVG source — revert
+            // to auto now that a viewBox can actually be extracted.
+            this._handleViewBoxModeChange('auto');
+        }
+
+        if (mode === 'asset') {
             // Reset to the first available SVG whenever the current source
             // isn't already a builtin: value — covers switching from 'none',
             // 'custom' (a /local/ or https:// path), or 'media' (a
@@ -12276,6 +12295,56 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Toggle the routing "Quick recipes" cheat sheet open/closed. Same
+     * plain-boolean pattern as _toggleShieldBubbleGuide — exactly one
+     * non-repeating panel, no per-item expand state needed.
+     * @private
+     */
+    _toggleRoutingCheatSheet() {
+        this._routingCheatSheetExpanded = !this._routingCheatSheetExpanded;
+        this.requestUpdate();
+    }
+
+    /**
+     * Collapsible "Quick recipes: common routing goals" cheat sheet — plain
+     * goal-to-setting recipes (not a diagram; the Routing Modes Reference
+     * accordion above already has inline SVGs, and routing-concepts.md has
+     * the Mermaid decision-flow, so this deliberately doesn't add a third
+     * visual representation). Reuses the same preset-info-guide markup as
+     * _renderShieldBubbleGuide/the animation/filter editors' own guides.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRoutingCheatSheet() {
+        const expanded = this._routingCheatSheetExpanded;
+        return html`
+            <div class="preset-info-guide">
+                <div class="preset-info-guide-header" @click=${() => this._toggleRoutingCheatSheet()}>
+                    <ha-icon icon="mdi:lightbulb-outline"></ha-icon>
+                    <span>Quick recipes: common routing goals</span>
+                    <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
+                </div>
+                ${expanded ? html`
+                    <div class="preset-info-guide-body">
+                        <ul>
+                            <li><strong>Bundle two or more lines to run together:</strong> point them at the same channel and leave "Discoverable by nearby lines" on — no need to list it in every line's <code>route_channels</code>.</li>
+                            <li><strong>A channel must always be used, no matter the cost:</strong> set its mode to <code>force</code>.</li>
+                            <li><strong>A channel is just a suggestion, only worth it if it's actually shorter/cleaner:</strong> set its mode to <code>prefer</code> — it's compared against the plain route and only wins on real cost.</li>
+                            <li><strong>Keep lines away from a region entirely:</strong> set its mode to <code>avoid</code>.</li>
+                            <li><strong>Chaining two or more channels on one line</strong> (<code>route_channels: [a, b, ...]</code>): pick any order — the router figures out which one to visit first based on geometry, not the order you checked them in.</li>
+                            <li><strong>Force a straight run north/south instead of east/west (or vice versa):</strong> set the channel's Flow Direction explicitly to <code>vertical</code>/<code>horizontal</code> instead of <code>auto</code>.</li>
+                        </ul>
+                        <p>
+                            For the full mental model (a decision-flow diagram of how routing modes interact), see the
+                            <a href="${ROUTING_CONCEPTS_DOCS_URL}" target="_blank" rel="noopener">Routing Concepts</a> guide.
+                        </p>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    /**
      * Toggle the "How shield bubble generation works" info guide open/closed.
      * A plain boolean (not a Set-indexed pattern like the animation/filter
      * editors' per-index guides) since there's exactly one non-repeating
@@ -12898,6 +12967,28 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return html`
             <div style="padding: 8px;">
+                <!-- Channel Actions & Visualization Helpers -->
+                <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
+                    <ha-button @click=${this._openChannelForm}>
+                        <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                        Add Channel
+                    </ha-button>
+                    <ha-button @click=${async (e) => { e.stopPropagation(); await this._setMode('draw_channel'); }}
+                               ?disabled=${this._activeMode === MODES.DRAW_CHANNEL}>
+                        <ha-icon icon="mdi:vector-rectangle" slot="start"></ha-icon>
+                        Draw on Canvas
+                    </ha-button>
+
+                    <!-- Right-aligned visualization helpers -->
+                    <div style="flex: 1;"></div>
+                    <ha-icon-button
+                        class="${this._showRoutingChannels ? 'active' : ''}"
+                        @click=${() => { this._showRoutingChannels = !this._showRoutingChannels; this.requestUpdate(); }}
+                        .label=${'Routing Channels'}>
+                        <ha-icon icon="mdi:chart-timeline-variant"></ha-icon>
+                    </ha-icon-button>
+                </div>
+
                 <!-- Routing Modes Reference -->
                 <lcards-form-section
                     header="Routing Modes Reference"
@@ -12931,6 +13022,40 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     <!-- Display routing info panel -->
                     ${this._renderRoutingModeInfoPanel(this._routingModeReference || 'auto')}
+                </lcards-form-section>
+
+                ${this._renderRoutingCheatSheet()}
+
+                <!-- Routing Channels -->
+                <lcards-form-section
+                    header="Routing Channels"
+                    description="Define regions that influence line routing behavior"
+                    icon="mdi:chart-timeline-variant"
+                    ?expanded=${true}
+                    style="margin-bottom: 16px;">
+
+                    <!-- Channels List -->
+                    ${channelCount === 0 ? html`
+                        <lcards-message type="info">
+                            <strong>No routing channels defined.</strong>
+                            <p style="margin: 8px 0; font-size: 13px;">
+                                Channels are rectangular corridors that guide line routing:
+                                <br/>• <strong>Prefer</strong>: Lines are rewarded for traveling through, and bundle into evenly-spaced lanes
+                                <br/>• <strong>Avoid</strong>: Lines are penalized for entering
+                                <br/>• <strong>Force</strong>: Lines referencing the channel must route through it
+                                <br/><br/>Lines opt in with <code>route_channels: [channel_id]</code> — and, separately,
+                                any line routing nearby can also discover and bundle with a channel automatically,
+                                whether or not it lists it in <code>route_channels</code>. Turn off "Discoverable by
+                                nearby lines" on a channel to scope it to only the lines that explicitly reference it.
+                            </p>
+                        </lcards-message>
+                    ` : html`
+                        <div class="channel-list">
+                            ${Object.entries(channels).map(([id, channel]) =>
+                                this._renderChannelItem(id, channel)
+                            )}
+                        </div>
+                    `}
                 </lcards-form-section>
 
                 <!-- Common Routing Options (general grid/A* tunables users adjust most) -->
@@ -13049,60 +13174,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             helper="Deterrent per crossing, not a hard block (default: 4; higher = longer detours accepted)">
                         </ha-selector>
                     </div>
-                </lcards-form-section>
-
-                <!-- Channel Actions & Visualization Helpers -->
-                <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
-                    <ha-button @click=${this._openChannelForm}>
-                        <ha-icon icon="mdi:plus" slot="start"></ha-icon>
-                        Add Channel
-                    </ha-button>
-                    <ha-button @click=${async (e) => { e.stopPropagation(); await this._setMode('draw_channel'); }}
-                               ?disabled=${this._activeMode === MODES.DRAW_CHANNEL}>
-                        <ha-icon icon="mdi:vector-rectangle" slot="start"></ha-icon>
-                        Draw on Canvas
-                    </ha-button>
-
-                    <!-- Right-aligned visualization helpers -->
-                    <div style="flex: 1;"></div>
-                    <ha-icon-button
-                        class="${this._showRoutingChannels ? 'active' : ''}"
-                        @click=${() => { this._showRoutingChannels = !this._showRoutingChannels; this.requestUpdate(); }}
-                        .label=${'Routing Channels'}>
-                        <ha-icon icon="mdi:chart-timeline-variant"></ha-icon>
-                    </ha-icon-button>
-                </div>
-
-                <!-- Routing Channels -->
-                <lcards-form-section
-                    header="Routing Channels"
-                    description="Define regions that influence line routing behavior"
-                    icon="mdi:chart-timeline-variant"
-                    ?expanded=${true}
-                    style="margin-bottom: 16px;">
-
-                    <!-- Channels List -->
-                    ${channelCount === 0 ? html`
-                        <lcards-message type="info">
-                            <strong>No routing channels defined.</strong>
-                            <p style="margin: 8px 0; font-size: 13px;">
-                                Channels are rectangular corridors that guide line routing:
-                                <br/>• <strong>Prefer</strong>: Lines are rewarded for traveling through, and bundle into evenly-spaced lanes
-                                <br/>• <strong>Avoid</strong>: Lines are penalized for entering
-                                <br/>• <strong>Force</strong>: Lines referencing the channel must route through it
-                                <br/><br/>Lines opt in with <code>route_channels: [channel_id]</code> — and, separately,
-                                any line routing nearby can also discover and bundle with a channel automatically,
-                                whether or not it lists it in <code>route_channels</code>. Turn off "Discoverable by
-                                nearby lines" on a channel to scope it to only the lines that explicitly reference it.
-                            </p>
-                        </lcards-message>
-                    ` : html`
-                        <div class="channel-list">
-                            ${Object.entries(channels).map(([id, channel]) =>
-                                this._renderChannelItem(id, channel)
-                            )}
-                        </div>
-                    `}
                 </lcards-form-section>
 
                 <!-- Global Routing Defaults (Advanced) -->

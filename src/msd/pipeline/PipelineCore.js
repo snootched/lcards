@@ -695,6 +695,13 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
      */
     routingInspect: (id) => coordinator.router.inspect(id),
 
+    /**
+     * Like routingInspect, but for every overlay currently in the route
+     * cache at once — READ-ONLY, same discipline as routingInspect above.
+     * @returns {Array<object>}
+     */
+    routingInspectAll: () => coordinator.router.inspectAll(),
+
     getResolvedModel: () => modelBuilder.getResolvedModel(),
 
     /**

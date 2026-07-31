@@ -67,3 +67,16 @@ test('inspect() no longer reproduces the reported stale-snapshot artifact', () =
   assert.ok(!line3.pts.some(([x]) => x > 800 && x < 960),
     `line_3's inspected route should not contain the stale mid-corridor dogleg: ${JSON.stringify(line3.pts)}`);
 });
+
+test('inspectAll() dumps every overlay at once, each matching what inspect(id) returns individually', () => {
+  const { router, results } = runScenario();
+  const all = router.inspectAll();
+  assert.equal(all.length, results.size, `expected one entry per overlay, got ${all.length} for ${results.size} overlays`);
+  for (const id of ['line_1', 'line_2', 'line_3']) {
+    const fromAll = all.find(r => r.overlayId === id);
+    const fromInspect = router.inspect(id);
+    assert.ok(fromAll, `inspectAll() missing an entry for ${id}`);
+    assert.deepEqual(fromAll.pts, fromInspect.pts, `${id}: inspectAll()'s entry should match inspect(${id})`);
+    assert.equal(fromAll.cacheKey, fromInspect.cacheKey, `${id}: inspectAll()'s cache key should match inspect(${id})`);
+  }
+});
