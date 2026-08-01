@@ -16,7 +16,17 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 // genuinely 'anchor_side'/'attach_side' (not an explicit route_hint override
 // or the geometry fallback, neither of which carry a real direction).
 const CARDINAL_DIR = { left: [-1,0], right: [1,0], top: [0,-1], bottom: [0,1] };
-const MIN_STUB_LENGTH = 24; // viewBox units — floor even when cornerRadius is 0
+// Last-resort fallback only — every real request carries its own resolved
+// `req.minStubLength` (see buildRouteRequest: `_resolvedGridResolution() *
+// _minStubLengthFactor`), which is what stubLengthFor/cardinalStubLengthFor
+// actually use. This flat constant was the ONLY floor before
+// `min_stub_length_factor` existed — reported live as disproportionately
+// large on a small viewBox (24 doesn't scale down the way grid_resolution's
+// own viewBox-aware default already does), which is exactly what the
+// factor-based floor now fixes. Kept as a bare fallback for the
+// theoretical case a request reaches these functions without having gone
+// through buildRouteRequest at all.
+const MIN_STUB_LENGTH = 24; // viewBox units
 // Sentinel returned by _computeCorridorRoutedAttempt (never a real route
 // result) to tell its _computeCorridorRouted wrapper "a non-force member of
 // this chain conflicted with the chain's own mandatory force channel(s) —
@@ -61,8 +71,9 @@ const MIN_STEP_COST = 0.05;
  * @returns {number}
  */
 function stubLengthFor(req) {
+  const floor = req.minStubLength ?? MIN_STUB_LENGTH;
   const usesRadius = req.cornerStyle === 'round' || req.cornerStyle === 'bevel';
-  return usesRadius ? Math.max(MIN_STUB_LENGTH, (req.cornerRadius || 0) * 2) : MIN_STUB_LENGTH;
+  return usesRadius ? Math.max(floor, (req.cornerRadius || 0) * 2) : floor;
 }
 
 /**
@@ -122,7 +133,7 @@ function cardinalStubLengthFor(req, minAutoLength) {
   // they're reaching for this knob at all, the same way
   // corner_radius_mode:'forced' already opts out of the same floor.
   if (req.stubLength != null) return Math.max(0, req.stubLength);
-  return req.cornerRadiusMode === 'forced' ? stubLengthFor(req) : Math.max(MIN_STUB_LENGTH, minAutoLength || 0);
+  return req.cornerRadiusMode === 'forced' ? stubLengthFor(req) : Math.max(req.minStubLength ?? MIN_STUB_LENGTH, minAutoLength || 0);
 }
 
 // Fractions of [width, height] to add to `position` to get the box's actual
@@ -198,6 +209,16 @@ export class RouterCore {
       lcardsLog.debug('[RouterCore] No channels loaded. Config.channels:', this.config.channels);
     }
 
+    // Multiplier applied to the resolved grid_resolution to derive the
+    // minimum mandatory stub length (see stubLengthFor/cardinalStubLengthFor
+    // and buildRouteRequest's own req.minStubLength) — replaces the old flat
+    // MIN_STUB_LENGTH=24 floor, which didn't scale with viewBox/grid size at
+    // all and was reported disproportionately large on a small viewBox.
+    // Default 1 reproduces today's "at least one grid cell" cardinal-stub
+    // floor exactly (that floor already used raw grid_resolution before this
+    // factor existed); values > 1 also extend the SAME scaling to the
+    // corner-radius-driven floor (previously flat 24 there too).
+    this._minStubLengthFactor = Number(this.config.min_stub_length_factor ?? 1);
     this._channelForcePenalty = Number(this.config.channel_force_penalty || 800);
     this._channelAvoidMultiplier = Number(this.config.channel_avoid_multiplier || 1.0);
     // NOTE: the old channel "shaping" knobs (channel_target_coverage,
@@ -784,6 +805,11 @@ export class RouterCore {
       // units) — see cardinalStubLengthFor's own comment. null/unset
       // means "use the existing auto/forced computation", not zero.
       stubLength: raw.stub_length != null ? Number(raw.stub_length) : (raw.stubLength != null ? Number(raw.stubLength) : null),
+      // Resolved once per request (viewBox/grid_resolution/config are all
+      // known here) rather than recomputed inside stubLengthFor/
+      // cardinalStubLengthFor themselves — those are plain module functions
+      // with no `this` access. See _minStubLengthFactor's own comment.
+      minStubLength: this._resolvedGridResolution() * this._minStubLengthFactor,
       cornerAngle: Number(raw.corner_angle ?? raw.cornerAngle ?? fs.corner_angle ?? 45),
       smoothingMode,
       smoothingIterations,
@@ -2885,10 +2911,37 @@ export class RouterCore {
     // never corners), naturally defaulting a real endpoint's trim to 0.
     let changed = false;
     const radiusAt = new Map();
+    // Per-corner turn shape + resolved radius, coordinate-keyed like
+    // radiusAt above — feeds _mergeOrRegisterTrunk's cornerInfo so a
+    // bundle-mate's ALREADY-RESOLVED corner can later be read back by
+    // _matchedTrunkCorner/_matchedSiblingArcs for exact (not proxy)
+    // arc-vs-arc clearance against a sibling turning the same way at the
+    // same trunk-exit. vInUnit/vOutUnit (not just their difference,
+    // offsetDir) are stored because two distinct turn shapes can share the
+    // same offsetDir while sweeping in opposite rotational senses (cross
+    // product sign differs) — see _matchedSiblingArcs' own comment.
+    const cornerGeomAt = new Map();
     if (cornerRadii) {
       for (let i = 1; i < pts.length - 1; i++) {
         const c = cornerRadii[i - 1];
-        if (c && c.radius > 0) radiusAt.set(`${pts[i][0]},${pts[i][1]}`, c.radius);
+        if (c && c.radius > 0) {
+          const key = `${pts[i][0]},${pts[i][1]}`;
+          radiusAt.set(key, c.radius);
+          const pPrev = pts[i - 1], pCur = pts[i], pNext = pts[i + 1];
+          const vIn = [pCur[0] - pPrev[0], pCur[1] - pPrev[1]];
+          const vOut = [pNext[0] - pCur[0], pNext[1] - pCur[1]];
+          const lenIn = Math.hypot(vIn[0], vIn[1]);
+          const lenOut = Math.hypot(vOut[0], vOut[1]);
+          if (lenIn > 0 && lenOut > 0) {
+            cornerGeomAt.set(key, {
+              radius: c.radius,
+              p: [pCur[0], pCur[1]],
+              vInUnit: [vIn[0] / lenIn, vIn[1] / lenIn],
+              vOutUnit: [vOut[0] / lenOut, vOut[1] / lenOut],
+              width
+            });
+          }
+        }
       }
     }
     // Compact collinear runs first — a straight route commonly has interior
@@ -2930,7 +2983,18 @@ export class RouterCore {
       const idx = runIndex++;
       const length = horizontal ? Math.abs(b[0] - a[0]) : Math.abs(b[1] - a[1]);
       if (trunkCandidates && length >= this._trunkMinLength) {
-        trunkCandidates.push({ idx, a, b, horizontal, length });
+        // Same aIsLo convention as the crossing-registration branch below
+        // (independently recomputed here — this branch runs regardless of
+        // _crossingAvoidEnabled, so it can't share that branch's local),
+        // mapping each end to whichever of lo/hi cornerGeomAt lookup
+        // matches its own coordinate.
+        const aIsLoTrunk = horizontal ? a[0] <= b[0] : a[1] <= b[1];
+        const geomA = cornerGeomAt.get(`${a[0]},${a[1]}`) || null;
+        const geomB = cornerGeomAt.get(`${b[0]},${b[1]}`) || null;
+        const cornerInfo = (geomA || geomB)
+          ? { lo: aIsLoTrunk ? geomA : geomB, hi: aIsLoTrunk ? geomB : geomA }
+          : null;
+        trunkCandidates.push({ idx, a, b, horizontal, length, cornerInfo });
       }
       if (this._crossingAvoidEnabled && length >= this._crossingMinLength) {
         touchedCrossingIds.add(`cross:${lineId}:${idx}`);
@@ -2966,7 +3030,7 @@ export class RouterCore {
     if (trunkCandidates) {
       trunkCandidates.sort((x, y) => y.length - x.length);
       for (const c of trunkCandidates) {
-        if (this._mergeOrRegisterTrunk(lineId, c.idx, c.a, c.b, c.horizontal, touchedTrunks, foreignJoinFlag, rawA, rawB)) changed = true;
+        if (this._mergeOrRegisterTrunk(lineId, c.idx, c.a, c.b, c.horizontal, touchedTrunks, foreignJoinFlag, rawA, rawB, c.cornerInfo)) changed = true;
       }
     }
     // Post-scan membership diff: this line leaves any trunk row the scan
@@ -3043,6 +3107,36 @@ export class RouterCore {
   }
 
   /**
+   * True when two `cornerInfo.lo`/`.hi` entries (see _registerLineSegments'
+   * cornerGeomAt) represent the same resolved corner — same radius, same
+   * turn shape — used by _mergeOrRegisterTrunk's own "did anything real
+   * change" guard so an unchanged corner (the overwhelming common case
+   * once a bundle's radii have converged) doesn't spuriously bump
+   * _registryVersion forever.
+   * @param {{radius:number, vInUnit:number[], vOutUnit:number[]}|null} a
+   * @param {{radius:number, vInUnit:number[], vOutUnit:number[]}|null} b
+   * @returns {boolean}
+   * @private
+   */
+  _cornerEndEqual(a, b) {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    return a.radius === b.radius &&
+      a.vInUnit[0] === b.vInUnit[0] && a.vInUnit[1] === b.vInUnit[1] &&
+      a.vOutUnit[0] === b.vOutUnit[0] && a.vOutUnit[1] === b.vOutUnit[1];
+  }
+
+  /**
+   * @param {{lo: object|null, hi: object|null}|null} a
+   * @param {{lo: object|null, hi: object|null}|null} b
+   * @returns {boolean}
+   * @private
+   */
+  _cornerInfoEqual(a, b) {
+    return this._cornerEndEqual(a?.lo, b?.lo) && this._cornerEndEqual(a?.hi, b?.hi);
+  }
+
+  /**
    * Extends an existing nearby, same-direction, overlapping trunk's
    * flow-span rather than spawning a coincident duplicate (without this, a
    * force-channel line's own through-leg would register as a SEPARATE
@@ -3081,10 +3175,14 @@ export class RouterCore {
    * @param {number[]} b
    * @param {boolean} horizontal
    * @param {Set<object>|null} touchedTrunks - rows already claimed by this scan; the matched/created row is added
+   * @param {{lo: object|null, hi: object|null}|null} [cornerInfo] - this run's own
+   *   resolved corner geometry at each end (from _registerLineSegments'
+   *   cornerGeomAt), stored on the member tuple for _matchedTrunkCorner/
+   *   _matchedSiblingArcs to read back later
    * @returns {boolean} whether membership or bounds actually changed
    * @private
    */
-  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal, touchedTrunks = null, foreignJoinFlag = null, rawA = null, rawB = null) {
+  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal, touchedTrunks = null, foreignJoinFlag = null, rawA = null, rawB = null, cornerInfo = null) {
     const flow = horizontal ? 0 : 1;
     const cross = horizontal ? 1 : 0;
     const flowLo = Math.min(a[flow], b[flow]);
@@ -3156,8 +3254,13 @@ export class RouterCore {
       // once nothing changed" exit condition). Natural side is included in
       // the comparison: lane assignment derives from it too
       // (_trunkLaneAssignment), so a changed side is a real change even
-      // when the span didn't move.
-      if (prev && prev[0] === flowLo && prev[1] === flowHi && (prev[2] ?? 0) === naturalSide) return false;
+      // when the span didn't move. cornerInfo is included too — it can
+      // change (a corner's resolved radius tightening/loosening pass over
+      // pass, per _matchedSiblingArcs) even while flowLo/flowHi/naturalSide
+      // stay fixed, and a matched sibling elsewhere needs to see that
+      // update to keep converging.
+      if (prev && prev[0] === flowLo && prev[1] === flowHi && (prev[2] ?? 0) === naturalSide &&
+        this._cornerInfoEqual(prev[3], cornerInfo)) return false;
       const isNewMember = !prev;
       // A line becoming a member of a row it did NOT create happens purely
       // as a side effect of ITS OWN independent geometry coincidentally
@@ -3171,7 +3274,7 @@ export class RouterCore {
       // a stable cache hit forever, silently hiding the newly-eligible
       // trunk from ever being reconsidered by discovery.
       if (isNewMember && existing.sourceLineId !== lineId && foreignJoinFlag) foreignJoinFlag.joined = true;
-      existing.members.set(lineId, [flowLo, flowHi, naturalSide]);
+      existing.members.set(lineId, [flowLo, flowHi, naturalSide, cornerInfo]);
       const boundsChanged = this._recomputeTrunkBounds(existing);
       return isNewMember || boundsChanged;
     }
@@ -3206,7 +3309,7 @@ export class RouterCore {
       // — the creator is removed from the joiner set entirely, it always
       // holds the centerline), stored anyway for shape consistency across
       // every members entry.
-      members: new Map([[lineId, [flowLo, flowHi, naturalSide]]])
+      members: new Map([[lineId, [flowLo, flowHi, naturalSide, cornerInfo]]])
     };
     this._trunks.push(trunk);
     touchedTrunks?.add(trunk);
@@ -3800,8 +3903,52 @@ export class RouterCore {
     // nudge can overshoot past `to` and produce a reversal — the same
     // class of bug _noOvershootStub was built to prevent for cardinal
     // stubs, applied here to the corridor nudge instead.
-    const rawOffset = stubLengthFor(stubReq) + laneIndex * lineSpacing;
+    //
+    // stubLengthFor's own corner_radius is capped here, not used bare — the
+    // two corners this nudge actually creates (the flow-to-cross turn at
+    // `nudge`, and the cross-to-flow turn at `mid`) sit on a SHARED
+    // cross-axis segment whose own length is this crossing's lane-offset
+    // distance (line_spacing-driven), not corner_radius. _estimateCornerRadii's
+    // own clamp (min(radiusGlobal, legLength/2)) plus its consecutive-corner
+    // fill-fraction (segmentLength*0.65, split evenly — see that function's
+    // own comment) means these two corners can never actually render past
+    // roughly `crossDist*0.325` regardless of how large corner_radius is —
+    // reserving `2*corner_radius` of FLOW-axis room for a corner the
+    // CROSS-axis geometry alone already caps far lower is real, measured
+    // waste (confirmed live: a bundled corridor's lead-in ran a full
+    // 2*34=68 units before its first turn when the achieved corner radius
+    // there was only ever ~8-15px, entirely set by an 8-12px line_spacing).
+    // Capped, not replaced: Math.min keeps corner_radius as the reservation
+    // whenever the cross-axis distance is generous enough to actually need
+    // it (crossDist*0.325 >= corner_radius), so nothing changes for a
+    // config where this estimate isn't the tighter bound — only ever
+    // shrinks the reservation, never grows it past what stubLengthFor(
+    // stubReq) already produced.
     const available = Math.abs(to[flow] - from[flow]);
+    const legacyRawOffset = stubLengthFor(stubReq) + laneIndex * lineSpacing;
+    // Only apply the cross-axis-based shrink when doing so doesn't change
+    // whether this offset SATURATES against `available` — i.e. never turn
+    // an already-saturating (legacyRawOffset >= available) case into a
+    // non-saturating one. Saturation is what makes `mid` coincide EXACTLY
+    // with `to` (see this function's own comment on `midIsTo`, further
+    // below): the departure-from-corridor-to-true-destination leg often
+    // relies on exactly this to collapse what would otherwise be a genuine
+    // 3-leg structure into a single clean elbow. Confirmed as a real
+    // regression when this guard was missing: shrinking the offset
+    // unconditionally flipped a line's corridor-exit from 1 clean corner
+    // (radius-capped by the old, larger, saturating offset) to 2 smaller
+    // corners (a real, structurally different S-curve) purely because the
+    // new, smaller offset no longer overshot `available` — correct in
+    // isolation for the ENTRY case this fix targets, but a genuine
+    // regression for an EXIT leg that was depending on saturation, not on
+    // the corner_radius reservation itself, for its own clean shape.
+    let rawOffset = legacyRawOffset;
+    if (legacyRawOffset < available) {
+      const crossDist = Math.abs(to[cross] - from[cross]);
+      const crossAxisRadiusEstimate = crossDist * 0.325;
+      const effectiveRadius = Math.min(stubReq.cornerRadius || 0, crossAxisRadiusEstimate);
+      rawOffset = stubLengthFor({ ...stubReq, cornerRadius: effectiveRadius }) + laneIndex * lineSpacing;
+    }
     let corridorOffset = lineSpacing && laneCount > 1 && from[flow] !== to[flow]
       ? Math.sign(to[flow] - from[flow]) * Math.min(rawOffset, available)
       : 0;
@@ -3833,6 +3980,39 @@ export class RouterCore {
       if (this._taperAliasesRegisteredSegment(horizontal, from[flow] + corridorOffset, stubReq.id, from[cross], crossLo, crossHi)) {
         corridorOffset = 0;
       }
+    }
+    // If the (nudge,mid) leg this offset produces would run unsafely close
+    // to another line's already-registered segment (the exact same check
+    // `_maybeStraightenPureCrossAxisLeg` uses post-search — see its own
+    // docblock — reused here PRE-search instead), extend the offset in
+    // lineSpacing-sized steps, up to the same `available` bound already in
+    // force, until it clears. Confirmed via the reported live scenario:
+    // this specific conflict is real (a small, lane-index-driven nudge
+    // landing squarely on another line's own still-active approach row),
+    // not a phantom cost-grid artifact — the fix belongs here, at the
+    // nudge distance's own source, rather than as a post-hoc straightening
+    // of whatever detour the pathfinder finds around it. Purely additive:
+    // when the original offset is already safe (the common case), the
+    // very first check below finds it so and nothing changes; when no
+    // safe extension exists within `available` either, `corridorOffset`
+    // is left exactly as computed above, and the pre-existing (possibly
+    // inelegant, but safe) detour mechanism downstream is unaffected.
+    if (corridorOffset && lineSpacing > 0) {
+      const sign = Math.sign(corridorOffset);
+      let candidate = corridorOffset;
+      let safeCandidate = null;
+      for (let iter = 0; iter < 20; iter++) {
+        const candNudge = horizontal ? [from[0] + candidate, from[1]] : [from[0], from[1] + candidate];
+        const candMid = horizontal ? [candNudge[0], to[1]] : [to[0], candNudge[1]];
+        if (!this._pureCrossAxisLegTooCloseToOtherLine(candNudge, candMid, stubReq.id, stubReq.width)) {
+          safeCandidate = candidate;
+          break;
+        }
+        const next = candidate + sign * lineSpacing;
+        if (Math.abs(next) > available) break;
+        candidate = next;
+      }
+      if (safeCandidate !== null) corridorOffset = safeCandidate;
     }
     if (!corridorOffset) {
       // NOTE: a cross-axis-only split (from[flow] === to[flow'] but
@@ -4117,6 +4297,99 @@ export class RouterCore {
    * @returns {object|null}
    * @private
    */
+  /**
+   * True when the straight line from `a` to `b` passes unsafely close to
+   * another line's already-registered segment — sampled at a handful of
+   * points along the candidate (it's always short: this is only ever
+   * called for a structurally pure cross-axis correction leg, see
+   * `_maybeStraightenPureCrossAxisLeg`), using the exact same real, un-
+   * quantized point-to-segment distance `_distanceToNearestOtherLineSegment`
+   * already computes — no grid cells involved.
+   *
+   * Deliberately checks EVERY nearby segment regardless of orientation, not
+   * just parallel ones. A parallel-only variant was tried (on the theory
+   * that a single PERPENDICULAR crossing is normal, tolerated bundle-mate
+   * geometry — see `_buildCrossingCostGrid`'s own `perpMates` docblock) and
+   * confirmed, via the reported live scenario, to be wrong here: the
+   * original (unmodified) router's own extra bend at this exact leg shape
+   * is not a phantom artifact in every case — it can be the router's own,
+   * real way of avoiding an actual rendered crossing between two lines'
+   * approach legs. Relaxing this check to allow perpendicular closeness
+   * reintroduced that exact crossing. Keeping this conservative means this
+   * short-circuit sometimes declines to fire where a bend genuinely is
+   * necessary (see routing.md's own documentation of this fix's real,
+   * narrower scope) — but it can never make a rendered result worse than
+   * the search's own already-safe result.
+   * @param {number[]} a
+   * @param {number[]} b
+   * @param {string} askingLineId
+   * @param {number} askingWidth
+   * @returns {boolean}
+   * @private
+   */
+  _pureCrossAxisLegTooCloseToOtherLine(a, b, askingLineId, askingWidth) {
+    const SAFE_MARGIN = 1; // matches this file's own arcMin convention
+    const N = 5;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      if (this._distanceToNearestOtherLineSegment(p, askingLineId, askingWidth) < SAFE_MARGIN) return true;
+    }
+    return false;
+  }
+
+  /**
+   * A leg whose endpoints already share a coordinate on one axis, with BOTH
+   * hints fully soft (`'geometry'`/`'continuation'` — never a hard
+   * `'channel_axis'` lock), is structurally a pure cross-axis correction
+   * with no legitimate reason to bend at all — see `_pushBundledApproachLegs`'s
+   * own `(nudge, mid)` leg, whose `mid[flow] === nudge[flow]` invariant is
+   * exactly this shape. Yet the crossing-avoidance cost grid's cell-based
+   * bundle-mate exemptions (`_buildCrossingCostGrid`'s `overlapRegions`/
+   * `perpMates`) can mis-fire a phantom penalty against a legitimate co-
+   * member's own nearby segment purely from grid-quantization (the same
+   * "two quantization functions disagree at a cell edge" class already
+   * fixed twice elsewhere in this file via `_taperAliasesRegisteredSegment`,
+   * confirmed live on a bundled-corridor config: A* "correctly" detoured
+   * sideways and back around a cost landscape that didn't reflect the real
+   * geometry, baking in a pointless extra pair of bends). Modifying
+   * `_buildCrossingCostGrid`'s exemption formulas directly was tried
+   * (multiple variants) and confirmed, via full-suite regression, too
+   * pervasively load-bearing to edit safely — see
+   * doc/architecture/msd/routing.md's "Cell-Grid vs. Exact-Geometry
+   * Tension" section. This is a narrow, purely additive correction
+   * instead: for exactly this leg shape, take the direct 2-point line in
+   * place of the search result, but only when doing so is still exactly as
+   * safe as the search already guarantees (no obstacle crossing, no
+   * close-parallel-neighbor conflict) — checked with real float geometry,
+   * not grid cells, so no quantization mismatch is possible.
+   * @param {object} legReq
+   * @param {object} legResult
+   * @returns {object} `legResult`, or a straightened replacement
+   * @private
+   */
+  _maybeStraightenPureCrossAxisLeg(legReq, legResult) {
+    if (!legResult) return legResult;
+    // Deliberately scoped to fully-soft hints only ('geometry'/
+    // 'continuation') — a 'channel_axis' generalization (accepting a leg
+    // whose single straight-line axis already matches the hint's required
+    // axis) was tried and reverted: it measurably changes real cost
+    // comparisons (which strategy wins a corridor-vs-plain decision), not
+    // just cosmetic shape, regressing diagonal-segment.test.js and 3
+    // others. This narrower, soft-hint-only scope never changes a leg
+    // that participates in a cost comparison at all — it only ever
+    // replaces an already-fully-unconstrained correction's own internal
+    // shape.
+    const soft = s => s === 'geometry' || s === 'continuation';
+    if (!soft(legReq._hintSourceFirst) || !soft(legReq._hintSourceLast)) return legResult;
+    const a = legReq.a, b = legReq.b;
+    const sameAxis = a[0] === b[0] || a[1] === b[1];
+    if (!sameAxis || (a[0] === b[0] && a[1] === b[1])) return legResult;
+    if (this._segmentCrossesObstacle(a, b)) return legResult;
+    if (this._pureCrossAxisLegTooCloseToOtherLine(a, b, legReq.id, legReq.width)) return legResult;
+    return { ...legResult, pts: [a, b] };
+  }
+
   _computeCorridorRouted(stubReq, smart, corridors) {
     const attempt = this._computeCorridorRoutedAttempt(stubReq, smart, corridors);
     if (attempt !== RETRY_FORCE_ONLY) return attempt;
@@ -4404,6 +4677,7 @@ export class RouterCore {
       let legResult;
       legResult = this._computeGrid(legReq);
       if (smart && legResult) legResult = this._refineSmart(legReq, legResult);
+      legResult = this._maybeStraightenPureCrossAxisLeg(legReq, legResult);
       // A null result for a leg carrying 'anchor_stub'/'attach_stub' means
       // the hard reversal-block correctly rejected the ONLY direction A*
       // was willing to consider first/last — but this leg's start/end is
@@ -5652,13 +5926,154 @@ export class RouterCore {
    * @param {number[]} p
    * @param {string} askingLineId - never measure against a line's own segments
    * @param {number} [askingWidth] - the asking line's own rendered stroke width
+   * @param {Set<string>|null} [excludeLineIds] - additional line ids to skip
+   *   entirely, beyond askingLineId's own — used by _estimateCornerRadii to
+   *   omit a matched bundle-mate sibling's registered (straight-segment)
+   *   entries once that specific relationship is being checked via the
+   *   exact `_siblingArcClearance` arc-vs-arc comparison instead. Without
+   *   this, `Math.min`-ing the old proxy signal alongside the new exact one
+   *   could only ever make a corner's resolved radius SMALLER than the old
+   *   proxy already produced on its own (the proxy's own straight-segment
+   *   comparison against that same sibling remains, at best, as tight as
+   *   before) — never larger, defeating the entire point of the more
+   *   accurate replacement. Confirmed live: the reported scenario's binding
+   *   constraint on line_5's exit radius was exactly line_6's own
+   *   registered depart-leg segment, the identical relationship
+   *   `_siblingArcClearance` models directly — excluding it here is what
+   *   lets the exact check actually take over for that pair.
    * @returns {number} Infinity if no other segments are registered
    * @private
    */
-  _distanceToNearestOtherLineSegment(p, askingLineId, askingWidth = 0) {
+  /**
+   * Exact (not proxy) clearance between a candidate corner's own swept arc
+   * and a bundle-mate's ALREADY-RESOLVED corner arc, for the case where
+   * both corners share the identical turn shape (same vIn/vOut cardinal
+   * pair — see _matchedSiblingArcs). Unlike _distanceToNearestOtherLineSegment's
+   * candidate-CENTER-to-registered-segment proxy (a sufficient-but-not-
+   * necessary safety bound — see this file's own corner-clearance history),
+   * both arcs' full swept shapes are fully known here (not just a center
+   * point), so sampling each independently at K+1 angles and taking the
+   * minimum pairwise distance converges to the TRUE rendered gap as K
+   * grows. Verified against tests/routing's flattenSvgPath oracle
+   * (bundledScenario's line_5/line_6): K=12 tracks true clearance within
+   * ~0.5%, decisively tighter than both reverted attempts documented in
+   * tmp/ROUTING_ARC_CLEARANCE_FOLLOWUP.md (which used a candidate-center
+   * or matched-single-index proxy instead of this full pairwise search,
+   * and were measurably too conservative or, worse, wrong in the opposite
+   * direction). NOT matched single-index (candidate sample i vs sibling
+   * sample i) — confirmed via the same harness that matched-index
+   * sampling is a needlessly loose bound (predicted ~13.2 vs true ~9.55 in
+   * the reference scenario) because the true closest-approach pair
+   * between two differently-centered arcs generally sits at DIFFERENT
+   * sweep fractions on each arc, not the same one.
+   * @param {number[]} p - this corner's own sharp point
+   * @param {number[]} vInUnit
+   * @param {number[]} vOutUnit
+   * @param {number} r - candidate radius being tested
+   * @param {{p:number[], vInUnit:number[], vOutUnit:number[], radius:number, width:number}} sibling
+   * @param {number} ownWidth
+   * @returns {number}
+   * @private
+   */
+  _siblingArcClearance(p, vInUnit, vOutUnit, r, sibling, ownWidth) {
+    const K = 12;
+    const selfPts = [];
+    for (let s = 0; s <= K; s++) {
+      const theta = (Math.PI / 2) * (s / K);
+      const cos = Math.cos(theta), sin = Math.sin(theta);
+      selfPts.push([
+        p[0] + r * (vOutUnit[0] - vInUnit[0]) - r * cos * vOutUnit[0] + r * sin * vInUnit[0],
+        p[1] + r * (vOutUnit[1] - vInUnit[1]) - r * cos * vOutUnit[1] + r * sin * vInUnit[1]
+      ]);
+    }
+    const sr = sibling.radius;
+    let best = Infinity;
+    const margin = (ownWidth + (sibling.width || 0)) / 2;
+    for (let t = 0; t <= K; t++) {
+      const theta = (Math.PI / 2) * (t / K);
+      const cos = Math.cos(theta), sin = Math.sin(theta);
+      const bx = sibling.p[0] + sr * (sibling.vOutUnit[0] - sibling.vInUnit[0]) - sr * cos * sibling.vOutUnit[0] + sr * sin * sibling.vInUnit[0];
+      const by = sibling.p[1] + sr * (sibling.vOutUnit[1] - sibling.vInUnit[1]) - sr * cos * sibling.vOutUnit[1] + sr * sin * sibling.vInUnit[1];
+      for (const a of selfPts) {
+        const d = Math.hypot(a[0] - bx, a[1] - by) - margin;
+        if (d < best) best = d;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Finds the trunk/channel row (if any) whose already-registered member
+   * entry for `routeId` has a flow span exactly matching the segment
+   * ending at `p` (pPrev -> p) — i.e. `p` is this line's own trunk-exit
+   * corner for that row. Reads ONLY already-registered state from a prior
+   * pass/call (this line's own previous registration, or the very first
+   * pass ever, before anything has registered at all); returns null in
+   * either the "not a trunk-exit corner" or "nothing registered yet" case,
+   * and the caller's matched-sibling clearance naturally no-ops — the
+   * same "pass 1 unchanged" property _registerCrossingSegment's own
+   * trimLo/trimHi already established.
+   * @param {number[]} pPrev
+   * @param {number[]} p
+   * @param {string} routeId
+   * @returns {{ row: object, atLo: boolean } | null}
+   * @private
+   */
+  _matchedTrunkCorner(pPrev, p, routeId) {
+    const horizontal = pPrev[1] === p[1];
+    if (!horizontal && pPrev[0] !== p[0]) return null;
+    const flow = horizontal ? 0 : 1;
+    const flowLo = Math.min(pPrev[flow], p[flow]);
+    const flowHi = Math.max(pPrev[flow], p[flow]);
+    const direction = horizontal ? 'horizontal' : 'vertical';
+    for (const row of this._trunks) {
+      if (row.direction !== direction) continue;
+      const member = row.members?.get(routeId);
+      if (!member || member[0] !== flowLo || member[1] !== flowHi) continue;
+      return { row, atLo: p[flow] === flowLo };
+    }
+    return null;
+  }
+
+  /**
+   * Every OTHER member of `row` that has already registered a corner, at
+   * the SAME relative end of the row's flow span (`atLo`), with the
+   * IDENTICAL turn shape as the asking corner — a genuine bundle-mate
+   * "doing the same turn." Matches the full (vInUnit, vOutUnit) pair, not
+   * just their difference (offsetDir): two geometrically DISTINCT turn
+   * shapes (e.g. arriving leftward/departing downward vs. arriving
+   * upward/departing rightward) can share the same offsetDir vector while
+   * sweeping in OPPOSITE rotational senses (the vIn×vOut cross product
+   * sign differs) — offsetDir alone would falsely match them as "the same
+   * turn" when they're mirror images.
+   * @param {object} row - a live `_trunks` row
+   * @param {boolean} atLo
+   * @param {number[]} vInUnit
+   * @param {number[]} vOutUnit
+   * @param {string} askingLineId
+   * @returns {{lineId:string, p:number[], vInUnit:number[], vOutUnit:number[], radius:number, width:number}[]}
+   * @private
+   */
+  _matchedSiblingArcs(row, atLo, vInUnit, vOutUnit, askingLineId) {
+    const out = [];
+    if (!row.members) return out;
+    for (const [memberId, tuple] of row.members) {
+      if (memberId === askingLineId) continue;
+      const cornerInfo = tuple[3];
+      const end = atLo ? cornerInfo?.lo : cornerInfo?.hi;
+      if (!end) continue;
+      if (end.vInUnit[0] !== vInUnit[0] || end.vInUnit[1] !== vInUnit[1]) continue;
+      if (end.vOutUnit[0] !== vOutUnit[0] || end.vOutUnit[1] !== vOutUnit[1]) continue;
+      out.push({ ...end, lineId: memberId });
+    }
+    return out;
+  }
+
+  _distanceToNearestOtherLineSegment(p, askingLineId, askingWidth = 0, excludeLineIds = null) {
     let best = Infinity;
     for (const seg of this._crossings) {
       if (seg.lineId === askingLineId) continue;
+      if (excludeLineIds && excludeLineIds.has(seg.lineId)) continue;
       // Shrink the segment's effective span by its OWN registered corner
       // trims (see _registerLineSegments' own radiusAt map) before the
       // usual point-to-segment math — otherwise a corner is clamped
@@ -5800,12 +6215,48 @@ export class RouterCore {
           const vInUnit = [vIn[0] / lenIn, vIn[1] / lenIn];
           const vOutUnit = [vOut[0] / lenOut, vOut[1] / lenOut];
           const offsetDir = [vOutUnit[0] - vInUnit[0], vOutUnit[1] - vInUnit[1]];
+          // Matched bundle-mate siblings (same trunk, same turn shape,
+          // same relative end of the trunk's flow span) get an EXACT
+          // arc-vs-arc clearance signal (_siblingArcClearance), used to
+          // LOOSEN this corner's radius beyond the generic proxy below,
+          // never to replace it outright. Empty whenever this corner isn't
+          // a bundle-mate trunk-exit, or no sibling has resolved a
+          // matching corner yet (always true on this line's own very
+          // first pass) — the mechanism naturally no-ops in both cases.
+          const match = this._matchedTrunkCorner(pPrev, p, routeId);
+          const siblings = match ? this._matchedSiblingArcs(match.row, match.atLo, vInUnit, vOutUnit, routeId) : [];
+          const siblingIds = siblings.length ? new Set(siblings.map(s => s.lineId)) : null;
           let lo = 0, hi = r;
           for (let iter = 0; iter < 20; iter++) {
             const mid = (lo + hi) / 2;
             const center = [p[0] + mid * offsetDir[0], p[1] + mid * offsetDir[1]];
-            const clearance = this._distanceToNearestOtherLineSegment(center, routeId, ownWidth);
-            if (clearance - mid >= arcMin) lo = mid; else hi = mid;
+            // Baseline: the plain, already-shipped proxy against EVERY
+            // other line (including any matched sibling's own registered
+            // straight segments), exactly as before this feature —
+            // already proven to only loosen pass over pass
+            // (trimLo/trimHi's own convergence argument). This is a
+            // floor: the exact-arc mechanism below is only ever allowed to
+            // Math.max on TOP of it, never replace it outright. Excluding
+            // a matched sibling from the proxy and substituting the exact
+            // check in its place was tried and confirmed (via the
+            // reported live scenario's own harness fixture) to genuinely
+            // OSCILLATE — two mutually-matched siblings (line_5/line_6)
+            // each read the OTHER's previous-pass resolved radius with no
+            // monotonic anchor, cycling between ~2.7 and ~34 indefinitely
+            // instead of converging. Flooring against the untouched proxy
+            // keeps the existing monotonic guarantee intact while still
+            // letting the exact check improve on it whenever it finds
+            // more real room than the proxy's straight-segment model saw.
+            let clearance = this._distanceToNearestOtherLineSegment(center, routeId, ownWidth) - mid;
+            if (siblingIds) {
+              let combined = this._distanceToNearestOtherLineSegment(center, routeId, ownWidth, siblingIds) - mid;
+              for (const sib of siblings) {
+                const sibClearance = this._siblingArcClearance(p, vInUnit, vOutUnit, mid, sib, ownWidth);
+                if (sibClearance < combined) combined = sibClearance;
+              }
+              if (combined > clearance) clearance = combined;
+            }
+            if (clearance >= arcMin) lo = mid; else hi = mid;
           }
           r = lo;
         } else {

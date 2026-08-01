@@ -31,8 +31,11 @@ test('forced mode: miter style gets no radius-driven inflation (bug fix bundled 
   const res = routeLine(router, makeLine('line_miter', [200, 40], [200, 300], {
     anchor_side: 'bottom', corner_radius: 34, corner_style: 'miter', corner_radius_mode: 'forced'
   }));
-  // miter never renders an arc, so even 'forced' should fall back to the bare floor (24).
-  assert.equal(res.pts[1][1], 64, `miter should use the bare MIN_STUB_LENGTH floor regardless of mode, got ${res.pts[1][1]}`);
+  // miter never renders an arc, so even 'forced' should fall back to the
+  // bare floor — resolvedGridResolution() * min_stub_length_factor (default
+  // factor 1), NOT the old flat MIN_STUB_LENGTH=24: makeRouter's own
+  // grid_resolution:8 default means the floor here is 8, landing at y=48.
+  assert.equal(res.pts[1][1], 48, `miter should use the resolved min-stub-length floor regardless of mode, got ${res.pts[1][1]}`);
 });
 
 test('forced mode always crosses a registered wall the blind stub runs through; auto detours around it', () => {

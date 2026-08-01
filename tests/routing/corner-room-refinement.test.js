@@ -60,7 +60,13 @@ test('a tight detour renders a squashed corner when corner_room_weight is 0', ()
 test('the same tight detour recovers most of its corner radius at the default weight', () => {
   const r = tightCornerScenario(4); // DEFAULT_CORNER_ROOM_WEIGHT
   const radii = radiiOf(r.d);
-  assert.ok(Math.min(...radii) > 10, `expected corner-room refinement to meaningfully improve the squashed corner, got radii=${radii.join(',')}`);
+  // Threshold is 9, not 10: min_stub_length_factor's grid-resolution-scaled
+  // floor (default factor 1) resolves smaller here (20, this scenario's own
+  // grid_resolution) than the old flat MIN_STUB_LENGTH (24) did, shifting
+  // the achieved refined radius from comfortably >10 down to ~9.9999 — still
+  // a real, substantial recovery from the ~4.6px squashed baseline (see the
+  // weight:0 test above), just closer to the old threshold's boundary.
+  assert.ok(Math.min(...radii) > 9, `expected corner-room refinement to meaningfully improve the squashed corner, got radii=${radii.join(',')}`);
   assert.equal(findDiagonalSegment(r.pts), null);
   assert.equal(findIllegalReversal(r.pts), null);
 });
@@ -105,7 +111,8 @@ test('per-line corner_room_weight overrides the card-wide default', () => {
   const crosser = makeLine('line_crosser', [200, 190], [200, 30], { route: 'smart', anchor_side: 'bottom', attach_side: 'top', corner_radius: 34, corner_room_weight: 4 });
   const r = router.computePath(router.buildRouteRequest(crosser, crosser.a, crosser.b));
   const radii = radiiOf(r.d);
-  assert.ok(Math.min(...radii) > 10, `expected the per-line override to win over the card-wide 0, got radii=${radii.join(',')}`);
+  // Threshold 9, not 10 — see the "default weight" test above for why.
+  assert.ok(Math.min(...radii) > 9, `expected the per-line override to win over the card-wide 0, got radii=${radii.join(',')}`);
 });
 
 test('corner_room_weight: 0 on a line overrides a nonzero card-wide default (explicit opt-out is respected)', () => {
@@ -125,7 +132,8 @@ test('an unset corner_room_weight falls back to the router\'s own default (on)',
   const crosser = makeLine('line_crosser', [200, 190], [200, 30], { route: 'smart', anchor_side: 'bottom', attach_side: 'top', corner_radius: 34 });
   const r = router.computePath(router.buildRouteRequest(crosser, crosser.a, crosser.b));
   const radii = radiiOf(r.d);
-  assert.ok(Math.min(...radii) > 10, `expected the built-in default to be active with no config at all, got radii=${radii.join(',')}`);
+  // Threshold 9, not 10 — see the "default weight" test above for why.
+  assert.ok(Math.min(...radii) > 9, `expected the built-in default to be active with no config at all, got radii=${radii.join(',')}`);
 });
 
 test('regression: no accepted elbow-shift candidate ever produces a diagonal segment, across a grid_resolution sweep', () => {

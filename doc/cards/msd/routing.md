@@ -41,7 +41,7 @@ Bundling applies to any `auto` (the default), `smart`, or `grid` line — `manha
 | Option | Default | Description |
 |--------|---------|-------------|
 | `trunk_bundling_enabled` | `true` | Master switch for spontaneous bundling |
-| `trunk_line_spacing` | `8` | Lane gap between bundled lines (viewBox units) |
+| `trunk_line_spacing` | `8` | Lane gap between bundled lines (viewBox units). Also sets how rounded lines' lane-separation corners can get, independent of `corner_radius` — see [Corner Size: Target vs. Forced](#corner-size-target-vs-forced) |
 | `trunk_proximity` | `32` | How close a line must run to a trunk to bundle with it (viewBox units) |
 | `trunk_bundle_weight` | `0.5` | How strongly joining a bundle is rewarded — higher pulls lines in from further detours |
 
@@ -69,13 +69,17 @@ A line's `corner_radius` (round/bevel corners) needs *room* to render at full si
 | Value | Behavior |
 |-------|----------|
 | `auto` (default) | `corner_radius` is a **target**. The router stays free to pick whatever departure/arrival shape crossing avoidance and bundling prefer; the rendered corner uses the full configured radius wherever the chosen path leaves room for it, and shrinks gracefully where it doesn't. |
-| `forced` | `corner_radius` is a **hard requirement**. The line always reserves a straight lead-out/lead-in run of `2 × corner_radius` before routing runs — guaranteeing the full radius renders everywhere, at the cost of removing that stretch from crossing avoidance's consideration entirely. Can force routing detours or unavoidable line crossings near tight geometry. |
+| `forced` | `corner_radius` is a **hard requirement**. The line always reserves a straight lead-out/lead-in run of `2 × corner_radius` (floored at `min_stub_length_factor × grid_resolution`) before routing runs — guaranteeing the full radius renders everywhere, at the cost of removing that stretch from crossing avoidance's consideration entirely. Can force routing detours or unavoidable line crossings near tight geometry. |
 
 If lines with a large `corner_radius` and an `anchor_side`/`attach_side` hint are crossing each other in places that look avoidable, that's this tradeoff in `forced`-equivalent form — `auto` (the default) is the fix. Use `forced` only where a specific line's corner must render at an exact size regardless of what else is nearby.
 
 **Stroke width is factored into corner clearance**: a corner's rounding radius is clamped by how close the *nearest edge* of a neighboring line's stroke is, not just its centerline — so a thick line (`style.width`) gets a more conservative (smaller) effective radius near other lines than a thin one at the same spacing. This is why increasing `style.width` can visibly tighten a corner that looked fine at the default width — that's the fix for an older, worse problem (a wide stroke's inner edge rendering squared-off because the radius math ignored width entirely); if you want the original wider corner back, increase line spacing (`trunk_line_spacing` / channel `line_spacing`) rather than reducing `style.width`.
 
 **Overriding the mandatory stub**: every routed line reserves a short, unsearched straight run right at departure/arrival (`stub_length` on the line overlay, viewBox units) before pathfinding starts. Leave it unset to use the router's own resolved default (grid-resolution-floored in `auto` corner mode, `2 × corner_radius` in `forced` mode — see above). Setting it below about one grid cell risks re-triggering an internal same-cell short-circuit for very short lines; check the router's own resolved value first via `window.lcards.debug.msd.routing.inspect(id).meta.debug` (see [Debugging](#debugging)) before tuning it down.
+
+The floor underneath both of those auto-computed defaults — historically a flat 24 viewBox units, regardless of canvas size — is itself `min_stub_length_factor × grid_resolution` (card-wide, `msd.routing.min_stub_length_factor`, default `1`). A flat floor doesn't scale down with a small `view_box` the way `grid_resolution`'s own auto-scaling already does, so on a small canvas it can dominate disproportionately (e.g. force a longer lead-out than the corner_radius itself would need). Lower the factor there instead of fighting it per-line.
+
+**Bundled lines get a shorter lead-in than `2 × corner_radius` would suggest, automatically.** When several lines separate onto their own parallel lanes before entering a shared channel/trunk, the little S-curve that does the separating has its own two corners — and those are constrained by how far apart the lanes are (`line_spacing`), not by `corner_radius`. The router accounts for this: it only reserves as much lead-in room as that S-curve can actually use, capped at whatever `2 × corner_radius` would have reserved. A large `corner_radius` (for the bigger bends elsewhere in the route) no longer forces every bundled line's lane-separation jog to travel further than it needs to just to "earn" a radius those particular corners were never going to render at anyway.
 
 **Recovering corner room automatically** (`corner_room_weight`, `smart`/`auto` lines only): a third lever, independent of `corner_radius_mode`. A tight detour — two bends close enough together that `corner_radius` has to shrink to fit — is exactly the shape `corner_room_weight` targets: the router's own local refinement pass (the same one that nudges elbows away from obstacles under `smart_proximity`) also tries nudging elbows to recover a squashed corner's radius, accepting the nudge only when it's cheap enough to be worth it. Unlike `forced` mode's blind stub reservation, this is a real cost comparison — a route that leaves more room for the configured corner is preferred over the plain-cheapest route only when the difference in distance/bends is small, never at the cost of a much longer detour. **On by default** (`corner_room_weight: 4`, both card-wide in `msd.routing` and per-line) — the LCARS rounded-corner look is the intended out-of-the-box result. Set to `0` (card-wide or per-line) to opt out.
 
@@ -151,10 +155,12 @@ msd:
 |-------|---------|-------------|
 | `default_mode` | `auto` | Card-wide override for lines that don't set `route` (per-line `route:` still wins). Set to `manhattan`/`grid` to downgrade the whole card |
 | `grid_resolution` | auto-scaled | Pathfinding cell size (viewBox units). Unset by default — scales to ~1/12th of the view_box's shorter dimension, clamped to `[16, 64]`; values below 5 are coerced to 32 |
+| `min_stub_length_factor` | `1` | Multiplier on the resolved `grid_resolution` for the minimum mandatory lead-out/lead-in stub every line reserves before routing runs (see [Corner Size: Target vs. Forced](#corner-size-target-vs-forced)). `1` reserves at least one grid cell. Lower it on a small `view_box`, where a flat minimum would otherwise force every line to travel disproportionately far before its first turn |
 | `turn_penalty` | `2` | Cost per direction change — higher = straighter paths |
 | `clearance` | `0` | Padding around obstacles (viewBox units) |
+| `corner_room_weight` | `4` | How strongly the refinement pass tries to recover a squashed corner's `corner_radius` (0 disables this trigger). On by default — see [Corner Size: Target vs. Forced](#corner-size-target-vs-forced). Also settable per-line. One of the two primary levers for corner appearance (the other, `corner_radius`, is per-line) |
 | `trunk_bundling_enabled` | `true` | Spontaneous bundling master switch |
-| `trunk_line_spacing` | `8` | Bundled lane gap (viewBox units) |
+| `trunk_line_spacing` | `8` | Bundled lane gap (viewBox units). Also sets how rounded lines' lane-separation corners can get, independent of `corner_radius` — see [Corner Size: Target vs. Forced](#corner-size-target-vs-forced) |
 | `trunk_proximity` | `32` | Bundling capture distance (viewBox units) |
 | `trunk_bundle_weight` | `0.5` | Bundling reward strength |
 | `crossing_avoid_enabled` | `true` | Crossing avoidance master switch |
@@ -168,8 +174,7 @@ Deep internals — rarely needed. Exposed in the Studio Routing tab under **Adva
 |-------|---------|-------------|
 | `route_hint_penalty` | `6` | Cost for a first/last move disagreeing with `route_hint` |
 | `smoothing_mode` / `smoothing_iterations` / `smoothing_max_points` | `none` / `1` / `160` | Chaikin path smoothing |
-| `smart_proximity` | `0` | Obstacle proximity band for the refinement pass (0 disables this trigger) |
-| `corner_room_weight` | `4` | How strongly the refinement pass tries to recover a squashed corner's `corner_radius` (0 disables this trigger). On by default — see [Corner Size: Target vs. Forced](#corner-size-target-vs-forced). Also settable per-line. |
+| `smart_proximity` | `0` | Obstacle proximity band for the refinement pass (0 disables this trigger; the *other* trigger, `corner_room_weight`, is a Common option — see above) |
 | `smart_detour_span` / `smart_max_extra_bends` / `smart_min_improvement` / `smart_max_detours_per_elbow` | `48` / `3` / `4` / `4` | Refinement pass limits |
 | `channel_force_penalty` | `800` | Cost for a route that misses a forced channel |
 | `channel_avoid_multiplier` | `1.0` | Global multiplier on avoid-channel penalties |

@@ -12295,7 +12295,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Toggle the routing "Quick recipes" cheat sheet open/closed. Same
+     * Toggle the routing "Quick Tips" cheat sheet open/closed. Same
      * plain-boolean pattern as _toggleShieldBubbleGuide — exactly one
      * non-repeating panel, no per-item expand state needed.
      * @private
@@ -12306,8 +12306,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Collapsible "Quick recipes: common routing goals" cheat sheet — plain
-     * goal-to-setting recipes (not a diagram; the Routing Modes Reference
+     * Collapsible "Quick Tips: common routing goals" cheat sheet — plain
+     * goal-to-setting tips (not a diagram; the Routing Modes Reference
      * accordion above already has inline SVGs, and routing-concepts.md has
      * the Mermaid decision-flow, so this deliberately doesn't add a third
      * visual representation). Reuses the same preset-info-guide markup as
@@ -12321,7 +12321,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <div class="preset-info-guide">
                 <div class="preset-info-guide-header" @click=${() => this._toggleRoutingCheatSheet()}>
                     <ha-icon icon="mdi:lightbulb-outline"></ha-icon>
-                    <span>Quick recipes: common routing goals</span>
+                    <span>Quick Tips: common routing goals</span>
                     <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
                 </div>
                 ${expanded ? html`
@@ -12333,6 +12333,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <li><strong>Keep lines away from a region entirely:</strong> set its mode to <code>avoid</code>.</li>
                             <li><strong>Chaining two or more channels on one line</strong> (<code>route_channels: [a, b, ...]</code>): pick any order — the router figures out which one to visit first based on geometry, not the order you checked them in.</li>
                             <li><strong>Force a straight run north/south instead of east/west (or vice versa):</strong> set the channel's Flow Direction explicitly to <code>vertical</code>/<code>horizontal</code> instead of <code>auto</code>.</li>
+                            <li><strong>A bundled corridor's lead-in run is longer than it looks like it needs to be:</strong> lower that line's <code>corner_radius</code> — it drives both the lane-separation reservation before a bundled line's first turn and (in <code>forced</code> mode) the mandatory cardinal stub. <code>min_stub_length_factor</code> (Common Routing Options) only affects the small safety floor underneath that, not the <code>corner_radius</code>-driven part.</li>
+                            <li><strong>Lines splitting onto their own lanes get a tight/squashed corner right where they separate:</strong> increase Lane Spacing (per-channel, or <code>trunk_line_spacing</code> card-wide) instead of raising <code>corner_radius</code> — those specific corners are capped by lane spacing, not by <code>corner_radius</code>.</li>
+                            <li><strong>A corner elsewhere in the route (a tight detour, not a lane split) looks squashed:</strong> check Corner Room Weight (Common Routing Options, on by default) — it's the general-purpose mechanism for recovering a tight detour's corner toward its full configured radius.</li>
+                            <li><strong>A specific line's corner must render at its exact configured size everywhere, no matter what else is nearby:</strong> set that line's <code>corner_radius_mode</code> to <code>forced</code> — accepts the tradeoff of removing its lead-in from crossing-avoidance consideration entirely, which can force otherwise-avoidable detours or line crossings near tight geometry.</li>
                         </ul>
                         <p>
                             For the full mental model (a decision-flow diagram of how routing modes interact), see the
@@ -13088,6 +13092,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ha-selector>
                         <ha-selector
                             .hass=${this.hass}
+                            .selector=${{ number: { min: 0, step: 0.1, mode: 'box' } }}
+                            .value=${routing.min_stub_length_factor}
+                            .label=${'Min Stub Length Factor'}
+                            @value-changed=${(e) => this._updateRoutingConfig('min_stub_length_factor', e.detail.value)}
+                            helper="Multiplier on Grid Resolution for the minimum mandatory lead-out/lead-in every line reserves before routing runs (default: 1, i.e. one grid cell). Lower it on a small view_box, where a flat minimum would otherwise force lines to travel disproportionately far before their first turn.">
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
                             .selector=${{ number: { min: 0, step: 0.5, mode: 'box' } }}
                             .value=${routing.turn_penalty}
                             .label=${'Turn Penalty'}
@@ -13101,6 +13113,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             .label=${'Clearance'}
                             @value-changed=${(e) => this._updateRoutingConfig('clearance', e.detail.value)}
                             helper="Min distance from obstacles (default: 0).">
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .selector=${{ number: { min: 0, mode: 'box' } }}
+                            .value=${routing.corner_room_weight}
+                            .label=${'Corner Room Weight'}
+                            @value-changed=${(e) => this._updateRoutingConfig('corner_room_weight', e.detail.value)}
+                            helper="How strongly a tight detour's corner tries to recover its full corner_radius (default: 4 — on; set 0 to disable). Also settable per-line. See Pathfinding Refinement under Advanced Routing Configuration for the related Proximity Band option.">
                         </ha-selector>
                     </div>
                 </lcards-form-section>
@@ -13147,7 +13167,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             .value=${routing.trunk_line_spacing}
                             .label=${'Lane Spacing'}
                             @value-changed=${(e) => this._updateRoutingConfig('trunk_line_spacing', e.detail.value)}
-                            helper="Gap between bundled lines (default: 8)">
+                            helper="Gap between bundled lines (default: 8). Also sets how rounded their lane-separation corners can get, independent of corner_radius — wider spacing allows a bigger achieved radius right where lines split onto their own lanes.">
                         </ha-selector>
                         <ha-selector
                             .hass=${this.hass}
@@ -13207,8 +13227,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <strong>Parameter Guide</strong>
                         <div style="margin: 8px 0 0 0; font-size: 12px; line-height: 1.6;">
                             <div style="margin-bottom: 6px;">
-                                <strong>Grid Resolution, Turn Penalty, and Clearance</strong> are common tunables — see
-                                the Common Routing Options section above.
+                                <strong>Grid Resolution, Min Stub Length Factor, Corner Room Weight, Turn Penalty, and Clearance</strong> are common tunables — see
+                                the Common Routing Options section above. Corner Room Weight is one of the two primary levers for corner appearance (the other, <code>corner_radius</code>, is per-line) — it's grouped with the general tunables here rather than under Pathfinding Refinement below because of how often it actually matters in practice.
                             </div>
 
                             <div style="margin-bottom: 6px;"><strong>Path Smoothing</strong></div>
@@ -13221,11 +13241,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <div style="margin-bottom: 6px;"><strong>Pathfinding Refinement</strong></div>
                             <div style="margin-left: 12px; margin-bottom: 8px;">
                                 • <strong>Proximity Band</strong>: Extra avoidance distance from obstacles (0 disables this trigger)<br/>
-                                • <strong>Corner Room Weight</strong>: How strongly a tight detour's corner tries to recover its full corner_radius (0 disables this trigger; on by default)<br/>
                                 • <strong>Detour Span</strong>: How far the algorithm looks ahead for better paths<br/>
                                 • <strong>Max Extra Bends</strong>: Maximum additional turns allowed for optimization<br/>
                                 • <strong>Max Detours</strong>: How many alternate routes to consider per segment<br/>
-                                <em>Refinement runs whenever EITHER Proximity Band OR Corner Room Weight is above 0.</em>
+                                <em>Refinement runs whenever EITHER Proximity Band here OR Corner Room Weight (Common Routing Options above) is above 0.</em>
                             </div>
 
                             <div style="margin-bottom: 6px;"><strong>Channel Routing</strong></div>
@@ -13289,7 +13308,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <div style="font-weight: 500; margin-bottom: 8px;">
                             Pathfinding Refinement
                             <span style="font-weight: 400; font-size: 12px; color: var(--secondary-text-color); margin-left: 8px;">
-                                (Runs whenever Proximity Band OR Corner Room Weight is above 0 — Corner Room Weight is on by default)
+                                (Runs whenever Proximity Band below is above 0, or Corner Room Weight — moved to Common Routing Options above, on by default — is above 0)
                             </span>
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
@@ -13300,14 +13319,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .label=${'Proximity Band'}
                                 @value-changed=${(e) => this._updateRoutingConfig('smart_proximity', e.detail.value)}
                                 helper="Extra obstacle avoidance distance (default: 0 — off unless > 0)">
-                            </ha-selector>
-                            <ha-selector
-                                .hass=${this.hass}
-                                .selector=${{ number: { min: 0, mode: 'box' } }}
-                                .value=${routing.corner_room_weight}
-                                .label=${'Corner Room Weight'}
-                                @value-changed=${(e) => this._updateRoutingConfig('corner_room_weight', e.detail.value)}
-                                helper="Recover corner_radius near tight detours (default: 4 — on; set 0 to disable)">
                             </ha-selector>
                             <ha-selector
                                 .hass=${this.hass}
@@ -13769,7 +13780,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <ha-selector
                                 .hass=${this.hass}
                                 .label=${'Line Spacing (vb units)'}
-                                .helper=${'Gap between bundled lines (typical: 5-20)'}
+                                .helper=${'Gap between bundled lines (typical: 5-20). Also sets how rounded their lane-separation corners can get, independent of corner_radius.'}
                                 .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'slider' } }}
                                 .value=${data.line_spacing ?? 8}
                                 @value-changed=${(e) => this._updateChannelFormField('line_spacing', e.detail.value)}>

@@ -532,6 +532,13 @@ export function getMsdSchema() {
             default: 64,
             description: 'Grid cell size for grid-based routing (viewBox units; values below 5 are coerced to 32). Unset by default — auto-scales from view_box size instead of a fixed number (~1/12th of the shorter dimension, clamped to [16, 64]; 64 shown here is that ceiling, not a fixed default)'
           },
+          min_stub_length_factor: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 1,
+            description: 'Multiplier on the resolved grid_resolution for the minimum mandatory lead-out/lead-in stub every line reserves before routing runs. 1 (default) reproduces the router\'s own "at least one grid cell" floor; raise it to reserve more room for large corner_radius values, lower it (e.g. on a small view_box, where a flat floor would otherwise be disproportionately long) to let lines turn sooner'
+          },
           turn_penalty: {
             type: 'number',
             min: 0,
