@@ -253,14 +253,26 @@ export class RouterCore {
     // unbounded: any sufficiently long trunk-ride can "buy" an arbitrary
     // number of extra local bends elsewhere in the SAME route, since
     // bendsWeight (cost_defaults.bend, default 10 FLAT per bend) never
-    // scales with how long the credited ride is. Deliberately set large
-    // (well beyond any realistic single-viewBox corridor length) rather
-    // than tuned tight: this is a safety bound closing the "literally
-    // unbounded" property, not a lever calibrated against a specific
-    // reported bad route — no concrete repro existed for this one at the
-    // time it was added (see project memory). Revisit the actual VALUE
-    // once a real config demonstrates the failure mode concretely.
-    this._trunkBundleDiscountCap = Number(this.config.trunk_bundle_discount_cap ?? 2000);
+    // scales with how long the credited ride is.
+    //
+    // Originally shipped at 2000 ("well beyond any realistic single-
+    // viewBox corridor length") specifically because no concrete repro
+    // existed yet to calibrate a tighter value against. One now does: a
+    // live report where a line with no need to bundle at all (its own
+    // plain, 1-bend path already reached its destination) detoured into
+    // an UNRELATED discovered trunk purely to farm its discount — 3 extra
+    // bends (a flat +30 cost) bought by a ~587px ride at weight 0.5
+    // (-293.5 cost), an 8.75x return that made the honest plain route look
+    // net-costlier despite being strictly simpler. A cap in the ~75-200px
+    // range reproducibly restores the plain route as cheapest for that
+    // exact case (tested via direct cost-comparison instrumentation, not
+    // just the resulting shape) without disturbing any existing discovered-
+    // trunk bundling test in this suite; 150 sits centrally in that range.
+    // Still explicit-channel-exempt (see this constant's own guard at its
+    // one call site) — a user's own long, deliberately-authored `channels:`
+    // corridor (e.g. this project's own channel_2/channel_3 fixtures,
+    // ridden for 800+px) is entirely unaffected by this default.
+    this._trunkBundleDiscountCap = Number(this.config.trunk_bundle_discount_cap ?? 150);
     this._trunkLineSpacing = Number(this.config.trunk_line_spacing ?? 8);
     // Cap on how many discovery passes AdvancedRenderer's seed loop will run
     // before giving up on reaching a fixed point (see _registryVersion) —
@@ -2604,22 +2616,40 @@ export class RouterCore {
    * their own geometry, never a prior pass's lane offset): negative-side
    * joiners get negative offsets, non-negative/unknown-side joiners get
    * positive, each side's own magnitude growing by that joiner's 1-based
-   * position within its OWN side group (lexicographic tie-break within a
-   * group). A joiner with no recorded side yet (never registered at this
-   * trunk before — e.g. a prospective candidate mid-discovery) falls into
-   * the non-negative group, matching the group most existing tests
+   * position within its OWN side group, ordered by ascending LEAN
+   * MAGNITUDE (naturalLean — the continuous signed distance naturalSide's
+   * own Math.sign discards) so the joiner whose real destination sits
+   * closest to the centerline gets the innermost lane, lineId only a
+   * tie-break when two joiners' magnitudes are exactly equal. A joiner
+   * with no recorded side yet (never registered at this trunk before —
+   * e.g. a prospective candidate mid-discovery) falls into the
+   * non-negative group at lean 0, matching the group most existing tests
    * exercise. This replaces blind index-parity alternation (+s,-s,+2s,...
    * by insertion-sorted order), which put two joiners on OPPOSITE sides of
    * a shared trunk purely because their ids happened to sort that way —
    * confirmed as a real, avoidable crossing between one joiner's own stub
-   * and the other's bundled lane.
+   * and the other's bundled lane. A second, deeper instance of the same
+   * bug class was confirmed live once two joiners shared a side: the
+   * lineId-only within-group sort put the lane order backwards relative
+   * to each joiner's real destination distance, forcing their branch legs
+   * to cross after the trunk split — the lean-magnitude sort above closes
+   * that gap.
    *
    * Config channel: no implicit centerline owner — every user (member set
    * plus the asking line, sorted) gets a centered offset
-   * (i - (n-1)/2) * spacing: n=1 -> 0, n=2 -> ±s/2, n=3 -> -s/0/+s.
-   * Deliberately NOT made side-aware — there's no creator centerline to
-   * bias around here, and the reported crossing bug was specifically a
-   * discovered-trunk case; kept unchanged to bound this fix's scope.
+   * (i - (n-1)/2) * spacing: n=1 -> 0, n=2 -> ±s/2, n=3 -> -s/0/+s. Sorted
+   * by side bucket only (naturalSide, -1/0/+1), lineId the tie-break
+   * within a bucket — same within-bucket lexicographic gap as the
+   * discovered branch above, confirmed real, but deliberately NOT given
+   * the same lean-magnitude fix: a channel's naturalLean is measured
+   * against ONLY that one channel's own local centerline, and two channels
+   * chained in the same route (e.g. a short local-direction corridor
+   * feeding a long force one) can disagree about a shared line's relative
+   * order — confirmed via a live regression (see this method's own inline
+   * comment below, right above the `users` sort). Left as pure
+   * side-then-lineId; a real fix needs chain-wide ordering, the same
+   * unsolved class of problem as _mergeCorridors's own documented,
+   * deliberately-deferred chain-order limitation.
    *
    * laneIndex is the raw non-negative per-line position (creator 0,
    * joiners 1,2,... / users 0,1,2,...) consumed by
@@ -2644,9 +2674,32 @@ export class RouterCore {
     const spacing = Number(corridor.line_spacing ?? row.line_spacing ?? this._trunkLineSpacing) || 0;
     const ids = new Set(row.members?.keys());
     ids.add(lineId);
-    // Hoisted so the config-channel branch below can share it — see that
-    // branch's own comment for why it needs this too.
+    // Hoisted so the config-channel branch below can share both — see
+    // that branch's own comment for why it needs them too. leanOf is the
+    // continuous signed lean sideOf's Math.sign discards, used only as a
+    // within-side-bucket ordering key (never to decide bucket membership
+    // itself — that stays sideOf's discrete -1/0/+1, matching the change-
+    // detection gate in _mergeOrRegisterTrunk).
     const sideOf = (id) => row.members?.get(id)?.[2] ?? 0;
+    // The ASKING line itself is frequently not registered yet (this same
+    // call is what decides the offset that _pushBundledApproachLegs then
+    // uses to build the very leg _mergeOrRegisterTrunk later reads back —
+    // a chicken-and-egg gap for exactly one line per pass). Falling back
+    // to 0 here was confirmed live to be actively harmful, not just
+    // "unknown, sort neutrally": 0 is the SMALLEST possible magnitude, so
+    // an unregistered line unconditionally beat every already-registered
+    // (real, nonzero) lean for the innermost lane — then lost it again the
+    // very next pass once its own real lean registered, a genuine
+    // reorder-then-revert oscillation that cost an extra convergence pass
+    // (caught live by convergence.test.js's steady-state-is-all-cache-hits
+    // assertion). Infinity instead sorts an unregistered line to the
+    // OUTSIDE of every already-known lean, deferring its real placement
+    // until it has one. Below, `(Math.abs(leanOf(a)) - Math.abs(leanOf(b)))
+    // || tiebreak` relies on `||` treating both an exact-0 difference (a
+    // real tie) AND a NaN difference (Infinity - Infinity, both sides
+    // unknown) as falsy, falling through to the lineId tiebreak either way
+    // — no separate equality branch needed.
+    const leanOf = (id) => row.members?.get(id)?.[4] ?? Infinity;
     if (row.origin === 'discovered') {
       // The creator's own natural side — same "which side of the
       // centerline does this line's true, un-bundled geometry lean
@@ -2660,8 +2713,15 @@ export class RouterCore {
       const creatorSide = sideOf(row.sourceLineId);
       ids.delete(row.sourceLineId);
       if (!ids.has(lineId) || !spacing) return { laneIndex: 0, laneCount: ids.size + 1, offset: 0 };
-      const negatives = [...ids].filter(id => sideOf(id) < 0).sort();
-      const positives = [...ids].filter(id => sideOf(id) >= 0).sort();
+      // Ascending |lean| within a group (see leanCmp above): the joiner
+      // whose real destination leans least far from the centerline gets
+      // the smallest magnitude (innermost lane); lineId is only consulted
+      // when two joiners' own lean magnitudes are exactly equal (e.g.
+      // neither has registered real geometry yet — the common case every
+      // pre-existing test in this suite exercises).
+      const withinGroupCmp = (a, b) => (Math.abs(leanOf(a)) - Math.abs(leanOf(b))) || (a < b ? -1 : a > b ? 1 : 0);
+      const negatives = [...ids].filter(id => sideOf(id) < 0).sort(withinGroupCmp);
+      const positives = [...ids].filter(id => sideOf(id) >= 0).sort(withinGroupCmp);
       const laneCount = negatives.length + positives.length + 1;
       const negIdx = negatives.indexOf(lineId);
       const inNegativeGroup = negIdx >= 0;
@@ -2685,7 +2745,7 @@ export class RouterCore {
     // A config channel has no privileged "creator" holding the centerline
     // — every referencing line is a symmetric joiner — so unlike the
     // discovered branch above there's no group-order flip to consider.
-    // Still, pure lineId lexicographic order ignored the exact same
+    // Still, pure lineId lexicographic order ignores the exact same
     // naturalSide data _mergeOrRegisterTrunk already records for these
     // members (see that method's own comment: built specifically to stop
     // two joiners landing on opposite sides purely because of how their
@@ -2695,6 +2755,27 @@ export class RouterCore {
     // are exactly equal — the common case for a line that hasn't
     // registered real geometry yet (0, same as before) or two lines that
     // both sit dead-center on the channel's own flow axis.
+    //
+    // A same-side WITHIN-bucket lexicographic fallback gap exists here
+    // too, identical in shape to the discovered branch's own fix above —
+    // audited and confirmed real (see project memory). Deliberately NOT
+    // given the same leanOf-magnitude tie-break here, though: doing so
+    // reproduced a live regression (kelvin-bundle-crossing.test.js's
+    // resolution-sweep test, res=64) where two lines chained through TWO
+    // channels (a long force channel_2, a short local-direction "auto"
+    // channel_3) had naturalLean disagree on relative order between the
+    // two — channel_3's own LOCAL centerline is only meaningful to that one
+    // short corridor, so a line's lean there can legitimately differ from
+    // its lean against a different, differently-oriented chained channel.
+    // The old pure-lineId order, for all its blindness, is at least the
+    // SAME across every channel a line touches (a lineId doesn't change
+    // per-corridor) — replacing it with a per-channel-local geometric
+    // signal traded a single-channel same-side bug for a cross-channel
+    // chain-consistency one, the same unsolved class of problem as
+    // _mergeCorridors's own documented, deliberately-ABANDONED chain-order
+    // limitation (see this fix's own plan notes). Left as pure
+    // side-then-lineId pending a real chain-wide ordering fix, not a
+    // per-corridor one.
     const users = [...ids].sort((a, b) => (sideOf(a) - sideOf(b)) || (a < b ? -1 : a > b ? 1 : 0));
     const i = users.indexOf(lineId);
     const n = users.length;
@@ -3240,10 +3321,46 @@ export class RouterCore {
     // near the anchor leans on the anchor's own side, a run near the
     // attach point leans on that side instead.
     const flowMid = (flowLo + flowHi) / 2;
+    // The flow-closer comparison above degenerates once this run's own
+    // span already covers MOST of the line's total anchor-to-attach flow
+    // distance — a run that long practically origin­ates at rawA and
+    // terminates within a stub-length of rawB by construction (it's the
+    // whole journey, minus one final perpendicular bend), so BOTH raw
+    // endpoints end up a similarly small distance from flowMid, and
+    // whichever is a few px closer wins by pure happenstance rather than
+    // any real geometric signal. Confirmed live: a run 90% of its own
+    // line's total flow span picked the attach endpoint by an 8px margin,
+    // flipping that line's natural side to match its own (unrelated, far
+    // south) destination instead of its own (clearly north) anchor —
+    // exactly the "distant destination dominates" failure this whole
+    // mechanism exists to prevent, just re-entering through the
+    // flow-closer tiebreak instead of a plain average. Once the run
+    // covers at least half the line's own total flow span, skip the
+    // comparison and default to the anchor unconditionally: a run this
+    // long IS the outbound leg by definition, not meaningfully "closer"
+    // to either end. A short run genuinely local to one end (the case
+    // this heuristic was built for) is far below this threshold and keeps
+    // its existing, correct behavior untouched.
+    const totalFlowSpan = (rawA && rawB) ? Math.abs(rawB[flow] - rawA[flow]) : 0;
+    const runSpansMostOfLine = (flowHi - flowLo) >= 0.5 * totalFlowSpan;
     const refPoint = (rawA && rawB)
-      ? (Math.abs(rawA[flow] - flowMid) <= Math.abs(rawB[flow] - flowMid) ? rawA : rawB)
+      ? (runSpansMostOfLine || Math.abs(rawA[flow] - flowMid) <= Math.abs(rawB[flow] - flowMid) ? rawA : rawB)
       : (rawA || rawB);
-    const naturalSide = refPoint ? Math.sign(refPoint[cross] - centerlineForSide) : 0;
+    // Raw signed lean distance, kept alongside its own discretized sign
+    // (naturalSide, a bare Math.sign of this same value) — naturalSide
+    // alone only tells _trunkLaneAssignment which SIDE-GROUP a joiner
+    // belongs to; two joiners sharing a side used to fall back to plain
+    // lineId order to break that tie (confirmed as the same bug class as
+    // the side-vs-lexicographic fix above, just one level deeper: two
+    // same-side joiners landing in the wrong INNER/OUTER lane relative to
+    // each other, purely because of their ids). naturalLean is a pure,
+    // deterministic function of this line's own fixed raw endpoints and
+    // this trunk's stable centerline (crossCenter never moves once a row
+    // exists — see _recomputeTrunkBounds), so it reproduces bit-for-bit
+    // across passes for an unchanged line, same as flowLo/flowHi below —
+    // safe to compare with exact `===` in the change-detection gate.
+    const naturalLean = refPoint ? (refPoint[cross] - centerlineForSide) : 0;
+    const naturalSide = Math.sign(naturalLean);
     if (existing) {
       touchedTrunks?.add(existing);
       const prev = existing.members.get(lineId);
@@ -3254,13 +3371,17 @@ export class RouterCore {
       // once nothing changed" exit condition). Natural side is included in
       // the comparison: lane assignment derives from it too
       // (_trunkLaneAssignment), so a changed side is a real change even
-      // when the span didn't move. cornerInfo is included too — it can
-      // change (a corner's resolved radius tightening/loosening pass over
-      // pass, per _matchedSiblingArcs) even while flowLo/flowHi/naturalSide
-      // stay fixed, and a matched sibling elsewhere needs to see that
-      // update to keep converging.
+      // when the span didn't move. naturalLean is included too — it can
+      // change (magnitude shifting) without naturalSide's sign changing,
+      // which would otherwise let a stale lean value silently survive a
+      // real geometry change and skip _trunkLaneAssignment's within-group
+      // reordering. cornerInfo is included too — it can change (a corner's
+      // resolved radius tightening/loosening pass over pass, per
+      // _matchedSiblingArcs) even while flowLo/flowHi/naturalSide stay
+      // fixed, and a matched sibling elsewhere needs to see that update to
+      // keep converging.
       if (prev && prev[0] === flowLo && prev[1] === flowHi && (prev[2] ?? 0) === naturalSide &&
-        this._cornerInfoEqual(prev[3], cornerInfo)) return false;
+        (prev[4] ?? 0) === naturalLean && this._cornerInfoEqual(prev[3], cornerInfo)) return false;
       const isNewMember = !prev;
       // A line becoming a member of a row it did NOT create happens purely
       // as a side effect of ITS OWN independent geometry coincidentally
@@ -3274,7 +3395,7 @@ export class RouterCore {
       // a stable cache hit forever, silently hiding the newly-eligible
       // trunk from ever being reconsidered by discovery.
       if (isNewMember && existing.sourceLineId !== lineId && foreignJoinFlag) foreignJoinFlag.joined = true;
-      existing.members.set(lineId, [flowLo, flowHi, naturalSide, cornerInfo]);
+      existing.members.set(lineId, [flowLo, flowHi, naturalSide, cornerInfo, naturalLean]);
       const boundsChanged = this._recomputeTrunkBounds(existing);
       return isNewMember || boundsChanged;
     }
@@ -3309,7 +3430,7 @@ export class RouterCore {
       // — the creator is removed from the joiner set entirely, it always
       // holds the centerline), stored anyway for shape consistency across
       // every members entry.
-      members: new Map([[lineId, [flowLo, flowHi, naturalSide, cornerInfo]]])
+      members: new Map([[lineId, [flowLo, flowHi, naturalSide, cornerInfo, naturalLean]]])
     };
     this._trunks.push(trunk);
     touchedTrunks?.add(trunk);
@@ -4152,7 +4273,24 @@ export class RouterCore {
       const hi = horizontal ? t.x2 : t.y2;
       return Math.min(Math.abs(stubReq.a[flow] - lo), Math.abs(stubReq.a[flow] - hi));
     };
-    const sorted = discoveredTrunks.slice().sort((p, q) => distTo(p) - distTo(q));
+    // _autoJoined marks every entry THIS line did not itself list in its own
+    // route_channels — i.e. everything discoveredTrunks contributed, not
+    // just entries whose underlying row happens to be origin:'discovered'.
+    // A `discoverable: true` config channel a line never referenced is
+    // exactly as automatic a join, from that line's own perspective, as a
+    // genuinely-discovered trunk — confirmed as the same discount-farming
+    // bug _trunkBundleDiscountCap already guards against (see that
+    // constant's own comment), just reachable through a second door:
+    // origin:'channel' unconditionally skipped the cap on the theory that
+    // a channel's own EXISTENCE is always a deliberate, user-authored
+    // choice — true, but not the same claim as "this specific line's use
+    // of it was deliberate," which is the thing the cap actually needs to
+    // gate on. Spread (never mutate `t` itself) — `t` is still the live,
+    // shared row object read directly out of `this._trunks`/`this._channels`
+    // elsewhere; tagging it in place would leak this per-request,
+    // per-asking-line flag onto every OTHER line's own view of the same row.
+    const sorted = discoveredTrunks.slice().sort((p, q) => distTo(p) - distTo(q))
+      .map(t => ({ ...t, _autoJoined: true }));
     return [...ordered, ...sorted];
   }
 
@@ -5551,11 +5689,18 @@ export class RouterCore {
       }, 0);
 
       if (chan.mode === 'prefer') {
-        // Reward routing through channel (subtract cost). Capped for
-        // DISCOVERED trunks only (see _trunkBundleDiscountCap's own
-        // comment) — a user-authored prefer channel's own length is a
-        // deliberate config choice, not something to second-guess here.
-        const credited = chan.origin === 'discovered' ? Math.min(chanInside, this._trunkBundleDiscountCap) : chanInside;
+        // Reward routing through channel (subtract cost). Capped for any
+        // AUTO-JOINED corridor (see _trunkBundleDiscountCap's own comment,
+        // and _mergeCorridors' own _autoJoined comment for why this is
+        // keyed on "did the asking line itself request this," not on
+        // whether the row's origin is 'channel' vs 'discovered' — a
+        // discoverable:true config channel this line never listed in its
+        // own route_channels is just as automatic a join as a genuinely
+        // discovered trunk). A line's own explicitly-listed route_channels
+        // never carry this flag (see _mergeCorridors — `ordered` is never
+        // tagged), so a deliberate, user-authored chain's own length is
+        // still never second-guessed here.
+        const credited = chan._autoJoined ? Math.min(chanInside, this._trunkBundleDiscountCap) : chanInside;
         delta -= credited * chan.weight;
       } else if (chan.mode === 'avoid') {
         // Penalize routing through channel

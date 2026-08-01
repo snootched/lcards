@@ -93,6 +93,49 @@ test('geometry wins over lexicographic order when the two disagree', () => {
   assert.equal(router._trunkLaneAssignment(trunk, 'line_z').offset, 8, 'line_z leans south -> positive offset, despite sorting last');
 });
 
+test('within a shared side, geometry wins over lexicographic order too', () => {
+  // Reported live (a second instance of the same bug class, one level
+  // deeper): line_a and line_z both lean SOUTH (same side) of the y=100
+  // centerline, but line_a leans far (y=140, |lean|=40) while line_z —
+  // which sorts LAST lexicographically — leans only slightly (y=108,
+  // |lean|=8). Before this fix, two same-side joiners fell all the way
+  // back to a plain lineId sort (no geometric signal consulted at all
+  // within a group), so line_a would have landed in the INNER lane purely
+  // because its id sorts first — exactly backwards relative to how close
+  // each line's own real destination sits to the shared centerline, and
+  // exactly the shape that forces a crossing once the two branch apart
+  // toward their own separate destinations.
+  const { router, trunk } = routerWithTrunk();
+  router._registerLineSegments('line_a', [[50, 140], [500, 140]], [50, 140], [500, 140]);
+  router._registerLineSegments('line_z', [[50, 108], [500, 108]], [50, 108], [500, 108]);
+
+  assert.equal(router._trunkLaneAssignment(trunk, 'line_z').offset, 8, 'line_z leans only slightly -> inner lane, despite sorting last');
+  assert.equal(router._trunkLaneAssignment(trunk, 'line_a').offset, 16, 'line_a leans far -> outer lane, despite sorting first');
+});
+
+test('an unregistered asking line does not steal the inner lane from an already-registered same-side member', () => {
+  // The naive fix for the above (sorting by |lean|, falling back to 0 for
+  // a line with no registered lean yet) was itself confirmed live to be a
+  // real bug, not just an incomplete one: _trunkLaneAssignment is called
+  // to decide an offset BEFORE that offset's own leg geometry is built, so
+  // the asking line is frequently not registered as a trunk member yet at
+  // the moment of its own call. 0 is the smallest possible magnitude, so
+  // an unregistered asking line unconditionally beat every already-known
+  // (real, nonzero) lean for the inner lane — then lost it again the very
+  // next pass once its own real lean registered, a reorder-then-revert
+  // oscillation that cost an extra discovery-loop convergence pass (caught
+  // by convergence.test.js's steady-state-is-all-cache-hits assertion).
+  // line_z is a real, already-registered south member with a small lean;
+  // 'line_unregistered' (asking, same side, not yet a member) must NOT
+  // outrank it for the inner lane merely for lacking data yet.
+  const { router, trunk } = routerWithTrunk();
+  router._registerLineSegments('line_z', [[50, 108], [500, 108]], [50, 108], [500, 108]);
+
+  const prospective = router._trunkLaneAssignment(trunk, 'line_unregistered');
+  assert.equal(prospective.offset, 16, 'the unregistered asking line must land OUTSIDE the already-known lean, not steal the inner lane via a 0 fallback');
+  assert.equal(router._trunkLaneAssignment(trunk, 'line_z').offset, 8, 'the already-registered member keeps the inner lane');
+});
+
 test('a member leaving frees its lane, but a REMAINING member\'s own offset never flips sign', () => {
   const { router, trunk } = routerWithTrunk();
   router._registerLineSegments('line_b', [[50, 108], [500, 108]], [50, 108], [500, 108]);
