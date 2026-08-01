@@ -281,6 +281,38 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
         lcardsLog.trace('[PipelineCore] AnimationManager notified about all rendered overlays');
       }
 
+      // Card-level "overlay group" animations: bulk-target overlays across the
+      // shared overlay container by CSS selector (msd.animations). Unlike
+      // base_svg.animations' one-shot post-init registration (this file,
+      // ~line 392), this MUST re-run every reRender() — #msd-overlay-container's
+      // children are torn down and rebuilt from scratch on every structural
+      // re-render (AdvancedRenderer.render() does overlayGroup.innerHTML = ''),
+      // unlike #__msd-base-content which is stable after the initial SVG parse.
+      // This mirrors the per-overlay loop directly above (same isEditMode gate,
+      // same "query fresh every pass" discipline) — onOverlayRendered's
+      // teardown-by-id logic is already proven safe under repeated calls by
+      // that loop running every render.
+      if (!isEditMode && coordinator.animationManager && cardModel.animations?.length > 0) {
+        const overlayContainer = mountEl.querySelector('#msd-overlay-container');
+        if (overlayContainer) {
+          try {
+            await coordinator.animationManager.onOverlayRendered(
+              '__msd_animations',
+              overlayContainer,
+              { animations: cardModel.animations },
+              coordinator
+            );
+            lcardsLog.trace('[PipelineCore] Registered msd.animations overlay-group scope:', {
+              animationCount: cardModel.animations.length
+            });
+          } catch (animError) {
+            lcardsLog.error('[PipelineCore] ❌ Failed to register msd.animations scope:', animError);
+          }
+        } else {
+          lcardsLog.warn('[PipelineCore] ⚠️ Could not find #msd-overlay-container for msd.animations');
+        }
+      }
+
       const renderTime = performance.now() - startTime;
       lcardsLog.trace(`[PipelineCore] reRender() COMPLETED in ${renderTime.toFixed(2)}ms`);
 

@@ -38,7 +38,7 @@ const simpleColorSchema = {
  * merged in). Presets that repurpose one of these names with a different
  * meaning override the relevant key in their own schema below.
  */
-const _CANONICAL_REDECLARED = {
+export const _CANONICAL_REDECLARED = {
   duration: {
     type: ['number', 'object'], minimum: 0, maximum: 10000,
     description: 'Also accepted nested here (top-level wins if both set). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'

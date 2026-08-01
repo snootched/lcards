@@ -2458,6 +2458,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 </lcards-form-section>
 
+                <!-- Overlay Group Animations Section -->
+                <lcards-form-section
+                    header="Animations (Overlay Groups)"
+                    description="Bulk-target overlays by CSS selector — e.g. animate every overlay whose id starts with 'shield_' with one declaration"
+                    icon="mdi:play-box-multiple-outline"
+                    ?expanded=${false}>
+
+                    <lcards-animation-editor
+                        .hass=${this.hass}
+                        .animations=${this._workingConfig.msd?.animations || []}
+                        .cardElement=${this._getLivePreviewCardElement()}
+                        .searchRootSelector=${'#msd-overlay-container'}
+                        @animations-changed=${(e) => {
+                            this._setNestedValue('msd.animations', e.detail.value);
+                        }}
+                        @refresh-targets=${() => this.requestUpdate()}>
+                    </lcards-animation-editor>
+
+                </lcards-form-section>
+
                 <!-- Background Layers Section -->
                 <lcards-form-section
                     header="Background Effects (MSD Background)"

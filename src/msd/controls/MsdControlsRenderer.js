@@ -1430,6 +1430,11 @@ export class MsdControlsRenderer {
       // them; without it, AnimationManager.onOverlayRendered() is silently never called
       // for any control, regardless of preset.
       foreignObject.setAttribute('data-overlay-id', overlayId);
+      // Mirrors LineOverlay/ShapeOverlay's own data-overlay-type — lets the
+      // animation target-picker offer an "All Controls" bulk option the same
+      // way it already does for lines/shapes (see _getTargetOptions() in
+      // lcards-animation-editor.js).
+      foreignObject.setAttribute('data-overlay-type', 'control');
 
       // Ensure proper event handling
       foreignObject.style.pointerEvents = 'auto';

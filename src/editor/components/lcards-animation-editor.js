@@ -24,7 +24,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import './shared/lcards-color-picker.js';
 import './shared/lcards-form-section.js';
 import { LCARdSFormFieldHelper as FormField } from './shared/lcards-form-field.js';
-import { ANIMATION_PRESET_PARAMS_SCHEMAS } from '../../cards/schemas/animation-preset-params-schemas.js';
+import { ANIMATION_PRESET_PARAMS_SCHEMAS, _CANONICAL_REDECLARED } from '../../cards/schemas/animation-preset-params-schemas.js';
 import { ANIMATION_PRESET_DOCS_URL } from './shared/docs-links.js';
 import { infoGuideStyles } from './shared/info-guide-styles.js';
 import { searchableSelectStyles } from './shared/searchable-select-styles.js';
@@ -132,6 +132,41 @@ const PRESET_HIDDEN_CANONICAL_FIELDS = {
   'timeline-attention': { hideDuration: true, hideEasing: true }
 };
 
+const CANONICAL_KEY_HIDE_FLAG = { duration: 'hideDuration', ease: 'hideEasing', loop: 'hideLoop', alternate: 'hideAlternate', delay: 'hideStartDelay' };
+
+/**
+ * True when a preset's own params schema needs to render its OWN field for a
+ * canonical-named key (duration/ease/loop/alternate/delay) in the Preset
+ * Parameters section, rather than being skipped there in favor of the shared
+ * Timing & Duration/Easing Function sections above.
+ *
+ * The two sections normally cover these keys once each — PRESET_HIDDEN_
+ * CANONICAL_FIELDS hides the top-level widget when it's confirmed inert for
+ * a preset, and the params-section filter (below) skips the same key to
+ * avoid a duplicate editable field for the one functional copy. That leaves
+ * a gap for presets that hide a key at the top level AND redeclare the same
+ * name in their own schema with real, different semantics (e.g.
+ * stagger-flash's duration/delay/loop are WAAPI-cycle values, not anime.js
+ * ones — see staggerFlashParamsSchema; sequence's duration/ease are
+ * per-step fallbacks — see sequenceParamsSchema) — those fields would
+ * otherwise be entirely unreachable in the UI despite being real, validated,
+ * documented params.
+ *
+ * Detected structurally rather than via a hardcoded preset list: a field
+ * that's merely spread through from `..._CANONICAL_REDECLARED` unchanged
+ * (the common case — e.g. march's ease/alternate/delay, scale-reset's loop/
+ * alternate) is still the exact same object reference as
+ * `_CANONICAL_REDECLARED[key]`; a preset that actually overrides the key
+ * with its own object literal (with or without an initial spread) is not.
+ * Presets that hide a key without any real override (the common case above)
+ * correctly show nothing extra — there's no hidden functionality to reveal.
+ */
+function needsOwnCanonicalField(preset, key, fieldSchema) {
+  const hideFlag = CANONICAL_KEY_HIDE_FLAG[key];
+  const hiddenCanonical = PRESET_HIDDEN_CANONICAL_FIELDS[preset] || {};
+  return !!hiddenCanonical[hideFlag] && fieldSchema !== _CANONICAL_REDECLARED[key];
+}
+
 /**
  * anime.js v4 documentation URL for the primary mechanism each preset uses
  * under the hood, shown as a secondary link in the info guide alongside the
@@ -216,15 +251,24 @@ export class LCARdSAnimationEditor extends LitElement {
    * are never duplicated inside params. Moves them up to the top level if found
    * in params, removing them from params. Safe to call on both new and existing
    * animation objects.
+   *
+   * EXCEPTION: a key left alone via needsOwnCanonicalField() — see its doc
+   * comment — is a preset-specific redeclaration with real, different
+   * semantics (e.g. stagger-flash's params.duration is a WAAPI-cycle value,
+   * not the generic anime.js one), so it's left in params rather than
+   * promoted; promoting it would silently move the value to the (for that
+   * preset, hidden and non-functional) top-level field.
    */
   _normalizeAnimation(anim) {
     const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
     if (!anim.params) return anim;
 
+    const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[anim.preset];
     const promotedFromParams = {};
     const remainingParams = {};
     for (const [k, v] of Object.entries(anim.params)) {
-      if (TOP_LEVEL_KEYS.includes(k)) {
+      const ownField = TOP_LEVEL_KEYS.includes(k) && needsOwnCanonicalField(anim.preset, k, presetSchema?.properties?.[k]);
+      if (TOP_LEVEL_KEYS.includes(k) && !ownField) {
         // Only promote if the top-level value is not already explicitly set
         if (anim[k] === undefined) promotedFromParams[k] = v;
         // Either way, do not keep in params
@@ -1028,8 +1072,13 @@ export class LCARdSAnimationEditor extends LitElement {
     const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[preset];
     if (!presetSchema?.properties) return '';
 
-    // Canonical fields (duration/ease/loop/alternate/delay) are already covered by
-    // _renderCommonParams() above — skip them here to avoid rendering them twice.
+    // Canonical fields (duration/ease/loop/alternate/delay) are normally already
+    // covered by _renderCommonParams() above — skip them here to avoid rendering
+    // them twice. Exception: needsOwnCanonicalField() — see its own doc comment —
+    // a preset that hides one of these at the top level AND redeclares it with
+    // real, different semantics in its own schema (e.g. stagger-flash's
+    // duration/delay/loop) needs its field shown here instead, or it becomes
+    // entirely unreachable in the UI.
     const CANONICAL_KEYS = new Set(['duration', 'ease', 'loop', 'alternate', 'delay']);
 
     // Set once per preset-params render, not per-field: _getSchemaForPath/_getConfigValue
@@ -1044,7 +1093,7 @@ export class LCARdSAnimationEditor extends LitElement {
     return html`
       <div class="param-grid">
         ${Object.entries(presetSchema.properties)
-          .filter(([key]) => !CANONICAL_KEYS.has(key))
+          .filter(([key, fieldSchema]) => !CANONICAL_KEYS.has(key) || needsOwnCanonicalField(preset, key, fieldSchema))
           .map(([key, fieldSchema]) => {
             if (fieldSchema['x-ui-hints']?.widget === 'json') {
               return this._renderJsonParamField(key, fieldSchema, params, index);
@@ -1986,10 +2035,14 @@ export class LCARdSAnimationEditor extends LitElement {
    * plausible-looking value for a field with no known default (e.g. a
    * required color/from/to) would risk looking like a real value instead of
    * a placeholder, so those are called out by name below the snippet instead
-   * of guessed at. Canonical fields (duration/ease/loop/alternate/delay)
-   * aren't included either — the schema has no preset-specific default for
-   * these (see _CANONICAL_REDECLARED), only the individual preset factory's
-   * own JS fallback does, so a generic number here would be a guess.
+   * of guessed at. Canonical fields (duration/ease/loop/alternate/delay) are
+   * generally excluded from `paramEntries` before this is called too — the
+   * schema usually has no preset-specific default for these (see
+   * _CANONICAL_REDECLARED), only the individual preset factory's own JS
+   * fallback does, so a generic number here would be a guess. Exception: a
+   * preset that redeclares one of these names with real, different semantics
+   * (see needsOwnCanonicalField()) keeps its own field — and its own real
+   * default, e.g. stagger-flash's `duration: 2000` — in `paramEntries`.
    * @private
    */
   _buildExampleYaml(preset, presetSchema, paramEntries) {
@@ -2028,8 +2081,11 @@ export class LCARdSAnimationEditor extends LitElement {
 
     const expanded = this._expandedGuideIndices.has(index);
     const CANONICAL_KEYS = new Set(['duration', 'ease', 'loop', 'alternate', 'delay']);
+    // See needsOwnCanonicalField()'s doc comment — a preset-redeclared canonical
+    // key (e.g. stagger-flash's duration/delay/loop) belongs in the example YAML
+    // and field list same as any other real param, not silently dropped.
     const paramEntries = Object.entries(presetSchema.properties || {})
-      .filter(([key]) => !CANONICAL_KEYS.has(key));
+      .filter(([key, fieldSchema]) => !CANONICAL_KEYS.has(key) || needsOwnCanonicalField(preset, key, fieldSchema));
     const docsUrl = `${ANIMATION_PRESET_DOCS_URL}#${preset}`;
     const animejsUrl = (preset === 'march' || preset === 'stagger-flash')
       ? null
@@ -2255,10 +2311,19 @@ export class LCARdSAnimationEditor extends LitElement {
   _updateParam(index, paramKey, value) {
     // These are canonical top-level animation fields, not preset-specific params.
     // Always write them at the top level so TriggerManager and AnimationManager
-    // both see them consistently.
+    // both see them consistently. EXCEPTION: needsOwnCanonicalField() — a preset
+    // that redeclares this key with its own, different semantics (e.g.
+    // stagger-flash's WAAPI-cycle duration/delay/loop — see its doc comment)
+    // needs the value written into params instead, where its own preset factory
+    // (and the Preset Parameters field that edits it) actually looks; writing it
+    // to the top level would silently move it to a hidden, non-functional field.
     const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
     if (TOP_LEVEL_KEYS.includes(paramKey)) {
-      return this._updateAnimation(index, paramKey, value);
+      const preset = this.animations[index]?.preset;
+      const fieldSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[preset]?.properties?.[paramKey];
+      if (!needsOwnCanonicalField(preset, paramKey, fieldSchema)) {
+        return this._updateAnimation(index, paramKey, value);
+      }
     }
 
     const updated = [...this.animations];
@@ -2607,6 +2672,97 @@ export class LCARdSAnimationEditor extends LitElement {
         });
       });
 
+      // MSD-specific bulk options: group overlays by their data-overlay-type
+      // (line/shape/control) — set by LineOverlay/ShapeOverlay/OverlayUtils/
+      // MsdControlsRenderer at render time. Lets "all the lines" or "all the
+      // shapes" be targeted directly, instead of via a tag like <path> that
+      // also matches other overlay kinds sharing the same tag. A no-op
+      // outside MSD scopes (e.g. base_svg, or a non-MSD card's own animation
+      // editor) — the attribute simply won't exist there, so no options are
+      // added.
+      //
+      // Line/shape values point past the data-overlay-id <g> wrapper at its
+      // own data-animatable="true" descendant — the exact element
+      // LineOverlay/ShapeOverlay's own getDefaultAnimationTarget() resolves
+      // to (LineOverlay's docblock: "Lines should animate the <path>
+      // element, not the <g> wrapper"). That per-overlay smart-default only
+      // runs when target/targets is left unset; an explicit selector here
+      // (as any bulk option necessarily is) always goes through raw
+      // querySelectorAll with no such redirection, so a selector landing on
+      // the wrapper silently animates the wrong element for properties like
+      // stroke/fill — inherited color is shadowed by the child path's own
+      // explicit stroke/fill attribute, while opacity/transform happen to
+      // still look right since those composite across the whole subtree
+      // regardless of which element they're set on. Controls are left
+      // pointing at the foreignObject itself: it IS the right animation
+      // target (wrapper-level effects only — see the msd.animations docs),
+      // and an embedded card's own shadow DOM can't be reached by
+      // querySelectorAll anyway.
+      const OVERLAY_TYPE_LABELS = { line: 'Lines', shape: 'Shapes', control: 'Controls' };
+      const ANIMATABLE_DESCENDANT_SELECTOR = {
+        line: 'path[data-animatable="true"]',
+        shape: '[data-animatable="true"]'
+      };
+      const overlayTypeIds = new Map(); // type -> Set of distinct overlay ids
+      root.querySelectorAll('[data-overlay-type]').forEach(el => {
+        const type = el.getAttribute('data-overlay-type');
+        if (!type) return;
+        if (!overlayTypeIds.has(type)) overlayTypeIds.set(type, new Set());
+        const overlayId = el.getAttribute('data-overlay-id');
+        if (overlayId) overlayTypeIds.get(type).add(overlayId);
+      });
+      overlayTypeIds.forEach((ids, type) => {
+        if (ids.size === 0) return;
+        const label = OVERLAY_TYPE_LABELS[type] || type;
+        const descendantSelector = ANIMATABLE_DESCENDANT_SELECTOR[type];
+        const value = descendantSelector
+          ? `[data-overlay-type="${type}"] ${descendantSelector}`
+          : `[data-overlay-type="${type}"]`;
+        options.push({
+          value,
+          label: `All ${label} overlays (${ids.size} found)`,
+          bulkRank: 0
+        });
+      });
+
+      // MSD-specific bulk options: group overlays sharing a common id prefix
+      // (the text before the first underscore) — e.g. Shield Bubble's
+      // shield_fore/shield_starboard/shield_aft/shield_port (or
+      // shield_section_N) convention. Deliberately generic rather than
+      // hardcoded to "shield_" — any 2+ overlays sharing a "<prefix>_..." id
+      // get a bulk option for free, for whatever naming convention a card
+      // author adopts. Same data-animatable redirection as the type-group
+      // options above, but only when every overlay sharing the prefix is the
+      // SAME type (a mixed-type or control-only group falls back to the bare
+      // wrapper selector — there's no single correct descendant pattern to
+      // guess in that case).
+      const prefixGroups = new Map(); // prefix -> { ids: Set, types: Set }
+      root.querySelectorAll('[data-overlay-id]').forEach(el => {
+        const overlayId = el.getAttribute('data-overlay-id');
+        if (!overlayId) return;
+        const underscoreIndex = overlayId.indexOf('_');
+        if (underscoreIndex <= 0) return; // no "prefix_" shape to group by
+        const prefix = overlayId.slice(0, underscoreIndex);
+        if (!prefixGroups.has(prefix)) prefixGroups.set(prefix, { ids: new Set(), types: new Set() });
+        const group = prefixGroups.get(prefix);
+        group.ids.add(overlayId);
+        const type = el.getAttribute('data-overlay-type');
+        if (type) group.types.add(type);
+      });
+      prefixGroups.forEach(({ ids, types }, prefix) => {
+        if (ids.size < 2) return; // not actually a shared-prefix group
+        const singleType = types.size === 1 ? [...types][0] : null;
+        const descendantSelector = singleType ? ANIMATABLE_DESCENDANT_SELECTOR[singleType] : null;
+        const value = descendantSelector
+          ? `[data-overlay-id^="${prefix}_"] ${descendantSelector}`
+          : `[data-overlay-id^="${prefix}_"]`;
+        options.push({
+          value,
+          label: `All "${prefix}_*" overlays (${ids.size} found)`,
+          bulkRank: 1
+        });
+      });
+
       // NOTE: a "Top-level <tag> only, excluding nested" bulk option (via a
       // :scope-based CSS trick) was tried here and removed — it still produced
       // incorrect scaling/positioning even after fixing an initial scoping bug,
@@ -2626,10 +2782,14 @@ export class LCARdSAnimationEditor extends LitElement {
       lcardsLog.error('[AnimationEditor] Error discovering targets:', error);
     }
 
-    // Sort "All <tag> elements" bulk options to the top (as their own
-    // alphabetical group), then everything else alphabetically after them.
+    // Sort bulk-targeting options to the top, grouped by kind — overlay-type
+    // groups (All Lines/Shapes/Controls) first, then id-prefix groups (All
+    // "shield_*"), then generic "All <tag> elements" options — then
+    // everything else (individual #id/.class targets) alphabetically after.
+    const bulkRankOf = (option) => option.bulkRank ?? (option.isTagOption ? 2 : 3);
     options.sort((a, b) => {
-      if (!!a.isTagOption !== !!b.isTagOption) return a.isTagOption ? -1 : 1;
+      const rankDiff = bulkRankOf(a) - bulkRankOf(b);
+      if (rankDiff !== 0) return rankDiff;
       return a.label.localeCompare(b.label);
     });
 

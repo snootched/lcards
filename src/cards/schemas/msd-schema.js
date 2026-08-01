@@ -498,6 +498,17 @@ export function getMsdSchema() {
         }
       },
 
+      animations: {
+        type: 'array',
+        optional: true,
+        description: 'Animations that bulk-target overlays in the shared overlay group by CSS selector (data-overlay-id, class, etc.) — e.g. animate every overlay whose id starts with "shield_" with one declaration, instead of repeating the animation on each overlay. Same target/targets selector syntax as base_svg.animations and per-overlay animations; matches shape, line, and control overlays uniformly.',
+        items: animationSchema,
+        'x-ui': {
+          control: 'animation-editor',
+          label: 'Overlay Group Animations'
+        }
+      },
+
       routing: {
         type: 'object',
         optional: true,

@@ -225,4 +225,5 @@ animations:
 - [Entity Change Triggers](animations/entity-change-triggers.md) — `on_entity_change` deep-dive: `while` lifecycle, gates, `attribute`, `check_on_load`
 - [Rule-based Animations](animations/rule-based-animations.md) — trigger animations across multiple cards via the Rules Engine
 - [Rules Engine](rules/) — conditions and multi-card coordination
+- [MSD Overlay Group Animations](../cards/msd/index.md#animations-overlay-group-object) — bulk-target a group of MSD overlays by CSS selector, in one declaration
 - [Animation Architecture](../architecture/animations/) — developer reference: component diagram, trigger type comparison

@@ -56,6 +56,9 @@ export async function buildCardModel(mergedConfig) {
       animations: Array.isArray(baseSvgAnimations) ? baseSvgAnimations : []
     };
 
+    // Card-level bulk-target animations (msd.animations).
+    const animations = Array.isArray(mergedConfig.animations) ? mergedConfig.animations : [];
+
     // Copy anchors from config - these are used by OverlayUtils.resolvePosition()
     const anchors = mergedConfig.anchors || {};
 
@@ -113,5 +116,5 @@ export async function buildCardModel(mergedConfig) {
       return baseOverlay;
     });
 
-    return { viewBox, baseSvg, anchors, overlaysBase, __raw: mergedConfig };
+    return { viewBox, baseSvg, anchors, overlaysBase, animations, __raw: mergedConfig };
 }

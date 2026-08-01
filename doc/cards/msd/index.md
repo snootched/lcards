@@ -61,6 +61,7 @@ msd:
 | `overlays` | list | Control, line, and shape overlays — see below |
 | `routing` | object | Global line routing settings — see below |
 | `channels` | object | Named routing corridors for guiding/bundling lines — see below |
+| `animations` | list | Bulk-target a group of overlays with one animation, by CSS selector — see below |
 
 ---
 
@@ -73,6 +74,7 @@ msd:
 | `render_visual` | boolean | Default `true`. Set `false` to hide the SVG as the visible background (e.g. to use `background_animation` instead) while still parsing it for anchors. |
 | `harvest_landmarks` | boolean | Default `true`. Computes geometric landmark anchors (`hull_center`, `extremity_bow`/`extremity_stern`/`extremity_top`/`extremity_bottom`, `lateral_a`/`lateral_b`) from the SVG's own silhouette — see [Automatic Anchors](#automatic-anchors) below. |
 | `harvest_svg_elements` | boolean | Default `true`. Harvests anchors from any named `<circle>`/`<text>`/`<g>` element already present in the SVG markup — see [Automatic Anchors](#automatic-anchors) below. |
+| `animations` | list | Animations targeting elements *inside* the base SVG, by id/class — same `target`/`targets` selector syntax as [Card Animations](../../core/animations.md). Not to be confused with `msd.animations` (below), which targets *overlays*, not base-SVG internals. |
 
 In MSD Studio's Base SVG tab, the "Browse HA Media" source mode lets you pick an SVG uploaded to Home Assistant's media library, filtered to SVG's actual MIME type (`image/svg+xml`) so only SVG files show up — alongside the existing Asset Library (built-in ships) and Custom Path (typed `/local/…` or URL) modes.
 
@@ -267,6 +269,64 @@ Lines opt in with `route_channels: [main_bus]`. See [Line Routing & Channels](./
 
 ---
 
+## `animations` (Overlay Group) Object
+
+Bulk-target a *group* of overlays with one animation declaration, by CSS selector
+against `data-overlay-id` (or any other attribute/class) — instead of repeating the
+same `animations:` entry on every overlay in the group. Defined **directly under
+`msd:`**, sibling to `overlays`/`base_svg`:
+
+```yaml
+msd:
+  animations:
+    - trigger: on_load
+      preset: draw
+      target: '[data-overlay-id^="shield_"] [data-animatable="true"]'
+      duration: 800
+```
+
+This matches shape, line, and control overlays uniformly — the selector runs against
+the shared overlay container, so it doesn't care what kind of overlay it lands on.
+For control overlays embedding a non-LCARdS HA card, this animates the control's own
+positioned wrapper (opacity/transform/glow-style effects), not the embedded card's
+internals — LCARdS has no access to an arbitrary HA card's own DOM.
+
+Each entry uses the exact same field set as `base_svg.animations` and per-overlay
+`animations:` — see [Card Animations](../../core/animations.md) for the full
+`trigger`/`preset`/`duration`/`ease`/`loop`/`target`/`targets`/etc. reference.
+
+**Target the animatable element, not the overlay's `<g>` wrapper.** Every shape/line
+overlay renders as `<g data-overlay-id="...">` wrapping its actual visible geometry
+(a `<path>`, `<rect>`, or `<ellipse>` marked `data-animatable="true"`). A selector
+matching only the wrapper (`[data-overlay-id^="shield_"]` alone) still animates
+*something* — `opacity`/`transform`-based presets look correct, since those
+composite across the whole subtree regardless of which element they're set on — but
+color-based presets (`stroke`/`fill`, e.g. `stagger-flash`'s `trail_color`) silently
+do nothing visible: `stroke`/`fill` are inherited SVG properties, and the inner
+geometry element already carries its own explicit `stroke`/`fill` (from the
+overlay's own `style.color`/`style.fill`), which always wins over an inherited value
+from an animated ancestor. Append `[data-animatable="true"]` to reach the real
+element (as in the example above) to avoid this — control overlays are the
+exception: the `<foreignObject>` itself is the correct target, with no descendant
+equivalent.
+
+The MSD Studio editor's target/targets picker builds this correctly for you: pick
+**"All Shapes overlays"**, **"All Lines overlays"**, or **"All Controls overlays"**
+to bulk-target by overlay type, or **"All `"<prefix>_*"` overlays"** for any group
+of overlays sharing an id prefix before their first underscore — e.g. Shield
+Bubble's `shield_fore`/`shield_starboard`/`shield_aft`/`shield_port` (or
+`shield_section_N`) convention automatically offers an **"All `"shield_*"`
+overlays"** option once 2+ segments exist. These options are pre-aimed at the
+correct element (the animatable descendant for shape/line, the wrapper itself for
+controls), so picking one sidesteps the wrapper-vs-animatable-element pitfall above
+entirely — prefer them over hand-writing the selector.
+
+This does not play in MSD Studio's live preview while editing, matching
+`base_svg.animations` and per-overlay animations — check the effect in the actual
+Lovelace dashboard.
+
+---
+
 ## Rules Engine Integration
 
 The MSD card integrates with the global Rules Engine to dynamically restyle overlays and change the base SVG filter:
@@ -293,6 +353,13 @@ rules:
 ```
 
 See [Rules Engine](../../core/rules/) for the full condition and apply reference.
+
+`apply.animations` can also bulk-target overlays, via `tag:`/`type:`/`pattern:`
+matching against the rule's own overlay registry. Prefer top-level
+[`msd.animations`](#animations-overlay-group-object) for a simple whole-group
+animation with no conditional logic (e.g. "these all draw on load"); reach for
+`apply.animations` when the animation needs to start/stop with a rule's
+match/unmatch lifecycle (e.g. "pulse red while this sensor is above threshold").
 
 ---
 
