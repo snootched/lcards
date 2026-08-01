@@ -159,7 +159,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _controlFormObstacle: { type: Boolean, state: true },
             _controlFormZIndex: { type: Number, state: true },
             _controlFormCard: { type: Object, state: true },
-            _controlFormActiveSubtab: { type: String, state: true }, // 'placement' or 'card'
+            _controlFormAnimations: { type: Array, state: true },
+            _controlFormActiveSubtab: { type: String, state: true }, // 'placement', 'card', or 'animation'
             // Card Editor Sub-form (nested inside the Control form's Card tab)
             _showCardEditorForm: { type: Boolean, state: true },
             _cardEditorTempConfig: { type: Object, state: true },
@@ -3792,6 +3793,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormTriggersUpdateEntities = [];
         this._controlFormTriggersUpdateExpanded = false;
         this._controlFormCard = { type: '' };
+        this._controlFormAnimations = [];
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
 
@@ -10080,6 +10082,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormTriggersUpdateEntities = [];
         this._controlFormTriggersUpdateExpanded = false;
         this._controlFormCard = { type: '' };
+        this._controlFormAnimations = [];
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
 
@@ -10105,6 +10108,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormTriggersUpdateExpanded = this._controlFormTriggersUpdateMode === 'all' ||
             this._controlFormTriggersUpdateEntities.length > 0;
         this._controlFormCard = control.card || { type: '' };
+        this._controlFormAnimations = control.animations || [];
         this._controlFormActiveSubtab = 'placement';
         this._showControlForm = true;
 
@@ -10199,10 +10203,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             : (this._controlFormTriggersUpdateEntities?.length ? [...this._controlFormTriggersUpdateEntities] : undefined);
 
         const controlOverlay = {
-            // Preserve any fields this form doesn't manage (e.g. `animations` — there's
-            // no Animations tab for controls yet, so a hand-typed animations: block in
-            // YAML mode would otherwise be silently deleted the next time this control
-            // is saved via the GUI). Explicitly-managed fields below always win.
+            // Preserve any fields this form doesn't manage (e.g. a hand-typed
+            // field only reachable via YAML mode), so it isn't silently
+            // deleted the next time this control is saved via the GUI.
+            // Explicitly-managed fields below always win.
             ...(existingOverlay || {}),
             type: 'control',
             id: this._controlFormId,
@@ -10212,7 +10216,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             obstacle: this._controlFormObstacle || undefined,
             z_index: this._controlFormZIndex ?? undefined,
             triggers_update: triggersUpdate,
-            card: this._controlFormCard
+            card: this._controlFormCard,
+            animations: this._controlFormAnimations?.length ? this._controlFormAnimations : undefined
         };
 
         // position_side only applies when position references another control's id
@@ -10290,13 +10295,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <ha-tab-group @wa-tab-show=${this._handleControlFormTabChange} class="subform-tabs">
                             <ha-tab-group-tab value="placement" ?active=${this._controlFormActiveSubtab === 'placement'}>Placement</ha-tab-group-tab>
                             <ha-tab-group-tab value="card" ?active=${this._controlFormActiveSubtab === 'card'}>Card</ha-tab-group-tab>
+                            <ha-tab-group-tab value="animation" ?active=${this._controlFormActiveSubtab === 'animation'}>Animation</ha-tab-group-tab>
                         </ha-tab-group>
 
                         <!-- Subtab Content -->
                         <div class="subform-tab-content">
                             ${this._controlFormActiveSubtab === 'placement'
                                 ? this._renderControlFormPlacement()
-                                : this._renderControlFormCard()
+                                : this._controlFormActiveSubtab === 'card'
+                                    ? this._renderControlFormCard()
+                                    : this._renderControlFormAnimation()
                             }
                         </div>
                     </div>
@@ -10581,6 +10589,45 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             entities" whenever possible.
                         </lcards-message>
                     `}
+                </lcards-form-section>
+            </div>
+        `;
+    }
+
+    /**
+     * Render Animation subtab — mirrors _renderShapeFormAnimation/
+     * _renderLineFormAnimation exactly, against _controlFormAnimations.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderControlFormAnimation() {
+        // Scope target discovery to this control's own rendered
+        // [data-overlay-id="..."] foreignObject — see _renderShapeFormAnimation
+        // for why an attribute selector (not #id) is used. Falls back to
+        // whole-card discovery if the id isn't in the live preview yet (e.g. a
+        // brand-new control that hasn't been saved once). Note this scopes to
+        // the foreignObject itself, not into whatever card is embedded inside
+        // it — an embedded card's own shadow DOM is out of reach regardless.
+        const controlId = this._editingControlId || this._controlFormId;
+        return html`
+            <div class="subform-field-stack">
+                <lcards-form-section
+                    header="Control Animations"
+                    description="Configure animations for this control's positioned wrapper (opacity/transform/glow-style effects) — not the embedded card's own internals"
+                    icon="mdi:animation"
+                    ?expanded=${true}>
+
+                    <lcards-animation-editor
+                        .hass=${this.hass}
+                        .animations=${this._controlFormAnimations || []}
+                        .cardElement=${this._getLivePreviewCardElement()}
+                        .searchRootSelector=${controlId ? `[data-overlay-id="${controlId}"]` : ''}
+                        @animations-changed=${(e) => {
+                            this._controlFormAnimations = e.detail.value;
+                            this.requestUpdate();
+                        }}
+                        @refresh-targets=${() => this.requestUpdate()}
+                    ></lcards-animation-editor>
                 </lcards-form-section>
             </div>
         `;
