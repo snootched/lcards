@@ -70,6 +70,7 @@ overlays:
 | `state_attribute` | string | — | Attribute whose value is matched against state-color keys instead of the raw entity state |
 | `ranges_attribute` | string | — | Attribute value compared against `above:`/`below:`/`between:` keys |
 | `z_index` | number | `50` | Stacking order — default paints below lines (100) and controls (200), above `base_svg` |
+| `locked` | boolean | `false` | Editor-only: when true, MSD Studio disables drag/resize/vertex-editing for this overlay |
 | `tags` | list | — | Tags for rule targeting |
 | `style` | object | — | Full styling — see [Styling](#styling) below |
 | `animations` | array | — | anime.js animations — same syntax as line/control overlays |
@@ -179,6 +180,7 @@ overlays:
 
     # Visibility & targeting
     z_index: number                # default: 50
+    locked: boolean                # default: false, editor-only
     tags: [string]
 
     # Styling — identical field set to line overlays

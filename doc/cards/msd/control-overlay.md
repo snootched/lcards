@@ -40,6 +40,7 @@ msd:
 | `size` | array | — | `[width, height]` in viewBox units |
 | `visible` | boolean | `true` | Show or hide the overlay |
 | `z_index` | number | — | Stacking order (higher = in front) |
+| `locked` | boolean | `false` | Editor-only: when true, MSD Studio disables drag/resize for this overlay |
 | `tags` | list | — | Tags for rule targeting |
 
 Either `anchor` or `position` must be provided.

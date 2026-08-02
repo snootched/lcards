@@ -377,20 +377,17 @@ export class AdvancedRenderer {
     // directly in overlayGroup, so today's paint order is purely structural
     // (controls-over-lines) regardless of any z_index value. Sort every cached
     // overlay element by (z_index ?? implicit default by type, declared-order
-    // tiebreak) and re-append in that order — appendChild on an already-attached
-    // node moves it, so this both merges controls into overlayGroup and fixes
-    // final paint order without re-rendering anything. Defaults reproduce today's
+    // tiebreak — see OverlayUtils.compareByZIndex, also used by MSD Studio's
+    // interactive hit-layer so canvas stacking matches this real paint order)
+    // and re-append in that order — appendChild on an already-attached node
+    // moves it, so this both merges controls into overlayGroup and fixes final
+    // paint order without re-rendering anything. Defaults reproduce today's
     // actual behavior when z_index is unset, so this is non-breaking by default.
-    const declOrder = new Map(overlays.map((o, i) => [o.id, i]));
-    const DEFAULT_Z_BY_TYPE = { control: 200, line: 100, shape: 50 };
+    const declOrder = OverlayUtils.buildDeclOrderMap(overlays);
     overlays
       .map(o => ({ o, el: this.overlayElementCache.get(o.id) }))
       .filter(x => x.el)
-      .sort((a, b) => {
-        const za = a.o.z_index ?? DEFAULT_Z_BY_TYPE[a.o.type] ?? 150;
-        const zb = b.o.z_index ?? DEFAULT_Z_BY_TYPE[b.o.type] ?? 150;
-        return za - zb || declOrder.get(a.o.id) - declOrder.get(b.o.id);
-      })
+      .sort((a, b) => OverlayUtils.compareByZIndex(a.o, b.o, declOrder))
       .forEach(({ el }) => overlayGroup.appendChild(el));
 
     // NEW: schedule deferred line refresh to fix first-load orientation/position

@@ -258,6 +258,15 @@ export class LCARdSAnimationEditor extends LitElement {
    * not the generic anime.js one), so it's left in params rather than
    * promoted; promoting it would silently move the value to the (for that
    * preset, hidden and non-functional) top-level field.
+   *
+   * Also strips a same-named top-level value that sits alongside an
+   * ownField params value — a stale leftover most commonly produced by
+   * _addAnimation()'s pulse defaults (duration/ease/loop/alternate) surviving
+   * an unrelated _updatePreset() switch to a redeclaring preset like
+   * stagger-flash, since a plain top-level canonical field is otherwise
+   * correctly left untouched by a preset switch. Left in place, it would
+   * silently shadow the real params value in _renderPresetForm()'s merge —
+   * see the matching guard there — every time it's re-rendered.
    */
   _normalizeAnimation(anim) {
     const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
@@ -266,6 +275,7 @@ export class LCARdSAnimationEditor extends LitElement {
     const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[anim.preset];
     const promotedFromParams = {};
     const remainingParams = {};
+    const staleTopLevelKeys = [];
     for (const [k, v] of Object.entries(anim.params)) {
       const ownField = TOP_LEVEL_KEYS.includes(k) && needsOwnCanonicalField(anim.preset, k, presetSchema?.properties?.[k]);
       if (TOP_LEVEL_KEYS.includes(k) && !ownField) {
@@ -274,10 +284,12 @@ export class LCARdSAnimationEditor extends LitElement {
         // Either way, do not keep in params
       } else {
         remainingParams[k] = v;
+        if (ownField && anim[k] !== undefined) staleTopLevelKeys.push(k);
       }
     }
 
     const normalized = { ...anim, ...promotedFromParams, params: remainingParams };
+    for (const k of staleTopLevelKeys) delete normalized[k];
     if (Object.keys(normalized.params).length === 0) delete normalized.params;
     return normalized;
   }
@@ -844,17 +856,27 @@ export class LCARdSAnimationEditor extends LitElement {
   }
 
   _renderPresetForm(anim, index, isSystem = false) {
+    const preset = anim.preset || 'pulse';
+    const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[preset];
+
     // Normalize: loop/alternate/duration/delay are canonical top-level fields.
     // Prefer top-level values; fall back to legacy params.X for old configs.
+    // EXCEPTION: needsOwnCanonicalField() — a preset that redeclares one of these
+    // names with its own, different semantics (e.g. stagger-flash's duration/delay/
+    // loop) keeps its real value in params. A same-named top-level value can still
+    // be present there too — most commonly a stale leftover from _addAnimation()'s
+    // pulse defaults (duration/ease/loop/alternate), never cleared by a later
+    // _updatePreset() switch since that's correct behavior for every preset that
+    // does NOT redeclare the field. Letting it win here would silently shadow a
+    // freshly-saved params value with that stale top-level one on every render.
     const params = {
       ...anim.params,
-      ...(anim.duration  !== undefined && { duration:  anim.duration  }),
-      ...(anim.delay     !== undefined && { delay:     anim.delay     }),
-      ...(anim.loop      !== undefined && { loop:      anim.loop      }),
-      ...(anim.alternate !== undefined && { alternate: anim.alternate }),
-      ...(anim.ease      !== undefined && { ease:      anim.ease      }),
+      ...(anim.duration  !== undefined && !needsOwnCanonicalField(preset, 'duration',  presetSchema?.properties?.duration)  && { duration:  anim.duration  }),
+      ...(anim.delay     !== undefined && !needsOwnCanonicalField(preset, 'delay',     presetSchema?.properties?.delay)     && { delay:     anim.delay     }),
+      ...(anim.loop      !== undefined && !needsOwnCanonicalField(preset, 'loop',      presetSchema?.properties?.loop)      && { loop:      anim.loop      }),
+      ...(anim.alternate !== undefined && !needsOwnCanonicalField(preset, 'alternate', presetSchema?.properties?.alternate) && { alternate: anim.alternate }),
+      ...(anim.ease      !== undefined && !needsOwnCanonicalField(preset, 'ease',      presetSchema?.properties?.ease)      && { ease:      anim.ease      }),
     };
-    const preset = anim.preset || 'pulse';
 
     return html`
       <!-- Preset Selection Section -->
@@ -2302,8 +2324,20 @@ export class LCARdSAnimationEditor extends LitElement {
     // and left-behind values only cause confusion or, for presets that assume specific
     // params shapes (e.g. sequence's steps array), runtime failures. Canonical fields
     // (trigger/duration/loop/alternate/delay/ease/target/targets/id/enabled) all live
-    // at the top level and are untouched by a preset switch.
-    updated[index] = { ...current, preset: newPreset, params: {} };
+    // at the top level and are untouched by a preset switch — EXCEPT a field the new
+    // preset redeclares with its own semantics (needsOwnCanonicalField, e.g.
+    // stagger-flash's duration/delay/loop): the top-level copy is meaningless for
+    // that preset, and left in place it becomes a stale value that silently shadows
+    // whatever the user later enters into the preset's own (params-backed) field of
+    // the same name — see the matching guard in _renderPresetForm().
+    const next = { ...current, preset: newPreset, params: {} };
+    const newPresetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[newPreset];
+    for (const key of ['loop', 'alternate', 'duration', 'delay', 'ease']) {
+      if (needsOwnCanonicalField(newPreset, key, newPresetSchema?.properties?.[key])) {
+        delete next[key];
+      }
+    }
+    updated[index] = next;
     this._workingAnimations = updated;
     this._fireChange();
   }

@@ -142,6 +142,7 @@ Embeds any HA card at a position on the canvas.
 | `size` | array | `[width, height]` in viewBox units |
 | `card` | object | Any HA card config |
 | `z_index` | number | Stacking order (higher = in front) |
+| `locked` | boolean | Editor-only: disables drag/resize in MSD Studio |
 | `tags` | list | Tags for rule targeting |
 
 ```yaml
@@ -211,6 +212,7 @@ Freeform geometry — polylines, rectangles, circles — for rooms, zones, condu
 | `kind` | string | `polyline`, `rect`, or `circle` |
 | `points` | list | `polyline` only: ordered `[x, y]`/anchor-name vertices |
 | `position` / `size` | array | `rect`/`circle` only: same convention as control overlays |
+| `locked` | boolean | Editor-only: disables drag/resize/vertex-editing in MSD Studio |
 
 ```yaml
 - id: engineering-bay

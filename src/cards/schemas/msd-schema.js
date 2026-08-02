@@ -363,6 +363,12 @@ export function getMsdSchema() {
               optional: true,
               description: 'Stacking order for overlapping overlays'
             },
+            locked: {
+              type: 'boolean',
+              optional: true,
+              default: false,
+              description: 'Control/shape overlays only: when true, MSD Studio\'s editor canvas disables drag/resize/vertex-editing for this overlay (Edit/Duplicate/Delete in the list panel remain available). Editor-only — has no effect on runtime rendering or line overlays.'
+            },
             // Line overlay anchor/endpoint fields
             anchor: {
               type: ['string', 'array'],

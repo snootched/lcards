@@ -158,6 +158,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _controlFormPositionSide: { type: String, state: true },
             _controlFormObstacle: { type: Boolean, state: true },
             _controlFormZIndex: { type: Number, state: true },
+            _controlFormLocked: { type: Boolean, state: true },
             _controlFormCard: { type: Object, state: true },
             _controlFormAnimations: { type: Array, state: true },
             _controlFormActiveSubtab: { type: String, state: true }, // 'placement', 'card', or 'animation'
@@ -342,6 +343,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // _computeManhattan/goal-cell fixes for why this is now safe).
         this._controlFormObstacle = true;
         this._controlFormZIndex = null;
+        this._controlFormLocked = false;
         // 'specific' (use _controlFormTriggersUpdateEntities) or 'all' (see #387)
         this._controlFormTriggersUpdateMode = 'specific';
         this._controlFormTriggersUpdateEntities = [];
@@ -394,6 +396,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             state_attribute: '',
             ranges_attribute: '',
             z_index: null,
+            locked: false,
             corner_style: 'round',
             corner_radius: 8,
             corner_angle: 45,
@@ -3358,8 +3361,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             // Check for polyline shape clicks (rect/circle are selected directly via
             // their always-visible bbox handles when "Bounding Boxes" is on — see
-            // _renderShapeHandles — so only polyline needs click-to-select here,
-            // since its vertex markers only render for the selected shape).
+            // _renderInteractiveHitLayer/_renderShapeBboxItem — so only polyline
+            // needs click-to-select here, since its vertex markers only render for
+            // the selected shape).
             // @ts-ignore - TS2339: auto-suppressed
             if ((clickedElement.tagName === 'path' && clickedElement.classList.contains('shape-path')) ||
                 // @ts-ignore - TS2339: auto-suppressed
@@ -3789,6 +3793,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // _computeManhattan/goal-cell fixes for why this is now safe).
         this._controlFormObstacle = true;
         this._controlFormZIndex = null;
+        this._controlFormLocked = false;
         this._controlFormTriggersUpdateMode = 'specific';
         this._controlFormTriggersUpdateEntities = [];
         this._controlFormTriggersUpdateExpanded = false;
@@ -3825,6 +3830,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
             lcardsLog.warn('[MSDStudio] Control not found for drag:', controlId);
             return;
         }
+        // Defense-in-depth: a locked overlay's bbox is rendered pointer-events:none
+        // (see _renderControlBboxItem), so this mousedown should never actually fire
+        // for one in practice — guard here too in case some future path (e.g. a
+        // keyboard-driven nudge) reuses this same drag-start entry point.
+        if (control.locked) return;
 
         // Get current position
         // Get complete merged anchors from card's resolved model
@@ -4040,7 +4050,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * Offset from a control's configured anchor point (control.position,
      * interpreted per its `attachment`) to the box's actual top-left corner.
      * Single source of truth for logic previously duplicated verbatim in
-     * _renderBoundingBoxes, the control highlight renderer, and the
+     * _renderControlBboxItem (formerly _renderBoundingBoxes), the control
+     * highlight renderer, and the
      * attachment-points overlay — also used by resize (see _handleResizeStart/
      * _handleResize) to convert between the anchor-point control.position
      * stores and the top-left-corner coordinate space the resize math uses.
@@ -4152,6 +4163,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             lcardsLog.warn('[MSDStudio] Control not found for resize:', controlId);
             return;
         }
+        // Defense-in-depth: _renderControlBboxItem() doesn't render resize handles
+        // at all for a locked overlay, so this shouldn't be reachable — guard anyway.
+        if (control.locked) return;
 
         // Get current position and size
         // Get complete merged anchors from card's resolved model
@@ -4398,6 +4412,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             lcardsLog.warn('[MSDStudio] Shape not found or has no literal position for drag:', shapeId);
             return;
         }
+        // Defense-in-depth: a locked shape's bbox is rendered pointer-events:none
+        // (see _renderShapeBboxItem), so this shouldn't be reachable — guard anyway.
+        if (shape.locked) return;
 
         const coords = this._getPreviewCoordinatesFromMouseEvent(event);
         if (!coords) return;
@@ -4524,6 +4541,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             lcardsLog.warn('[MSDStudio] Shape not found or has no literal position for resize:', shapeId);
             return;
         }
+        // Defense-in-depth: _renderShapeBboxItem() doesn't render resize handles
+        // at all for a locked shape, so this shouldn't be reachable — guard anyway.
+        if (shape.locked) return;
 
         const coords = this._getPreviewCoordinatesFromMouseEvent(event);
         if (!coords) return;
@@ -4671,6 +4691,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _handleShapeVertexMouseDown(e, shapeId, vertexIndex) {
         e.stopPropagation();
         e.preventDefault();
+
+        // Defense-in-depth: _renderShapeVertexMarkers() gates the whole marker pass
+        // on !shape.locked (see there), so this shouldn't be reachable — guard anyway.
+        const shape = this._findControl(shapeId);
+        if (shape?.locked) return;
 
         this._shapeVertexDragInProgress = true;
         this._shapeVertexDragState = { shapeId, vertexIndex, startX: e.clientX, startY: e.clientY };
@@ -7370,20 +7395,233 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Render persistent bounding boxes
-     * Shows all control bounding boxes when toggled on in Controls tab
+     * Small, purely-visual "locked" affordance rendered inside a locked
+     * overlay's bbox — pointer-events:none so it never reintroduces a hit
+     * target of its own (the whole point of locking is that the div beneath
+     * it is pointer-events:none, letting clicks fall through to whatever's
+     * underneath).
      * @returns {TemplateResult}
      * @private
      */
-    _renderBoundingBoxes() {
+    _renderLockBadge() {
+        return html`
+            <div style="
+                position: absolute;
+                top: 2px;
+                right: 2px;
+                pointer-events: none;
+                background: rgba(0, 0, 0, 0.6);
+                border-radius: 3px;
+                padding: 2px;
+                display: flex;
+            ">
+                <ha-icon icon="mdi:lock" style="--mdc-icon-size: 14px; color: #cccccc;"></ha-icon>
+            </div>
+        `;
+    }
+
+    /**
+     * Render one control overlay's interactive bounding box, for
+     * _renderInteractiveHitLayer(). Extracted from the former
+     * _renderBoundingBoxes() so it can be sorted/interleaved with shape bboxes
+     * by resolved z_index rather than always painting above every shape.
+     * @param {Object} control - Control overlay config
+     * @param {Object} coordCtx - Shared coordinate-transform context built once
+     *   by _renderInteractiveHitLayer(): { rect, panelRect, scale, offsetX,
+     *   offsetY, viewBoxX, viewBoxY, anchors }
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderControlBboxItem(control, coordCtx) {
+        const { rect, panelRect, scale, offsetX, offsetY, viewBoxX, viewBoxY, anchors } = coordCtx;
+
+        // Resolve position for both anchored and explicitly positioned controls,
+        // including control-to-control positioning (position_side).
+        if (!control.position && !control.anchor) {
+            lcardsLog.warn('[MSDStudio] Control has no valid position:', control.id);
+            return '';
+        }
+        const resolvedPosition = this._resolveEditorControlPosition(control, anchors);
+        if (!resolvedPosition) {
+            lcardsLog.warn('[MSDStudio] Failed to resolve position:', control.position || control.anchor, control.id);
+            return '';
+        }
+
+        // Get size - default to 100x100 if not specified
+        const size = control.size || [100, 100];
+        if (!Array.isArray(size)) return '';
+
+        let [vbX, vbY] = resolvedPosition;
+        const [width, height] = size;
+
+        // Apply attachment offset (same logic as MsdControlsRenderer)
+        const attachment = control.attachment || 'center';
+        const offset = this._getAttachmentOffset(attachment, width, height);
+        vbX += offset[0];
+        vbY += offset[1];
+
+        // Convert to SVG pixels (CSS transform handles zoom)
+        const svgPixelX = (vbX - viewBoxX) / scale + offsetX;
+        const svgPixelY = (vbY - viewBoxY) / scale + offsetY;
+        const pixelWidth = width / scale;
+        const pixelHeight = height / scale;
+
+        const pixelX = (rect.left - panelRect.left) + svgPixelX;
+        const pixelY = (rect.top - panelRect.top) + svgPixelY;
+
+        const isDragging = this._dragState.active && this._dragState.controlId === control.id;
+        const isResizing = this._resizeState.active && this._resizeState.controlId === control.id;
+        const isLocked = control.locked === true;
+
+        return html`
+            <!-- Bounding box (interactive) -->
+            <div
+                class="interactive-bbox ${isDragging ? 'bbox-dragging' : ''} ${isResizing ? 'bbox-resizing' : ''} ${isLocked ? 'bbox-locked' : ''}"
+                data-control-id="${control.id}"
+                style="
+                    position: absolute;
+                    left: ${pixelX}px;
+                    top: ${pixelY}px;
+                    width: ${pixelWidth}px;
+                    height: ${pixelHeight}px;
+                    border: ${isLocked ? '2px dashed #888888' : '2px solid #0088FF'};
+                    opacity: 0.6;
+                    pointer-events: ${isLocked ? 'none' : 'auto'};
+                "
+                @mousedown=${(e) => this._handleDragStart(e, control.id)}
+                @dblclick=${(e) => this._handleControlDoubleClick(e, control.id)}>
+
+                <!-- Resize Handles — omitted entirely when locked: .resize-handle sets
+                     pointer-events:auto on itself, which an ancestor's pointer-events:none
+                     does NOT override, so simply not rendering them is required, not just
+                     cosmetic. -->
+                ${!isLocked ? this._renderResizeHandles(control.id, pixelWidth, pixelHeight, isResizing) : ''}
+
+                <!-- Live W×H / attach-point readout while actively dragging or resizing -->
+                ${this._renderLiveCoordBadge(isDragging, isResizing, control.position, control.size)}
+
+                ${isLocked ? this._renderLockBadge() : ''}
+            </div>
+            <!-- Control ID label -->
+            <div style="
+                position: absolute;
+                left: ${pixelX + 4}px;
+                top: ${pixelY + 4}px;
+                background: rgba(0, 136, 255, 0.8);
+                color: white;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+                font-size: 10px;
+                white-space: nowrap;
+                pointer-events: none;
+            ">
+                ${control.id}
+            </div>
+        `;
+    }
+
+    /**
+     * Render one rect/circle shape overlay's interactive bounding box, for
+     * _renderInteractiveHitLayer(). Extracted from the former
+     * _renderShapeHandles() — see _renderControlBboxItem()'s doc comment for
+     * why this is now a per-item helper rather than its own top-level pass.
+     * Simplified vs. the control version since a shape's position is always
+     * its literal top-left corner (no attachment-offset concept).
+     * @param {Object} shape - Shape overlay config (kind: rect|circle)
+     * @param {Object} coordCtx - Shared coordinate-transform context, see
+     *   _renderControlBboxItem() (anchors is unused here)
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderShapeBboxItem(shape, coordCtx) {
+        const { rect, panelRect, scale, offsetX, offsetY, viewBoxX, viewBoxY } = coordCtx;
+
+        const [vbX, vbY] = shape.position;
+        const [width, height] = shape.size || [100, 60];
+
+        const svgPixelX = (vbX - viewBoxX) / scale + offsetX;
+        const svgPixelY = (vbY - viewBoxY) / scale + offsetY;
+        const pixelWidth = width / scale;
+        const pixelHeight = height / scale;
+        const pixelX = (rect.left - panelRect.left) + svgPixelX;
+        const pixelY = (rect.top - panelRect.top) + svgPixelY;
+
+        const isDragging = this._shapeDragState.active && this._shapeDragState.shapeId === shape.id;
+        const isResizing = this._shapeResizeState.active && this._shapeResizeState.shapeId === shape.id;
+        const isLocked = shape.locked === true;
+        const borderRadius = shape.kind === 'circle' ? '50%' : '0';
+
+        return html`
+            <div
+                class="interactive-bbox ${isDragging ? 'bbox-dragging' : ''} ${isResizing ? 'bbox-resizing' : ''} ${isLocked ? 'bbox-locked' : ''}"
+                data-shape-id="${shape.id}"
+                style="
+                    position: absolute;
+                    left: ${pixelX}px;
+                    top: ${pixelY}px;
+                    width: ${pixelWidth}px;
+                    height: ${pixelHeight}px;
+                    border: ${isLocked ? '2px dashed #888888' : '2px solid #00CC88'};
+                    border-radius: ${borderRadius};
+                    opacity: 0.6;
+                    pointer-events: ${isLocked ? 'none' : 'auto'};
+                "
+                @mousedown=${(e) => this._handleShapeDragStart(e, shape.id)}
+                @dblclick=${(e) => { e.stopPropagation(); this._editShape(shape); }}>
+                ${!isLocked ? this._renderShapeResizeHandles(shape.id, pixelWidth, pixelHeight, isResizing) : ''}
+                ${this._renderLiveCoordBadge(isDragging, isResizing, shape.position, shape.size)}
+                ${isLocked ? this._renderLockBadge() : ''}
+            </div>
+            <div style="
+                position: absolute;
+                left: ${pixelX + 4}px;
+                top: ${pixelY + 4}px;
+                background: rgba(0, 204, 136, 0.8);
+                color: white;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+                font-size: 10px;
+                white-space: nowrap;
+                pointer-events: none;
+            ">
+                ${shape.id}
+            </div>
+        `;
+    }
+
+    /**
+     * Render the combined, z_index-sorted interactive hit-layer for control
+     * and rect/circle shape overlays (lines/polylines are handled by separate
+     * path-based click-select + vertex-marker passes elsewhere — they hit-test
+     * against real rendered geometry, not a synthetic box, so they don't share
+     * this layer's "big empty box blocks smaller overlays" failure mode).
+     *
+     * Previously two independent, unsorted passes (_renderBoundingBoxes() for
+     * controls, _renderShapeHandles() for shapes) with hardcoded wrapper
+     * z-indexes (1000 vs 998) that made every control bbox structurally
+     * out-rank every shape bbox regardless of configured z_index — completely
+     * disconnected from AdvancedRenderer's real paint-order pass, which DOES
+     * respect z_index. Merging into one sorted pass (via the same
+     * OverlayUtils.compareByZIndex() AdvancedRenderer uses) makes the
+     * interactive canvas stacking match what's actually visually painted, and
+     * is also what makes locking a large, low-value overlay (e.g. a big,
+     * mostly-transparent lcards-elbow) an effective way to reach whatever is
+     * visually beneath it — see _renderControlBboxItem()/_renderShapeBboxItem()
+     * for the locked-item pointer-events:none handling.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderInteractiveHitLayer() {
         // @ts-ignore - TS2322: auto-suppressed
         if (!this._showBoundingBoxes) return '';
 
-        // Only show bounding boxes for control overlays (not lines)
-        const controls = (this._workingConfig.msd?.overlays || [])
-            .filter(o => o.type === 'control');
+        const allOverlays = this._workingConfig.msd?.overlays || [];
+        const controls = allOverlays.filter(o => o.type === 'control');
+        const shapes = allOverlays.filter(o => o.type === 'shape' && (o.kind === 'rect' || o.kind === 'circle') && Array.isArray(o.position));
         // @ts-ignore - TS2322: auto-suppressed
-        if (controls.length === 0) return '';
+        if (controls.length === 0 && shapes.length === 0) return '';
 
         // Get SVG for coordinate conversion
         const preview = this._getPreviewSvgAndViewBox();
@@ -7411,6 +7649,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const resolvedModel = msdCard._msdPipeline?.getResolvedModel?.();
         const anchors = resolvedModel?.anchors || {};
 
+        const coordCtx = { rect, panelRect, scale, offsetX, offsetY, viewBoxX, viewBoxY, anchors };
+
+        const declOrder = OverlayUtils.buildDeclOrderMap(allOverlays);
+        const items = [
+            ...controls.map(overlay => ({ kind: 'control', overlay })),
+            ...shapes.map(overlay => ({ kind: 'shape', overlay }))
+        ].sort((a, b) => OverlayUtils.compareByZIndex(a.overlay, b.overlay, declOrder));
+
         return html`
             <div style="
                 position: absolute;
@@ -7419,180 +7665,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 width: 100%;
                 height: 100%;
                 pointer-events: none;
-                z-index: 1000;
             ">
-                ${controls.map(control => {
-                    // Resolve position for both anchored and explicitly positioned controls,
-                    // including control-to-control positioning (position_side).
-                    if (!control.position && !control.anchor) {
-                        lcardsLog.warn('[MSDStudio] Control has no valid position:', control.id);
-                        return '';
-                    }
-                    const resolvedPosition = this._resolveEditorControlPosition(control, anchors);
-                    if (!resolvedPosition) {
-                        lcardsLog.warn('[MSDStudio] Failed to resolve position:', control.position || control.anchor, control.id);
-                        return '';
-                    }
-
-                    // Get size - default to 100x100 if not specified
-                    const size = control.size || [100, 100];
-                    if (!Array.isArray(size)) return '';
-
-                    let [vbX, vbY] = resolvedPosition;
-                    const [width, height] = size;
-
-                    // Apply attachment offset (same logic as MsdControlsRenderer)
-                    const attachment = control.attachment || 'center';
-                    const offset = this._getAttachmentOffset(attachment, width, height);
-                    vbX += offset[0];
-                    vbY += offset[1];
-
-                    // Convert to SVG pixels (CSS transform handles zoom)
-                    const svgPixelX = (vbX - viewBoxX) / scale + offsetX;
-                    const svgPixelY = (vbY - viewBoxY) / scale + offsetY;
-                    const pixelWidth = width / scale;
-                    const pixelHeight = height / scale;
-
-                    const pixelX = (rect.left - panelRect.left) + svgPixelX;
-                    const pixelY = (rect.top - panelRect.top) + svgPixelY;
-
-                    const isDragging = this._dragState.active && this._dragState.controlId === control.id;
-                    const isResizing = this._resizeState.active && this._resizeState.controlId === control.id;
-
-                    return html`
-                        <!-- Bounding box (interactive) -->
-                        <div
-                            class="interactive-bbox ${isDragging ? 'bbox-dragging' : ''} ${isResizing ? 'bbox-resizing' : ''}"
-                            data-control-id="${control.id}"
-                            style="
-                                position: absolute;
-                                left: ${pixelX}px;
-                                top: ${pixelY}px;
-                                width: ${pixelWidth}px;
-                                height: ${pixelHeight}px;
-                                border: 2px solid #0088FF;
-                                opacity: 0.6;
-                                pointer-events: auto;
-                            "
-                            @mousedown=${(e) => this._handleDragStart(e, control.id)}
-                            @dblclick=${(e) => this._handleControlDoubleClick(e, control.id)}>
-
-                            <!-- Resize Handles -->
-                            ${this._renderResizeHandles(control.id, pixelWidth, pixelHeight, isResizing)}
-
-                            <!-- Live W×H / attach-point readout while actively dragging or resizing -->
-                            ${this._renderLiveCoordBadge(isDragging, isResizing, control.position, control.size)}
-                        </div>
-                        <!-- Control ID label -->
-                        <div style="
-                            position: absolute;
-                            left: ${pixelX + 4}px;
-                            top: ${pixelY + 4}px;
-                            background: rgba(0, 136, 255, 0.8);
-                            color: white;
-                            padding: 2px 6px;
-                            border-radius: 3px;
-                            font-family: 'Courier New', monospace;
-                            font-size: 10px;
-                            white-space: nowrap;
-                            pointer-events: none;
-                        ">
-                            ${control.id}
-                        </div>
-                    `;
-                })}
-            </div>
-        `;
-    }
-
-    /**
-     * Render interactive drag/resize handles for rect/circle shape overlays —
-     * mirrors _renderBoundingBoxes exactly (same toggle, same bbox+8-handle
-     * layout), simplified since a shape's position is always its literal
-     * top-left corner (no attachment-offset concept like controls have).
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderShapeHandles() {
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!this._showBoundingBoxes) return '';
-
-        const shapes = (this._workingConfig.msd?.overlays || [])
-            .filter(o => o.type === 'shape' && (o.kind === 'rect' || o.kind === 'circle') && Array.isArray(o.position));
-        // @ts-ignore - TS2322: auto-suppressed
-        if (shapes.length === 0) return '';
-
-        const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!preview) return '';
-        const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
-
-        const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!previewPanel) return '';
-        const panelRect = previewPanel.getBoundingClientRect();
-
-        const scale = Math.max(viewBoxWidth / rect.width, viewBoxHeight / rect.height);
-        const renderedWidth = viewBoxWidth / scale;
-        const renderedHeight = viewBoxHeight / scale;
-        const offsetX = (rect.width - renderedWidth) / 2;
-        const offsetY = (rect.height - renderedHeight) / 2;
-
-        return html`
-            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 998;">
-                ${shapes.map(shape => {
-                    const [vbX, vbY] = shape.position;
-                    const [width, height] = shape.size || [100, 60];
-
-                    const svgPixelX = (vbX - viewBoxX) / scale + offsetX;
-                    const svgPixelY = (vbY - viewBoxY) / scale + offsetY;
-                    const pixelWidth = width / scale;
-                    const pixelHeight = height / scale;
-                    const pixelX = (rect.left - panelRect.left) + svgPixelX;
-                    const pixelY = (rect.top - panelRect.top) + svgPixelY;
-
-                    const isDragging = this._shapeDragState.active && this._shapeDragState.shapeId === shape.id;
-                    const isResizing = this._shapeResizeState.active && this._shapeResizeState.shapeId === shape.id;
-                    const borderRadius = shape.kind === 'circle' ? '50%' : '0';
-
-                    return html`
-                        <div
-                            class="interactive-bbox ${isDragging ? 'bbox-dragging' : ''} ${isResizing ? 'bbox-resizing' : ''}"
-                            data-shape-id="${shape.id}"
-                            style="
-                                position: absolute;
-                                left: ${pixelX}px;
-                                top: ${pixelY}px;
-                                width: ${pixelWidth}px;
-                                height: ${pixelHeight}px;
-                                border: 2px solid #00CC88;
-                                border-radius: ${borderRadius};
-                                opacity: 0.6;
-                                pointer-events: auto;
-                            "
-                            @mousedown=${(e) => this._handleShapeDragStart(e, shape.id)}
-                            @dblclick=${(e) => { e.stopPropagation(); this._editShape(shape); }}>
-                            ${this._renderShapeResizeHandles(shape.id, pixelWidth, pixelHeight, isResizing)}
-                            ${this._renderLiveCoordBadge(isDragging, isResizing, shape.position, shape.size)}
-                        </div>
-                        <div style="
-                            position: absolute;
-                            left: ${pixelX + 4}px;
-                            top: ${pixelY + 4}px;
-                            background: rgba(0, 204, 136, 0.8);
-                            color: white;
-                            padding: 2px 6px;
-                            border-radius: 3px;
-                            font-family: 'Courier New', monospace;
-                            font-size: 10px;
-                            white-space: nowrap;
-                            pointer-events: none;
-                        ">
-                            ${shape.id}
-                        </div>
-                    `;
-                })}
+                ${items.map(({ kind, overlay }) => kind === 'control'
+                    ? this._renderControlBboxItem(overlay, coordCtx)
+                    : this._renderShapeBboxItem(overlay, coordCtx))}
             </div>
         `;
     }
@@ -7618,6 +7694,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const selectedShape = overlays.find(o => o.id === this._selectedShapeId && o.type === 'shape' && o.kind === 'polyline');
         // @ts-ignore - TS2322: auto-suppressed
         if (!selectedShape || !Array.isArray(selectedShape.points) || selectedShape.points.length < 2) return '';
+        // Locked polylines are immutable, not just their bbox — no insert-point
+        // markers at all, matching the vertex markers' own lock gate below.
+        // @ts-ignore - TS2322: auto-suppressed
+        if (selectedShape.locked) return '';
         // Same cap as _renderShapeVertexMarkers, same rationale (one interactive
         // marker per segment on top of one per vertex would double the DOM cost
         // for a bulk-generated shape with hundreds of points).
@@ -7686,6 +7766,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const selectedShape = overlays.find(o => o.id === this._selectedShapeId && o.type === 'shape' && o.kind === 'polyline');
         // @ts-ignore - TS2322: auto-suppressed
         if (!selectedShape || !Array.isArray(selectedShape.points) || selectedShape.points.length === 0) return '';
+        // Locked polylines are immutable, not just their bbox — disable drag AND
+        // double-click-to-delete by not rendering any vertex markers at all
+        // (rather than only guarding _handleShapeVertexMouseDown, which would
+        // still leave double-click-delete reachable).
+        // @ts-ignore - TS2322: auto-suppressed
+        if (selectedShape.locked) return '';
         // Same cap as _renderShapeFormGeometry's points-form gate, and for
         // the same reason: one interactive draggable marker <div> per point,
         // re-rendered far more often than the form (canvas mousemove, not
@@ -9982,6 +10068,32 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Toggle the `locked` flag on a control or shape overlay by id and persist
+     * immediately — shared by both the control and shape list panels' quick
+     * lock/unlock action, so locking/unlocking doesn't require opening the full
+     * edit form (which is otherwise the only other place a locked overlay can
+     * be reached from, since its canvas hit-box is pointer-events:none).
+     * Mirrors _duplicateControl's copy-and-_setNestedValue pattern — not
+     * _deleteShape's in-place-splice outlier — so it persists and schedules a
+     * preview update the same way every other single-overlay mutation does.
+     * @param {Object} overlay - control or shape overlay to toggle
+     * @private
+     */
+    _toggleOverlayLocked(overlay) {
+        const overlays = [...(this._workingConfig.msd?.overlays || [])];
+        const index = overlays.findIndex(o => o.id === overlay.id);
+        if (index === -1) return;
+        const updated = { ...overlays[index] };
+        if (updated.locked) {
+            delete updated.locked;
+        } else {
+            updated.locked = true;
+        }
+        overlays[index] = updated;
+        this._setNestedValue('msd.overlays', overlays);
+    }
+
+    /**
      * Render single control item (placeholder)
      * @param {Object} control - Control overlay config
      * @returns {TemplateResult}
@@ -9993,18 +10105,27 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const position = control.position || control.anchor || 'not set';
         const positionStr = Array.isArray(position) ? `[${position[0]}, ${position[1]}]` : position;
         const hasCard = control.card && control.card.type;
+        const isLocked = control.locked === true;
 
         return html`
-            <div class="list-item-card">
+            <div class="list-item-card ${isLocked ? 'locked' : ''}">
                 <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                     <ha-icon icon="mdi:card-outline" style="--mdc-icon-size: 32px; color: var(--primary-color); flex-shrink: 0;"></ha-icon>
                     <div style="flex: 1; min-width: 140px;">
-                        <div style="font-weight: 600; margin-bottom: 4px;">${id}</div>
+                        <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                            ${id}
+                            ${isLocked ? html`<ha-icon icon="mdi:lock" style="--mdc-icon-size: 16px; color: var(--secondary-text-color);" title="Locked"></ha-icon>` : ''}
+                        </div>
                         <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace; word-break: break-word;">
                             ${cardType} @ ${positionStr}
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
+                        <ha-icon-button
+                            @click=${() => this._toggleOverlayLocked(control)}
+                            .label=${isLocked ? 'Unlock' : 'Lock'}>
+                            <ha-icon icon="mdi:${isLocked ? 'lock' : 'lock-open-variant'}"></ha-icon>
+                        </ha-icon-button>
                         <ha-icon-button
                             @click=${() => this._editControl(control)}
                             .label=${'Edit'}
@@ -10083,6 +10204,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // for why this is now safe to do).
         this._controlFormObstacle = true;
         this._controlFormZIndex = null;
+        this._controlFormLocked = false;
         this._controlFormTriggersUpdateMode = 'specific';
         this._controlFormTriggersUpdateEntities = [];
         this._controlFormTriggersUpdateExpanded = false;
@@ -10108,6 +10230,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._controlFormPositionSide = control.position_side || 'center';
         this._controlFormObstacle = control.obstacle === true;
         this._controlFormZIndex = control.z_index ?? null;
+        this._controlFormLocked = control.locked === true;
         this._controlFormTriggersUpdateMode = control.triggers_update === 'all' ? 'all' : 'specific';
         this._controlFormTriggersUpdateEntities = Array.isArray(control.triggers_update) ? control.triggers_update : [];
         this._controlFormTriggersUpdateExpanded = this._controlFormTriggersUpdateMode === 'all' ||
@@ -10220,6 +10343,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             attachment: this._controlFormAttachment,
             obstacle: this._controlFormObstacle || undefined,
             z_index: this._controlFormZIndex ?? undefined,
+            locked: this._controlFormLocked || undefined,
             triggers_update: triggersUpdate,
             card: this._controlFormCard,
             animations: this._controlFormAnimations?.length ? this._controlFormAnimations : undefined
@@ -10536,6 +10660,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         }}
                         hint="Higher values paint on top. Leave blank to use the default (200 — controls paint over lines).">
                     </ha-input>
+                </lcards-form-section>
+
+                <lcards-form-section
+                    header="Editor Lock"
+                    description="Prevent accidental drag/resize on the MSD Studio canvas"
+                    icon="mdi:lock-outline"
+                    secondary=${this._controlFormLocked ? 'Locked' : 'Unlocked'}
+                    ?expanded=${this._controlFormLocked}>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Lock this overlay'}
+                        .helper=${'When enabled, this overlay can\'t be dragged or resized on the canvas — a large overlay that mostly covers other overlays (e.g. an elbow spanning a big area) can otherwise block clicks meant for whatever is visually underneath it. Edit it via this form or the list panel\'s Lock icon instead.'}
+                        .selector=${{ boolean: {} }}
+                        .value=${this._controlFormLocked === true}
+                        @value-changed=${(e) => {
+                            this._controlFormLocked = e.detail.value;
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
                 </lcards-form-section>
 
                 <lcards-form-section
@@ -12532,9 +12675,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const geometryStr = kind === 'polyline'
             ? `${(shape.points || []).length} points${shape.closed ? ' (closed)' : ''}`
             : `${(shape.size || [0, 0]).join('×')}`;
+        const isLocked = shape.locked === true;
 
         return html`
-            <div class="list-item-card">
+            <div class="list-item-card ${isLocked ? 'locked' : ''}">
                 <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                     <!-- Shape Preview -->
                     <div style="
@@ -12563,6 +12707,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 border-radius: 3px;
                                 font-weight: 500;
                             ">${kind}</span>
+                            ${isLocked ? html`<ha-icon icon="mdi:lock" style="--mdc-icon-size: 16px; color: var(--secondary-text-color);" title="Locked"></ha-icon>` : ''}
                         </div>
                         <div style="font-size: 12px; color: var(--secondary-text-color); font-family: monospace;">
                             ${geometryStr}
@@ -12571,6 +12716,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     <!-- Action Buttons -->
                     <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
+                        <ha-icon-button
+                            @click=${() => this._toggleOverlayLocked(shape)}
+                            .label=${isLocked ? 'Unlock' : 'Lock'}>
+                            <ha-icon icon="mdi:${isLocked ? 'lock' : 'lock-open-variant'}"></ha-icon>
+                        </ha-icon-button>
                         <ha-icon-button
                             @click=${() => this._editShape(shape)}
                             .label=${'Edit'}
@@ -12630,6 +12780,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             state_attribute: '',
             ranges_attribute: '',
             z_index: null,
+            locked: false,
             corner_style: 'round',
             corner_radius: kind === 'rect' ? 8 : 34,
             corner_angle: 45,
@@ -12686,6 +12837,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             state_attribute: shape.state_attribute || '',
             ranges_attribute: shape.ranges_attribute || '',
             z_index: shape.z_index ?? null,
+            locked: shape.locked === true,
             corner_style: shape.corner_style || 'round',
             corner_radius: shape.corner_radius ?? (shape.kind === 'rect' ? 8 : 34),
             corner_angle: shape.corner_angle ?? 45,
@@ -12777,6 +12929,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         if (this._shapeFormData.z_index != null) {
             shapeOverlay.z_index = this._shapeFormData.z_index;
+        }
+        if (this._shapeFormData.locked) {
+            shapeOverlay.locked = true;
         }
         if (this._shapeFormData.entity) {
             shapeOverlay.entity = this._shapeFormData.entity;
@@ -14837,6 +14992,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         }}
                         hint="Higher values paint on top. Leave blank to use the default (50 — shapes paint under lines and controls).">
                     </ha-input>
+                </lcards-form-section>
+
+                <lcards-form-section
+                    header="Editor Lock"
+                    description="Prevent accidental drag/resize on the MSD Studio canvas"
+                    icon="mdi:lock-outline"
+                    secondary=${this._shapeFormData.locked ? 'Locked' : 'Unlocked'}
+                    ?expanded=${this._shapeFormData.locked}>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Lock this overlay'}
+                        .helper=${'When enabled, this overlay can\'t be dragged, resized, or (for polylines) have its vertices edited on the canvas. Edit it via this form or the list panel\'s Lock icon instead.'}
+                        .selector=${{ boolean: {} }}
+                        .value=${this._shapeFormData.locked === true}
+                        @value-changed=${(e) => {
+                            this._shapeFormData = { ...this._shapeFormData, locked: e.detail.value };
+                            this.requestUpdate();
+                        }}>
+                    </ha-selector>
                 </lcards-form-section>
             </div>
         `;
@@ -17980,8 +18154,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${this._renderGridOverlay()}
                             ${this._renderRoutingGridOverlay()}
                             ${this._renderAnchorMarkers()}
-                            ${this._renderBoundingBoxes()}
-                            ${this._renderShapeHandles()}
+                            ${this._renderInteractiveHitLayer()}
                             ${this._renderRoutingPaths()}
                             ${this._renderLineEndpointMarkers()}
                             ${this._renderWaypointInsertMarkers()}

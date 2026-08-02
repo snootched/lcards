@@ -33,6 +33,15 @@ export const msdStudioStyles = css`
         margin-bottom: var(--ha-space-2);
     }
 
+    /* Locked control/shape overlay — its canvas hit-box is pointer-events:none
+       (see _renderControlBboxItem/_renderShapeBboxItem), so this list row is
+       the primary way to edit or unlock it; the dashed border/reduced opacity
+       make locked items scannable at a glance. */
+    .list-item-card.locked {
+        opacity: 0.7;
+        border-style: dashed;
+    }
+
     /* Dialog Content */
     .dialog-content {
         display: flex;
@@ -397,6 +406,13 @@ export const msdStudioStyles = css`
         border-width: 3px !important;
         box-shadow: 0 0 16px rgba(153, 0, 255, 0.8);
         opacity: 0.8;
+    }
+
+    /* Locked overlay bbox is pointer-events:none (clicks fall through to
+       whatever's underneath), so :hover/:active/cursor never actually
+       trigger — this is purely self-documenting. */
+    .bbox-locked {
+        cursor: default;
     }
 
     /* Resize Handles */
