@@ -330,8 +330,8 @@ In the devcontainer, `custom_components/lcards/` is bind-mounted into the HA cor
 
 The `release.yml` GitHub Actions workflow handles versioning and packaging:
 
-1. Tag push or `workflow_dispatch` with a version string triggers the workflow
-2. Version is normalised to HA CalVer (no leading zeros, no pre-release suffix) and stamped into `manifest.json`; the full tag is kept in `const.py`
+1. `workflow_dispatch`, run manually against the desired branch, triggers the workflow
+2. Version (`YYYY.MM.SEQ[-dev.N]`, read from `package.json`; sequence resets each month) is normalised to HA CalVer (no leading zeros, no pre-release suffix) and stamped into `manifest.json`; the full version string (including any `-dev.N` suffix) is kept in `const.py`
 3. `npm run build:integration` produces the complete integration directory
 4. `custom_components/lcards/` is zipped as `lcards.zip` (excluding `__pycache__`, `.pyc`)
 5. A GitHub release is created with the zip attached

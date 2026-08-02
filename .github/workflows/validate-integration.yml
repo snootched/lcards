@@ -110,14 +110,14 @@ jobs:
 
       - name: Check version format
         run: |
-          # Format: YYYY.MM.D[.SEQ][-suffix]
-          # e.g. 2026.03.27  2026.03.27.1  2026.03.27-alpha.1  2026.03.27.1-rc.2
+          # Format: YYYY.MM.SEQ[-suffix]
+          # e.g. 2026.08.0  2026.08.1  2026.08.1-dev.1
           VERSION=$(jq -r '.version' package.json)
           echo "package.json version: $VERSION"
 
-          if ! [[ "$VERSION" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]+(\.[0-9]+)?(-[a-zA-Z][a-zA-Z0-9]*(\.[0-9]+)?)?$ ]]; then
-            echo "❌ Version must follow format YYYY.MM.D[.SEQ] with optional pre-release suffix"
-            echo "   Examples: 2026.03.27  2026.03.27.1  2026.03.27-alpha.1  2026.03.27.1-rc.2"
+          if ! [[ "$VERSION" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]+(-[a-zA-Z][a-zA-Z0-9]*(\.[0-9]+)?)?$ ]]; then
+            echo "❌ Version must follow format YYYY.MM.SEQ with optional pre-release suffix"
+            echo "   Examples: 2026.08.0  2026.08.1  2026.08.1-dev.1"
             exit 1
           fi
 
