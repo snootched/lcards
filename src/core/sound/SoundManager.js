@@ -169,6 +169,21 @@ export class SoundManager extends BaseService {
      */
     this._syncScheduled = false;
 
+    /** @type {boolean} True while a self-heal retry (the entity's restore-to-
+     * previous-value call failed) is scheduled via setTimeout but hasn't started
+     * running yet. waitForSchemeSync() must treat this the same as an in-flight
+     * sync — otherwise an explicit scheme switch could land in the gap between
+     * a failed restore and its retry, and get silently reverted when the retry
+     * fires its own restore call moments later.
+     */
+    this._syncRetryScheduled = false;
+
+    /** @type {number} Consecutive self-heal retry attempts for the current
+     * failure streak. Reset to 0 on a fully successful sync; capped so a
+     * persistent failure (e.g. HA unreachable) doesn't retry forever.
+     */
+    this._schemeSyncRetryAttempts = 0;
+
     /** @type {Function[]} Resolve callbacks for pending waitForSchemeSync() callers. */
     this._syncSettledResolvers = [];
 
@@ -1030,9 +1045,18 @@ export class SoundManager extends BaseService {
    * @private
    */
   _getActiveSchemeName() {
-    return this._cachedScheme
-      ?? this._core?.helperManager?.getHelperValue('sound_scheme')
-      ?? 'none';
+    if (this._cachedScheme != null) {
+      if (this._cachedScheme === 'none' || this._soundSchemes.has(this._cachedScheme)) {
+        return this._cachedScheme;
+      }
+      // Stale scoped (device/user) override — points at a scheme that no
+      // longer exists (e.g. deleted since the override was set). Falling
+      // through to the live helper value avoids silently resolving to
+      // "everything silent" while the Config Panel's dropdown (which reads
+      // the raw helper value, not this cache) shows something else entirely.
+      lcardsLog.debug(`[SoundManager] Cached scoped scheme override "${this._cachedScheme}" no longer exists — falling back to helper value`);
+    }
+    return this._core?.helperManager?.getHelperValue('sound_scheme') ?? 'none';
   }
 
   /**
@@ -1373,6 +1397,7 @@ export class SoundManager extends BaseService {
    * @private
    */
   async _syncSchemeHelperOptions() {
+    this._syncRetryScheduled = false;
     if (this._syncInProgress) {
       this._syncPending = true;
       lcardsLog.debug('[SoundManager] _syncSchemeHelperOptions: sync in progress, queuing follow-up');
@@ -1395,28 +1420,49 @@ export class SoundManager extends BaseService {
       this._schemeRestoreValue = liveValue ?? null;
     }
 
+    let needsRetry = false;
     try {
-      const updated = await helperManager.updateSelectOptions(
+      const { optionsUpdated, restored } = await helperManager.updateSelectOptions(
         'sound_scheme',
         this.getSchemeNames(),
         this._schemeRestoreValue
       );
-      if (updated) {
+      if (optionsUpdated && restored) {
         this._schemesOptionsSynced = true;
+        this._schemeSyncRetryAttempts = 0;
         lcardsLog.debug('[SoundManager] Synced sound_scheme helper options:', this.getSchemeNames());
+      } else if (optionsUpdated && !restored) {
+        // Options list landed but the restore-previous-value call failed even
+        // after its own retries — the entity is left at options[0] ('none').
+        // Don't report this sync as settled; retry shortly on our own so this
+        // self-heals instead of staying silently stuck until some unrelated
+        // future event happens to trigger another sync.
+        lcardsLog.warn('[SoundManager] sound_scheme options synced but restore failed — will retry');
+        needsRetry = true;
+        this._schemeSyncRetryAttempts++;
       }
     } catch (e) {
       lcardsLog.debug('[SoundManager] Could not sync sound_scheme options:', e.message);
+      needsRetry = true;
+      this._schemeSyncRetryAttempts++;
     } finally {
       this._syncInProgress = false;
+      const MAX_RETRY_ATTEMPTS = 5;
       if (this._syncPending) {
         this._syncPending = false;
         this._syncSchemeHelperOptions();
+      } else if (needsRetry && this._schemeSyncRetryAttempts <= MAX_RETRY_ATTEMPTS) {
+        this._syncRetryScheduled = true;
+        setTimeout(() => this._syncSchemeHelperOptions(), 2500);
       } else {
-        // Truly settled — nothing else queued. Wake anyone waiting via
-        // waitForSchemeSync() (e.g. a caller about to explicitly switch the
-        // active scheme right after registering a new one, which must not
-        // race this sync's own restore-previous-value step).
+        if (needsRetry) {
+          lcardsLog.error('[SoundManager] Giving up on sound_scheme restore after repeated failures — the entity may be left showing the wrong scheme until the next save/delete/reload');
+          this._schemeSyncRetryAttempts = 0;
+        }
+        // Truly settled (or gave up) — nothing else queued/scheduled. Wake
+        // anyone waiting via waitForSchemeSync() (e.g. a caller about to
+        // explicitly switch the active scheme right after registering a new
+        // one, which must not race this sync's own restore-previous-value step).
         const resolvers = this._syncSettledResolvers;
         this._syncSettledResolvers = [];
         resolvers.forEach(resolve => resolve());
@@ -1435,7 +1481,7 @@ export class SoundManager extends BaseService {
    * @returns {Promise<void>}
    */
   waitForSchemeSync() {
-    if (!this._syncInProgress && !this._syncPending && !this._syncScheduled) {
+    if (!this._syncInProgress && !this._syncPending && !this._syncScheduled && !this._syncRetryScheduled) {
       return Promise.resolve();
     }
     return new Promise(resolve => this._syncSettledResolvers.push(resolve));

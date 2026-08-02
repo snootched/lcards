@@ -490,6 +490,14 @@ export class LCARdSHelperManager extends BaseService {
         continue;
       }
 
+      // Skip helpers opted out of bulk category resets (e.g. the active sound
+      // scheme selection, which shouldn't be muted as a side effect of
+      // resetting volume/toggles in the same category)
+      if (helper.excludeFromBulkReset) {
+        results.skipped++;
+        continue;
+      }
+
       try {
         await apiSetHelperValue(this.hass, helper.entity_id, helper.default_value);
         this._valueCache.set(helper.key, helper.default_value);
@@ -699,20 +707,23 @@ export class LCARdSHelperManager extends BaseService {
    *   scheme registered after an earlier wave's set_options call has already
    *   reset the live value to options[0]) — the live value can no longer be
    *   trusted as "what the user actually selected" once that's happened.
-   * @returns {Promise<boolean>}
+   * @returns {Promise<{optionsUpdated: boolean, restored: boolean}>}
+   *   `restored` is false if a restore was needed but every retry failed —
+   *   callers should not treat that as "fully synced" (the entity is left at
+   *   options[0], not the intended value) and should try again later.
    */
   async updateSelectOptions(key, options, preferredValue) {
-    if (!this.hass) return false;
+    if (!this.hass) return { optionsUpdated: false, restored: false };
 
     const definition = getHelperDefinition(key);
     if (!definition || definition.domain !== 'input_select') {
       lcardsLog.warn(`[HelperManager] updateSelectOptions: ${key} is not an input_select`);
-      return false;
+      return { optionsUpdated: false, restored: false };
     }
 
     if (!this.helperExists(key)) {
       lcardsLog.debug(`[HelperManager] updateSelectOptions: helper ${key} does not exist yet`);
-      return false;
+      return { optionsUpdated: false, restored: false };
     }
 
     // Snapshot the hass reference and current value before any async work.
@@ -732,19 +743,12 @@ export class LCARdSHelperManager extends BaseService {
       currentOptions.length === options.length &&
       options.every((o, i) => currentOptions[i] === o);
     if (alreadyMatches) {
+      let restored = true;
       if (restoreTarget && restoreTarget !== currentValue && options.includes(restoreTarget)) {
-        try {
-          await hass.callService('input_select', 'select_option', {
-            entity_id: definition.entity_id,
-            option: restoreTarget
-          });
-          lcardsLog.debug(`[HelperManager] Restored ${key} selection: ${restoreTarget}`);
-        } catch (restoreErr) {
-          lcardsLog.warn(`[HelperManager] Failed to restore ${key} selection:`, restoreErr.message);
-        }
+        restored = await this._selectOptionWithRetry(hass, definition.entity_id, restoreTarget, key);
       }
       lcardsLog.debug(`[HelperManager] ${key} options already match — skipping options update`);
-      return true;
+      return { optionsUpdated: true, restored };
     }
 
     try {
@@ -755,23 +759,49 @@ export class LCARdSHelperManager extends BaseService {
       lcardsLog.debug(`[HelperManager] Updated ${key} options:`, options);
 
       // Restore the target selection if it's a valid option
+      let restored = true;
       if (restoreTarget && options.includes(restoreTarget)) {
-        try {
-          await hass.callService('input_select', 'select_option', {
-            entity_id: definition.entity_id,
-            option: restoreTarget
-          });
-          lcardsLog.debug(`[HelperManager] Restored ${key} selection: ${restoreTarget}`);
-        } catch (restoreErr) {
-          lcardsLog.warn(`[HelperManager] Failed to restore ${key} selection:`, restoreErr.message);
-        }
+        restored = await this._selectOptionWithRetry(hass, definition.entity_id, restoreTarget, key);
       }
 
-      return true;
+      return { optionsUpdated: true, restored };
     } catch (e) {
       lcardsLog.warn(`[HelperManager] Failed to update ${key} options:`, e.message);
-      return false;
+      return { optionsUpdated: false, restored: false };
     }
+  }
+
+  /**
+   * Select an input_select option, retrying on transient failures instead of
+   * giving up after one try. `set_options` (the caller's usual preceding step)
+   * always resets the entity's value to its first option, so a failed restore
+   * here — e.g. a brief WS hiccup — would otherwise leave the entity silently
+   * stuck at that first option indefinitely, with no automatic recovery.
+   * @param {Object} hass
+   * @param {string} entityId
+   * @param {string} option
+   * @param {string} logKey - Helper registry key, for log messages only
+   * @returns {Promise<boolean>} True if the option was successfully selected
+   * @private
+   */
+  async _selectOptionWithRetry(hass, entityId, option, logKey) {
+    const RETRY_DELAYS = [0, 400, 1200];
+    for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
+      if (RETRY_DELAYS[attempt] > 0) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS[attempt]));
+      }
+      try {
+        await hass.callService('input_select', 'select_option', {
+          entity_id: entityId,
+          option
+        });
+        lcardsLog.debug(`[HelperManager] Restored ${logKey} selection: ${option}`);
+        return true;
+      } catch (restoreErr) {
+        lcardsLog.warn(`[HelperManager] Failed to restore ${logKey} selection (attempt ${attempt + 1}/${RETRY_DELAYS.length}):`, restoreErr.message);
+      }
+    }
+    return false;
   }
 
   /**

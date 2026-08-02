@@ -8640,8 +8640,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     this._lineFormData.waypoints[waypointIndex] = waypointValue;
                 }
 
-                // Save changes
-                this._saveLine();
+                // `line` above is a direct reference into _workingConfig.msd.overlays,
+                // so the mutation already persisted — do NOT also call _saveLine() here.
+                // _saveLine() rebuilds the overlay from _lineFormData and dedupes by
+                // _editingLineId, which is only set while the line-edit modal is open;
+                // with the modal closed (the normal canvas-drag case) every mousemove
+                // tick would fail that lookup and push a brand-new duplicate overlay
+                // instead of updating this one (see MSD Studio duplication bug).
 
                 // Trigger preview update
                 this._schedulePreviewUpdate();

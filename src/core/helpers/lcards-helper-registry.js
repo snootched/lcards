@@ -12,6 +12,9 @@
  * - ws_create_params: Parameters for WebSocket creation
  * - default_value: Default value if helper doesn't exist
  * - yaml_config: Valid YAML for manual creation
+ * - excludeFromBulkReset: (optional) if true, a category-wide "Reset to
+ *   Defaults" skips this helper — for values a bulk action shouldn't touch
+ *   as a side effect (e.g. the active sound scheme selection)
  *
  * @module core/helpers/lcards-helper-registry
  */
@@ -1160,6 +1163,11 @@ export const HELPER_REGISTRY = {
     category: 'sound',
     ws_create_params: { options: ['none'] },
     default_value: 'none',
+    // The Sound category's bulk "Reset to Defaults" resets volume/toggles in
+    // one click without any scheme-specific warning — excluded so it can't
+    // silently mute an intentionally-chosen scheme as a side effect. Still
+    // changeable via the Active Scheme dropdown or scheme deletion.
+    excludeFromBulkReset: true,
     yaml_config: `input_select:\n  lcards_sound_scheme:\n    name: LCARdS Sound Scheme\n    options:\n      - none\n    icon: mdi:music-box-multiple`
   },
 

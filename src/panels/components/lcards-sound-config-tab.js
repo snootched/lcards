@@ -291,6 +291,20 @@ export class LCARdSSoundConfigTab extends LitElement {
     }
   }
 
+  /**
+   * Explicit scheme selection from the Active Scheme dropdown. A background
+   * options-sync's own "restore the previously-active scheme" step is a
+   * separate, independently-timed service call — if it lands after we set
+   * the new value here, it silently reverts this selection back to whatever
+   * was active before. Wait for any in-flight/queued sync to fully settle
+   * first, exactly like _confirmSaveScheme() and _deleteScheme() already do.
+   */
+  async _selectScheme(value) {
+    const sm = window.lcards?.core?.soundManager;
+    if (sm) await sm.waitForSchemeSync();
+    await this._setHelperValue('sound_scheme', value);
+  }
+
   // ============================================================================
   // SCOPED SETTINGS
   // ============================================================================
@@ -1025,7 +1039,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                 }}}
                 .value=${schemeValue}
                 ?disabled=${!this._helperExists('sound_scheme') || !masterEnabled}
-                @value-changed=${(e) => this._setHelperValue('sound_scheme', e.detail.value)}
+                @value-changed=${(e) => this._selectScheme(e.detail.value)}
               ></ha-selector>
               ${schemeValue !== 'none' ? html`
                 <ha-button

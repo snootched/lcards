@@ -102,6 +102,75 @@ export class LCARdSMSDCard extends LCARdSCard {
                     font-size: 14px;
                     color: var(--primary-text-color);
                 }
+
+                /* Static "bar-label-lozenge"-styled splash shown while the SVG
+                   container is mounted-but-hidden, waiting for the pipeline to
+                   finish (see _msdRevealed). Deliberately plain CSS with no
+                   animation: a spinner here visibly stutters, since this window
+                   overlaps the pipeline's own heavy synchronous render work,
+                   which starves the main thread of paint time. A static shape
+                   only needs to paint once, so it has nothing to stutter.
+                   --msd-splash-bar-color is set inline by _renderCard() via the
+                   theme resolver (same components.button.background.active
+                   token the real bar-label-lozenge preset uses), so this
+                   matches whatever HA-LCARS theme is active — the var()
+                   fallback here only covers the resolver-unavailable case. */
+                .lcards-msd-loading-splash {
+                    position: absolute;
+                    inset: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: var(--ha-space-6, 24px);
+                }
+
+                .lcards-msd-loading-bar {
+                    display: flex;
+                    align-items: stretch;
+                    width: 100%;
+                    max-width: 440px;
+                    height: var(--msd-splash-bar-height, 40px);
+                    gap: var(--ha-space-1, 4px);
+                }
+
+                .lcards-msd-loading-bar-segment {
+                    flex: 1 1 auto;
+                    min-width: 20px;
+                    background: var(--msd-splash-bar-color, var(--lcars-ui-tertiary, var(--lcards-gray-medium-light)));
+                }
+
+                .lcards-msd-loading-bar-segment--start {
+                    border-radius: var(--ha-border-radius-pill) 0 0 var(--ha-border-radius-pill);
+                }
+
+                .lcards-msd-loading-bar-segment--end {
+                    border-radius: 0 var(--ha-border-radius-pill) var(--ha-border-radius-pill) 0;
+                }
+
+                .lcards-msd-loading-label {
+                    flex: 0 1 auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: black;
+                    color: var(--lcars-yellow, var(--lcards-yellow-medium, #ffcc99));
+                    font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', 'Segoe UI Variable Static Text', 'Segoe UI', sans-serif;
+                    font-weight: 100;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    /* The real button preset's cap_height_ratio: 0.86 math
+                       (font-size = zoneHeight / 0.86) is tuned for SVG <text>
+                       baseline positioning, not a CSS line box — at that ratio
+                       here the line box exceeds the bar height and overflows.
+                       0.85x keeps caps close to full bar height while the line
+                       box (line-height: 1) still comfortably fits inside it. */
+                    font-size: calc(var(--msd-splash-bar-height, 40px) * 0.85);
+                    line-height: 1;
+                    padding: 0 var(--ha-space-3, 12px);
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
             `
         ];
     }
@@ -115,6 +184,26 @@ export class LCARdSMSDCard extends LCARdSCard {
         this._svgContent = null;
         this._msdInstanceGuid = null;
         this._msdInitialized = false;
+        // Holds the in-flight _loadAndInitializeMsdCore() promise while one is
+        // running — _loadAndInitializeMsd() is a dedup wrapper around it, since
+        // _onFirstUpdated() and _onConnected() are two independent, unawaited
+        // async lifecycle entry points that can both end up calling it during
+        // the same first-mount window (see _onConnected()'s reconnect-guard
+        // comment). Without this, both calls run the full SVG-fetch/pipeline-
+        // init/background-animation sequence concurrently and redundantly.
+        this._msdLoadInFlight = null;
+        // Set by _onRulePatchesChanged() when it triggers a re-render (fire-and-
+        // forget for its other, post-reveal callers) — _initializeMsdPipeline()
+        // awaits this once, right after the initial rules registration, so the
+        // reveal doesn't fire until this pass (if any) has actually finished too.
+        this._pendingRulesReRender = null;
+        // True once the pipeline (routing, controls, on_load animations, and
+        // background_animation if configured) has actually finished, not just
+        // DOM-mounted — gates the SVG container's visual reveal, see
+        // _renderSvgContainer()/_renderCard(). Kept separate from
+        // _msdInitialized, which must flip early for the pipeline's own DOM
+        // measurements to work.
+        this._msdRevealed = false;
         this._configIssues = null;
         this._backgroundRenderer = null;
         // True once _detectPreviewMode() has confirmed this instance is
@@ -279,10 +368,46 @@ export class LCARdSMSDCard extends LCARdSCard {
      * Extracted so it can be called from both _onFirstUpdated (first mount) and
      * _onConnected (reconnect after edit-mode toggle or view navigation), since
      * Lit's firstUpdated only fires once per element lifetime.
+     *
+     * Dedup wrapper: _onFirstUpdated() and _onConnected() are two independent,
+     * unawaited async lifecycle entry points (connectedCallback() and Lit's
+     * firstUpdated() respectively) that can both end up calling this during the
+     * same first-mount window — _onConnected()'s "is this a reconnect" guard
+     * checks _initialized (set synchronously early in the base class's own
+     * _onFirstUpdated) against _msdInitialized (which only flips much later,
+     * deep inside this function), so it can misfire as "reconnect" while the
+     * very first call is still mid-flight. Without this wrapper, both calls
+     * would run their own full SVG-fetch/pipeline-init/background-animation
+     * sequence concurrently and redundantly (confirmed via trace log: doubled
+     * SVG loads, doubled background-animation init/rebuild). A losing call now
+     * just awaits the same in-flight promise instead.
      * @private
      */
     async _loadAndInitializeMsd() {
-        lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsd called');
+        if (this._msdLoadInFlight) {
+            lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsd already in flight - awaiting existing call');
+            return this._msdLoadInFlight;
+        }
+
+        const loadPromise = this._loadAndInitializeMsdCore();
+        this._msdLoadInFlight = loadPromise;
+        try {
+            await loadPromise;
+        } finally {
+            // Compare-and-clear: guards against a stale/orphaned call's finally
+            // block clobbering a newer cycle's in-flight reference (e.g. a fast
+            // disconnect/reconnect happening while an old call is still winding down).
+            if (this._msdLoadInFlight === loadPromise) {
+                this._msdLoadInFlight = null;
+            }
+        }
+    }
+
+    /**
+     * @private
+     */
+    async _loadAndInitializeMsdCore() {
+        lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsdCore called');
 
         // Tier 2/3 (editor stats display, card-picker placeholder) never show the
         // real SVG/overlays — _renderEditorStats()/_renderCardPickerPlaceholder()
@@ -390,6 +515,15 @@ export class LCARdSMSDCard extends LCARdSCard {
             } else {
                 lcardsLog.trace('[LCARdSMSDCard] Skipping background_animation init — Studio preview');
             }
+        }
+
+        // Pipeline (and background_animation, if any) are now fully ready —
+        // reveal the SVG container. Only fires on success: failure paths above
+        // already reset _msdInitialized to false, so this naturally no-ops and
+        // the error-box render branch takes over instead.
+        if (this._msdInitialized) {
+            this._msdRevealed = true;
+            this.requestUpdate();
         }
     }
 
@@ -616,9 +750,13 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         // Check if any patches affect base SVG or overlays that require re-render
         if (this._msdPipeline?.coordinator?._reRenderCallback) {
-            // Request MSD pipeline to re-render with updated config
+            // Request MSD pipeline to re-render with updated config.
+            // Stash the promise (harmless no-op for callers that don't check it,
+            // e.g. live post-reveal rule updates) so _initializeMsdPipeline() can
+            // await this specific pass when it's the one triggered during initial
+            // load — see _pendingRulesReRender.
             lcardsLog.debug('[LCARdSMSDCard] Triggering MSD re-render after rule patches applied');
-            this._msdPipeline.coordinator._reRenderCallback();
+            this._pendingRulesReRender = this._msdPipeline.coordinator._reRenderCallback();
         } else {
             lcardsLog.warn('[LCARdSMSDCard] No re-render callback available on coordinator');
         }
@@ -786,8 +924,44 @@ export class LCARdSMSDCard extends LCARdSCard {
             `;
         }
 
-        // Render SVG container for MSD mounting
-        return this._renderSvgContainer();
+        // Render SVG container for MSD mounting. The container itself is
+        // opacity-gated on _msdRevealed (see _renderSvgContainer()) so the
+        // pipeline can still measure it in the live DOM while hidden; overlay
+        // the same loading splash on top until the reveal fires, so loading
+        // feedback is continuous instead of a blank gap between "Initializing
+        // MSD..." and the final reveal.
+        return html`
+            <div style="position: relative; width: 100%; height: 100%;">
+                ${this._renderSvgContainer()}
+                ${(!this._msdRevealed && !this._isStudioPreview) ? this._renderMsdLoadingSplash() : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * Static "bar-label-lozenge"-styled loading splash shown while the SVG
+     * container is mounted-but-hidden (see _renderCard()). The bar color is
+     * resolved through the theme token system — the same
+     * components.button.background.active token the real bar-label-lozenge
+     * button preset uses — so it matches whatever HA-LCARS theme is active,
+     * rather than a hardcoded color.
+     * @returns {import('lit').TemplateResult}
+     * @private
+     */
+    _renderMsdLoadingSplash() {
+        const resolver = window.lcards?.core?.themeManager?.resolver;
+        const fallback = 'var(--lcars-ui-tertiary, var(--lcards-gray-medium-light))';
+        const barColor = resolver ? resolver.resolve('components.button.background.active', fallback) : fallback;
+
+        return html`
+            <div class="lcards-msd-loading-splash" style="--msd-splash-bar-color: ${barColor};">
+                <div class="lcards-msd-loading-bar">
+                    <span class="lcards-msd-loading-bar-segment lcards-msd-loading-bar-segment--start"></span>
+                    <span class="lcards-msd-loading-label">Initializing MSD</span>
+                    <span class="lcards-msd-loading-bar-segment lcards-msd-loading-bar-segment--end"></span>
+                </div>
+            </div>
+        `;
     }
 
     /**
@@ -1010,6 +1184,19 @@ export class LCARdSMSDCard extends LCARdSCard {
             // Register overlays with core rulesManager NOW that config is fully processed
             this._registerOverlaysWithRulesEngine();
 
+            // _registerOverlaysWithRulesEngine() synchronously triggers rule
+            // evaluation, which — if this card has any overlay rules — calls
+            // _onRulePatchesChanged() -> coordinator._reRenderCallback(), a full
+            // second AdvancedRenderer.render() pass (routing + controls +
+            // on_load animations, all over again) that was previously fire-
+            // and-forget. Wait for it here so the reveal below (in
+            // _loadAndInitializeMsd()) doesn't fire after only the FIRST pass
+            // while this second one is still rebuilding everything in the background.
+            if (this._pendingRulesReRender) {
+                await this._pendingRulesReRender;
+                this._pendingRulesReRender = null;
+            }
+
             // Ensure any Jinja2/JS template literals in overlay styles (e.g. a line's
             // style.color) are evaluated and re-rendered at least once now that the
             // pipeline (and hass) are available — the generic hass-change-triggered
@@ -1092,6 +1279,8 @@ export class LCARdSMSDCard extends LCARdSCard {
         }
         this._msdPipeline = null;
         this._msdInitialized = false;
+        this._msdRevealed = false;
+        this._pendingRulesReRender = null;
         if (this._backgroundRenderer) {
             this._backgroundRenderer.destroy();
             this._backgroundRenderer = null;
@@ -1572,6 +1761,8 @@ export class LCARdSMSDCard extends LCARdSCard {
                     position: relative;
                     aspect-ratio: ${aspect};
                     pointer-events: none;
+                    opacity: ${(this._msdRevealed || this._isStudioPreview) ? 1 : 0};
+                    transition: opacity var(--ha-animation-duration-normal, .25s) ease;
                 ">
                     <div style="
                         position: absolute;
@@ -1616,6 +1807,8 @@ export class LCARdSMSDCard extends LCARdSCard {
                 position: relative;
                 aspect-ratio: ${aspect};
                 pointer-events: none;
+                opacity: ${(this._msdRevealed || this._isStudioPreview) ? 1 : 0};
+                transition: opacity var(--ha-animation-duration-normal, .25s) ease;
             ">
                 <div style="
                     position: absolute;
