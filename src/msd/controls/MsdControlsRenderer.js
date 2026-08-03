@@ -102,6 +102,26 @@ export class MsdControlsRenderer {
   }
 
   /**
+   * Single choke point for every pointer-events assignment this renderer makes
+   * on a control's DOM. 'none' only when rendering inside MSD Studio's own
+   * editor preview (this._editMode) AND the overlay is explicitly locked —
+   * otherwise 'auto', regardless of context. A real dashboard always has
+   * this._editMode === false, so a locked overlay is never less interactive
+   * there than an unlocked one — locked is editor-only, see msd-schema.js's
+   * field description. (Locking a control in MSD Studio makes it undraggable
+   * on the canvas, and — via this method — makes its real rendered DOM stop
+   * intercepting clicks/pans meant for whatever's visually underneath it,
+   * entirely independent of MSD Studio's own separate synthetic bbox overlay,
+   * which handles drag/resize disabling on its own.)
+   * @param {boolean} [locked]
+   * @returns {'auto'|'none'}
+   * @private
+   */
+  _resolvePointerEvents(locked) {
+    return (this._editMode && locked === true) ? 'none' : 'auto';
+  }
+
+  /**
    * Extract entities used by a control overlay
    * Supports multiple entity reference patterns used by different card types
    * @private
@@ -877,7 +897,7 @@ export class MsdControlsRenderer {
       wrapper.className = 'msd-control-wrapper';
       wrapper.dataset.msdControlId = overlay. id;
       wrapper.style. position = 'absolute';
-      wrapper.style.pointerEvents = 'auto';
+      wrapper.style.pointerEvents = this._resolvePointerEvents(overlay?.locked);
       wrapper.style.touchAction = 'manipulation';
       wrapper.appendChild(cardElement);
 
@@ -1219,14 +1239,14 @@ export class MsdControlsRenderer {
     });
 
     // ADDED: Set higher z-index and pointer events
-    wrapper.style.pointerEvents = 'auto';
+    wrapper.style.pointerEvents = this._resolvePointerEvents(overlay?.locked);
     wrapper.style.position = 'absolute';
     wrapper.style.zIndex = '1000'; // Ensure it's above other layers
     wrapper.setAttribute('tabindex', '0');
 
     // ADDED: Ensure the card element itself can receive events
     if (cardElement) {
-      cardElement.style.pointerEvents = 'auto';
+      cardElement.style.pointerEvents = this._resolvePointerEvents(overlay?.locked);
       cardElement.style.position = 'relative';
       cardElement.style.zIndex = '1';
 
@@ -1255,7 +1275,7 @@ export class MsdControlsRenderer {
     });
 
     // Create SVG foreignObject wrapper to live in viewBox coordinate space
-    const foreignObject = this.createSvgForeignObject(overlay.id, position, size);
+    const foreignObject = this.createSvgForeignObject(overlay.id, position, size, overlay.locked === true);
     if (!foreignObject) {
       lcardsLog.error('[MSD Controls] Failed to create SVG foreignObject for:', overlay.id);
       return;
@@ -1402,8 +1422,9 @@ export class MsdControlsRenderer {
 
   /**
    * Create an SVG foreignObject element to embed HTML controls in viewBox space
+   * @param {boolean} [locked] - see _resolvePointerEvents()
    */
-  createSvgForeignObject(overlayId, position, size) {
+  createSvgForeignObject(overlayId, position, size, locked = false) {
     const targetContainer = this.renderer.container || this.renderer.mountEl;
     const svg = targetContainer?. querySelector('svg');
 
@@ -1437,7 +1458,7 @@ export class MsdControlsRenderer {
       foreignObject.setAttribute('data-overlay-type', 'control');
 
       // Ensure proper event handling
-      foreignObject.style.pointerEvents = 'auto';
+      foreignObject.style.pointerEvents = this._resolvePointerEvents(locked);
       foreignObject.style.overflow = 'visible';
 
       lcardsLog.debug('[MSD Controls] Created foreignObject for', overlayId, {
@@ -1470,7 +1491,7 @@ export class MsdControlsRenderer {
     element.style.boxSizing = 'border-box';
 
     // Ensure proper event handling
-    element.style.pointerEvents = 'auto';
+    element.style.pointerEvents = this._resolvePointerEvents(overlay?.locked);
     element.style.zIndex = overlay.z_index || 'auto';
 
     // Maintain background if needed

@@ -90,16 +90,20 @@ export class ShapeOverlay extends OverlayBase {
       const animationAttributes = this._prepareAnimationAttributes(overlay, overlay.style || {});
       // Gated on _isStudioPreview (real DOM-ancestry check, not persisted
       // config) so a stray _editorSelected flag can never paint the
-      // selection glow outside the Studio dialog itself.
-      const isSelected = overlay._editorSelected === true && cardInstance?._isStudioPreview === true;
+      // selection glow outside the Studio dialog itself. Also reused below to
+      // gate a locked shape's pointer-events — same reasoning: `locked` is
+      // editor-only (see msd-schema.js), so it must never affect a real
+      // dashboard's rendering, only MSD Studio's own preview.
+      const isStudioPreview = cardInstance?._isStudioPreview === true;
+      const isSelected = overlay._editorSelected === true && isStudioPreview;
 
       let geometry;
       if (kind === 'polyline') {
         geometry = this._renderPolyline(overlay, anchors, shapeStyle, animationAttributes, isSelected);
       } else if (kind === 'rect') {
-        geometry = this._renderRect(overlay, anchors, shapeStyle, animationAttributes, isSelected);
+        geometry = this._renderRect(overlay, anchors, shapeStyle, animationAttributes, isSelected, isStudioPreview);
       } else {
-        geometry = this._renderCircle(overlay, anchors, shapeStyle, animationAttributes, isSelected);
+        geometry = this._renderCircle(overlay, anchors, shapeStyle, animationAttributes, isSelected, isStudioPreview);
       }
 
       if (!geometry) {
@@ -271,7 +275,7 @@ export class ShapeOverlay extends OverlayBase {
    *
    * @private
    */
-  _renderRect(overlay, anchors, shapeStyle, animationAttributes, isSelected) {
+  _renderRect(overlay, anchors, shapeStyle, animationAttributes, isSelected, isStudioPreview = false) {
     const position = OverlayUtils.resolvePosition(overlay.position, anchors);
     const size = overlay.size;
 
@@ -300,7 +304,7 @@ export class ShapeOverlay extends OverlayBase {
       x="${x}" y="${y}" width="${width}" height="${height}" rx="${radius}" ry="${radius}"
       ${attrs}
       data-animatable="${animationAttributes.animatable}"
-      pointer-events="all"
+      pointer-events="${(isStudioPreview && overlay.locked) ? 'none' : 'all'}"
       style="cursor: pointer;"
     />`;
 
@@ -317,7 +321,7 @@ export class ShapeOverlay extends OverlayBase {
    *
    * @private
    */
-  _renderCircle(overlay, anchors, shapeStyle, animationAttributes, isSelected) {
+  _renderCircle(overlay, anchors, shapeStyle, animationAttributes, isSelected, isStudioPreview = false) {
     const position = OverlayUtils.resolvePosition(overlay.position, anchors);
     const size = overlay.size;
 
@@ -347,7 +351,7 @@ export class ShapeOverlay extends OverlayBase {
       cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"
       ${attrs}
       data-animatable="${animationAttributes.animatable}"
-      pointer-events="all"
+      pointer-events="${(isStudioPreview && overlay.locked) ? 'none' : 'all'}"
       style="cursor: pointer;"
     />`;
 

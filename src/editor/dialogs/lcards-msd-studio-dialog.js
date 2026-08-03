@@ -7395,26 +7395,39 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Small, purely-visual "locked" affordance rendered inside a locked
-     * overlay's bbox — pointer-events:none so it never reintroduces a hit
-     * target of its own (the whole point of locking is that the div beneath
-     * it is pointer-events:none, letting clicks fall through to whatever's
-     * underneath).
+     * "Locked" badge rendered inside a locked overlay's bbox — the badge
+     * itself is a small, deliberately pointer-events:auto exception carved
+     * out of the otherwise pointer-events:none bbox (see
+     * _renderControlBboxItem()/_renderShapeBboxItem()), so it can double as a
+     * quick unlock affordance directly on the canvas — without it, the list
+     * panel's own Lock icon (see _toggleOverlayLocked()) would be the only
+     * way to reach a locked overlay's controls at all. Not a hit-testing
+     * regression: this bbox wrapper lives outside `.preview-scroll-container`
+     * (a DOM sibling, not a descendant — see _renderInteractiveHitLayer()),
+     * so a click here can never reach d3-zoom's pan listener or
+     * _handlePreviewClick()'s line/shape-selection logic, both scoped to that
+     * container specifically.
+     * @param {Object} overlay - the locked control or shape this badge belongs to
      * @returns {TemplateResult}
      * @private
      */
-    _renderLockBadge() {
+    _renderLockBadge(overlay) {
         return html`
-            <div style="
-                position: absolute;
-                top: 2px;
-                right: 2px;
-                pointer-events: none;
-                background: rgba(0, 0, 0, 0.6);
-                border-radius: 3px;
-                padding: 2px;
-                display: flex;
-            ">
+            <div
+                style="
+                    position: absolute;
+                    top: 2px;
+                    right: 2px;
+                    pointer-events: auto;
+                    cursor: pointer;
+                    background: rgba(0, 0, 0, 0.6);
+                    border-radius: 3px;
+                    padding: 2px;
+                    display: flex;
+                "
+                title="Unlock this overlay"
+                @mousedown=${(e) => e.stopPropagation()}
+                @click=${(e) => { e.stopPropagation(); this._toggleOverlayLocked(overlay); }}>
                 <ha-icon icon="mdi:lock" style="--mdc-icon-size: 14px; color: #cccccc;"></ha-icon>
             </div>
         `;
@@ -7500,7 +7513,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <!-- Live W×H / attach-point readout while actively dragging or resizing -->
                 ${this._renderLiveCoordBadge(isDragging, isResizing, control.position, control.size)}
 
-                ${isLocked ? this._renderLockBadge() : ''}
+                ${isLocked ? this._renderLockBadge(control) : ''}
             </div>
             <!-- Control ID label -->
             <div style="
@@ -7571,7 +7584,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 @dblclick=${(e) => { e.stopPropagation(); this._editShape(shape); }}>
                 ${!isLocked ? this._renderShapeResizeHandles(shape.id, pixelWidth, pixelHeight, isResizing) : ''}
                 ${this._renderLiveCoordBadge(isDragging, isResizing, shape.position, shape.size)}
-                ${isLocked ? this._renderLockBadge() : ''}
+                ${isLocked ? this._renderLockBadge(shape) : ''}
             </div>
             <div style="
                 position: absolute;
