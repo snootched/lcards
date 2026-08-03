@@ -171,6 +171,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _lineFormData: { type: Object, state: true }, // Complete line form data with correct schema
             _lineFormActiveSubtab: { type: String, state: true }, // 'connection' or 'style'
             _connectLineState: { type: Object, state: true }, // { source: null, tempLineElement: null }
+            // Lines tab list multi-select, for Bulk Edit Style — see _toggleLineSelection
+            _selectedLineIds: { type: Object, state: true }, // Set<string>
             // Shapes Tab Properties
             _showShapeForm: { type: Boolean, state: true },
             _editingShapeId: { type: String, state: true },
@@ -183,6 +185,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _shapeDragState: { type: Object, state: true },
             _shapeResizeState: { type: Object, state: true },
             _shapeVertexDragState: { type: Object, state: true },
+            // Shapes tab list multi-select, for Bulk Edit Style — see _toggleShapeSelection
+            _selectedShapeIds: { type: Object, state: true }, // Set<string>
+            // Bulk Style Edit (Shapes/Lines tabs) — reuses the existing single shape/line
+            // edit dialog (_showShapeForm/_showLineForm) restricted to its Style tab; see
+            // _openBulkStyleForm/_saveBulkShapeStyle/_saveBulkLineStyle.
+            _bulkEditKind: { type: String, state: true }, // 'shape' | 'line' | null
+            _bulkEditTargetIds: { type: Array, state: true }, // overlay ids being bulk-edited, or null
+            _bulkEditSnapshot: { type: Object, state: true }, // form-data snapshot at bulk-open time
             // Shield-Bubble Suggest - editor-only ephemeral state, never persisted to
             // config (matches the _showBoundingBoxes/_baseSvgPreviewDimmed precedent,
             // not a config flag - see .github/instructions/msd.instructions.md)
@@ -381,6 +391,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
         };
         this._lineFormActiveSubtab = 'basic';
         this._connectLineState = { source: null, tempLineElement: null };
+        this._selectedLineIds = new Set();
+
+        // Bulk Style Edit — shared by Shapes and Lines tabs, only one bulk edit
+        // (or single edit) dialog can be open at a time
+        this._bulkEditKind = null;
+        this._bulkEditTargetIds = null;
+        this._bulkEditSnapshot = null;
 
         // Shapes Tab State
         this._showShapeForm = false;
@@ -432,6 +449,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Shape edit-mode state
         this._selectedShapeId = null;
+        this._selectedShapeIds = new Set();
         this._shapeDragState = {
             active: false,
             shapeId: null,
@@ -11987,6 +12005,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <ha-icon icon="mdi:vector-line" slot="start"></ha-icon>
                         Enter Connect Mode
                     </ha-button>
+                    ${this._selectedLineIds.size >= 2 ? html`
+                        <ha-button @click=${() => this._openBulkStyleForm('line')}>
+                            <ha-icon icon="mdi:pencil-box-multiple-outline" slot="start"></ha-icon>
+                            Bulk Edit Style (${this._selectedLineIds.size})
+                        </ha-button>
+                    ` : ''}
 
                     <!-- Right-aligned visualization helpers -->
                     <div style="flex: 1;"></div>
@@ -12020,6 +12044,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </p>
                         </lcards-message>
                     ` : html`
+                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--secondary-text-color); cursor: pointer;">
+                            <ha-checkbox
+                                .checked=${lineCount > 0 && this._selectedLineIds.size === lineCount}
+                                @change=${() => this._toggleSelectAllLines()}>
+                            </ha-checkbox>
+                            Select All
+                        </label>
                         <div class="line-list">
                             ${lines.map(line => this._renderLineItem(line))}
                         </div>
@@ -12042,6 +12073,35 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Toggle one line's checkbox in the Lines tab list — feeds Bulk Edit Style.
+     * Reassigns a new Set so the {type: Object, state: true} property change is detected.
+     * @param {Object} line - Line overlay config
+     * @private
+     */
+    _toggleLineSelection(line) {
+        const next = new Set(this._selectedLineIds);
+        if (next.has(line.id)) {
+            next.delete(line.id);
+        } else {
+            next.add(line.id);
+        }
+        this._selectedLineIds = next;
+    }
+
+    /**
+     * Select-all/none checkbox for the Lines tab list.
+     * @private
+     */
+    _toggleSelectAllLines() {
+        const lines = this._getLineOverlays();
+        if (lines.length > 0 && this._selectedLineIds.size === lines.length) {
+            this._selectedLineIds = new Set();
+        } else {
+            this._selectedLineIds = new Set(lines.map(l => l.id));
+        }
+    }
+
+    /**
      * Render Shapes tab
      * @returns {TemplateResult}
      * @private
@@ -12061,6 +12121,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <ha-icon icon="mdi:shield-outline" slot="start"></ha-icon>
                         Suggest Shield Bubble
                     </ha-button>
+                    ${this._selectedShapeIds.size >= 2 ? html`
+                        <ha-button @click=${() => this._openBulkStyleForm('shape')}>
+                            <ha-icon icon="mdi:pencil-box-multiple-outline" slot="start"></ha-icon>
+                            Bulk Edit Style (${this._selectedShapeIds.size})
+                        </ha-button>
+                    ` : ''}
 
                     <!-- Right-aligned visualization helpers -->
                     <div style="flex: 1;"></div>
@@ -12095,6 +12161,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </p>
                         </lcards-message>
                     ` : html`
+                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--secondary-text-color); cursor: pointer;">
+                            <ha-checkbox
+                                .checked=${shapeCount > 0 && this._selectedShapeIds.size === shapeCount}
+                                @change=${() => this._toggleSelectAllShapes()}>
+                            </ha-checkbox>
+                            Select All
+                        </label>
                         <div class="line-list">
                             ${shapes.map(shape => this._renderShapeItem(shape))}
                         </div>
@@ -12672,6 +12745,147 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Toggle one shape's checkbox in the Shapes tab list — feeds Bulk Edit Style.
+     * Reassigns a new Set so the {type: Object, state: true} property change is detected.
+     * @param {Object} shape - Shape overlay config
+     * @private
+     */
+    _toggleShapeSelection(shape) {
+        const next = new Set(this._selectedShapeIds);
+        if (next.has(shape.id)) {
+            next.delete(shape.id);
+        } else {
+            next.add(shape.id);
+        }
+        this._selectedShapeIds = next;
+    }
+
+    /**
+     * Select-all/none checkbox for the Shapes tab list.
+     * @private
+     */
+    _toggleSelectAllShapes() {
+        const shapes = this._getShapeOverlays();
+        if (shapes.length > 0 && this._selectedShapeIds.size === shapes.length) {
+            this._selectedShapeIds = new Set();
+        } else {
+            this._selectedShapeIds = new Set(shapes.map(s => s.id));
+        }
+    }
+
+    /**
+     * Open Bulk Edit Style for the currently checked shapes or lines. Reuses the
+     * existing single-overlay edit dialog (_showShapeForm/_showLineForm), seeded
+     * from the first selected overlay and forced to its Style tab — see
+     * _renderShapeFormDialog/_renderLineFormDialog for how _bulkEditTargetIds
+     * changes what that dialog renders and where Save routes to.
+     * @param {'shape'|'line'} kind
+     * @private
+     */
+    _openBulkStyleForm(kind) {
+        const ids = kind === 'shape' ? [...this._selectedShapeIds] : [...this._selectedLineIds];
+        if (ids.length < 2) return;
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const representative = overlays.find(o => o.id === ids[0]);
+        if (!representative) return;
+
+        this._bulkEditKind = kind;
+        this._bulkEditTargetIds = ids;
+
+        if (kind === 'shape') {
+            this._editShape(representative);
+            // _editShape sets this for its normal single-edit role — bulk save
+            // targets _bulkEditTargetIds instead, so clear it to avoid confusion
+            // (e.g. in the dialog title).
+            this._editingShapeId = null;
+            this._shapeFormActiveSubtab = 'style';
+            this._bulkEditSnapshot = JSON.parse(JSON.stringify(this._shapeFormData));
+        } else {
+            this._editLine(representative);
+            this._editingLineId = null;
+            this._lineFormActiveSubtab = 'style';
+            this._bulkEditSnapshot = JSON.parse(JSON.stringify(this._lineFormData));
+        }
+        this.requestUpdate();
+    }
+
+    /**
+     * Diff two "style fields" objects as produced by _buildShapeStyleFields /
+     * _buildLineStyleFields — top-level keys are compared directly, and the
+     * nested `style` sub-object is compared key-by-key so an untouched style
+     * property (e.g. dash_array) never gets swept up by a change to another
+     * (e.g. width). A value of `undefined` in the result means "no longer
+     * persisted, remove this key" — mirrors how the builders omit defaults.
+     * @param {Object} current
+     * @param {Object} snapshot
+     * @returns {Object} touched fields, in the same shape (style nested)
+     * @private
+     */
+    _diffStyleFields(current, snapshot) {
+        const touched = {};
+        for (const key of new Set([...Object.keys(current), ...Object.keys(snapshot)])) {
+            if (key === 'style') continue;
+            if (JSON.stringify(current[key]) !== JSON.stringify(snapshot[key])) {
+                touched[key] = current[key];
+            }
+        }
+
+        const currentStyle = current.style || {};
+        const snapshotStyle = snapshot.style || {};
+        const touchedStyle = {};
+        for (const key of new Set([...Object.keys(currentStyle), ...Object.keys(snapshotStyle)])) {
+            if (JSON.stringify(currentStyle[key]) !== JSON.stringify(snapshotStyle[key])) {
+                touchedStyle[key] = currentStyle[key];
+            }
+        }
+        if (Object.keys(touchedStyle).length > 0) {
+            touched.style = touchedStyle;
+        }
+
+        return touched;
+    }
+
+    /**
+     * Apply a _diffStyleFields() result onto one overlay, merging (not
+     * replacing) its `style` sub-object. A field whose touched value is
+     * `undefined` is deleted rather than set, so "the user cleared this back to
+     * default" round-trips the same default-omission the single-edit save path
+     * already relies on.
+     * @param {Object} overlay
+     * @param {Object} touched
+     * @returns {Object} new overlay object with only the touched fields changed
+     * @private
+     */
+    _applyTouchedFields(overlay, touched) {
+        const next = { ...overlay };
+        for (const [key, value] of Object.entries(touched)) {
+            if (key === 'style') continue;
+            if (value === undefined) {
+                delete next[key];
+            } else {
+                next[key] = value;
+            }
+        }
+        if (touched.style) {
+            const mergedStyle = { ...(next.style || {}) };
+            for (const [key, value] of Object.entries(touched.style)) {
+                if (value === undefined) {
+                    delete mergedStyle[key];
+                } else {
+                    mergedStyle[key] = value;
+                }
+            }
+            if (Object.keys(mergedStyle).length > 0) {
+                next.style = mergedStyle;
+            } else {
+                delete next.style;
+            }
+        }
+        return next;
+    }
+
+    /**
      * Render single shape item
      * @param {Object} shape - Shape overlay config
      * @returns {TemplateResult}
@@ -12693,6 +12907,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <div class="list-item-card ${isLocked ? 'locked' : ''}">
                 <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <!-- Bulk-select checkbox, for Bulk Edit Style -->
+                    <ha-checkbox
+                        .checked=${this._selectedShapeIds.has(shape.id)}
+                        @change=${(e) => { e.stopPropagation(); this._toggleShapeSelection(shape); }}
+                        style="flex-shrink: 0;">
+                    </ha-checkbox>
+
                     <!-- Shape Preview -->
                     <div style="
                         width: 40px;
@@ -12910,6 +13131,79 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Build the style-related overlay fields (corner/smoothing + style.*) from
+     * shape form data, applying the same default-omission rules as a normal save
+     * so persisted YAML stays clean either way. Extracted out of _saveShape so
+     * _saveBulkShapeStyle (Bulk Edit Style) can diff "what would be persisted"
+     * against a snapshot without duplicating this serialization logic.
+     * @param {Object} formData - a this._shapeFormData-shaped object
+     * @returns {Object} plain object of only the style-relevant overlay keys that should be persisted (style included only if non-empty)
+     * @private
+     */
+    _buildShapeStyleFields(formData) {
+        const kind = formData.kind;
+        const fields = {};
+
+        if (formData.corner_style && formData.corner_style !== 'round') {
+            fields.corner_style = formData.corner_style;
+        } else if (formData.corner_style === 'round' && formData.corner_radius > 0) {
+            // 'round' is the schema default, but must still be persisted explicitly —
+            // ShapeOverlay only applies rx/ry (rect) or corner rounding (polyline)
+            // when corner_style is exactly 'round', not merely absent/undefined.
+            fields.corner_style = 'round';
+        }
+        if (formData.corner_radius != null && formData.corner_radius !== 0) {
+            fields.corner_radius = formData.corner_radius;
+        }
+        if (kind === 'polyline') {
+            if (formData.corner_style === 'bevel' && formData.corner_angle != null && formData.corner_angle !== 45) {
+                fields.corner_angle = formData.corner_angle;
+            }
+            if (formData.smoothing_mode && formData.smoothing_mode !== 'none') {
+                fields.smoothing_mode = formData.smoothing_mode;
+            }
+            if (formData.smoothing_iterations != null && formData.smoothing_iterations !== 0) {
+                fields.smoothing_iterations = formData.smoothing_iterations;
+            }
+        }
+
+        /** @type {Object<string, any>} */
+        const style = {};
+        const formStyle = formData.style || {};
+        if (formStyle.color != null) {
+            const c = formStyle.color;
+            // Simplify {default: X} with nothing else configured back to a plain
+            // string — keeps saved YAML clean for the common non-state-color case.
+            const keys = (typeof c === 'object' && c !== null) ? Object.keys(c) : null;
+            style.color = (keys && keys.length === 1 && keys[0] === 'default') ? c.default : c;
+        }
+        if (formStyle.width != null) style.width = formStyle.width;
+        if (formStyle.opacity != null && formStyle.opacity !== 1) style.opacity = formStyle.opacity;
+        if (formStyle.dash_array) style.dash_array = formStyle.dash_array;
+        if (formStyle.fill != null) {
+            const f = formStyle.fill;
+            const keys = (typeof f === 'object' && f !== null) ? Object.keys(f) : null;
+            const simplified = (keys && keys.length === 1 && keys[0] === 'default') ? f.default : f;
+            // Only persist if it's not the inert 'none' default (a plain string here,
+            // never an object — state-bound fill always has more than one key).
+            if (simplified !== 'none') style.fill = simplified;
+        }
+        if (formStyle.fill_opacity != null && formStyle.fill_opacity !== 1) style.fill_opacity = formStyle.fill_opacity;
+        if (kind === 'polyline') {
+            if (formStyle.line_cap && formStyle.line_cap !== 'butt') style.line_cap = formStyle.line_cap;
+            if (formStyle.line_join) style.line_join = formStyle.line_join;
+            if (formStyle.miter_limit != null && formStyle.miter_limit !== 4) style.miter_limit = formStyle.miter_limit;
+            if (formStyle.marker_end) style.marker_end = formStyle.marker_end;
+            if (formStyle.marker_start) style.marker_start = formStyle.marker_start;
+        }
+        if (Object.keys(style).length > 0) {
+            fields.style = style;
+        }
+
+        return fields;
+    }
+
+    /**
      * Save shape form. Mirrors _saveLine's direct-mutation pattern exactly (no
      * _updateConfig — see class-level precedent) — build a plain overlay object
      * with only non-default fields, find-or-push into msd.overlays by the stable
@@ -12956,65 +13250,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
             shapeOverlay.ranges_attribute = this._shapeFormData.ranges_attribute;
         }
 
-        if (this._shapeFormData.corner_style && this._shapeFormData.corner_style !== 'round') {
-            shapeOverlay.corner_style = this._shapeFormData.corner_style;
-        } else if (this._shapeFormData.corner_style === 'round' && this._shapeFormData.corner_radius > 0) {
-            // 'round' is the schema default, but must still be persisted explicitly —
-            // ShapeOverlay only applies rx/ry (rect) or corner rounding (polyline)
-            // when corner_style is exactly 'round', not merely absent/undefined.
-            shapeOverlay.corner_style = 'round';
-        }
-        if (this._shapeFormData.corner_radius != null && this._shapeFormData.corner_radius !== 0) {
-            shapeOverlay.corner_radius = this._shapeFormData.corner_radius;
-        }
-        if (kind === 'polyline') {
-            if (this._shapeFormData.corner_style === 'bevel' && this._shapeFormData.corner_angle != null && this._shapeFormData.corner_angle !== 45) {
-                shapeOverlay.corner_angle = this._shapeFormData.corner_angle;
-            }
-            if (this._shapeFormData.smoothing_mode && this._shapeFormData.smoothing_mode !== 'none') {
-                shapeOverlay.smoothing_mode = this._shapeFormData.smoothing_mode;
-            }
-            if (this._shapeFormData.smoothing_iterations != null && this._shapeFormData.smoothing_iterations !== 0) {
-                shapeOverlay.smoothing_iterations = this._shapeFormData.smoothing_iterations;
-            }
-        }
-
         if (this._shapeFormData.animations && this._shapeFormData.animations.length > 0) {
             shapeOverlay.animations = this._shapeFormData.animations;
         }
 
-        /** @type {Object<string, any>} */
-        const style = {};
-        const formStyle = this._shapeFormData.style || {};
-        if (formStyle.color != null) {
-            const c = formStyle.color;
-            // Simplify {default: X} with nothing else configured back to a plain
-            // string — keeps saved YAML clean for the common non-state-color case.
-            const keys = (typeof c === 'object' && c !== null) ? Object.keys(c) : null;
-            style.color = (keys && keys.length === 1 && keys[0] === 'default') ? c.default : c;
-        }
-        if (formStyle.width != null) style.width = formStyle.width;
-        if (formStyle.opacity != null && formStyle.opacity !== 1) style.opacity = formStyle.opacity;
-        if (formStyle.dash_array) style.dash_array = formStyle.dash_array;
-        if (formStyle.fill != null) {
-            const f = formStyle.fill;
-            const keys = (typeof f === 'object' && f !== null) ? Object.keys(f) : null;
-            const simplified = (keys && keys.length === 1 && keys[0] === 'default') ? f.default : f;
-            // Only persist if it's not the inert 'none' default (a plain string here,
-            // never an object — state-bound fill always has more than one key).
-            if (simplified !== 'none') style.fill = simplified;
-        }
-        if (formStyle.fill_opacity != null && formStyle.fill_opacity !== 1) style.fill_opacity = formStyle.fill_opacity;
-        if (kind === 'polyline') {
-            if (formStyle.line_cap && formStyle.line_cap !== 'butt') style.line_cap = formStyle.line_cap;
-            if (formStyle.line_join) style.line_join = formStyle.line_join;
-            if (formStyle.miter_limit != null && formStyle.miter_limit !== 4) style.miter_limit = formStyle.miter_limit;
-            if (formStyle.marker_end) style.marker_end = formStyle.marker_end;
-            if (formStyle.marker_start) style.marker_start = formStyle.marker_start;
-        }
-        if (Object.keys(style).length > 0) {
-            shapeOverlay.style = style;
-        }
+        Object.assign(shapeOverlay, this._buildShapeStyleFields(this._shapeFormData));
 
         if (!this._workingConfig.msd) {
             this._workingConfig.msd = {};
@@ -13045,12 +13285,60 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Save Bulk Edit Style for shapes: diff the in-progress _shapeFormData against
+     * the snapshot taken when the bulk form opened (_openBulkStyleForm), and apply
+     * only the fields that actually changed to every selected shape. Untouched
+     * fields are left exactly as they were on each shape — see _diffStyleFields.
+     * @private
+     */
+    _saveBulkShapeStyle() {
+        const ids = this._bulkEditTargetIds || [];
+        if (ids.length === 0) {
+            this._closeShapeForm();
+            return;
+        }
+
+        const touched = this._diffStyleFields(
+            this._buildShapeStyleFields(this._shapeFormData),
+            this._buildShapeStyleFields(this._bulkEditSnapshot)
+        );
+        // Entity Binding fields live in the Style tab too (see _renderShapeEntityBindingSection)
+        // but aren't covered by _buildShapeStyleFields — diff them the same way.
+        for (const key of ['entity', 'state_attribute', 'ranges_attribute']) {
+            if (this._shapeFormData[key] !== this._bulkEditSnapshot[key]) {
+                touched[key] = this._shapeFormData[key] || undefined;
+            }
+        }
+
+        if (Object.keys(touched).length === 0) {
+            this._selectedShapeIds = new Set();
+            this._closeShapeForm();
+            return;
+        }
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        for (const id of ids) {
+            const idx = overlays.findIndex(o => o.id === id);
+            if (idx < 0) continue;
+            overlays[idx] = this._applyTouchedFields(overlays[idx], touched);
+        }
+
+        lcardsLog.debug('[MSDStudio] Bulk-applied shape style to', ids.length, 'shapes:', Object.keys(touched));
+        this._selectedShapeIds = new Set();
+        this._closeShapeForm();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
      * Close shape form dialog
      * @private
      */
     _closeShapeForm() {
         this._showShapeForm = false;
         this._editingShapeId = null;
+        this._bulkEditKind = null;
+        this._bulkEditTargetIds = null;
+        this._bulkEditSnapshot = null;
         this.requestUpdate();
     }
 
@@ -13091,6 +13379,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <div class="list-item-card">
                 <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <!-- Bulk-select checkbox, for Bulk Edit Style -->
+                    <ha-checkbox
+                        .checked=${this._selectedLineIds.has(line.id)}
+                        @change=${(e) => { e.stopPropagation(); this._toggleLineSelection(line); }}
+                        style="flex-shrink: 0;">
+                    </ha-checkbox>
+
                     <!-- Line Style Preview -->
                     <div style="
                         width: 40px;
@@ -14556,6 +14851,75 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Build the style-related overlay fields (corner/smoothing + style.*) from
+     * line form data, applying the same default-omission rules as a normal save
+     * so persisted YAML stays clean either way. Extracted out of _saveLine so
+     * _saveBulkLineStyle (Bulk Edit Style) can diff "what would be persisted"
+     * against a snapshot without duplicating this serialization logic.
+     * @param {Object} formData - a this._lineFormData-shaped object
+     * @returns {Object} plain object of only the style-relevant overlay keys that should be persisted (style included only if non-empty)
+     * @private
+     */
+    _buildLineStyleFields(formData) {
+        const fields = {};
+
+        if (formData.corner_style && formData.corner_style !== 'round') {
+            fields.corner_style = formData.corner_style;
+        }
+        if (formData.corner_radius != null && formData.corner_radius !== 34) {
+            fields.corner_radius = formData.corner_radius;
+        }
+        if (formData.corner_radius_mode === 'forced') {
+            fields.corner_radius_mode = formData.corner_radius_mode;
+        }
+        if (formData.corner_room_weight != null) {
+            fields.corner_room_weight = formData.corner_room_weight;
+        }
+        if (formData.corner_style === 'bevel' && formData.corner_angle != null && formData.corner_angle !== 45) {
+            fields.corner_angle = formData.corner_angle;
+        }
+        if (formData.smoothing_mode && formData.smoothing_mode !== 'none') {
+            fields.smoothing_mode = formData.smoothing_mode;
+        }
+        if (formData.smoothing_iterations != null && formData.smoothing_iterations !== 0) {
+            fields.smoothing_iterations = formData.smoothing_iterations;
+        }
+
+        if (formData.style && Object.keys(formData.style).length > 0) {
+            const style = {};
+
+            if (formData.style.color != null) {
+                const c = formData.style.color;
+                // Simplify {default: X} with nothing else configured back to a plain
+                // string — keeps saved YAML clean for the common non-state-color case.
+                const keys = (typeof c === 'object' && c !== null) ? Object.keys(c) : null;
+                style.color = (keys && keys.length === 1 && keys[0] === 'default') ? c.default : c;
+            }
+            if (formData.style.width != null) {
+                style.width = formData.style.width;
+            }
+            if (formData.style.opacity != null && formData.style.opacity !== 1) {
+                style.opacity = formData.style.opacity;
+            }
+            if (formData.style.dash_array) {
+                style.dash_array = formData.style.dash_array;
+            }
+            if (formData.style.marker_end) {
+                style.marker_end = formData.style.marker_end;
+            }
+            if (formData.style.marker_start) {
+                style.marker_start = formData.style.marker_start;
+            }
+
+            if (Object.keys(style).length > 0) {
+                fields.style = style;
+            }
+        }
+
+        return fields;
+    }
+
+    /**
      * Save line form
      * @private
      */
@@ -14620,28 +14984,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (this._lineFormData.waypoints && this._lineFormData.waypoints.length > 0) {
             lineOverlay.waypoints = this._lineFormData.waypoints;
         }
-        if (this._lineFormData.corner_style && this._lineFormData.corner_style !== 'round') {
-            lineOverlay.corner_style = this._lineFormData.corner_style;
-        }
-        if (this._lineFormData.corner_radius != null && this._lineFormData.corner_radius !== 34) {
-            lineOverlay.corner_radius = this._lineFormData.corner_radius;
-        }
-        if (this._lineFormData.corner_radius_mode === 'forced') {
-            lineOverlay.corner_radius_mode = this._lineFormData.corner_radius_mode;
-        }
-        if (this._lineFormData.corner_room_weight != null) {
-            lineOverlay.corner_room_weight = this._lineFormData.corner_room_weight;
-        }
-        if (this._lineFormData.corner_style === 'bevel' && this._lineFormData.corner_angle != null && this._lineFormData.corner_angle !== 45) {
-            lineOverlay.corner_angle = this._lineFormData.corner_angle;
-        }
-        if (this._lineFormData.smoothing_mode && this._lineFormData.smoothing_mode !== 'none') {
-            lineOverlay.smoothing_mode = this._lineFormData.smoothing_mode;
-        }
-        if (this._lineFormData.smoothing_iterations != null && this._lineFormData.smoothing_iterations !== 0) {
-            lineOverlay.smoothing_iterations = this._lineFormData.smoothing_iterations;
-        }
-
         // Channel routing — route_channels is the only per-line channel key;
         // behavior (prefer/avoid/force) is defined on the channel itself
         // (the old per-line route_channel_mode was removed from RouterCore).
@@ -14649,40 +14991,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             lineOverlay.route_channels = this._lineFormData.route_channels;
         }
 
-        // Add style if present (using canonical property names)
-        if (this._lineFormData.style && Object.keys(this._lineFormData.style).length > 0) {
-            const style = {};
-
-            // Core stroke properties (always save if present)
-            if (this._lineFormData.style.color != null) {
-                const c = this._lineFormData.style.color;
-                // Simplify {default: X} with nothing else configured back to a plain
-                // string — keeps saved YAML clean for the common non-state-color case.
-                const keys = (typeof c === 'object' && c !== null) ? Object.keys(c) : null;
-                style.color = (keys && keys.length === 1 && keys[0] === 'default') ? c.default : c;
-            }
-            if (this._lineFormData.style.width != null) {
-                style.width = this._lineFormData.style.width;
-            }
-            if (this._lineFormData.style.opacity != null && this._lineFormData.style.opacity !== 1) {
-                style.opacity = this._lineFormData.style.opacity;
-            }
-
-            // Optional properties
-            if (this._lineFormData.style.dash_array) {
-                style.dash_array = this._lineFormData.style.dash_array;
-            }
-            if (this._lineFormData.style.marker_end) {
-                style.marker_end = this._lineFormData.style.marker_end;
-            }
-            if (this._lineFormData.style.marker_start) {
-                style.marker_start = this._lineFormData.style.marker_start;
-            }
-
-            if (Object.keys(style).length > 0) {
-                lineOverlay.style = style;
-            }
-        }
+        Object.assign(lineOverlay, this._buildLineStyleFields(this._lineFormData));
 
         // Animations (save if present)
         if (this._lineFormData.animations && this._lineFormData.animations.length > 0) {
@@ -14723,6 +15032,51 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Save Bulk Edit Style for lines: diff the in-progress _lineFormData against
+     * the snapshot taken when the bulk form opened (_openBulkStyleForm), and apply
+     * only the fields that actually changed to every selected line. Untouched
+     * fields are left exactly as they were on each line — see _diffStyleFields.
+     * @private
+     */
+    _saveBulkLineStyle() {
+        const ids = this._bulkEditTargetIds || [];
+        if (ids.length === 0) {
+            this._closeLineForm();
+            return;
+        }
+
+        const touched = this._diffStyleFields(
+            this._buildLineStyleFields(this._lineFormData),
+            this._buildLineStyleFields(this._bulkEditSnapshot)
+        );
+        // Entity Binding fields live in the Style tab too (see _renderLineColorSection)
+        // but aren't covered by _buildLineStyleFields — diff them the same way.
+        for (const key of ['entity', 'state_attribute', 'ranges_attribute']) {
+            if (this._lineFormData[key] !== this._bulkEditSnapshot[key]) {
+                touched[key] = this._lineFormData[key] || undefined;
+            }
+        }
+
+        if (Object.keys(touched).length === 0) {
+            this._selectedLineIds = new Set();
+            this._closeLineForm();
+            return;
+        }
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        for (const id of ids) {
+            const idx = overlays.findIndex(o => o.id === id);
+            if (idx < 0) continue;
+            overlays[idx] = this._applyTouchedFields(overlays[idx], touched);
+        }
+
+        lcardsLog.debug('[MSDStudio] Bulk-applied line style to', ids.length, 'lines:', Object.keys(touched));
+        this._selectedLineIds = new Set();
+        this._closeLineForm();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
      * Close line form dialog
      * @private
      */
@@ -14730,6 +15084,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         lcardsLog.trace('[MSDStudio] _closeLineForm called', new Error().stack);
         this._showLineForm = false;
         this._editingLineId = null;
+        this._bulkEditKind = null;
+        this._bulkEditTargetIds = null;
+        this._bulkEditSnapshot = null;
         this.requestUpdate();
     }
 
@@ -15524,8 +15881,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderShapeFormDialog() {
+        const isBulk = this._bulkEditKind === 'shape' && this._bulkEditTargetIds !== null;
         const isEditing = !!this._editingShapeId;
-        const title = isEditing ? `Edit Shape: ${this._shapeFormData.id}` : 'Add Shape';
+        const title = isBulk
+            ? `Bulk Edit Style — ${this._bulkEditTargetIds.length} shapes selected`
+            : (isEditing ? `Edit Shape: ${this._shapeFormData.id}` : 'Add Shape');
 
         return html`
             <ha-dialog
@@ -15537,14 +15897,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <div class="subform-layout">
                     <div class="subform-config">
-                        <ha-tab-group @wa-tab-show=${this._handleShapeFormTabChange} class="subform-tabs">
-                            <ha-tab-group-tab value="geometry" ?active=${this._shapeFormActiveSubtab === 'geometry'}>Geometry</ha-tab-group-tab>
-                            <ha-tab-group-tab value="style" ?active=${this._shapeFormActiveSubtab === 'style'}>Style</ha-tab-group-tab>
-                            <ha-tab-group-tab value="animation" ?active=${this._shapeFormActiveSubtab === 'animation'}>Animation</ha-tab-group-tab>
-                        </ha-tab-group>
+                        ${isBulk ? html`
+                            <lcards-message type="info" style="margin-bottom: 12px;">
+                                Only fields you change below are applied — untouched fields are left as-is on each of the ${this._bulkEditTargetIds.length} selected shapes.
+                            </lcards-message>
+                        ` : html`
+                            <ha-tab-group @wa-tab-show=${this._handleShapeFormTabChange} class="subform-tabs">
+                                <ha-tab-group-tab value="geometry" ?active=${this._shapeFormActiveSubtab === 'geometry'}>Geometry</ha-tab-group-tab>
+                                <ha-tab-group-tab value="style" ?active=${this._shapeFormActiveSubtab === 'style'}>Style</ha-tab-group-tab>
+                                <ha-tab-group-tab value="animation" ?active=${this._shapeFormActiveSubtab === 'animation'}>Animation</ha-tab-group-tab>
+                            </ha-tab-group>
+                        `}
 
                         <div class="subform-tab-content">
-                            ${this._renderShapeFormTabContent()}
+                            ${isBulk ? this._renderShapeFormStyle() : this._renderShapeFormTabContent()}
                         </div>
                     </div>
 
@@ -15559,9 +15925,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
                     </ha-button>
-                    <ha-button @click=${() => this._saveShape()}>
+                    <ha-button @click=${() => isBulk ? this._saveBulkShapeStyle() : this._saveShape()}>
                         <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
-                        Save
+                        ${isBulk ? 'Apply to Selected' : 'Save'}
                     </ha-button>
                 </div>
             </ha-dialog>
@@ -15825,8 +16191,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderLineFormDialog() {
+        const isBulk = this._bulkEditKind === 'line' && this._bulkEditTargetIds !== null;
         const isEditing = !!this._editingLineId;
-        const title = isEditing ? `Edit Line: ${this._lineFormData.id}` : 'Add Line';
+        const title = isBulk
+            ? `Bulk Edit Style — ${this._bulkEditTargetIds.length} lines selected`
+            : (isEditing ? `Edit Line: ${this._lineFormData.id}` : 'Add Line');
 
         return html`
             <ha-dialog
@@ -15841,18 +16210,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     <!-- Left Panel: Tabs and Content -->
                     <div class="subform-config">
-                        <!-- Subtabs -->
-                        <ha-tab-group @wa-tab-show=${this._handleLineFormTabChange} class="subform-tabs">
-                            <ha-tab-group-tab value="basic" ?active=${this._lineFormActiveSubtab === 'basic'}>Basic</ha-tab-group-tab>
-                            <ha-tab-group-tab value="style" ?active=${this._lineFormActiveSubtab === 'style'}>Style</ha-tab-group-tab>
-                            <ha-tab-group-tab value="markers" ?active=${this._lineFormActiveSubtab === 'markers'}>Markers</ha-tab-group-tab>
-                            <ha-tab-group-tab value="animation" ?active=${this._lineFormActiveSubtab === 'animation'}>Animation</ha-tab-group-tab>
-                            <ha-tab-group-tab value="routing" ?active=${this._lineFormActiveSubtab === 'routing'}>Routing</ha-tab-group-tab>
-                        </ha-tab-group>
+                        ${isBulk ? html`
+                            <lcards-message type="info" style="margin-bottom: 12px;">
+                                Only fields you change below are applied — untouched fields are left as-is on each of the ${this._bulkEditTargetIds.length} selected lines.
+                            </lcards-message>
+                        ` : html`
+                            <!-- Subtabs -->
+                            <ha-tab-group @wa-tab-show=${this._handleLineFormTabChange} class="subform-tabs">
+                                <ha-tab-group-tab value="basic" ?active=${this._lineFormActiveSubtab === 'basic'}>Basic</ha-tab-group-tab>
+                                <ha-tab-group-tab value="style" ?active=${this._lineFormActiveSubtab === 'style'}>Style</ha-tab-group-tab>
+                                <ha-tab-group-tab value="markers" ?active=${this._lineFormActiveSubtab === 'markers'}>Markers</ha-tab-group-tab>
+                                <ha-tab-group-tab value="animation" ?active=${this._lineFormActiveSubtab === 'animation'}>Animation</ha-tab-group-tab>
+                                <ha-tab-group-tab value="routing" ?active=${this._lineFormActiveSubtab === 'routing'}>Routing</ha-tab-group-tab>
+                            </ha-tab-group>
+                        `}
 
                         <!-- Scrollable Content -->
                         <div class="subform-tab-content">
-                            ${this._renderLineFormTabContent()}
+                            ${isBulk ? this._renderLineFormStyle() : this._renderLineFormTabContent()}
                         </div>
                     </div>
 
@@ -15868,9 +16243,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
                     </ha-button>
-                    <ha-button @click=${() => this._saveLine()}>
+                    <ha-button @click=${() => isBulk ? this._saveBulkLineStyle() : this._saveLine()}>
                         <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
-                        Save
+                        ${isBulk ? 'Apply to Selected' : 'Save'}
                     </ha-button>
                 </div>
             </ha-dialog>
