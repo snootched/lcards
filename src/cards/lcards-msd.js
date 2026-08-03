@@ -2074,6 +2074,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             opacity: 'opacity',
             dash_array: 'stroke-dasharray',
             dasharray: 'stroke-dasharray',
+            line_cap: 'stroke-linecap',
             fill: 'fill'
         };
 
@@ -2120,6 +2121,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             opacity: 'opacity',
             dash_array: 'stroke-dasharray',
             dasharray: 'stroke-dasharray',
+            line_cap: 'stroke-linecap',
             fill: 'fill'
         };
 

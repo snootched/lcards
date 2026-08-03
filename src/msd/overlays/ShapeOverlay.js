@@ -627,6 +627,7 @@ export class ShapeOverlay extends OverlayBase {
       stroke-opacity="${shapeStyle.opacity}"
       ${includeJoin ? `stroke-linejoin="${shapeStyle.lineJoin}"` : ''}
       ${includeJoin && shapeStyle.miterLimit ? `stroke-miterlimit="${shapeStyle.miterLimit}"` : ''}
+      stroke-linecap="${shapeStyle.lineCap}"
       ${shapeStyle.dashArray ? `stroke-dasharray="${shapeStyle.dashArray}"` : ''}
       ${shapeStyle.dashOffset ? `stroke-dashoffset="${shapeStyle.dashOffset}"` : ''}
       fill="${shapeStyle.fill}"

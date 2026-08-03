@@ -110,10 +110,11 @@ In the MSD Studio editor, enter Connect Mode to see these as clickable dots dire
 
 ## Styling
 
-Shapes share `line`'s complete style system — see [Line Overlay: Styling](./line-overlay.md#styling) for the full reference (stroke color/width/opacity, dash patterns, gradients, patterns, markers). Two differences worth calling out:
+Shapes share `line`'s complete style system — see [Line Overlay: Styling](./line-overlay.md#styling) for the full reference (stroke color/width/opacity, dash patterns, gradients, patterns, markers). A few differences worth calling out:
 
 *   **`fill`** is meaningful on every shape kind (`rect`, `circle`, and `closed: true` polylines), not just an incidental self-intersection fill. It accepts the same state-color object as `color`, resolved against the shape's own `entity`.
 *   **Markers** (`marker_start`/`marker_mid`/`marker_end`) only apply to `polyline` — meaningless for `rect`/`circle`, which have no path direction to attach a marker to.
+*   **`line_cap`** applies to `rect`/`circle` too, not just `polyline`. It has no visible effect on a solid border, but once `dash_array` is set it shapes every dash segment around the border — including a `dash_array: "0,4"` + `line_cap: round` dotted ring of true circles (see [Line Overlay: Dash patterns](./line-overlay.md#dash-patterns)). `line_join`/`miter_limit` remain polyline/rect-only (no path vertices on a circle).
 
 ### State-based fill
 

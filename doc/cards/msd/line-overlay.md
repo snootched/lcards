@@ -209,10 +209,14 @@ style:
 style:
   dash_array: "5,5"       # 5px dash, 5px gap — string "5,5" or array [5, 5]
   dash_offset: 0           # Starting offset
-  line_cap: round           # round | square | butt — no effect on closed shapes
+  line_cap: round           # round | square | butt — shapes the ends of every dash segment
   line_join: miter          # miter | round | bevel — at path corners
   miter_limit: 4             # Used when line_join: miter
 ```
+
+`line_cap` has no visible effect on a *solid* stroke's closed shapes (a filled rect/circle border with no `dash_array` has no open dash ends to cap). But once a `dash_array` is set, `line_cap` shapes every individual dash segment — including on closed or curved paths, like a circle's border.
+
+**Round dots, not squares:** a "dot" made from a non-zero-length dash (e.g. `"2,2"`) with `line_cap: round` renders as an elongated pill/stadium shape, not a circle — rounding just softens the ends of an already-sized rectangle. For a true circle, use a **zero-length dash**: `dash_array: "0,4"` with `line_cap: round`. A zero-length dash's two round end-caps coincide into a perfect circle whose diameter equals `width` — so it scales correctly with stroke width, and you get true dots. The Studio dialog's "Dotted" and "Dash-Dot" presets already do this automatically. For widely-spaced circles, use the "Custom" pattern option: set Dash Length to `0`, Gap Length to whatever spacing you want, and Line Cap to `round`.
 
 ### Fill (self-intersecting/closed paths)
 

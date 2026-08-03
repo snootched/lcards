@@ -238,7 +238,7 @@ export function getMsdSchema() {
                   enum: ['butt', 'round', 'square'],
                   optional: true,
                   default: 'butt',
-                  description: 'Stroke line cap style. No effect on closed shapes (rect/circle/closed polyline).'
+                  description: 'Stroke line cap style, applied to every dash segment (use with dash_array "0,N" and line_cap: round for true circular dots). Has no visible effect on a solid (non-dashed) closed shape.'
                 },
                 line_join: {
                   type: 'string',

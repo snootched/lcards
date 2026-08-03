@@ -15136,8 +15136,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const dashArray = style.dash_array || '';
         let dashPreset = 'solid';
         if (dashArray === '5,5') dashPreset = 'dashed';
-        else if (dashArray === '2,2') dashPreset = 'dotted';
-        else if (dashArray === '8,4,2,4') dashPreset = 'dash-dot';
+        else if (dashArray === '2,2' || dashArray === '0,4') dashPreset = 'dotted';
+        else if (dashArray === '8,4,2,4' || dashArray === '8,4,0,4') dashPreset = 'dash-dot';
         else if (dashArray) dashPreset = 'custom';
 
         return html`
@@ -15183,12 +15183,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             @value-changed=${(e) => {
                                 const preset = e.detail.value;
                                 let newDashArray = dashArray;
+                                let newLineCap = style.line_cap;
                                 if (preset === 'dashed') newDashArray = '5,5';
-                                else if (preset === 'dotted') newDashArray = '2,2';
-                                else if (preset === 'dash-dot') newDashArray = '8,4,2,4';
+                                else if (preset === 'dotted') { newDashArray = '0,4'; newLineCap = 'round'; }
+                                else if (preset === 'dash-dot') { newDashArray = '8,4,0,4'; newLineCap = 'round'; }
                                 else if (preset === 'solid') newDashArray = '';
                                 if (preset !== 'custom') {
-                                    this._shapeFormData.style = { ...this._shapeFormData.style, dash_array: newDashArray };
+                                    this._shapeFormData.style = { ...this._shapeFormData.style, dash_array: newDashArray, line_cap: newLineCap };
                                     this.requestUpdate();
                                 }
                             }}
@@ -15205,8 +15206,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                                 ${(() => {
                                     const parts = (dashArray || '').split(',').map(p => parseFloat(p.trim()) || 0);
-                                    const dash1 = parts[0] || 5;
-                                    const gap1 = parts[1] || 5;
+                                    const dash1 = parts[0] ?? 5;
+                                    const gap1 = parts[1] ?? 5;
                                     const dash2 = parts[2] || 0;
                                     const gap2 = parts[3] || 0;
 
@@ -15321,6 +15322,23 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }}>
                                 </ha-selector>
                             ` : ''}
+
+                            <ha-selector
+                                .hass=${this.hass}
+                                .selector=${{ select: { options: [
+                                    { value: 'butt', label: 'Butt (Flat)' },
+                                    { value: 'round', label: 'Round' },
+                                    { value: 'square', label: 'Square (Extended)' }
+                                ] } }}
+                                .value=${style.line_cap || 'butt'}
+                                .label=${'Line Cap'}
+                                helper="Shape of each dash segment's ends — set to Round for circular dots"
+                                @value-changed=${(e) => {
+                                    this._shapeFormData.style = { ...this._shapeFormData.style, line_cap: e.detail.value };
+                                    this.requestUpdate();
+                                }}
+                                style="margin-top: 12px;">
+                            </ha-selector>
                         `}
 
                         ${(this._shapeFormData.corner_style === 'round' && kind !== 'circle') ? html`
@@ -16997,8 +17015,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const dashArray = this._lineFormData.style?.dash_array || '';
         let lineStylePreset = 'solid';
         if (dashArray === '5,5') lineStylePreset = 'dashed';
-        else if (dashArray === '2,2') lineStylePreset = 'dotted';
-        else if (dashArray === '8,4,2,4') lineStylePreset = 'dash-dot';
+        else if (dashArray === '2,2' || dashArray === '0,4') lineStylePreset = 'dotted';
+        else if (dashArray === '8,4,2,4' || dashArray === '8,4,0,4') lineStylePreset = 'dash-dot';
         else if (dashArray && dashArray !== '') lineStylePreset = 'custom';
 
         // Get available animations
@@ -17096,14 +17114,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             @value-changed=${(e) => {
                                 const preset = e.detail.value;
                                 let dashArray = '';
+                                let lineCap = this._lineFormData.style?.line_cap;
 
                                 if (preset === 'dashed') dashArray = '5,5';
-                                else if (preset === 'dotted') dashArray = '2,2';
-                                else if (preset === 'dash-dot') dashArray = '8,4,2,4';
+                                else if (preset === 'dotted') { dashArray = '0,4'; lineCap = 'round'; }
+                                else if (preset === 'dash-dot') { dashArray = '8,4,0,4'; lineCap = 'round'; }
                                 else if (preset === 'solid') dashArray = '';
 
                                 if (preset !== 'custom') {
-                                    this._lineFormData.style = { ...this._lineFormData.style, dash_array: dashArray };
+                                    this._lineFormData.style = { ...this._lineFormData.style, dash_array: dashArray, line_cap: lineCap };
                                     this.requestUpdate();
                                 }
                             }}
@@ -17121,8 +17140,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 <!-- Parse existing dash_array -->
                                 ${(() => {
                                     const parts = (dashArray || '').split(',').map(p => parseFloat(p.trim()) || 0);
-                                    const dash1 = parts[0] || 5;
-                                    const gap1 = parts[1] || 5;
+                                    const dash1 = parts[0] ?? 5;
+                                    const gap1 = parts[1] ?? 5;
                                     const dash2 = parts[2] || 0;
                                     const gap2 = parts[3] || 0;
 
