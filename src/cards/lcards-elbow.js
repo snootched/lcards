@@ -498,6 +498,19 @@ export class LCARdSElbow extends LCARdSButton {
     _injectElbowColors() {
         if (!this._elbowConfig || !this._buttonStyle) return;
 
+        // When the elbow is in non-interactive (decorative) mode, suppress all
+        // hover and pressed visual feedback so colour never changes on mouse-over.
+        // Mirrors LCARdSButton._extractInteractionStyles().
+        if (this.config.interactive === false) {
+            this._elbowHoverStyle = null;
+            this._elbowPressedStyle = null;
+            this._elbowOuterHoverStyle = null;
+            this._elbowOuterPressedStyle = null;
+            this._elbowInnerHoverStyle = null;
+            this._elbowInnerPressedStyle = null;
+            return;
+        }
+
         // Get theme manager for token resolution
         const themeManager = this._singletons?.themeManager;
 
@@ -2447,12 +2460,14 @@ export class LCARdSElbow extends LCARdSButton {
         const textureMarkup = this._generateTextureMarkup(width, height, {}, elbowPath);
 
         // Compose SVG
+        const _elbowCursor = this.config.style?.cursor
+            ?? (this.config.interactive === false ? 'default' : 'pointer');
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
                 <g data-button-id="elbow"
                    data-overlay-id="button"
                    class="elbow-group"
-                   style="pointer-events: visiblePainted; cursor: pointer;">
+                   style="pointer-events: visiblePainted; cursor: ${_elbowCursor};">
                     <!-- Elbow background shape -->
                     <path
                         class="elbow-bg button-clickable"
@@ -2574,12 +2589,14 @@ export class LCARdSElbow extends LCARdSButton {
         const iconOnly = this._processedIcon?.iconOnly && this._processedIcon?.show;
 
         // Compose segmented SVG with two elbow paths
+        const _elbowCursor = this.config.style?.cursor
+            ?? (this.config.interactive === false ? 'default' : 'pointer');
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
                 <g data-button-id="elbow"
                    data-overlay-id="button"
                    class="elbow-group segmented-elbow"
-                   style="pointer-events: visiblePainted; cursor: pointer;">
+                   style="pointer-events: visiblePainted; cursor: ${_elbowCursor};">
                     <!-- Outer segment (larger) -->
                     <path
                         class="elbow-outer button-clickable"
@@ -2775,13 +2792,15 @@ export class LCARdSElbow extends LCARdSButton {
 
         const textureMarkup = this._generateTextureMarkup(width, height, {}, outerRingPath);
 
+        const _elbowCursor = this.config.style?.cursor
+            ?? (this.config.interactive === false ? 'default' : 'pointer');
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"
                  xmlns="http://www.w3.org/2000/svg">
                 <g data-button-id="frame"
                    data-overlay-id="button"
                    class="elbow-group frame-elbow"
-                   style="pointer-events: visiblePainted; cursor: pointer;">
+                   style="pointer-events: visiblePainted; cursor: ${_elbowCursor};">
                     <!-- Outer frame ring -->
                     <path
                         class="elbow-bg button-clickable"
