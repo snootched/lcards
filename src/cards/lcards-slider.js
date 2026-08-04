@@ -470,16 +470,28 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Update entity value (only when a primary entity is configured)
         if (this.config.entity && this._entity) {
-            // Get new value and set it
-            // Lit's hasChanged() automatically determines if re-render is needed
-            const newValue = this._getEntityValue(this._entity);
-            const previousValue = this._sliderValue;
+            // Skip syncing the visual value while the user is actively dragging.
+            // HASS can push a new state for the entity mid-drag (polling
+            // integrations, unrelated attribute churn, echoed context) before our
+            // own service call has gone out on release — overwriting _sliderValue
+            // here would snap the handle back to the stale entity value out from
+            // under the user's finger/pointer. See issue #392.
+            const isDragging = this._isDragging || this._isHorizontalDragging;
 
-            this._sliderValue = newValue;
+            if (!isDragging) {
+                // Get new value and set it
+                // Lit's hasChanged() automatically determines if re-render is needed
+                const newValue = this._getEntityValue(this._entity);
+                const previousValue = this._sliderValue;
 
-            // Log value changes (first load or actual change)
-            if (!oldHass || previousValue !== newValue) {
-                lcardsLog.debug(`[LCARdSSlider] Value ${!oldHass ? 'initialized' : 'changed'}: ${previousValue} -> ${newValue}`);
+                this._sliderValue = newValue;
+
+                // Log value changes (first load or actual change)
+                if (!oldHass || previousValue !== newValue) {
+                    lcardsLog.debug(`[LCARdSSlider] Value ${!oldHass ? 'initialized' : 'changed'}: ${previousValue} -> ${newValue}`);
+                }
+            } else {
+                lcardsLog.trace(`[LCARdSSlider] Skipping value sync from HASS — drag in progress`);
             }
 
             // Update control config if entity attributes changed
