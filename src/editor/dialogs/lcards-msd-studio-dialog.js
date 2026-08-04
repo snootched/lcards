@@ -8416,9 +8416,72 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 opacity="0.8"
                             />
                         </svg>
+                        ${this._renderChannelCenterlineOverlay(channelId, channel, direction, color, pixelX, pixelY, pixelWidth, pixelHeight)}
                     `;
                 })}
             </div>
+        `;
+    }
+
+    /**
+     * Draws a channel's own centerline (`crossCenter` — where
+     * `RouterCore._normalizeChannels` computes it, `y + h/2` for a
+     * horizontal channel / `x + w/2` for vertical: the exact midpoint of
+     * the channel's own authored bounds) as a dashed line spanning the
+     * channel's flow axis, plus its coordinate value. Every bundle
+     * member's lane offset is measured from this one line, not from the
+     * channel's edges or from where any member actually sits — reported
+     * live as hard to reason about without seeing it (a member's own
+     * native row can be nowhere near where its lane actually lands,
+     * confusing "why did my line move there" until this is visible).
+     * Purely the rectangle's own midpoint in pixel space (no separate
+     * viewBox->pixel conversion needed — the rectangle's own pixel bounds
+     * already encode that transform).
+     * @param {string} channelId
+     * @param {object} channel - raw channel config (bounds, direction)
+     * @param {'horizontal'|'vertical'} direction - already resolved (auto→shape)
+     * @param {string} color
+     * @param {number} pixelX
+     * @param {number} pixelY
+     * @param {number} pixelWidth
+     * @param {number} pixelHeight
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderChannelCenterlineOverlay(channelId, channel, direction, color, pixelX, pixelY, pixelWidth, pixelHeight) {
+        const [x, y, width, height] = channel.bounds;
+        const crossCenterCoord = direction === 'horizontal' ? y + height / 2 : x + width / 2;
+        const horizontal = direction === 'horizontal';
+        const x1 = horizontal ? 0 : pixelWidth / 2;
+        const y1 = horizontal ? pixelHeight / 2 : 0;
+        const x2 = horizontal ? pixelWidth : pixelWidth / 2;
+        const y2 = horizontal ? pixelHeight / 2 : pixelHeight;
+        return html`
+            <svg style="
+                position: absolute;
+                left: ${pixelX}px;
+                top: ${pixelY}px;
+                width: ${pixelWidth}px;
+                height: ${pixelHeight}px;
+                pointer-events: none;
+                overflow: visible;
+            ">
+                <line
+                    x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
+                    stroke="${color}"
+                    stroke-width="1.5"
+                    stroke-dasharray="6,3"
+                    opacity="0.95"
+                />
+                <text
+                    x="${horizontal ? 4 : pixelWidth / 2 + 4}"
+                    y="${horizontal ? pixelHeight / 2 - 4 : 12}"
+                    fill="${color}"
+                    font-family="'Courier New', monospace"
+                    font-size="9"
+                    font-weight="700"
+                >crossCenter: ${crossCenterCoord.toFixed(1)}</text>
+            </svg>
         `;
     }
 

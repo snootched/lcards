@@ -77,6 +77,122 @@ function stubLengthFor(req) {
 }
 
 /**
+ * Pure "reverse curve" (S-curve lane-change) geometry — two tangent
+ * circular arcs of one shared radius connecting a flow-axis-aligned line
+ * to a parallel one offset by `d` on the cross axis, the same construction
+ * used for road/rail lane-change transitions. Used by
+ * `_buildBundleEntryReverseCurves` to let a bundle-entry lane-separation
+ * jog target the FULL configured `corner_radius` regardless of how small
+ * its own cross-axis offset is — a small `d` just sweeps a smaller portion
+ * (`theta`) of the same-size circle, rather than being forced into a
+ * smaller circle entirely (which is what a plain 90°-quarter-circle fillet
+ * on the same short segment is stuck with — see "Cross-Axis-Aware
+ * Corridor-Entry Nudge Sizing" in the architecture doc).
+ *
+ * Identities: `d = 2R(1-cosθ)` (cross-axis offset consumed), `L = 2R sinθ`
+ * (flow-axis length consumed, split `flowHalf = R sinθ` on each side).
+ * `θ` is capped at 90° — beyond that the curve's instantaneous
+ * flow-direction component goes negative (a "hooked" S, not a clean lane
+ * change), so `dArc = min(d, 2R)` and any excess (`dResidual`) is absorbed
+ * as a plain straight cross-axis segment between the two arcs instead —
+ * this degrades continuously into the old two-full-radius-fillets-plus-
+ * gap shape once `d` is generous enough, not a separate code path.
+ *
+ * When the target radius doesn't fit in the available flow-axis room on
+ * either side (`availFlowIn`/`availFlowOut`), re-derives from the room
+ * constraint instead (`tan(θ/2) = d / L_total`, `L_total = 2×Lavail`),
+ * shrinking `R` — never growing it past `targetR`, and converging toward a
+ * hard corner as room shrinks toward zero. Returns `null` when there's
+ * nothing to build (zero offset, zero target radius, or zero room).
+ * @param {number} d - total cross-axis offset to cover
+ * @param {number} targetR - the configured corner_radius (a ceiling, never exceeded)
+ * @param {number} availFlowIn - flow-axis room available before the jog
+ * @param {number} availFlowOut - flow-axis room available after the jog
+ * @returns {{ R: number, theta: number, dResidual: number, flowHalf: number } | null}
+ */
+function reverseCurveGeometry(d, targetR, availFlowIn, availFlowOut) {
+  if (!(d > 0) || !(targetR > 0)) return null;
+  const Lavail = Math.max(0, Math.min(availFlowIn, availFlowOut));
+  if (Lavail <= 0) return null;
+  const dArc = Math.min(d, 2 * targetR);
+  let theta = Math.acos(1 - dArc / (2 * targetR));
+  let R = targetR;
+  let flowHalf = R * Math.sin(theta);
+  if (flowHalf > Lavail) {
+    // Room-constrained: re-derive theta from the room budget itself
+    // (tan(θ/2) = d / L_total, L_total = 2×Lavail — the standard reverse-
+    // curve length/offset ratio identity), capped at 90° same as above,
+    // then R follows from R·sinθ = Lavail (the room this theta actually
+    // consumes, by construction).
+    theta = Math.min(2 * Math.atan(dArc / (2 * Lavail)), Math.PI / 2);
+    R = Lavail / Math.sin(theta);
+    flowHalf = Lavail;
+  }
+  const achievedDArc = 2 * R * (1 - Math.cos(theta));
+  const dResidual = Math.max(0, d - achievedDArc);
+  return { R, theta, dResidual, flowHalf };
+}
+
+/**
+ * Chain-consistency propagation factor for one line at one corridor
+ * (Chain-Aware Corridor Lane Consistency, Phase 1). The existing
+ * naturalSide/naturalLean sign convention is FRAME-FIXED — negative
+ * cross-offset always means north/west, positive always means south/east
+ * — regardless of which direction a line actually travels through a given
+ * corridor or how that corridor is oriented. Two differently-oriented (or
+ * oppositely-travelled) corridors' own "positive" therefore don't
+ * necessarily mean the same physical side of a bundle; `k` corrects for
+ * that by folding in both the corridor's own orientation and this line's
+ * own flow direction across it, so a lean/side computed at one corridor
+ * can be propagated to another via a plain multiplication (see
+ * `_chainSideAssignment`).
+ *
+ * Deliberately a closed-form formula, not a case-by-case "classify this
+ * turn as CW/CCW" branch: hand-reasoning about turn handedness is exactly
+ * what produced a wrong answer during this mechanism's own design (an
+ * eastbound->southbound turn's crossing-free mapping is NORTH->EAST,
+ * SOUTH->WEST, not the reverse — confirmed independently by literally
+ * constructing both candidate polylines and checking for a real
+ * intersection). Reused as-is by Phase 2's `pairOrderHandedness` for the
+ * analogous cross-LINE consistency problem — one formula, two call sites.
+ * @param {number} flowSign - +1 if the line travels in the corridor's own
+ *   increasing-flow-axis direction, -1 if decreasing, 0 if degenerate
+ * @param {boolean} horizontal
+ * @returns {number} -1, 0, or +1
+ */
+function corridorFlowFactor(flowSign, horizontal) {
+  return flowSign * (horizontal ? 1 : -1);
+}
+
+/**
+ * Binary (never magnitude) handedness between two corridors for a
+ * SPECIFIC PAIR of lines (Chain-Aware Corridor Lane Consistency, Phase
+ * 2): +1 if the pair's relative same-side order at `seed` should be
+ * PRESERVED at `target` to stay non-crossing, -1 if it must be FLIPPED.
+ * Takes each line's own already-computed `k` (corridorFlowFactor) at
+ * both corridors — never a lean/offset MAGNITUDE, mirroring Phase 1's
+ * own "sign only, never magnitude" discipline one level up (a line PAIR
+ * instead of one line's own chain).
+ *
+ * UNVERIFIED as of this mechanism's initial implementation — a hand-
+ * derived hypothesis, structurally consistent with Phase 1's own algebra
+ * but not yet checked against literal geometry. Ships behind
+ * `_pairwiseCrossCorridorOrder`'s shadow-mode verification (see that
+ * method's own docblock) and must not decide a real lane assignment
+ * until proven against constructed adversarial cases — this file's own
+ * history (the CW/CCW correction cited above) is a direct warning
+ * against trusting sign algebra like this without that check.
+ * @param {number} kASeed
+ * @param {number} kATarget
+ * @param {number} kBSeed
+ * @param {number} kBTarget
+ * @returns {number} -1, 0, or +1
+ */
+function pairOrderHandedness(kASeed, kATarget, kBSeed, kBTarget) {
+  return Math.sign((kASeed * kATarget) * (kBSeed * kBTarget)) || 0;
+}
+
+/**
  * Lead-out/lead-in stub length for the two BLIND-splice call sites
  * (_applyCardinalStubs, _computeManhattan's fallback): a fixed, unsearched
  * segment spliced onto the true endpoint before any A-star/crossing-cost
@@ -1056,7 +1172,7 @@ export class RouterCore {
             // trunks; hasForceChannels guarantees `corridors` itself is
             // non-empty, so _computeCorridorRouted should never return null
             // here, but the null-check keeps this branch safe either way).
-            const chained = this._computeCorridorRouted(stubReq, mode === 'smart', corridors);
+            const chained = this._computeCorridorRouted(stubReq, mode === 'smart', corridors, req.a, req.b);
             lcardsLog.debug(`[RouterCore] Using corridor-forced routing for '${req.id}' (mandatory)`);
             result = chained;
           } else {
@@ -1083,7 +1199,7 @@ export class RouterCore {
             let bestCost = plain ? effectiveCost(plain) : Infinity;
             let bestLabel = plain ? 'plain' : null;
             for (const opt of corridorOptions) {
-              const candidate = this._computeCorridorRouted(stubReq, mode === 'smart', opt);
+              const candidate = this._computeCorridorRouted(stubReq, mode === 'smart', opt, req.a, req.b);
               if (!candidate) continue;
               const cost = effectiveCost(candidate);
               if (!best || cost <= bestCost) {
@@ -1192,7 +1308,7 @@ export class RouterCore {
       // load-bearing for discovery-loop convergence.
       let joinedForeignTrunk = false;
       if (result) {
-        joinedForeignTrunk = this._registerLineSegments(req.id, result.pts, req.a, req.b, req.width, result.cornerRadii || null);
+        joinedForeignTrunk = this._registerLineSegments(req.id, result.pts, req.a, req.b, req.width, result.cornerRadii || null, result.meta?.chainSides || null);
       }
       // Apply smoothing AFTER corner arcs (arcs preserved, path rebuilt as polyline if smoothing > 0)
       if (result && req.smoothingMode !== 'none' && req.smoothingIterations > 0) {
@@ -2593,6 +2709,228 @@ export class RouterCore {
   }
 
   /**
+   * A corridor's own flow-axis-projected reference point, used ONLY to
+   * determine an ADJACENT chain member's relative FLOW direction (never
+   * lane offset) — deliberately independent of _trunkLaneAssignment
+   * (computing what THIS feeds into would be circular). The corridor's
+   * own geometric center (crossCenter when a stable one exists, else the
+   * bounds midpoint) is a safe proxy specifically because flow DIRECTION
+   * (a sign, not a coordinate) is stable under the kind of small
+   * cross-axis perturbation a lane offset represents — a corridor's own
+   * flow-axis SPAN, not its exact through-coordinate, is what actually
+   * decides which way a neighboring chain member lies.
+   * @param {object} chan
+   * @returns {number[]}
+   * @private
+   */
+  _chainCorridorRef(chan) {
+    const horizontal = chan.direction === 'horizontal';
+    const flowMid = horizontal ? (chan.x1 + chan.x2) / 2 : (chan.y1 + chan.y2) / 2;
+    const crossMid = Number.isFinite(chan.crossCenter) ? chan.crossCenter : (horizontal ? (chan.y1 + chan.y2) / 2 : (chan.x1 + chan.x2) / 2);
+    return horizontal ? [flowMid, crossMid] : [crossMid, flowMid];
+  }
+
+  /**
+   * +1 if this line travels in the INCREASING direction along
+   * `chainChannels[i]`'s own flow axis, -1 if decreasing, 0 if genuinely
+   * degenerate (both neighbors project to the identical flow coordinate —
+   * see _chainCanonicalIndex, which never picks an index whose flowSign
+   * would be 0 as canonical). Uses each NEIGHBORING chain member's own
+   * reference point (_chainCorridorRef) or, at a chain boundary, the
+   * line's true raw endpoint — never the corridor's own lane-offset
+   * entry/exit, which doesn't exist yet at the point _chainSideAssignment
+   * needs this (computed once, before the real per-corridor
+   * crossing-point loop runs — see _computeCorridorRoutedAttempt's own
+   * call site).
+   * @param {object[]} chainChannels
+   * @param {number} i
+   * @param {number[]} rawA
+   * @param {number[]} rawB
+   * @returns {number}
+   * @private
+   */
+  _chainFlowSign(chainChannels, i, rawA, rawB) {
+    const chan = chainChannels[i];
+    const horizontal = chan.direction === 'horizontal';
+    const flow = horizontal ? 0 : 1;
+    const prevPoint = i > 0 ? this._chainCorridorRef(chainChannels[i - 1]) : rawA;
+    const nextPoint = i < chainChannels.length - 1 ? this._chainCorridorRef(chainChannels[i + 1]) : rawB;
+    if (!prevPoint || !nextPoint) return 0;
+    return Math.sign(nextPoint[flow] - prevPoint[flow]);
+  }
+
+  /**
+   * This line's own corridorFlowFactor (see that module-level function's
+   * docblock) at `chainChannels[i]` — the propagation factor Phase 1
+   * multiplies a lean by to carry a consistent side across a chain, and
+   * Phase 2 (`pairOrderHandedness`) compares between two different lines.
+   * @param {object[]} chainChannels
+   * @param {number} i
+   * @param {number[]} rawA
+   * @param {number[]} rawB
+   * @returns {number}
+   * @private
+   */
+  _chainKFactor(chainChannels, i, rawA, rawB) {
+    const chan = chainChannels[i];
+    return corridorFlowFactor(this._chainFlowSign(chainChannels, i, rawA, rawB), chan.direction === 'horizontal');
+  }
+
+  /**
+   * The same refPoint/naturalLean computation _mergeOrRegisterTrunk itself
+   * uses (see that method's own extensive comment on refPoint — UNCHANGED
+   * here, just extracted so _chainSideAssignment can evaluate a corridor
+   * other than the one currently being registered, without duplicating
+   * "which raw endpoint is actually local to this run" a second time).
+   * @param {object} chan
+   * @param {number[]} rawA
+   * @param {number[]} rawB
+   * @returns {number}
+   * @private
+   */
+  _naturalLeanAt(chan, rawA, rawB) {
+    const horizontal = chan.direction === 'horizontal';
+    const flow = horizontal ? 0 : 1;
+    const cross = horizontal ? 1 : 0;
+    const flowLo = horizontal ? chan.x1 : chan.y1;
+    const flowHi = horizontal ? chan.x2 : chan.y2;
+    const centerlineForSide = Number.isFinite(chan.crossCenter)
+      ? chan.crossCenter
+      : (horizontal ? (chan.y1 + chan.y2) / 2 : (chan.x1 + chan.x2) / 2);
+    const refPoint = (rawA && rawB)
+      ? (Math.abs(rawA[flow] - flowLo) <= Math.abs(rawB[flow] - flowHi) ? rawA : rawB)
+      : (rawA || rawB);
+    return refPoint ? (refPoint[cross] - centerlineForSide) : 0;
+  }
+
+  /**
+   * Picks which end of a line's own chain (first or last corridor — the
+   * only two structurally valid choices: naturalLean needs a real raw
+   * endpoint genuinely adjacent to it, and only a chain's own two ends
+   * ever have one; a middle corridor has none, and using one would
+   * resurrect the exact "an interior run has nothing to do with a
+   * far-away endpoint" bug class _naturalLeanAt's own refPoint fix was
+   * built to prevent) is the more trustworthy anchor to propagate a
+   * consistent side from. Same "whichever raw endpoint sits closer to its
+   * own corridor's flow boundary" comparison _naturalLeanAt's own refPoint
+   * selection already uses, applied here to choose between the two ENDS
+   * instead of between the two endpoints of one single run.
+   * @param {object[]} chainChannels
+   * @param {number[]} rawA
+   * @param {number[]} rawB
+   * @returns {number} index into chainChannels, or -1 when no defensible
+   *   anchor exists (a raw endpoint is missing)
+   * @private
+   */
+  _chainCanonicalIndex(chainChannels, rawA, rawB) {
+    if (!chainChannels.length || !rawA || !rawB) return -1;
+    if (chainChannels.length === 1) return 0;
+    const distToChan = (chan, raw) => {
+      const horizontal = chan.direction === 'horizontal';
+      const flow = horizontal ? 0 : 1;
+      const flowLo = horizontal ? chan.x1 : chan.y1;
+      const flowHi = horizontal ? chan.x2 : chan.y2;
+      return Math.min(Math.abs(raw[flow] - flowLo), Math.abs(raw[flow] - flowHi));
+    };
+    const first = chainChannels[0];
+    const last = chainChannels[chainChannels.length - 1];
+    return distToChan(first, rawA) <= distToChan(last, rawB) ? 0 : chainChannels.length - 1;
+  }
+
+  /**
+   * Orchestrates Phase 1's chain self-consistency propagation for one
+   * line's own corridor chain: computes naturalLean at the canonical end
+   * (via the existing, unchanged _naturalLeanAt formula) and propagates a
+   * SIGN-ONLY consistent side to every OTHER corridor in the same chain
+   * via the closed-form k-factor (see corridorFlowFactor's own docblock —
+   * magnitude never propagates, only Math.sign of the transformed lean).
+   * Reduces to a no-op for a single-corridor "chain" (nothing to
+   * propagate to) and for a genuinely degenerate canonical end (k=0) —
+   * both return null, meaning "no hint, use today's uncorrected
+   * per-corridor local computation", never "assign side 0 everywhere".
+   * Deliberately scoped this way even though a single-corridor line could
+   * in principle still get a real, trivial `k`/`grounded:true` entry
+   * (useful to Phase 2's `_pairwiseCrossCorridorOrder`, which wants a real
+   * `k` for every corridor a potential seed-partner touches) — tried, and
+   * reverted: activating `chainSides` for the single-corridor case changes
+   * `_trunkLaneAssignment`'s leanOf from an Infinity fallback (an
+   * unregistered line sorts to the OUTSIDE of a lane group) to a real,
+   * finite value for every solo/discovered-trunk candidate evaluated
+   * during a corridor-vs-plain cost comparison — confirmed to flip a
+   * plain-vs-corridor routing choice in `diagonal-segment.test.js`, a
+   * blast radius far too broad (touches essentially every routed line,
+   * not just the narrow multi-line same-side tie-break class Phase 2
+   * targets) for what it bought.
+   *
+   * chainChannels here is always the JOINER's own traversal chain; a
+   * discovered trunk's own creator never has a side of its own regardless
+   * (see _trunkLaneAssignment's existing creator handling, unaffected by
+   * this hint).
+   * `grounded` (Phase 2) marks whether a given entry IS the chain's own
+   * canonical anchor — i.e. whether its own `lean` is this line's real,
+   * locally-measured naturalLean at that corridor, not a value carried
+   * over from elsewhere. Only a grounded corridor's own recorded
+   * naturalLean magnitude is safe to compare directly against another
+   * line's own (see `_bothGroundedAt`) — an ungrounded one's magnitude is
+   * measured in a DIFFERENT corridor's local frame, scaled by `k`, with no
+   * principled meaning as a distance at THIS corridor.
+   * @param {object[]} chainChannels
+   * @param {string} lineId
+   * @param {number[]} rawA
+   * @param {number[]} rawB
+   * @returns {Map<string, {side:number, lean:number, offsetRel:number, k:number, grounded:boolean}>|null}
+   * @private
+   */
+  _chainSideAssignment(chainChannels, lineId, rawA, rawB) {
+    if (!chainChannels || chainChannels.length < 2 || !rawA || !rawB) return null;
+    const canonicalIdx = this._chainCanonicalIndex(chainChannels, rawA, rawB);
+    if (canonicalIdx < 0) return null;
+    const canonical = chainChannels[canonicalIdx];
+    // The canonical corridor's own reference endpoint is used DIRECTLY —
+    // never re-derived via _naturalLeanAt's own "closer of rawA/rawB"
+    // ambiguity resolution, even though that's the exact formula
+    // _mergeOrRegisterTrunk itself uses. Confirmed as a real, live bug
+    // when it wasn't: _naturalLeanAt picks whichever raw endpoint sits
+    // closer to THIS corridor's own x1/x2/y1/y2 — correct for
+    // _mergeOrRegisterTrunk's own per-RUN use (that corridor argument is
+    // always a specific line's own about-to-be-registered SPAN), but
+    // wrong here, where `canonical` can be a DISCOVERED trunk whose own
+    // bounds are the union of every member's registered span — for the
+    // trunk's OWN creator, that's its full end-to-end run, often far
+    // longer than a joiner's own local traversal through it. A joiner's
+    // real, locally-relevant destination lost to its own textually-far
+    // anchor purely because the anchor happened to sit close to the
+    // trunk's own creator-defined span edge — reproduced live: a joiner
+    // whose real destination sat on the correct (east) side of a shared
+    // discovered trunk was assigned the wrong (west) side instead,
+    // because its anchor (never actually near this trunk at all) read as
+    // "closer" to the trunk's own oversized bounds than its destination
+    // did, forcing it to cross back over the trunk creator's own line to
+    // reach where it actually needed to go. _chainCanonicalIndex has
+    // already resolved which endpoint is structurally adjacent to this
+    // corridor — index 0 (first in the chain) is always rawA, the last
+    // index is always rawB — there is no remaining ambiguity to re-derive.
+    const canonicalHorizontal = canonical.direction === 'horizontal';
+    const canonicalCross = canonicalHorizontal ? 1 : 0;
+    const canonicalCenterline = Number.isFinite(canonical.crossCenter)
+      ? canonical.crossCenter
+      : (canonicalHorizontal ? (canonical.y1 + canonical.y2) / 2 : (canonical.x1 + canonical.x2) / 2);
+    const canonicalRef = canonicalIdx === 0 ? rawA : rawB;
+    const canonicalLean = canonicalRef[canonicalCross] - canonicalCenterline;
+    const canonicalK = this._chainKFactor(chainChannels, canonicalIdx, rawA, rawB);
+    if (canonicalK === 0) return null;
+    const offsetRel = canonicalLean * canonicalK;
+    const result = new Map();
+    for (let i = 0; i < chainChannels.length; i++) {
+      const chan = chainChannels[i];
+      const k = this._chainKFactor(chainChannels, i, rawA, rawB);
+      const lean = offsetRel * k;
+      result.set(chan.id, { side: Math.sign(lean), lean, offsetRel, k, grounded: i === canonicalIdx });
+    }
+    return result;
+  }
+
+  /**
    * Lane assignment for one line at one corridor (config channel or
    * discovered trunk) — a PURE function of the corridor's current member
    * set, recomputed fresh on every call. Deliberately NOT a stored,
@@ -2666,7 +3004,194 @@ export class RouterCore {
    * @returns {{ laneIndex: number, laneCount: number, offset: number }}
    * @private
    */
-  _trunkLaneAssignment(corridor, lineId) {
+  /**
+   * Chain-Aware Corridor Lane Consistency, Phase 2. Combines two checks:
+   *
+   * 1. Direct groundedness — `row`'s own recorded naturalLean magnitude
+   *    for a member is safe to compare against another member's ONLY when
+   *    it's that member's own chain's canonical anchor (see
+   *    _chainSideAssignment's own `grounded` field, persisted on the
+   *    member tuple by _mergeOrRegisterTrunk) — otherwise the magnitude
+   *    was carried over (sign-transformed) from a DIFFERENT corridor's
+   *    local frame, with no principled meaning as a distance at `row`.
+   *    This alone catches a case the ORIGINAL same-side safety check
+   *    (below) could not: line A ungrounded here because ITS OWN canonical
+   *    anchor is some corridor line B never touches at all — no SHARED
+   *    other corridor exists for a co-occurrence check to find, yet A's
+   *    magnitude here is still not trustworthy.
+   * 2. The ORIGINAL same-side safety check — true when lineA/lineB also
+   *    co-occur, as members, in some OTHER registered corridor whose own
+   *    flow axis differs from `row`'s (this is the exact confirmed shape
+   *    of `kelvin-bundle-crossing.test.js`'s own res=64 regression: two
+   *    lines chained through two differently-oriented channels, one
+   *    channel's own local lean disagreeing with the other's for the same
+   *    pair) — kept as a structural, always-computable floor UNDERNEATH
+   *    check 1, specifically because `grounded` (unlike this check) can
+   *    only be accurate when a line's registration actually ran through
+   *    the real _chainSideAssignment pipeline; a member registered via a
+   *    direct `_registerLineSegments` call with no `chainSides` (every
+   *    hand-built unit test in this suite that doesn't route through
+   *    `computePath`) defaults `grounded` to `true` — correct for a
+   *    genuinely single-corridor line, but not a signal check 1 alone can
+   *    trust blindly for a pair that visibly co-occurs elsewhere. Confirmed
+   *    as a real gap, not a hypothetical: `channel-lane-natural-side.test.js`'s
+   *    own dedicated regression test for this exact scenario failed when
+   *    check 1 briefly shipped alone.
+   *
+   * An unregistered member (no tuple yet — the common "this same call is
+   * deciding this line's own not-yet-registered offset" case, see
+   * leanOf's own comment above) defaults to grounded=true: harmless, since
+   * leanOf's own Infinity fallback for that same line already makes the
+   * magnitude comparison a no-op via the `||` short-circuit regardless of
+   * what this returns.
+   * @param {object} row - the corridor currently being tie-broken
+   * @param {string} lineA
+   * @param {string} lineB
+   * @returns {boolean}
+   * @private
+   */
+  _bothGroundedAt(row, lineA, lineB) {
+    const groundedOf = (id) => row.members?.get(id)?.[7] ?? true;
+    if (!groundedOf(lineA) || !groundedOf(lineB)) return false;
+    return this._coOccurringOtherCorridors(row, lineA, lineB).length === 0;
+  }
+
+  /**
+   * Every OTHER registered corridor (channel or discovered trunk) whose
+   * own flow axis differs from `row`'s, that `lineA`/`lineB` both
+   * co-occur in as members — a generalization of the retired same-side
+   * safety check (see `_bothGroundedAt`'s own docblock) from a boolean
+   * into the actual candidate ROWS, for `_pairwiseCrossCorridorOrder`'s
+   * own seed-corridor selection to consider.
+   * @param {object} row
+   * @param {string} lineA
+   * @param {string} lineB
+   * @returns {object[]}
+   * @private
+   */
+  _coOccurringOtherCorridors(row, lineA, lineB) {
+    const result = [];
+    for (const t of this._trunks) {
+      if (t === row || t.direction === row.direction) continue;
+      if (t.members?.has(lineA) && t.members?.has(lineB)) result.push(t);
+    }
+    return result;
+  }
+
+  /**
+   * `corridor`'s own STORED groundedness flag for `lineId` ONLY — unlike
+   * `_bothGroundedAt`, deliberately WITHOUT that method's own additional
+   * co-occurrence floor. That floor exists specifically because `row` (in
+   * `_bothGroundedAt`'s usual caller, the same-side tie-break) is always
+   * the corridor currently being evaluated, so ITS OWN co-occurrence
+   * check is a meaningful, non-circular signal. Reusing `_bothGroundedAt`
+   * here instead — to test a CANDIDATE SEED corridor found via
+   * `_coOccurringOtherCorridors(row, ...)` — would recursively find `row`
+   * ITSELF as a "co-occurring other corridor" relative to the seed (by
+   * construction: the seed was only found because it co-occurs with
+   * `row`), unconditionally disqualifying every possible seed and making
+   * `_pairwiseCrossCorridorOrder` a silent, permanent no-op. This narrower
+   * check avoids that trap.
+   * @param {object} corridor
+   * @param {string} lineId
+   * @returns {boolean}
+   * @private
+   */
+  _locallyGrounded(corridor, lineId) {
+    return corridor.members?.get(lineId)?.[7] ?? true;
+  }
+
+  /**
+   * Chain-Aware Corridor Lane Consistency, Phase 2 — resolves same-side
+   * order for (lineA, lineB) at `row` when `row` itself is NOT jointly
+   * grounded for both (see `_bothGroundedAt`), via a SEED corridor and
+   * `pairOrderHandedness` (see that module-level function's own docblock
+   * — UNVERIFIED by algebra alone, only trusted here because it's
+   * exercised by a dedicated adversarial test suite, constructed the same
+   * literal-geometry way this mechanism's own turn-handedness table was,
+   * BEFORE this method is ever wired into a live comparator).
+   *
+   * Seed selection: among every OTHER, differently-oriented corridor
+   * lineA/lineB both co-occur in, the seed must be one where BOTH lines
+   * are locally grounded (see `_locallyGrounded`) — a corridor where only
+   * one (or neither) is grounded has the identical "no principled
+   * magnitude" problem this whole mechanism exists to avoid, just moved
+   * one corridor over. Requires EXACTLY one such candidate: zero means no
+   * defensible seed exists; 2+ is a genuine tie (no way to prefer one
+   * over another) — both cases fall through to the caller's own
+   * lexicographic fallback, identical to today's behavior.
+   * @param {object} row
+   * @param {string} lineA
+   * @param {string} lineB
+   * @returns {number} a comparator-shaped number (<0, >0), or exactly 0
+   *   when no resolution is possible (caller falls through to lineId)
+   * @private
+   */
+  _pairwiseCrossCorridorOrder(row, lineA, lineB) {
+    const others = this._coOccurringOtherCorridors(row, lineA, lineB);
+    const candidates = others.filter(t => this._locallyGrounded(t, lineA) && this._locallyGrounded(t, lineB));
+    if (candidates.length !== 1) return 0;
+    const seed = candidates[0];
+    const leanAtSeed = (id) => seed.members?.get(id)?.[4] ?? Infinity;
+    const orderAtSeed = Math.abs(leanAtSeed(lineA)) - Math.abs(leanAtSeed(lineB));
+    if (!orderAtSeed || !Number.isFinite(orderAtSeed)) return 0;
+    const kOf = (r, id) => r.members?.get(id)?.[6] ?? 0;
+    const handedness = pairOrderHandedness(kOf(seed, lineA), kOf(row, lineA), kOf(seed, lineB), kOf(row, lineB));
+    if (!handedness) return 0;
+    return orderAtSeed * handedness;
+  }
+
+  /**
+   * Same-side within-bucket comparator value for (lineA, lineB) at `row`:
+   * real geometric magnitude when it's safe to trust
+   * (`_bothGroundedAt`), the seed-propagated pairwise order when it's
+   * not AND this is the only pair in play (`_pairwiseCrossCorridorOrder`,
+   * gated by `groupSize`), lexicographic order as the final, always-safe
+   * fallback otherwise. Shared by both `_trunkLaneAssignment` branches so
+   * they read from a single source of truth instead of two independently-
+   * maintained copies (see Finding 1 — this pairing drifting out of sync
+   * once already is exactly the bug class this consolidation avoids
+   * repeating).
+   *
+   * `groupSize` (the total member count of the SAME-side bucket lineA/
+   * lineB both belong to, not `row`'s overall membership) gates the
+   * pairwise attempt to EXACTLY 2 — confirmed as a real, necessary
+   * restriction, not a hypothetical one: `Array.prototype.sort`'s
+   * comparator contract requires a transitive, consistent order across
+   * EVERY element being sorted, but `_pairwiseCrossCorridorOrder` resolves
+   * each pair independently, often via a DIFFERENT seed corridor per
+   * pair — nothing guarantees those independent resolutions compose into
+   * one consistent order once 3+ lines share a bucket. Reproduced live:
+   * enabling this unconditionally on `kelvin-bundle-crossing.test.js`'s
+   * own 4-line bundle (line_3/4/5/6, all same-side at channel_3) produced
+   * 6 real crossings — some pairs resolved via one seed, others fell to
+   * lexicographic, and the two systems disagreed with each other across
+   * the group. For exactly 2 lines, there is only one pair — transitivity
+   * across a 3rd, 4th, ... element is vacuous, so the restriction costs
+   * nothing there. A genuine fix for the 3+-line case would need a real
+   * constraint-satisfaction pass instead of a pairwise comparator, which
+   * is out of scope here (see the mechanism's own design notes on
+   * Condorcet-cycle-shaped conflicts).
+   * @param {object} row
+   * @param {string} lineA
+   * @param {string} lineB
+   * @param {(id:string)=>number} leanOf
+   * @param {number} groupSize
+   * @returns {number}
+   * @private
+   */
+  _sameSideOrder(row, lineA, lineB, leanOf, groupSize) {
+    if (this._bothGroundedAt(row, lineA, lineB)) {
+      const magDiff = Math.abs(leanOf(lineA)) - Math.abs(leanOf(lineB));
+      if (magDiff) return magDiff;
+    } else if (groupSize === 2) {
+      const resolved = this._pairwiseCrossCorridorOrder(row, lineA, lineB);
+      if (resolved) return resolved;
+    }
+    return lineA < lineB ? -1 : lineA > lineB ? 1 : 0;
+  }
+
+  _trunkLaneAssignment(corridor, lineId, chainSideHint = null) {
     // Always read the LIVE registry row — corridor may be a stale spread
     // copy (see _discoverTrunkCandidates) or a bare config-channel object
     // (every channel has a same-id trunk row seeded at construction).
@@ -2674,13 +3199,23 @@ export class RouterCore {
     const spacing = Number(corridor.line_spacing ?? row.line_spacing ?? this._trunkLineSpacing) || 0;
     const ids = new Set(row.members?.keys());
     ids.add(lineId);
+    // Chain-Aware Corridor Lane Consistency, Phase 1: this row's own entry
+    // in the ASKING line's chainSideHint (if any — see
+    // _chainSideAssignment), consulted ONLY for `lineId` itself, never for
+    // any other member read through sideOf/leanOf below. A real, computed
+    // hint is preferred outright over whatever this line's own registered
+    // entry (or lack of one) says — it reflects this SAME pass's actual
+    // chain-consistent geometry, which can legitimately disagree with a
+    // stale prior-pass registration or with the line's own not-yet-
+    // registered state.
+    const hint = chainSideHint?.get(row.id) ?? null;
     // Hoisted so the config-channel branch below can share both — see
     // that branch's own comment for why it needs them too. leanOf is the
     // continuous signed lean sideOf's Math.sign discards, used only as a
     // within-side-bucket ordering key (never to decide bucket membership
     // itself — that stays sideOf's discrete -1/0/+1, matching the change-
     // detection gate in _mergeOrRegisterTrunk).
-    const sideOf = (id) => row.members?.get(id)?.[2] ?? 0;
+    const sideOf = (id) => (id === lineId && hint) ? hint.side : (row.members?.get(id)?.[2] ?? 0);
     // The ASKING line itself is frequently not registered yet (this same
     // call is what decides the offset that _pushBundledApproachLegs then
     // uses to build the very leg _mergeOrRegisterTrunk later reads back —
@@ -2694,12 +3229,15 @@ export class RouterCore {
     // (caught live by convergence.test.js's steady-state-is-all-cache-hits
     // assertion). Infinity instead sorts an unregistered line to the
     // OUTSIDE of every already-known lean, deferring its real placement
-    // until it has one. Below, `(Math.abs(leanOf(a)) - Math.abs(leanOf(b)))
-    // || tiebreak` relies on `||` treating both an exact-0 difference (a
-    // real tie) AND a NaN difference (Infinity - Infinity, both sides
-    // unknown) as falsy, falling through to the lineId tiebreak either way
-    // — no separate equality branch needed.
-    const leanOf = (id) => row.members?.get(id)?.[4] ?? Infinity;
+    // until it has one. A chain hint is exempt from this fallback — it's a
+    // genuine, already-computed geometric fact (not a placeholder for
+    // "unknown yet"), so it's used directly even when small. Below,
+    // `(Math.abs(leanOf(a)) - Math.abs(leanOf(b))) || tiebreak` relies on
+    // `||` treating both an exact-0 difference (a real tie) AND a NaN
+    // difference (Infinity - Infinity, both sides unknown) as falsy,
+    // falling through to the lineId tiebreak either way — no separate
+    // equality branch needed.
+    const leanOf = (id) => (id === lineId && hint) ? hint.lean : (row.members?.get(id)?.[4] ?? Infinity);
     if (row.origin === 'discovered') {
       // The creator's own natural side — same "which side of the
       // centerline does this line's true, un-bundled geometry lean
@@ -2719,9 +3257,22 @@ export class RouterCore {
       // when two joiners' own lean magnitudes are exactly equal (e.g.
       // neither has registered real geometry yet — the common case every
       // pre-existing test in this suite exercises).
-      const withinGroupCmp = (a, b) => (Math.abs(leanOf(a)) - Math.abs(leanOf(b))) || (a < b ? -1 : a > b ? 1 : 0);
-      const negatives = [...ids].filter(id => sideOf(id) < 0).sort(withinGroupCmp);
-      const positives = [...ids].filter(id => sideOf(id) >= 0).sort(withinGroupCmp);
+      //
+      // Chain-Aware Corridor Lane Consistency, Phase 2 (Finding 1): this
+      // magnitude comparison used to run completely unconditionally here —
+      // unlike the config-channel branch below, which already gated its
+      // own equivalent comparison behind a safety check. Confirmed as a
+      // real, PRE-EXISTING gap (not introduced by anything in this
+      // mechanism): a discovered trunk's own same-side tie-break could
+      // silently disagree with a differently-oriented chained corridor's
+      // own local lean for the same pair, the identical res=64 regression
+      // shape the config-channel branch's own check was built to prevent,
+      // just never guarded here. Gated the same way now — see
+      // _bothGroundedAt's own docblock.
+      const negatives = [...ids].filter(id => sideOf(id) < 0);
+      const positives = [...ids].filter(id => sideOf(id) >= 0);
+      negatives.sort((a, b) => this._sameSideOrder(row, a, b, leanOf, negatives.length));
+      positives.sort((a, b) => this._sameSideOrder(row, a, b, leanOf, positives.length));
       const laneCount = negatives.length + positives.length + 1;
       const negIdx = negatives.indexOf(lineId);
       const inNegativeGroup = negIdx >= 0;
@@ -2758,10 +3309,15 @@ export class RouterCore {
     //
     // A same-side WITHIN-bucket lexicographic fallback gap exists here
     // too, identical in shape to the discovered branch's own fix above —
-    // audited and confirmed real (see project memory). Deliberately NOT
-    // given the same leanOf-magnitude tie-break here, though: doing so
+    // audited and confirmed real (see project memory), and genuinely
+    // frustrating from a user's perspective: which of two same-side lines
+    // gets the inner lane depended on which line ID happened to sort
+    // first, with no connection to either line's own actual geometry.
+    //
+    // A first attempt gave this branch the SAME unconditional leanOf-
+    // magnitude tie-break the discovered branch above already uses, and
     // reproduced a live regression (kelvin-bundle-crossing.test.js's
-    // resolution-sweep test, res=64) where two lines chained through TWO
+    // resolution-sweep test, res=64): two lines chained through TWO
     // channels (a long force channel_2, a short local-direction "auto"
     // channel_3) had naturalLean disagree on relative order between the
     // two — channel_3's own LOCAL centerline is only meaningful to that one
@@ -2769,14 +3325,36 @@ export class RouterCore {
     // its lean against a different, differently-oriented chained channel.
     // The old pure-lineId order, for all its blindness, is at least the
     // SAME across every channel a line touches (a lineId doesn't change
-    // per-corridor) — replacing it with a per-channel-local geometric
-    // signal traded a single-channel same-side bug for a cross-channel
-    // chain-consistency one, the same unsolved class of problem as
-    // _mergeCorridors's own documented, deliberately-ABANDONED chain-order
-    // limitation (see this fix's own plan notes). Left as pure
-    // side-then-lineId pending a real chain-wide ordering fix, not a
-    // per-corridor one.
-    const users = [...ids].sort((a, b) => (sideOf(a) - sideOf(b)) || (a < b ? -1 : a > b ? 1 : 0));
+    // per-corridor) — an UNCONDITIONAL per-channel-local geometric signal
+    // traded a single-channel same-side bug for a cross-channel chain-
+    // consistency one, the same class of problem as _mergeCorridors's own
+    // documented chain-order limitation.
+    //
+    // Actual fix: use the geometric (leanOf-magnitude) tie-break, but only
+    // when it's provably safe to — i.e. only when `row` is genuinely each
+    // line's own GROUNDED corridor (its chain's own canonical anchor —
+    // see _bothGroundedAt's own docblock, which supersedes an earlier,
+    // narrower co-occurrence PROXY for this same question). When it's
+    // not — a differently-oriented chained corridor's own local lean could
+    // legitimately disagree with this one's — try the seed-propagated
+    // pairwise order instead (_pairwiseCrossCorridorOrder), lexicographic
+    // order (safe, if unhelpful) only as the final fallback when that
+    // resolves nothing either. When both lines are grounded here — the
+    // common case, and the ENTIRE case for a line only ever touching one
+    // channel — there is no other corridor for this signal to possibly
+    // disagree with, so geometry is unconditionally safe to use instead of
+    // an arbitrary lineId comparison. See _sameSideOrder's own docblock.
+    // Same-side bucket sizes, precomputed once — _sameSideOrder needs the
+    // SAME-side group's own member count (never `ids`' overall size) to
+    // know whether a pairwise resolution is even well-defined for a given
+    // pair (see that method's own `groupSize` docblock).
+    const sideCounts = new Map();
+    for (const id of ids) sideCounts.set(sideOf(id), (sideCounts.get(sideOf(id)) || 0) + 1);
+    const users = [...ids].sort((a, b) => {
+      const sideDiff = sideOf(a) - sideOf(b);
+      if (sideDiff) return sideDiff;
+      return this._sameSideOrder(row, a, b, leanOf, sideCounts.get(sideOf(a)));
+    });
     const i = users.indexOf(lineId);
     const n = users.length;
     return { laneIndex: i, laneCount: n, offset: spacing ? (i - (n - 1) / 2) * spacing : 0 };
@@ -2972,6 +3550,14 @@ export class RouterCore {
    *   actual rendered shape, not the pre-rounding sharp corner. `null`
    *   (no rounding applied — bevel, sharp corners, or radius 0) registers
    *   every trim as 0, identical to today's behavior.
+   * @param {Map<string, {side:number, lean:number, offsetRel:number, k:number, grounded:boolean}>|null} [chainSides] -
+   *   this line's own _chainSideAssignment result, straight from
+   *   `result.meta.chainSides` (Chain-Aware Corridor Lane Consistency,
+   *   Phase 1/2) — forwarded verbatim to every `_mergeOrRegisterTrunk`
+   *   call this scan makes, so a line's REGISTERED natural side matches
+   *   what its RENDERED route actually used. `null` (no corridor chain,
+   *   or a route strategy that never builds one) preserves today's exact
+   *   behavior.
    * @returns {boolean} whether this scan made lineId a brand-new member of
    *   a trunk it doesn't own (see _mergeOrRegisterTrunk's foreignJoinFlag
    *   comment) — computePath uses this to skip caching, so the next pass
@@ -2979,7 +3565,7 @@ export class RouterCore {
    *   instead of looking like an already-stable cache hit forever.
    * @private
    */
-  _registerLineSegments(lineId, pts, rawA = null, rawB = null, width = 0, cornerRadii = null) {
+  _registerLineSegments(lineId, pts, rawA = null, rawB = null, width = 0, cornerRadii = null, chainSides = null) {
     // Corner-index lookup by COORDINATE (not array position): this
     // function's own _compactPolyline call below drops collinear points
     // that _applyCornerRounding's cornerRadii array still assigned an
@@ -3111,7 +3697,7 @@ export class RouterCore {
     if (trunkCandidates) {
       trunkCandidates.sort((x, y) => y.length - x.length);
       for (const c of trunkCandidates) {
-        if (this._mergeOrRegisterTrunk(lineId, c.idx, c.a, c.b, c.horizontal, touchedTrunks, foreignJoinFlag, rawA, rawB, c.cornerInfo)) changed = true;
+        if (this._mergeOrRegisterTrunk(lineId, c.idx, c.a, c.b, c.horizontal, touchedTrunks, foreignJoinFlag, rawA, rawB, c.cornerInfo, chainSides)) changed = true;
       }
     }
     // Post-scan membership diff: this line leaves any trunk row the scan
@@ -3260,10 +3846,22 @@ export class RouterCore {
    *   resolved corner geometry at each end (from _registerLineSegments'
    *   cornerGeomAt), stored on the member tuple for _matchedTrunkCorner/
    *   _matchedSiblingArcs to read back later
+   * @param {Map<string, {side:number, lean:number, offsetRel:number, k:number, grounded:boolean}>|null} [chainSides] -
+   *   this line's own _chainSideAssignment result (Chain-Aware Corridor
+   *   Lane Consistency, Phase 1/2), keyed by corridor id — when this run's
+   *   matched/created row id has an entry, its propagated `side` overrides
+   *   this run's own local Math.sign(naturalLean) for registration (never
+   *   naturalLean's MAGNITUDE — see corridorFlowFactor's own docblock),
+   *   and its `offsetRel`/`k` are persisted on the member tuple so a
+   *   same-side tie-break between two DIFFERENT lines can later tell
+   *   whether either one's naturalSide here came from real local geometry
+   *   or from propagation. `null` (the common case: no multi-corridor
+   *   chain, or this run isn't part of one) preserves today's exact
+   *   behavior.
    * @returns {boolean} whether membership or bounds actually changed
    * @private
    */
-  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal, touchedTrunks = null, foreignJoinFlag = null, rawA = null, rawB = null, cornerInfo = null) {
+  _mergeOrRegisterTrunk(lineId, runIndex, a, b, horizontal, touchedTrunks = null, foreignJoinFlag = null, rawA = null, rawB = null, cornerInfo = null, chainSides = null) {
     const flow = horizontal ? 0 : 1;
     const cross = horizontal ? 1 : 0;
     const flowLo = Math.min(a[flow], b[flow]);
@@ -3304,47 +3902,46 @@ export class RouterCore {
       ? (existing.crossCenter ?? (horizontal ? (existing.y1 + existing.y2) / 2 : (existing.x1 + existing.x2) / 2))
       : crossCoord;
     // Reference point for natural side: whichever raw endpoint (anchor or
-    // attach) sits closer, on the FLOW axis, to THIS run — not the average
-    // of both. _registerLineSegments calls this once per straight run a
-    // line's route decomposes into, always passing the same whole-line
-    // rawA/rawB regardless of which run is being registered; averaging
-    // them ties every run's side to the line's overall start-to-end
-    // displacement, which a distant destination can dominate even for a
-    // run that's really about the ANCHOR end of the journey. Confirmed as
-    // a real bug via a live user report: a line whose anchor sat clearly
-    // south of a trunk it was joining right after departure got assigned
-    // a NORTH-side lane instead, purely because its own destination lay
-    // far enough north to pull the (anchor+attach)/2 average across the
-    // trunk's centerline — even though this run has nothing to do with
-    // the destination yet. Picking the flow-closer endpoint instead makes
-    // each run's side reflect the geometry actually local to it: a run
-    // near the anchor leans on the anchor's own side, a run near the
-    // attach point leans on that side instead.
-    const flowMid = (flowLo + flowHi) / 2;
-    // The flow-closer comparison above degenerates once this run's own
-    // span already covers MOST of the line's total anchor-to-attach flow
-    // distance — a run that long practically origin­ates at rawA and
-    // terminates within a stub-length of rawB by construction (it's the
-    // whole journey, minus one final perpendicular bend), so BOTH raw
-    // endpoints end up a similarly small distance from flowMid, and
-    // whichever is a few px closer wins by pure happenstance rather than
-    // any real geometric signal. Confirmed live: a run 90% of its own
-    // line's total flow span picked the attach endpoint by an 8px margin,
-    // flipping that line's natural side to match its own (unrelated, far
-    // south) destination instead of its own (clearly north) anchor —
-    // exactly the "distant destination dominates" failure this whole
-    // mechanism exists to prevent, just re-entering through the
-    // flow-closer tiebreak instead of a plain average. Once the run
-    // covers at least half the line's own total flow span, skip the
-    // comparison and default to the anchor unconditionally: a run this
-    // long IS the outbound leg by definition, not meaningfully "closer"
-    // to either end. A short run genuinely local to one end (the case
-    // this heuristic was built for) is far below this threshold and keeps
-    // its existing, correct behavior untouched.
-    const totalFlowSpan = (rawA && rawB) ? Math.abs(rawB[flow] - rawA[flow]) : 0;
-    const runSpansMostOfLine = (flowHi - flowLo) >= 0.5 * totalFlowSpan;
+    // attach) is closer to actually TOUCHING this run — measured as
+    // distance from each raw endpoint to its own nearest run boundary
+    // (|rawA[flow]-flowLo| vs |rawB[flow]-flowHi|), not the average of
+    // both and not distance-to-the-run's-own-midpoint. _registerLineSegments
+    // calls this once per straight run a line's route decomposes into,
+    // always passing the same whole-line rawA/rawB regardless of which run
+    // is being registered; averaging them ties every run's side to the
+    // line's overall start-to-end displacement, which a distant destination
+    // can dominate even for a run that's really about the ANCHOR end of the
+    // journey. Confirmed as a real bug via a live user report: a line whose
+    // anchor sat clearly south of a trunk it was joining right after
+    // departure got assigned a NORTH-side lane instead, purely because its
+    // own destination lay far enough north to pull the (anchor+attach)/2
+    // average across the trunk's centerline — even though this run has
+    // nothing to do with the destination yet.
+    //
+    // An earlier version of this fix compared distance-to-the-run's-own-
+    // MIDPOINT instead, with a separate `runSpansMostOfLine` override that
+    // defaulted to the anchor unconditionally once the run covered half the
+    // line's own total flow span — added because that midpoint comparison
+    // degenerates for a long run (both raw endpoints end up similarly close
+    // to a distant midpoint, so a few px of happenstance decided it) and,
+    // in the one reported case that motivated the override, the anchor
+    // happened to be the correct default. Confirmed as a real, DIFFERENT
+    // bug once a second live case surfaced where the SAME override picked
+    // the wrong endpoint: a line chaining through a discovered trunk whose
+    // own run covered ~85% of the line's total flow span had a genuinely
+    // FAR, geometrically irrelevant anchor (clear across the viewBox, from
+    // a wholly different, perpendicular leg of the route) and a genuinely
+    // CLOSE, locally-relevant destination (a few units past the run's own
+    // far boundary) — "default to anchor once the run is long" isn't a
+    // reliably correct rule; it only happened to match the one case that
+    // originally motivated it. Distance-to-OWN-nearest-boundary is what
+    // both cases actually need: an endpoint sitting right at (or just past)
+    // the run's own edge is genuinely local to this run, however long the
+    // run is, and doesn't degenerate the way distance-to-midpoint does —
+    // confirmed against both the original motivating case and this new one
+    // without needing a separate length-based override at all.
     const refPoint = (rawA && rawB)
-      ? (runSpansMostOfLine || Math.abs(rawA[flow] - flowMid) <= Math.abs(rawB[flow] - flowMid) ? rawA : rawB)
+      ? (Math.abs(rawA[flow] - flowLo) <= Math.abs(rawB[flow] - flowHi) ? rawA : rawB)
       : (rawA || rawB);
     // Raw signed lean distance, kept alongside its own discretized sign
     // (naturalSide, a bare Math.sign of this same value) — naturalSide
@@ -3360,7 +3957,30 @@ export class RouterCore {
     // across passes for an unchanged line, same as flowLo/flowHi below —
     // safe to compare with exact `===` in the change-detection gate.
     const naturalLean = refPoint ? (refPoint[cross] - centerlineForSide) : 0;
-    const naturalSide = Math.sign(naturalLean);
+    // Chain-Aware Corridor Lane Consistency, Phase 1/2: this run's own
+    // matched/created row id (known now — existing.id when joining a row,
+    // or the exact same deterministic id this call itself would create
+    // below otherwise, see the trunk object's own `id` a few lines down)
+    // looked up directly in chainSides. naturalLean itself is left
+    // UNCHANGED above (this run's own local value; magnitude never
+    // propagates) — only the discretized SIDE is overridden, and only
+    // when this run genuinely belongs to a corridor this line's own
+    // chain propagation covered. offsetRel/k are 0 whenever there's no
+    // entry (the common case), matching every other member's default
+    // reading of an absent tuple slot elsewhere in this file (`?? 0`).
+    const rowId = existing ? existing.id : `trunk:${lineId}:${runIndex}`;
+    const chainEntry = chainSides?.get(rowId) ?? null;
+    const naturalSide = chainEntry ? chainEntry.side : Math.sign(naturalLean);
+    const offsetRel = chainEntry ? chainEntry.offsetRel : 0;
+    const chainK = chainEntry ? chainEntry.k : 0;
+    // Phase 2: whether THIS row is genuinely the chain's own canonical
+    // anchor for this line (chainEntry.grounded), or trivially true when
+    // there's no chain at all (chainEntry null — a single-corridor route,
+    // where this row's own naturalLean is by definition the only, real
+    // measurement). False only when this row is a chain member whose OWN
+    // local naturalLean was overridden/derived from elsewhere — see
+    // _bothGroundedAt's own docblock for how this is used.
+    const grounded = chainEntry ? chainEntry.grounded : true;
     if (existing) {
       touchedTrunks?.add(existing);
       const prev = existing.members.get(lineId);
@@ -3379,9 +3999,13 @@ export class RouterCore {
       // resolved radius tightening/loosening pass over pass, per
       // _matchedSiblingArcs) even while flowLo/flowHi/naturalSide stay
       // fixed, and a matched sibling elsewhere needs to see that update to
-      // keep converging.
+      // keep converging. offsetRel/k/grounded are included for the
+      // identical reason naturalSide is: a same-side tie-break between two
+      // different lines (Phase 2) reads them, so a change there is a real
+      // change too, even when nothing else about this run moved.
       if (prev && prev[0] === flowLo && prev[1] === flowHi && (prev[2] ?? 0) === naturalSide &&
-        (prev[4] ?? 0) === naturalLean && this._cornerInfoEqual(prev[3], cornerInfo)) return false;
+        (prev[4] ?? 0) === naturalLean && this._cornerInfoEqual(prev[3], cornerInfo) &&
+        (prev[5] ?? 0) === offsetRel && (prev[6] ?? 0) === chainK && (prev[7] ?? true) === grounded) return false;
       const isNewMember = !prev;
       // A line becoming a member of a row it did NOT create happens purely
       // as a side effect of ITS OWN independent geometry coincidentally
@@ -3395,7 +4019,7 @@ export class RouterCore {
       // a stable cache hit forever, silently hiding the newly-eligible
       // trunk from ever being reconsidered by discovery.
       if (isNewMember && existing.sourceLineId !== lineId && foreignJoinFlag) foreignJoinFlag.joined = true;
-      existing.members.set(lineId, [flowLo, flowHi, naturalSide, cornerInfo, naturalLean]);
+      existing.members.set(lineId, [flowLo, flowHi, naturalSide, cornerInfo, naturalLean, offsetRel, chainK, grounded]);
       const boundsChanged = this._recomputeTrunkBounds(existing);
       return isNewMember || boundsChanged;
     }
@@ -3430,7 +4054,7 @@ export class RouterCore {
       // — the creator is removed from the joiner set entirely, it always
       // holds the centerline), stored anyway for shape consistency across
       // every members entry.
-      members: new Map([[lineId, [flowLo, flowHi, naturalSide, cornerInfo, naturalLean]]])
+      members: new Map([[lineId, [flowLo, flowHi, naturalSide, cornerInfo, naturalLean, offsetRel, chainK, grounded]]])
     };
     this._trunks.push(trunk);
     touchedTrunks?.add(trunk);
@@ -3650,10 +4274,13 @@ export class RouterCore {
    *   (the true first channel in a chain, arriving from the raw anchor
    *   stub instead of another channel) — see the taper gate below for why
    *   this narrows when the grace-zone taper actually needs to engage
+   * @param {Map<string, {side:number, lean:number, offsetRel:number, k:number, grounded:boolean}>|null} [chainSideHint] -
+   *   forwarded verbatim to _trunkLaneAssignment (Chain-Aware Corridor
+   *   Lane Consistency, Phase 1) — see that method's own docblock
    * @returns {{ entry: number[], exit: number[], horizontal: boolean, entryAlreadyInside: boolean, exitAlreadyInside: boolean, laneOffset: number, laneIndex: number, laneCount: number, lineSpacing: number }}
    * @private
    */
-  _channelCrossingPoints(chan, approachPoint, departPoint, lineId, taperBaseline = 0, approachAxisHorizontal = null) {
+  _channelCrossingPoints(chan, approachPoint, departPoint, lineId, taperBaseline = 0, approachAxisHorizontal = null, chainSideHint = null) {
     const horizontal = chan.direction === 'horizontal';
     const flow = horizontal ? 0 : 1;   // axis index the line travels along through the channel
     const cross = horizontal ? 1 : 0;  // axis index perpendicular to flow (bundling axis)
@@ -3662,7 +4289,7 @@ export class RouterCore {
     const crossLo = horizontal ? chan.y1 : chan.x1;
     const crossHi = horizontal ? chan.y2 : chan.x2;
 
-    const { laneIndex, laneCount, offset } = this._trunkLaneAssignment(chan, lineId);
+    const { laneIndex, laneCount, offset } = this._trunkLaneAssignment(chan, lineId, chainSideHint);
     // A discovered trunk's lanes are measured from the creator's own
     // centerline (crossCenter) — not from wherever this line happens to
     // approach — so a joiner always lands a whole lane offset BESIDE the
@@ -3998,7 +4625,7 @@ export class RouterCore {
    * @param {object} lastHint - the true hint governing arrival at `to`
    * @private
    */
-  _pushBundledApproachLegs(legs, stubReq, from, to, horizontal, laneIndex, laneCount, lineSpacing, firstHint, lastHint, chan) {
+  _pushBundledApproachLegs(legs, stubReq, from, to, horizontal, laneIndex, laneCount, lineSpacing, firstHint, lastHint, chan, bundleEntryHints = null) {
     const flow = horizontal ? 0 : 1;
     const cross = horizontal ? 1 : 0;
     // Baseline uses the SAME threshold as the cardinal-side lead-out/lead-in
@@ -4046,7 +4673,26 @@ export class RouterCore {
     // shrinks the reservation, never grows it past what stubLengthFor(
     // stubReq) already produced.
     const available = Math.abs(to[flow] - from[flow]);
-    const legacyRawOffset = stubLengthFor(stubReq) + laneIndex * lineSpacing;
+    // Bundle-ENTRY legs only (bundleEntryHints truthy — see this
+    // function's own doc comment above and _buildBundleEntryReverseCurves):
+    // drop the unconditional per-lane stagger. It exists to keep sibling
+    // lines' lane-separation jogs from rendering visually coincident (see
+    // the docblock above this function), but the conflict-extension
+    // search just below (`_pureCrossAxisLegTooCloseToOtherLine`) already
+    // re-derives exactly that staggering, on demand, whenever a real
+    // conflict is actually detected against currently-registered sibling
+    // geometry — an UNCONDITIONAL stagger here pushes every bundle
+    // member's entry bend apart even when nothing requires it, which is
+    // what made a whole bundle's entry render as a staircase instead of a
+    // converging "comb" even after the radii themselves were coordinated
+    // to match. EXIT legs (bundleEntryHints null — the tail/departure
+    // call site) keep the original, unconditional stagger completely
+    // unchanged: exit-leg saturation (`midIsTo`, below) has its own
+    // documented, previously-regressed sensitivity to this term's
+    // magnitude, and this feature was deliberately scoped to never touch
+    // that leg (see _buildBundleEntryReverseCurves's own docblock).
+    const laneStagger = bundleEntryHints ? 0 : laneIndex * lineSpacing;
+    const legacyRawOffset = stubLengthFor(stubReq) + laneStagger;
     // Only apply the cross-axis-based shrink when doing so doesn't change
     // whether this offset SATURATES against `available` — i.e. never turn
     // an already-saturating (legacyRawOffset >= available) case into a
@@ -4064,11 +4710,23 @@ export class RouterCore {
     // regression for an EXIT leg that was depending on saturation, not on
     // the corner_radius reservation itself, for its own clean shape.
     let rawOffset = legacyRawOffset;
-    if (legacyRawOffset < available) {
+    // Bundle-ENTRY legs skip this shrink entirely (see the laneStagger
+    // comment above for the identical bundleEntryHints-based scoping):
+    // the crossDist*0.325 estimate below assumes a plain 90°-quarter-
+    // circle fillet, which really can never render past that regardless
+    // of reserved room — but bundle-entry corners now render via
+    // _buildBundleEntryReverseCurves' partial-sweep construction instead,
+    // which CAN use the full stubLengthFor(stubReq) reservation to reach
+    // much closer to the configured corner_radius. Shrinking the
+    // reservation here would starve that construction of room it can
+    // actually put to good use. EXIT legs are unaffected — they still
+    // render as plain quarter-circle fillets, so the original shrink
+    // still applies to them unchanged.
+    if (legacyRawOffset < available && !bundleEntryHints) {
       const crossDist = Math.abs(to[cross] - from[cross]);
       const crossAxisRadiusEstimate = crossDist * 0.325;
       const effectiveRadius = Math.min(stubReq.cornerRadius || 0, crossAxisRadiusEstimate);
-      rawOffset = stubLengthFor({ ...stubReq, cornerRadius: effectiveRadius }) + laneIndex * lineSpacing;
+      rawOffset = stubLengthFor({ ...stubReq, cornerRadius: effectiveRadius }) + laneStagger;
     }
     let corridorOffset = lineSpacing && laneCount > 1 && from[flow] !== to[flow]
       ? Math.sign(to[flow] - from[flow]) * Math.min(rawOffset, available)
@@ -4240,6 +4898,16 @@ export class RouterCore {
     legs.push(this._buildLegRequest(stubReq, from, nudge, fromIsAnchorHint ? { source: 'geometry' } : firstHint, { source: 'geometry' }));
     legs.push(this._buildLegRequest(stubReq, nudge, mid, { source: 'geometry' }, midLastHint));
     legs.push(this._buildLegRequest(stubReq, mid, to, { source: 'channel_axis', horizontal }, lastHint));
+    // Record this line's own lane-separation jog (the nudge/mid corner
+    // pair, by coordinate — see _buildBundleEntryReverseCurves) so bundle
+    // members entering the SAME channel can later agree on a shared,
+    // uniform radius instead of each independently rendering at its own
+    // crossDist-derived size. Only ever populated by the caller at the
+    // entry-leg call site (never the tail/departure call site), so this
+    // never touches the exit leg's own saturation-reliant (midIsTo) shape.
+    if (bundleEntryHints && chan?.id) {
+      bundleEntryHints.push({ nudge: nudge.slice(), mid: mid.slice(), channelId: chan.id });
+    }
   }
 
   /**
@@ -4403,13 +5071,21 @@ export class RouterCore {
    * comment for the overshoot-then-reverse bug this fixes.
    * @param {object} chan
    * @param {string} lineId
+   * @param {Map<string, {side:number, lean:number, offsetRel:number, k:number, grounded:boolean}>|null} [chainSideHint] -
+   *   forwarded verbatim to _trunkLaneAssignment (Chain-Aware Corridor
+   *   Lane Consistency, Phase 1) — MUST be the same hint the caller's own
+   *   loop iteration passes to _channelCrossingPoints for this same
+   *   corridor, or this look-ahead and the real per-corridor computation
+   *   it's looking ahead FROM can disagree — see _computeCorridorRoutedAttempt's
+   *   own call site comment for the overshoot-then-reverse bug class this
+   *   guards against.
    * @returns {number[]}
    * @private
    */
-  _corridorRefPoint(chan, lineId) {
+  _corridorRefPoint(chan, lineId, chainSideHint = null) {
     const horizontal = chan.direction === 'horizontal';
     const flowMid = horizontal ? (chan.x1 + chan.x2) / 2 : (chan.y1 + chan.y2) / 2;
-    const offset = Number.isFinite(chan.crossCenter) ? this._trunkLaneAssignment(chan, lineId).offset : 0;
+    const offset = Number.isFinite(chan.crossCenter) ? this._trunkLaneAssignment(chan, lineId, chainSideHint).offset : 0;
     const throughCoord = Number.isFinite(chan.crossCenter)
       ? chan.crossCenter + offset
       : (horizontal ? (chan.y1 + chan.y2) / 2 : (chan.x1 + chan.x2) / 2);
@@ -4528,18 +5204,45 @@ export class RouterCore {
     return { ...legResult, pts: [a, b] };
   }
 
-  _computeCorridorRouted(stubReq, smart, corridors) {
-    const attempt = this._computeCorridorRoutedAttempt(stubReq, smart, corridors);
+  _computeCorridorRouted(stubReq, smart, corridors, rawA = null, rawB = null) {
+    const attempt = this._computeCorridorRoutedAttempt(stubReq, smart, corridors, rawA, rawB);
     if (attempt !== RETRY_FORCE_ONLY) return attempt;
     const forceOnly = corridors.filter(c => c.mode === 'force');
     const dropped = corridors.filter(c => c.mode !== 'force').map(c => c.id).join(',');
     lcardsLog.debug(`[RouterCore] Route '${stubReq.id}': corridor chain conflicted with its own mandatory force channel(s); dropped optional corridor(s) [${dropped}], retrying force-only.`);
-    return this._computeCorridorRoutedAttempt(stubReq, smart, forceOnly);
+    return this._computeCorridorRoutedAttempt(stubReq, smart, forceOnly, rawA, rawB);
   }
 
-  _computeCorridorRoutedAttempt(stubReq, smart, corridors) {
+  /**
+   * @param {object} stubReq
+   * @param {boolean} smart
+   * @param {object[]} corridors
+   * @param {number[]|null} [rawA] - the line's TRUE raw anchor (req.a, not
+   *   stubReq.a's stub-shifted point) — used only to compute
+   *   _chainSideAssignment (Chain-Aware Corridor Lane Consistency, Phase
+   *   1), so its own registered chain-side propagation matches what
+   *   _mergeOrRegisterTrunk independently computes from the same true
+   *   endpoint later (see computePath's own _registerLineSegments call).
+   * @param {number[]|null} [rawB] - same, for the true raw destination (req.b)
+   * @private
+   */
+  _computeCorridorRoutedAttempt(stubReq, smart, corridors, rawA = null, rawB = null) {
     const chainChannels = corridors;
     if (!chainChannels.length) return null;
+    // Chain-Aware Corridor Lane Consistency, Phase 1/2: this line's own
+    // chain-consistent side assignment, computed ONCE per attempt from
+    // stable inputs (chain membership + this line's own true raw
+    // endpoints — never a lane offset, which is what this computation
+    // itself feeds into — see _chainSideAssignment's own docblock).
+    // Threaded into every _trunkLaneAssignment call this attempt makes
+    // below (_corridorRefPoint's look-ahead, _channelCrossingPoints' real
+    // entry/exit) so the look-ahead and the real per-corridor decision it's
+    // looking ahead FROM can never disagree with each other mid-
+    // computation, and recorded on this result's own meta.chainSides so
+    // computePath's _registerLineSegments call can register the SAME
+    // values this attempt actually rendered with, not silently recompute a
+    // possibly-different one later.
+    const chainSides = this._chainSideAssignment(chainChannels, stubReq.id, rawA, rawB);
     // A force channel is mandatory by definition (user-authored, always
     // honored regardless of cost — see computePath's hasForceChannels
     // branch, which uses this candidate unconditionally with no
@@ -4590,6 +5293,11 @@ export class RouterCore {
       : stubReq;
 
     const legs = [];
+    // Populated only by _pushBundledApproachLegs's entry-leg call site
+    // below (never the tail/departure call at the end of this function) —
+    // see _buildBundleEntryReverseCurves for how this feeds the reverse-
+    // curve construction used at a bundle's channel-entry corners.
+    const bundleEntryHints = [];
     let cursor = stubReq.a;
     // Every point that is a REAL, meaningful crossing along this chain —
     // a channel's own entry/exit (from _channelCrossingPoints) and the
@@ -4634,14 +5342,14 @@ export class RouterCore {
       // backtrack (a true 180-degree reversal on the same axis, not a real
       // corner — confirmed rendering as a degenerate zero-length
       // corner-rounding arc).
-      const nextRef = next ? this._corridorRefPoint(next, stubReq.id) : stubReq.b;
+      const nextRef = next ? this._corridorRefPoint(next, stubReq.id, chainSides) : stubReq.b;
       // null for k===0 (arriving from the raw anchor stub, not a previous
       // channel in this chain — see _channelCrossingPoints' own taper-gate
       // comment for why that case is deliberately left alone); otherwise
       // the actual previous channel's own flow axis, already tracked here
       // for the continuation-hint machinery below.
       const approachAxisHorizontal = k > 0 ? prevChannelHorizontal : null;
-      const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, laneCount, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id, stubLengthFor(legBase), approachAxisHorizontal);
+      const { entry, exit, horizontal, entryAlreadyInside, exitAlreadyInside, laneIndex, laneCount, lineSpacing } = this._channelCrossingPoints(chan, cursor, nextRef, stubReq.id, stubLengthFor(legBase), approachAxisHorizontal, chainSides);
       // Reject this whole candidate chain outright if a trunk's own
       // lane-offset entry/exit lands strictly inside an obstacle — see
       // _pointInsideObstacle's own comment. This is a hard rejection, not
@@ -4747,7 +5455,7 @@ export class RouterCore {
           : (prevExitAlreadyInside
             ? (prevChannelDir !== 0 ? { source: 'continuation', continuationDir: prevChannelDir, horizontal: prevChannelHorizontal } : { source: 'geometry' })
             : { source: 'channel_axis', horizontal: chainChannels[k - 1].direction === 'horizontal', continuationDir: prevChannelDir }),
-        entryHint, chan);
+        entryHint, chan, bundleEntryHints);
       legs.push(this._buildLegRequest(legBase, entry, exit,
         { source: 'channel_axis', horizontal },
         { source: 'channel_axis', horizontal }));
@@ -4943,6 +5651,8 @@ export class RouterCore {
         bends: Math.max(0, pts.length - 2),
         grid: { iterations: totalIterations },
         chainChannels: chainChannels.map((c, i) => ({ id: c.id, mode: c.mode, leg: i })),
+        chainSides,
+        bundleEntryHints,
         channel: {
           mode: channelInfo.mode,
           insidePx: channelInfo.inside,
@@ -6455,6 +7165,111 @@ export class RouterCore {
     return cornerRadii;
   }
 
+  /**
+   * Replaces a bundle's lane-separation S-curve corners (the nudge/mid pair
+   * `_pushBundledApproachLegs` builds when several lines converge onto a
+   * shared channel's own tightly-packed lanes) with a genuine "reverse
+   * curve" — two tangent arcs of the FULL configured `corner_radius`,
+   * sweeping only as much angle as this line's own crossDist actually
+   * needs — instead of the plain per-vertex quarter-circle fillet
+   * `_estimateCornerRadii` would otherwise compute for these two points,
+   * which is hard-capped at roughly `crossDist * 0.325` regardless of
+   * `corner_radius` (see "Cross-Axis-Aware Corridor-Entry Nudge Sizing" in
+   * the architecture doc — that formula is UNCHANGED and still exactly
+   * correct for every corner this function doesn't touch).
+   *
+   * Superseded design note: an earlier version of this mechanism instead
+   * clamped every bundle member down to the group's smallest achievable
+   * quarter-circle radius (`Math.min` across a small sibling registry,
+   * converging over the discovery loop) — genuinely uniform, but every
+   * member rendered at whatever its tightest bundle-mate could manage,
+   * often far short of the configured `corner_radius`. Reconsidered after
+   * seeing the real result live: with THIS construction, every member
+   * independently targets the same `radiusGlobal`, so uniformity falls out
+   * of matching a shared target rather than clamping to a shared floor —
+   * no cross-line registry/coordination needed for the radius itself
+   * anymore (only `_pushBundledApproachLegs`'s laneStagger removal, a
+   * separate, still-needed fix for STARTING POSITION, not size).
+   *
+   * `hints` comes directly from `_pushBundledApproachLegs`, which already
+   * knows exactly which two points are the nudge/mid pair and which
+   * channel they belong to the moment it builds them (not built on
+   * `_matchedTrunkCorner` — see that decision recorded in the prior
+   * revision of this comment in git history: it identifies a TRUNK-EXIT
+   * corner, keyed to a registered trunk MEMBER span, which the S-curve's
+   * own internal nudge/mid segments structurally never satisfy).
+   *
+   * Mutates `cornerRadii` in place: for a matched pair, both entries get a
+   * `.reverseCurve` descriptor (consumed by `_applyCornerRounding`'s
+   * render loop instead of its normal per-vertex quarter-circle path) and
+   * `.radius` set to the achieved `R` (kept in sync for any other code
+   * reading `.radius`, e.g. crossing-clearance trim registration — an
+   * approximation for a partial-sweep shape, but a reasonable one: `R`
+   * still bounds how far the curve reaches into the segment). Silently
+   * no-ops for a hint whose nudge/mid no longer survive as adjacent points
+   * in `pts` (e.g. compaction/reversal-collapse removed one) or whose
+   * geometry doesn't match the assumed flow/cross-axis-aligned shape —
+   * that corner just renders exactly as it would without this feature.
+   * @param {number[][]} pts
+   * @param {{index:number, radius:number, lenIn:number, lenOut:number}[]} cornerRadii
+   * @param {{nudge:number[], mid:number[], channelId:string}[]} hints
+   * @param {number} radiusGlobal - the configured corner_radius (target R)
+   * @private
+   */
+  _buildBundleEntryReverseCurves(pts, cornerRadii, hints, radiusGlobal) {
+    const idxByKey = new Map();
+    for (let i = 0; i < pts.length; i++) idxByKey.set(this._ptKey(pts[i]), i);
+    for (const hint of hints) {
+      const nudgeIdx = idxByKey.get(this._ptKey(hint.nudge));
+      const midIdx = idxByKey.get(this._ptKey(hint.mid));
+      if (nudgeIdx === undefined || midIdx === undefined || midIdx !== nudgeIdx + 1) continue;
+      if (nudgeIdx < 1 || midIdx > pts.length - 2) continue;
+      const pPrev = pts[nudgeIdx - 1], nudge = pts[nudgeIdx], mid = pts[midIdx], pAfter = pts[midIdx + 1];
+      // Structural assumption this construction relies on (always true by
+      // how _pushBundledApproachLegs builds this leg triplet — see its own
+      // docblock): pPrev->nudge and mid->pAfter are pure FLOW-axis moves,
+      // nudge->mid is a pure CROSS-axis move. Verified, not assumed
+      // blindly — a reshape pass that ever violated this would otherwise
+      // silently produce a malformed curve.
+      const horizontal = pPrev[1] === nudge[1] && mid[1] === pAfter[1];
+      const vertical = pPrev[0] === nudge[0] && mid[0] === pAfter[0];
+      if (!horizontal && !vertical) continue;
+      const flow = horizontal ? 0 : 1;
+      const cross = horizontal ? 1 : 0;
+      if (nudge[cross] !== pPrev[cross] || mid[cross] !== pAfter[cross]) continue;
+      const lenIn = Math.abs(nudge[flow] - pPrev[flow]);
+      const lenOut = Math.abs(pAfter[flow] - mid[flow]);
+      const crossDist = Math.abs(mid[cross] - nudge[cross]);
+      if (lenIn <= 0 || lenOut <= 0 || crossDist <= 0) continue;
+      const geo = reverseCurveGeometry(crossDist, radiusGlobal, lenIn, lenOut);
+      if (!geo || !(geo.R > 0)) continue;
+      const flowDirIn = Math.sign(nudge[flow] - pPrev[flow]);
+      const flowDirOut = Math.sign(pAfter[flow] - mid[flow]);
+      const crossDir = Math.sign(mid[cross] - nudge[cross]);
+      const T1 = nudge.slice(); T1[flow] = nudge[flow] - flowDirIn * geo.flowHalf;
+      const T2 = mid.slice(); T2[flow] = mid[flow] + flowDirOut * geo.flowHalf;
+      const midCrossStep = crossDir * (geo.R * (1 - Math.cos(geo.theta)));
+      const M1 = nudge.slice(); M1[cross] = nudge[cross] + midCrossStep;
+      const M2 = mid.slice(); M2[cross] = mid[cross] - midCrossStep;
+      // Sweep flags mirror the standard orthogonal-corner convention this
+      // file already uses elsewhere (cross product of incoming/outgoing
+      // direction vectors) — computed independently per arc from that
+      // arc's OWN local vIn/vOut, which is what correctly makes arc2 the
+      // mirror image of arc1 for a genuine S shape.
+      const vInAtNudge = [nudge[0] - pPrev[0], nudge[1] - pPrev[1]];
+      const vOutAtNudge = [mid[0] - nudge[0], mid[1] - nudge[1]];
+      const sweep1 = (vInAtNudge[0] * vOutAtNudge[1] - vInAtNudge[1] * vOutAtNudge[0]) < 0 ? 0 : 1;
+      const vInAtMid = vOutAtNudge;
+      const vOutAtMid = [pAfter[0] - mid[0], pAfter[1] - mid[1]];
+      const sweep2 = (vInAtMid[0] * vOutAtMid[1] - vInAtMid[1] * vOutAtMid[0]) < 0 ? 0 : 1;
+      const shared = { R: geo.R, T1, M1, M2, T2, sweep1, sweep2, dResidual: geo.dResidual };
+      cornerRadii[nudgeIdx - 1].radius = geo.R;
+      cornerRadii[nudgeIdx - 1].reverseCurve = { ...shared, role: 'first' };
+      cornerRadii[midIdx - 1].radius = geo.R;
+      cornerRadii[midIdx - 1].reverseCurve = { ...shared, role: 'second' };
+    }
+  }
+
   _applyCornerRounding(routeResult, radiusGlobal, routeId = null, ownWidth = 0) {
     const pts = routeResult.pts;
     if (!Array.isArray(pts) || pts.length < 3) {
@@ -6468,6 +7283,10 @@ export class RouterCore {
     parts.push(`M${lastOut[0]},${lastOut[1]}`);
 
     const cornerRadii = this._estimateCornerRadii(pts, radiusGlobal, routeId, ownWidth);
+    const bundleEntryHints = routeResult.meta?.bundleEntryHints;
+    if (bundleEntryHints && bundleEntryHints.length && routeId) {
+      this._buildBundleEntryReverseCurves(pts, cornerRadii, bundleEntryHints, radiusGlobal);
+    }
 
     for (let i = 1; i < pts.length - 1; i++) {
       const pPrev = pts[i - 1];
@@ -6478,6 +7297,41 @@ export class RouterCore {
 
       // Get pre-calculated (possibly adjusted) radius for this corner
       const cornerData = cornerRadii[i - 1];
+
+      // Reverse-curve pair (see _buildBundleEntryReverseCurves) — a
+      // genuinely different shape than every other corner this loop
+      // renders (two tangent arcs of a SHARED radius sweeping a partial
+      // angle, not one arc inscribed at this single vertex), so it's
+      // rendered directly here instead of falling into the generic
+      // orthogonal/general-angle branches below.
+      if (cornerData.reverseCurve) {
+        const rc = cornerData.reverseCurve;
+        if (rc.role === 'first') {
+          if (rc.T1[0] !== lastOut[0] || rc.T1[1] !== lastOut[1]) {
+            parts.push(`L${rc.T1[0]},${rc.T1[1]}`);
+          }
+          parts.push(`A${rc.R},${rc.R} 0 0 ${rc.sweep1} ${rc.M1[0]},${rc.M1[1]}`);
+          arcCount++;
+          totalTrim += rc.R;
+          if (rc.dResidual > 0.01 && (rc.M1[0] !== rc.M2[0] || rc.M1[1] !== rc.M2[1])) {
+            parts.push(`L${rc.M2[0]},${rc.M2[1]}`);
+            lastOut = rc.M2.slice();
+          } else {
+            lastOut = rc.M1.slice();
+          }
+        } else {
+          // role === 'second' — continues directly from wherever role
+          // 'first' left off (M1 or M2) on the previous loop iteration;
+          // no line-to needed first, `mid` itself is no longer a real
+          // path point.
+          parts.push(`A${rc.R},${rc.R} 0 0 ${rc.sweep2} ${rc.T2[0]},${rc.T2[1]}`);
+          arcCount++;
+          totalTrim += rc.R;
+          lastOut = rc.T2.slice();
+        }
+        continue;
+      }
+
       let r = cornerData.radius;
       const lenInNorm = cornerData.lenIn;
       const lenOutNorm = cornerData.lenOut;

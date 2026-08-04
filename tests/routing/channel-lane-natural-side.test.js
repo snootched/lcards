@@ -56,3 +56,51 @@ test('config channel: ties (no lean, or identical lean) still fall back to lexic
   assert.equal(router._trunkLaneAssignment(row, 'line_q').offset, 0);
   assert.equal(router._trunkLaneAssignment(row, 'line_r').offset, 8);
 });
+
+test('config channel: SAME-side tie-break also uses geometry over lexicographic order, when safe', () => {
+  // Reported live: a user found two same-side lines' relative lane order
+  // determined purely by which line ID happened to sort first — geometry
+  // (naturalSide) already resolves OPPOSITE-side disagreements (test
+  // above), but a same-side WITHIN-bucket lexicographic gap remained,
+  // identical in shape to lane-assignment.test.js's own discovered-trunk
+  // fix ("within a shared side, geometry wins over lexicographic order
+  // too"). line_a sorts FIRST lexicographically but leans far (|lean|=40);
+  // line_z sorts LAST but leans only slightly (|lean|=8) — same side.
+  // Neither line shares any OTHER corridor, so the geometric tie-break is
+  // unconditionally safe here.
+  const router = makeRouter({
+    channels: { chan_h: { bounds: [200, 80, 200, 40], mode: 'force', direction: 'horizontal', line_spacing: 8 } }
+  });
+  const row = router._trunks.find(t => t.id === 'chan_h');
+  router._registerLineSegments('line_a', [[200, 100], [280, 100]], [50, 140], [550, 100]);
+  router._registerLineSegments('line_z', [[200, 100], [280, 100]], [50, 108], [550, 100]);
+
+  assert.equal(router._trunkLaneAssignment(row, 'line_z').offset, -4, 'line_z leans only slightly -> inner lane, despite sorting last');
+  assert.equal(router._trunkLaneAssignment(row, 'line_a').offset, 4, 'line_a leans far -> outer lane, despite sorting first');
+});
+
+test('config channel: same-side tie-break falls back to lexicographic when the pair also shares a differently-oriented corridor', () => {
+  // The exact confirmed-regression shape (kelvin-bundle-crossing.test.js's
+  // res=64 case) reproduced directly: line_a/line_z share BOTH a
+  // horizontal channel (chan_h) and a vertical one (chan_v) — a single
+  // connected path per line, so both runs register under real, matching
+  // trunk-candidate geometry. Same lean setup as the test above (geometry
+  // alone would put line_z first) — but because this exact pair ALSO
+  // co-occurs in a differently-oriented corridor, chan_h's own local lean
+  // can't be trusted to agree with chan_v's, so the tie-break must fall
+  // back to the lexicographic order that stays consistent across both.
+  const router = makeRouter({
+    channels: {
+      chan_h: { bounds: [200, 80, 200, 40], mode: 'force', direction: 'horizontal', line_spacing: 8 },
+      chan_v: { bounds: [300, 80, 40, 300], mode: 'force', direction: 'vertical', line_spacing: 8 }
+    }
+  });
+  const rowH = router._trunks.find(t => t.id === 'chan_h');
+  router._registerLineSegments('line_a', [[200, 100], [320, 100], [320, 300]], [50, 140], [550, 100]);
+  router._registerLineSegments('line_z', [[200, 100], [320, 100], [320, 300]], [50, 108], [550, 100]);
+  const rowV = router._trunks.find(t => t.id === 'chan_v');
+  assert.ok(rowV.members.has('line_a') && rowV.members.has('line_z'), 'both lines must actually be registered members of chan_v for this test to exercise the safety guard');
+
+  assert.equal(router._trunkLaneAssignment(rowH, 'line_a').offset, -4, 'line_a sorts first lexicographically -> inner lane, geometry not trusted here');
+  assert.equal(router._trunkLaneAssignment(rowH, 'line_z').offset, 4, 'line_z sorts last -> outer lane, geometry not trusted here');
+});

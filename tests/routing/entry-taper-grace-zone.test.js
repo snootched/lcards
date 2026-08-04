@@ -66,14 +66,28 @@ test('the entry taper gives the trunk-join correction real flow-axis room instea
   assert.ok(correctionX > 246.75, `the taper should extend further into the corridor, got x=${correctionX}`);
 });
 
-test('the corner-rounding relaxation renders the tapered correction as a real (if small) curve, not a sharp double-kink', () => {
+test('the corner-rounding relaxation renders the tapered correction as a real curve, not a sharp double-kink', () => {
   const { results } = runScenario();
   const line3 = results.get('line_3');
-  // Two short arcs (radius > 1, i.e. above the old effective floor once
-  // the 65% reservation would have crushed them) around the correction.
+  // Originally asserted "small but real" arcs (radius > 1 and < 5) — the
+  // best this scenario's own corner-rounding could do at the time,
+  // above the old effective floor once the 65% reservation would have
+  // crushed them, but still nowhere near the configured corner_radius
+  // (34). A later, separate change (see kelvin-bundle-crossing.test.js's
+  // own "reverse-curve" history comment) replaced bundle-entry corners'
+  // plain quarter-circle fillet with a genuine reverse curve that
+  // targets the FULL configured radius regardless of how small this
+  // line's own cross-axis offset is — this scenario's tapered correction
+  // is exactly such a bundle-entry corner (line_3 joins a discovered
+  // trunk here, not an authored channel, but the same
+  // _pushBundledApproachLegs/_buildBundleEntryReverseCurves mechanism
+  // applies to both), so it now reaches close to the full 34 instead of
+  // staying small. The invariant that actually matters is unchanged:
+  // a REAL, visible curve, not a sharp double-kink.
   const arcs = [...line3.d.matchAll(/A([\d.]+),\1/g)].map(m => Number(m[1]));
-  const smallArcs = arcs.filter(r => r > 1 && r < 5);
-  assert.ok(smallArcs.length >= 2, `expected at least 2 small-but-real arcs from the tapered correction, got radii: ${arcs.join(', ')} in ${line3.d}`);
+  const realArcs = arcs.filter(r => r > 1);
+  assert.ok(realArcs.length >= 2, `expected at least 2 real (non-sharp) arcs from the tapered correction, got radii: ${arcs.join(', ')} in ${line3.d}`);
+  assert.ok(realArcs.some(r => r > 30), `expected at least one of the tapered correction's arcs to reach close to the full configured corner_radius (34), got radii: ${arcs.join(', ')} in ${line3.d}`);
 });
 
 test('no reversal and no crossings are introduced by either change', () => {

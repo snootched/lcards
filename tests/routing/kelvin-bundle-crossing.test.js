@@ -95,15 +95,23 @@ test('reported scenario at grid_resolution 32: every bundle member gets a single
   assert.equal(totalCrossings(results, BUNDLE_IDS), 0, 'no bundle member should visibly cross another');
 });
 
-test('line_3 extends its nudge past line_4\'s own turn point, rather than crossing its approach leg', () => {
+test('line_3 never lands its nudge before line_4\'s own turn point, so it never crosses its approach leg', () => {
   const { results } = kelvinBundleScenario(32);
   const line3 = results.get('line_3').pts;
   const line4 = results.get('line_4').pts;
   // Both lines' second point is their own corridor-entry turn x (index 2:
-  // [anchor, stub, turn, ...]).
+  // [anchor, stub, turn, ...]). Originally asserted STRICTLY greater
+  // (line_3 always extending past line_4) — since `laneStagger` was
+  // dropped for bundle-entry legs (see RouterCore.js's own comment on
+  // that removal) both members now often land on the exact SAME shared,
+  // unstaggered position instead of a strict staircase, which is the
+  // intended "concentric" fix, not a regression: `>=` is the invariant
+  // that actually matters here (line_3 must never land BEFORE line_4,
+  // which would cross its still-straight approach leg) — equality is a
+  // legitimate, common outcome now, not just the boundary case.
   const line3TurnX = line3[2][0];
   const line4TurnX = line4[2][0];
-  assert.ok(line3TurnX > line4TurnX, `line_3's turn (x=${line3TurnX}) should land past line_4's own turn (x=${line4TurnX}), clearing its approach leg`);
+  assert.ok(line3TurnX >= line4TurnX, `line_3's turn (x=${line3TurnX}) should never land before line_4's own turn (x=${line4TurnX}), which would clear its approach leg`);
 });
 
 test('resolution sweep: 8/16/24/32/64 all render with zero crossings and the minimal bend count', () => {
@@ -151,41 +159,52 @@ test('convergence: two independent fresh-router runs reach byte-identical geomet
 // a dedicated synthetic reproduction isn't needed on top of that.
 
 /**
- * Follow-up: the corridor-entry nudge distance reserved
- * `2 * corner_radius` (68 for this scenario's default corner_radius: 34)
- * of flow-axis room before the first turn — but the S-curve's own two
- * corners are actually constrained by the CROSS-axis lane-offset distance
- * (line_spacing-driven, typically 8-12px), not corner_radius at all. Their
- * achieved radius (confirmed via _estimateCornerRadii's own
- * min(radiusGlobal, legLength/2) clamp plus its consecutive-corner
- * fill-fraction) is roughly `crossDist * 0.325` regardless of how large
- * corner_radius is — reserving flow-axis room for a radius these corners
- * can never reach is real, measured waste. Fixed by capping the
- * corner_radius used to size this specific reservation at
- * `min(corner_radius, crossDist * 0.325)` — but ONLY when doing so
- * doesn't change whether the reservation SATURATES against the leg's own
- * `available` room (see _pushBundledApproachLegs's own comment on
- * `midIsTo`): an early version without that guard flipped a corridor-EXIT
- * leg (departing to each line's own separate destination, not another
- * shared corridor boundary) from a saturating, single-clean-corner shape
- * to a non-saturating, real 2-corner S-curve — a genuine regression,
- * caught by channel-chain-transition-taper.test.js's own pre-existing
- * "still 2 clean bends" assertion.
+ * History of this test, kept because the mechanism it exercises has
+ * changed twice since it was first written and the reasoning for each
+ * step is worth keeping:
+ *
+ * 1. Original fix: the corridor-entry nudge distance reserved
+ *    `2 * corner_radius` (68 here) of flow-axis room before the first
+ *    turn, but the S-curve's own two corners were constrained by the
+ *    CROSS-axis lane-offset distance instead, achieving only
+ *    `crossDist * 0.325` regardless of corner_radius — so that flow-axis
+ *    reservation was real, measured waste. Fixed by capping the
+ *    reservation itself at `min(corner_radius, crossDist * 0.325)`.
+ * 2. Superseded: bundle-entry corners now render via a genuine "reverse
+ *    curve" (two tangent arcs of the FULL configured corner_radius,
+ *    sweeping only as much angle as this line's own crossDist needs —
+ *    see `reverseCurveGeometry`/`_buildBundleEntryReverseCurves` in
+ *    RouterCore.js) instead of a plain 90°-quarter-circle fillet. That
+ *    construction can actually USE the full `2 * corner_radius`
+ *    reservation (up to `flowHalf <= corner_radius` per side), so the
+ *    (1) shrink was reverted for entry legs specifically — starving the
+ *    reservation now starves the achievable radius, which (1) never had
+ *    to worry about. EXIT legs still render as plain quarter-circle
+ *    fillets and still use the original (1) shrink, unchanged.
+ * 3. Separately, bundle-entry legs also dropped the unconditional
+ *    `laneIndex * lineSpacing` position stagger (see `laneStagger` in
+ *    `_pushBundledApproachLegs`) — a different axis (position, not size)
+ *    of the same underlying "uneven bundle entry" report.
  */
-test('the corridor-entry lead-in shortens without changing the achieved S-curve corner radius', () => {
+test('the corridor-entry lead-in reserves full room so the reverse-curve construction reaches the configured corner_radius', () => {
   const { results } = kelvinBundleScenario(25);
   const line4 = results.get('line_4');
   // line_4's own entry into channel_3 needs no conflict-extension (it's
   // the "clean reference" case throughout this file), so its turn point
-  // is driven purely by the nudge formula, not the separate extension
-  // search — isolating exactly what this fix targets.
-  assert.equal(line4.pts[2][0], 233, `line_4's corridor-entry turn should land at the cross-axis-driven distance (233), got ${line4.pts[2][0]}`);
+  // is driven purely by the reservation formula, not the separate
+  // extension search — isolating exactly what this test targets.
+  assert.equal(line4.pts[2][0], 268, `line_4's corridor-entry turn should land at the full, unshrunk reservation distance (268), got ${line4.pts[2][0]}`);
   const radii = [...line4.d.matchAll(/A([\d.]+),/g)].map(m => Number(m[1]));
-  // The S-curve's own two corners (the first two arcs) are unchanged from
-  // before this fix — this fix only shortens the FLOW-axis room leading up
-  // to them, never the achieved radius itself.
-  assert.ok(Math.abs(radii[0] - 7.29625) < 0.01 && Math.abs(radii[1] - 7.29625) < 0.01,
-    `expected the S-curve's own achieved radius (~7.296, unchanged) got ${radii.slice(0, 2).join(',')}`);
+  // The S-curve's own two corners (the first two arcs) now reach the
+  // FULL configured corner_radius (34) — not the ~7.3 the old
+  // crossDist*0.325 formula would have produced for line_4's own
+  // crossDist alone, and not some smaller group-clamped value from an
+  // earlier revision of this feature either. Every bundle member
+  // independently targets the same corner_radius, which is what makes
+  // the group render uniformly here — no cross-line coordination for
+  // the radius itself is needed (unlike the earlier, superseded design).
+  assert.ok(Math.abs(radii[0] - 34) < 0.01 && Math.abs(radii[1] - 34) < 0.01,
+    `expected line_4's reverse-curve radius to reach the full configured corner_radius (34) got ${radii.slice(0, 2).join(',')}`);
 });
 
 test('a corridor-EXIT leg that relies on saturation to collapse into one clean corner is unaffected (regression guard)', () => {
