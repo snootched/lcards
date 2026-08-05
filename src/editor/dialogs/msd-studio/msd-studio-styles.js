@@ -705,6 +705,23 @@ export const msdStudioStyles = css`
         stroke-width: 4;
     }
 
+    /* Corner-Radius Handles (Visual Editing) — visuals are inline (see
+       _renderCornerRadiusHandles), same as .waypoint-marker; these just add
+       the hover/drag transition/shadow polish that div's inline style block
+       doesn't cover. */
+    .corner-radius-handle {
+        transition: all 0.15s ease;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+    }
+
+    .corner-radius-handle:hover {
+        filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
+    }
+
+    .corner-radius-handle.dragging {
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.8));
+    }
+
     /* Line paths should capture pointer events for hover/click */
     .line-path {
         pointer-events: auto !important;

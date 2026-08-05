@@ -54,13 +54,13 @@ overlays:
 | `attach_gap_x` | number | — | Horizontal-only offset from destination |
 | `attach_gap_y` | number | — | Vertical-only offset from destination |
 | `route` | string | `auto` | Routing mode — see [Routing Modes](#routing-modes) |
-| `waypoints` | array | — | Explicit coordinate/anchor-name list for `manual` routing |
+| `waypoints` | array | — | Explicit coordinate/anchor-name list for `manual` routing — a coordinate entry may add a 3rd number, `[x, y, radius]`, to override just that corner's `corner_radius` (see [Manual Routing](./manual-routing.md#per-waypoint-corner-radius)) |
 | `route_hint` | string | auto | Initial segment direction: `xy` (horizontal first) or `yx` |
 | `route_hint_last` | string | auto | Final segment direction (same values as `route_hint`) |
 | `route_channels` | list | — | Channel IDs this line routes through — see [Line Routing & Channels](./routing.md#channels) |
 | `clearance` | number | — | Min clearance around obstacles in viewBox units (overrides global default) |
 | `corner_style` | string | `round` | `miter`, `round`, or `bevel` — for routed corners |
-| `corner_radius` | number | `34` | Arc radius (round) or chamfer size (bevel), in viewBox units |
+| `corner_radius` | number | `34` | Arc radius (round) or chamfer size (bevel), in viewBox units. `manual` routing: overridable per corner via `waypoints`' optional 3rd number |
 | `corner_radius_mode` | string | `auto` | `auto` or `forced` — `round`/`bevel` only; see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
 | `corner_angle` | number | `45` | `bevel` only: diagonal cut angle, 0–90° |
 | `stub_length` | number | — | Overrides the mandatory cardinal departure/arrival stub length (viewBox units) — see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
@@ -370,7 +370,7 @@ overlays:
     route: string                 # Optional: Routing mode (default: "auto")
                                   # Options: auto, direct, manhattan, smart, grid, manual
     waypoints:                    # For route: manual
-      - [x, y]
+      - [x, y]                    # or [x, y, radius] to override this corner's corner_radius
     route_hint: string            # Optional: xy | yx (default: auto)
     route_hint_last: string       # Optional: xy | yx (default: auto)
     route_channels: [string]      # Optional: channel IDs to route through

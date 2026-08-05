@@ -216,6 +216,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             _selectedLineId: { type: String, state: true },  // Which line is selected on canvas
             _waypointEditingLineId: { type: String, state: true },  // Which line is being edited
             _waypointDragState: { type: Object, state: true },  // { lineId, waypointIndex, startPos }
+            _cornerRadiusDragState: { type: Object, state: true },  // { lineId, waypointIndex }
             _showWaypointMarkers: { type: Boolean, state: true },  // Show waypoint markers for all manual lines
             _clickTimeout: { type: Number, state: true },  // Timeout for distinguishing click from double-click
             // Preview Zoom
@@ -374,6 +375,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._editingLineId = null;
         this._waypointEditingLineId = null;
         this._waypointDragState = null;
+        this._cornerRadiusDragState = null;
         this._showWaypointMarkers = true;  // Show waypoints by default for manual lines
         this._lineFormData = {
             id: '',
@@ -689,7 +691,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         // Remove any self-contained drag/resize document listeners left behind
-        // by a drag in progress when the dialog closes (each of these 9 pairs
+        // by a drag in progress when the dialog closes (each of these 10 pairs
         // is added at its own *Start handler and normally torn down by its own
         // *MouseUp handler — this is just the "dialog closed mid-drag" safety net).
         const dragListenerPairs = [
@@ -701,7 +703,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             ['_boundShapeDragMouseMove', 'mousemove'], ['_boundShapeDragMouseUp', 'mouseup'],
             ['_boundShapeResizeMouseMove', 'mousemove'], ['_boundShapeResizeMouseUp', 'mouseup'],
             ['_boundShapeVertexMouseMove', 'mousemove'], ['_boundShapeVertexMouseUp', 'mouseup'],
-            ['_boundWaypointMouseMove', 'mousemove'], ['_boundWaypointMouseUp', 'mouseup']
+            ['_boundWaypointMouseMove', 'mousemove'], ['_boundWaypointMouseUp', 'mouseup'],
+            ['_boundCornerRadiusMouseMove', 'mousemove'], ['_boundCornerRadiusMouseUp', 'mouseup']
         ];
         for (const [field, eventType] of dragListenerPairs) {
             if (this[field]) {
@@ -3442,9 +3445,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 }
             }
 
-            // Check if clicked on waypoint marker (don't add new waypoint)
+            // Check if clicked on waypoint marker or corner-radius handle
+            // (don't add new waypoint)
             // @ts-ignore - TS2339: auto-suppressed
-            if (clickedElement.classList?.contains('waypoint-marker')) {
+            if (clickedElement.classList?.contains('waypoint-marker') ||
+                // @ts-ignore - TS2339: auto-suppressed
+                clickedElement.classList?.contains('corner-radius-handle')) {
                 event.stopPropagation();
                 return;
             }
@@ -3457,7 +3463,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 // @ts-ignore - TS2339: auto-suppressed
                                 clickedElement.classList.contains('preview-container'));
 
-            if (isEmptyArea && !this._waypointDragInProgress) {
+            if (isEmptyArea && !this._waypointDragInProgress && !this._cornerRadiusDragInProgress) {
                 // Exit waypoint mode (but not if we just finished dragging)
                 this._exitWaypointMode();
                 event.stopPropagation();
@@ -6212,8 +6218,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         // Ignore click if it was part of a drag operation
-        if (this._waypointDragInProgress) {
-            lcardsLog.debug('[MSDStudio] Click ignored - waypoint drag in progress');
+        if (this._waypointDragInProgress || this._cornerRadiusDragInProgress) {
+            lcardsLog.debug('[MSDStudio] Click ignored - waypoint/corner-radius drag in progress');
             return;
         }
 
@@ -8722,6 +8728,268 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Resolve one manual-routed line's interior corner geometry (the sharp
+     * corner point plus its rounding-arc bisector direction) for waypoint
+     * index `waypointIndex` — the same uIn/uOut/bisector construction
+     * RouterCore's _estimateCornerRadii uses server-side, reimplemented
+     * here since the Studio has no synchronous access to the live
+     * preview's own RouterCore instance. Shared by
+     * _renderCornerRadiusHandles and the corner-radius drag handlers so
+     * there's one source of truth for this geometry, not two.
+     * @param {object} line - overlay from _workingConfig.msd.overlays
+     * @param {number} waypointIndex - index into line.waypoints
+     * @returns {{p:[number,number], bisectorUnit:[number,number], lenIn:number, lenOut:number}|null}
+     *   null for a named-anchor waypoint, an unresolvable anchor, or a
+     *   degenerate/straight-through corner (nothing meaningful to drag).
+     * @private
+     */
+    _resolveCornerGeometry(line, waypointIndex) {
+        const waypoints = Array.isArray(line.waypoints) ? line.waypoints : [];
+        const wp = waypoints[waypointIndex];
+        if (!Array.isArray(wp)) return null;
+
+        const start = this._resolvePositionWithSide(line.anchor, line.anchor_side);
+        let endTarget = line.attach_to;
+        if (Array.isArray(endTarget)) endTarget = endTarget[endTarget.length - 1];
+        const end = this._resolvePositionWithSide(endTarget, line.attach_side);
+        if (!start || !end) return null;
+
+        const userAnchors = this._workingConfig.msd?.anchors || {};
+        const baseSvgAnchors = this._getBaseSvgAnchors();
+        const allAnchors = { ...baseSvgAnchors, ...userAnchors };
+        const resolveEntry = (entry) => {
+            if (Array.isArray(entry) && entry.length >= 2) return [entry[0], entry[1]];
+            if (typeof entry === 'string' && allAnchors[entry]) return allAnchors[entry];
+            return null;
+        };
+
+        const pts = [start, ...waypoints.map(resolveEntry), end];
+        const i = waypointIndex + 1;
+        const pPrev = pts[i - 1], p = pts[i], pNext = pts[i + 1];
+        if (!pPrev || !p || !pNext) return null;
+
+        const vIn = [p[0] - pPrev[0], p[1] - pPrev[1]];
+        const vOut = [pNext[0] - p[0], pNext[1] - p[1]];
+        const lenIn = Math.hypot(vIn[0], vIn[1]);
+        const lenOut = Math.hypot(vOut[0], vOut[1]);
+        if (lenIn < 0.01 || lenOut < 0.01) return null;
+
+        const uIn = [vIn[0] / lenIn, vIn[1] / lenIn];
+        const uOut = [vOut[0] / lenOut, vOut[1] / lenOut];
+        const cross = vIn[0] * vOut[1] - vIn[1] * vOut[0];
+        const dot = vIn[0] * vOut[0] + vIn[1] * vOut[1];
+        if (cross === 0 && dot > 0) return null; // straight-through, not a real corner
+
+        const bisector = [uOut[0] - uIn[0], uOut[1] - uIn[1]];
+        const bLen = Math.hypot(bisector[0], bisector[1]);
+        if (bLen < 0.001) return null;
+
+        return { p, bisectorUnit: [bisector[0] / bLen, bisector[1] / bLen], lenIn, lenOut };
+    }
+
+    /**
+     * Render draggable handles for each manual-routed corner's radius —
+     * one per coordinate waypoint (named-anchor waypoints have no radius
+     * slot to drag), positioned along that corner's rounding-arc bisector
+     * at a distance equal to its current target radius (the overridden or
+     * inherited value — NOT the router's post-clamp achieved radius; same
+     * philosophy as the plain Corner Radius field, which also shows what
+     * you asked for, not what a tight corner could actually use).
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderCornerRadiusHandles() {
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!this._showWaypointMarkers || !this._selectedLineId) return '';
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const selectedLine = overlays.find(o => o.id === this._selectedLineId && o.type === 'line');
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!selectedLine || selectedLine.route !== 'manual') return '';
+        if ((selectedLine.corner_style || 'round') === 'miter') return '';
+
+        const waypoints = Array.isArray(selectedLine.waypoints) ? selectedLine.waypoints : [];
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!waypoints.length) return '';
+
+        const vbToPixel = this._getViewBoxToPixelConverter();
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!vbToPixel) return '';
+
+        const defaultRadius = Number(selectedLine.corner_radius ?? 34);
+        const handles = [];
+        for (let wpIndex = 0; wpIndex < waypoints.length; wpIndex++) {
+            const wp = waypoints[wpIndex];
+            if (!Array.isArray(wp)) continue;
+            const geom = this._resolveCornerGeometry(selectedLine, wpIndex);
+            if (!geom) continue;
+            const radius = (wp.length >= 3 && Number.isFinite(Number(wp[2]))) ? Number(wp[2]) : defaultRadius;
+            const handlePt = [geom.p[0] + radius * geom.bisectorUnit[0], geom.p[1] + radius * geom.bisectorUnit[1]];
+            handles.push({ wpIndex, handlePt, radius });
+        }
+        // @ts-ignore - TS2322: auto-suppressed
+        if (!handles.length) return '';
+
+        return html`
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1001;">
+                ${handles.map(({ wpIndex, handlePt, radius }) => {
+                    const [pixelX, pixelY] = vbToPixel(handlePt[0], handlePt[1]);
+                    const isDragging = this._cornerRadiusDragState?.lineId === selectedLine.id &&
+                                        this._cornerRadiusDragState?.waypointIndex === wpIndex;
+                    return html`
+                        <div
+                            class="corner-radius-handle ${isDragging ? 'dragging' : ''}"
+                            style="
+                                position: absolute;
+                                left: ${pixelX}px;
+                                top: ${pixelY}px;
+                                transform: translate(-50%, -50%);
+                                width: 14px;
+                                height: 14px;
+                                border-radius: 50%;
+                                background: ${isDragging ? '#FF66FF' : '#CC66FF'};
+                                border: 2px solid #FFF;
+                                cursor: ew-resize;
+                                pointer-events: auto;
+                                box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+                                z-index: ${isDragging ? '1003' : '1001'};
+                            "
+                            @mousedown=${(e) => this._handleCornerRadiusMouseDown(e, selectedLine.id, wpIndex)}
+                            @dblclick=${(e) => this._handleCornerRadiusDoubleClick(e, selectedLine.id, wpIndex)}
+                            title="Corner radius: ${Math.round(radius)} (drag to adjust, double-click to reset to line default)">
+                        </div>
+                        ${isDragging ? html`
+                            <div class="live-coord-badge" style="position: absolute; left: ${pixelX}px; top: ${pixelY - 24}px; transform: translate(-50%, -50%);">
+                                ${Math.round(radius)} vb
+                            </div>
+                        ` : ''}
+                    `;
+                })}
+            </div>
+        `;
+    }
+
+    /**
+     * Handle mouse down on a corner-radius handle - start drag
+     * @param {MouseEvent} e
+     * @param {string} lineId
+     * @param {number} waypointIndex
+     * @private
+     */
+    _handleCornerRadiusMouseDown(e, lineId, waypointIndex) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        this._cornerRadiusDragInProgress = true;
+        this._cornerRadiusDragState = { lineId, waypointIndex };
+
+        this._boundCornerRadiusMouseMove = this._handleCornerRadiusMouseMove.bind(this);
+        this._boundCornerRadiusMouseUp = this._handleCornerRadiusMouseUp.bind(this);
+        document.addEventListener('mousemove', this._boundCornerRadiusMouseMove);
+        document.addEventListener('mouseup', this._boundCornerRadiusMouseUp);
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle corner-radius drag move — projects the mouse position onto
+     * the corner's own bisector direction to derive the new radius, and
+     * mutates _workingConfig directly and live (this is a canvas-only
+     * interaction that only ever runs with the line-edit form closed —
+     * same convention as waypoint position dragging — not the
+     * staged-until-Save convention the form's own Radius field uses).
+     * @param {MouseEvent} e
+     * @private
+     */
+    _handleCornerRadiusMouseMove(e) {
+        if (!this._cornerRadiusDragState) return;
+        e.preventDefault();
+
+        const { lineId, waypointIndex } = this._cornerRadiusDragState;
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const line = overlays.find(o => o.id === lineId);
+        if (!line) return;
+
+        // Recomputed fresh every tick rather than cached from mousedown —
+        // cheap, and stays correct if anything upstream shifted mid-drag.
+        const geom = this._resolveCornerGeometry(line, waypointIndex);
+        if (!geom) return;
+
+        const coords = this._getPreviewCoordinatesFromMouseEvent(e);
+        if (!coords) return;
+        const dx = coords.x - geom.p[0];
+        const dy = coords.y - geom.p[1];
+        let radius = Math.max(0, dx * geom.bisectorUnit[0] + dy * geom.bisectorUnit[1]);
+        radius = (this._enableSnapping && this._gridSpacing > 0)
+            ? Math.round(radius / this._gridSpacing) * this._gridSpacing
+            : this._roundToPrecision(radius);
+
+        const wp = line.waypoints[waypointIndex];
+        const newWp = [wp[0], wp[1], radius];
+        line.waypoints[waypointIndex] = newWp;
+        if (this._lineFormData?.id === lineId && Array.isArray(this._lineFormData.waypoints)) {
+            this._lineFormData.waypoints[waypointIndex] = newWp;
+        }
+
+        this._schedulePreviewUpdate();
+        this.requestUpdate();
+    }
+
+    /**
+     * Handle corner-radius drag end
+     * @param {MouseEvent} e
+     * @private
+     */
+    _handleCornerRadiusMouseUp(e) {
+        if (!this._cornerRadiusDragState) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        this._cornerRadiusDragState = null;
+        if (this._boundCornerRadiusMouseMove) {
+            document.removeEventListener('mousemove', this._boundCornerRadiusMouseMove);
+            this._boundCornerRadiusMouseMove = null;
+        }
+        if (this._boundCornerRadiusMouseUp) {
+            document.removeEventListener('mouseup', this._boundCornerRadiusMouseUp);
+            this._boundCornerRadiusMouseUp = null;
+        }
+        // Mirrors _handleWaypointMouseUp's own delayed clear — suppresses
+        // the trailing synthetic click this mouseup produces from being
+        // misread as a deliberate empty-area click (ADD_WAYPOINT mode exit).
+        setTimeout(() => { this._cornerRadiusDragInProgress = false; }, 150);
+
+        this.requestUpdate();
+    }
+
+    /**
+     * Double-click a corner-radius handle to reset it back to the line's
+     * default corner_radius (splices the waypoint's radius slot out,
+     * rather than storing null, so saved YAML stays clean).
+     * @param {MouseEvent} e
+     * @param {string} lineId
+     * @param {number} waypointIndex
+     * @private
+     */
+    _handleCornerRadiusDoubleClick(e, lineId, waypointIndex) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const overlays = this._workingConfig.msd?.overlays || [];
+        const line = overlays.find(o => o.id === lineId);
+        const wp = line?.waypoints?.[waypointIndex];
+        if (Array.isArray(wp) && wp.length >= 3) {
+            wp.splice(2, wp.length - 2);
+            const formWp = (this._lineFormData?.id === lineId && Array.isArray(this._lineFormData.waypoints))
+                ? this._lineFormData.waypoints[waypointIndex]
+                : null;
+            if (Array.isArray(formWp) && formWp.length >= 3) formWp.splice(2, formWp.length - 2);
+            this._schedulePreviewUpdate();
+            this.requestUpdate();
+        }
+    }
+
+    /**
      * Handle mouse down on waypoint marker - start drag
      * @param {MouseEvent} e
      * @param {string} lineId
@@ -8983,8 +9251,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const svg = shadowRoot.querySelector('svg');
         if (!svg) return;
 
-        // Find the line's path element
-        const linePath = svg.querySelector(`path[data-overlay-id="${lineId}"]`);
+        // Find the line's path element. The overlay's <g> wrapper carries
+        // data-overlay-id, but the visible stroke is a child <path
+        // class="line-path" data-line-id="..."> (see LineOverlay._buildMainPath) —
+        // sibling <path>s for the hit-area/selection-indicator share the same
+        // `d`, so scoping to .line-path just picks the canonical one.
+        const linePath = svg.querySelector(`g[data-overlay-id="${lineId}"] path.line-path`);
         if (!linePath) {
             lcardsLog.warn('[MSDStudio] Cannot convert to manual: line path not found in SVG');
             return;
@@ -9008,29 +9280,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         });
 
-        // Update the line config
-        const overlays = this._workingConfig.msd?.overlays || [];
-        const lineIndex = overlays.findIndex(o => o.id === lineId);
+        // Stage into _lineFormData only — same as every other field in this
+        // form, it takes effect only when the user hits Save (_saveLine()).
+        // The dialog renders over the canvas, so there's nothing to preview
+        // live here, and writing straight into _workingConfig would survive a
+        // Cancel (see the MSD Studio "freeze survives cancel" bug).
+        this._lineFormData.route = 'manual';
+        this._lineFormData.waypoints = waypoints;
 
-        if (lineIndex !== -1) {
-            const line = overlays[lineIndex];
-            line.route = 'manual';
-            line.waypoints = waypoints;
-
-            // Update form data if this is the currently edited line
-            if (this._editingLineId === lineId) {
-                this._lineFormData.route = 'manual';
-                this._lineFormData.waypoints = waypoints;
-                this._waypointEditingLineId = lineId;
-                this._showWaypointMarkers = true;
-            }
-
-            lcardsLog.info(`[MSDStudio] Converted line ${lineId} to manual mode with ${waypoints.length} waypoints`);
-
-            // Update preview
-            this._schedulePreviewUpdate();
-            this.requestUpdate();
-        }
+        lcardsLog.info(`[MSDStudio] Converted line ${lineId} to manual mode with ${waypoints.length} waypoints`);
+        this.requestUpdate();
     }
 
     /**
@@ -14854,7 +15113,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
             stub_length: line.stub_length,
             route_hint: line.route_hint,
             route_hint_last: line.route_hint_last,
-            waypoints: line.waypoints || [],
+            // Clone each waypoint tuple — every real call site passes a
+            // direct reference into _workingConfig.msd.overlays, and the
+            // per-index X/Y/Radius edit handlers below mutate
+            // waypoints[i][n] in place; without cloning here, those edits
+            // would silently bypass the "staged until Save" contract this
+            // form is supposed to have (Cancel wouldn't undo them).
+            waypoints: (line.waypoints || []).map(wp => Array.isArray(wp) ? [...wp] : wp),
             corner_style: line.corner_style || 'round',
             corner_radius: line.corner_radius ?? 34,
             corner_radius_mode: line.corner_radius_mode || 'auto',
@@ -16818,6 +17083,25 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                                             }}
                                                             style="flex: 1; min-width: 80px;">
                                                         </ha-input>
+                                                        <ha-input
+                                                            type="number"
+                                                            label=${this._lineFormData.corner_style === 'bevel' ? 'Cut Size' : 'Radius'}
+                                                            .value=${String(wp[2] ?? '')}
+                                                            @input=${(e) => {
+                                                                const val = e.target.value;
+                                                                const current = this._lineFormData.waypoints[index];
+                                                                if (val === '') {
+                                                                    if (current.length >= 3) current.splice(2, current.length - 2);
+                                                                } else {
+                                                                    const r = Math.max(0, this._roundToPrecision(Number(val)));
+                                                                    if (current.length >= 3) current[2] = r; else current.push(r);
+                                                                }
+                                                                this._schedulePreviewUpdate();
+                                                                this.requestUpdate();
+                                                            }}
+                                                            style="flex: 0.8; min-width: 70px;"
+                                                            title="Overrides this corner's ${this._lineFormData.corner_style === 'bevel' ? 'cut size' : 'radius'} — blank inherits the line default (${this._lineFormData.corner_radius ?? 34})">
+                                                        </ha-input>
                                                     </div>
                                                 `}
 
@@ -18629,6 +18913,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ${this._renderLineEndpointMarkers()}
                             ${this._renderWaypointInsertMarkers()}
                             ${this._renderWaypointMarkers()}
+                            ${this._renderCornerRadiusHandles()}
                             ${this._renderShapeSegmentInsertMarkers()}
                             ${this._renderShapeVertexMarkers()}
                             ${this._renderDragAttachPoints()}

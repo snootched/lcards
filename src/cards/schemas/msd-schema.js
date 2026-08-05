@@ -413,7 +413,13 @@ export function getMsdSchema() {
             waypoints: {
               type: 'array',
               optional: true,
-              description: 'Array of waypoints for manual routing. Each waypoint can be a coordinate pair [x, y] or an anchor name string. Line will pass through waypoints in order.'
+              description: 'Array of waypoints for manual routing. Each waypoint is a coordinate pair [x, y], optionally [x, y, radius] to override this corner\'s rounding radius (round) or chamfer size (bevel) — omit the 3rd slot to inherit corner_radius — or an anchor name string. Line will pass through waypoints in order.',
+              items: {
+                oneOf: [
+                  { type: 'array', minItems: 2, maxItems: 3, items: { type: 'number' } },
+                  { type: 'string' }
+                ]
+              }
             },
             route_hint: {
               type: 'string',

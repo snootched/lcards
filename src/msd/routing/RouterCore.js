@@ -441,9 +441,11 @@ export class RouterCore {
       this._cacheOrder.length = 0;
       this._rev++;
     } else {
-      // Cache key includes overlay id only indirectly; brute force purge by scan.
+      // Cache keys are shaped "${id}@x1,y1-...", id first — brute force
+      // purge by scan (startsWith, not includes: `id` is followed by `@`,
+      // never preceded by it).
       for (const k of Array.from(this._cache.keys())) {
-        if (k.includes(`@${id}|`)) {
+        if (k.startsWith(`${id}@`)) {
           this._cache.delete(k);
           const i = this._cacheOrder.indexOf(k);
           if (i >= 0) this._cacheOrder.splice(i,1);
@@ -986,12 +988,19 @@ export class RouterCore {
     // viewBox is included so a pan/resize (unchanged anchors/mode/obstacles)
     // can't hit a route cached under the previous origin/dimensions.
     const vb = this.viewBox || [0,0,400,200];
+    // Manual-route waypoints (position AND any per-corner radius override)
+    // aren't reflected by a/b (the line's endpoints) at all, so they must be
+    // part of the key themselves — otherwise editing an interior waypoint
+    // with endpoints unchanged risks serving a stale cached path. Empty for
+    // every non-manual line (buildRouteRequest always sets waypoints: []),
+    // so this is a no-op for the overwhelming majority of cache keys.
+    const wpKey = req.waypoints && req.waypoints.length ? JSON.stringify(req.waypoints) : '';
     // RV (registryVersion) makes a repeated computePath call for the SAME
     // request recompute rather than cache-hit whenever any line's trunk/
     // crossing registration has mutated since this entry was cached — the
     // mechanism that lets a bounded discovery loop (see AdvancedRenderer
     // _discoverLineRoutes) converge without ever calling invalidate().
-    return `${req.id}@${x1},${y1}-${x2},${y2}|${req.modeFull}|${req.modeHint}|A:${avoidKey}|C:${chanKey}|R:${req._rev}|O:${this._obsVersion}|P:${req.proximity}|CR:${req.cornerRadius}|CS:${req.cornerStyle}|CRM:${req.cornerRadiusMode}|CRW:${req.cornerRoomWeight}|SM:${req.smoothingMode}|SI:${req.smoothingIterations}|VB:${vb[0]},${vb[1]},${vb[2]},${vb[3]}|RV:${this._registryVersion}`;
+    return `${req.id}@${x1},${y1}-${x2},${y2}|${req.modeFull}|${req.modeHint}|A:${avoidKey}|C:${chanKey}|WP:${wpKey}|R:${req._rev}|O:${this._obsVersion}|P:${req.proximity}|CR:${req.cornerRadius}|CS:${req.cornerStyle}|CRM:${req.cornerRadiusMode}|CRW:${req.cornerRoomWeight}|SM:${req.smoothingMode}|SI:${req.smoothingIterations}|VB:${vb[0]},${vb[1]},${vb[2]},${vb[3]}|RV:${this._registryVersion}`;
   }
 
   /**
@@ -1288,10 +1297,10 @@ export class RouterCore {
       lcardsLog.debug(`[RouterCore] Line '${req.id}': final pts (post-splice) = ${JSON.stringify(result?.pts)}`);
 
       if (result && req.cornerStyle === 'round' && req.cornerRadius > 0) {
-        const arcApplied = this._applyCornerRounding(result, req.cornerRadius, req.id, req.width);
+        const arcApplied = this._applyCornerRounding(result, req.cornerRadius, req.id, req.width, result.perCornerRadius || null);
         if (arcApplied) result = arcApplied;
       } else if (result && req.cornerStyle === 'bevel' && req.cornerRadius > 0) {
-        const bevelApplied = this._applyCornerBeveling(result, req.cornerRadius, req.cornerAngle, req.id);
+        const bevelApplied = this._applyCornerBeveling(result, req.cornerRadius, req.cornerAngle, req.id, result.perCornerRadius || null);
         if (bevelApplied) result = bevelApplied;
       }
       // Trunk registration must happen here: after corner-rounding/beveling
@@ -1381,45 +1390,62 @@ export class RouterCore {
     const [x2, y2] = req.b;
     const waypoints = req.waypoints || [];
 
-    // Build path: start → waypoints → end
-    const pts = [[x1, y1]];
+    // Build path: start → waypoints → end. Radius travels WITH its point
+    // (not re-derived by index afterward) because a waypoint can be
+    // silently dropped (malformed array, unresolvable anchor) or deduped
+    // against a coordinate-identical neighbor below — an index-based
+    // mapping to req.waypoints would silently misalign the moment either
+    // happens.
+    const entries = [{ pt: [x1, y1], radius: null }];
 
     // Add all waypoints (support both coordinate arrays and named anchors)
     for (const wp of waypoints) {
       if (Array.isArray(wp) && wp.length >= 2) {
-        // Coordinate waypoint: [x, y]
-        pts.push([Number(wp[0]), Number(wp[1])]);
+        // Coordinate waypoint: [x, y] or [x, y, radius] (radius overrides
+        // this corner's rounding/beveling size; omitted = inherit the
+        // line's corner_radius)
+        const radius = wp.length >= 3 && Number.isFinite(Number(wp[2])) ? Number(wp[2]) : null;
+        entries.push({ pt: [Number(wp[0]), Number(wp[1])], radius });
       } else if (typeof wp === 'string' && this.anchors[wp]) {
         // Named anchor waypoint: "anchor_name"
         const anchorPos = this.anchors[wp];
         if (Array.isArray(anchorPos) && anchorPos.length >= 2) {
-          pts.push([Number(anchorPos[0]), Number(anchorPos[1])]);
+          entries.push({ pt: [Number(anchorPos[0]), Number(anchorPos[1])], radius: null });
         }
       }
     }
 
     // Add endpoint
-    pts.push([x2, y2]);
+    entries.push({ pt: [x2, y2], radius: null });
 
-    // Remove duplicate consecutive points
-    const cleaned = [pts[0]];
-    for (let i = 1; i < pts.length; i++) {
+    // Remove duplicate consecutive points — a later duplicate's own radius
+    // (if any) is preserved onto the surviving point rather than lost.
+    const cleaned = [entries[0]];
+    for (let i = 1; i < entries.length; i++) {
       const last = cleaned[cleaned.length - 1];
-      if (pts[i][0] !== last[0] || pts[i][1] !== last[1]) {
-        cleaned.push(pts[i]);
+      if (entries[i].pt[0] !== last.pt[0] || entries[i].pt[1] !== last.pt[1]) {
+        cleaned.push(entries[i]);
+      } else if (last.radius == null && entries[i].radius != null) {
+        last.radius = entries[i].radius;
       }
     }
 
-    const d = this._polylineToPath(cleaned);
+    const pts = cleaned.map(e => e.pt);
+    // One entry per INTERIOR point, 1:1 with _estimateCornerRadii's own
+    // cornerRadii indexing (cornerRadii[k] ↔ pts[k+1]); null = inherit the
+    // line's global corner_radius/bevel size.
+    const perCornerRadius = cleaned.slice(1, -1).map(e => e.radius);
+    const d = this._polylineToPath(pts);
 
     return {
       d,
-      pts: cleaned,
+      pts,
+      perCornerRadius,
       meta: {
         strategy: 'manual',
-        cost: this._costSimple(cleaned),
-        segments: cleaned.length - 1,
-        bends: Math.max(0, cleaned.length - 2),
+        cost: this._costSimple(pts),
+        segments: pts.length - 1,
+        bends: Math.max(0, pts.length - 2),
         waypoints: waypoints.length,
         editable: true
       }
@@ -6984,11 +7010,15 @@ export class RouterCore {
    *   regardless of `skipNeighborClearance` (mirrors the original inline
    *   `routeId` truthiness check)
    * @param {number} [ownWidth] - this line's rendered stroke width
-   * @param {{ skipNeighborClearance?: boolean }} [opts]
+   * @param {{ skipNeighborClearance?: boolean, perCornerRadius?: (number|null)[]|null }} [opts]
+   *   `perCornerRadius[i-1]`, when non-null, replaces `radiusGlobal` as the
+   *   TARGET for the corner at `pts[i]` — everything below (room clamp,
+   *   neighbor-clearance shrink, consecutive-corner scaling) still applies
+   *   on top of it as a ceiling, exactly as it does for `radiusGlobal`.
    * @returns {{ index: number, radius: number, lenIn: number, lenOut: number }[]}
    * @private
    */
-  _estimateCornerRadii(pts, radiusGlobal, routeId = null, ownWidth = 0, { skipNeighborClearance = false } = {}) {
+  _estimateCornerRadii(pts, radiusGlobal, routeId = null, ownWidth = 0, { skipNeighborClearance = false, perCornerRadius = null } = {}) {
     const arcMin = 1;
     const cornerRadii = [];
     for (let i = 1; i < pts.length - 1; i++) {
@@ -7015,7 +7045,8 @@ export class RouterCore {
       const cross = vIn[0] * vOut[1] - vIn[1] * vOut[0];
       const dot = vIn[0] * vOut[0] + vIn[1] * vOut[1];
       const isStraightThrough = cross === 0 && dot > 0;
-      let r = isStraightThrough ? 0 : Math.min(radiusGlobal, lenIn / 2, lenOut / 2);
+      const target = (perCornerRadius && perCornerRadius[i - 1] != null) ? perCornerRadius[i - 1] : radiusGlobal;
+      let r = isStraightThrough ? 0 : Math.min(target, lenIn / 2, lenOut / 2);
       // Clamp against bulging into another line's own registered path.
       // Corner rounding is otherwise entirely blind to other lines'
       // geometry — the underlying straight polyline can have a real (if
@@ -7270,7 +7301,7 @@ export class RouterCore {
     }
   }
 
-  _applyCornerRounding(routeResult, radiusGlobal, routeId = null, ownWidth = 0) {
+  _applyCornerRounding(routeResult, radiusGlobal, routeId = null, ownWidth = 0, perCornerRadius = null) {
     const pts = routeResult.pts;
     if (!Array.isArray(pts) || pts.length < 3) {
       return null;
@@ -7282,7 +7313,7 @@ export class RouterCore {
     let lastOut = pts[0].slice();
     parts.push(`M${lastOut[0]},${lastOut[1]}`);
 
-    const cornerRadii = this._estimateCornerRadii(pts, radiusGlobal, routeId, ownWidth);
+    const cornerRadii = this._estimateCornerRadii(pts, radiusGlobal, routeId, ownWidth, { perCornerRadius });
     const bundleEntryHints = routeResult.meta?.bundleEntryHints;
     if (bundleEntryHints && bundleEntryHints.length && routeId) {
       this._buildBundleEntryReverseCurves(pts, cornerRadii, bundleEntryHints, radiusGlobal);
@@ -7482,7 +7513,7 @@ export class RouterCore {
    * with manual waypoints) fall back to a symmetric chamfer along the corner
    * bisector, ignoring angle.
    */
-  _applyCornerBeveling(routeResult, sizeGlobal, angleDeg, routeId = null) {
+  _applyCornerBeveling(routeResult, sizeGlobal, angleDeg, routeId = null, perCornerRadius = null) {
     const pts = routeResult.pts;
     if (!Array.isArray(pts) || pts.length < 3) {
       return null;
@@ -7504,7 +7535,8 @@ export class RouterCore {
       const pNext = pts[i + 1];
       const lenIn = Math.hypot(p[0] - pPrev[0], p[1] - pPrev[1]);
       const lenOut = Math.hypot(pNext[0] - p[0], pNext[1] - p[1]);
-      const size = Math.min(sizeGlobal, lenIn / 2, lenOut / 2);
+      const target = (perCornerRadius && perCornerRadius[i - 1] != null) ? perCornerRadius[i - 1] : sizeGlobal;
+      const size = Math.min(target, lenIn / 2, lenOut / 2);
       cornerSizes.push({ index: i, size, lenIn, lenOut });
     }
     for (let i = 0; i < cornerSizes.length - 1; i++) {
