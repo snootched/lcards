@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.08.0-dev.2",
+  "version": "2026.08.0-dev.3",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -77,5 +77,8 @@
     "d3-zoom": "^3.0.0",
     "lit": "^3.3.2",
     "vanilla-colorful": "^0.7.2"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
   }
 }
