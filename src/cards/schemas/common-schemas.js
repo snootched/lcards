@@ -6,6 +6,10 @@
  * Factory functions (like getTextSchema) are used when customization is needed.
  */
 
+import { ANIMATION_PRESET_PARAMS_SCHEMAS, ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE } from './animation-preset-params-schemas.js';
+import { BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE } from './background-animation-params-schemas.js';
+import { FILTER_PARAMS_SCHEMAS } from './filter-params-schemas.js';
+
 // ============================================================================
 // COLOR VALUE PRIMITIVES
 // ============================================================================
@@ -280,11 +284,11 @@ export const animationSchema = {
             examples: ['pulse', 'flash', 'bounce', 'shake', 'glow']
         },
         duration: {
-            type: 'number',
+            type: ['number', 'object'],
             minimum: 0,
             maximum: 10000,
             default: 500,
-            description: 'Animation duration in milliseconds (0-10000)'
+            description: 'Animation duration in milliseconds (0-10000). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'
         },
         ease: {
             type: ['string', 'object'],
@@ -305,11 +309,11 @@ export const animationSchema = {
             description: 'Whether animation should alternate direction on each loop'
         },
         delay: {
-            type: 'number',
+            type: ['number', 'object'],
             minimum: 0,
             maximum: 10000,
             default: 0,
-            description: 'Delay before animation starts (milliseconds)'
+            description: 'Delay before animation starts (milliseconds). Also accepts a map_range descriptor, matching rulesSchema\'s equivalent field.'
         },
         entity: {
             type: 'string',
@@ -339,40 +343,59 @@ export const animationSchema = {
         },
         while: {
             type: 'object',
-            description: 'Lifecycle condition for looping animations (requires the top-level loop: true field). The animation plays while the condition is true and stops automatically when it becomes false. Note: to_state/from_state are fire-and-forget gates \u2014 they control when the animation starts but will not stop it. Use while to auto-stop a looping animation.',
+            description: 'Lifecycle condition for looping animations (requires the top-level loop: true field). The animation plays while the condition is true and stops automatically when it becomes false. Note: to_state/from_state are fire-and-forget gates \u2014 they control when the animation starts but will not stop it. Use while to auto-stop a looping animation. The 4 numeric bound keys (above/at_least/below/at_most) AND-combine when more than one is present, so a range can be expressed by combining two of them \u2014 e.g. { at_least: 20, at_most: 80 } for an inclusive range, or { above: 20, below: 80 } for an exclusive one.',
             properties: {
                 state:     { type: 'string', description: 'Play while entity value equals this string' },
                 not_state: { type: 'string', description: 'Play while entity value does NOT equal this string' },
                 above:     { type: 'number', description: 'Play while numeric entity value is strictly above this threshold' },
-                below:     { type: 'number', description: 'Play while numeric entity value is strictly below this threshold' }
+                at_least:  { type: 'number', description: 'Play while numeric entity value is greater than or equal to this threshold' },
+                below:     { type: 'number', description: 'Play while numeric entity value is strictly below this threshold' },
+                at_most:   { type: 'number', description: 'Play while numeric entity value is less than or equal to this threshold' }
             },
             examples: [
                 { state: 'on' },
                 { not_state: 'unavailable' },
                 { above: 50 },
-                { below: 100 }
+                { at_least: 50 },
+                { below: 100 },
+                { at_most: 100 },
+                { at_least: 20, at_most: 80 },
+                { above: 20, below: 80 }
             ]
         },
-        color: {
+        id: {
             type: 'string',
-            pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|theme:|rgb\\(|rgba\\(|var\\(--)',
-            description: 'Animation colour (for glow/flash effects)',
-            examples: ['#FF9900', 'theme:colors.ui.active', 'rgba(255, 153, 0, 0.5)']
+            pattern: '^[a-zA-Z0-9_-]+$',
+            description: 'Optional identifier for this animation entry (referenced by system animations, debugging).'
         },
-        scale: {
-            type: 'number',
-            minimum: 0.1,
-            maximum: 10,
-            default: 1,
-            description: 'Scale factor for animation (0.1-10, default: 1)'
+        enabled: {
+            type: 'boolean',
+            default: true,
+            description: 'Set false to disable this animation entry without deleting it.'
         },
-        max_scale: {
-            type: 'number',
-            minimum: 0.1,
-            maximum: 10,
-            description: 'Maximum scale during animation (0.1-10)'
+        target: {
+            type: 'string',
+            description: 'CSS selector for a single animation target element.'
+        },
+        targets: {
+            type: ['string', 'array'],
+            items: { type: 'string' },
+            description: 'CSS selector(s) for multiple animation target elements.'
+        },
+        params: {
+            type: 'object',
+            discriminatedBy: {
+                field: 'preset',
+                schemas: ANIMATION_PRESET_PARAMS_SCHEMAS,
+                default: { type: 'object', additionalProperties: true }
+            },
+            description: 'Preset-specific parameters. Shape depends on the sibling `preset` field.'
         }
     },
+    // 'warn', not false: an unrecognized top-level field here is worth surfacing but
+    // must never itself block a card from initializing — same reasoning as the
+    // per-preset params schemas (see animation-preset-params-schemas.js).
+    additionalProperties: 'warn',
     required: ['trigger', 'preset']
 };
 
@@ -411,12 +434,18 @@ export const filterSchema = {
             description: 'Filter type - depends on mode (CSS: blur, brightness, etc. / SVG: feGaussianBlur, feColorMatrix, etc.)'
         },
         value: {
-            oneOf: [
-                { type: 'string', description: 'Simple value for CSS filters (e.g., "5px", "1.5", "180deg")' },
-                { type: 'number', description: 'Numeric value for CSS filters (e.g., 1.5, 0.8)' },
-                { type: 'object', description: 'Object parameters for SVG filters', additionalProperties: true }
-            ],
-            description: 'Filter parameters - simple value for CSS filters, object for SVG filters'
+            discriminatedBy: {
+                field: 'type',
+                schemas: FILTER_PARAMS_SCHEMAS,
+                default: {
+                    oneOf: [
+                        { type: 'string', description: 'Simple value for CSS filters (e.g., "5px", "1.5", "180deg")' },
+                        { type: 'number', description: 'Numeric value for CSS filters (e.g., 1.5, 0.8)' },
+                        { type: 'object', description: 'Object parameters for SVG filters', additionalProperties: true }
+                    ]
+                }
+            },
+            description: 'Filter parameters - shape depends on the sibling `type` field. Simple value for CSS filters, object for SVG filters.'
         }
     },
     required: ['type']
@@ -679,10 +708,11 @@ export const rulesSchema = {
             },
             when: {
                 type: 'object',
-                description: 'Condition(s) that must be met for rule to apply. Supports 20+ condition types including entity state, time, performance, DataSources, and logical composition (all/any/not).',
+                description: 'Condition(s) that must be met for rule to apply. Supports 20+ condition types including entity state, time, performance, DataSources, and logical composition (all/any/not). Numeric comparisons accept above/below (strict) and at_least/at_most (inclusive).',
                 additionalProperties: true,
                 examples: [
                     { entity: 'sensor.temperature', above: 25 },
+                    { entity: 'sensor.temperature', at_least: 25 },
                     { all: [{ entity: 'light.bedroom', state: 'on' }, { time: { after: '22:00' } }] },
                     { datasource: 'cpu_usage', above: 80 }
                 ]
@@ -708,11 +738,6 @@ export const rulesSchema = {
                             filters: {
                                 type: 'object',
                                 description: 'SVG filter properties to update'
-                            },
-                            filter_preset: {
-                                type: 'string',
-                                description: 'Named filter preset to apply',
-                                examples: ['dimmed', 'bright', 'red-alert']
                             },
                             transition: {
                                 type: 'number',
@@ -784,6 +809,11 @@ export const rulesSchema = {
                                 },
                                 params: {
                                     type: 'object',
+                                    discriminatedBy: {
+                                        field: 'preset',
+                                        schemas: ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE,
+                                        default: { type: 'object', additionalProperties: true }
+                                    },
                                     description: 'Preset-specific parameters. Values may be static or use map_range to proportionally interpolate from an entity value.',
                                     additionalProperties: true,
                                     examples: [
@@ -815,7 +845,7 @@ export const rulesSchema = {
                 examples: [
                     { overlays: { temp_display: { style: { color: 'var(--lcars-red)' } } } },
                     { overlays: { 'tag:warning': { style: { opacity: 1 } } }, animations: ['pulse'] },
-                    { base_svg: { filter_preset: 'red-alert', transition: 500 }, profiles: ['alert_mode'] }
+                    { base_svg: { filters: [{ mode: 'svg', type: 'tint', value: { color: 'rgba(180,0,0,0.35)' } }], transition: 500 }, profiles: ['alert_mode'] }
                 ]
             },
             stop: {
@@ -1457,7 +1487,12 @@ const backgroundAnimationEffectSchema = {
         },
         config: {
             type: 'object',
-            description: 'Preset-specific configuration options. Supports entity-reactive values via map_range descriptor ({ map_range: { attribute, input, output } }) or template strings ([[[...]]]). entity_id defaults to the card-bound entity.'
+            discriminatedBy: {
+                field: 'preset',
+                schemas: BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE,
+                default: { type: 'object', additionalProperties: true }
+            },
+            description: 'Preset-specific configuration options. Shape depends on the sibling `preset` field. Supports entity-reactive values via map_range descriptor ({ map_range: { attribute, input, output } }) or template strings ([[[...]]]). entity_id defaults to the card-bound entity.'
         },
         enabled: {
             type: 'boolean',

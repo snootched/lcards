@@ -9,6 +9,8 @@
 
 [![License](https://img.shields.io/badge/license-MIT-37a6d1?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/snootched/LCARdS?style=default&logo=git&logoColor=white&color=37a6d1)](https://github.com/snootched/LCARdS/commits/main)
+[![GitHub Repo stars](https://img.shields.io/github/stars/snootched/lcards?style=flat&logo=stardock&logoColor=37a6d1&color=37a6d1)](https://github.com/snootched/lcards/stargazers)
+
 
 <br>
 
@@ -44,11 +46,13 @@ Each card shares a set of common core services — a unified rules engine, DataS
 | `lcards-button` | All standard LCARS buttons plus advanced multi-segment component mode (D-pad, Alert, custom shapes) |
 | `lcards-elbow` | LCARS corner designs — simple and Picard-style segmented double elbows |
 | `lcards-slider` | Interactive sliders for sensors and controllable entities — pills and gauge styles |
-| `lcards-select-menu` | Grid of option buttons built from `input_select`/`select` entities or custom options. |
+| `lcards-select-menu` | Grid of option buttons built from `input_select`/`select` entities or custom options |
 | `lcards-data-grid` | LCARS tabular grids with real entity data and cascade animation |
 | `lcards-chart` | ApexCharts-powered charting with full DataSource pipeline integration |
 | `lcards-alert-overlay` | Full-screen dashboard alert backdrop reacting to `input_select.lcards_alert_mode` |
-| `lcards-msd` | Master Systems Display — embed any HA cards on a positioned SVG canvas with routed connecting lines |
+| `lcards-msd` | Master Systems Display — embed any HA cards on a routed, drawable SVG blueprint canvas (lines, shapes, live-updating overlays) |
+| `lcards-layout-card` | CSS Grid container card with a built-in visual layout editor — nest a grid of cards anywhere |
+| `lcards-layout-view` | Dashboard view type bringing that same visual grid editor to a whole view, HA Sections-style |
 
 → **[Full card documentation](https://lcards.unimatrix01.ca/cards/)**
 
@@ -79,6 +83,18 @@ There are no external dependencies — use with [**HA-LCARS themes**](https://gi
 
 ---
 
+## Support & Community
+
+LCARdS is a hobby and passion project.  If you find it useful (or just cool), the ways to support it are:
+
+- ⭐ **Star the repo** — it genuinely helps other people find the project
+- 🐛 **[Report issues](https://github.com/snootched/lcards/issues)** — bug reports and reproduction steps help more than almost anything else
+- 💬 **[Join discussions](https://github.com/snootched/lcards/discussions)** — questions, ideas, and showing off what you've built are all welcome
+
+<br>
+
+---
+
 ## AI Usage
 
 <details>
@@ -103,7 +119,7 @@ A very sincere thanks to these projects and their authors, contributors and comm
 
 [LCARSlad London](https://twitter.com/lcarslad) for excellent LCARS images and diagrams for reference.
 
-[meWho Titan.DS](https://www.mewho.com/titan) for such a cool interactive design demo and colour reference.
+[meWho Titan.DS](https://www.mewho.com/titan) for such a cool interactive design demo and colour reference.  Such a cool UI to aspire to!
 
 [TheLCARS.com](https://www.thelcars.com) — a great LCARS design reference, and the original base reference for colours, Data Cascade and Pulsewave animations.
 

@@ -28,7 +28,7 @@ All anime.js primitives and LCARdS animation utilities live here.
 ```javascript
 // Direct anime.js v4 call
 window.lcards.anim.anime('.my-element', {
-  translateX: [0, 100],
+  x: [0, 100],            // v4: use 'x', not 'translateX'
   duration: 800,
   ease: 'inOutQuad',      // v4: use 'ease', not 'easing'
 });
@@ -42,7 +42,7 @@ window.lcards.anim.anime('.grid-cell', {
 
 // Spring easing
 const spring = window.lcards.anim.spring({ stiffness: 150, damping: 18 });
-window.lcards.anim.anime('.panel', { translateY: [-20, 0], ease: spring, duration: 1000 });
+window.lcards.anim.anime('.panel', { y: [-20, 0], ease: spring, duration: 1000 });
 
 // Scope (for overlay-scoped cleanup)
 const scope = window.lcards.anim.createScope({ root: myElement });

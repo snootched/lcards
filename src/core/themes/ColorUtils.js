@@ -239,12 +239,14 @@ export class ColorUtils {
    * @overload
    * @param {string} value
    * @param {string} [defaultValue]
+   * @param {Element|null} [element]
    * @returns {string}
    */
   /**
    * @overload
    * @param {string[]} value
    * @param {string} [defaultValue]
+   * @param {Element|null} [element]
    * @returns {string[]}
    */
   /**

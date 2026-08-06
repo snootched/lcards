@@ -19,7 +19,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { AnimationRegistry } from './AnimationRegistry.js';
 import { TriggerManager } from './TriggerManager.js';
 import { BaseService } from '../BaseService.js';
-import { resolveAnimCommandParams } from './resolveAnimParams.js';
+import { resolveAnimCommandParams, resolveAnimParam } from './resolveAnimParams.js';
 
 export class AnimationManager extends BaseService {
   constructor(systemsManager) {
@@ -42,10 +42,152 @@ export class AnimationManager extends BaseService {
     // DOM root element (for reliable queries when elements become disconnected)
     this.mountEl = null;
 
+    // Live map_range duration tracking (Phase 10): reverse index so updateHass()
+    // only has to check entities actually bound to a running looping animation's
+    // duration, not diff all of hass.states. Map<entityId, Set<{overlayId, trigger}>>
+    this._entityToSpeedBindings = new Map();
+    // Previous hass snapshot, for detecting which entities actually changed
+    // (HA always gives a fresh per-entity object reference on any change to that
+    // entity, state or attribute-only alike — see home-assistant-js-websocket's
+    // entities.js processEvent()).
+    this._lastHass = null;
+
     // State
     this.initialized = false;
 
     lcardsLog.debug('[AnimationManager] Created');
+  }
+
+  /**
+   * Phase 10: called on every hass tick (LCARdSCore._updateHass() already calls
+   * this unconditionally — previously a BaseService no-op). Keeps any looping
+   * animation whose `duration` is map_range-driven in sync with its bound
+   * entity/attribute while it's still running, without restarting it.
+   *
+   * Only entities actually referenced by a live speed binding are checked
+   * (via _entityToSpeedBindings), not all of hass.states. HA always produces a
+   * fresh per-entity object reference on any change to that entity — state or
+   * attribute-only alike — so a simple reference comparison against the
+   * previous hass snapshot is sufficient to detect relevant changes.
+   * @param {Object} hass - Home Assistant instance
+   */
+  updateHass(hass) {
+    if (hass && this._entityToSpeedBindings.size > 0) {
+      for (const entityId of this._entityToSpeedBindings.keys()) {
+        if (this._lastHass?.states?.[entityId] !== hass.states?.[entityId]) {
+          this._refreshEntitySpeedBindings(entityId, hass);
+        }
+      }
+    }
+    this._lastHass = hass;
+  }
+
+  /**
+   * Phase 10: internal key for a single trigger's live speed binding.
+   * @private
+   */
+  _bindingKey(overlayId, trigger) {
+    return `${overlayId}::${trigger}`;
+  }
+
+  /**
+   * Phase 10: register that `overlayId`'s `trigger` binding cares about `entityId`.
+   * @private
+   */
+  _addSpeedBinding(entityId, overlayId, trigger) {
+    if (!this._entityToSpeedBindings.has(entityId)) {
+      this._entityToSpeedBindings.set(entityId, new Set());
+    }
+    this._entityToSpeedBindings.get(entityId).add(this._bindingKey(overlayId, trigger));
+  }
+
+  /**
+   * Phase 10: remove a previously-registered binding (on re-trigger, stop, or
+   * scope teardown) so updateHass() never targets a stale/torn-down scope.
+   * @private
+   */
+  _removeSpeedBinding(entityId, overlayId, trigger) {
+    const set = this._entityToSpeedBindings.get(entityId);
+    if (!set) return;
+    set.delete(this._bindingKey(overlayId, trigger));
+    if (set.size === 0) this._entityToSpeedBindings.delete(entityId);
+  }
+
+  /**
+   * Phase 10: remove a single trigger's live speed binding for an overlay, if
+   * any (used by stopAnimations(overlayId, trigger)).
+   * @private
+   */
+  _clearSpeedBindingForTrigger(overlayId, scopeData, trigger) {
+    const binding = scopeData?.liveSpeedBindings?.get(trigger);
+    if (!binding) return;
+    this._removeSpeedBinding(binding.entityId, overlayId, trigger);
+    scopeData.liveSpeedBindings.delete(trigger);
+  }
+
+  /**
+   * Phase 10: remove every live speed binding for an overlay (used when a scope
+   * is torn down entirely, or stopAnimations(overlayId) stops all triggers).
+   * @private
+   */
+  _clearAllSpeedBindingsForScope(overlayId, scopeData) {
+    if (!scopeData?.liveSpeedBindings) return;
+    scopeData.liveSpeedBindings.forEach((binding, trigger) => {
+      this._removeSpeedBinding(binding.entityId, overlayId, trigger);
+    });
+    scopeData.liveSpeedBindings.clear();
+  }
+
+  /**
+   * Phase 10: re-resolve every live speed binding tied to `entityId` and apply
+   * the updated playback speed to each currently-running instance for that
+   * trigger, in place — no teardown/restart. anime.js v4's JSAnimation extends
+   * Timer, which exposes a public per-instance `.speed` property (a playback-
+   * rate multiplier); setting it rescales an already-running animation's tempo
+   * live. Only `duration` is live-adjusted this way — re-mapped target values
+   * (color/position/etc.) would need to reach into anime.js's private tween
+   * internals and are intentionally not attempted.
+   * @param {string} entityId
+   * @param {Object} hass
+   * @private
+   */
+  _refreshEntitySpeedBindings(entityId, hass) {
+    const bindingKeys = this._entityToSpeedBindings.get(entityId);
+    if (!bindingKeys) return;
+
+    for (const key of bindingKeys) {
+      const sepIndex = key.indexOf('::');
+      const overlayId = key.slice(0, sepIndex);
+      const trigger = key.slice(sepIndex + 2);
+
+      const scopeData = this.scopes.get(overlayId);
+      const binding = scopeData?.liveSpeedBindings?.get(trigger);
+      if (!binding) continue; // stale entry that cleanup missed; harmless no-op
+
+      const freshDuration = resolveAnimParam(binding.durationDescriptor, hass);
+      if (typeof freshDuration !== 'number' || !Number.isFinite(freshDuration) || freshDuration <= 0) {
+        lcardsLog.warn(`[AnimationManager] Live speed binding for ${overlayId}/${trigger}: map_range resolved to an invalid duration, leaving speed unchanged`, { freshDuration });
+        continue;
+      }
+
+      const speed = binding.baseDuration / freshDuration;
+      const instances = scopeData.runningInstances.get(trigger) || [];
+      let applied = 0;
+      instances.forEach(instance => {
+        try {
+          if (instance && !instance.completed && typeof instance.speed !== 'undefined') {
+            instance.speed = speed;
+            applied++;
+          }
+        } catch (error) {
+          lcardsLog.warn(`[AnimationManager] Failed to live-update speed for ${overlayId}/${trigger}:`, error);
+        }
+      });
+
+      if (applied > 0) {
+        lcardsLog.debug(`[AnimationManager] 🎚️ Live-adjusted speed for ${overlayId}/${trigger}: ${entityId} → duration ${freshDuration} (speed ${speed.toFixed(3)}, ${applied} instance(s))`);
+      }
+    }
   }
 
   /**
@@ -84,6 +226,28 @@ export class AnimationManager extends BaseService {
           this.registeredAnimations.set(overlay.id, overlay.animations);
           lcardsLog.debug(`[AnimationManager] Registered ${overlay.animations.length} animations for overlay: ${overlay.id}`);
         }
+      });
+
+      // Also register a (possibly empty) scope for any overlay that a RulesEngine
+      // rule targets directly by ID (apply.animations[].overlay), even if that
+      // overlay has no animations of its own. Without this, onOverlayRendered()
+      // never runs for such an overlay (PipelineCore.js gates it on
+      // registeredAnimations having an entry), so AnimationManager has no scope to
+      // attach a rule-triggered animation to — confirmed live: "Scope not found for
+      // overlay: X" followed by "Cannot play animation" for a rule-only-targeted
+      // line overlay. Scoped to direct `overlay:` id targeting only for now — tag/
+      // type/pattern targeting would need each overlay's tags/type available here,
+      // which this config shape doesn't carry; a rule using those targeting modes
+      // against an overlay with no animations of its own will still hit this gap.
+      const allRules = window.lcards?.core?.rulesManager?.getAllRules?.() || [];
+      const overlayIds = new Set(overlays.map(o => o.id));
+      allRules.forEach(rule => {
+        (rule.apply?.animations || []).forEach(animCmd => {
+          if (animCmd.overlay && overlayIds.has(animCmd.overlay) && !this.registeredAnimations.has(animCmd.overlay)) {
+            this.registeredAnimations.set(animCmd.overlay, []);
+            lcardsLog.debug(`[AnimationManager] Registered empty animation scope for rule-targeted overlay: ${animCmd.overlay} (rule: ${rule.id})`);
+          }
+        });
       });
 
       // Store timeline configs (will be initialized when overlays are ready)
@@ -171,6 +335,8 @@ export class AnimationManager extends BaseService {
           });
         });
         existingScope.runningInstances.clear();
+        this._clearAllSpeedBindingsForScope(overlayId, existingScope);
+        this._runElementCleanupFns(existingScope.element);
         if (existingScope.triggerManager) {
           existingScope.triggerManager.destroy();
         }
@@ -203,6 +369,9 @@ export class AnimationManager extends BaseService {
         // Track running animation instances by trigger type for stopAnimations()
         // Structure: Map<trigger, Array<animeInstance>>
         runningInstances: new Map(),
+        // Phase 10: live map_range duration bindings for looping animations.
+        // Structure: Map<trigger, {entityId, durationDescriptor, baseDuration}>
+        liveSpeedBindings: new Map(),
         // Store systemsManager reference for accessing overlay instances
         systemsManager: systemsManager,
         // Track whether on_load animations have already fired
@@ -231,6 +400,11 @@ export class AnimationManager extends BaseService {
       for (const animDef of animations) {
         await this.registerAnimation(overlayId, animDef, { batchShouldFire: shouldFireOnLoad });
       }
+
+      // Now that every animDef in this batch is in TriggerManager's registrations,
+      // set up trigger listeners (entity subscriptions + check_on_load) so they see
+      // the full set of same-trigger entries, not just the first one (#386).
+      triggerManager.finalizeRegistrations();
 
       // Mark on_load as fired AFTER the entire batch has been processed,
       // so all animations in this call get a chance to fire.
@@ -505,6 +679,7 @@ export class AnimationManager extends BaseService {
 
       // Clear tracked instances for this trigger
       scopeData.runningInstances.delete(trigger);
+      this._clearSpeedBindingForTrigger(overlayId, scopeData, trigger);
 
       lcardsLog.debug(`[AnimationManager] ⏸️ Stopped ${stopped} animation(s) for trigger ${trigger} on ${overlayId}`);
 
@@ -532,6 +707,7 @@ export class AnimationManager extends BaseService {
       });
 
       scopeData.runningInstances.clear();
+      this._clearAllSpeedBindingsForScope(overlayId, scopeData);
       lcardsLog.debug(`[AnimationManager] ⏹️ Stopped ${stopped} animation(s) on ${overlayId}`);
     }
   }
@@ -875,6 +1051,12 @@ export class AnimationManager extends BaseService {
       // Get HASS context from SystemsManager
       const hass = this.systemsManager?.getHass?.() || this.systemsManager?._hass;
 
+      // Phase 10: snapshot the raw (pre-resolve) duration so we can tell whether it
+      // was a map_range descriptor — resolveAnimCommandParams() below overwrites it
+      // with a plain number. Mirrors the same top-level-then-params fallback used
+      // for the resolved value at animOptions.duration (line ~917).
+      const rawDuration = finalAnimDef.duration ?? finalAnimDef.params?.duration;
+
       // Resolve map_range descriptors (duration, delay, params) so they work for
       // all animation paths, not just the rules engine path
       finalAnimDef = resolveAnimCommandParams(finalAnimDef, hass);
@@ -897,10 +1079,19 @@ export class AnimationManager extends BaseService {
         type: finalAnimDef.preset || finalAnimDef.type,
         targets: targetElements,  // Pass resolved DOM elements, not original selectors
         root: scopeData.element.getRootNode(),
-        // Spread preset-specific params first so that top-level canonical fields
-        // (duration, loop, alternate, delay, ease) take precedence when both are present.
-        // Legacy configs may have these in params; new configs have them at top level.
-        ...(finalAnimDef.params || {}),
+        // Pass params nested (not spread) so preset factories can still read
+        // preset-specific fields via `def.params || def` (e.g. pulse's max_scale/
+        // max_brightness) WITHOUT those fields also leaking onto animOptions
+        // itself — a blanket `...finalAnimDef.params` spread here previously
+        // put every preset-specific param directly on animOptions, and since
+        // _cleanAnimeParams() only strips known meta-params (not arbitrary
+        // preset-input fields), they reached anime.js as bogus tween properties
+        // (confirmed via a real DOM snapshot showing max_scale="0.398"/
+        // max_brightness="0.4846" attributes written onto an animated <g>).
+        // Canonical fields (duration/loop/alternate/delay/ease) already have
+        // explicit params-fallback below, so the blanket spread was redundant
+        // for them and harmful for everything else in params.
+        params: finalAnimDef.params,
         duration: finalAnimDef.duration ?? finalAnimDef.params?.duration,
         ease: easeConfig,  // 'ease' is the anime.js v4 name; animateElement reads params.ease
         loop: finalAnimDef.loop ?? finalAnimDef.params?.loop,
@@ -937,6 +1128,26 @@ export class AnimationManager extends BaseService {
         trigger: animDef.trigger,
         duration: finalAnimDef.duration
       });
+
+      // Phase 10: (re-)register or clear this trigger's live map_range duration
+      // binding. Always clear first — a re-trigger may have changed the entity,
+      // or duration may no longer be map_range-driven, so any prior binding for
+      // this trigger must not be left stale.
+      const existingBinding = scopeData.liveSpeedBindings.get(animDef.trigger);
+      if (existingBinding) {
+        this._removeSpeedBinding(existingBinding.entityId, overlayId, animDef.trigger);
+        scopeData.liveSpeedBindings.delete(animDef.trigger);
+      }
+      const isLoopingAnim = !!(finalAnimDef.loop ?? finalAnimDef.params?.loop);
+      if (isLoopingAnim && rawDuration && typeof rawDuration === 'object' && rawDuration.map_range?.entity) {
+        const entityId = rawDuration.map_range.entity;
+        const baseDuration = finalAnimDef.duration ?? finalAnimDef.params?.duration;
+        if (typeof baseDuration === 'number' && Number.isFinite(baseDuration) && baseDuration > 0) {
+          scopeData.liveSpeedBindings.set(animDef.trigger, { entityId, durationDescriptor: rawDuration, baseDuration });
+          this._addSpeedBinding(entityId, overlayId, animDef.trigger);
+          lcardsLog.debug(`[AnimationManager] 🔗 Registered live speed binding for ${overlayId}/${animDef.trigger} → ${entityId}`);
+        }
+      }
 
       // Track active animation definition
       scopeData.activeAnimations.add(finalAnimDef);
@@ -1121,6 +1332,31 @@ export class AnimationManager extends BaseService {
   }
 
   /**
+   * Run and clear any DOM-cleanup callbacks a preset's setup() attached
+   * directly to the element (e.g. cascade-color's interactive hover
+   * pause/resume listeners, stashed via element._cleanupFns). These live
+   * outside anime.js's own scope/instance tracking, so scope.revert() and
+   * runningInstances teardown never touch them — this must be called
+   * explicitly from every scope-teardown path (recreation and destroy) or
+   * the listeners leak onto a detached element.
+   *
+   * @param {Element} element
+   * @private
+   */
+  _runElementCleanupFns(element) {
+    const cleanupFns = /** @type {any} */ (element)?._cleanupFns;
+    if (!Array.isArray(cleanupFns) || cleanupFns.length === 0) return;
+    cleanupFns.forEach(fn => {
+      try {
+        fn();
+      } catch (error) {
+        lcardsLog.warn('[AnimationManager] Error running element cleanup fn:', error);
+      }
+    });
+    /** @type {any} */ (element)._cleanupFns = [];
+  }
+
+  /**
    * Destroy scope and cleanup for an overlay
    * Called when overlay is removed
    *
@@ -1155,6 +1391,8 @@ export class AnimationManager extends BaseService {
       if (scopeData.triggerManager) {
         scopeData.triggerManager.destroy();
       }
+
+      this._runElementCleanupFns(scopeData.element);
 
       // Revert and cleanup scope
       if (scopeData.scope && typeof scopeData.scope.revert === 'function') {
@@ -1326,6 +1564,8 @@ export class AnimationManager extends BaseService {
           activeAnimations: new Set(),
           triggerManager: triggerManager,
           runningInstances: new Map(),
+          // Phase 10: live map_range duration bindings for looping animations.
+          liveSpeedBindings: new Map(),
           // Segment-specific metadata
           isSegment: true,
           cardId: cardId,
@@ -1365,6 +1605,9 @@ export class AnimationManager extends BaseService {
         // For on_entity_change triggers, setup is handled by the card
         // (card tracks entity changes and calls playSegmentAnimation)
       }
+
+      // Same rationale as onOverlayRendered() — must run after the full batch (#386).
+      scopeData.triggerManager.finalizeRegistrations();
 
       lcardsLog.debug(`[AnimationManager] ✅ Registered ${animations.length} animations for segment: ${scopeKey}`);
 

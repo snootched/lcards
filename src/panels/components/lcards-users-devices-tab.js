@@ -436,7 +436,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
 
         ${this._loading ? html`
           <div class="loading-row">
-            <ha-circular-progress indeterminate size="s"></ha-circular-progress>
+            <ha-spinner size="small"></ha-spinner>
             Loading users…
           </div>
         ` : this._users.length === 0 ? html`
@@ -520,7 +520,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
 
         ${this._loading ? html`
           <div class="loading-row">
-            <ha-circular-progress indeterminate size="s"></ha-circular-progress>
+            <ha-spinner size="small"></ha-spinner>
             Loading devices…
           </div>
         ` : this._devices.length === 0 ? html`

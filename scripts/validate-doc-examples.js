@@ -110,8 +110,11 @@ function walkDocs(dir, out = []) {
 }
 
 // ── Build compiled card schema validators ────────────────────────────────────
-// Strip `additionalProperties: false` (to avoid noise from partial examples)
-// and any dangling `$ref` nodes (button + elbow have an unresolvable
+// Strip `additionalProperties: false` and the LCARdS-specific `'warn'` value
+// (to avoid noise from partial examples; ajv@8 only accepts boolean/schema-object,
+// so `'warn'` — a valid CoreValidationService value, not standard JSON Schema —
+// would otherwise fail schema compilation entirely) and any dangling `$ref` nodes
+// (button + elbow have an unresolvable
 // `$ref: '#/$defs/stateColorSchema'` — ajv@8 would throw on it).
 // Also strip empty `enum: []` arrays — these arise when schema factories are
 // called without preset options, and ajv@8 rejects them as invalid schemas.
@@ -125,7 +128,7 @@ function stripSchemaRestrictions(node) {
   if (node && typeof node === 'object') {
     const out = {};
     for (const [k, v] of Object.entries(node)) {
-      if (k === 'additionalProperties' && v === false) continue;
+      if (k === 'additionalProperties' && (v === false || v === 'warn')) continue;
       if (k === '$ref') continue;
       if (k === 'enum' && Array.isArray(v) && v.length === 0) continue;
       if ((k === 'oneOf' || k === 'anyOf' || k === 'allOf') && Array.isArray(v)) {

@@ -14,6 +14,7 @@
  */
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolvePresetParams } from '../../../../utils/lcards-anim-helpers.js';
 
 /**
  * Timeline animation presets
@@ -47,7 +48,7 @@ export const TIMELINE_PRESETS = {
    * }
    */
   'timeline-cascade': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const steps = p.steps || [];
     const loop = p.loop !== undefined ? p.loop : false;
 
@@ -88,7 +89,7 @@ export const TIMELINE_PRESETS = {
    * }
    */
   'timeline-attention': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const scaleMax = p.scale_max !== undefined ? p.scale_max : 1.15;
     const shakeIntensity = p.shake_intensity !== undefined ? p.shake_intensity : 5;
     const durationScale = p.duration_scale || 200;
@@ -96,13 +97,13 @@ export const TIMELINE_PRESETS = {
     const durationSettle = p.duration_settle || 400;
     const loop = p.loop !== undefined ? p.loop : false;
 
-    // Build timeline steps
+    // Build timeline steps (v4 easing names — was 'easeOutQuad'/'easeInOutSine'/'easeInOutQuad')
     const steps = [
       // Step 1: Scale up
       {
         params: {
           scale: [1, scaleMax],
-          ease: 'easeOutQuad'
+          ease: 'outQuad'
         },
         duration: durationScale,
         offset: 0
@@ -111,7 +112,7 @@ export const TIMELINE_PRESETS = {
       {
         params: {
           translateX: [0, shakeIntensity, -shakeIntensity, shakeIntensity, 0],
-          ease: 'easeInOutSine'
+          ease: 'inOutSine'
         },
         duration: durationShake,
         offset: '<' // Start immediately after previous
@@ -120,7 +121,7 @@ export const TIMELINE_PRESETS = {
       {
         params: {
           scale: [scaleMax, 1],
-          ease: 'easeInOutQuad'
+          ease: 'inOutQuad'
         },
         duration: durationSettle,
         offset: '<'

@@ -34,7 +34,7 @@ AnimationManager
     │
     ├─ AnimationRegistry  (shared, caches anime instances by key)
     ├─ datasourceSubscriptions (datasource_id → cleanup fn)
-    └─ timelines Map (timelineId → anime.timeline instance)
+    └─ timelines Map (timelineId → createTimeline() instance)
 ```
 
 ---
@@ -45,15 +45,15 @@ AnimationManager
 |---|---|
 | `on_load` | Once on card initialisation |
 | `on_entity_change` | When a watched entity changes state |
-| `on_datasource` | When a DataSource value crosses a threshold or changes |
-| `on_rule` | Fired by RulesEngine when a rule matches |
+| `on_datasource_change` | When a DataSource value crosses a threshold or changes |
+| `on_rule` | Internally-synthesized — never set this directly via `trigger:` in your own config. It's applied automatically when an animation is executed via a rule's `apply.animations` targeting; author rule-driven animations through the Rules Engine, not by hand-setting this trigger. |
 | `manual` | Programmatic: `animationManager.play(id)` |
 
 ---
 
 ## anime.js v4 Note
 
-LCARdS uses **anime.js v4**. The `anime.timeline()` API changed from v3. Always pass targets as CSS selectors or DOM element references resolved at runtime — not stale references cached at config time.
+LCARdS uses **anime.js v4**. The timeline API (`anime.createTimeline()`, renamed from v3's `anime.timeline()`) changed from v3. Always pass targets as CSS selectors or DOM element references resolved at runtime — not stale references cached at config time.
 
 ---
 
@@ -110,6 +110,6 @@ am.activeAnimations              // Map<overlayId, Set>
 
 ## See Also
 
-- [Animation Manager — Triggers (Entity Change)](../animations/entity-change-triggers.md)
-- [Rule-Based Animations](../animations/rule-based-animations.md)
+- [Animation Manager — Triggers (Entity Change)](../../core/animations/entity-change-triggers.md)
+- [Rule-Based Animations](../../core/animations/rule-based-animations.md)
 - [Pack System](pack-system.md)

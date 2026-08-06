@@ -45,11 +45,23 @@ const ENTITY_OPERATORS = [
     { value: 'equals',     label: 'equals' },
     { value: 'not_equals', label: 'not equals' },
     { value: 'above',      label: 'above' },
+    { value: 'at_least',   label: 'at least (≥)' },
     { value: 'below',      label: 'below' },
+    { value: 'at_most',    label: 'at most (≤)' },
+    { value: 'between',           label: 'between (≥ and ≤)' },
+    { value: 'between_exclusive', label: 'between (exclusive, > and <)' },
     { value: 'in',         label: 'in list' },
     { value: 'not_in',     label: 'not in list' },
     { value: 'regex',      label: 'regex match' }
 ];
+
+// Composite range operators — each maps to two atomic condition keys that
+// AND-combine (compileConditions.js's compareValue already ANDs every
+// present bound key).
+const COMBO_OPERATOR_BOUNDS = {
+    between:           { loKey: 'at_least', hiKey: 'at_most' }, // inclusive both ends
+    between_exclusive: { loKey: 'above',    hiKey: 'below' }    // exclusive both ends
+};
 
 const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -207,11 +219,11 @@ export class LCARdSConditionGroupEditor extends LitElement {
         if (cond.weekday_in !== undefined) return { _type: 'weekday_in', weekdays: cond.weekday_in || [] };
         if (cond.sun_elevation !== undefined) {
             const se = cond.sun_elevation || {};
-            return { _type: 'sun_elevation', above: se.above, below: se.below };
+            return { _type: 'sun_elevation', above: se.above, below: se.below, at_least: se.at_least, at_most: se.at_most };
         }
         if (cond.perf_metric !== undefined) {
             const pm = cond.perf_metric || {};
-            return { _type: 'perf_metric', metric: pm.key || '', above: pm.above, below: pm.below };
+            return { _type: 'perf_metric', metric: pm.key || '', above: pm.above, below: pm.below, at_least: pm.at_least, at_most: pm.at_most };
         }
         if (cond.flag !== undefined) {
             const f = cond.flag || {};
@@ -235,7 +247,13 @@ export class LCARdSConditionGroupEditor extends LitElement {
      * @returns {{ key: string, value: * }} Operator name and its value
      */
     _detectOperator(cond) {
-        for (const op of ['equals', 'not_equals', 'above', 'below', 'in', 'not_in', 'regex']) {
+        // Combo (range) operators take priority over their atomic keys when both bounds are present.
+        for (const [comboKey, { loKey, hiKey }] of Object.entries(COMBO_OPERATOR_BOUNDS)) {
+            if (cond[loKey] !== undefined && cond[hiKey] !== undefined) {
+                return { key: comboKey, value: { lo: cond[loKey], hi: cond[hiKey] } };
+            }
+        }
+        for (const op of ['equals', 'not_equals', 'above', 'at_least', 'below', 'at_most', 'in', 'not_in', 'regex']) {
             if (cond[op] !== undefined) return { key: op, value: cond[op] };
         }
         // 'state' is an alias for 'equals'
@@ -255,13 +273,23 @@ export class LCARdSConditionGroupEditor extends LitElement {
         switch (type) {
             case 'entity': {
                 const op = cond.operator || 'equals';
+                const combo = COMBO_OPERATOR_BOUNDS[op];
+                if (combo) {
+                    const v = cond.value || {};
+                    return { entity: cond.entity || '', [combo.loKey]: Number(v.lo ?? 0), [combo.hiKey]: Number(v.hi ?? 100) };
+                }
                 const val = cond.value !== undefined ? cond.value : '';
                 return { entity: cond.entity || '', [op]: val };
             }
             case 'entity_attr': {
                 const op = cond.operator || 'equals';
-                const val = cond.value !== undefined ? cond.value : '';
+                const combo = COMBO_OPERATOR_BOUNDS[op];
                 // Schema uses 'entity' (not 'entity_attr') plus 'attribute' key
+                if (combo) {
+                    const v = cond.value || {};
+                    return { entity: cond.entity || '', attribute: cond.attribute || '', [combo.loKey]: Number(v.lo ?? 0), [combo.hiKey]: Number(v.hi ?? 100) };
+                }
+                const val = cond.value !== undefined ? cond.value : '';
                 return { entity: cond.entity || '', attribute: cond.attribute || '', [op]: val };
             }
             case 'jinja2':
@@ -275,13 +303,17 @@ export class LCARdSConditionGroupEditor extends LitElement {
             case 'sun_elevation': {
                 const s = {};
                 if (cond.above !== undefined && cond.above !== '') s.above = Number(cond.above);
+                if (cond.at_least !== undefined && cond.at_least !== '') s.at_least = Number(cond.at_least);
                 if (cond.below !== undefined && cond.below !== '') s.below = Number(cond.below);
+                if (cond.at_most !== undefined && cond.at_most !== '') s.at_most = Number(cond.at_most);
                 return { sun_elevation: s };
             }
             case 'perf_metric': {
                 const p = { key: cond.metric || '' };
                 if (cond.above !== undefined && cond.above !== '') p.above = Number(cond.above);
+                if (cond.at_least !== undefined && cond.at_least !== '') p.at_least = Number(cond.at_least);
                 if (cond.below !== undefined && cond.below !== '') p.below = Number(cond.below);
+                if (cond.at_most !== undefined && cond.at_most !== '') p.at_most = Number(cond.at_most);
                 return { perf_metric: p };
             }
             case 'flag':
@@ -566,6 +598,22 @@ export class LCARdSConditionGroupEditor extends LitElement {
                             @value-changed=${(e) => set('below', e.detail.value)}>
                         </ha-selector>
                     </div>
+                    <div class="inline-grid">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'At Least (degrees, ≥)'}
+                            .selector=${{ number: { min: -90, max: 90, mode: 'box' } }}
+                            .value=${cond.at_least ?? ''}
+                            @value-changed=${(e) => set('at_least', e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'At Most (degrees, ≤)'}
+                            .selector=${{ number: { min: -90, max: 90, mode: 'box' } }}
+                            .value=${cond.at_most ?? ''}
+                            @value-changed=${(e) => set('at_most', e.detail.value)}>
+                        </ha-selector>
+                    </div>
                 `;
             case 'perf_metric':
                 return html`
@@ -590,6 +638,22 @@ export class LCARdSConditionGroupEditor extends LitElement {
                             .selector=${{ number: { mode: 'box' } }}
                             .value=${cond.below ?? ''}
                             @value-changed=${(e) => set('below', e.detail.value)}>
+                        </ha-selector>
+                    </div>
+                    <div class="inline-grid">
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'At Least (≥)'}
+                            .selector=${{ number: { mode: 'box' } }}
+                            .value=${cond.at_least ?? ''}
+                            @value-changed=${(e) => set('at_least', e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'At Most (≤)'}
+                            .selector=${{ number: { mode: 'box' } }}
+                            .value=${cond.at_most ?? ''}
+                            @value-changed=${(e) => set('at_most', e.detail.value)}>
                         </ha-selector>
                     </div>
                 `;
@@ -744,13 +808,30 @@ export class LCARdSConditionGroupEditor extends LitElement {
                 .value=${cond.operator || 'equals'}
                 @value-changed=${(e) => set('operator', e.detail.value)}>
             </ha-selector>
-            <ha-selector
-                .hass=${this.hass}
-                .label=${'Value'}
-                .selector=${{ text: {} }}
-                .value=${cond.value !== undefined ? String(cond.value) : (cond.state !== undefined ? String(cond.state) : '')}
-                @value-changed=${(e) => set('value', e.detail.value)}>
-            </ha-selector>
+            ${COMBO_OPERATOR_BOUNDS[cond.operator] ? html`
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Min'}
+                    .selector=${{ text: {} }}
+                    .value=${cond.value?.lo !== undefined ? String(cond.value.lo) : ''}
+                    @value-changed=${(e) => set('value', { ...(cond.value || {}), lo: e.detail.value })}>
+                </ha-selector>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Max'}
+                    .selector=${{ text: {} }}
+                    .value=${cond.value?.hi !== undefined ? String(cond.value.hi) : ''}
+                    @value-changed=${(e) => set('value', { ...(cond.value || {}), hi: e.detail.value })}>
+                </ha-selector>
+            ` : html`
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Value'}
+                    .selector=${{ text: {} }}
+                    .value=${cond.value !== undefined ? String(cond.value) : (cond.state !== undefined ? String(cond.state) : '')}
+                    @value-changed=${(e) => set('value', e.detail.value)}>
+                </ha-selector>
+            `}
         `;
     }
 }

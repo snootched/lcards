@@ -239,14 +239,25 @@ export async function createCardElement(cardType, label = 'card') {
  *
  * @param {Object}  cardConfig  Full card config { type, entity, … }
  * @param {Object}  [hass]      HASS object
+ * @param {Object}  [options]
+ * @param {boolean} [options.editMode=false] - Forwarded to `hui-card.preview`
+ *   (NOT a real `editMode` property — `hui-card` itself only declares
+ *   `preview`/`config`/`hass`/`layout`; `preview` is what its own
+ *   `_updateVisibility()` checks to unconditionally show the card regardless
+ *   of `config.visibility`, matching stock HA's "always show every card
+ *   while editing" dashboard convention. `hui-card` separately forwards
+ *   `this.preview` onto `this._element.editMode` for the *inner* card's own
+ *   benefit — that's a distinct, one-way mechanism this option name mirrors
+ *   for caller-side clarity, not the property being set here).
  * @returns {HTMLElement}       hui-card wrapper element (load() already called)
  */
-export function createHuiCardWrapper(cardConfig, hass) {
+export function createHuiCardWrapper(cardConfig, hass, { editMode = false } = {}) {
     const wrapper = /** @type {any} */ (document.createElement('hui-card'));
+    wrapper.preview = editMode;
     if (hass) wrapper.hass = hass;
     wrapper.config = cardConfig;
     wrapper.load();
-    lcardsLog.debug(`[HACardFactory] hui-card wrapper created for lazy type: ${cardConfig?.type}`);
+    lcardsLog.debug(`[HACardFactory] hui-card wrapper created for lazy type: ${cardConfig?.type}`, { editMode });
     return wrapper;
 }
 

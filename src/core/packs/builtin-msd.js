@@ -64,18 +64,18 @@ export const BUILTIN_MSD_SVG_PACK = {
         license: 'CC-BY-SA-4.0',
       },
     },
-    'enterprise-d-shuttlecraft15-anomaly-custom': {
-      url: '/lcards/msd/enterprise-d-shuttlecraft15-anomaly-custom.svg',
+
+    'ncc-1701-kelvin': {
+      url: '/lcards/msd/ncc-1701-kelvin.svg',
       metadata: {
-        ship: 'Shuttlecraft 15',
-        registry: 'NCC-1701-D-15',
-        class: 'Type-6 Shuttle',
-        era: 'TNG (2360s-2370s)',
-        variant: 'Modified ViewBox Size',
-        description: 'Modified size - Type-6 shuttlecraft systems display with anomaly indicators',
-        author: 'anomaly',
-        source: 'Bundled with LCARdS',
-        license: 'CC-BY-SA-4.0'
+        ship: 'USS Enterprise',
+        registry: 'NCC-1701',
+        class: 'Constitution-class',
+        era: 'Kelvin Timeline Films (2009-2016)',
+        description: 'Kelvin-timeline Enterprise master systems display',
+        author: 'charner1963',
+        source: 'https://freesvg.org/new-spaceship-enterprise-vector-drawing',
+        license: 'Public Domain'
       }
     }
   }

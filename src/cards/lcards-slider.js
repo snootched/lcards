@@ -470,16 +470,28 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Update entity value (only when a primary entity is configured)
         if (this.config.entity && this._entity) {
-            // Get new value and set it
-            // Lit's hasChanged() automatically determines if re-render is needed
-            const newValue = this._getEntityValue(this._entity);
-            const previousValue = this._sliderValue;
+            // Skip syncing the visual value while the user is actively dragging.
+            // HASS can push a new state for the entity mid-drag (polling
+            // integrations, unrelated attribute churn, echoed context) before our
+            // own service call has gone out on release — overwriting _sliderValue
+            // here would snap the handle back to the stale entity value out from
+            // under the user's finger/pointer. See issue #392.
+            const isDragging = this._isDragging || this._isHorizontalDragging;
 
-            this._sliderValue = newValue;
+            if (!isDragging) {
+                // Get new value and set it
+                // Lit's hasChanged() automatically determines if re-render is needed
+                const newValue = this._getEntityValue(this._entity);
+                const previousValue = this._sliderValue;
 
-            // Log value changes (first load or actual change)
-            if (!oldHass || previousValue !== newValue) {
-                lcardsLog.debug(`[LCARdSSlider] Value ${!oldHass ? 'initialized' : 'changed'}: ${previousValue} -> ${newValue}`);
+                this._sliderValue = newValue;
+
+                // Log value changes (first load or actual change)
+                if (!oldHass || previousValue !== newValue) {
+                    lcardsLog.debug(`[LCARdSSlider] Value ${!oldHass ? 'initialized' : 'changed'}: ${previousValue} -> ${newValue}`);
+                }
+            } else {
+                lcardsLog.trace(`[LCARdSSlider] Skipping value sync from HASS — drag in progress`);
             }
 
             // Update control config if entity attributes changed
@@ -1009,8 +1021,10 @@ export class LCARdSSlider extends LCARdSButton {
                 colorConfig,
                 fallback
             });
-            // resolveStateColor can return string | number | null; coerce to string for SVG attributes
-            return resolved != null ? String(resolved) : fallback;
+            // resolveStateColor can return string | number | null; coerce to string, then run
+            // through the full pipeline (theme: safety net + var() materialization) since this
+            // value is written to SVG attributes.
+            return resolved != null ? this._resolveColorValue(String(resolved), fallback) : fallback;
         }
         return this._resolveColorValue(colorConfig, fallback);
     }
@@ -3761,10 +3775,20 @@ export class LCARdSSlider extends LCARdSButton {
                 //   'end'    → right edge (vertical) / bottom edge (horizontal)
                 // Default is 'start' for all components; offset adjusts tip position.
                 align:         riCfg.align             ?? presetMarker.align             ?? 'start',
+                // offsetX/offsetY below double as "cross-axis nudge" (perpendicular to the
+                // value axis) in the orientation a preset was authored for, but become the
+                // "main-axis" (value-position) coordinate if the SAME preset is reused under
+                // the other orientation (e.g. a horizontal preset's offset.y=20, meant to
+                // clear a top border, becomes an errant +20px shift along the vertical value
+                // axis if orientation is overridden to 'vertical'). So a preset's cross-axis
+                // offset is only honoured for the axis it's actually cross-axis on for the
+                // CURRENT orientation: offset.x only from presets when vertical, offset.y only
+                // from presets when horizontal. Per-range config (riCfg) always applies — the
+                // author configuring a range for a specific card knows its orientation.
                 // Vertical: ticks are on x-axis, default offset unknown (preset must set it)
                 // Horizontal: ticks are on y-axis, default offset = 10 (minor tick height)
-                offsetX:       riCfg.offset?.x         ?? presetMarker.offset?.x         ?? 0,
-                offsetY:       riCfg.offset?.y         ?? presetMarker.offset?.y         ?? (isVertical ? 0 : 10),
+                offsetX:       riCfg.offset?.x         ?? (isVertical ? presetMarker.offset?.x : undefined) ?? 0,
+                offsetY:       riCfg.offset?.y         ?? (isVertical ? undefined : presetMarker.offset?.y) ?? (isVertical ? 0 : 10),
                 borderEnabled: riCfg.border?.enabled   ?? presetMarker.border?.enabled   ?? false,
                 borderColor:   this._resolveColorValue(String(this._resolveStateValue({
                     actualState: this._entity?.state,

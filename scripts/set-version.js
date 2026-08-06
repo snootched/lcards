@@ -2,10 +2,10 @@
 /**
  * set-version.js — Sync version from package.json → manifest.json and const.py
  *
- * package.json format : YYYY.MM.X[-suffix]  (e.g. 2026.03.25-alpha.1)
- * HA integration format: YYYY.M.X           (e.g. 2026.3.25  — no leading zeros, no suffix)
+ * package.json format : YYYY.MM.SEQ[-dev.N]  (e.g. 2026.08.1-dev.2)
+ * HA integration format: YYYY.M.SEQ          (e.g. 2026.8.1    — no leading zeros, no suffix)
  *
- * Run locally after bumping package.json version:
+ * Run locally after bumping package.json version (see also: npm run bump-version):
  *   npm run set-version
  */
 
@@ -21,9 +21,13 @@ const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
 const rawVersion = pkg.version; // e.g. "2026.03.25-alpha.1"
 
 // ── 2. Convert to HA calver (no leading zeros, no pre-release suffix) ────────
-const [calver] = rawVersion.split('-'); // "2026.03.25"
-const parts = calver.split('.');        // ["2026", "03", "25"]
-const haVersion = `${parts[0]}.${parseInt(parts[1], 10)}.${parts[2]}`; // "2026.3.25"
+const [calver] = rawVersion.split('-'); // "2026.08.1"
+const parts = calver.split('.');        // ["2026", "08", "1"]
+if (parts.length !== 3) {
+  console.error(`\n❌ Expected version in YYYY.MM.SEQ form, got "${calver}" (from "${rawVersion}")\n`);
+  process.exit(1);
+}
+const haVersion = `${parts[0]}.${parseInt(parts[1], 10)}.${parts[2]}`; // "2026.8.1"
 
 console.log(`\n🔢 Version sync: ${rawVersion} → ${haVersion}\n`);
 
@@ -41,9 +45,9 @@ let constContent = readFileSync(constPath, 'utf8');
 const prevConst = (constContent.match(/^DOMAIN_VERSION\s*=\s*"([^"]*)"/m) || [])[1] ?? '?';
 constContent = constContent.replace(
   /^DOMAIN_VERSION\s*=\s*"[^"]*"/m,
-  `DOMAIN_VERSION = "${haVersion}"`
+  `DOMAIN_VERSION = "${rawVersion}"`
 );
 writeFileSync(constPath, constContent);
-console.log(`  ✅ const.py       ${prevConst} → ${haVersion}`);
+console.log(`  ✅ const.py       ${prevConst} → ${rawVersion}`);
 
 console.log('\n🚀 Done.\n');

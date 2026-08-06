@@ -347,6 +347,23 @@ export class CoreValidationService {
   }
 
   /**
+   * Checks whether a value's actual runtime type satisfies any of a schema's
+   * expected type names, including the JSON-Schema 'integer' type — which
+   * `_resolveActualType()` never produces on its own, since JS's `typeof`
+   * has no distinct integer type (whole and fractional numbers are both
+   * 'number'). Without this, any `type: 'integer'` field with a whole-number
+   * value fails validation unconditionally (confirmed: this broke `loop: N`
+   * on animation presets, and the identically-shaped `cardZIndexSchema`
+   * z_index field carries the same latent bug).
+   * @private
+   */
+  _typeMatches(actualType, expectedTypes, data) {
+    if (expectedTypes.includes(actualType)) return true;
+    if (actualType === 'number' && expectedTypes.includes('integer') && Number.isInteger(data)) return true;
+    return false;
+  }
+
+  /**
    * Validate object against schema definition
    * @private
    */
@@ -411,7 +428,7 @@ export class CoreValidationService {
 
       // Don't report as type error if the actual type is one of the expected types
       // (the real issue is likely a property/format validation failure)
-      if (!expectedTypes.includes(actualType)) {
+      if (!this._typeMatches(actualType, expectedTypes, data)) {
         result.errors.push({
           type: 'invalid_type',
           field: path,
@@ -470,17 +487,46 @@ export class CoreValidationService {
             }
           });
         } else if (prop in data) {
-          this._validateAgainstSchema(data[prop], propSchema, result, fieldPath);
+          const effectiveSchema = propSchema.discriminatedBy
+            ? this._resolveDiscriminatedSchema(propSchema, data, result, fieldPath)
+            : propSchema;
+          this._validateAgainstSchema(data[prop], effectiveSchema, result, fieldPath);
         }
       }
     }
 
-    // Check for additional properties if additionalProperties is false
-    if (schema.additionalProperties === false && schema.properties) {
+    // Check the standard JSON-Schema array-form `required` (e.g. animationSchema's
+    // `required: ['trigger', 'preset']`) — historically never read anywhere in this
+    // validator (only the nonstandard per-property `required: true`, above, was ever
+    // enforced), so this was a completely inert declaration. Surfaced as a warning,
+    // not an error: enforcing it as a hard error risks newly rejecting existing saved
+    // configs that have always silently lacked a "required" field without issue: a
+    // flood of surprise failures is worse than a quiet, actionable warning.
+    if (Array.isArray(schema.required)) {
+      for (const prop of schema.required) {
+        if (!(prop in data)) {
+          const fieldPath = path ? `${path}.${prop}` : prop;
+          result.warnings.push({
+            type: 'missing_recommended_field',
+            field: fieldPath,
+            message: `Missing recommended property "${prop}"`,
+            context: { field: fieldPath, prop }
+          });
+        }
+      }
+    }
+
+    // Check for additional properties if additionalProperties is false (hard error)
+    // or 'warn' (non-blocking) — 'warn' is for schemas where an unrecognized field is
+    // a real signal worth surfacing (e.g. a stale/leftover field from switching presets)
+    // but is harmless at runtime and must never block a save the way a genuine type
+    // mismatch on a recognized field should.
+    if ((schema.additionalProperties === false || schema.additionalProperties === 'warn') && schema.properties) {
       const allowedProps = Object.keys(schema.properties);
+      const bucket = schema.additionalProperties === false ? result.errors : result.warnings;
       for (const prop of Object.keys(data)) {
         if (!allowedProps.includes(prop)) {
-          result.errors.push({
+          bucket.push({
             type: 'invalid_property',
             field: path ? `${path}.${prop}` : prop,
             message: `Unexpected property "${prop}"`,
@@ -493,6 +539,44 @@ export class CoreValidationService {
         }
       }
     }
+  }
+
+  /**
+   * Resolves a property's effective schema when it declares `discriminatedBy`,
+   * a small custom keyword (not standard JSON-Schema) that picks a sub-schema
+   * based on a sibling property's value in the SAME parent object being
+   * validated — e.g. an animation's `params` shape depends on its sibling
+   * `preset` field. `_validateObject`'s property loop keeps `parentData` bound
+   * to the whole object for its entire body, so the sibling value is already
+   * available at the point `params` gets validated — no plumbing changes
+   * needed anywhere else in the validator.
+   *
+   * The discriminator field (e.g. `preset`) must stay free-form, not an enum —
+   * it's a public extension point (custom/plugin-registered presets), so an
+   * unrecognized value falls back permissively (a warning, not an error)
+   * rather than blocking saves.
+   *
+   * Shape: { field: 'preset', schemas: { pulse: {...}, draw: {...} }, default: {...} }
+   * @private
+   */
+  _resolveDiscriminatedSchema(propSchema, parentData, result, fieldPath) {
+    const { field, schemas, default: defaultSchema } = propSchema.discriminatedBy;
+    const discriminatorValue = parentData ? parentData[field] : undefined;
+
+    if (discriminatorValue !== undefined && schemas &&
+        Object.prototype.hasOwnProperty.call(schemas, discriminatorValue)) {
+      return schemas[discriminatorValue];
+    }
+
+    if (discriminatorValue !== undefined) {
+      result.warnings.push({
+        type: 'unrecognized_discriminator',
+        field: fieldPath,
+        message: `No params schema for ${field}="${discriminatorValue}" — validated generically`,
+        context: { field: fieldPath, [field]: discriminatorValue }
+      });
+    }
+    return defaultSchema || { type: propSchema.type || 'object', additionalProperties: true };
   }
 
   /**
@@ -559,7 +643,7 @@ export class CoreValidationService {
     const expectedTypes = Array.isArray(schema.type) ? schema.type : [schema.type];
     const actualType = this._resolveActualType(data);
 
-    if (!expectedTypes.includes(actualType)) {
+    if (!this._typeMatches(actualType, expectedTypes, data)) {
       result.errors.push({
         type: 'invalid_type',
         field: path,

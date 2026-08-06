@@ -187,7 +187,7 @@ Animated level-indicator fill bar that rises from the bottom (or fills from the 
 | `color_b` | `null` | Secondary colour (top/right). When set, a gradient is drawn from `color_a` to `color_b`. |
 | `gradient_crossover` | `80` | 0–100 — percentage of fill height that stays `color_a` before transitioning to `color_b`. |
 | `fill_pct` | `50` | Fill percentage 0–100; supports templates. |
-| `direction` | `'up'` | `'up'` (bottom→top) \| `'right'` (left→right) |
+| `direction` | `'up'` | `'up'` (bottom→top) \| `'down'` (top→bottom) \| `'right'` (left→right) \| `'left'` (right→left) |
 | `edge_glow` | `true` | Bloom highlight on the leading edge. |
 | `edge_glow_color` | `rgba(255,255,255,0.7)` | Edge glow colour. |
 | `edge_glow_width` | `6` | Glow spread radius in px. |
@@ -200,7 +200,7 @@ Animated level-indicator fill bar that rises from the bottom (or fills from the 
 | `slosh_amount` | `0` | 0–1 tilt intensity. Makes the fluid rock as if in a vessel. |
 | `slosh_period` | `3` | Seconds per slosh cycle. |
 
-`direction: 'right'` does not support waves — the leading edge is always flat.
+All four `direction` values render waves on the leading edge — `down`/`left` are mirror-reflections of `up`/`right`, so the same `wave_height`/`wave_speed`/`wave_count` parameters apply symmetrically.
 
 ### `scanlines`
 
@@ -221,7 +221,7 @@ User-supplied image rendered inside the card shape, clipped to the shape geometr
 
 | Config key | Default | Description |
 |---|---|---|
-| `source` | `''` | `/local/` path, `https://` URL, `builtin:<key>` reference, or a template (e.g. `'{entity.attributes.entity_picture}'`). SVG files are also supported — they are loaded via `<img>` and painted into Canvas2D like any raster image. |
+| `source` | `''` | `/local/` path, `https://` URL, `builtin:<key>` reference, `media-source://…` content ID (HA media library item), or a template (e.g. `'{entity.attributes.entity_picture}'`). SVG files are also supported — they are loaded via `<img>` and painted into Canvas2D like any raster image. |
 | `size` | `'cover'` | `'cover'` \| `'contain'` \| `'fill'` \| `'<n>px'` (explicit pixel size for the shorter axis) |
 | `position` | `'center'` | CSS `background-position` style string — keywords (`top left`, `center`, `bottom right`) or percentages (`50% 50%`) |
 | `repeat` | `false` | If `true`, tiles the image across the shape rather than fitting it |
@@ -262,6 +262,19 @@ shape_texture:
     source: 'builtin:bedroom'  # key registered in lcards-images-pack or via Config Panel
     size: cover
 ```
+
+**Image picked from the HA Media Library**:
+
+```yaml
+shape_texture:
+  preset: image
+  opacity: 0.6
+  config:
+    source: 'media-source://media_source/local/bedroom.jpg'
+    size: cover
+```
+
+The editor's "Image Source" field offers a **Browse HA Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `source`. At render time this is resolved to a real URL via `AssetManager.resolveMediaSourceUrl()` (the `media_source/resolve_media` websocket command), cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../subsystems/asset-manager.md).
 
 > **SVG files**: `.svg` sources work — they load via `<img>` and are painted into Canvas2D. SVG files should be self-contained; files without explicit `width`/`height` attributes fall back to canvas dimensions automatically.
 

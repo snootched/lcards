@@ -1,10 +1,56 @@
 import { RendererUtils } from './RendererUtils.js';
 
 /**
+ * Implicit z-index defaults by overlay type, applied when an overlay has no
+ * explicit `z_index` — reproduces the pre-Phase-3 paint order (controls over
+ * lines) plus shape's slot beneath both. See OverlayUtils.resolveZIndex().
+ */
+export const DEFAULT_Z_BY_TYPE = { control: 200, line: 100, shape: 50 };
+
+/**
  * Shared utilities for overlay renderers
  * Provides common functionality without requiring inheritance
  */
 export class OverlayUtils {
+  /**
+   * Resolve an overlay's effective stacking z-index: explicit z_index, else
+   * the type's implicit default, else a global fallback (150, between shape
+   * and line) — the single source of truth for the ordering formula
+   * AdvancedRenderer's final z-order pass (real SVG paint order) uses, so any
+   * other consumer needing the SAME ordering (e.g. MSD Studio's interactive
+   * hit-layer) doesn't re-derive its own, driftable copy.
+   * @param {Object} overlay
+   * @returns {number}
+   */
+  static resolveZIndex(overlay) {
+    return overlay?.z_index ?? DEFAULT_Z_BY_TYPE[overlay?.type] ?? 150;
+  }
+
+  /**
+   * Build an id → declared-array-index map, for the tie-break used when two
+   * overlays share a resolved z-index (see compareByZIndex).
+   * @param {Array<Object>} overlays - the full, unfiltered overlays array
+   * @returns {Map<string, number>}
+   */
+  static buildDeclOrderMap(overlays) {
+    return new Map((overlays || []).map((o, i) => [o.id, i]));
+  }
+
+  /**
+   * Comparator for Array.prototype.sort: ascending resolved z-index, ties
+   * broken by declared order. Pass the Map from buildDeclOrderMap.
+   * @param {Object} a
+   * @param {Object} b
+   * @param {Map<string, number>} declOrder
+   * @returns {number}
+   */
+  static compareByZIndex(a, b, declOrder) {
+    const za = OverlayUtils.resolveZIndex(a);
+    const zb = OverlayUtils.resolveZIndex(b);
+    if (za !== zb) return za - zb;
+    return (declOrder.get(a.id) ?? 0) - (declOrder.get(b.id) ?? 0);
+  }
+
   /**
    * Resolve position from various formats (coordinates, anchor references)
    * @param {Array|string} position - Position specification

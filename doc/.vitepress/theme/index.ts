@@ -2,6 +2,9 @@ import DefaultTheme from 'vitepress/theme'
 import { enhanceAppWithTabs } from 'vitepress-plugin-tabs/client'
 import { onMounted, onUnmounted, h } from 'vue'
 import HomeBadges from './HomeBadges.vue'
+import AnimationPlayground from './AnimationPlayground.vue'
+import FilterPlayground from './FilterPlayground.vue'
+import EffectPlayground from './EffectPlayground.vue'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -44,6 +47,20 @@ export default {
 
   enhanceApp({ app }: { app: any }) {
     enhanceAppWithTabs(app)
+    // Live anime.js preset demos (imports real src/core/packs/animations code
+    // client-side) — registered globally so any doc page can drop in
+    // <AnimationPlayground preset="pulse" />. Runs client-only; SSR just
+    // renders the loading-shell fallback in the component's own template.
+    app.component('AnimationPlayground', AnimationPlayground)
+    // Live filter demos (imports real src/msd/utils/BaseSvgFilters.js client-
+    // side) — <FilterPlayground type="blur" />. Same client-only pattern.
+    app.component('FilterPlayground', FilterPlayground)
+    // Live canvas background-animation demos (imports real
+    // src/core/packs/backgrounds/BackgroundAnimationRenderer.js client-side)
+    // — <EffectPlayground preset="grid" />. Lazy-mounts on scroll-into-view
+    // (own IntersectionObserver) since several presets do real per-frame
+    // per-pixel noise generation.
+    app.component('EffectPlayground', EffectPlayground)
   },
 
   Layout() {

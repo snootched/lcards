@@ -49,16 +49,30 @@
 
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { createCardElement, applyHassToCard } from '../../utils/ha-card-factory.js';
+import { createCardElement, applyHassToCard, createHuiCardWrapper } from '../../utils/ha-card-factory.js';
+import { extractAllConfigStrings } from '../../utils/extractConfigStrings.js';
+import { TemplateParser } from '../../core/templates/TemplateParser.js';
+import { isHAEntity } from '../utils/HADomains.js';
 
 export class MsdControlsRenderer {
-  constructor(renderer) {
+  constructor(renderer, cardConfig = null, isEditMode = false) {
     this.renderer = renderer;
+    // Resolved contents of the card's own `msd:` config block — used only for
+    // the card-wide triggers_update: 'all' escape hatch (see setHass()).
+    this._cardConfig = cardConfig || null;
     this.controlElements = new Map(); // overlayId -> { element, config }
     this.hass = null;
     this.lastRenderArgs = null;
     this._isRendering = false;
     this._lastSignature = null;
+
+    // True only when rendering inside the MSD Studio editor dialog (#387) —
+    // forwarded to hui-card.editMode so Studio's live preview keeps its
+    // current "always show" behavior instead of newly hiding a control
+    // whenever its visibility condition happens to be false at design time,
+    // matching the same "edit mode ignores visibility" convention stock HA
+    // dashboards and lcards-layout-view/lcards-layout-card already use.
+    this._editMode = !!isEditMode;
 
     // ⚠️ FEATURE FLAG: Manual HASS Forwarding
     // Default: true (required for foreignObject-embedded cards)
@@ -74,11 +88,37 @@ export class MsdControlsRenderer {
     // Maps control overlay ID to Set of entity IDs it uses
     this._controlEntityMap = new Map(); // overlayId -> Set<entityId>
 
+    // Overlays with triggers_update: 'all' — always included in the affected
+    // batch on any hass change, bypassing the entity-diff gate for just that
+    // control (see #387: for cards whose entity dependencies genuinely can't
+    // be enumerated, e.g. wildcard/device-class auto-discovery).
+    this._alwaysUpdateControls = new Set(); // Set<overlayId>
+
     // DEBUGGING: Log when MsdControlsRenderer is created
     lcardsLog.debug('[MsdControlsRenderer] 🎮 Constructor called', {
       manualHassForwarding: this._manualHassForwarding,
       entityTrackingEnabled: true
     });
+  }
+
+  /**
+   * Single choke point for every pointer-events assignment this renderer makes
+   * on a control's DOM. 'none' only when rendering inside MSD Studio's own
+   * editor preview (this._editMode) AND the overlay is explicitly locked —
+   * otherwise 'auto', regardless of context. A real dashboard always has
+   * this._editMode === false, so a locked overlay is never less interactive
+   * there than an unlocked one — locked is editor-only, see msd-schema.js's
+   * field description. (Locking a control in MSD Studio makes it undraggable
+   * on the canvas, and — via this method — makes its real rendered DOM stop
+   * intercepting clicks/pans meant for whatever's visually underneath it,
+   * entirely independent of MSD Studio's own separate synthetic bbox overlay,
+   * which handles drag/resize disabling on its own.)
+   * @param {boolean} [locked]
+   * @returns {'auto'|'none'}
+   * @private
+   */
+  _resolvePointerEvents(locked) {
+    return (this._editMode && locked === true) ? 'none' : 'auto';
   }
 
   /**
@@ -90,6 +130,20 @@ export class MsdControlsRenderer {
    */
   _extractControlEntities(overlay) {
     const entities = new Set();
+
+    // Explicit escape hatch (array form): overlay.triggers_update — same field
+    // already used by line overlays for MSD data-source subscriptions
+    // (ModelBuilder.js/OverlayBase.js). Entity-shaped entries are folded into
+    // this control's own change-detection set here; non-entity entries are
+    // MSD data-source refs, unrelated to this method. The 'all' string form
+    // is handled separately by the caller (_registerControl), not here.
+    if (Array.isArray(overlay.triggers_update)) {
+      overlay.triggers_update.forEach(ref => {
+        if (typeof ref === 'string' && isHAEntity(ref)) {
+          entities.add(ref);
+        }
+      });
+    }
 
     if (!overlay.card) return entities;
 
@@ -124,6 +178,29 @@ export class MsdControlsRenderer {
         });
       }
     }
+
+    // Pattern 4: generic scan of every string value anywhere in the card
+    // config (mirrors LCARdSCard._extractAllConfigStrings — skips `type`).
+    // Catches entity refs nested under arbitrary key names (e.g. a
+    // third-party card's own `alerts: [{entity: 'binary_sensor.x'}]` shape,
+    // which Patterns 1-3 can't see since they only look at fixed key names),
+    // plus entity refs embedded inside Jinja2 templates in any field.
+    extractAllConfigStrings(cardConfig).forEach(str => {
+      // 4a. Jinja2 templates anywhere, e.g. state: "{{ states('sensor.x') }}"
+      TemplateParser.extractJinja2Entities(str).forEach(id => entities.add(id));
+
+      // 4b. Treat the raw string itself as a candidate plain entity ID.
+      // isHAEntity() already gates on a known HA domain prefix; when hass is
+      // available, also confirm it's a real registered entity (avoids
+      // false-positive noise from unrelated dotted strings that happen to
+      // share a domain prefix). When hass isn't available yet (rare — only
+      // possible before the very first hass tick), err permissive: including
+      // an extra candidate only costs an occasional unnecessary update, never
+      // a missed one.
+      if (isHAEntity(str) && (!this.hass?.states || this.hass.states[str])) {
+        entities.add(str);
+      }
+    });
 
     return entities;
   }
@@ -171,10 +248,10 @@ export class MsdControlsRenderer {
     const affected = [];
 
     this._controlEntityMap.forEach((entities, overlayId) => {
-      // Check if this control uses any changed entities
-      const hasChangedEntity = Array.from(entities).some(e =>
-        changedEntities.has(e)
-      );
+      // triggers_update: 'all' controls are always affected, regardless of
+      // which entities actually changed (see #387).
+      const hasChangedEntity = this._alwaysUpdateControls.has(overlayId) ||
+        Array.from(entities).some(e => changedEntities.has(e));
 
       if (hasChangedEntity) {
         const element = this.controlElements.get(overlayId);
@@ -204,6 +281,16 @@ export class MsdControlsRenderer {
 
     // ⚠️ FEATURE FLAG: Manual HASS Forwarding
     if (this._manualHassForwarding) {
+      // Card-wide escape hatch (msd.triggers_update: 'all', see #387) —
+      // discouraged last resort: bypasses the entity-diff gate entirely and
+      // refreshes every registered control on every hass tick. Reuses the
+      // existing unconditional-update method rather than duplicating it.
+      if (this._cardConfig?.triggers_update === 'all') {
+        lcardsLog.debug('[MsdControlsRenderer] 🔄 Card-wide triggers_update:"all" — updating ALL controls unconditionally');
+        this._updateAllControlsHass(hass);
+        return;
+      }
+
       // 🔄 MANUAL MODE: Optimized entity-based forwarding
       lcardsLog.debug('[MsdControlsRenderer] 🔄 Manual HASS forwarding ENABLED - using entity-based optimization');
 
@@ -254,12 +341,14 @@ export class MsdControlsRenderer {
 
     controls.forEach(({ overlayId, element }) => {
       try {
-        // Find the actual card element inside the wrapper
-        const cardElement = element.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
+        // Find the actual card element inside the wrapper (#387: prefer the
+        // reference stashed at creation time — see createControlElement()).
+        const cardElement = element._msdCardElement ||
+                           element.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
                            element.firstElementChild;
 
         if (cardElement) {
-          this._applyHassToCard(cardElement, hass, overlayId);
+          this._forwardHassToControl(cardElement, hass, overlayId);
         }
       } catch (error) {
         lcardsLog.error(`[MsdControlsRenderer] Failed to update control ${overlayId}:`, error);
@@ -279,12 +368,14 @@ export class MsdControlsRenderer {
 
     for (const [overlayId, wrapperElement] of this.controlElements) {
       try {
-        // Find the actual card element inside the wrapper
-        const cardElement = wrapperElement.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
+        // Find the actual card element inside the wrapper (#387: prefer the
+        // reference stashed at creation time — see createControlElement()).
+        const cardElement = wrapperElement._msdCardElement ||
+                           wrapperElement.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
                            wrapperElement.firstElementChild;
 
         if (cardElement) {
-          this._applyHassToCard(cardElement, hass, overlayId);
+          this._forwardHassToControl(cardElement, hass, overlayId);
         }
       } catch (error) {
             lcardsLog.warn('[MsdControls] ❌ Config stored for deferred application:', overlayId);
@@ -292,6 +383,32 @@ export class MsdControlsRenderer {
     }
   }
 
+
+  /**
+   * Forward a fresh hass object to a control's card element, whichever
+   * pipeline created it (#387).
+   *
+   * hui-card-wrapped controls (the preferred path — see createControlElement())
+   * just need plain property assignment: hui-card's own `hass` setter
+   * evaluates `config.visibility` and only redistributes hass to the real
+   * inner card when conditions pass — that IS the visibility fix, so nothing
+   * else should reach past it into the inner card directly.
+   *
+   * Raw-card controls (the hui-card-unavailable fallback path) still go
+   * through `_applyHassToCard()`'s existing per-card-type branching exactly
+   * as before.
+   * @private
+   * @param {any} cardElement - Element found inside the control wrapper
+   * @param {Object} hass - Home Assistant object
+   * @param {string} controlId - Control identifier for logging
+   */
+  _forwardHassToControl(cardElement, hass, controlId) {
+    if (cardElement.tagName?.toLowerCase() === 'hui-card') {
+      cardElement.hass = hass;
+    } else {
+      this._applyHassToCard(cardElement, hass, controlId);
+    }
+  }
 
   /**
    * Apply HASS context to a specific control card
@@ -463,6 +580,7 @@ export class MsdControlsRenderer {
       svgContainer.innerHTML = '';
       this.controlElements.clear();
       this._controlEntityMap.clear(); // Also clear entity tracking
+      this._alwaysUpdateControls.clear();
 
       for (const overlay of controlOverlays) {
         try {
@@ -503,13 +621,36 @@ export class MsdControlsRenderer {
     // Store control element
     this.controlElements.set(overlayId, element);
 
-    // Extract and track entities
-    const entities = this._extractControlEntities(overlay);
+    // triggers_update: 'all' — always update this control, skip entity
+    // tracking entirely (see #387: for cards whose dependencies can't be
+    // statically enumerated at all, e.g. wildcard/device-class matching).
+    //
+    // Also always-update any control with a `visibility:` array (#387): HA's
+    // visibility conditions include entity-keyed types (state/numeric_state)
+    // but also entity-less ones (screen/user, and any and/or/not nesting of
+    // either) that this entity-diff gate has no way to key off. Rather than
+    // parsing/recursing HA's condition shapes to tell them apart (fragile —
+    // would need to stay in sync with condition types HA adds later), simply
+    // treat any control that opts into visibility as always-update, so the
+    // hui-card wrapper (see createControlElement()) keeps getting fresh hass
+    // every tick to re-evaluate its condition, instead of freezing forever
+    // after its first render.
+    const hasVisibility = Array.isArray(overlay.card?.visibility) && overlay.card.visibility.length > 0;
+    const alwaysUpdate = overlay.triggers_update === 'all' || hasVisibility;
+    if (alwaysUpdate) {
+      this._alwaysUpdateControls.add(overlayId);
+    } else {
+      this._alwaysUpdateControls.delete(overlayId); // safety on re-registration
+    }
+
+    // Extract and track entities (empty Set is fine/unused when alwaysUpdate)
+    const entities = alwaysUpdate ? new Set() : this._extractControlEntities(overlay);
     this._controlEntityMap.set(overlayId, entities);
 
     lcardsLog.debug(`[MsdControlsRenderer] Registered control ${overlayId}`, {
       entityCount: entities.size,
-      entities: Array.from(entities)
+      entities: Array.from(entities),
+      alwaysUpdate
     });
   }
 
@@ -538,6 +679,7 @@ export class MsdControlsRenderer {
       lcardsLog.debug('[MsdControlsRenderer] Clearing existing control element entry for', overlay.id);
       this.controlElements.delete(overlay.id);
       this._controlEntityMap.delete(overlay.id); // Also clear entity tracking
+      this._alwaysUpdateControls.delete(overlay.id);
     }
 
     lcardsLog.debug('[MsdControlsRenderer] Creating control overlay', overlay.id, {
@@ -568,10 +710,12 @@ export class MsdControlsRenderer {
 
       // Apply initial HASS if available
       if (this.hass && this._manualHassForwarding) {
-        const cardElement = controlElement.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
+        // #387: prefer the reference stashed moments ago in createControlElement().
+        const cardElement = controlElement._msdCardElement ||
+                           controlElement.querySelector('[class*="card"], [data-card-type], lcards-button-card, hui-light-card') ||
                            controlElement.firstElementChild;
         if (cardElement) {
-          this._applyHassToCard(cardElement, this.hass, overlay.id);
+          this._forwardHassToControl(cardElement, this.hass, overlay.id);
         }
       }
 
@@ -651,6 +795,28 @@ export class MsdControlsRenderer {
   }
   */
 
+  /**
+   * Inject (once per instance) a stylesheet rule that gives a `<hui-card>`
+   * control wrapper a sane fill default (`display:block`, 100% width/height).
+   * Deliberately a class-based rule, not inline style — see the comment at
+   * the call site in `createControlElement()` for why inline would clobber
+   * hui-card's own `visibility:`-driven `style.display` toggling (#387).
+   * @private
+   */
+  _ensureHuiCardWrapperStyles() {
+    if (this._huiCardStylesInjected) return;
+    this._huiCardStylesInjected = true;
+
+    const svg = this.getSvgControlsContainer()?.closest?.('svg');
+    if (!svg || svg.querySelector('#msd-hui-card-wrapper-style')) return;
+
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.id = 'msd-hui-card-wrapper-style';
+    style.textContent =
+      '.msd-control-wrapper > hui-card { display: block; width: 100%; height: 100%; box-sizing: border-box; }';
+    svg.insertBefore(style, svg.firstChild);
+  }
+
   async createControlElement(overlay) {
     const cardDef = this. resolveCardDefinition(overlay);
     if (!cardDef) {
@@ -669,45 +835,80 @@ export class MsdControlsRenderer {
         entityCount: cardDef.entities?.length
       });
 
-      cardElement = await createCardElement(cardType, overlay.id);
+      if (customElements.get('hui-card')) {
+        // PREFERRED (#387): wrap in HA's own universal `hui-card` element so
+        // its native `visibility:` conditional evaluation runs — the same
+        // mechanism a card gets automatically on a real dashboard, and the
+        // same fix already used by lcards-layout-card.js's `_createChild()`.
+        // hui-card evaluates `config.visibility` in its own `hass` setter and
+        // only forwards hass to the real inner card when conditions pass;
+        // cards never need to implement visibility themselves.
+        const config = this._buildCardConfig(cardDef, overlay.id);
+        cardElement = createHuiCardWrapper(config, this.hass, { editMode: this._editMode });
 
-      // Fallback:  Create a placeholder
-      if (!cardElement) {
-        lcardsLog.warn(`[MsdControls] Could not create card element for type: ${cardType}, creating fallback`);
-        cardElement = this._createFallbackCard(cardType, cardDef);
-      } else {
-        lcardsLog.debug('[MsdControls] Card element created successfully:', {
-          overlayId: overlay.id,
+        // hui-card ships no layout CSS of its own (unstyled custom elements
+        // default to `display:inline`) — give it a sane fill default via a
+        // stylesheet CLASS rule, never inline style. This matters: hui-card
+        // toggles its OWN `style.display` inline (`''`/`none`) to implement
+        // `visibility:` — createHuiCardWrapper() above already ran that
+        // check synchronously via `.load()` before returning. Setting
+        // `cardElement.style.display = 'block'` here would silently
+        // overwrite whatever hui-card just computed, permanently pinning
+        // the control visible regardless of its condition. A class-based
+        // rule never competes with hui-card's inline toggling (inline always
+        // wins the cascade), so it only ever supplies the default hui-card
+        // itself leaves alone (`style.display === ''`, i.e. "visible").
+        this._ensureHuiCardWrapperStyles();
+
+        lcardsLog.debug('[MsdControls] Created hui-card wrapper for:', overlay.id, {
           cardType,
-          tagName: cardElement.tagName,
-          hasSetConfig: typeof cardElement.setConfig === 'function'
+          editMode: this._editMode
         });
+      } else {
+        // FALLBACK: hui-card unavailable (defensive — real HA always has it
+        // registered). Today's pre-#387 pipeline, unchanged: no visibility
+        // support for controls that hit this branch.
+        cardElement = await createCardElement(cardType, overlay.id);
+
+        if (!cardElement) {
+          lcardsLog.warn(`[MsdControls] Could not create card element for type: ${cardType}, creating fallback`);
+          cardElement = this._createFallbackCard(cardType, cardDef);
+        } else {
+          lcardsLog.debug('[MsdControls] Card element created successfully:', {
+            overlayId: overlay.id,
+            cardType,
+            tagName: cardElement.tagName,
+            hasSetConfig: typeof cardElement.setConfig === 'function'
+          });
+        }
+
+        // Apply HASS context first
+        if (this.hass) {
+          applyHassToCard(cardElement, this.hass, overlay.id);
+        }
+
+        // Then apply configuration
+        // For LCARdS cards, pass overlay ID to ensure consistent rule targeting
+        await this._configureCard(cardElement, cardDef, overlay);
       }
-
-      // FIXED: Apply HASS context BEFORE configuration
-      lcardsLog.debug('[MsdControls] Applying HASS and config:', {
-        overlayId: overlay. id,
-        hasHass: !!this.hass,
-        hasSetConfig: typeof cardElement.setConfig === 'function'
-      });
-
-      // Apply HASS context first
-      if (this.hass) {
-        applyHassToCard(cardElement, this.hass, overlay.id);
-      }
-
-      // Then apply configuration
-      // For LCARdS cards, pass overlay ID to ensure consistent rule targeting
-      await this._configureCard(cardElement, cardDef, overlay);
 
       // Create wrapper for positioning
       const wrapper = document.createElement('div');
       wrapper.className = 'msd-control-wrapper';
       wrapper.dataset.msdControlId = overlay. id;
       wrapper.style. position = 'absolute';
-      wrapper.style.pointerEvents = 'auto';
+      wrapper.style.pointerEvents = this._resolvePointerEvents(overlay?.locked);
       wrapper.style.touchAction = 'manipulation';
       wrapper.appendChild(cardElement);
+
+      // #387: stash a direct reference to the card element this method just
+      // created (hui-card wrapper or raw fallback card) instead of making
+      // every hass-forwarding call site re-derive it later via fragile
+      // querySelector/firstElementChild guessing — which can resolve to the
+      // wrong node (e.g. matches something unrelated nested inside the real
+      // card's light DOM) and silently route hass through the wrong branch.
+      // We already know exactly what we built; just remember it.
+      wrapper._msdCardElement = cardElement;
 
       // Event isolation
       this._setupEventIsolation(wrapper, cardElement, overlay);
@@ -876,34 +1077,7 @@ export class MsdControlsRenderer {
       lcardsLog.debug(`[MsdControls] Injected overlay ID as card ID: ${overlayId}`);
     }
 
-    // FIXED: More precise detection for LCARdS and custom-button-card based cards
-    const cardType = finalConfig.type;
-    const isCustomButtonCard = cardType === 'custom:lcards-button-card' ||
-                               cardType === 'lcards-button-card' ||
-                               cardType === 'custom:button-card' ||
-                               cardType === 'button-card';
-
-    // Do NOT treat regular HA built-in cards as custom-button-cards
-    const isBuiltInCard = cardType === 'button' || cardType === 'light' || cardType === 'switch' ||
-                          cardType.startsWith('hui-');
-
-    if (isCustomButtonCard && !isBuiltInCard && finalConfig.entity) {
-      lcardsLog.debug(`[MsdControlsRenderer] Adding triggers_update for LCARdS card with entity: ${finalConfig.entity}`);
-
-      // Ensure triggers_update includes the entity
-      if (isCustomButtonCard && !isBuiltInCard) {
-        lcardsLog.debug(`[MsdControlsRenderer] Setting triggers_update to 'all' for LCARdS card: ${finalConfig.entity}`);
-
-        // FIXED: Use 'all' so the card sees ALL HASS updates, not just specific entities
-        finalConfig.triggers_update = 'all';
-
-        lcardsLog.debug(`[MsdControlsRenderer] LCARdS card configured with triggers_update: 'all'`);
-      }
-
-      lcardsLog.debug(`[MsdControlsRenderer] LCARdS card configured with triggers_update:`, finalConfig.triggers_update);
-    } else if (isBuiltInCard) {
-      lcardsLog.debug(`[MsdControlsRenderer] Skipping triggers_update for built-in HA card: ${cardType}`);
-    }    // Mark as MSD-generated
+    // Mark as MSD-generated
     finalConfig._msdGenerated = true;
 
     return finalConfig;
@@ -1065,14 +1239,14 @@ export class MsdControlsRenderer {
     });
 
     // ADDED: Set higher z-index and pointer events
-    wrapper.style.pointerEvents = 'auto';
+    wrapper.style.pointerEvents = this._resolvePointerEvents(overlay?.locked);
     wrapper.style.position = 'absolute';
     wrapper.style.zIndex = '1000'; // Ensure it's above other layers
     wrapper.setAttribute('tabindex', '0');
 
     // ADDED: Ensure the card element itself can receive events
     if (cardElement) {
-      cardElement.style.pointerEvents = 'auto';
+      cardElement.style.pointerEvents = this._resolvePointerEvents(overlay?.locked);
       cardElement.style.position = 'relative';
       cardElement.style.zIndex = '1';
 
@@ -1082,7 +1256,7 @@ export class MsdControlsRenderer {
   }
 
   positionControlElement(element, overlay, resolvedModel) {
-    const rawPosition = this.resolvePosition(overlay.position, resolvedModel);
+    const rawPosition = this.resolvePosition(overlay.position, resolvedModel, overlay.position_side || 'center');
     const size = this.resolveSize(overlay.size, resolvedModel);
 
     if (!rawPosition || !size) {
@@ -1101,7 +1275,7 @@ export class MsdControlsRenderer {
     });
 
     // Create SVG foreignObject wrapper to live in viewBox coordinate space
-    const foreignObject = this.createSvgForeignObject(overlay.id, position, size);
+    const foreignObject = this.createSvgForeignObject(overlay.id, position, size, overlay.locked === true);
     if (!foreignObject) {
       lcardsLog.error('[MSD Controls] Failed to create SVG foreignObject for:', overlay.id);
       return;
@@ -1117,9 +1291,31 @@ export class MsdControlsRenderer {
     // With a locked viewBox="0 0 W H" and SVG width="100%", 1 SVG unit maps to
     // (foreignObject-CSS-px / W) — content scales proportionally with the MSD card. ✓
     const [designWidth, designHeight] = size;
-    const cardEl = element.firstElementChild;
+    const sizeAttr = `${designWidth},${designHeight}`;
+    const cardEl = element._msdCardElement || element.firstElementChild;
     if (cardEl) {
-      cardEl.setAttribute('data-msd-design-size', `${designWidth},${designHeight}`);
+      cardEl.setAttribute('data-msd-design-size', sizeAttr);
+
+      // #387: when cardEl is a <hui-card> wrapper, the attribute above lands
+      // on the wrapper, not the real LCARdS card instance that
+      // _setupAutoSizing() actually reads it from (`this.getAttribute(...)`
+      // on the card host itself). hui-card materialises its real inner
+      // element asynchronously at `._element` (see createHuiCardWrapper()'s
+      // doc comment) — poll briefly and tag it too once it exists. In
+      // practice this resolves synchronously for lcards-* types (they're
+      // always pre-registered before MSD ever runs), so the first check
+      // below wins immediately; the retry is a safety net for slower cases.
+      if (cardEl.tagName?.toLowerCase() === 'hui-card') {
+        const tagInnerElement = (attempt = 0) => {
+          const inner = /** @type {any} */ (cardEl)._element;
+          if (inner) {
+            inner.setAttribute('data-msd-design-size', sizeAttr);
+          } else if (attempt < 20) {
+            setTimeout(() => tagInnerElement(attempt + 1), 100);
+          }
+        };
+        tagInnerElement();
+      }
     }
 
     // Configure the control element for SVG embedding
@@ -1132,6 +1328,12 @@ export class MsdControlsRenderer {
     if (svgContainer && foreignObject.parentNode !== svgContainer) {
       svgContainer.appendChild(foreignObject);
       lcardsLog.debug('[MSD Controls] Control positioned in SVG coordinates:', overlay.id, { position, size });
+    }
+
+    // Registered so AdvancedRenderer's final z-order pass can find and re-parent
+    // this element alongside lines (previously only lines were cached here).
+    if (this.renderer?.overlayElementCache) {
+      this.renderer.overlayElementCache.set(overlay.id, foreignObject);
     }
 
     // CRITICAL: Compute and register attachment points for line anchoring
@@ -1220,8 +1422,9 @@ export class MsdControlsRenderer {
 
   /**
    * Create an SVG foreignObject element to embed HTML controls in viewBox space
+   * @param {boolean} [locked] - see _resolvePointerEvents()
    */
-  createSvgForeignObject(overlayId, position, size) {
+  createSvgForeignObject(overlayId, position, size, locked = false) {
     const targetContainer = this.renderer.container || this.renderer.mountEl;
     const svg = targetContainer?. querySelector('svg');
 
@@ -1243,9 +1446,19 @@ export class MsdControlsRenderer {
       // Use overlay ID directly as the foreignObject ID
       foreignObject.setAttribute('data-msd-control-id', overlayId);
       foreignObject.setAttribute('id', overlayId);  // ← ID matches overlay ID directly
+      // Line/other overlays get this from AdvancedRenderer — controls need it too so
+      // PipelineCore's animated-overlay DOM lookup (`[data-overlay-id="..."]`) can find
+      // them; without it, AnimationManager.onOverlayRendered() is silently never called
+      // for any control, regardless of preset.
+      foreignObject.setAttribute('data-overlay-id', overlayId);
+      // Mirrors LineOverlay/ShapeOverlay's own data-overlay-type — lets the
+      // animation target-picker offer an "All Controls" bulk option the same
+      // way it already does for lines/shapes (see _getTargetOptions() in
+      // lcards-animation-editor.js).
+      foreignObject.setAttribute('data-overlay-type', 'control');
 
       // Ensure proper event handling
-      foreignObject.style.pointerEvents = 'auto';
+      foreignObject.style.pointerEvents = this._resolvePointerEvents(locked);
       foreignObject.style.overflow = 'visible';
 
       lcardsLog.debug('[MSD Controls] Created foreignObject for', overlayId, {
@@ -1278,7 +1491,7 @@ export class MsdControlsRenderer {
     element.style.boxSizing = 'border-box';
 
     // Ensure proper event handling
-    element.style.pointerEvents = 'auto';
+    element.style.pointerEvents = this._resolvePointerEvents(overlay?.locked);
     element.style.zIndex = overlay.z_index || 'auto';
 
     // Maintain background if needed
@@ -1329,13 +1542,28 @@ export class MsdControlsRenderer {
   }
 
   // Helper methods for position and size resolution
-  resolvePosition(position, resolvedModel) {
+  resolvePosition(position, resolvedModel, positionSide = 'center') {
     // Use the OverlayUtils for consistency with other overlays
     lcardsLog.debug('[MSD Controls] Resolving position:', {
       position,
       anchorsAvailable: Object.keys(resolvedModel.anchors || {}),
       anchorsObject: resolvedModel.anchors
     });
+
+    // position_side: when position references another control and a non-center
+    // side is requested, resolve via the attachment-point registry directly. The
+    // flat anchors object (resolvedModel.anchors) only gets `${id}.${side}` virtual
+    // keys populated in bulk after all Phase-2a controls finish positioning, so it
+    // can't be relied on here — attachmentManager is updated synchronously as each
+    // control is positioned, so an earlier-processed target is already available.
+    if (typeof position === 'string' && positionSide && positionSide !== 'center' && this.renderer?.attachmentManager) {
+      const sidePoint = this.renderer.attachmentManager.getAttachmentPoint(position, positionSide);
+      if (sidePoint) {
+        lcardsLog.debug('[MSD Controls] Position resolved via attachment point side:', { position, positionSide, sidePoint });
+        return [sidePoint[0], sidePoint[1]];
+      }
+      lcardsLog.warn('[MSD Controls] position_side target not yet available (declare the target control earlier, or it has no attachment points) — falling back to standard resolution:', { position, positionSide });
+    }
 
     const resolved = OverlayUtils.resolvePosition(position, resolvedModel.anchors || {});
     if (resolved) {
@@ -1408,6 +1636,7 @@ export class MsdControlsRenderer {
     }
     this.controlElements.clear();
     this._controlEntityMap.clear(); // Also clear entity tracking
+    this._alwaysUpdateControls.clear();
 
     // Remove SVG controls container
     const targetContainer = this.renderer?.container || this.renderer?.mountEl;

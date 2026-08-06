@@ -625,6 +625,18 @@ export class LCARdSNativeCard extends LitElement {
      */
     _detectPreviewMode() {
         // Heuristics for preview mode detection
+
+        // `hui-card` (HA's wrapper for a card rendered inside hui-dialog-edit-card/
+        // hui-suggestion-card/hui-dialog-delete-card) sets `.preview`/`.editMode`
+        // directly as properties on the card element it wraps — a signal from HA
+        // itself, checked first since it's more reliable than DOM-ancestor
+        // sniffing. Checked before the parentElement guard below since it doesn't
+        // depend on DOM position at all.
+        if (/** @type {any} */ (this).preview === true || /** @type {any} */ (this).editMode === true) {
+            lcardsLog.debug(`[LCARdSNativeCard] Preview detection: hui-card .preview/.editMode property detected`);
+            return true;
+        }
+
         const parentElement = this.parentElement;
         if (!parentElement) {
             lcardsLog.debug(`[LCARdSNativeCard] Preview detection: no parent element`);
@@ -638,8 +650,11 @@ export class LCARdSNativeCard extends LitElement {
             return true;
         }
 
-        // Check for card picker
-        const cardPickerEl = parentElement.closest('hui-card-picker, hui-card-preview');
+        // Check for card picker (the card-TYPE picker gallery, not the edit-dialog's
+        // live preview — that's covered by the .preview/.editMode check above; the
+        // hui-card-preview tag this used to also check no longer exists in current
+        // HA, replaced by a `preview` attribute on plain `hui-card`)
+        const cardPickerEl = parentElement.closest('hui-card-picker');
         if (cardPickerEl) {
             lcardsLog.debug(`[LCARdSNativeCard] Preview detection: card picker detected`, {
                 cardPickerTag: cardPickerEl.tagName,
@@ -655,6 +670,8 @@ export class LCARdSNativeCard extends LitElement {
         // immediately with isIntersecting:false (the backgroundLayer div is clipped
         // by the dialog's overflow boundary before layout settles), permanently
         // suspending background animations before any frame renders.
+        // Kept as a fallback in case a future HA version wraps a card some other
+        // way without setting .preview/.editMode.
         if (this._checkForAncestor(['hui-dialog-edit-card'])) {
             lcardsLog.debug(`[LCARdSNativeCard] Preview detection: card editor dialog detected`);
             return true;

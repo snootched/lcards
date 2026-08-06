@@ -25,9 +25,13 @@ import { lcardsCore } from '../../core/lcards-core.js';
  * @param {HTMLElement|ShadowRoot} mountEl - Mount/root element (may be a shadowRoot).
  * @param {Object|null} hass - Home Assistant instance (if available).
  * @param {string|null} cardGuid - Card instance GUID for HUD registration
+ * @param {boolean} [isEditMode=false] - True when rendering inside the MSD
+ *   Studio editor dialog (#387) — forwarded to MsdControlsRenderer so its
+ *   hui-card-wrapped controls keep Studio's live preview "always show"
+ *   behavior instead of honoring `visibility:` at design time.
  * @returns {Promise<Object>} Pipeline API
  */
-export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass = null, cardGuid = null) {
+export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass = null, cardGuid = null, isEditMode = false) {
   lcardsLog.info('[PipelineCore] 🚀 Starting MSD pipeline initialization with SVG extraction', {
     hasCardGuid: !!cardGuid,
     cardGuid
@@ -142,14 +146,22 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
   // Complete systems initialization with card model
   lcardsLog.trace('[PipelineCore] Completing systems initialization');
   try {
-    await coordinator.completeSystems(mergedConfig, cardModel, mountEl, hass);
+    await coordinator.completeSystems(mergedConfig, cardModel, mountEl, hass, isEditMode);
   } catch (error) {
     lcardsLog.error('[PipelineCore] ❌ Systems completion failed:', error);
     throw new Error(`Systems completion failed: ${error.message}`);
   }
 
-  // Initialize AnimationManager with overlays to register animations
-  if (coordinator.animationManager && mergedConfig.overlays) {
+  // Initialize AnimationManager with overlays to register animations.
+  // Skipped entirely in MSD Studio's live preview (isEditMode) — that card
+  // instance is fully destroyed and rebuilt on every edit/hass-tick (see
+  // lcards-msd-live-preview.js), so registering or playing animations there
+  // is pure wasted work torn down almost immediately, and was itself the
+  // source of visible main-thread jank plus a base_svg-registration race
+  // (see the isEditMode check further below) while editing.
+  if (isEditMode) {
+    lcardsLog.trace('[PipelineCore] Skipping AnimationManager overlay registration — Studio preview (isEditMode)');
+  } else if (coordinator.animationManager && mergedConfig.overlays) {
     lcardsLog.trace('[PipelineCore] 🎬 Initializing AnimationManager with overlays');
     try {
       // Set mountEl explicitly so AnimationManager can find overlay elements
@@ -242,7 +254,9 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       }
 
       // ANIMATION INTEGRATION: Notify AnimationManager about rendered overlays
-      if (coordinator.animationManager) {
+      // (skipped in Studio preview — see the isEditMode note near the
+      // AnimationManager.initialize() call above)
+      if (!isEditMode && coordinator.animationManager) {
         lcardsLog.trace('[PipelineCore] Notifying AnimationManager about rendered overlays...');
 
         for (const overlay of resolvedModel.overlays) {
@@ -267,18 +281,36 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
         lcardsLog.trace('[PipelineCore] AnimationManager notified about all rendered overlays');
       }
 
-      lcardsLog.trace('[PipelineCore] Starting renderDebugAndControls()...');
-      // Make debug and controls rendering more defensive.
-      // NOTE: Controls are now rendered by AdvancedRenderer.
-      // This only handles debug visualization overlays (anchors, bounding boxes, etc.)
-      try {
-        await coordinator.renderDebugAndControls(resolvedModel, mountEl);
-        lcardsLog.trace('[PipelineCore] renderDebugAndControls() completed successfully');
-      } catch (debugControlsError) {
-        lcardsLog.error('[PipelineCore] ❌ renderDebugAndControls() FAILED:', debugControlsError);
-        lcardsLog.error('[PipelineCore] ❌ Debug/Controls error stack:', debugControlsError.stack);
-        // Don't fail the entire render - just log the error
-        lcardsLog.warn('[PipelineCore] ⚠️ Continuing without debug/controls rendering due to error');
+      // Card-level "overlay group" animations: bulk-target overlays across the
+      // shared overlay container by CSS selector (msd.animations). Unlike
+      // base_svg.animations' one-shot post-init registration (this file,
+      // ~line 392), this MUST re-run every reRender() — #msd-overlay-container's
+      // children are torn down and rebuilt from scratch on every structural
+      // re-render (AdvancedRenderer.render() does overlayGroup.innerHTML = ''),
+      // unlike #__msd-base-content which is stable after the initial SVG parse.
+      // This mirrors the per-overlay loop directly above (same isEditMode gate,
+      // same "query fresh every pass" discipline) — onOverlayRendered's
+      // teardown-by-id logic is already proven safe under repeated calls by
+      // that loop running every render.
+      if (!isEditMode && coordinator.animationManager && cardModel.animations?.length > 0) {
+        const overlayContainer = mountEl.querySelector('#msd-overlay-container');
+        if (overlayContainer) {
+          try {
+            await coordinator.animationManager.onOverlayRendered(
+              '__msd_animations',
+              overlayContainer,
+              { animations: cardModel.animations },
+              coordinator
+            );
+            lcardsLog.trace('[PipelineCore] Registered msd.animations overlay-group scope:', {
+              animationCount: cardModel.animations.length
+            });
+          } catch (animError) {
+            lcardsLog.error('[PipelineCore] ❌ Failed to register msd.animations scope:', animError);
+          }
+        } else {
+          lcardsLog.warn('[PipelineCore] ⚠️ Could not find #msd-overlay-container for msd.animations');
+        }
       }
 
       const renderTime = performance.now() - startTime;
@@ -321,13 +353,15 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
     errors: initialRenderResult?.errors || 0
   });
 
+  // Resolve the base content group once — used for both filters (below) and
+  // animation-scope registration (Phase 11), regardless of whether filters are
+  // configured. (__ prefix = internal/reserved ID, not an anchor)
+  const baseContentGroup = /** @type {HTMLElement|null} */ (mountEl?.querySelector('#__msd-base-content'));
+
   // Apply base SVG filters after initial render
   if (cardModel.baseSvg?.filters) {
     lcardsLog.trace('[PipelineCore] 🎨 Applying initial base SVG filters:', cardModel.baseSvg.filters);
     try {
-      // Target the base content group (__ prefix = internal/reserved ID, not an anchor)
-      const baseContentGroup = /** @type {HTMLElement|null} */ (mountEl?.querySelector('#__msd-base-content'));
-
       lcardsLog.trace('[PipelineCore] 🔍 Filter application details:', {
         hasMountEl: !!mountEl,
         mountElTag: (/** @type {any} */ (mountEl))?.tagName,
@@ -364,6 +398,37 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       }
     } catch (filterError) {
       lcardsLog.error('[PipelineCore] ❌ Failed to apply base SVG filters:', filterError);
+    }
+  }
+
+  // Register base_svg as an animatable AnimationManager scope (Phase 11), so
+  // animations can target elements inside the base SVG blueprint by id/class —
+  // previously only whole-group CSS-filter crossfades were possible (above).
+  // A bare { animations } stub is sufficient (same minimal-registration pattern
+  // already used by non-overlay callers, e.g. lcards-data-grid.js) — no need to
+  // shape this like a real overlay config.
+  // Skipped in Studio's preview (isEditMode) — see the isEditMode note near
+  // the AnimationManager.initialize() call above. This also happened to be
+  // where a pipeline-init-ordering race with #__msd-base-content showed up
+  // most visibly (the preview is rebuilt often enough to hit it repeatedly);
+  // not fixing that race here since it no longer runs in preview at all.
+  if (isEditMode) {
+    if (cardModel.baseSvg?.animations?.length > 0) {
+      lcardsLog.trace('[PipelineCore] Skipping base_svg animation registration — Studio preview (isEditMode)');
+    }
+  } else if (cardModel.baseSvg?.animations?.length > 0) {
+    if (baseContentGroup && coordinator.animationManager) {
+      lcardsLog.trace('[PipelineCore] 🎬 Registering base_svg animation scope:', {
+        animationCount: cardModel.baseSvg.animations.length
+      });
+      await coordinator.animationManager.onOverlayRendered(
+        '__msd_base_svg',
+        baseContentGroup,
+        { animations: cardModel.baseSvg.animations },
+        coordinator
+      );
+    } else {
+      lcardsLog.warn('[PipelineCore] ⚠️ Cannot register base_svg animations — missing base content group or animationManager');
     }
   }
 
@@ -649,21 +714,25 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
     validationService: coordinator.validationService,
 
     /**
-     * Inspect routing for a given overlay id and compute path data.
+     * Inspect routing for a given overlay id — READ-ONLY, from RouterCore's
+     * route cache (the line's real rendered route). This used to recompute
+     * a route from bare cardModel.anchors lookups, which (a) returned null
+     * for any line anchored to an overlay/control (those anchors aren't in
+     * cardModel.anchors), and (b) when it DID resolve, called computePath
+     * with endpoints resolved differently than LineOverlay's — REGISTERING
+     * synthetic geometry into the trunk/crossing registries under the real
+     * line's id. A debug inspection must never mutate routing state.
      * @param {string} id
      * @returns {Object|null}
      */
-    routingInspect: (id) => {
-      const resolvedModel = modelBuilder.getResolvedModel();
-      const ov = (resolvedModel?.overlays || []).find(o => o.id === id);
-      if (!ov) return null;
-      const raw = ov._raw || ov.raw || {};
-      const a1 = cardModel.anchors[raw.anchor];
-      const a2 = cardModel.anchors[raw.attach_to] || cardModel.anchors[raw.attachTo];
-      if (!a1 || !a2) return null;
-      const req = coordinator.router.buildRouteRequest(ov, a1, a2);
-      return coordinator.router.computePath(req);
-    },
+    routingInspect: (id) => coordinator.router.inspect(id),
+
+    /**
+     * Like routingInspect, but for every overlay currently in the route
+     * cache at once — READ-ONLY, same discipline as routingInspect above.
+     * @returns {Array<object>}
+     */
+    routingInspectAll: () => coordinator.router.inspectAll(),
 
     getResolvedModel: () => modelBuilder.getResolvedModel(),
 
@@ -714,16 +783,6 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
     getEntity: (id) => coordinator.entityRuntime.getEntity(id),
     getActiveProfiles: () => [],
     getAnchors: () => ({ ...cardModel.anchors }),
-
-    // Add debug API powered by DebugManager
-    debug: {
-      enable: (feature) => coordinator.debugManager.enable(feature),
-      disable: (feature) => coordinator.debugManager.disable(feature),
-      toggle: (feature) => coordinator.debugManager.toggle(feature),
-      setScale: (scale) => coordinator.debugManager.setScale(scale),
-      status: () => coordinator.debugManager.getSnapshot(),
-      onChange: (callback) => coordinator.debugManager.onChange(callback)
-    },
 
     getDataSourceManager: () => coordinator.dataSourceManager,
     _reRenderCallback: reRender,

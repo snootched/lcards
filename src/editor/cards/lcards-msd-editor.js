@@ -17,6 +17,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { fireEvent } from 'custom-card-helpers';
 import { configToYaml } from '../utils/yaml-utils.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 // Import shared form components
 import '../components/shared/lcards-message.js';
@@ -350,8 +351,10 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
             dialog.remove();
         });
 
-        // Append to body and show
-        document.body.appendChild(dialog);
+        // Mount inside <home-assistant>'s shadow root (not document.body) so
+        // Lit context-consuming HA components (e.g. ha-entity-picker) resolve
+        // context correctly — see mountDialogNearHomeAssistant().
+        mountDialogNearHomeAssistant(dialog, this);
     }
 }
 

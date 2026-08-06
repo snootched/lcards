@@ -20,6 +20,7 @@
 import { OverlayBase } from './OverlayBase.js';
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { ColorUtils } from '../../core/themes/ColorUtils.js';
 
 /**
  * LineOverlay - Instance-based line overlay
@@ -78,6 +79,37 @@ export class LineOverlay extends OverlayBase {
       lcardsLog.error(`[LineOverlay] Error initializing overlay ${this.overlay.id}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Resolves this line's anchors (if not already supplied) and computes its
+   * route — nothing else. No style/color resolution, no markup, no
+   * error-branch classification (that's render()'s job; this returns a
+   * single null on any failure since a caller like the discovery-loop seed
+   * pass only needs a yes/no signal). Shared by render() and
+   * AdvancedRenderer's _discoverLineRoutes() so a throwaway discovery-pass
+   * call doesn't pay for theme-token/color resolution (real CPU work in
+   * _resolveLineStyles, thrown away in a discovery call).
+   *
+   * anchor/anchor2 are accepted as optional params (defaulting to resolving
+   * them here) purely so render() — which must resolve them anyway to
+   * report WHICH specific validation failed — doesn't need to resolve them
+   * a second time; the discovery loop calls this with just (overlay,
+   * anchors) and lets it resolve them fresh.
+   * @param {Object} overlay
+   * @param {Object} anchors
+   * @param {number[]|null} [anchor]
+   * @param {number[]|null} [anchor2]
+   * @returns {{anchor: number[], anchor2: number[], pathResult: object}|null}
+   */
+  resolveRoute(overlay, anchors, anchor = this._resolveAnchor(overlay, anchors), anchor2 = this._resolveAttachTo(overlay, anchors)) {
+    if (!this.routerCore) return null;
+    if (!overlay.anchor && !overlay.attach_to) return null;
+    if (overlay.anchor && (!Array.isArray(anchor) || anchor.length !== 2)) return null;
+    if (overlay.attach_to && (!Array.isArray(anchor2) || anchor2.length !== 2)) return null;
+    const routeRequest = this.routerCore.buildRouteRequest(overlay, anchor, anchor2);
+    const pathResult = this.routerCore.computePath(routeRequest);
+    return pathResult?.d ? { anchor, anchor2, pathResult } : null;
   }
 
   /**
@@ -173,9 +205,10 @@ export class LineOverlay extends OverlayBase {
     }
 
     try {
-      // Get the computed path from RouterCore
-      const routeRequest = this.routerCore.buildRouteRequest(overlay, anchor, anchor2);
-      const pathResult = this.routerCore.computePath(routeRequest);
+      // Get the computed path from RouterCore — anchor/anchor2 already
+      // resolved and validated above, passed through so resolveRoute()
+      // doesn't re-resolve them.
+      const pathResult = this.resolveRoute(overlay, anchors, anchor, anchor2)?.pathResult ?? null;
 
       if (!pathResult?.d) {
         lcardsLog.warn(`[LineOverlay] No path computed for line ${overlay.id}`);
@@ -198,13 +231,20 @@ export class LineOverlay extends OverlayBase {
       const lineStyle = this._resolveLineStyles(
         overlay.finalStyle || overlay.style || {},
         overlay.id,
-        viewBox
+        viewBox,
+        overlay.corner_style,
+        overlay,
+        cardInstance
       );
 
       const animationAttributes = this._prepareAnimationAttributes(overlay, overlay.style || {});
 
-      // Check if this line is selected (for editor highlighting)
-      const isSelected = overlay._editorSelected === true;
+      // Check if this line is selected (for editor highlighting). Gated on
+      // _isStudioPreview (real DOM-ancestry check, not persisted config) so a
+      // stray _editorSelected flag — whether leaked into saved config or just
+      // stale in-memory state — can never paint the selection glow outside
+      // the Studio dialog itself.
+      const isSelected = overlay._editorSelected === true && cardInstance?._isStudioPreview === true;
 
       // Build SVG group with all features
       const svgParts = [
@@ -212,8 +252,6 @@ export class LineOverlay extends OverlayBase {
         this._buildMainPath(pathResult.d, lineStyle, overlay.id, animationAttributes, isSelected),
         this._buildMarkers(pathResult, lineStyle, overlay.id)
       ].filter(Boolean);
-
-      lcardsLog.trace(`[LineOverlay] Rendered line ${overlay.id} with ${lineStyle.features.length} features`);
 
       const markup = `<g id="${overlay.id}"
                 data-overlay-id="${overlay.id}"
@@ -230,14 +268,12 @@ export class LineOverlay extends OverlayBase {
         metadata: {
           routingStrategy: pathResult.meta?.strategy || 'unknown',
           pathLength: pathResult.d.length,
-          featuresCount: lineStyle.features.length,
           hasAnimations: animationAttributes.hasAnimations
         },
         provenance: this._getRendererProvenance(overlay.id, {
           overlay_type: 'line',
           routing_strategy: pathResult.meta?.strategy || 'unknown',
           path_length: pathResult.d.length,
-          features_count: lineStyle.features.length,
           has_animations: animationAttributes.hasAnimations
         })
       };
@@ -324,9 +360,16 @@ export class LineOverlay extends OverlayBase {
    * @param {Object} style - Style configuration
    * @param {string} overlayId - Overlay ID for logging
    * @param {Array} viewBox - SVG viewBox for scaling context
+   * @param {string} [cornerStyle] - Overlay-level corner_style (miter/round/bevel),
+   *   used as the stroke-linejoin fallback when style.line_join isn't explicitly set —
+   *   corner_style otherwise only drives RouterCore's rounding decision, so without
+   *   this a "bevel" selection never actually produced a visible cut corner.
+   * @param {Object} [overlay] - Full overlay config, used when style.color is a
+   *   state-color object (see _resolveLineColor) — needs entity/state_attribute/ranges_attribute
+   * @param {Object} [cardInstance] - MSD card instance, needed to resolve state-color
    * @returns {Object} Resolved line styles
    */
-  _resolveLineStyles(style, overlayId, viewBox) {
+  _resolveLineStyles(style, overlayId, viewBox, cornerStyle, overlay, cardInstance) {
     // Create component-scoped token resolver using the live singleton (not a stale module import)
     const _resolver = window.lcards?.core?.themeManager?.resolver;
     const resolveToken = (_resolver && typeof _resolver.forComponent === 'function')
@@ -336,13 +379,14 @@ export class LineOverlay extends OverlayBase {
 
     const lineStyle = {
       // Core stroke properties with token integration
-      color: this._resolveStyleProperty(
+      color: this._materializeColor(this._resolveLineColor(
         style.color || style.stroke,
-        'defaultColor',
-        resolveToken,
+        overlay,
+        cardInstance,
         'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))',
+        resolveToken,
         scalingContext
-      ),
+      ), 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))', cardInstance),
 
       width: Number(this._resolveStyleProperty(
         style.width || style.stroke_width,
@@ -362,7 +406,7 @@ export class LineOverlay extends OverlayBase {
 
       // Advanced stroke styling
       lineCap: (style.line_cap || 'butt').toLowerCase(),
-      lineJoin: (style.line_join || 'miter').toLowerCase(),
+      lineJoin: (style.line_join || cornerStyle || 'miter').toLowerCase(),
       miterLimit: Number(style.miter_limit || 4),
 
       // Dash patterns
@@ -370,7 +414,15 @@ export class LineOverlay extends OverlayBase {
       dashOffset: Number(style.dash_offset || 0),
 
       // Fill properties
-      fill: style.fill || 'none',
+      fill: this._materializeColor(this._resolveLineColor(
+        style.fill,
+        overlay,
+        cardInstance,
+        'none',
+        resolveToken,
+        scalingContext,
+        'defaultFillColor'
+      ), 'none', cardInstance),
       fillOpacity: Number(style.fill_opacity || 1),
 
       // Gradient and pattern support
@@ -383,25 +435,8 @@ export class LineOverlay extends OverlayBase {
       markerEnd: this._parseMarkerConfig(style.marker_end),
 
       // Animation states
-      animatable: style.animatable !== false,
-      pulseSpeed: Number(style.pulse_speed || 0),
-      flowSpeed: Number(style.flow_speed || 0),
-
-      // LCARS-specific features
-      segment_colors: this._parseSegmentColors(style.segment_colors),
-      status_indicator: style.status_indicator || null,
-
-      // Track enabled features
-      features: []
+      animatable: style.animatable !== false
     };
-
-    // Build feature list
-    if (lineStyle.gradient) lineStyle.features.push('gradient');
-    if (lineStyle.pattern) lineStyle.features.push('pattern');
-    if (lineStyle.markerStart || lineStyle.markerMid || lineStyle.markerEnd) lineStyle.features.push('markers');
-    if (lineStyle.segment_colors) lineStyle.features.push('segments');
-    if (lineStyle.pulseSpeed > 0) lineStyle.features.push('pulse');
-    if (lineStyle.flowSpeed > 0) lineStyle.features.push('flow');
 
     // Debug logging for dash_array
     if (lineStyle.dashArray) {
@@ -433,6 +468,104 @@ export class LineOverlay extends OverlayBase {
     }
 
     return fallback;
+  }
+
+  /**
+   * Resolve style.color, which may be a literal/token string (existing path) or a
+   * state-color object (stateColorSchema shape) bound to the overlay's own `entity`
+   * — mirrors the button card's entity/state_attribute/ranges_attribute, but scoped
+   * per-line since MSD has no single bound entity the way button/slider cards do.
+   *
+   * Resolution (_resolveEntityStateColor → resolveStateColor) reads
+   * cardInstance._entity, cardInstance.config.state_attribute, and
+   * cardInstance.config.ranges_attribute internally — all three are temporarily
+   * swapped to this overlay's own values for the duration of the (synchronous,
+   * no-await) call, then restored, reusing the exact same state-color pipeline
+   * buttons/sliders use with zero duplicated resolution logic.
+   *
+   * @private
+   */
+  _resolveLineColor(styleValue, overlay, cardInstance, fallback, resolveToken, context = {}, tokenPath = 'defaultColor') {
+    if (styleValue === undefined || styleValue === null) {
+      // tokenPath is only consulted when styleValue is absent (theme "give me a
+      // sensible default" lookup) — callers resolving `fill` must pass a distinct
+      // path from `color`'s, otherwise an unset fill silently inherits whatever
+      // theme token the stroke color falls back to (e.g. a UI-tertiary accent),
+      // filling shapes/enclosed line paths that were never configured to have one.
+      return this._resolveStyleProperty(styleValue, tokenPath, resolveToken, fallback, context);
+    }
+
+    if (!cardInstance || typeof cardInstance._resolveColorValue !== 'function') {
+      return (typeof styleValue === 'object') ? (styleValue.default ?? fallback) : styleValue;
+    }
+
+    // A plain string may be a literal, a var(...), a theme: token, or a computed
+    // expression (alpha()/darken()/.../match-brightness) — all of which need the
+    // full _resolveColorValue pipeline (computed-token resolution, match-brightness
+    // substitution, template eval, CSS var resolution), not just the bare-token-path
+    // shortcut _resolveStyleProperty offers, which left those raw/unresolved and
+    // rendered as an invalid SVG paint value (black). Editors that flatten a
+    // single-state {default: X} object down to plain string X for clean YAML rely
+    // on this: wrapping it back into that shape here routes both forms through the
+    // exact same pipeline the entity-bound state-color object branch below uses.
+    const stateColorValue = (typeof styleValue === 'object') ? styleValue : { default: styleValue };
+
+    const entityId = overlay?.entity;
+    const entityObj = entityId ? cardInstance.hass?.states?.[entityId] : null;
+    const savedEntity = cardInstance._entity;
+    const savedStateAttribute = cardInstance.config?.state_attribute;
+    const savedRangesAttribute = cardInstance.config?.ranges_attribute;
+
+    cardInstance._entity = entityObj || null;
+    if (cardInstance.config) {
+      cardInstance.config.state_attribute = overlay?.state_attribute;
+      cardInstance.config.ranges_attribute = overlay?.ranges_attribute;
+    }
+    try {
+      return cardInstance._resolveColorValue(stateColorValue, fallback);
+    } finally {
+      cardInstance._entity = savedEntity;
+      if (cardInstance.config) {
+        cardInstance.config.state_attribute = savedStateAttribute;
+        cardInstance.config.ranges_attribute = savedRangesAttribute;
+      }
+    }
+  }
+
+  /**
+   * Final materialization pass after _resolveLineColor, covering two gaps in
+   * the pipeline it delegates to (cardInstance._resolveColorValue):
+   *
+   * 1. A computed expression (alpha()/darken()/etc) that, for whatever reason,
+   *    reached here still unevaluated — e.g. state-color-resolver.js's and
+   *    _resolveColorValue's own computed-token passes both gate on
+   *    `window.lcards.core.themeManager.resolver` being set, and this is the
+   *    last point before the value is baked into a markup *string* (this runs
+   *    before the element exists in the DOM). Retried here with an explicit
+   *    element context.
+   * 2. A resolved value like `color-mix(in srgb, var(--x) 50%, transparent)`
+   *    still containing a *nested* var() — _resolveColorValue's own
+   *    materialization step only unwraps a value that IS (starts with) a bare
+   *    var(...), not one containing one elsewhere in the string.
+   *
+   * Without this, e.g. `alpha(var(--lcars-black-cherry), 0.5)` reaches the SVG
+   * fill attribute still wrapped in the unevaluated `alpha(...)` call — invalid
+   * paint syntax the browser can't parse, silently rendering opaque black
+   * instead of the intended translucent fill.
+   * @private
+   */
+  _materializeColor(value, fallback, cardInstance) {
+    if (typeof value !== 'string') return value;
+
+    const resolver = window.lcards?.core?.themeManager?.resolver;
+    if (resolver && typeof resolver.resolve === 'function') {
+      value = resolver.resolve(value, value, { element: cardInstance });
+    } else if (/^(darken|lighten|alpha|saturate|desaturate|mix|base)\(/.test(value)) {
+      lcardsLog.warn('[LineOverlay] Computed color expression left unresolved — themeManager.resolver unavailable at render time:', value);
+    }
+
+    if (typeof value !== 'string' || !value.includes('var(')) return value;
+    return ColorUtils.resolveCssVariable(value, fallback, cardInstance) || fallback;
   }
 
   /**
@@ -573,10 +706,8 @@ export class LineOverlay extends OverlayBase {
    */
   _prepareAnimationAttributes(overlay, style) {
     return {
-      hasAnimations: style.animatable !== false || style.pulse_speed > 0 || style.flow_speed > 0,
-      animatable: style.animatable !== false,
-      pulseSpeed: style.pulse_speed || 0,
-      flowSpeed: style.flow_speed || 0
+      hasAnimations: style.animatable !== false,
+      animatable: style.animatable !== false
     };
   }
 
@@ -608,16 +739,42 @@ export class LineOverlay extends OverlayBase {
       defs.push(this.patternCache.get(patternId));
     }
 
-    // Marker definitions
+    // Marker definitions. A marker with no explicit fill/color falls back to
+    // currentColor, which inherits the card host's text color — not the line's
+    // own color, which looks like an unrelated, jarring mismatch. Default to the
+    // line's color instead, same as the editor preview already does.
+    //
+    // "match_line" (Phase 9) is an explicit opt-in sentinel — distinct from the
+    // implicit no-fill-set fallback above — letting a marker's fill/stroke track
+    // the line's fully-resolved color (static or state-based) without duplicating
+    // state-color config onto the marker itself. The rendered <marker id="..."> is
+    // always the fixed `marker-${markerPosition}-${overlayId}` value — it's
+    // referenced by a hardcoded url(#...) from the path in _buildMainPath(), so it
+    // can't vary — but the markerCache LOOKUP key includes the resolved color for
+    // "match_line" markers, so updateLineEntityColors() (Phase 8/9) can force a
+    // fresh def (and DOM patch) when the line's color changes, rather than
+    // reusing a stale cached marker forever.
     ['markerStart', 'markerMid', 'markerEnd'].forEach((markerType, index) => {
-      if (lineStyle[markerType]) {
+      const marker = lineStyle[markerType];
+      if (marker) {
         const markerPosition = ['start', 'mid', 'end'][index];
-        const markerId = `marker-${markerPosition}-${overlayId}`;
-        if (!this.markerCache.has(markerId)) {
-          const markerDef = this._createMarkerDefinition(lineStyle[markerType], markerId);
-          this.markerCache.set(markerId, markerDef);
+        const renderedId = `marker-${markerPosition}-${overlayId}`;
+        const matchesLine = marker.fill === 'match_line' || marker.stroke === 'match_line';
+        // Opacity is always baked in (see _createMarkerDefinition's lineOpacity
+        // param), so it's always part of the cache key, not just for match_line.
+        const cacheKey = matchesLine
+          ? `${renderedId}::${lineStyle.color}::${lineStyle.opacity}`
+          : `${renderedId}::${lineStyle.opacity}`;
+        if (!this.markerCache.has(cacheKey)) {
+          const resolvedFill = marker.fill === 'match_line' ? lineStyle.color : marker.fill;
+          const resolvedStroke = marker.stroke === 'match_line' ? lineStyle.color : marker.stroke;
+          const markerWithFallback = (resolvedFill || marker.color)
+            ? { ...marker, fill: resolvedFill, stroke: resolvedStroke }
+            : { ...marker, fill: lineStyle.color, stroke: resolvedStroke };
+          const markerDef = this._createMarkerDefinition(markerWithFallback, renderedId, markerPosition, lineStyle.opacity);
+          this.markerCache.set(cacheKey, markerDef);
         }
-        defs.push(this.markerCache.get(markerId));
+        defs.push(this.markerCache.get(cacheKey));
       }
     });
 
@@ -708,7 +865,10 @@ export class LineOverlay extends OverlayBase {
   _renderFallbackLine(overlay, anchor, anchor2) {
     const [x1, y1] = anchor;
     const [x2, y2] = anchor2 || anchor;
-    const color = overlay.style?.color || 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))';
+    const rawColor = overlay.style?.color;
+    const color = (typeof rawColor === 'object' && rawColor !== null)
+      ? (rawColor.default || 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))')
+      : (rawColor || 'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))');
 
     lcardsLog.warn(`[LineOverlay] Using fallback rendering for overlay ${overlay.id}`);
 
@@ -783,11 +943,6 @@ export class LineOverlay extends OverlayBase {
     return markerConfig; // Simplified
   }
 
-  _parseSegmentColors(segmentColors) {
-    if (!segmentColors) return null;
-    return segmentColors; // Simplified
-  }
-
   _createGradientDefinition(gradient, gradientId) {
     // Simplified gradient definition
     const stops = gradient.stops.map(stop =>
@@ -804,7 +959,7 @@ export class LineOverlay extends OverlayBase {
             </pattern>`;
   }
 
-  _createMarkerDefinition(marker, markerId) {
+  _createMarkerDefinition(marker, markerId, markerPosition = 'end', lineOpacity = 1) {
     if (!marker || !marker.type) return '';
 
     // Use size directly in pixels
@@ -817,9 +972,31 @@ export class LineOverlay extends OverlayBase {
     const strokeWidth = marker.stroke_width || 0;
 
     let shape = '';
+    // Defaults; only 'rect' overrides these to support independent width/height.
+    let markerW = vb, markerH = vb, refX = center, refY = center;
+
+    // Opt-in "edge" attach (default stays 'center', preserving pre-existing
+    // configs' appearance): for pointed/directional shapes, refX becomes the
+    // shape's back edge/point (local x=0, the flat end facing the line)
+    // instead of its bounding-box center — the whole shape, tip included,
+    // then projects forward past the line's true endpoint rather than
+    // straddling it. This is deliberately the opposite of the "tip pinned to
+    // the vertex" convention common in thin-stroke SVG examples: with a
+    // thick line stroke, pinning the tip means the line's own end-cap
+    // (round/square, or even butt at sub-pixel scale) can render past the
+    // marker's point since nothing of the marker exists beyond that pivot.
+    // Pinning the back edge instead means the marker's opaque body (painted
+    // on top of the path, per SVG marker rendering order) fully covers that
+    // same spot, so the tip is always the true outermost visible point
+    // regardless of stroke width or line-cap style. Symmetric shapes (dot,
+    // the orthogonal 'line' tick) have no meaningful "edge" distinct from
+    // their center, so `align` is a no-op for them.
+    const edgeAlign = marker.align === 'edge';
 
     switch (marker.type) {
       case 'arrow':
+      case 'triangle': // alias, kept for configs saved before the two were merged
+        if (edgeAlign) refX = 0;
         shape = `<path d="M 0 0 L ${vb} ${center} L 0 ${vb} Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
         break;
 
@@ -829,17 +1006,8 @@ export class LineOverlay extends OverlayBase {
         break;
 
       case 'diamond':
+        if (edgeAlign) refX = 0;
         shape = `<path d="M ${center} 0 L ${vb} ${center} L ${center} ${vb} L 0 ${center} Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
-        break;
-
-      case 'square':
-        const sqSize = vb * 0.6;
-        const sqOffset = (vb - sqSize) / 2;
-        shape = `<rect x="${sqOffset}" y="${sqOffset}" width="${sqSize}" height="${sqSize}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
-        break;
-
-      case 'triangle':
-        shape = `<path d="M ${center} 0 L ${vb} ${vb} L 0 ${vb} Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
         break;
 
       case 'line':
@@ -849,27 +1017,52 @@ export class LineOverlay extends OverlayBase {
         shape = `<line x1="${center}" y1="${lineOffset}" x2="${center}" y2="${vb - lineOffset}" stroke="${fillColor}" stroke-width="${Math.max(strokeWidth || 2, 2)}" stroke-linecap="round" />`;
         break;
 
-      case 'rect':
-        // Rectangle with fill and optional stroke
-        const rectSize = vb * 0.7;
-        const rectOffset = (vb - rectSize) / 2;
-        shape = `<rect x="${rectOffset}" y="${rectOffset}" width="${rectSize}" height="${rectSize}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
+      case 'square': // alias, kept for configs saved before 'square'/'rect' were merged
+      case 'rect': {
+        // 'square' configs (pre-merge) default filled; 'rect' configs default outlined
+        // (matching each type's original look) unless `filled` is set explicitly.
+        const filled = marker.filled ?? (marker.type === 'square');
+        markerW = marker.width || vb;
+        markerH = marker.height || vb;
+        refX = edgeAlign ? 0 : markerW / 2;
+        refY = markerH / 2;
+        shape = filled
+          ? `<rect x="0" y="0" width="${markerW}" height="${markerH}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`
+          : `<rect x="0" y="0" width="${markerW}" height="${markerH}" fill="none" stroke="${fillColor}" stroke-width="${strokeWidth || 1.5}" />`;
         break;
+      }
 
       default:
         // Fallback to dot
         shape = `<circle cx="${center}" cy="${center}" r="${vb/3}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
     }
 
+    // userSpaceOnUse: without this, markerWidth/markerHeight are multiples of the
+    // path's stroke-width (SVG default), so "size" would scale with line thickness
+    // instead of being an absolute pixel value as the field implies.
+    // auto-start-reverse: marker-start conventionally points outward/away from the
+    // line (like the far end of a two-headed arrow) — plain "auto" points forward,
+    // the same direction as marker-end, which looks backward for a start marker.
+    const orient = markerPosition === 'start' ? 'auto-start-reverse' : 'auto';
+
+    // A fully-opaque marker on a translucent line reads as a mismatch/bug rather
+    // than an intentional style choice (unlike marker color, which legitimately
+    // differs from the line's own color often) — so unlike "match_line" color,
+    // this isn't opt-in: markers always inherit the line's opacity. It's a
+    // static config value (no template/entity support planned), so this only
+    // needs to be baked in at build time, not live-patched on hass updates.
+    const markerContent = lineOpacity !== 1 ? `<g opacity="${lineOpacity}">${shape}</g>` : shape;
+
     return `<marker
       id="${markerId}"
-      viewBox="0 0 ${vb} ${vb}"
-      markerWidth="${vb}"
-      markerHeight="${vb}"
-      refX="${center}"
-      refY="${center}"
-      orient="auto">
-      ${shape}
+      viewBox="0 0 ${markerW} ${markerH}"
+      markerWidth="${markerW}"
+      markerHeight="${markerH}"
+      markerUnits="userSpaceOnUse"
+      refX="${refX}"
+      refY="${refY}"
+      orient="${orient}">
+      ${markerContent}
     </marker>`;
   }
 }

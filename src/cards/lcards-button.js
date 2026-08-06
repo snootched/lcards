@@ -66,6 +66,7 @@ import { applyBaseSvgFilters } from '../msd/utils/BaseSvgFilters.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
 import { CANVAS_TEXTURE_PRESETS } from '../core/packs/textures/presets/index.js';
 import { linearMap } from '../utils/linearMap.js';
+import { compareThreshold } from '../utils/comparison-utils.js';
 import { CanvasTextureRenderer } from '../core/packs/textures/CanvasTextureRenderer.js';
 
 // Import unified schema
@@ -1401,13 +1402,21 @@ export class LCARdSButton extends LCARdSCard {
      * Returns null when no range matches (i.e. the static `this.config.preset`
      * or 'default' should be used instead).
      *
+     * `above`/`below` are strict (>/<); `at_least`/`at_most` are inclusive
+     * (>=/<=) — matching the same operator vocabulary used by range-based
+     * colors, animation `while` conditions, and Rules Engine conditions
+     * elsewhere in the codebase. A range entry may combine any subset of
+     * the four for a two-sided tile. Prior to this, `above` here meant
+     * `>=` — a behavior change: use `at_least` to get the old gapless-tiling
+     * idiom explicitly instead of relying on `above`'s old inclusive meaning.
+     *
      * YAML example:
      *   ranges_attribute: brightness_pct   # evaluate light brightness as 0-100
      *   ranges:
      *     - preset: condition_red
-     *       above: 80
+     *       at_least: 80                   # value >= 80
      *     - preset: condition_yellow
-     *       above: 50
+     *       above: 50                      # 50 < value < 80
      *       below: 80
      *     - preset: condition_green
      *       equals: "ok"
@@ -1416,7 +1425,7 @@ export class LCARdSButton extends LCARdSCard {
      * Ranges are evaluated in order; the FIRST match wins.
      *
      * @private
-     * @param {Array<{preset:string, attribute?:string, above?:number, below?:number, equals?:*, color?:Object}>} rangesConfig
+     * @param {Array<{preset:string, attribute?:string, above?:number, at_least?:number, below?:number, at_most?:number, equals?:*, color?:Object}>} rangesConfig
      * @returns {Object|null} The matched range entry (containing .preset and optionally .color), or null if none match
      */
     _evaluateRangePreset(rangesConfig) {
@@ -1441,8 +1450,12 @@ export class LCARdSButton extends LCARdSCard {
 
             // Numeric range check — skip if value is null/undefined or non-numeric
             if (rawVal !== null && rawVal !== undefined && !Number.isNaN(numVal)) {
-                const aboveOk = range.above === undefined || numVal >= Number(range.above);
-                const belowOk = range.below === undefined || numVal <  Number(range.below);
+                const aboveOk =
+                    (range.above    === undefined || compareThreshold(numVal, 'above', Number(range.above))) &&
+                    (range.at_least === undefined || compareThreshold(numVal, 'at_least', Number(range.at_least)));
+                const belowOk =
+                    (range.below   === undefined || compareThreshold(numVal, 'below', Number(range.below))) &&
+                    (range.at_most === undefined || compareThreshold(numVal, 'at_most', Number(range.at_most)));
                 if (aboveOk && belowOk) {
                     return range;
                 }
@@ -1931,7 +1944,11 @@ export class LCARdSButton extends LCARdSCard {
             const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
 
             // Handle special cases
-            if (key === 'fill' || key === 'stroke' || key === 'opacity') {
+            if (key === 'fill' || key === 'stroke') {
+                // Full pipeline required: SVG fill/stroke attributes cannot handle
+                // var() or an unresolved theme: string written via setAttribute().
+                element.setAttribute(attrName, this._resolveColorValue(value, value));
+            } else if (key === 'opacity') {
                 element.setAttribute(attrName, value);
             } else if (key === 'strokeWidth' || key === 'stroke-width') {
                 element.setAttribute('stroke-width', value);
@@ -2181,6 +2198,54 @@ export class LCARdSButton extends LCARdSCard {
             });
         }
 
+        // Subscribe to alert mode changes so colors resolved from live CSS vars
+        // (e.g. var(--lcars-alert-red), which the alert-mode "wash" rewrites)
+        // repaint once the new values are actually committed — see
+        // _handleAlertModeChange for why this can't rely on the entity-state
+        // hass update alone.
+        this._subscribeToAlertMode();
+    }
+
+    /**
+     * Subscribe to alert mode changes via ThemeManager.
+     *
+     * Some color configs (e.g. explicit `var(--lcars-alert-red)` state maps)
+     * resolve via a live getComputedStyle() read of a CSS custom property that
+     * the alert-mode "wash" (paletteInjector.transformAndApplyAlertMode())
+     * rewrites asynchronously, gated behind a requestAnimationFrame. The
+     * entity-state hass update that drives this card's own range/preset
+     * switch fires synchronously and renders on the next microtask — faster
+     * than that rAF-gated write — so a render triggered only by the hass
+     * update can capture the PREVIOUS mode's CSS var value, one mode behind.
+     *
+     * ThemeManager fires this subscription AFTER the CSS variables are
+     * confirmed written, so requestUpdate() here is guaranteed to re-resolve
+     * against the settled values. Mirrors LCARdSSlider._subscribeToAlertMode().
+     * @private
+     */
+    _subscribeToAlertMode() {
+        this._alertModeUnsubscribe?.();
+        this._alertModeUnsubscribe = null;
+
+        const themeManager = window.lcards?.core?.themeManager;
+        if (themeManager?.subscribeToAlertMode) {
+            this._alertModeUnsubscribe = themeManager.subscribeToAlertMode(
+                this._handleAlertModeChange.bind(this)
+            );
+            lcardsLog.debug('[LCARdSButton] Subscribed to ThemeManager alert mode changes');
+        } else {
+            lcardsLog.warn('[LCARdSButton] ThemeManager.subscribeToAlertMode not available — alert mode subscription skipped');
+        }
+    }
+
+    /**
+     * Called when alert mode changes (red/yellow/blue/green/gray).
+     * @param {string} newMode
+     * @private
+     */
+    _handleAlertModeChange(newMode) {
+        lcardsLog.debug(`[LCARdSButton] Alert mode changed to ${newMode} — requesting update`);
+        this.requestUpdate();
     }
 
     /**
@@ -5453,6 +5518,9 @@ export class LCARdSButton extends LCARdSCard {
 
             resolvedColor = this._resolveMatchLightColor(resolvedColor);
 
+            // Full pipeline required: SVG fill attributes cannot handle var() or match-light.
+            resolvedColor = this._resolveColorValue(String(resolvedColor), String(resolvedColor));
+
             // Resolve background color based on entity state (supports state-based color map)
             // Full pipeline required: SVG fill attributes cannot handle var() or match-light.
             const resolvedBackground = field.background
@@ -5837,6 +5905,9 @@ export class LCARdSButton extends LCARdSCard {
                 });
             }
             resolvedColor = this._resolveMatchLightColor(resolvedColor);
+
+            // Full pipeline required: SVG fill attributes cannot handle var() or match-light.
+            resolvedColor = this._resolveColorValue(String(resolvedColor), String(resolvedColor));
 
             // ── Build <text> element ──────────────────────────────────────────
             const textAttrs = [
@@ -6737,6 +6808,9 @@ export class LCARdSButton extends LCARdSCard {
      * Cleanup on disconnect
      */
     disconnectedCallback() {
+        this._alertModeUnsubscribe?.();
+        this._alertModeUnsubscribe = null;
+
         // Clean up action listeners
         if (this._actionCleanup) {
             this._actionCleanup();

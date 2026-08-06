@@ -23,6 +23,29 @@ export class Canvas2DRenderer {
    *   1000/targetFps ms.  Defaults to 30 to conserve CPU on low-end devices
    *   such as Android tablets.  Set to 60 (or 0 to disable) for high-refresh
    *   displays where smoother animation is preferred.
+   * @param {number}            [options.hardFrameBudgetMs=500]
+   *   Hard per-frame time limit, in ms, independent of the FPS-averaged
+   *   PerformanceMonitor.  If a single frame's effect update+draw pass exceeds
+   *   this, the renderer disables itself immediately (same backoff/recovery
+   *   path as a PerformanceMonitor-triggered disable) rather than waiting for
+   *   an FPS average to converge, which can take tens of seconds to minutes
+   *   when individual frames are already this slow.
+   * @param {number}            [options.coldStartGraceFrames=3]
+   *   Number of frames right after start() that are exempt from
+   *   hardFrameBudgetMs (still logged as a warning, never silently ignored).
+   *   Reported live: a card whose own initialization does heavy synchronous
+   *   work immediately before calling start() (e.g. MSD's routing pipeline)
+   *   can leave enough GC pressure/main-thread backlog that the very FIRST
+   *   frame's own update+draw measurement gets contaminated by an unrelated
+   *   GC pause or catch-up cost — not a sign the effect itself is slow, just
+   *   that nothing yielded to the browser between "did a lot of unrelated
+   *   work" and "start timing this effect." Tripping the hard limit on that
+   *   one-off cold-start frame cost 5-30 minutes of disabled animation (the
+   *   same exponential-backoff recovery path a GENUINELY slow effect gets),
+   *   which is a wildly disproportionate response to a single cold-start
+   *   artifact. A persistently slow effect is still caught immediately once
+   *   the grace window is spent — this only ever delays detection by a
+   *   handful of frames, it doesn't weaken it.
    */
   constructor(canvas, options = {}) {
     this.canvas = canvas;
@@ -49,6 +72,22 @@ export class Canvas2DRenderer {
     // targetFps=0 disables the cap (render at the native browser rate).
     this._targetFps = options.targetFps ?? 30;
     this._minFrameInterval = this._targetFps > 0 ? 1000 / this._targetFps : 0;
+
+    // Hard per-frame time budget (ms): a backstop independent of the FPS-averaged
+    // PerformanceMonitor below, which needs 60 rAF samples to compute one FPS
+    // reading and 3 consecutive low readings before it disables anything — tens
+    // of seconds at best, and if a single frame is pathologically slow (a buggy
+    // effect, an unbounded per-pixel loop), one FPS reading alone can take
+    // minutes. This trips on the very frame that goes wrong instead of waiting
+    // on that average to converge. 500ms is generous enough not to false-positive
+    // on legitimate one-off jank (e.g. a texture re-bake) but small enough that
+    // the page never sits pathologically slow for long before mitigating.
+    this._hardFrameBudgetMs = options.hardFrameBudgetMs ?? 500;
+    // See this constructor's own coldStartGraceFrames param doc. Set to 0
+    // here (not coldStartGraceFrames) — the grace window only applies
+    // starting from an actual start() call, never before one.
+    this._coldStartGraceFrames = options.coldStartGraceFrames ?? 3;
+    this._coldStartFramesRemaining = 0;
 
     lcardsLog.debug('[Canvas2DRenderer] Initialized', {
       canvasWidth: canvas.width,
@@ -124,6 +163,7 @@ export class Canvas2DRenderer {
 
     this._isRunning = true;
     this._lastFrameTime = performance.now();
+    this._coldStartFramesRemaining = this._coldStartGraceFrames;
 
     // Wire up PerformanceMonitor for adaptive quality (opt-out via constructor option)
     if (this._monitorPerformance && window.lcards?.core?.performanceMonitor) {
@@ -162,7 +202,13 @@ export class Canvas2DRenderer {
     };
     document.addEventListener('visibilitychange', this._visibilityHandler);
 
-    this._animate();
+    // Deferred via rAF rather than called directly (unlike this file's other
+    // _animate() resume call sites, deliberately left as direct calls — see
+    // this method's own _coldStartFramesRemaining reset above for why THIS
+    // specific call site is the one that matters): gives the browser at
+    // least one real tick between whatever heavy synchronous work the
+    // caller's own initialization just did and the first timed frame.
+    this._animationId = requestAnimationFrame(() => this._animate());
 
     lcardsLog.debug('[Canvas2DRenderer] Animation started', {
       effectCount: this.effects.length
@@ -374,7 +420,9 @@ export class Canvas2DRenderer {
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Update and draw each effect
+    // Update and draw each effect, timing the whole pass for the hard
+    // frame-budget check below.
+    const frameWorkStart = performance.now();
     for (let i = this.effects.length - 1; i >= 0; i--) {
       const effect = this.effects[i];
 
@@ -390,6 +438,38 @@ export class Canvas2DRenderer {
       // Draw effect
       effect.draw(this.ctx, this.canvas.width, this.canvas.height);
     }
+    const frameWorkMs = performance.now() - frameWorkStart;
+
+    // Hard backstop: a single pathologically slow frame trips the same
+    // disable+recovery-backoff path the FPS-averaged PerformanceMonitor uses,
+    // without waiting for that average to converge (see _hardFrameBudgetMs).
+    // Exempted for the first `_coldStartGraceFrames` real (measured) frames
+    // after start() — see that option's own constructor doc for why: a
+    // heavy synchronous initialization immediately before start() can leave
+    // GC/main-thread backlog that contaminates only the very first
+    // measurement, not a sign this effect is actually slow. Still logged
+    // (a warning, not silence) so a genuinely slow effect that ALSO happens
+    // to start slow isn't hidden — it simply gets caught on whichever frame
+    // first runs after the grace window is spent, same as always.
+    if (frameWorkMs > this._hardFrameBudgetMs) {
+      if (this._coldStartFramesRemaining > 0) {
+        lcardsLog.warn(`[Canvas2DRenderer] Frame took ${frameWorkMs.toFixed(0)}ms (> ${this._hardFrameBudgetMs}ms hard limit) during cold-start grace window (${this._coldStartFramesRemaining} of ${this._coldStartGraceFrames} remaining) — logging only, not pausing`, {
+          effectCount: this.effects.length,
+          effectTypes: this.effects.map(e => e.constructor.name)
+        });
+      } else {
+        lcardsLog.error(`[Canvas2DRenderer] Frame took ${frameWorkMs.toFixed(0)}ms (> ${this._hardFrameBudgetMs}ms hard limit) — pausing immediately to protect the browser`, {
+          effectCount: this.effects.length,
+          effectTypes: this.effects.map(e => e.constructor.name)
+        });
+        this._disabledByPerformance = true;
+        this._recoveryAttempts++;
+        this.stop(); // stop() skips recovery cleanup because _disabledByPerformance is true
+        this._scheduleRecovery();
+        return;
+      }
+    }
+    if (this._coldStartFramesRemaining > 0) this._coldStartFramesRemaining--;
 
     // Request next frame
     this._animationId = requestAnimationFrame(() => this._animate());

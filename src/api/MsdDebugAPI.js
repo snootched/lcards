@@ -234,7 +234,7 @@ export class MsdDebugAPI {
         const namespaces = {
           routing: {
             desc: 'Routing and resolution debugging',
-            methods: ['inspect(overlayId, cardId?)', 'stats(cardId?)', 'invalidate(id, cardId?)', 'inspectAs(overlayId, mode, cardId?)']
+            methods: ['inspect(overlayId, cardId?)', 'inspectAll(cardId?)', 'trunks(cardId?)', 'stats(cardId?)', 'invalidate(id, cardId?)']
           },
           data: {
             desc: 'MSD entity data tracing across overlays',
@@ -303,8 +303,11 @@ export class MsdDebugAPI {
       usage(namespace) {
         const examples = {
           routing: [
-            '// Inspect routing for an overlay',
+            '// Inspect routing for an overlay (pts/d/meta, incl. meta.debug.stubLength)',
             'msd.routing.inspect("my-overlay");',
+            '',
+            '// List every registered trunk row (bounds, centerline, members)',
+            'console.table(msd.routing.trunks());',
             '',
             '// Get routing stats',
             'msd.routing.stats();',
@@ -437,6 +440,68 @@ export class MsdDebugAPI {
         },
 
         /**
+         * Like inspect(), but for every overlay currently in the route
+         * cache at once — dumps a whole MSD's routing state in one call
+         * instead of inspecting each line individually.
+         *
+         * @param {string|null} [cardId=null] - Config ID for target MSD card (e.g. 'bridge')
+         * @returns {Array<object>|null} One entry per overlay id, same shape as inspect(), or null if not found
+         *
+         * @example
+         * window.lcards.debug.msd.routing.inspectAll()
+         * console.table(window.lcards.debug.msd.routing.inspectAll())
+         */
+        inspectAll(cardId = null) {
+          try {
+            const pipeline = _getMsdPipeline(cardId);
+            if (!pipeline) {
+              lcardsLog.warn('[MsdDebugAPI] No MSD card found or pipeline not ready');
+              return null;
+            }
+
+            if (typeof pipeline.routingInspectAll === 'function') {
+              return pipeline.routingInspectAll();
+            }
+
+            lcardsLog.warn('[MsdDebugAPI] routingInspectAll method not available');
+            return null;
+          } catch (error) {
+            lcardsLog.error('[DebugAPI] Error inspecting all routing:', error);
+            return null;
+          }
+        },
+
+        /**
+         * List every registered trunk row — config-seeded channels and
+         * spontaneously-discovered (bundled) trunks alike — with its own
+         * bounds, centerline, and current member set.
+         *
+         * @param {string|null} [cardId=null] - Config ID for target MSD card (e.g. 'bridge')
+         * @returns {Array<object>|null} Trunk rows, or null if router unavailable
+         *
+         * @example
+         * window.lcards.debug.msd.routing.trunks()
+         * console.table(window.lcards.debug.msd.routing.trunks())
+         */
+        trunks(cardId = null) {
+          try {
+            const coordinator = _getMsdCoordinator(cardId);
+            if (!coordinator?.router) {
+              lcardsLog.warn('[MsdDebugAPI] No MSD router found');
+              return null;
+            }
+            if (typeof coordinator.router.trunks === 'function') {
+              return coordinator.router.trunks();
+            }
+            lcardsLog.warn('[MsdDebugAPI] router.trunks method not available');
+            return null;
+          } catch (error) {
+            lcardsLog.error('[DebugAPI] Error listing trunks:', error);
+            return null;
+          }
+        },
+
+        /**
          * Get routing statistics
          *
          * Returns cache hits, paths computed, invalidations, and other
@@ -513,66 +578,11 @@ export class MsdDebugAPI {
           }
         },
 
-        /**
-         * Inspect overlay routing with different mode
-         *
-         * Temporarily changes the route_mode_full for an overlay and
-         * inspects how it would be routed. Restores original mode after.
-         *
-         * @param {string} overlayId - Overlay ID to inspect
-         * @param {string} [mode='smart'] - Route mode to test ('smart', 'full', 'minimal')
-         * @param {string|null} [cardId=null] - Config ID for MSD card (e.g. 'bridge')
-         * @returns {Object|null} Routing inspection with tested mode
-         *
-         * @example
-         * const routing = msd.routing.inspectAs('button_1', 'full', 'bridge');
-         * console.log('Full mode routing:', routing);
-         */
-        inspectAs(overlayId, mode = 'smart', cardId = null) {
-          try {
-            const pipeline = _getMsdPipeline(cardId);
-            if (!pipeline) {
-              lcardsLog.warn('[MsdDebugAPI] No MSD card found or pipeline not ready');
-              return null;
-            }
-
-            // Try to get the model and manipulate routing mode
-            const model = typeof pipeline.getResolvedModel === 'function' ? pipeline.getResolvedModel() : null;
-            if (!model) {
-              lcardsLog.warn('[MsdDebugAPI] Could not get resolved model');
-              return null;
-            }
-
-            const ov = model.overlays.find(o => o.id === overlayId);
-            if (!ov) {
-              lcardsLog.warn('[MsdDebugAPI] Overlay not found:', overlayId);
-              return null;
-            }
-
-            // Temporarily change routing mode and inspect
-            ov._raw = ov._raw || {};
-            const original = ov._raw.route_mode_full;
-            ov._raw.route_mode_full = mode;
-
-            const coordinator = _getMsdCoordinator(cardId);
-            if (coordinator?.router?.invalidate) {
-              coordinator.router.invalidate('*');
-            }
-
-            const result = this.inspect(overlayId, cardId);
-
-            // Restore original
-            ov._raw.route_mode_full = original;
-            if (coordinator?.router?.invalidate) {
-              coordinator.router.invalidate('*');
-            }
-
-            return result;
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error in inspectAs:', error);
-            return null;
-          }
-        },
+        // NOTE: inspectAs(overlayId, mode) was removed — it wrote a config
+        // key RouterCore never reads (route_mode_full; the real key is
+        // `route`) and blanket-invalidated the entire route cache twice as
+        // a "debug" side effect. Debug inspection must never mutate routing
+        // state; use inspect() (read-only, from the route cache) instead.
 
         /**
          * Visualize routing paths (future enhancement)

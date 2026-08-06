@@ -7,7 +7,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  * with user-defined anchors. Replaces card-level _processAnchors() logic.
  *
  * Key responsibilities:
- * - Extract anchor points from SVG elements (<circle>, <text>, <g> with IDs)
+ * - Extract anchor points from SVG elements (<circle>, <ellipse>, <text>, <rect>, <g> with IDs)
  * - Resolve percentage coordinates to absolute positions
  * - Merge SVG anchors with user anchors (user overrides SVG)
  * - Track provenance metadata for debugging
@@ -19,25 +19,36 @@ export class AnchorProcessor {
    * @param {string} svgContent - SVG content string (null for base_svg: "none")
    * @param {Object} userAnchors - User-defined anchors from config
    * @param {Array} viewBox - SVG viewBox [x, y, width, height]
+   * @param {Object} [computedAnchors] - Algorithmically-derived anchors (SvgStructureAnalyzer),
+   *   lowest precedence - a hand-drawn SVG anchor or explicit config anchor always wins.
+   * @param {Object} [options]
+   * @param {boolean} [options.harvestSvgElements=true] - Whether to harvest anchors from named
+   *   <circle>/<ellipse>/<text>/<rect>/<g> elements embedded in the SVG. When false, that
+   *   source is skipped entirely (empty map), same effect as an SVG with no such elements.
    * @returns {Object} { anchors, metadata } - Resolved anchors with provenance
    */
-  static processAnchors(svgContent, userAnchors = {}, viewBox) {
+  static processAnchors(svgContent, userAnchors = {}, viewBox, computedAnchors = {}, options = {}) {
+    const { harvestSvgElements = true } = options;
+
     lcardsLog.trace('[AnchorProcessor] Processing anchors:', {
       hasSvgContent: !!svgContent,
       userAnchorCount: Object.keys(userAnchors).length,
+      computedAnchorCount: Object.keys(computedAnchors).length,
+      harvestSvgElements,
       viewBox
     });
 
-    // Extract SVG anchors (from <circle>, <text>, <g> with IDs)
-    const svgAnchors = this._extractSvgAnchors(svgContent);
+    // Extract SVG anchors (from <circle>, <ellipse>, <text>, <rect>, <g> with IDs)
+    const svgAnchors = harvestSvgElements ? this._extractSvgAnchors(svgContent) : {};
 
     // Resolve percentage coordinates in user anchors
     const resolvedUserAnchors = this._resolvePercentages(userAnchors, viewBox);
 
-    // Merge: SVG anchors < user anchors (user overrides SVG)
-    const merged = { ...svgAnchors, ...resolvedUserAnchors };
+    // Merge: computed anchors < SVG anchors < user anchors (each layer overrides the previous)
+    const merged = { ...computedAnchors, ...svgAnchors, ...resolvedUserAnchors };
 
     lcardsLog.trace('[AnchorProcessor] Anchors processed:', {
+      computedAnchorCount: Object.keys(computedAnchors).length,
       svgAnchorCount: Object.keys(svgAnchors).length,
       userAnchorCount: Object.keys(resolvedUserAnchors).length,
       totalCount: Object.keys(merged).length,
@@ -48,6 +59,7 @@ export class AnchorProcessor {
     return {
       anchors: merged,
       metadata: {
+        computedAnchorCount: Object.keys(computedAnchors).length,
         svgAnchorCount: Object.keys(svgAnchors).length,
         userAnchorCount: Object.keys(resolvedUserAnchors).length,
         totalCount: Object.keys(merged).length,

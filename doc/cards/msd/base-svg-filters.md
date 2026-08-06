@@ -1,7 +1,7 @@
 # Base SVG Filters Reference
 
 > **Visual filters for base SVG layer**
-> Apply opacity, blur, brightness, and other effects to make overlays more prominent
+> Apply opacity, blur, brightness, tint, and other effects to make overlays more prominent
 
 ## Overview
 
@@ -9,14 +9,7 @@ Apply visual filters to the base SVG layer to make overlays more prominent while
 
 ## Quick Start
 
-**Apply a preset**:
-```yaml
-base_svg:
-  source: builtin:ncc-1701-a-blue
-  filter_preset: dimmed
-```
-
-**Custom filters**:
+**Simple filters** (legacy object format, CSS filters only):
 ```yaml
 base_svg:
   source: builtin:ncc-1701-a-blue
@@ -25,13 +18,13 @@ base_svg:
     blur: "3px"
 ```
 
-**Combine preset with overrides**:
+**Stackable filters** (array format, supports CSS and SVG filter primitives):
 ```yaml
 base_svg:
   source: builtin:ncc-1701-a-blue
-  filter_preset: dimmed
   filters:
-    opacity: 0.3  # Override preset's 0.5
+    - { mode: css, type: opacity, value: 0.5 }
+    - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
 ```
 
 ---
@@ -128,25 +121,148 @@ filters:
 
 **Use cases**: High-contrast themes, special effects.
 
----
-
-## Built-in Presets
-
-### `none`
-Clear all filters (remove filtering).
+### Drop Shadow
+Creates a drop shadow behind the element.
 
 ```yaml
-# No filters applied
-filter_preset: none
+filters:
+  - { mode: css, type: drop-shadow, value: { x: 2, y: 2, blur: '4px', color: '#000000' } }
 ```
 
-**Best for**: Removing filters, returning to unfiltered state.
+**Use cases**: Depth/emphasis via a classic drop shadow.
 
-### `dimmed`
-Reduces opacity and brightness for subtle background.
+---
+
+## SVG Filter Primitives
+
+Lower-level SVG `<filter>` primitives, for effects the CSS filter list above
+can't express. Requires array format with `mode: svg` — SVG filters need an
+`<svg>` root, so these aren't available on non-SVG cards like data-grid.
+Chain multiple primitives in the same `filters:` array to compose more
+complex effects (each primitive's output feeds the next).
+
+### feGaussianBlur
+SVG blur filter — smoother than CSS blur, chains with other SVG filters.
 
 ```yaml
-# Equivalent to:
+filters:
+  - { mode: svg, type: feGaussianBlur, value: { stdDeviation: 4 } }
+```
+
+**Use cases**: Softening, glow bases, chaining with feOffset for shadows.
+
+### feColorMatrix
+Powerful color transformation using matrix operations. Supports hue
+rotation, saturation, luminance-to-alpha, and custom 4x5 color mapping
+matrices.
+
+```yaml
+filters:
+  - { mode: svg, type: feColorMatrix, value: { type: saturate, values: 1.5 } }
+```
+
+**Use cases**: Advanced color remapping beyond CSS saturate/hue-rotate.
+
+### feOffset
+Shifts the filter result by dx/dy pixels. Essential for creating shadow
+effects when combined with blur.
+
+```yaml
+filters:
+  - { mode: svg, type: feOffset, value: { dx: 3, dy: 3 } }
+```
+
+**Use cases**: Building custom shadow effects when chained with feGaussianBlur/feBlend.
+
+### feBlend
+Blends the current filter result with another input (SourceGraphic by
+default) using any of the 16 standard CSS blend modes (multiply, screen,
+overlay, etc.).
+
+```yaml
+filters:
+  - { mode: svg, type: feBlend, value: { mode: screen } }
+```
+
+**Use cases**: Glow effects — try screen/lighten mode after a blur.
+
+### feComposite
+Combines two inputs (the previous filter result and SourceGraphic by
+default) using Porter-Duff compositing operators, or a custom arithmetic
+formula.
+
+```yaml
+filters:
+  - { mode: svg, type: feComposite, value: { operator: over } }
+```
+
+**Use cases**: Advanced layering/compositing beyond simple blend modes.
+
+### feMorphology
+Erodes (thins) or dilates (fattens) shapes. Useful for creating outline
+effects or adjusting edge thickness.
+
+```yaml
+filters:
+  - { mode: svg, type: feMorphology, value: { operator: dilate, radius: 2 } }
+```
+
+**Use cases**: Outline/edge-thickness effects.
+
+### feTurbulence
+Generates Perlin noise patterns for organic textures. Commonly used with
+feDisplacementMap for distortion/warping effects.
+
+```yaml
+filters:
+  - { mode: svg, type: feTurbulence, value: { baseFrequency: 0.02, numOctaves: 3 } }
+```
+
+**Use cases**: Organic noise textures, paired with feDisplacementMap.
+
+### feDisplacementMap
+Warps/distorts the image based on color values from another source. Perfect
+for wavy, liquid, or turbulent effects.
+
+```yaml
+filters:
+  - { mode: svg, type: feTurbulence, value: { baseFrequency: 0.02, numOctaves: 3 } }
+  - { mode: svg, type: feDisplacementMap, value: { scale: 20 } }
+```
+
+**Use cases**: Wavy, liquid, or turbulent distortion effects.
+
+::: tip
+Add a Turbulence filter right before this one — Turbulence generates the
+displacement map this filter distorts by.
+:::
+
+### Tint
+
+The one friendly *compound* SVG type — internally expands to a chained
+`feFlood`+`feComposite` pair, so it composites a flat color wash over the
+base SVG (a real color tint, not an approximation) from a single filter
+entry. Same SVG-only requirement as the primitives above — not available on
+non-SVG cards like data-grid. The color's alpha channel controls how much
+of the artwork shows through.
+
+```yaml
+filters:
+  - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
+```
+
+**Use cases**: Alert/status washes, theme-colored overlays, quick visual state changes.
+
+---
+
+## Common Filter Recipes
+
+Copy-paste `filters:` arrays for common effects.
+
+### Dimmed
+Reduces opacity and brightness for a subtle background.
+
+```yaml
 filters:
   opacity: 0.5
   brightness: 0.8
@@ -154,11 +270,10 @@ filters:
 
 **Best for**: General use, balanced visibility.
 
-### `subtle`
+### Subtle
 Light dimming with slight blur and desaturation.
 
 ```yaml
-# Equivalent to:
 filters:
   opacity: 0.6
   blur: "1px"
@@ -167,11 +282,10 @@ filters:
 
 **Best for**: Maintaining detail while reducing emphasis.
 
-### `backdrop`
+### Backdrop
 Heavy dimming with blur for strong overlay emphasis.
 
 ```yaml
-# Equivalent to:
 filters:
   opacity: 0.3
   blur: "3px"
@@ -180,11 +294,10 @@ filters:
 
 **Best for**: Data-heavy displays, prominent overlays.
 
-### `faded`
-Desaturated and dimmed for muted background.
+### Faded
+Desaturated and dimmed for a muted background.
 
 ```yaml
-# Equivalent to:
 filters:
   opacity: 0.4
   grayscale: 0.5
@@ -193,24 +306,21 @@ filters:
 
 **Best for**: Minimal aesthetic, reduced visual clutter.
 
-### `red-alert`
-Full opacity with slight warm hue rotation for alert state.
+### Red Wash (alert)
+A real red color tint using the SVG `tint` filter, rather than the old
+`red-alert` preset's hue-rotate approximation.
 
 ```yaml
-# Equivalent to:
 filters:
-  opacity: 1.0
-  brightness: 1.2
-  hue_rotate: 10
+  - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
 ```
 
 **Best for**: Alert states, emergency displays.
 
-### `monochrome`
+### Monochrome
 Full grayscale with reduced contrast.
 
 ```yaml
-# Equivalent to:
 filters:
   opacity: 0.6
   grayscale: 1.0
@@ -218,6 +328,11 @@ filters:
 ```
 
 **Best for**: Professional displays, reduced color distraction.
+
+### Clear all filters
+```yaml
+filters: []
+```
 
 ---
 
@@ -244,38 +359,6 @@ overlays:
 - Pure data displays
 - Custom overlay compositions
 - Testing/prototyping
-
----
-
-## Theme Overrides
-
-Themes can define custom filter presets.
-
-**Theme YAML**:
-```yaml
-lcars-custom:
-  name: "LCARS Custom"
-  msd:
-    filter_presets:
-      dimmed:
-        opacity: 0.3  # Override built-in 0.5
-        blur: "2px"   # Add blur
-
-      custom-preset:
-        opacity: 0.4
-        grayscale: 0.8
-        contrast: 1.1
-```
-
-**Card Config**:
-```yaml
-theme: lcars-custom
-base_svg:
-  source: builtin:ncc-1701-a-blue
-  filter_preset: dimmed  # Uses theme override
-```
-
-**Priority**: Theme presets override built-in presets, explicit filters override everything.
 
 ---
 

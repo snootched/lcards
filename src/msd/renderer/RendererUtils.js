@@ -472,21 +472,6 @@ export class RendererUtils {
     return null;
   }
 
-  /**
-   * Parse glow effect configuration
-   * @param {Object} glowConfig - Glow configuration object
-   * @returns {Object|null} Normalized glow configuration
-   */
-  static parseGlowConfig(glowConfig) {
-    if (!glowConfig) return null;
-
-    return {
-      color: glowConfig.color || 'var(--lcars-blue, var(--lcards-blue-medium, #4455ff))',
-      blur: Number(glowConfig.blur || 3),
-      intensity: Number(glowConfig.intensity || 0.8)
-    };
-  }
-
   // ========================
   // UNIFIED STYLING SYSTEM
   // ========================
@@ -840,29 +825,6 @@ export class RendererUtils {
     return border;
   }
 
-  /**
-   * Parse all standard styles in one call
-   * @param {Object} style - Style configuration object
-   * @returns {Object} Complete normalized style configuration
-   */
-  static parseAllStandardStyles(style) {
-    return {
-      text: this.parseStandardTextStyles(style),
-      colors: this.parseStandardColorStyles(style),
-      border: this.parseStandardBorderStyles(style),
-      layout: this.parseStandardLayoutStyles(style),
-      interaction: this.parseStandardInteractionStyles(style),
-      animation: this.parseStandardAnimationStyles(style),
-
-      // Effects (existing methods)
-      gradient: this.parseGradientConfig(style.gradient),
-      pattern: this.parsePatternConfig(style.pattern),
-      glow: this.parseGlowConfig(style.glow),
-      shadow: this.parseShadowConfig(style.shadow),
-      blur: this.parseBlurConfig(style.blur)
-    };
-  }
-
   // ========================
   // HELPER PARSING METHODS
   // ========================
@@ -1037,64 +999,6 @@ export class RendererUtils {
   }
 
   /**
-   * Parse shadow effect configuration
-   * @param {string|object|boolean} shadowConfig - Shadow configuration
-   * @returns {object|null} Parsed shadow configuration
-   */
-  static parseShadowConfig(shadowConfig) {
-    if (!shadowConfig) return null;
-
-    if (shadowConfig === true) {
-      return { color: 'rgba(0,0,0,0.3)', offsetX: 2, offsetY: 2, blur: 3 };
-    }
-
-    if (typeof shadowConfig === 'string') {
-      // Parse "2 2 3 rgba(0,0,0,0.3)" format
-      const parts = shadowConfig.split(' ');
-      return {
-        offsetX: Number(parts[0]) || 2,
-        offsetY: Number(parts[1]) || 2,
-        blur: Number(parts[2]) || 3,
-        color: parts[3] || 'rgba(0,0,0,0.3)'
-      };
-    }
-
-    if (typeof shadowConfig === 'object') {
-      return {
-        color: shadowConfig.color || 'rgba(0,0,0,0.3)',
-        offsetX: Number(shadowConfig.offsetX || shadowConfig.offset?.[0] || 2),
-        offsetY: Number(shadowConfig.offsetY || shadowConfig.offset?.[1] || 2),
-        blur: Number(shadowConfig.blur || 3)
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * Parse blur effect configuration
-   * @param {number|string|object} blurConfig - Blur configuration
-   * @returns {object|null} Parsed blur configuration
-   */
-  static parseBlurConfig(blurConfig) {
-    if (!blurConfig) return null;
-
-    if (typeof blurConfig === 'number') {
-      return { amount: blurConfig };
-    }
-
-    if (typeof blurConfig === 'string') {
-      return { amount: Number(blurConfig) || 1 };
-    }
-
-    if (typeof blurConfig === 'object') {
-      return { amount: Number(blurConfig.amount || blurConfig.blur || 1) };
-    }
-
-    return null;
-  }
-
-  /**
    * Create gradient definition SVG
    * @param {object} gradient - Parsed gradient configuration
    * @param {string} id - Unique ID for the gradient
@@ -1199,62 +1103,6 @@ export class RendererUtils {
                      patternUnits="userSpaceOnUse">
               ${patternContent}
             </pattern>`;
-  }
-
-  /**
-   * Create glow filter SVG
-   * @param {object} glow - Parsed glow configuration
-   * @param {string} id - Unique ID for the filter
-   * @returns {string} SVG filter definition
-   */
-  static createGlowFilter(glow, id) {
-    const size = glow.size || 4;
-    const color = glow.color || 'currentColor';
-    const intensity = glow.intensity || 1;
-
-    // Enhanced filter for better glow effect
-    return `<filter id="${id}" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="${size}" result="coloredBlur"/>
-              <feFlood flood-color="${color}" flood-opacity="${intensity}"/>
-              <feComposite in="flood" in2="coloredBlur" operator="in" result="glowColor"/>
-              <feMerge>
-                <feMergeNode in="glowColor"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>`;
-  }
-
-  /**
-   * Create shadow filter SVG
-   * @param {object} shadow - Parsed shadow configuration
-   * @param {string} id - Unique ID for the filter
-   * @returns {string} SVG filter definition
-   */
-  static createShadowFilter(shadow, id) {
-    const offsetX = shadow.offsetX || 2;
-    const offsetY = shadow.offsetY || 2;
-    const blur = shadow.blur || 3;
-    const color = shadow.color || 'rgba(0,0,0,0.3)';
-
-    return `<filter id="${id}" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="${offsetX}" dy="${offsetY}"
-                           stdDeviation="${blur}"
-                           flood-color="${color}"/>
-            </filter>`;
-  }
-
-  /**
-   * Create blur filter SVG
-   * @param {object} blur - Parsed blur configuration
-   * @param {string} id - Unique ID for the filter
-   * @returns {string} SVG filter definition
-   */
-  static createBlurFilter(blur, id) {
-    const amount = blur.amount || 1;
-
-    return `<filter id="${id}" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="${amount}"/>
-            </filter>`;
   }
 
   /**

@@ -216,15 +216,14 @@ All namespace methods are called as `window.lcards.debug.msd.<namespace>.<method
 
 | Method | Description |
 |--------|-------------|
-| `inspect(overlayId, cardId?)` | Inspect routing resolution for an overlay |
-| `stats(cardId?)` | Routing statistics |
+| `inspect(overlayId, cardId?)` | The overlay's actual routed points/path, read-only from the route cache — never computes or mutates routing state |
+| `stats(cardId?)` | Router statistics: cache size, obstacle count, trunk/crossing registry counts, registry version |
 | `invalidate(id, cardId?)` | Invalidate cached routing for an overlay |
-| `inspectAs(overlayId, mode, cardId?)` | Inspect routing as a specific mode |
 | `visualize(overlayId)` | Visualize routing (not yet implemented) |
 
 ```javascript
-window.lcards.debug.msd.routing.inspect('my_overlay')
-window.lcards.debug.msd.routing.stats()
+window.lcards.debug.msd.routing.inspect('my_overlay')   // { pts, d, meta, cacheKey }
+window.lcards.debug.msd.routing.stats()                 // { size, obstacles, trunks, crossings, registryVersion, ... }
 ```
 
 ### `data` — DataSource state

@@ -47,6 +47,7 @@ import {
 } from '../../../utils/schema-helpers.js';
 import '../editors/lcards-position-picker.js';
 import '../editors/lcards-font-selector.js';
+import './lcards-color-picker.js';
 
 /**
  * Form field helper utilities
@@ -84,7 +85,11 @@ export class LCARdSFormFieldHelper {
             `;
         }
 
-        const rawValue = editor._getConfigValue?.(path);
+        // Fall back to the schema's declared default when the config value is
+        // genuinely unset — previously this always showed blank/undefined for any
+        // unset field, even ones with a documented default, since nothing here ever
+        // consulted schema.default at all.
+        const rawValue = editor._getConfigValue?.(path) ?? schema?.default;
         const hints = schema?.['x-ui-hints'] || {};
 
         // Get selector config (priority: override > x-ui-hints > auto-generated)
@@ -103,6 +108,10 @@ export class LCARdSFormFieldHelper {
 
         if (isPositionEnum(schema)) {
             return this._renderPositionPicker(editor, path, rawValue, label, helper, options.disabled);
+        }
+
+        if (hints.widget === 'lcards-color-picker') {
+            return this._renderLcardsColorPicker(editor, path, rawValue, label, helper, options.disabled);
         }
 
         // Special handling for tags field
@@ -481,6 +490,28 @@ export class LCARdSFormFieldHelper {
                 .showPreview=${true}
                 @value-changed=${(ev) => this._handleChange(ev, editor, path)}>
             </lcards-font-selector>
+        `;
+    }
+
+    /**
+     * Render LCARdS's richer color picker (theme tokens, var(), computed expressions) —
+     * unlike font-selector/position-picker, this component has no built-in label/helper
+     * property, so it's wrapped in the same .param-full/.field-label structure the
+     * animation editor's own hardcoded cases already use for it.
+     * @private
+     */
+    static _renderLcardsColorPicker(editor, path, value, label, helper, disabled) {
+        return html`
+            <div class="param-full">
+                ${label ? html`<label class="field-label">${label}</label>` : ''}
+                <lcards-color-picker
+                    .hass=${editor.hass}
+                    .value=${value ?? ''}
+                    .disabled=${disabled || false}
+                    @value-changed=${(ev) => this._handleChange(ev, editor, path)}>
+                </lcards-color-picker>
+                ${helper ? html`<div class="field-helper">${helper}</div>` : ''}
+            </div>
         `;
     }
 

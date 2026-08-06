@@ -2,9 +2,9 @@
  * @fileoverview MsdCardCoordinator — orchestrates the MSD sub-systems for a single card instance.
  *
  * Wires together ThemeManager, DataSourceManager, RouterCore, AdvancedRenderer,
- * MsdControlsRenderer, AnimationManager, and DebugManager.  Acts as the single
- * source of truth for the HASS object within the MSD pipeline and propagates
- * updates to each sub-system in the correct order.
+ * MsdControlsRenderer, and AnimationManager.  Acts as the single source of
+ * truth for the HASS object within the MSD pipeline and propagates updates
+ * to each sub-system in the correct order.
  */
 
 import { AdvancedRenderer } from '../renderer/AdvancedRenderer.js';
@@ -14,7 +14,6 @@ import { RouterCore } from '../routing/RouterCore.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { lcardsCore } from '../../core/lcards-core.js';
 import { deepMerge } from '../../core/config-manager/merge-helpers.js';
-import { DebugManager } from '../debug/DebugManager.js';
 
 // Import animation system components
 // AnimationManager now imported as shared singleton from lcardsCore
@@ -36,11 +35,9 @@ export class MsdCardCoordinator extends BaseService {
     this.router = null;
     this.animRegistry = null; // Will be set to shared core AnimationRegistry
     this.animationManager = null; // Animation system
-    this.debugManager = new DebugManager();
     this._renderTimeout = null;
     this._reRenderCallback = null;
     this._queuedReRender = false; // Flag for queued renders
-    this._debugControlsRendering = false;
     this.mergedConfig = null; // Store for entity change handler
 
     // Single source of truth for HASS
@@ -125,11 +122,6 @@ export class MsdCardCoordinator extends BaseService {
     // Initialize other critical systems that overlays might need
     lcardsLog.trace('[MsdCardCoordinator] ⚙️ Initializing per-card systems');
 
-    // Initialize debug manager early with config
-    const debugConfig = mergedConfig.debug || {};
-    this.debugManager.init(debugConfig);
-    lcardsLog.trace('[MsdCardCoordinator] DebugManager initialized with config:', debugConfig);
-
     // Initialize data source manager FIRST (overlays may reference it)
     await this._initializeDataSources(hass, mergedConfig);
 
@@ -157,7 +149,7 @@ export class MsdCardCoordinator extends BaseService {
    * Complete systems initialization after card model is built
    * This is the second phase that happens after overlays can safely be processed
    */
-  async completeSystems(mergedConfig, cardModel, mountEl, hass) {
+  async completeSystems(mergedConfig, cardModel, mountEl, hass, isEditMode = false) {
     lcardsLog.trace('[MsdCardCoordinator] 🔧 Completing systems initialization');
 
     // REMOVED: RulesEngine setup - now handled by card via _registerOverlayForRules()
@@ -176,16 +168,13 @@ export class MsdCardCoordinator extends BaseService {
     };
     this.router = new RouterCore(routingConfig, cardModel.anchors, cardModel.viewBox);
     this.renderer = new AdvancedRenderer(mountEl, this.router, this); // Pass 'this' as systemsManager
-    this.controlsRenderer = new MsdControlsRenderer(this.renderer);
+    this.controlsRenderer = new MsdControlsRenderer(this.renderer, mergedConfig, isEditMode);
 
     // Set HASS context on controls renderer immediately if available
     if (this._hass && this.controlsRenderer) {
       lcardsLog.trace('[MsdCardCoordinator] Setting initial HASS context on controls renderer');
       this.controlsRenderer.setHass(this._hass);
     }
-
-    // Mark router as ready for debug system
-    this.debugManager.markRouterReady();
 
     // Use shared AnimationRegistry and AnimationManager from lcardsCore
     if (!lcardsCore.animationRegistry) {
@@ -392,7 +381,6 @@ export class MsdCardCoordinator extends BaseService {
     this.renderer = null;
     this.controlsRenderer = null;
     this.router = null;
-    this.debugManager = null;
 
     // DO NOT null singleton references - they are shared across all cards!
     // These remain accessible from window.lcards.core for other cards:
@@ -408,159 +396,6 @@ export class MsdCardCoordinator extends BaseService {
       delete window.lcards.debug.msd.pipelineInstance;
       delete window.lcards.debug.msd.systemsManager;
     }
-  }
-
-  /**
-   * Render debug overlays and controls using DebugManager with basic performance tracking
-   * @param {Object} resolvedModel - The resolved model
-   * @param {Element} mountEl - The shadowRoot/mount element
-   */
-  async renderDebugAndControls(resolvedModel, mountEl = null) {
-    // Early exit if already rendering
-    if (this._debugControlsRendering) {
-      lcardsLog.debug('[MsdCardCoordinator] renderDebugAndControls already in progress, skipping');
-      return;
-    }
-
-    this._debugControlsRendering = true;
-
-    try {
-      const debugState = this.debugManager.getSnapshot();
-
-      lcardsLog.debug('[MsdCardCoordinator] renderDebugAndControls called:', {
-        anyEnabled: this.debugManager.isAnyEnabled(),
-        controlOverlays: resolvedModel.overlays.filter(o => o.type === 'control').length,
-        hasHass: !!this._hass,
-        hasResolvedModel: !!resolvedModel,
-        hasOverlays: !!resolvedModel?.overlays
-      });
-
-      // Validate resolved model
-      if (!resolvedModel || !resolvedModel.overlays) {
-        lcardsLog.warn('[MsdCardCoordinator] Invalid resolved model for renderDebugAndControls');
-        return;
-      }
-
-      // Render debug visualizations with error boundary
-      if (this.debugManager.isAnyEnabled()) {
-        try {
-          // Resolve anchor names to coordinates for debug renderer
-          // Debug renderer expects position: [x, y] but overlays have position: 'anchor_name'
-          const resolvedOverlays = resolvedModel.overlays.map(overlay => {
-            if (overlay.position && typeof overlay.position === 'string') {
-              // Position is anchor name - resolve to coordinates
-              const coords = resolvedModel.anchors[overlay.position];
-              if (coords) {
-                return { ...overlay, position: coords };
-              }
-            }
-            return overlay;
-          });
-
-          const debugOptions = {
-            anchors: resolvedModel.anchors || {},
-            overlays: resolvedOverlays,  // Use resolved overlays
-            router: this.router,  // Pass router for routing debug visualization
-            showAnchors: debugState.anchors,
-            showBoundingBoxes: debugState.bounding_boxes,
-            showRouting: this.debugManager.canRenderRouting(),
-            showPerformance: debugState.performance,
-            scale: debugState.scale
-          };
-
-          lcardsLog.debug('[MsdCardCoordinator] 🔍 DEBUG - Debug options:', {
-            overlayCount: debugOptions.overlays.length,
-            hasRouter: !!debugOptions.router,
-            routerHasOverlays: !!(/** @type {any} */ (this.router))?.overlays,
-            routerHasInspect: typeof this.router?.inspect === 'function',
-            canRenderRouting: this.debugManager.canRenderRouting(),
-            flags: {
-              anchors: debugState.anchors,
-              boundingBoxes: debugState.bounding_boxes,
-              routing: debugState.routing,
-              performance: debugState.performance
-            }
-          });
-
-          // REMOVED: Debug rendering now handled by Studio dialog overlays
-          // MsdDebugRenderer.js has been deleted - all debug visualization
-          // is done via HTML overlays in lcards-msd-studio-dialog.js
-          lcardsLog.debug('[MsdCardCoordinator] ✅ Debug state updated (rendering in Studio)');
-        } catch (error) {
-          lcardsLog.error('[MsdCardCoordinator] ❌ Debug state update failed:', error);
-          // Continue execution - don't fail the entire render
-        }
-      }
-
-      // FIXED: Render control overlays with comprehensive error handling
-      // NOTE: Control overlays are now rendered by AdvancedRenderer.
-      // This prevents duplicate rendering. We only keep debug visualization here.
-      const controlOverlays = resolvedModel.overlays.filter(o => o.type === 'control');
-      if (controlOverlays.length > 0) {
-        lcardsLog.debug('[MsdCardCoordinator] Control overlays detected (rendered by AdvancedRenderer):', controlOverlays.map(c => c.id));
-
-        // The code below is disabled to prevent duplicate foreignObjects in SVG
-        /*
-        try {
-          if (!this.controlsRenderer) {
-            lcardsLog.error('[MsdCardCoordinator] No controls renderer available');
-            return;
-          }
-
-          if (this._hass && this.controlsRenderer) {
-            this.controlsRenderer.setHass(this._hass);
-            lcardsLog.debug('[MsdCardCoordinator] HASS context applied to controls renderer');
-          } else {
-            lcardsLog.warn('[MsdCardCoordinator] No HASS context available for controls');
-          }
-
-          await this.controlsRenderer.renderControls(controlOverlays, resolvedModel);
-          lcardsLog.info('[MsdCardCoordinator] ✅ Controls rendered successfully');
-
-        } catch (error) {
-          lcardsLog.error('[MsdCardCoordinator] ❌ Controls rendering failed:', error);
-          lcardsLog.error('[MsdCardCoordinator] Error details:', error.stack);
-        }
-        */
-      }
-
-    } catch (error) {
-      lcardsLog.error('[MsdCardCoordinator] renderDebugAndControls failed completely:', error);
-      lcardsLog.error('[MsdCardCoordinator] Error stack:', error.stack);
-    } finally {
-      this._debugControlsRendering = false;
-    }
-  }
-
-  /**
-   * Check if debug should be rendered based on config
-   * @param {Object} debugConfig - Debug configuration
-   * @returns {boolean} Whether debug should be rendered
-   */
-  _shouldRenderDebugFromConfig(debugConfig) {
-    if (!debugConfig || !debugConfig.overlays) return false;
-
-    return debugConfig.overlays.anchors ||
-          debugConfig.overlays.bounding_boxes ||
-          debugConfig.overlays.routing ||
-          debugConfig.overlays.performance;
-  }
-
-  /**
-   * Legacy debug flag support (for backward compatibility)
-   * @returns {Object} Debug flags
-   */
-  _getDebugFlags() {
-    return window.lcards?._debugFlags || {};
-  }
-
-  /**
-   * Legacy debug check (for backward compatibility)
-   * @param {Object} debugFlags - Debug flags
-   * @returns {boolean} Whether debug should be rendered
-   */
-  _shouldRenderDebug(debugFlags) {
-    return debugFlags && (debugFlags.overlay || debugFlags.connectors || debugFlags.geometry);
   }
 
   // Public API methods - now exclusively using DataSourceManager
@@ -699,38 +534,25 @@ export class MsdCardCoordinator extends BaseService {
         tagName: baseSvgElement.tagName
       });
 
-      // Resolve filters (preset or explicit)
+      // Resolve filters
       let filters = null;
 
-      if (baseSvgConfig.filter_preset) {
-        const preset = this.themeManager?.getFilterPreset(baseSvgConfig.filter_preset);
-        if (preset) {
-          filters = { ...preset };
-          lcardsLog.debug(`[MsdCardCoordinator] Resolved filter preset '${baseSvgConfig.filter_preset}':`, filters);
-        } else {
-          lcardsLog.warn(`[MsdCardCoordinator] Unknown filter preset: ${baseSvgConfig.filter_preset}`);
-          return;
-        }
-      }
-
-      // Merge explicit filters
       if (baseSvgConfig.filters) {
         // If filters is an array (new format), use it directly
         if (Array.isArray(baseSvgConfig.filters)) {
           filters = baseSvgConfig.filters;
           lcardsLog.debug('[MsdCardCoordinator] Using array-based filters:', filters);
         } else {
-          // Legacy object format - merge with preset
-          filters = filters ? { ...filters, ...baseSvgConfig.filters } : { ...baseSvgConfig.filters };
+          // Legacy object format
+          filters = { ...baseSvgConfig.filters };
         }
       }
 
-      // Check if this is a clear/remove operation (preset: "none" or empty filters)
-      const isClearOperation = baseSvgConfig.filter_preset === 'none' ||
-                               (filters && (
+      // Check if this is a clear/remove operation (empty filters)
+      const isClearOperation = filters && (
                                  (Array.isArray(filters) && filters.length === 0) ||
                                  (!Array.isArray(filters) && Object.keys(filters).length === 0)
-                               ));
+                               );
 
       const transition = baseSvgConfig.transition || 1000; // Default 1s transition
 
@@ -853,6 +675,13 @@ export class MsdCardCoordinator extends BaseService {
       this.controlsRenderer.setHass(hass);
     } else {
       lcardsLog.debug('[MsdCardCoordinator] ⏭️ Controls not ready');
+    }
+
+    // 3b. Lines with an entity-bound state-color have no subscription of their own
+    // (unlike controls/DataSource/Rules-Engine-tracked overlays) — re-resolve and
+    // DOM-patch them directly on every HASS update.
+    if (this.renderer && typeof this.renderer.updateLineEntityColors === 'function') {
+      this.renderer.updateLineEntityColors(hass);
     }
 
     // 4. Overlays update automatically via DataSource subscriptions

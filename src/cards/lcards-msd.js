@@ -17,6 +17,8 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { initMsdPipeline } from '../msd/index.js';
 import { getMsdSchema } from './schemas/msd-schema.js';
+import { resolveEffectiveViewBox } from '../utils/lcards-anchor-helpers.js';
+import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
 
 // Import editor component for getConfigElement()
 import '../editor/cards/lcards-msd-editor.js';
@@ -100,6 +102,75 @@ export class LCARdSMSDCard extends LCARdSCard {
                     font-size: 14px;
                     color: var(--primary-text-color);
                 }
+
+                /* Static "bar-label-lozenge"-styled splash shown while the SVG
+                   container is mounted-but-hidden, waiting for the pipeline to
+                   finish (see _msdRevealed). Deliberately plain CSS with no
+                   animation: a spinner here visibly stutters, since this window
+                   overlaps the pipeline's own heavy synchronous render work,
+                   which starves the main thread of paint time. A static shape
+                   only needs to paint once, so it has nothing to stutter.
+                   --msd-splash-bar-color is set inline by _renderCard() via the
+                   theme resolver (same components.button.background.active
+                   token the real bar-label-lozenge preset uses), so this
+                   matches whatever HA-LCARS theme is active — the var()
+                   fallback here only covers the resolver-unavailable case. */
+                .lcards-msd-loading-splash {
+                    position: absolute;
+                    inset: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: var(--ha-space-6, 24px);
+                }
+
+                .lcards-msd-loading-bar {
+                    display: flex;
+                    align-items: stretch;
+                    width: 100%;
+                    max-width: 440px;
+                    height: var(--msd-splash-bar-height, 40px);
+                    gap: var(--ha-space-1, 4px);
+                }
+
+                .lcards-msd-loading-bar-segment {
+                    flex: 1 1 auto;
+                    min-width: 20px;
+                    background: var(--msd-splash-bar-color, var(--lcars-ui-tertiary, var(--lcards-gray-medium-light)));
+                }
+
+                .lcards-msd-loading-bar-segment--start {
+                    border-radius: var(--ha-border-radius-pill) 0 0 var(--ha-border-radius-pill);
+                }
+
+                .lcards-msd-loading-bar-segment--end {
+                    border-radius: 0 var(--ha-border-radius-pill) var(--ha-border-radius-pill) 0;
+                }
+
+                .lcards-msd-loading-label {
+                    flex: 0 1 auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: black;
+                    color: var(--lcars-yellow, var(--lcards-yellow-medium, #ffcc99));
+                    font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', 'Segoe UI Variable Static Text', 'Segoe UI', sans-serif;
+                    font-weight: 100;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    /* The real button preset's cap_height_ratio: 0.86 math
+                       (font-size = zoneHeight / 0.86) is tuned for SVG <text>
+                       baseline positioning, not a CSS line box — at that ratio
+                       here the line box exceeds the bar height and overflows.
+                       0.85x keeps caps close to full bar height while the line
+                       box (line-height: 1) still comfortably fits inside it. */
+                    font-size: calc(var(--msd-splash-bar-height, 40px) * 0.85);
+                    line-height: 1;
+                    padding: 0 var(--ha-space-3, 12px);
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
             `
         ];
     }
@@ -113,7 +184,34 @@ export class LCARdSMSDCard extends LCARdSCard {
         this._svgContent = null;
         this._msdInstanceGuid = null;
         this._msdInitialized = false;
+        // Holds the in-flight _loadAndInitializeMsdCore() promise while one is
+        // running — _loadAndInitializeMsd() is a dedup wrapper around it, since
+        // _onFirstUpdated() and _onConnected() are two independent, unawaited
+        // async lifecycle entry points that can both end up calling it during
+        // the same first-mount window (see _onConnected()'s reconnect-guard
+        // comment). Without this, both calls run the full SVG-fetch/pipeline-
+        // init/background-animation sequence concurrently and redundantly.
+        this._msdLoadInFlight = null;
+        // Set by _onRulePatchesChanged() when it triggers a re-render (fire-and-
+        // forget for its other, post-reveal callers) — _initializeMsdPipeline()
+        // awaits this once, right after the initial rules registration, so the
+        // reveal doesn't fire until this pass (if any) has actually finished too.
+        this._pendingRulesReRender = null;
+        // True once the pipeline (routing, controls, on_load animations, and
+        // background_animation if configured) has actually finished, not just
+        // DOM-mounted — gates the SVG container's visual reveal, see
+        // _renderSvgContainer()/_renderCard(). Kept separate from
+        // _msdInitialized, which must flip early for the pipeline's own DOM
+        // measurements to work.
+        this._msdRevealed = false;
         this._configIssues = null;
+        this._backgroundRenderer = null;
+        // True once _detectPreviewMode() has confirmed this instance is
+        // rendering inside the MSD Studio editor dialog (#387) — forwarded
+        // into the pipeline so MsdControlsRenderer's hui-card-wrapped
+        // controls keep Studio's "always show" preview behavior instead of
+        // honoring `visibility:` at design time.
+        this._isStudioPreview = false;
     }
 
     // ============================================================================
@@ -179,6 +277,75 @@ export class LCARdSMSDCard extends LCARdSCard {
 
             // DON'T load SVG here - singletons may not be initialized yet
             // SVG loading will happen in _onFirstUpdated() when AssetManager is guaranteed available
+
+            // Live (non-remount) config update to an ALREADY-initialized pipeline: re-resolve
+            // view_box and push it into RouterCore/cardModel so routed lines/attachment points
+            // re-pan/re-size along with the base SVG. No-op on first mount - _initializeMsdPipeline()
+            // resolves view_box correctly via ConfigProcessor on that path already.
+            this._reconcileViewBoxIfChanged();
+        }
+    }
+
+    /**
+     * Re-resolve view_box against the latest raw config and push the RESOLVED
+     * value into the already-initialized pipeline's RouterCore + cardModel.
+     *
+     * _onConfigUpdated() only ever sees the RAW `view_box` from config (e.g.
+     * undefined in "Auto" mode) - the actually-rendered, resolved value
+     * (explicit config > SVG-native > last-resort default) is computed inside
+     * ConfigProcessor.processAndValidateConfig(), which only runs once, during
+     * _initializeMsdPipeline(). A live setConfig() on an already-mounted card
+     * (e.g. HA pushing a dashboard/YAML edit without remounting the element -
+     * unlike the MSD Studio dialog's live preview, which always destroys and
+     * recreates the card) would otherwise leave RouterCore's grid sizing/origin
+     * math pinned to whatever view_box was in effect at first mount, even
+     * though _wrapSvgContentForRender() correctly re-pans the visible base SVG
+     * on every render from the fresh raw config.
+     *
+     * Mirrors the existing "lightweight reconcile" pattern in
+     * _onRulePatchesChanged(): reach into the coordinator's already-built
+     * cardModel/router and update them directly, then request a re-render,
+     * rather than tearing down and re-running the full pipeline init.
+     * @private
+     */
+    _reconcileViewBoxIfChanged() {
+        // Guard against a real race in _initializeMsdPipeline(): it flips
+        // _msdInitialized = true BEFORE this._msdPipeline is assigned (to unblock
+        // the loading-spinner->SVG-container render switch), so checking
+        // _msdInitialized alone isn't sufficient - coordinator/router/cardModel may
+        // still be null/stale mid-first-init. On first mount this is also correctly
+        // a no-op: the normal init path resolves view_box itself already.
+        if (!this._msdInitialized) return;
+        const coordinator = this._msdPipeline?.coordinator;
+        const cardModel = coordinator?.modelBuilder?.cardModel;
+        if (!coordinator?.router || !cardModel) return;
+
+        // Same resolution ConfigProcessor uses on first mount: explicit config >
+        // SVG-native > last-resort default. this._svgContent is preserved across
+        // reconnects/live-updates (see _loadAndInitializeMsd), so it's safe to reuse
+        // here even though this path never re-loads the SVG itself.
+        const resolved = resolveEffectiveViewBox(this._msdConfig?.view_box, this._svgContent);
+
+        const prev = coordinator.router.viewBox;
+        const unchanged = Array.isArray(prev) && prev.length === 4 &&
+            prev[0] === resolved[0] && prev[1] === resolved[1] &&
+            prev[2] === resolved[2] && prev[3] === resolved[3];
+        if (unchanged) return;
+
+        lcardsLog.debug('[LCARdSMSDCard] view_box changed on live config update - reconciling router/cardModel', {
+            from: prev, to: resolved
+        });
+
+        // ModelBuilder.computeResolvedModel() reads cardModel.viewBox fresh on every
+        // reRender() call, so updating it here is sufficient for AdvancedRenderer/
+        // attachment points to pick it up on the re-render triggered below.
+        cardModel.viewBox = resolved;
+        // RouterCore keeps its own copy captured at construction time and never
+        // re-reads cardModel.viewBox afterward - must be told explicitly.
+        coordinator.router.setViewBox(resolved);
+
+        if (coordinator._reRenderCallback) {
+            coordinator._reRenderCallback();
         }
     }
 
@@ -201,10 +368,64 @@ export class LCARdSMSDCard extends LCARdSCard {
      * Extracted so it can be called from both _onFirstUpdated (first mount) and
      * _onConnected (reconnect after edit-mode toggle or view navigation), since
      * Lit's firstUpdated only fires once per element lifetime.
+     *
+     * Dedup wrapper: _onFirstUpdated() and _onConnected() are two independent,
+     * unawaited async lifecycle entry points (connectedCallback() and Lit's
+     * firstUpdated() respectively) that can both end up calling this during the
+     * same first-mount window — _onConnected()'s "is this a reconnect" guard
+     * checks _initialized (set synchronously early in the base class's own
+     * _onFirstUpdated) against _msdInitialized (which only flips much later,
+     * deep inside this function), so it can misfire as "reconnect" while the
+     * very first call is still mid-flight. Without this wrapper, both calls
+     * would run their own full SVG-fetch/pipeline-init/background-animation
+     * sequence concurrently and redundantly (confirmed via trace log: doubled
+     * SVG loads, doubled background-animation init/rebuild). A losing call now
+     * just awaits the same in-flight promise instead.
      * @private
      */
     async _loadAndInitializeMsd() {
-        lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsd called');
+        if (this._msdLoadInFlight) {
+            lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsd already in flight - awaiting existing call');
+            return this._msdLoadInFlight;
+        }
+
+        const loadPromise = this._loadAndInitializeMsdCore();
+        this._msdLoadInFlight = loadPromise;
+        try {
+            await loadPromise;
+        } finally {
+            // Compare-and-clear: guards against a stale/orphaned call's finally
+            // block clobbering a newer cycle's in-flight reference (e.g. a fast
+            // disconnect/reconnect happening while an old call is still winding down).
+            if (this._msdLoadInFlight === loadPromise) {
+                this._msdLoadInFlight = null;
+            }
+        }
+    }
+
+    /**
+     * @private
+     */
+    async _loadAndInitializeMsdCore() {
+        lcardsLog.trace('[LCARdSMSDCard] _loadAndInitializeMsdCore called');
+
+        // Tier 2/3 (editor stats display, card-picker placeholder) never show the
+        // real SVG/overlays — _renderEditorStats()/_renderCardPickerPlaceholder()
+        // only need this.config/this._msdConfig, both already populated by
+        // _onConfigUpdated() independent of the pipeline. Skip pipeline init
+        // entirely here: both placeholder templates contain their own decorative
+        // <svg> for visual branding, and the renderer's mount-point resolution
+        // does a bare `mountEl.querySelector('svg')` — with no real SVG container
+        // in the DOM (Tier 1's #msd-v1-comprehensive-wrapper was never rendered),
+        // it would find that decorative SVG instead and mount real overlay content
+        // straight into it, showing the actual config's lines/controls on top of
+        // the placeholder graphic.
+        if (this._isPreviewMode === 'picker' || this._isPreviewMode === 'editor') {
+            lcardsLog.debug('[LCARdSMSDCard] Skipping pipeline init - Tier 2/3 placeholder mode', {
+                isPreviewMode: this._isPreviewMode
+            });
+            return;
+        }
 
         // Wait for async config processing to complete.
         // LCARdSCard.setConfig() starts _processConfigAsync() in background.
@@ -277,6 +498,33 @@ export class LCARdSMSDCard extends LCARdSCard {
         });
 
         await this._initializeMsdPipeline();
+
+        // Must come after pipeline init: _msdInitialized only flips to true (and the
+        // SVG container, i.e. #msd-v1-comprehensive-wrapper, only actually mounts)
+        // partway through _initializeMsdPipeline(), not at the updateComplete above.
+        // Skipped entirely in MSD Studio's live preview (_isStudioPreview) — that
+        // card instance is fully destroyed and rebuilt on every edit/hass-tick (see
+        // lcards-msd-live-preview.js), so a Canvas2D background animation there
+        // never gets to run for more than a moment before being torn down again;
+        // starting one is pure wasted work (and was itself a source of visible
+        // main-thread jank while editing, since every fresh instance pays a full
+        // bake with no chance to reach cheap steady-state panning).
+        if (this._msdInitialized && this._msdConfig?.background_animation) {
+            if (!this._isStudioPreview) {
+                this._initializeBackgroundAnimation();
+            } else {
+                lcardsLog.trace('[LCARdSMSDCard] Skipping background_animation init — Studio preview');
+            }
+        }
+
+        // Pipeline (and background_animation, if any) are now fully ready —
+        // reveal the SVG container. Only fires on success: failure paths above
+        // already reset _msdInitialized to false, so this naturally no-ops and
+        // the error-box render branch takes over instead.
+        if (this._msdInitialized) {
+            this._msdRevealed = true;
+            this.requestUpdate();
+        }
     }
 
     /**
@@ -502,15 +750,47 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         // Check if any patches affect base SVG or overlays that require re-render
         if (this._msdPipeline?.coordinator?._reRenderCallback) {
-            // Request MSD pipeline to re-render with updated config
+            // Request MSD pipeline to re-render with updated config.
+            // Stash the promise (harmless no-op for callers that don't check it,
+            // e.g. live post-reveal rule updates) so _initializeMsdPipeline() can
+            // await this specific pass when it's the one triggered during initial
+            // load — see _pendingRulesReRender.
             lcardsLog.debug('[LCARdSMSDCard] Triggering MSD re-render after rule patches applied');
-            this._msdPipeline.coordinator._reRenderCallback();
+            this._pendingRulesReRender = this._msdPipeline.coordinator._reRenderCallback();
         } else {
             lcardsLog.warn('[LCARdSMSDCard] No re-render callback available on coordinator');
         }
 
         // Request Lit update to re-render card
         this.requestUpdate();
+    }
+
+    /**
+     * Pre-evaluate Jinja2/JS templates in MSD overlay config (e.g. a line's
+     * `style.color`) so `_resolveTemplateValue()` can substitute results
+     * during LineOverlay's synchronous color resolution.
+     *
+     * Deliberately does NOT call the pipeline's `reRender()` (a full
+     * `AdvancedRenderer.render()` pass) to pick up the fresh cache — that
+     * destroys and rebuilds every overlay's DOM (`AdvancedRenderer.render()`
+     * clears `overlayElementCache` and empties the overlay group), which kills
+     * running animations on completely unrelated overlays and can refire
+     * `on_load` triggers unexpectedly. Instead, re-ingest hass through the
+     * normal coordinator path: `MsdCardCoordinator.ingestHass()` already calls
+     * `AdvancedRenderer.updateLineEntityColors()` every tick, which (as of
+     * Phase 8) surgically DOM-patches template-literal line colors the same
+     * way it already patches `entity`-bound ones — no full re-render needed.
+     * @protected
+     * @override
+     */
+    async _processCustomTemplates() {
+        if (!this.config?.msd?.overlays) return;
+
+        const hasChanges = await this._preEvaluateStyleTemplates(this.config.msd.overlays);
+
+        if (hasChanges && this.hass && this._msdPipeline?.coordinator) {
+            this._msdPipeline.coordinator.ingestHass(this.hass);
+        }
     }
 
     /**
@@ -521,7 +801,16 @@ export class LCARdSMSDCard extends LCARdSCard {
      *
      * NOTE: We don't call super._handleHassUpdate() because MSD has its own
      * coordinator that handles HASS distribution to subsystems (renderer, controls).
-     * The core rulesManager receives HASS automatically via BaseService.updateHass().
+     *
+     * CORRECTED: this used to assume "the core rulesManager receives HASS
+     * automatically via BaseService.updateHass()" — that was only ever true by
+     * accident, when some *other* card on the same dashboard happened to call
+     * window.lcards.core.ingestHass() and trigger the global cascade to every
+     * BaseService singleton (rulesManager, animationManager, etc.), since MSD's
+     * own hass setter (above) never calls the base class's _onHassChanged(),
+     * which is the only other place that forwarding happens. Confirmed via a
+     * live map_range animation-speed test (Phase 10) that never live-updated
+     * with only the MSD card on the page. Now forwarded explicitly below.
      */
     _handleHassUpdate(newHass, oldHass) {
         lcardsLog.trace('[LCARdSMSDCard] _handleHassUpdate called');
@@ -530,6 +819,49 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Note: coordinator is the MsdCardCoordinator instance from pipeline
         if (this._msdPipeline?.coordinator) {
             this._msdPipeline.coordinator.ingestHass(newHass);
+        }
+
+        // Always forward to the global core singleton on the very first tick
+        // (oldHass is null) — mirrors the base LCARdSCard.set hass()'s own
+        // "!oldHass" fallback, which this override bypasses entirely (see the
+        // class-level note above). Without this, a card with no tracked
+        // entities below (no Jinja2/map_range refs — e.g. a plain base_svg-
+        // only config) never reaches the ingest call at all, so
+        // window.lcards.core.assetManager (and every other core singleton)
+        // never receives HASS unless some *other* LCARdS card on the same
+        // dashboard happens to trigger the global cascade first. Confirmed
+        // via a cold-load base_svg media-source:// load that hung
+        // indefinitely waiting on AssetManager._hass with no other LCARdS
+        // card present to trigger it — not a brief startup race, the
+        // tracked-entity-gated call below simply never fired.
+        if (!oldHass && window.lcards?.core) {
+            window.lcards.core.ingestHass(newHass);
+        }
+
+        // Re-evaluate Jinja2/JS templates (e.g. a line's style.color) whenever an
+        // entity referenced by one of them changes, and forward to the global
+        // core singleton so every other BaseService (rulesManager,
+        // animationManager, etc.) sees the change too — _trackedEntities is
+        // populated by the base class's _updateTrackedEntities() (auto-scans
+        // config for Jinja2 entity refs and, as of Phase 10, map_range.entity
+        // refs too), and window.lcards.core.ingestHass() dedupes multiple calls
+        // per tick, so calling it here is safe even if another card also does.
+        if (this._trackedEntities?.length > 0) {
+            const entityChanged = this._trackedEntities.some(entityId =>
+                oldHass?.states?.[entityId] !== newHass?.states?.[entityId]
+            );
+            if (entityChanged) {
+                this._processCustomTemplates();
+                if (window.lcards?.core) {
+                    window.lcards.core.ingestHass(newHass);
+                }
+            }
+        }
+
+        // MSD has no single bound entity (unlike button/elbow) — background effects
+        // needing live entity state use map_range's own explicit entity_id instead.
+        if (this._backgroundRenderer) {
+            this._backgroundRenderer.updateHass(newHass, null, this._fullConfig);
         }
 
         // Don't call super - MSD manages its own updates via MsdCardCoordinator
@@ -586,14 +918,50 @@ export class LCARdSMSDCard extends LCARdSCard {
         if (!this._msdInitialized) {
             return html`
                 <div class="lcards-msd-loading">
-                    <ha-circular-progress indeterminate size="s"></ha-circular-progress>
+                    <ha-spinner size="small"></ha-spinner>
                     <p>Initializing MSD...</p>
                 </div>
             `;
         }
 
-        // Render SVG container for MSD mounting
-        return this._renderSvgContainer();
+        // Render SVG container for MSD mounting. The container itself is
+        // opacity-gated on _msdRevealed (see _renderSvgContainer()) so the
+        // pipeline can still measure it in the live DOM while hidden; overlay
+        // the same loading splash on top until the reveal fires, so loading
+        // feedback is continuous instead of a blank gap between "Initializing
+        // MSD..." and the final reveal.
+        return html`
+            <div style="position: relative; width: 100%; height: 100%;">
+                ${this._renderSvgContainer()}
+                ${(!this._msdRevealed && !this._isStudioPreview) ? this._renderMsdLoadingSplash() : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * Static "bar-label-lozenge"-styled loading splash shown while the SVG
+     * container is mounted-but-hidden (see _renderCard()). The bar color is
+     * resolved through the theme token system — the same
+     * components.button.background.active token the real bar-label-lozenge
+     * button preset uses — so it matches whatever HA-LCARS theme is active,
+     * rather than a hardcoded color.
+     * @returns {import('lit').TemplateResult}
+     * @private
+     */
+    _renderMsdLoadingSplash() {
+        const resolver = window.lcards?.core?.themeManager?.resolver;
+        const fallback = 'var(--lcars-ui-tertiary, var(--lcards-gray-medium-light))';
+        const barColor = resolver ? resolver.resolve('components.button.background.active', fallback) : fallback;
+
+        return html`
+            <div class="lcards-msd-loading-splash" style="--msd-splash-bar-color: ${barColor};">
+                <div class="lcards-msd-loading-bar">
+                    <span class="lcards-msd-loading-bar-segment lcards-msd-loading-bar-segment--start"></span>
+                    <span class="lcards-msd-loading-label">Initializing MSD</span>
+                    <span class="lcards-msd-loading-bar-segment lcards-msd-loading-bar-segment--end"></span>
+                </div>
+            </div>
+        `;
     }
 
     /**
@@ -692,8 +1060,11 @@ export class LCARdSMSDCard extends LCARdSCard {
         const svgSource = baseSvgConfig?.source;
         lcardsLog.debug('[LCARdSMSDCard] Loading SVG from source:', svgSource);
 
-        // ✅ FIX: Parse source to extract asset key
+        // Parse source to extract asset key
         // Source format: "builtin:ncc-1701-a-blue" → asset key: "ncc-1701-a-blue"
+        // media-source://… items are registered/fetched under the content ID
+        // itself (see AssetManager.loadSvgFromMediaSource), so assetKey stays
+        // equal to svgSource for those — just here for the logging below.
         let assetKey = svgSource;
         if (svgSource?. startsWith('builtin:')) {
             assetKey = svgSource.replace('builtin:', '');
@@ -701,8 +1072,14 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         lcardsLog.debug('[LCARdSMSDCard] Resolved asset key:', assetKey);
 
-        // ✅ FIX: Use get() method, not loadSvg()
-        this._svgContent = await assetManager.get('svg', assetKey);
+        if (svgSource?.startsWith('media-source://')) {
+            // HA media library item — needs an async resolve step before it's
+            // fetchable, unlike builtin:/plain-path sources below.
+            this._svgContent = await assetManager.loadSvgFromMediaSource(svgSource);
+        } else {
+            // ✅ FIX: Use get() method, not loadSvg()
+            this._svgContent = await assetManager.get('svg', assetKey);
+        }
 
         if (this._svgContent) {
             lcardsLog.debug('[LCARdSMSDCard] SVG loaded successfully:', {
@@ -782,7 +1159,8 @@ export class LCARdSMSDCard extends LCARdSCard {
                 this._svgContent,
                 mount,
                 this.hass,
-                this._msdInstanceGuid
+                this._msdInstanceGuid,
+                this._isStudioPreview
             );
 
             if (!pipelineResult || !pipelineResult.enabled) {
@@ -806,6 +1184,26 @@ export class LCARdSMSDCard extends LCARdSCard {
             // Register overlays with core rulesManager NOW that config is fully processed
             this._registerOverlaysWithRulesEngine();
 
+            // _registerOverlaysWithRulesEngine() synchronously triggers rule
+            // evaluation, which — if this card has any overlay rules — calls
+            // _onRulePatchesChanged() -> coordinator._reRenderCallback(), a full
+            // second AdvancedRenderer.render() pass (routing + controls +
+            // on_load animations, all over again) that was previously fire-
+            // and-forget. Wait for it here so the reveal below (in
+            // _loadAndInitializeMsd()) doesn't fire after only the FIRST pass
+            // while this second one is still rebuilding everything in the background.
+            if (this._pendingRulesReRender) {
+                await this._pendingRulesReRender;
+                this._pendingRulesReRender = null;
+            }
+
+            // Ensure any Jinja2/JS template literals in overlay styles (e.g. a line's
+            // style.color) are evaluated and re-rendered at least once now that the
+            // pipeline (and hass) are available — the generic hass-change-triggered
+            // path in _processCustomTemplates() may race with this initialization on
+            // first load, since MSD's own reRender() isn't ready until this point.
+            await this._processCustomTemplates();
+
             lcardsLog.debug('[LCARdSMSDCard] ✅ MSD pipeline initialized successfully with SVG container mounted');
 
         } catch (error) {
@@ -819,6 +1217,59 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 
     /**
+     * Initialize the optional animated/image background layer (msd.background_animation).
+     * Lives in its own DOM subtree behind the SVG (z-index: -1), independent of
+     * base_svg.render_visual — same reuse of BackgroundAnimationRenderer as
+     * lcards-button.js/_initializeBackgroundAnimation().
+     * @private
+     */
+    _initializeBackgroundAnimation() {
+        // Guard against double-init (e.g. overlapping first-mount/reconnect timing) —
+        // always tear down any existing instance before creating a new one.
+        if (this._backgroundRenderer) {
+            this._backgroundRenderer.destroy();
+            this._backgroundRenderer = null;
+        }
+
+        const wrapper = this.shadowRoot?.querySelector('#msd-v1-comprehensive-wrapper');
+        if (!wrapper) {
+            lcardsLog.warn('[LCARdSMSDCard] Cannot initialize background - wrapper not found');
+            return;
+        }
+
+        // BackgroundAnimationRenderer.destroy() only removes the canvas it created,
+        // not this wrapper div — and Lit may reuse the same #msd-v1-comprehensive-wrapper
+        // element across reconnects rather than recreating it, so a prior cycle's now-empty
+        // layer div can be left behind. Remove any stragglers before adding a fresh one.
+        wrapper.querySelectorAll(':scope > [data-msd-background-layer]').forEach(el => el.remove());
+
+        const backgroundLayer = document.createElement('div');
+        backgroundLayer.setAttribute('data-msd-background-layer', '');
+        backgroundLayer.style.position = 'absolute';
+        backgroundLayer.style.top = '0';
+        backgroundLayer.style.left = '0';
+        backgroundLayer.style.width = '100%';
+        backgroundLayer.style.height = '100%';
+        backgroundLayer.style.zIndex = '-1';
+        backgroundLayer.style.pointerEvents = 'none';
+
+        wrapper.insertBefore(backgroundLayer, wrapper.firstChild);
+
+        this._backgroundRenderer = new BackgroundAnimationRenderer(
+            backgroundLayer,
+            this._msdConfig.background_animation,
+            this
+        );
+
+        const success = this._backgroundRenderer.init();
+        if (success) {
+            lcardsLog.debug('[LCARdSMSDCard] Background animation initialized');
+        } else {
+            lcardsLog.error('[LCARdSMSDCard] Background animation initialization failed');
+        }
+    }
+
+    /**
      * Cleanup MSD pipeline
      * @private
      */
@@ -828,6 +1279,12 @@ export class LCARdSMSDCard extends LCARdSCard {
         }
         this._msdPipeline = null;
         this._msdInitialized = false;
+        this._msdRevealed = false;
+        this._pendingRulesReRender = null;
+        if (this._backgroundRenderer) {
+            this._backgroundRenderer.destroy();
+            this._backgroundRenderer = null;
+        }
         lcardsLog.debug('[LCARdSMSDCard] Pipeline cleaned up');
     }
 
@@ -906,26 +1363,52 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         // Tier 1: Studio editor (always allow full render for live preview)
         const isInStudioDialog = this._checkForAncestor(['lcards-msd-studio-dialog']);
+        this._isStudioPreview = isInStudioDialog; // see #387: forwarded to MsdControlsRenderer's edit-mode signal
         if (isInStudioDialog) {
             lcardsLog.debug('[LCARdSMSDCard] Studio dialog detected - Tier 1: live preview mode');
             return false; // NOT preview - allow full render
         }
 
-        // Tier 2: Card editor dialog (block with stats display)
-        const isInEditDialog = this._checkForAncestor(['hui-dialog-edit-card', 'hui-card-preview']);
+        // Dashboard (edit mode or view mode) - always allow full render.
+        // Checked BEFORE the .preview/.editMode check below: hui-view's own
+        // card-creation path sets `.preview = this.lovelace.editMode` on EVERY
+        // card on the dashboard (not just ones inside the edit-card dialog), so
+        // `.preview`/`.editMode` alone can't distinguish "dashboard is being
+        // rearranged" from "this card is open in the edit-card dialog" — only
+        // ancestry can. Checking dashboard ancestry first keeps dashboard
+        // rearrange mode on full render, matching pre-existing behavior.
+        // Must pierce shadow DOM boundaries: a card sits several shadow roots
+        // deep below hui-root/ha-panel-lovelace (hui-card -> hui-view's own
+        // shadow root -> ... -> hui-root), so plain `.closest()` never actually
+        // found it here — it silently returned null and this branch was
+        // effectively dead, only "working" because every other fallback path
+        // below also returns `false` (full render). That equivalence broke once
+        // the .preview/.editMode check below started intercepting first.
+        // Note: Do NOT call super._detectPreviewMode() as base class blocks dashboard edit mode
+        const isOnDashboard = this._checkForAncestor(['hui-root', 'ha-panel-lovelace']);
+        if (isOnDashboard) {
+            lcardsLog.debug('[LCARdSMSDCard] On dashboard - Tier 1: full render');
+            return false;
+        }
+
+        // Tier 2: Card editor dialog (block with stats display).
+        // `hui-card` (HA's wrapper for a card rendered inside hui-dialog-edit-card/
+        // hui-suggestion-card/hui-dialog-delete-card) sets `.preview`/`.editMode`
+        // directly as properties on the card element it wraps — a signal from HA
+        // itself, checked first since it's more reliable than DOM-ancestor sniffing,
+        // and safe here since the dashboard case (the other place these properties
+        // get set) was already ruled out above. The ancestor check here used to
+        // also match a `hui-card-preview` tag, which no longer exists in current HA
+        // (that wrapper is now plain `<hui-card preview>` — an attribute on
+        // `hui-card`, not a distinct element) — kept `hui-dialog-edit-card` as a
+        // fallback in case a future HA version wraps a card some other way without
+        // setting these properties.
+        const isInEditDialog = /** @type {any} */ (this).preview === true ||
+            /** @type {any} */ (this).editMode === true ||
+            this._checkForAncestor(['hui-dialog-edit-card']);
         if (isInEditDialog) {
             lcardsLog.debug('[LCARdSMSDCard] Card editor dialog detected - Tier 2: stats display mode');
             return 'editor';
-        }
-
-        // Dashboard (edit mode or view mode) - always allow full render
-        // Note: Do NOT call super._detectPreviewMode() as base class blocks dashboard edit mode
-        const dashboardEl = this.parentElement.closest('hui-root, ha-panel-lovelace');
-        if (dashboardEl) {
-            lcardsLog.debug('[LCARdSMSDCard] On dashboard - Tier 1: full render', {
-                editMode: /** @type {any} */ (dashboardEl).editMode
-            });
-            return false;
         }
 
         // Fallback: not in any recognized context, allow full render
@@ -1123,7 +1606,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         const overlayCount = this._msdConfig?.overlays ? Object.keys(this._msdConfig.overlays).length : 0;
         const dataSourceCount = this._fullConfig?.data_sources ? Object.keys(this._fullConfig.data_sources).length : 0;
         const rulesCount = this._fullConfig?.rules ? this._fullConfig.rules.length : 0;
-        const viewBox = this._msdConfig?.view_box || [0, 0, 1920, 1200];
+        const viewBox = resolveEffectiveViewBox(this._msdConfig?.view_box, null);
 
         return html`
             <div style="
@@ -1256,21 +1739,21 @@ export class LCARdSMSDCard extends LCARdSCard {
     _renderSvgContainer() {
         lcardsLog.trace('[LCARdSMSDCard] _renderSvgContainer called');
 
-        // Get viewBox from config (will be extracted by pipeline)
-        const viewBox = this._msdConfig?.view_box || [0, 0, 1920, 1200];
-        const [vbX, vbY, vbW, vbH] = viewBox;
-        const aspect = vbW && vbH ? (vbW / vbH) : 2;
         const source = this._msdConfig?.base_svg?.source;
-
-        lcardsLog.debug('[LCARdSMSDCard] Rendering SVG container:', {
-            source,
-            viewBox,
-            aspect,
-            hasSvgContent: !!this._svgContent
-        });
 
         // For "none" source, create empty SVG container
         if (source === 'none') {
+            const viewBox = resolveEffectiveViewBox(this._msdConfig?.view_box, null);
+            const [vbX, vbY, vbW, vbH] = viewBox;
+            const aspect = vbW && vbH ? (vbW / vbH) : 2;
+
+            lcardsLog.debug('[LCARdSMSDCard] Rendering SVG container:', {
+                source,
+                viewBox,
+                aspect,
+                hasSvgContent: !!this._svgContent
+            });
+
             return html`
                 <div id="msd-v1-comprehensive-wrapper" style="
                     width: 100%;
@@ -1278,6 +1761,8 @@ export class LCARdSMSDCard extends LCARdSCard {
                     position: relative;
                     aspect-ratio: ${aspect};
                     pointer-events: none;
+                    opacity: ${(this._msdRevealed || this._isStudioPreview) ? 1 : 0};
+                    transition: opacity var(--ha-animation-duration-normal, .25s) ease;
                 ">
                     <div style="
                         position: absolute;
@@ -1298,8 +1783,22 @@ export class LCARdSMSDCard extends LCARdSCard {
             `;
         }
 
-        // For builtin/user SVGs, get the SVG content
-        const svgContent = this._getSvgContentForRender();
+        // For builtin/user SVGs: fetch the raw content first so the viewBox can be
+        // resolved once here and shared between the wrapper's aspect-ratio and the
+        // inner SVG's own viewBox attribute — previously these were resolved
+        // independently in two places and could disagree.
+        const rawSvgContent = this._fetchRawSvgContent();
+        const viewBox = resolveEffectiveViewBox(this._msdConfig?.view_box, rawSvgContent || null);
+        const [vbX, vbY, vbW, vbH] = viewBox;
+        const aspect = vbW && vbH ? (vbW / vbH) : 2;
+        const svgContent = rawSvgContent ? this._wrapSvgContentForRender(rawSvgContent, viewBox) : '';
+
+        lcardsLog.debug('[LCARdSMSDCard] Rendering SVG container:', {
+            source,
+            viewBox,
+            aspect,
+            hasSvgContent: !!this._svgContent
+        });
 
         return html`
             <div id="msd-v1-comprehensive-wrapper" style="
@@ -1308,6 +1807,8 @@ export class LCARdSMSDCard extends LCARdSCard {
                 position: relative;
                 aspect-ratio: ${aspect};
                 pointer-events: none;
+                opacity: ${(this._msdRevealed || this._isStudioPreview) ? 1 : 0};
+                transition: opacity var(--ha-animation-duration-normal, .25s) ease;
             ">
                 <div style="
                     position: absolute;
@@ -1325,11 +1826,13 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 
     /**
-     * Get SVG content for rendering with proper base content wrapping
-     * Uses AssetManager for asset retrieval
+     * Resolve and fetch the raw SVG content for the current base_svg source.
+     * Triggers an async load (and a re-render on completion) if not yet cached.
+     * Uses AssetManager for asset retrieval.
+     * @returns {string} Raw SVG text, or '' if unavailable/still loading.
      * @private
      */
-    _getSvgContentForRender() {
+    _fetchRawSvgContent() {
         const source = this._msdConfig?.base_svg?.source;
         if (!source || source === 'none') {
             return '';
@@ -1356,6 +1859,25 @@ export class LCARdSMSDCard extends LCARdSCard {
                     source: 'user'
                 });
             }
+        } else if (source.startsWith('media-source://')) {
+            // Content ID itself as the key (no filename to reliably derive).
+            // Resolving the real URL needs its own async media_source/resolve_media
+            // round-trip before anything can be registered — unlike the /local/
+            // branch above, which can register synchronously since it already
+            // has a fetchable URL. Kick off that resolve+register+fetch chain via
+            // loadSvgFromMediaSource() and bail out now; the generic
+            // "not yet loaded" fallback below would only log a spurious warning
+            // since nothing is registered yet at this exact synchronous point.
+            svgKey = source;
+            if (!assetManager.getRegistry('svg').has(svgKey)) {
+                assetManager.loadSvgFromMediaSource(svgKey).then(loadedContent => {
+                    if (loadedContent) {
+                        lcardsLog.debug('[LCARdSMSDCard] SVG loaded from media source, triggering re-render:', svgKey);
+                        this.requestUpdate();
+                    }
+                });
+                return '';
+            }
         }
 
         if (!svgKey) {
@@ -1377,16 +1899,24 @@ export class LCARdSMSDCard extends LCARdSCard {
             return ''; // Return empty until loaded
         }
 
-        // Wrap SVG content in #__msd-base-content group (like YAML template did)
-        // AND apply proper viewBox to outer wrapper for correct scaling
+        return svgContent;
+    }
+
+    /**
+     * Wrap raw SVG content in a #__msd-base-content group (like YAML template did)
+     * and apply the given viewBox to the outer wrapper for correct scaling.
+     * @param {string} svgContent - Raw SVG text, as returned by _fetchRawSvgContent()
+     * @param {number[]} viewBox - Resolved [minX, minY, width, height] to apply
+     * @returns {string} Wrapped SVG markup, or the original content on failure
+     * @private
+     */
+    _wrapSvgContentForRender(svgContent, viewBox) {
         try {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = svgContent;
             const svgEl = tempDiv.querySelector('svg');
 
             if (svgEl) {
-                // Get viewBox from config (CardModel extracts this from SVG or uses default)
-                const viewBox = this._msdConfig?.view_box || [0, 0, 1920, 1200];
                 const [vbX, vbY, vbW, vbH] = viewBox;
 
                 // Apply viewBox to outer SVG element for proper coordinate system
@@ -1403,6 +1933,14 @@ export class LCARdSMSDCard extends LCARdSCard {
                     nestedSvg.removeAttribute('height');
                 });
 
+                // NOTE: transform-attribute normalization for animation targets was
+                // tried here (unconditionally, on every element in the SVG) and
+                // caused a static-rendering regression (base SVG no longer centered
+                // even with zero animations) — reverted. Moved to a per-element,
+                // just-in-time migration inside animateElement() (lcards-anim-helpers.js)
+                // instead, scoped to only the specific element(s) an animation is
+                // about to touch, so the vast majority of the SVG is never modified.
+
                 // Get all child nodes
                 const children = Array.from(svgEl.childNodes);
 
@@ -1410,6 +1948,14 @@ export class LCARdSMSDCard extends LCARdSCard {
                 // (prevents anchor extraction from treating this as an anchor)
                 const wrapperGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 wrapperGroup.setAttribute('id', '__msd-base-content');
+
+                // render_visual: false suppresses the base SVG's own visual paint while it's
+                // still parsed for anchors as always (AnchorProcessor reads the raw SVG text,
+                // independent of this DOM) — lets a background_animation layer (or nothing)
+                // serve as the actual visible background instead of a full SVG blueprint.
+                if (this._msdConfig?.base_svg?.render_visual === false) {
+                    wrapperGroup.style.display = 'none';
+                }
 
                 // Move all children into the wrapper
                 children.forEach(child => wrapperGroup.appendChild(child));
@@ -1492,6 +2038,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             // Apply style properties based on overlay type
             if (overlayType === 'line') {
                 this._applyLineStyleToDOM(/** @type {SVGElement} */ (overlayEl), patch.style);
+            } else if (overlayType === 'shape') {
+                this._applyShapeStyleToDOM(/** @type {SVGElement} */ (overlayEl), patch.style);
             } else if (overlayType === 'control') {
                 this._applyControlStyleToDOM(/** @type {HTMLElement} */ (overlayEl), patch.style);
             } else {
@@ -1525,7 +2073,9 @@ export class LCARdSMSDCard extends LCARdSCard {
             width: 'stroke-width',
             opacity: 'opacity',
             dash_array: 'stroke-dasharray',
-            dasharray: 'stroke-dasharray'
+            dasharray: 'stroke-dasharray',
+            line_cap: 'stroke-linecap',
+            fill: 'fill'
         };
 
         for (const [configKey, value] of Object.entries(style)) {
@@ -1539,6 +2089,50 @@ export class LCARdSMSDCard extends LCARdSCard {
                 const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
 
                 // Apply to all target elements (group children or the element itself)
+                targetElements.forEach(el => {
+                    el.setAttribute(svgAttr, resolvedValue);
+                });
+            }
+        }
+    }
+
+    /**
+     * Apply shape style patch to SVG element. Mirrors _applyLineStyleToDOM exactly
+     * (same style-key mapping, same "resolve then materialize var()" pipeline) —
+     * the only difference is the child-element selector, since shape's rect/circle
+     * kinds render native <rect>/<ellipse> elements, not <path>/<line>/<polyline>.
+     * @param {SVGElement} shapeEl - SVG group, path, rect, or ellipse element
+     * @param {Object} style - Style properties to apply
+     * @private
+     */
+    _applyShapeStyleToDOM(shapeEl, style) {
+        let targetElements = /** @type {SVGElement[]} */ ([shapeEl]);
+        if (shapeEl.tagName.toLowerCase() === 'g') {
+            const children = shapeEl.querySelectorAll('path, rect, ellipse');
+            if (children.length > 0) {
+                targetElements = /** @type {SVGElement[]} */ (Array.from(children));
+            }
+        }
+
+        const styleMapping = {
+            color: 'stroke',
+            stroke: 'stroke',
+            width: 'stroke-width',
+            opacity: 'opacity',
+            dash_array: 'stroke-dasharray',
+            dasharray: 'stroke-dasharray',
+            line_cap: 'stroke-linecap',
+            fill: 'fill'
+        };
+
+        for (const [configKey, value] of Object.entries(style)) {
+            const svgAttr = styleMapping[configKey];
+
+            if (svgAttr && value !== null && value !== undefined) {
+                const _res = window.lcards?.core?.themeManager?.resolver;
+                const afterResolver = (typeof value === 'string' && _res) ? _res.resolve(value, value) : value;
+                const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
+
                 targetElements.forEach(el => {
                     el.setAttribute(svgAttr, resolvedValue);
                 });

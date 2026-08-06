@@ -498,6 +498,19 @@ export class LCARdSElbow extends LCARdSButton {
     _injectElbowColors() {
         if (!this._elbowConfig || !this._buttonStyle) return;
 
+        // When the elbow is in non-interactive (decorative) mode, suppress all
+        // hover and pressed visual feedback so colour never changes on mouse-over.
+        // Mirrors LCARdSButton._extractInteractionStyles().
+        if (this.config.interactive === false) {
+            this._elbowHoverStyle = null;
+            this._elbowPressedStyle = null;
+            this._elbowOuterHoverStyle = null;
+            this._elbowOuterPressedStyle = null;
+            this._elbowInnerHoverStyle = null;
+            this._elbowInnerPressedStyle = null;
+            return;
+        }
+
         // Get theme manager for token resolution
         const themeManager = this._singletons?.themeManager;
 
@@ -614,6 +627,11 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Subscribe to theme input_number entities if configured to use them
         this._subscribeToThemeEntities();
+
+        // Note: alert-mode subscription is handled by the inherited
+        // LCARdSButton._handleFirstUpdate() call above (this.requestUpdate()
+        // on alert mode change repaints the elbow's theme-token-derived
+        // bar/segment colors too — _getElbowColor() resolves tokens live).
 
         // Mount symbiont card if configured.
         // Seed _lastSymbiontConfigJson here so the dirty-check in setConfig
@@ -948,6 +966,9 @@ export class LCARdSElbow extends LCARdSButton {
      */
     disconnectedCallback() {
         this._unsubscribeThemeEntities();
+
+        // Note: alert-mode unsubscribe is handled by the inherited
+        // LCARdSButton.disconnectedCallback() via the super call below.
 
         // Clean up viewport resize listener
         if (this._cssUnitResizeHandler) {
@@ -2439,12 +2460,14 @@ export class LCARdSElbow extends LCARdSButton {
         const textureMarkup = this._generateTextureMarkup(width, height, {}, elbowPath);
 
         // Compose SVG
+        const _elbowCursor = this.config.style?.cursor
+            ?? (this.config.interactive === false ? 'default' : 'pointer');
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
                 <g data-button-id="elbow"
                    data-overlay-id="button"
                    class="elbow-group"
-                   style="pointer-events: visiblePainted; cursor: pointer;">
+                   style="pointer-events: visiblePainted; cursor: ${_elbowCursor};">
                     <!-- Elbow background shape -->
                     <path
                         class="elbow-bg button-clickable"
@@ -2566,12 +2589,14 @@ export class LCARdSElbow extends LCARdSButton {
         const iconOnly = this._processedIcon?.iconOnly && this._processedIcon?.show;
 
         // Compose segmented SVG with two elbow paths
+        const _elbowCursor = this.config.style?.cursor
+            ?? (this.config.interactive === false ? 'default' : 'pointer');
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
                 <g data-button-id="elbow"
                    data-overlay-id="button"
                    class="elbow-group segmented-elbow"
-                   style="pointer-events: visiblePainted; cursor: pointer;">
+                   style="pointer-events: visiblePainted; cursor: ${_elbowCursor};">
                     <!-- Outer segment (larger) -->
                     <path
                         class="elbow-outer button-clickable"
@@ -2767,13 +2792,15 @@ export class LCARdSElbow extends LCARdSButton {
 
         const textureMarkup = this._generateTextureMarkup(width, height, {}, outerRingPath);
 
+        const _elbowCursor = this.config.style?.cursor
+            ?? (this.config.interactive === false ? 'default' : 'pointer');
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"
                  xmlns="http://www.w3.org/2000/svg">
                 <g data-button-id="frame"
                    data-overlay-id="button"
                    class="elbow-group frame-elbow"
-                   style="pointer-events: visiblePainted; cursor: pointer;">
+                   style="pointer-events: visiblePainted; cursor: ${_elbowCursor};">
                     <!-- Outer frame ring -->
                     <path
                         class="elbow-bg button-clickable"
@@ -3366,6 +3393,14 @@ export class LCARdSElbow extends LCARdSButton {
                     return;
                 }
                 this._symbiontWrapper = null;
+
+                // Attach to DOM BEFORE applyHassToCard/applyCardConfig — LCARdS
+                // cards initialize singletons (theme manager, etc.) in
+                // connectedCallback/firstUpdated, so attaching first ensures
+                // setConfig() lands on a fully-initialised card (mirrors
+                // PortalOverlayManager._mountContent()'s established ordering).
+                this._symbiontElement = cardElement;
+                this._attachSymbiontToContainer();
 
                 // Apply HASS BEFORE config (required — same order as MSD controls)
                 if (this.hass) {

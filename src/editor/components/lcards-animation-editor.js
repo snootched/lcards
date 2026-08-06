@@ -23,6 +23,190 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import './shared/lcards-color-picker.js';
 import './shared/lcards-form-section.js';
+import { LCARdSFormFieldHelper as FormField } from './shared/lcards-form-field.js';
+import { ANIMATION_PRESET_PARAMS_SCHEMAS, _CANONICAL_REDECLARED } from '../../cards/schemas/animation-preset-params-schemas.js';
+import { ANIMATION_PRESET_DOCS_URL } from './shared/docs-links.js';
+import { infoGuideStyles } from './shared/info-guide-styles.js';
+import { searchableSelectStyles } from './shared/searchable-select-styles.js';
+import { getAttributeOptions } from '../../utils/attribute-options.js';
+
+/**
+ * Presets whose params are rendered generically via FormField.renderField(),
+ * driven by ANIMATION_PRESET_PARAMS_SCHEMAS, instead of a hand-written `case`
+ * branch in _renderPresetParams(). Migrated preset-by-preset (Phase 13.5),
+ * starting with the 6 presets that previously had no dedicated UI at all,
+ * then completed in one pass across every remaining preset once the generic
+ * renderer had proven itself (color-picker widget, JSON/YAML code-editor
+ * fields, structured nested-object sub-forms) — this also fixes several
+ * confirmed field-name-drift bugs the hand-maintained `case` branches had
+ * accumulated (e.g. timeline-attention's case wrote `scale_amount` and
+ * shake's wrote both `intensity`/`direction`, but their preset factories
+ * read `scale_max` and `intensity`/`frequency` respectively — `direction`
+ * was never read at all, so shake's "Shake Direction" dropdown did nothing;
+ * both were silently broken until migration, since the generic renderer
+ * always reads/writes the schema's real field names).
+ *
+ * The old hand-written `case` branches for every migrated preset have been
+ * deleted outright (not left as dead code) — the generic renderer is the
+ * only UI path for them now. Re-adding a preset's `case` branch (from git
+ * history) plus removing it from this Set is the rollback path if a specific
+ * preset's generic rendering ever needs to fall back.
+ *
+ * Deliberately NOT migrated, long-term: skew, rotate, bounce — their field
+ * *shape* changes based on another field's value (e.g. bounce's `ease`/
+ * `duration` behavior differs when `bounces > 1`), which the generic
+ * renderer has no concept of (no conditional-field-visibility support).
+ * Their hand-written `case` branches also had the exact same class of
+ * field-name-drift bugs described above (skew wrote `x`/`y` instead of the
+ * real `skewX`/`skewY`; rotate wrote `angle`/`origin`, neither of which the
+ * factory reads at all — `origin` in particular is hardcoded in the factory,
+ * not configurable) — fixed in place, since they're staying hardcoded.
+ * 'grid-stagger' was removed entirely (2026.07.x) — it never staggered
+ * correctly (a confirmed, unfixed bug in its per-element delay calculation)
+ * and had already been pulled from this dropdown for that reason; `preset:
+ * grid-stagger` in an existing config no longer resolves. Migrate to
+ * 'stagger-grid' — see the 2026.07.x release notes for the field mapping
+ * (stagger_duration → delay, wave_duration → duration, and `from` value
+ * differences; there's no equivalent for `from: random`).
+ */
+const SCHEMA_DRIVEN_PRESETS = new Set([
+  // Original 6 (previously had no dedicated UI at all)
+  'glitch', 'motionpath', 'sequence', 'chaos', 'physics-spring',
+  // Core motion/visual presets
+  'pulse', 'fade', 'glow', 'draw', 'march', 'blink', 'shimmer', 'strobe',
+  'flicker', 'cascade', 'cascade-color', 'ripple', 'scale', 'scale-reset',
+  'set', 'slide', 'shake', 'color-shift',
+  // Text presets
+  'text-reveal', 'text-typewriter', 'text-scramble', 'text-glitch',
+  // Stagger presets
+  'stagger-grid', 'stagger-flash', 'stagger-wave', 'stagger-radial',
+  // Timeline presets
+  'timeline-cascade', 'timeline-attention'
+]);
+
+/**
+ * Per-preset canonical (duration/ease/loop/alternate/delay) fields to hide
+ * from the "Timing & Duration"/"Easing Function" common-params sections,
+ * because they're confirmed non-functional for that specific preset — not
+ * merely "the preset's own factory code doesn't explicitly reference this
+ * field." That second, broader category is deliberately NOT hidden: most
+ * "animation"-mechanism presets never explicitly touch e.g. `delay` in their
+ * own JS, but it still reaches the final anime.animate() call untouched
+ * (animateElement()'s `Object.assign(params, presetResult.anime)` only
+ * overwrites keys the preset's own returned object actually sets — anything
+ * it doesn't mention passes through from the already-resolved top-level
+ * value completely intact). Only listed here when confirmed via one of:
+ *   (a) the preset's own returned object explicitly hardcodes/overrides the
+ *       field to a literal value (e.g. set's duration:0, glitch's
+ *       ease:'linear'), or
+ *   (b) the preset bypasses anime.js's normal animate()/Timer path entirely
+ *       for that field, confirmed against anime.js's own source — e.g.
+ *       march/stagger-flash's CSS/WAAPI short-circuit skips the whole
+ *       anime.animate() call, so passthrough never applies at all; or
+ *       Timeline (sequence/timeline-cascade/timeline-attention) extends
+ *       Timer, whose constructor destructures duration/loop/alternate/delay
+ *       from flat params — but Timeline's own constructor immediately
+ *       overwrites `this.duration` to grow from its children instead, and
+ *       `ease` isn't in Timer's destructured list at all (only the
+ *       different `playbackEase` is) — so only duration/ease are truly
+ *       inert there; loop/alternate/delay genuinely still govern the whole
+ *       timeline's repeat/reverse/start-delay behavior and must stay
+ *       visible.
+ * bounce is deliberately NOT listed despite conditionally discarding `ease`
+ * when bounces > 1 — that's config-dependent, not an unconditional
+ * override, so hiding it would sometimes hide a field the user still needs;
+ * it has an inline helper-text note on the Bounces field instead.
+ */
+const PRESET_HIDDEN_CANONICAL_FIELDS = {
+  'set': { hideDuration: true, hideEasing: true, hideLoop: true, hideAlternate: true },
+  'scale-reset': { hideLoop: true, hideAlternate: true },
+  'glitch': { hideEasing: true },
+  'text-typewriter': { hideDuration: true, hideEasing: true },
+  'text-scramble': { hideEasing: true, hideAlternate: true },
+  'text-glitch': { hideEasing: true },
+  'physics-spring': { hideDuration: true, hideEasing: true, hideAlternate: true },
+  'march': { hideEasing: true, hideAlternate: true, hideStartDelay: true },
+  'stagger-flash': { hideDuration: true, hideEasing: true, hideLoop: true, hideAlternate: true, hideStartDelay: true },
+  'sequence': { hideDuration: true, hideEasing: true },
+  'timeline-cascade': { hideDuration: true, hideEasing: true },
+  'timeline-attention': { hideDuration: true, hideEasing: true }
+};
+
+const CANONICAL_KEY_HIDE_FLAG = { duration: 'hideDuration', ease: 'hideEasing', loop: 'hideLoop', alternate: 'hideAlternate', delay: 'hideStartDelay' };
+
+/**
+ * True when a preset's own params schema needs to render its OWN field for a
+ * canonical-named key (duration/ease/loop/alternate/delay) in the Preset
+ * Parameters section, rather than being skipped there in favor of the shared
+ * Timing & Duration/Easing Function sections above.
+ *
+ * The two sections normally cover these keys once each — PRESET_HIDDEN_
+ * CANONICAL_FIELDS hides the top-level widget when it's confirmed inert for
+ * a preset, and the params-section filter (below) skips the same key to
+ * avoid a duplicate editable field for the one functional copy. That leaves
+ * a gap for presets that hide a key at the top level AND redeclare the same
+ * name in their own schema with real, different semantics (e.g.
+ * stagger-flash's duration/delay/loop are WAAPI-cycle values, not anime.js
+ * ones — see staggerFlashParamsSchema; sequence's duration/ease are
+ * per-step fallbacks — see sequenceParamsSchema) — those fields would
+ * otherwise be entirely unreachable in the UI despite being real, validated,
+ * documented params.
+ *
+ * Detected structurally rather than via a hardcoded preset list: a field
+ * that's merely spread through from `..._CANONICAL_REDECLARED` unchanged
+ * (the common case — e.g. march's ease/alternate/delay, scale-reset's loop/
+ * alternate) is still the exact same object reference as
+ * `_CANONICAL_REDECLARED[key]`; a preset that actually overrides the key
+ * with its own object literal (with or without an initial spread) is not.
+ * Presets that hide a key without any real override (the common case above)
+ * correctly show nothing extra — there's no hidden functionality to reveal.
+ */
+function needsOwnCanonicalField(preset, key, fieldSchema) {
+  const hideFlag = CANONICAL_KEY_HIDE_FLAG[key];
+  const hiddenCanonical = PRESET_HIDDEN_CANONICAL_FIELDS[preset] || {};
+  return !!hiddenCanonical[hideFlag] && fieldSchema !== _CANONICAL_REDECLARED[key];
+}
+
+/**
+ * anime.js v4 documentation URL for the primary mechanism each preset uses
+ * under the hood, shown as a secondary link in the info guide alongside the
+ * LCARdS docs link. Determined via a full read of every preset factory
+ * (not guessed from the name) — e.g. `cascade` calls
+ * `stagger()` directly even though `cascade-color` (default mode) is a
+ * plain tween despite superficially sounding related. Every URL below was
+ * verified to resolve with a live fetch before being hardcoded here.
+ * `march`/`stagger-flash` are deliberately omitted — both bypass anime.js
+ * entirely (raw CSS keyframes / WAAPI respectively), so no anime.js doc
+ * page is actually relevant to link to.
+ */
+const ANIMEJS_DOCS_BASE = 'https://animejs.com/documentation';
+const ANIMEJS_REFERENCE_URLS = {
+  draw: `${ANIMEJS_DOCS_BASE}/svg/createdrawable`,
+  motionpath: `${ANIMEJS_DOCS_BASE}/svg/createmotionpath`,
+  'physics-spring': `${ANIMEJS_DOCS_BASE}/easings/spring`,
+  cascade: `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
+  'stagger-grid': `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
+  'stagger-wave': `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
+  'stagger-radial': `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
+  sequence: `${ANIMEJS_DOCS_BASE}/timeline`,
+  'timeline-cascade': `${ANIMEJS_DOCS_BASE}/timeline`,
+  'timeline-attention': `${ANIMEJS_DOCS_BASE}/timeline`,
+  'text-reveal': `${ANIMEJS_DOCS_BASE}/text/splittext`,
+  'text-scramble': `${ANIMEJS_DOCS_BASE}/text/splittext`,
+  'text-glitch': `${ANIMEJS_DOCS_BASE}/text/splittext`,
+  'text-typewriter': `${ANIMEJS_DOCS_BASE}/text/splittext`
+};
+// Everything else uses the default plain-tween mechanism.
+const ANIMEJS_DEFAULT_REFERENCE_URL = `${ANIMEJS_DOCS_BASE}/animation`;
+
+// 'while' condition types whose value is a numeric threshold rather than a state string.
+const NUMERIC_WHILE_TYPES = ['above', 'at_least', 'below', 'at_most'];
+// Composite range types — each maps to two atomic while-condition keys that
+// AND-combine (see TriggerManager._evaluateWhileCondition).
+const COMBO_WHILE_BOUNDS = {
+  between:           { loKey: 'at_least', hiKey: 'at_most' }, // inclusive both ends
+  between_exclusive: { loKey: 'above',    hiKey: 'below' }    // exclusive both ends
+};
 
 export class LCARdSAnimationEditor extends LitElement {
   static get properties() {
@@ -30,10 +214,12 @@ export class LCARdSAnimationEditor extends LitElement {
       hass: { type: Object },
       animations: { type: Array, noAccessor: true }, // Custom getter/setter below — seeds _workingAnimations
       cardElement: { type: Object },  // Card element for target discovery
+      searchRootSelector: { type: String }, // Optional: scope target discovery to a sub-element (e.g. '#__msd-base-content') instead of the whole card
       systemAnimationIds: { type: Array }, // IDs from componentDef.animations — no delete, toggle only
       _workingAnimations: { state: true }, // Internal editing state — never overwritten by parent re-renders
       _expandedIndex: { type: Number },
-      _pendingDeleteIndex: { type: Number }
+      _pendingDeleteIndex: { type: Number },
+      _expandedGuideIndices: { state: true } // Set<number> — which animations' "How this preset works" info guide is open
     };
   }
 
@@ -65,30 +251,51 @@ export class LCARdSAnimationEditor extends LitElement {
    * are never duplicated inside params. Moves them up to the top level if found
    * in params, removing them from params. Safe to call on both new and existing
    * animation objects.
+   *
+   * EXCEPTION: a key left alone via needsOwnCanonicalField() — see its doc
+   * comment — is a preset-specific redeclaration with real, different
+   * semantics (e.g. stagger-flash's params.duration is a WAAPI-cycle value,
+   * not the generic anime.js one), so it's left in params rather than
+   * promoted; promoting it would silently move the value to the (for that
+   * preset, hidden and non-functional) top-level field.
+   *
+   * Also strips a same-named top-level value that sits alongside an
+   * ownField params value — a stale leftover most commonly produced by
+   * _addAnimation()'s pulse defaults (duration/ease/loop/alternate) surviving
+   * an unrelated _updatePreset() switch to a redeclaring preset like
+   * stagger-flash, since a plain top-level canonical field is otherwise
+   * correctly left untouched by a preset switch. Left in place, it would
+   * silently shadow the real params value in _renderPresetForm()'s merge —
+   * see the matching guard there — every time it's re-rendered.
    */
   _normalizeAnimation(anim) {
     const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
     if (!anim.params) return anim;
 
+    const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[anim.preset];
     const promotedFromParams = {};
     const remainingParams = {};
+    const staleTopLevelKeys = [];
     for (const [k, v] of Object.entries(anim.params)) {
-      if (TOP_LEVEL_KEYS.includes(k)) {
+      const ownField = TOP_LEVEL_KEYS.includes(k) && needsOwnCanonicalField(anim.preset, k, presetSchema?.properties?.[k]);
+      if (TOP_LEVEL_KEYS.includes(k) && !ownField) {
         // Only promote if the top-level value is not already explicitly set
         if (anim[k] === undefined) promotedFromParams[k] = v;
         // Either way, do not keep in params
       } else {
         remainingParams[k] = v;
+        if (ownField && anim[k] !== undefined) staleTopLevelKeys.push(k);
       }
     }
 
     const normalized = { ...anim, ...promotedFromParams, params: remainingParams };
+    for (const k of staleTopLevelKeys) delete normalized[k];
     if (Object.keys(normalized.params).length === 0) delete normalized.params;
     return normalized;
   }
 
   static get styles() {
-    return css`
+    return [css`
       :host {
         display: block;
         width: 100%;
@@ -348,40 +555,6 @@ export class LCARdSAnimationEditor extends LitElement {
         --mdc-icon-size: 20px;
       }
 
-      .validation-message {
-        font-size: 14px;
-        margin-top: 4px;
-        padding: 8px 12px;
-        border-radius: var(--ha-card-border-radius, 12px);
-      }
-
-      .validation-message.valid {
-        color: var(--success-color, #4caf50);
-        background: rgba(76, 175, 80, 0.1);
-      }
-
-      .validation-message.error {
-        color: var(--error-color, #f44336);
-        background: rgba(244, 67, 54, 0.1);
-      }
-
-      .validation-summary {
-        font-size: 13px;
-        padding: 8px 12px;
-        border-radius: var(--ha-card-border-radius, 12px);
-        text-align: center;
-        margin-top: 8px;
-      }
-
-      .validation-summary.valid {
-        color: var(--success-color);
-        background: rgba(76, 175, 80, 0.1);
-      }
-
-      .validation-summary.error {
-        color: var(--warning-color);
-        background: rgba(255, 152, 0, 0.1);
-      }
 
       .animation-item.is-disabled .animation-icon {
         opacity: 0.35;
@@ -426,7 +599,7 @@ export class LCARdSAnimationEditor extends LitElement {
           padding: 16px;
         }
       }
-    `;
+    `, infoGuideStyles, searchableSelectStyles];
   }
 
   constructor() {
@@ -439,6 +612,14 @@ export class LCARdSAnimationEditor extends LitElement {
     this.systemAnimationIds = [];
     this._expandedIndex = null;
     this._pendingDeleteIndex = null;
+    this._expandedGuideIndices = new Set();
+    this._targetRediscoveryTimer = null;
+    this._targetRediscoveryAttempts = 0;
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    clearTimeout(this._targetRediscoveryTimer);
   }
 
   render() {
@@ -675,17 +856,27 @@ export class LCARdSAnimationEditor extends LitElement {
   }
 
   _renderPresetForm(anim, index, isSystem = false) {
+    const preset = anim.preset || 'pulse';
+    const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[preset];
+
     // Normalize: loop/alternate/duration/delay are canonical top-level fields.
     // Prefer top-level values; fall back to legacy params.X for old configs.
+    // EXCEPTION: needsOwnCanonicalField() — a preset that redeclares one of these
+    // names with its own, different semantics (e.g. stagger-flash's duration/delay/
+    // loop) keeps its real value in params. A same-named top-level value can still
+    // be present there too — most commonly a stale leftover from _addAnimation()'s
+    // pulse defaults (duration/ease/loop/alternate), never cleared by a later
+    // _updatePreset() switch since that's correct behavior for every preset that
+    // does NOT redeclare the field. Letting it win here would silently shadow a
+    // freshly-saved params value with that stale top-level one on every render.
     const params = {
       ...anim.params,
-      ...(anim.duration  !== undefined && { duration:  anim.duration  }),
-      ...(anim.delay     !== undefined && { delay:     anim.delay     }),
-      ...(anim.loop      !== undefined && { loop:      anim.loop      }),
-      ...(anim.alternate !== undefined && { alternate: anim.alternate }),
-      ...(anim.ease      !== undefined && { ease:      anim.ease      }),
+      ...(anim.duration  !== undefined && !needsOwnCanonicalField(preset, 'duration',  presetSchema?.properties?.duration)  && { duration:  anim.duration  }),
+      ...(anim.delay     !== undefined && !needsOwnCanonicalField(preset, 'delay',     presetSchema?.properties?.delay)     && { delay:     anim.delay     }),
+      ...(anim.loop      !== undefined && !needsOwnCanonicalField(preset, 'loop',      presetSchema?.properties?.loop)      && { loop:      anim.loop      }),
+      ...(anim.alternate !== undefined && !needsOwnCanonicalField(preset, 'alternate', presetSchema?.properties?.alternate) && { alternate: anim.alternate }),
+      ...(anim.ease      !== undefined && !needsOwnCanonicalField(preset, 'ease',      presetSchema?.properties?.ease)      && { ease:      anim.ease      }),
     };
-    const preset = anim.preset || 'pulse';
 
     return html`
       <!-- Preset Selection Section -->
@@ -701,18 +892,18 @@ export class LCARdSAnimationEditor extends LitElement {
             .selector=${{
               select: {
                 mode: 'dropdown',
+                custom_value: true,
                 options: this._getPresetOptions()
               }
             }}
             .value=${preset}
             .label=${'Select animation type'}
-            @value-changed=${(e) => this._updateAnimation(index, 'preset', e.detail.value)}
+            @value-changed=${(e) => this._updatePreset(index, e.detail.value)}
           ></ha-selector>
-          ${this._getPresetHelp(preset) ? html`
-            <lcards-message type="info" .message=${this._getPresetHelp(preset)}></lcards-message>
-          ` : ''}
         `}
       </lcards-form-section>
+
+      ${!isSystem ? this._renderPresetInfoGuide(preset, index) : ''}
 
       <lcards-form-section
         header="Animation Parameters"
@@ -724,1014 +915,149 @@ export class LCARdSAnimationEditor extends LitElement {
   }
 
   _renderPresetParams(preset, params, index) {
-    // Common timing parameters shown for all presets
-    // Pass preset-specific hide options so irrelevant fields are suppressed.
-    const commonParamOpts = preset === 'stagger-flash'
-      ? { hideStartDelay: true, hideAlternate: true, hideEasing: true }
-      : {};
+    // Common timing parameters shown for all presets — confirmed-non-functional
+    // ones are hidden per-preset via PRESET_HIDDEN_CANONICAL_FIELDS.
+    const commonParamOpts = PRESET_HIDDEN_CANONICAL_FIELDS[preset] || {};
     const commonParams = this._renderCommonParams(params, index, commonParamOpts);
+
+    if (SCHEMA_DRIVEN_PRESETS.has(preset)) {
+      return html`
+        <lcards-form-section
+          header="Preset Parameters"
+          icon="mdi:tune-variant"
+          ?expanded=${true}>
+          ${this._renderSchemaDrivenParams(preset, params, index)}
+        </lcards-form-section>
+        ${commonParams}
+      `;
+    }
 
     // Preset-specific parameters
     let specificParams = /** @type {any} */ ('');
 
     switch (preset) {
-      case 'pulse':
+      case 'rotate': {
+        // Fixed a confirmed field-name/capability mismatch: this hardcoded UI
+        // wrote to params.angle/params.origin, but the actual preset factory
+        // never reads either — it reads `direction` ('clockwise'/
+        // 'counterclockwise', which entirely overrides from/to) or explicit
+        // `from`/`to` degree values, and transformOrigin is hardcoded to
+        // 'center' in the factory (not configurable at all). Both old fields
+        // were completely non-functional. Rebuilt to match the real shape —
+        // direction shorthand vs. explicit from/to is exactly the kind of
+        // conditional field visibility that keeps this preset off the
+        // generic renderer.
+        const useCustomRange = !params.direction;
         specificParams = html`
           <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0.5, max: 3, step: 0.05, mode: 'slider' } }}
-              .value=${params.max_scale ?? params.scale ?? 1.15}
-              .label=${'Max Scale'}
-              @value-changed=${(e) => this._updateParam(index, 'max_scale', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 1, max: 3, step: 0.1, mode: 'slider' } }}
-              .value=${params.max_brightness ?? 1.4}
-              .label=${'Max Brightness'}
-              @value-changed=${(e) => this._updateParam(index, 'max_brightness', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'fade':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.from ?? 1}
-              .label=${'From Opacity'}
-              @value-changed=${(e) => this._updateParam(index, 'from', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.to ?? 0.3}
-              .label=${'To Opacity'}
-              @value-changed=${(e) => this._updateParam(index, 'to', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'glow':
-        specificParams = html`
-          <div class="param-full">
-            <label class="field-label">Glow Color</label>
-            <lcards-color-picker
-              .value=${params.color ?? params.glow_color ?? '#66ccff'}
-              @value-changed=${(e) => this._updateParam(index, 'color', e.detail.value)}>
-            </lcards-color-picker>
-          </div>
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 50, step: 1, mode: 'slider' } }}
-              .value=${params.blur_min ?? 0}
-              .label=${'Min Blur (px)'}
-              @value-changed=${(e) => this._updateParam(index, 'blur_min', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 50, step: 1, mode: 'slider' } }}
-              .value=${params.blur_max ?? 10}
-              .label=${'Max Blur (px)'}
-              @value-changed=${(e) => this._updateParam(index, 'blur_max', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'draw':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ boolean: {} }}
-              .value=${params.reverse ?? false}
-              .label=${'Reverse Direction'}
-              .helper=${'Draw from end to start instead of start to end'}
-              @value-changed=${(e) => this._updateParam(index, 'reverse', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'march':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-input
-              type="number"
-              label="Dash Length (px)"
-              .value=${params.dash_length ?? ''}
-              placeholder="Auto-detect"
-              @input=${(e) => this._updateParam(index, 'dash_length', e.target.value ? Number(e.target.value) : undefined)}>
-            </ha-input>
-            <ha-input
-              type="number"
-              label="Gap Length (px)"
-              .value=${params.gap_length ?? ''}
-              placeholder="Auto-detect"
-              @input=${(e) => this._updateParam(index, 'gap_length', e.target.value ? Number(e.target.value) : undefined)}>
-            </ha-input>
             <ha-selector
               .hass=${this.hass}
               .selector=${{
                 select: {
                   mode: 'dropdown',
                   options: [
-                    { value: 'forward', label: 'Forward' },
-                    { value: 'reverse', label: 'Reverse' }
+                    { value: 'clockwise', label: 'Clockwise (0° → 360°)' },
+                    { value: 'counterclockwise', label: 'Counter-clockwise (0° → -360°)' },
+                    { value: '', label: 'Custom range (from/to below)' }
                   ]
                 }
               }}
-              .value=${params.direction ?? 'forward'}
+              .value=${params.direction ?? ''}
               .label=${'Direction'}
               @value-changed=${(e) => this._updateParam(index, 'direction', e.detail.value)}>
             </ha-selector>
-            <ha-input
-              type="number"
-              label="Speed (seconds)"
-              .value=${params.speed ?? 2}
-              step="0.1"
-              @input=${(e) => this._updateParam(index, 'speed', Number(e.target.value))}>
-            </ha-input>
-          </div>
-          <lcards-message type="info" .message=${'Leave dash/gap empty to auto-detect from element'}></lcards-message>
-        `;
-        break;
-
-      case 'blink':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.max_opacity ?? 1}
-              .label=${'Max Opacity'}
-              @value-changed=${(e) => this._updateParam(index, 'max_opacity', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.min_opacity ?? 0.3}
-              .label=${'Min Opacity'}
-              @value-changed=${(e) => this._updateParam(index, 'min_opacity', e.detail.value)}>
-            </ha-selector>
+            ${useCustomRange ? html`
+              <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: -720, max: 720, step: 15, mode: 'box' } }}
+                .value=${params.from ?? 0}
+                .label=${'From (degrees)'}
+                @value-changed=${(e) => this._updateParam(index, 'from', e.detail.value)}>
+              </ha-selector>
+              <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: -720, max: 720, step: 15, mode: 'box' } }}
+                .value=${params.to ?? 360}
+                .label=${'To (degrees)'}
+                @value-changed=${(e) => this._updateParam(index, 'to', e.detail.value)}>
+              </ha-selector>
+            ` : ''}
           </div>
         `;
         break;
-
-      case 'shimmer':
-        specificParams = html`
-          <div class="param-grid">
-            <div class="param-full">
-              <label class="field-label">Color From</label>
-              <lcards-color-picker
-                .value=${params.color_from ?? ''}
-                .allowEmpty=${true}
-                placeholder="Optional"
-                @value-changed=${(e) => this._updateParam(index, 'color_from', e.detail.value)}>
-              </lcards-color-picker>
-            </div>
-            <lcards-message type="info" .message=${'Leave empty for opacity-only shimmer'}></lcards-message>
-            <div class="param-full">
-              <label class="field-label">Color To</label>
-              <lcards-color-picker
-                .value=${params.color_to ?? params.shimmer_color ?? ''}
-                .allowEmpty=${true}
-                placeholder="Optional"
-                @value-changed=${(e) => this._updateParam(index, 'color_to', e.detail.value)}>
-              </lcards-color-picker>
-            </div>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.opacity_from ?? 1}
-              .label=${'Opacity From'}
-              @value-changed=${(e) => this._updateParam(index, 'opacity_from', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.opacity_to ?? 0.5}
-              .label=${'Opacity To'}
-              @value-changed=${(e) => this._updateParam(index, 'opacity_to', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'strobe':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.max_opacity ?? 1}
-              .label=${'Max Opacity'}
-              @value-changed=${(e) => this._updateParam(index, 'max_opacity', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.min_opacity ?? 0}
-              .label=${'Min Opacity'}
-              @value-changed=${(e) => this._updateParam(index, 'min_opacity', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'flicker':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.max_opacity ?? 1}
-              .label=${'Max Opacity'}
-              @value-changed=${(e) => this._updateParam(index, 'max_opacity', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.min_opacity ?? 0.3}
-              .label=${'Min Opacity'}
-              @value-changed=${(e) => this._updateParam(index, 'min_opacity', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'cascade':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-input
-              type="number"
-              label="Stagger Delay (ms)"
-              .value=${params.stagger ?? 100}
-              @input=${(e) => this._updateParam(index, 'stagger', Number(e.target.value))}>
-            </ha-input>
-            <ha-input
-              label="CSS Property"
-              .value=${params.property ?? 'opacity'}
-              @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-input>
-            <ha-input
-              type="number"
-              label="From Value"
-              .value=${params.from ?? 0}
-              step="0.1"
-              @input=${(e) => this._updateParam(index, 'from', Number(e.target.value))}>
-            </ha-input>
-            <ha-input
-              type="number"
-              label="To Value"
-              .value=${params.to ?? 1}
-              step="0.1"
-              @input=${(e) => this._updateParam(index, 'to', Number(e.target.value))}>
-            </ha-input>
-          </div>
-        `;
-        break;
-
-      case 'cascade-color':
-        const colors = params.colors ?? [
-          'var(--lcards-blue-light, #93e1ff)',
-          'var(--lcards-blue-darkest, #002241)',
-          'var(--lcards-moonlight, #dfe1e8)'
-        ];
-        specificParams = html`
-          <div class="param-grid">
-            <div class="param-full">
-              <label class="field-label">Start Color</label>
-              <lcards-color-picker
-                .value=${colors[0]}
-                @value-changed=${(e) => {
-                  const newColors = [...colors];
-                  newColors[0] = e.detail.value;
-                  this._updateParam(index, 'colors', newColors);
-                }}>
-              </lcards-color-picker>
-            </div>
-            <div class="param-full">
-              <label class="field-label">Text Color (Flash)</label>
-              <lcards-color-picker
-                .value=${colors[1]}
-                @value-changed=${(e) => {
-                  const newColors = [...colors];
-                  newColors[1] = e.detail.value;
-                  this._updateParam(index, 'colors', newColors);
-                }}>
-              </lcards-color-picker>
-            </div>
-            <div class="param-full">
-              <label class="field-label">End Color</label>
-              <lcards-color-picker
-                .value=${colors[2]}
-                @value-changed=${(e) => {
-                  const newColors = [...colors];
-                  newColors[2] = e.detail.value;
-                  this._updateParam(index, 'colors', newColors);
-                }}>
-              </lcards-color-picker>
-            </div>
-            <lcards-message type="info" .message=${'Three colors for cascade effect: start → text (flash) → end'}></lcards-message>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{select: {mode: 'dropdown', options: [
-                { value: 'default', label: 'Default - Authentic LCARS timing' },
-                { value: 'niagara', label: 'Niagara - Smoother cascade' },
-                { value: 'fast', label: 'Fast - Quick cascade' },
-                { value: 'frozen', label: 'Frozen - Static display' }
-              ]}}}
-              .label=${'Timing Pattern'}
-              .value=${params.pattern ?? 'default'}
-              @value-changed=${(e) => this._updateParam(index, 'pattern', e.detail.value)}>
-            </ha-selector>
-            <ha-input
-              type="number"
-              label="Speed Multiplier"
-              .value=${params.speed_multiplier ?? 1.0}
-              .helper=${'2.0 = twice as fast, 0.5 = half speed'}
-              step="0.1"
-              min="0.1"
-              max="10"
-              @input=${(e) => this._updateParam(index, 'speed_multiplier', Number(e.target.value))}>
-            </ha-input>
-            <ha-input
-              label="CSS Property"
-              .value=${params.property ?? 'color'}
-              .helper=${'Property to animate (color, fill, stroke, etc.)'}
-              @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-input>
-          </div>
-        `;
-        break;
-
-      case 'ripple':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 1, max: 5, step: 0.1, mode: 'slider' } }}
-              .value=${params.scale_max ?? 1.5}
-              .label=${'Max Scale'}
-              @value-changed=${(e) => this._updateParam(index, 'scale_max', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.opacity_min ?? 0}
-              .label=${'Min Opacity'}
-              @value-changed=${(e) => this._updateParam(index, 'opacity_min', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'scale':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0.1, max: 3, step: 0.05, mode: 'slider' } }}
-              .value=${params.from ?? 1}
-              .label=${'From Scale'}
-              @value-changed=${(e) => this._updateParam(index, 'from', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0.1, max: 3, step: 0.05, mode: 'slider' } }}
-              .value=${params.scale ?? 1.1}
-              .label=${'To Scale'}
-              @value-changed=${(e) => this._updateParam(index, 'scale', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'scale-reset':
-        // No specific params for scale-reset
-        break;
-
-      case 'set':
-        specificParams = html`
-          <div class="param-full">
-            <ha-input
-              label="Properties (JSON)"
-              .value=${JSON.stringify(params.properties ?? {})}
-              @input=${(e) => {
-                try {
-                  this._updateParam(index, 'properties', JSON.parse(e.target.value));
-                } catch (err) {
-                  // Invalid JSON, don't update
-                }
-              }}
-              helper="CSS properties to set immediately">
-            </ha-input>
-          </div>
-        `;
-        break;
-
-      // Placeholder presets (not yet implemented)
-      case 'slide':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{
-                select: {
-                  mode: 'dropdown',
-                  options: [
-                    { value: 'right', label: 'From Right' },
-                    { value: 'left', label: 'From Left' },
-                    { value: 'top', label: 'From Top' },
-                    { value: 'bottom', label: 'From Bottom' }
-                  ]
-                }
-              }}
-              .value=${params.from ?? 'right'}
-              .label=${'Slide Direction'}
-              @value-changed=${(e) => this._updateParam(index, 'from', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: -500, max: 500, step: 10, mode: 'box' } }}
-              .value=${params.distance ?? 100}
-              .label=${'Distance (px or %)'}
-              .helper=${'Positive number or use % for percentage'}
-              @value-changed=${(e) => this._updateParam(index, 'distance', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'rotate':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: -720, max: 720, step: 15, mode: 'box' } }}
-              .value=${params.angle ?? 360}
-              .label=${'Rotation Angle (degrees)'}
-              .helper=${'Positive = clockwise, negative = counter-clockwise'}
-              @value-changed=${(e) => this._updateParam(index, 'angle', e.detail.value)}>
-            </ha-selector>
-            <ha-input
-              label="Transform Origin"
-              .value=${params.origin ?? 'center'}
-              .helper=${'e.g., "center", "top left", "50% 50%"'}
-              @input=${(e) => this._updateParam(index, 'origin', e.target.value)}>
-            </ha-input>
-          </div>
-        `;
-        break;
-
-      case 'shake':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 1, max: 50, step: 1, mode: 'slider' } }}
-              .value=${params.intensity ?? 10}
-              .label=${'Shake Intensity (px)'}
-              @value-changed=${(e) => this._updateParam(index, 'intensity', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{
-                select: {
-                  mode: 'dropdown',
-                  options: [
-                    { value: 'horizontal', label: 'Horizontal' },
-                    { value: 'vertical', label: 'Vertical' },
-                    { value: 'both', label: 'Both Directions' }
-                  ]
-                }
-              }}
-              .value=${params.direction ?? 'horizontal'}
-              .label=${'Shake Direction'}
-              @value-changed=${(e) => this._updateParam(index, 'direction', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
+      }
 
       case 'bounce':
+        // Fixed a confirmed field-name-drift bug: this hardcoded UI wrote to
+        // params.max_scale, but the actual preset factory only ever reads
+        // p.scale_max. Also removed "Elasticity" — p.elasticity is never
+        // read anywhere in the factory; that slider did nothing.
         specificParams = html`
           <div class="param-grid">
             <ha-selector
               .hass=${this.hass}
               .selector=${{ number: { min: 0.1, max: 3, step: 0.1, mode: 'slider' } }}
-              .value=${params.max_scale ?? 1.3}
+              .value=${params.scale_max ?? 1.2}
               .label=${'Max Scale'}
-              @value-changed=${(e) => this._updateParam(index, 'max_scale', e.detail.value)}>
+              @value-changed=${(e) => this._updateParam(index, 'scale_max', e.detail.value)}>
             </ha-selector>
             <ha-selector
               .hass=${this.hass}
               .selector=${{ number: { min: 1, max: 10, step: 1, mode: 'slider' } }}
               .value=${params.bounces ?? 3}
               .label=${'Number of Bounces'}
+              .helper=${'When > 1, this preset forces outQuad easing and multiplies duration by this count — see the info guide above.'}
               @value-changed=${(e) => this._updateParam(index, 'bounces', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0.1, max: 2, step: 0.05, mode: 'slider' } }}
-              .value=${params.elasticity ?? 0.6}
-              .label=${'Elasticity'}
-              @value-changed=${(e) => this._updateParam(index, 'elasticity', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'color-shift':
-        specificParams = html`
-          <div class="param-grid">
-            <div class="param-full">
-              <label class="field-label">From Color</label>
-              <lcards-color-picker
-                .value=${params.color_from ?? '#0783FF'}
-                @value-changed=${(e) => this._updateParam(index, 'color_from', e.detail.value)}>
-              </lcards-color-picker>
-            </div>
-            <div class="param-full">
-              <label class="field-label">To Color</label>
-              <lcards-color-picker
-                .value=${params.color_to ?? '#FF6600'}
-                @value-changed=${(e) => this._updateParam(index, 'color_to', e.detail.value)}>
-              </lcards-color-picker>
-            </div>
-            <ha-input
-              label="CSS Property"
-              .value=${params.property ?? 'color'}
-              .helper=${'Property to animate: color, fill, stroke, background, etc.'}
-              @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-input>
-          </div>
-        `;
-        break;
-
-      case 'border-pulse':
-        specificParams = html`
-          <div class="param-grid">
-            <div class="param-full">
-              <label class="field-label">Border Color</label>
-              <lcards-color-picker
-                .value=${params.color ?? '#0783FF'}
-                @value-changed=${(e) => this._updateParam(index, 'color', e.detail.value)}>
-              </lcards-color-picker>
-            </div>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 20, step: 1, mode: 'slider' } }}
-              .value=${params.min_width ?? 1}
-              .label=${'Min Width (px)'}
-              @value-changed=${(e) => this._updateParam(index, 'min_width', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 20, step: 1, mode: 'slider' } }}
-              .value=${params.max_width ?? 5}
-              .label=${'Max Width (px)'}
-              @value-changed=${(e) => this._updateParam(index, 'max_width', e.detail.value)}>
             </ha-selector>
           </div>
         `;
         break;
 
       case 'skew':
+        // Fixed a confirmed field-name-drift bug: this hardcoded UI wrote to
+        // params.x/params.y, but the actual preset factory only ever reads
+        // p.skewX/p.skewY. Added the optional from_skewX/from_skewY fields
+        // too (initially left out, which made the UI's own field list
+        // inconsistent with the info guide's schema-driven description of
+        // this preset, listing all 4 fields) — the factory's real shape is
+        // simple enough (from_* just switch it from "0 → target" to
+        // "explicit start → target") that it doesn't need to stay hidden.
         specificParams = html`
           <div class="param-grid">
             <ha-selector
               .hass=${this.hass}
               .selector=${{ number: { min: -45, max: 45, step: 1, mode: 'box' } }}
-              .value=${params.x ?? 0}
+              .value=${params.skewX ?? 0}
               .label=${'Skew X (degrees)'}
-              @value-changed=${(e) => this._updateParam(index, 'x', e.detail.value)}>
+              @value-changed=${(e) => this._updateParam(index, 'skewX', e.detail.value)}>
             </ha-selector>
             <ha-selector
               .hass=${this.hass}
               .selector=${{ number: { min: -45, max: 45, step: 1, mode: 'box' } }}
-              .value=${params.y ?? 10}
+              .value=${params.skewY ?? 0}
               .label=${'Skew Y (degrees)'}
-              @value-changed=${(e) => this._updateParam(index, 'y', e.detail.value)}>
+              @value-changed=${(e) => this._updateParam(index, 'skewY', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: -45, max: 45, step: 1, mode: 'box' } }}
+              .value=${params.from_skewX ?? 0}
+              .label=${'From Skew X (degrees)'}
+              .helper=${'Optional starting X skew — if either From field is set, the animation goes from these values to Skew X/Y above instead of from 0'}
+              @value-changed=${(e) => this._updateParam(index, 'from_skewX', e.detail.value)}>
+            </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: -45, max: 45, step: 1, mode: 'box' } }}
+              .value=${params.from_skewY ?? 0}
+              .label=${'From Skew Y (degrees)'}
+              .helper=${'Optional starting Y skew — see From Skew X'}
+              @value-changed=${(e) => this._updateParam(index, 'from_skewY', e.detail.value)}>
             </ha-selector>
           </div>
         `;
         break;
 
-      case 'scan-line':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{
-                select: {
-                  mode: 'dropdown',
-                  options: [
-                    { value: 'vertical', label: 'Vertical (Top to Bottom)' },
-                    { value: 'horizontal', label: 'Horizontal (Left to Right)' }
-                  ]
-                }
-              }}
-              .value=${params.direction ?? 'vertical'}
-              .label=${'Scan Direction'}
-              @value-changed=${(e) => this._updateParam(index, 'direction', e.detail.value)}>
-            </ha-selector>
-            <div class="param-full">
-              <label class="field-label">Scan Color</label>
-              <lcards-color-picker
-                .value=${params.color ?? '#0783FF'}
-                @value-changed=${(e) => this._updateParam(index, 'color', e.detail.value)}>
-              </lcards-color-picker>
-            </div>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 1, max: 100, step: 1, mode: 'slider' } }}
-              .value=${params.width ?? 20}
-              .label=${'Line Width (%)'}
-              @value-changed=${(e) => this._updateParam(index, 'width', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      // Text Animation Presets
-      case 'text-reveal':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{
-                select: {
-                  mode: 'dropdown',
-                  options: [
-                    { value: 'chars', label: 'Characters' },
-                    { value: 'words', label: 'Words' },
-                    { value: 'lines', label: 'Lines' }
-                  ]
-                }
-              }}
-              .value=${params.split ?? 'chars'}
-              .label=${'Split By'}
-              @value-changed=${(e) => this._updateParam(index, 'split', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 100, max: 3000, step: 50, mode: 'box' } }}
-              .value=${params.duration ?? 800}
-              .label=${'Duration (ms)'}
-              @value-changed=${(e) => this._updateParam(index, 'duration', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 500, step: 10, mode: 'box' } }}
-              .value=${params.stagger ?? 50}
-              .label=${'Stagger Delay (ms)'}
-              @value-changed=${(e) => this._updateParam(index, 'stagger', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.from_opacity ?? 0}
-              .label=${'From Opacity'}
-              @value-changed=${(e) => this._updateParam(index, 'from_opacity', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: -50, max: 50, step: 2, mode: 'box' } }}
-              .value=${params.from_y ?? 20}
-              .label=${'From Y Offset (px)'}
-              @value-changed=${(e) => this._updateParam(index, 'from_y', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ boolean: {} }}
-              .value=${params.loop ?? false}
-              .label=${'Loop'}
-              @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'text-typewriter':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 10, max: 500, step: 10, mode: 'box' } }}
-              .value=${params.speed ?? 80}
-              .label=${'Speed – ms per character'}
-              @value-changed=${(e) => this._updateParam(index, 'speed', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ boolean: {} }}
-              .value=${params.loop ?? false}
-              .label=${'Loop'}
-              @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      case 'text-scramble':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 200, max: 5000, step: 100, mode: 'box' } }}
-              .value=${params.duration ?? 800}
-              .label=${'Duration – ms each char scrambles'}
-              @value-changed=${(e) => this._updateParam(index, 'duration', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 300, step: 10, mode: 'box' } }}
-              .value=${params.stagger ?? 40}
-              .label=${'Stagger – ms between chars'}
-              @value-changed=${(e) => this._updateParam(index, 'stagger', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 3000, step: 50, mode: 'box' } }}
-              .value=${params.delay ?? 0}
-              .label=${'Initial Delay (ms)'}
-              @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0.1, max: 1, step: 0.05, mode: 'slider' } }}
-              .value=${params.settle_at ?? 0.85}
-              .label=${'Settle At – fraction scrambling (0–1)'}
-              @value-changed=${(e) => this._updateParam(index, 'settle_at', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ boolean: {} }}
-              .value=${params.loop ?? false}
-              .label=${'Loop'}
-              @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value)}>
-            </ha-selector>
-            <ha-input
-              label="Character Pool"
-              .value=${params.characters ?? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'}
-              @input=${(e) => this._updateParam(index, 'characters', e.target.value)}>
-            </ha-input>
-          </div>
-        `;
-        break;
-
-      case 'text-glitch':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 1, max: 50, step: 1, mode: 'slider' } }}
-              .value=${params.intensity ?? 5}
-              .label=${'Intensity (px / SVG units)'}
-              @value-changed=${(e) => this._updateParam(index, 'intensity', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 50, max: 2000, step: 50, mode: 'box' } }}
-              .value=${params.duration ?? 300}
-              .label=${'Duration (ms per glitch)'}
-              @value-changed=${(e) => this._updateParam(index, 'duration', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 200, step: 10, mode: 'box' } }}
-              .value=${params.stagger ?? 50}
-              .label=${'Stagger Delay (ms)'}
-              @value-changed=${(e) => this._updateParam(index, 'stagger', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ boolean: {} }}
-              .value=${params.loop ?? false}
-              .label=${'Loop'}
-              @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ boolean: {} }}
-              .value=${params.color_shift ?? false}
-              .label=${'Colour Shift (HTML targets only)'}
-              @value-changed=${(e) => this._updateParam(index, 'color_shift', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
-
-      // Stagger Animation Presets (PR#233)
-      case 'stagger-grid':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-input
-              label="Grid Dimensions"
-              .value=${JSON.stringify(params.grid ?? [3, 3])}
-              .helper=${'Format: [columns, rows] e.g., [6, 1] for alert bars'}
-              @input=${(e) => {
-                try {
-                  this._updateParam(index, 'grid', JSON.parse(e.target.value));
-                } catch (err) {}
-              }}>
-            </ha-input>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{
-                select: {
-                  mode: 'dropdown',
-                  options: [
-                    { value: 'start', label: 'From Start (Top-Left)' },
-                    { value: 'end', label: 'From End (Bottom-Right)' },
-                    { value: 'center', label: 'From Center Outward' },
-                    { value: 'edges', label: 'From Edges Inward' }
-                  ]
-                }
-              }}
-              .value=${params.from ?? 'start'}
-              .label=${'Wave Direction'}
-              @value-changed=${(e) => this._updateParam(index, 'from', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 500, step: 10, mode: 'box' } }}
-              .value=${params.delay ?? 100}
-              .label=${'Stagger Delay (ms)'}
-              @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
-            </ha-selector>
-            <ha-input
-              label="Property"
-              .value=${params.property ?? 'scale'}
-              .helper=${'Property to animate (scale, opacity, translateY, etc.)'}
-              @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-input>
-          </div>
-        `;
-        break;
-
-      case 'stagger-flash':
-        specificParams = html`
-          <div class="param-grid">
-            <div class="param-full">
-              <label class="field-label">Lead Color (Flash)</label>
-              <lcards-color-picker
-                .value=${params.lead_color ?? 'var(--primary-color)'}
-                @value-changed=${(e) => this._updateParam(index, 'lead_color', e.detail.value)}>
-              </lcards-color-picker>
-            </div>
-            <div class="param-full">
-              <label class="field-label">Trail Color (Dim)</label>
-              <lcards-color-picker
-                .value=${params.trail_color ?? '#444444'}
-                @value-changed=${(e) => this._updateParam(index, 'trail_color', e.detail.value)}>
-              </lcards-color-picker>
-            </div>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 5, max: 50, step: 1, mode: 'slider' } }}
-              .value=${params.lead_pct ?? 20}
-              .label=${'Flash Phase (% of cycle)'}
-              .helper=${'How much of each cycle the bar spends snapping to the trail color (legacy: 20%)'}
-              @value-changed=${(e) => this._updateParam(index, 'lead_pct', e.detail.value)}>
-            </ha-selector>
-            <ha-input
-              type="number"
-              label="Stagger Delay (ms)"
-              .value=${params.delay ?? ''}
-              .helper=${'Delay between consecutive elements. Leave blank to auto-compute (duration÷12). Legacy 2 s default = 167 ms.'}
-              @input=${(e) => {
-                const v = e.target.value.trim();
-                if (!v) { this._updateParam(index, 'delay', undefined); return; }
-                this._updateParam(index, 'delay', Number(v));
-              }}>
-            </ha-input>
-            <ha-input
-              label="Grid Layout"
-              .value=${params.grid ? JSON.stringify(params.grid) : ''}
-              .helper=${'Optional: [cols, rows] e.g. [6,1] for 6 horizontal bars. Leave empty for linear.'}
-              @input=${(e) => {
-                const v = e.target.value.trim();
-                if (!v) { this._updateParam(index, 'grid', undefined); return; }
-                try { this._updateParam(index, 'grid', JSON.parse(v)); } catch (_) {}
-              }}>
-            </ha-input>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ select: { mode: 'dropdown', options: [
-                { value: 'first',  label: 'First → Last (forward chase)' },
-                { value: 'last',   label: 'Last → First (reverse chase)' },
-                { value: 'center', label: 'Center outward' }
-              ]}}}
-              .value=${params.from ?? 'first'}
-              .label=${'Chase Direction'}
-              @value-changed=${(e) => this._updateParam(index, 'from', e.detail.value)}>
-            </ha-selector>
-            <ha-input
-              label="SVG/CSS Property"
-              .value=${params.property ?? 'stroke'}
-              .helper=${'stroke (SVG lines), fill (SVG shapes), color (text/HTML)'}
-              @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-input>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ boolean: {} }}
-              .value=${params.with_opacity !== undefined ? params.with_opacity : true}
-              .label=${'Fade Opacity in Trail'}
-              .helper=${'Also fade opacity during trail phase (legacy fades to 0.25)'}
-              @value-changed=${(e) => this._updateParam(index, 'with_opacity', e.detail.value)}>
-            </ha-selector>
-            ${(params.with_opacity !== undefined ? params.with_opacity : true) ? html`
-              <ha-selector
-                .hass=${this.hass}
-                .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
-                .value=${params.trail_opacity ?? 0.25}
-                .label=${'Trail End Opacity'}
-                @value-changed=${(e) => this._updateParam(index, 'trail_opacity', e.detail.value)}>
-              </ha-selector>
-            ` : ''}
-          </div>
-        `;
-        break;
-
-      case 'stagger-wave':
-      case 'stagger-radial':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0, max: 500, step: 10, mode: 'box' } }}
-              .value=${params.delay ?? 100}
-              .label=${'Stagger Delay (ms)'}
-              @value-changed=${(e) => this._updateParam(index, 'delay', e.detail.value)}>
-            </ha-selector>
-            <ha-input
-              label="Property"
-              .value=${params.property ?? 'scale'}
-              @input=${(e) => this._updateParam(index, 'property', e.target.value)}>
-            </ha-input>
-            <ha-input
-              label="Center Point (for radial)"
-              .value=${params.center ? JSON.stringify(params.center) : '[50, 50]'}
-              .helper=${'Format: [x, y] in percentage. e.g., [50, 50]'}
-              @input=${(e) => {
-                try {
-                  this._updateParam(index, 'center', JSON.parse(e.target.value));
-                } catch (err) {}
-              }}>
-            </ha-input>
-          </div>
-        `;
-        break;
-
-      // Timeline Animation Presets (PR#233)
-      case 'timeline-cascade':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-input
-              label="Steps (JSON)"
-              .value=${JSON.stringify(params.steps ?? [])}
-              .helper=${'Array of step objects with targets, params, duration, offset'}
-              @input=${(e) => {
-                try {
-                  this._updateParam(index, 'steps', JSON.parse(e.target.value));
-                } catch (err) {}
-              }}>
-            </ha-input>
-            <lcards-message type="info" .message=${'Define multiple sequential animation steps. Example: [{ targets: ".step-1", params: { opacity: [0, 1] }, duration: 300, offset: 0 }]'}></lcards-message>
-          </div>
-        `;
-        break;
-
-      case 'timeline-attention':
-        specificParams = html`
-          <div class="param-grid">
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 0.5, max: 3, step: 0.1, mode: 'slider' } }}
-              .value=${params.scale_amount ?? 1.3}
-              .label=${'Scale Amount'}
-              @value-changed=${(e) => this._updateParam(index, 'scale_amount', e.detail.value)}>
-            </ha-selector>
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ number: { min: 1, max: 50, step: 1, mode: 'slider' } }}
-              .value=${params.shake_intensity ?? 10}
-              .label=${'Shake Intensity'}
-              @value-changed=${(e) => this._updateParam(index, 'shake_intensity', e.detail.value)}>
-            </ha-selector>
-          </div>
-        `;
-        break;
     }
 
     return html`
@@ -1747,21 +1073,195 @@ export class LCARdSAnimationEditor extends LitElement {
     `;
   }
 
-  _renderCommonParams(params, index, options = {}) {
+  /**
+   * Renders one preset's params fields generically, driven by
+   * ANIMATION_PRESET_PARAMS_SCHEMAS[preset], via the shared FormField.renderField()
+   * (the same renderer already used by lcards-slider-editor.js) — for presets in
+   * SCHEMA_DRIVEN_PRESETS only. Array/object-shaped fields (flagged in the schema
+   * via x-ui-hints.widget: 'json') render as a raw JSON textarea instead, the same
+   * pattern already used by hand in several of the hardcoded `case` branches above.
+   *
+   * FormField.renderField() calls back into this.hass / _getSchemaForPath /
+   * _getConfigValue / _setConfigValue — the last three resolve against
+   * `_schemaRenderCtx` (presetSchema/params/index, set once per preset-params
+   * render, not per-field — see the comment at its assignment below for why).
+   * Nested fields (see _renderNestedObjectField()) use a dot-separated path
+   * (e.g. "shape.fill") so the adapter methods can resolve/write the correct
+   * location purely from the path string, which is what actually stays fresh
+   * across a later, asynchronous user interaction — the shared context wouldn't.
+   */
+  _renderSchemaDrivenParams(preset, params, index) {
+    const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[preset];
+    if (!presetSchema?.properties) return '';
+
+    // Canonical fields (duration/ease/loop/alternate/delay) are normally already
+    // covered by _renderCommonParams() above — skip them here to avoid rendering
+    // them twice. Exception: needsOwnCanonicalField() — see its own doc comment —
+    // a preset that hides one of these at the top level AND redeclares it with
+    // real, different semantics in its own schema (e.g. stagger-flash's
+    // duration/delay/loop) needs its field shown here instead, or it becomes
+    // entirely unreachable in the UI.
+    const CANONICAL_KEYS = new Set(['duration', 'ease', 'loop', 'alternate', 'delay']);
+
+    // Set once per preset-params render, not per-field: _getSchemaForPath/_getConfigValue
+    // are read synchronously during render (safe either way), but _setConfigValue only
+    // fires later, on a real user interaction — by which point a per-field-reassigned
+    // context would already reflect whichever field rendered LAST, not the one whose
+    // callback is actually firing. Keeping presetSchema/params/index constant across
+    // the whole pass (nesting is derived from the field's own path string instead,
+    // see _setConfigValue) avoids that staleness entirely.
+    this._schemaRenderCtx = { presetSchema, params, index };
+
     return html`
-      <lcards-form-section
+      <div class="param-grid">
+        ${Object.entries(presetSchema.properties)
+          .filter(([key, fieldSchema]) => !CANONICAL_KEYS.has(key) || needsOwnCanonicalField(preset, key, fieldSchema))
+          .map(([key, fieldSchema]) => {
+            if (fieldSchema['x-ui-hints']?.widget === 'json') {
+              return this._renderJsonParamField(key, fieldSchema, params, index);
+            }
+            if (fieldSchema.type === 'object' && fieldSchema.properties) {
+              return this._renderNestedObjectField(key, fieldSchema, params);
+            }
+            return FormField.renderField(this, key, {});
+          })}
+      </div>
+    `;
+  }
+
+  /**
+   * Structured sub-form for a fixed-shape nested object field (e.g. motionpath's
+   * `shape: {type, size, fill, stroke, ...}`) — one level of nesting, rendered via
+   * the same FormField.renderField() as top-level fields, using a dot-separated
+   * path (e.g. "shape.fill") so the adapter methods below can resolve/write the
+   * right location from the path string alone. Only for schemas with a small,
+   * known set of sub-properties; genuinely open-ended/dynamic-key objects (e.g.
+   * chaos's `range`) stay on the JSON-textarea path — there's no fixed field list
+   * to build a form from for those.
+   * @private
+   */
+  _renderNestedObjectField(key, fieldSchema, params) {
+    const hints = fieldSchema['x-ui-hints'] || {};
+    const label = hints.label || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+    return html`
+      <div class="param-full">
+        <lcards-form-section .header=${label} .description=${fieldSchema.description || ''} ?expanded=${true}>
+          <div class="param-grid">
+            ${Object.entries(fieldSchema.properties || {}).map(([subKey]) =>
+              FormField.renderField(this, `${key}.${subKey}`, {}))}
+          </div>
+        </lcards-form-section>
+      </div>
+    `;
+  }
+
+  /** @private — resolves a possibly dot-separated "parent.sub" path against presetSchema.properties */
+  _resolveNestedFieldSchema(path) {
+    const presetSchema = this._schemaRenderCtx?.presetSchema;
+    if (!presetSchema?.properties) return null;
+    if (path.includes('.')) {
+      const [parentKey, subKey] = path.split('.');
+      return presetSchema.properties[parentKey]?.properties?.[subKey] ?? null;
+    }
+    return presetSchema.properties[path] ?? null;
+  }
+
+  /** @private — adapter for FormField.renderField(), see _renderSchemaDrivenParams() */
+  _getSchemaForPath(path) {
+    return this._resolveNestedFieldSchema(path);
+  }
+
+  /** @private — adapter for FormField.renderField(), see _renderSchemaDrivenParams() */
+  _getConfigValue(path) {
+    const params = this._schemaRenderCtx?.params;
+    if (!params) return undefined;
+    if (path.includes('.')) {
+      const [parentKey, subKey] = path.split('.');
+      const parent = params[parentKey];
+      return (parent && typeof parent === 'object') ? parent[subKey] : undefined;
+    }
+    return params[path];
+  }
+
+  /**
+   * @private — adapter for FormField.renderField(), see _renderSchemaDrivenParams().
+   * Nesting is decided entirely by whether `path` itself contains a "." — never by
+   * separately-tracked render-time state, which would already be stale by the time
+   * this fires (see the comment in _renderSchemaDrivenParams()).
+   */
+  _setConfigValue(path, value) {
+    const index = this._schemaRenderCtx?.index;
+    if (path.includes('.')) {
+      const [parentKey, subKey] = path.split('.');
+      const currentParams = this.animations[index]?.params || {};
+      const currentParent = (currentParams[parentKey] && typeof currentParams[parentKey] === 'object') ? currentParams[parentKey] : {};
+      const updatedParent = { ...currentParent, [subKey]: value };
+      this._updateParam(index, parentKey, updatedParent);
+      return;
+    }
+    this._updateParam(index, path, value);
+  }
+
+  /**
+   * Structured editing for array/object-shaped preset params (e.g. chaos's
+   * `properties`/`range`, sequence's `steps`) via HA's native <ha-yaml-editor>
+   * (a CodeMirror-backed editor with syntax highlighting and lint feedback) —
+   * a real upgrade over a plain single-line text input that required valid
+   * JSON on every keystroke. Despite the "JSON" naming inherited from the
+   * schema's x-ui-hints (these fields' stored values are plain JS
+   * arrays/objects either way), this editor natively displays/accepts YAML
+   * syntax too — which is arguably a better fit here, since the surrounding
+   * card config is YAML already; both JSON and YAML input parse correctly
+   * (JSON is valid YAML).
+   *
+   * IMPORTANT: <ha-yaml-editor>.value expects the real parsed value (object/
+   * array), not a pre-stringified string — and needs `auto-update` set, since
+   * its internal re-serialization to displayed text only runs reactively when
+   * that attribute is present (confirmed against the frontend source; see the
+   * _renderCustomForm() fix alongside this one, which had both of these wrong).
+   * Its `value-changed` event already hands back the parsed value directly
+   * (plus `isValid`/`errorMsg`) — no manual JSON.parse needed.
+   * @private
+   */
+  _renderJsonParamField(key, fieldSchema, params, index) {
+    const hints = fieldSchema['x-ui-hints'] || {};
+    const label = hints.label || key;
+    const emptyValue = fieldSchema.type === 'array' ? [] : {};
+    const currentValue = params[key] ?? fieldSchema.default ?? emptyValue;
+    return html`
+      <div class="param-full">
+        <p class="field-label">${label}</p>
+        <ha-yaml-editor
+          auto-update
+          .value=${currentValue}
+          @value-changed=${(e) => {
+            if (e.detail.isValid !== false) {
+              this._updateParam(index, key, e.detail.value);
+            }
+          }}>
+        </ha-yaml-editor>
+        ${fieldSchema.description ? html`<div class="help-text">${fieldSchema.description}</div>` : ''}
+      </div>
+    `;
+  }
+
+  _renderCommonParams(params, index, options = {}) {
+    const showTimingSection = !(options.hideDuration && options.hideStartDelay && options.hideLoop && options.hideAlternate);
+    return html`
+      ${showTimingSection ? html`<lcards-form-section
         header="Timing & Duration"
         icon="mdi:timer-outline"
         ?expanded=${true}>
         <div class="param-grid">
-          <ha-input
+          ${!options.hideDuration ? html`<ha-input
             type="number"
             label="Duration (ms)"
             .value=${params.duration ?? 1000}
             min="0"
             step="100"
             @input=${(e) => this._updateParam(index, 'duration', Number(e.target.value))}>
-          </ha-input>
+          </ha-input>` : ''}
 
           ${!options.hideStartDelay ? html`<ha-input
             type="number"
@@ -1773,22 +1273,24 @@ export class LCARdSAnimationEditor extends LitElement {
             @input=${(e) => this._updateParam(index, 'delay', Number(e.target.value))}>
           </ha-input>` : ''}
 
-          <ha-selector
-            .hass=${this.hass}
-            .selector=${{ boolean: {} }}
-            .value=${typeof params.loop === 'boolean' ? params.loop : (params.loop ? true : false)}
-            .label=${'Loop Animation (Infinite)'}
-            .helper=${'Toggle for infinite loop, or use Loop Count below for specific iterations'}
-            @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value)}>
-          </ha-selector>
+          ${!options.hideLoop ? html`
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ boolean: {} }}
+              .value=${typeof params.loop === 'boolean' ? params.loop : (params.loop ? true : false)}
+              .label=${'Loop Animation (Infinite)'}
+              .helper=${'Toggle for infinite loop, or use Loop Count below for specific iterations'}
+              @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value)}>
+            </ha-selector>
 
-          <ha-selector
-            .hass=${this.hass}
-            .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'box' } }}
-            .value=${typeof params.loop === 'number' ? params.loop : ''}
-            .label=${'Loop Count (0 = off, leave empty for infinite)'}
-            @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value || false)}>
-          </ha-selector>
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'box' } }}
+              .value=${typeof params.loop === 'number' ? params.loop : ''}
+              .label=${'Loop Count (0 = off, leave empty for infinite)'}
+              @value-changed=${(e) => this._updateParam(index, 'loop', e.detail.value || false)}>
+            </ha-selector>
+          ` : ''}
 
           ${!options.hideAlternate ? html`<ha-selector
             .hass=${this.hass}
@@ -1799,7 +1301,7 @@ export class LCARdSAnimationEditor extends LitElement {
             @value-changed=${(e) => this._updateParam(index, 'alternate', e.detail.value)}>
           </ha-selector>` : ''}
         </div>
-      </lcards-form-section>
+      </lcards-form-section>` : ''}
 
       ${!options.hideEasing ? html`<lcards-form-section
         header="Easing Function"
@@ -1811,6 +1313,7 @@ export class LCARdSAnimationEditor extends LitElement {
           .selector=${{
             select: {
               mode: 'dropdown',
+              custom_value: true,
               options: [
                 // Linear
                 { value: 'linear', label: 'Linear' },
@@ -2148,7 +1651,6 @@ export class LCARdSAnimationEditor extends LitElement {
 
   _renderCustomForm(anim, index) {
     const animeConfig = anim.animejs || {};
-    const configString = JSON.stringify(animeConfig, null, 2);
 
     return html`
       <lcards-form-section
@@ -2156,11 +1658,16 @@ export class LCARdSAnimationEditor extends LitElement {
         icon="mdi:code-braces"
         ?expanded=${true}>
         <ha-yaml-editor
-          .value=${configString}
-          @value-changed=${(e) => this._updateCustomConfig(index, e.detail.value)}>
+          auto-update
+          .value=${animeConfig}
+          @value-changed=${(e) => {
+            if (e.detail.isValid !== false) {
+              this._updateCustomConfig(index, e.detail.value);
+            }
+          }}>
         </ha-yaml-editor>
         <lcards-message type="info">
-          Enter a valid JSON object for anime.js v4 configuration.
+          Enter a valid object for anime.js v4 configuration (JSON or YAML syntax both work).
           <a href="https://animejs.com/documentation/" target="_blank" rel="noopener noreferrer">
             View Documentation →
           </a>
@@ -2220,7 +1727,8 @@ export class LCARdSAnimationEditor extends LitElement {
   _renderEntityChangeTriggerConfig(anim, index) {
     const whileType  = this._getWhileConditionType(anim);
     const whileValue = this._getWhileConditionValue(anim);
-    const whileIsNumeric = whileType === 'above' || whileType === 'below';
+    const whileIsNumeric = NUMERIC_WHILE_TYPES.includes(whileType);
+    const whileBounds = this._getWhileConditionBounds(anim);
 
     return html`
       <div style="margin-top: 16px; padding: 12px; background: var(--secondary-background-color); border-radius: 6px;">
@@ -2236,13 +1744,21 @@ export class LCARdSAnimationEditor extends LitElement {
           style="margin-bottom: 12px;">
         </ha-selector>
 
-        <ha-input
-          label="Attribute (optional)"
-          .value=${anim.attribute || ''}
+        <ha-selector
+          .hass=${this.hass}
+          .label=${'Attribute (optional)'}
           .helper=${'Attribute to read instead of entity state. Applies to from_state, to_state, and while. Use brightness_pct for a computed 0\u2013100 light brightness percentage.'}
-          @input=${(e) => this._updateAnimation(index, 'attribute', e.target.value || undefined)}
+          .selector=${{ select: { mode: 'dropdown', custom_value: true, options: [
+            { value: '__none__', label: '\u2014 Use entity state' },
+            ...getAttributeOptions(this.hass, anim.entity || this.cardElement?.config?.entity)
+          ] } }}
+          .value=${anim.attribute || '__none__'}
+          @value-changed=${(e) => {
+            const v = (e.detail.value ?? '').trim();
+            this._updateAnimation(index, 'attribute', (v === '__none__' || !v) ? undefined : v);
+          }}
           style="width: 100%; margin-bottom: 12px;">
-        </ha-input>
+        </ha-selector>
 
         <lcards-message type="warning" .message=${'\u26a0\ufe0f from_state and to_state are fire-and-forget gates \u2014 they control when an animation starts but will NOT stop a looping animation. To automatically stop a loop when a condition clears, add a While Condition below.'}></lcards-message>
 
@@ -2263,7 +1779,7 @@ export class LCARdSAnimationEditor extends LitElement {
         </ha-input>
 
         <label class="field-label" style="margin-top: 8px; display: block;">While Condition <span style="font-size: 0.85em; opacity: 0.7;">(requires loop: true)</span></label>
-        <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: flex-start;">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: flex-start; flex-wrap: wrap;">
           <ha-selector
             .hass=${this.hass}
             .selector=${{ select: { options: [
@@ -2271,14 +1787,33 @@ export class LCARdSAnimationEditor extends LitElement {
               { value: 'state',     label: 'State equals' },
               { value: 'not_state', label: 'State not equals' },
               { value: 'above',     label: 'Above (numeric >)' },
-              { value: 'below',     label: 'Below (numeric <)' }
+              { value: 'at_least',  label: 'At Least (numeric ≥)' },
+              { value: 'below',     label: 'Below (numeric <)' },
+              { value: 'at_most',   label: 'At Most (numeric ≤)' },
+              { value: 'between',           label: 'Between (inclusive, ≥ and ≤)' },
+              { value: 'between_exclusive', label: 'Between (exclusive, > and <)' }
             ]}}}
             .value=${whileType}
             .label=${'Play while...'}
             @value-changed=${(e) => this._updateWhileConditionType(index, e.detail.value)}
-            style="flex: 1;">
+            style="flex: 1; min-width: 160px;">
           </ha-selector>
-          ${whileType !== 'none' ? html`
+          ${whileBounds ? html`
+            <ha-input
+              label="Min"
+              type="number"
+              .value=${String(whileBounds.lo ?? '')}
+              @input=${(e) => this._updateWhileConditionBoundValue(index, whileBounds.loKey, e.target.value)}
+              style="flex: 1; min-width: 100px;">
+            </ha-input>
+            <ha-input
+              label="Max"
+              type="number"
+              .value=${String(whileBounds.hi ?? '')}
+              @input=${(e) => this._updateWhileConditionBoundValue(index, whileBounds.hiKey, e.target.value)}
+              style="flex: 1; min-width: 100px;">
+            </ha-input>
+          ` : whileType !== 'none' ? html`
             <ha-input
               label="Value"
               type=${whileIsNumeric ? 'number' : 'text'}
@@ -2313,27 +1848,44 @@ export class LCARdSAnimationEditor extends LitElement {
     if (!w || typeof w !== 'object') return 'none';
     if ('state'     in w) return 'state';
     if ('not_state' in w) return 'not_state';
+    // Combo (range) types take priority over their atomic keys when both bounds are present.
+    if ('at_least' in w && 'at_most' in w) return 'between';
+    if ('above'    in w && 'below'   in w) return 'between_exclusive';
     if ('above'     in w) return 'above';
+    if ('at_least'  in w) return 'at_least';
     if ('below'     in w) return 'below';
+    if ('at_most'   in w) return 'at_most';
     return 'none';
   }
 
-  /** Return the current while condition value as a string */
+  /** Return the current while condition value as a string (atomic types only) */
   _getWhileConditionValue(anim) {
     const type = this._getWhileConditionType(anim);
-    if (type === 'none') return '';
+    if (type === 'none' || COMBO_WHILE_BOUNDS[type]) return '';
     return String(anim.while[type] ?? '');
   }
 
-  /** Handle while condition TYPE change (e.g. 'state' → 'above') */
+  /** Return { loKey, hiKey, lo, hi } for a combo (range) while condition type, or null */
+  _getWhileConditionBounds(anim) {
+    const type = this._getWhileConditionType(anim);
+    const combo = COMBO_WHILE_BOUNDS[type];
+    if (!combo) return null;
+    const w = anim.while || {};
+    return { loKey: combo.loKey, hiKey: combo.hiKey, lo: w[combo.loKey], hi: w[combo.hiKey] };
+  }
+
+  /** Handle while condition TYPE change (e.g. 'state' → 'above' → 'between') */
   _updateWhileConditionType(index, condType) {
     const updated = [...this.animations];
+    const combo = COMBO_WHILE_BOUNDS[condType];
     if (condType === 'none') {
       const { while: _removed, ...rest } = updated[index];
       updated[index] = rest;
+    } else if (combo) {
+      updated[index] = { ...updated[index], while: { [combo.loKey]: 0, [combo.hiKey]: 100 } };
     } else {
       const currentVal = this._getWhileConditionValue(updated[index]);
-      const isNumeric  = condType === 'above' || condType === 'below';
+      const isNumeric  = NUMERIC_WHILE_TYPES.includes(condType);
       const val = currentVal !== '' ? (isNumeric ? (Number(currentVal) || 0) : currentVal) : (isNumeric ? 0 : '');
       updated[index] = { ...updated[index], while: { [condType]: val } };
     }
@@ -2341,12 +1893,20 @@ export class LCARdSAnimationEditor extends LitElement {
     this._fireChange();
   }
 
-  /** Handle while condition VALUE change */
+  /** Handle while condition VALUE change (atomic types only) */
   _updateWhileConditionValue(index, condType, rawValue) {
     const updated  = [...this.animations];
-    const isNumeric = condType === 'above' || condType === 'below';
+    const isNumeric = NUMERIC_WHILE_TYPES.includes(condType);
     const val = isNumeric ? Number(rawValue) : rawValue;
     updated[index] = { ...updated[index], while: { [condType]: val } };
+    this._workingAnimations = updated;
+    this._fireChange();
+  }
+
+  /** Handle a single bound edit for a combo (range) while condition, keeping the other bound intact */
+  _updateWhileConditionBoundValue(index, key, rawValue) {
+    const updated = [...this.animations];
+    updated[index] = { ...updated[index], while: { ...updated[index].while, [key]: Number(rawValue) } };
     this._workingAnimations = updated;
     this._fireChange();
   }
@@ -2374,9 +1934,7 @@ export class LCARdSAnimationEditor extends LitElement {
       'shake': 'Shake',
       'bounce': 'Bounce',
       'color-shift': 'Colour Shift',
-      'border-pulse': 'Border Pulse',
       'skew': 'Skew',
-      'scan-line': 'Scan Line',
       'glitch': 'Glitch',
       'stagger-flash': 'Stagger Flash',
       'stagger-grid': 'Stagger Grid',
@@ -2449,9 +2007,10 @@ export class LCARdSAnimationEditor extends LitElement {
       { value: 'shake', label: 'Shake - Vibrate/shake effect' },
       { value: 'bounce', label: 'Bounce - Elastic bounce' },
       { value: 'color-shift', label: 'Colour Shift - Pure colour transition' },
-      { value: 'border-pulse', label: 'Border Pulse - Border animation' },
       { value: 'skew', label: 'Skew - Slant transformation' },
       { value: 'motionpath', label: 'Motion Path - Follow SVG path' },
+      { value: 'sequence', label: 'Sequence - Multi-step timeline of tweens' },
+      { value: 'chaos', label: 'Chaos - Randomized multi-property glitch motion' },
       { value: 'glitch', label: 'Glitch - Digital distortion' },
       { value: 'physics-spring', label: 'Physics Spring - Spring physics simulation' },
 
@@ -2476,45 +2035,160 @@ export class LCARdSAnimationEditor extends LitElement {
     ];
   }
 
-  _getPresetHelp(preset) {
-    const help = {
-      'pulse': 'Scales element up and down with brightness change - ideal for attention-getting',
-      'fade': 'Smoothly fades element in or out by animating opacity',
-      'glow': 'Creates pulsing glow effect using drop-shadow filter',
-      'draw': 'Animates SVG path stroke drawing from start to end (for lines and shapes)',
-      'march': 'Creates marching ants effect with animated dashed line pattern',
-      'blink': 'Rapid blinking between two opacity values',
-      'shimmer': 'Subtle shimmer effect with color and opacity changes',
-      'strobe': 'Very fast flashing effect for alerts',
-      'flicker': 'Random flickering like a faulty light',
-      'cascade': 'Staggers animation across multiple elements with delay',
-      'cascade-color': 'Row-by-row color cycling for data grids (authentic LCARS timing)',
-      'ripple': 'Expands and fades like a ripple in water',
-      'scale': 'Simple scale transform - great for hover feedback',
-      'scale-reset': 'Returns element to original scale - use with on_leave',
-      'set': 'Immediately sets CSS properties without animation',
-      'slide': 'Slide element in from a direction (top/bottom/left/right)',
-      'rotate': 'Rotate element continuously or to a specific angle',
-      'shake': 'Horizontal shake effect - great for error states',
-      'bounce': 'Elastic bouncing scale effect with spring physics',
-      'color-shift': 'Smoothly transition between two colors',
-      'border-pulse': 'Animate border color and width',
-      'skew': 'Skew/slant transformation for 3D perspective effects',
-      'motionpath': 'Follow an SVG path - element moves along curve with auto-rotation',
-      'glitch': 'Digital glitch/distortion effect with rapid transforms',
-      'physics-spring': 'Spring physics animation with realistic elasticity',
-      'text-reveal': 'Character-by-character reveal with stagger - supports chars/words/lines',
-      'text-typewriter': 'Classic typewriter effect – character-by-character reveal',
-      'text-scramble': 'Matrix-style scramble with random character replacement',
-      'text-glitch': 'Rapid position and opacity jitter for malfunction effect',
-      'stagger-flash': 'Replicates legacy LCARS alert bar chase: bright lead color chases across elements, fading to gray trail. Set property to "stroke" for SVG bars.',
-      'stagger-grid': 'Grid-based stagger - animate elements in grid pattern with directional wave',
-      'stagger-wave': 'Wave pattern stagger - creates ripple effect across elements',
-      'stagger-radial': 'Radial burst stagger - animates outward from center point',
-      'timeline-cascade': 'Sequential coordinated animations across multiple targets',
-      'timeline-attention': 'Attention-getting sequence (scale up → shake → return)'
-    };
-    return help[preset] || 'Animation preset';
+  /**
+   * Splits dense, multi-clause schema description text (written for accuracy,
+   * not UI display — often several sentences with em-dash asides crammed
+   * together) into separate sentences, so the info guide can render each as
+   * its own line instead of one unbroken wall of text. Splits after
+   * `.`/`!`/`?` followed by whitespace and a capital letter or backtick —
+   * deliberately conservative so it doesn't break on decimals (`0.5`) or
+   * abbreviations; a missed split just leaves two sentences joined, no worse
+   * than today.
+   * @private
+   */
+  _splitIntoSentences(text) {
+    if (!text) return [];
+    return text.split(/(?<=[.!?])\s+(?=[A-Z`])/);
+  }
+
+  /**
+   * Builds a copy-pasteable example YAML block for a preset, using only
+   * fields the schema declares an actual `default` for — inventing a
+   * plausible-looking value for a field with no known default (e.g. a
+   * required color/from/to) would risk looking like a real value instead of
+   * a placeholder, so those are called out by name below the snippet instead
+   * of guessed at. Canonical fields (duration/ease/loop/alternate/delay) are
+   * generally excluded from `paramEntries` before this is called too — the
+   * schema usually has no preset-specific default for these (see
+   * _CANONICAL_REDECLARED), only the individual preset factory's own JS
+   * fallback does, so a generic number here would be a guess. Exception: a
+   * preset that redeclares one of these names with real, different semantics
+   * (see needsOwnCanonicalField()) keeps its own field — and its own real
+   * default, e.g. stagger-flash's `duration: 2000` — in `paramEntries`.
+   * @private
+   */
+  _buildExampleYaml(preset, presetSchema, paramEntries) {
+    const withDefault = paramEntries.filter(([, fieldSchema]) => fieldSchema.default !== undefined);
+    const withoutDefault = paramEntries.filter(([, fieldSchema]) => fieldSchema.default === undefined);
+
+    const lines = [
+      'animations:',
+      '  - trigger: on_load',
+      `    preset: ${preset}`
+    ];
+    if (withDefault.length) {
+      lines.push('    params:');
+      for (const [key, fieldSchema] of withDefault) {
+        lines.push(`      ${key}: ${JSON.stringify(fieldSchema.default)}`);
+      }
+    }
+    return { yaml: lines.join('\n'), missingFields: withoutDefault.map(([key]) => key) };
+  }
+
+  /**
+   * Collapsible "How this preset works" info guide — sourced entirely from
+   * ANIMATION_PRESET_PARAMS_SCHEMAS (the same schema catalog used for
+   * validation and, for SCHEMA_DRIVEN_PRESETS, form rendering), so there's a
+   * single maintained source of truth instead of a hand-written, easily
+   * stale, separately-maintained help-text map (the previous _getPresetHelp()
+   * map was missing several presets entirely, e.g. chaos/grid-stagger/sequence
+   * — confirmed via diffing against the registry). Applies uniformly to every
+   * preset regardless of whether its param UI is schema-driven or still on
+   * the legacy hardcoded switch, since it only needs the preset name.
+   * @private
+   */
+  _renderPresetInfoGuide(preset, index) {
+    const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[preset];
+    if (!presetSchema) return '';
+
+    const expanded = this._expandedGuideIndices.has(index);
+    const CANONICAL_KEYS = new Set(['duration', 'ease', 'loop', 'alternate', 'delay']);
+    // See needsOwnCanonicalField()'s doc comment — a preset-redeclared canonical
+    // key (e.g. stagger-flash's duration/delay/loop) belongs in the example YAML
+    // and field list same as any other real param, not silently dropped.
+    const paramEntries = Object.entries(presetSchema.properties || {})
+      .filter(([key, fieldSchema]) => !CANONICAL_KEYS.has(key) || needsOwnCanonicalField(preset, key, fieldSchema));
+    const docsUrl = `${ANIMATION_PRESET_DOCS_URL}#${preset}`;
+    const animejsUrl = (preset === 'march' || preset === 'stagger-flash')
+      ? null
+      : (ANIMEJS_REFERENCE_URLS[preset] || ANIMEJS_DEFAULT_REFERENCE_URL);
+    const { yaml: exampleYaml, missingFields } = this._buildExampleYaml(preset, presetSchema, paramEntries);
+
+    return html`
+      <div class="preset-info-guide">
+        <div class="preset-info-guide-header"
+             @click=${() => this._toggleGuideExpanded(index)}>
+          <ha-icon icon="mdi:information-outline"></ha-icon>
+          <span>How ${preset} works</span>
+          <ha-icon
+            icon="mdi:chevron-down"
+            class="guide-chevron ${expanded ? 'expanded' : ''}">
+          </ha-icon>
+        </div>
+        ${expanded ? html`
+          <div class="preset-info-guide-body">
+            ${this._splitIntoSentences(presetSchema.description).map(sentence => html`<p>${sentence}</p>`)}
+            ${paramEntries.length ? html`
+              <strong>Params:</strong>
+              <ul>
+                ${paramEntries.map(([key, fieldSchema]) => html`
+                  <li>
+                    <code>${key}</code>${fieldSchema.default !== undefined ? html` (default: <code>${JSON.stringify(fieldSchema.default)}</code>)` : ''}
+                    ${fieldSchema.description ? ` — ${fieldSchema.description}` : ''}
+                  </li>
+                `)}
+              </ul>
+            ` : ''}
+            <strong>Example:</strong>
+            <pre class="preset-info-guide-example">${exampleYaml}</pre>
+            ${missingFields.length ? html`
+              <p class="preset-info-guide-missing-note">
+                No known default to show for: ${missingFields.map(f => html`<code>${f}</code>`)} — add these yourself before using this example.
+              </p>
+            ` : ''}
+            ${this._renderMapRangeNote()}
+            <div class="preset-info-guide-links">
+              <a href=${docsUrl} target="_blank" rel="noopener noreferrer">View full docs →</a>
+              ${animejsUrl ? html`<a href=${animejsUrl} target="_blank" rel="noopener noreferrer">anime.js reference →</a>` : ''}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Entity-reactive parameters note — map_range lets `duration`, `delay`,
+   * or any preset param (resolveAnimParams.js walks all three) live-track
+   * an entity's value instead of being a static number, e.g. animation
+   * speed scaling with power draw. Not GUI-editable (no form field for it
+   * anywhere in this editor) — this is purely a discoverability note so
+   * users know it exists and where to add it, mirroring
+   * lcards-background-animation-editor.js's _renderEntityBindingNote() for
+   * the same gap in that sibling editor. `entity` is required here (unlike
+   * that editor's own note, which can omit it and default to the card's
+   * bound entity) — resolveAnimParams.js has no such fallback.
+   * @returns {TemplateResult}
+   * @private
+   */
+  _renderMapRangeNote() {
+    return html`
+      <lcards-message type="info">
+        <strong>Entity-reactive parameters:</strong> <code>duration</code>, <code>delay</code>, and any preset param above can live-track an entity's value instead of a fixed number — edit this animation's YAML directly to use it:<br><br>
+        <code>speed: { map_range: { entity: sensor.grid_power, input: [0, 5000], output: [8, 0.5] } }</code><br><br>
+        <code>output</code> can also be a two-color pair (<code>['#00ff88', '#ff4400']</code>) to interpolate color instead of a number.
+      </lcards-message>
+    `;
+  }
+
+  _toggleGuideExpanded(index) {
+    const updated = new Set(this._expandedGuideIndices);
+    if (updated.has(index)) {
+      updated.delete(index);
+    } else {
+      updated.add(index);
+    }
+    this._expandedGuideIndices = updated;
   }
 
   _isPlaceholderPreset(preset) {
@@ -2540,10 +2214,7 @@ export class LCARdSAnimationEditor extends LitElement {
       ease: 'inOutQuad',
       loop: true,
       alternate: true,
-      params: {
-        max_scale: 1.15,
-        max_brightness: 1.4
-      }
+      params: {}
     };
 
     this._workingAnimations = [...this.animations, newAnimation];
@@ -2644,13 +2315,49 @@ export class LCARdSAnimationEditor extends LitElement {
     this._fireChange();
   }
 
+  _updatePreset(index, newPreset) {
+    const updated = [...this.animations];
+    const current = updated[index];
+    if (current.preset === newPreset) return;
+    // Preset-specific fields never carry meaning across a different preset (e.g.
+    // pulse's max_scale/max_brightness are meaningless to sequence or physics-spring)
+    // and left-behind values only cause confusion or, for presets that assume specific
+    // params shapes (e.g. sequence's steps array), runtime failures. Canonical fields
+    // (trigger/duration/loop/alternate/delay/ease/target/targets/id/enabled) all live
+    // at the top level and are untouched by a preset switch — EXCEPT a field the new
+    // preset redeclares with its own semantics (needsOwnCanonicalField, e.g.
+    // stagger-flash's duration/delay/loop): the top-level copy is meaningless for
+    // that preset, and left in place it becomes a stale value that silently shadows
+    // whatever the user later enters into the preset's own (params-backed) field of
+    // the same name — see the matching guard in _renderPresetForm().
+    const next = { ...current, preset: newPreset, params: {} };
+    const newPresetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[newPreset];
+    for (const key of ['loop', 'alternate', 'duration', 'delay', 'ease']) {
+      if (needsOwnCanonicalField(newPreset, key, newPresetSchema?.properties?.[key])) {
+        delete next[key];
+      }
+    }
+    updated[index] = next;
+    this._workingAnimations = updated;
+    this._fireChange();
+  }
+
   _updateParam(index, paramKey, value) {
     // These are canonical top-level animation fields, not preset-specific params.
     // Always write them at the top level so TriggerManager and AnimationManager
-    // both see them consistently.
+    // both see them consistently. EXCEPTION: needsOwnCanonicalField() — a preset
+    // that redeclares this key with its own, different semantics (e.g.
+    // stagger-flash's WAAPI-cycle duration/delay/loop — see its doc comment)
+    // needs the value written into params instead, where its own preset factory
+    // (and the Preset Parameters field that edits it) actually looks; writing it
+    // to the top level would silently move it to a hidden, non-functional field.
     const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
     if (TOP_LEVEL_KEYS.includes(paramKey)) {
-      return this._updateAnimation(index, paramKey, value);
+      const preset = this.animations[index]?.preset;
+      const fieldSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[preset]?.properties?.[paramKey];
+      if (!needsOwnCanonicalField(preset, paramKey, fieldSchema)) {
+        return this._updateAnimation(index, paramKey, value);
+      }
     }
 
     const updated = [...this.animations];
@@ -2687,29 +2394,24 @@ export class LCARdSAnimationEditor extends LitElement {
         preset: 'pulse',
         duration: 1000,
         loop: true,
-        params: {
-          max_scale: 1.1
-        }
+        params: {}
       };
     }
     this._workingAnimations = updated;
     this._fireChange();
   }
 
-  _updateCustomConfig(index, jsonString) {
-    try {
-      const config = JSON.parse(jsonString);
-      const updated = [...this.animations];
-      updated[index] = {
-        ...updated[index],
-        animejs: config
-      };
-      this._workingAnimations = updated;
-      this._fireChange();
-    } catch (error) {
-      lcardsLog.warn('[AnimationEditor] Invalid JSON:', error);
-      // Don't update on invalid JSON
-    }
+  // ha-yaml-editor's value-changed already hands back a parsed value (its
+  // caller only forwards here when e.detail.isValid !== false) — no JSON.parse
+  // needed, unlike the old plain-text-input version of this handler.
+  _updateCustomConfig(index, config) {
+    const updated = [...this.animations];
+    updated[index] = {
+      ...updated[index],
+      animejs: config
+    };
+    this._workingAnimations = updated;
+    this._fireChange();
   }
 
   _fireChange() {
@@ -2733,17 +2435,52 @@ export class LCARdSAnimationEditor extends LitElement {
   _renderTargetSelector(animation, index) {
     const targetMode = animation.targets ? 'multiple' : 'single';
 
+    // Collapsed by default — expanded (Single/Multiple picker) is easy to mistake
+    // for something you need to interact with, and clicking around in it risks
+    // setting an explicit target by accident. Leaving it collapsed with a plain
+    // "Default (this element)" label makes the common case (do nothing) obvious
+    // without inviting a click; it only auto-expands once a real target is set,
+    // same convention as the Stacking Order (z_index) section's secondary label.
+    const hasExplicitTarget = !!(animation.target || (Array.isArray(animation.targets) ? animation.targets.length > 0 : animation.targets));
+    // "Target" is already the section header (lcards-form-section renders header
+    // + secondary side by side) — don't repeat the word here.
+    const secondaryText = !hasExplicitTarget
+      ? 'Default (this element)'
+      : (animation.targets
+          ? Array.isArray(animation.targets) ? animation.targets.join(', ') : animation.targets
+          : animation.target);
+
     return html`
       <lcards-form-section
         header="Target"
         icon="mdi:crosshairs-gps"
         description="Select which element(s) to animate"
-        ?expanded=${true}>
+        secondary=${secondaryText}
+        ?expanded=${hasExplicitTarget}>
+
+        <lcards-message
+            type="info"
+            message="If the element list below looks empty or incomplete, click Refresh — the live preview reloads periodically and this list can go stale.">
+        </lcards-message>
+        <ha-button
+            outlined
+            @click=${() => {
+              // Just re-rendering this component isn't enough — .cardElement is
+              // a reference the PARENT (Studio dialog) passes in, re-fetched via
+              // its own _getLivePreviewCardElement() only when IT re-renders.
+              // The live preview replaces the whole <lcards-msd-card> element on
+              // every reload, so re-rendering here alone would keep re-querying
+              // the same stale/detached reference. Ask the parent to refresh it.
+              this.dispatchEvent(new CustomEvent('refresh-targets', { bubbles: true, composed: true }));
+            }}>
+          <ha-icon icon="mdi:refresh" slot="icon"></ha-icon>
+          Refresh Element List
+        </ha-button>
 
         <div class="mode-selector">
           <ha-radio-group
             .value=${targetMode}
-            @value-changed=${e => this._setTargetMode(index, e.detail.value)}>
+            @change=${e => this._setTargetMode(index, e.target.value)}>
             <ha-radio-option value="single">Single Element</ha-radio-option>
             <ha-radio-option value="multiple">Multiple Elements</ha-radio-option>
           </ha-radio-group>
@@ -2857,15 +2594,34 @@ export class LCARdSAnimationEditor extends LitElement {
       return options;
     }
 
-    const root = this.cardElement.shadowRoot || this.cardElement.renderRoot;
+    const fullRoot = this.cardElement.shadowRoot || this.cardElement.renderRoot;
 
-    if (!root) {
+    if (!fullRoot) {
       lcardsLog.warn('[AnimationEditor] Card element has no shadow/render root:', {
         element: this.cardElement.tagName,
         hasShadowRoot: !!this.cardElement.shadowRoot,
         hasRenderRoot: !!this.cardElement.renderRoot
       });
       return options;
+    }
+
+    // Optionally scope discovery to a sub-element (e.g. MSD's base_svg group)
+    // instead of the whole card, so this only ever offers targets that will
+    // actually resolve for whichever scope this animation gets registered
+    // against — otherwise a target picked from elsewhere on the card would
+    // silently fail to resolve at runtime (no error, just no match).
+    let root = fullRoot;
+    if (this.searchRootSelector) {
+      const scopedRoot = fullRoot.querySelector(this.searchRootSelector);
+      if (scopedRoot) {
+        root = scopedRoot;
+        this._targetRediscoveryAttempts = 0;
+      } else {
+        lcardsLog.warn('[AnimationEditor] searchRootSelector not found, falling back to whole-card discovery:', {
+          searchRootSelector: this.searchRootSelector
+        });
+        this._requestTargetRediscovery();
+      }
     }
 
     try {
@@ -2931,6 +2687,127 @@ export class LCARdSAnimationEditor extends LitElement {
         });
       });
 
+      // Discover generic tag-based selectors (e.g. "path" matches every <path>
+      // element at once) — a bulk-targeting shortcut for animations meant to
+      // apply to many/all elements of a kind (e.g. "draw" across every path in
+      // an SVG), without needing to individually pick each one via id/class.
+      const EXCLUDED_TAGS = new Set(['svg', 'defs', 'style', 'script', 'title', 'desc', 'metadata', 'symbol']);
+      const tagCounts = new Map();
+      root.querySelectorAll('*').forEach(el => {
+        const tag = el.tagName.toLowerCase();
+        if (EXCLUDED_TAGS.has(tag)) return;
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+      });
+      tagCounts.forEach((count, tag) => {
+        options.push({
+          value: tag,
+          label: `All <${tag}> elements (${count} found)`,
+          isTagOption: true
+        });
+      });
+
+      // MSD-specific bulk options: group overlays by their data-overlay-type
+      // (line/shape/control) — set by LineOverlay/ShapeOverlay/OverlayUtils/
+      // MsdControlsRenderer at render time. Lets "all the lines" or "all the
+      // shapes" be targeted directly, instead of via a tag like <path> that
+      // also matches other overlay kinds sharing the same tag. A no-op
+      // outside MSD scopes (e.g. base_svg, or a non-MSD card's own animation
+      // editor) — the attribute simply won't exist there, so no options are
+      // added.
+      //
+      // Line/shape values point past the data-overlay-id <g> wrapper at its
+      // own data-animatable="true" descendant — the exact element
+      // LineOverlay/ShapeOverlay's own getDefaultAnimationTarget() resolves
+      // to (LineOverlay's docblock: "Lines should animate the <path>
+      // element, not the <g> wrapper"). That per-overlay smart-default only
+      // runs when target/targets is left unset; an explicit selector here
+      // (as any bulk option necessarily is) always goes through raw
+      // querySelectorAll with no such redirection, so a selector landing on
+      // the wrapper silently animates the wrong element for properties like
+      // stroke/fill — inherited color is shadowed by the child path's own
+      // explicit stroke/fill attribute, while opacity/transform happen to
+      // still look right since those composite across the whole subtree
+      // regardless of which element they're set on. Controls are left
+      // pointing at the foreignObject itself: it IS the right animation
+      // target (wrapper-level effects only — see the msd.animations docs),
+      // and an embedded card's own shadow DOM can't be reached by
+      // querySelectorAll anyway.
+      const OVERLAY_TYPE_LABELS = { line: 'Lines', shape: 'Shapes', control: 'Controls' };
+      const ANIMATABLE_DESCENDANT_SELECTOR = {
+        line: 'path[data-animatable="true"]',
+        shape: '[data-animatable="true"]'
+      };
+      const overlayTypeIds = new Map(); // type -> Set of distinct overlay ids
+      root.querySelectorAll('[data-overlay-type]').forEach(el => {
+        const type = el.getAttribute('data-overlay-type');
+        if (!type) return;
+        if (!overlayTypeIds.has(type)) overlayTypeIds.set(type, new Set());
+        const overlayId = el.getAttribute('data-overlay-id');
+        if (overlayId) overlayTypeIds.get(type).add(overlayId);
+      });
+      overlayTypeIds.forEach((ids, type) => {
+        if (ids.size === 0) return;
+        const label = OVERLAY_TYPE_LABELS[type] || type;
+        const descendantSelector = ANIMATABLE_DESCENDANT_SELECTOR[type];
+        const value = descendantSelector
+          ? `[data-overlay-type="${type}"] ${descendantSelector}`
+          : `[data-overlay-type="${type}"]`;
+        options.push({
+          value,
+          label: `All ${label} overlays (${ids.size} found)`,
+          bulkRank: 0
+        });
+      });
+
+      // MSD-specific bulk options: group overlays sharing a common id prefix
+      // (the text before the first underscore) — e.g. Shield Bubble's
+      // shield_fore/shield_starboard/shield_aft/shield_port (or
+      // shield_section_N) convention. Deliberately generic rather than
+      // hardcoded to "shield_" — any 2+ overlays sharing a "<prefix>_..." id
+      // get a bulk option for free, for whatever naming convention a card
+      // author adopts. Same data-animatable redirection as the type-group
+      // options above, but only when every overlay sharing the prefix is the
+      // SAME type (a mixed-type or control-only group falls back to the bare
+      // wrapper selector — there's no single correct descendant pattern to
+      // guess in that case).
+      const prefixGroups = new Map(); // prefix -> { ids: Set, types: Set }
+      root.querySelectorAll('[data-overlay-id]').forEach(el => {
+        const overlayId = el.getAttribute('data-overlay-id');
+        if (!overlayId) return;
+        const underscoreIndex = overlayId.indexOf('_');
+        if (underscoreIndex <= 0) return; // no "prefix_" shape to group by
+        const prefix = overlayId.slice(0, underscoreIndex);
+        if (!prefixGroups.has(prefix)) prefixGroups.set(prefix, { ids: new Set(), types: new Set() });
+        const group = prefixGroups.get(prefix);
+        group.ids.add(overlayId);
+        const type = el.getAttribute('data-overlay-type');
+        if (type) group.types.add(type);
+      });
+      prefixGroups.forEach(({ ids, types }, prefix) => {
+        if (ids.size < 2) return; // not actually a shared-prefix group
+        const singleType = types.size === 1 ? [...types][0] : null;
+        const descendantSelector = singleType ? ANIMATABLE_DESCENDANT_SELECTOR[singleType] : null;
+        const value = descendantSelector
+          ? `[data-overlay-id^="${prefix}_"] ${descendantSelector}`
+          : `[data-overlay-id^="${prefix}_"]`;
+        options.push({
+          value,
+          label: `All "${prefix}_*" overlays (${ids.size} found)`,
+          bulkRank: 1
+        });
+      });
+
+      // NOTE: a "Top-level <tag> only, excluding nested" bulk option (via a
+      // :scope-based CSS trick) was tried here and removed — it still produced
+      // incorrect scaling/positioning even after fixing an initial scoping bug,
+      // and wasn't worth further speculative CSS-selector debugging without a
+      // way to test live in a browser. For animations that need to target a
+      // specific element within a nested group structure (e.g. a whole SVG's
+      // outermost group, to avoid compounding transforms on its own nested
+      // children), pick that element's specific #id from the list instead —
+      // already confirmed reliable, and it's how targeting works everywhere
+      // else in the app.
+
       lcardsLog.debug('[AnimationEditor] Discovered targets:', {
         count: options.length
       });
@@ -2939,10 +2816,56 @@ export class LCARdSAnimationEditor extends LitElement {
       lcardsLog.error('[AnimationEditor] Error discovering targets:', error);
     }
 
-    // Sort alphabetically
-    options.sort((a, b) => a.label.localeCompare(b.label));
+    // Sort bulk-targeting options to the top, grouped by kind — overlay-type
+    // groups (All Lines/Shapes/Controls) first, then id-prefix groups (All
+    // "shield_*"), then generic "All <tag> elements" options — then
+    // everything else (individual #id/.class targets) alphabetically after.
+    const bulkRankOf = (option) => option.bulkRank ?? (option.isTagOption ? 2 : 3);
+    options.sort((a, b) => {
+      const rankDiff = bulkRankOf(a) - bulkRankOf(b);
+      if (rankDiff !== 0) return rankDiff;
+      return a.label.localeCompare(b.label);
+    });
 
     return options;
+  }
+
+  /**
+   * Self-heal a failed scoped target lookup by asking the parent to refresh
+   * .cardElement — exactly what the manual "Refresh Element List" button
+   * does (see its click handler for why re-rendering this component alone
+   * can't fix it: .cardElement is a reference the parent owns, and the live
+   * preview replaces the whole <lcards-msd-card> element on every reload).
+   *
+   * This runs from within _getTargetOptions() itself rather than being
+   * triggered by a guessed proxy event (e.g. "tab just switched to
+   * Animation") — a target section only actually queries the DOM once its
+   * "Target" sub-section is expanded (it's collapsed by default until a
+   * target is set), which can happen well after the tab switch and after
+   * .cardElement has already gone stale again. Reacting to the real failure
+   * itself, whenever it happens, covers every trigger path uniformly.
+   *
+   * Also force our own re-render unconditionally, not just the parent's —
+   * if the parent recomputes the exact same .cardElement reference (element
+   * wasn't swapped, its internal content just wasn't finished rendering yet
+   * at the last query), Lit's property diffing sees no change and would
+   * never re-invoke our render()/_getTargetOptions() again on its own.
+   *
+   * Bounded (10 attempts, 250ms apart — reset to 0 on the next successful
+   * lookup) so a selector that never resolves (e.g. the overlay was deleted
+   * mid-edit) doesn't retry forever.
+   * @private
+   */
+  _requestTargetRediscovery() {
+    if (this._targetRediscoveryTimer || this._targetRediscoveryAttempts >= 10) {
+      return;
+    }
+    this._targetRediscoveryAttempts++;
+    this._targetRediscoveryTimer = setTimeout(() => {
+      this._targetRediscoveryTimer = null;
+      this.dispatchEvent(new CustomEvent('refresh-targets', { bubbles: true, composed: true }));
+      this.requestUpdate();
+    }, 250);
   }
 
   /**
@@ -3061,14 +2984,15 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _validateSelector(selector) {
     if (!selector) {
-      return { valid: true, count: 0, message: '' };
+      return { valid: true, count: 0, message: '', type: null };
     }
 
     if (!this.cardElement?.shadowRoot && !this.cardElement?.renderRoot) {
       return {
         valid: false,
         count: 0,
-        message: '⚠️ Cannot validate - card preview not available'
+        message: 'Cannot validate — card preview not available',
+        type: 'warning'
       };
     }
 
@@ -3082,21 +3006,24 @@ export class LCARdSAnimationEditor extends LitElement {
         return {
           valid: true,  // Valid syntax, just no matches
           count: 0,
-          message: '⚠️ No elements match this selector'
+          message: 'No elements match this selector',
+          type: 'warning'
         };
       }
 
       return {
         valid: true,
         count: count,
-        message: `✅ ${count} element${count === 1 ? '' : 's'} matched`
+        message: `${count} element${count === 1 ? '' : 's'} matched`,
+        type: 'success'
       };
 
     } catch (error) {
       return {
         valid: false,
         count: 0,
-        message: `❌ Invalid selector: ${error.message}`
+        message: `Invalid selector: ${error.message}`,
+        type: 'error'
       };
     }
   }
@@ -3106,11 +3033,10 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _renderValidation(selector) {
     const validation = this._validateSelector(selector);
+    if (!validation.type) return html``;
 
     return html`
-      <div class="validation-message ${validation.valid ? 'valid' : 'error'}">
-        ${validation.message}
-      </div>
+      <lcards-message type=${validation.type} .message=${validation.message}></lcards-message>
     `;
   }
 
@@ -3129,14 +3055,13 @@ export class LCARdSAnimationEditor extends LitElement {
       totalCount += result.count;
     });
 
-    return html`
-      <div class="validation-summary ${hasErrors ? 'error' : 'valid'}">
-        ${hasErrors
-          ? html`⚠️ Some selectors are invalid`
-          : html`✅ ${totalCount} total element${totalCount === 1 ? '' : 's'} matched`
-        }
-      </div>
-    `;
+    if (hasErrors) {
+      return html`<lcards-message type="error" message="Some selectors are invalid"></lcards-message>`;
+    }
+    if (totalCount === 0) {
+      return html`<lcards-message type="warning" message="No elements match any selector"></lcards-message>`;
+    }
+    return html`<lcards-message type="success" message="${totalCount} total element${totalCount === 1 ? '' : 's'} matched"></lcards-message>`;
   }
 }
 

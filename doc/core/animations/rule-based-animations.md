@@ -70,14 +70,14 @@ All the same options available in per-card animations work in `apply.animations`
 apply:
   animations:
     - tag: alert-buttons
-      preset: pulse
+      preset: glow
       loop: true
       duration: 800
       delay: 0
       ease: inOutQuad
       params:
-        max_scale: 1.1
         color: "#ff4400"
+        blur_max: 12
 ```
 
 `map_range` descriptors work here too — map a live sensor value to an animation parameter:
@@ -141,7 +141,6 @@ rules:
           loop: true
           params:
             max_scale: 1.08
-            color: "var(--lcars-alert-red)"
         - overlay: main-alert-overlay
           preset: strobe
           loop: true

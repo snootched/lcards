@@ -2,6 +2,7 @@ import { linearMap } from '../../utils/linearMap.js';
 import { TemplateDetector } from '../templates/TemplateDetector.js';
 import { TemplateParser } from '../templates/TemplateParser.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { compareNumericBounds } from '../../utils/comparison-utils.js';
 
 export function compileRule(rule, issues) {
   const raw = rule.when;
@@ -530,9 +531,8 @@ function compareValue(valRaw, c) {
       return false;
     }
   }
-  if (c.above != null && isNum && !(num > c.above)) return false;
-  if (c.below != null && isNum && !(num < c.below)) return false;
-  if (c.above != null || c.below != null) return true;
+  const hasBound = c.above != null || c.at_least != null || c.below != null || c.at_most != null;
+  if (hasBound) return isNum && compareNumericBounds(num, c);
   // If only equals-like handled earlier; default false unless no operator (treated as truthy existence)
   return c.equals == null && c.not_equals == null && c.in == null && c.not_in == null && c.regex == null ? !!valRaw : false;
 }
@@ -560,17 +560,14 @@ function evalWeekdayIn(list, ctx) {
 function evalSunElevation(cmp, ctx) {
   const elev = ctx.sun?.elevation;
   if (!Number.isFinite(elev)) return false;
-  if (cmp.above != null && !(elev > cmp.above)) return false;
-  if (cmp.below != null && !(elev < cmp.below)) return false;
-  return true;
+  return compareNumericBounds(elev, cmp);
 }
 
 function evalPerfMetric(c, ctx) {
   const val = ctx.getPerf?.(c.key);
   const num = Number(val);
   if (!Number.isFinite(num)) return false;
-  if (c.above != null && !(num > c.above)) return false;
-  if (c.below != null && !(num < c.below)) return false;
+  if (!compareNumericBounds(num, c)) return false;
   if (c.equals != null) return num == c.equals;
   return true;
 }

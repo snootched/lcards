@@ -18,6 +18,10 @@ import { ColorUtils } from '../core/themes/ColorUtils.js';
  * Passing them to anime.js causes it to attempt to tween non-existent element properties.
  */
 const _LCARDS_META_PARAMS = new Set([
+  'params',       // Preset-config wrapper (e.g. { max_scale, max_brightness }) — fully
+                  // consumed by the preset factory (`def.params || def`) before this
+                  // point; the raw object must never reach anime.js itself, which
+                  // would otherwise tween its sub-keys as bogus element attributes.
   'from_value',   // Preset: start color/value used to build the tween property array
   'to_value',     // Preset: end color/value used to build the tween property array
   'property',     // Preset: which SVG/CSS property to animate (used to build [property]:[] entry)
@@ -294,6 +298,50 @@ export function resolveEasing(easingConfig) {
 }
 
 /**
+ * Resolves a preset factory's param object, replacing the unsafe
+ * `const p = def.params || def;` idiom every preset factory used to read its
+ * fields with (still present pre-migration in some preset files).
+ *
+ * That idiom assumed `def.params`, whenever non-empty (including `{}` — which
+ * is truthy!), was a COMPLETE substitute for `def` — but per the animation
+ * schema, canonical fields (duration/loop/alternate/ease/delay) always live
+ * at the top level of `def`, and `params:` is reserved for preset-specific
+ * extras only (e.g. pulse's max_scale/max_brightness). Nothing enforced that
+ * boundary, so a stale/leftover non-empty `params:` block (e.g. from
+ * switching presets without cleaning up config) silently dropped the user's
+ * top-level fields in favor of the preset's own hardcoded defaults.
+ *
+ * Precedence here is structural, not spread-order-dependent: `def`'s own
+ * top-level fields always win over same-named `def.params` fields, because
+ * `def` is what the call site already resolved (defaults, resolveEasing(),
+ * map_range) and `def.params` is the raw, potentially-stale, user-authored
+ * extras blob.
+ *
+ * @param {Object} def - The object a preset factory receives
+ * @returns {Object} Merged params object, safe for a preset to read fields from
+ */
+export function resolvePresetParams(def) {
+  if (!def || typeof def !== 'object') return {};
+  const extras = (def.params && typeof def.params === 'object') ? def.params : {};
+  return { ...extras, ...def };
+}
+
+/**
+ * Resolves easing configuration for a preset factory's params object.
+ * Handles both string easings and object-based parametric easings
+ * (ease + ease_params from the params object).
+ *
+ * @param {Object} params - Params object (from resolvePresetParams()) or ease string/config with {ease, ease_params}
+ * @returns {string|Function} Resolved easing value for anime.js
+ */
+export function getResolvedEasing(params) {
+  if (params.ease_params) {
+    return resolveEasing({ type: params.ease, params: params.ease_params });
+  }
+  return params.ease;
+}
+
+/**
  * Waits for an element to be present in the DOM.
  * @param {string} selector - The CSS selector for the element.
  * @param {Element|Document} root - The root element to search within.
@@ -561,6 +609,115 @@ function _processAnimationMarkers(params, element, scope) {
 }
 
 /**
+ * Lightweight handle for a CSS-driven preset (e.g. `march`, which sets a plain
+ * `element.style.animation` shorthand instead of creating an anime.js instance,
+ * for performance on continuous animations — see presets/index.js). Duck-types
+ * the same `.speed`/`.completed`/`.revert()` surface AnimationManager already
+ * expects from a real anime.js `JSAnimation`/`Timer` instance (Phase 10's live
+ * map_range speed-adjust, and the existing stopAnimations() cleanup path), so
+ * neither of those need to know or care whether a given animation is CSS- or
+ * anime.js-backed.
+ * @param {HTMLElement|SVGElement} element - Element the CSS animation runs on
+ * @param {number} baseDurationMs - The duration (ms) baked into element.style.animation at setup time
+ * @returns {{completed: boolean, speed: number, revert: function, pause: function}}
+ */
+function createCssAnimationHandle(element, baseDurationMs) {
+  return {
+    completed: false,
+    _speed: 1,
+    get speed() { return this._speed; },
+    set speed(ratio) {
+      this._speed = ratio;
+      // CSS's animation-duration is an absolute duration, not a rate multiplier
+      // like anime.js's .speed — dividing baseDurationMs by ratio converts the
+      // multiplier back into the equivalent absolute duration. Setting this
+      // longhand property directly updates just the duration, leaving the
+      // animation-name/timing-function/iteration-count set by the `animation`
+      // shorthand at setup time intact, and applies live without restarting.
+      if (element && ratio > 0) {
+        element.style.animationDuration = `${baseDurationMs / ratio}ms`;
+      }
+    },
+    revert() {
+      this.completed = true;
+      if (element) element.style.animation = '';
+    },
+    pause() {
+      if (element) element.style.animationPlayState = 'paused';
+    }
+  };
+}
+
+/**
+ * Migrate an element's SVG `transform` XML attribute into an inline CSS
+ * `transform` style, if present and no inline style already exists.
+ *
+ * anime.js only ever reads/writes the CSS `transform` property (see
+ * parseInlineTransforms() in node_modules/animejs/dist/modules/core/transforms.js,
+ * which parses target.style.transform and has no knowledge of the SVG
+ * `transform` XML attribute at all). Animating an element that carries an
+ * authoring-tool `transform="translate(...)"` attribute (extremely common —
+ * Inkscape/Illustrator position nearly every layer group this way) causes
+ * anime.js's CSS transform to fully override the attribute per SVG2/CSS
+ * Transforms precedence rules, silently discarding the original position —
+ * even at a loop's rest point (e.g. scale(1) is still a CSS transform
+ * declaration that replaces the attribute-based translate entirely).
+ *
+ * Deliberately scoped to only the element(s) actually being animated, applied
+ * just-in-time right before anime.js touches them — NOT proactively across an
+ * entire SVG at load time. An earlier attempt at the latter (in
+ * LCARdSMSDCard._wrapSvgContentForRender()) caused an unrelated static-rendering
+ * regression (the base SVG losing its overall centering with zero animations
+ * active) that wasn't tracked down; limiting the blast radius to only the
+ * handful of elements an animation targets avoids whatever that interaction
+ * was, while still fixing the original problem for the elements that need it.
+ *
+ * SVG's legacy transform-list syntax (translate/scale/rotate/skewX/skewY/
+ * matrix) is valid CSS transform-function syntax, and browsers already treat
+ * unitless translate() values on SVG content as user-space units — but anime.js
+ * decomposes/recomposes `style.transform` through its own internal property
+ * list (`validTransforms` in animejs/core/consts.js), which recognizes
+ * `translateX`/`translateY`/`translateZ` but NOT the bare two-argument
+ * `translate(x, y)` form SVG authoring tools (Inkscape/Illustrator) actually
+ * emit. When anime.js re-serializes the transform string it looks up each
+ * cached function name in a fixed fragment-string map; an unrecognized key
+ * (`translate`) resolves to `undefined`, producing an invalid transform
+ * function that the browser silently drops — wiping out the original
+ * position the instant any animation touches the element (confirmed via
+ * `g1`'s real attribute, `translate(-180.26109,-261.5)`). Normalize the bare
+ * form to `translateX()/translateY()` before handing it to `style.transform`
+ * so anime.js's own decomposition keeps it.
+ * @param {Element} element
+ */
+function _migrateTransformAttrToStyle(element) {
+  if (!element || element.style.transform) return; // no element, or inline style already present (attribute already inert)
+  const transformValue = element.getAttribute && element.getAttribute('transform');
+  if (transformValue) {
+    // CSS's <length> grammar requires a unit on any non-zero value — a bare
+    // "translateX(-180.26109)" (no unit) is syntactically INVALID as a CSS
+    // property value, even though the same unitless number is valid inside
+    // SVG's own `transform` XML-attribute grammar. Assigning an invalid value
+    // to element.style.transform silently no-ops (CSSOM setters don't throw
+    // on unparseable values) — confirmed live: the migrated string appeared
+    // to assign successfully but a readback of element.style.transform right
+    // before the anime.animate() call showed it was still empty. Appending
+    // "px" satisfies CSS's parser; per the CSS Transforms/SVG compatibility
+    // rules, px lengths on SVG content without an associated CSS box are
+    // still resolved as user-space units, so the original meaning survives.
+    const normalized = transformValue.replace(/\btranslate\(([^)]+)\)/g, (_match, args) => {
+      const [x, y] = args.split(',').map(part => part.trim());
+      const px = (v) => (v === undefined ? '0px' : /[a-z%]/i.test(v) ? v : `${v}px`);
+      return `translateX(${px(x)}) translateY(${px(y)})`;
+    });
+    element.style.transform = normalized;
+    element.removeAttribute('transform');
+    lcardsLog.debug('[_migrateTransformAttrToStyle] Migrated attribute to style', {
+      id: element.id, from: transformValue, attempted: normalized, readBack: element.style.transform
+    });
+  }
+}
+
+/**
  * Animates element(s) using anime.js with special handling for SVG animations.
  * Unchanged behavior, v4-native through window.lcards.anim.anime
  */
@@ -611,7 +768,23 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           try {
             const _batchProbeParams = { duration: 1000, ease: 'inOutQuad', ...animOptions };
             if (_batchProbeParams.ease) _batchProbeParams.ease = resolveEasing(_batchProbeParams.ease);
-            const _batchProbeResult = _batchPresetFn({ params: { ..._batchProbeParams }, ...options });
+            // _batchProbeParams already IS a valid def for the preset factory (see
+            // the per-element call site above for why) — passing it directly avoids
+            // reproducing the same def-vs-def.params precedence bug this file's
+            // other call site already had fixed (this one previously had the
+            // spread order reversed, so a non-empty options.params — which
+            // stagger-grid/wave/radial ALWAYS have, since grid/delay are their
+            // entire reason to exist — would silently win over the correctly
+            // resolved duration/ease/loop/alternate here, every time).
+            const _batchProbeResult = _batchPresetFn(_batchProbeParams);
+
+            lcardsLog.debug('[animateElement] Stagger-batch probe result:', {
+              type,
+              elementsFound: elements.length,
+              hasStaggerMarker: _batchProbeResult?.anime?.delay?._stagger === true,
+              probeAnimeKeys: _batchProbeResult?.anime ? Object.keys(_batchProbeResult.anime) : null,
+              probeDelay: _batchProbeResult?.anime?.delay
+            });
 
             if (_batchProbeResult?.anime?.delay?._stagger === true) {
               // Build final batch params by merging preset anime output.
@@ -620,6 +793,10 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
               // the probe params might have for the same key.
               const _batchParams = { ..._batchProbeParams };
               Object.assign(_batchParams, _batchProbeResult.anime);
+
+              // Migrate any SVG transform attributes before anime.js touches these
+              // elements — see _migrateTransformAttrToStyle() for why.
+              elements.forEach(el => _migrateTransformAttrToStyle(el));
 
               // Apply per-element CSS styles from preset
               if (_batchProbeResult.styles) {
@@ -641,6 +818,11 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
                 // e.g. 'from', 'grid', 'property', 'from_value', 'to_value', 'trigger'
                 // are consumed by the preset/AnimationManager and are not valid anime.js params.
                 const _batchFinalParams = _cleanAnimeParams(_batchResolvedParams);
+                lcardsLog.debug('[animateElement] Calling batch anime() with:', {
+                  elementCount: elements.length,
+                  finalParamKeys: Object.keys(_batchFinalParams),
+                  delayIsFunction: typeof _batchFinalParams.delay === 'function'
+                });
                 const _batchInstance = window.lcards.anim.anime(elements, _batchFinalParams);
                 if (onInstanceCreated) onInstanceCreated(_batchInstance);
               }
@@ -657,6 +839,8 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
       }
 
       for (const element of elements) {
+        _migrateTransformAttrToStyle(element);
+
         const params = {
           duration: 1000,
           ease: 'inOutQuad',  // Default to v4 naming
@@ -690,11 +874,31 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             lcardsLog.debug(`[animateElement] Using MSD preset: ${type}`);
 
             try {
-              const presetResult = msdPresetFn({ params: params, ...options });
+              // `params` already has every field a preset could need — defaults,
+              // resolved ease, and everything from animOptions (including its own
+              // `params:` extras, nested at `params.params`) — so it IS a valid
+              // `def` for the preset factory as-is. No merge needed here; presets
+              // read their fields via resolvePresetParams(def), which handles the
+              // def-vs-def.params precedence correctly and consistently for both
+              // call sites (see resolvePresetParams() in this file for why the
+              // old `def.params || def` idiom was unsafe).
+              const presetResult = msdPresetFn(params);
 
               // Apply anime.js parameters
               if (presetResult.anime) {
                 Object.assign(params, presetResult.anime);
+              }
+
+              // `_timeline` is a top-level sibling of `.anime` on presetResult (see
+              // sequence/timeline-cascade/timeline-attention), not nested inside it —
+              // the Object.assign above only ever copies `.anime`'s own keys, so this
+              // marker needs its own explicit copy. Without it, _processAnimationMarkers()
+              // never sees params._timeline === true and every timeline-based preset
+              // silently falls through to a plain anime.animate() call instead, with a
+              // raw `steps` array passed through as a bogus, non-animatable property —
+              // an instance gets created but nothing visible ever happens.
+              if (presetResult._timeline) {
+                params._timeline = true;
               }
 
               // Resolve CSS variables in animation params (for theme reactivity)
@@ -731,8 +935,19 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           }
         }
 
-        // Skip if preset handled via CSS or nulled targets
-        if (params._cssAnimation || params.targets === null) {
+        // CSS-driven preset (e.g. march): no anime.js instance exists, but still
+        // report a lightweight handle so AnimationManager can track/live-adjust
+        // it (Phase 10) and stopAnimations() can revert it, the same as it would
+        // for a real anime.js instance.
+        if (params._cssAnimation) {
+          if (onInstanceCreated && typeof onInstanceCreated === 'function' && typeof params.duration === 'number') {
+            onInstanceCreated(createCssAnimationHandle(element, params.duration));
+          }
+          continue;
+        }
+
+        // Skip if targets were explicitly nulled (preset self-manages, e.g. scramble)
+        if (params.targets === null) {
           continue;
         }
 
@@ -787,8 +1002,23 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           animeParams = rest;
         }
 
+        if (/** @type {any} */ (element)._motionPath) {
+          // motionpath preset: merge in the real translateX/translateY/(rotate)
+          // anime.js v4 tween properties computed by setup() from the resolved
+          // path element (see presets/index.js's `motionpath` factory) — these
+          // aren't known until the actual DOM element/path exist, so they can't
+          // be part of the preset factory's own returned `anime` object.
+          animeParams = { ...animeParams, ...(/** @type {any} */ (element)._motionPath) };
+        }
+
         // Strip LCARdS-internal meta-params before calling anime.animate()
         const cleanedAnimeParams = _cleanAnimeParams(animeParams);
+
+        lcardsLog.debug('[animateElement] Calling anime() with:', {
+          id: /** @type {any} */ (targetElement)?.id,
+          styleTransformBeforeCall: /** @type {any} */ (targetElement)?.style?.transform,
+          cleanedAnimeParamKeys: Object.keys(cleanedAnimeParams)
+        });
 
         const animeInstance = window.lcards.anim.anime(targetElement, cleanedAnimeParams);
         lcardsLog.debug(`[animateElement] Animation instance created:`, {
@@ -798,6 +1028,21 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           animeInstance: !!animeInstance,
           params: cleanedAnimeParams
         });
+
+        // Some presets (e.g. cascade-color's interactive mode) need the real
+        // anime.js instance to wire up behavior — setup() runs before the
+        // instance exists, so it can't do this itself. It stashes a callback
+        // on the element for us to invoke now that the instance is real (see
+        // the _drawable/_animTargets/_motionPath convention above).
+        if (typeof (/** @type {any} */ (element)._pendingInstanceSetup) === 'function') {
+          const pendingInstanceSetup = /** @type {any} */ (element)._pendingInstanceSetup;
+          delete /** @type {any} */ (element)._pendingInstanceSetup;
+          try {
+            pendingInstanceSetup(animeInstance);
+          } catch (setupError) {
+            lcardsLog.error('[animateElement] Error in pending instance setup:', setupError);
+          }
+        }
 
         // Call callback with the created instance (for tracking)
         if (onInstanceCreated && typeof onInstanceCreated === 'function') {

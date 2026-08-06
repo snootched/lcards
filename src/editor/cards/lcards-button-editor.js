@@ -1241,7 +1241,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
     /**
      * Render a single range row (inline grid layout).
-     * @param {Object} range - Range entry { preset, above?, below?, equals? }
+     * @param {Object} range - Range entry { preset, above?, at_least?, below?, at_most?, equals? }
      * @param {number} idx   - Array index
      * @param {Array}  presetOptions - [{value, label}] for the preset dropdown
      * @returns {TemplateResult}
@@ -1249,18 +1249,22 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      */
     _renderRangeRow(range, idx, presetOptions) {
         // Determine current condition type
-        const condType = range.equals !== undefined      ? 'equals'
+        const condType = range.equals   !== undefined    ? 'equals'
                        : (range.above !== undefined &&
                           range.below !== undefined)     ? 'between'
-                       : range.above !== undefined       ? 'above'
-                       : range.below !== undefined       ? 'below'
+                       : range.above    !== undefined    ? 'above'
+                       : range.at_least !== undefined    ? 'at_least'
+                       : range.below    !== undefined    ? 'below'
+                       : range.at_most  !== undefined    ? 'at_most'
                        : 'above';
 
         const condOptions = [
-            { value: 'above',   label: '≥ Above (or equal)' },
-            { value: 'below',   label: '< Below' },
-            { value: 'between', label: '↔ Between' },
-            { value: 'equals',  label: '= Equals (string)' }
+            { value: 'above',    label: '> Above' },
+            { value: 'at_least', label: '≥ At Least' },
+            { value: 'below',    label: '< Below' },
+            { value: 'at_most',  label: '≤ At Most' },
+            { value: 'between',  label: '↔ Between' },
+            { value: 'equals',   label: '= Equals (string)' }
         ];
 
         const cardStyle = [
@@ -1321,7 +1325,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
                     ${condType === 'between' ? html`
                         <ha-input
-                            .label=${'From (≥)'}
+                            .label=${'From (>)'}
                             type="number"
                             .value=${String(range.above ?? '')}
                             @change=${(e) => this._updateRangeField(idx, 'above', parseFloat(e.target.value))}>
@@ -1340,14 +1344,13 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         </ha-input>
                     ` : html`
                         <ha-input
-                            .label=${condType === 'above' ? 'Min (≥)' : 'Max (<)'}
+                            .label=${condType === 'above'    ? 'Min (>)'
+                                   : condType === 'at_least' ? 'Min (≥)'
+                                   : condType === 'at_most'  ? 'Max (≤)'
+                                   : 'Max (<)'}
                             type="number"
-                            .value=${String(condType === 'above' ? (range.above ?? '') : (range.below ?? ''))}
-                            @change=${(e) => this._updateRangeField(
-                                idx,
-                                condType === 'above' ? 'above' : 'below',
-                                parseFloat(e.target.value)
-                            )}>
+                            .value=${String(range[condType] ?? '')}
+                            @change=${(e) => this._updateRangeField(idx, condType, parseFloat(e.target.value))}>
                         </ha-input>
                     `}
                 </div>
@@ -1782,8 +1785,10 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         const { preset } = existingRange;
         let newRange = { preset };
 
-        if (newCondType === 'above')   newRange.above = existingRange.above ?? 0;
-        if (newCondType === 'below')   newRange.below = existingRange.below ?? 100;
+        if (newCondType === 'above')    newRange.above = existingRange.above ?? 0;
+        if (newCondType === 'at_least') newRange.at_least = existingRange.at_least ?? 0;
+        if (newCondType === 'below')    newRange.below = existingRange.below ?? 100;
+        if (newCondType === 'at_most')  newRange.at_most = existingRange.at_most ?? 100;
         if (newCondType === 'between') {
             newRange.above = existingRange.above ?? 0;
             newRange.below = existingRange.below ?? 100;

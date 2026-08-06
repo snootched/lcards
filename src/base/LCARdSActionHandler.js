@@ -175,6 +175,10 @@ export class LCARdSActionHandler {
                 await currentAnimationManager.registerAnimation(overlayId, animConfig);
             }
 
+            // Set up trigger listeners only after the full batch is registered — see
+            // TriggerManager.finalizeRegistrations() docblock (#386).
+            triggerManager.finalizeRegistrations();
+
             lcardsLog.debug(`[LCARdSActionHandler] ✅ TriggerManager created (late-binding) with ${animations.length} animations`);
 
             // Clear pending setup

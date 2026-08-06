@@ -121,9 +121,16 @@ export function sanitizeSvg(svgContent, stripScripts = true) {
   // Matches: <?xml version="1.0" encoding="UTF-8" standalone="no"?>
   let cleanedContent = svgContent.trim().replace(/^<\?xml[^?]*\?>\s*/i, '');
 
-  // Wrap content in <svg> if not already wrapped (allows fragments like <rect/><defs/>)
+  // Wrap content in <svg> if not already wrapped (allows fragments like <rect/><defs/>).
+  // Leading comments (e.g. Inkscape's "<!-- Created with Inkscape -->", present on
+  // nearly every design-tool export) must be looked past when checking for an
+  // existing root <svg> — otherwise an already-complete SVG document gets
+  // needlessly double-wrapped in an extra outer <svg>, creating a genuinely
+  // nested SVG viewport whose content silently diverges from the outer one
+  // (default 100%/100% sizing) the moment a viewBox override is applied.
+  const withoutLeadingComments = cleanedContent.replace(/^(\s*<!--[\s\S]*?-->\s*)+/, '');
   let wrappedContent = cleanedContent;
-  if (!wrappedContent.startsWith('<svg')) {
+  if (!withoutLeadingComments.startsWith('<svg')) {
     wrappedContent = `<svg xmlns="http://www.w3.org/2000/svg">${cleanedContent}</svg>`;
   }
 

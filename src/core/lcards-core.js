@@ -526,7 +526,9 @@ class LCARdSCore {
             hasRulesManager: !!this.rulesManager,
             hasThemeManager: !!this.themeManager,
             hasAnimationManager: !!this.animationManager,
-            hasSoundManager: !!this.soundManager
+            hasSoundManager: !!this.soundManager,
+            hasAssetManager: !!this.assetManager,
+            hasHelperManager: !!this.helperManager
         });
 
         // Forward to all systems
@@ -576,6 +578,14 @@ class LCARdSCore {
 
         if (this.connectionOverlayService) {
             this.connectionOverlayService.updateHass(hass);
+        }
+
+        if (this.assetManager) {
+            this.assetManager.updateHass(hass);
+        }
+
+        if (this.helperManager) {
+            this.helperManager.updateHass(hass);
         }
     }
 

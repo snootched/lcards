@@ -36,15 +36,49 @@ function _resolveBuiltin(key) {
 }
 
 /**
+ * Resolve a `media-source://…` content ID to a real URL via AssetManager
+ * (which calls the HA `media_source/resolve_media` websocket command).
+ * Returns null if unresolvable (no HASS connection, invalid ID, etc.).
+ *
+ * @param {string} mediaContentId - A `media-source://…` content ID.
+ * @returns {Promise<string|null>}
+ */
+async function _resolveMediaSource(mediaContentId) {
+    try {
+        return await (window?.lcards?.core?.assetManager?.resolveMediaSourceUrl?.(mediaContentId) ?? null);
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
+ * Load an `<img>` element from an already-resolved, browser-loadable URL.
+ * Shared by the direct-URL path and the media-source resolution path.
+ *
+ * @param {string} url - A concrete, loadable image URL.
+ * @returns {Promise<HTMLImageElement>}
+ */
+function _loadImageElement(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; // required for canvas drawImage — avoids tainted-canvas errors
+        img.onload  = () => resolve(img);
+        img.onerror = () => reject(new Error(`[ImageLoader] Failed to load: "${url}"`));
+        img.src = url;
+    });
+}
+
+/**
  * Load (or retrieve from cache) an image by URL.
  *
  * Accepts:
- * - `/local/` paths  — HA static file server
- * - `https://` URLs  — external CORS-enabled sources
- * - `builtin:<key>`  — named entries from the AssetManager image registry
+ * - `/local/` paths       — HA static file server
+ * - `https://` URLs       — external CORS-enabled sources
+ * - `builtin:<key>`       — named entries from the AssetManager image registry
+ * - `media-source://…`    — HA media library items, resolved via AssetManager
  * - Any other browser-loadable URL
  *
- * @param {string} url - Image source: URL, /local/ path, or builtin:key reference.
+ * @param {string} url - Image source: URL, /local/ path, builtin:key, or media-source:// id.
  * @returns {Promise<HTMLImageElement>} Resolves with the loaded image element.
  *   Rejects on network or CORS error — callers should handle gracefully.
  */
@@ -64,6 +98,25 @@ export function loadImage(url) {
         url = resolved; // fall through to normal load with resolved URL
     }
 
+    // Resolve media-source://… references (HA media library items) via AssetManager.
+    // Cached here under the *original* media-source id, not the resolved URL — resolved
+    // URLs may carry an expiring signed token, so AssetManager owns its own short-lived
+    // cache for those and re-resolves on expiry; this cache just dedupes concurrent loads.
+    if (url.startsWith('media-source://')) {
+        if (_cache.has(url)) return _cache.get(url);
+
+        const mediaSourceId = url;
+        const p = _resolveMediaSource(mediaSourceId).then((resolvedUrl) => {
+            if (!resolvedUrl) {
+                throw new Error(`[ImageLoader] Failed to resolve media source: "${mediaSourceId}"`);
+            }
+            return _loadImageElement(resolvedUrl);
+        });
+
+        _cache.set(mediaSourceId, p);
+        return p;
+    }
+
     // Warn about mixed-content risk early (before the browser silently blocks it)
     if (url.startsWith('http:') && typeof location !== 'undefined' && location.protocol === 'https:') {
         lcardsLog.warn(
@@ -74,14 +127,7 @@ export function loadImage(url) {
 
     if (_cache.has(url)) return _cache.get(url);
 
-    const p = new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous'; // required for canvas drawImage — avoids tainted-canvas errors
-        img.onload  = () => resolve(img);
-        img.onerror = () => reject(new Error(`[ImageLoader] Failed to load: "${url}"`));
-        img.src = url;
-    });
-
+    const p = _loadImageElement(url);
     _cache.set(url, p);
     return p;
 }

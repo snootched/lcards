@@ -14,17 +14,23 @@
  */
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { resolveEasing } from '../../../../utils/lcards-anim-helpers.js';
+import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
+import { ColorUtils } from '../../../themes/ColorUtils.js';
 
 /**
- * Helper function to resolve easing configuration
+ * Tracks the currently-active WAAPI Animation created by 'stagger-flash' for
+ * each element, keyed by element so a later re-registration (e.g. a preset
+ * switch that re-runs setup() on the SAME still-attached elements, before a
+ * fresh SVG render replaces them) can cancel the previous animation instead
+ * of leaving two Animations racing on the same property — 'stagger-flash'
+ * uses raw element.animate() specifically to get independent per-element
+ * looping, which means the returned Animation object isn't visible to
+ * AnimationManager's own instance tracking (that only sees the harmless 1ms
+ * anime.js stagger-delay vehicle, not the real WAAPI animation) and would
+ * otherwise never get cancelled.
+ * @type {WeakMap<Element, Animation>}
  */
-function getResolvedEasing(params) {
-  if (params.ease_params) {
-    return resolveEasing({ type: params.ease, params: params.ease_params });
-  }
-  return params.ease;
-}
+const _activeStaggerFlashAnimations = new WeakMap();
 
 /**
  * Stagger animation presets
@@ -50,7 +56,7 @@ export const STAGGER_PRESETS = {
    * - from_value (default: 0.8) - Starting value
    * - to_value (default: 1) - Ending value
    * - duration (default: 600)
-   * - ease (default: 'easeOutQuad')
+   * - ease (default: 'outQuad')
    * - loop (default: false)
    *
    * Example (Alert bars):
@@ -61,7 +67,7 @@ export const STAGGER_PRESETS = {
    * }
    */
   'stagger-grid': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const grid = p.grid || [1, 1];
     const from = p.from || 'start';
     const delay = p.delay !== undefined ? p.delay : 100;
@@ -111,7 +117,7 @@ export const STAGGER_PRESETS = {
    * - property (default: 'translateY') - Property to animate
    * - amplitude (default: -20) - Wave amplitude (distance)
    * - duration (default: 800)
-   * - ease (default: 'easeOutElastic')
+   * - ease (default: 'outElastic')
    * - loop (default: false)
    * - alternate (default: true)
    *
@@ -123,13 +129,13 @@ export const STAGGER_PRESETS = {
    * }
    */
   'stagger-wave': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const delay = p.delay !== undefined ? p.delay : 100;
     const direction = p.direction || 'normal';
     const property = p.property || 'translateY';
     const amplitude = p.amplitude !== undefined ? p.amplitude : -20;
     const duration = p.duration || 800;
-    const ease = getResolvedEasing(p) || 'easeOutElastic';
+    const ease = getResolvedEasing(p) || 'outElastic'; // v4 easing name (was 'easeOutElastic')
     const loop = p.loop !== undefined ? p.loop : false;
     const alternate = p.alternate !== undefined ? p.alternate : false;
 
@@ -165,7 +171,7 @@ export const STAGGER_PRESETS = {
    * - from_value (default: 0) - Starting value
    * - to_value (default: 1) - Ending value
    * - duration (default: 800)
-   * - ease (default: 'easeOutExpo')
+   * - ease (default: 'outExpo')
    * - loop (default: false)
    *
    * Example:
@@ -176,14 +182,14 @@ export const STAGGER_PRESETS = {
    * }
    */
   'stagger-radial': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const from = p.from || 'center';
     const delay = p.delay !== undefined ? p.delay : 50;
     const property = p.property || 'scale';
     const fromValue = p.from_value !== undefined ? p.from_value : 0;
     const toValue = p.to_value !== undefined ? p.to_value : 1;
     const duration = p.duration || 800;
-    const ease = getResolvedEasing(p) || 'easeOutExpo';
+    const ease = getResolvedEasing(p) || 'outExpo'; // v4 easing name (was 'easeOutExpo')
     const loop = p.loop !== undefined ? p.loop : false;
 
     return {
@@ -240,7 +246,7 @@ export const STAGGER_PRESETS = {
    * - loop         (default: true)
    */
   'stagger-flash': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const leadColor    = p.lead_color  || 'var(--primary-color)';
     const trailColor   = p.trail_color || '#444444';
     const leadPct      = Math.min(50, Math.max(1, p.lead_pct !== undefined ? p.lead_pct : 20));
@@ -262,12 +268,25 @@ export const STAGGER_PRESETS = {
       if (typeof c !== 'string') return c;
       const resolver = window.lcards?.core?.themeManager?.resolver;
       if (resolver) {
-        const out = resolver.resolve(c, c);
-        if (out !== c) return out;
+        // resolver.resolve() expects the token path WITHOUT the 'theme:' prefix
+        // (it recognises bare 'base(...)'/'darken(...)'/etc. — a still-prefixed
+        // string like 'theme:base(...)' matches none of its checks and falls
+        // through to a token-tree lookup that can't find it, silently returning
+        // the fallback unchanged).
+        const tokenPath = c.startsWith('theme:') ? c.slice(6) : c;
+        const out = resolver.resolve(tokenPath, c);
+        if (out !== c) {
+          // WAAPI keyframes need concrete values — materialise any bare var(...)
+          // the resolver left behind (same requirement as SVG setAttribute()).
+          if (typeof out === 'string' && out.includes('var(')) {
+            return ColorUtils.resolveCssVariable(out, out);
+          }
+          return out;
+        }
       }
       // Plain CSS variable (resolver doesn't handle bare var() strings)
       if (c.includes('var(')) {
-        return window.lcards?.utils?.ColorUtils?.resolveCssVariable?.(c) ?? c;
+        return ColorUtils.resolveCssVariable(c, c);
       }
       return c;
     };
@@ -295,12 +314,29 @@ export const STAGGER_PRESETS = {
         if      (from === 'last')   idx = N - 1 - i;
         else if (from === 'center') idx = Math.abs(i - Math.floor((N - 1) / 2));
         else                        idx = i; // 'first' or default
-        el.animate(wapiKeyframes, {
+
+        // Cancel any previous stagger-flash animation still running on this
+        // element (e.g. a preset switch re-registered before a fresh SVG
+        // render replaced the element) — otherwise both Animations keep
+        // compositing on the same property and whichever's internal frame
+        // callback last touches the element (wall-clock, not registration
+        // order) wins, leaving stale colors from an earlier mode/preset.
+        _activeStaggerFlashAnimations.get(el)?.cancel();
+
+        const animation = el.animate(wapiKeyframes, {
           duration,
           delay:      idx * step,
           iterations: loop ? Infinity : 1,
           fill:       'both',
           easing:     'linear'  // overall composite; per-keyframe easing handles the shape
+        });
+        _activeStaggerFlashAnimations.set(el, animation);
+        animation.addEventListener('cancel', () => {
+          // Don't clobber a newer animation's entry if this cancel fired
+          // asynchronously after another setup() already replaced it.
+          if (_activeStaggerFlashAnimations.get(el) === animation) {
+            _activeStaggerFlashAnimations.delete(el);
+          }
         });
       });
     };

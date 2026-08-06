@@ -1194,7 +1194,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     // Use loop:1 with alternate:true to play forward then back (total 2 iterations)
     const changeParams = {
       duration: this.config.animation?.change_duration || 500,
-      ease: this.config.animation?.change_easing || 'easeOutQuad',
+      ease: this.config.animation?.change_easing || 'outQuad', // v4 easing name (was 'easeOutQuad')
       loop: 1,            // Play twice total (forward + back in alternate mode)
       alternate: true,    // Return to original state after animation
       ...(this.config.animation?.change_params || {})

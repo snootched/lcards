@@ -27,6 +27,7 @@ import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { ProvenanceTracker } from '../utils/provenance-tracker.js';
 import { escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
+import { extractAllConfigStrings } from '../utils/extractConfigStrings.js';
 import {
     haFormatState,
     haFormatEntityName,
@@ -2236,6 +2237,19 @@ export class LCARdSCard extends LCARdSNativeCard {
             });
         });
 
+        // Scan for map_range descriptors ({ map_range: { entity, ... } }) anywhere
+        // in the config — most commonly an animation's duration/delay/params
+        // (see resolveAnimParams.js), but this walk isn't field-specific. Without
+        // this, an entity referenced only via map_range is invisible here, which
+        // (for cards like MSD whose own hass propagation doesn't forward to
+        // window.lcards.core.ingestHass()/AnimationManager on every tick) means
+        // the entity change never reaches AnimationManager's live speed-adjust
+        // binding (Phase 10) at all — not a bug in that binding itself, just
+        // nothing telling the core singleton a relevant entity changed.
+        this._extractMapRangeEntities(this.config).forEach(entityId => {
+            trackedEntities.add(entityId);
+        });
+
         // Explicit escape-hatch: user-defined entity list.
         // Use this for JS/token templates that reference entities that cannot be
         // auto-detected (e.g. `[[[return hass.states[myVar].state]]]`).
@@ -2259,9 +2273,10 @@ export class LCARdSCard extends LCARdSNativeCard {
 
     /**
      * Recursively collect every string value from a config object.
-     * Skips the `type` key (card type string, never an entity reference).
      * Used by `_updateTrackedEntities` to scan all template fields for
      * Jinja2 entity dependencies without enumerating every possible field name.
+     * Delegates to the shared implementation (also used by MsdControlsRenderer's
+     * control-overlay entity harvesting) — see extractConfigStrings.js.
      *
      * @private
      * @param {*} node - Config node (object, array, or scalar)
@@ -2269,18 +2284,33 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @returns {Set<string>} Collected string values
      */
     _extractAllConfigStrings(node, out = new Set()) {
-        if (!node || typeof node !== 'object') {
-            if (typeof node === 'string') out.add(node);
-            return out;
-        }
+        return extractAllConfigStrings(node, out);
+    }
+
+    /**
+     * Recursively collect every `map_range.entity` reference from a config
+     * object, regardless of which field it lives under (duration/delay/params
+     * for animations today, but intentionally not field-specific — see
+     * resolveAnimParams.js's map_range descriptor shape).
+     * Used by `_updateTrackedEntities` so an entity referenced only via
+     * map_range still triggers hass-change forwarding.
+     *
+     * @private
+     * @param {*} node - Config node (object, array, or scalar)
+     * @param {Set<string>} [out] - Accumulator set
+     * @returns {Set<string>} Collected entity IDs
+     */
+    _extractMapRangeEntities(node, out = new Set()) {
+        if (!node || typeof node !== 'object') return out;
         if (Array.isArray(node)) {
-            node.forEach(item => this._extractAllConfigStrings(item, out));
+            node.forEach(item => this._extractMapRangeEntities(item, out));
             return out;
         }
-        for (const [key, value] of Object.entries(node)) {
-            // `type` is always the card type identifier (e.g. 'custom:lcards-button')
-            if (key === 'type') continue;
-            this._extractAllConfigStrings(value, out);
+        if (node.map_range && typeof node.map_range === 'object' && typeof node.map_range.entity === 'string') {
+            out.add(node.map_range.entity);
+        }
+        for (const value of Object.values(node)) {
+            this._extractMapRangeEntities(value, out);
         }
         return out;
     }

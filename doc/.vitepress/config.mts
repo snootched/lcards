@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
+import { readFileSync } from 'node:fs'
 
 const SITE_URL = 'https://lcards.unimatrix01.ca'
+const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'))
 
 /**
  * markdown-it core rule: wrap {{ ... }} in <span v-pre> so Vue's
@@ -104,6 +106,17 @@ export default withMermaid(defineConfig({
     config(md) {
       tabsMarkdownPlugin(md)
       vPreBracesRule(md)
+    },
+  },
+
+  // ── Vite config ───────────────────────────────────────────────────────────
+  // AnimationPlayground.vue dynamically imports the real src/core/packs/animations
+  // preset modules (so docs demos never drift from shipped behaviour). Those
+  // modules reference __LCARDS_VERSION__, normally injected by the app's own
+  // vite.config.js — redefine it here so the docs client bundle resolves it too.
+  vite: {
+    define: {
+      __LCARDS_VERSION__: JSON.stringify(pkg.version),
     },
   },
 
@@ -307,8 +320,12 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview',         link: '/cards/msd/' },
+                { text: 'Quick Start',      link: '/cards/msd/quick-start' },
                 { text: 'Control Overlay',  link: '/cards/msd/control-overlay' },
                 { text: 'Line Overlay',     link: '/cards/msd/line-overlay' },
+                { text: 'Routing Concepts', link: '/cards/msd/routing-concepts' },
+                { text: 'Routing & Channels', link: '/cards/msd/routing' },
+                { text: 'Shape Overlay',    link: '/cards/msd/shape-overlay' },
                 { text: 'Manual Routing',   link: '/cards/msd/manual-routing' },
                 { text: 'Base SVG Filters', link: '/cards/msd/base-svg-filters' },
               ],

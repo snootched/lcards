@@ -28,6 +28,9 @@ import './shared/lcards-color-list.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
 import './editors/lcards-color-section.js';
+import { BACKGROUND_PRESET_DOCS_URL } from './shared/docs-links.js';
+import { infoGuideStyles } from './shared/info-guide-styles.js';
+import { searchableSelectStyles } from './shared/searchable-select-styles.js';
 
 export class LCARdSBackgroundAnimationEditor extends LitElement {
   static get properties() {
@@ -38,12 +41,13 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       _draggedIndex: { type: Number },
       _expandedEffects: { type: Object },
       _imageSrcModes:  { type: Object, state: true },
-      _insetEnabled: { type: Boolean, state: true }
+      _insetEnabled: { type: Boolean, state: true },
+      _expandedGuideIndices: { state: true } // Set<number> — which effects' "How this effect works" info guide is open
     };
   }
 
   static get styles() {
-    return css`
+    return [css`
       :host {
         display: block;
         width: 100%;
@@ -202,7 +206,13 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
       .param-grid {
         display: grid;
-        grid-template-columns: 1fr;
+        /* minmax(0, 1fr) — a bare 1fr track's automatic minimum is content-based
+           (min-content), so a long unbroken string (e.g. a picked HA media path)
+           inside any field blows the track — and everything else in the row —
+           wider than the section. Flooring the minimum at 0 lets descendants'
+           own overflow/ellipsis rules (e.g. ha-selector-media's .title) actually
+           take effect instead of forcing the grid to grow to fit them. */
+        grid-template-columns: minmax(0, 1fr);
         gap: 16px;
       }
 
@@ -213,6 +223,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       ha-selector {
         max-width: 100%;
         width: 100%;
+        min-width: 0;
       }
 
       ha-icon-button {
@@ -231,7 +242,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
       @media (max-width: 600px) {
         .param-grid {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
         }
 
         .effect-header {
@@ -242,7 +253,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           padding: 16px;
         }
       }
-    `;
+    `, infoGuideStyles, searchableSelectStyles];
   }
 
   constructor() {
@@ -257,6 +268,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     this._imageSrcModes   = {};
     this._currentEffectIndex = null; // Track current effect for color section
     this._insetEnabled = false;
+    this._expandedGuideIndices = new Set();
   }
 
   /**
@@ -491,6 +503,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           .selector=${{
             select: {
               mode: 'dropdown',
+              custom_value: true,
               options: this._getPresetOptions()
             }
           }}
@@ -501,12 +514,88 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         ></ha-selector>
       </lcards-form-section>
 
+      ${this._renderEffectInfoGuide(preset, index)}
+
       <!-- Preset Configuration -->
       ${this._renderPresetConfig(effect, index)}
 
       <!-- Zoom Wrapper -->
       ${this._renderZoomSection(effect, index)}
     `;
+  }
+
+  /**
+   * Collapsible "How this effect works" info guide — sourced from
+   * BACKGROUND_PRESETS[preset].guide (presets/index.js), the single
+   * maintained content source for preset help text. Always includes the
+   * entity-binding note, since map_range/template binding is a generic
+   * renderer-level mechanism that applies to any config field of any preset,
+   * not just some.
+   * @private
+   */
+  _renderEffectInfoGuide(preset, index) {
+    const presetInfo = BACKGROUND_PRESETS[preset];
+    if (!presetInfo?.guide) return '';
+
+    const expanded = this._expandedGuideIndices.has(index);
+    const docsUrl = `${BACKGROUND_PRESET_DOCS_URL}#${preset}`;
+    const guide = presetInfo.guide;
+
+    return html`
+      <div class="preset-info-guide">
+        <div class="preset-info-guide-header" @click=${() => this._toggleGuideExpanded(index)}>
+          <ha-icon icon="mdi:information-outline"></ha-icon>
+          <span>How ${presetInfo.name} works</span>
+          <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
+        </div>
+        ${expanded ? html`
+          <div class="preset-info-guide-body">
+            ${this._splitIntoSentences(guide.summary).map(s => html`<p>${s}</p>`)}
+            ${guide.params?.length ? html`
+              <strong>Params:</strong>
+              <ul>
+                ${guide.params.map(p => html`
+                  <li>
+                    <code>${p.key}</code>${p.default !== undefined ? html` (default: <code>${JSON.stringify(p.default)}</code>)` : ''}
+                    ${p.description ? ` — ${p.description}` : ''}
+                  </li>
+                `)}
+              </ul>
+            ` : ''}
+            <strong>Example:</strong>
+            <pre class="preset-info-guide-example">${guide.example}</pre>
+            ${guide.tip ? html`
+              <p class="preset-info-guide-tip"><strong>Tip:</strong> ${guide.tip}</p>
+            ` : ''}
+            ${this._renderEntityBindingNote()}
+            <div class="preset-info-guide-links">
+              <a href=${docsUrl} target="_blank" rel="noopener noreferrer">View full docs →</a>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * @private
+   */
+  _toggleGuideExpanded(index) {
+    const updated = new Set(this._expandedGuideIndices);
+    if (updated.has(index)) {
+      updated.delete(index);
+    } else {
+      updated.add(index);
+    }
+    this._expandedGuideIndices = updated;
+  }
+
+  /**
+   * @private
+   */
+  _splitIntoSentences(text) {
+    if (!text) return [];
+    return text.split(/(?<=[.!?])\s+(?=[A-Z`])/);
   }
 
   _renderPresetConfig(effect, index) {
@@ -557,6 +646,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       return html`${this._renderImageBackgroundSection(config, index)}`;
     }
 
+    // Solid preset uses its own minimal colour/opacity section
+    if (preset === 'solid') {
+      return html`${this._renderSolidSection(config, index)}`;
+    }
+
     // Grid presets use pattern/major-minor/scrolling/color sections
     return html`
       ${this._renderPatternSection(preset, config, index)}
@@ -574,7 +668,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       fields.push({ key: 'line_spacing', label: 'Line Spacing (px)', type: 'number', min: 10, max: 200, step: 5, default: 40 });
     }
     if (preset === 'grid-hexagonal') {
-      fields.push({ key: 'hex_radius', label: 'Hex Radius (px)', type: 'number', min: 10, max: 100, step: 5, default: 30 });
+      fields.push({ key: 'hex_radius', label: 'Hex Radius (px)', type: 'number', min: 1, max: 150, step: 1, default: 40 });
     }
 
     // Line width fields
@@ -582,9 +676,18 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       fields.push({ key: 'line_width', label: 'Line Width', type: 'number', min: 0.5, max: 10, step: 0.5, default: 1 });
     }
 
-    // Pattern selector
+    // Pattern selector — GridEffect actually supports 6 patterns; only 3 were
+    // ever exposed here (diagonal/hexagonal have their own dedicated presets
+    // too, but GridEffect also honours them directly on the base 'grid'
+    // preset; 'dots' had no UI path to it at all before this).
     if (preset === 'grid') {
-      fields.push({ key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical'], default: 'both' });
+      fields.push({ key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical', 'diagonal', 'hexagonal', 'dots'], default: 'both' });
+      if (config.pattern === 'dots') {
+        fields.push({ key: 'dot_radius', label: 'Dot Radius (px)', type: 'number', min: 0.5, max: 10, step: 0.5, default: 2 });
+      }
+      if (config.pattern === 'hexagonal') {
+        fields.push({ key: 'hex_radius', label: 'Hex Radius (px)', type: 'number', min: 1, max: 150, step: 1, default: 40 });
+      }
     }
 
     // Border lines toggle
@@ -737,19 +840,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
   _renderContourFieldSection(config, index) {
     return html`
-      <ha-alert alert-type="info">
-        <b>Contour Field</b> paints a drifting noise field, then slices it into colour bands — like
-        a topographic map.
-        <br><br> <b>Noise</b> shapes the raw terrain (how big and rough the features
-        are).
-        <br><br> <b>Contour Bands</b> controls how that terrain is sliced into rings — the full
-        peaks-and-valleys range, always present underneath.
-        <br><br> <b>Fill</b> floods/drains a
-        waterline over that terrain without changing it, for empty "space" between blobs.
-        <br><br> <b>Colour</b> sets what fills each ring. Lower "Band Count" + "Cell Size" for a blocky,
-        retro-LCARS look; raise them for a smooth, photographic nebula look.
-      </ha-alert>
-
       <lcards-form-section
         header="Noise"
         icon="mdi:waves"
@@ -1052,8 +1142,18 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   _getAvailableImages() {
     const am = window.lcards?.core?.assetManager;
     if (!am) return [];
-    const svgKeys   = am.listAssets?.('svg')   ?? [];
-    const imgKeys   = am.listImages?.()        ?? [];
+    // Only genuinely curated, pack-provided assets belong here —
+    // listAssets()/listImages() return every registered key, including ones
+    // dynamically registered from a user's Custom URL or HA Media pick
+    // (they persist in the registry for the rest of the page session once
+    // picked), which never carry a `pack` metadata field the way
+    // pack-provided entries always do. Without this filter, a previously-
+    // picked media-source:// id or custom URL leaks into this list
+    // permanently as a mangled, unresolvable "builtin:<raw value>" entry —
+    // see the matching fix in lcards-msd-studio-dialog.js's _getAvailableSvgs().
+    const isPackAsset = (type, key) => !!am.getMetadata?.(type, key)?.pack;
+    const svgKeys   = (am.listAssets?.('svg') ?? []).filter(key => isPackAsset('svg', key));
+    const imgKeys   = (am.listImages?.()      ?? []).filter(key => isPackAsset('image', key));
     const all       = [...new Set([...svgKeys, ...imgKeys])].sort();
     return all.map(key => ({ value: `builtin:${key}`, label: key }));
   }
@@ -1063,7 +1163,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
    * When switching to 'asset' mode and the current value is not a builtin reference,
    * automatically select the first available image.
    * @param {number} index
-   * @param {string} mode  'asset' | 'custom'
+   * @param {string} mode  'asset' | 'custom' | 'media'
    * @param {string} currentSource
    */
   _handleImageSrcModeChange(index, mode, currentSource) {
@@ -1078,10 +1178,17 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
   _renderImageBackgroundSection(config, index) {
     const source = config.source ?? config.url ?? '';
-    const mode   = this._imageSrcModes[index] ?? (source.startsWith('builtin:') ? 'asset' : 'custom');
+    const mode   = this._imageSrcModes[index] ?? (
+      source.startsWith('builtin:') ? 'asset' :
+      source.startsWith('media-source://') ? 'media' :
+      'custom'
+    );
     const availableImages = this._getAvailableImages();
     const showHttpWarning = mode === 'custom' && source.startsWith('http:') &&
       typeof location !== 'undefined' && location.protocol === 'https:';
+    const mediaValue = source.startsWith('media-source://')
+      ? { media_content_id: source, media_content_type: '' }
+      : undefined;
 
     return html`
       <lcards-form-section header="Image" icon="mdi:image" ?expanded=${true}>
@@ -1091,7 +1198,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
             .hass=${this.hass}
             .selector=${{ select: { mode: 'dropdown', options: [
               { value: 'asset',  label: 'Asset Library (builtin images & SVGs)' },
-              { value: 'custom', label: 'Custom URL / Template' }
+              { value: 'custom', label: 'Custom URL / Template' },
+              { value: 'media',  label: 'Browse HA Media' }
             ]}}}
             .value=${mode}
             .label=${'Image Source'}
@@ -1103,11 +1211,22 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
             <!-- Asset picker -->
             <ha-selector
               .hass=${this.hass}
-              .selector=${{ select: { mode: 'dropdown', options: availableImages }}}
+              .selector=${{ select: { mode: 'dropdown', custom_value: availableImages.length >= 10, options: availableImages }}}
               .value=${availableImages.some(o => o.value === source) ? source : (availableImages[0]?.value ?? '')}
               .label=${'Built-in Image'}
               .helper=${'Images and SVGs registered in the Asset Library'}
               @value-changed=${(e) => this._updateEffectConfig(index, 'source', e.detail.value)}
+              style="grid-column: 1 / -1"
+            ></ha-selector>
+          ` : mode === 'media' ? html`
+            <!-- HA media library picker -->
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ media: { accept: ['image/*'] } }}
+              .value=${mediaValue}
+              .label=${'HA Media'}
+              .helper=${'Browse or upload an image via the Home Assistant media library'}
+              @value-changed=${(e) => this._updateEffectConfig(index, 'source', e.detail.value?.media_content_id ?? '')}
               style="grid-column: 1 / -1"
             ></ha-selector>
           ` : html`
@@ -1124,9 +1243,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           `}
 
           ${showHttpWarning ? html`
-            <div style="grid-column:1/-1;padding:6px 8px;border-radius:4px;background:rgba(255,193,7,0.15);color:#ffa000;font-size:12px;line-height:1.4;">
-              ⚠ http:// URLs will be blocked as mixed content when Home Assistant is served over HTTPS.
-              Use an https:// URL or a /local/ path instead.
+            <div style="grid-column:1/-1">
+              <lcards-message type="warning" .message=${'http:// URLs will be blocked as mixed content when Home Assistant is served over HTTPS. Use an https:// URL or a /local/ path instead.'}></lcards-message>
             </div>
           ` : ''}
 
@@ -1238,7 +1356,30 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           </div>
         </lcards-form-section>
       ` : ''}
-      ${this._renderEntityBindingNote()}
+    `;
+  }
+
+  /**
+   * Solid preset — flat colour fill rendered behind the card SVG.
+   * @private
+   */
+  _renderSolidSection(config, index) {
+    return html`
+      <lcards-form-section header="Colour" icon="mdi:palette" ?expanded=${true}>
+        <lcards-color-picker
+          .hass=${this.hass}
+          .value=${config.color ?? 'rgba(0, 0, 0, 0.4)'}
+          .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-']}
+          ?showPreview=${true}
+          @value-changed=${(e) => this._updateEffectConfig(index, 'color', e.detail.value)}
+        ></lcards-color-picker>
+      </lcards-form-section>
+
+      <lcards-form-section header="Parameters" icon="mdi:tune" ?expanded=${true}>
+        <div class="param-grid">
+          ${this._renderField({ key: 'opacity', label: 'Opacity', type: 'number', min: 0, max: 1, step: 0.05, default: 1 }, config, index)}
+        </div>
+      </lcards-form-section>
     `;
   }
 
@@ -1390,7 +1531,8 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       'flow':         'mdi:wave',
       'shimmer':      'mdi:shimmer',
       'scanlines':    'mdi:television-scan',
-      'image':        'mdi:image'
+      'image':        'mdi:image',
+      'solid':        'mdi:square-rounded'
     };
     return icons[preset] || 'mdi:blur';
   }

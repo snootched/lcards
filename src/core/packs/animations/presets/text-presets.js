@@ -19,17 +19,7 @@
  */
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { resolveEasing } from '../../../../utils/lcards-anim-helpers.js';
-
-/**
- * Helper function to resolve easing configuration
- */
-function getResolvedEasing(params) {
-  if (params.ease_params) {
-    return resolveEasing({ type: params.ease, params: params.ease_params });
-  }
-  return params.ease;
-}
+import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
 
 /**
  * Detect whether an element lives in the SVG namespace.
@@ -156,14 +146,14 @@ export const TEXT_PRESETS = {
    *         from_opacity, from_y, ease, loop
    */
   'text-reveal': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const split     = p.split     || 'chars';
     const direction = p.direction || 'first';
     const stagger   = p.stagger   !== undefined ? p.stagger   : 50;
     const duration  = p.duration  || 800;
     const fromOpacity = p.from_opacity !== undefined ? p.from_opacity : 0;
     const fromY       = p.from_y      !== undefined ? p.from_y      : 20;
-    const ease = getResolvedEasing(p) || 'easeOutQuad';
+    const ease = getResolvedEasing(p) || 'outQuad'; // v4 easing name (was 'easeOutQuad')
     const loop = p.loop !== undefined ? p.loop : false;
 
     return {
@@ -224,7 +214,7 @@ export const TEXT_PRESETS = {
    *       not by an interpolated CSS/SVG property.
    */
   'text-scramble': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const duration  = p.duration  || 800;
     const stagger   = p.stagger   !== undefined ? p.stagger    : 40;
     const delay     = p.delay     !== undefined ? p.delay      : 0;
@@ -304,7 +294,7 @@ export const TEXT_PRESETS = {
    *   loop         (default false) – repeat
    */
   'text-glitch': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const intensity  = p.intensity   !== undefined ? p.intensity  : 5;
     const duration   = p.duration    || 300;
     const stagger    = p.stagger     !== undefined ? p.stagger    : 50;
@@ -313,7 +303,7 @@ export const TEXT_PRESETS = {
 
     const htmlAnimConfig = {
       duration,
-      ease: 'easeInOutQuad',
+      ease: 'inOutQuad', // v4 easing name (was 'easeInOutQuad')
       loop,
       delay: { _stagger: true, value: stagger, from: 'first' },
       // Function form: called once per element, generates unique random displacement per char
@@ -349,7 +339,7 @@ export const TEXT_PRESETS = {
               dx:       [0, dxVal, 0],
               dy:       [0, dyVal, 0],
               duration,
-              ease:     'easeInOutQuad',
+              ease:     'inOutQuad', // v4 easing name (was 'easeInOutQuad')
               loop,
               delay:    i * stagger
             });
@@ -379,7 +369,7 @@ export const TEXT_PRESETS = {
    * params: speed, loop
    */
   'text-typewriter': (def) => {
-    const p = def.params || def;
+    const p = resolvePresetParams(def);
     const speed = p.speed !== undefined ? p.speed : 100;
     const loop  = p.loop  !== undefined ? p.loop  : false;
 

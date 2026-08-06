@@ -72,7 +72,7 @@ export class LCARdSShapeTextureEditor extends LitElement {
                 padding: 8px 0;
             }
 
-            ha-selector { width: 100%; display: block; }
+            ha-selector { width: 100%; display: block; min-width: 0; }
         `;
     }
 
@@ -96,8 +96,19 @@ export class LCARdSShapeTextureEditor extends LitElement {
     _getAvailableImages() {
         const am = window.lcards?.core?.assetManager;
         if (!am) return [];
-        const svgKeys = am.listAssets?.('svg')  ?? [];
-        const imgKeys = am.listImages?.()       ?? [];
+        // Only genuinely curated, pack-provided assets belong here —
+        // listAssets()/listImages() return every registered key, including
+        // ones dynamically registered from a user's Custom URL or HA Media
+        // pick (they persist in the registry for the rest of the page
+        // session once picked), which never carry a `pack` metadata field
+        // the way pack-provided entries always do. Without this filter, a
+        // previously-picked media-source:// id or custom URL leaks into this
+        // list permanently as a mangled, unresolvable "builtin:<raw value>"
+        // entry — see the matching fix in lcards-msd-studio-dialog.js's
+        // _getAvailableSvgs().
+        const isPackAsset = (type, key) => !!am.getMetadata?.(type, key)?.pack;
+        const svgKeys = (am.listAssets?.('svg') ?? []).filter(key => isPackAsset('svg', key));
+        const imgKeys = (am.listImages?.()      ?? []).filter(key => isPackAsset('image', key));
         const all     = [...new Set([...svgKeys, ...imgKeys])].sort();
         return all.map(key => ({ value: `builtin:${key}`, label: key }));
     }
@@ -651,6 +662,8 @@ export class LCARdSShapeTextureEditor extends LitElement {
                     <div class="row"><ha-selector .hass=${this.hass}
                         .selector=${{ select: { options: [
                             { value: 'up',    label: 'Fill upward (bottom → top)' },
+                            { value: 'down',  label: 'Fill downward (top → bottom)' },
+                            { value: 'left',  label: 'Fill leftward (right → left)' },
                             { value: 'right', label: 'Fill rightward (left → right)' }
                         ], mode: 'dropdown' } }}
                         .value=${cfg.direction ?? defaults.direction ?? 'up'}
@@ -761,17 +774,25 @@ export class LCARdSShapeTextureEditor extends LitElement {
             case 'image': {
                 const source = cfg.source ?? cfg.url ?? defaults.source ?? defaults.url ?? '';
                 // Derive mode from explicit state or from the current value
-                const mode   = this._imageSrcMode ?? (source.startsWith('builtin:') ? 'asset' : 'custom');
+                const mode   = this._imageSrcMode ?? (
+                    source.startsWith('builtin:') ? 'asset' :
+                    source.startsWith('media-source://') ? 'media' :
+                    'custom'
+                );
                 const availableImages = this._getAvailableImages();
                 const showHttpWarning = mode === 'custom' && source.startsWith('http:') &&
                     typeof location !== 'undefined' && location.protocol === 'https:';
+                const mediaValue = source.startsWith('media-source://')
+                    ? { media_content_id: source, media_content_type: '' }
+                    : undefined;
 
                 return html`
                     <div class="row">
                         <ha-selector .hass=${this.hass}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'asset',  label: 'Asset Library (builtin images & SVGs)' },
-                                { value: 'custom', label: 'Custom URL / Template' }
+                                { value: 'custom', label: 'Custom URL / Template' },
+                                { value: 'media',  label: 'Browse HA Media' }
                             ]}}}
                             .value=${mode}
                             .label=${'Image Source'}
@@ -796,6 +817,16 @@ export class LCARdSShapeTextureEditor extends LitElement {
                                 .label=${'Built-in Image'}
                                 .helper=${'Images and SVGs registered in the Asset Library'}
                                 @value-changed=${(e) => this._updatePresetConfig('source', e.detail.value)}
+                            ></ha-selector>
+                        </div>
+                    ` : mode === 'media' ? html`
+                        <div class="row">
+                            <ha-selector .hass=${this.hass}
+                                .selector=${{ media: { accept: ['image/*'] } }}
+                                .value=${mediaValue}
+                                .label=${'HA Media'}
+                                .helper=${'Browse or upload an image via the Home Assistant media library'}
+                                @value-changed=${(e) => this._updatePresetConfig('source', e.detail.value?.media_content_id ?? '')}
                             ></ha-selector>
                         </div>
                     ` : html`

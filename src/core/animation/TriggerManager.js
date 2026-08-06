@@ -23,6 +23,7 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { compareNumericBounds } from '../../utils/comparison-utils.js';
 
 export class TriggerManager {
   constructor(overlayId, element, animationManager) {
@@ -45,6 +46,11 @@ export class TriggerManager {
     /** @type {boolean} Set to true in destroy() — guards deferred callbacks after teardown */
     this._destroyed = false;
 
+    /** @type {Set<string>} Triggers whose setupTriggerListener() has already run.
+     *  Guards finalizeRegistrations() against duplicate entity subscriptions /
+     *  duplicate check_on_load firing if it is ever invoked more than once. */
+    this._triggerListenersSetup = new Set();
+
     lcardsLog.debug(`[TriggerManager] Created for overlay: ${overlayId}`);
   }
 
@@ -55,23 +61,47 @@ export class TriggerManager {
    * @param {Object} animDef - Animation definition
    */
   register(trigger, animDef) {
-    // Track if this is the first animation for this trigger
-    const isFirstForTrigger = !this.registrations.has(trigger);
-
     // Initialize registration array for this trigger if needed
-    if (isFirstForTrigger) {
+    if (!this.registrations.has(trigger)) {
       this.registrations.set(trigger, []);
     }
 
     // Add animation definition to this trigger
     this.registrations.get(trigger).push(animDef);
 
-    // Setup trigger listener after adding animation (except for on_load which is handled immediately)
-    if (isFirstForTrigger && trigger !== 'on_load') {
-      this.setupTriggerListener(trigger);
-    }
-
+    // NOTE: listener setup intentionally deferred — see finalizeRegistrations().
+    // register() is called repeatedly inside batch loops. Setting up the trigger
+    // listener here, on the first call for a trigger, used to run
+    // on_entity_change's synchronous check_on_load pass against a
+    // partially-populated registrations array — before later entries sharing the
+    // same trigger (e.g. multiple `while`-gated on_entity_change entries for the
+    // same entity) were pushed, so only the first-registered entry's `while`
+    // condition was ever evaluated (#386). Callers MUST call
+    // finalizeRegistrations() once after their full batch of register() calls.
     lcardsLog.debug(`[TriggerManager] Registered animation for ${this.overlayId} on trigger: ${trigger}`);
+  }
+
+  /**
+   * Finalize a batch of register() calls: set up the trigger listener for every
+   * distinct trigger currently in `this.registrations`, exactly once per trigger
+   * for the lifetime of this TriggerManager instance. Must be called once, after
+   * the full batch of register() calls for a given render/registration pass
+   * completes, so that setupTriggerListener() — and, for on_entity_change, its
+   * synchronous check_on_load pass — sees every animDef registered for that
+   * trigger, not just the first one pushed (#386).
+   *
+   * Idempotent: safe to call multiple times, and a no-op when there are zero
+   * registrations (e.g. an overlay with no on_entity_change entries at all).
+   */
+  finalizeRegistrations() {
+    this.registrations.forEach((_animDefs, trigger) => {
+      // on_load is fired immediately by AnimationManager.registerAnimation(),
+      // not via setupTriggerListener() — register() always excluded it too.
+      if (trigger === 'on_load') return;
+      if (this._triggerListenersSetup.has(trigger)) return;
+      this._triggerListenersSetup.add(trigger);
+      this.setupTriggerListener(trigger);
+    });
   }
 
   /**
@@ -323,11 +353,17 @@ export class TriggerManager {
   /**
    * Evaluate a 'while' condition block against a resolved entity value.
    *
-   * Supported keys (use exactly one):
-   *   state     {string}  — value equals this
-   *   not_state {string}  — value does not equal this
+   * Supported keys:
+   *   state     {string}  — value equals this (used alone)
+   *   not_state {string}  — value does not equal this (used alone)
    *   above     {number}  — numeric value > threshold
+   *   at_least  {number}  — numeric value >= threshold
    *   below     {number}  — numeric value < threshold
+   *   at_most   {number}  — numeric value <= threshold
+   *
+   * The 4 numeric keys AND-combine when multiple are present, e.g.
+   * `{ at_least: 20, at_most: 80 }` expresses an inclusive range and
+   * `{ above: 20, below: 80 }` an exclusive one.
    *
    * @param {Object} anim         - Animation definition containing .while
    * @param {*}      currentValue - Resolved entity value (string or number)
@@ -338,10 +374,9 @@ export class TriggerManager {
     if (!w || typeof w !== 'object') return null;
     if (w.state     !== undefined) return String(currentValue) === String(w.state);
     if (w.not_state !== undefined) return String(currentValue) !== String(w.not_state);
-    const numVal = Number(currentValue);
-    if (w.above !== undefined) return Number.isFinite(numVal) && numVal > Number(w.above);
-    if (w.below !== undefined) return Number.isFinite(numVal) && numVal < Number(w.below);
-    lcardsLog.warn(`[TriggerManager] 'while' has no recognised key (state/not_state/above/below) for overlay: ${this.overlayId}`);
+    const hasBound = w.above !== undefined || w.at_least !== undefined || w.below !== undefined || w.at_most !== undefined;
+    if (hasBound) return compareNumericBounds(currentValue, w);
+    lcardsLog.warn(`[TriggerManager] 'while' has no recognised key (state/not_state/above/at_least/below/at_most) for overlay: ${this.overlayId}`);
     return null;
   }
 

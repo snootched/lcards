@@ -100,7 +100,9 @@ rules:
 | `equals` | string/number | Exact equality |
 | `not_equals` | string/number | Inequality |
 | `above` | number | `numeric_state > value` (strictly greater) |
+| `at_least` | number | `numeric_state >= value` (inclusive) |
 | `below` | number | `numeric_state < value` (strictly less) |
+| `at_most` | number | `numeric_state <= value` (inclusive) |
 | `in` | array | State is one of the listed values |
 | `not_in` | array | State is not in the listed values |
 | `regex` | string | State matches regular expression |
@@ -113,9 +115,26 @@ rules:
 | `javascript` | string | Explicit JavaScript expression |
 | `time_between` | `"HH:MM-HH:MM"` | True when current time is in range |
 | `weekday_in` | string[] | True when today is one of `mon`…`sun` |
-| `sun_elevation` | `{ above?, below? }` | True when sun elevation matches |
-| `perf_metric` | `{ key, above?, below? }` | Internal performance metric comparison |
+| `sun_elevation` | `{ above?, at_least?, below?, at_most? }` | True when sun elevation matches |
+| `perf_metric` | `{ key, above?, at_least?, below?, at_most? }` | Internal performance metric comparison |
 | `random_chance` | number 0–1 | True with given probability each evaluation |
+
+The 4 numeric operators (`above`/`at_least`/`below`/`at_most`) AND-combine
+when more than one is present on the same condition, so a range is
+expressed by combining two of them:
+
+```yaml
+when:
+  entity: sensor.cpu_temp
+  at_least: 20   # inclusive range: 20 <= value <= 80
+  at_most: 80
+```
+
+The condition-group editor's operator dropdown offers this as ready-made
+"between" / "between (exclusive)" options for entity and entity-attribute
+conditions. `sun_elevation`/`perf_metric` already expose all 4 bound fields
+at once, so a range needs no special operator there — just fill in two of
+the four fields.
 
 ---
 
@@ -194,5 +213,5 @@ rm.getAllRules()                     // array of all registered rules
 
 ## See Also
 
-- [Rule-Based Animations](../animations/rule-based-animations.md)
+- [Rule-Based Animations](../../core/animations/rule-based-animations.md)
 - [Debug API](../../development/debug-api.md)

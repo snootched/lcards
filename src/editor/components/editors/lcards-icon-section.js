@@ -317,9 +317,12 @@ export class LCARdSIconSection extends LitElement {
                         Numeric states (e.g. counts, sensor values):<br>
                         • <strong>zero</strong> → entity state is exactly 0 — higher priority than ranges<br>
                         • <strong>above:N</strong> → value &gt; N — e.g. <code>above:50</code><br>
+                        • <strong>at_least:N</strong> → value ≥ N — e.g. <code>at_least:50</code><br>
                         • <strong>below:N</strong> → value &lt; N — e.g. <code>below:20</code><br>
+                        • <strong>at_most:N</strong> → value ≤ N — e.g. <code>at_most:20</code><br>
                         • <strong>between:N:M</strong> → N ≤ value ≤ M — e.g. <code>between:20:80</code><br>
-                        When multiple ranges match, the most specific one wins (narrowest / highest above / lowest below).<br>
+                        • <strong>between_exclusive:N:M</strong> → N &lt; value &lt; M — e.g. <code>between_exclusive:20:80</code><br>
+                        When multiple ranges match, the most specific one wins (narrowest / highest above/at_least / lowest below/at_most).<br>
                         • <strong>non_zero</strong> → any non-zero number — catch-all when no range matched<br>
                     </div>
                     ` : ''}
@@ -475,8 +478,11 @@ export class LCARdSIconSection extends LitElement {
                                     mode: 'dropdown',
                                     options: [
                                         { value: 'above', label: 'Above (>)' },
+                                        { value: 'at_least', label: 'At Least (≥)' },
                                         { value: 'below', label: 'Below (<)' },
-                                        { value: 'between', label: 'Between' }
+                                        { value: 'at_most', label: 'At Most (≤)' },
+                                        { value: 'between', label: 'Between (inclusive)' },
+                                        { value: 'between_exclusive', label: 'Between (exclusive)' }
                                     ]
                                 }
                             }}
@@ -485,12 +491,12 @@ export class LCARdSIconSection extends LitElement {
                         <ha-selector
                             style="flex:1; min-width:80px;"
                             .hass=${this.editor.hass}
-                            .label=${this._rangeOperator === 'between' ? 'From' : 'Threshold'}
+                            .label=${this._isBetweenOperator() ? 'From' : 'Threshold'}
                             .selector=${{ number: { mode: 'box', step: 0.01 } }}
                             .value=${this._rangeMin === '' ? null : parseFloat(this._rangeMin)}
                             @value-changed=${this._handleRangeMinChange}>
                         </ha-selector>
-                        ${this._rangeOperator === 'between' ? html`
+                        ${this._isBetweenOperator() ? html`
                             <ha-selector
                                 style="flex:1; min-width:80px;"
                                 .hass=${this.editor.hass}
@@ -627,10 +633,19 @@ export class LCARdSIconSection extends LitElement {
         this._rangeMax = v !== null && v !== undefined ? String(v) : '';
     }
 
+    /**
+     * Whether the current operator takes two bounds (From/To) instead of one
+     * @returns {boolean}
+     * @private
+     */
+    _isBetweenOperator() {
+        return this._rangeOperator === 'between' || this._rangeOperator === 'between_exclusive';
+    }
+
     _isValidRangeForm() {
         const min = parseFloat(this._rangeMin);
         if (isNaN(min)) return false;
-        if (this._rangeOperator === 'between') {
+        if (this._isBetweenOperator()) {
             const max = parseFloat(this._rangeMax);
             if (isNaN(max)) return false;
             if (min >= max) return false;
@@ -639,8 +654,8 @@ export class LCARdSIconSection extends LitElement {
     }
 
     _buildRangeKey() {
-        if (this._rangeOperator === 'between') {
-            return `between:${this._rangeMin}:${this._rangeMax}`;
+        if (this._isBetweenOperator()) {
+            return `${this._rangeOperator}:${this._rangeMin}:${this._rangeMax}`;
         }
         return `${this._rangeOperator}:${this._rangeMin}`;
     }
@@ -721,7 +736,11 @@ export class LCARdSIconSection extends LitElement {
      */
     _formatStateLabel(state) {
         if (state.startsWith('above:')) return `Above ${state.slice(6)}`;
+        if (state.startsWith('at_least:')) return `At Least ${state.slice(9)}`;
         if (state.startsWith('below:')) return `Below ${state.slice(6)}`;
+        if (state.startsWith('at_most:')) return `At Most ${state.slice(8)}`;
+        const betweenExclusive = state.match(/^between_exclusive:(-?[\d.]+):(-?[\d.]+)$/);
+        if (betweenExclusive) return `Between ${betweenExclusive[1]}–${betweenExclusive[2]} (exclusive)`;
         const between = state.match(/^between:(-?[\d.]+):(-?[\d.]+)$/);
         if (between) return `Between ${between[1]}–${between[2]}`;
 

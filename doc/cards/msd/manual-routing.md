@@ -39,6 +39,22 @@ waypoints:
   - [300, 200]  # Fixed position at x=300, y=200
 ```
 
+#### Per-Waypoint Corner Radius
+
+A coordinate waypoint can carry an optional 3rd number to override just that corner's rounding radius (`corner_style: round`) or chamfer size (`corner_style: bevel`), instead of every corner sharing the line's single `corner_radius`:
+
+```yaml
+route: manual
+corner_style: round
+corner_radius: 34       # line-wide default
+waypoints:
+  - [150, 200, 8]        # this corner rounds tighter (radius 8)
+  - [300, 200]            # no override — uses the line default (34)
+  - [300, 400, 60]        # this corner rounds wider (radius 60)
+```
+
+Omit the 3rd number to inherit the line's `corner_radius`. Like the line-wide value, a per-waypoint radius is a *target*, not a guarantee — it still shrinks if the waypoint's adjacent legs are too short to fit it, exactly the same room-adaptive clamping `corner_radius` already gets. Named-anchor waypoints (below) can't carry a radius, since they're a string, not a coordinate — an anchor waypoint's corner always uses the line default.
+
 ### Named Anchor Waypoints
 
 Reference anchor names to create dynamic waypoints that follow anchors:

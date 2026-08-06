@@ -39,6 +39,21 @@ export const studioDialogStyles = css`
         flex-direction: column;
     }
 
+    /* .dialog-content is the direct light-DOM child slotted into that body —
+       without its own flex sizing it defaults to its content's natural
+       height, which can exceed the body and force the *whole dialog* to
+       scroll instead of just .tab-content. Keeping it in the same flex chain
+       (flex:1, min-height:0, overflow:hidden) means only .tab-content (which
+       opts in below) ever actually scrolls; the tab headers and canvas
+       toolbar stay put. */
+    .dialog-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+    }
+
     /* Split Panel Layout (50/50 ratio - balanced config and preview) */
     .studio-layout {
         flex: 1;
@@ -67,25 +82,32 @@ export const studioDialogStyles = css`
         min-height: 0;
     }
 
+    /* Never scrolls — always consumes exactly the space it's given. Overflow
+       within the canvas is handled by d3-zoom pan/zoom, not a scrollbar. */
     .preview-panel {
         position: relative;
         display: flex;
         flex-direction: column;
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow: hidden;
         min-height: 0;
     }
 
-    /* Floating Toolbar Pattern */
+    /* Floating Toolbar Pattern — a dark scrim is still needed here for icon
+       legibility over arbitrary base_svg/canvas content behind it, but tinted
+       with the theme's own accent color (rather than flat neutral black)
+       so it reads as part of the LCARdS palette, matching the
+       rgba(var(--rgb-primary-color, ...), alpha) pattern already used
+       elsewhere in the Studio dialogs (e.g. lcards-data-grid-studio-dialog.js). */
     .canvas-toolbar {
         position: absolute;
         top: 12px;
         right: 12px;
+        max-width: calc(100% - 24px);
         display: flex;
         gap: 8px;
-        background: rgba(0, 0, 0, 0.75);
+        background: color-mix(in srgb, rgba(var(--rgb-primary-color, 3, 169, 244), 0.9) 12%, rgba(0, 0, 0, 0.8) 88%);
         backdrop-filter: blur(8px);
-        border-radius: 24px;
+        border-radius: 20px;
         padding: 8px;
         box-shadow: var(--ha-box-shadow-l);
         z-index: 1000;
@@ -118,22 +140,54 @@ export const studioDialogStyles = css`
 
     .canvas-toolbar-buttons {
         display: flex;
-        gap: 4px;
+        flex-wrap: wrap;
+        gap: 10px;
         align-items: center;
     }
 
-    .canvas-toolbar-divider {
-        width: 1px;
-        height: 32px;
-        background: rgba(255, 255, 255, 0.2);
-        margin: 0 4px;
+    /* Groups related buttons into a visually distinct "chip" (e.g. Tools,
+       Edit Mode, View aids, Overlay toggles) — a subtly lighter capsule
+       floating within the toolbar's own dark pill, so it's clear at a glance
+       which buttons belong together without relying on a thin, easy-to-miss
+       divider line. Never splits across a wrap boundary — the whole group
+       moves to the next row together. */
+    .canvas-toolbar-group {
+        display: flex;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+        gap: 4px;
+        align-items: center;
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.18);
+        border: 1px solid rgba(var(--rgb-primary-color, 3, 169, 244), 0.32);
+        /* Full pill, not a fixed radius — each group is always exactly one
+           row tall (button height + padding), so this keeps the chip's end
+           curvature concentric with the fully-round buttons inside it. */
+        border-radius: var(--ha-border-radius-pill, 9999px);
+        padding: 4px;
+    }
+
+    /* Group caption — sits inline as the first item in its group's row, next
+       to the buttons (not stacked above them, so the group's height/pill
+       shape never changes). Muted relative to the icons so it reads as a
+       label, not another control. */
+    .canvas-toolbar-group-label {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: white;
+        opacity: 0.7;
+        padding: 0 2px 0 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        user-select: none;
     }
 
     .canvas-toolbar-button {
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.12);
         border: 2px solid transparent;
         cursor: pointer;
         display: flex;
@@ -144,7 +198,7 @@ export const studioDialogStyles = css`
     }
 
     .canvas-toolbar-button:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.3);
         border-color: var(--primary-color);
     }
 
@@ -158,7 +212,7 @@ export const studioDialogStyles = css`
         color: white;
     }
 
-    /* Zoom Controls Pattern */
+    /* Zoom Controls Pattern — same palette-tinted dark scrim as .canvas-toolbar above */
     .zoom-controls {
         position: absolute;
         bottom: 16px;
@@ -167,7 +221,7 @@ export const studioDialogStyles = css`
         display: flex;
         gap: 8px;
         align-items: center;
-        background: rgba(0, 0, 0, 0.85);
+        background: color-mix(in srgb, rgba(var(--rgb-primary-color, 3, 169, 244), 0.9) 12%, rgba(0, 0, 0, 0.85) 88%);
         backdrop-filter: blur(8px);
         border-radius: 24px;
         padding: 8px 16px;

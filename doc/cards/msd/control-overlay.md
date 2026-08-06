@@ -37,9 +37,10 @@ msd:
 | `card` | object | — | Any HA card config (required) |
 | `anchor` | string | — | Named anchor to centre the overlay on |
 | `position` | array | — | Explicit `[x, y]` coordinates — overrides `anchor` |
-| `size` | array | — | `[width, height]` in px |
+| `size` | array | — | `[width, height]` in viewBox units |
 | `visible` | boolean | `true` | Show or hide the overlay |
 | `z_index` | number | — | Stacking order (higher = in front) |
+| `locked` | boolean | `false` | Editor-only: when true, MSD Studio disables drag/resize for this overlay |
 | `tags` | list | — | Tags for rule targeting |
 
 Either `anchor` or `position` must be provided.

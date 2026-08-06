@@ -76,6 +76,12 @@ card.set hass(newHass)
     → notify subscribers for changed entities only
 ```
 
+"Changed" is `state` string change **or** `last_updated` change — the latter
+also bumps on attribute-only updates (e.g. `brightness` changing while a
+light stays `"on"`), so attribute-driven subscribers fire correctly.
+`last_changed` alone is not sufficient: HA only bumps it on a `state` string
+transition, not on attribute-only changes.
+
 ---
 
 ## Public API

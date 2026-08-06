@@ -11,6 +11,7 @@ import { editorStyles } from './editor-styles.js';
 import { configToYaml, yamlToConfig, validateYaml } from '../utils/yaml-utils.js';
 import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { getAttributeOptions } from '../../utils/attribute-options.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import '../components/sound/lcards-card-sound-tab.js';
 import '../components/lcards-zone-list-editor.js';
@@ -1009,21 +1010,12 @@ export class LCARdSBaseEditor extends LitElement {
      * Injects the virtual "brightness_pct" option right after "brightness" (when present)
      * so users get a clearly-labelled 0–100% computed value instead of the raw 0–255.
      *
+     * @param {string} [entityId] - Entity to list attributes for. Defaults to the card's own entity.
      * @returns {Array<{value:string, label:string}>}
      * @protected
      */
-    _getRangesAttributeOptions() {
-        const entityId = this.config?.entity;
-        const options = [];
-        if (!entityId || !this.hass?.states?.[entityId]) return options;
-        const attrs = Object.keys(this.hass.states[entityId].attributes || {}).sort();
-        for (const attr of attrs) {
-            options.push({ value: attr, label: attr });
-            if (attr === 'brightness') {
-                options.push({ value: 'brightness_pct', label: 'brightness_pct  (auto 0–100%)' });
-            }
-        }
-        return options;
+    _getRangesAttributeOptions(entityId = this.config?.entity) {
+        return getAttributeOptions(this.hass, entityId);
     }
 
     /**

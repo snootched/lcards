@@ -18,11 +18,13 @@ See the **[Preset Reference](animations/preset-reference.md)** for full paramete
 | Category | Presets |
 |----------|---------|
 | Motion | [`bounce`](animations/preset-reference.md#bounce), [`blink`](animations/preset-reference.md#blink), [`fade`](animations/preset-reference.md#fade), [`glow`](animations/preset-reference.md#glow), [`pulse`](animations/preset-reference.md#pulse), [`rotate`](animations/preset-reference.md#rotate), [`scale`](animations/preset-reference.md#scale), [`scale-reset`](animations/preset-reference.md#scale-reset), [`shake`](animations/preset-reference.md#shake), [`skew`](animations/preset-reference.md#skew), [`slide`](animations/preset-reference.md#slide), [`strobe`](animations/preset-reference.md#strobe) |
-| Color | [`border-pulse`](animations/preset-reference.md#border-pulse), [`cascade-color`](animations/preset-reference.md#cascade-color), [`color-shift`](animations/preset-reference.md#color-shift), [`shimmer`](animations/preset-reference.md#shimmer) |
+| Color | [`cascade-color`](animations/preset-reference.md#cascade-color), [`color-shift`](animations/preset-reference.md#color-shift), [`shimmer`](animations/preset-reference.md#shimmer) |
 | Text | [`text-glitch`](animations/preset-reference.md#text-glitch), [`text-reveal`](animations/preset-reference.md#text-reveal), [`text-scramble`](animations/preset-reference.md#text-scramble), [`text-typewriter`](animations/preset-reference.md#text-typewriter) |
-| Visual Effects | [`cascade`](animations/preset-reference.md#cascade), [`flicker`](animations/preset-reference.md#flicker), [`glitch`](animations/preset-reference.md#glitch), [`ripple`](animations/preset-reference.md#ripple), [`scan-line`](animations/preset-reference.md#scan-line) |
+| Visual Effects | [`cascade`](animations/preset-reference.md#cascade), [`flicker`](animations/preset-reference.md#flicker), [`glitch`](animations/preset-reference.md#glitch), [`ripple`](animations/preset-reference.md#ripple) |
 | SVG | [`draw`](animations/preset-reference.md#draw), [`march`](animations/preset-reference.md#march) |
-| Advanced | [`chaos`](animations/preset-reference.md#chaos), [`grid-stagger`](animations/preset-reference.md#grid-stagger), [`physics-spring`](animations/preset-reference.md#physics-spring), [`sequence`](animations/preset-reference.md#sequence) |
+| Stagger | [`stagger-grid`](animations/preset-reference.md#stagger-grid), [`stagger-wave`](animations/preset-reference.md#stagger-wave), [`stagger-radial`](animations/preset-reference.md#stagger-radial), [`stagger-flash`](animations/preset-reference.md#stagger-flash) |
+| Timeline | [`timeline-cascade`](animations/preset-reference.md#timeline-cascade), [`timeline-attention`](animations/preset-reference.md#timeline-attention), [`sequence`](animations/preset-reference.md#sequence) |
+| Advanced | [`chaos`](animations/preset-reference.md#chaos), [`physics-spring`](animations/preset-reference.md#physics-spring) |
 | Utility | [`motionpath`](animations/preset-reference.md#motionpath), [`set`](animations/preset-reference.md#set) |
 
 ---
@@ -51,11 +53,13 @@ animations:
 | Trigger | When it fires |
 |---------|--------------|
 | `on_tap` | Card is tapped or clicked |
+| `on_double_tap` | Card is double-tapped |
 | `on_hold` | Long-press on the card |
 | `on_hover` | Mouse enters the card |
 | `on_leave` | Mouse leaves the card |
 | `on_load` | Card is rendered on page load |
 | `on_entity_change` | A watched entity changes state |
+| `on_datasource_change` | A configured [DataSource](../architecture/internals/datasource-buffers.md) value changes — requires a `datasource` property alongside the trigger |
 
 ---
 
@@ -73,7 +77,8 @@ animations:
 | `alternate` | boolean | preset default | Reverse direction on each loop |
 | `ease` | string / object | preset default | Easing function — see below |
 | `params` | object | — | Preset-specific parameters. Each value may be a `map_range` descriptor. |
-| `target` | string | — | CSS selector or `data-field-id` to restrict which element animates |
+| `target` | string | — | CSS selector or `data-field-id` to restrict which element animates. Leave unset to animate the overlay/card the animation is declared on. |
+| `targets` | string / array | — | Same as `target`, but for multiple selectors/elements at once |
 | `entity` | string | card entity | Entity to watch (for `on_entity_change`) |
 | `attribute` | string | — | Attribute to read instead of entity state. Applies to `from_state`, `to_state`, and `while`. Use `brightness_pct` for a 0–100 light brightness percentage. |
 | `from_state` | string | — | **Fire-and-forget gate:** only trigger when transitioning FROM this value |
@@ -82,6 +87,8 @@ animations:
 | `check_on_load` | boolean | `true` | Evaluate condition on card load. Starts a looping animation immediately if the `while` condition is already met, or fires once if already in `to_state`. Set to `false` to react only to state transitions after load. |
 
 > **`to_state` / `from_state` vs `while`:** `to_state` and `from_state` are fire-and-forget gates — they control when an animation *starts* but will not stop a looping animation. Use `while` to auto-stop a loop when the condition clears.
+
+> **Unrecognized fields warn, they don't block.** An animation field, or a `params` key, that isn't recognized (e.g. a leftover from switching `preset` values) produces a console warning but never fails validation or prevents the card from loading — only a *wrong type* on a field that *is* recognized (e.g. `duration: "fast"`) is a hard error. It's still worth cleaning up unrecognized leftovers, since some presets read `params` differently depending on what else is present.
 
 ---
 
@@ -218,4 +225,5 @@ animations:
 - [Entity Change Triggers](animations/entity-change-triggers.md) — `on_entity_change` deep-dive: `while` lifecycle, gates, `attribute`, `check_on_load`
 - [Rule-based Animations](animations/rule-based-animations.md) — trigger animations across multiple cards via the Rules Engine
 - [Rules Engine](rules/) — conditions and multi-card coordination
+- [MSD Overlay Group Animations](../cards/msd/index.md#animations-overlay-group-object) — bulk-target a group of MSD overlays by CSS selector, in one declaration
 - [Animation Architecture](../architecture/animations/) — developer reference: component diagram, trigger type comparison

@@ -1177,8 +1177,13 @@ export class RulesEngine extends BaseService {
 
     for (const animCmd of animationCommands) {
       try {
-        // Resolve overlay targets (supports overlay ID, tag, type, pattern)
-        const targetOverlays = this._resolveAnimationTargets(animCmd);
+        // Resolve overlay targets (supports overlay ID, tag, type, pattern), retrying
+        // briefly if none are found yet — rules can evaluate and match before an MSD
+        // card's own overlays (e.g. a line) finish registering with CoreSystemsManager
+        // during initial pipeline setup. A rule whose condition is already true on
+        // load only ever "matches" once (no re-trigger while it stays matched), so
+        // without a retry the animation never gets a second chance to find its target.
+        const targetOverlays = await this._resolveAnimationTargetsWithRetry(animCmd);
 
         if (targetOverlays.length === 0) {
           lcardsLog.debug(`[RulesEngine] No overlays found matching animation target:`, animCmd);
@@ -1191,19 +1196,31 @@ export class RulesEngine extends BaseService {
           loop: animCmd.loop
         });
 
-        // Resolve any map_range param descriptors to concrete values
+        // Debug-only visibility into what map_range params will resolve to — NOT
+        // used for the actual animation call below. playAnimation() does its own
+        // internal resolveAnimCommandParams() call (AnimationManager.js:1034) and
+        // MUST be the one to see the raw, unresolved animCmd: it captures the raw
+        // duration first (AnimationManager.js:1030) specifically to detect a
+        // map_range descriptor and register a live-updating speed binding for
+        // looping animations (Phase 10). Pre-resolving here and handing playAnimation()
+        // an already-flattened plain-number duration silently defeats that — the
+        // animation would start at the right initial speed but never live-adjust
+        // as the bound entity changes, since the object-shaped descriptor
+        // playAnimation() checks for (`typeof rawDuration === 'object'`) would
+        // already be gone.
         const hass = this.systemsManager?.getHass?.();
         const resolvedAnimCmd = this._resolveAnimCommandParams(animCmd, hass);
 
-        lcardsLog.debug(`[RulesEngine] Resolved animation params for rule ${ruleId}:`, {
+        lcardsLog.debug(`[RulesEngine] Resolved animation params for rule ${ruleId} (debug preview only):`, {
           original: animCmd.params,
           resolved: resolvedAnimCmd.params
         });
 
         // Execute animation on each target overlay
         for (const overlayId of targetOverlays) {
-          // Add trigger type so the animation can be tracked and stopped
-          const ruleAnimDef = { ...resolvedAnimCmd, trigger: 'on_rule' };
+          // Add trigger type so the animation can be tracked and stopped. Pass the
+          // ORIGINAL animCmd (not resolvedAnimCmd above) — see comment above.
+          const ruleAnimDef = { ...animCmd, trigger: 'on_rule' };
           await animationManager.playAnimation(overlayId, ruleAnimDef);
           if (animCmd.loop) {
             activeOverlays.add(overlayId);
@@ -1367,6 +1384,32 @@ export class RulesEngine extends BaseService {
 
     lcardsLog.warn('[RulesEngine] Animation command has no valid targeting criteria:', animCmd);
     return targets;
+  }
+
+  /**
+   * Same resolution as _resolveAnimationTargets(), but polls briefly instead of
+   * giving up on the first empty result. Confirmed via live testing: a rule whose
+   * condition is already true on card load can evaluate and try to target an MSD
+   * overlay (e.g. a line) before that overlay finishes registering with
+   * CoreSystemsManager during the card's own pipeline init — and since a
+   * continuously-true condition never re-triggers a match, there was no second
+   * chance for the animation to ever start. Mirrors the same poll-instead-of-a-
+   * single-fixed-delay-check pattern already used for the card-picker priming fix.
+   * @param {Object} animCmd
+   * @param {number} [maxAttempts=15]
+   * @param {number} [intervalMs=100]
+   * @returns {Promise<Array<string>>}
+   * @private
+   */
+  async _resolveAnimationTargetsWithRetry(animCmd, maxAttempts = 15, intervalMs = 100) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const targets = this._resolveAnimationTargets(animCmd);
+      if (targets.length > 0) return targets;
+      if (attempt < maxAttempts - 1) {
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+    }
+    return [];
   }
 
   /**

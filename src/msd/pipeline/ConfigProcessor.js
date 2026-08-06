@@ -10,6 +10,8 @@
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { AnchorProcessor } from './AnchorProcessor.js';
+import { SvgStructureAnalyzer } from './SvgStructureAnalyzer.js';
+import { getSvgViewBox, resolveEffectiveViewBox } from '../../utils/lcards-anchor-helpers.js';
 
 /**
  * Process and validate MSD config using CoreConfigManager.
@@ -37,14 +39,30 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
   let anchors = {};
 
   if (svgContent) {
-    // Extract viewBox from SVG
-    viewBox = window.lcards?.getSvgViewBox?.(svgContent);
+    // Resolve viewBox once: explicit user config > SVG-native > last-resort default.
+    // Reused below for both anchor-percent resolution and the final merged config,
+    // so the two can never again disagree.
+    viewBox = resolveEffectiveViewBox(msdSubConfig.view_box, svgContent);
+
+    // Algorithmically-derived landmark anchors (bow/stern/nacelle-tip/hull-center),
+    // computed from the SVG's own rendered silhouette - lowest precedence, a
+    // hand-drawn SVG anchor or explicit config anchor always overrides. Uses
+    // getSvgViewBox() directly rather than the `viewBox` value above, since
+    // coordinate mapping needs the SVG's real native viewBox regardless of any
+    // explicit user override in effect for `viewBox`. Skipped entirely (not just
+    // discarded) when harvest_landmarks is disabled, since the raster/mask work
+    // itself is the expensive part.
+    const computedAnchors = msdSubConfig.base_svg?.harvest_landmarks !== false
+      ? await SvgStructureAnalyzer.analyzeAnchors(svgContent, getSvgViewBox(svgContent))
+      : {};
 
     // Extract and merge anchors
     const anchorResult = AnchorProcessor.processAnchors(
       svgContent,
       msdSubConfig.anchors || {},
-      viewBox || [0, 0, 1920, 1080]
+      viewBox,
+      computedAnchors,
+      { harvestSvgElements: msdSubConfig.base_svg?.harvest_svg_elements !== false }
     );
 
     anchors = anchorResult.anchors;
@@ -52,6 +70,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
     lcardsLog.trace('[ConfigProcessor] SVG metadata extracted:', {
       viewBox,
       anchorCount: anchorResult.metadata.totalCount,
+      computedAnchors: anchorResult.metadata.computedAnchorCount,
       svgAnchors: anchorResult.metadata.svgAnchorCount,
       userAnchors: anchorResult.metadata.userAnchorCount
     });
@@ -71,7 +90,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
   // This ensures anchors/viewBox flow through the merge pipeline with provenance
   const enhancedConfig = {
     ...userMsdConfig,
-    view_box: viewBox || msdSubConfig.view_box || [0, 0, 1920, 1080],
+    view_box: viewBox,
     anchors: anchors,  // Put extracted anchors here - will be at top-level after processConfig
     _svgMetadata: {
       extractedViewBox: viewBox,
@@ -154,8 +173,23 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
       if (typeof o.anchor === 'string') aRefs.push(o.anchor);
       if (typeof o.attach_to === 'string') aRefs.push(o.attach_to);
       if (typeof o.attachTo === 'string') aRefs.push(o.attachTo);
+      // Controls use `position` (string form) as their anchor reference instead
+      // of `anchor`/`attach_to` — arrays are literal [x,y] coordinates, not refs.
+      if (typeof o.position === 'string') aRefs.push(o.position);
       aRefs.forEach(ref=>{
-        if (ref && !anchorSet.has(ref)) {
+        if (!ref) return;
+        // An overlay's own id is in anchorSet (added above so OTHER overlays can
+        // target it), so a self-reference would otherwise pass the "missing" check
+        // silently. Catch it explicitly instead.
+        if (ref === o.id) {
+          const code = 'anchor.self_reference';
+          if (!existingCodes.has(`${code}:${o.id}`)) {
+            issues.errors.push({ code, severity:'error', overlay:o.id, anchor:ref, msg:`Overlay ${o.id} cannot reference itself as an anchor` });
+            existingCodes.add(`${code}:${o.id}`);
+          }
+          return;
+        }
+        if (!anchorSet.has(ref)) {
           const code = 'anchor.missing';
           if (!existingCodes.has(`${code}:${ref}:${o.id}`)) {
             issues.errors.push({ code, severity:'error', overlay:o.id, anchor:ref, msg:`Overlay ${o.id} references missing anchor '${ref}'` });

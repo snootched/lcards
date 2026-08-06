@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.07.02.1",
+  "version": "2026.08.0",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -27,13 +27,17 @@
     "check:ha-impact:quick": "node scripts/check-ha-impact.js --quick",
     "build:integration": "vite build --mode integration && node scripts/copy-assets.js",
     "set-version": "node scripts/set-version.js",
+    "bump-version": "node scripts/bump-version.js",
+    "bump-version:dev": "node scripts/bump-version.js --dev",
     "generate-brand-icon": "node scripts/generate-brand-icon.js",
     "typecheck": "tsc --pretty false 2>&1 | sort",
+    "test:routing": "node --test 'tests/routing/*.test.js'",
     "create-editor": "node tools/create-editor.js",
     "docs:build": "vitepress build doc",
     "docs:serve": "vitepress dev doc",
     "docs:serve:network": "vitepress dev doc --host",
     "docs:preview": "vitepress preview doc",
+    "docs:routing-diagrams": "node scripts/generate-routing-diagrams.js",
     "lcars:palette-scale": "node scripts/generate-lcards-palette-scale.js",
     "lcars:palette-scale:write": "node scripts/generate-lcards-palette-scale.js --write && cp reports/palette-scale-review.html doc/public/reports/palette-scale-review.html",
     "lcars:semantic-tokens": "node scripts/generate-lcards-ha-semantic-tokens.js",
@@ -73,5 +77,8 @@
     "d3-zoom": "^3.0.0",
     "lit": "^3.3.2",
     "vanilla-colorful": "^0.7.2"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
   }
 }

@@ -526,6 +526,37 @@ export const lcardsDefaultTokens = {
             unavailable: 0.25,
             unknown: 0.25
           }
+        },
+        // Secondary/decorative ring & accent segments (e.g. dpad_voyager's
+        // surrounding sensor-ring texture, top bar, and bottom accent cluster).
+        // Subdued relative to directional/diagonal/center so the primary
+        // 9-zone controls still read as the main interactive elements.
+        ring: {
+          fill: {
+            default: 'darken(colors.card.buttonOff, 0.45)',    // at-rest = inactive
+            active: 'var(--lcars-gray, var(--lcards-gray-medium-light))',
+            inactive: 'darken(colors.card.buttonOff, 0.45)',
+            hover: 'lighten(colors.card.buttonOff, 0.15)',
+            pressed: 'darken(colors.card.buttonOff, 0.2)',
+            unavailable: 'var(--lcards-gray-medium)',
+            unknown: 'var(--lcards-gray-medium)'
+          },
+          stroke: {
+            active: 'var(--lcars-text-light, var(--lcards-moonlight))',
+            inactive: 'var(--lcards-gray-medium)',
+            hover: 'var(--lcars-text-light, var(--lcards-moonlight))',
+            pressed: 'var(--lcars-text-light, var(--lcards-moonlight))',
+            unavailable: 'var(--lcards-gray-medium)',
+            unknown: 'var(--lcards-gray-medium)'
+          },
+          'stroke-width': {
+            active: 0.25,
+            inactive: 0.25,
+            hover: 0.5,
+            pressed: 0.75,
+            unavailable: 0.25,
+            unknown: 0.25
+          }
         }
       }
     },

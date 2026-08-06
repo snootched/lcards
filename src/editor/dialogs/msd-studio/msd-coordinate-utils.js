@@ -43,12 +43,13 @@ export function getPreviewCoordinatesFromMouseEvent(event, dialogShadowRoot, con
     const svg = shadowRoot.querySelector('svg');
     if (!svg) return null;
 
-    // Get viewBox
-    const viewBox = config.msd?.view_box;
-    let viewBoxX = 0, viewBoxY = 0, viewBoxWidth = 1920, viewBoxHeight = 1200;
-    if (Array.isArray(viewBox) && viewBox.length === 4) {
-        [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
-    }
+    // Read the viewBox actually applied to the rendered element, rather than
+    // re-deriving from config — always matches what's really on screen, with
+    // no risk of drifting from whatever the card's own render-time resolution
+    // (explicit config > SVG-native > fallback) decided.
+    const vb = svg.viewBox.baseVal;
+    if (!vb || vb.width <= 0 || vb.height <= 0) return null;
+    const { x: viewBoxX, y: viewBoxY, width: viewBoxWidth, height: viewBoxHeight } = vb;
 
     // Get SVG rect
     const rect = svg.getBoundingClientRect();
