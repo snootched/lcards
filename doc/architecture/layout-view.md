@@ -70,7 +70,7 @@ This avoids the offset bug that occurs when header/ruler tracks consume grid spa
 
 ### Header gutter
 
-During Layout mode the view pads `#grid-root` by `GRID_EDIT_GUTTER` (top/left) and the ghost grid pads by the same amount, so the column/row headers sit in a reserved gutter instead of covering the first row/column. The constant is shared from `layout-grid-utils.js` to keep both sides in sync.
+`GRID_EDIT_GUTTER` (28px, from `layout-grid-utils.js`) does **not** pad `#grid-root` — both the view and the card call `buildGridStyle(..., { withGutter: false })`, so the grid keeps its natural size in Layout mode. The overlay imports the same constant as `HEADER_OVERLAP` and instead sizes/positions its column/row headers, add-row/add-col buttons, and corner controls to float over the first `HEADER_OVERLAP`px of the real grid. `buildGridStyle`'s `withGutter` option still exists (reserves `padding-top`/`padding-left`) but neither call site passes `true` today.
 
 ### Unified pointer dispatch
 
@@ -82,8 +82,8 @@ During Layout mode the view pads `#grid-root` by `GRID_EDIT_GUTTER` (top/left) a
 
 `_placeCards()` rebuilds `#grid-root` whenever cards or layout change:
 
-1. **Area surfaces** (`_renderAreaSurfaces`) — for each entry in `layout.areas`, a non-interactive `.area-surface` div is appended first (so cards paint above it by DOM order), styled by `_applyAreaSurfaceStyle`. `theme:` tokens in colors are resolved via `window.lcards.core.themeManager.resolver`.
-2. **Cards** — each HA-provided card element gets placement applied by `_applyCardPlacement(gridItem, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings)`.
+1. **Area surfaces** (`renderAreaSurfaces()`, from `layout-render.js`) — for each entry in `layout.areas`, a non-interactive `.area-surface` div is appended first (so cards paint above it by DOM order), styled by `applyAreaSurfaceStyle()`. `theme:` tokens in colors are resolved via `window.lcards.core.themeManager.resolver`.
+2. **Cards** — each HA-provided card element gets placement applied by `applyCardPlacement(gridItem, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings)` (also from `layout-render.js`).
 
 **Precedence:** global (`card_margin` / `card_overflow`) → per-area (`layout.areas[name]`) → per-card (`view_layout`). Grid placement and alignment land on the *grid item* (the card, or its edit-mode wrapper); `overflow` lands on the card so content clips regardless of the wrapper.
 

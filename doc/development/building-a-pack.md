@@ -154,7 +154,11 @@ sound_schemes: {
 }
 ```
 
-Supported event keys: `card_tap`, `card_hold`, `card_double_tap`, `card_hover`, `toggle_on`, `toggle_off`, `slider_grab`, `slider_release`, `slider_change`, `nav_forward`, `nav_back`, `alert_red`, `alert_yellow`, `alert_clear`.
+Supported event keys (from `EVENT_CATEGORY` in `src/core/sound/SoundManager.js`), grouped by their Config Panel sub-category:
+
+- **cards**: `card_tap`, `card_hold`, `card_double_tap`, `card_hover`, `button_tap`, `toggle_on`, `toggle_off`, `slider_drag_start`, `slider_drag_end`, `slider_change`, `more_info_open`
+- **ui**: `menu_expand`, `nav_page`, `dialog_open`, `dialog_close`, `dashboard_edit_start`, `dashboard_edit_save`
+- **alerts**: `alert_red`, `alert_yellow`, `alert_blue`, `alert_gray`, `alert_black`, `alert_clear`, `system_ready`, `error`, `notification`
 
 ### `svg_assets` / `font_assets`
 
@@ -199,19 +203,11 @@ export const alwaysLoad = [
 
 ### External / third-party packs
 
-Call `PackManager.registerPack()` after the LCARdS core has initialized. The `lcards-init-complete` event signals readiness:
+Call `PackManager.registerPack()` after the LCARdS core has initialized. There is no dedicated readiness event — `window.lcards.core` and its managers are attached synchronously during LCARdS's own module load, well before any HA card can mount, so a script that loads *after* the LCARdS bundle can call `registerPack()` immediately. A load-order-independent script should still poll for `packManager` to appear, in case it runs first:
 
 ```javascript
 import { MY_PACK } from './lcards-my-pack.js';
 
-window.addEventListener('lcards-init-complete', () => {
-  window.lcards.core.packManager.registerPack(MY_PACK);
-}, { once: true });
-```
-
-If the core is already initialized when your script loads, the event has already fired. Guard for both cases:
-
-```javascript
 function registerMyPack() {
   window.lcards.core.packManager.registerPack(MY_PACK);
 }
@@ -219,7 +215,12 @@ function registerMyPack() {
 if (window.lcards?.core?.packManager) {
   registerMyPack();
 } else {
-  window.addEventListener('lcards-init-complete', registerMyPack, { once: true });
+  const interval = setInterval(() => {
+    if (window.lcards?.core?.packManager) {
+      clearInterval(interval);
+      registerMyPack();
+    }
+  }, 50);
 }
 ```
 

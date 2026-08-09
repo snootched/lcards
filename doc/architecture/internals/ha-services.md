@@ -19,34 +19,39 @@ The LCARdS integration registers a set of HA **actions** (formerly called servic
 
 ## Service Groups (Implementation Summary)
 
+16 services total, registered from `_ALL_SERVICES` in `services.py`:
+
 | Group | Services | Implementation pattern |
 |-------|----------|----------------------|
-| **Alert mode** | `set_alert_mode`, `red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert`, `clear_alert` | Thin wrappers — delegate to `input_select.select_option` on `input_select.lcards_alert_mode`. Idempotent. Schema: `voluptuous`. |
-| **Frontend control** | `reload`, `set_log_level` | Fire `lcards_event` on the HA bus; forwarded to all subscribed browser tabs via the push channel (see below). `set_log_level` also updates the Python `logging` hierarchy. |
-| **Portal overlay** | `show_portal_card`, `clear_portal_card` | Same push channel. Cards are mounted in `PortalOverlayManager` under slot `'ha-service'`, independent of `'alert-overlay'` and `'connection-overlay'`. Support per-device / per-user targeting. |
-| **Borg** | `borg_assimilate`, `borg_deassimilate` | Same push channel. When targeting is specified, the shared `input_select.lcards_alert_mode` is **not** written — palette changes are local to matched devices only. |
+| **Alert mode** | `set_alert_mode`, `red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert`, `clear_alert` | Thin wrappers — delegate to `input_select.select_option` on `input_select.lcards_alert_mode`, **unless** a targeting field is given, in which case they fire a targeted `set_alert_mode` push event instead and leave the shared helper untouched. Idempotent. Schema: `voluptuous`. |
+| **Frontend control** | `reload`, `set_log_level` | Always fire `lcards_event` on the HA bus via the push channel (see below) — never conditional on targeting. `set_log_level` also updates the Python `logging` hierarchy. |
+| **Screen effects & sound** | `trigger_effect`, `clear_effect`, `play_sound` | Always fire via the push channel. `trigger_effect` sets per-slot (`backdrop`/`color`/`canvas`) effect layers with an optional auto-clear `duration`; `clear_effect` clears one slot or all; `play_sound` plays a configured UI event sound or one exact asset. |
+| **Portal overlay** | `show_portal_card`, `clear_portal_card` | Always fire via the push channel. Cards are mounted in `PortalOverlayManager` under slot `'ha-service'`, independent of `'alert-overlay'` and `'connection-overlay'`. |
+| **Borg** | `borg_assimilate`, `borg_deassimilate` | Always fire via the push channel. When targeting is specified, the shared `input_select.lcards_alert_mode` is **not** written — palette changes are local to matched devices only. |
+
+All 16 services accept the same four optional targeting fields — `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` — resolved server-side by `_async_resolve_targets()` and merged (explicit IDs + name lookups) before being attached to the outgoing event as `target_device_ids`/`target_user_ids`. Omitting all four is a broadcast. → Full field semantics: [HA Actions user guide](/configuration/ha-actions).
 
 ---
 
 ## Push Channel Architecture
 
-`lcards.reload` and `lcards.set_log_level` use a dedicated **server-push channel** instead of the WebSocket request/response pattern:
+Nine services (`reload`, `set_log_level`, `trigger_effect`, `clear_effect`, `play_sound`, `show_portal_card`, `clear_portal_card`, `borg_assimilate`, `borg_deassimilate`) always route through a dedicated **server-push channel** instead of the WebSocket request/response pattern. The 7 alert-mode services route through the same channel only when a targeting field is supplied (otherwise they write `input_select.lcards_alert_mode` directly — see the service table above):
 
 ```
-Python service handler
+Python service handler (via _fire_targeted_event())
     → hass.bus.async_fire("lcards_event", { "action": "...", ...payload })
         → HA internal event bus
             → ws_subscribe._forward() (websocket_api.py, @callback)
                 → connection.send_message(event_message(...))
                     → every browser tab subscribed via lcards/subscribe
                         → IntegrationService._handleLcardsEvent(data)
-                            → window.location.reload()  (reload)
-                            → window.lcards.setGlobalLogLevel(level)  (set_log_level)
+                            → dispatches on payload.action (see event payload table
+                              in HA Integration Architecture)
 ```
 
 Browser tabs subscribe using the `lcards/subscribe` WS command (not the HA-native `subscribeEvents` API, which is restricted to admin users for custom event types). This means **all users including non-admins** receive push events.
 
-This is a **broadcast** — all connected browser tabs receive the event simultaneously. There is no targeted delivery to a single tab.
+Transport is always a **broadcast** — every subscribed tab receives every event. When an event carries `target_device_ids`/`target_user_ids` (i.e. a service call supplied targeting fields), each `IntegrationService._isEventTargetedAtMe()` self-filters client-side and silently drops events not addressed to it; there is no server-side targeted delivery to a single connection.
 
 → See [Integration Service — Push Channel](../subsystems/integration-service#push-channel) for the JS-side implementation details.
 

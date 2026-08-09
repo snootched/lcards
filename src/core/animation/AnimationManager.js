@@ -537,9 +537,8 @@ export class AnimationManager extends BaseService {
 
   /**
    * Extract value from datasource using dot notation path
-   * NEW: Updated for datasource buffer structure (main buffer + processor buffers)
    *
-   * @param {Object} data - Datasource data object with structure: { v: value, processorKey: value, ... }
+   * @param {Object} data - Datasource data object, e.g. { v: value, processing: { processorKey: value, ... } }
    * @param {Array<string>} pathParts - Path parts (e.g., ['celsius'] for processor buffer)
    * @returns {*} Extracted value
    * @private
@@ -559,13 +558,13 @@ export class AnimationManager extends BaseService {
     // Single path part - look for processor buffer (e.g., 'celsius', 'rolling_avg')
     const processorKey = pathParts[0];
 
-    if (data[processorKey] !== undefined) {
+    if (data.processing && data.processing[processorKey] !== undefined) {
       // Found processor buffer - return its value
-      return data[processorKey];
+      return data.processing[processorKey];
     }
 
     // Processor buffer not found - log warning and fallback to main buffer
-    lcardsLog.warn(`[AnimationManager] Processor buffer '${processorKey}' not found in datasource. Available: ${Object.keys(data).join(', ')}. Falling back to main buffer.`);
+    lcardsLog.warn(`[AnimationManager] Processor buffer '${processorKey}' not found in datasource. Available: ${Object.keys(data.processing || {}).join(', ')}. Falling back to main buffer.`);
     return data.v !== undefined ? data.v : undefined;
   }
 

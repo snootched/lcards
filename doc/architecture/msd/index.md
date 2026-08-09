@@ -18,26 +18,34 @@ Non-MSD cards should use `LCARdSCard` directly — the MSD pipeline is purposely
 User config (YAML)
     │
     ▼
-1. ConfigProcessor        → validate + merge pack defaults + extract SVG anchors
+1. ConfigProcessor            → validate + merge pack defaults + extract SVG anchors
     │
     ▼
-2. MsdCardCoordinator     → init core systems (packs, themes, datasources, rules)
+2. MsdCardCoordinator         → init core systems (packs, themes, datasources, rules, RouterCore)
     │
     ▼
-3. ModelBuilder           → resolve overlay positions, sizes, anchor bindings
+3. CardModel.buildCardModel() → resolve base_svg/viewBox/filters, normalize overlay shape
     │
+    ▼
+4. AnimationManager.initialize(overlays)   → register animation definitions
+    │                                          (before ModelBuilder even exists, well before any render)
+    ▼
+5. ModelBuilder                → resolve overlay positions, sizes, anchor bindings
+    │                             (constructed here; computeResolvedModel() re-runs on every re-render)
     ▼  (produces resolvedModel)
-4. AdvancedRenderer       → produce SVG markup + overlay DOM elements
+6. AdvancedRenderer            → produce SVG markup + overlay DOM elements
     │   ├─ OverlayBase instances (control overlays)
     │   ├─ LineOverlay instances (SVG line routing)
     │   └─ ShapeOverlay instances (polyline/rect/circle geometry)
     │
     ▼
-5. AnimationManager.initialize(overlays)
-    │
+7. AnimationManager.onOverlayRendered(...) → wire each already-registered animation
+    │                                          to its now-rendered DOM element
     ▼
 Rendered card (Shadow DOM updated)
 ```
+
+Note the two-step animation split: `AnimationManager.initialize()` (step 4) only *registers* animation definitions per overlay ID — it runs before `ModelBuilder` is even constructed, long before any DOM exists. Wiring those registrations to actual rendered elements happens later, per-overlay, via `AnimationManager.onOverlayRendered()` (step 7), after `AdvancedRenderer.render()` completes. See `src/msd/pipeline/PipelineCore.js`'s `initMsdPipeline()`.
 
 ---
 
@@ -48,6 +56,7 @@ Rendered card (Shadow DOM updated)
 | `PipelineCore` | `msd/pipeline/PipelineCore.js` | Top-level entry — orchestrates all stages; returns `_msdPipeline` API |
 | `ConfigProcessor` | `msd/pipeline/ConfigProcessor.js` | Validates config, merges pack defaults, extracts SVG metadata and anchors |
 | `MsdCardCoordinator` | `msd/pipeline/MsdCardCoordinator.js` | Initialises core systems in correct dependency order before overlay processing |
+| `CardModel` (`buildCardModel`) | `msd/model/CardModel.js` | Resolves `base_svg` source/filters, resolves the viewBox, normalizes the overlay list into a consistent shape |
 | `ModelBuilder` | `msd/pipeline/ModelBuilder.js` | Resolves overlay geometry, binding to SVG anchors, viewport scaling |
 | `AdvancedRenderer` | `msd/renderer/AdvancedRenderer.js` | Main render orchestrator; creates `OverlayBase` / `LineOverlay` instances per overlay |
 | `OverlayBase` | `msd/overlays/OverlayBase.js` | Base class for control overlays — position, size, embedded HA card |

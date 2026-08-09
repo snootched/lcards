@@ -804,7 +804,7 @@ export class LCARdSProcessorEditor extends LitElement {
         label="Configuration (YAML)"
         .value="${this._yamlValue}"
         @input="${(e) => this._yamlValue = e.target.value}"
-        helper-text="Full processor configuration in YAML format"
+        hint="Full processor configuration in YAML format"
         rows="10"
         resize="auto"
       ></ha-textarea>

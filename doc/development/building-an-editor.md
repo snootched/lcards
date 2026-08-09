@@ -8,7 +8,7 @@ All editors extend `LCARdSBaseEditor`, which provides:
 
 - Tab system (`ha-tab-group` / `ha-tab-panel`)
 - Declarative config-form renderer
-- Free utility tabs: YAML, Developer, Data Sources, Templates, Rules, Theme Browser, Provenance
+- Free utility tabs: YAML, plus a single "🖖 Main Engineering" (Developer) tab with Data Sources / Rules / Theme Browser / Provenance / Templates as sub-tabs
 - Config change dispatch (`config-changed` event)
 - Built-in YAML validation against registered schemas
 
@@ -112,7 +112,11 @@ export class LCARdSMyCardEditor extends LCARdSBaseEditor {
   }
 }
 
-customElements.define('lcards-mycard-editor', LCARdSMyCardEditor);
+// Unlike cards (registered centrally in src/lcards.js), editors self-register
+// in their own file, guarded the same way:
+if (!customElements.get('lcards-mycard-editor')) {
+  customElements.define('lcards-mycard-editor', LCARdSMyCardEditor);
+}
 ```
 
 ## 2. Link the Editor from the Card
@@ -132,7 +136,7 @@ HA calls `getConfigElement()` when opening the visual editor panel. The returned
 import '../editor/cards/lcards-mycard-editor.js';  // side-effect import — registers the element
 ```
 
-Or, if preferred, import both from `src/lcards.js` instead.
+This side-effect import is the established pattern — every built-in editor is wired up this way (see [Bundle Inclusion](#5-bundle-inclusion) below), not through `src/lcards.js`.
 
 ## 3. `_buildConfigTab` Reference
 
@@ -179,31 +183,9 @@ this._updateConfig({
 }, 'background-color');
 ```
 
-## 5. Utility Tabs
+## 5. Bundle Inclusion
 
-`this._getUtilityTabs()` returns a pre-built array of tabs. Spread it at the end of your `_getTabDefinitions()` return value:
-
-```javascript
-_getTabDefinitions() {
-  return [
-    { label: 'Config', content: () => ... },
-    ...this._getUtilityTabs(),   // YAML, Developer, Data Sources, Templates, Rules, Theme Browser, Provenance
-  ];
-}
-```
-
-You get these tabs for free — no additional code required.
-
-## 6. Register in `src/lcards.js`
-
-Import the editor file so it is included in the bundle (the `customElements.define` call inside the editor file does the registration):
-
-```javascript
-// src/lcards.js
-import './editor/cards/lcards-mycard-editor.js';
-```
-
-If the editor is already imported from the card file via a side-effect import (step 2), no additional import in `lcards.js` is needed.
+Every built-in editor is reachable purely through the card file's side-effect import from step 2 (`lcards-button.js` imports `lcards-button-editor.js`, `lcards-msd.js` imports `lcards-msd-editor.js`, etc.) — none of them are imported from `src/lcards.js`. That single import is sufficient: Vite pulls the editor into the bundle, and its own guarded `customElements.define()` call registers it. No further wiring is needed.
 
 ## Related
 

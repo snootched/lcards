@@ -10,17 +10,21 @@ Always check `window.lcards.core.integrationService.available` before calling `l
 
 ## Calling Pattern
 
-Use `hass.connection.sendMessagePromise()` inside a card or service. This is the same connection HA uses for all WS communication — no setup required.
+Use `sendMessagePromise()` on the HASS connection you already have — inside a card that's `this.hass.connection`; inside a core singleton/service (which holds its own `this._hass`) it's `this._hass.connection`. Every example below is written from inside a card method.
 
 ```javascript
-const integration = window.lcards.core.integrationService;
+class MyCard extends LCARdSCard {
+  async _loadPreferences() {
+    const integration = window.lcards.core.integrationService;
 
-if (integration.available) {
-  const result = await hass.connection.sendMessagePromise({
-    type: 'lcards/storage/get',
-    key: 'user.preferences',
-  });
-  // result → { key: 'user.preferences', value: { theme: 'dark' } }
+    if (integration.available) {
+      const result = await this.hass.connection.sendMessagePromise({
+        type: 'lcards/storage/get',
+        key: 'user.preferences',
+      });
+      // result → { key: 'user.preferences', value: { theme: 'dark' } }
+    }
+  }
 }
 ```
 
@@ -33,7 +37,7 @@ For one-off calls from the browser console (debugging / testing), use `window.ha
 Backend availability probe. Normally you do not call this directly — `IntegrationService` probes it once on startup and exposes the result as `integrationService.available`. Useful for diagnostic tooling.
 
 ```javascript
-const result = await hass.connection.sendMessagePromise({
+const result = await this.hass.connection.sendMessagePromise({
   type: 'lcards/info',
 });
 // → { available: true, version: '2026.3.25' }
@@ -55,14 +59,14 @@ Read a single key, or the entire `data` dict if `key` is omitted.
 
 ```javascript
 // Read one key
-const { value } = await hass.connection.sendMessagePromise({
+const { value } = await this.hass.connection.sendMessagePromise({
   type: 'lcards/storage/get',
   key: 'user.preferences',
 });
 // value → { theme: 'dark' }  or  null if missing
 
 // Read everything
-const { value: allData } = await hass.connection.sendMessagePromise({
+const { value: allData } = await this.hass.connection.sendMessagePromise({
   type: 'lcards/storage/get',
 });
 // value → { 'user.preferences': { theme: 'dark' }, ... }
@@ -75,7 +79,7 @@ const { value: allData } = await hass.connection.sendMessagePromise({
 Shallow-merge one or many key→value pairs. Existing keys not in `data` are preserved.
 
 ```javascript
-await hass.connection.sendMessagePromise({
+await this.hass.connection.sendMessagePromise({
   type: 'lcards/storage/set',
   data: {
     'user.preferences': { theme: 'dark', animations: true },
@@ -88,10 +92,10 @@ await hass.connection.sendMessagePromise({
 ::: warning Shallow merge
 `set` merges at the top level only — if `user.preferences` already exists, it is **replaced**, not deep-merged. Read first, spread, then write if you need to update one sub-key:
 ```javascript
-const { value: prefs } = await hass.connection.sendMessagePromise({
+const { value: prefs } = await this.hass.connection.sendMessagePromise({
   type: 'lcards/storage/get', key: 'user.preferences',
 });
-await hass.connection.sendMessagePromise({
+await this.hass.connection.sendMessagePromise({
   type: 'lcards/storage/set',
   data: { 'user.preferences': { ...prefs, theme: 'dark' } },
 });
@@ -105,7 +109,7 @@ await hass.connection.sendMessagePromise({
 Remove a single key. Returns `existed: false` if the key was not present — not an error.
 
 ```javascript
-const { existed } = await hass.connection.sendMessagePromise({
+const { existed } = await this.hass.connection.sendMessagePromise({
   type: 'lcards/storage/delete',
   key: 'cache.stale',
 });
@@ -119,7 +123,7 @@ const { existed } = await hass.connection.sendMessagePromise({
 Wipe the entire store. **Irreversible.** Use only in dev tooling or with explicit user confirmation.
 
 ```javascript
-await hass.connection.sendMessagePromise({
+await this.hass.connection.sendMessagePromise({
   type: 'lcards/storage/reset',
 });
 // → { ok: true }
@@ -132,7 +136,7 @@ await hass.connection.sendMessagePromise({
 Return full store contents including schema version. Intended for debug panels and dev tooling.
 
 ```javascript
-const store = await hass.connection.sendMessagePromise({
+const store = await this.hass.connection.sendMessagePromise({
   type: 'lcards/storage/dump',
 });
 // → { version: 1, data: { 'user.preferences': { theme: 'dark' } } }
@@ -142,7 +146,7 @@ const store = await hass.connection.sendMessagePromise({
 
 ## HA Service Targeting
 
-All nine `lcards.*` HA services accept four optional fields that limit which browser sessions act on the event.  Any combination may be used together.
+All sixteen `lcards.*` HA services accept four optional fields that limit which browser sessions act on the event. Any combination may be used together.
 
 | Field | Type | Resolved by |
 |-------|------|-------------|
@@ -181,7 +185,9 @@ window.lcards.targeting.getMyIds()
 
 All registered device names are visible from the LCARdS Config Panel → **Users & Devices** tab (admin view).
 
-### Example: reload by device name
+### Example: target by display name
+
+`target_device_names` and `target_user_names` work the same way on any service — resolved server-side against the display names set in the Config Panel / HA Users page:
 
 ```yaml
 action: lcards.reload
@@ -191,16 +197,9 @@ data:
     - Hallway Display
 ```
 
-### Example: targeted alert by device name
+### Example: target by UUID
 
-```yaml
-action: lcards.red_alert
-data:
-  target_device_names:
-    - Bedroom Kiosk
-```
-
-### Example: targeted alert by device UUID
+`target_device_ids` and `target_user_ids` take the exact values from `window.lcards.targeting.getMyIds()` — useful for automations that need a stable identifier instead of a display name:
 
 ```yaml
 action: lcards.red_alert
@@ -209,29 +208,9 @@ data:
     - "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 ```
 
-### Example: target by user name
+### Example: combine multiple targeting fields
 
-```yaml
-action: lcards.set_log_level
-data:
-  level: debug
-  target_user_names:
-    - john
-```
-
-### Example: target by user ID
-
-```yaml
-action: lcards.set_log_level
-data:
-  level: debug
-  target_user_ids:
-    - "e71f94a88e824b618761b22aec0cbcef"
-```
-
-### Example: combine name and ID targeting
-
-All four fields are merged with union semantics — useful when you want to target a named device group plus one extra device by ID:
+All four fields are merged with union semantics — useful when you want to target a named device group plus one specific user:
 
 ```yaml
 action: lcards.yellow_alert
@@ -249,17 +228,19 @@ data:
 All commands reject if the integration is unavailable or the storage instance is not yet initialised. Always wrap calls:
 
 ```javascript
-try {
-  const { value } = await hass.connection.sendMessagePromise({
-    type: 'lcards/storage/get',
-    key: 'user.preferences',
-  });
-  return value ?? defaultPreferences;
-} catch (err) {
-  // err.code === 'storage_unavailable' — integration not ready
-  // err.code === 'unknown_command'     — old integration version without storage
-  lcardsLog.warn('[MyCard] Storage unavailable, using defaults', err);
-  return defaultPreferences;
+async _loadPreferences(defaultPreferences) {
+  try {
+    const { value } = await this.hass.connection.sendMessagePromise({
+      type: 'lcards/storage/get',
+      key: 'user.preferences',
+    });
+    return value ?? defaultPreferences;
+  } catch (err) {
+    // err.code === 'storage_unavailable' — integration not ready
+    // err.code === 'unknown_command'     — old integration version without storage
+    lcardsLog.warn('[MyCard] Storage unavailable, using defaults', err);
+    return defaultPreferences;
+  }
 }
 ```
 
@@ -274,12 +255,12 @@ When `integrationService.available === false` (integration not installed or fail
 - Core card rendering continues to work — JS injection and integration availability are independent
 
 ```javascript
-const integration = window.lcards.core.integrationService;
+async _loadPreferences() {
+  const integration = window.lcards.core.integrationService;
 
-async function loadPreferences() {
   if (integration.available) {
     try {
-      const { value } = await hass.connection.sendMessagePromise({
+      const { value } = await this.hass.connection.sendMessagePromise({
         type: 'lcards/storage/get',
         key: 'user.preferences',
       });

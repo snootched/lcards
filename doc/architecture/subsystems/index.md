@@ -1,6 +1,6 @@
 # Core Subsystems
 
-LCARdS exposes a set of singleton services on `window.lcards.core.*`. Each subsystem extends `BaseService`, is instantiated by `LCARdSCore._performInitialization()`, and receives HASS updates via `LCARdSCore.ingestHass()`. Cards never instantiate subsystems directly.
+LCARdS exposes a set of singleton services on `window.lcards.core.*`, all instantiated by `LCARdSCore._performInitialization()`. Most extend `BaseService` and receive HASS updates via `LCARdSCore.ingestHass()`; a handful (`componentManager`, `stylePresetManager`, `packManager`, `systemsManager`, `validationService`) are plain classes that don't need HASS directly. Cards never instantiate subsystems directly.
 
 ---
 
@@ -11,19 +11,19 @@ LCARdS exposes a set of singleton services on `window.lcards.core.*`. Each subsy
 | [Animation Manager](#animation-manager) | `animationManager` | anime.js v4 orchestration, scoped per overlay |
 | [Asset Manager](#asset-manager) | `assetManager` | SVG / font / audio loading and caching |
 | [Component Manager](#component-manager) | `componentManager` | Named multi-segment SVG component registry |
-| [Connection Overlay](#connection-overlay) | `connectionOverlay` | Full-screen lost-connection UI |
+| [Connection Overlay](#connection-overlay) | `connectionOverlayService` | Full-screen lost-connection UI |
 | [DataSource System](#datasource-system) | `dataSourceManager` | Rolling entity buffers with processor pipelines |
 | [Device Identity](#device-identity) | `deviceIdentityManager` | Stable per-browser UUID for scoped settings |
 | [Helper Manager](#helper-manager) | `helperManager` | HA input_* helper read/write |
 | [Integration Service](#integration-service) | `integrationService` | Backend probe, storage helpers, push events |
 | [Pack System](#pack-system) | `packManager` | Named bundles: themes, components, presets, assets |
 | [Rules Engine](#rules-engine) | `rulesManager` | Condition evaluation → style patch on overlays |
-| [Scoped Settings](#scoped-settings) | `scopedSettings` | Device → user → global three-tier waterfall |
+| [Scoped Settings](#scoped-settings) | `scopedSettingsService` | Device → user → global three-tier waterfall |
 | [Screen Effect System](#screen-effect-system) | `screenEffectManager` | Full-screen composited canvas effects |
 | [Sound System](#sound-system) | `soundManager` | Event-driven audio with scheme mapping |
 | [Style Preset Manager](#style-preset-manager) | `stylePresetManager` | Named preset bundles loaded from packs |
 | [Systems Manager](#systems-manager) | `systemsManager` | Entity state cache, subscriptions, overlay registry |
-| [Template System](#template-system) | `templateSystem` | Unified evaluator for all four template types |
+| [Template System](#template-system) | *(no singleton — instantiated per use)* | Unified evaluator for all four template types |
 | [Theme System](#theme-system) | `themeManager` | Token resolution, alert palette transforms |
 | [Validation Service](#validation-service) | `validationService` | Runtime config schema validation by card type |
 
@@ -61,7 +61,7 @@ Consult this when building multi-segment interactive shapes or defining new comp
 
 ## Connection Overlay
 
-**`window.lcards.core.connectionOverlay`** · [Full reference →](./connection-overlay.md)
+**`window.lcards.core.connectionOverlayService`** · [Full reference →](./connection-overlay.md)
 
 Monitors the Home Assistant WebSocket connection and renders a full-screen overlay when the frontend loses server contact. Supports text or custom card modes and optional reconnection banners, configured via the scoped settings waterfall.
 
@@ -131,7 +131,7 @@ Consult this when implementing conditional styling, state-dependent animations, 
 
 ## Scoped Settings
 
-**`window.lcards.core.scopedSettings`** · [Full reference →](./scoped-settings.md)
+**`window.lcards.core.scopedSettingsService`** · [Full reference →](./scoped-settings.md)
 
 Implements a three-tier waterfall (device → user → global) for any LCARdS setting. Each scope can be overridden independently; the most-specific set value wins at read time, and all scopes are persisted to the HA backend.
 
@@ -181,7 +181,7 @@ Consult this when cards need entity state subscriptions, when registering overla
 
 ## Template System
 
-**`window.lcards.core.templateSystem`** · [Full reference →](./template-system.md)
+**`new UnifiedTemplateEvaluator(...)`** — not a core singleton; cards instantiate one directly · [Full reference →](./template-system.md)
 
 Unified evaluator for all four LCARdS template types — JavaScript `[[[...]]]`, LCARdS tokens `{...}`, DataSource references `{ds:...}`, and Jinja2 `{{...}}` — applied in a fixed priority order via `UnifiedTemplateEvaluator`.
 

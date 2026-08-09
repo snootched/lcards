@@ -50,6 +50,8 @@ Use dot-separated namespaces to avoid collisions:
 
 All commands are under the `lcards/storage/` namespace. Access them via `hass.connection` (see [Troubleshooting / browser console](#browser-console-testing) below).
 
+This page covers the 5 global-store commands below. Per-user (`lcards/storage/user/*`, `lcards/storage/users/*`) and per-device (`lcards/storage/device/*`, `lcards/storage/devices/*`) scoped commands are documented in [Scoped Settings](../subsystems/scoped-settings.md#websocket-commands).
+
 ### `lcards/storage/get`
 
 Get one key, or the entire `data` dict if `key` is omitted.

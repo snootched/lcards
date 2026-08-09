@@ -2896,8 +2896,8 @@ export class LCARdSElbow extends LCARdSButton {
                         // (vs 0.86 for button).  Try the theme token first so a theme
                         // override still works; fall back to the elbow-specific constant.
                         const _tm = window.lcards?.core?.themeManager;
-                        const _themeChr = (typeof _tm?.getCurrentTheme === 'function')
-                            ? _tm.getCurrentTheme()?.components?.elbow?.text?.cap_height_ratio
+                        const _themeChr = (typeof _tm?.getActiveTheme === 'function')
+                            ? _tm.getActiveTheme()?.components?.elbow?.text?.cap_height_ratio
                             : null;
                         const _chr = Number.isFinite(_themeChr) ? _themeChr : 0.87;
                         updatedField = { ...field, cap_height_ratio: _chr };

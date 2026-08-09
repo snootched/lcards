@@ -29,12 +29,21 @@ Every subscriber callback receives:
 
 ```javascript
 {
-  v: 72.5,             // Raw entity state value (main buffer)
-  celsius: 22.5,       // Processor output keyed by processor's `key`
-  rolling_avg: 71.8,   // Another processor output
-  t: 1707580800000     // Timestamp (ms)
+  t: 1707580800000,          // Timestamp (ms)
+  v: 72.5,                   // Raw entity state value (main buffer)
+  buffer: RollingBuffer,     // Reference to the main value-history buffer
+  stats: { updates, lastUpdate, ... },
+  entity: 'sensor.temperature',
+  unit_of_measurement: '°F',
+  historyReady: true,        // Whether history preload has completed
+  processing: {
+    celsius: 22.5,           // Processor output, keyed by its name in `processing:`
+    rolling_avg: 71.8,       // Another processor output
+  },
 }
 ```
+
+Processor outputs are nested under `processing`, not spread onto the top level of the emitted object.
 
 ---
 
@@ -43,17 +52,18 @@ Every subscriber callback receives:
 ```yaml
 data_sources:
   temp_sensor:
-    entity_id: sensor.temperature
-    update_interval: 5          # polling interval (seconds); 0 = push-only
-    history_size: 100           # rolling buffer depth
-    processors:
-      - type: unit_conversion
-        key: celsius
-        from_unit: fahrenheit
-        to_unit: celsius
-      - type: smooth
-        key: rolling_avg
-        window: 10
+    entity: sensor.temperature
+    update_interval: 5000       # throttle, in MILLISECONDS (0–10000); default 100
+    history: { hours: 6 }       # historical preload window (hours: 1–168, or days: 1–7)
+    processing:                 # named map, not a list — each key is the processor's name
+      celsius:
+        type: convert_unit
+        from: fahrenheit
+        to: celsius
+      rolling_avg:
+        type: smooth
+        method: exponential
+        alpha: 0.3
 ```
 
 ---
@@ -90,13 +100,13 @@ A processor only ever sees one input — either the raw entity value or the outp
 ```yaml
 data_sources:
   temp_sensor:
-    entity_id: sensor.outdoor_temp
-    processors:
+    entity: sensor.outdoor_temp
+    processing:
       # Step 1 — reads raw entity value (no input_source)
       celsius:
         type: convert_unit
-        from_unit: °F
-        to_unit: °C
+        from: f
+        to: c
 
       # Step 2 — reads output of 'celsius' processor
       smoothed:
@@ -109,8 +119,10 @@ data_sources:
       display:
         type: round
         input_source: smoothed
-        decimals: 1
+        precision: 1
 ```
+
+> `convert_unit`'s own `from`/`to` fields are unit codes, not dependency references — don't confuse them with the chaining `input_source` field above. This double-use of the word "from" is a real overload in the underlying processor config, not a documentation inconsistency.
 
 Access each stage in templates: `{ds:temp_sensor.celsius}`, `{ds:temp_sensor.smoothed}`, `{ds:temp_sensor.display}`.
 
@@ -125,7 +137,7 @@ await dsm.initializeFromConfig(this.config.data_sources || {});
 
 const source = dsm.getSource('temp_sensor');
 this._unsubscribe = source.subscribe((data) => {
-  this._temp = data.celsius;
+  this._temp = data.processing.celsius;  // processor outputs live under data.processing
   this.requestUpdate();
 });
 
@@ -157,16 +169,16 @@ Two levels: the **DataSourceManager** singleton and individual **DataSource** in
 | Property / Method | Returns | Description |
 |---|---|---|
 | `sources` | `Map<name, DataSource>` | All active DataSource instances |
-| `getSource(name)` | `DataSource\|null` | DataSource by its config key name |
-| `initializeFromConfig(dsConfig)` | `Promise<void>` | Register and start all DataSources from a card config block |
+| `getSource(name)` | `DataSource\|undefined` | DataSource by its config key name |
+| `initializeFromConfig(dsConfig)` | `Promise<number>` | Register and start all DataSources from a card config block; resolves to the count of successfully created sources |
 
 ### DataSource instance
 
 | Method | Returns | Description |
 |---|---|---|
-| `subscribe(cb)` | `() => void` | Subscribe to value updates `{ v, t }`; returns unsubscribe fn |
-| `getValue()` | `any` | Current value (synchronous) |
-| `getHistory()` | `Object[]` | Recent value buffer `[{ v, t }, ...]` |
+| `subscribe(cb)` | `() => void` | Subscribe to value updates (the full data object above); returns unsubscribe fn |
+| `getCurrentData()` | `Object` | Snapshot of the latest emitted data object (same shape as the subscribe callback payload) |
+| `getRecent(count = 100)` | `Object[]` | Last `count` raw `{ t, v }` points from the main buffer |
 
 ---
 
@@ -175,15 +187,17 @@ Two levels: the **DataSourceManager** singleton and individual **DataSource** in
 ::: code-group
 ```javascript [Snapshot]
 window.lcards.debug.singleton('dataSourceManager')
-// → { type: 'DataSourceManager', sourceCount: 4, sources: [...] }
+// → { sources: 4, entityIndex: 3, enhanced_sources: [{ id: 'temp_sensor', ... }, ...],
+//      dot_notation_test: {} }
 ```
 ```javascript [Live object]
 const dsm = window.lcards.core.dataSourceManager
 
-dsm.sources                           // Map of all active DataSource instances
-dsm.getSource('sensor_temp')          // specific DataSource instance
+dsm.sources                                 // Map of all active DataSource instances
+dsm.getSource('sensor_temp')                // specific DataSource instance
 dsm.getSource('sensor_temp').subscribe(cb)  // subscribe to updates
-dsm.getSource('sensor_temp').getHistory()   // recent value history
+dsm.getSource('sensor_temp').getCurrentData()  // latest emitted data object
+dsm.getSource('sensor_temp').getRecent(50)     // last 50 { t, v } points
 ```
 :::
 

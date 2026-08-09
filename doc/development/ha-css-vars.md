@@ -227,7 +227,7 @@ Each palette has 11 stops (05–95) going from darkest to lightest.
 | `ha-color-red-*` | `--lcards-orange-*` scale | `--lcards-orange-*` scale |
 | `ha-color-green-*` | `--lcards-green-*` scale | `--lcards-green-*` scale |
 
-**Remapping the palette alone is not sufficient.** HA's semantic tokens (Layer 2, below) reference specific tone numbers within each palette (e.g. `on-primary-normal: primary-40`) on the assumption that any hue survives readably at that tone — an assumption baked in for HA's own smoothly-generated palettes that does **not** hold for every hand-picked LCARdS hue (orange in particular has a much narrower usable-lightness band than blue). Both Picard profiles therefore also explicitly override the full `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer, each value validated against real WCAG contrast rather than trusting the tone-index convention blindly — see Layer 2 below.
+**Remapping the palette alone is not sufficient.** HA's semantic tokens (Layer 2, below) assume any hue survives readably at a given tone number — true for HA's smoothly-generated palettes, not for every hand-picked LCARdS hue (orange has a much narrower usable-lightness band than blue). Both Picard profiles therefore also explicitly override the full `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer, each value WCAG-validated rather than trusting the tone-index convention blindly — see Layer 2 below.
 
 ---
 
@@ -301,7 +301,7 @@ Key values (light theme):
 | `--ha-color-fill-warning-loud-resting` | `orange-70` | Warning button |
 | `--ha-color-fill-success-loud-resting` | `green-50` | Success badge |
 
-**HA's `<ha-button>` `appearance` attribute maps directly onto this scale**: `appearance="accent"` uses `fill-{role}-loud-resting`, `appearance="filled"` uses `fill-{role}-normal-resting` (`ha-button.ts`). HA's own generated ramps guarantee `quiet < normal < loud` reads as an actual prominence hierarchy because `color-mix()` toward black/white strictly desaturates as you move away from tone-40 — LCARdS's hand-picked canon palette doesn't guarantee this everywhere (blue's `-lightest` canon stop is a deliberately vivid electric-cyan accent; orange's darkest stops are vivid near-max-saturation "alert red" — both more saturated than their own family's tone-40 anchor). Where this has been confirmed as a visible problem via live testing, the fix is a hand-picked tone-number swap for that specific (role, mode, tier) cell in `generate-lcards-ha-semantic-tokens.js`'s `FILL` table — not an automated chroma-clamping pass. (An earlier automated saturation-hierarchy correction was tried and reverted — it produced literal-hex "corrected" colors instead of clean palette-stop references and made real UI worse; see the script's git history if reviving that approach.)
+**HA's `<ha-button>` `appearance` attribute maps directly onto this scale**: `appearance="accent"` uses `fill-{role}-loud-resting`, `appearance="filled"` uses `fill-{role}-normal-resting` (`ha-button.ts`). HA's generated ramps guarantee `quiet < normal < loud` reads as a real prominence hierarchy; LCARdS's hand-picked canon palette doesn't guarantee this everywhere (e.g. blue's `-lightest` stop is a deliberately vivid electric-cyan accent, more saturated than its own family's tone-40 anchor). Where this is a confirmed visible problem, fix it with a hand-picked tone-number swap for that specific (role, mode, tier) cell in `generate-lcards-ha-semantic-tokens.js`'s `FILL` table — not an automated chroma-clamping pass (a prior automated attempt made real UI worse and was reverted).
 
 #### On-Colors (text on fills)
 
@@ -316,7 +316,7 @@ Pattern: `--ha-color-on-[role]-[loudness]`
 | `--ha-color-on-warning-loud` | `white` | Text on warning button |
 | `--ha-color-on-success-loud` | `white` | Text on success button |
 
-**Not derived from a contrast formula.** These are hand-picked *tone references* within the same palette — HA never computes an actual WCAG ratio here. `on-*-loud` is a hardcoded literal `white` for every role in every theme; it does not adapt to whatever hue a theme substitutes underneath it. This is precisely why LCARdS's two Picard profiles explicitly override the entire `on-*`/`fill-*`/`border-*`/`surface-*`/`form-background-*` layer rather than relying on the palette-atom remapping alone: each value is derived from HA's own tone-index convention (Phase 1), then validated against the *actual* resolved LCARdS hex colors with real WCAG contrast math (4.5:1 AA), substituting whichever of white/black gives the better contrast wherever the mechanical default fails (Phase 2). See `lcards/scripts/generate-lcards-ha-semantic-tokens.js` — see [Regenerating the theme profiles](#regenerating-the-theme-profiles) below for the full workflow.
+**Not derived from a contrast formula.** These are hand-picked *tone references* — HA never computes an actual WCAG ratio here, and `on-*-loud` is a hardcoded literal `white` for every role in every theme regardless of the hue underneath it. LCARdS's two Picard profiles instead run each value through `generate-lcards-ha-semantic-tokens.js`: HA's tone-index convention picks a starting value, then real WCAG contrast math (4.5:1 AA) against the actual resolved LCARdS hex substitutes white/black wherever the mechanical default fails — see [Regenerating the theme profiles](#regenerating-the-theme-profiles) below.
 
 #### Other
 
@@ -459,7 +459,7 @@ Pattern: `--wa-color-[role]-fill-[loudness]`, `--wa-color-[role]-border-[loudnes
 
 **Authoritative source:** `ha-lcars/src/themes/lcards_picard_{red,blue}.yaml` (in the separate `ha-lcars` repository), assembled by ha-lcars's own **unmodified, stock** `py/generate_themes.py` into the installable `ha-lcars/themes/lcars.yaml`. `yaml/theme/ha-lcars-lcards-themes.yaml` in *this* repo is a vendored copy-paste-able mirror for users who don't want to depend on the ha-lcars HACS release cycle — keep it resynced when the ha-lcars source changes.
 
-**Both profile files are fully self-contained — zero changes to shared ha-lcars source** (`preamble.yaml`, `defaults.yaml`, `generate_themes.py` are byte-identical to upstream `origin/master`). Everything LCARdS-specific, including the four numeric palette stops per family (`-10`/`-50`/`-60`/`-95`) that used to live in ha-lcars's shared `&lcars-variables` anchor, is declared directly in each profile file. This means the two files are a genuine drop-in — no upstream PR or fork maintenance required, and no risk of colliding with unrelated ha-lcars changes.
+**Both profile files are fully self-contained — zero changes to shared ha-lcars source** (`preamble.yaml`, `defaults.yaml`, `generate_themes.py` are byte-identical to upstream `origin/master`). Everything LCARdS-specific, including the four numeric palette stops per family (`-10`/`-50`/`-60`/`-95`) that used to live in ha-lcars's shared `&lcars-variables` anchor, is declared directly in each profile file — a genuine drop-in with no upstream PR or fork maintenance required.
 
 Each profile sets:
 

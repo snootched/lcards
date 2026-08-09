@@ -35,12 +35,12 @@ overlays:
 ```yaml
 data_sources:
   temp_sensor:
-    entity_id: sensor.temperature
-    processors:
-      - type: unit_conversion
-        key: celsius
-        from_unit: fahrenheit
-        to_unit: celsius
+    entity: sensor.temperature
+    processing:
+      celsius:
+        type: convert_unit
+        from: fahrenheit
+        to: celsius
 
 overlays:
   - id: temp_display
@@ -55,7 +55,7 @@ The LCARdS animation system consists of several integrated components:
 ┌─────────────────────────────────────────────────────────────┐
 │                     Animation Triggering                     │
 ├─────────────────────┬───────────────────┬───────────────────┤
-│   RulesEngine       │  TriggerManager   │  ActionHelpers    │
+│   RulesEngine       │  TriggerManager   │ LCARdSActionHandler│
 │ (Complex Conditions)│ (Entity Changes)  │ (User Interactions)│
 └──────────┬──────────┴─────────┬─────────┴──────────┬────────┘
            │                    │                    │
@@ -80,7 +80,7 @@ The LCARdS animation system consists of several integrated components:
 
 - **RulesEngine:** Evaluates complex conditions and triggers animations on rule match/unmatch
 - **TriggerManager:** Manages overlay-specific animation triggers (on_entity_change, on_datasource_change)
-- **ActionHelpers:** Handles interactive triggers (on_tap, on_hover, on_hold, on_double_tap)
+- **LCARdSActionHandler:** Handles interactive triggers (on_tap, on_hover, on_hold, on_double_tap)
 - **AnimationManager:** Central orchestrator for animation execution and lifecycle
 - **AnimationRegistry:** Caches animation instances for performance
 - **anime.js v4:** Low-level animation execution engine
@@ -90,11 +90,11 @@ The LCARdS animation system consists of several integrated components:
 | Trigger | Handler | Scope | Use Case |
 |---------|---------|-------|----------|
 | `on_load` | TriggerManager | Single overlay | Initial render animations |
-| `on_tap` | ActionHelpers | Single overlay | User tap interactions |
-| `on_hold` | ActionHelpers | Single overlay | User hold interactions |
-| `on_hover` | ActionHelpers | Single overlay | Mouse hover effects |
-| `on_leave` | ActionHelpers | Single overlay | Mouse/pointer leave |
-| `on_double_tap` | ActionHelpers | Single overlay | Double-tap actions |
+| `on_tap` | LCARdSActionHandler | Single overlay | User tap interactions |
+| `on_hold` | LCARdSActionHandler | Single overlay | User hold interactions |
+| `on_hover` | LCARdSActionHandler | Single overlay | Mouse hover effects |
+| `on_leave` | LCARdSActionHandler | Single overlay | Mouse/pointer leave |
+| `on_double_tap` | LCARdSActionHandler | Single overlay | Double-tap actions |
 | `on_entity_change` | TriggerManager | Single overlay | Simple state reactions |
 | `on_datasource_change` | AnimationManager | Single overlay | Datasource value changes |
 | **Rule-based** | RulesEngine | Multi-overlay | Complex conditions, cross-card |

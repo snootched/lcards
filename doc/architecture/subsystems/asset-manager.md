@@ -76,7 +76,7 @@ window.lcards.core.assetManager.register('image', 'living-room', null, {
 | Method | Returns | Description |
 |---|---|---|
 | `loadSvg(key)` | `Promise<string>` | Load SVG by key; cached after first fetch |
-| `hasSvg(key)` | `boolean` | True if SVG is already cached |
+| `getRegistry('svg').has(key)` | `boolean` | True if SVG is already cached (no `hasSvg()` shortcut exists — call `has()` on the SVG registry) |
 | `resolveImageUrl(key)` | `string\|null` | Resolve an image key → URL (no I/O). Used by `ImageLoader` for `builtin:key` references. |
 | `resolveMediaSourceUrl(mediaContentId)` | `Promise<string\|null>` | Resolve a `media-source://…` content ID to a real URL via the HA `media_source/resolve_media` websocket command. Result is cached for 15 minutes (resolved URLs may carry an expiring signed token). Used by `ImageLoader` for `media-source://…` references. |
 | `listImages()` | `string[]` | All registered image asset keys |
@@ -159,7 +159,8 @@ card config: source = 'media-source://media_source/local/bedroom.jpg'
 ::: code-group
 ```javascript [Snapshot]
 window.lcards.debug.singleton('assetManager')
-// → { type: 'AssetManager', initialized: true, registeredTypes: ['svg', 'font', 'audio', 'image'] }
+// → { type: 'AssetManager', registriesCount: 4, supportedTypes: ['svg', 'font', 'audio', 'image'],
+//      registries: { svg: { assetCount, loadingCount, assets }, font: {...}, audio: {...}, image: {...} } }
 ```
 ```javascript [Live object]
 const am = window.lcards.core.assetManager

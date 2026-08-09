@@ -18,11 +18,9 @@ BackgroundAnimationRenderer (Canvas2DRenderer)
     │   │   └─ Wrapped BaseEffect
     │   └─ Additional Effects...
     │
-    ├─ Preset System (BACKGROUND_PRESETS)
-    │   ├─ Factory Functions
-    │   └─ Default Configurations
-    │
-    └─ Offscreen Pattern Canvas (cached)
+    └─ Preset System (BACKGROUND_PRESETS)
+        ├─ Factory Functions
+        └─ Default Configurations
 ```
 
 ### Key Classes
@@ -30,10 +28,11 @@ BackgroundAnimationRenderer (Canvas2DRenderer)
 | Class | Purpose | File |
 |-------|---------|------|
 | `BackgroundAnimationRenderer` | Main renderer, manages effect stack | `BackgroundAnimationRenderer.js` |
-| `BaseEffect` | Abstract base for all effects | `BaseEffect.js` |
-| `GridEffect` | Configurable grid pattern effect | `GridEffect.js` |
-| `StarfieldEffect` | Scrolling starfield with parallax | `StarfieldEffect.js` |
-| `ZoomEffect` | Layered scaling wrapper | `ZoomEffect.js` |
+| `Canvas2DRenderer` | Owns the visible `<canvas>`, RAF loop, and effect array | `renderers/Canvas2DRenderer.js` |
+| `BaseEffect` | Abstract base for all effects | `effects/BaseEffect.js` |
+| `GridEffect` | Configurable grid pattern effect | `effects/GridEffect.js` |
+| `StarfieldEffect` | Scrolling starfield with parallax | `effects/StarfieldEffect.js` |
+| `ZoomEffect` | Layered scaling wrapper | `effects/ZoomEffect.js` |
 | `ImageEffect` | Static or entity-reactive image layer | `effects/ImageEffect.js` |
 | `BACKGROUND_PRESETS` | Preset registry | `presets/index.js` |
 
@@ -72,23 +71,22 @@ background_animation:
 ### 2. Animation Loop
 
 ```javascript
-// Canvas2DRenderer.animate()
+// Canvas2DRenderer._animate()
 1. Calculate deltaTime since last frame
-2. Update all effects: effect.update(deltaTime, width, height)
-3. Clear canvas
-4. Draw all effects: effect.draw(ctx, width, height)
-5. requestAnimationFrame(next frame)
+2. Clear canvas
+3. For each effect, in reverse array order (see Rendering Order below):
+   update(deltaTime, width, height), then draw(ctx, width, height)
+4. requestAnimationFrame(next frame)
 ```
 
 ### 3. Effect Rendering
 
 ```javascript
 // GridEffect.draw()
-1. Check if active: if (!this.isActive()) return
-2. Update scroll offset based on deltaTime
-3. Draw pattern to offscreen canvas (if not cached)
-4. Tile pattern across visible canvas with infinite scroll
-5. Draw major lines (if enabled)
+1. Apply scroll offset via ctx.translate(scrollX, scrollY) — updated each frame, no bound/wrap
+2. Compute how many tiles are needed to cover the viewport at the current scroll position
+3. For each tile: draw cell fill, then minor grid lines, then major grid lines
+   (batched into single stroke() calls per line style — no offscreen/cached canvas)
 ```
 
 ---
@@ -152,38 +150,49 @@ class BaseEffect {
 
 ```javascript
 class ZoomEffect {
-  constructor(config) {
-    this._baseEffect = config.baseEffect;  // Wrapped effect
-    this._layers = config.layers ?? 4;
-    this._scaleFrom = config.scaleFrom ?? 0.5;
-    this._scaleTo = config.scaleTo ?? 2.0;
-    this._duration = config.duration ?? 15;
-    // ... opacity thresholds
+  constructor(config = {}) {
+    this.baseEffect = config.baseEffect;  // Wrapped effect (required)
+    this.layers = config.layers ?? 3;
+    this.scaleFrom = config.scaleFrom ?? 1;
+    this.scaleTo = config.scaleTo ?? 2;
+    this.duration = config.duration ?? 10;      // seconds
+    this.opacityFadeIn = config.opacityFadeIn ?? 10;   // percent
+    this.opacityFadeOut = config.opacityFadeOut ?? 80; // percent
+    // layerIndex/totalLayers (optional) let several ZoomEffect instances
+    // act as one staggered layer each, instead of looping `layers` internally
   }
 
   isActive() {
-    return this._isActive && this._baseEffect.isActive();
+    return this._isActive;  // does not additionally gate on baseEffect.isActive()
   }
 
   update(deltaTime, width, height) {
-    this._time += deltaTime / 1000;
-    this._baseEffect.update(deltaTime, width, height);
+    this._elapsedTime += deltaTime / 1000;
+    this.baseEffect.update(deltaTime, width, height);
   }
 
   draw(ctx, width, height) {
-    for (let i = 0; i < this._layers; i++) {
-      const progress = (i / (this._layers - 1)) * 100;
-      const scale = this._interpolateScale(progress);
-      const opacity = this._calculateOpacity(progress);
+    // Render the base effect ONCE per frame into an off-screen buffer —
+    // every layer below stamps this buffer via drawImage() (a cheap GPU
+    // blit) instead of re-running the full baseEffect.draw() N times.
+    this._frameCtx.clearRect(0, 0, width, height);
+    this.baseEffect.draw(this._frameCtx, width, height);
+
+    const cycleProgress = (this._elapsedTime % this.duration) / this.duration;
+
+    for (let i = 0; i < this.layers; i++) {
+      const layerOffset = i / this.layers;  // or layerIndex/totalLayers in multi-instance mode
+      const layerProgress = (cycleProgress + layerOffset) % 1.0;
+      const scale = this.scaleFrom + (this.scaleTo - this.scaleFrom) * layerProgress;
+      const opacity = this._fadeOpacity(layerProgress);  // ramps via opacityFadeIn/opacityFadeOut
+      if (opacity <= 0) continue;
 
       ctx.save();
-      ctx.globalAlpha = opacity;
       ctx.translate(width / 2, height / 2);
       ctx.scale(scale, scale);
       ctx.translate(-width / 2, -height / 2);
-
-      this._baseEffect.draw(ctx, width, height);
-
+      ctx.globalAlpha = opacity;
+      ctx.drawImage(this._frameCanvas, 0, 0);
       ctx.restore();
     }
   }
@@ -192,11 +201,11 @@ class ZoomEffect {
 
 ### Key Features
 
-- **Layered Rendering**: Renders N scaled instances of base effect
+- **Layered Rendering**: Stamps N scaled copies of a single per-frame render of the base effect
 - **Opacity Fading**: Fade-in and fade-out based on progress percentage
 - **Scale Interpolation**: Linear interpolation from `scaleFrom` to `scaleTo`
 - **Time Management**: Cycles animation over `duration` seconds
-- **Delegation**: Calls base effect's `update()` and `draw()` methods
+- **Delegation**: Calls base effect's `update()` every frame; `draw()` once per frame into an off-screen buffer, then `drawImage()`-stamps that buffer per layer
 
 ---
 
@@ -266,6 +275,8 @@ export const BACKGROUND_PRESETS = {
 | `grid-hexagonal` | GridEffect | Honeycomb hexagonal tessellation with optional cell fill |
 | `starfield` | StarfieldEffect | Parallax multi-layer scrolling star field |
 | `nebula` | NebulaEffect | Gas-cloud turbulence effect |
+| `contour-field` | ContourFieldEffect | Topographic-style banded noise field (LCARS star-chart contour look) |
+| `solid` | SolidEffect | Flat colour fill rendered behind the card SVG (cheapest preset — single fill per frame) |
 | `cascade` | CascadeEffect | Falling character/symbol cascade |
 | `level` | LevelTextureEffect | Animated fill-bar level indicator |
 | `fluid` | FluidTextureEffect | Organic fractal noise blobs |
@@ -282,13 +293,14 @@ export const BACKGROUND_PRESETS = {
 
 ### Rendering Order
 
-Effects render in array order (first = bottom, last = top):
+`Canvas2DRenderer._animate()` updates and draws effects in **reverse array order** (`effects.length - 1` down to `0`), which allows an inactive effect to be safely removed mid-loop via `removeEffect()`. The practical result: the effect added **first** (index `0`) is drawn **last** and ends up visually **on top**; the effect added **last** is drawn first and sits at the **bottom**.
 
 ```javascript
-for (const effect of this._effects) {
-  if (effect.isActive()) {
-    effect.draw(ctx, width, height);
-  }
+for (let i = this.effects.length - 1; i >= 0; i--) {
+  const effect = this.effects[i];
+  if (!effect.isActive()) { this.removeEffect(effect); continue; }
+  effect.update(deltaTime, width, height);
+  effect.draw(ctx, width, height);
 }
 ```
 
@@ -304,8 +316,8 @@ Canvas uses **source-over compositing** by default, allowing layers to blend.
 
 ### Performance Optimization
 
-- **Skip inactive effects**: `isActive()` check before rendering
-- **Cache patterns**: Offscreen canvas for pattern generation
+- **Skip inactive effects**: `isActive()` check before rendering (and the effect is removed from the stack)
+- **Frame-buffer reuse in `ZoomEffect`**: the wrapped effect's `draw()` runs once per frame into an off-screen canvas; each zoom layer stamps that buffer via `drawImage()` instead of re-running the full draw path
 - **Limit layers**: 2-3 effects maximum for smooth performance
 
 ---

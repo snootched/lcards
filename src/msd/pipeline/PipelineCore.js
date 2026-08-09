@@ -77,8 +77,6 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
         // Configure for MSD-specific needs
         validationService.config.strict = mergedConfig?.debug?.strictValidation || false;
         validationService.config.stopOnError = false;
-        validationService.config.validateTokens = true;
-        validationService.config.validateDataSources = true;
         validationService.config.debug = mergedConfig?.debug?.validation || false;
 
         lcardsLog.trace('[PipelineCore] Core ValidationService configured');

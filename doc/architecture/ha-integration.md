@@ -61,7 +61,7 @@ graph TB
 | `websocket_api.py` | Registers `lcards/info`, `lcards/subscribe`, and all `lcards/storage/*` WebSocket commands |
 | `media_source.py` | `MediaSource` platform — exposes bundled `images/`/`sounds/` as a browsable "LCARdS" folder in HA's native media browser (auto-discovered, no explicit wiring) |
 | `storage.py` | `LCARdSStorage` — HA Store-backed flat key/value persistence (`.storage/lcards`) |
-| `services.py` | Registers the `lcards.*` HA action namespace — 9 services covering alert modes and frontend control |
+| `services.py` | Registers the `lcards.*` HA action namespace — 16 services covering alert modes, frontend control, screen effects, sound, portal overlays, and the Borg Easter egg |
 | `services.yaml` | Action descriptions and field selectors shown in Developer Tools → Actions |
 | `const.py` | Shared constants: `DOMAIN`, `DOMAIN_VERSION`, option keys, `_LOG_LEVEL_MAP` |
 | `manifest.json` | HACS/HA integration manifest — domain, version (HA CalVer), dependencies |
@@ -87,11 +87,11 @@ Runs when the integration is configured (after initial setup or on restart):
 
 1. **Log level** — maps the `log_level` option to a Python `logging` level and calls `setLevel()` on the `custom_components.lcards` parent logger, cascading to all child loggers
 2. **Storage init** — creates `LCARdSStorage`, loads `.storage/lcards` from disk, stores the instance at `hass.data["lcards"]["storage"]`
-3. **Services** — `async_setup_services(hass)` registers the full `lcards.*` action namespace (9 services)
-3. **JS injection** — `add_extra_js_url` loads `lcards.js?v=...&log=<level>` on every HA page; the `?log=` param lets `lcards.js` read the configured level at module load time via `import.meta.url`
-4. **Lovelace resource** — registers the script for Cast / kiosk support
-5. **Sidebar panel** — `async_register_built_in_panel` with the configured title and icon, if `show_panel` option is `True`
-6. **Options listener** — `entry.add_update_listener()` triggers an entry reload when the user saves new options, applying changes without an HA restart
+3. **Services** — `async_setup_services(hass)` registers the full `lcards.*` action namespace (16 services)
+4. **JS injection** — `add_extra_js_url` loads `lcards.js?v=...&log=<level>` on every HA page; the `?log=` param lets `lcards.js` read the configured level at module load time via `import.meta.url`
+5. **Lovelace resource** — registers the script for Cast / kiosk support
+6. **Sidebar panel** — `async_register_built_in_panel` with the configured title and icon, if `show_panel` option is `True`
+7. **Options listener** — `entry.add_update_listener()` triggers an entry reload when the user saves new options, applying changes without an HA restart
 
 ### Unload — `async_unload_entry()`
 
@@ -128,7 +128,7 @@ All asset URLs in the JS bundle reference the `/lcards/` prefix, which maps dire
 
 `media_source.py` exposes the bundled `images/` and `sounds/` directories as a browsable, read-only **"LCARdS"** folder inside Home Assistant's native media browser — the Media sidebar panel, any media-picker dialog, and every `ha-selector` of type `media` (including the ones LCARdS's own editors use, see [Asset Manager — media-source:// Resolution Flow](subsystems/asset-manager#media-source-resolution-flow)).
 
-**Discovery is automatic and requires no explicit registration call.** HA's own `media_source` integration scans every loaded integration (including custom ones) for a `media_source.py` module exposing `async_get_media_source(hass)`, via `homeassistant.helpers.integration_platform.async_process_integration_platforms`. The moment this file exists, `hass.data[MEDIA_SOURCE_DATA]["lcards"]` is set and LCARdS appears as a top-level media source — no `manifest.json` dependency is strictly required for discovery (LCARdS declares `"after_dependencies": ["media_source"]` defensively, purely to order its own setup after `media_source`'s HTTP views/WS commands are ready).
+**Discovery is automatic and requires no explicit registration call** — HA's `media_source` integration scans every loaded integration for a `media_source.py` module exposing `async_get_media_source(hass)` (via `homeassistant.helpers.integration_platform.async_process_integration_platforms`), which sets `hass.data[MEDIA_SOURCE_DATA]["lcards"]`. No `manifest.json` dependency is strictly required for discovery; LCARdS declares `"after_dependencies": ["media_source"]` defensively, purely to order its own setup after `media_source`'s HTTP views/WS commands are ready.
 
 ```mermaid
 graph LR
@@ -236,21 +236,41 @@ logger:
 
 ## HA Services (Actions)
 
-The integration registers a `lcards.*` action namespace in `async_setup_entry()`, handled by `services.py`.
+The integration registers a `lcards.*` action namespace in `async_setup_entry()`, handled by `services.py` — 16 services in total.
 
 | Service | Parameters | Effect |
 |---------|-----------|--------|
-| `lcards.set_alert_mode` | `mode: string` | Sets `input_select.lcards_alert_mode` to the supplied mode |
+| `lcards.set_alert_mode` | `mode: string` | Sets `input_select.lcards_alert_mode` to the supplied mode (or fires a targeted event if targeting fields are given) |
 | `lcards.red_alert` | — | Sets alert mode to `red_alert` |
 | `lcards.yellow_alert` | — | Sets alert mode to `yellow_alert` |
 | `lcards.blue_alert` | — | Sets alert mode to `blue_alert` |
 | `lcards.gray_alert` | — | Sets alert mode to `gray_alert` |
 | `lcards.black_alert` | — | Sets alert mode to `black_alert` |
 | `lcards.clear_alert` | — | Sets alert mode to `green_alert` (normal) |
-| `lcards.reload` | — | Fires `lcards_event {action: reload}` to all browser tabs |
+| `lcards.reload` | — | Fires `lcards_event {action: reload}` to connected browser tabs |
 | `lcards.set_log_level` | `level: string` | Updates Python loggers + fires `lcards_event {action: set_log_level}` |
+| `lcards.trigger_effect` | `layers: dict`, `duration?: int` | Fires a full-screen effect (backdrop/color/canvas layers) via the push channel |
+| `lcards.clear_effect` | `slot?: string` | Clears active screen effect(s); omit `slot` to clear all |
+| `lcards.play_sound` | `event_type?: string`, `asset_key?: string` | Plays a sound effect on target frontends |
+| `lcards.show_portal_card` | `content: dict`, `layers?`, `position?`, `width?`, `height?`, `duration?`, `dismiss?` | Shows a portal card overlay via `PortalOverlayManager` (slot `'ha-service'`) |
+| `lcards.clear_portal_card` | — | Clears the `'ha-service'` portal overlay |
+| `lcards.borg_assimilate` | `intro_duration?`, `transition_style?`, `site_count?`, `tendrils_per_site?`, `tendril_length?`, `particle_count?`, `intro_layers?`, `persistent_layers?`, `suppress_persistent?`, `font_swap?` | Easter egg — triggers the Borg palette-swap + canvas intro sequence |
+| `lcards.borg_deassimilate` | `with_outro?`, `outro_layers?`, `revert_transition_style?` | Easter egg — reverses `borg_assimilate`, restoring normal state |
 
-Alert mode services delegate to `input_select.select_option` on `input_select.lcards_alert_mode`. This means the full LCARdS pipeline (ThemeManager, SoundManager, alert overlays) fires via the existing HelperManager subscriptions in JS — no separate JS wiring required.
+### Targeting (all services)
+
+Every service accepts four optional targeting fields, resolved server-side and combinable:
+
+| Field | Resolves to |
+|---|---|
+| `target_device_ids` | Browser device UUIDs (as stored in the `lcards_device_id` localStorage key) — used as-is |
+| `target_device_names` | Device display names (set in the LCARdS config panel or `?lcards_device=` URL param) — matched case-insensitively against LCARdS backend storage; non-unique names hit every matching device |
+| `target_user_ids` | HA user IDs — used as-is |
+| `target_user_names` | HA user display names — matched case-insensitively against HA auth |
+
+When none are supplied, a service broadcasts to all connected frontends (or, for the alert-mode services, writes the shared `input_select.lcards_alert_mode` — see below). When any are supplied, the service instead fires a targeted `lcards_event`; each JS client self-filters on its own device/user identity.
+
+Alert mode services delegate to `input_select.select_option` on `input_select.lcards_alert_mode` **only when no targeting fields are given** — this fires the full LCARdS pipeline (ThemeManager, SoundManager, alert overlays) via the existing HelperManager subscriptions in JS, with no separate JS wiring required. When targeting fields *are* given, the shared helper is left untouched (global state must not change) and a targeted `set_alert_mode` event is fired instead, applied as a transient, non-persistent state change on matching devices only.
 
 Schema validation is handled by `voluptuous`; invalid values are rejected before the handler fires. If `input_select.lcards_alert_mode` doesn't exist, a `WARNING` is logged and the service exits without raising.
 
@@ -260,7 +280,7 @@ Schema validation is handled by `voluptuous`; invalid values are rejected before
 
 ## Python → JS Push Channel
 
-Two services (`lcards.reload` and `lcards.set_log_level`) push instructions directly to connected browser tabs without requiring a page reload or WS request/response cycle.
+Nine services (`reload`, `set_log_level`, `trigger_effect`, `clear_effect`, `play_sound`, `show_portal_card`, `clear_portal_card`, `borg_assimilate`, `borg_deassimilate`) always push instructions directly to connected browser tabs via `_fire_targeted_event()`, without a page reload or WS request/response cycle. The 7 alert-mode services (`set_alert_mode`, `red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert`, `clear_alert`) use the same channel only when a targeting field is supplied — otherwise they write directly to `input_select.lcards_alert_mode` instead (see [Targeting](#targeting-all-services) above).
 
 ### How it works
 
@@ -281,10 +301,18 @@ sequenceDiagram
 
 ### Event payload shapes
 
-| `action` | Additional fields | JS handler |
+| `action` | Additional fields | JS handler (`IntegrationService._handleLcardsEvent`) |
 |----------|-------------------|------------|
 | `reload` | — | `window.location.reload()` |
 | `set_log_level` | `level: string` | `window.lcards.setGlobalLogLevel(level)` |
+| `set_alert_mode` | `mode: string` | `window.lcards.setAlertMode(mode, { skipHelperSync: true })` — targeted alert changes only; never fired as a broadcast |
+| `trigger_effect` | `layers: object`, `duration?: number` | `screenEffectManager.applySlot(...)` per layer; auto-clears after `duration` |
+| `clear_effect` | `slot?: string` | `screenEffect.clearSlot(slot)` or `.clear()` if `slot` omitted |
+| `play_sound` | `event_type?: string`, `asset_key?: string` | `soundManager.play(event_type)` or `.playAsset(asset_key)` |
+| `show_portal_card` | `content, layers?, position?, width?, height?, duration?, dismiss?` | `portalOverlayManager.show('ha-service', {...})` |
+| `clear_portal_card` | — | `portalOverlayManager.hide('ha-service')` |
+| `borg_assimilate` | `intro_duration?, transition_style?, intro_layers?, persistent_layers?, ...` | `borgAssimilationManager.assimilate(opts)` |
+| `borg_deassimilate` | `with_outro?, outro_layers?, revert_transition_style?` | `borgAssimilationManager.deassimilate(opts)` |
 
 ### Subscription lifecycle
 
@@ -301,7 +329,7 @@ async_unload_entry → integration unloaded (tab navigates away / WS closes)
 
 On the Python side, `ws_subscribe` registers a `@callback`-decorated listener on the HA event bus for `lcards_event`. When the event fires, it forwards `event.data` directly to the WS connection via `connection.send_message(event_message(...))`. The `@callback` decorator ensures the forward runs on the event loop thread, not in an executor.
 
-The channel is a **broadcast** — all open browser tabs subscribed via `lcards/subscribe` receive every event simultaneously.
+Transport is always a **broadcast** — every open tab subscribed via `lcards/subscribe` receives every event. Targeting (`target_device_ids` / `target_device_names` / `target_user_ids` / `target_user_names`) is enforced client-side: each `IntegrationService` checks the event's target lists against its own device/user identity and silently drops events not addressed to it. Events with no target lists (the default) are acted on by every tab.
 
 → JS implementation details: [Integration Service — Push Channel](subsystems/integration-service#push-channel)
 

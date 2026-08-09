@@ -16,7 +16,7 @@ Key capabilities:
 - **Automatic detection** via two complementary signals (WS events + `hass.connected` flag)
 - **Per-scope config** via the ScopedSettings waterfall — device, user, or global overrides
 - **Config auto-refresh** — re-reads config from the scoped waterfall after every HA reconnect, so settings saved just before an HA restart are always picked up without a page reload
-- **Two display modes** — simple text message or a full custom HA card
+- **Three display modes** — simple text message, a full custom HA card, or a Borg-assimilation takeover
 - **Optional reconnection banner** — brief confirmation overlay that auto-dismisses after reconnection
 - **SEM integration** — backdrop, canvas, and colour effect layers via `ScreenEffectManager`
 - **Stackable with alert overlay** — both overlays can be visible simultaneously; the connection overlay renders on top when both are active
@@ -29,8 +29,8 @@ Key capabilities:
 ConnectionOverlayService (BaseService singleton)
     │
     ├─ Detection (two signals)
-    │   ├─ hass.connection WS events  ('disconnected' / 'reconnected')  ← primary
-    │   └─ hass.connected flag in updateHass()                          ← belt-and-suspenders
+    │   ├─ hass.connection WS events  ('disconnected' / 'ready')  ← primary
+    │   └─ hass.connected flag in updateHass()                    ← belt-and-suspenders
     │
     ├─ Config waterfall (ScopedSettingsService)
     │   device scope → user scope → global scope → localStorage cache → built-in defaults
@@ -55,7 +55,7 @@ ConnectionOverlayService (BaseService singleton)
 
 Two complementary signals are monitored so that disconnection is caught reliably under all conditions:
 
-1. **`hass.connection` WebSocket events** (primary) — `home-assistant-js-websocket` fires `'disconnected'` / `'reconnected'` on the `Connection` object immediately when the underlying WebSocket closes or reopens. This fires regardless of dashboard activity, avoiding false positives from idle dashboards (no state changes → no `updateHass` calls is normal and is **not** a disconnect signal).
+1. **`hass.connection` WebSocket events** (primary) — `home-assistant-js-websocket` fires `'disconnected'` on close and `'ready'` on (re)connect on the `Connection` object. The library has **no** `'reconnected'` event — `'ready'` is the correct reconnect signal, and it fires after auth completes on both the initial connection and every subsequent reconnect. These fire regardless of dashboard activity, avoiding false positives from idle dashboards (no state changes → no `updateHass` calls is normal and is **not** a disconnect signal).
 
 2. **`hass.connected` flag** (belt-and-suspenders) — HA propagates the `hass.connected` boolean on connect/disconnect transitions. `updateHass()` monitors it to catch any edge-cases where the WS event fires slightly outside the `updateHass` call cycle.
 
@@ -67,31 +67,46 @@ The service subscribes to `hass.connection` events each time it sees a new `conn
 
 ### Resolved config shape
 
+This mirrors `DEFAULT_CONFIG` in `ConnectionOverlayService.js` — the built-in defaults before any scoped-settings overrides are applied. **`enabled` defaults to `false`** — the overlay is opt-in and must be explicitly turned on per scope.
+
 ```js
 {
-  enabled:  true,          // Whether the overlay is active at all
-  dismiss:  true,          // Whether clicking the backdrop dismisses it
-  position: 'center',      // Content anchor: 'center' | 'top' | 'top-left' | 'bottom-right' | ...
-  width:    'auto',        // CSS width for the content container ('auto' = size to content)
-  height:   'auto',        // CSS height for the content container
+  enabled:  false,          // Opt-in — must be explicitly enabled per scope
+  dismiss:  true,           // Whether clicking the backdrop dismisses it
+  position: 'center',       // Content anchor: 'center' | 'top' | 'top-left' | 'bottom-right' | ...
+  width:    'auto',         // CSS width for the content container ('auto' = size to content)
+  height:   'auto',         // CSS height for the content container
+
+  // Milliseconds to wait after a disconnect event before showing the overlay.
+  // 0 = show immediately. Absorbs brief blips (mobile WiFi handoff, HA restart transients).
+  disconnect_delay_ms: 2500,
 
   message: {
-    mode:      'text',         // 'text' | 'card'
+    mode:      'text',         // 'text' | 'card' | 'borg'
     text:      'Connection Lost',
-    color:     '#93e1ff',
+    color:     'var(--error-color)',
     font:      'Antonio',      // lcards font registry key
-    size:      26,             // px
+    size:      42,             // px
     weight:    '400',          // CSS font-weight
     transform: 'uppercase',    // CSS text-transform
+    // SEM layers used only when mode = 'borg' — mirrors the connectivity tab's
+    // Borg-mode editor defaults (borg-assimilation canvas preset + saturate/tint).
+    borgLayers: {
+      canvas:   { preset: 'borg-assimilation', siteCount: 8, tendrilsPerSite: 5, tendrilLength: 600, particleCount: 2, color: 'var(--lcars-martian)', glowColor: 'var(--lcards-yellow)' },
+      backdrop: { preset: 'saturate', amount: '200%' },
+      color:    { preset: 'color-tint', color: 'rgba(0,60,0,0.25)' },
+      paletteHue: 110,
+      fontSwap:   true,
+    },
   },
 
   reconnected: {
-    enabled:              false,
-    text:                 'Connection Restored',
-    color:                '#4caf50',
+    enabled:              true,
+    text:                 'Connection Established',
+    color:                'var(--primary-color)',
     auto_dismiss_seconds: 3,
     font:      'Antonio',
-    size:      26,
+    size:      42,
     weight:    '400',
     transform: 'uppercase',
     content:   null,           // Optional HA card config (card mode)
@@ -100,7 +115,7 @@ The service subscribes to `hass.connection` events each time it sees a new `conn
   layers: {
     backdrop: null,            // null = disabled, or { preset, ...params }
     color:    { preset: 'color-tint', color: 'rgba(0,0,0,0.55)' },
-    canvas:   { preset: 'static', intensity: 0.45 },
+    canvas:   { preset: 'static', opacity: 0.55 },
   },
 
   content: null,               // Optional HA card config when mode = 'card'
@@ -125,7 +140,7 @@ The service subscribes to `hass.connection` events each time it sees a new `conn
 
 ## Config Resolution — Scoped Waterfall
 
-Config is stored as **23 flat keys** in `ScopedSettingsService` (one per independently overridable field). Resolution order, first non-null wins:
+Config is stored as **25 flat keys** in `ScopedSettingsService` (one per independently overridable field). Resolution order, first non-null wins:
 
 ```
 Device scope → User scope → Global scope → Built-in defaults
@@ -162,6 +177,8 @@ Config is re-read from the full waterfall after every HA reconnect (`_doReconnec
 | `CONN_OVERLAY_RECON_WEIGHT` | `conn_overlay_recon_weight` | `reconnected.weight` |
 | `CONN_OVERLAY_RECON_TRANSFORM` | `conn_overlay_recon_transform` | `reconnected.transform` |
 | `CONN_OVERLAY_RECON_CONTENT` | `conn_overlay_recon_content` | `reconnected.content` |
+| `CONN_OVERLAY_BORG_SEM` | `conn_overlay_borg_sem` | `message.borgLayers` (entire object) |
+| `CONN_OVERLAY_DISCONNECT_DELAY` | `conn_overlay_disconnect_delay` | `disconnect_delay_ms` |
 
 ---
 
@@ -230,6 +247,10 @@ Styling fields: `text`, `color`, `font` (resolved via font registry), `size` (px
 
 An arbitrary HA card config (`config.content`) is mounted as a custom element via `ha-card-factory`. The card element receives `hass` updates via `applyHassToCard()` on every `updateHass()` call. `width` and `height` from config are applied to the content container so the card fills a predictable area.
 
+### Borg mode (`message.mode = 'borg'`)
+
+Instead of the standard portal overlay, a disconnect delegates entirely to `BorgAssimilationManager.assimilate(opts)` — `message.borgLayers` (minus `paletteHue`, passed separately) becomes the `intro` layer config. There is no `disconnect_delay_ms` tolerance window in this mode; assimilation starts immediately on disconnect. On reconnect, `BorgAssimilationManager.deassimilate()` reverts it — the `reconnected.*` text/banner fields are not used.
+
 ---
 
 ## Console API
@@ -273,7 +294,7 @@ await window.lcards.connectionOverlay.loadConfig()
 |--------|-------------|
 | **PortalOverlayManager** | Owns all portal DOM for the connection overlay. `ConnectionOverlayService` calls `pom.show/hide('connection-overlay')` and has no direct DOM dependencies. |
 | **ScreenEffectManager** | Provides the shared `position:fixed` portal and named effect slots. POM acquires/releases SEM slots on behalf of the connection overlay. |
-| **ScopedSettingsService** | Stores the 23 flat config keys at device/user/global scope. Waterfall resolution is done in `loadConfig()` via parallel `sss.read()` calls. |
+| **ScopedSettingsService** | Stores the 25 flat config keys at device/user/global scope. Waterfall resolution is done in `loadConfig()` via parallel `sss.read()` calls. |
 | **Alert overlay** (`lcards-alert-overlay`) | Both overlays use POM and stack independently. The connection overlay renders on top when both are active. SEM effect slots are last-in-wins. |
 | **AssetManager** | Font keys in config (e.g. `'Antonio'`) are resolved to CSS `font-family` strings via `assetManager.getRegistry('font')`. Falls back to `<key>, sans-serif` if the registry is unavailable. |
 | **Config Panel** (`lcards-connectivity-tab`) | UI tab that reads/writes config via the `window.lcards.connectionOverlay` API. Supports scope switching (device/user/global) and per-field override badges. Includes "Simulate Disconnect" / "Clear Test" buttons and admin broadcast controls. |

@@ -51,7 +51,7 @@ Consult this when displaying entity values, units, or state strings in cards to 
 
 [Full reference →](./ha-services.md)
 
-Documents the LCARdS backend service architecture: alert mode management, frontend control directives, portal overlays, and the server-push channel that broadcasts events (reload, log level changes, portal triggers) to all connected browser tabs.
+Documents the LCARdS backend service architecture: alert mode management, frontend control directives, screen effects, sound, portal overlays, and the server-push channel that broadcasts events (reload, log level changes, effect/portal triggers) to connected browser tabs, with optional per-device/per-user targeting.
 
 Consult this when understanding how HA service calls interact with the integration lifecycle, or when implementing features that need the push channel.
 

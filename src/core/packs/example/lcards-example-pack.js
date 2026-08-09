@@ -146,8 +146,8 @@ const COMPONENTS = {
 // data into a separate file and importing it here.
 //
 // Access at runtime:
-//   window.lcards.core.themeManager.setTheme('example-theme')
-//   window.lcards.core.themeManager.getCurrentTheme()
+//   window.lcards.core.themeManager.activateTheme('example-theme')
+//   window.lcards.core.themeManager.getActiveTheme()
 // ─────────────────────────────────────────────────────────────────────
 const THEMES = {
   'example-theme': {

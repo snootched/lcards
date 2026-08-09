@@ -227,19 +227,7 @@ User-supplied image rendered inside the card shape, clipped to the shape geometr
 | `repeat` | `false` | If `true`, tiles the image across the shape rather than fitting it |
 | `opacity` | `1` | Top-level `shape_texture.opacity` applies here via the standard pipeline; no `config.opacity` needed |
 
-**Template URL example** (entity thumbnail):
-
-```yaml
-shape_texture:
-  preset: image
-  opacity: 0.75
-  mix_blend_mode: overlay
-  config:
-    source: '{entity.attributes.entity_picture}'
-    size: cover
-```
-
-**Static image example**:
+**Static image example** (local path):
 
 ```yaml
 shape_texture:
@@ -251,30 +239,19 @@ shape_texture:
     position: center top
 ```
 
-**Named asset from the Asset Library**:
+**Template URL example** (entity-reactive thumbnail):
 
 ```yaml
 shape_texture:
   preset: image
-  opacity: 0.5
+  opacity: 0.75
   mix_blend_mode: overlay
   config:
-    source: 'builtin:bedroom'  # key registered in lcards-images-pack or via Config Panel
+    source: '{entity.attributes.entity_picture}'
     size: cover
 ```
 
-**Image picked from the HA Media Library**:
-
-```yaml
-shape_texture:
-  preset: image
-  opacity: 0.6
-  config:
-    source: 'media-source://media_source/local/bedroom.jpg'
-    size: cover
-```
-
-The editor's "Image Source" field offers a **Browse HA Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `source`. At render time this is resolved to a real URL via `AssetManager.resolveMediaSourceUrl()` (the `media_source/resolve_media` websocket command), cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../subsystems/asset-manager.md).
+`source` also accepts a `builtin:<key>` reference (a key registered in `lcards-images-pack` or via the Config Panel) or a `media-source://…` content ID. For the latter, the editor's "Image Source" field offers a **Browse HA Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `source`. At render time this is resolved to a real URL via `AssetManager.resolveMediaSourceUrl()` (the `media_source/resolve_media` websocket command), cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../subsystems/asset-manager.md).
 
 > **SVG files**: `.svg` sources work — they load via `<img>` and are painted into Canvas2D. SVG files should be self-contained; files without explicit `width`/`height` attributes fall back to canvas dimensions automatically.
 

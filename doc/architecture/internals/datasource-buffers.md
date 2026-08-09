@@ -6,15 +6,17 @@ Datasources use a buffer structure with **main buffers** and **processor buffers
 
 ## Buffer Structure
 
-Datasource data objects have the following structure:
+Datasource data objects have the following structure (verified against `DataSource.js`'s emitted/returned shape):
 
 ```javascript
 {
-  v: <value>,           // Main buffer (raw datasource value)
-  <processorKey>: <value>,  // Processor buffer 1
-  <processorKey>: <value>,  // Processor buffer 2
-  // ... additional processor buffers
-  t: <timestamp>        // Timestamp of last update
+  v: <value>,            // Main buffer (raw datasource value)
+  t: <timestamp>,        // Timestamp of last update
+  processing: {
+    <processorKey>: <value>,  // Processor buffer 1
+    <processorKey>: <value>,  // Processor buffer 2
+    // ... additional processor buffers
+  }
 }
 ```
 
@@ -25,9 +27,11 @@ The main buffer holds the raw, unprocessed value from the datasource:
 ```javascript
 const data = {
   v: 72.5,              // Raw temperature value
-  celsius: 22.5,        // Processor: fahrenheit → celsius
-  rolling_avg: 71.8,    // Processor: moving average
-  t: 1707580800000      // Timestamp
+  t: 1707580800000,     // Timestamp
+  processing: {
+    celsius: 22.5,       // Processor: fahrenheit → celsius
+    rolling_avg: 71.8    // Processor: moving average
+  }
 };
 ```
 
@@ -37,9 +41,9 @@ Processor buffers are named outputs from data processors. Each processor has a u
 
 | Processor Type | Key | Example Value |
 |---------------|-----|---------------|
-| `unit_conversion` | Custom (e.g., `celsius`) | `22.5` |
-| `moving_average` | Custom (e.g., `rolling_avg`) | `71.8` |
-| `rate_of_change` | Custom (e.g., `rate`) | `0.3` |
+| `convert_unit` | Custom (e.g., `celsius`) | `22.5` |
+| `smooth` (`method: moving_average`) | Custom (e.g., `rolling_avg`) | `71.8` |
+| `rate` | Custom (e.g., `rate`) | `0.3` |
 | `threshold` | Custom (e.g., `is_high`) | `true` |
 
 ## Accessing Buffer Values
@@ -73,11 +77,11 @@ const source = dataSourceManager.getSource('temp_sensor');
 const data = source.getCurrentData();
 
 // Main buffer
-console.log(data.v);              // 72.5
+console.log(data.v);                     // 72.5
 
-// Processor buffers
-console.log(data.celsius);        // 22.5
-console.log(data.rolling_avg);    // 71.8
+// Processor buffers — nested under `processing`
+console.log(data.processing.celsius);        // 22.5
+console.log(data.processing.rolling_avg);    // 71.8
 ```
 
 ### In Animations
@@ -97,7 +101,7 @@ The `AnimationManager` extracts values using `_extractValueFromPath()`:
 ```javascript
 // Input: datasource: "temp_sensor.celsius"
 // Parsed: datasource = "temp_sensor", path = ["celsius"]
-// Extracted: data.celsius (processor buffer)
+// Extracted: data.processing.celsius (processor buffer)
 
 // Input: datasource: "temp_sensor"
 // Parsed: datasource = "temp_sensor", path = []
@@ -106,41 +110,42 @@ The `AnimationManager` extracts values using `_extractValueFromPath()`:
 
 ## Processor Configuration
 
-Define processors in the datasource `processors` array:
+Define processors in the datasource `processing` map (keyed by output buffer name):
 
 ```yaml
 data_sources:
   temp_sensor:
-    entity_id: sensor.temperature
-    update_interval: 5
-    history_size: 100
-    processors:
+    entity: sensor.temperature
+    history: { hours: 6 }
+    processing:
       # Unit conversion processor
-      - type: unit_conversion
-        key: celsius                    # Output buffer key
-        from_unit: fahrenheit
-        to_unit: celsius
+      celsius:
+        type: convert_unit
+        from: fahrenheit
+        to: celsius
 
       # Smooth processor (default method is exponential; use method: moving_average for window-based)
-      - type: smooth
+      rolling_avg:
+        type: smooth
         method: moving_average
-        key: rolling_avg               # Output buffer key
         window: 10
 
       # Rate of change processor
-      - type: rate
-        key: temp_rate                 # Output buffer key
+      temp_rate:
+        type: rate
 ```
 
-**Result data structure:**
+**Result data structure** (processor outputs are nested under `processing`, not spread onto the top level):
 
 ```javascript
 {
   v: 72.5,              // Main: raw Fahrenheit value
-  celsius: 22.5,        // Processor: converted to Celsius
-  rolling_avg: 71.8,    // Processor: 10-point moving average
-  temp_rate: 0.3,       // Processor: rate of change
-  t: 1707580800000
+  t: 1707580800000,
+  processing: {
+    celsius: 22.5,       // Processor: converted to Celsius
+    rolling_avg: 71.8,   // Processor: 10-point moving average
+    temp_rate: 0.3       // Processor: rate of change
+  }
 }
 ```
 

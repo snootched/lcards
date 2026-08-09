@@ -191,14 +191,13 @@ html`
 
 **Text Input:**
 ```javascript
-<ha-textfield
+<ha-input
     label="Name"
     .value=${this._name}
     @input=${this._handleInput}
     placeholder="Enter name"
-    helper-text="Optional help text"
-    validationMessage="Error message">
-</ha-textfield>
+    hint="Optional help text">
+</ha-input>
 ```
 
 **Number Input:**

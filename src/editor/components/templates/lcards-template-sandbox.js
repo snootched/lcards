@@ -2077,7 +2077,7 @@ export class LCARdSTemplateSandbox extends LitElement {
           config: this.config || {},
           // @ts-ignore - TS2339: auto-suppressed
           hass: this.hass,
-          theme: themeManager?.getCurrentTheme?.()
+          theme: themeManager?.getActiveTheme?.()
         },
         dataSourceManager  // ← Now uses wrapper with mock fallback
       });
@@ -2306,7 +2306,7 @@ export class LCARdSTemplateSandbox extends LitElement {
     const themeManager = window.lcards?.core?.themeManager;
     if (!themeManager) return false;
 
-    const theme = themeManager.getCurrentTheme?.();
+    const theme = themeManager.getActiveTheme?.();
     if (!theme) return false;
 
     // Simple check: navigate token path
@@ -2324,7 +2324,7 @@ export class LCARdSTemplateSandbox extends LitElement {
     const themeManager = window.lcards?.core?.themeManager;
     if (!themeManager) return 'No theme manager';
 
-    const theme = themeManager.getCurrentTheme?.();
+    const theme = themeManager.getActiveTheme?.();
     return theme?.name || 'Unknown theme';
   }
 

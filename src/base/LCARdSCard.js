@@ -484,7 +484,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                     lcardsLog.debug(`[LCARdSCard] Created DataSource '${name}'`, {
                         entity: config.entity,
                         hasHistory: !!config.history,
-                        windowSeconds: config.window_seconds,
+                        windowSeconds: config.windowSeconds,
                         cardId: this._getDisplayId()
                     });
                     return source;
@@ -1961,7 +1961,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                 config: this.config,
                 hass: this.hass,
                 variables: this.config?.variables || {},
-                theme: this._singletons?.themeManager?.getCurrentTheme?.(),
+                theme: this._singletons?.themeManager?.getActiveTheme?.(),
                 // displayFormat controls how {entity.state} and {entity.attributes.*} tokens
                 // are rendered. Defaults to 'friendly' (HA-translated display strings).
                 // Callers may pass 'raw', 'parts', or 'unit' via options.displayFormat.

@@ -24,12 +24,12 @@
 
 | Helper entity | Type | Purpose |
 |---|---|---|
-| `input_select.lcards_alert_mode` | `input_select` | Current alert state (`green`/`red`/`yellow`/`blue`/`gray`/`black`) |
+| `input_select.lcards_alert_mode` | `input_select` | Current alert state (`green_alert`/`red_alert`/`yellow_alert`/`blue_alert`/`gray_alert`/`black_alert` — note the `_alert` suffix on every option) |
 | `input_select.lcards_sound_scheme` | `input_select` | Active sound scheme |
 | `input_boolean.lcards_sounds_enabled` | `input_boolean` | Global sound on/off |
 | `input_number.lcards_sound_volume` | `input_number` | Master volume 0–1 |
 
-Helpers are defined in `HELPER_REGISTRY` and can be auto-created from the [Config Panel](../../configuration/).
+This is a commonly-used subset, not the full list — `HELPER_REGISTRY` defines around 49 helpers total, grouped into three categories: `alert_system` (~36, incl. per-alert-color LAB tuning knobs), `ha_lcars_theme` (~7), and `sound` (~6). Helpers can be auto-created from the [Config Panel](../../configuration/).
 
 ---
 
@@ -39,16 +39,21 @@ Helpers are defined in `HELPER_REGISTRY` and can be auto-created from the [Confi
 const hm = window.lcards.core.helperManager;
 
 // Read (synchronous from cache, or live from HASS)
-const mode = hm.getValue('lcards_alert_mode');   // 'green'
+const mode = hm.getHelperValue('alert_mode');   // 'green_alert'
 
 // Write (WebSocket call)
-await hm.setValue('lcards_alert_mode', 'red');
+await hm.setHelperValue('alert_mode', 'red_alert');
 
 // Subscribe to changes
-const unsub = hm.subscribe('lcards_alert_mode', (value) => {
-  console.log('Alert mode changed to', value);
+const unsub = hm.subscribeToHelper('alert_mode', (newValue, oldValue) => {
+  console.log('Alert mode changed to', newValue);
 });
+
+// Later — call the returned unsub() to remove just this callback,
+// or hm.unsubscribeFromHelper('alert_mode') to clear ALL callbacks for that key.
 ```
+
+Keys passed to these methods are the short `HELPER_REGISTRY` keys (e.g. `alert_mode`), not the full `input_select.lcards_alert_mode` entity ID.
 
 ---
 
@@ -69,16 +74,17 @@ const missing = await hm.getMissingHelpers();
 ::: code-group
 ```javascript [Snapshot]
 window.lcards.debug.singleton('helperManager')
-// → { type: 'LCARdSHelperManager', initialized: true, helperCount: 12, missingCount: 0 }
+// → { type: 'HelperManager', subscriptionsCount: 3, stateListeners: 49, cachedValues: 49,
+//      autoSwitchInitialized: true }
 ```
 ```javascript [Live object]
 const hm = window.lcards.core.helperManager
 
-hm.getValue('alert_mode')             // current value of a helper
-hm.setValue('lcards_brightness', 80)  // update helper value
-hm.subscribe('alert_mode', cb)        // listen for value changes
-await hm.ensureAllHelpers()           // create any missing HA helpers
-await hm.getMissingHelpers()          // list helpers not yet created
+hm.getHelperValue('alert_mode')              // current value of a helper
+await hm.setHelperValue('alert_mode', 'red_alert')  // update helper value
+hm.subscribeToHelper('alert_mode', cb)       // listen for value changes
+await hm.ensureAllHelpers()                  // create any missing HA helpers
+await hm.getMissingHelpers()                 // list helpers not yet created
 ```
 :::
 

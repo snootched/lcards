@@ -38,8 +38,8 @@ LCARdSNativeCard (HA integration, shadow DOM, actions)
     │
     └─→ LCARdSMSDCard → Complex multi-overlay displays
         • Advanced rendering pipeline
-        • Navigation & routing
-        • Multiple control/line overlays
+        • Line routing between overlays (RouterCore)
+        • Multiple control/line/shape overlays
 ```
 
 **When to use which base**:
@@ -116,13 +116,12 @@ zones:
 ### Build & Test Commands
 
 ```bash
-npm run build          # Production build (outputs to dist/lcards.js)
-npm run build:dev      # Development build with source maps
-npm run clean          # Remove dist folder
-npm run analyze        # Bundle size analysis
+npm run build             # full validated build — use for ALL builds including dev/test
+npm run validate:css-vars # CSS variable linter (also runs inside `npm run build`)
+npm run typecheck         # TypeScript checks
 ```
 
-**Critical**: After code changes, ALWAYS run `npm run build` before testing in Home Assistant. The card loads from `dist/lcards.js`, not source files.
+**Critical**: After code changes, ALWAYS run `npm run build` before testing in Home Assistant. `npm run build` (via `vite build --mode integration`) writes directly to `custom_components/lcards/lcards.js` — no `dist/` output, no manual copy step if that directory is bind-mounted into your HA devcontainer.
 
 ### CSS Variable Governance
 
@@ -188,7 +187,7 @@ Four eval types in order: **JS** (`[[[...]]]`) → **Token** (`{entity.state}`) 
 
 ## 📊 DataSource System
 
-> Full config schema, subscribe pattern, data shape `{ v, t, history }`, and programmatic creation: see `.github/instructions/datasources.instructions.md`.
+> Full config schema, subscribe pattern, data shape (`{ t, v, buffer, stats, processing, entity, ... }`), and programmatic creation: see `.github/instructions/datasources.instructions.md`.
 
 Declare `data_sources:` in card config; subscriptions are auto-cleaned on disconnect. Access via `window.lcards.core.dataSourceManager.getSource(name)`.
 
@@ -271,6 +270,8 @@ The `theme:` prefix is **required** in any config value or preset that reference
 |---------|-------------|-------|
 | Card config / preset value | `'theme:colors.ui.primary'` | Prefix required |
 | Card config / preset — computed | `'theme:lighten(colors.card.button, 0.2)'` | Prefix required |
+| Card config / preset — alert-immune | `'theme:base(colors.ui.primary)'` | Prefix required; always resolves to green-alert baseline |
+| Card config / preset — composed | `'theme:alpha(base(colors.ui.primary), 0.5)'` | Prefix required; `base()` is resolved before `alpha()` |
 | Token file value (cross-reference) | `'darken(colors.card.button, 0.35)'` | No prefix — resolver receives bare string |
 | Template string | `'{theme:palette.moonlight}'` | Prefix required in the token syntax |
 
@@ -307,7 +308,7 @@ Hooks in order: `_handleFirstUpdate` (setup, once) → `_handleHassUpdate` (HASS
 
 ## 🏷️ Required Card Properties & Card Size
 
-Every card **must** declare `static CARD_TYPE = 'my-card'` (matches CoreConfigManager schema key) and `static getStubConfig()` (minimum viable config for the card picker). Override `_getCardSize()` using `this._pxToGridUnits(h) ?? 3` — returning `1` for a taller card causes HA layout clipping.
+Every card **must** declare `static CARD_TYPE = 'my-card'` (matches CoreConfigManager schema key) and `static getStubConfig()` (minimum viable config for the card picker). Override `_getCardSize()` for pixel-configured heights, computed inline, e.g. `Math.ceil((this._configPx(h) || 200) / 50)` (see `lcards-chart.js`/`lcards-msd.js`). Returning `1` for a taller card causes HA layout clipping.
 
 > Full details and examples: see `.github/instructions/cards.instructions.md`.
 
@@ -319,6 +320,7 @@ Every card **must** declare `static CARD_TYPE = 'my-card'` (matches CoreConfigMa
 - Concrete: `#93e1ff`, `rgba(255,153,0,0.5)`
 - CSS variable: `var(--lcars-blue, #93e1ff)`
 - Computed: `darken(var(--lcars-blue), 0.3)`, `alpha(#ff9900, 0.5)`
+- Alert-immune baseline: `base(colors.ui.primary)` — always resolves to the pre-alert (green_alert) snapshot value, immune to alert-mode hue mutation. Composable: `alpha(base(colors.ui.primary), 0.5)`
 
 ### Always use the two-step pattern for Canvas2D contexts
 
@@ -375,7 +377,7 @@ Use `this.setupActions(el, { tap_action, hold_action, double_tap_action })` for 
 
 ## 👁️ Preview Mode Guard & 🧹 Cleanup
 
-Guard expensive init with `if (this.isPreviewMode() === 'picker') return` — do **not** guard `'editor'`. The base `_onDisconnected()` auto-cleans: core registration, overlay, entity subscriptions, DataSources, ResizeObserver, actions handler. Only override `_onDisconnected()` for card-specific teardown (timers, AbortControllers); always call `super._onDisconnected()` last.
+Guard expensive init with `if (this._isPreviewMode) return` (base class `isPreviewMode()`/`_isPreviewMode` is a plain boolean; the tri-state `false`/`'editor'`/`'picker'` form is MSD-specific — see `.github/instructions/msd.instructions.md`). The base `_onDisconnected()` auto-cleans: core registration, overlay, entity subscriptions, DataSources, ResizeObserver, actions handler. Only override `_onDisconnected()` for card-specific teardown (timers, AbortControllers); always call `super._onDisconnected()` last.
 
 > Full cleanup table and examples: see `.github/instructions/cards.instructions.md`.
 
@@ -442,19 +444,14 @@ Use `LCARdSFormFieldHelper.renderField(editor, configPath, options?)` — the ca
 ```javascript
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 
-// In a _renderConfig() method:
+// In a _renderConfig() method — selector is auto-derived from the field's JSON
+// Schema + x-ui-hints:
 FormField.renderField(this, 'entity')
-FormField.renderField(this, 'style.primary_color', { type: 'color', label: 'Primary Color' })
-FormField.renderField(this, 'preset', {
-  type: 'select',
-  label: 'Preset',
-  options: [{ value: 'default', label: 'Default' }]
-})
+FormField.renderField(this, 'style.primary_color', { label: 'Primary Color' })
+FormField.renderField(this, 'custom_field', { selectorOverride: { number: { mode: 'slider', min: 0, max: 100 } } })
 ```
 
-**Available field types:** `entity`, `text`, `number`, `color`, `select`, `checkbox`
-
-See `.github/instructions/editor.instructions.md` for the complete editor reference (approved HA elements, shared components, required styles).
+`options` keys: `label`, `helper`, `selectorOverride`, `disabled`, `required` only. To make a field a select/number-slider/entity-picker by default, declare `x-ui-hints.selector` on that field's schema — see `.github/instructions/editor.instructions.md` for the complete editor reference (approved HA elements, shared components, required styles).
 
 ---
 
@@ -491,25 +488,60 @@ export class MyCard extends LCARdSCard {
 - CSS custom properties (`var()`) **do** pierce shadow DOM — use them for theming
 - External stylesheets do **not** pierce shadow DOM — always use `static get styles()`
 
+### Required HA CSS Variables (HA 2026.6+, no fallbacks needed)
+
+**Box shadows** — never hardcode `rgba(0,0,0,X)` shadows:
+
+| Use | Variable |
+|-----|----------|
+| Hover states, small cards | `var(--ha-box-shadow-s)` |
+| Floating panels, modals | `var(--ha-box-shadow-m)` |
+| Full-screen overlays, dialogs | `var(--ha-box-shadow-l)` |
+
+**Semi-transparent backgrounds inside cards/dialogs** — use nested `color-mix` to support HA-LCARS themes where `card-background-color = secondary-background-color`:
+```css
+background-color: color-mix(
+    in srgb,
+    var(--secondary-background-color) 30%,
+    color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+);
+```
+❌ `rgba(60,60,60,0.5)` or `color-mix(in srgb, var(--secondary-background-color) 50%, transparent)` alone — both fail in HA-LCARS
+
+**White/light overlays** — use `color-mix` with `--primary-text-color`:
+```css
+background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
+```
+❌ `rgba(255,255,255,0.1)` — theme-blind
+
+**ha-button variants** — always use `variant`, never `--mdc-theme-primary` CSS overrides:
+- Destructive actions: `variant="danger"`
+- Cautionary actions: `variant="warning"`
+- Primary actions: `variant="brand"`
+
+**HA 2026.6 component rules:**
+- `ha-input` / `ha-textarea` replace deprecated `ha-textfield`
+- `ha-textarea` requires `resize="auto"` for auto-sizing
+- `ha-circular-progress` was removed from HA's frontend entirely (silently renders 0×0, no error) — use `ha-spinner size="small"` instead
+
+> Full theming reference with examples: `.github/instructions/editor.instructions.md` → CSS & Theming Conventions
+
 ---
 
 ## 📦 Custom Element Registration
 
-**Pattern**: All cards register in `src/lcards.js` entry point:
+**Pattern**: All cards register in `src/lcards.js` entry point (editors are the exception — each editor self-registers its own element, in its own file):
 
 ```javascript
 // In src/lcards.js
 import { MyCard } from './cards/my-card.js';
 
-customElements.define('lcards-my-card', MyCard);
-
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'lcards-my-card',
-  name: 'My Card',
-  description: 'Description here'
-});
+if (!customElements.get('lcards-my-card')) {
+  customElements.define('lcards-my-card', MyCard);
+}
 ```
+
+`window.customCards` metadata is one guarded bulk push of an array (`LCARdSCardClasses`), not a per-card `.push({...})` call — add your card's `{ type, name, description }` entry to that array instead.
 
 **Never** register cards in their own files - centralize in entry point.
 
@@ -531,10 +563,9 @@ window.customCards.push({
 **No automated test infrastructure** - manual testing required:
 
 1. Make code changes
-2. `npm run build`
-3. Copy `dist/lcards.js` to HA `www/community/lcards/`
-4. Hard refresh browser (Ctrl+Shift+R)
-5. Test in HA Lovelace editor
+2. `npm run build` — writes directly to `custom_components/lcards/lcards.js` (bind-mounted into the HA devcontainer; no copy step needed)
+3. Hard refresh browser (Ctrl+Shift+R)
+4. Test in HA Lovelace editor
 
 **Template Sandbox**: Use built-in template sandbox (Template tab in editor) to test template evaluation with mock data.
 
@@ -554,9 +585,11 @@ window.customCards.push({
 4. Register in `src/lcards.js`:
    ```javascript
    import { MyCard } from './cards/lcards-mycard.js';
-   customElements.define('lcards-my-card', MyCard);
-   window.customCards = window.customCards || [];
-   window.customCards.push({ type: 'lcards-my-card', name: 'My Card', description: '...' });
+   if (!customElements.get('lcards-my-card')) {
+     customElements.define('lcards-my-card', MyCard);
+   }
+   // add { type: 'lcards-my-card', name: 'My Card', description: '...' } to the
+   // LCARdSCardClasses array that's bulk-pushed to window.customCards
    ```
 5. Add schema to CoreConfigManager if using validation
 6. Override `_getCardSize()` if the card is taller than 1 grid row
@@ -600,7 +633,7 @@ $0._singletons.rulesManager  // From any card element
 ❌ **Don't** skip provenance tracking for config changes
 ❌ **Don't** bind raw click/pointer handlers for HA actions — use `setupActions()`
 ❌ **Don't** call `this.hass.callService()` directly — use the inherited `callService()` helper
-❌ **Don't** run heavy init in picker preview — check `this.isPreviewMode() === 'picker'` first
+❌ **Don't** run heavy init in preview contexts — check `this._isPreviewMode` first (MSD cards only: `this.isPreviewMode() === 'picker'`)
 ❌ **Don't** inject `<style>` tags inside `_renderCard()` — use `static get styles()` with `css` template
 ❌ **Don't** update editor config with direct assignment — use `this._updateConfig(partial)` in editors
 ❌ **Don't** call `ColorUtils.resolveCssVariable()` alone on color values — use the two-step resolver pattern for Canvas2D/SVG/anime.js contexts
@@ -612,4 +645,4 @@ $0._singletons.rulesManager  // From any card element
 
 ---
 
-*Last Updated: April 2026 | LCARdS v1.12.01*
+*Current version tracked in `package.json` (`YYYY.MM.SEQ[-dev.N]` scheme — see `CLAUDE.md` → Versioning).*

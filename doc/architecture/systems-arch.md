@@ -36,7 +36,7 @@ graph LR
     end
 
     IntPy 0@-..->|"injects lcards.js"| CORE
-    HACore 1@-..-CoreSystems
+    HACore 1@-..-CoreSystemsMgr
     IntPy 2@-..->|"lcards/info WS"| CoreIntSvc
     CoreIntSvc 3@-.- CoreRules
     CORE 4@-...- Button
@@ -90,8 +90,7 @@ These services start on page load and become accessible to all LCARdS cards via 
 | **Systems Manager** | `systemsManager` | Centralised entity state subscriptions; cards register interest and receive smart push notifications — no duplicate subscriptions |
 | **DataSource Manager** | `dataSourceManager` | Named data buffers tied to entities; records history, runs processing pipelines (moving average, min/max, aggregation) and notifies subscribers |
 | **Rules Engine** | `rulesManager` | Evaluates conditions and hot-patches LCARd styles at runtime; target any card by tag, type, or ID |
-| **Theme Manager** | `themeManager` | Token-based theming (colours, spacing, borders, and more); resolves theme tokens in any card field |
-| **Alert Mode** | `alertMode` | Coordinated alert states (green / red / yellow / blue / gray / black); drives palette shifts, triggers sounds, driven by `input_select.lcards_alert_mode` |
+| **Theme Manager** | `themeManager` | Token-based theming (colours, spacing, borders, and more); resolves theme tokens in any card field. Also owns alert-mode state (`setAlertMode()` / `getAlertMode()`) — coordinated alert states (green / red / yellow / blue / gray / black) that drive palette shifts and are driven by `input_select.lcards_alert_mode` |
 | **Animation Manager** | `animationManager` | Coordinates Anime.js v4 animations; provides built-in configurable presets or accepts custom anime.js parameters |
 | **Sound Manager** | `soundManager` | LCARS-style audio feedback for card interactions and UI events; configurable scheme with per-event overrides; supports per-user and per-device scope via ScopedSettingsService |
 | **Style Preset Manager** | `stylePresetManager` | Central registry of named style presets for buttons, sliders, elbows; consumed from packs |
@@ -105,8 +104,7 @@ These services start on page load and become accessible to all LCARdS cards via 
 | **Portal Overlay Manager** | `portalOverlayManager` | Shared portal overlay lifecycle engine for dialogs and modal card overlays rendered above the dashboard |
 | **Connection Overlay Service** | `connectionOverlayService` | Monitors HA WebSocket health and shows a full-screen connection-lost overlay when the frontend loses server contact |
 
-**Template Support** — any text field in any card supports four syntaxes:
-JavaScript `[[[return ...]]]`, LCARdS tokens `{entity.state}` / `{theme:colors.card.button}`, DataSource `{ds:sensor_name}`, and Jinja2 `{{states("sensor.temp")}}` (Jinja2 evaluated by HA server).
+**Template Support** — any text field in any card supports four syntaxes (JS `[[[...]]]`, LCARdS tokens `{...}`, DataSource `{ds:...}`, Jinja2 `{{...}}`), orchestrated by `UnifiedTemplateEvaluator`. See [Template System](subsystems/template-system.md) for the full reference.
 
 ---
 
@@ -205,6 +203,7 @@ See [Pack System](subsystems/pack-system.md) for the full developer reference.
 - [HA Integration Architecture](ha-integration.md)
 - [Integration Service](subsystems/integration-service.md)
 - [Pack System](subsystems/pack-system.md)
+- [Template System](subsystems/template-system.md)
 - [Background Animation System](internals/background-animation-system.md)
 - [Shape Texture System](internals/shape-texture-system.md)
 - [Sound System](subsystems/sound-system.md)

@@ -43,10 +43,11 @@ export class LCARdSMyCard extends LCARdSCard {
     // window.lcards?.core?.configManager?.registerCardSchema('lcards-mycard', schema);
   }
 
-  /** Height hint for the HA grid (50 px per row unit). */
-  getCardSize() {
-    const height = this._toPxInt(this.config?.height) || 56;
-    return Math.ceil(height / 50) || 1;
+  /** Height hint for the HA grid (50 px per row unit). Override the protected
+   *  `_getCardSize()` hook, not the public `getCardSize()` HA calls directly. */
+  _getCardSize() {
+    const px = this._configPx(this.config?.height);
+    return px !== null ? Math.ceil(px / 50) : 1;
   }
 
   // ── Optional: Visual Editor ───────────────────────────────────────────────
@@ -178,32 +179,7 @@ _renderCard() {
 
 ## 4. Rules Engine Integration
 
-Register the overlay in `_handleFirstUpdate` and re-resolve styles when patches arrive:
-
-```javascript
-_handleFirstUpdate(changedProps) {
-  super._handleFirstUpdate(changedProps);
-
-  this._registerOverlayForRules(
-    this.config.id || this._cardGuid,
-    'mycard',
-    ['mycard', ...(this.config.tags || [])]
-  );
-
-  this._resolveStyle();
-}
-
-_onRulePatchesChanged(patches) {
-  this._resolveStyle();
-}
-
-_resolveStyle() {
-  let style = { ...(this.config.style || {}) };
-  style = this._getMergedStyleWithRules(style);
-  this._cardStyle = style;
-  this.requestUpdate();  // required
-}
-```
+Already shown in the skeleton above: call `_registerOverlayForRules(id, type, tags)` once in `_handleFirstUpdate`, and re-run `_resolveStyle()` — which merges rule patches via `_getMergedStyleWithRules()` and calls `requestUpdate()` — both there and in `_onRulePatchesChanged`. That's the whole contract; there's no additional wiring required.
 
 ## 5. Register the Card
 
@@ -214,8 +190,10 @@ All registration happens in `src/lcards.js`. Never call `customElements.define` 
 
 import { LCARdSMyCard } from './cards/lcards-mycard.js';
 
-// 1. Register the custom element.
-customElements.define('lcards-mycard', LCARdSMyCard);
+// 1. Register the custom element (always guarded — never re-define on HMR/SPA reload).
+if (!customElements.get('lcards-mycard')) {
+  customElements.define('lcards-mycard', LCARdSMyCard);
+}
 
 // 2. Register YAML schema (optional).
 LCARdSMyCard.registerSchema?.();
@@ -233,8 +211,7 @@ window.customCards.push({
 ## 6. Build and Test
 
 ```bash
-npm run build          # production build → dist/lcards.js
-npm run build:dev      # with source maps
+npm run build          # the only build — validated, versioned, use for dev and release alike
 ```
 
 Copy `dist/lcards.js` to `<HA config>/www/community/lcards/lcards.js`, then hard-refresh (Ctrl+Shift+R) in the browser. The card selector should now show your new card.

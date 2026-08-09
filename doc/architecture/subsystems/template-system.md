@@ -87,7 +87,7 @@ const evaluator = new UnifiedTemplateEvaluator({
     entity: this.hass.states[this.config.entity_id],
     config: this.config,
     hass: this.hass,
-    theme: window.lcards.core.themeManager.getCurrentTheme()
+    theme: window.lcards.core.themeManager.getActiveTheme?.()
   },
   dataSourceManager: window.lcards.core.dataSourceManager
 });

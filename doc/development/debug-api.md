@@ -55,8 +55,6 @@ window.lcards.debug.perf.status()
 // { fps: 60, isMonitoring: true, settled: true, thresholds: { ... }, ... }
 ```
 
-> **Note:** `window.lcards.perf` no longer exists — use `window.lcards.debug.perf`.
-
 ### `theme` — Theme inspection
 
 Shortcuts to `ThemeManager` state.
@@ -217,12 +215,16 @@ All namespace methods are called as `window.lcards.debug.msd.<namespace>.<method
 | Method | Description |
 |--------|-------------|
 | `inspect(overlayId, cardId?)` | The overlay's actual routed points/path, read-only from the route cache — never computes or mutates routing state |
+| `inspectAll(cardId?)` | Like `inspect()`, but for every overlay currently in the route cache at once |
+| `trunks(cardId?)` | List every registered trunk row (config-seeded and spontaneously-discovered) with its bounds, centerline, and member set |
 | `stats(cardId?)` | Router statistics: cache size, obstacle count, trunk/crossing registry counts, registry version |
 | `invalidate(id, cardId?)` | Invalidate cached routing for an overlay |
 | `visualize(overlayId)` | Visualize routing (not yet implemented) |
 
 ```javascript
 window.lcards.debug.msd.routing.inspect('my_overlay')   // { pts, d, meta, cacheKey }
+window.lcards.debug.msd.routing.inspectAll()             // same shape, one entry per overlay
+console.table(window.lcards.debug.msd.routing.trunks())
 window.lcards.debug.msd.routing.stats()                 // { size, obstacles, trunks, crossings, registryVersion, ... }
 ```
 
@@ -260,11 +262,12 @@ window.lcards.debug.msd.rules.listActive({ includeDisabled: true, verbose: true 
 | `registryStats()` | Animation registry statistics |
 | `inspect(id)` | Inspect a specific animation instance |
 | `timeline(id)` | Show timeline details for an animation |
-| `trigger(id)` | Manually trigger an animation |
+| `trigger(overlayId, presetName, params?, cardId?)` | Manually trigger an animation preset on an overlay, for testing |
 
 ```javascript
 window.lcards.debug.msd.animations.active()
 window.lcards.debug.msd.animations.inspect('my_anim_id')
+window.lcards.debug.msd.animations.trigger('cpu_status', 'pulse', { duration: 500 })
 ```
 
 ### `overlays` — Overlay inspection

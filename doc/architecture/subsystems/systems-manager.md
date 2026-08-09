@@ -28,15 +28,15 @@
 
 ## Overlay Registry
 
-Cards register their overlays here so the Rules Engine can target them by ID, tag, or type:
+Cards register their overlays here so the Rules Engine can target them by ID, tag, or type. `registerOverlay()` takes the overlay ID and its metadata as two **separate positional arguments** — the ID is not repeated inside the metadata object:
 
 ```javascript
 const sm = window.lcards.core.systemsManager;
 
-sm.registerOverlay({
-  id: `button-${this._cardGuid}`,
+sm.registerOverlay(`button-${this._cardGuid}`, {
   tags: ['temp', 'status'],
   type: 'button',
+  sourceCardId: this._cardGuid,   // which card owns this overlay
   element: this
 });
 
@@ -90,9 +90,14 @@ transition, not on attribute-only changes.
 |---|---|---|
 | `getEntityState(entityId)` | `HassEntity\|null` | Cached HASS entity state (synchronous, no subscription) |
 | `subscribeToEntity(entityId, cb)` | `() => void` | Subscribe to state changes; returns unsubscribe fn |
-| `registerOverlay(opts)` | `void` | Register an overlay descriptor `{ id, tags?, type, element }` |
+| `registerOverlay(overlayId, metadata)` | `void` | Register an overlay: `metadata` is `{ type?, tags?, sourceCardId?, element? }` |
 | `unregisterOverlay(overlayId)` | `void` | Remove an overlay from the registry |
-| `getRegisteredOverlays()` | `Object[]` | All currently registered overlay descriptors |
+| `getOverlay(overlayId)` | `Object\|null` | A single overlay's metadata by ID |
+| `getAllTargetableOverlays()` | `Object[]` | All registered overlay metadata objects — used by `RulesEngine` for selector resolution |
+| `getOverlayRegistry()` | `Map<string, Object>` | The raw `overlayId → metadata` map |
+| `getOverlaysBySource(cardId)` | `Object[]` | All overlays registered by a specific card |
+| `getOverlaysByTag(tag)` | `Object[]` | All overlays with a given tag |
+| `getAllTags()` | `string[]` | All unique tags across every registered overlay, sorted |
 
 ---
 
@@ -101,15 +106,27 @@ transition, not on attribute-only changes.
 ::: code-group
 ```javascript [Snapshot]
 window.lcards.debug.singleton('systemsManager')
-// → { type: 'CoreSystemsManager', entityCount: 12, overlayCount: 8, subscriberCount: 24 }
+// → {
+//   initialized: true,
+//   destroyed: false,
+//   registeredCards: ['card-abc123', 'card-def456'],
+//   totalCards: 2,
+//   registeredOverlays: ['button-abc123', 'button-def456'],
+//   totalOverlays: 8,
+//   entityStateCount: 142,
+//   entitySubscriptionCount: 12,
+//   globalChangeListeners: 0,
+//   hasHass: true
+// }
 ```
 ```javascript [Live object]
 const sm = window.lcards.core.systemsManager
 
 sm.getEntityState('sensor.temperature')   // cached entity state object
-sm.getRegisteredOverlays()                // all overlay registrations
+sm.getAllTargetableOverlays()             // all overlay metadata objects (array)
+sm.getOverlayRegistry()                   // raw Map<overlayId, metadata>
 sm.subscribeToEntity('sensor.temp', cb)  // returns unsubscribe fn
-sm.registerOverlay({ id, tags, type, element })
+sm.registerOverlay('my-overlay-id', { type, tags, sourceCardId, element })
 sm.unregisterOverlay('my-overlay-id')
 ```
 :::

@@ -141,8 +141,15 @@ The subscription is cleaned up automatically when the WebSocket connection close
 |---------------------|-------------|
 | `reload` | `window.location.reload()` — immediate, unconditional |
 | `set_log_level` | `window.lcards.setGlobalLogLevel(data.level)` if available |
+| `set_alert_mode` | `window.lcards.setAlertMode(data.mode, { skipHelperSync: true })` — targeted (local-only) alert change; skips writing back to the `input_select` helper so it doesn't re-trigger this on every tab |
+| `clear_effect` | `window.lcards.screenEffect.clearSlot(data.slot)`, or `.clear()` (all slots) if `data.slot` is omitted |
+| `play_sound` | `soundManager.playAsset(data.asset_key)` (exact asset, bypasses scheme) if present, else `soundManager.play(data.event_type)` (scheme/override-aware) |
+| `trigger_effect` | Applies `data.layers` (`{ backdrop, color, canvas }`, each `{ preset, ...params }` or `null` to clear) via `screenEffectManager`; auto-clears after `data.duration` ms if given |
 | `show_portal_card` | `pom.show('ha-service', options)` — displays a card/message via `PortalOverlayManager` |
 | `clear_portal_card` | `pom.hide('ha-service')` — clears the `'ha-service'` POM slot |
+| `borg_assimilate` | `borgAssimilationManager.assimilate(opts)` — starts the Borg-assimilation screen takeover |
+| `borg_deassimilate` | `borgAssimilationManager.deassimilate(opts)` — reverts it, optionally with an outro |
+| `reload_connection_config` | `connectionOverlayService.loadConfig()` — re-reads connection-overlay config from the scoped waterfall and re-renders if active; skipped if this device originated the save (`data.origin_device_id` matches) |
 | anything else | `lcardsLog.debug` — logged and ignored |
 
 Note: with `subscribeMessage`, the payload is delivered directly as `data` — it is not wrapped in an event envelope (no `event.data` unwrapping needed).

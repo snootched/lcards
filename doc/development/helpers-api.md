@@ -86,6 +86,7 @@ await hass.callWS({
 - `input_number` - Sliders and number inputs
 - `input_select` - Dropdowns
 - `input_boolean` - Toggles
+- `input_text` - Free-text storage (e.g. JSON config blobs)
 
 **Error Handling:**
 
@@ -137,7 +138,7 @@ export const HELPER_REGISTRY = {
 **Key Fields:**
 
 - `entity_id`: Desired entity ID in Home Assistant
-- `domain`: Helper type (`input_number`, `input_select`, `input_boolean`)
+- `domain`: Helper type (`input_number`, `input_select`, `input_boolean`, `input_text`)
 - `ws_create_params`: Parameters for WebSocket creation
 - `default_value`: Fallback value if helper doesn't exist
 - `yaml_config`: Valid YAML for manual creation
@@ -336,166 +337,15 @@ Access globally:
 window.lcards.core.helperManager
 ```
 
-### Alert Lab Integration
+### Alert Lab & Configuration Panel
 
-The Alert Lab loads and saves helper values:
-
-```javascript
-// On open: Load from helpers
-_loadAlertLabFromHelpers() {
-  const helperManager = window.lcards.core.helperManager;
-
-  ['red', 'yellow', 'blue', 'white'].forEach(mode => {
-    const hue = helperManager.getHelperValue(`alert_lab_${mode}_hue`);
-    const saturation = helperManager.getHelperValue(`alert_lab_${mode}_saturation`);
-    const lightness = helperManager.getHelperValue(`alert_lab_${mode}_lightness`);
-
-    // Apply values
-    setAlertModeTransformParameter(`${mode}_alert`, 'hueShift', hue);
-    setAlertModeTransformParameter(`${mode}_alert`, 'saturationMultiplier', saturation / 100);
-    setAlertModeTransformParameter(`${mode}_alert`, 'lightnessMultiplier', lightness / 100);
-  });
-}
-
-// On save: Persist to helpers
-async _saveToHelpers() {
-  const helperManager = window.lcards.core.helperManager;
-  const transform = getAlertModeTransform(this._selectedAlertMode);
-  const mode = this._selectedAlertMode.replace('_alert', '');
-
-  await helperManager.setHelperValue(`alert_lab_${mode}_hue`, transform.hueShift);
-  await helperManager.setHelperValue(`alert_lab_${mode}_saturation`, transform.saturationMultiplier * 100);
-  await helperManager.setHelperValue(`alert_lab_${mode}_lightness`, transform.lightnessMultiplier * 100);
-}
-```
-
-### Configuration Panel
-
-The panel provides UI for helper management:
-
-```javascript
-// Load status
-this._helpers = helperManager.getAllHelpers().map(helper => ({
-  ...helper,
-  exists: helperManager.helperExists(helper.key),
-  currentValue: helperManager.getHelperValue(helper.key)
-}));
-
-// Create all
-const results = await helperManager.ensureAllHelpers();
-
-// Set value
-await helperManager.setHelperValue(key, value);
-```
-
-## Testing Guidelines
-
-### Unit Testing
-
-Test helper operations:
-
-```javascript
-// Mock HASS instance
-const mockHass = {
-  callWS: jest.fn(),
-  callService: jest.fn(),
-  states: {},
-  connection: {
-    subscribeEvents: jest.fn(() => () => {})
-  }
-};
-
-// Test creation
-test('creates helper via WebSocket', async () => {
-  mockHass.callWS.mockResolvedValue({ id: 'helper_id' });
-
-  const result = await createHelper(mockHass, 'input_number', 'Test Helper', {
-    min: 0,
-    max: 100
-  });
-
-  expect(mockHass.callWS).toHaveBeenCalledWith({
-    type: 'input_number/create',
-    name: 'Test Helper',
-    min: 0,
-    max: 100
-  });
-});
-```
-
-### Integration Testing
-
-1. Create helpers via panel
-2. Verify entity IDs in HA
-3. Test value updates
-4. Verify Alert Lab persistence
-5. Test automation integration
-
-### Manual Testing Checklist
-
-- [ ] Create all helpers via config panel
-- [ ] Edit helper values in panel
-- [ ] Save Alert Lab parameters
-- [ ] Reload Alert Lab and verify values loaded
-- [ ] Change helper via automation
-- [ ] Verify theme updates
-- [ ] Export YAML and verify accuracy
-- [ ] Delete test helpers
+Both consumers use the same Helper Manager API already documented above — no new methods. The Alert Lab reads/writes `alert_lab_{mode}_{hue,saturation,lightness}` keys via `getHelperValue()`/`setHelperValue()` on open/save; the Config Panel lists helper status via `getAllHelpers()` + `helperExists()` + `getHelperValue()`, and bulk-creates missing ones via `ensureAllHelpers()`.
 
 ## Best Practices
 
-### Naming Conventions
+- **Naming:** prefix all helpers with `lcards_`, snake_case entity IDs, group by category in the registry.
+- **Error handling:** wrap `createHelper()`/`setHelperValue()` calls in try/catch — see the Error Handling notes under Helper API above.
+- **State:** subscribe to changes for reactive updates instead of polling, and unsubscribe on component cleanup (`unsubscribeFromHelper()` or the function returned by `subscribeToHelper()`).
+- **Performance:** batch helper creation via `ensureAllHelpers()` rather than looping `ensureHelper()` calls; avoid excessive subscriptions.
 
-- Prefix all helpers with `lcards_`
-- Use snake_case for entity IDs
-- Group by category in registry
-- Use descriptive names
-
-### Error Handling
-
-Always wrap helper operations:
-
-```javascript
-try {
-  await helperManager.setHelperValue('alert_mode', 'red_alert');
-} catch (error) {
-  lcardsLog.error('[MyComponent] Failed to set helper:', error);
-  // Show user-friendly error
-}
-```
-
-### State Management
-
-- Cache helper values when appropriate
-- Subscribe to changes for reactive updates
-- Unsubscribe on component cleanup
-
-### Performance
-
-- Batch helper creation when possible
-- Use default values as fallback
-- Avoid excessive subscriptions
-
-## Future Enhancements
-
-Planned features for helper system:
-
-1. **Card Schema Bindings**
-   - Declarative helper bindings in card schemas
-   - Auto-apply helper values to config
-   - UI indicators for helper-driven values
-
-2. **Additional Categories**
-   - `styling`: Card styling defaults
-   - `behavior`: Card behavior settings
-   - `layout`: Layout preferences
-
-3. **Migration Tools**
-   - Import from old config formats
-   - Bulk helper operations
-   - Config versioning
-
-4. **Advanced Features**
-   - Helper validation rules
-   - Inter-helper dependencies
-   - Conditional helper enablement
+There is no automated test suite for this project — validate helper changes manually: create via the Config Panel, confirm the entity appears in HA, exercise Alert Lab save/reload, and trigger a value change from an automation.

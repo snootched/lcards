@@ -59,7 +59,7 @@ flowchart TB
     PM -->|components| CM
     PM -->|rules| RE
     PM -->|sound_schemes| SM
-    PM -->|audio_assets\nsvg_assets\nfont_assets| AM
+    PM -->|audio_assets\nsvg_assets\nfont_assets\nimage_assets| AM
 
     TM & SPM & CM & RE & SM & AM --> Cards([Cards & Editors])
 
@@ -143,6 +143,11 @@ Every pack is a plain JavaScript object. All keys are optional — PackManager i
   // ── Font Assets → AssetManager ────────────────────────────────────────────
   font_assets: {
     'my_font': { url: '/hacsfiles/my_pack/font.woff2', displayName: 'My Font', ... }
+  },
+
+  // ── Image Assets → AssetManager (URL-only registry, see Asset Manager) ────
+  image_assets: {
+    'my_background': { url: '/hacsfiles/my_pack/bg.jpg', label: 'My Background', category: 'backgrounds' }
   }
 }
 ```
@@ -153,7 +158,7 @@ Every pack is a plain JavaScript object. All keys are optional — PackManager i
 
 | Pack ID | File | Key(s) | Registry |
 |---|---|---|---|
-| `core` | inline in `loadBuiltinPacks.js` | *(none — version anchor only)* | Pack Explorer |
+| `core` | `core-pack.js` | *(none — version anchor only)* | Pack Explorer |
 | `lcards_buttons` | `lcards-buttons-pack.js` | `style_presets.button` | StylePresetManager |
 | `lcards_sliders` | `lcards-sliders-pack.js` | `style_presets.slider` | StylePresetManager |
 | `lcards_elbows` | `lcards-elbows-pack.js` | `components` (type: `elbow`) | ComponentManager |
@@ -162,10 +167,12 @@ Every pack is a plain JavaScript object. All keys are optional — PackManager i
 | `lcards_beeps` | `lcards-beeps-pack.js` | `audio_assets` | AssetManager |
 | `lcards_alerts` | `lcards-alerts-pack.js` | `audio_assets` | AssetManager |
 | `builtin_msd_backgrounds` | `builtin-msd.js` | `svg_assets` | AssetManager |
-| `core_fonts` | inline in `loadBuiltinPacks.js` | `font_assets` | AssetManager |
+| `core_fonts` | `core-fonts-pack.js` | `font_assets` | AssetManager |
 | `lcards_textures` | `lcards-textures-pack.js` | *(metadata only — `SHAPE_TEXTURE_PRESETS` consumed directly by render methods)* | Pack Explorer |
+| `lcards_images` | `lcards-images-pack.js` | `image_assets` | AssetManager |
+| `lcards_power` | `lcards-power-pack.js` | `audio_assets` | AssetManager |
 
-**Always-loaded packs** (regardless of `requested` parameter): `builtin_themes`, `builtin_msd_backgrounds`, `core_fonts`, `lcards_sounds_default`, `lcards_beeps`, `lcards_alerts`, `lcards_elbows`, `lcards_textures`.
+**Always-loaded packs** (regardless of `requested` parameter): `builtin_themes`, `builtin_msd_backgrounds`, `core_fonts`, `lcards_sounds_default`, `lcards_beeps`, `lcards_alerts`, `lcards_elbows`, `lcards_textures`, `lcards_images`, `lcards_power`.
 
 ---
 
@@ -181,6 +188,8 @@ src/core/packs/
   mergePacks.js
   core_fonts.json
   ── Pack wrappers (all visible at one level) ──────────────────────
+  core-pack.js                      ← version anchor only, no data keys
+  core-fonts-pack.js                ← font_assets (from core_fonts.json)
   lcards-buttons-pack.js            ← style_presets.button
   lcards-sliders-pack.js            ← style_presets.slider
   lcards-elbows-pack.js             ← components (type: elbow)
@@ -189,6 +198,8 @@ src/core/packs/
   lcards-default-sound-scheme.js    ← audio_assets + sound_schemes
   lcards-beeps-pack.js              ← audio_assets
   lcards-alerts-pack.js             ← audio_assets
+  lcards-images-pack.js             ← image_assets
+  lcards-power-pack.js              ← audio_assets
   ── Raw data (imported by pack wrappers above) ────────────────────
   style-presets/
     buttons/index.js                ← BUTTON_PRESETS
@@ -209,7 +220,7 @@ src/core/packs/
     lcards-example-pack.js          ← full-feature template for third-party authors
 ```
 
-**Rule**: `loadBuiltinPacks.js` imports packs; it does not define them. The only exceptions are `CORE_PACK` (trivial metadata object) and `CORE_FONTS_PACK` (JSON transform that must run at load time).
+**Rule**: `loadBuiltinPacks.js` imports packs; it does not define them — even `CORE_PACK` and `CORE_FONTS_PACK` live in their own wrapper files (`core-pack.js`, `core-fonts-pack.js`), not inline.
 
 **Rule**: Pack wrapper files live at the `packs/` root. Never put a pack wrapper inside a domain subfolder.
 
@@ -228,7 +239,7 @@ lcards-core.js _performInitialization():
            step 1: pack.themes          → ThemeManager.registerThemesFromPack()
            step 2: pack.style_presets   → StylePresetManager.registerPresetsFromPack()
            step 3: pack.rules           → RulesEngine (direct push)
-           step 4: pack.audio/svg/font  → AssetManager.preloadFromPack()
+           step 4: pack.audio/svg/font/image → AssetManager.preloadFromPack()
            step 5: pack.sound_schemes   → SoundManager.registerSchemes()
            step 6: (animations — cache-on-demand, no registration)
            step 7: pack.components      → ComponentManager.registerComponentsFromPack()
@@ -244,7 +255,7 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
 |---|---|---|
 | Card rendering | `window.lcards.core.componentManager.getComponent('header-left')` | `import { getElbowComponent } from '…/elbows/index.js'` |
 | Card editor dropdown | `window.lcards.core.stylePresetManager.getAvailablePresets('button')` | `import { BUTTON_COMPONENTS } from '…/buttons/index.js'` |
-| Theme token | `window.lcards.core.themeManager.getCurrentTheme()` | Direct token file import |
+| Theme token | `window.lcards.core.themeManager.getToken('colors.ui.primary', fallback)` | Direct token file import |
 | Sound asset | `window.lcards.core.soundManager.play('card_tap')` | Direct audio URL reference |
 
 **Why this matters**: Direct imports couple cards to specific files, bypass the pack system, and prevent external packs from overriding or extending definitions. Singleton queries allow any pack to augment the system without touching card code.
@@ -253,9 +264,9 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
 
 ## How to Add a New Pack
 
-1. **Create the pack file** in the appropriate domain subfolder:
+1. **Create the pack wrapper file at the `packs/` root** (never in a domain subfolder — see the file-structure rule above):
    ```js
-   // src/core/packs/sounds/my-pack.js
+   // src/core/packs/lcards-my-pack.js
    export const MY_PACK = {
      id: 'my_pack', name: 'My Pack', version: '1.0.0',
      description: '...',
@@ -265,7 +276,7 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
 
 2. **Import and register** in `loadBuiltinPacks.js`:
    ```js
-   import { MY_PACK } from './sounds/my-pack.js';
+   import { MY_PACK } from './lcards-my-pack.js';
    // Add to BUILTIN_REGISTRY:
    my_pack: MY_PACK,
    // Add to alwaysLoad if it should always be present, or leave it
@@ -278,7 +289,9 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
 
 ## How to Add a New Component Type
 
-1. **Create the component definitions** in a new subfolder:
+Component types are just a `components` pack under the hood — follow [How to Add a New Pack](#how-to-add-a-new-pack) above for the wrapper file and `loadBuiltinPacks.js` registration. Two things are specific to components:
+
+1. **`metadata.type` is required** on every component definition — `ComponentManager` uses it to group components for `getComponentsByType('mytype')`:
    ```js
    // src/core/packs/components/mytype/index.js
    export const myTypeComponents = {
@@ -286,27 +299,13 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
        orientation: '…',
        features: ['…'],
        metadata: { type: 'mytype', name: 'My Variant', version: '1.0' },
-       // SVG string, render function, or pathGenerator:
        svg: `<svg>…</svg>`
      }
    };
    ```
-   > **`metadata.type` is required** — ComponentManager uses it to group components for `getComponentsByType('mytype')`.
+   The pack wrapper (`src/core/packs/components/lcards-mytype-pack.js`) just sets `components: myTypeComponents`, same shape as the `MY_PACK` example above.
 
-2. **Create the pack wrapper**:
-   ```js
-   // src/core/packs/components/lcards-mytype-pack.js
-   import { myTypeComponents } from './mytype/index.js';
-   export const LCARDS_MYTYPE_PACK = {
-     id: 'lcards_mytype', name: 'LCARdS MyType', version: '1.0.0',
-     description: '…',
-     components: myTypeComponents
-   };
-   ```
-
-3. **Register in `loadBuiltinPacks.js`** (import + add to registry + add to `alwaysLoad`).
-
-4. **Add the new type to `components/index.js`** spread:
+2. **Also add the new type to the `components/index.js` spread**, so `ComponentManager`'s synchronous bootstrap load includes it immediately — before packs have finished loading asynchronously:
    ```js
    import { myTypeComponents } from './mytype/index.js';
    export const components = {
@@ -314,13 +313,12 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
      ...myTypeComponents
    };
    ```
-   (This ensures ComponentManager's initial load includes the new type immediately, before packs have loaded.)
 
-5. **Consumers query via singleton**:
-   ```js
-   window.lcards.core.componentManager.getComponentsByType('mytype')
-   window.lcards.core.componentManager.getComponent('my-variant')
-   ```
+Consumers then query the new type via the singleton, same as any other component:
+```js
+window.lcards.core.componentManager.getComponentsByType('mytype')
+window.lcards.core.componentManager.getComponent('my-variant')
+```
 
 ---
 
@@ -328,9 +326,9 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
 
 | Method | Returns | Description |
 |---|---|---|
-| `getLoadedPacks()` | `Object[]` | All loaded pack definition objects in registration order |
-| `getPack(id)` | `Object\|null` | Specific pack definition by ID string |
-| `getPackIds()` | `string[]` | IDs of all loaded packs in load order |
+| `getLoadedPacks()` | `Object[]` | All loaded packs with content-count summaries (used by Pack Explorer) |
+| `getPack(id)` | `Object\|undefined` | Raw pack definition by ID string |
+| `getLoadedPackIds()` | `string[]` | IDs of all loaded packs in load order |
 | `registerPack(pack)` | `void` | Register a pack definition object (called at init time) |
 
 ---
@@ -340,14 +338,14 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
 ::: code-group
 ```javascript [Snapshot]
 window.lcards.debug.singleton('packManager')
-// → { type: 'PackManager', loadedPacks: 9, packIds: ['core', 'lcards_buttons', ...] }
+// → { loadedPacks: [ { id: 'core', ... }, { id: 'lcards_buttons', ... }, ... ], packCount: 12 }
 ```
 ```javascript [Live object]
 const pm = window.lcards.core.packManager
 
-pm.getLoadedPacks()      // array of all loaded pack objects
+pm.getLoadedPackIds()    // ['core', 'lcards_buttons', ...]
+pm.getLoadedPacks()      // array of all loaded pack objects (with content-count summaries)
 pm.getPack('lcards_buttons')  // specific pack by id
-pm.getPackIds()          // ['core', 'lcards_buttons', ...]
 ```
 :::
 

@@ -11,7 +11,7 @@ applyTo: src/msd/**
 | Need | Use |
 |------|-----|
 | Single-purpose card (button, slider, chart, label) | `LCARdSCard` |
-| Full-canvas SVG with multiple overlays, routing lines, navigation | `LCARdSMSDCard` (extends `LCARdSCard`) |
+| Full-canvas SVG with multiple overlays, routing lines | `LCARdSMSDCard` (extends `LCARdSCard`) |
 | Complex multi-overlay display with drag-drop studio editor | `LCARdSMSDCard` |
 
 `LCARdSMSDCard` is **not** a separate base class — it extends `LCARdSCard` and adds the MSD **pipeline** on top. All card lifecycle rules still apply.
@@ -25,11 +25,14 @@ The pipeline runs on every config update (`_handleFirstUpdate`, `_onConfigUpdate
 ```
 Config (raw YAML)
   ↓
-ConfigProcessor      — normalizes, expands shortcuts, resolves pack refs
+ConfigProcessor      — normalizes, expands shortcuts, resolves pack refs (delegates pack merging to core.configManager.processConfig())
   ↓
-CardModel            — merges packs + presets into a resolved overlay tree
-  ↓
-PipelineCore         — orchestrates rendering + animation + routing phases
+PipelineCore.initMsdPipeline()  — top-level orchestrator; creates MsdCardCoordinator (owns RouterCore + the other
+  │                                 per-card singletons: themeManager, dataSourceManager, animationManager, ...)
+  ├─ CardModel.buildCardModel()      — resolves base_svg/viewBox/filters, normalizes overlay shape
+  └─ new ModelBuilder(mergedConfig, cardModel, coordinator)
+       ↓ (on every re-render)
+     ModelBuilder.computeResolvedModel() — merges packs + presets into the final resolved overlay tree
   ↓
 AdvancedRenderer     — renders SVG base + overlay positions, phase 2a (controls) / 2b (lines), then a z_index reorder pass
   ↓
@@ -156,7 +159,7 @@ Typical pairing: `render_visual: false` + `background_animation: { layers: [{ pr
 
 ## Routing Lines
 
-Per-line routing choices — `route`/`route_hint`/`route_hint_last`/`waypoints`/`route_channels` — live directly on each `type: line` overlay (see Overlay Architecture above). Global routing *tunables* (trunk/crossing knobs, grid/turn penalties, smoothing, cost weights) live in the `msd.routing` object, and authored channels live in `msd.channels` (NOT `msd.routing.channels` — `MsdCardCoordinator` assembles RouterCore's config as `{ ...mergedConfig.routing, channels: mergedConfig.channels }`). `route: manual` uses `waypoints` (coordinates — optionally `[x, y, radius]` to override that corner's `corner_radius` — or anchor names, in path order); every other `route` value is pathfinding — don't hand-position routed lines, the pipeline computes the path from the anchor points and routing mode. Caveat: `route: auto` with no obstacles and no channels resolves to plain `manhattan`, which never bundles or avoids crossings — features gated on pathfinding need `route: smart` explicitly. RouterCore internals (registries, derived lane assignment, discovery-loop convergence discipline): `doc/architecture/msd/routing.md`.
+Per-line routing choices — `route`/`route_hint`/`route_hint_last`/`waypoints`/`route_channels` — live directly on each `type: line` overlay (see Overlay Architecture above). Global routing *tunables* (trunk/crossing knobs, grid/turn penalties, smoothing, cost weights) live in the `msd.routing` object, and authored channels live in `msd.channels` (NOT `msd.routing.channels` — `MsdCardCoordinator` assembles RouterCore's config as `{ ...mergedConfig.routing, channels: mergedConfig.channels }`). `route: manual` uses `waypoints` (coordinates — optionally `[x, y, radius]` to override that corner's `corner_radius` — or anchor names, in path order); every other `route` value is pathfinding — don't hand-position routed lines, the pipeline computes the path from the anchor points and routing mode. Caveat: `route: auto` always means full pathfinding (it resolves to `smart`, or `default_mode` if one is configured) regardless of whether obstacles/channels are present. The cheap escape hatch (no bundling/crossing-avoidance) is choosing `route: manhattan` or `route: grid` explicitly. RouterCore internals (registries, derived lane assignment, discovery-loop convergence discipline): `doc/architecture/msd/routing.md`.
 
 A channel's own `route_channels`-based opt-in and RouterCore's automatic trunk *discovery* are two separate mechanisms — `route_channels` on a line controls whether a channel is mandatory/cost-biased for it, but discovery runs for every `auto`/`smart`/`grid` line regardless, offering ANY nearby channel as a bundling candidate whether or not that line references it. Set `discoverable: false` on a `msd.channels.<id>` entry to scope it to only lines that explicitly list it in their own `route_channels`.
 
@@ -167,39 +170,6 @@ A channel's own `route_channels`-based opt-in and RouterCore's automatic trunk *
 **Corner clearance is stroke-width-aware**: a rounded/beveled corner's radius is clamped against neighboring lines' rendered *edges*, not centerlines — `style.width` (default `2`) is netted out of the raw distance in `_distanceToNearestOtherLineSegment`. A thicker line gets a smaller effective radius at the same lane spacing; this is the fix for the "outer edge curves, inner edge squares off" artifact at high stroke width, not a separate arc-math concern. A per-line `stub_length` override (viewBox units) can also bypass the router's own auto/forced stub-length computation directly — see `doc/cards/msd/routing.md`'s "Corner Size" section.
 
 **Known, deliberately-deferred routing limitations** (each investigated with a real attempted fix, not just noticed): `trunk_proximity` is a hard bundling cutoff with a confirmed cliff at its boundary — a widening attempt regressed an already-correct scenario and was reverted; `_mergeCorridors`'s chain ordering can rarely pick a suboptimal order when a line chains through mixed horizontal/vertical trunks (only seen in synthetic many-line stress tests). Full details: `doc/architecture/msd/routing.md`'s "Known Limitations" section.
-
----
-
-## Navigation and Routing
-
-MSD supports internal "pages" (named views) with animated transitions:
-
-```yaml
-pages:
-  - id: home
-    overlays: [ ... ]
-  - id: detail
-    overlays: [ ... ]
-
-navigation:
-  initial: home
-```
-
-Navigate programmatically:
-
-```javascript
-// From anywhere with access to the MSD card element
-msdCardEl.navigateTo('detail');
-msdCardEl.navigateBack();
-
-// Or from a button overlay's tap_action:
-tap_action:
-  action: fire-event
-  event_type: lcards:msd-navigate
-  event_data:
-    target: detail
-    card_id: my-msd-card
-```
 
 ---
 
@@ -255,14 +225,16 @@ When writing MSD overlay logic that references preset names or theme tokens, ass
 ## MSD Debug API
 
 ```javascript
-// Inspect overlay positions
-window.lcards.debug.msd.getOverlayPositions('my-msd')
+// Inspect overlay positions/geometry
+window.lcards.debug.msd.overlays.tree('my-msd')       // full resolved overlay tree
+window.lcards.debug.msd.overlays.list('my-msd')       // flat overlay list
+window.lcards.debug.msd.overlays.getBBox('my-overlay-id', 'my-msd')
 
 // Force pipeline re-run
-window.lcards.debug.msd.reprocess('my-msd')
+window.lcards.debug.msd.pipeline.rerun('my-msd')
 
-// Dump pipeline model
-window.lcards.debug.msd.dumpModel('my-msd')
+// Dump pipeline instance
+window.lcards.debug.msd.pipeline.getInstance('my-msd')
 
 // Routing: read a line's cached route (incl. meta.debug: resolved
 // stubLength/gridResolution/cornerRadiusMode/cornerRadius), router stats,

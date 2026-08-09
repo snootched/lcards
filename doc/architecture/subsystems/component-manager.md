@@ -20,9 +20,10 @@
 
 | Component ID | Description |
 |---|---|
-| `dpad` | D-pad directional control (5 segments: up/down/left/right/center) |
-| `alert` | Alert diamond shape (single segment) |
-| `elbow_*` | Elbow shape variants (distributed via elbow pack) |
+| `dpad` | D-pad directional control (9 segments: up/down/left/right, 4 diagonal corners, center) |
+| `dpad_voyager` | Alternate D-pad visual variant |
+| `alert` | Alert shield shape (2 segments: shape, bars) |
+| `header-left` / `header-right` / `footer-left` / `footer-right` / `header-contained` / `footer-contained` | Elbow shape variants (distributed via `lcards_elbows` pack — no `elbow_` prefix on the IDs) |
 
 ---
 
@@ -30,22 +31,47 @@
 
 ```javascript
 {
-  id: 'dpad',
-  type: 'component',
-  segments: {
-    up:     { path: 'M...', label: 'Up' },
-    down:   { path: 'M...', label: 'Down' },
-    left:   { path: 'M...', label: 'Left' },
-    right:  { path: 'M...', label: 'Right' },
-    center: { path: 'M...', label: 'Center' },
+  // Inline SVG markup (viewBox and all segment <path> elements live inside this string)
+  svg: `<svg viewBox="0 0 80 80">...<path id="up" d="M..."/>...</svg>`,
+
+  orientation: 'square',
+  features: ['multi-segment', 'state-based-styling', 'zones', 'text-overlay'],
+
+  // Named rectangular regions in viewBox coordinate space — used for text overlay placement
+  zones: {
+    up: { x: 34, y: 0.5, width: 12, height: 9.5 },
+    // ... down / left / right / center / up_left / up_right / down_left / down_right
   },
-  viewBox: '0 0 100 100',
-  defaults: {
-    up:    { action: { tap_action: { action: 'call-service', ... } } },
-    // ...
+
+  // Default per-segment styling (theme-token references, not literal colors)
+  segments: {
+    up: {
+      style: {
+        fill: 'theme:components.dpad.segment.directional.fill',
+        stroke: 'theme:components.dpad.segment.directional.stroke',
+        'stroke-width': 'theme:components.dpad.segment.directional.stroke-width',
+      }
+    },
+    // ... down / left / right / up-left / up-right / down-left / down-right / center
+  },
+
+  presets: { default: {} },
+  validatePreset(presetName) { return presetName in this.presets; },
+  getPresetNames() { return Object.keys(this.presets); },
+
+  metadata: {
+    type: 'dpad',           // Required — used by ComponentManager for getComponentsByType()
+    card_type: 'button',    // Which card editor this component is valid for
+    pack: 'lcards_buttons',
+    id: 'dpad',
+    name: 'D-Pad Control',
+    description: 'Interactive directional control with 9 segments',
+    version: '1.0.0',
   }
 }
 ```
+
+Per-segment actions (`tap_action`, etc.) are not part of the component definition — they're supplied by the card config (e.g. `dpad.segments.up.tap_action`) and merged on top of these defaults at render time.
 
 ---
 
@@ -55,8 +81,8 @@
 // Inside a pack:
 export const ELBOW_PACK = {
   components: {
-    'elbow_header_left': { ... },
-    'elbow_footer_right': { ... },
+    'header-left': { ... },
+    'footer-right': { ... },
   }
 };
 ```
@@ -67,10 +93,13 @@ export const ELBOW_PACK = {
 
 | Method | Returns | Description |
 |---|---|---|
-| `getComponent(id)` | `Object\|null` | Full component definition by ID, or null |
-| `hasComponent(id)` | `boolean` | True if a component with this ID is registered |
-| `getComponentIds()` | `string[]` | All registered component IDs |
-| `getComponentsByType(type)` | `Object[]` | All components matching a type string |
+| `getComponent(name)` | `Object\|undefined` | Full component definition by name |
+| `getComponentMetadata(name)` | `Object\|null` | Just the `metadata` block (or a minimal fallback for legacy components without one) |
+| `hasComponent(name)` | `boolean` | True if a component with this name is registered |
+| `getAllComponentNames()` | `string[]` | All registered component names |
+| `getComponentsByType(type)` | `string[]` | Names of all components matching a type string — **names only**, not full definitions |
+| `getComponentTypes()` | `string[]` | All distinct type strings in use |
+| `registerComponentsFromPack(pack)` | `void` | Bulk-register `pack.components`, tagging each with `pack: pack.id` |
 
 ```javascript
 const cm = window.lcards.core.componentManager;
@@ -82,7 +111,8 @@ const def = cm.getComponent('dpad');
 cm.hasComponent('dpad')  // true
 
 // List all
-cm.getComponentIds()     // ['dpad', 'alert', ...]
+cm.getAllComponentNames()     // ['dpad', 'dpad_voyager', 'alert', 'header-left', ...]
+cm.getComponentsByType('dpad') // ['dpad', 'dpad_voyager']
 ```
 
 ---
@@ -101,15 +131,16 @@ When a button card has `component: dpad` in config, it:
 ::: code-group
 ```javascript [Snapshot]
 window.lcards.debug.singleton('componentManager')
-// → { type: 'ComponentManager', initialized: true, componentCount: 8, componentIds: ['dpad', ...] }
+// → { initialized: true, totalComponents: 11, componentsByType: { dpad: 2, alert: 1, elbow: 6, slider: 3 },
+//      componentNames: ['dpad', 'dpad_voyager', 'alert', 'header-left', ...] }
 ```
 ```javascript [Live object]
 const cm = window.lcards.core.componentManager
 
-cm.getComponentIds()         // all registered IDs
-cm.getComponent('dpad')      // full definition with segments/defaults
-cm.hasComponent('dpad')      // existence check
-cm.getComponentsByType('nav') // filter by type
+cm.getAllComponentNames()     // all registered names
+cm.getComponent('dpad')       // full definition with segments/zones/metadata
+cm.hasComponent('dpad')       // existence check
+cm.getComponentsByType('dpad') // names of that type (string[], not full defs)
 ```
 :::
 

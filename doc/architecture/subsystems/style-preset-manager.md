@@ -49,10 +49,16 @@ export const BUTTONS_PACK = {
 
 | Method | Returns | Description |
 |---|---|---|
-| `getPreset(type, name)` | `Object\|null` | Full preset definition, or `null` if not found |
-| `getPresetIds(type)` | `string[]` | All preset names for an overlay type |
-| `getAvailablePresets(type)` | `Object[]` | Preset objects with metadata for a type |
-| `getDebugInfo()` | `Object` | Stats snapshot: pack count, cache size, presets by type |
+| `getPreset(type, name, themeManager?)` | `Object\|null` | Full preset definition (extends chain resolved, theme tokens resolved if a `themeManager` is passed), or `null` if not found |
+| `getPresetNames(type)` | `string[]` | All preset names for an overlay type (plain strings, `'base'` filtered out) |
+| `getAvailablePresets(type)` | `string[]` | Same array as `getPresetNames(type)` — `getPresetNames` is a thin wrapper around this with an `initialized` guard |
+| `getPresetMetadata(type, name)` | `Object\|null` | Metadata for one preset: `{ id, type, extends, description, pack, presetType }` |
+| `getAllPresetsWithSource()` | `Object` | `{ [overlayType]: metadata[] }` for every type — used to build the Pack Explorer tree |
+| `hasPreset(type, name)` | `boolean` | Whether a preset exists |
+| `getAvailableOverlayTypes()` | `string[]` | All overlay types that have at least one preset registered |
+| `getDebugInfo()` | `Object` | Stats snapshot: pack count, cache size, presets by type, pack details |
+
+Note: `getAvailablePresets()`/`getPresetNames()` return **plain preset-name strings**, not objects — use `getPresetMetadata(type, name)` or `getAllPresetsWithSource()` for the metadata-bearing form (`{ id, type, extends, description, pack, presetType }`).
 
 ```javascript
 const spm = window.lcards.core.stylePresetManager
@@ -61,7 +67,7 @@ const spm = window.lcards.core.stylePresetManager
 const preset = spm.getPreset('button', 'lozenge')
 
 // List what's available
-spm.getPresetIds('button')   // ['lozenge', 'bullet', 'capped', ...]
+spm.getPresetNames('button')   // ['lozenge', 'bullet', 'capped', ...]
 ```
 
 Card config `style` always merges *on top of* the preset, so any field can be overridden per-card.
@@ -73,14 +79,26 @@ Card config `style` always merges *on top of* the preset, so any field can be ov
 ::: code-group
 ```javascript [Snapshot]
 window.lcards.debug.singleton('stylePresetManager')
-// → { type: 'StylePresetManager', initialized: true, packCount: 3, cacheSize: 24 }
+// → {
+//   initialized: true,
+//   packCount: 3,
+//   cacheSize: 24,
+//   packDetails: [
+//     { id: 'lcards_buttons', version: '2026.08.0', hasStylePresets: true, categories: ['button'] },
+//     { id: 'lcards_sliders', version: '2026.08.0', hasStylePresets: true, categories: ['slider'] },
+//     // ...
+//   ],
+//   presetsByType: { button: ['lozenge', 'bullet', 'capped', ...], slider: ['pills-basic', 'gauge-basic', ...] },
+//   universalPresets: { button: ['lozenge', 'bullet', 'capped', ...] }
+// }
 ```
 ```javascript [Live object]
 const spm = window.lcards.core.stylePresetManager
 
-spm.getPresetIds('button')       // available button presets
-spm.getPreset('slider', 'pills') // full preset config object
-spm.getAvailablePresets('elbow') // all elbow presets with metadata
+spm.getPresetNames('button')                    // available button preset names (string[])
+spm.getPreset('slider', 'pills-basic')          // full preset config object
+spm.getPresetMetadata('button', 'lozenge')      // { id, type, extends, description, pack, presetType }
+spm.getAllPresetsWithSource()                   // { overlayType: metadata[] } for every type
 ```
 :::
 
@@ -88,11 +106,14 @@ spm.getAvailablePresets('elbow') // all elbow presets with metadata
 
 ## Built-in Presets
 
+Preset catalogs change as packs evolve — `spm.getPresetNames(type)` in the console is the authoritative current list. As of this build:
+
 | Type | Presets |
 |---|---|
-| `button` | `lozenge`, `bullet`, `capped`, `outline`, `pill`, `text`, `icon` |
-| `slider` | `pills`, `gauge` |
-| `elbow` | `header_left`, `header_right`, `footer_left`, `footer_right` |
+| `button` | `lozenge`, `lozenge-right`, `bullet`, `bullet-right`, `capped`, `capped-right`, `barrel`, `barrel-right`, `filled`, `filled-right`, `outline`, `outline-right`, `icon`, `text-only`, six `bar-label-*` variants, `panel-light`, `panel-dark` |
+| `slider` | `pills-basic`, `pills-left-border`, `pills-left-border-rounded`, `gauge-basic`, `gauge-left-border`, `gauge-left-border-rounded`, `shaped-vertical`, `shaped-horizontal`, `picard-gauge-vertical` |
+
+`elbow` shapes (`header-left`, `header-right`, `footer-left`, `footer-right`) are **not** `StylePresetManager` presets — elbows are structural path generators registered as `ComponentManager` components instead: `window.lcards.core.componentManager.getComponentsByType('elbow')`. See [Component Manager](component-manager.md).
 
 ---
 

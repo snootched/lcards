@@ -46,11 +46,13 @@ Tokens can reference other tokens by path: `'{palette.moonlight}'`.
 
 ## Built-in Themes
 
+Only one theme ships in the core theme pack (`core/packs/builtin-themes.js`) today:
+
 | ID | Description |
 |---|---|
-| `lcars-default` | Standard LCARS orange/blue palette |
-| `lcars-dark` | Dark variant |
-| `cb-lcars` | Retro CB-LCARS compatible palette |
+| `lcards-default` | Default LCARdS theme, built for HA-LCARS integration (also the pack's `defaultTheme`) |
+
+`tm.listThemes()` in the console is the authoritative list if a pack has registered additional themes at runtime.
 
 ---
 
@@ -67,9 +69,11 @@ style:
 In JavaScript:
 
 ```javascript
-const theme = window.lcards.core.themeManager.getCurrentTheme();
+const theme = window.lcards.core.themeManager.getActiveTheme();
 const color = theme.palette.moonlight;
 ```
+
+Note: `ThemeManager` has no `getCurrentTheme()` method — only `getActiveTheme()`. The returned object is `{ id, name, description, packId, tokens, ...tokens }`: the raw token tree is available both nested under `.tokens` and spread onto the top level (so `theme.palette` and `theme.tokens.palette` are the same data).
 
 ---
 
@@ -86,13 +90,15 @@ When a call reaches the front of the queue, it:
 4. Updates `themeManager.currentAlertMode`
 5. Fires all `_alertModeSubscribers` callbacks — **after** CSS vars are written, so it is safe to call `requestUpdate()` directly from the callback
 
-Transform spec (defined in `alertModeTransform.js`):
+Transform spec (defined in `alertModeTransform.js`). Alert mode keys always carry the `_alert` suffix — `green_alert`, `red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert`, `borg_alert` — and each transform is an HSL hue-shift/anchor spec, not a literal palette-token map:
 
 ```javascript
-ALERT_MODE_TRANSFORMS['red'] = {
-  'palette.moonlight': '#ff2d2d',
-  'palette.background': '#2a0000',
-  // ...
+ALERT_MODE_TRANSFORMS['red_alert'] = {
+  hueShift: 0,                    // target red
+  hueStrength: 0.8,
+  saturationMultiplier: 1.4,
+  lightnessMultiplier: 0.9,
+  hueAnchor: { centerHue: 0, range: 60, strength: 0.9 }
 }
 ```
 
@@ -137,15 +143,16 @@ Scoped overrides require the `scoped_storage` backend capability — they degrad
 
 | Method | Returns | Description |
 |---|---|---|
-| `getCurrentTheme()` | `ThemeObject` | Full active theme (tokens, palette, spacing, …) |
-| `getActiveTheme()` | `ThemeObject` | Alias for `getCurrentTheme()` |
-| `setActiveTheme(id)` | `void` | Switch to a registered theme by ID |
-| `listThemes()` | `string[]` | All registered theme IDs |
-| `resolveToken(path)` | `string\|null` | Resolve a dot-path token against the active theme |
-| `getToken(path, fallback?)` | `string` | Resolve token with a default fallback value |
-| `getAlertMode()` | `string` | Current alert mode (`'green'`, `'red'`, `'yellow'`) |
-| `setAlertMode(mode)` | `Promise<void>` | Trigger alert mode change (updates CSS vars + fires events); calls are serialized/queued |
-| `getRegisteredThemes()` | `Map<id, Theme>` | All loaded theme objects |
+| `getActiveTheme()` | `ThemeObject\|null` | Full active theme: `{ id, name, description, packId, tokens, ...tokens }` |
+| `activateTheme(themeId, rootElement?)` | `Promise<void>` | Switch to a registered theme by ID; throws if the theme (or its tokens) isn't found |
+| `listThemes()` / `getThemeIds()` | `string[]` | All registered theme IDs (`getThemeIds()` is an alias of `listThemes()`) |
+| `getTheme(themeId)` | `Object\|null` | `{ id, name, description, packId, hasCssFile }` for one theme |
+| `getThemesWithMetadata()` | `Object[]` | `{ id, name, description, version, pack, type, tokenCount, hasCssFile }` for every theme |
+| `getToken(path, fallback?, context?)` | `*` | Resolve a token path against the active theme, via `this.resolver.resolve()` |
+| `getDefault(componentType, property, fallback?, context?)` | `*` | Resolve `components.<componentType>.<property>` |
+| `getAlertMode()` | `string` | Current alert mode (`'green_alert'`, `'red_alert'`, `'yellow_alert'`, `'blue_alert'`, `'gray_alert'`, `'black_alert'`, `'borg_alert'`) |
+| `setAlertMode(mode, opts?)` | `Promise<void>` | Trigger alert mode change (updates CSS vars + fires events); calls are serialized/queued |
+| `loadOverrides()` / `setOverride()` / `clearOverride()` | `Promise<void>` | Scoped token override management — see [Scoped Theme Overrides](#scoped-theme-overrides) above |
 
 ---
 
@@ -154,20 +161,27 @@ Scoped overrides require the `scoped_storage` backend capability — they degrad
 ::: code-group
 ```javascript [Snapshot]
 window.lcards.debug.singleton('themeManager')
-// → { type: 'ThemeManager', activeTheme: 'lcars-default', themeCount: 3, alertMode: 'green' }
+// → {
+//   initialized: true,
+//   activeTheme: { id: 'lcars-default', name: 'LCARS Classic', description: '...', packId: 'builtin_themes', tokens: {...}, /* ...tokens spread */ },
+//   availableThemes: [
+//     { id: 'lcars-default', name: 'LCARS Classic', description: '...', packId: 'builtin_themes', hasCssFile: false },
+//     // ...
+//   ],
+//   resolverCacheSize: 87,
+//   themeCount: 3
+// }
 ```
 ```javascript [Live object]
 const tm = window.lcards.core.themeManager
 
-tm.getCurrentTheme()          // active theme object (tokens, palette, etc.)
-tm.getActiveTheme()           // alias for getCurrentTheme()
-tm.setActiveTheme('cb-lcars') // switch active theme
-tm.listThemes()               // all registered theme IDs
-tm.resolveToken('palette.moonlight')   // resolve token path to value
-tm.getToken('palette.moonlight', '#fff') // resolve with fallback
-tm.getAlertMode()             // current alert mode string
-tm.setAlertMode('red')        // trigger alert mode change
-tm.getRegisteredThemes()      // Map of all loaded theme objects
+tm.getActiveTheme()                       // active theme object ({ id, name, tokens, ...tokens })
+await tm.activateTheme('cb-lcars')        // switch active theme (async)
+tm.listThemes()                           // all registered theme IDs
+tm.getToken('palette.moonlight', '#fff')  // resolve a token path with a fallback
+tm.getAlertMode()                         // current alert mode string, e.g. 'green_alert'
+await tm.setAlertMode('red_alert')        // trigger alert mode change
+tm.getThemesWithMetadata()                // full metadata array for every loaded theme
 ```
 :::
 

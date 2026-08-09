@@ -26,7 +26,11 @@ window.lcards.loadFont('lcards_microgramma, lcards_handel_gothic');
 window.lcards.loadFont('https://fonts.googleapis.com/css2?family=Roboto');
 ```
 
-Built-in font names use the `lcards_` prefix. Legacy `cb-lcars_*` names are auto-migrated at load time. Fonts without the `lcards_` prefix (and that are not URLs) are silently ignored.
+Built-in font names use the `lcards_` prefix. Fonts without the `lcards_` prefix (and that are not URLs) are silently ignored.
+
+::: tip Legacy `cb-lcars_*` names
+`window.lcards.loadFont()` does **not** migrate legacy `cb-lcars_*` font names — it only accepts the `lcards_` prefix. Auto-migration lives on a different, non-global method: `window.lcards.core.assetManager.loadFont(fontKey)` (in `AssetManager`), which resolves a legacy name to its current registry key before injecting the stylesheet. Use that method (not the `window.lcards.loadFont()` utility) when a font key may still carry a `cb-lcars_` name.
+:::
 
 ---
 

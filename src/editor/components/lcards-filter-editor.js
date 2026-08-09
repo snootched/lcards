@@ -561,7 +561,7 @@ export class LCARdSFilterEditor extends LitElement {
                 label="Blur Radius"
                 .value=${filter.value || '0px'}
                 @input=${(e) => this._updateFilter(index, 'value', e.target.value)}
-                helper-text="e.g., 0px, 2px, 5px, 10px">
+                hint="e.g., 0px, 2px, 5px, 10px">
             </ha-input>
         `;
     }
@@ -729,7 +729,7 @@ export class LCARdSFilterEditor extends LitElement {
                 label="Blur Radius"
                 .value=${shadow.blur || '0px'}
                 @input=${(e) => this._updateDropShadowParam(index, 'blur', e.target.value)}
-                helper-text="e.g., 0px, 2px, 5px">
+                hint="e.g., 0px, 2px, 5px">
             </ha-input>
             <lcards-color-picker
                 // @ts-ignore - TS2339: auto-suppressed
@@ -868,7 +868,7 @@ export class LCARdSFilterEditor extends LitElement {
                     label="Matrix Values (4x5 = 20 numbers)"
                     .value=${Array.isArray(value.values) ? value.values.join(' ') : (value.values || '')}
                     @input=${(e) => this._updateSvgFilterParam(index, 'values', e.target.value)}
-                    helper-text="Space-separated numbers (e.g., 1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0)"
+                    hint="Space-separated numbers (e.g., 1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0)"
                     style="margin-top: 12px;">
                 </ha-input>
             ` : ''}
