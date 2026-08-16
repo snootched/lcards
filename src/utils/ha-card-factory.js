@@ -353,16 +353,22 @@ export async function applyCardConfig(cardElement, config, label = 'card', maxAt
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Returns true if card-mod is loaded in the current HA instance.
+ * Returns true if something that processes a `card_mod:` config key is loaded in the current HA
+ * instance — either card-mod itself, or UIX (UI eXtension), its HACS successor.
  *
- * Checks for both the legacy 'card-mod' element and the newer
- * 'card-mod-element' registration used by recent card-mod versions.
+ * Checks for the legacy 'card-mod' element, the newer 'card-mod-element' registration used by
+ * recent card-mod versions, and UIX's 'uix-node' element (per uix.lf.technology's own FAQ: UIX is
+ * an explicit drop-in replacement for card-mod up to 4.2.1 and processes `card_mod:` config keys
+ * unchanged, though it prefers its own `uix:` key when both are present on the same card — not
+ * independently verified against UIX's source, since it isn't vendored/available locally the way
+ * card-mod's element names originally were, but this is what UIX's own documentation states).
  *
  * @returns {boolean}
  */
 export function isCardModAvailable() {
     return !!(
         window.customElements?.get('card-mod') ||
-        window.customElements?.get('card-mod-element')
+        window.customElements?.get('card-mod-element') ||
+        window.customElements?.get('uix-node')
     );
 }

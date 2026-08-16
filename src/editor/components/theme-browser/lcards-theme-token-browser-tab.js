@@ -32,41 +32,8 @@ import '../../dialogs/pack-explorer/lcards-pack-explorer-dialog.js';
 import '../../../panels/components/shared/lcards-scope-selector.js';
 import '../../../panels/components/lcards-preview-chip.js';
 import { STORAGE_KEY_THEME_OVERRIDES } from '../../../core/services/ScopedSettingsConstants.js';
-
-/**
- * Copy text to the clipboard, falling back to the legacy execCommand path
- * when the async Clipboard API is unavailable (e.g. non-secure-context
- * HTTP access to HA, which both Chrome and Safari block on Mac).
- * @param {string} text
- * @returns {Promise<boolean>} whether the copy succeeded
- */
-async function copyTextToClipboard(text) {
-  if (navigator.clipboard && window.isSecureContext) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (error) {
-      lcardsLog.warn('[ThemeTokenBrowser] navigator.clipboard.writeText failed, falling back:', error);
-    }
-  }
-
-  try {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    textarea.style.left = '-9999px';
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    const success = document.execCommand('copy');
-    document.body.removeChild(textarea);
-    return success;
-  } catch (error) {
-    lcardsLog.error('[ThemeTokenBrowser] execCommand("copy") fallback failed:', error);
-    return false;
-  }
-}
+import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
+import './lcards-theme-generator-view.js';
 
 export class LCARdSThemeTokenBrowserTab extends LitElement {
   static get properties() {
@@ -1475,6 +1442,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           <ha-tab-group-tab value="alert-lab" ?active=${this._activeView === 'alert-lab'}>
             Alert Mode Lab
           </ha-tab-group-tab>
+          <ha-tab-group-tab value="generator" ?active=${this._activeView === 'generator'}>
+            HA-LCARS Theme Lab
+          </ha-tab-group-tab>
           <ha-tab-group-tab value="tokens" ?active=${this._activeView === 'tokens'}>
             LCARdS Theme Tokens (${this._tokens.length})
           </ha-tab-group-tab>
@@ -1520,7 +1490,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
             </div>
           </lcards-form-section>
         ` : ''}
-        ${this._activeView !== 'alert-lab' && this._activeView !== 'overrides' ? html`
+        ${this._activeView !== 'alert-lab' && this._activeView !== 'overrides' && this._activeView !== 'generator' ? html`
           <div class="search-container">
             <div class="search-wrapper">
               <ha-input
@@ -1671,6 +1641,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     if (this._activeView === 'alert-lab') {
       return this._renderAlertLab();
+    }
+
+    if (this._activeView === 'generator') {
+      return html`
+        <div class="dialog-body">
+          <lcards-theme-generator-view .hass=${this.hass}></lcards-theme-generator-view>
+        </div>
+      `;
     }
 
     if (this._activeView === 'overrides') {

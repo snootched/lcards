@@ -774,7 +774,7 @@ export class LCARdSConfigPanel extends LitElement {
           </ha-tab-group-tab>
           <ha-tab-group-tab value="2" ?active=${this._selectedTab === 2}>
             <ha-icon icon="mdi:palette-swatch"></ha-icon>
-            Alert Lab & Theme Browser
+            Theme Studio
           </ha-tab-group-tab>
           <ha-tab-group-tab value="3" ?active=${this._selectedTab === 3}>
             <ha-icon icon="mdi:wifi-off"></ha-icon>

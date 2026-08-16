@@ -50,6 +50,10 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import {
+  SEMANTIC_ROLES, BORDER_ROLES, SEMANTIC_TIERS, SURFACE, TONE_SUFFIX, ROLE_TO_SLOT,
+  resolveOnEntry, resolveFillEntry, resolveBorderEntry, resolveSurfaceEntry, resolveFormBackgroundEntry,
+} from '../src/core/themes/themeGeneratorCore.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -72,11 +76,6 @@ function parsePalette(source) {
 
 const injectorSource = readFileSync(INJECTOR_PATH, 'utf-8');
 const PALETTE = parsePalette(injectorSource);
-
-const TONE_SUFFIX = {
-  5: 'darkest', 10: '10', 20: 'dark', 30: 'medium-dark', 40: '',
-  50: '50', 60: '60', 70: 'medium-light', 80: 'light', 90: 'lightest', 95: '95',
-};
 
 function toneKey(family, tone) {
   const suffix = TONE_SUFFIX[tone];
@@ -101,12 +100,6 @@ const PROFILES = {
   blue: { primary: 'blue', neutral: 'gray', orange: 'yellow', red: 'orange', green: 'green' },
 };
 
-// HA semantic "role" → HA color-slot key (used to look up the family map)
-const ROLE_TO_SLOT = {
-  primary: 'primary', neutral: 'neutral', disabled: 'neutral',
-  danger: 'red', warning: 'orange', success: 'green',
-};
-
 const WHITE = '#ffffff';
 const BLACK = '#000000';
 
@@ -114,102 +107,15 @@ function familyFor(profile, role) {
   return PROFILES[profile][ROLE_TO_SLOT[role]];
 }
 
-// ─── HA's own tone-index convention, transcribed verbatim from ───────────
-// frontend/src/resources/theme/color/semantic.globals.ts
-// (light block: lines 9-179, dark block: lines 182-333)
+// ─── HA's own tone-index convention ───────────────────────────────────────
+// Transcribed verbatim from frontend/src/resources/theme/color/semantic.globals.ts
+// (light block: lines 9-179, dark block: lines 182-333) — now lives in
+// themeGeneratorCore.js (BORDER/ON/FILL/SURFACE/FORM_BACKGROUND_TONES),
+// shared with the in-app Theme Generator UI. This script supplies the
+// family-lookup + var()/hex resolution it's parameterized on.
 
-const BORDER = {
-  // role: { light: {quiet,normal,loud}, dark: {...} (only overridden keys) }
-  primary: { light: { quiet: 90, normal: 70, loud: 40 }, dark: {} },
-  neutral: { light: { quiet: 90, normal: 60, loud: 40 }, dark: { quiet: 40, normal: 50, loud: 70 } },
-  danger: { light: { quiet: 90, normal: 70, loud: 40 }, dark: { normal: 50, loud: 50 } },
-  warning: { light: { quiet: 90, normal: 70, loud: 40 }, dark: { normal: 50, loud: 50 } },
-  success: { light: { quiet: 90, normal: 70, loud: 40 }, dark: {} },
-};
-
-const ON = {
-  // role: { light: {quiet,normal,loud}, dark: {...} }
-  // loud entries are the literal string 'WHITE' except on-disabled (tone-based)
-  primary: { light: { quiet: 50, normal: 40, loud: 'WHITE' }, dark: { quiet: 70, normal: 60 } },
-  neutral: { light: { quiet: 50, normal: 40, loud: 'WHITE' }, dark: { quiet: 70, normal: 60, loud: 'WHITE' } },
-  disabled: { light: { quiet: 80, normal: 70, loud: 95 }, dark: { quiet: 40, normal: 50, loud: 50 } },
-  danger: { light: { quiet: 50, normal: 40, loud: 'WHITE' }, dark: { quiet: 70, normal: 60, loud: 'WHITE' } },
-  warning: { light: { quiet: 50, normal: 40, loud: 'WHITE' }, dark: { quiet: 70, normal: 60, loud: 'WHITE' } },
-  success: { light: { quiet: 50, normal: 40, loud: 'WHITE' }, dark: { quiet: 70, normal: 60, loud: 'WHITE' } },
-};
-
-const FILL = {
-  // role: { light: {quiet:{resting,hover,active?}, normal:{...}, loud:{...}}, dark: {...} }
-  primary: {
-    // normal-tier light-mode resting/active pinned to tone-80/70 rather than
-    // HA's mechanical tone-90/80: for the blue family, tone-90 (-lightest)
-    // is a deliberately vivid "electric cyan" accent stop (see paletteInjector
-    // canon notes), not a smoothly-desaturated ramp continuation — using it
-    // for the "normal" (appearance="filled") tier made it read as MORE
-    // visually prominent than the "loud" (appearance="accent"/selected)
-    // tier, which uses tone-40. Confirmed via live testing (blue profile,
-    // light mode). tone-80/70 are genuinely paler same-family stops that
-    // preserve the quiet < normal < loud prominence ordering. Harmless for
-    // the orange family (red profile's primary role) — its tone-80/70 stops
-    // are unaffected by this issue and remain reasonably paler than tone-40.
-    light: { quiet: { resting: 95, hover: 90, active: 95 }, normal: { resting: 80, hover: 70, active: 80 }, loud: { resting: 40, hover: 30, active: 40 } },
-    dark: { quiet: { resting: 5, hover: 10, active: 5 }, normal: { resting: 10, hover: 20, active: 10 } }, // loud not redefined in dark
-  },
-  neutral: {
-    light: { quiet: { resting: 95, hover: 90, active: 95 }, normal: { resting: 90, hover: 80, active: 90 }, loud: { resting: 40, hover: 30, active: 40 } },
-    dark: { quiet: { resting: 5, hover: 10, active: 5 /* HA source: neutral-00, substituted */ }, normal: { resting: 10, hover: 20, active: 10 }, loud: { resting: 60, hover: 70, active: 60 } },
-  },
-  disabled: {
-    light: { quiet: { resting: 95, hover: 90 }, normal: { resting: 95, hover: 90 }, loud: { resting: 80, hover: 70 } },
-    dark: { quiet: { resting: 10, hover: 20 }, normal: { resting: 20, hover: 30 }, loud: { resting: 30, hover: 40 } },
-  },
-  danger: {
-    light: { quiet: { resting: 95, hover: 90, active: 95 }, normal: { resting: 90, hover: 80, active: 90 }, loud: { resting: 50, hover: 40, active: 50 } },
-    dark: { quiet: { resting: 5, hover: 10, active: 5 }, normal: { resting: 10, hover: 20, active: 10 }, loud: { resting: 40, hover: 30, active: 40 } },
-  },
-  warning: {
-    light: { quiet: { resting: 95, hover: 90, active: 95 }, normal: { resting: 90, hover: 80, active: 90 }, loud: { resting: 70, hover: 50, active: 70 } }, // HA's own orange exception: loud=70 not 40/50
-    dark: { quiet: { resting: 5, hover: 10, active: 5 }, normal: { resting: 10, hover: 20, active: 10 }, loud: { resting: 40, hover: 30, active: 40 } },
-  },
-  success: {
-    light: { quiet: { resting: 95, hover: 90, active: 95 }, normal: { resting: 90, hover: 80, active: 90 }, loud: { resting: 50, hover: 40, active: 50 } },
-    dark: { quiet: { resting: 5, hover: 10, active: 5 }, normal: { resting: 10, hover: 20, active: 10 }, loud: { resting: 40, hover: 30, active: 40 } },
-  },
-};
-
-// Surfaces & form-background reference neutral tones or white/black directly.
-const SURFACE = {
-  light: {
-    default: 'WHITE', low: { role: 'neutral', tone: 95 }, lower: { role: 'neutral', tone: 90 },
-    'default-inverted': { role: 'neutral', tone: 10 }, 'low-inverted': { role: 'neutral', tone: 5 }, 'lower-inverted': 'BLACK',
-    'on-surface-default': { role: 'neutral', tone: 5 },
-  },
-  dark: {
-    default: { role: 'neutral', tone: 10 }, low: { role: 'neutral', tone: 5 }, lower: 'BLACK',
-    'default-inverted': 'WHITE', 'low-inverted': { role: 'neutral', tone: 95 },
-    'lower-inverted': { role: 'neutral', tone: 90 }, // HA source: --ha-color-90 (dangling), substituted with neutral-90
-    'on-surface-default': { role: 'neutral', tone: 95 },
-  },
-};
-
-const FORM_BACKGROUND_TONES = {
-  light: { hover: 90, disabled: 80 },
-  dark: { hover: 30, disabled: 20 },
-};
-
-// ─── Resolution + Phase 2 WCAG validation ─────────────────────────────────
-
-function wcagContrast(hex1, hex2) {
-  const luminance = (hex) => {
-    hex = hex.replace('#', '');
-    const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
-      .map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  };
-  const l1 = luminance(hex1), l2 = luminance(hex2);
-  const [lighter, darker] = l1 > l2 ? [l1, l2] : [l2, l1];
-  return (lighter + 0.05) / (darker + 0.05);
-}
+const AA_THRESHOLD = 4.5;
+const report = [];
 
 function resolveEndpoint(profile, role, spec) {
   if (spec === 'WHITE') return { var: `var(--white-color)`, hex: WHITE };
@@ -218,89 +124,45 @@ function resolveEndpoint(profile, role, spec) {
   return { var: toneVar(family, spec), hex: toneHex(family, spec) };
 }
 
+/** Builds the `resolveTone(role, spec)` callback themeGeneratorCore's resolvers expect, closed over one profile. */
+function makeResolveTone(profile) {
+  return (role, spec) => resolveEndpoint(profile, role, spec);
+}
 
-const AA_THRESHOLD = 4.5;
-const report = [];
-
-const fillLookupCache = new Map();
-
-/**
- * Resolves every fill-{tier}-{state} value for one (profile, role, mode)
- * straight from the palette — no correction, just the mechanical lookup.
- */
-function getFillLookup(profile, role, mode) {
-  const key = `${profile}:${role}:${mode}`;
-  if (fillLookupCache.has(key)) return fillLookupCache.get(key);
-
-  const states = role === 'disabled' ? ['resting', 'hover'] : ['resting', 'hover', 'active'];
-  const result = {};
-
-  for (const tier of ['loud', 'normal', 'quiet']) {
-    const tierData = FILL[role][mode]?.[tier] ?? FILL[role].light[tier];
-    result[tier] = {};
-    for (const state of states) {
-      const spec = tierData[state] !== undefined ? tierData[state] : FILL[role].light[tier][state];
-      result[tier][state] = resolveEndpoint(profile, role, spec);
-    }
-  }
-
-  fillLookupCache.set(key, result);
-  return result;
+/** Builds the `resolveFillResting(role, tier)` callback resolveOnEntry needs, closed over one (profile, mode). */
+function makeResolveFillResting(resolveTone, profile, mode) {
+  return (role, tier) => resolveFillEntry(resolveTone, role, mode, tier, 'resting');
 }
 
 const onCache = new Map();
 
-function resolveOnEntry(profile, role, mode, tier) {
+function resolveOnValue(profile, role, mode, tier) {
   const key = `${profile}:${role}:${mode}:${tier}`;
   if (onCache.has(key)) return onCache.get(key);
 
-  const modeData = ON[role][mode]?.[tier] !== undefined ? ON[role][mode] : ON[role].light;
-  const spec = modeData[tier] !== undefined ? modeData[tier] : ON[role].light[tier];
-  const mechanical = resolveEndpoint(profile, role === 'disabled' ? 'disabled' : role, spec);
+  const resolveTone = makeResolveTone(profile);
+  const resolveFillResting = makeResolveFillResting(resolveTone, profile, mode);
+  const { var: varName, hex, corrected, mechanicalRatio, finalRatio } = resolveOnEntry(resolveTone, resolveFillResting, role, mode, tier);
 
-  // Phase 2: validate against the paired fill-*-resting background for this
-  // tier. Where the mechanical default fails AA, substitute whichever of
-  // white/black gives the better contrast.
-  const fillHex = getFillLookup(profile, role, mode)[tier].resting.hex;
-
-  const ratio = wcagContrast(mechanical.hex, fillHex);
-  let finalVal = mechanical;
-  let note = `${ratio.toFixed(2)}:1 OK`;
-
-  if (ratio < AA_THRESHOLD) {
-    const whiteRatio = wcagContrast(WHITE, fillHex);
-    const blackRatio = wcagContrast(BLACK, fillHex);
-    finalVal = whiteRatio >= blackRatio
-      ? { var: `var(--white-color)`, hex: WHITE }
-      : { var: `var(--black-color)`, hex: BLACK };
-    note = `${ratio.toFixed(2)}:1 FAIL → substituted ${finalVal.hex} (${Math.max(whiteRatio, blackRatio).toFixed(2)}:1)`;
-  }
-
-  const result = { var: finalVal.var, hex: finalVal.hex };
-  onCache.set(key, result);
+  const note = corrected
+    ? `${mechanicalRatio.toFixed(2)}:1 FAIL → substituted ${hex} (${finalRatio.toFixed(2)}:1)`
+    : `${finalRatio.toFixed(2)}:1 OK`;
   report.push({ profile, mode, group: 'on', role, tier, note });
-  return result;
-}
 
-function resolveOnValue(profile, role, mode, tier) {
-  return resolveOnEntry(profile, role, mode, tier).var;
+  onCache.set(key, varName);
+  return varName;
 }
 
 function resolveFillValue(profile, role, mode, tier, state) {
-  return getFillLookup(profile, role, mode)[tier][state].var;
+  return resolveFillEntry(makeResolveTone(profile), role, mode, tier, state).var;
 }
 
 function resolveBorderValue(profile, role, mode, tier) {
-  const spec = BORDER[role][mode]?.[tier] !== undefined ? BORDER[role][mode][tier] : BORDER[role].light[tier];
-  return resolveEndpoint(profile, role, spec).var;
+  return resolveBorderEntry(makeResolveTone(profile), role, mode, tier).var;
 }
 
 function resolveSurfaceValue(profile, mode, key) {
-  const spec = SURFACE[mode][key];
-  if (spec === 'WHITE') return `var(--white-color)`;
-  if (spec === 'BLACK') return `var(--black-color)`;
-  const family = familyFor(profile, spec.role);
-  return toneVar(family, spec.tone);
+  return resolveSurfaceEntry(makeResolveTone(profile), mode, key).var;
 }
 
 // ─── Numeric palette-stop block (top-level, not mode-scoped) ──────────────
@@ -327,22 +189,20 @@ function buildPaletteStopsBlock() {
 }
 
 // ─── Build YAML block per profile per mode ────────────────────────────────
-
-const ROLES = ['primary', 'neutral', 'disabled', 'danger', 'warning', 'success'];
-const BORDER_ROLES = ['primary', 'neutral', 'danger', 'warning', 'success'];
-const TIERS = ['quiet', 'normal', 'loud'];
+// Role/tier rosters (SEMANTIC_ROLES, BORDER_ROLES, SEMANTIC_TIERS) imported
+// from themeGeneratorCore.js.
 
 function buildModeBlock(profile, mode) {
   const lines = [];
   lines.push(`    # HA semantic tokens — on-* (text/icon-on-fill contrast)`);
-  for (const role of ROLES) {
-    for (const tier of TIERS) {
+  for (const role of SEMANTIC_ROLES) {
+    for (const tier of SEMANTIC_TIERS) {
       lines.push(`    ha-color-on-${role}-${tier}: ${resolveOnValue(profile, role, mode, tier)}`);
     }
   }
   lines.push(`    # HA semantic tokens — fill-*`);
-  for (const role of ROLES) {
-    for (const tier of TIERS) {
+  for (const role of SEMANTIC_ROLES) {
+    for (const tier of SEMANTIC_TIERS) {
       const states = role === 'disabled' ? ['resting', 'hover'] : ['resting', 'hover', 'active'];
       for (const state of states) {
         lines.push(`    ha-color-fill-${role}-${tier}-${state}: ${resolveFillValue(profile, role, mode, tier, state)}`);
@@ -351,7 +211,7 @@ function buildModeBlock(profile, mode) {
   }
   lines.push(`    # HA semantic tokens — border-*`);
   for (const role of BORDER_ROLES) {
-    for (const tier of TIERS) {
+    for (const tier of SEMANTIC_TIERS) {
       lines.push(`    ha-color-border-${role}-${tier}: ${resolveBorderValue(profile, role, mode, tier)}`);
     }
   }
@@ -363,8 +223,8 @@ function buildModeBlock(profile, mode) {
     lines.push(`    ${varName}: ${resolveSurfaceValue(profile, mode, key)}`);
   }
   lines.push(`    # HA semantic tokens — form-background (hover/disabled; base form-background already set)`);
-  lines.push(`    ha-color-form-background-hover: ${resolveEndpoint(profile, 'neutral', FORM_BACKGROUND_TONES[mode].hover).var}`);
-  lines.push(`    ha-color-form-background-disabled: ${resolveEndpoint(profile, 'neutral', FORM_BACKGROUND_TONES[mode].disabled).var}`);
+  lines.push(`    ha-color-form-background-hover: ${resolveFormBackgroundEntry(makeResolveTone(profile), mode, 'hover').var}`);
+  lines.push(`    ha-color-form-background-disabled: ${resolveFormBackgroundEntry(makeResolveTone(profile), mode, 'disabled').var}`);
   return lines.join('\n');
 }
 

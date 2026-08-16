@@ -27,8 +27,15 @@ export const FAMILY_LABELS = {
   gray: 'Gray/B&W'
 };
 
-/** Below this saturation (%) a color is classified as 'gray' regardless of hue. */
-const ACHROMATIC_SATURATION_THRESHOLD = 12;
+/**
+ * Below this saturation (%) a color is classified as 'gray' regardless of hue. 12% was too strict
+ * for real-world use: LCARdS's own generated --lcards-gray-* scale (a deliberate "cool gray" tint,
+ * not a true achromatic gray) measures 12.4%-21.7% saturation, so most of that scale was bucketing
+ * as 'blue' instead of 'gray' — confirmed directly against ColorUtils.rgbToHsl, not assumed. 22%
+ * sits comfortably above that whole scale while staying below the next-lowest genuinely-blue named
+ * colors (--lcars-navy-gray at 26.1%, --lcars-slate at 29.9%), so it doesn't swallow real hues.
+ */
+const ACHROMATIC_SATURATION_THRESHOLD = 22;
 
 /**
  * Hue bucket boundaries in wheel order, [family, lowerBoundInclusive,
@@ -89,7 +96,7 @@ export const FAMILY_HUE_RANGES = Object.fromEntries(
     return [family, `${lo}°-${hi}°\n${loColor.hex} - ${hiColor.hex}\n${loColor.rgba} - ${hiColor.rgba}`];
   })
 );
-FAMILY_HUE_RANGES.gray = 'Low saturation (<12%)\ne.g. #999999\ne.g. rgba(153, 153, 153, 1)';
+FAMILY_HUE_RANGES.gray = 'Low saturation (<22%)\ne.g. #999999\ne.g. rgba(153, 153, 153, 1)';
 
 /** Representative swatch color per family (mid-hue, fixed sat/lightness), for chip dots. */
 export const FAMILY_SWATCH_COLORS = Object.fromEntries(

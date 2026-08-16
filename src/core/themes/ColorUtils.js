@@ -639,6 +639,23 @@ export class ColorUtils {
   }
 
   /**
+   * Calculate WCAG contrast ratio between two colors
+   *
+   * @param {string} color1 - First color (hex, rgb, rgba)
+   * @param {string} color2 - Second color (hex, rgb, rgba)
+   * @returns {number} Contrast ratio, 1 (no contrast) to 21 (max contrast)
+   *
+   * @example
+   * ColorUtils.wcagContrast('#ffffff', '#000000') // Returns 21
+   */
+  static wcagContrast(color1, color2) {
+    const l1 = this.luminance(color1);
+    const l2 = this.luminance(color2);
+    const [lighter, darker] = l1 > l2 ? [l1, l2] : [l2, l1];
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  /**
    * Check if value is a CSS variable reference
    *
    * @private
@@ -718,6 +735,23 @@ export class ColorUtils {
         parseInt(rgbMatch[2]),
         parseInt(rgbMatch[3])
       ];
+    }
+
+    // oklch(L C H) / oklch(L C H / A) — getComputedStyle() serializes a color-mix() result in
+    // whichever space its `in <space>` argument named, not always sRGB rgb(); ha-lcars's own
+    // boilerplate leans on `color-mix(in oklch, ...)` throughout (e.g. --lcars-secondary-text),
+    // so this is a routine value here, not an edge case. Parsed via the same pure-math
+    // oklchToRgb() this class already uses for palette generation, rather than the canvas
+    // fallback below — canvas fillStyle parsing of oklch() isn't reliably supported the way the
+    // CSS engine's own color-mix() evaluation is, so a value serialized this way could otherwise
+    // reach the fallback, fail to parse, and silently read as black (confirmed: this was the
+    // root cause of contrast text always coming out white for these values).
+    const oklchMatch = color.match(/^oklch\(\s*([\d.]+)(%)?\s+([\d.]+)(%)?\s+([\d.]+)(?:deg)?\s*(?:\/[^)]*)?\)$/i);
+    if (oklchMatch) {
+      const L = oklchMatch[2] ? parseFloat(oklchMatch[1]) / 100 : parseFloat(oklchMatch[1]);
+      const C = oklchMatch[4] ? (parseFloat(oklchMatch[3]) / 100) * 0.4 : parseFloat(oklchMatch[3]);
+      const H = parseFloat(oklchMatch[5]);
+      return this.oklchToRgb(L, C, H);
     }
 
     // Fallback — let the browser resolve named colors (and any other valid

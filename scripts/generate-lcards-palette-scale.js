@@ -46,6 +46,12 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import {
+  hexToRgb, rgbToOklch, lerpOklch, wcagContrast,
+  ANCHOR_SUFFIX_TO_TONE, TONE_ORDER,
+  extrapolate95FadeToWhite, computeFullScale,
+  HA_DEFAULT_MIX, computeHaDefaultScale,
+} from '../src/core/themes/themeGeneratorCore.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -55,113 +61,9 @@ const REPORT_PATH = join(ROOT, 'reports', 'palette-scale-review.html');
 const ARGS = new Set(process.argv.slice(2));
 const WRITE = ARGS.has('--write');
 
-// ─── OKLCH primitives (mirrors ColorUtils.rgbToOklch/oklchToRgb) ───────────
-// Duplicated rather than imported: ColorUtils.js pulls in lcards-logging.js,
-// which touches `window` at module load time and can't run under plain Node.
-
-function hexToRgb(hex) {
-  hex = hex.replace('#', '');
-  return [
-    parseInt(hex.slice(0, 2), 16),
-    parseInt(hex.slice(2, 4), 16),
-    parseInt(hex.slice(4, 6), 16),
-  ];
-}
-
-function rgbToHex(r, g, b) {
-  return '#' + [r, g, b].map(x => {
-    const h = Math.max(0, Math.min(255, Math.round(x))).toString(16);
-    return h.length === 1 ? '0' + h : h;
-  }).join('');
-}
-
-function rgbToOklch(r, g, b) {
-  const toLinear = (c) => {
-    c /= 255;
-    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  };
-  const lr = toLinear(r), lg = toLinear(g), lb = toLinear(b);
-
-  const l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
-  const m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
-  const s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
-
-  const l_ = Math.cbrt(l), m_ = Math.cbrt(m), s_ = Math.cbrt(s);
-
-  const L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_;
-  const a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_;
-  const bLab = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_;
-
-  const C = Math.sqrt(a * a + bLab * bLab);
-  let H = Math.atan2(bLab, a) * 180 / Math.PI;
-  if (H < 0) H += 360;
-
-  return [L, C, C < 1e-6 ? 0 : H];
-}
-
-function oklchToRgb(L, C, H) {
-  const hRad = H * Math.PI / 180;
-  const a = C * Math.cos(hRad);
-  const bLab = C * Math.sin(hRad);
-
-  const l_ = L + 0.3963377774 * a + 0.2158037573 * bLab;
-  const m_ = L - 0.1055613458 * a - 0.0638541728 * bLab;
-  const s_ = L - 0.0894841775 * a - 1.2914855480 * bLab;
-
-  const l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
-
-  const lr = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-  const lg = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-  const lb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
-
-  const toSrgb = (c) => {
-    c = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
-    return Math.max(0, Math.min(1, c)) * 255;
-  };
-
-  return [toSrgb(lr), toSrgb(lg), toSrgb(lb)];
-}
-
-/** Shortest-path hue lerp (handles wraparound near 0/360). */
-function lerpHue(h1, h2, t) {
-  let delta = ((h2 - h1 + 540) % 360) - 180;
-  return (h1 + delta * t + 360) % 360;
-}
-
-function lerpOklch(hex1, hex2, t) {
-  const [L1, C1, H1] = rgbToOklch(...hexToRgb(hex1));
-  const [L2, C2, H2] = rgbToOklch(...hexToRgb(hex2));
-  const L = L1 + (L2 - L1) * t;
-  const C = C1 + (C2 - C1) * t;
-  const H = (C1 < 1e-6) ? H2 : (C2 < 1e-6) ? H1 : lerpHue(H1, H2, t);
-  return rgbToHex(...oklchToRgb(L, C, H));
-}
-
-function wcagContrast(hex1, hex2) {
-  const luminance = (hex) => {
-    const [r, g, b] = hexToRgb(hex).map(v => {
-      v /= 255;
-      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-    });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  };
-  const l1 = luminance(hex1), l2 = luminance(hex2);
-  const [lighter, darker] = l1 > l2 ? [l1, l2] : [l2, l1];
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
 // ─── Parse canon anchors from paletteInjector.js ───────────────────────────
 
 const FAMILIES = ['orange', 'gray', 'blue', 'green', 'yellow'];
-const ANCHOR_SUFFIX_TO_TONE = {
-  'darkest': '05',
-  'dark': '20',
-  'medium-dark': '30',
-  '': '40',           // bare family key, e.g. 'orange'
-  'medium-light': '70',
-  'light': '80',
-  'lightest': '90',
-};
 
 function parseAnchors(source) {
   const anchors = {}; // { orange: { '05': '#..', '20': '#..', ... } }
@@ -179,62 +81,11 @@ function parseAnchors(source) {
   return anchors;
 }
 
-// ─── Compute the 4 gap stops per family ────────────────────────────────────
-
-const EXTRAPOLATE_95_TOWARD_WHITE_T = 0.5; // most subjective value — see header
-
-/** Fade-to-white extrapolation: desaturates as it lightens toward pure white. */
-function extrapolate95FadeToWhite(anchor90hex, t = EXTRAPOLATE_95_TOWARD_WHITE_T) {
-  return lerpOklch(anchor90hex, '#ffffff', t);
-}
-
-/**
- * Neon/electric extrapolation (shipped): lighten toward white's L while
- * HOLDING hue and chroma from the -90/lightest anchor — an "electric/neon"
- * pale tone instead of a washed-out pastel. Matches how LCARS palettes read
- * as vibrant/saturated even at their lightest steps (e.g. blue's explicit
- * -lightest anchor is an electric cyan, not a pale tint). Chroma this high at
- * high lightness is close to (or past) the sRGB gamut edge, so oklchToRgb's
- * channel clamp may pull the actual hue/saturation in slightly at the very
- * top — an inherent trade-off of pushing saturation and lightness up
- * together, not a bug.
- */
-function extrapolate95Neon(anchor90hex, t = EXTRAPOLATE_95_TOWARD_WHITE_T, chromaBoost = 1.0) {
-  const [L90, C90, H90] = rgbToOklch(...hexToRgb(anchor90hex));
-  const L = L90 + (1 - L90) * t;
-  return rgbToHex(...oklchToRgb(L, C90 * chromaBoost, H90));
-}
-
-function computeFullScale(anchors) {
-  const scale = { ...anchors }; // 05,20,30,40,70,80,90 already present
-  const meta = {}; // tone -> 'anchor' | 'interpolated' | 'extrapolated'
-  for (const tone of Object.keys(anchors)) meta[tone] = 'anchor';
-
-  scale['10'] = lerpOklch(anchors['05'], anchors['20'], (10 - 5) / (20 - 5));
-  meta['10'] = 'interpolated';
-
-  scale['50'] = lerpOklch(anchors['40'], anchors['70'], (50 - 40) / (70 - 40));
-  meta['50'] = 'interpolated';
-
-  scale['60'] = lerpOklch(anchors['40'], anchors['70'], (60 - 40) / (70 - 40));
-  meta['60'] = 'interpolated';
-
-  // Shipped method is Method B (neon/electric — holds hue+chroma from the
-  // -lightest anchor, only lightness moves toward white). Chosen over
-  // Method A (fade-to-white) after visual review: LCARS palettes read as
-  // vibrant/saturated even at their lightest steps (see the explicit
-  // -lightest anchors, e.g. blue's electric cyan), and fading to white
-  // washed that out. Method A is kept below purely as a labeled comparison
-  // swatch in the report, not used anywhere else.
-  scale['95'] = extrapolate95Neon(anchors['90']);
-  meta['95'] = 'extrapolated';
-
-  const fadeToWhite95 = extrapolate95FadeToWhite(anchors['90']);
-
-  return { scale, meta, fadeToWhite95 };
-}
-
 // ─── Main ───────────────────────────────────────────────────────────────────
+// OKLCH interpolation/extrapolation (computeFullScale et al.) now lives in
+// src/core/themes/themeGeneratorCore.js, shared with the in-app Theme
+// Generator UI — see that module's header for why it can't just import
+// ColorUtils.js instead.
 
 const source = readFileSync(INJECTOR_PATH, 'utf-8');
 const anchors = parseAnchors(source);
@@ -249,8 +100,6 @@ for (const family of FAMILIES) {
   }
   results[family] = computeFullScale(a);
 }
-
-const TONE_ORDER = ['05', '10', '20', '30', '40', '50', '60', '70', '80', '90', '95'];
 
 // ── Print diff-ready snippet ──
 console.log('// New 11-stop tone keys for GREEN_ALERT_PALETTE (paletteInjector.js)');
@@ -272,24 +121,6 @@ for (const family of FAMILIES) {
 // have generated on its own, alongside what our canon anchors actually are —
 // the gap between the two rows is precisely what makes LCARdS's palette
 // diverge from a "generic" ha-lcars theme.
-const HA_DEFAULT_MIX = {
-  '05': { pct: 10, toward: '#000000' }, '10': { pct: 22, toward: '#000000' },
-  '20': { pct: 44, toward: '#000000' }, '30': { pct: 67, toward: '#000000' },
-  '40': null, // seed itself, unmixed
-  '50': { pct: 88, toward: '#ffffff' }, '60': { pct: 70, toward: '#ffffff' },
-  '70': { pct: 50, toward: '#ffffff' }, '80': { pct: 30, toward: '#ffffff' },
-  '90': { pct: 15, toward: '#ffffff' }, '95': { pct: 8, toward: '#ffffff' },
-};
-
-function computeHaDefaultScale(seedHex) {
-  const scale = {};
-  for (const tone of TONE_ORDER) {
-    const mix = HA_DEFAULT_MIX[tone];
-    scale[tone] = mix === null ? seedHex : lerpOklch(mix.toward, seedHex, mix.pct / 100);
-  }
-  return scale;
-}
-
 // ── var name per tone (what actually gets referenced downstream) ────────
 const TONE_TO_VARNAME = {};
 for (const [suffix, tone] of Object.entries(ANCHOR_SUFFIX_TO_TONE)) TONE_TO_VARNAME[tone] = suffix || '(base)';

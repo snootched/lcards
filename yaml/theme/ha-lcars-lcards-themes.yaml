@@ -116,7 +116,7 @@ LCARS Picard [LCARdS Red Accent]:
   lcars-card-mid-color: var(--lcards-orange)
   lcars-card-button-color: var(--lcards-orange)
   lcars-card-bottom-color: var(--lcards-gray-dark)
-  lcars-settings-card-color: "#6E758D"
+  lcars-settings-card-color: var(--lcards-gray)
   # Card text
   lcars-card-top-text: var(--lcars-text-light)
   lcars-card-mid-text: var(--lcars-text-dark)
@@ -191,6 +191,26 @@ LCARS Picard [LCARdS Red Accent]:
   rgb-primary-background-color: "0,0,0"
   rgb-secondary-background-color: "109,116,140"
   # Theme-specific
+  lcards-orange-10: "#e01808"
+  lcards-orange-50: "#ff715d"
+  lcards-orange-60: "#ff7b66"
+  lcards-orange-95: "#ffceb3"
+  lcards-gray-10: "#232933"
+  lcards-gray-50: "#7d849b"
+  lcards-gray-60: "#8d94aa"
+  lcards-gray-95: "#f8f9fc"
+  lcards-blue-10: "#082b48"
+  lcards-blue-50: "#48b2db"
+  lcards-blue-60: "#58bee6"
+  lcards-blue-95: "#44ffff"
+  lcards-green-10: "#0b2e16"
+  lcards-green-50: "#306d43"
+  lcards-green-60: "#3b784e"
+  lcards-green-95: "#cdf6d6"
+  lcards-yellow-10: "#847131"
+  lcards-yellow-50: "#fbf3a8"
+  lcards-yellow-60: "#fdf6b9"
+  lcards-yellow-95: "#fbfbe2"
   lcars-card-mid-left-color: var(--lcards-orange)
   lcars-card-button: var(--lcards-orange)
   lcars-card-button-off: var(--lcards-gray-medium-light)
@@ -225,9 +245,9 @@ LCARS Picard [LCARdS Red Accent]:
       ha-color-fill-primary-quiet-resting: var(--lcards-orange-95)
       ha-color-fill-primary-quiet-hover: var(--lcards-orange-lightest)
       ha-color-fill-primary-quiet-active: var(--lcards-orange-95)
-      ha-color-fill-primary-normal-resting: var(--lcards-orange-lightest)
-      ha-color-fill-primary-normal-hover: var(--lcards-orange-light)
-      ha-color-fill-primary-normal-active: var(--lcards-orange-lightest)
+      ha-color-fill-primary-normal-resting: var(--lcards-orange-light)
+      ha-color-fill-primary-normal-hover: var(--lcards-orange-medium-light)
+      ha-color-fill-primary-normal-active: var(--lcards-orange-light)
       ha-color-fill-primary-loud-resting: var(--lcards-orange)
       ha-color-fill-primary-loud-hover: var(--lcards-orange-medium-dark)
       ha-color-fill-primary-loud-active: var(--lcards-orange)
@@ -542,7 +562,7 @@ LCARS Picard [LCARdS Blue Accent]:
   lcars-card-mid-color: var(--lcards-blue)
   lcars-card-button-color: var(--lcards-blue)
   lcars-card-bottom-color: var(--lcards-gray-dark)
-  lcars-settings-card-color: "#5077AF"
+  lcars-settings-card-color: var(--lcards-gray)
   # Card text
   lcars-card-top-text: var(--lcars-text-light)
   lcars-card-mid-text: var(--lcars-text-dark)
@@ -617,6 +637,26 @@ LCARS Picard [LCARdS Blue Accent]:
   rgb-primary-background-color: "0,0,0"
   rgb-secondary-background-color: "109,116,140"
   # Theme-specific
+  lcards-orange-10: "#e01808"
+  lcards-orange-50: "#ff715d"
+  lcards-orange-60: "#ff7b66"
+  lcards-orange-95: "#ffceb3"
+  lcards-gray-10: "#232933"
+  lcards-gray-50: "#7d849b"
+  lcards-gray-60: "#8d94aa"
+  lcards-gray-95: "#f8f9fc"
+  lcards-blue-10: "#082b48"
+  lcards-blue-50: "#48b2db"
+  lcards-blue-60: "#58bee6"
+  lcards-blue-95: "#44ffff"
+  lcards-green-10: "#0b2e16"
+  lcards-green-50: "#306d43"
+  lcards-green-60: "#3b784e"
+  lcards-green-95: "#cdf6d6"
+  lcards-yellow-10: "#847131"
+  lcards-yellow-50: "#fbf3a8"
+  lcards-yellow-60: "#fdf6b9"
+  lcards-yellow-95: "#fbfbe2"
   lcars-card-mid-left-color: var(--lcards-blue)
   lcars-card-button: var(--lcards-blue)
   lcars-card-button-off: var(--lcards-gray-medium-light)
@@ -651,9 +691,9 @@ LCARS Picard [LCARdS Blue Accent]:
       ha-color-fill-primary-quiet-resting: var(--lcards-blue-95)
       ha-color-fill-primary-quiet-hover: var(--lcards-blue-lightest)
       ha-color-fill-primary-quiet-active: var(--lcards-blue-95)
-      ha-color-fill-primary-normal-resting: var(--lcards-blue-lightest)
-      ha-color-fill-primary-normal-hover: var(--lcards-blue-light)
-      ha-color-fill-primary-normal-active: var(--lcards-blue-lightest)
+      ha-color-fill-primary-normal-resting: var(--lcards-blue-light)
+      ha-color-fill-primary-normal-hover: var(--lcards-blue-medium-light)
+      ha-color-fill-primary-normal-active: var(--lcards-blue-light)
       ha-color-fill-primary-loud-resting: var(--lcards-blue)
       ha-color-fill-primary-loud-hover: var(--lcards-blue-medium-dark)
       ha-color-fill-primary-loud-active: var(--lcards-blue)

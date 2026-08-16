@@ -78,6 +78,10 @@ if (!customElements.get('hex-input')) {
 import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 import { getColorFamily, getColorSortKey, compareColorSortKeys, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
 import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
+import { getKnownVariableCatalog } from '../../../core/themes/knownThemeVariables.js';
+
+/** Catalog categories that are colors (excludes lcars-structural: radius/border-width/font-family vars). */
+const KNOWN_COLOR_CATALOG_CATEGORIES = new Set(['lcards-palette', 'lcars-semantic', 'lcars-named', 'msd', 'ha-palette', 'ha-semantic', 'ha-legacy']);
 
 /**
  * Opt-in scope groups for the picker's broader-var chip row (issue #372
@@ -86,11 +90,17 @@ import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCate
  * unchanged unless the user opts into 'ha' or 'all'.
  */
 const CATEGORY_GROUPS = {
-    theme: ['lcars', 'lcards', 'card-mod'],
+    theme: ['lcars', 'lcars-semantic', 'lcards', 'card-mod'],
+    // Just ha-lcars's meaningful lcars-ui-*/card/sidebar/tooltip layer —
+    // excludes both its ~150-entry raw named palette (--lcars-tomato etc.,
+    // still reachable under 'theme'/'all') and LCARdS's own --lcards-*
+    // family, so someone looking for e.g. --lcars-ui-quaternary isn't
+    // scrolling past either.
+    'ha-lcars': ['lcars-semantic'],
     ha: ['ha-legacy', 'ha-color', 'ha-system', 'ha-space', 'ha-shape', 'ha-motion', 'ha-type', 'ha-elevation', 'states'],
     all: null
 };
-const CATEGORY_GROUP_LABELS = { theme: 'Theme', ha: 'HA', all: 'All' };
+const CATEGORY_GROUP_LABELS = { theme: 'Theme', 'ha-lcars': 'HA-LCARS', ha: 'HA', all: 'All' };
 
 export class LCARdSColorPicker extends LitElement {
 
@@ -104,6 +114,7 @@ export class LCARdSColorPicker extends LitElement {
             allowMatchLight: { type: Boolean },  // Allow "Match Light Colour" option
             entityId: { type: String },          // Entity ID — used to resolve match-light in preview
             showBuilder: { type: Boolean },      // Show computed token builder UI
+            themeContext: { type: Object },      // Optional {varName: value} map consulted before the live-DOM var() round-trip — lets a caller preview colors from a theme that isn't actually applied to the page (e.g. one just imported into an editor)
             _cssVariables: { type: Array, state: true },
             _computedColor: { type: String, state: true },
             _builderMode: { type: Boolean, state: true },  // Toggle between builder/text mode
@@ -136,6 +147,7 @@ export class LCARdSColorPicker extends LitElement {
         this.allowMatchLight = false;
         this.entityId = '';
         this.showBuilder = true;  // Enable builder by default
+        this.themeContext = null;
         this._cssVariables = [];
         this._computedColor = '';
         this._variablesCache = null; // Static cache shared across instances
@@ -411,6 +423,11 @@ export class LCARdSColorPicker extends LitElement {
                 flex-shrink: 0;
             }
 
+            .color-swatch-sm.unresolvable {
+                border-style: dashed;
+                opacity: 0.4;
+            }
+
             .swatch-transparent {
                 display: block;
                 width: 20px;
@@ -663,12 +680,17 @@ export class LCARdSColorPicker extends LitElement {
             .custom-color-input {
                 padding: 0 var(--ha-space-3) var(--ha-space-3);
                 display: flex;
-                flex-direction: column;
+                align-items: center;
                 gap: var(--ha-space-2);
             }
 
             .custom-color-input ha-selector {
+                flex: 1;
                 width: 100%;
+            }
+
+            .custom-color-input .color-swatch-sm {
+                flex-shrink: 0;
             }
         `;
     }
@@ -698,6 +720,12 @@ export class LCARdSColorPicker extends LitElement {
             if (this._builderMode && this.value) {
                 this._tryParseValueToBuilder(this.value);
             }
+        } else if (changedProps.has('themeContext')) {
+            // this.value itself didn't change, but _computeColor(this.value) also depends on
+            // themeContext — a different theme can define the same var() reference text (e.g.
+            // "var(--lcars-ui-primary)") pointing at a different actual color, so the resolved
+            // preview must be recomputed even when the raw string is unchanged.
+            this._updateComputedColor();
         }
     }
 
@@ -713,7 +741,22 @@ export class LCARdSColorPicker extends LitElement {
             return;
         }
 
+        // getCssVarCategory() only knows the '--lcars-' prefix, not that ~150
+        // of those names are ha-lcars's raw named Star-Trek palette (e.g.
+        // --lcars-tomato) vs. ~46 being its meaningful lcars-ui-*/card/
+        // sidebar semantic layer — the distinction the 'ha-lcars' chip below
+        // needs. The catalog module already carries that split; look up bare
+        // names against it and refine the generic 'lcars' category to
+        // 'lcars-semantic' where it applies.
+        const catalogCategoryByName = new Map(getKnownVariableCatalog().map(e => [`--${e.name}`, e.category]));
+        const categoryFor = (prop) => {
+            const generic = getCssVarCategory(prop);
+            if (generic === 'lcars' && catalogCategoryByName.get(prop) === 'lcars-semantic') return 'lcars-semantic';
+            return generic;
+        };
+
         const variables = [];
+        const seenNames = new Set();
         const styles = getComputedStyle(document.documentElement);
 
         // Scan every CSS custom property (not just variablePrefixes) — scope
@@ -728,13 +771,36 @@ export class LCARdSColorPicker extends LitElement {
             const value = styles.getPropertyValue(prop).trim();
             if (!value || !isColorValue(value)) continue;
 
+            seenNames.add(prop);
             variables.push({
                 name: prop,
                 value: `var(${prop})`,
                 label: this._formatVariableName(prop),
                 // Value-based color family (hue bucket), independent of var naming — issue #372
                 family: getColorFamily(value),
-                category: getCssVarCategory(prop)
+                category: categoryFor(prop),
+                resolvable: true
+            });
+        }
+
+        // Merge in the static known-name catalog (ha-lcars/LCARdS/HA var
+        // names) for anything not currently live on the page — the exact
+        // situation a theme-*authoring* tool is used in, before HA-LCARS is
+        // installed/active. These have no live value to preview, so they're
+        // tagged unresolvable and rendered with an empty swatch instead of a
+        // guessed color, rather than silently missing from the picker.
+        for (const entry of getKnownVariableCatalog()) {
+            if (!KNOWN_COLOR_CATALOG_CATEGORIES.has(entry.category)) continue;
+            const prop = `--${entry.name}`;
+            if (seenNames.has(prop)) continue;
+
+            variables.push({
+                name: prop,
+                value: `var(${prop})`,
+                label: `${this._formatVariableName(prop)} (inactive)`,
+                family: null,
+                category: categoryFor(prop),
+                resolvable: false
             });
         }
 
@@ -765,6 +831,52 @@ export class LCARdSColorPicker extends LitElement {
     }
 
     /**
+     * The shared, static-cached scan (_loadCssVariables) buckets every var's `family` from
+     * whatever's genuinely live on document.documentElement at scan time — a single cache shared
+     * across every color-picker instance and never re-scoped per this.themeContext. But
+     * themeContext (a theme being edited/imported, never actually applied to the page — e.g. the
+     * Palette Seed custom ramp editor) can define a completely different value for the same var
+     * name, and _computeColor already resolves *that* value correctly for the swatch dot/preview
+     * via _substituteThemeContextVars — the family bucket just never got the same treatment, so a
+     * var could show its correct color in the swatch while still being filed under the wrong hue
+     * chip. Recomputes family only for names themeContext actually overrides — cheap (no DOM
+     * scanning), and returns a new array rather than mutating the shared cache, since other open
+     * pickers may have a different (or no) context.
+     * @param {Array} variables
+     * @returns {Array}
+     * @private
+     */
+    _applyThemeContextFamilies(variables) {
+        if (!this.themeContext) return variables;
+        // Memoized on themeContext's own identity (a fresh object every time a theme is
+        // (re)loaded — see _importedThemeContext in lcards-theme-generator-view.js) — this method
+        // runs on every render (typing in the search box, etc.), and _computeColor below can do a
+        // real DOM round-trip per var, not worth repeating when nothing's actually changed.
+        if (this._themeContextFamiliesSource === this.themeContext && this._themeContextFamiliesCache) {
+            return this._themeContextFamiliesCache;
+        }
+        const result = variables.map(v => {
+            // themeContext keys are bare (no leading --), matching _substituteThemeContextVars's
+            // own var(--x) capture group convention — v.name always carries the -- prefix.
+            const key = v.name.startsWith('--') ? v.name.slice(2) : v.name;
+            if (!Object.prototype.hasOwnProperty.call(this.themeContext, key)) return v;
+            // Route through _computeColor rather than reading this.themeContext[key] directly —
+            // a theme's own flat var map is frequently chained (e.g. lcars-ui-config-icon: var(
+            // --lcars-ui-config-button), which is itself var(--lcards-orange-lightest)) and only
+            // _computeColor's _substituteThemeContextVars recursively walks that chain; a single
+            // shallow lookup left the second (and deeper) hop resolving against whatever's live on
+            // the real page instead of the theme actually being edited — the same class of bug
+            // _renderPreview's swatch used to have before it also switched to _computeColor.
+            const resolved = this._computeColor(`var(--${key})`);
+            const family = getColorFamily(resolved);
+            return family ? { ...v, family } : v;
+        });
+        this._themeContextFamiliesSource = this.themeContext;
+        this._themeContextFamiliesCache = result;
+        return result;
+    }
+
+    /**
      * Variables to actually render in the dropdown(s), narrowed by the
      * search text / color-family chip filter bar (issue #372). When no
      * filter is active this is just `_cssVariables` unchanged.
@@ -772,7 +884,7 @@ export class LCARdSColorPicker extends LitElement {
      * @private
      */
     _getFilteredVariables() {
-        let vars = this._cssVariables;
+        let vars = this._applyThemeContextFamilies(this._cssVariables);
 
         const allowedCategories = CATEGORY_GROUPS[this._selectedCategoryGroup];
         if (allowedCategories) {
@@ -978,7 +1090,7 @@ export class LCARdSColorPicker extends LitElement {
                     <ha-combo-box-item type="button"
                         class="${currentColor === v.value ? 'current-value' : ''}"
                         @click=${() => this._selectAndClose(v.value)}>
-                        <span slot="start" class="color-swatch-sm"
+                        <span slot="start" class="color-swatch-sm ${v.resolvable === false ? 'unresolvable' : ''}"
                             style="background-color: ${this._computeColor(v.value)};"></span>
                         <span slot="headline">${v.label}</span>
                     </ha-combo-box-item>
@@ -1043,8 +1155,14 @@ export class LCARdSColorPicker extends LitElement {
         const currentVal = this._builderPickingFor === 'color1' ? this._baseColor
                          : this._builderPickingFor === 'color2' ? this._baseColor2
                          : this.value;
+        // Live preview swatch, computed fresh on every render so it tracks
+        // whatever's currently typed — not wired to _computedColor (which
+        // only ever tracks this.value, not _baseColor/_baseColor2 while
+        // builder-picking), so it stays correct in both contexts.
+        const previewColor = currentVal ? this._computeColor(currentVal) : '';
         return html`
             <div class="custom-color-input">
+                <span class="color-swatch-sm" style="background-color: ${previewColor};"></span>
                 <ha-selector
                     // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
@@ -1074,37 +1192,12 @@ export class LCARdSColorPicker extends LitElement {
      * @private
      */
     _updateComputedColor() {
-        if (!this.value) {
-            this._computedColor = '';
-            return;
-        }
-
-        // Resolve match-light before any further processing
-        const resolvedValue = this._resolveMatchLightForPreview(this.value);
-
-        // Check if value is a computed token expression
-        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
-        const isComputedToken = validFunctions.some(fn => resolvedValue.startsWith(`${fn}(`));
-
-        if (isComputedToken) {
-            // Approximate the computed color for preview
-            this._computedColor = this._approximateComputedColor(resolvedValue);
-        } else if (resolvedValue.includes('var(')) {
-            // For CSS variables, compute the actual color via DOM
-            try {
-                const temp = document.createElement('div');
-                temp.style.color = resolvedValue;
-                document.body.appendChild(temp);
-                const computed = getComputedStyle(temp).color;
-                document.body.removeChild(temp);
-                this._computedColor = computed;
-            } catch (err) {
-                this._computedColor = '';
-            }
-        } else {
-            // Plain color value
-            this._computedColor = resolvedValue;
-        }
+        // Delegates to _computeColor rather than duplicating its DOM/token/match-light resolution
+        // (this used to have its own copy of that logic, which meant it never got the themeContext
+        // fix _computeColor has — the main swatch/button was silently resolving var() references
+        // against the live page instead of an imported theme, while the Custom-text tab's own
+        // preview swatch, wired to _computeColor directly, resolved correctly).
+        this._computedColor = this.value ? this._computeColor(this.value) : '';
     }
 
     /**
@@ -1182,19 +1275,47 @@ export class LCARdSColorPicker extends LitElement {
 
         // For CSS variables, compute the actual color via DOM
         if (colorValue.includes('var(')) {
+            // Substitute any var(--x) this.themeContext knows about *before* asking the live
+            // DOM — themeContext holds a theme's own var map, which was never actually applied
+            // to the page (e.g. a theme just imported into an editor), so the DOM round-trip
+            // alone would silently resolve against whatever theme IS currently live instead.
+            colorValue = this._substituteThemeContextVars(colorValue);
+            // Only skip the DOM round-trip below when colorValue is already something
+            // ColorUtils._parseColor can read directly (plain hex or rgb()/rgba()) — a value like
+            // `color-mix(in oklch, var(--x) 8%, white)` still has a color-mix() wrapper around the
+            // now-substituted var() that only the browser's own CSS engine can evaluate down to a
+            // real colour. Used to return early the instant every var() was gone, handing back
+            // that still-unevaluated color-mix() string as if it were a finished colour, which
+            // every downstream consumer (contrast-colour luminance, the hex readout) then silently
+            // mis-parsed.
+            if (/^#[0-9a-f]{3,8}$/i.test(colorValue) || /^rgba?\(/i.test(colorValue)) return colorValue;
             try {
                 const temp = document.createElement('div');
                 temp.style.color = colorValue;
                 document.body.appendChild(temp);
                 const computed = getComputedStyle(temp).color;
                 document.body.removeChild(temp);
-                return computed;
+                return computed || colorValue;
             } catch (err) {
-                return '';
+                return colorValue;
             }
         }
 
         return colorValue;
+    }
+
+    /** Repeatedly substitutes any var(--x) found as a key in this.themeContext with its value, recursing until stable (depth-capped) — handles both a bare var() and one embedded in a larger expression like color-mix(). Vars not present in themeContext are left untouched for the normal live-DOM path below. */
+    _substituteThemeContextVars(value, depth = 0) {
+        if (!this.themeContext || depth > 12 || typeof value !== 'string' || !value.includes('var(--')) return value;
+        let changed = false;
+        const next = value.replace(/var\(--([a-zA-Z0-9-]+)\)/g, (match, key) => {
+            if (Object.prototype.hasOwnProperty.call(this.themeContext, key)) {
+                changed = true;
+                return String(this.themeContext[key]);
+            }
+            return match;
+        });
+        return changed ? this._substituteThemeContextVars(next, depth + 1) : next;
     }
 
     /**
@@ -1513,8 +1634,26 @@ export class LCARdSColorPicker extends LitElement {
         if (!this.value) return html``;
 
         const bgColor = this._computedColor || this.value;
-        const textColor = this._getContrastColor(bgColor);
-        const hexColor = this._rgbToHex(bgColor);
+        // _computeColor() can fail to fully resolve a var() (themeContext miss + no live DOM
+        // match) and fall through to the raw, still-unresolved string. The swatch's own
+        // background-color below still renders fine either way — real CSS resolves var() at
+        // paint time even when our JS couldn't — but ColorUtils.contrastColor/_rgbToHex go
+        // through a canvas-based parser that has no access to the cascade at all: canvas
+        // silently ignores an unparseable fillStyle and keeps whatever it was previously set to
+        // ('#000000', since it's reset right before), so an unresolved var() was quietly read as
+        // pure black — always producing white contrast text regardless of the swatch's true,
+        // possibly very light, colour. Resolve it for real first, via a live DOM element (the
+        // same technique _computeColor's own var() branch already uses), not canvas guessing.
+        const resolvedBg = bgColor.includes('var(') ? ColorUtils.resolveCssVariable(bgColor, bgColor) : bgColor;
+        const textColor = this._getContrastColor(resolvedBg);
+        const hexColor = this._rgbToHex(resolvedBg);
+        // Genuine R/G/B decimal values, computed fresh rather than trusting _computedColor's own
+        // format — it's hex when resolved via a computed token (lighten/darken/...) or a
+        // themeContext hit, and only actually "rgb(...)" when resolved via the live-DOM
+        // getComputedStyle roundtrip, so labelling it "RGB:" unconditionally showed a hex string
+        // under either of the first two paths.
+        const rgbValues = ColorUtils.parseColor(resolvedBg);
+        const rgbLabel = rgbValues ? rgbValues.join(', ') : this._computedColor;
 
         return html`
             <div
@@ -1524,7 +1663,7 @@ export class LCARdSColorPicker extends LitElement {
                 ${this._computedColor && this._computedColor !== this.value ? html`
                     <div class="preview-computed">
                         ${hexColor ? html`Hex: ${hexColor} • ` : ''}
-                        RGB: ${this._computedColor}
+                        RGB: ${rgbLabel}
                     </div>
                 ` : ''}
             </div>
@@ -2089,16 +2228,23 @@ export class LCARdSColorPicker extends LitElement {
 
         if (!baseComputed) return html``;
 
+        // See _renderPreview()'s comment on the same pattern — ColorUtils.contrastColor's canvas
+        // parser can't see CSS custom properties, so any lingering unresolved var() needs a real
+        // DOM-based resolve first or it silently reads as black (always-white text) regardless of
+        // the swatch's true colour.
+        const baseResolved = baseComputed.includes('var(') ? ColorUtils.resolveCssVariable(baseComputed, baseComputed) : baseComputed;
+        const resultResolved = resultComputed && resultComputed.includes('var(') ? ColorUtils.resolveCssVariable(resultComputed, resultComputed) : resultComputed;
+
         return html`
             <div class="preview-comparison">
-                <div class="preview-swatch" style="background-color: ${baseComputed}; color: ${this._getContrastColor(baseComputed)};">
+                <div class="preview-swatch" style="background-color: ${baseComputed}; color: ${this._getContrastColor(baseResolved)};">
                     <div class="preview-swatch-label">Before</div>
-                    <div class="preview-swatch-value">${this._rgbToHex(baseComputed) || baseComputed}</div>
+                    <div class="preview-swatch-value">${this._rgbToHex(baseResolved) || baseComputed}</div>
                 </div>
                 ${resultComputed ? html`
-                    <div class="preview-swatch" style="background-color: ${resultComputed}; color: ${this._getContrastColor(resultComputed)};">
+                    <div class="preview-swatch" style="background-color: ${resultComputed}; color: ${this._getContrastColor(resultResolved)};">
                         <div class="preview-swatch-label">After (Preview)</div>
-                        <div class="preview-swatch-value">${this._rgbToHex(resultComputed) || resultComputed}</div>
+                        <div class="preview-swatch-value">${this._rgbToHex(resultResolved) || resultComputed}</div>
                     </div>
                 ` : html`
                     <div class="preview-swatch" style="background-color: var(--disabled-color, #ccc); color: black;">
