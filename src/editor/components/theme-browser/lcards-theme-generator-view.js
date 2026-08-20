@@ -28,7 +28,7 @@ import { GREEN_ALERT_PALETTE } from '../../../core/themes/paletteInjector.js';
 import { getKnownVariableCatalog } from '../../../core/themes/knownThemeVariables.js';
 import { createHuiCardWrapper, applyHassToCard, isCardModAvailable } from '../../../utils/ha-card-factory.js';
 import {
-  TONE_ORDER, HA_PALETTE_ROLES, ROLE_TO_SLOT, SEMANTIC_ROLES, BORDER_ROLES, SEMANTIC_TIERS, SURFACE,
+  TONE_ORDER, HA_PALETTE_ROLES, ROLE_TO_SLOT, SEMANTIC_ROLES, BORDER_ROLES, SEMANTIC_TIERS, SURFACE, FILL, ON,
   toneKey, lcardsToneVarName, computeFullScale, computeHaDefaultScale, rgbToHex, hexToRgb, lerpOklch,
   resolveOnEntry, resolveFillEntry, resolveBorderEntry, resolveSurfaceEntry, resolveFormBackgroundEntry,
   DOMAIN_STATES, formatThemeYaml, WA_COLOR_ALIAS_VARS, HA_CORE_DEFAULTS,
@@ -42,10 +42,26 @@ import '../yaml/lcards-yaml-editor.js';
 const LCARDS_FAMILIES = ['orange', 'gray', 'blue', 'green', 'yellow'];
 const ANCHOR_TONES = ['05', '20', '30', '40', '70', '80', '90'];
 const GAP_TONES = ['10', '50', '60', '95'];
+/**
+ * The exact same 55 canon-palette keys _buildExportModel's section 1 always inlines as literal hex,
+ * precomputed once from the same GREEN_ALERT_PALETTE/toneKey/lcardsToneVarName source so it's
+ * guaranteed to match. Only ever consumed as a post-hoc de-noise check against already-classified Raw
+ * Overrides on import (_importThemeObject) — a `lcards-<family>[-<suffix>]` raw key whose value is
+ * byte-identical to this isn't a real customization, just the canon palette restated (every exported
+ * theme includes it unconditionally, independent of any Palette Seed role).
+ */
+const CANON_PALETTE_FLAT = (() => {
+  const out = {};
+  for (const family of LCARDS_FAMILIES) {
+    for (const tone of TONE_ORDER) out[lcardsToneVarName(family, tone).slice(2)] = GREEN_ALERT_PALETTE[toneKey(family, Number(tone))];
+  }
+  out['lcards-moonlight'] = GREEN_ALERT_PALETTE['moonlight'];
+  return out;
+})();
 
 /**
- * Every theme ha-lcars ships (bundled at build time from `yaml/theme/ha-
- * lcars-all-themes.yaml`, a vendored verbatim copy of ha-lcars's own
+ * Every theme HA-LCARS ships (bundled at build time from `yaml/theme/ha-
+ * lcars-all-themes.yaml`, a vendored verbatim copy of HA-LCARS's own
  * generated `themes/lcars.yaml` — see that file's header). Parsed once at
  * module load: js-yaml's default schema resolves the file's `<<: *anchor`
  * merge keys natively since the anchors are defined earlier in the same
@@ -66,16 +82,33 @@ const HA_LCARS_THEME_LIBRARY = (() => {
       ...(parsed['(DO NOT USE/MODIFY)=== LCARS variables'] || {}),
       ...(parsed['(DO NOT USE/MODIFY)=== Base customizations'] || {}),
     };
-    return { themes: parsed, names: names.sort(), boilerplate };
+    // Same "diff against the shared baseline" reasoning as `boilerplate` above, for the handful of
+    // keys (lcars-ui-mix-color, lcars-backlight-*) that live inside every theme's own modes.light/
+    // modes.dark instead — YAML `<<:` merge keys can't reach into a nested modes: sub-map, so these
+    // get restated identically in all 24 bundled themes rather than living in a shared anchor.
+    // Derived by direct agreement across every bundled theme rather than hardcoded, so it keeps
+    // tracking ha-lcars's own source automatically. Only ever consumed as a post-hoc de-noise check
+    // against already-classified Raw Overrides (see _importThemeObject) — never as a pre-filter — a
+    // Legacy-recognized field (e.g. lcars-settings-card-text) can coincidentally agree across every
+    // theme too, without that agreed value matching its own role/tone computation.
+    const modeScopedBoilerplate = { light: {}, dark: {} };
+    for (const mode of ['light', 'dark']) {
+      const themeList = Object.values(parsed).filter(t => t?.modes?.[mode]);
+      if (!themeList.length) continue;
+      for (const [key, value] of Object.entries(themeList[0].modes[mode])) {
+        if (themeList.every(t => t.modes[mode][key] === value)) modeScopedBoilerplate[mode][key] = value;
+      }
+    }
+    return { themes: parsed, names: names.sort(), boilerplate, modeScopedBoilerplate };
   } catch (err) {
-    lcardsLog.error('[ThemeGeneratorView] Failed to parse bundled ha-lcars theme library', err);
-    return { themes: {}, names: [], boilerplate: {} };
+    lcardsLog.error('[ThemeGeneratorView] Failed to parse bundled HA-LCARS theme library', err);
+    return { themes: {}, names: [], boilerplate: {}, modeScopedBoilerplate: { light: {}, dark: {} } };
   }
 })();
 /**
  * Flat {varName: value} map for resolving a _staticHaDefault().var reference — passed as a
  * <lcards-color-picker>'s themeContext (or a real CSS custom property spread, for a live-mounted
- * preview) so a portable value like `var(--lcars-graphite)` resolves against ha-lcars's own shared
+ * preview) so a portable value like `var(--lcars-graphite)` resolves against HA-LCARS's own shared
  * anchor / HA_CORE_DEFAULTS specifically, never the live page. `boilerplate` (the shared anchor)
  * wins on overlap (there isn't any in practice — HA_CORE_DEFAULTS only covers keys the anchor
  * doesn't define — but the priority mirrors _staticHaDefault's own tier order).
@@ -83,6 +116,8 @@ const HA_LCARS_THEME_LIBRARY = (() => {
 const STATIC_DEFAULT_CONTEXT = { ...HA_CORE_DEFAULTS, ...HA_LCARS_THEME_LIBRARY.boilerplate };
 const FAMILY_LABELS = { orange: 'Orange', gray: 'Gray', blue: 'Blue', green: 'Green', yellow: 'Yellow' };
 const ROLE_LABELS = { primary: 'Primary', neutral: 'Neutral', orange: 'Orange (Warning)', red: 'Red (Danger)', green: 'Green (Success)' };
+/** HA_PALETTE_ROLES slot -> the FILL/ON tables' own semantic-role key (the reverse of ROLE_TO_SLOT, minus 'disabled', which isn't a Palette Seed slot). */
+const SLOT_TO_SEMANTIC_ROLE = { primary: 'primary', neutral: 'neutral', orange: 'warning', red: 'danger', green: 'success' };
 const ROLE_ICONS = {
   primary: 'mdi:star-four-points', neutral: 'mdi:circle-outline',
   orange: 'mdi:alert', red: 'mdi:alert-octagon', green: 'mdi:check-circle',
@@ -155,7 +190,7 @@ const HA_COLOR_RAMP_RE = /^ha-color-(primary|neutral|orange|red|green)-(\d{2})$/
 /**
  * Every color-valued field this generator gives dedicated UI to — HA's
  * legacy semantic vars (`doc/development/ha-css-vars.md` Layer 3) plus
- * ha-lcars's full `lcars-ui-*`/card/sidebar/tooltip semantic layer
+ * HA-LCARS's full `lcars-ui-*`/card/sidebar/tooltip semantic layer
  * (`ha-lcars/src/defaults.yaml` + `&base` in `preamble.yaml` — audited
  * directly against both source files, not just this repo's own catalog).
  * Numeric/non-color base vars (ripple opacities, header font-size, etc.)
@@ -163,13 +198,13 @@ const HA_COLOR_RAMP_RE = /^ha-color-(primary|neutral|orange|red|green)-(\d{2})$/
  * `role`/`tone` pairs are looked up against whichever family the user
  * assigned to that palette role in "Palette Seed". `live: true` fields skip
  * that Palette Seed derivation entirely: their unset default is always
- * _staticHaDefault(field.key)'s real answer (ha-lcars's own shared anchor,
+ * _staticHaDefault(field.key)'s real answer (HA-LCARS's own shared anchor,
  * or HA core's own baseline) for that exact key, looked up fresh
  * every time rather than a value hand-transcribed into this array — since
  * these fields were never Palette-Seed-derived design tokens to begin with,
  * there's nothing to gain by baking a snapshot of their real value in here.
  * Omitted from export unless the user explicitly overrides one: the
- * exported YAML is designed to be merged into a real ha-lcars theme file
+ * exported YAML is designed to be merged into a real HA-LCARS theme file
  * (see `mergeKeys` in _buildExportModel) that already provides these same
  * values via its own shared anchors, so re-stating them would be redundant.
  * `fixed`/`fixedDark` (a literal, hand-computed value) is reserved for the
@@ -184,7 +219,7 @@ const LEGACY_FIELD_DEFS = [
   { key: 'secondary-background-color', label: 'Secondary Background', group: 'Core', role: 'neutral', tone: 20 },
   { key: 'card-background-color', label: 'Card Background', group: 'Core', role: 'neutral', tone: 20 },
   { key: 'lcars-background-color', label: 'LCARS Background', group: 'Core', live: true },
-  // ha-lcars's own default is transparent; exposed so a user can opt into a visible divider.
+  // HA-LCARS's own default is transparent; exposed so a user can opt into a visible divider.
   // Consumer confirmed live in 174 files across HA's frontend, not vestigial.
   { key: 'divider-color', label: 'Divider', group: 'Core', live: true },
 
@@ -197,7 +232,7 @@ const LEGACY_FIELD_DEFS = [
   { key: 'lcars-primary-text', label: 'LCARS Primary Text', group: 'Text', live: true },
   // The one field that can't be a plain `live` key lookup: its real definition is
   // color-mix(in oklch, var(--lcars-primary-text) 80%, var(--lcars-ui-mix-color)), and
-  // lcars-ui-mix-color only exists inside ha-lcars's modes.light/modes.dark blocks (black light /
+  // lcars-ui-mix-color only exists inside HA-LCARS's modes.light/modes.dark blocks (black light /
   // white dark), not the flat layer _staticHaDefault's var()-substitution walks — so a plain
   // _staticHaDefault('lcars-secondary-text') lookup can't fully resolve it. Hand-computed once via
   // this generator's own lerpOklch (matches computeHaDefaultScale's math) instead of relying on the
@@ -221,7 +256,7 @@ const LEGACY_FIELD_DEFS = [
   { key: 'state-color', label: 'State: Default Icon', group: 'Status Colours', live: true },
   // Label badges (ha-label-badge.ts/ha-state-label-badge.ts) and the energy dashboard's
   // non-fossil indicator (hui-energy-distribution-card.ts) — all confirmed live consumers, not
-  // just present in ha-lcars's own boilerplate. Red/yellow/green mirror error/warning/success's
+  // just present in HA-LCARS's own boilerplate. Red/yellow/green mirror error/warning/success's
   // own role choice; no dedicated Blue Palette Seed role exists, so blue mirrors info-color's;
   // grey mirrors state-inactive-color's neutral/60.
   { key: 'label-badge-text-color', label: 'Label Badge Text', group: 'Status Colours', live: true },
@@ -287,13 +322,28 @@ const LEGACY_FIELD_DEFS = [
   // (ha-outlined-field.ts — the newer, post-MWC input component family, actively current) and
   // markdown-code-text-color (ha-markdown.ts, ha-assist-chat.ts) all confirmed live consumers.
   // more-info-header-background and mini-media-player-base/icon-color were deliberately left out
-  // here — verified against the real frontend checkout, not just ha-lcars's own boilerplate:
+  // here — verified against the real frontend checkout, not just HA-LCARS's own boilerplate:
   // more-info-header-background has zero consumers anywhere in current HA frontend, and
   // mini-media-player-* belongs to a third-party HACS card, not HA core.
   { key: 'input-dropdown-icon-color', label: 'Input Dropdown Icon', group: 'Tooltip & Misc', role: 'neutral', tone: 90 },
   { key: 'ha-outlined-field-container-color', label: 'Outlined Field Container', group: 'Tooltip & Misc', role: 'neutral', tone: 90 },
   { key: 'markdown-code-text-color', label: 'Markdown Code Text', group: 'Tooltip & Misc', live: true },
   { key: 'code-editor-background-color', label: 'Code Editor Background', group: 'Tooltip & Misc', live: true },
+
+  // ── Alert Colours ── HA-LCARS's alert-mode indicator palette (preamble.yaml's alert-state CSS
+  // switches lcars-alert-color between these at runtime); confirmed against the shared
+  // &lcars-variables anchor (ha-lcars-all-themes.yaml) that -red/-yellow/-blue/-white/-uv/-uvc have
+  // real boilerplate defaults there (e.g. lcars-alert-red: var(--lcars-crimson)). lcars-alert-color
+  // itself has no default anywhere in HA-LCARS — not the shared anchor, not any bundled alert-variant
+  // theme, which each hardcode a literal colour instead of deriving one — so live:true lets it
+  // honestly show no default rather than inventing a role/tone convention nothing else supports.
+  { key: 'lcars-alert-color', label: 'Alert (current)', group: 'Alert Colours', live: true },
+  { key: 'lcars-alert-red', label: 'Alert: Red', group: 'Alert Colours', live: true },
+  { key: 'lcars-alert-yellow', label: 'Alert: Yellow', group: 'Alert Colours', live: true },
+  { key: 'lcars-alert-blue', label: 'Alert: Blue', group: 'Alert Colours', live: true },
+  { key: 'lcars-alert-white', label: 'Alert: White', group: 'Alert Colours', live: true },
+  { key: 'lcars-alert-uv', label: 'Alert: UV', group: 'Alert Colours', live: true },
+  { key: 'lcars-alert-uvc', label: 'Alert: UVC', group: 'Alert Colours', live: true },
 ];
 const LEGACY_KEYS = new Set(LEGACY_FIELD_DEFS.map(f => f.key));
 /**
@@ -301,17 +351,17 @@ const LEGACY_KEYS = new Set(LEGACY_FIELD_DEFS.map(f => f.key));
  * decimals). HA's own theme-application code (apply_themes_on_element.ts's processTheme()) only
  * auto-derives --rgb-<key> from --<key> when the value is a literal hex string — every one of
  * these fields resolves to a portable var(--ha-color-x-y, ...) reference instead (or, for the
- * fixed-hex ones, is included anyway for structural parity with genuine ha-lcars theme output),
+ * fixed-hex ones, is included anyway for structural parity with genuine HA-LCARS theme output),
  * so HA's auto-derivation silently never fires and any rgba(var(--rgb-x), N) effect throughout
  * HA's core frontend (ha-data-table.ts, ha-automation-row.ts, ha-suggest-with-ai-button.ts,
  * ha-config-integration-page.ts, ha-config-entry-row.ts, etc. — confirmed via direct frontend
  * source grep, not assumed) silently falls back to HA's stock blue/orange tint. This is the
  * generator's own confirmed 7-field set (primary/accent/card-bg/error/success/warning/info),
- * not simply copied from ha-lcars's own hand-authored set — ha-lcars's bundled themes omit the
- * 4 status-color companions entirely (a gap of their own), and 2 of ha-lcars's own 7
+ * not simply copied from HA-LCARS's own hand-authored set — HA-LCARS's bundled themes omit the
+ * 4 status-color companions entirely (a gap of their own), and 2 of HA-LCARS's own 7
  * (primary-background-color/primary-text-color/secondary-text-color minus the ones already
  * fixed-hex) don't actually need our help since HA auto-derives literal hex correctly — kept
- * anyway here for output parity with what a genuine ha-lcars theme file looks like.
+ * anyway here for output parity with what a genuine HA-LCARS theme file looks like.
  */
 const RGB_COMPANION_FIELDS = new Set([
   'primary-color', 'accent-color', 'card-background-color',
@@ -329,11 +379,11 @@ const DOMAIN_FALLBACK_KEYS = new Set([
   'state-active-color', 'state-inactive-color', 'state-unavailable-color', 'state-unknown-color', 'state-color',
 ]);
 // Display order, most relevant/foundational first — LCARS UI leads since its primary/secondary/
-// tertiary/quaternary tiers are what everything else ha-lcars-specific (Cards, Sidebar, Tooltip)
+// tertiary/quaternary tiers are what everything else HA-LCARS-specific (Cards, Sidebar, Tooltip)
 // visually derives from; Core (HA's own primary-color/backgrounds) follows since it's foundational
 // too, just to plain HA chrome rather than LCARS-specific styling. Status Colours and Tooltip &
 // Misc are the least commonly hand-tuned, so they trail.
-const LEGACY_GROUP_ORDER = ['LCARS UI', 'Core', 'Text', 'Cards', 'Sidebar', 'Status Colours', 'Tooltip & Misc'];
+const LEGACY_GROUP_ORDER = ['LCARS UI', 'Core', 'Text', 'Cards', 'Sidebar', 'Status Colours', 'Alert Colours', 'Tooltip & Misc'];
 const LEGACY_GROUPS = LEGACY_GROUP_ORDER.filter(g => LEGACY_FIELD_DEFS.some(f => f.group === g));
 
 const DOMAIN_KEY_RE = /^state-([a-z0-9_]+)-([a-z0-9_]+)-color$/;
@@ -349,10 +399,22 @@ const HA_BUTTON_VARIANTS = [
   { role: 'warning', variant: 'warning', label: 'Warning' },
   { role: 'success', variant: 'success', label: 'Success' },
 ];
-/** ha-button's `appearance` attribute per tier — "accent" reads the loud fill tokens, "filled" reads the normal fill tokens. */
+/**
+ * ha-button's full, real `appearance` matrix — every value its own Appearance type actually
+ * supports (frontend/src/components/ha-button.ts: `"accent" | "filled" | "outlined" | "plain"`),
+ * not a curated subset. Labelled by the real attribute value, since that's what a theme author
+ * would actually type in YAML/card config — "Loud"/"Normal"/"Quiet" are HA's own internal naming
+ * for the fill tokens accent/filled/plain read (--button-color-fill-loud/normal/quiet-* in
+ * ha-button.ts), not attribute values themselves, and only "accent"/"filled" map onto them
+ * cleanly: "plain" is mostly transparent at rest (only :active reads the quiet token), and
+ * "outlined" takes its border/text from WebAwesome's own base button styling, not further
+ * customized in ha-button.ts.
+ */
 const HA_BUTTON_TIERS = [
-  { appearance: 'accent', label: 'Loud' },
-  { appearance: 'filled', label: 'Normal' },
+  { appearance: 'accent', label: 'Accent' },
+  { appearance: 'filled', label: 'Filled' },
+  { appearance: 'outlined', label: 'Outlined' },
+  { appearance: 'plain', label: 'Plain' },
 ];
 
 /**
@@ -372,7 +434,7 @@ const UI_TIER_BARS = [
 ];
 
 /**
- * Real card_mod demo configs matching examples straight from ha-lcars's own README ("Usage
+ * Real card_mod demo configs matching examples straight from HA-LCARS's own README ("Usage
  * instructions" > "Classes"), grouped for display. Button demos deliberately use only a
  * name/icon, never a real entity — the README's own examples bind to specific lights/switches,
  * but this generator can't assume any particular entity exists in the user's HA instance; a
@@ -380,7 +442,7 @@ const UI_TIER_BARS = [
  * same, for its "reload themes" action button). Rendered only when isCardModAvailable() — see
  * _renderLcarsCardModPreview. ALL_CARDMOD_DEMOS is the flattened form the mount/update loop uses.
  *
- * `narrow: true` on lozenge/bullet: ha-lcars's own README states these classes are "only works on
+ * `narrow: true` on lozenge/bullet: HA-LCARS's own README states these classes are "only works on
  * standard button cards; also works on button cards in a horizontal-stacks and grids up to two
  * columns wide; more columns get glitchy" — their CSS absolutely-positions the icon into a fixed-
  * width strip on one end (`> ha-state-icon { width: var(--lcars-vertical-border); position:
@@ -635,6 +697,19 @@ export class LCARdSThemeGeneratorView extends LitElement {
           font-family: 'Fira Code','Consolas','Menlo',monospace; padding: 0 3px; border-radius: 2px;
           background: rgba(255,255,255,0.8); color: #000; pointer-events: none; user-select: none;
         }
+        /* Which ha-button appearance(s) — Accent/Filled background, Filled & Plain text — a tone
+           stop feeds, see _buttonTierTagBadge. Shared visual style for both the swatch-overlay tag
+           (positioned via the modifier below) and the plain inline legend/label chip
+           (gen-tier-legend, and the Custom-mode tone labels) — same badge, two different placements. */
+        .gen-tier-badge {
+          display: inline-block; font-size: 11px; line-height: 1.5; font-weight: 700;
+          font-family: 'Fira Code','Consolas','Menlo',monospace; padding: 0 4px; border-radius: 3px;
+          background: var(--primary-color); color: var(--text-primary-color, #fff);
+        }
+        .gen-scale-swatch-role-tag { position: absolute; left: 2px; top: 2px; pointer-events: none; user-select: none; }
+        .gen-tier-legend { display: flex; flex-wrap: wrap; gap: var(--ha-space-4); align-items: center;
+          font-size: var(--ha-font-size-s); color: var(--secondary-text-color); margin: 0 0 var(--ha-space-3) 0; }
+        .gen-tier-legend-chip { display: inline-flex; align-items: center; gap: var(--ha-space-1); }
         .gen-scale-swatch-fallback { border: var(--ha-border-width-sm) dashed color-mix(in srgb, currentColor 40%, transparent); opacity: 0.85; }
         .gen-fallback-badge {
           flex: 0 0 auto; font-size: var(--ha-font-size-s); font-weight: 600; text-transform: uppercase;
@@ -647,7 +722,11 @@ export class LCARdSThemeGeneratorView extends LitElement {
           align-items: center; gap: var(--ha-space-3); padding: var(--ha-space-2);
           border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
         }
-        .gen-btn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--ha-space-3); margin: var(--ha-space-3) 0; }
+        /* Grid (not per-row flex) so all 5 variant rows share the same 4 button-column tracks —
+           a cell that grows wider from its "HA default" fallback badge no longer pushes just its
+           own row out of alignment with the others. */
+        .gen-btn-grid { display: grid; grid-template-columns: 90px repeat(4, 1fr); gap: var(--ha-space-3); align-items: start; margin: var(--ha-space-3) 0; }
+        .gen-btn-variant-label { font-size: var(--ha-font-size-s); font-weight: 500; display: flex; align-items: center; }
         /* No fill — a solid-colour cell background here tends to land on/near the same neutral
            tones real card/button colours use, making the cell edges hard to tell from the content
            inside it. An outline groups the cell without competing with whatever colour is being
@@ -656,6 +735,11 @@ export class LCARdSThemeGeneratorView extends LitElement {
         .gen-btn-cell-fallback { border: var(--ha-border-width-sm) dashed var(--secondary-text-color); }
         .gen-mock-caption { font-size: var(--ha-font-size-s); opacity: 0.7; margin-top: var(--ha-space-1); }
         .gen-imported-note { font-size: var(--ha-font-size-m); color: var(--secondary-text-color); margin-bottom: var(--ha-space-3); }
+        .gen-tier-correction-note {
+          display: flex; align-items: flex-start; gap: var(--ha-space-2); font-size: var(--ha-font-size-s);
+          color: var(--secondary-text-color); margin: var(--ha-space-1) 0 var(--ha-space-2) 0;
+        }
+        .gen-tier-correction-note ha-icon { --mdc-icon-size: 16px; flex-shrink: 0; margin-top: 1px; color: var(--primary-color); }
         /* align-items:start overrides CSS Grid's default stretch — otherwise every cell in a row
            stretches to match its row's tallest cell, so a deliberately-tall neighbour (e.g. a
            lozenge/bullet button, see .gen-mockup-cell-narrow below) drags ordinary button-small/
@@ -665,12 +749,12 @@ export class LCARdSThemeGeneratorView extends LitElement {
         .gen-mockup-cell { background: transparent; border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0); border-radius: var(--ha-border-radius-md); padding: var(--ha-space-3); }
         /* lozenge/bullet button demos (see LCARS_CARDMOD_DEMOS's narrow:true doc comment) need a
            narrower cell than the general auto-fit grid gives them (sized for wide header/middle/
-           footer bars) — ha-lcars's own CSS already handles height itself (min-height: 60px on the
+           footer bars) — HA-LCARS's own CSS already handles height itself (min-height: 60px on the
            real <ha-card>, same as any other HA button — no override needed here once the grid stops
            stretching rows, see .gen-mockup-grid's align-items above). Width can't be a fixed pixel
-           value, though: the icon strip's own width IS --lcars-vertical-border (ha-lcars's own CSS
+           value, though: the icon strip's own width IS --lcars-vertical-border (HA-LCARS's own CSS
            sets ha-state-icon's width to var(--lcars-vertical-border)), and that var is
-           user-configurable per-install via an input_number helper (ha-lcars's own "adjust border
+           user-configurable per-install via an input_number helper (HA-LCARS's own "adjust border
            thickness" feature) — a real install can set it far above the 35px boilerplate default
            (confirmed via a live DOM export: one instance had it at 132px). A fixed-width cell left
            almost nothing for the label in that case. Scale the cell width off the same variable so
@@ -734,12 +818,12 @@ export class LCARdSThemeGeneratorView extends LitElement {
   }
 
   /**
-   * Theme library entries to offer in "Load from ha-lcars": every theme
+   * Theme library entries to offer in "Load from HA-LCARS": every theme
    * currently installed on this HA instance (`hass.themes.themes` — always
    * exactly what's actually running, never stale) merged with the bundled
    * reference snapshot (`yaml/theme/ha-lcars-all-themes.yaml`, refreshed
    * manually via `npm run lcars:export-all-themes`, so it CAN lag behind
-   * upstream ha-lcars between refreshes). Installed wins on name collision.
+   * upstream HA-LCARS between refreshes). Installed wins on name collision.
    * @returns {Array<{name: string, source: string, obj: Object}>} source is 'installed' or 'bundled'
    */
   get _themeLibraryEntries() {
@@ -791,7 +875,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
   }
 
   /**
-   * ha-lcars's own shipped themes never vary the palette layer by mode — only
+   * HA-LCARS's own shipped themes never vary the palette layer by mode — only
    * the semantic tone-index *selection* (handled elsewhere, always mode-aware)
    * differs. HA's own theme-application layering fully supports mode-scoped
    * palette values too (confirmed directly in apply_themes_on_element.ts —
@@ -812,7 +896,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
     }
     if (cfg.source === 'imported') {
       // Imported ramps are captured from the theme's flat (mode-invariant)
-      // ha-color-*-* keys — none of the 24 bundled ha-lcars themes mode-scope
+      // ha-color-*-* keys — none of the 24 bundled HA-LCARS themes mode-scope
       // this layer, so there's no dark variant to look for here.
       return this._model.importedRamps[role] || computeFullScale(this._anchorsForFamily('gray')).scale;
     }
@@ -846,7 +930,18 @@ export class LCARdSThemeGeneratorView extends LitElement {
       const family = (mode === 'dark' && cfg.darkFamily) ? cfg.darkFamily : cfg.family;
       return { var: `var(${lcardsToneVarName(family, spec)}, ${hex})`, hex };
     }
-    // 'custom' and 'imported' both have no LCARdS --lcards-* var to hybrid-reference — literal hex only.
+    if (cfg.source === 'imported') {
+      // The theme's own original portable text for this stop (e.g. "var(--lcards-orange-medium-dark)",
+      // or a color-mix(...) expression) — captured verbatim at import time (_importThemeObject,
+      // this._model.importedRampsRaw) alongside the resolved hex, but never consulted here until now.
+      // Safe to re-emit: whatever it references is either in the shared &lcars-variables anchor the
+      // export's own instructions already say to merge alongside, or was itself captured as a sibling
+      // Legacy field in this same export — confirmed against real theme data, not assumed. Falls back
+      // to hex only for a stop that genuinely wasn't captured (a partial import's missing tones).
+      const rawText = this._model.importedRampsRaw[role]?.[String(spec).padStart(2, '0')];
+      if (rawText !== undefined) return { var: rawText, hex };
+    }
+    // 'custom' (and an imported stop with nothing actually captured) has no portable reference — literal hex only.
     return { var: hex, hex };
   }
 
@@ -864,6 +959,43 @@ export class LCARdSThemeGeneratorView extends LitElement {
   }
 
   /**
+   * Same bridge as _resolveSemanticRoleTone, but for the semantic on/fill/border/surface/
+   * form-background layer (_buildExportModel's section 3): HA's own real semantic tokens always
+   * reference the atom layer by name (semantic.globals.ts, e.g. --ha-color-on-danger-normal:
+   * var(--ha-color-red-40)) rather than drilling through to a deeper constant, so a tone that
+   * genuinely has a corresponding ha-color-<slot>-<tone> atom in this export (section 1b) should
+   * reference that atom instead of repeating its own underlying value a second time — this way
+   * changing a role's tone in Palette Seed ripples through every semantic token that cites it.
+   * Falls back to the real value from _resolveTone for WHITE/BLACK (no atom exists for those) and
+   * for a tone _isRoleTonePreviewFallback flags as not actually exported (a partial "Imported"
+   * ramp's missing stop — the only way that fires here, since section 3's role loop already skips
+   * "None" roles via _semanticRoleUnset). .hex is always the real resolved colour either way — every
+   * WCAG-math consumer (resolveOnEntry) reads only .hex, never .var, so this is invisible to that
+   * logic and only changes the exported/previewed text.
+   */
+  _resolveSemanticRoleToneAsAtom(semanticRole, spec, mode = 'light') {
+    const slot = ROLE_TO_SLOT[semanticRole] || semanticRole;
+    const real = this._resolveTone(slot, spec, mode);
+    if (spec === 'WHITE' || spec === 'BLACK') return real;
+    const tone = String(spec).padStart(2, '0');
+    if (this._isRoleTonePreviewFallback(slot, tone)) return real;
+    return { var: `var(--ha-color-${slot}-${tone})`, hex: real.hex };
+  }
+
+  /**
+   * Same shape as _resolveSemanticRoleTone, but resolves through _staticHaDefault (HA's own real
+   * default atom, confirmed against frontend/src/resources/theme/color/core.globals.ts) instead of
+   * this generator's Palette Seed state. Used only to gap-fill a "None" role's (or an "Imported"
+   * role's missing stops') semantic tokens for the live preview — see _buildSemanticDefaultStyle.
+   */
+  _staticSemanticRoleTone(semanticRole, spec, mode = 'light') {
+    if (spec === 'WHITE') return { var: 'var(--white-color)', hex: '#ffffff' };
+    if (spec === 'BLACK') return { var: 'var(--black-color)', hex: '#000000' };
+    const slot = ROLE_TO_SLOT[semanticRole] || semanticRole;
+    return this._staticHaDefault(`ha-color-${slot}-${String(spec).padStart(2, '0')}`);
+  }
+
+  /**
    * Whether a specific role+tone slot has no real value from this generator right now — either the
    * whole role is "None", or (for "Imported") the theme's own ramp genuinely doesn't define that
    * particular stop (a partial import, e.g. a theme that only sets 6 of the 11 ha-color-primary-*
@@ -876,6 +1008,116 @@ export class LCARdSThemeGeneratorView extends LitElement {
     if (cfg?.source === 'none') return true;
     if (cfg?.source === 'imported') return !(tone in (this._model.importedRamps[role] || {}));
     return false;
+  }
+
+  /**
+   * Which ha-button appearance(s) (see HA_BUTTON_TIERS) land on a given Palette Seed role+tone, for
+   * the small tags on the "Full scale" swatches — labels every role, including "None" ones
+   * (previewed from HA's own real default ramp, see _scaleForRolePreview), since a None role's
+   * tone-index convention still genuinely drives its buttons; it just does so via HA's own live
+   * fallback instead of anything this generator exports.
+   *
+   * Text tags map to the real, confirmed appearance→tier mapping (against the actual
+   * `@home-assistant/webawesome@3.7.0-ha.0` package and ha-button.ts's own overrides — see
+   * resolveOnEntry's own doc comment for the full trail): "Filled" and "Plain" share the `normal`
+   * tier (ha-button.ts explicitly redirects Plain's WA default of `on-quiet` to `on-normal`,
+   * matching Filled) — tagged "Filled & Plain text". "Outlined" is driven by `quiet` alone (WA's
+   * own base default; ha-button.ts never touches Outlined's enabled-state colour) — tagged
+   * "Outlined text", entirely separately. "Accent" (`loud`) isn't tagged at all: it's plain white
+   * by default, corrected to black if that fails contrast — never a fixed Palette Seed stop.
+   *
+   * Both text tiers need one extra check a static FILL/ON table lookup alone can't give: LCARdS's
+   * own generator applies a Phase-2 WCAG-contrast correction on export (resolveOnEntry) that HA
+   * itself does not do at runtime (HA's own tone-index convention is fixed/mechanical — confirmed
+   * against generate-lcards-ha-semantic-tokens.js's own header) — confirmed with real "LCARS
+   * Default" data: Primary's mechanical tone-40 text on its tone-80 background measures 2.93:1,
+   * below the 4.5:1 floor, so the real button actually shows black there, not tone-40's own colour.
+   * That correction only ever runs for a role Palette Seed actually manages (Family/Custom/
+   * Imported) — _buildExportModel never computes or exports it for "None", so a None role's real
+   * button always uses the mechanical tone exactly as HA defines it, uncorrected.
+   * @returns {{abbr: string, title: string}} abbr for the compact on-swatch badge, title for its tooltip — both empty when nothing here is actually used by a button appearance.
+   */
+  _buttonTierTagBadge(role, tone, mode = 'light') {
+    const semanticRole = SLOT_TO_SEMANTIC_ROLE[role];
+    if (!semanticRole) return { abbr: '', title: '' };
+    const numTone = Number(tone);
+    const tags = [];
+
+    // Backgrounds: resolveFillEntry has no WCAG-correction step — always the tone as specified,
+    // managed role or not.
+    const fillTier = (tier) => FILL[semanticRole][mode]?.[tier] ?? FILL[semanticRole].light[tier];
+    if (fillTier('loud')?.resting === numTone) tags.push('Accent bg');
+    if (fillTier('normal')?.resting === numTone) tags.push('Filled bg');
+
+    // Text: whichever tone resolveOnEntry actually lands on for a managed role (mechanical, a
+    // same-family substitute, or none — see its own doc comment); a "None" role never gets this
+    // correction at all, so its mechanical tone is what genuinely renders.
+    const isManaged = this._model.roles[role]?.source !== 'none';
+    const resolveTone = this._resolveSemanticRoleTone.bind(this);
+    for (const [tier, label] of [['normal', 'Filled & Plain text'], ['quiet', 'Outlined text']]) {
+      if (isManaged) {
+        const onEntry = resolveOnEntry(
+          resolveTone,
+          (r, t) => resolveFillEntry(resolveTone, r, mode, t, 'resting'),
+          semanticRole, mode, tier,
+          this._ambientBgHex(mode),
+        );
+        if (onEntry.usedTone !== null && Number(onEntry.usedTone) === numTone) tags.push(label);
+      } else {
+        const onModeData = ON[semanticRole][mode]?.[tier] !== undefined ? ON[semanticRole][mode] : ON[semanticRole].light;
+        const spec = onModeData[tier] !== undefined ? onModeData[tier] : ON[semanticRole].light[tier];
+        if (spec === numTone) tags.push(label);
+      }
+    }
+
+    if (!tags.length) return { abbr: '', title: '' };
+    const ABBR = { 'Accent bg': 'A', 'Filled bg': 'F', 'Filled & Plain text': 'T', 'Outlined text': 'O' };
+    return { abbr: tags.map(t => ABBR[t]).join(','), title: tags.join(', ') };
+  }
+
+  /**
+   * Which of this role's button-text appearances (Accent, Filled+Plain, Outlined — see
+   * _buttonTierTagBadge's own doc comment for the real appearance→tier mapping) are currently
+   * Phase-2 WCAG-corrected away from their mechanical Palette Seed tone, for the given mode — the
+   * human-readable reason a "T"/"O"/"A" tag can be genuinely, correctly missing from
+   * _buttonTierTagBadge, so that absence doesn't read as a bug. Always empty for a "None" role: the
+   * correction only ever applies to a role Palette Seed manages (see _buttonTierTagBadge's own doc
+   * comment for why).
+   * @returns {string[]}
+   */
+  _roleTierCorrectionNotes(role, mode) {
+    const semanticRole = SLOT_TO_SEMANTIC_ROLE[role];
+    if (!semanticRole || this._model.roles[role]?.source === 'none') return [];
+    const resolveTone = this._resolveSemanticRoleTone.bind(this);
+    const resolveFillResting = (r, t) => resolveFillEntry(resolveTone, r, mode, t, 'resting');
+    const ambientBgHex = this._ambientBgHex(mode);
+    const notes = [];
+    for (const [tier, label] of [['loud', 'Accent button text'], ['normal', 'Filled (and Plain) button text'], ['quiet', 'Outlined button text']]) {
+      const entry = resolveOnEntry(resolveTone, resolveFillResting, semanticRole, mode, tier, ambientBgHex);
+      if (entry.corrected) {
+        if (entry.usedTone !== null) {
+          notes.push(`${label} uses a different stop from the same palette here (tone ${entry.usedTone}) — its usual tone doesn't clear 4.5:1 contrast against this theme's background.`);
+        } else {
+          const usedColor = entry.hex === '#ffffff' ? 'white' : 'black';
+          notes.push(`${label} switches to ${usedColor} here — no tone in this role's own palette clears 4.5:1 contrast against both backgrounds.`);
+        }
+      } else if (entry.finalRatio < 4.5) {
+        notes.push(`${label} keeps its usual tone here even at ${entry.finalRatio.toFixed(2)}:1 contrast (needs 4.5:1) — every alternative would read worse.`);
+      }
+    }
+    return notes;
+  }
+
+  /** Renders _roleTierCorrectionNotes(role, mode) as a labelled note, or nothing if that mode has no correction to explain. */
+  _renderTierCorrectionNotes(role, mode) {
+    const notes = this._roleTierCorrectionNotes(role, mode);
+    if (!notes.length) return nothing;
+    return html`
+      <p class="gen-tier-correction-note">
+        <ha-icon icon="mdi:contrast-circle"></ha-icon>
+        <span><strong>${mode === 'dark' ? 'Dark mode' : 'Light mode'}:</strong> ${notes.join(' ')}</span>
+      </p>
+    `;
   }
 
   /** Preview-only counterpart to _scaleForRole, for Palette Seed's own "Full scale" swatch strip: identical for any tone that actually has a Palette Seed value, but for one that doesn't (a "None" role, or a stop a partial "Imported" ramp genuinely skips) fills it from _staticHaDefault's static reference data instead of the gray placeholder _scaleForRole falls back to. Never used for export. */
@@ -919,11 +1161,11 @@ export class LCARdSThemeGeneratorView extends LitElement {
   }
 
   /**
-   * Resolves a raw value pulled from a *parsed but not-yet-applied* ha-lcars
+   * Resolves a raw value pulled from a *parsed but not-yet-applied* HA-LCARS
    * theme object to a concrete hex — substituting any `var(--key)` reference
    * (bare, or embedded in a larger expression like `color-mix()`) found as a
    * key in that SAME object first, repeatedly, before ever touching the live
-   * DOM. ha-lcars themes constantly alias one field to another this way
+   * DOM. HA-LCARS themes constantly alias one field to another this way
    * (e.g. LCARS 25C's `lcars-ui-tertiary: var(--lcars-alt-orange)`, where
    * `--lcars-alt-orange` is one of ~180 raw named colors merged in from the
    * shared &lcars-variables anchor) — `_resolveToHex`'s DOM round-trip alone
@@ -940,7 +1182,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
    * `color-mix(in oklch, A PCT%, B)` is computed directly via lerpOklch —
    * the SAME OKLCH math this generator already uses elsewhere
    * (computeHaDefaultScale) — rather than trusted to the browser's own
-   * color-mix() support. This is what ha-lcars's ha-color-primary-* generic
+   * color-mix() support. This is what HA-LCARS's ha-color-primary-* generic
    * ramp is built from in every bundled theme that doesn't hand-tune it
    * (22 of 24); relying on the DOM to parse it meant a stop only ever
    * resolved correctly if the runtime's CSS engine actually implemented
@@ -1050,7 +1292,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
    *
    * Resolves against two static, bundled datasets instead, most specific first:
    * 1. `HA_LCARS_THEME_LIBRARY.boilerplate` — the shared `&lcars-variables`/`&base` anchor every real
-   *    ha-lcars theme merges in via `<<:`, so a hit here is a genuine, reliable universal default.
+   *    HA-LCARS theme merges in via `<<:`, so a hit here is a genuine, reliable universal default.
    *    Deliberately NOT `HA_LCARS_THEME_LIBRARY.themes['LCARS Default']` (one specific bundled
    *    theme's full content, anchor plus its OWN particular choices) — that was the actual bug: a
    *    theme named "LCARS Default" defining `lcars-ui-primary` a certain way is that theme's own
@@ -1153,7 +1395,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
   /**
    * Badge text for a Palette Seed role's unset ("None") default. A role's ramp is always fully
    * covered by a single _staticHaDefault tier or not at all (none of the 5 roles' ramps are in
-   * ha-lcars's shared boilerplate anchor; HA_CORE_DEFAULTS covers all 5 fully), so tone 40 is a safe
+   * HA-LCARS's shared boilerplate anchor; HA_CORE_DEFAULTS covers all 5 fully), so tone 40 is a safe
    * representative for the whole role — no need to check every tone individually.
    */
   _roleDefaultBadge(role) {
@@ -1191,28 +1433,18 @@ export class LCARdSThemeGeneratorView extends LitElement {
     return html`
       <div class="tab-content-container">
         ${this._renderInfoGuide('overview', 'mdi:palette-swatch-outline', 'What is the HA-LCARS Theme Lab?', html`
-          <p>Builds a complete, HA-LCARS theme profile — pick your colours here, then copy
-            the generated YAML into your own HA-LCARS <code>lcars.yaml</code> theme file. Nothing here writes to your live HA install;
-            it only reads an existing theme when you explicitly load or paste one.</p>
-          <p>The sections below follow HA's own 3-layer colour model:</p>
+          <p>Builds a full HA-LCARS theme. Set your colours here, then copy the YAML into your <code>lcars.yaml</code> theme file. Nothing is written to your live HA install — loading or pasting a theme only reads it.</p>
+          <p>Three layers, top to bottom:</p>
           <ul>
-            <li><strong>Palette Seed</strong> — the raw <code>ha-color-&lt;role&gt;-*</code> palette (5 roles × 11
-              tones each). Reuse an LCARdS family, hand-build custom tones, or adopt a loaded theme's own ramp.
-              Everything else on this page is computed from these choices.</li>
-            <li><strong>HA-LCARS &amp; Legacy HA Semantic Colours</strong> and <strong>Domain &amp; State Colours</strong>
-              — HA's semantic tokens and per-entity-state colours, defaulted from Palette Seed above but overridable
-              field by field.</li>
-            <li><strong>Advanced / Raw Overrides</strong> — an escape hatch for any var name this page doesn't give
-              dedicated UI to.</li>
+            <li><strong>Palette Seed</strong> — HA's 5 role colour scales (Primary/Neutral/Red/Orange/Green). Everything else on this page is computed from these unless you override it.</li>
+            <li><strong>HA-LCARS &amp; Legacy HA Semantic Colours</strong> / <strong>Domain &amp; State Colours</strong>
+              — individual fields, defaulted from Palette Seed, overridable one at a time.</li>
+            <li><strong>Advanced / Raw Overrides</strong> — for any var name without dedicated UI.</li>
           </ul>
-          <p class="preset-info-guide-tip"><strong>Leaving a Palette Seed role as "None"</strong> will ensure that role's keys are left out of the export entirely so
-            HA's own real baseline palette applies for it instead. Swatches shown with a dashed border and an
+          <p class="preset-info-guide-tip">A Palette Seed role left as <strong>None</strong> is left out of the export — HA's own default palette applies instead. Dashed swatches badged
             <span class="gen-fallback-badge">HA-LCARS Default</span> or <span class="gen-fallback-badge">HA Default</span>
-            badge are previewing that real default — ha-lcars's own shared anchor first, HA core's own baseline
-            otherwise — not this theme, and not whatever theme happens to be active on this page.</p>
-          <p>Every section supports independent light/dark values where HA itself supports them, and <strong>Preview
-            &amp; Export</strong> at the bottom always reflects the full current state — mockups, the complete
-            generated YAML, and a copy-to-clipboard button.</p>
+            are previewing that real default.</p>
+          <p>Most fields support separate light/dark values. <strong>Preview &amp; Export</strong> at the bottom always shows the current state and generated YAML.</p>
         `)}
         ${this._renderStartSection()}
         ${this._renderPaletteSeedSection()}
@@ -1228,9 +1460,8 @@ export class LCARdSThemeGeneratorView extends LitElement {
     const mode = this._startMode;
     return html`
       <lcards-form-section header="Start" icon="mdi:rocket-launch-outline" ?expanded=${true} ?outlined=${true}>
-        <p class="gen-hint">Starts from "LCARS Default" (ha-lcars's own reference theme) below — change
-          the selection to start from a different bundled/installed theme, or switch to Paste to bring in
-          your own custom YAML instead.</p>
+        <p class="gen-hint">Starts from HA-LCARS's own "LCARS Default" theme. Pick a different theme below, or
+          switch to Paste to bring in your own YAML.</p>
         <div class="gen-toggle-group gen-toggle-group-m">
           <wa-button-group childSelector="ha-button">
             <ha-button variant="brand" size="m" .appearance=${mode === 'library' ? 'accent' : 'filled'}
@@ -1258,16 +1489,12 @@ export class LCARdSThemeGeneratorView extends LitElement {
             <ha-button @click=${() => this._handleLoadLibraryTheme()} .disabled=${!this._selectedLibraryTheme}>Load</ha-button>
           </div>
           ${this._renderInfoGuide('library', 'mdi:information-outline', 'How loading an HA-LCARS theme works', html`
-            <p>Loading an HA-LCARS theme will populate the HA-LCARS UI variables and any other HA-legacy and state colours into the sections below as your
-              starting point.</p>
+            <p>Loads a theme's HA-LCARS UI variables and other colours as your starting point.</p>
             <ul>
-              <li><strong>Installed on this HA</strong> — themes that have been read live from this session.  These themes are what your Home Assistant instance has loaded right now
-                (<code>hass.themes.themes</code>). Always current, whatever version you actually have installed.</li>
-              <li><strong>Bundled reference</strong> — LCARdS includes a snapshot of the most current version of HA-LCARS available at the time of release.
-                Reference themes are only shown when that theme isn't currently installed; it may lag behind the latest HA-LCARS release.</li>
+              <li><strong>Installed on this HA</strong> — themes currently loaded on this Home Assistant instance.</li>
+              <li><strong>Bundled reference</strong> — a snapshot shipped with LCARdS, shown only when that theme isn't installed here.</li>
             </ul>
-            <p class="preset-info-guide-tip"><strong>Note:</strong> In the <strong>Palette Seed</strong> section below, a role switches to "Imported" whenever the loaded theme has an <code>ha-color-&lt;role&gt;-*</code> ramp
-              defined.  Each HA-LCARS theme currently includes the <code>primary</code> role ramp.  If the theme doesn't define one of these roles it is set to "None" and previews HA core's own baseline for it instead.</p>
+            <p class="preset-info-guide-tip">A Palette Seed role switches to "Imported" when the loaded theme defines its own <code>ha-color-&lt;role&gt;-*</code> ramp. Otherwise it's set to "None".</p>
           `)}
         ` : nothing}
 
@@ -1284,17 +1511,15 @@ export class LCARdSThemeGeneratorView extends LitElement {
             </div>
           </div>
           ${this._renderInfoGuide('paste', 'mdi:information-outline', 'What gets recognized when pasting', html`
-            <p>Pulls in anything the sections below recognize:</p>
+            <p>Recognizes:</p>
             <ul>
               <li>Legacy / LCARS-UI colour fields</li>
               <li><code>state-&lt;domain&gt;-&lt;state&gt;-color</code> entries</li>
-              <li>Complete <code>ha-color-&lt;role&gt;-*</code> ramps (all 11 stops) — promoted to Palette Seed as an
-                "Imported" source</li>
+              <li>Complete <code>ha-color-&lt;role&gt;-*</code> ramps — promoted to Palette Seed as "Imported"</li>
             </ul>
-            <p>Everything else lands in Advanced / Raw Overrides untouched — nothing is silently dropped.</p>
-            <p class="preset-info-guide-missing-note">YAML anchor merge keys (<code>&lt;&lt;: *anchor</code>)
-              referencing another file's shared definitions can't be resolved from a standalone paste and are
-              skipped.</p>
+            <p>Everything else lands in Advanced / Raw Overrides.</p>
+            <p class="preset-info-guide-missing-note">YAML anchor merge keys (<code>&lt;&lt;: *anchor</code>) can't be
+              resolved from a standalone paste and are skipped.</p>
           `)}
         ` : nothing}
 
@@ -1307,15 +1532,25 @@ export class LCARdSThemeGeneratorView extends LitElement {
   _renderPaletteSeedSection() {
     return html`
       <lcards-form-section header="Palette Seed" icon="mdi:palette-outline" ?expanded=${true} ?outlined=${true}
-        description="Adopt an imported theme's ramps, assign an LCARdS palette family, or define fully customized tones for each of HA's 5 palette roles. Every role starts at None.">
-        <p class="gen-hint">These feed HA's own native <code>ha-color-&lt;role&gt;-*</code> palettes (05-95 tones,
-          one scale per role) — the colours HA's frontend falls back to on native components HA-LCARS's own
-          styling doesn't reach, like dialogs and form controls. Everything else in this generator (Legacy fields,
-          LCARS UI, Domain &amp; State Colours) that isn't explicitly overridden derives from whatever you set
-          here — a role left at <strong>None</strong> (the default for all 5) means every field that would
-          otherwise derive from it previews and exports HA's own real default instead, until you assign one.</p>
+        description="Adopt the imported theme's palette, pick an LCARdS family, or hand-build custom tones for each of HA's 5 role colours.">
+        <p class="gen-hint">Feeds HA's native <code>ha-color-&lt;role&gt;-*</code> palettes — used on native HA
+          components that HA-LCARS's own styling doesn't reach. A role left as <strong>None</strong> uses HA's own
+          default palette.</p>
+        ${this._renderTierLegend()}
         ${HA_PALETTE_ROLES.map(role => this._renderRoleSeed(role))}
       </lcards-form-section>
+    `;
+  }
+
+  /** Legend for the L/N/T badges on Palette Seed's tone swatches — see _buttonTierTagBadge. Shared by the main Palette Seed section and its Preview & Export read-only duplicate. */
+  _renderTierLegend() {
+    return html`
+      <div class="gen-tier-legend">
+        <span class="gen-tier-legend-chip"><span class="gen-tier-badge">A</span> "Accent" button background</span>
+        <span class="gen-tier-legend-chip"><span class="gen-tier-badge">F</span> "Filled" button background</span>
+        <span class="gen-tier-legend-chip"><span class="gen-tier-badge">T</span> "Filled" &amp; "Plain" button text</span>
+        <span class="gen-tier-legend-chip"><span class="gen-tier-badge">O</span> "Outlined" button text</span>
+      </div>
     `;
   }
 
@@ -1327,7 +1562,10 @@ export class LCARdSThemeGeneratorView extends LitElement {
     const darkDiffers = canVaryByMode && this._roleDarkDiffers(role);
     const isUnset = cfg.source === 'none';
     const lightScale = this._scaleForRolePreview(role, 'light');
-    const darkScale = darkDiffers ? this._scaleForRolePreview(role, 'dark') : null;
+    // Always computed, even when the colour itself doesn't vary by mode (canVaryByMode false, or
+    // the toggle off) — the button-tier tags on these swatches can still genuinely differ by mode
+    // (see _buttonTierTagBadge), so both rows are always shown regardless.
+    const darkScale = this._scaleForRolePreview(role, 'dark');
     return html`
       <lcards-form-section header="${ROLE_LABELS[role]}" icon="${ROLE_ICONS[role]}"
         .secondary=${this._roleSourceSummary(role)} ?expanded=${role === 'primary'} nested>
@@ -1349,25 +1587,18 @@ export class LCARdSThemeGeneratorView extends LitElement {
         </div>
 
         ${isUnset ? html`
-          <p class="gen-hint">Not set — this theme won't define <code>ha-color-${role}-*</code> at all. HA falls
-            back to its own baseline palette for it (confirmed in HA's frontend source: any
-            <code>--ha-color-*</code> key a theme omits keeps whatever HA's default CSS already set, since themes
-            apply as a partial overlay, not a full replacement). The swatches below preview that real default —
-            HA core's own baseline for this role (none of the 5 roles' ramps are part of ha-lcars's shared
-            anchor) — never a guess, and never dependent on whatever theme happens to be active on this page right
-            now. Pick "LCARdS Palettes" to reuse a LCARdS family, "Custom" to
-            hand-build one, or "Imported" if this theme has its own ramp available.</p>
+          <p class="gen-hint">Not set — this theme won't define <code>ha-color-${role}-*</code>, so HA uses its own
+            default palette. The swatches below preview that default. Pick <strong>LCARdS Palettes</strong> for a
+            ready-made family, <strong>Custom</strong> to hand-build one, or <strong>Imported</strong> if this theme
+            has its own ramp.</p>
         ` : nothing}
 
         ${cfg.source === 'imported' ? html`
-          <p class="gen-imported-note">Using this theme's own imported <code>ha-color-${role}-*</code> ramp —
+          <p class="gen-imported-note">Using this theme's own <code>ha-color-${role}-*</code> ramp —
             ${importedCount < 11
-              ? html`${importedCount} of 11 stops (this theme only defines that many — the rest, marked with a
-                  dashed border below, preview HA's own live fallback for that specific stop, and won't be part of
-                  the exported theme)`
-              : html`all 11 stops`}, not editable here, and not mode-varying (none of HA-LCARS's bundled themes
-            mode-scope this layer). Switch to Custom to hand-tune (including a dark-mode variant, and to fill in any
-            missing stops yourself), or LCARdS Palettes to use a LCARdS family instead.</p>
+              ? html`${importedCount} of 11 stops (missing stops, dashed below, preview HA's fallback)`
+              : html`all 11 stops`}. Not editable here. Switch to <strong>Custom</strong> to hand-tune it, or
+            <strong>LCARdS Palettes</strong> for a ready-made family.</p>
         ` : nothing}
 
         ${canVaryByMode ? html`
@@ -1391,14 +1622,17 @@ export class LCARdSThemeGeneratorView extends LitElement {
         ` : nothing}
 
         <div class="gen-scale-row">
-          <div class="gen-scale-label">${darkDiffers ? 'Full scale (light)' : 'Full scale'}</div>
+          <div class="gen-scale-label">Full scale (light)</div>
           <div class="gen-scale-swatches">
             ${TONE_ORDER.map(tone => {
               const fallback = this._isRoleTonePreviewFallback(role, tone);
+              const tierBadge = this._buttonTierTagBadge(role, tone, 'light');
+              const title = [fallback ? `${this._roleDefaultBadge(role)} — not set by this theme` : '', tierBadge.title]
+                .filter(Boolean).join(' — ');
               return html`
-                <div class="gen-scale-swatch ${fallback ? 'gen-scale-swatch-fallback' : ''}"
-                  title="${fallback ? `${this._roleDefaultBadge(role)} — not set by this theme` : ''}">
+                <div class="gen-scale-swatch ${fallback ? 'gen-scale-swatch-fallback' : ''}" title="${title}">
                   <div class="gen-swatch-fill" style="background-color:${lightScale[tone]}"></div>
+                  ${tierBadge.abbr ? html`<span class="gen-tier-badge gen-scale-swatch-role-tag">${tierBadge.abbr}</span>` : nothing}
                   <span class="gen-scale-swatch-tag">${tone}</span>
                 </div>
               `;
@@ -1406,19 +1640,27 @@ export class LCARdSThemeGeneratorView extends LitElement {
           </div>
           ${isUnset ? html`<span class="gen-fallback-badge">${this._roleDefaultBadge(role)}</span>` : nothing}
         </div>
-        ${darkDiffers ? html`
-          <div class="gen-scale-row">
-            <div class="gen-scale-label">Full scale (dark)</div>
-            <div class="gen-scale-swatches">
-              ${TONE_ORDER.map(tone => html`
-                <div class="gen-scale-swatch">
+        <div class="gen-scale-row">
+          <div class="gen-scale-label">Full scale (dark)</div>
+          <div class="gen-scale-swatches">
+            ${TONE_ORDER.map(tone => {
+              const fallback = this._isRoleTonePreviewFallback(role, tone);
+              const tierBadge = this._buttonTierTagBadge(role, tone, 'dark');
+              const title = [fallback ? `${this._roleDefaultBadge(role)} — not set by this theme` : '', tierBadge.title]
+                .filter(Boolean).join(' — ');
+              return html`
+                <div class="gen-scale-swatch ${fallback ? 'gen-scale-swatch-fallback' : ''}" title="${title}">
                   <div class="gen-swatch-fill" style="background-color:${darkScale[tone]}"></div>
+                  ${tierBadge.abbr ? html`<span class="gen-tier-badge gen-scale-swatch-role-tag">${tierBadge.abbr}</span>` : nothing}
                   <span class="gen-scale-swatch-tag">${tone}</span>
                 </div>
-              `)}
-            </div>
+              `;
+            })}
           </div>
-        ` : nothing}
+          ${isUnset ? html`<span class="gen-fallback-badge">${this._roleDefaultBadge(role)}</span>` : nothing}
+        </div>
+        ${this._renderTierCorrectionNotes(role, 'light')}
+        ${this._renderTierCorrectionNotes(role, 'dark')}
       </lcards-form-section>
     `;
   }
@@ -1458,23 +1700,16 @@ export class LCARdSThemeGeneratorView extends LitElement {
     const scale = this._scaleForRole(role, mode);
     return html`
       ${mode === 'light' ? this._renderInfoGuide(`custom-${role}`, 'mdi:information-outline', 'Two ways to fill in a custom family', html`
-        <p>Every tone starts out gray until you set it — this is a blank slate, not pre-filled from a LCARdS
-          family (except the <strong>Base</strong> swatch, seeded from whatever this role/mode was showing just
-          before you switched to Custom).</p>
+        <p>Every tone starts gray until you set it, except <strong>Base</strong>, seeded from whatever this role was
+          showing before you switched to Custom.</p>
         <ul>
           <li>Set all 11 tones by hand, or</li>
-          <li><strong>Generate other 10 tones from Base</strong> — fills the rest from the Base colour using the
-            same OKLCH lightness-ramp HA-LCARS's own generic fallback uses (visible as the "ha-lcars generic"
-            comparison row in <code>reports/palette-scale-review.html</code>). <strong>Clear all</strong> resets
-            everything (including Base) back to blank gray.</li>
+          <li><strong>Generate other 10 tones from Base</strong> — fills the rest from Base using the same
+            lightness ramp HA-LCARS's own fallback uses. <strong>Clear all</strong> resets everything to gray.</li>
         </ul>
-        <p class="preset-info-guide-tip">The 7 solid-outlined swatches (Darkest/Dark/Medium Dark/Base/Medium
-          Light/Light/Lightest) are the ones OKLCH interpolation is calculated <em>from</em>. Editing any of
-          them automatically recalculates the 4 italic in-between swatches (10/50/60/95) to stay smoothly
-          blended — unless you've hand-edited that specific in-between swatch yourself, in which case it's
-          locked in as your own choice and won't be overwritten. Enable "Differs in dark mode" above for a fully
-          independent dark palette — including genuinely different hues, e.g. a green family reimagined as
-          purple at night.</p>
+        <p class="preset-info-guide-tip">Editing a solid-outlined swatch (Darkest/Dark/Medium Dark/Base/Medium
+          Light/Light/Lightest) recalculates the in-between swatches (10/50/60/95) automatically, unless you've
+          edited that one yourself. Enable "Differs in dark mode" for a fully independent dark palette.</p>
       `) : nothing}
       <div class="gen-toolbar-row">
         <ha-button @click=${() => this._clearCustomAnchors(role, mode)}>
@@ -1487,9 +1722,13 @@ export class LCARdSThemeGeneratorView extends LitElement {
         </ha-button>
       </div>
       <div class="gen-anchor-grid">
-        ${TONE_ORDER.map(tone => html`
+        ${TONE_ORDER.map(tone => {
+          const tierBadge = this._buttonTierTagBadge(role, tone, mode);
+          return html`
           <div class="gen-anchor-cell ${GAP_TONES.includes(tone) ? 'gen-anchor-gap' : ''} ${tone === '40' ? 'gen-anchor-base' : ''}">
-            <label>${TONE_LABELS[tone]}${tone === '40' ? ' — seed for Generate' : ''} (tone ${tone})</label>
+            <label>${TONE_LABELS[tone]}${tone === '40' ? ' — seed for Generate' : ''} (tone ${tone})
+              ${tierBadge.abbr ? html` <span class="gen-tier-badge" title="${tierBadge.title}">${tierBadge.abbr}</span>` : nothing}
+            </label>
             <lcards-color-picker .hass=${this.hass}
               .value=${(store[role] || {})[tone] ?? scale[tone]}
               .showBuilder=${false}
@@ -1497,7 +1736,8 @@ export class LCARdSThemeGeneratorView extends LitElement {
               @value-changed=${(ev) => this._updateCustomTone(role, tone, ev.detail.value, mode)}>
             </lcards-color-picker>
           </div>
-        `)}
+        `;
+        })}
       </div>
     `;
   }
@@ -1505,7 +1745,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
   _renderLegacySection() {
     return html`
       <lcards-form-section header="HA-LCARS &amp; Legacy HA Semantic Colours" icon="mdi:format-color-fill" ?expanded=${false} ?outlined=${true}
-        description="Define the colour for HA-LCARS lcars-ui-*/card/sidebar/tooltip vars and legacy HA vars.  The CSS var name is shown under each label reference. When not imported, the defaults are derived from Palette Seed.">
+        description="Set the colour for HA-LCARS and legacy HA vars — var name shown under each label. Unset fields default to HA-LCARS or HA defaults, if available.">
         <div class="gen-row-header">
           <div></div><div>Light</div><div></div><div>Dark</div><div></div>
         </div>
@@ -1537,7 +1777,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
     // machinery already used for a raw imported override's own var() references.
     const displayValue = override.value ?? defaultEntry.var;
     const hasDark = override.dark !== undefined;
-    // Fixed fields are ha-lcars's own harvested structural constants, not a real HA-core fallback
+    // Fixed fields are HA-LCARS's own harvested structural constants, not a real HA-core fallback
     // (several, like the lcars-ui-*/lcars-card-* ones, aren't even real HA vars) — labeled distinctly
     // from "HA Default" so a blank field is never mistaken for a genuine user override either way.
     const badgeLabel = isModified ? null
@@ -1580,39 +1820,23 @@ export class LCARdSThemeGeneratorView extends LitElement {
     return html`
       <lcards-form-section header="Domain &amp; State Colours" icon="mdi:state-machine" ?expanded=${false} ?outlined=${true}>
         ${this._renderInfoGuide('domain', 'mdi:information-outline', 'How domain & state colours work', html`
-          <p>HA colours a per-entity-domain state icon/badge by walking a fixed CSS fallback chain
-            (confirmed against HA's own <code>state_color.ts</code>) until it finds a var that's actually
-            defined, most specific first:</p>
+          <p>HA colours an entity's state icon by walking a fallback chain until it finds a var that's defined:</p>
           <ol>
-            <li><code>--state-&lt;domain&gt;-&lt;device_class&gt;-&lt;state&gt;-color</code> — only when the
-              entity has a device_class</li>
+            <li><code>--state-&lt;domain&gt;-&lt;device_class&gt;-&lt;state&gt;-color</code> — only for entities
+              with a device_class</li>
             <li><code>--state-&lt;domain&gt;-&lt;state&gt;-color</code> — the rows below, e.g.
               <code>--state-light-on-color</code></li>
             <li><code>--state-&lt;domain&gt;-active-color</code> / <code>-inactive-color</code> — HA's own
-              per-domain active/inactive split, decided by HA's <code>stateActive()</code> (genuinely
-              domain-specific — e.g. for locks, every state except "locked" counts as active). This isn't
-              redundant with the row above it: that targets one exact state name, this is a coarser catch-all
-              covering every <em>other</em> state in the domain, named or not. Not editable here — a dedicated
-              pair of fields per domain would mean ~58 more rows, reintroducing exactly the kind of large
-              hand-maintained roster this section deliberately avoids. Reachable via Advanced / Raw Overrides
-              if you need that level of control.</li>
-            <li><strong>Global Fallback</strong>, just below — the final, generic floor:
-              <code>--state-active-color</code> / <code>--state-inactive-color</code>, plus
-              unavailable/unknown/default-icon for their own special cases.</li>
+              per-domain active/inactive split. Not editable here; use Advanced / Raw Overrides if you need it.</li>
+            <li><strong>Global Fallback</strong> below — the final floor: <code>--state-active-color</code> /
+              <code>--state-inactive-color</code>, plus unavailable/unknown/default-icon.</li>
           </ol>
-          <p>An entity that's genuinely <code>unavailable</code> skips this whole chain and always uses Global
-            Fallback's <code>--state-unavailable-color</code> directly.</p>
-          <p class="preset-info-guide-tip"><strong>Rows only ever hold a real value once you (or your starting
-            theme) explicitly set one.</strong> <code>lock</code>/most of <code>climate</code> show real values
-            from the start since ha-lcars's own shared anchor genuinely defines those specifically — the same
-            values any real ha-lcars theme has, not a guess. Every other row starts unset, previewed from static
-            reference data, never whatever theme happens to be active on this page: badged
-            <strong>HA-LCARS Default</strong> when that same shared anchor defines the exact colour,
-            <strong>HA Default</strong> when HA core itself does, or <strong>Global Default</strong> when neither
-            does and the row is really just previewing Global Fallback's own Active/Inactive colour. An unset row
-            writes nothing to the exported theme — leaving everything unset and only setting Global Fallback is a
-            perfectly complete theme. Set a
-            row only when a specific domain/state genuinely needs to break from that fallback.</p>
+          <p>An <code>unavailable</code> entity skips straight to Global Fallback's
+            <code>--state-unavailable-color</code>.</p>
+          <p class="preset-info-guide-tip">Rows only hold a real value once set — <code>lock</code> and most of
+            <code>climate</code> come pre-set from HA-LCARS's own shared defaults. Every other row starts unset and
+            just previews a static default (badged HA-LCARS Default / HA Default / Global Default). Leaving
+            everything unset and only setting Global Fallback is a perfectly complete theme.</p>
         `)}
         <lcards-form-section header="Global Fallback" ?expanded=${true} nested>
           ${LEGACY_FIELD_DEFS.filter(f => DOMAIN_FALLBACK_KEYS.has(f.key)).map(field => this._renderLegacyField(field))}
@@ -1672,7 +1896,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
     const catalogOptions = getKnownVariableCatalog().map(e => ({ value: e.name, label: e.name }));
     return html`
       <lcards-form-section header="Advanced / Raw Overrides" icon="mdi:tune-variant" ?expanded=${false} ?outlined=${true}
-        description="Anything outside the curated sections above — WebAwesome design tokens, data-viz colours, component-level fallback vars, or any other var name. Pick a var name (no leading --) from the searchable list, or type your own — any name is accepted.">
+        description="Anything other var name outside the sections above.  Pick one from the list or type your own.">
         ${this._model.raw.length ? html`
           <div class="gen-row-header" style="grid-template-columns: minmax(200px, 280px) 1fr auto 1fr auto;">
             <div>Var Name</div><div>Light</div><div></div><div>Dark</div><div></div>
@@ -1734,7 +1958,8 @@ export class LCARdSThemeGeneratorView extends LitElement {
         </div>
 
         <lcards-form-section header="Palette Seed — Full Palettes" icon="mdi:palette-swatch" ?expanded=${true} nested
-          description="The 5 raw ha-color-<role>-* palettes (05–95) everything below is computed from — see Palette Seed above to change them.">
+          description="The 5 raw palettes everything below is computed from. Edit them in Palette Seed above.">
+          ${this._renderTierLegend()}
           <div class="gen-scale-preview">
             ${HA_PALETTE_ROLES.map(role => {
               const isUnset = this._model.roles[role]?.source === 'none';
@@ -1745,10 +1970,13 @@ export class LCARdSThemeGeneratorView extends LitElement {
                   <div class="gen-scale-swatches">
                     ${TONE_ORDER.map(tone => {
                       const fallback = this._isRoleTonePreviewFallback(role, tone);
+                      const tierBadge = this._buttonTierTagBadge(role, tone, this._previewMode);
+                      const title = [fallback ? `${this._roleDefaultBadge(role)} — not set by this theme` : '', tierBadge.title]
+                        .filter(Boolean).join(' — ');
                       return html`
-                        <div class="gen-scale-swatch ${fallback ? 'gen-scale-swatch-fallback' : ''}"
-                          title="${fallback ? `${this._roleDefaultBadge(role)} — not set by this theme` : ''}">
+                        <div class="gen-scale-swatch ${fallback ? 'gen-scale-swatch-fallback' : ''}" title="${title}">
                           <div class="gen-swatch-fill" style="background-color:${scale[tone]}"></div>
+                          ${tierBadge.abbr ? html`<span class="gen-tier-badge gen-scale-swatch-role-tag">${tierBadge.abbr}</span>` : nothing}
                           <span class="gen-scale-swatch-tag">${tone}</span>
                         </div>
                       `;
@@ -1756,39 +1984,31 @@ export class LCARdSThemeGeneratorView extends LitElement {
                   </div>
                   ${isUnset ? html`<span class="gen-fallback-badge">${this._roleDefaultBadge(role)}</span>` : nothing}
                 </div>
+                ${this._renderTierCorrectionNotes(role, this._previewMode)}
               `;
             })}
           </div>
         </lcards-form-section>
 
         <lcards-form-section header="Colour Reference" icon="mdi:format-color-fill" ?expanded=${false} nested
-          description="Every field in HA-LCARS &amp; Legacy HA Semantic Colours below, as a single at-a-glance swatch sheet — same grouping, same live-resolved values (default or overridden, whichever is currently active) for the selected Light/Dark mode above.">
+          description="Every field from HA-LCARS &amp; Legacy HA Semantic Colours, as one swatch sheet, for the selected Light/Dark mode above.">
           ${this._renderVarSwatchSection(model)}
         </lcards-form-section>
 
         <lcards-form-section header="Domain &amp; State Colours — Live" icon="mdi:state-machine" ?expanded=${false} nested
           @expanded-changed=${() => this.requestUpdate()}
-          description="Real HA tile cards against a synthetic demo entity for each well-known domain below — Domain &amp; State Colours has no live preview otherwise, only raw colour rows.">
+          description="Real HA tile cards previewing each domain below, since Domain &amp; State Colours otherwise has no live preview.">
           ${this._renderInfoGuide('domain-demo', 'mdi:information-outline', 'What these tiles are, and what they can\'t show', html`
-            <p>Each tile is a real <code>hui-card</code> (the same HA element type your real dashboard uses)
-              pointed at a fake entity — e.g. <code>light.lcards_theme_lab_demo</code> — that doesn't exist in your
-              HA instance. Created only for this preview, never written anywhere, gone when you close the Theme
-              Lab. Tapping a tile does nothing (no more-info dialog) since the entity behind it isn't real.</p>
+            <p>Each tile is a real <code>hui-card</code> pointed at a fake entity, created only for this preview.
+              Tapping a tile does nothing — the entity isn't real.</p>
             <p class="preset-info-guide-tip"><strong>Person and device tracker are missing on purpose:</strong> HA's
-              own tile card never colours those two domains' icons from a CSS var at all — their colour lives on a
-              badge, an unrelated mechanism this generator doesn't touch. They're still editable as static swatches
-              in <strong>Domain &amp; State Colours</strong> above.</p>
-            <p class="preset-info-guide-missing-note">A tile captioned <strong>HA-LCARS Default</strong> or
-              <strong>HA Default</strong> means that domain/state hasn't been overridden in Domain &amp; State
-              Colours — this is a real, live-mounted <code>hui-card</code>, but the colour you see is this section's
-              own static default (ha-lcars's shared anchor, or HA core's own baseline), the same as everywhere
-              else on this page — never whatever theme happens to be active on this browser tab. Separately, LCARdS
-              only ever generates the generic <code>--state-&lt;domain&gt;-&lt;state&gt;-color</code>
-              var, never a device_class-specific one (e.g. <code>--state-binary_sensor-smoke-on-color</code>) — but
-              HA's own default theme defines several of those more specific vars unconditionally, so your <em>real</em>
-              device-classed entities (an actual <code>binary_sensor.smoke</code>, say) will keep showing HA's
-              baked-in colour regardless of what this theme sets, since CSS <code>var()</code> fallback only engages
-              once the higher-priority var is undefined.</p>
+              tile card doesn't colour those from a CSS var — their colour comes from a badge instead. Still
+              editable as swatches in <strong>Domain &amp; State Colours</strong> above.</p>
+            <p class="preset-info-guide-missing-note">A tile badged <strong>HA-LCARS Default</strong> or
+              <strong>HA Default</strong> is showing this section's static default, not whatever theme is active on
+              this browser tab. Real device-classed entities (e.g. an actual <code>binary_sensor.smoke</code>) may
+              still show HA's own baked-in colour, since this generator only sets the generic per-state var, not
+              device-class-specific ones.</p>
           `)}
           ${this._renderDomainDemoPreview(model)}
         </lcards-form-section>
@@ -1807,70 +2027,65 @@ export class LCARdSThemeGeneratorView extends LitElement {
         <div class="gen-preview-box">
           <div class="gen-preview-heading">LCARS UI Chrome</div>
           <p class="gen-preview-subheading">The sidebar, app header, tooltip, and core <code>lcars-ui-*</code> colour
-            tiers — the parts of a real HA-LCARS dashboard that can't be reproduced as an actual card_mod-classed
-            card (see below), since their styling targets HA's own live app-shell chrome (or, for the colour tiers,
-            no single card_mod class at all) rather than a per-card class.</p>
+            tiers — chrome that can't be shown as a card_mod-classed card (see below).</p>
           ${this._renderInfoGuide('lcars-mockups', 'mdi:information-outline', 'What these mockups show', html`
-            <p>Hand-built approximations, coloured from your actual <strong>HA-LCARS &amp; Legacy HA Semantic
-              Colours</strong> values (defaults or overrides, whichever is currently active) for the selected
-              Light/Dark mode above. Not pixel-exact to HA-LCARS's own CSS, but close enough to sanity-check contrast
-              and hue choices before pasting anywhere. Card chrome itself isn't mocked up here any more — see the real
-              card_mod header/middle/footer/button examples below instead.</p>
+            <p>Hand-built approximations, coloured from your current values for the selected Light/Dark mode above.
+              Not pixel-exact, but close enough to check contrast and hue.</p>
           `)}
           ${this._renderLcarsMockups(this._previewMode)}
 
-          <p class="gen-preview-subheading">Below: the same chrome — plus buttons, and standalone bars — but
-            rendered by real HA-LCARS card_mod classes, not an approximation, when card_mod or UIX is available.</p>
+          <p class="gen-preview-subheading">Below: the same chrome, plus buttons and bars, rendered by real
+            HA-LCARS card_mod classes when card_mod or UIX is available.</p>
           ${this._renderInfoGuide('lcars-cardmod', 'mdi:information-outline', 'What this needs to actually render', html`
-            <p>These are real examples straight from HA-LCARS's own README ("Usage instructions" → "Classes") —
-              plain <code>markdown</code>/<code>button</code> cards with a <code>card_mod: {class: ...}</code>
-              config, created the same way LCARdS creates any real HA card elsewhere in this app. Two things both
-              need to be true for them to render correctly:</p>
+            <p>Real examples from HA-LCARS's own README. Two things need to be true for them to render:</p>
             <ul>
-              <li>Either <a href="https://github.com/thomasloven/lovelace-card-mod" target="_blank" rel="noopener">card_mod</a>
-                or its HACS successor <a href="https://uix.lf.technology/" target="_blank" rel="noopener">UIX (UI
-                eXtension)</a> — a drop-in replacement that processes the same <code>card_mod:</code> config key —
-                must be installed. Without one of these, these classes don't mean anything to any card.</li>
-              <li>Your <strong>currently active HA theme</strong> must be an HA-LCARS theme, since the class
-                definitions themselves live in a theme's own <code>card-mod-card-yaml</code> — a reserved variable
-                card_mod/UIX reads from whichever theme is actually applied to this page right now, not from the
-                theme you're editing here. There's no way for this generator to inject that on your behalf: it's a
-                large block of Jinja2-templated CSS tied to HA helper entities, not something that can be copied in
-                as plain CSS.</li>
+              <li><a href="https://github.com/thomasloven/lovelace-card-mod" target="_blank" rel="noopener">card_mod</a>
+                or its HACS successor <a href="https://uix.lf.technology/" target="_blank" rel="noopener">UIX</a> must
+                be installed.</li>
+              <li>Your currently active HA theme must be an HA-LCARS theme — the class definitions live in that
+                theme's own <code>card-mod-card-yaml</code>, not in the theme you're editing here.</li>
             </ul>
-            <p class="preset-info-guide-tip">The <em>colours</em> those classes use, though —
-              <code>--lcars-card-top-color</code> and friends — do come from the theme you're editing here, live, the
-              same way the rest of this preview does. Only the class definitions themselves depend on what's actually
-              active. The button demos below use a name/icon only, no real entity — HA-LCARS's own README examples
-              bind these classes to real lights/switches, but this generator can't assume any specific entity exists
-              in your HA instance.</p>
+            <p class="preset-info-guide-tip">The <em>colours</em> those classes use — <code>--lcars-card-top-color</code>
+              and friends — do come from the theme you're editing, live. Only the class definitions depend on what's
+              active.</p>
           `)}
           ${this._renderLcarsCardModPreview(model)}
         </div>
 
         <lcards-form-section header="HA-* Native Controls" icon="mdi:home-assistant" ?expanded=${false} nested
-          description="Real, live stock Home Assistant elements (not HA-LCARS-specific, and not hand-drawn approximations) — wrapped in this theme's actual computed colours for the selected Light/Dark mode above.">
+          description="Real, stock HA elements, wrapped in this theme's computed colours for the selected Light/Dark mode.">
           ${this._renderInfoGuide('live-preview', 'mdi:information-outline', 'What\'s real here, and what still isn\'t', html`
-            <p>These are real <code>ha-card</code>/<code>ha-button</code>/<code>ha-switch</code>/<code>ha-checkbox</code>/
-              <code>ha-alert</code> elements, wrapped in a container carrying this theme's actual computed CSS custom
-              properties — HA's own component CSS resolves colours exactly the way it would once this theme is
-              installed and applied for real. Nothing outside this box is affected — no live HA theme, setting, or
-              other part of this page is touched, and nothing here is written to the exported YAML. Unlike the
-              card_mod examples above, these always render — no card_mod/UIX or active-theme prerequisite.</p>
-            <p class="preset-info-guide-tip">The <code>ha-alert</code> stack at the top exercises HA's legacy
-              <code>info/success/warning/error-color</code> vars, a layer none of the buttons below touch — see
-              <strong>Colour Reference</strong> above for every other field this theme defines, as swatches.</p>
-            <p class="preset-info-guide-tip">The switch and checkbox are only shown once each, not once per state —
-              they're real, interactive controls, so toggle them yourself to see both the on and off colours rather
-              than comparing two static copies.</p>
+            <p>Real <code>ha-card</code>/<code>ha-button</code>/<code>ha-switch</code>/<code>ha-checkbox</code>/
+              <code>ha-alert</code> elements, wrapped in this theme's computed CSS. Nothing outside this box is
+              affected, and nothing here is written to the export. Unlike the card_mod examples above, these always
+              render.</p>
+            <p class="preset-info-guide-tip">The alert stack exercises the legacy
+              <code>info/success/warning/error-color</code> vars — see <strong>Colour Reference</strong> above for
+              every other field, as swatches.</p>
+            <p class="preset-info-guide-tip">Each variant shows all 4 of <code>ha-button</code>'s real
+              <code>appearance</code> values (<code>frontend/src/components/ha-button.ts</code>'s own type — this
+              isn't a curated subset), labelled by that real attribute name. Confirmed directly against the real
+              <code>@home-assistant/webawesome</code> package and ha-button.ts's own overrides: <strong>Accent</strong>
+              reads the "loud" fill/text tokens; <strong>Filled</strong> and <strong>Plain</strong> share the
+              "normal" tokens (ha-button.ts explicitly redirects Plain's text to match Filled); <strong>Outlined</strong>
+              is driven by the "quiet" tokens alone, entirely separate from Filled/Plain — a same-looking swatch
+              tone can legitimately land differently on Outlined than on Filled/Plain. The swatches in Palette Seed
+              above are tagged with the same letters shown here: <strong>A</strong> = Accent background,
+              <strong>F</strong> = Filled background, <strong>T</strong> = Filled &amp; Plain text,
+              <strong>O</strong> = Outlined text. A role left "None" is tagged the same way, using HA's own real
+              default scale instead — its buttons come from HA's live fallback rather than anything exported here,
+              but the tone that drives them is still real and still shown. Accent's text has no tag since it isn't
+              tone-based — it's plain white by default, auto-corrected to black if that fails contrast; Filled/Plain
+              and Outlined's text can each lose their own tag the same way, but only for a role Palette Seed
+              actually manages (Family/Custom/Imported) — that correction is this generator's own, applied on
+              export, not something HA/"None" roles ever get. To change any of these, edit the tagged stop's colour
+              in Palette Seed; the tone each tag points to isn't itself editable.</p>
+            <p class="preset-info-guide-tip">Toggle the switch/checkbox yourself to see both on and off colours.</p>
             <p class="preset-info-guide-tip"><strong>Roles left "None" in Palette Seed</strong> render using whatever
-              HA (or your current active theme) genuinely falls back to right now, on this very page — the same real
-              fallback behaviour as everywhere else in this preview, just applied automatically by the browser
-              instead of read manually.</p>
-            <p class="preset-info-guide-missing-note">Still not your actual dashboard: a real Lovelace view adds its
-              own card layout, spacing, and any card-mod/HA-LCARS chrome around content like this — see
-              <strong>LCARS UI Chrome</strong> above for that layer. This box only proves the theme's colour tokens
-              resolve correctly on genuine HA components.</p>
+              HA (or your active theme) falls back to right now.</p>
+            <p class="preset-info-guide-missing-note">Not your actual dashboard — a real view adds its own layout and
+              HA-LCARS chrome (see <strong>LCARS UI Chrome</strong> above). This box only proves the theme's colours
+              resolve correctly.</p>
           `)}
           ${this._renderLiveComponentPreview(model)}
         </lcards-form-section>
@@ -1878,12 +2093,10 @@ export class LCARdSThemeGeneratorView extends LitElement {
         <div class="gen-preview-box gen-export-box">
           <div class="gen-preview-heading">Generated Theme YAML</div>
           <div class="info-card">
-            <p>Paste this into your existing HA-LCARS <code>themes.yaml</code>, alongside its other themes (not a
-              standalone file) — like every real HA-LCARS theme, it references the shared <code>&amp;lcars-variables</code>,
-              <code>&amp;base</code>, and <code>&amp;card-mod-css</code> anchors (the <code>&lt;&lt;: *name</code> lines
-              near the top) for the sidebar chrome, fonts, tables, tooltips, and card-mod styling this generator
-              doesn't reproduce on its own. Everything explicitly listed below always wins over what those anchors
-              provide.</p>
+            <p>Paste this into your existing HA-LCARS <code>themes.yaml</code>, alongside its other themes. It
+              references the shared <code>&amp;lcars-variables</code>/<code>&amp;base</code>/<code>&amp;card-mod-css</code>
+              anchors for sidebar chrome, fonts, and card-mod styling this generator doesn't reproduce — everything
+              listed below overrides them.</p>
           </div>
           <div class="yaml-actions">
             <span class="gen-hint" style="margin:0;">Generated YAML — read-only, copy it below.</span>
@@ -1911,6 +2124,24 @@ export class LCARdSThemeGeneratorView extends LitElement {
     if (field.live) return this._staticHaDefault(field.key).hex;
     if (!this._roleDerivesLegacyFields(field.role)) return this._legacyFieldDefault(field).hex;
     return this._resolveTone(field.role, field.tone, mode).hex;
+  }
+
+  /**
+   * The theme's real backdrop, for resolveOnEntry's ambient-contrast check (see its own doc
+   * comment) — normally card-background-color's own resolution, but that field's static-default
+   * chain (card-background-color -> secondary-background-color -> lcars-ui-quaternary) can't
+   * actually resolve when Neutral's Palette Seed role is "Imported"/"None": lcars-ui-quaternary is
+   * theme-specific, never part of the shared boilerplate anchor, so _legacyValueForMode silently
+   * bottoms out at the generic "nothing resolved" placeholder, #888888 — confirmed directly
+   * against the real boilerplate object, not assumed. Every bundled HA-LCARS theme leaves Neutral
+   * at its default "Imported" source, so this isn't an edge case — it was silently wrong for
+   * essentially every theme this generator ships with. Falls back to plain black in that case,
+   * matching HA-LCARS's own explicit, near-universal convention (confirmed in the theme YAML
+   * itself: lcars-background-color: var(--lcars-black); lcars-black: "#000000").
+   */
+  _ambientBgHex(mode) {
+    const raw = this._legacyValueForMode('card-background-color', mode);
+    return raw === '#888888' ? '#000000' : raw;
   }
 
   _renderLcarsMockups(mode) {
@@ -2017,15 +2248,18 @@ export class LCARdSThemeGeneratorView extends LitElement {
           </div>
         </ha-card>
         <div class="gen-btn-grid">
-          ${HA_BUTTON_VARIANTS.flatMap(({ role, variant, label }) => HA_BUTTON_TIERS.map(({ appearance, label: tierLabel }) => {
+          ${HA_BUTTON_VARIANTS.flatMap(({ role, variant, label }) => {
             const unset = this._semanticRoleUnset(role);
-            return html`
-              <div class="gen-btn-cell ${unset ? 'gen-btn-cell-fallback' : ''}">
-                <ha-button size="s" variant=${variant} appearance=${appearance}>${label} / ${tierLabel}</ha-button>
-                ${unset ? html`<div class="gen-mock-caption"><span class="gen-fallback-badge">HA default</span></div>` : nothing}
-              </div>
-            `;
-          }))}
+            return [
+              html`<div class="gen-btn-variant-label">${label}</div>`,
+              ...HA_BUTTON_TIERS.map(({ appearance, label: tierLabel }) => html`
+                <div class="gen-btn-cell ${unset ? 'gen-btn-cell-fallback' : ''}">
+                  <ha-button size="s" variant=${variant} appearance=${appearance}>${tierLabel}</ha-button>
+                  ${unset ? html`<div class="gen-mock-caption"><span class="gen-fallback-badge">HA default</span></div>` : nothing}
+                </div>
+              `),
+            ];
+          })}
         </div>
         <div class="gen-live-switch-row">
           <ha-switch checked></ha-switch>
@@ -2046,8 +2280,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
    */
   _renderLcarsCardModPreview(model) {
     if (!isCardModAvailable()) {
-      return html`<p class="gen-hint">Neither card_mod nor UIX (UI eXtension) is installed on this HA instance —
-        these examples need one of them. Install either via
+      return html`<p class="gen-hint">Neither card_mod nor UIX (UI eXtension) is installed — install either via
         <a href="https://hacs.xyz/" target="_blank" rel="noopener">HACS</a> to see this preview.</p>`;
     }
     const styles = this._buildLiveVarStyle(model, this._previewMode);
@@ -2056,9 +2289,8 @@ export class LCARdSThemeGeneratorView extends LitElement {
     return html`
       <div class="gen-live-preview" style=${styleMap(styles)}>
         ${!activeThemeHasCardMod ? html`
-          <p class="gen-hint">Your currently active HA theme doesn't appear to define HA-LCARS's card-mod classes
-            — these may render unstyled below. Switch your active theme to an HA-LCARS variant to see this
-            preview correctly.</p>
+          <p class="gen-hint">Your active HA theme doesn't define HA-LCARS's card-mod classes — these may render
+            unstyled. Switch to an HA-LCARS theme to see this correctly.</p>
         ` : nothing}
         ${LCARS_CARDMOD_DEMOS.map(({ group, demos }) => html`
           <div class="gen-cardmod-group-title">${group}</div>
@@ -2341,7 +2573,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
     };
   }
 
-  /** Regenerates the other 10 tones (light or dark) from whatever that mode's Base (tone 40) swatch currently holds, via the same OKLCH lightness-ramp ha-lcars's own generic fallback uses (computeHaDefaultScale, which already covers all 11 HA tone slots). Base itself is left exactly as the user set it (e.g. a var() reference) — only used as a resolved-hex seed for the math, never overwritten. */
+  /** Regenerates the other 10 tones (light or dark) from whatever that mode's Base (tone 40) swatch currently holds, via the same OKLCH lightness-ramp HA-LCARS's own generic fallback uses (computeHaDefaultScale, which already covers all 11 HA tone slots). Base itself is left exactly as the user set it (e.g. a var() reference) — only used as a resolved-hex seed for the math, never overwritten. */
   _generateAnchorsFromBase(role, mode = 'light') {
     const store = mode === 'dark' ? 'customAnchorsDark' : 'customAnchors';
     const touchedStore = mode === 'dark' ? 'customAnchorsDarkTouched' : 'customAnchorsTouched';
@@ -2456,7 +2688,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
     }
 
     // Strip merge-key lines (<<: *anchor) — those pull in another file's
-    // shared ha-lcars anchors (&lcars-variables/&base/&card-mod-css), not
+    // shared HA-LCARS anchors (&lcars-variables/&base/&card-mod-css), not
     // resolvable from a standalone paste (unlike the bundled library above,
     // which is a self-contained document with those anchors defined earlier
     // in the same file, resolved natively by js-yaml).
@@ -2482,7 +2714,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
 
   /**
    * Buckets a flat/mode-scoped theme object (however it was sourced — the
-   * bundled ha-lcars library or a pasted YAML block) into this generator's
+   * bundled HA-LCARS library or a pasted YAML block) into this generator's
    * curated legacy/domain-state fields, a raw-overrides catch-all for
    * anything unrecognized, and (when a role's full 11-stop ha-color-* ramp
    * is present) a Palette Seed "Imported" source per role. Loading a theme
@@ -2620,6 +2852,60 @@ export class LCARdSThemeGeneratorView extends LitElement {
     // Remembered purely for _previewHex — lets Legacy/Domain/Raw swatch previews resolve any
     // leftover var(--lcars-...) override values against this theme's own colors, not the live page.
     this._importedThemeContext = themeObj;
+
+    // De-noise the canon palette: section 1 of _buildExportModel always inlines all 55
+    // lcards-<family>[-<suffix>] keys as literal hex, unconditionally and independent of any Palette
+    // Seed role — a raw key matching CANON_PALETTE_FLAT byte-for-byte is that restated canon palette,
+    // not a real customization. Mode-independent (section 1 never writes a dark variant), so only
+    // ever clears `.value`.
+    for (const entry of raw) {
+      const canon = CANON_PALETTE_FLAT[entry.key];
+      if (canon !== undefined && entry.value === canon) delete entry.value;
+    }
+
+    // De-noise mode-scoped boilerplate (lcars-ui-mix-color/lcars-backlight-*): see
+    // HA_LCARS_THEME_LIBRARY's own modeScopedBoilerplate comment for why this has to be a post-hoc
+    // check against `raw` rather than a pre-filter in the modes.light/modes.dark classification loop
+    // above (a LEGACY_KEYS-recognized field can coincidentally agree with it too, without that
+    // agreed value matching what its own role/tone computation would produce).
+    for (const mode of ['light', 'dark']) {
+      const modeBoilerplate = HA_LCARS_THEME_LIBRARY.modeScopedBoilerplate[mode] || {};
+      for (const entry of raw) {
+        const bp = modeBoilerplate[entry.key];
+        if (bp === undefined) continue;
+        if (mode === 'dark') {
+          if (entry.dark === bp) delete entry.dark;
+        } else if (entry.value === bp) {
+          delete entry.value;
+        }
+      }
+    }
+
+    // De-noise the semantic layer: HA_COLOR_RAMP_RE (above) only recognizes the 2-part
+    // ha-color-<role>-<tone> atom shape, so every ha-color-on/fill/border/surface/
+    // form-background-* key landed in `raw` unconditionally, regardless of whether its value is
+    // actually distinctive. Now that roles/legacy/importedRamps above reflect exactly what this
+    // import just resolved, recompute what _buildExportModel's section 3 would derive for each mode
+    // and drop the raw entry (or just the light/dark half of it) when it matches — the same
+    // "a value indistinguishable from the computed default isn't a real override" principle as the
+    // boilerplate de-noise and the ramp-atom promotion above, one layer up. A genuine hand-authored
+    // override (one that doesn't match) survives untouched.
+    for (const mode of ['light', 'dark']) {
+      const computed = this._buildSemanticTokensForMode(mode);
+      for (const entry of raw) {
+        const computedValue = computed[entry.key];
+        if (computedValue === undefined) continue;
+        if (mode === 'dark') {
+          if (entry.dark === computedValue) delete entry.dark;
+        } else if (entry.value === computedValue) {
+          delete entry.value;
+        }
+      }
+    }
+    for (let i = raw.length - 1; i >= 0; i--) {
+      if (raw[i].value === undefined && raw[i].dark === undefined) raw.splice(i, 1);
+    }
+
     const rampCount = Object.keys(importedRamps).length;
     const rampNote = rampCount
       ? ` ${rampCount} palette ramp(s) imported and now active in Palette Seed.`
@@ -2637,9 +2923,53 @@ export class LCARdSThemeGeneratorView extends LitElement {
   // ─── Export ─────────────────────────────────────────────────────────────
 
   _resolveOnValue(role, mode, tier) {
-    const resolveTone = this._resolveSemanticRoleTone.bind(this);
+    const resolveTone = this._resolveSemanticRoleToneAsAtom.bind(this);
     const resolveFillResting = (r, t) => resolveFillEntry(resolveTone, r, mode, t, 'resting');
-    return resolveOnEntry(resolveTone, resolveFillResting, role, mode, tier).var;
+    return resolveOnEntry(resolveTone, resolveFillResting, role, mode, tier, this._ambientBgHex(mode)).var;
+  }
+
+  /**
+   * The ha-color-on/fill/border/surface/form-background-* tokens for one mode, exactly as
+   * _buildExportModel's section 3 emits them — factored out so _importThemeObject's de-noise pass
+   * (below) can recompute the same values against a freshly imported theme's just-resolved Palette
+   * Seed state (this._model.roles/importedRamps/legacy) and recognize a raw key that matches one of
+   * these as a computed default rather than a real override. Depends entirely on this._model as it
+   * currently stands — callers must set roles/legacy/importedRamps before calling this.
+   */
+  _buildSemanticTokensForMode(mode) {
+    /** @type {Object<string,string>} */
+    const bucket = {};
+    const resolveTone = this._resolveSemanticRoleToneAsAtom.bind(this);
+    for (const role of SEMANTIC_ROLES) {
+      if (this._semanticRoleUnset(role)) continue;
+      for (const tier of SEMANTIC_TIERS) {
+        bucket[`ha-color-on-${role}-${tier}`] = this._resolveOnValue(role, mode, tier);
+      }
+    }
+    for (const role of SEMANTIC_ROLES) {
+      if (this._semanticRoleUnset(role)) continue;
+      for (const tier of SEMANTIC_TIERS) {
+        const states = role === 'disabled' ? ['resting', 'hover'] : ['resting', 'hover', 'active'];
+        for (const state of states) {
+          bucket[`ha-color-fill-${role}-${tier}-${state}`] = resolveFillEntry(resolveTone, role, mode, tier, state).var;
+        }
+      }
+    }
+    for (const role of BORDER_ROLES) {
+      if (this._semanticRoleUnset(role)) continue;
+      for (const tier of SEMANTIC_TIERS) {
+        bucket[`ha-color-border-${role}-${tier}`] = resolveBorderEntry(resolveTone, role, mode, tier).var;
+      }
+    }
+    if (!this._semanticRoleUnset('neutral')) {
+      for (const key of Object.keys(SURFACE[mode])) {
+        const varName = key === 'on-surface-default' ? 'ha-color-on-surface-default' : `ha-color-surface-${key}`;
+        bucket[varName] = resolveSurfaceEntry(resolveTone, mode, key).var;
+      }
+      bucket['ha-color-form-background-hover'] = resolveFormBackgroundEntry(resolveTone, mode, 'hover').var;
+      bucket['ha-color-form-background-disabled'] = resolveFormBackgroundEntry(resolveTone, mode, 'disabled').var;
+    }
+    return bucket;
   }
 
   _buildExportModel() {
@@ -2649,7 +2979,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
     const light = {};
     /** @type {Object<string,string>} */
     const dark = {};
-    const resolveTone = this._resolveSemanticRoleTone.bind(this);
+    const resolveTone = this._resolveSemanticRoleToneAsAtom.bind(this);
 
     // 1. LCARdS canon palette — always inlined as literal hex (self-contained, matches paletteInjector.js convention).
     for (const family of LCARDS_FAMILIES) {
@@ -2660,14 +2990,17 @@ export class LCARdSThemeGeneratorView extends LitElement {
     flat['lcards-moonlight'] = GREEN_ALERT_PALETTE['moonlight'];
 
     // 1b. HA palette atoms — the actual ha-color-{role}-{tone} layer Palette Seed above builds (05-95, 11 stops per
-    // role). Everything else in this file (legacy fields, domain colors, ha-color-on/fill/border/surface semantic
-    // tokens) only ever consumes these indirectly through _resolveTone/_scaleForRole — they never depend on the
-    // atoms actually being exported, since 'family' source resolves to a self-contained --lcards-* var reference and
-    // 'custom'/'imported' resolve to literal hex either way. But native HA components that read --ha-color-{role}-*
-    // directly (bypassing the semantic layer entirely) need the atoms themselves in the YAML to see this theme's
-    // palette at all — without this block a fully custom Palette Seed role (including a hand-built dark variant)
-    // would visibly preview here but never actually reach the exported theme. Roles left at 'none' emit nothing,
-    // falling back to whatever the merged-in ha-lcars boilerplate (or HA's own baseline) defines for that family.
+    // role). Legacy fields and domain colors consume these indirectly through _resolveTone/_scaleForRole and never
+    // depend on the atoms actually being exported, since 'family' source resolves to a self-contained --lcards-* var
+    // reference and 'custom'/'imported' resolve to literal hex either way. The ha-color-on/fill/border/surface
+    // semantic tokens in section 3 below, however, DO depend on these atoms being present: they reference this
+    // layer by name (_resolveSemanticRoleToneAsAtom, matching HA's own semantic.globals.ts convention) whenever a
+    // role+tone genuinely has one exported here, so a role's tone can be changed in one place and ripple through
+    // every semantic token that cites it. Native HA components that read --ha-color-{role}-* directly (bypassing
+    // the semantic layer entirely) need the atoms themselves in the YAML too — without this block a fully custom
+    // Palette Seed role (including a hand-built dark variant) would visibly preview here but never actually reach
+    // the exported theme. Roles left at 'none' emit nothing, falling back to whatever the merged-in HA-LCARS
+    // boilerplate (or HA's own baseline) defines for that family.
     for (const role of HA_PALETTE_ROLES) {
       const cfg = this._model.roles[role];
       if (cfg.source === 'none') continue;
@@ -2697,7 +3030,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
     // --error-color, etc. are all defined there), so leaving the key out lets that real default apply instead of a
     // computed stand-in. `live`/`fixed` fields have no role/tone at all — same omit-unless-overridden rule, but
     // unconditionally, since there's no Palette Seed computation to fall back to for them in the first place: the
-    // exported YAML is designed to be merged into a real ha-lcars theme file that already provides these same
+    // exported YAML is designed to be merged into a real HA-LCARS theme file that already provides these same
     // values via its own shared anchors (see `mergeKeys` below), so re-stating them here would just be redundant
     // (see LEGACY_FIELD_DEFS' own doc comment).
     for (const field of LEGACY_FIELD_DEFS) {
@@ -2739,37 +3072,10 @@ export class LCARdSThemeGeneratorView extends LitElement {
     // whenever a theme doesn't define the key itself; emitting a gray placeholder here would win
     // over that fallback by simply being present, defeating it even though nothing meaningful was
     // actually authored. Surface/form-background are neutral-role-derived, gated the same way.
+    // Factored into _buildSemanticTokensForMode so _importThemeObject's de-noise pass can recompute
+    // the exact same values against a freshly imported theme's Palette Seed state.
     for (const mode of ['light', 'dark']) {
-      const bucket = mode === 'light' ? light : dark;
-      for (const role of SEMANTIC_ROLES) {
-        if (this._semanticRoleUnset(role)) continue;
-        for (const tier of SEMANTIC_TIERS) {
-          bucket[`ha-color-on-${role}-${tier}`] = this._resolveOnValue(role, mode, tier);
-        }
-      }
-      for (const role of SEMANTIC_ROLES) {
-        if (this._semanticRoleUnset(role)) continue;
-        for (const tier of SEMANTIC_TIERS) {
-          const states = role === 'disabled' ? ['resting', 'hover'] : ['resting', 'hover', 'active'];
-          for (const state of states) {
-            bucket[`ha-color-fill-${role}-${tier}-${state}`] = resolveFillEntry(resolveTone, role, mode, tier, state).var;
-          }
-        }
-      }
-      for (const role of BORDER_ROLES) {
-        if (this._semanticRoleUnset(role)) continue;
-        for (const tier of SEMANTIC_TIERS) {
-          bucket[`ha-color-border-${role}-${tier}`] = resolveBorderEntry(resolveTone, role, mode, tier).var;
-        }
-      }
-      if (!this._semanticRoleUnset('neutral')) {
-        for (const key of Object.keys(SURFACE[mode])) {
-          const varName = key === 'on-surface-default' ? 'ha-color-on-surface-default' : `ha-color-surface-${key}`;
-          bucket[varName] = resolveSurfaceEntry(resolveTone, mode, key).var;
-        }
-        bucket['ha-color-form-background-hover'] = resolveFormBackgroundEntry(resolveTone, mode, 'hover').var;
-        bucket['ha-color-form-background-disabled'] = resolveFormBackgroundEntry(resolveTone, mode, 'disabled').var;
-      }
+      Object.assign(mode === 'light' ? light : dark, this._buildSemanticTokensForMode(mode));
     }
 
     // 4. Domain/state colors. Unset by default — a row is only written when the user explicitly overrides
@@ -2787,16 +3093,25 @@ export class LCARdSThemeGeneratorView extends LitElement {
       }
     }
 
-    // 5. Raw overrides.
+    // 5. Raw overrides — always win, including over a key section 3 (or 1b/2) already computed into
+    // light/dark: modes.light/modes.dark wins over flat in the final merge (_buildLiveVarStyle here,
+    // HA's own real theme application once exported), so writing only to flat/dark left an override on
+    // a semantic-layer key (e.g. ha-color-on-danger-normal) silently ineffective the moment it was also
+    // computed above. A plain override (no explicit .dark) now applies to both modes when a mode-scoped
+    // computed entry already exists, mirroring how a flat-only key already applies to both; an explicit
+    // .dark still wins for dark specifically.
     for (const entry of this._model.raw) {
       if (!entry.key) continue;
-      flat[entry.key] = entry.value ?? '';
+      const value = entry.value ?? '';
+      flat[entry.key] = value;
+      if (entry.key in light) light[entry.key] = value;
       if (entry.dark !== undefined) dark[entry.key] = entry.dark;
+      else if (entry.key in dark) dark[entry.key] = value;
     }
 
     return {
       name: this._model.name || 'My HA-LCARS Theme',
-      // Every real ha-lcars theme (including the shipped Picard profiles)
+      // Every real HA-LCARS theme (including the shipped Picard profiles)
       // merges these in — they carry the raw named-color palette, the HA-var
       // mapping layer, and card-mod CSS this generator doesn't reproduce
       // (sidebar chrome, fonts, table/tooltip/badge styling, etc.). Explicit
@@ -2823,7 +3138,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
    * hass.themes, nothing outside the wrapper is affected.
    *
    * Also seeds a baseline from HA_LCARS_THEME_LIBRARY.boilerplate — the raw ~180-entry named
-   * palette and ~80-entry HA-var mapping every real ha-lcars theme merges in via
+   * palette and ~80-entry HA-var mapping every real HA-LCARS theme merges in via
    * &lcars-variables/&base. This generator's own export deliberately never reproduces that layer
    * (mergeKeys relies on the user's real themes.yaml already having it) — but a portable var()
    * value captured from an imported theme (e.g. a Legacy override like lcars-card-top-color:
@@ -2841,6 +3156,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
     }
     Object.assign(styles, this._buildLegacyDefaultStyle(mode));
     Object.assign(styles, this._buildDomainDefaultStyle());
+    Object.assign(styles, this._buildSemanticDefaultStyle(mode));
     const merged = { ...exportModel.flat, ...(exportModel.modes[mode] || {}) };
     for (const [key, value] of Object.entries(merged)) {
       if (!value) continue;
@@ -2892,6 +3208,60 @@ export class LCARdSThemeGeneratorView extends LitElement {
       const overrideKey = `${domain}.${state}`;
       if (this._model.domainOverrides[overrideKey]?.value !== undefined) continue;
       styles[`--state-${domain}-${state}-color`] = this._liveDomainStateDefault(domain, state).var;
+    }
+    return styles;
+  }
+
+  /**
+   * Same gap-filling as _buildLegacyDefaultStyle/_buildDomainDefaultStyle, for the semantic
+   * ha-color-fill/on/border/surface-* layer and the raw ha-color-<role>-<tone> atoms underneath
+   * it — both entirely absent from exportModel for a "None" Palette Seed role (or an "Imported"
+   * role's genuinely-missing stops, see _isRoleTonePreviewFallback), by design (_buildExportModel's
+   * own section 1b/3). Without this, a real mounted <ha-button>/<hui-card> for one of those roles
+   * inherits these vars from this browser tab's actual active theme instead — confirmed against
+   * HA's real frontend/src/resources/theme/color/{core,semantic}.globals.ts: the semantic layer is
+   * always a plain var(--ha-color-<role>-<tone>) reference into the atom layer, mechanical and
+   * never WCAG-corrected (that correction is this generator's own export-time addition — see
+   * _buttonTierTagBadge's doc comment) — so this mirrors _buildExportModel's section 3 structure
+   * exactly, using _staticSemanticRoleTone as the resolveTone callback and skipping resolveOnEntry
+   * (which would apply that correction) in favour of hand-rolling the same mechanical lookup.
+   */
+  _buildSemanticDefaultStyle(mode) {
+    /** @type {Object<string,string>} */
+    const styles = {};
+    for (const role of HA_PALETTE_ROLES) {
+      for (const tone of TONE_ORDER) {
+        if (this._isRoleTonePreviewFallback(role, tone)) {
+          styles[`--ha-color-${role}-${tone}`] = this._staticHaDefault(`ha-color-${role}-${tone}`).var;
+        }
+      }
+    }
+    const resolveTone = this._staticSemanticRoleTone.bind(this);
+    for (const role of SEMANTIC_ROLES) {
+      if (!this._semanticRoleUnset(role)) continue;
+      for (const tier of SEMANTIC_TIERS) {
+        const onModeData = ON[role][mode]?.[tier] !== undefined ? ON[role][mode] : ON[role].light;
+        const spec = onModeData[tier] !== undefined ? onModeData[tier] : ON[role].light[tier];
+        styles[`--ha-color-on-${role}-${tier}`] = resolveTone(role, spec, mode).var;
+        const states = role === 'disabled' ? ['resting', 'hover'] : ['resting', 'hover', 'active'];
+        for (const state of states) {
+          styles[`--ha-color-fill-${role}-${tier}-${state}`] = resolveFillEntry(resolveTone, role, mode, tier, state).var;
+        }
+      }
+    }
+    for (const role of BORDER_ROLES) {
+      if (!this._semanticRoleUnset(role)) continue;
+      for (const tier of SEMANTIC_TIERS) {
+        styles[`--ha-color-border-${role}-${tier}`] = resolveBorderEntry(resolveTone, role, mode, tier).var;
+      }
+    }
+    if (!this._semanticRoleUnset('neutral')) {
+      for (const key of Object.keys(SURFACE[mode])) {
+        const varName = key === 'on-surface-default' ? 'ha-color-on-surface-default' : `ha-color-surface-${key}`;
+        styles[`--${varName}`] = resolveSurfaceEntry(resolveTone, mode, key).var;
+      }
+      styles['--ha-color-form-background-hover'] = resolveFormBackgroundEntry(resolveTone, mode, 'hover').var;
+      styles['--ha-color-form-background-disabled'] = resolveFormBackgroundEntry(resolveTone, mode, 'disabled').var;
     }
     return styles;
   }

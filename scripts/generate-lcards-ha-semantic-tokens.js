@@ -142,7 +142,11 @@ function resolveOnValue(profile, role, mode, tier) {
 
   const resolveTone = makeResolveTone(profile);
   const resolveFillResting = makeResolveFillResting(resolveTone, profile, mode);
-  const { var: varName, hex, corrected, mechanicalRatio, finalRatio } = resolveOnEntry(resolveTone, resolveFillResting, role, mode, tier);
+  // card-background-color is role:'neutral',tone:20 (see LEGACY_FIELD_DEFS in the in-app
+  // generator) — the real backdrop "Normal" text sits against on Plain/Outlined ha-button
+  // appearances, which share that text token with Filled but render with no fill behind them.
+  const ambientBgHex = resolveTone('neutral', 20).hex;
+  const { var: varName, hex, corrected, mechanicalRatio, finalRatio } = resolveOnEntry(resolveTone, resolveFillResting, role, mode, tier, ambientBgHex);
 
   const note = corrected
     ? `${mechanicalRatio.toFixed(2)}:1 FAIL → substituted ${hex} (${finalRatio.toFixed(2)}:1)`

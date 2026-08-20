@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.08.0",
+  "version": "2026.08.1-dev0",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -18,6 +18,7 @@
     "Star Trek"
   ],
   "scripts": {
+    "help": "node scripts/help.js",
     "build": "node scripts/validate-doc-examples.js --strict && node scripts/validate-css-vars.js && node scripts/set-version.js && vite build --mode integration && node scripts/copy-assets.js",
     "validate:css-vars": "node scripts/validate-css-vars.js",
     "validate:css-vars:verbose": "node scripts/validate-css-vars.js --verbose",
@@ -44,7 +45,8 @@
     "lcars:semantic-tokens:write": "node scripts/generate-lcards-ha-semantic-tokens.js --write",
     "lcars:generate-themes": "cd ../ha-lcars && python3 py/generate_themes.py",
     "lcars:export-vendored": "node scripts/export-vendored-ha-lcars-theme.js --write",
-    "lcars:regenerate": "npm run lcars:semantic-tokens:write && npm run lcars:generate-themes && npm run build && npm run lcars:export-vendored"
+    "lcars:export-all-themes": "node scripts/export-vendored-ha-lcars-all-themes.js --write",
+    "lcars:regenerate": "npm run lcars:semantic-tokens:write && npm run lcars:generate-themes && npm run build && npm run lcars:export-vendored && npm run lcars:export-all-themes"
   },
   "devDependencies": {
     "ajv": "^8.20.0",

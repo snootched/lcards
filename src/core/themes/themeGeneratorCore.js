@@ -402,34 +402,122 @@ export const FORM_BACKGROUND_TONES = {
  */
 
 /**
- * Resolves one `ha-color-on-{role}-{tier}` entry with Phase-2 WCAG validation:
- * if HA's mechanical tone-index default fails AA (4.5:1) against the paired
- * fill-resting background, substitutes whichever of white/black passes.
+ * Resolves one `ha-color-on-{role}-{tier}` entry with Phase-2 WCAG validation: if HA's mechanical
+ * tone-index default fails AA (4.5:1) against the paired fill-resting background, substitutes
+ * whichever candidate gives the best result.
+ *
+ * For `tier === 'normal'` or `tier === 'quiet'`, also validates against `ambientBgHex` and expands
+ * the correction search to every tone in this role's own scale (`TONE_ORDER`), not just white/black
+ * — both tiers drive a real ha-button appearance that renders with no solid fill behind it at rest
+ * (showing whatever's actually behind the button — in HA-LCARS, always near-black), so a value
+ * validated only against its "own" fill-resting background can look fine in isolation while being
+ * unreadable, or worse (literally identical colour) once corrected, against what's actually there.
+ * Confirmed directly against the real `@home-assistant/webawesome@3.7.0-ha.0` package (matching the
+ * version pinned in the local `frontend` checkout, `dist/components/button/button.styles.js`) and
+ * `frontend/src/components/ha-button.ts`'s own overrides — the two tiers map to two different real
+ * ha-button appearances, not one shared token as an earlier version of this comment claimed:
+ *   - `normal` → **Filled** (WA's own base rule) **and Plain** (`ha-button.ts` explicitly
+ *     redirects Plain's WA default of `on-quiet` to `on-normal` instead, matching Filled).
+ *   - `quiet` → **Outlined only** (WA's own base default for Outlined; `ha-button.ts` never
+ *     touches Outlined's enabled-state color at all — only its `.disabled` state).
+ *   - `loud` → **Accent** (WA's own base rule) — excluded from both the ambient check and the
+ *     expanded search: Accent's real background is always a solid loud-fill, never transparent,
+ *     and HA's own `semantic.globals.ts` hard-codes on-loud as always literally white, never a
+ *     family tone.
+ * Confirmed with real data (both "LCARS Default" and LCARdS's own "LCARS Picard [LCARdS Blue
+ * Accent]" profile, light mode, `normal` tier/Primary role): mechanical text measured 2.93:1 /
+ * 1.92:1 against Filled's own background (fails, used to trigger correction to black) but 4.98:1 /
+ * 7.54:1 against black (passes on its own) — the old single-background correction turned an
+ * already-readable-against-the-real-page colour into 1.00:1 (literally identical) the moment
+ * Plain read the same corrected value. Same class of bug independently affects Outlined via
+ * `quiet`, previously not covered by either fix at all.
+ *
+ * The expanded search means a same-family substitute wins whenever one actually clears both
+ * checks, rather than jumping straight to white/black the instant the mechanical tone-index's own
+ * pick fails — and it takes the FIRST candidate (mechanical, then its own scale dark-to-light via
+ * `TONE_ORDER`, then white, then black) that clears both outright, not whichever scores highest.
+ * Confirmed real case this distinction actually matters for: LCARdS Blue Accent's Success role in
+ * dark mode has a mechanical (tone-10) `normal` text that fails both checks, and that same green
+ * family's tone-80 already clears both comfortably at 6.96:1 — but white measures 15.47:1 there, so
+ * a "maximize contrast" search would always prefer white over a perfectly good, on-brand green;
+ * "first good enough" correctly keeps tone-80 instead.
+ *
+ * Only when nothing passes both checks outright (a real, confirmed case for some role/theme
+ * combinations — e.g. Blue Accent's Danger in dark mode never clears the fill check at any tone in
+ * its own ramp, topping out at 2.99:1) does this fall back to whichever candidate has the best
+ * worst-case ratio across the two backgrounds.
  * @param {ResolveTone} resolveTone
- * @param {(role:string, tier:string) => {var:string, hex:string}} resolveFillResting - resolves fill-{tier}-resting for the same (role, mode)
- * @returns {{var: string, hex: string, corrected: boolean, mechanicalRatio: number, finalRatio: number}}
- *   mechanicalRatio is always the pre-correction ratio (equal to finalRatio when not corrected).
+ * @param {(role:string, tier:string) => {var:string, hex:string}} resolveFillResting - resolves fill-{tier}-resting for the same (role, mode); ignored for tier === 'quiet' (see above)
+ * @param {string} [ambientBgHex] - the theme's own real backdrop (e.g. card-background-color) — only consulted for tier === 'normal'/'quiet'
+ * @returns {{var: string, hex: string, usedTone: string|null, corrected: boolean, mechanicalRatio: number, finalRatio: number}}
+ *   usedTone is the TONE_ORDER key actually driving the returned colour, or null when white/black won.
+ *   mechanicalRatio is the pre-correction ratio against whichever background is actually meaningful for this tier (fill-resting for 'normal'/'loud', ambient alone for 'quiet') — equal to finalRatio when not corrected and no ambient check applies.
+ *   finalRatio is the worst-case ratio across whichever background(s) were actually checked.
  */
-export function resolveOnEntry(resolveTone, resolveFillResting, role, mode, tier) {
+export function resolveOnEntry(resolveTone, resolveFillResting, role, mode, tier, ambientBgHex) {
   const modeData = ON[role][mode]?.[tier] !== undefined ? ON[role][mode] : ON[role].light;
   const spec = modeData[tier] !== undefined ? modeData[tier] : ON[role].light[tier];
   const mechanical = resolveTone(role === 'disabled' ? 'disabled' : role, spec, mode);
+  const expandedTier = tier === 'normal' || tier === 'quiet';
+  const useAmbient = expandedTier && !!ambientBgHex;
+  // fill-quiet-resting isn't a real background for anything: Outlined (the only appearance driven
+  // by `quiet`) is transparent at rest, and its hover fill reads fill-quiet-HOVER, a different value
+  // than "resting" — confirmed against the real WA/ha-button CSS (see this function's own doc
+  // comment). Checking against it anyway was a phantom constraint nothing ever actually renders,
+  // and it was failing on its own even when the text was perfectly readable against every
+  // background Outlined genuinely shows (confirmed real case: Blue Accent's Danger role in dark
+  // mode reads fine against ambient black at 8.79:1, but the phantom fill-quiet-resting check
+  // alone measured 2.16:1, dragging the whole result down to a forced white). So `quiet` skips the
+  // fill check entirely and is judged on the ambient background alone.
+  const isFillMeaningful = tier !== 'quiet';
+  const fillHex = isFillMeaningful ? resolveFillResting(role, tier).hex : null;
 
-  const fillHex = resolveFillResting(role, tier).hex;
-  const mechanicalRatio = wcagContrast(mechanical.hex, fillHex);
-
-  if (mechanicalRatio >= AA_THRESHOLD) {
-    return { var: mechanical.var, hex: mechanical.hex, corrected: false, mechanicalRatio, finalRatio: mechanicalRatio };
+  const ratiosFor = (hex) => ({
+    fill: isFillMeaningful ? wcagContrast(hex, fillHex) : Infinity,
+    ambient: useAmbient ? wcagContrast(hex, ambientBgHex) : Infinity,
+  });
+  const mech = ratiosFor(mechanical.hex);
+  const mechanicalRatio = isFillMeaningful ? mech.fill : mech.ambient;
+  if (mech.fill >= AA_THRESHOLD && mech.ambient >= AA_THRESHOLD) {
+    const mechTone = spec === 'WHITE' || spec === 'BLACK' ? null : String(spec).padStart(2, '0');
+    return { var: mechanical.var, hex: mechanical.hex, usedTone: mechTone, corrected: false, mechanicalRatio, finalRatio: Math.min(mech.fill, mech.ambient) };
   }
-  const whiteRatio = wcagContrast('#ffffff', fillHex);
-  const blackRatio = wcagContrast('#000000', fillHex);
-  const useWhite = whiteRatio >= blackRatio;
+
+  const mechTone = spec === 'WHITE' || spec === 'BLACK' ? null : String(spec).padStart(2, '0');
+  const candidates = [{ var: mechanical.var, hex: mechanical.hex, tone: mechTone, ratios: mech }];
+  if (expandedTier) {
+    for (const tone of TONE_ORDER) {
+      const c = resolveTone(role === 'disabled' ? 'disabled' : role, Number(tone), mode);
+      candidates.push({ var: c.var, hex: c.hex, tone, ratios: ratiosFor(c.hex) });
+    }
+  }
+  candidates.push({ var: 'var(--white-color)', hex: '#ffffff', tone: null, ratios: ratiosFor('#ffffff') });
+  candidates.push({ var: 'var(--black-color)', hex: '#000000', tone: null, ratios: ratiosFor('#000000') });
+
+  // Prefer the FIRST candidate (in the order built above: mechanical, then this role's own scale
+  // dark-to-light, then white, then black) that clears both thresholds outright, rather than
+  // whichever scores highest overall — confirmed real case this got wrong: LCARdS Blue Accent's
+  // Success role in dark mode has a same-family tone-80 that already clears both at 6.96:1, comfortably
+  // above the 4.5:1 floor, but white measures 15.47:1 there, so a pure "maximize contrast" search
+  // always preferred white over a perfectly good, on-brand green. Only when nothing clears both
+  // outright (a real, separate case — e.g. that same theme's Danger role, whose whole ramp tops out
+  // at 2.99:1 against its own fill background no matter which tone is tried) does this fall back to
+  // whichever candidate has the best worst-case ratio.
+  let best = candidates.find(c => Math.min(c.ratios.fill, c.ratios.ambient) >= AA_THRESHOLD);
+  if (!best) {
+    best = candidates[0];
+    for (const c of candidates) {
+      const worst = Math.min(c.ratios.fill, c.ratios.ambient);
+      if (worst > Math.min(best.ratios.fill, best.ratios.ambient)) best = c;
+    }
+  }
   return {
-    var: useWhite ? 'var(--white-color)' : 'var(--black-color)',
-    hex: useWhite ? '#ffffff' : '#000000',
-    corrected: true,
+    var: best.var,
+    hex: best.hex,
+    usedTone: best.tone,
+    corrected: best.hex !== mechanical.hex,
     mechanicalRatio,
-    finalRatio: Math.max(whiteRatio, blackRatio),
+    finalRatio: Math.min(best.ratios.fill, best.ratios.ambient),
   };
 }
 
