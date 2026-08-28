@@ -74,8 +74,8 @@ export const MSD_VARS = ['msd-bright', 'msd-dark', 'msd-medium', 'msd-normal', '
 export const LCARS_SEMANTIC_VARS = [
   'lcars-background-color', 'lcars-background-text',
   'lcars-backlight-center', 'lcars-backlight-middle', 'lcars-backlight-middle-location', 'lcars-backlight-outer',
-  'lcars-card-top-color', 'lcars-card-top-text', 'lcars-card-mid-color', 'lcars-card-mid-text',
-  'lcars-card-button-color', 'lcars-card-button-text', 'lcars-card-bottom-color', 'lcars-card-bottom-text',
+  'lcars-card-top-color', 'lcars-card-top-text', 'lcars-card-mid-color', 'lcars-card-mid-left-color', 'lcars-card-mid-text',
+  'lcars-card-button-color', 'lcars-card-button', 'lcars-card-button-off', 'lcars-card-button-text', 'lcars-card-bottom-color', 'lcars-card-bottom-text',
   'lcars-ripple-color', 'lcars-ripple-hover-opacity', 'lcars-ripple-pressed-opacity',
   'lcars-settings-card-color', 'lcars-settings-card-text',
   'lcars-sidebar-background', 'lcars-sidebar-icon-background', 'lcars-sidebar-icon-color',

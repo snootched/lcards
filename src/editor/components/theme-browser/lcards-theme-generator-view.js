@@ -36,6 +36,7 @@ import {
 // @ts-expect-error — Vite ?raw suffix is a build-time import; TypeScript cannot resolve relative ?raw paths
 import allHaLcarsThemesRaw from '../../../../yaml/theme/ha-lcars-all-themes.yaml?raw';
 import '../shared/lcards-form-section.js';
+import '../shared/lcards-collapsible-section.js';
 import '../shared/lcards-color-picker.js';
 import '../yaml/lcards-yaml-editor.js';
 
@@ -154,30 +155,34 @@ function isDomainStatePreviewActive(domain, state) {
 }
 
 /**
- * One representative "on"/active state per DOMAIN_STATES domain, used to synthesize a fake demo
- * entity for the Domain & State Colours — Live preview (see _buildDemoHass/_renderDomainDemoPreview).
+ * One representative "on"/active AND "off"/inactive state per DOMAIN_STATES domain, used to
+ * synthesize a fake demo entity for the Domain & State Colours — Live preview (see
+ * _buildDemoHass/_renderDomainDemoPreview) — the Active/Inactive toggle there selects onState vs
+ * offState. Every offState below is verified against isDomainStatePreviewActive to actually resolve
+ * as inactive: literal 'off' always does (its own first check), and unlocked/disarmed/docked/closed/
+ * below_horizon are each covered by that function's own per-domain branches.
  * Excludes person/device_tracker: confirmed against HA frontend source (hui-tile-card.ts's
  * _computeStateColor) that tile cards never colour those two domains' icons from CSS vars at all —
  * their colour lives on a badge via an unrelated mechanism this generator doesn't touch.
  */
 const DOMAIN_DEMO_ENTITIES = [
-  { domain: 'light', state: 'on' },
-  { domain: 'switch', state: 'on' },
-  { domain: 'fan', state: 'on' },
-  { domain: 'cover', state: 'open' },
-  { domain: 'lock', state: 'locked' },
-  { domain: 'climate', state: 'heat' },
-  { domain: 'binary_sensor', state: 'on' },
-  { domain: 'alarm_control_panel', state: 'armed_home' },
-  { domain: 'media_player', state: 'playing' },
-  { domain: 'humidifier', state: 'on' },
-  { domain: 'vacuum', state: 'cleaning' },
-  { domain: 'siren', state: 'on' },
-  { domain: 'water_heater', state: 'on' },
-  { domain: 'valve', state: 'open' },
-  { domain: 'input_boolean', state: 'on' },
-  { domain: 'automation', state: 'on' },
-  { domain: 'sun', state: 'above_horizon' },
+  { domain: 'light', onState: 'on', offState: 'off' },
+  { domain: 'switch', onState: 'on', offState: 'off' },
+  { domain: 'fan', onState: 'on', offState: 'off' },
+  { domain: 'cover', onState: 'open', offState: 'closed' },
+  { domain: 'lock', onState: 'locked', offState: 'unlocked' },
+  { domain: 'climate', onState: 'heat', offState: 'off' },
+  { domain: 'binary_sensor', onState: 'on', offState: 'off' },
+  { domain: 'alarm_control_panel', onState: 'armed_home', offState: 'disarmed' },
+  { domain: 'media_player', onState: 'playing', offState: 'off' },
+  { domain: 'humidifier', onState: 'on', offState: 'off' },
+  { domain: 'vacuum', onState: 'cleaning', offState: 'docked' },
+  { domain: 'siren', onState: 'on', offState: 'off' },
+  { domain: 'water_heater', onState: 'on', offState: 'off' },
+  { domain: 'valve', onState: 'open', offState: 'closed' },
+  { domain: 'input_boolean', onState: 'on', offState: 'off' },
+  { domain: 'automation', onState: 'on', offState: 'off' },
+  { domain: 'sun', onState: 'above_horizon', offState: 'below_horizon' },
 ];
 
 const TONE_LABELS = {
@@ -211,25 +216,33 @@ const HA_COLOR_RAMP_RE = /^ha-color-(primary|neutral|orange|red|green)-(\d{2})$/
  * rare field whose real definition genuinely can't be expressed as a simple
  * key lookup — currently only `lcars-secondary-text`, see its own comment.
  */
+// Small string templates so the ~40 LEGACY_FIELD_DEFS entries that are mechanical variants of
+// another field in this same array (a -text/icon counterpart, a badge/alert colour-name variant)
+// don't need fully hand-authored description prose — see each entry's `description` below.
+const textOn = (bgLabel) => `Text colour rendered on top of ${bgLabel}.`;
+const iconOn = (bgLabel) => `Icon colour rendered on top of ${bgLabel}.`;
+const alertVariant = (colourName) => `Indicator colour HA-LCARS switches --lcars-alert-color to during a ${colourName} alert.`;
+const labelBadgeVariant = (colourName) => `Background colour for a ${colourName}-variant ha-label-badge.`;
+
 const LEGACY_FIELD_DEFS = [
   // ── Core ──
-  { key: 'primary-color', label: 'Primary Colour', group: 'Core', role: 'primary', tone: 40 },
-  { key: 'accent-color', label: 'Accent Colour', group: 'Core', role: 'primary', tone: 40 },
-  { key: 'primary-background-color', label: 'Primary Background', group: 'Core', live: true },
-  { key: 'secondary-background-color', label: 'Secondary Background', group: 'Core', role: 'neutral', tone: 20 },
-  { key: 'card-background-color', label: 'Card Background', group: 'Core', role: 'neutral', tone: 20 },
-  { key: 'lcars-background-color', label: 'LCARS Background', group: 'Core', live: true },
+  { key: 'primary-color', label: 'Primary Colour', group: 'Core', role: 'primary', tone: 40, description: "HA's own accent colour — buttons, active toggles, selected tabs, and focus rings across stock HA UI." },
+  { key: 'accent-color', label: 'Accent Colour', group: 'Core', role: 'primary', tone: 40, description: 'A secondary accent used alongside Primary Colour for less prominent highlights in stock HA components.' },
+  { key: 'primary-background-color', label: 'Primary Background', group: 'Core', live: true, description: 'The base page background behind every card and panel.' },
+  { key: 'secondary-background-color', label: 'Secondary Background', group: 'Core', role: 'neutral', tone: 20, description: 'Background for secondary surfaces — dialogs, list rows, form fields.' },
+  { key: 'card-background-color', label: 'Card Background', group: 'Core', role: 'neutral', tone: 20, description: 'Background colour of ha-card and every Lovelace card by default.' },
+  { key: 'lcars-background-color', label: 'LCARS Background', group: 'Core', live: true, description: "HA-LCARS's own page background, layered under Primary Background for the LCARS look." },
   // HA-LCARS's own default is transparent; exposed so a user can opt into a visible divider.
   // Consumer confirmed live in 174 files across HA's frontend, not vestigial.
-  { key: 'divider-color', label: 'Divider', group: 'Core', live: true },
+  { key: 'divider-color', label: 'Divider', group: 'Core', live: true, description: "Colour of divider lines between list items and sections (HA-LCARS's own default is transparent)." },
 
   // ── Text ──
-  { key: 'primary-text-color', label: 'Primary Text', group: 'Text', live: true },
-  { key: 'secondary-text-color', label: 'Secondary Text', group: 'Text', live: true },
-  { key: 'text-primary-color', label: 'Text on Primary Background', group: 'Text', live: true },
-  { key: 'text-accent-color', label: 'Text on Accent Background', group: 'Text', live: true },
-  { key: 'disabled-text-color', label: 'Disabled Text', group: 'Text', live: true },
-  { key: 'lcars-primary-text', label: 'LCARS Primary Text', group: 'Text', live: true },
+  { key: 'primary-text-color', label: 'Primary Text', group: 'Text', live: true, description: 'Default text colour used almost everywhere in stock HA UI.' },
+  { key: 'secondary-text-color', label: 'Secondary Text', group: 'Text', live: true, description: 'Muted/secondary text — captions, helper text, timestamps.' },
+  { key: 'text-primary-color', label: 'Text on Primary Background', group: 'Text', live: true, description: 'Text/icon colour placed on surfaces coloured with Primary Colour (e.g. filled buttons).' },
+  { key: 'text-accent-color', label: 'Text on Accent Background', group: 'Text', live: true, description: 'Text/icon colour placed on surfaces coloured with Accent Colour.' },
+  { key: 'disabled-text-color', label: 'Disabled Text', group: 'Text', live: true, description: 'Text colour for disabled controls and unavailable entities.' },
+  { key: 'lcars-primary-text', label: 'LCARS Primary Text', group: 'Text', live: true, description: "Default LCARS-styled text colour, layered under HA's own Primary Text." },
   // The one field that can't be a plain `live` key lookup: its real definition is
   // color-mix(in oklch, var(--lcars-primary-text) 80%, var(--lcars-ui-mix-color)), and
   // lcars-ui-mix-color only exists inside HA-LCARS's modes.light/modes.dark blocks (black light /
@@ -238,86 +251,86 @@ const LEGACY_FIELD_DEFS = [
   // this generator's own lerpOklch (matches computeHaDefaultScale's math) instead of relying on the
   // picker's own CSS color-mix() support, which would only resolve correctly in a runtime that
   // actually implements `in oklch` interpolation, silently falling back to gray otherwise.
-  { key: 'lcars-secondary-text', label: 'LCARS Secondary Text', group: 'Text', fixed: '#bebebe', fixedDark: '#ffffff' },
-  { key: 'lcars-background-text', label: 'LCARS Background Text', group: 'Text', live: true },
+  { key: 'lcars-secondary-text', label: 'LCARS Secondary Text', group: 'Text', fixed: '#bebebe', fixedDark: '#ffffff', description: 'A dimmer LCARS text tone, derived from LCARS Primary Text for less prominent labels.' },
+  { key: 'lcars-background-text', label: 'LCARS Background Text', group: 'Text', live: true, description: textOn('LCARS Background') },
 
   // ── Status Colours (alerts, badges, energy) ── the 5 state-*-color entity-state fallback fields
   // below are tagged with this same group for data/export purposes, but render in the Domain &
   // State Colours section instead (see DOMAIN_FALLBACK_KEYS) — they're this chain's real starting
   // point, not a generic "status" colour.
-  { key: 'success-color', label: 'Success', group: 'Status Colours', role: 'green', tone: 40 },
-  { key: 'warning-color', label: 'Warning', group: 'Status Colours', role: 'orange', tone: 40 },
-  { key: 'error-color', label: 'Error', group: 'Status Colours', role: 'red', tone: 40 },
-  { key: 'info-color', label: 'Info', group: 'Status Colours', role: 'primary', tone: 40 },
-  { key: 'state-active-color', label: 'State: Active', group: 'Status Colours', live: true },
-  { key: 'state-inactive-color', label: 'State: Inactive', group: 'Status Colours', live: true },
-  { key: 'state-unavailable-color', label: 'State: Unavailable', group: 'Status Colours', live: true },
-  { key: 'state-unknown-color', label: 'State: Unknown', group: 'Status Colours', live: true },
-  { key: 'state-color', label: 'State: Default Icon', group: 'Status Colours', live: true },
+  { key: 'success-color', label: 'Success', group: 'Status Colours', role: 'green', tone: 40, description: 'Colour for success alerts, badges, and positive indicators across stock HA UI.' },
+  { key: 'warning-color', label: 'Warning', group: 'Status Colours', role: 'orange', tone: 40, description: 'Colour for warning alerts and caution indicators.' },
+  { key: 'error-color', label: 'Error', group: 'Status Colours', role: 'red', tone: 40, description: 'Colour for error alerts and failure indicators.' },
+  { key: 'info-color', label: 'Info', group: 'Status Colours', role: 'primary', tone: 40, description: 'Colour for informational alerts and neutral notices.' },
+  { key: 'state-active-color', label: 'State: Active', group: 'Status Colours', live: true, description: "Global Fallback: an entity icon's colour for any 'active' state with no more specific var set (see Domain & State Colours)." },
+  { key: 'state-inactive-color', label: 'State: Inactive', group: 'Status Colours', live: true, description: "Global Fallback: an entity icon's colour for any 'inactive' state with no more specific var set." },
+  { key: 'state-unavailable-color', label: 'State: Unavailable', group: 'Status Colours', live: true, description: 'Icon colour for an entity whose state is unavailable.' },
+  { key: 'state-unknown-color', label: 'State: Unknown', group: 'Status Colours', live: true, description: 'Icon colour for an entity whose state is unknown.' },
+  { key: 'state-color', label: 'State: Default Icon', group: 'Status Colours', live: true, description: 'Default icon colour for domains/states with no active/inactive distinction at all.' },
   // Label badges (ha-label-badge.ts/ha-state-label-badge.ts) and the energy dashboard's
   // non-fossil indicator (hui-energy-distribution-card.ts) — all confirmed live consumers, not
   // just present in HA-LCARS's own boilerplate. Red/yellow/green mirror error/warning/success's
   // own role choice; no dedicated Blue Palette Seed role exists, so blue mirrors info-color's;
   // grey mirrors state-inactive-color's neutral/60.
-  { key: 'label-badge-text-color', label: 'Label Badge Text', group: 'Status Colours', live: true },
-  { key: 'label-badge-red', label: 'Label Badge: Red', group: 'Status Colours', role: 'red', tone: 40 },
-  { key: 'label-badge-yellow', label: 'Label Badge: Yellow', group: 'Status Colours', role: 'orange', tone: 40 },
-  { key: 'label-badge-blue', label: 'Label Badge: Blue', group: 'Status Colours', role: 'primary', tone: 40 },
-  { key: 'label-badge-green', label: 'Label Badge: Green', group: 'Status Colours', role: 'green', tone: 40 },
-  { key: 'label-badge-grey', label: 'Label Badge: Grey', group: 'Status Colours', role: 'neutral', tone: 60 },
-  { key: 'energy-non-fossil-color', label: 'Energy: Non-Fossil', group: 'Status Colours', role: 'green', tone: 40 },
+  { key: 'label-badge-text-color', label: 'Label Badge Text', group: 'Status Colours', live: true, description: 'Text colour shown on every ha-label-badge, regardless of its background variant.' },
+  { key: 'label-badge-red', label: 'Label Badge: Red', group: 'Status Colours', role: 'red', tone: 40, description: labelBadgeVariant('red') },
+  { key: 'label-badge-yellow', label: 'Label Badge: Yellow', group: 'Status Colours', role: 'orange', tone: 40, description: labelBadgeVariant('yellow') },
+  { key: 'label-badge-blue', label: 'Label Badge: Blue', group: 'Status Colours', role: 'primary', tone: 40, description: labelBadgeVariant('blue') },
+  { key: 'label-badge-green', label: 'Label Badge: Green', group: 'Status Colours', role: 'green', tone: 40, description: labelBadgeVariant('green') },
+  { key: 'label-badge-grey', label: 'Label Badge: Grey', group: 'Status Colours', role: 'neutral', tone: 60, description: labelBadgeVariant('grey') },
+  { key: 'energy-non-fossil-color', label: 'Energy: Non-Fossil', group: 'Status Colours', role: 'green', tone: 40, description: "Colour for the non-fossil energy indicator on the Energy dashboard's distribution card." },
 
   // ── LCARS UI ──
-  { key: 'lcars-ui-primary', label: 'LCARS UI Primary', group: 'LCARS UI', role: 'primary', tone: 40 },
-  { key: 'lcars-ui-primary-text', label: 'LCARS UI Primary Text', group: 'LCARS UI', live: true },
-  { key: 'lcars-ui-secondary', label: 'LCARS UI Secondary', group: 'LCARS UI', role: 'neutral', tone: 60 },
-  { key: 'lcars-ui-secondary-text', label: 'LCARS UI Secondary Text', group: 'LCARS UI', live: true },
-  { key: 'lcars-ui-tertiary', label: 'LCARS UI Tertiary', group: 'LCARS UI', role: 'primary', tone: 40 },
-  { key: 'lcars-ui-tertiary-text', label: 'LCARS UI Tertiary Text', group: 'LCARS UI', live: true },
-  { key: 'lcars-ui-quaternary', label: 'LCARS UI Quaternary', group: 'LCARS UI', role: 'neutral', tone: 20 },
-  { key: 'lcars-ui-quaternary-text', label: 'LCARS UI Quaternary Text', group: 'LCARS UI', role: 'neutral', tone: 90 },
-  { key: 'lcars-ui-accent-color', label: 'LCARS UI Accent', group: 'LCARS UI', role: 'primary', tone: 40 },
-  { key: 'lcars-ui-accent-text', label: 'LCARS UI Accent Text', group: 'LCARS UI', live: true },
-  { key: 'lcars-ui-text-heading', label: 'LCARS UI Heading Text', group: 'LCARS UI', role: 'neutral', tone: 90 },
-  { key: 'lcars-ui-app-header-background-color', label: 'App Header Background', group: 'LCARS UI', role: 'primary', tone: 40 },
-  { key: 'lcars-ui-app-header-text-color', label: 'App Header Text', group: 'LCARS UI', live: true },
-  { key: 'lcars-ui-app-header-clock', label: 'App Header Clock', group: 'LCARS UI', role: 'neutral', tone: 90 },
-  { key: 'lcars-ui-config-button', label: 'Config Button', group: 'LCARS UI', role: 'primary', tone: 40 },
-  { key: 'lcars-ui-config-icon', label: 'Config Icon', group: 'LCARS UI', live: true },
+  { key: 'lcars-ui-primary', label: 'LCARS UI Primary', group: 'LCARS UI', role: 'primary', tone: 40, description: "The boldest of HA-LCARS's 4 UI colour tiers — the most prominent chrome elements (see UI Colour Tiers preview)." },
+  { key: 'lcars-ui-primary-text', label: 'LCARS UI Primary Text', group: 'LCARS UI', live: true, description: textOn('LCARS UI Primary') },
+  { key: 'lcars-ui-secondary', label: 'LCARS UI Secondary', group: 'LCARS UI', role: 'neutral', tone: 60, description: "The second of HA-LCARS's 4 UI colour tiers." },
+  { key: 'lcars-ui-secondary-text', label: 'LCARS UI Secondary Text', group: 'LCARS UI', live: true, description: textOn('LCARS UI Secondary') },
+  { key: 'lcars-ui-tertiary', label: 'LCARS UI Tertiary', group: 'LCARS UI', role: 'primary', tone: 40, description: "The third of HA-LCARS's 4 UI colour tiers." },
+  { key: 'lcars-ui-tertiary-text', label: 'LCARS UI Tertiary Text', group: 'LCARS UI', live: true, description: textOn('LCARS UI Tertiary') },
+  { key: 'lcars-ui-quaternary', label: 'LCARS UI Quaternary', group: 'LCARS UI', role: 'neutral', tone: 20, description: "The most muted of HA-LCARS's 4 UI colour tiers." },
+  { key: 'lcars-ui-quaternary-text', label: 'LCARS UI Quaternary Text', group: 'LCARS UI', role: 'neutral', tone: 90, description: textOn('LCARS UI Quaternary') },
+  { key: 'lcars-ui-accent-color', label: 'LCARS UI Accent', group: 'LCARS UI', role: 'primary', tone: 40, description: 'A dedicated accent tier, separate from the primary/secondary/tertiary/quaternary stack, for standout chrome elements.' },
+  { key: 'lcars-ui-accent-text', label: 'LCARS UI Accent Text', group: 'LCARS UI', live: true, description: textOn('LCARS UI Accent') },
+  { key: 'lcars-ui-text-heading', label: 'LCARS UI Heading Text', group: 'LCARS UI', role: 'neutral', tone: 90, description: 'Heading text colour for LCARS-styled panels and section titles.' },
+  { key: 'lcars-ui-app-header-background-color', label: 'App Header Background', group: 'LCARS UI', role: 'primary', tone: 40, description: "Background colour of HA's top app header bar." },
+  { key: 'lcars-ui-app-header-text-color', label: 'App Header Text', group: 'LCARS UI', live: true, description: textOn('App Header Background') },
+  { key: 'lcars-ui-app-header-clock', label: 'App Header Clock', group: 'LCARS UI', role: 'neutral', tone: 90, description: 'Colour of the clock shown in the app header, if enabled.' },
+  { key: 'lcars-ui-config-button', label: 'Config Button', group: 'LCARS UI', role: 'primary', tone: 40, description: 'Background colour of the settings/config button chip.' },
+  { key: 'lcars-ui-config-icon', label: 'Config Icon', group: 'LCARS UI', live: true, description: iconOn('Config Button') },
 
   // ── Cards ──
-  { key: 'lcars-card-top-color', label: 'Card Top', group: 'Cards', role: 'primary', tone: 40 },
-  { key: 'lcars-card-top-text', label: 'Card Top Text', group: 'Cards', live: true },
-  { key: 'lcars-card-mid-color', label: 'Card Middle', group: 'Cards', role: 'neutral', tone: 60 },
-  { key: 'lcars-card-mid-text', label: 'Card Middle Text', group: 'Cards', live: true },
-  { key: 'lcars-card-button-color', label: 'Card Button', group: 'Cards', role: 'primary', tone: 40 },
-  { key: 'lcars-card-button-text', label: 'Card Button Text', group: 'Cards', live: true },
-  { key: 'lcars-card-bottom-color', label: 'Card Bottom', group: 'Cards', role: 'neutral', tone: 60 },
-  { key: 'lcars-card-bottom-text', label: 'Card Bottom Text', group: 'Cards', live: true },
-  { key: 'lcars-settings-card-color', label: 'Settings Card', group: 'Cards', role: 'neutral', tone: 60 },
-  { key: 'lcars-settings-card-text', label: 'Settings Card Text', group: 'Cards', role: 'neutral', tone: 90 },
+  { key: 'lcars-card-top-color', label: 'Card Top', group: 'Cards', role: 'primary', tone: 40, description: "Top band colour for HA-LCARS's card_mod card styling (header-*/top card_mod classes)." },
+  { key: 'lcars-card-top-text', label: 'Card Top Text', group: 'Cards', live: true, description: textOn('Card Top') },
+  { key: 'lcars-card-mid-color', label: 'Card Middle', group: 'Cards', role: 'neutral', tone: 60, description: "Middle band colour for HA-LCARS's card_mod card styling (middle-* card_mod classes)." },
+  { key: 'lcars-card-mid-text', label: 'Card Middle Text', group: 'Cards', live: true, description: textOn('Card Middle') },
+  { key: 'lcars-card-button-color', label: 'Card Button', group: 'Cards', role: 'primary', tone: 40, description: "Colour for HA-LCARS's card_mod button classes (button-small/-large/-lozenge/-bullet)." },
+  { key: 'lcars-card-button-text', label: 'Card Button Text', group: 'Cards', live: true, description: textOn('Card Button') },
+  { key: 'lcars-card-bottom-color', label: 'Card Bottom', group: 'Cards', role: 'neutral', tone: 60, description: "Bottom band colour for HA-LCARS's card_mod card styling (footer-*/bottom card_mod classes)." },
+  { key: 'lcars-card-bottom-text', label: 'Card Bottom Text', group: 'Cards', live: true, description: textOn('Card Bottom') },
+  { key: 'lcars-settings-card-color', label: 'Settings Card', group: 'Cards', role: 'neutral', tone: 60, description: "Background colour for HA-LCARS's settings-card card_mod class." },
+  { key: 'lcars-settings-card-text', label: 'Settings Card Text', group: 'Cards', role: 'neutral', tone: 90, description: textOn('Settings Card') },
   // MDC-themed inputs/selects still used throughout HA (ha-alert.ts, ha-radio-list-item.ts,
   // ha-check-list-item.ts, entity pickers, …) despite HA moving new components away from MWC —
   // confirmed live (23/3/2/3 consumer files respectively), not vestigial, before adding these.
-  { key: 'mdc-theme-primary', label: 'MDC Theme Primary', group: 'Cards', role: 'neutral', tone: 90 },
-  { key: 'mdc-theme-secondary', label: 'MDC Theme Secondary', group: 'Cards', role: 'neutral', tone: 90 },
-  { key: 'mdc-theme-on-primary', label: 'MDC Theme On Primary', group: 'Cards', live: true },
-  { key: 'mdc-theme-on-secondary', label: 'MDC Theme On Secondary', group: 'Cards', live: true },
-  { key: 'control-circular-slider-background', label: 'Thermostat Slider Background', group: 'Cards', role: 'neutral', tone: 20 },
+  { key: 'mdc-theme-primary', label: 'MDC Theme Primary', group: 'Cards', role: 'neutral', tone: 90, description: 'Primary colour for legacy Material (MWC) components still used in HA — dialogs, radio/checkbox lists, entity pickers.' },
+  { key: 'mdc-theme-secondary', label: 'MDC Theme Secondary', group: 'Cards', role: 'neutral', tone: 90, description: 'Secondary colour for the same legacy Material components.' },
+  { key: 'mdc-theme-on-primary', label: 'MDC Theme On Primary', group: 'Cards', live: true, description: textOn('MDC Theme Primary') },
+  { key: 'mdc-theme-on-secondary', label: 'MDC Theme On Secondary', group: 'Cards', live: true, description: textOn('MDC Theme Secondary') },
+  { key: 'control-circular-slider-background', label: 'Thermostat Slider Background', group: 'Cards', role: 'neutral', tone: 20, description: 'Track background colour for the circular thermostat/climate slider control.' },
 
   // ── Sidebar ──
-  { key: 'lcars-sidebar-background', label: 'Sidebar Background', group: 'Sidebar', live: true },
-  { key: 'lcars-sidebar-text', label: 'Sidebar Text', group: 'Sidebar', role: 'neutral', tone: 90 },
-  { key: 'lcars-sidebar-icon-color', label: 'Sidebar Icon', group: 'Sidebar', role: 'neutral', tone: 90 },
-  { key: 'lcars-sidebar-icon-background', label: 'Sidebar Icon Background', group: 'Sidebar', role: 'neutral', tone: 20 },
-  { key: 'lcars-sidebar-item-color', label: 'Sidebar Item', group: 'Sidebar', role: 'neutral', tone: 90 },
-  { key: 'lcars-sidebar-selected-color', label: 'Sidebar Selected', group: 'Sidebar', role: 'primary', tone: 40 },
-  { key: 'lcars-sidebar-notification-color', label: 'Sidebar Notification', group: 'Sidebar', role: 'red', tone: 40 },
+  { key: 'lcars-sidebar-background', label: 'Sidebar Background', group: 'Sidebar', live: true, description: 'Background colour of the HA sidebar navigation panel.' },
+  { key: 'lcars-sidebar-text', label: 'Sidebar Text', group: 'Sidebar', role: 'neutral', tone: 90, description: 'Heading/label text colour in the sidebar, distinct from individual item text.' },
+  { key: 'lcars-sidebar-icon-color', label: 'Sidebar Icon', group: 'Sidebar', role: 'neutral', tone: 90, description: 'Icon colour for unselected sidebar navigation items.' },
+  { key: 'lcars-sidebar-icon-background', label: 'Sidebar Icon Background', group: 'Sidebar', role: 'neutral', tone: 20, description: "Background chip colour behind each sidebar item's icon." },
+  { key: 'lcars-sidebar-item-color', label: 'Sidebar Item', group: 'Sidebar', role: 'neutral', tone: 90, description: 'Text colour for unselected sidebar navigation items.' },
+  { key: 'lcars-sidebar-selected-color', label: 'Sidebar Selected', group: 'Sidebar', role: 'primary', tone: 40, description: 'Colour used for the currently-selected sidebar item (icon and text).' },
+  { key: 'lcars-sidebar-notification-color', label: 'Sidebar Notification', group: 'Sidebar', role: 'red', tone: 40, description: 'Background colour for the notification-count badge on sidebar items.' },
 
   // ── Tooltip & Misc ──
-  { key: 'lcars-tooltip-background', label: 'Tooltip Background', group: 'Tooltip & Misc', role: 'neutral', tone: 60 },
-  { key: 'lcars-tooltip-text', label: 'Tooltip Text', group: 'Tooltip & Misc', live: true },
-  { key: 'lcars-ripple-color', label: 'Ripple Effect', group: 'Tooltip & Misc', role: 'primary', tone: 40 },
+  { key: 'lcars-tooltip-background', label: 'Tooltip Background', group: 'Tooltip & Misc', role: 'neutral', tone: 60, description: "Background colour of HA's hover tooltips (e.g. an entity's more-info tooltip)." },
+  { key: 'lcars-tooltip-text', label: 'Tooltip Text', group: 'Tooltip & Misc', live: true, description: textOn('Tooltip Background') },
+  { key: 'lcars-ripple-color', label: 'Ripple Effect', group: 'Tooltip & Misc', role: 'primary', tone: 40, description: 'Tint colour for the press/hover ripple effect on interactive HA-LCARS elements.' },
   // input-dropdown-icon-color (ha-form-multi_select.ts) and ha-outlined-field-container-color
   // (ha-outlined-field.ts — the newer, post-MWC input component family, actively current) and
   // markdown-code-text-color (ha-markdown.ts, ha-assist-chat.ts) all confirmed live consumers.
@@ -325,10 +338,10 @@ const LEGACY_FIELD_DEFS = [
   // here — verified against the real frontend checkout, not just HA-LCARS's own boilerplate:
   // more-info-header-background has zero consumers anywhere in current HA frontend, and
   // mini-media-player-* belongs to a third-party HACS card, not HA core.
-  { key: 'input-dropdown-icon-color', label: 'Input Dropdown Icon', group: 'Tooltip & Misc', role: 'neutral', tone: 90 },
-  { key: 'ha-outlined-field-container-color', label: 'Outlined Field Container', group: 'Tooltip & Misc', role: 'neutral', tone: 90 },
-  { key: 'markdown-code-text-color', label: 'Markdown Code Text', group: 'Tooltip & Misc', live: true },
-  { key: 'code-editor-background-color', label: 'Code Editor Background', group: 'Tooltip & Misc', live: true },
+  { key: 'input-dropdown-icon-color', label: 'Input Dropdown Icon', group: 'Tooltip & Misc', role: 'neutral', tone: 90, description: 'Dropdown-arrow icon colour on multi-select form fields.' },
+  { key: 'ha-outlined-field-container-color', label: 'Outlined Field Container', group: 'Tooltip & Misc', role: 'neutral', tone: 90, description: "Border/container colour for HA's newer outlined text-field component." },
+  { key: 'markdown-code-text-color', label: 'Markdown Code Text', group: 'Tooltip & Misc', live: true, description: 'Text colour for inline code blocks rendered inside markdown cards and the assist chat.' },
+  { key: 'code-editor-background-color', label: 'Code Editor Background', group: 'Tooltip & Misc', live: true, description: "Background colour of HA's built-in YAML/code editor." },
 
   // ── Alert Colours ── HA-LCARS's alert-mode indicator palette (preamble.yaml's alert-state CSS
   // switches lcars-alert-color between these at runtime); confirmed against the shared
@@ -337,13 +350,13 @@ const LEGACY_FIELD_DEFS = [
   // itself has no default anywhere in HA-LCARS — not the shared anchor, not any bundled alert-variant
   // theme, which each hardcode a literal colour instead of deriving one — so live:true lets it
   // honestly show no default rather than inventing a role/tone convention nothing else supports.
-  { key: 'lcars-alert-color', label: 'Alert (current)', group: 'Alert Colours', live: true },
-  { key: 'lcars-alert-red', label: 'Alert: Red', group: 'Alert Colours', live: true },
-  { key: 'lcars-alert-yellow', label: 'Alert: Yellow', group: 'Alert Colours', live: true },
-  { key: 'lcars-alert-blue', label: 'Alert: Blue', group: 'Alert Colours', live: true },
-  { key: 'lcars-alert-white', label: 'Alert: White', group: 'Alert Colours', live: true },
-  { key: 'lcars-alert-uv', label: 'Alert: UV', group: 'Alert Colours', live: true },
-  { key: 'lcars-alert-uvc', label: 'Alert: UVC', group: 'Alert Colours', live: true },
+  { key: 'lcars-alert-color', label: 'Alert (current)', group: 'Alert Colours', live: true, description: 'The currently-active alert indicator colour — HA-LCARS switches this between the variants below at runtime.' },
+  { key: 'lcars-alert-red', label: 'Alert: Red', group: 'Alert Colours', live: true, description: alertVariant('Red') },
+  { key: 'lcars-alert-yellow', label: 'Alert: Yellow', group: 'Alert Colours', live: true, description: alertVariant('Yellow') },
+  { key: 'lcars-alert-blue', label: 'Alert: Blue', group: 'Alert Colours', live: true, description: alertVariant('Blue') },
+  { key: 'lcars-alert-white', label: 'Alert: White', group: 'Alert Colours', live: true, description: alertVariant('White') },
+  { key: 'lcars-alert-uv', label: 'Alert: UV', group: 'Alert Colours', live: true, description: alertVariant('UV') },
+  { key: 'lcars-alert-uvc', label: 'Alert: UVC', group: 'Alert Colours', live: true, description: alertVariant('UVC') },
 ];
 const LEGACY_KEYS = new Set(LEGACY_FIELD_DEFS.map(f => f.key));
 /**
@@ -499,6 +512,11 @@ export class LCARdSThemeGeneratorView extends LitElement {
       _selectedLibraryTheme: { state: true },
       _expandedGuideIds: { state: true },
       _startMode: { state: true },
+      _legacySearchText: { state: true },
+      _legacyActiveCategory: { state: true },
+      _expandedLegacyGroups: { state: true },
+      _domainDemoActive: { state: true },
+      _labViewMode: { state: true },
     };
   }
 
@@ -513,6 +531,11 @@ export class LCARdSThemeGeneratorView extends LitElement {
     this._copyFeedback = false;
     this._rawFilterText = '';
     this._expandedGuideIds = new Set();
+    this._legacySearchText = '';
+    this._legacyActiveCategory = 'all';
+    this._expandedLegacyGroups = new Set(['LCARS UI']);
+    this._domainDemoActive = true;
+    this._labViewMode = 'config';
     /** Flat var map of the theme last imported (library or pasted), if any — passed to color pickers as `themeContext` so swatch previews for values still expressed as raw var() references resolve against the actual imported theme instead of whatever's live on the page. Not reactive on its own; always set/cleared in the same call as a _model write, which already triggers re-render. */
     this._importedThemeContext = null;
     /** _staticColorContext()'s memoization: the _importedThemeContext identity its cached merged context was last built from. */
@@ -533,8 +556,9 @@ export class LCARdSThemeGeneratorView extends LitElement {
     this._lcarsCardModWrappers = {};
     /** domain -> mounted <hui-card> (tile) wrapper element for the synthetic-entity demos (see _renderDomainDemoPreview). Same plain, non-Lit-reactive convention as _lcarsCardModWrappers. */
     this._domainDemoWrappers = {};
-    /** _buildDemoHass()'s memoization cache — the hass object identity it was last computed from, and the resulting clone. */
+    /** _buildDemoHass()'s memoization cache — the hass object identity (and _domainDemoActive value) it was last computed from, and the resulting clone. */
     this._demoHassSourceHass = null;
+    this._demoHassSourceActive = null;
     this._demoHassCache = null;
   }
 
@@ -602,6 +626,21 @@ export class LCARdSThemeGeneratorView extends LitElement {
           background: color-mix(in srgb, var(--secondary-background-color) 35%, transparent);
         }
         .gen-field-label { font-weight: 500; font-size: var(--ha-font-size-m); display: flex; flex-direction: column; gap: 2px; }
+        .gen-field-label-row { display: flex; align-items: center; gap: 4px; }
+        .gen-field-info { position: relative; display: inline-flex; }
+        .gen-field-info-btn { --mdc-icon-button-size: 20px; --mdc-icon-size: 16px; color: var(--secondary-text-color); }
+        .gen-field-info-popup {
+          position: absolute; left: 0; top: 100%; z-index: 10; margin-top: 4px;
+          width: max-content; max-width: 260px; padding: var(--ha-space-2) var(--ha-space-3);
+          background: var(--card-background-color); color: var(--primary-text-color);
+          border: var(--ha-border-width-sm) solid var(--divider-color); border-radius: var(--ha-border-radius-md);
+          box-shadow: var(--ha-box-shadow-m, 0 2px 8px rgba(0, 0, 0, 0.3));
+          font-size: var(--ha-font-size-s); line-height: 1.4; font-weight: normal;
+          opacity: 0; pointer-events: none; transition: opacity 0.15s ease;
+        }
+        .gen-field-info:hover .gen-field-info-popup, .gen-field-info:focus-within .gen-field-info-popup {
+          opacity: 1; pointer-events: auto;
+        }
         .gen-field-varname { font-family: 'Fira Code','Consolas','Menlo',monospace; font-size: 11px; color: var(--secondary-text-color); opacity: 0.8; font-weight: normal; }
         .gen-revert-spacer { width: 40px; }
         .gen-row-header {
@@ -609,6 +648,18 @@ export class LCARdSThemeGeneratorView extends LitElement {
           font-size: var(--ha-font-size-s); color: var(--secondary-text-color); font-weight: 600;
           text-transform: uppercase; letter-spacing: 0.04em; padding: 0 0 var(--ha-space-2) 0;
         }
+        .gen-search-container { display: flex; gap: var(--ha-space-3); align-items: center; margin-bottom: var(--ha-space-3); }
+        .gen-search-wrapper { flex: 1; position: relative; min-width: 200px; max-width: 400px; }
+        .gen-legacy-search { width: 100%; }
+        .gen-search-clear { position: absolute; right: var(--ha-space-1); top: 50%; transform: translateY(-50%); --mdc-icon-button-size: 32px; }
+        .gen-category-filters { display: flex; gap: var(--ha-space-2); flex-wrap: wrap; margin-bottom: var(--ha-space-3); }
+        .gen-category-chip {
+          appearance: none; border: var(--ha-border-width-sm) solid var(--divider-color); background: var(--secondary-background-color);
+          color: var(--primary-text-color); padding: var(--ha-space-1) var(--ha-space-3); border-radius: var(--ha-border-radius-pill);
+          font-size: var(--ha-font-size-s); cursor: pointer; transition: all 0.15s ease;
+        }
+        .gen-category-chip:hover { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+        .gen-category-chip.selected { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
         .gen-dark-toggle { display: flex; align-items: center; gap: var(--ha-space-1); flex-shrink: 0; }
         .gen-dark-toggle-label { font-size: var(--ha-font-size-s); color: var(--secondary-text-color); white-space: nowrap; }
         .gen-dark-empty { font-size: var(--ha-font-size-s); color: var(--secondary-text-color); opacity: 0.6; font-style: italic; }
@@ -625,6 +676,15 @@ export class LCARdSThemeGeneratorView extends LitElement {
           position: sticky; top: 0; z-index: 2; padding-block: var(--ha-space-2);
           background: color-mix(in srgb, var(--secondary-background-color) 30%, color-mix(in srgb, var(--primary-background-color) 95%, transparent));
         }
+        /* Same sticky-toolbar rationale as .gen-preview-mode-toolbar above — this is now the
+           top-level nav for the whole view, so it should stay reachable while scrolling either
+           panel. .gen-lab-tab-panel[hidden] is defensive documentation only: Lit's ?hidden
+           directive already sets the native hidden DOM attribute, which the browser's UA
+           stylesheet display:none's on its own — the rule below never needs to fire in practice,
+           but keeps intent explicit if that UA default is ever overridden upstream. */
+        .gen-lab-tab-toggle { position: sticky; top: 0; z-index: 2; padding-block: var(--ha-space-2); margin-bottom: var(--ha-space-2);
+          background: color-mix(in srgb, var(--secondary-background-color) 30%, color-mix(in srgb, var(--primary-background-color) 95%, transparent)); }
+        .gen-lab-tab-panel[hidden] { display: none; }
         .gen-role-header { display: flex; align-items: center; gap: var(--ha-space-3); margin-bottom: var(--ha-space-2); flex-wrap: wrap; }
         .gen-toggle-group ha-button::part(base) {
           min-height: 28px; height: 28px; padding-block: 0; font-size: var(--ha-font-size-s, 12px);
@@ -797,11 +857,21 @@ export class LCARdSThemeGeneratorView extends LitElement {
         .gen-cardmod-group-title { font-size: var(--ha-font-size-m); font-weight: 600; margin: var(--ha-space-4) 0 var(--ha-space-2) 0; }
         .gen-cardmod-group-title:first-child { margin-top: 0; }
         .gen-lcars-sidebar { border-radius: var(--ha-border-radius-md); padding: var(--ha-space-2); display: flex; flex-direction: column; gap: var(--ha-space-2); }
+        .gen-lcars-sidebar-heading { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 var(--ha-space-2); opacity: 0.85; }
         .gen-lcars-sidebar-item { display: flex; align-items: center; gap: var(--ha-space-2); font-size: 12px; padding: var(--ha-space-1) var(--ha-space-2); }
-        .gen-lcars-sidebar-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .gen-lcars-sidebar-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .gen-lcars-sidebar-dot-glyph { position: absolute; inset: 2px; border-radius: 50%; }
         .gen-lcars-sidebar-badge { margin-left: auto; font-size: 9px; border-radius: 999px; padding: 1px 6px; color: #000; }
         .gen-lcars-header { display: flex; justify-content: space-between; padding: var(--ha-space-2) var(--ha-space-3); border-radius: var(--ha-border-radius-sm); font-size: 12px; font-weight: 600; margin-bottom: var(--ha-space-3); }
         .gen-lcars-tooltip { display: inline-block; padding: var(--ha-space-1) var(--ha-space-2); border-radius: var(--ha-border-radius-sm); font-size: 11px; }
+        .gen-lcars-ripple-demo {
+          display: inline-flex; align-items: center; gap: var(--ha-space-1); margin-top: var(--ha-space-2);
+          border: none; border-radius: var(--ha-border-radius-pill); padding: var(--ha-space-1) var(--ha-space-3);
+          background: transparent; font: inherit; cursor: pointer; transition: background-color 0.15s ease;
+        }
+        .gen-lcars-ripple-demo:hover, .gen-lcars-ripple-demo:focus-visible { background-color: color-mix(in srgb, var(--gen-ripple-color) 20%, transparent); }
+        .gen-lcars-ripple-demo:active { background-color: color-mix(in srgb, var(--gen-ripple-color) 40%, transparent); }
+        .gen-lcars-settings-card { display: flex; align-items: center; gap: var(--ha-space-2); padding: var(--ha-space-2) var(--ha-space-3); border-radius: var(--ha-border-radius-sm); font-size: 12px; font-weight: 600; }
         .gen-lcars-tier-heading { font-size: 13px; font-weight: 700; letter-spacing: 0.03em; margin-bottom: var(--ha-space-2); }
         .gen-lcars-tier-stack { display: flex; flex-direction: column; gap: var(--ha-space-1); }
         .gen-lcars-tier-bar { padding: var(--ha-space-1) var(--ha-space-3); border-radius: var(--ha-border-radius-pill); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; }
@@ -839,6 +909,62 @@ export class LCARdSThemeGeneratorView extends LitElement {
     }
     entries.sort((a, b) => a.name.localeCompare(b.name));
     return entries;
+  }
+
+  // ─── Semantic Colours search + category-chip filtering ────────────────
+
+  /** Same DOMAIN_FALLBACK_KEYS exclusion _renderLegacySection has always applied — those 5 keys render in Domain & State Colours instead. */
+  _legacyFilteredFields() {
+    const search = this._legacySearchText.trim().toLowerCase();
+    return LEGACY_FIELD_DEFS.filter(f => {
+      if (DOMAIN_FALLBACK_KEYS.has(f.key)) return false;
+      if (this._legacyActiveCategory !== 'all' && f.group !== this._legacyActiveCategory) return false;
+      if (search && !f.label.toLowerCase().includes(search) && !f.key.toLowerCase().includes(search)) return false;
+      return true;
+    });
+  }
+
+  /** Groups the search/category-filtered fields by LEGACY_GROUP_ORDER, dropping any group left empty by the current filter. */
+  _legacyGroupedFields() {
+    const filtered = this._legacyFilteredFields();
+    return LEGACY_GROUP_ORDER
+      .map(group => ({ group, fields: filtered.filter(f => f.group === group) }))
+      .filter(({ fields }) => fields.length > 0);
+  }
+
+  /** Chip counts reflect the live search text (so counts narrow as you type) but ignore the active category, so switching chips never hides another chip's own count. */
+  _legacyCategoryCounts() {
+    const search = this._legacySearchText.trim().toLowerCase();
+    const matchesSearch = f => !search || f.label.toLowerCase().includes(search) || f.key.toLowerCase().includes(search);
+    const base = LEGACY_FIELD_DEFS.filter(f => !DOMAIN_FALLBACK_KEYS.has(f.key) && matchesSearch(f));
+    const counts = { all: base.length };
+    for (const group of LEGACY_GROUP_ORDER) counts[group] = base.filter(f => f.group === group).length;
+    return counts;
+  }
+
+  _toggleLegacyGroup(group) {
+    const updated = new Set(this._expandedLegacyGroups);
+    if (updated.has(group)) updated.delete(group); else updated.add(group);
+    this._expandedLegacyGroups = updated;
+  }
+
+  _setLegacyActiveCategory(category) {
+    this._legacyActiveCategory = category;
+    // Auto-expand the picked group — otherwise selecting a chip whose group isn't already expanded
+    // renders a header with nothing visible underneath it.
+    if (category !== 'all' && !this._expandedLegacyGroups.has(category)) {
+      const updated = new Set(this._expandedLegacyGroups);
+      updated.add(category);
+      this._expandedLegacyGroups = updated;
+    }
+  }
+
+  _handleLegacySearchInput(ev) {
+    this._legacySearchText = ev.target.value;
+  }
+
+  _clearLegacySearch() {
+    this._legacySearchText = '';
   }
 
   // ─── Collapsible info-guide helper (preset-info-guide pattern) ─────────
@@ -1433,25 +1559,52 @@ export class LCARdSThemeGeneratorView extends LitElement {
     return html`
       <div class="tab-content-container">
         ${this._renderInfoGuide('overview', 'mdi:palette-swatch-outline', 'What is the HA-LCARS Theme Lab?', html`
-          <p>Builds a full HA-LCARS theme. Set your colours here, then copy the YAML into your <code>lcars.yaml</code> theme file. Nothing is written to your live HA install — loading or pasting a theme only reads it.</p>
-          <p>Three layers, top to bottom:</p>
+          <p>Build a full HA-LCARS theme: set and test your colour options here, then copy the generated YAML into your <code>lcars.yaml</code> theme file - nothing here is written to your live HA install.</p>
+          <p>There are four main sections:</p>
           <ul>
-            <li><strong>Palette Seed</strong> — HA's 5 role colour scales (Primary/Neutral/Red/Orange/Green). Everything else on this page is computed from these unless you override it.</li>
-            <li><strong>HA-LCARS &amp; Legacy HA Semantic Colours</strong> / <strong>Domain &amp; State Colours</strong>
-              — individual fields, defaulted from Palette Seed, overridable one at a time.</li>
-            <li><strong>Advanced / Raw Overrides</strong> — for any var name without dedicated UI.</li>
+            <li><strong>Palette Seed</strong>: HA's 5 role colour scales (Primary/Neutral/Red/Orange/Green). HA uses these palettes to calculate other colours throughout the UI.</li>
+            <li><strong>HA-LCARS &amp; Legacy HA Semantic Colours</strong>: individual fields for HA-LCARS theme configuration.  Also includes legacy HA semantic colours that are not from the Palette Seed.</li>
+            <li><strong>Domain &amp; State Colours</strong>: configure common/per domain state-specific colour overrides.</li>
+            <li><strong>Advanced / Raw Overrides</strong>: for any var name without dedicated UI.</li>
           </ul>
-          <p class="preset-info-guide-tip">A Palette Seed role left as <strong>None</strong> is left out of the export — HA's own default palette applies instead. Dashed swatches badged
-            <span class="gen-fallback-badge">HA-LCARS Default</span> or <span class="gen-fallback-badge">HA Default</span>
-            are previewing that real default.</p>
-          <p>Most fields support separate light/dark values. <strong>Preview &amp; Export</strong> at the bottom always shows the current state and generated YAML.</p>
+          <p class="preset-info-guide-tip">A Palette Seed role left as <strong>None</strong> is left out of the export — HA's own default palette applies instead. Dashed badge
+            <span class="gen-fallback-badge">HA-LCARS Default</span> appears for values that are the HA-LCARS theme defaults; and <span class="gen-fallback-badge">HA Default</span>
+            for values from HA defaults.</p>
+          <p>Most fields support separate light/dark values. Switch to <strong>Preview &amp; Export</strong> above any time to see the current state and generated YAML.</p>
         `)}
-        ${this._renderStartSection()}
-        ${this._renderPaletteSeedSection()}
-        ${this._renderLegacySection()}
-        ${this._renderDomainSection()}
-        ${this._renderRawSection()}
-        ${this._renderPreviewExportSection()}
+        ${this._renderLabTabToggle()}
+        <div class="gen-lab-tab-panel" ?hidden=${this._labViewMode !== 'config'}>
+          ${this._renderStartSection()}
+          ${this._renderPaletteSeedSection()}
+          ${this._renderLegacySection()}
+          ${this._renderDomainSection()}
+          ${this._renderRawSection()}
+        </div>
+        <div class="gen-lab-tab-panel" ?hidden=${this._labViewMode !== 'preview'}>
+          ${this._renderPreviewExportSection()}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Configuration/Preview & Export mode toggle. Both panels below always render in the same
+   * `render()` output every pass — never an `if`/`else` template swap — and are only ever
+   * CSS-hidden via `?hidden`, never removed from the DOM. This is required, not a style choice:
+   * Preview & Export imperatively mounts real hui-card/tile DOM nodes (see updated()'s own
+   * docblock) that must never be torn down and rebuilt by Lit's own template-identity diffing, or
+   * the exact first-mount race documented there (lazy container, burst-create, empty UIX style
+   * injection) reproduces on every single tab switch instead of just once.
+   */
+  _renderLabTabToggle() {
+    return html`
+      <div class="gen-toggle-group gen-toggle-group-m gen-lab-tab-toggle">
+        <wa-button-group childSelector="ha-button">
+          <ha-button variant="brand" size="m" .appearance=${this._labViewMode === 'config' ? 'accent' : 'filled'}
+            @click=${() => { this._labViewMode = 'config'; }}>Configuration</ha-button>
+          <ha-button variant="brand" size="m" .appearance=${this._labViewMode === 'preview' ? 'accent' : 'filled'}
+            @click=${() => { this._labViewMode = 'preview'; }}>Preview &amp; Export</ha-button>
+        </wa-button-group>
       </div>
     `;
   }
@@ -1542,9 +1695,34 @@ export class LCARdSThemeGeneratorView extends LitElement {
     `;
   }
 
-  /** Legend for the L/N/T badges on Palette Seed's tone swatches — see _buttonTierTagBadge. Shared by the main Palette Seed section and its Preview & Export read-only duplicate. */
+  /** Legend for the A/F/T/O badges on Palette Seed's tone swatches — see _buttonTierTagBadge. Shared by the main Palette Seed section and its Preview & Export read-only duplicate. */
   _renderTierLegend() {
     return html`
+      ${this._renderInfoGuide('tier-legend', 'mdi:information-outline', 'The A/F/T/O badges', html`
+        <p>Home Assistant's <code>ha-button</code> (now built with WebAwesome) doesn't read a Palette Seed tone itself, but rather each tone below feeds one of HA's own fixed semantic tokens.  HA then aliases to the semantic tokens with generic names <code>ha-button</code> actually consumes. Each badge marks which tone makes that whole hop, for a given <code>appearance</code></p>
+        <p class="preset-info-guide-missing-note">Shown for Primary/"brand" as an example — each role follows the same 3-hop chain via its own family name (neutral/danger/warning/success)</p>
+        <pre class="preset-info-guide-example">--ha-color-primary-40                    Palette Seed tone (the swatch itself)
+      │
+      ▼
+--ha-color-fill-primary-loud-resting     HA's semantic tier  ← the "A" badge marks this
+      │
+      ▼
+--wa-color-brand-fill-loud               WebAwesome alias var ha-button reads
+      │
+      ▼
+&lt;ha-button appearance="accent" variant="brand"&gt;   the rendered background</pre>
+        <ul>
+          <li><span class="gen-tier-badge">A</span> — background tone for <code>appearance="accent"</code></li>
+          <li><span class="gen-tier-badge">F</span> — background tone for <code>appearance="filled"</code></li>
+          <li><span class="gen-tier-badge">T</span> — text tone shared by <code>appearance="filled"</code> and <code>appearance="plain"</code></li>
+          <li><span class="gen-tier-badge">O</span> — text tone for <code>appearance="outlined"</code></li>
+        </ul>
+        <p class="preset-info-guide-tip">A swatch with no badges isn't unused — it's just not the fixed landing tone for any button appearance.</p>
+        <p class="preset-info-guide-missing-note">A "T" or "O" badge can be genuinely, correctly missing even where you'd expect one: LCARdS applies a WCAG contrast correction on export that can shift that button's actual text colour off this role's scale entirely (to black/white, or a different stop) — see the contrast note under each role below when that happens.</p>
+        <div class="preset-info-guide-links">
+          <a href="https://design.home-assistant.io/#components/ha-button" target="_blank" rel="noopener">ha-button component reference →</a>
+        </div>
+      `)}
       <div class="gen-tier-legend">
         <span class="gen-tier-legend-chip"><span class="gen-tier-badge">A</span> "Accent" button background</span>
         <span class="gen-tier-legend-chip"><span class="gen-tier-badge">F</span> "Filled" button background</span>
@@ -1601,6 +1779,14 @@ export class LCARdSThemeGeneratorView extends LitElement {
             <strong>LCARdS Palettes</strong> for a ready-made family.</p>
         ` : nothing}
 
+        ${cfg.source === 'custom' ? this._renderInfoGuide(`custom-${role}`, 'mdi:information-outline', 'Two ways to fill in a custom family', html`
+          <p>You can fully customize the palette tones by: </p>
+          <ul>
+            <li>Set all 11 tones by hand, or</li>
+            <li><strong>Generate other 10 tones from Base (tone 40)</strong> — fills the rest from Base using the same
+              lightness ramp HA-LCARS's own fallback uses. <strong>Clear all</strong> resets everything to gray.</li>
+          </ul>
+        `) : nothing}
         ${canVaryByMode ? html`
           <label class="gen-dark-toggle" style="margin-bottom: var(--ha-space-3);">
             <ha-switch .checked=${darkDiffers}
@@ -1699,18 +1885,6 @@ export class LCARdSThemeGeneratorView extends LitElement {
     const store = mode === 'dark' ? this._model.customAnchorsDark : this._model.customAnchors;
     const scale = this._scaleForRole(role, mode);
     return html`
-      ${mode === 'light' ? this._renderInfoGuide(`custom-${role}`, 'mdi:information-outline', 'Two ways to fill in a custom family', html`
-        <p>Every tone starts gray until you set it, except <strong>Base</strong>, seeded from whatever this role was
-          showing before you switched to Custom.</p>
-        <ul>
-          <li>Set all 11 tones by hand, or</li>
-          <li><strong>Generate other 10 tones from Base</strong> — fills the rest from Base using the same
-            lightness ramp HA-LCARS's own fallback uses. <strong>Clear all</strong> resets everything to gray.</li>
-        </ul>
-        <p class="preset-info-guide-tip">Editing a solid-outlined swatch (Darkest/Dark/Medium Dark/Base/Medium
-          Light/Light/Lightest) recalculates the in-between swatches (10/50/60/95) automatically, unless you've
-          edited that one yourself. Enable "Differs in dark mode" for a fully independent dark palette.</p>
-      `) : nothing}
       <div class="gen-toolbar-row">
         <ha-button @click=${() => this._clearCustomAnchors(role, mode)}>
           <ha-icon icon="mdi:eraser" slot="start"></ha-icon>
@@ -1743,16 +1917,39 @@ export class LCARdSThemeGeneratorView extends LitElement {
   }
 
   _renderLegacySection() {
+    const counts = this._legacyCategoryCounts();
     return html`
       <lcards-form-section header="HA-LCARS &amp; Legacy HA Semantic Colours" icon="mdi:format-color-fill" ?expanded=${false} ?outlined=${true}
         description="Set the colour for HA-LCARS and legacy HA vars — var name shown under each label. Unset fields default to HA-LCARS or HA defaults, if available.">
+        <div class="gen-search-container">
+          <div class="gen-search-wrapper">
+            <ha-input class="gen-legacy-search" .value=${this._legacySearchText} @input=${(ev) => this._handleLegacySearchInput(ev)}
+              placeholder="Search fields..." .label=${'Search'}>
+              <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
+            </ha-input>
+            ${this._legacySearchText ? html`
+              <ha-icon-button class="gen-search-clear" @click=${() => this._clearLegacySearch()} .label=${'Clear search'}>
+                <ha-icon icon="mdi:close"></ha-icon>
+              </ha-icon-button>
+            ` : nothing}
+          </div>
+        </div>
+        <div class="gen-category-filters">
+          <button class="gen-category-chip ${this._legacyActiveCategory === 'all' ? 'selected' : ''}"
+            @click=${() => this._setLegacyActiveCategory('all')}>All (${counts.all})</button>
+          ${LEGACY_GROUP_ORDER.filter(g => counts[g] > 0 || this._legacyActiveCategory === g).map(g => html`
+            <button class="gen-category-chip ${this._legacyActiveCategory === g ? 'selected' : ''}"
+              @click=${() => this._setLegacyActiveCategory(g)}>${g} (${counts[g]})</button>
+          `)}
+        </div>
         <div class="gen-row-header">
           <div></div><div>Light</div><div></div><div>Dark</div><div></div>
         </div>
-        ${LEGACY_GROUPS.map(group => html`
-          <lcards-form-section header="${group}" ?expanded=${group === 'LCARS UI'} nested>
-            ${LEGACY_FIELD_DEFS.filter(f => f.group === group && !DOMAIN_FALLBACK_KEYS.has(f.key)).map(field => this._renderLegacyField(field))}
-          </lcards-form-section>
+        ${this._legacyGroupedFields().map(({ group, fields }) => html`
+          <lcards-collapsible-section .title=${group} .count=${fields.length} countLabel="fields"
+            ?expanded=${this._expandedLegacyGroups.has(group)} @toggle=${() => this._toggleLegacyGroup(group)}>
+            ${fields.map(field => this._renderLegacyField(field))}
+          </lcards-collapsible-section>
         `)}
       </lcards-form-section>
     `;
@@ -1787,7 +1984,19 @@ export class LCARdSThemeGeneratorView extends LitElement {
       : null;
     return html`
       <div class="gen-field-row">
-        <div class="gen-field-label">${field.label}<code class="gen-field-varname">--${field.key}</code>
+        <div class="gen-field-label">
+          <span class="gen-field-label-row">
+            ${field.label}
+            ${field.description ? html`
+              <span class="gen-field-info">
+                <ha-icon-button class="gen-field-info-btn" .label=${'What this applies to'} hide-title>
+                  <ha-icon icon="mdi:information-outline"></ha-icon>
+                </ha-icon-button>
+                <div class="gen-field-info-popup" role="tooltip">${field.description}</div>
+              </span>
+            ` : nothing}
+          </span>
+          <code class="gen-field-varname">--${field.key}</code>
           ${badgeLabel ? html`<span class="gen-fallback-badge">${badgeLabel}</span>` : nothing}
         </div>
         <lcards-color-picker .hass=${this.hass} .value=${displayValue} .showBuilder=${false} .themeContext=${this._staticColorContext()}
@@ -1820,17 +2029,17 @@ export class LCARdSThemeGeneratorView extends LitElement {
     return html`
       <lcards-form-section header="Domain &amp; State Colours" icon="mdi:state-machine" ?expanded=${false} ?outlined=${true}>
         ${this._renderInfoGuide('domain', 'mdi:information-outline', 'How domain & state colours work', html`
-          <p>HA colours an entity's state icon by walking a fallback chain until it finds a var that's defined:</p>
-          <ol>
-            <li><code>--state-&lt;domain&gt;-&lt;device_class&gt;-&lt;state&gt;-color</code> — only for entities
-              with a device_class</li>
-            <li><code>--state-&lt;domain&gt;-&lt;state&gt;-color</code> — the rows below, e.g.
-              <code>--state-light-on-color</code></li>
-            <li><code>--state-&lt;domain&gt;-active-color</code> / <code>-inactive-color</code> — HA's own
-              per-domain active/inactive split. Not editable here; use Advanced / Raw Overrides if you need it.</li>
-            <li><strong>Global Fallback</strong> below — the final floor: <code>--state-active-color</code> /
-              <code>--state-inactive-color</code>, plus unavailable/unknown/default-icon.</li>
-          </ol>
+          <p>HA colours an entity's state icon by walking a fallback chain, top to bottom, until it finds a var that's defined:</p>
+          <pre class="preset-info-guide-example">--state-&lt;domain&gt;-&lt;device_class&gt;-&lt;state&gt;-color             only for entities with a device_class
+      │
+      ▼
+--state-&lt;domain&gt;-&lt;state&gt;-color                            the rows below, e.g. --state-light-on-color
+      │
+      ▼
+--state-&lt;domain&gt;-active-color / -inactive-color           HA's own per-domain split — not editable here
+      │
+      ▼
+Global Fallback: --state-active-color / -inactive-color   the final floor (plus unavailable/unknown/default-icon)</pre>
           <p>An <code>unavailable</code> entity skips straight to Global Fallback's
             <code>--state-unavailable-color</code>.</p>
           <p class="preset-info-guide-tip">Rows only hold a real value once set — <code>lock</code> and most of
@@ -2146,43 +2355,67 @@ export class LCARdSThemeGeneratorView extends LitElement {
 
   _renderLcarsMockups(mode) {
     const v = (key) => this._legacyValueForMode(key, mode);
+    // Hover tooltip listing every --var: value pair an element actually reads, so hovering e.g. the
+    // "Primary" tier bar shows both lcars-ui-primary and lcars-ui-primary-text with their resolved
+    // values for the currently selected Light/Dark mode above.
+    const tip = (...keys) => keys.map(k => `--${k}: ${v(k)}`).join('\n');
     return html`
       <div class="gen-mockup-grid">
         <div class="gen-mockup-cell">
           <div class="gen-mockup-caption">Sidebar</div>
-          <div class="gen-lcars-sidebar" style="background:${v('lcars-sidebar-background')}">
+          <div class="gen-lcars-sidebar" style="background:${v('lcars-sidebar-background')}" title=${tip('lcars-sidebar-background')}>
+            <div class="gen-lcars-sidebar-heading" style="color:${v('lcars-sidebar-text')}" title=${tip('lcars-sidebar-text')}>Navigation</div>
             ${['Overview', 'Energy', 'Map'].map((label, i) => html`
-              <div class="gen-lcars-sidebar-item" style="color:${i === 1 ? v('lcars-sidebar-selected-color') : v('lcars-sidebar-item-color')}">
-                <span class="gen-lcars-sidebar-dot" style="background:${i === 1 ? v('lcars-sidebar-selected-color') : v('lcars-sidebar-icon-color')}"></span>
+              <div class="gen-lcars-sidebar-item" style="color:${i === 1 ? v('lcars-sidebar-selected-color') : v('lcars-sidebar-item-color')}"
+                title=${i === 1 ? tip('lcars-sidebar-selected-color') : tip('lcars-sidebar-item-color', 'lcars-sidebar-icon-background', 'lcars-sidebar-icon-color')}>
+                ${i === 1
+                  ? html`<span class="gen-lcars-sidebar-dot" style="background:${v('lcars-sidebar-selected-color')}"></span>`
+                  : html`<span class="gen-lcars-sidebar-dot" style="background:${v('lcars-sidebar-icon-background')}">
+                      <span class="gen-lcars-sidebar-dot-glyph" style="background:${v('lcars-sidebar-icon-color')}"></span>
+                    </span>`}
                 ${label}
-                ${i === 2 ? html`<span class="gen-lcars-sidebar-badge" style="background:${v('lcars-sidebar-notification-color')}">3</span>` : nothing}
+                ${i === 2 ? html`<span class="gen-lcars-sidebar-badge" style="background:${v('lcars-sidebar-notification-color')}" title=${tip('lcars-sidebar-notification-color')}>3</span>` : nothing}
               </div>
             `)}
           </div>
         </div>
         <div class="gen-mockup-cell">
           <div class="gen-mockup-caption">App Header &amp; Tooltip</div>
-          <div class="gen-lcars-header" style="background:${v('lcars-ui-app-header-background-color')};color:${v('lcars-ui-app-header-text-color')}">
+          <div class="gen-lcars-header" style="background:${v('lcars-ui-app-header-background-color')};color:${v('lcars-ui-app-header-text-color')}"
+            title=${tip('lcars-ui-app-header-background-color', 'lcars-ui-app-header-text-color')}>
             <span>LCARdS</span>
-            <span style="color:${v('lcars-ui-app-header-clock')}">14:22</span>
+            <span style="color:${v('lcars-ui-app-header-clock')}" title=${tip('lcars-ui-app-header-clock')}>14:22</span>
           </div>
-          <div class="gen-lcars-tooltip" style="background:${v('lcars-tooltip-background')};color:${v('lcars-tooltip-text')}">
+          <div class="gen-lcars-tooltip" style="background:${v('lcars-tooltip-background')};color:${v('lcars-tooltip-text')}"
+            title=${tip('lcars-tooltip-background', 'lcars-tooltip-text')}>
             Living Room Light
           </div>
+          <button class="gen-lcars-ripple-demo" style="--gen-ripple-color:${v('lcars-ripple-color')};color:${v('lcars-ui-app-header-text-color')}"
+            title=${tip('lcars-ripple-color')}>
+            <ha-icon icon="mdi:gesture-tap"></ha-icon> Tap me
+          </button>
         </div>
         <div class="gen-mockup-cell">
           <div class="gen-mockup-caption">UI Colour Tiers</div>
-          <div class="gen-lcars-tier-heading" style="color:${v('lcars-ui-text-heading')}">Status Display</div>
+          <div class="gen-lcars-tier-heading" style="color:${v('lcars-ui-text-heading')}" title=${tip('lcars-ui-text-heading')}>Status Display</div>
           <div class="gen-lcars-tier-stack">
             ${UI_TIER_BARS.map(({ key, textKey, label }) => html`
-              <div class="gen-lcars-tier-bar" style="background:${v(key)};color:${v(textKey)}">${label}</div>
+              <div class="gen-lcars-tier-bar" style="background:${v(key)};color:${v(textKey)}" title=${tip(key, textKey)}>${label}</div>
             `)}
           </div>
           <div class="gen-lcars-tier-config">
-            <span class="gen-lcars-config-chip" style="background:${v('lcars-ui-config-button')}">
+            <span class="gen-lcars-config-chip" style="background:${v('lcars-ui-config-button')}" title=${tip('lcars-ui-config-button', 'lcars-ui-config-icon')}>
               <ha-icon icon="mdi:cog" style="color:${v('lcars-ui-config-icon')}"></ha-icon>
             </span>
             <span class="gen-mockup-caption" style="margin:0">Config</span>
+          </div>
+        </div>
+        <div class="gen-mockup-cell">
+          <div class="gen-mockup-caption">Settings Card</div>
+          <div class="gen-lcars-settings-card" style="background:${v('lcars-settings-card-color')};color:${v('lcars-settings-card-text')}"
+            title=${tip('lcars-settings-card-color', 'lcars-settings-card-text')}>
+            <ha-icon icon="mdi:cog-outline"></ha-icon>
+            <span>Display Settings</span>
           </div>
         </div>
       </div>
@@ -2208,7 +2441,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
             <div class="gen-cardmod-group-title">${group}</div>
             <div class="gen-varswatch-row">
               ${LEGACY_FIELD_DEFS.filter(f => f.group === group).map(field => html`
-                <div class="gen-varswatch-chip" title="--${field.key}">
+                <div class="gen-varswatch-chip" title="--${field.key}&#10;${this._legacyValueForMode(field.key, this._previewMode)}">
                   <div class="gen-varswatch-swatch">
                     <div class="gen-swatch-fill" style="background-color:var(--${field.key})"></div>
                   </div>
@@ -2321,8 +2554,17 @@ export class LCARdSThemeGeneratorView extends LitElement {
     const styles = this._buildLiveVarStyle(model, this._previewMode);
     return html`
       <div class="gen-live-preview" style=${styleMap(styles)}>
+        <div class="gen-toggle-group gen-toggle-group-m">
+          <wa-button-group childSelector="ha-button">
+            <ha-button variant="brand" size="s" .appearance=${this._domainDemoActive ? 'accent' : 'filled'}
+              @click=${() => { this._domainDemoActive = true; }}>Active</ha-button>
+            <ha-button variant="brand" size="s" .appearance=${!this._domainDemoActive ? 'accent' : 'filled'}
+              @click=${() => { this._domainDemoActive = false; }}>Inactive</ha-button>
+          </wa-button-group>
+        </div>
         <div class="gen-mockup-grid">
-          ${DOMAIN_DEMO_ENTITIES.map(({ domain, state }) => {
+          ${DOMAIN_DEMO_ENTITIES.map(({ domain, onState, offState }) => {
+            const state = this._domainDemoActive ? onState : offState;
             const isModified = this._model.domainOverrides[`${domain}.${state}`]?.value !== undefined;
             const badgeLabel = isModified ? null : DEFAULT_TIER_LABELS[this._liveDomainStateDefault(domain, state).tier];
             return html`
@@ -2395,7 +2637,10 @@ export class LCARdSThemeGeneratorView extends LitElement {
         this._domainDemoWrappers[domain] = wrapper;
       }
       if (!container.contains(wrapper)) container.appendChild(wrapper);
-      if (changedProps.has('hass')) applyHassToCard(wrapper, demoHass, `domain-demo-preview-${domain}`);
+      // Also re-applies on _domainDemoActive alone: toggling Active/Inactive re-renders and
+      // _buildDemoHass() correctly recomputes a fresh demoHass, but `this.hass` itself hasn't
+      // changed identity, so a hass-only guard would silently leave already-mounted tiles stale.
+      if (changedProps.has('hass') || changedProps.has('_domainDemoActive')) applyHassToCard(wrapper, demoHass, `domain-demo-preview-${domain}`);
     }
   }
 
@@ -3204,7 +3449,8 @@ export class LCARdSThemeGeneratorView extends LitElement {
   _buildDomainDefaultStyle() {
     /** @type {Object<string,string>} */
     const styles = {};
-    for (const { domain, state } of DOMAIN_DEMO_ENTITIES) {
+    for (const { domain, onState, offState } of DOMAIN_DEMO_ENTITIES) {
+      const state = this._domainDemoActive ? onState : offState;
       const overrideKey = `${domain}.${state}`;
       if (this._model.domainOverrides[overrideKey]?.value !== undefined) continue;
       styles[`--state-${domain}-${state}-color`] = this._liveDomainStateDefault(domain, state).var;
@@ -3274,25 +3520,28 @@ export class LCARdSThemeGeneratorView extends LitElement {
    * specific var this generator doesn't produce) and rgb_color on the light entity specifically
    * (hui-tile-card computes light colour via JS rgb2hsv/hsv2rgb math when present, bypassing CSS
    * vars entirely) — confirmed against HA frontend source (state_color.ts, hui-tile-card.ts).
-   * Memoized on `this.hass` reference identity; recomputes (a full shallow copy of hass.states) on
-   * every hass change while the Theme Lab is open, same accepted per-tick cost category as the
-   * existing card_mod loop's applyHassToCard calls, just extended to a bigger object.
+   * Memoized on `this.hass` reference identity plus `_domainDemoActive` (the Active/Inactive toggle
+   * — flipping it doesn't change `this.hass`'s own identity, so it must be part of the memo key
+   * too); recomputes (a full shallow copy of hass.states) on every hass/toggle change while the
+   * Theme Lab is open, same accepted per-tick cost category as the existing card_mod loop's
+   * applyHassToCard calls, just extended to a bigger object.
    */
   _buildDemoHass() {
     if (!this.hass) return this.hass;
-    if (this._demoHassSourceHass === this.hass) return this._demoHassCache;
+    if (this._demoHassSourceHass === this.hass && this._demoHassSourceActive === this._domainDemoActive) return this._demoHassCache;
     const states = { ...this.hass.states };
-    for (const { domain, state } of DOMAIN_DEMO_ENTITIES) {
+    for (const { domain, onState, offState } of DOMAIN_DEMO_ENTITIES) {
       const entityId = `${domain}.lcards_theme_lab_demo`;
       states[entityId] = {
         entity_id: entityId,
-        state,
+        state: this._domainDemoActive ? onState : offState,
         attributes: { friendly_name: `Demo ${domain.replace(/_/g, ' ')}` },
         last_changed: '', last_updated: '',
         context: { id: 'lcards-preview', parent_id: null, user_id: null },
       };
     }
     this._demoHassSourceHass = this.hass;
+    this._demoHassSourceActive = this._domainDemoActive;
     this._demoHassCache = { ...this.hass, states };
     return this._demoHassCache;
   }
