@@ -132,7 +132,7 @@ export class LCARdSFormFieldHelper {
                 .helper=${helper}
                 .disabled=${options.disabled || false}
                 .required=${options.required || false}
-                @value-changed=${(ev) => this._handleChange(ev, editor, path)}>
+                @value-changed=${(ev) => this._handleChange(ev, editor, path, selectorConfig)}>
             </ha-selector>
         `;
     }
@@ -256,7 +256,7 @@ export class LCARdSFormFieldHelper {
      * Simple pass-through with HA-SWITCH special handling
      * @private
      */
-    static _handleChange(ev, editor, path) {
+    static _handleChange(ev, editor, path, selectorConfig) {
         ev.stopPropagation();
 
         if (!editor || !path) return;
@@ -267,6 +267,13 @@ export class LCARdSFormFieldHelper {
             value = ev.target.checked ?? ev.target.__checked;
         } else {
             value = ev.detail?.value;
+        }
+
+        // ha-selector-object now fires '' instead of undefined when clearing a
+        // non-multiple object field (HA frontend change) — normalize so it
+        // doesn't get merged into config as a literal empty string.
+        if (selectorConfig?.object && !selectorConfig.object.multiple && value === '') {
+            value = undefined;
         }
 
         // Extract actual value from choose structure
