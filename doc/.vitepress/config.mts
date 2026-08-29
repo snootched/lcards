@@ -158,6 +158,7 @@ export default withMermaid(defineConfig({
               { text: 'Overview',          link: '/cards/' },
               { text: 'Common Properties', link: '/cards/common' },
               { text: 'Main Engineering',  link: '/cards/main-engineering' },
+              { text: 'Getting AI Help',   link: '/cards/ai-assistance' },
             ],
           },
           {
@@ -304,6 +305,7 @@ export default withMermaid(defineConfig({
             { text: 'Overview',          link: '/cards/' },
             { text: 'Common Properties', link: '/cards/common' },
             { text: 'Main Engineering',  link: '/cards/main-engineering' },
+            { text: 'Getting AI Help',   link: '/cards/ai-assistance' },
           ],
         },
         {
