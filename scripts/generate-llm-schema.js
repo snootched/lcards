@@ -50,65 +50,113 @@ const cardsRaw = {
   'lcards-layout-card':   layoutCardSchema,
 };
 
-// ── Dedup via JSON Schema $defs/$ref ──────────────────────────────────────
+// ── Strip editor-only / low-value-per-byte fields ─────────────────────────
 //
-// Card schemas assemble shared building blocks (animationSchema,
-// backgroundAnimationSchema, etc.) from common-schemas.js by importing the
-// same object reference and reusing it at multiple property paths, both
-// within one card and across cards. A naive JSON.stringify of the raw
-// schemas therefore duplicates those (sometimes 100+ KB) objects every place
-// they're used, ballooning a ~1.5MB bundle to 4MB+. Since every usage is the
-// *same* object reference (not a structurally-equal copy), we can dedup by
-// identity: any shared-schema export from common-schemas.js that appears
-// more than once across the whole bundle gets hoisted into a top-level
-// `$defs` entry and replaced everywhere with `{ "$ref": "#/$defs/<name>" }`.
-const registry = new Map(); // object reference -> export name
-for (const [name, value] of Object.entries(commonSchemas)) {
-  if (value && typeof value === 'object') registry.set(value, name);
-}
-
-function countRefs(node, counts) {
-  if (!node || typeof node !== 'object') return;
-  const name = registry.get(node);
-  if (name) counts.set(name, (counts.get(name) || 0) + 1);
-  const children = Array.isArray(node) ? node : Object.values(node);
-  for (const child of children) countRefs(child, counts);
-}
-
-function dedupe(node, dupeNames, defs) {
+// `x-ui-hints` drives the *editor's* form widgets (field ordering, control
+// type, collapsed sections, etc.) — it has zero meaning to an LLM writing
+// YAML and is pure overhead here. `examples` arrays are trimmed to a single
+// representative item; one example conveys the shape just as well as five.
+// `description` is kept in full: it's real information (accepted formats,
+// units, constraints) an LLM needs to avoid guessing.
+//
+// The strip is memoized by input object reference so that two properties
+// pointing at the *same* source object (see dedup below) still point at the
+// same stripped object — required for identity-based dedup to work after
+// stripping.
+const stripCache = new Map();
+function stripForLLM(node) {
   if (!node || typeof node !== 'object') return node;
-  const name = registry.get(node);
-  if (name && dupeNames.has(name)) {
-    if (!defs.has(name)) {
-      defs.set(name, undefined); // placeholder in case of self-reference
-      defs.set(name, dedupeChildren(node, dupeNames, defs));
+  if (stripCache.has(node)) return stripCache.get(node);
+  const out = Array.isArray(node) ? [] : {};
+  stripCache.set(node, out);
+  if (Array.isArray(node)) {
+    for (const v of node) out.push(stripForLLM(v));
+  } else {
+    for (const [k, v] of Object.entries(node)) {
+      if (k === 'x-ui-hints') continue;
+      if (k === 'examples' && Array.isArray(v)) {
+        out[k] = v.slice(0, 1).map(stripForLLM);
+        continue;
+      }
+      out[k] = stripForLLM(v);
     }
-    return { $ref: `#/$defs/${name}` };
   }
-  return dedupeChildren(node, dupeNames, defs);
-}
-
-function dedupeChildren(node, dupeNames, defs) {
-  if (Array.isArray(node)) return node.map((v) => dedupe(v, dupeNames, defs));
-  const out = {};
-  for (const [k, v] of Object.entries(node)) out[k] = dedupe(v, dupeNames, defs);
   return out;
 }
 
+// ── Dedup via JSON Schema $defs/$ref ──────────────────────────────────────
+//
+// Card schemas assemble shared building blocks from common-schemas.js by
+// importing the same object reference and reusing it at multiple property
+// paths — both across cards (e.g. animationSchema) *and within a single
+// schema* (e.g. backgroundAnimationSchema embeds the same module-private
+// backgroundAnimationEffectSchema object in two `oneOf` branches). A naive
+// JSON.stringify duplicates every one of those objects at every place it's
+// used. Since each usage is the *same* object reference (not a
+// structurally-equal copy), we dedup by identity: walk the whole stripped
+// tree, and any object reachable from more than one place gets hoisted into
+// a top-level `$defs` entry and replaced with `{ "$ref": "#/$defs/<name>" }`.
+// Named common-schemas.js exports keep their real name; anonymous repeats
+// (like backgroundAnimationEffectSchema) get an auto-generated one. A small
+// size floor avoids "deduping" trivial nodes where the $ref itself would
+// cost more bytes than the duplication it removes.
+const DEDUP_MIN_BYTES = 300;
+
+const namedRegistry = new Map(); // stripped shared object -> export name
+for (const [name, value] of Object.entries(commonSchemas)) {
+  if (value && typeof value === 'object') namedRegistry.set(stripForLLM(value), name);
+}
+
+const strippedCards = {};
+for (const [key, schema] of Object.entries(cardsRaw)) strippedCards[key] = stripForLLM(schema);
+
+function countRefs(node, counts) {
+  if (!node || typeof node !== 'object') return;
+  counts.set(node, (counts.get(node) || 0) + 1);
+  const children = Array.isArray(node) ? node : Object.values(node);
+  for (const child of children) countRefs(child, counts);
+}
 const counts = new Map();
-for (const schema of Object.values(cardsRaw)) countRefs(schema, counts);
-const dupeNames = new Set([...counts.entries()].filter(([, c]) => c > 1).map(([n]) => n));
+for (const schema of Object.values(strippedCards)) countRefs(schema, counts);
+
+const names = new Map(); // stripped shared object -> $defs name
+let autoIdx = 0;
+for (const [node, count] of counts.entries()) {
+  if (count <= 1) continue;
+  if (JSON.stringify(node).length < DEDUP_MIN_BYTES) continue;
+  names.set(node, namedRegistry.get(node) || `sharedSchema${++autoIdx}`);
+}
+
+function dedupe(node, defs) {
+  if (!node || typeof node !== 'object') return node;
+  const name = names.get(node);
+  if (name) {
+    if (!defs.has(name)) {
+      defs.set(name, undefined); // placeholder guards against (unexpected) self-reference
+      defs.set(name, dedupeChildren(node, defs));
+    }
+    return { $ref: `#/$defs/${name}` };
+  }
+  return dedupeChildren(node, defs);
+}
+
+function dedupeChildren(node, defs) {
+  if (Array.isArray(node)) return node.map((v) => dedupe(v, defs));
+  const out = {};
+  for (const [k, v] of Object.entries(node)) out[k] = dedupe(v, defs);
+  return out;
+}
 
 const defs = new Map();
 const cards = {};
-for (const [key, schema] of Object.entries(cardsRaw)) cards[key] = dedupe(schema, dupeNames, defs);
+for (const [key, schema] of Object.entries(strippedCards)) cards[key] = dedupe(schema, defs);
 
 const bundle = {
   $comment: 'Auto-generated from src/cards/schemas/*.js by scripts/generate-llm-schema.js — do not hand-edit.',
   lcards_version: pkg.version,
   generated_at: new Date().toISOString(),
-  usage: 'Each key under "cards" is a complete JSON Schema (draft-07) for one LCARdS custom card type. ' +
-    'Shared building blocks used by multiple cards are hoisted into "$defs" and referenced via ' +
+  usage: 'Each key under "cards" is a JSON Schema (draft-07) for one LCARdS custom card type, stripped of ' +
+    'editor-only metadata. Shared building blocks are hoisted into "$defs" and referenced via ' +
     '{"$ref": "#/$defs/<name>"} to keep this file a reasonable size. ' +
     'When generating LCARdS YAML, only use properties that appear in the relevant card\'s schema (resolving ' +
     'any $ref against $defs) — do not invent keys. MSD (custom:lcards-msd) is not included here; see the MSD docs instead.',

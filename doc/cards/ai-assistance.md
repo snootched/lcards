@@ -28,7 +28,7 @@ attached:
 
 ```
 I'm writing YAML configuration for LCARdS, a custom Home Assistant Lovelace
-card system. I've attached its JSON Schema (lcards-schema.json) and reference
+card system. I've attached its JSON Schema (https://lcards.unimatrix01.ca/lcards-schema.json) and reference
 docs. Rules:
 - Only use properties that appear in the schema for the card type I'm using
   (resolve any "$ref" against the top-level "$defs").
