@@ -1960,6 +1960,10 @@ export class LCARdSCard extends LCARdSNativeCard {
                 entity: this._entity,
                 config: this.config,
                 hass: this.hass,
+                // Mirrors the `states` variable already available to [[[JS]]] templates
+                // (LCARdSCardTemplateEvaluator._safeEvalCode), so {states.entity_id.state}-style
+                // token templates resolve the same way JS templates already can.
+                states: this.hass?.states,
                 variables: this.config?.variables || {},
                 theme: this._singletons?.themeManager?.getActiveTheme?.(),
                 // displayFormat controls how {entity.state} and {entity.attributes.*} tokens

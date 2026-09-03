@@ -823,18 +823,14 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const isPills = trackType === 'pills' || trackType === 'shaped';
         const indExpanded = this._expandedRanges[`${basePath}_ind`] || false;
         const pillExpanded = this._expandedRanges[`${basePath}_pill`] || false;
+        const labelExpanded = this._expandedRanges[`${basePath}_label`] || false;
 
         return html`
             <!-- Value template -->
-            <div>
-                <ha-input
-                    .label=${'Marker Value / Template'}
-                    .helper=${'Template resolving to a position on the track. Examples: {entity.attributes.current_temperature}, {states.sensor.outdoor_temp.state}, [[[return hass.states["sensor.x"].state]]]'}
-                    .value=${String(range.value ?? '')}
-                    @change=${(e) => this._setConfigPath(`${basePath}.value`, e.target.value)}
-                    style="width: 100%;">
-                </ha-input>
-            </div>
+            ${FormField.renderField(this, `${basePath}.value`, {
+                label: 'Marker Value / Template',
+                helper: 'Template resolving to a position on the track. Examples: {entity.attributes.current_temperature}, {states.sensor.outdoor_temp.state}, [[[return hass.states["sensor.x"].state]]], {datasource:name}'
+            })}
 
             ${isPills ? html`
                 <lcards-color-section-v2
@@ -980,6 +976,46 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ?expanded=${false}>
                 </lcards-color-section-v2>
             </lcards-form-section>
+
+            <!-- Label settings (optional text caption) -->
+            <lcards-form-section
+                header="Label"
+                description="Optional text caption shown next to the marker (gauge mode) or highlighted pill (pills mode)."
+                icon="mdi:tag-text"
+                ?expanded=${labelExpanded}
+                ?outlined=${true}
+                headerLevel="5"
+                @expanded-changed=${(e) => { this._expandedRanges[`${basePath}_label`] = e.detail.expanded; this.requestUpdate(); }}>
+
+                ${FormField.renderField(this, `${basePath}.label.text`, {
+                    label: 'Label Text',
+                    helper: 'Static text or a template — {entity.attributes.x} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], or {datasource:name} are all supported.'
+                })}
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, `${basePath}.label.font_size`, {
+                        label: 'Font Size (px)',
+                        helper: 'Defaults to the gauge tick-label size (14px)'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.label.offset.x`, {
+                        label: 'Offset X (px)'
+                    })}
+                </lcards-grid-layout>
+                ${FormField.renderField(this, `${basePath}.label.offset.y`, {
+                    label: 'Offset Y (px)'
+                })}
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="${basePath}.label.color"
+                    header="Label Colour"
+                    description="State-based colour of the label text"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
+            </lcards-form-section>
         `;
     }
 
@@ -1022,8 +1058,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         const ranges = this.config?.style?.ranges || [];
         const newRange = {
             value: '',
-            color: 'var(--warning-color)',
-            label: ''
+            color: 'var(--warning-color)'
         };
         this._updateConfig({
             style: { ...this.config.style, ranges: [...ranges, newRange] }
@@ -1031,35 +1066,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         // Auto-expand the new item
         this._expandedRanges[ranges.length] = true;
         this.requestUpdate();
-    }
-
-    /**
-     * Helper to set a deeply-nested config value using a dot-path
-     * @param {string} path - Dot-separated path e.g. 'style.ranges.0.value'
-     * @param {*} value - Value to set
-     * @private
-     */
-    _setConfigPath(path, value) {
-        const parts = path.split('.');
-        const config = JSON.parse(JSON.stringify(this.config || {}));
-        let cursor = config;
-        for (let i = 0; i < parts.length - 1; i++) {
-            // @ts-ignore - TS2345: auto-suppressed
-            const key = isNaN(parts[i]) ? parts[i] : parseInt(parts[i]);
-            if (cursor[key] === undefined || cursor[key] === null || typeof cursor[key] !== 'object') {
-                // @ts-ignore - TS2345: auto-suppressed
-                cursor[key] = isNaN(parts[i + 1]) ? {} : [];
-            }
-            cursor = cursor[key];
-        }
-        // @ts-ignore - TS2345: auto-suppressed
-        const lastKey = isNaN(parts[parts.length - 1]) ? parts[parts.length - 1] : parseInt(parts[parts.length - 1]);
-        if (value === '' || value === undefined || value === null) {
-            delete cursor[lastKey];
-        } else {
-            cursor[lastKey] = value;
-        }
-        this._updateConfig(config);
     }
 
     /**

@@ -966,19 +966,19 @@ export function getSliderSchema(options = {}) {
 
                     ranges: {
                         type: 'array',
-                        description: 'Colour-coded value ranges and point markers.\n\nTwo item types:\n• Band range (min+max): coloured background zone — rect in gauge mode, segment overrides in pills mode.\n• Value marker (value): live point indicator — triangle on gauge ticks, highlighted pill in pills mode. Resolves {entity.attributes.x}, {states.id.state}, and [[[JS]]] templates.',
+                        description: 'Colour-coded value ranges and point markers.\n\nTwo item types:\n• Band range (min+max): coloured background zone — rect in gauge mode, segment overrides in pills mode.\n• Value marker (value): live point indicator — triangle on gauge ticks, highlighted pill in pills mode.\n\nmin/max/value resolve static numbers, {entity.state}/{entity.attributes.x}/{states.domain.object_id.state} tokens, {datasource:name}, {config.x}/{variables.x} tokens, theme token references, and [[[JS]]] — evaluated synchronously (no Jinja2; see range.label.text for full Jinja2/DataSource async support on the label caption).',
                         items: {
                             type: 'object',
                             properties: {
                                 min: {
                                     type: ['number', 'string'],
-                                    description: 'Range start value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.entity_id.state}, [[[JS return expr]]].',
-                                    examples: [0, 18, 80, '{entity.attributes.min_temp}', '{states.input_number.low.state}', '[[[return Number(entity.state) - 5]]]']
+                                    description: 'Range start value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, [[[JS return expr]]]. (Synchronous only — no Jinja2.)',
+                                    examples: [0, 18, 80, '{entity.attributes.min_temp}', '{states.input_number.low.state}', '{datasource:low_threshold}', '[[[return Number(entity.state) - 5]]]']
                                 },
                                 max: {
                                     type: ['number', 'string'],
-                                    description: 'Range end value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.entity_id.state}, [[[JS return expr]]].',
-                                    examples: [20, 24, 100, '{entity.attributes.max_temp}', '{states.input_number.high.state}', '[[[return Number(entity.state) + 5]]]']
+                                    description: 'Range end value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, [[[JS return expr]]]. (Synchronous only — no Jinja2.)',
+                                    examples: [20, 24, 100, '{entity.attributes.max_temp}', '{states.input_number.high.state}', '{datasource:high_threshold}', '[[[return Number(entity.state) + 5]]]']
                                 },
                                 color: stateColorSchema,
                                 opacity: {
@@ -990,7 +990,7 @@ export function getSliderSchema(options = {}) {
                                 },
                                 value: {
                                     type: ['string', 'number'],
-                                    description: 'Numeric value or template resolving to a position on the track. When present (instead of min/max), renders a point marker rather than a coloured band. Supports {entity.attributes.xxx}, {states.entity_id.state}, and [[[JS]]] templates.',
+                                    description: 'Numeric value or template resolving to a position on the track. When present (instead of min/max), renders a point marker rather than a coloured band. Supports {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, and [[[JS]]] templates. (Synchronous only — no Jinja2.)',
                                     'x-ui-hints': {
                                         label: 'Marker Value',
                                         helper: 'Template or number — places a visual marker at this value rather than drawing a coloured band'
@@ -1044,6 +1044,34 @@ export function getSliderSchema(options = {}) {
                                     'x-ui-hints': {
                                         label: 'Pill Marker Style',
                                         helper: 'Controls how the marker pill appears in pills mode'
+                                    }
+                                },
+                                label: {
+                                    type: 'object',
+                                    description: 'Optional text caption shown next to the marker (gauge mode) or highlighted pill (pills mode).',
+                                    properties: {
+                                        text: {
+                                            type: 'string',
+                                            description: 'Label text. Supports the full template system: {entity.attributes.xxx} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], and {datasource:name} references — or a plain static string.',
+                                            'x-ui-hints': {
+                                                label: 'Label Text',
+                                                helper: 'Static text or a template — {entity.attributes.x} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], or {datasource:name} are all supported.'
+                                            }
+                                        },
+                                        color: { ...stateColorSchema, description: 'State-based colour of the label text. Falls back to theme:components.slider.indicator.label.color.' },
+                                        font_size: { type: 'number', description: 'Label font size in pixels. Defaults to the gauge tick-label size.' },
+                                        offset: {
+                                            type: 'object',
+                                            description: 'Pixel offset from the marker’s default label position (above the marker in horizontal orientation, beside it in vertical).',
+                                            properties: {
+                                                x: { type: 'number', description: 'Horizontal offset in pixels' },
+                                                y: { type: 'number', description: 'Vertical offset in pixels' }
+                                            }
+                                        }
+                                    },
+                                    'x-ui-hints': {
+                                        label: 'Label',
+                                        helper: 'Optional text caption shown next to the marker'
                                     }
                                 }
                             }

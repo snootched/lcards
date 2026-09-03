@@ -127,9 +127,11 @@ unsubscribe();
 #### Template Processing
 
 ```javascript
-// Process [[[JavaScript]]] and {{tokens}}
+// Process all 4 template types: [[[JS]]], {token}, {datasource:name}, {{ Jinja2 }}
 const result = await this.processTemplate(template);
 ```
+
+See [Templates](../../core/templates/) for the full syntax reference. Note: tokens use **single** braces (`{entity.state}`) — double braces (`{{ }}`) are Jinja2.
 
 #### Theme Access
 
@@ -508,7 +510,7 @@ window.lcards.core.ingestHass(hass) (feed to singletons)
 
 | Method | Parameters | Returns | Description |
 |--------|------------|---------|-------------|
-| `processTemplate(template, options)` | template: string, options?: Object | `Promise<string>` | Process [[[JS]]] and {{token}} templates (async) |
+| `processTemplate(template, options)` | template: string, options?: Object | `Promise<string>` | Process all 4 template types — [[[JS]]], {token}, {datasource:name}, {{ Jinja2 }} — via `UnifiedTemplateEvaluator.evaluateAsync()` |
 | `getThemeToken(path, fallback)` | path: string, fallback: any | any | Get theme token value |
 | `getStylePreset(type, name)` | type: string, name: string | Object\|null | Get style preset config |
 | `resolveStyle(base, tokens, overrides)` | base: Object, tokens: Array, overrides: Object | Object | Resolve combined styles |

@@ -3309,7 +3309,7 @@ export class LCARdSButton extends LCARdSCard {
     /**
      * Extract and track entities from templates (override base class)
      * Tracks dependencies from multi-text field templates
-     * @private
+     * @protected
      * @override
      */
     _updateTrackedEntities() {

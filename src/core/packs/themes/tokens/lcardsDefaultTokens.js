@@ -377,7 +377,9 @@ export const lcardsDefaultTokens = {
       // and the Picard animation dot — all three use the same visual language.
       indicator: {
         color: 'var(--lcars-text-light, var(--lcards-moonlight))',
-        border: { color: 'black' }
+        border: { color: 'black' },
+        // Value-marker label text (range.label.color fallback)
+        label: { color: 'var(--lcars-text-light, var(--lcards-moonlight))' }
       },
       // Animated indicator (pulsing dot on Picard-style components)
       animation: {

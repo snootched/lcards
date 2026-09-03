@@ -98,7 +98,10 @@ export class HATemplateEvaluator extends TemplateEvaluator {
         reject(new Error('Template rendering timed out after 5 seconds'));
       }, 5000);
 
-      // Subscribe to render_template - it will immediately return result
+      // Subscribe to render_template - it will immediately return result.
+      // `variables` mirrors the context already available to [[[JS]]] and {token}
+      // templates (see LCARdSCard.processTemplate()), so {{ config.x }} / {{ user }} /
+      // {{ variables.x }} work the same way inside Jinja2 templates too.
       hass.connection.subscribeMessage(
         (result) => {
           clearTimeout(timeout);
@@ -112,7 +115,12 @@ export class HATemplateEvaluator extends TemplateEvaluator {
         },
         {
           type: 'render_template',
-          template: template
+          template: template,
+          variables: {
+            config: this.context.config,
+            user: this.context.hass?.user?.name,
+            variables: this.context.variables
+          }
         }
       ).then((unsub) => {
         unsubscribe = unsub;

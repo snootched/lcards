@@ -19,6 +19,10 @@ applyTo: "src/core/templates/**, src/cards/**"
 
 Each phase receives the output of the previous phase. Jinja2 is always last because it requires a round trip to Home Assistant.
 
+Jinja2 templates round-trip to HA's real `render_template` API (the same engine as automations/template sensors — no client-side sanitization of the template text) with a `variables: { config, user, variables }` payload mirroring the JS/Token context below, so `{{ config.x }}` / `{{ user }}` / `{{ variables.x }}` work inside `{{ }}` too.
+
+`evaluateAsync()` (all four phases) and `evaluateSync()` (JS + Token + DataSource only, **no Jinja2**) are both public entry points on `UnifiedTemplateEvaluator` — use `evaluateSync()` when a value must resolve synchronously without an `await` (e.g. a field recomputed on every hass tick, like `lcards-slider.js`'s marker `value`/`min`/`max` resolution). It never attempts Jinja2, so a `{{ }}`/`{% %}` template handed to `evaluateSync()` is left unevaluated.
+
 ---
 
 ## Creating an Evaluator
@@ -34,17 +38,30 @@ const evaluator = new UnifiedTemplateEvaluator({
     entity:    this.hass.states[this.config.entity],  // or null
     config:    this.config,
     hass:      this.hass,
+    states:    this.hass.states,                      // flat dict, keyed by full entity_id
     variables: this.config.variables || {},
     theme:     window.lcards?.core?.themeManager?.getCurrentTheme()
   },
   dataSourceManager: window.lcards?.core?.dataSourceManager  // null if not needed
 });
 
-// Always use async evaluation — covers all 4 types
+// Use async evaluation to cover all 4 types (including Jinja2)
 const result = await evaluator.evaluateAsync(template);
+
+// Or, when the caller can't await (e.g. resolved on every hass tick):
+const syncResult = evaluator.evaluateSync(template); // JS + Token + DataSource only
 ```
 
-`evaluateAsync()` returns the original string on error (never throws) — check for the error sentinel only if you need to distinguish failure from a template that produces the word "error".
+Per-phase error/fallback behaviour differs — none of them throw up to the caller:
+
+| Phase | On failure |
+|-------|-----------|
+| JavaScript | Original `[[[...]]]` text returned unevaluated |
+| Token | Empty string |
+| DataSource | Empty string (unresolved source) |
+| Jinja2 | Original content string returned unchanged (also on the 5s HA round-trip timeout) |
+
+`evaluateAsync()`'s outer try/catch is a last-resort safety net on top of the above — check for the error sentinel only if you need to distinguish failure from a template that legitimately produces the word "error".
 
 ---
 
@@ -53,10 +70,11 @@ const result = await evaluator.evaluateAsync(template);
 ```
 {datasource:source_name}           — current value, no format
 {datasource:source_name:.2f}       — Python format spec (floats)
-{datasource:source_name:>8}        — alignment
 {ds:source_name}                   — short alias
 {source_name}                      — legacy MSD syntax (backward compat only)
 ```
+
+No padding/alignment specs (e.g. `:>8`) are supported — an unrecognized format spec is silently ignored and the raw value is used as-is.
 
 The explicit `{datasource:...}` form is preferred for new code. The legacy `{name}` form works but can create false positives when the name collides with a token key.
 
@@ -70,10 +88,14 @@ Available in `{...}` token templates:
 |-------|------------|
 | `{entity.state}` | `entity.state` (HA-translated display string) |
 | `{entity.attributes.X}` | Entity attribute `X` |
+| `{states.domain.object_id.state}` | State of an **explicitly named** entity (not `config.entity`) — HA-translated display string |
+| `{states.domain.object_id.attributes.X}` | Attribute `X` of an explicitly named entity |
 | `{config.X}` | `config.X` from card config |
 | `{variables.X}` | `config.variables.X` |
 | `{theme:palette.moonlight}` | Theme token at path `palette.moonlight` |
 | `{hass.user.name}` | Current HA user name |
+
+`{states.domain.object_id...}` requires `states` to be present on the evaluator's `context` (see above) — it is a flat dict keyed by the full `"domain.object_id"` string, so the entity ID is reconstructed from the two segments right after `states` (`_resolveToken()` special-cases this, since a plain per-segment dot-walk can't otherwise resolve a key that itself contains a `.`).
 
 ---
 
@@ -83,7 +105,7 @@ Inside `[[[...]]]`, the following are available as variables:
 
 ```javascript
 [[[
-  // Available: entity, config, hass, variables, states (= hass.states)
+  // Available: entity, config, hass, variables, states (= hass.states), theme, user
   if (!entity) return 'No entity';
   return entity.state === 'on' ? 'Active' : 'Inactive';
 ]]]
@@ -136,7 +158,7 @@ Token evaluation of `{entity.state}` respects a `displayFormat` option on the ev
 |-------|-----------|
 | `'friendly'` _(default)_ | HA-translated display string (e.g. "Open", "Playing") |
 | `'raw'` | Raw `entity.state` string (e.g. "on", "playing") |
-| `'parts'` | `{ value, unit }` object |
+| `'parts'` | Value and unit joined into one string (e.g. `"23.5 °C"`) |
 | `'unit'` | Unit string only |
 
 Pass via `context.displayFormat` when creating the evaluator.

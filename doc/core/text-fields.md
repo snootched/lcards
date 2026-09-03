@@ -52,7 +52,7 @@ All options in the per-field table below are also valid in `text.default` as sha
 | `padding` | number / object | — | Offset in px: single number (all sides) or `{ top, right, bottom, left }` |
 | `stretch` | boolean / number | — | Stretch/compress glyph spacing to fill a fraction of the **zone width** using SVG `textLength`. `true` = 100%, `0.8` = 80%. Pairs naturally with `font_size_percent` to fill both axes independently. |
 | `zone` | string | auto | Named zone to render this field inside. Defaults to the card's primary zone (`body`, `track`, first border, etc.). See [Zones](#zones). |
-| `template` | boolean | `false` | *(Legacy)* Enable legacy template evaluation for `content` — not needed with current template syntaxes |
+| `template` | boolean | `true` | Templates in `content` are evaluated by default. Set to `false` to render `{...}` / `[[[...]]]` text literally instead of evaluating it |
 | `display_format` | string | `"friendly"` | How to format entity state/attribute tokens — see [Display Format](#display-format) below |
 
 ### Position Values

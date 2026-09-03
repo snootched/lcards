@@ -87,6 +87,8 @@ const evaluator = new UnifiedTemplateEvaluator({
     entity: this.hass.states[this.config.entity_id],
     config: this.config,
     hass: this.hass,
+    states: this.hass.states,                 // flat dict keyed by full entity_id
+    variables: this.config.variables || {},
     theme: window.lcards.core.themeManager.getActiveTheme?.()
   },
   dataSourceManager: window.lcards.core.dataSourceManager
@@ -94,6 +96,10 @@ const evaluator = new UnifiedTemplateEvaluator({
 
 const result = await evaluator.evaluateAsync(template);
 ```
+
+`evaluateAsync()` runs all four phases (including Jinja2). A second public entry point, `evaluateSync()`, runs only JS + Token + DataSource — no Jinja2, since that requires the async HA round-trip — for callers that need a result without an `await` (e.g. a value recomputed on every hass tick, like `lcards-slider.js`'s marker `value`/`min`/`max` resolution).
+
+The `states.<domain>.<object_id>.state` / `.attributes.<key>` token form resolves a *different* entity's state via the `states` context key above. Because `hass.states` is a flat dict keyed by the whole `"domain.object_id"` string (not a nested object), `LCARdSCardTemplateEvaluator._resolveToken()` special-cases this form — reconstructing the entity ID from the two path segments right after `states` — rather than relying on its normal per-segment dot-walk.
 
 ---
 

@@ -911,9 +911,8 @@ export function getTextSchema(options = {}) {
                     color: '#FF9900'
                 },
                 status: {
-                    content: '{{entity.state}}',
-                    position: 'center',
-                    template: true
+                    content: '{entity.state}',
+                    position: 'center'
                 }
             }
         ],
@@ -1126,8 +1125,8 @@ export function getTextSchema(options = {}) {
             properties: {
                 content: {
                     type: 'string',
-                    description: 'Text content (supports templates if template:true)',
-                    examples: ['Temperature', '{{entity.state}}', '{entity.attributes.brightness}']
+                    description: 'Text content. Templates are evaluated by default (set template:false to disable)',
+                    examples: ['Temperature', '{entity.state}', '{entity.attributes.brightness}', '{{ states(...) }}']
                 },
                 show: {
                     type: 'boolean',
@@ -1259,8 +1258,8 @@ export function getTextSchema(options = {}) {
                 },
                 template: {
                     type: 'boolean',
-                    default: 'false',
-                    description: 'Enable template string evaluation (e.g., {{entity.state}})'
+                    default: true,
+                    description: 'Template evaluation is enabled by default for this field’s content (e.g. {entity.state}, {{ states(...) }}, [[[ ... ]]]). Set to false to render {...} / [[[...]]] text literally without evaluating it.'
                 },
                 stretch: {
                     oneOf: [

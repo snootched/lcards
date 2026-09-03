@@ -270,6 +270,46 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
       return null;
     }
 
+    const displayFormat = this.context.displayFormat ?? 'friendly';
+    const hass = this.context.hass;
+
+    // states.<domain>.<object_id>.state / states.<domain>.<object_id>.attributes.<key>
+    // context.states (and context.hass.states) is a flat dict keyed by the full
+    // "domain.object_id" entity id — a plain segment-by-segment walk can't resolve this,
+    // since the entity id itself contains the "." that separates path segments elsewhere.
+    // Reconstruct the entity id from the two segments right after `states` (valid HA
+    // entity ids are always exactly domain.object_id) and resolve directly, mirroring
+    // the entity.state/entity.attributes.KEY display-format handling below but for an
+    // explicitly-named entity instead of the card's own context.entity.
+    if (parts[0] === 'states' && parts.length >= 4 && hass) {
+      const entityId = `${parts[1]}.${parts[2]}`;
+      const targetEntity = hass.states?.[entityId];
+      if (!targetEntity) return '';
+
+      if (parts.length === 4 && parts[3] === 'state') {
+        switch (displayFormat) {
+          case 'raw': return targetEntity.state;
+          case 'parts': return joinParts(haFormatStateParts(hass, targetEntity));
+          case 'unit': return extractUnit(haFormatStateParts(hass, targetEntity));
+          case 'friendly':
+          default: return haFormatState(hass, targetEntity);
+        }
+      }
+
+      if (parts.length === 5 && parts[3] === 'attributes') {
+        const attrKey = parts[4];
+        switch (displayFormat) {
+          case 'raw': return targetEntity.attributes?.[attrKey];
+          case 'parts': return joinParts(haFormatAttrParts(hass, targetEntity, attrKey));
+          case 'unit': return extractUnit(haFormatAttrParts(hass, targetEntity, attrKey));
+          case 'friendly':
+          default: return haFormatAttrValue(hass, targetEntity, attrKey);
+        }
+      }
+      // Unrecognized states.* suffix shape — fall through to the generic walk below
+      // (will resolve to '' via the null/undefined guard, same as before this fix).
+    }
+
     // Pre-classify entity-related tokens for display_format handling
     // entity.state → state formatting
     // entity.attributes.KEY → attribute formatting
@@ -293,13 +333,11 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
       return '';
     }
 
-    // Apply display_format for entity-related tokens.
-    // display_format is set in context by processTemplate() from the text field config.
+    // Apply display_format for entity-related tokens (entity/hass/displayFormat were
+    // already resolved above, ahead of the states.* special case).
     // Default is 'friendly' so {entity.state} shows HA-translated strings by default.
     // JS templates ([[[...]]] ) are unaffected — they always receive raw values.
-    const displayFormat = this.context.displayFormat ?? 'friendly';
     const entity = this.context.entity;
-    const hass   = this.context.hass;
 
     if (isEntityState && entity && hass) {
       switch (displayFormat) {

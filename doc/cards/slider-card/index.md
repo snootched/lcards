@@ -332,7 +332,7 @@ style:
 Define colour-coded value bands and point markers on the track. Two item types:
 
 - **Band** (`min` + `max`): coloured background zone
-- **Marker** (`value`): live point indicator that tracks a value
+- **Marker** (`value`): live point indicator that tracks a value, with an optional text `label`
 
 ```yaml
 style:
@@ -349,17 +349,21 @@ style:
       max: 100
       color: "var(--warning-color)"
       opacity: 0.3
-    # Value marker — triangle at a live entity value
+    # Value marker — triangle at a live entity value, with a caption
     - value: "{entity.attributes.target_temp}"
       color: "var(--lcards-orange)"
+      label:
+        text: "Target"
 ```
+
+`min`/`max`/`value` all support [templates](../../core/templates/) — but only the **synchronous** subset (JS, token, DataSource — no Jinja2), since these positions are resolved on every entity-state update. `label.text` supports the **full** template system, including Jinja2, since it's resolved separately and doesn't need to be synchronous.
 
 ### Range band fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `min` | number / string | required | Band start value — supports templates: `{entity.attributes.x}`, `[[[JS]]]` |
-| `max` | number / string | required | Band end value — supports templates |
+| `min` | number / string | required | Band start value — supports templates: `{entity.state}`, `{entity.attributes.x}`, `{states.domain.object_id.state}`, `{datasource:name}`, `{config.x}`, `{variables.x}`, `[[[JS]]]` |
+| `max` | number / string | required | Band end value — supports the same templates as `min` |
 | `color` | string / object | — | Band fill colour — [state map](../../core/colours.md) supported |
 | `opacity` | number | `0.3` | Band opacity (0–1) |
 
@@ -367,7 +371,7 @@ style:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `value` | number / string | required | Position value — supports templates: `{entity.attributes.x}`, `{states.id.state}`, `[[[JS]]]` |
+| `value` | number / string | required | Position value — supports templates: `{entity.state}`, `{entity.attributes.x}`, `{states.domain.object_id.state}`, `{datasource:name}`, `{config.x}`, `{variables.x}`, `[[[JS]]]` |
 | `color` | string / object | — | Marker colour — [state map](../../core/colours.md) supported |
 | `indicator.type` | string | `triangle` | Shape: `line`, `round`, `triangle` |
 | `indicator.align` | string | `center` | Cross-axis pin: `start`, `center`, `end` |
@@ -385,6 +389,20 @@ style:
 | `pill_style.stroke_color` | string/object | — | Pills mode: outline colour. Falls back to the pill fill colour (`color`) if unset. Supports state-object syntax |
 
 Global marker defaults can be set at `style.gauge.marker_indicator` — individual range entries override per field.
+
+### Label fields
+
+An optional text caption next to the marker (gauge mode) or highlighted pill (pills mode).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `label.text` | string | — | Label text. Nothing renders unless this is set. Supports **all four** [template types](../../core/templates/), including Jinja2 and DataSource |
+| `label.color` | string / object | theme default | Label text colour — [state map](../../core/colours.md) supported |
+| `label.font_size` | number | `14` | Font size in px — defaults to the gauge tick-label size |
+| `label.offset.x` | number | — | Horizontal offset in px from the default position |
+| `label.offset.y` | number | — | Vertical offset in px from the default position |
+
+Default position (no `offset` set): above the marker in horizontal orientation, beside it in vertical orientation. There's no automatic collision avoidance against tick labels, the value readout, or other markers — use `offset` to manually clear overlaps, the same way `indicator.offset` already works for the marker shape itself.
 
 ---
 

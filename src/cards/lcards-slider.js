@@ -88,6 +88,8 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvaluator.js';
+import { escapeHtml } from '../utils/StringUtils.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
@@ -499,7 +501,8 @@ export class LCARdSSlider extends LCARdSButton {
         }
 
         // Always re-resolve range templates — range bounds and colors may reference
-        // entities other than the primary entity (handled by _shouldUpdateOnHassChange).
+        // entities other than the primary entity (tracked via the _updateTrackedEntities
+        // override, so the base class's own re-render gate already covers them).
         // Called unconditionally so cards with no primary entity but with dynamic
         // range templates also respond correctly.
         this._resolveMarkerValues();
@@ -555,7 +558,37 @@ export class LCARdSSlider extends LCARdSButton {
         if (this.config.style) {
             await this._preEvaluateStyleTemplates(this.config.style);
         }
+        await this._preEvaluateMarkerLabelTemplates();
         await super._processCustomTemplates();
+    }
+
+    /**
+     * Pre-evaluate range.label.text templates through the full template pipeline
+     * (JS + Token + DataSource + Jinja2 — unlike range value/min/max, which only
+     * need the synchronous evaluateSync() subset) and cache results in
+     * `_evaluatedStyleCache`, so `_generateGaugeMarkers()` and the pills-generation
+     * loop can read them synchronously via `_resolveTemplateValue()` — the same
+     * cache/read path already used for range.indicator.color.
+     *
+     * Called unconditionally (not gated by a Jinja2/JS syntax pre-check like
+     * `_preEvaluateStyleTemplates()`) because Token/DataSource-only label text
+     * still needs to reach `processTemplate()` to resolve.
+     * @private
+     */
+    async _preEvaluateMarkerLabelTemplates() {
+        const ranges = this.config.style?.ranges;
+        if (!Array.isArray(ranges)) return;
+
+        for (const range of ranges) {
+            const text = range?.label?.text;
+            if (typeof text !== 'string' || !text) continue;
+            try {
+                const result = await this.processTemplate(text, { displayFormat: 'friendly' });
+                this._evaluatedStyleCache.set(text, result);
+            } catch (e) {
+                lcardsLog.warn('[LCARdSSlider] Failed to pre-evaluate marker label template:', e);
+            }
+        }
     }
 
     /**
@@ -782,73 +815,76 @@ export class LCARdSSlider extends LCARdSButton {
 
     /**
      * Resolve a range marker `value` template to a numeric position.
-     * Supports: static numbers, {entity.state}, {entity.attributes.xxx},
-     * {states.entity_id.state}, {states.entity_id.attributes.xxx}, [[[JS]]] templates.
+     * Supports: static numbers, and — via the shared UnifiedTemplateEvaluator's
+     * synchronous evaluateSync() — {entity.state}/{entity.attributes.xxx}/{states.entity_id.state}
+     * token templates, [[[JS]]] templates, and {datasource:name} references.
+     * Jinja2 is intentionally NOT supported here: this resolver runs on every hass
+     * tick (for live-tracking accuracy) and Jinja2 requires an async HA round-trip —
+     * see _buildRangeTemplateEvaluator() for the rationale.
      * @param {*} template - Template string or static number
+     * @param {UnifiedTemplateEvaluator|null} evaluator - Shared evaluator built by
+     *   _buildRangeTemplateEvaluator(), or null if none of this cycle's ranges need one
      * @returns {number|null} Resolved numeric value, or null if unresolvable
      * @private
      */
-    _resolveMarkerValue(template) {
+    _resolveMarkerValue(template, evaluator) {
         if (template === null || template === undefined) return null;
         if (typeof template === 'number') return isNaN(template) ? null : template;
 
         const str = String(template).trim();
 
-        // Try parsing as a plain numeric string
+        // Try parsing as a plain numeric string (fast path — no evaluator needed)
         const parsed = parseFloat(str);
         if (!isNaN(parsed) && str === String(parsed)) return parsed;
 
-        // Token template: {token.path}
-        const tokenMatch = str.match(/^\{([^}]+)\}$/);
-        if (tokenMatch) {
-            const token = tokenMatch[1];
+        if (!evaluator) return null; // hass not yet available; will re-resolve on next update
 
-            // {entity.state}
-            if (token === 'entity.state') {
-                const v = parseFloat(this._entity?.state);
-                return isNaN(v) ? null : v;
-            }
-
-            // {entity.attributes.xxx}
-            const attrMatch = token.match(/^entity\.attributes\.(.+)$/);
-            if (attrMatch) {
-                const v = parseFloat(this._entity?.attributes?.[attrMatch[1]]);
-                return isNaN(v) ? null : v;
-            }
-
-            // {states.entity_id.state}
-            const statesStateMatch = token.match(/^states\.(.+)\.state$/);
-            if (statesStateMatch) {
-                const v = parseFloat(this.hass?.states?.[statesStateMatch[1]]?.state);
-                return isNaN(v) ? null : v;
-            }
-
-            // {states.entity_id.attributes.xxx}
-            const statesAttrMatch = token.match(/^states\.(.+)\.attributes\.(.+)$/);
-            if (statesAttrMatch) {
-                const v = parseFloat(this.hass?.states?.[statesAttrMatch[1]]?.attributes?.[statesAttrMatch[2]]);
-                return isNaN(v) ? null : v;
-            }
+        try {
+            const result = evaluator.evaluateSync(str);
+            const v = parseFloat(result);
+            return isNaN(v) ? null : v;
+        } catch (e) {
+            lcardsLog.warn(`[LCARdSSlider] Marker value template error:`, e);
+            return null;
         }
+    }
 
-        // JS template: [[[return expression]]]
-        if (str.startsWith('[[[') && str.endsWith(']]]')) {
-            if (!this.hass) return null; // hass not yet available; will re-resolve on first hass update
-            const jsBody = str.slice(3, -3).trim();
-            try {
-                // eslint-disable-next-line no-new-func
-                const fn = new Function('hass', 'entity', 'states', jsBody);
-                const result = fn(this.hass, this._entity, this.hass.states);
-                const v = parseFloat(result);
-                return isNaN(v) ? null : v;
-            } catch (e) {
-                lcardsLog.warn(`[LCARdSSlider] Marker value JS template error:`, e);
-                return null;
-            }
-        }
+    /**
+     * Lazily construct a UnifiedTemplateEvaluator for this cycle's range value/min/max
+     * templates. Returns null (skipping construction entirely) when every range value
+     * is already a plain number — the common case — so all-numeric markers never pay
+     * for evaluator construction.
+     *
+     * displayFormat is 'raw' (not 'friendly'): results feed parseFloat() directly and
+     * must not pick up localized/unit-suffixed display formatting.
+     * @param {Array} ranges - this._sliderStyle.ranges
+     * @returns {UnifiedTemplateEvaluator|null}
+     * @private
+     */
+    _buildRangeTemplateEvaluator(ranges) {
+        const isPlainNumber = (v) => {
+            if (v === null || v === undefined) return true;
+            if (typeof v === 'number') return true;
+            const str = String(v).trim();
+            const parsed = parseFloat(str);
+            return !isNaN(parsed) && str === String(parsed);
+        };
+        const needsEvaluator = ranges.some(r => !isPlainNumber(r.value) || !isPlainNumber(r.min) || !isPlainNumber(r.max));
+        if (!needsEvaluator || !this.hass) return null;
 
-        lcardsLog.debug(`[LCARdSSlider] Could not resolve marker value template:`, template);
-        return null;
+        return new UnifiedTemplateEvaluator({
+            hass: this.hass,
+            context: {
+                entity: this._entity,
+                config: this.config,
+                hass: this.hass,
+                states: this.hass?.states,
+                variables: this.config?.variables || {},
+                theme: this._singletons?.themeManager?.getActiveTheme?.(),
+                displayFormat: 'raw'
+            },
+            dataSourceManager: window.lcards?.core?.dataSourceManager
+        });
     }
 
     /**
@@ -904,56 +940,65 @@ export class LCARdSSlider extends LCARdSButton {
      */
     _resolveMarkerValues() {
         const ranges = this._sliderStyle?.ranges || [];
+        const evaluator = this._buildRangeTemplateEvaluator(ranges);
         this._resolvedMarkerValues = ranges.map((range, idx) => {
             if (!('value' in range)) return null; // Band range, not a marker
-            const resolved = this._resolveMarkerValue(range.value);
+            const resolved = this._resolveMarkerValue(range.value, evaluator);
             lcardsLog.trace(`[LCARdSSlider] Marker range[${idx}] resolved: ${JSON.stringify(range.value)} → ${resolved}`);
             return resolved;
         });
         // Also resolve dynamic band range bounds (min/max templates)
-        this._resolveRangeBounds();
+        this._resolveRangeBounds(evaluator);
     }
 
     /**
      * Resolve band range `min`/`max` templates to numeric values.
-     * Supports the same template syntaxes as _resolveMarkerValue():
-     * static numbers, {entity.state}, {entity.attributes.xxx},
-     * {states.entity_id.state}, {states.entity_id.attributes.xxx}, [[[JS]]].
+     * Supports the same template syntaxes as _resolveMarkerValue(): static numbers,
+     * plus (via the shared evaluator) token/JS/datasource templates.
      * Stores a parallel array in this._resolvedRangeBounds indexed to this._sliderStyle.ranges.
      * Null entries correspond to marker ranges (those with a `value` key).
      * Called automatically from _resolveMarkerValues() on every HASS update and style change.
+     * @param {UnifiedTemplateEvaluator|null} evaluator - Shared evaluator built by
+     *   _buildRangeTemplateEvaluator(), passed through from _resolveMarkerValues()
      * @private
      */
-    _resolveRangeBounds() {
+    _resolveRangeBounds(evaluator) {
         const ranges = this._sliderStyle?.ranges || [];
         this._resolvedRangeBounds = ranges.map((range, idx) => {
             if ('value' in range) return null; // Marker range, not a band
-            const resolvedMin = this._resolveMarkerValue(range.min);
-            const resolvedMax = this._resolveMarkerValue(range.max);
+            const resolvedMin = this._resolveMarkerValue(range.min, evaluator);
+            const resolvedMax = this._resolveMarkerValue(range.max, evaluator);
             lcardsLog.trace(`[LCARdSSlider] Band range[${idx}] bounds resolved: min=${JSON.stringify(range.min)}→${resolvedMin}, max=${JSON.stringify(range.max)}→${resolvedMax}`);
             return { min: resolvedMin, max: resolvedMax };
         });
-        // Update entity dependency tracking so external entities trigger re-renders
-        this._extractRangeEntityDependencies();
     }
 
     /**
-     * Scan all range bound templates (min, max, value) for entity ID references
-     * and store them in this._rangeTemplateEntities.
-     * Handles both token syntax ({states.entity_id.state}) and JS template syntax
-     * (states['entity.id'], states["entity.id"], hass.states['entity.id']).
-     * Called from _resolveRangeBounds() so it refreshes on every style/hass update.
+     * Scan an array of range configs (min, max, value, label.text) for entity ID
+     * references using token syntax ({states.entity_id.state}) or JS bracket syntax
+     * (states['entity.id'], hass.states['entity.id']). Jinja2 refs (e.g.
+     * {{ states('sensor.x') }}) don't need this scan — those are already caught by
+     * the base class's own Jinja2-function-call scan in _updateTrackedEntities().
+     * @param {Array} ranges - Raw range configs (this.config.style.ranges)
+     * @returns {Set<string>}
      * @private
      */
-    _extractRangeEntityDependencies() {
+    _scanRangeTemplatesForEntities(ranges) {
         const entities = new Set();
-        const ranges = this._sliderStyle?.ranges || [];
+        if (!Array.isArray(ranges)) return entities;
 
         const extractFromTemplate = (tmpl) => {
             if (!tmpl || typeof tmpl !== 'string') return;
 
+            // Trim like _resolveMarkerValue()/UnifiedTemplateEvaluator's token matcher
+            // do — both tolerate whitespace around/inside the braces (e.g.
+            // '{ states.x.state }'), so this scan must match on the same trimmed
+            // form or it silently misses entities the real resolver has no trouble with.
+            const trimmed = tmpl.trim();
+
             // Token syntax: {states.entity_id.state} or {states.entity_id.attributes.xxx}
-            const tokenMatch = tmpl.match(/^\{states\.([^.}]+\.[^.}]+)\./)
+            // (optional whitespace tolerated right after '{', matching the real evaluator)
+            const tokenMatch = trimmed.match(/^\{\s*states\.([^.}]+\.[^.}]+)\./)
             if (tokenMatch) {
                 entities.add(tokenMatch[1]);
                 return;
@@ -961,7 +1006,7 @@ export class LCARdSSlider extends LCARdSButton {
 
             // JS template syntax: states['entity.id'] or states["entity.id"]
             // Also matches hass.states['entity.id']
-            const jsMatches = tmpl.matchAll(/states\[['"](\S+?)['"]/g);
+            const jsMatches = trimmed.matchAll(/states\[['"](\S+?)['"]/g);
             for (const m of jsMatches) {
                 entities.add(m[1]);
             }
@@ -971,34 +1016,41 @@ export class LCARdSSlider extends LCARdSButton {
             extractFromTemplate(range.min);
             extractFromTemplate(range.max);
             extractFromTemplate(range.value); // Marker ranges too
+            extractFromTemplate(range.label?.text);
         });
 
-        this._rangeTemplateEntities = entities;
-        lcardsLog.trace(`[LCARdSSlider] Range template dependencies:`, [...entities]);
+        return entities;
     }
 
     /**
-     * Override shouldUpdate to also watch entities referenced in range templates.
-     * Without this override, if a range bound template references an entity other
-     * than the card's primary entity, changes to that entity would not trigger
-     * a re-render and the range bands would be stale.
+     * Merge entities referenced by range min/max/value/label.text templates into
+     * _trackedEntities, alongside the base class's primary-entity/animation/rule/
+     * Jinja2-scan/triggers_update sources (LCARdSCard.js `_updateTrackedEntities()`,
+     * whose own docblock says "Subclasses should override to add their specific
+     * template sources" — this is exactly what `_extractMapRangeEntities` already
+     * does there for `map_range` descriptors).
+     *
+     * Without this, a range/label template referencing an entity other than the
+     * primary `entity` via token ({states.x.state}) or JS-bracket syntax never
+     * triggers _scheduleTemplateUpdate() (LCARdSCard.js `_onHassChanged`, which only
+     * loops `_trackedEntities`) when that entity changes — so range.label.text's
+     * async pre-evaluation and range min/max/value's position never refresh until
+     * some unrelated tracked entity happens to change and drags them along.
+     *
+     * Reads from `this.config.style.ranges` (raw config), not `this._sliderStyle`,
+     * because this runs at config-processing time (LCARdSCard.js ~line 386) before
+     * `_sliderStyle` is (re)computed — matching how `_extractMapRangeEntities` also
+     * scans raw `this.config`, not internally-resolved state.
+     * @protected
      * @override
      */
-    _shouldUpdateOnHassChange(newHass, oldHass) {
-        // Always defer to parent logic first (handles primary entity + trackedEntities)
-        if (super._shouldUpdateOnHassChange(newHass, oldHass)) return true;
-
-        // Additionally check entities extracted from range bound templates
-        if (this._rangeTemplateEntities?.size > 0) {
-            for (const entityId of this._rangeTemplateEntities) {
-                if (oldHass?.states?.[entityId] !== newHass?.states?.[entityId]) {
-                    lcardsLog.debug(`[LCARdSSlider] Range template entity changed: ${entityId} — triggering re-render`);
-                    return true;
-                }
-            }
+    _updateTrackedEntities() {
+        super._updateTrackedEntities();
+        const rangeEntities = this._scanRangeTemplatesForEntities(this.config.style?.ranges);
+        if (rangeEntities.size > 0) {
+            this._trackedEntities = Array.from(new Set([...this._trackedEntities, ...rangeEntities]));
+            lcardsLog.trace(`[LCARdSSlider] Added range-template entities to tracked set:`, [...rangeEntities]);
         }
-
-        return false;
     }
 
     /**
@@ -1814,13 +1866,29 @@ export class LCARdSSlider extends LCARdSButton {
             const pillIdx = Math.max(0, Math.min(count - 1, Math.round(valuePercent * (count - 1))));
             const pillStyle = range.pill_style || {};
             const fillColor = this._resolveRangeColor(range.color || 'var(--lcars-text-light, #ffffff)');
+
+            const rawLabelText = range.label?.text;
+            const label = rawLabelText ? {
+                text: String(this._resolveTemplateValue(rawLabelText) ?? rawLabelText),
+                color: this._resolveColorValue(String(this._resolveStateValue({
+                    actualState: this._entity?.state,
+                    classifiedState: this._getButtonState(),
+                    colorConfig: range.label.color,
+                    fallback: 'theme:components.slider.indicator.label.color'
+                }) ?? '')),
+                fontSize: range.label.font_size ?? 14,
+                offsetX: range.label.offset?.x,
+                offsetY: range.label.offset?.y
+            } : null;
+
             markerPillMap.set(pillIdx, {
                 color: fillColor,
                 strokeColor: pillStyle.stroke_color
                     ? this._resolveRangeColor(pillStyle.stroke_color, fillColor)
                     : fillColor,
                 strokeEnabled: pillStyle.stroke !== false, // default true
-                strokeWidth: pillStyle.stroke_width ?? 2
+                strokeWidth: pillStyle.stroke_width ?? 2,
+                label
             });
         });
 
@@ -1861,6 +1929,18 @@ export class LCARdSSlider extends LCARdSButton {
                         data-unfilled-opacity="${getRangeOpacity(i, count, unfilledOpacity)}"
                         data-pill-index="${i}"${markerAttrsV} />
                 `;
+
+                if (markerInfoV?.label?.text) {
+                    // Default: beside the pill, vertically centered
+                    const labelX = x + pillWidth + (markerInfoV.label.offsetX ?? 6);
+                    const labelY = y + (pillHeight / 2) + (markerInfoV.label.offsetY ?? 0);
+                    pills += `
+                        <text x="${labelX}" y="${labelY}"
+                              font-size="${markerInfoV.label.fontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
+                              fill="${markerInfoV.label.color}"
+                              text-anchor="start" dominant-baseline="middle">${escapeHtml(markerInfoV.label.text)}</text>
+                    `;
+                }
             }
         } else {
             // Horizontal: pills stretch from left to right
@@ -1899,6 +1979,18 @@ export class LCARdSSlider extends LCARdSButton {
                         data-unfilled-opacity="${getRangeOpacity(i, count, unfilledOpacity)}"
                         data-pill-index="${i}"${markerAttrsH} />
                 `;
+
+                if (markerInfoH?.label?.text) {
+                    // Default: above the pill, horizontally centered
+                    const labelX = x + (pillWidth / 2) + (markerInfoH.label.offsetX ?? 0);
+                    const labelY = y + (markerInfoH.label.offsetY ?? -6);
+                    pills += `
+                        <text x="${labelX}" y="${labelY}"
+                              font-size="${markerInfoH.label.fontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
+                              fill="${markerInfoH.label.color}"
+                              text-anchor="middle">${escapeHtml(markerInfoH.label.text)}</text>
+                    `;
+                }
             }
         }
 
@@ -3816,6 +3908,7 @@ export class LCARdSSlider extends LCARdSButton {
                     markerIndicator.color, markerIndicator.borderEnabled,
                     markerIndicator.borderColor, markerIndicator.borderWidth, true
                 );
+                svg += this._renderMarkerLabel(range, markerIndicator, mX, mY + markerIndicator.offsetY, true);
             } else {
                 // X: value position along zone width
                 let mX = zoneWidth * markerPercent;
@@ -3831,9 +3924,61 @@ export class LCARdSSlider extends LCARdSButton {
                     markerIndicator.color, markerIndicator.borderEnabled,
                     markerIndicator.borderColor, markerIndicator.borderWidth, false
                 );
+                svg += this._renderMarkerLabel(range, markerIndicator, mX + markerIndicator.offsetX, mY, false);
             }
         }
         return svg;
+    }
+
+    /**
+     * Render an optional text label near a gauge-mode value marker.
+     * `drawX`/`drawY` are the same final coordinates passed to `_renderIndicator()`
+     * for this marker, so the label's offset is relative to the marker shape as drawn
+     * (not the pre-offset value position).
+     * Default position (no `label.offset`): above the marker in horizontal orientation,
+     * beside it in vertical orientation — matching where there's normally clear space.
+     * @param {Object} range - Range config (`range.label` may be undefined)
+     * @param {Object} markerIndicator - Resolved indicator geometry (for sizing the default offset)
+     * @param {number} drawX - Marker's final drawn X coordinate
+     * @param {number} drawY - Marker's final drawn Y coordinate
+     * @param {boolean} isVertical
+     * @returns {string} SVG markup, or '' if no label configured
+     * @private
+     */
+    _renderMarkerLabel(range, markerIndicator, drawX, drawY, isVertical) {
+        const rawText = range.label?.text;
+        if (!rawText) return '';
+
+        const labelText = String(this._resolveTemplateValue(rawText) ?? rawText);
+        if (!labelText) return '';
+
+        const labelColor = this._resolveColorValue(String(this._resolveStateValue({
+            actualState: this._entity?.state,
+            classifiedState: this._getButtonState(),
+            colorConfig: range.label.color,
+            fallback: 'theme:components.slider.indicator.label.color'
+        }) ?? ''));
+        const labelFontSize = range.label.font_size ?? 14;
+
+        let labelX, labelY, textAnchor;
+        if (isVertical) {
+            // Default: beside the marker (clear of the value-progress fill along the track)
+            labelX = drawX + (range.label.offset?.x ?? (markerIndicator.width / 2 + 6));
+            labelY = drawY + (range.label.offset?.y ?? 0);
+            textAnchor = 'start';
+        } else {
+            // Default: above the marker
+            labelX = drawX + (range.label.offset?.x ?? 0);
+            labelY = drawY + (range.label.offset?.y ?? -(markerIndicator.height / 2 + 6));
+            textAnchor = 'middle';
+        }
+
+        return `
+            <text x="${labelX}" y="${labelY}"
+                  font-size="${labelFontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
+                  fill="${labelColor}"
+                  text-anchor="${textAnchor}" dominant-baseline="${isVertical ? 'middle' : 'auto'}">${escapeHtml(labelText)}</text>
+        `;
     }
 
     /**

@@ -16,6 +16,8 @@ text:
     content: "{entity.state}"                          # Entity state
   sublabel:
     content: "{entity.attributes.brightness}"          # Attribute
+  other_entity:
+    content: "{states.sensor.outdoor_temp.state}"      # A DIFFERENT entity's state
   title:
     content: "{theme:colors.text.onDark}"              # Theme token
   reading:
@@ -28,9 +30,17 @@ text:
 |-------|-------|
 | `{entity.state}` | Current entity state string |
 | `{entity.attributes.NAME}` | Any entity attribute by name |
+| `{states.domain.object_id.state}` | State of a **different** entity, referenced by full entity ID |
+| `{states.domain.object_id.attributes.NAME}` | Attribute `NAME` of a different entity |
+| `{config.NAME}` | A value from this card's own config |
+| `{variables.NAME}` | A value from `config.variables` |
+| `{hass.user.name}` | The current Home Assistant user's name |
 | `{theme:token.path}` | Theme token value — see [Themes](../themes/) |
 
 For DataSource values (`{ds:...}`), see [Section 4](#4-data-source-templates-ds--datasource) below.
+
+> [!NOTE]
+> This single-brace `{...}` syntax is an LCARdS-specific shorthand, not a Home Assistant or Jinja2 convention — it exists because it resolves synchronously (no network round trip), which some render paths require. If you already know HA's Jinja2 templating from automations or other cards, reach for [Jinja2 templates](#3-jinja2-templates) (`{{ }}`, real double braces) instead — it's the actual HA template engine and supports everything you already know (`states()`, `state_attr()`, filters, etc.). Use single-brace tokens when you specifically need the synchronous fast path.
 
 ---
 
@@ -61,8 +71,11 @@ text:
 |----------|------|----------|
 | `entity` | object | Current entity state — `entity.state`, `entity.attributes.*`, `entity.entity_id`, `entity.last_changed` |
 | `hass` | object | Full Home Assistant object — `hass.states`, `hass.services`, `hass.user`, `hass.themes` |
+| `states` | object | Shorthand for `hass.states` — a different entity's state object, e.g. `states['sensor.outdoor_temp'].state` |
 | `config` | object | This card's full config |
+| `variables` | object | `config.variables` |
 | `theme` | object | Current theme token tree |
+| `user` | object | Current Home Assistant user (`hass.user`) |
 
 ---
 
@@ -132,6 +145,7 @@ Templates are evaluated in most string-valued config properties:
 - `tap_action.url_path` — URL
 - `icon` — icon name
 - `rules.*.when.*.condition` — rule condition expressions (JS and Jinja2) — see [Rule Conditions](../rules/conditions.md)
+- Slider card `style.ranges[].value` / `.min` / `.max` — marker/band positions (JS, token, and DataSource only — no Jinja2, since these resolve synchronously on every state update) and `style.ranges[].label.text` — marker caption text (all 4 types, including Jinja2) — see [Slider Card](../../cards/slider-card/)
 
 ---
 
