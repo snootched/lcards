@@ -1895,6 +1895,13 @@ export class LCARdSSlider extends LCARdSButton {
         // Calculate pill dimensions
         let pills = '';
         let defs = '<defs>';
+        // Accumulated separately and appended after ALL pills (see return below) so a
+        // label always paints on top of every pill rect, regardless of which pill index
+        // it's attached to — interleaving label markup into the per-pill loop would put
+        // it behind any pill with a higher index in DOM/paint order, which could clip it
+        // when a pill visually overlaps the label (e.g. a custom offset placing the label
+        // over the track, or the label's own width overflowing beside its pill).
+        let labelsMarkup = '';
 
         if (isVertical) {
             // Vertical: pills stack from bottom to top
@@ -1934,7 +1941,7 @@ export class LCARdSSlider extends LCARdSButton {
                     // Default: beside the pill, vertically centered
                     const labelX = x + pillWidth + (markerInfoV.label.offsetX ?? 6);
                     const labelY = y + (pillHeight / 2) + (markerInfoV.label.offsetY ?? 0);
-                    pills += `
+                    labelsMarkup += `
                         <text x="${labelX}" y="${labelY}"
                               font-size="${markerInfoV.label.fontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
                               fill="${markerInfoV.label.color}"
@@ -1984,7 +1991,7 @@ export class LCARdSSlider extends LCARdSButton {
                     // Default: above the pill, horizontally centered
                     const labelX = x + (pillWidth / 2) + (markerInfoH.label.offsetX ?? 0);
                     const labelY = y + (markerInfoH.label.offsetY ?? -6);
-                    pills += `
+                    labelsMarkup += `
                         <text x="${labelX}" y="${labelY}"
                               font-size="${markerInfoH.label.fontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
                               fill="${markerInfoH.label.color}"
@@ -1994,7 +2001,7 @@ export class LCARdSSlider extends LCARdSButton {
             }
         }
 
-        return defs + pills;
+        return defs + pills + labelsMarkup;
     }
 
     /**
@@ -3832,6 +3839,11 @@ export class LCARdSSlider extends LCARdSButton {
         const dMin = this._displayConfig.min;
         const dMax = this._displayConfig.max;
         let svg = '';
+        // Accumulated separately and appended after ALL marker shapes (see return below)
+        // so a label always paints on top of every marker indicator, regardless of which
+        // marker it belongs to — a later marker in this loop could otherwise be drawn on
+        // top of (clipping) an earlier marker's label if they're close together.
+        let labelsMarkup = '';
 
         // Hardcoded defaults (bottom of fallback chain — preset and per-range config override these):
         //   Horizontal: offset.y = 10 (minor tick height). Bordered presets set
@@ -3908,7 +3920,7 @@ export class LCARdSSlider extends LCARdSButton {
                     markerIndicator.color, markerIndicator.borderEnabled,
                     markerIndicator.borderColor, markerIndicator.borderWidth, true
                 );
-                svg += this._renderMarkerLabel(range, markerIndicator, mX, mY + markerIndicator.offsetY, true);
+                labelsMarkup += this._renderMarkerLabel(range, markerIndicator, mX, mY + markerIndicator.offsetY, true);
             } else {
                 // X: value position along zone width
                 let mX = zoneWidth * markerPercent;
@@ -3924,10 +3936,10 @@ export class LCARdSSlider extends LCARdSButton {
                     markerIndicator.color, markerIndicator.borderEnabled,
                     markerIndicator.borderColor, markerIndicator.borderWidth, false
                 );
-                svg += this._renderMarkerLabel(range, markerIndicator, mX + markerIndicator.offsetX, mY, false);
+                labelsMarkup += this._renderMarkerLabel(range, markerIndicator, mX + markerIndicator.offsetX, mY, false);
             }
         }
-        return svg;
+        return svg + labelsMarkup;
     }
 
     /**
