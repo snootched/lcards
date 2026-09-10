@@ -93,7 +93,7 @@ import { escapeHtml } from '../utils/StringUtils.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
-import { haFormatStateParts, extractUnit } from '../utils/ha-entity-display.js';
+import { haFormatStateParts, extractUnit, haFormatNumber } from '../utils/ha-entity-display.js';
 
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
@@ -210,6 +210,48 @@ export class LCARdSSlider extends LCARdSButton {
                     line-height: 1.2;
                     color: var(--lcars-text-light, #ffffff);
                     white-space: nowrap;
+                }
+
+                /* Live drag-value badge (style.drag_badge). Left/top are written
+                 * imperatively per drag frame (see _updateDragBadgePosition()) to avoid
+                 * a full Lit re-render on every pointer-move; opacity is animated via
+                 * CSS, but transition-duration is set imperatively per show/hide call
+                 * (_showDragBadge()/_hideDragBadge()) — always 0ms on show (instant
+                 * pop-in) and only configurable on hide (release.duration/behavior). */
+                .drag-badge {
+                    position: absolute;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    white-space: nowrap;
+                    pointer-events: none;
+                    z-index: 15;
+                    padding: 2px 8px;
+                    border-radius: var(--ha-border-radius-pill, 9999px);
+                    font-family: var(--primary-font-family, 'Antonio', sans-serif);
+                    line-height: 1.2;
+                    opacity: 0;
+                    transition-property: opacity;
+                    transition-timing-function: ease-out;
+                }
+
+                .drag-badge.horizontal {
+                    transform: translate(-50%, 8px);
+                }
+
+                .drag-badge.vertical-right {
+                    transform: translate(8px, -50%);
+                }
+
+                .drag-badge.vertical-left {
+                    /* Extra clearance vs. vertical-right's 8px — picard's decorative
+                     * shell puts the thumb control closer to the track's left edge,
+                     * so 8px alone left the badge overlapping it. */
+                    transform: translate(calc(-100% - 20px), -50%);
+                }
+
+                .drag-badge.visible {
+                    opacity: 1;
                 }
 
                 .slider-input-overlay {
@@ -385,6 +427,14 @@ export class LCARdSSlider extends LCARdSButton {
 
         this._isDragging = false;
         this._isHorizontalDragging = false;
+
+        // Live drag-value badge (style.drag_badge). _dragBadgeEl is a cached shadow-DOM
+        // reference (queried lazily on first use) written to imperatively on every drag
+        // tick — see _updateDragBadgePosition(). _dragBadgeZone caches the control-zone
+        // pixel box + orientation from the most recent full render (_renderWithRenderer())
+        // so per-frame position math never needs to re-run zone calculation.
+        this._dragBadgeEl = null;
+        this._dragBadgeZone = null;
     }
 
     /**
@@ -933,10 +983,21 @@ export class LCARdSSlider extends LCARdSButton {
             defaultMin = entity?.attributes?.min_humidity ?? 0;
             defaultMax = entity?.attributes?.max_humidity ?? 100;
             defaultStep = 1;
+            defaultUnit = '%';
         } else if (this._domain === 'valve') {
             defaultMin = 0;
             defaultMax = 100;
             defaultStep = 1;
+            defaultUnit = '%';
+        } else if (this._domain === 'light' || this._domain === 'cover' || this._domain === 'fan') {
+            // brightness/position/percentage attributes all operate the slider in
+            // 0–100 percentage space (brightness is converted to/from 0-255 in
+            // _setEntityValue/_getEntityValue) — no unit_of_measurement attribute
+            // exists on these entities to fall back to, so it must be assumed here.
+            defaultMin = entity?.attributes?.min ?? 0;
+            defaultMax = entity?.attributes?.max ?? 100;
+            defaultStep = entity?.attributes?.step ?? 1;
+            defaultUnit = '%';
         } else {
             defaultMin = entity?.attributes?.min ?? 0;
             defaultMax = entity?.attributes?.max ?? 100;
@@ -955,12 +1016,17 @@ export class LCARdSSlider extends LCARdSButton {
 
         // DISPLAY CONFIG: What visual scale shows (from style.track.display)
         // Default to control range if not explicitly configured (no breaking changes)
-        // Unit preference: explicit config > HA ToParts unit (locale-correct) > unit_of_measurement fallback
+        // Unit preference: explicit config > HA ToParts unit (locale-correct) > unit_of_measurement > domain default.
+        // Uses || rather than ?? deliberately: extractUnit() returns '' (not null/undefined)
+        // whenever the entity's formatted STATE has no unit part — true for every non-numeric
+        // domain (light "on"/"off", media_player "playing", etc.) — and '' is never a meaningful
+        // unit value here, so each rung must be skipped on '' too or the chain dead-ends on the
+        // first non-numeric-state entity before ever reaching unit_of_measurement/defaultUnit.
         const haUnit = extractUnit(haFormatStateParts(this.hass, entity));
         this._displayConfig = {
             min: this._sliderStyle?.track?.display?.min ?? this._controlConfig.min,
             max: this._sliderStyle?.track?.display?.max ?? this._controlConfig.max,
-            unit: this._sliderStyle?.track?.display?.unit ?? haUnit ?? entity?.attributes?.unit_of_measurement ?? defaultUnit ?? ''
+            unit: this._sliderStyle?.track?.display?.unit || haUnit || entity?.attributes?.unit_of_measurement || defaultUnit || ''
         };
 
         lcardsLog.debug('[LCARdSSlider] Config resolved:', {
@@ -3398,6 +3464,176 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Render the live drag-value badge element (style.drag_badge). Returns an empty
+     * string when disabled. Colours/size/duration are resolved here (once per real
+     * render, via the CSS-native _resolveEntityStateColor() — this is a plain HTML
+     * element, not SVG/Canvas2D, so no two-step var() resolution is needed). Position
+     * and text content are NOT set here — they're written imperatively per drag frame
+     * by _updateDragBadgePosition(), matching the pattern already used for pill-opacity
+     * updates so dragging never forces a full Lit re-render.
+     * @returns {import('lit').TemplateResult|string}
+     * @private
+     */
+    _renderDragBadge() {
+        const cfg = this.config?.drag_badge;
+        if (!cfg?.enabled) return '';
+
+        const isVertical = this._sliderStyle?.track?.orientation === 'vertical';
+        const isPicard = (this.config.component || this._sliderStyle?.component || 'default') === 'picard';
+        // Horizontal always sits below the track (any track type). Vertical sits beside
+        // it — left for picard's decorative shell, right for every other component —
+        // matching the anchor math in _updateDragBadgePosition().
+        const placementClass = isVertical ? (isPicard ? 'vertical-left' : 'vertical-right') : 'horizontal';
+        const textColor = this._resolveEntityStateColor(cfg.color, 'var(--lcars-text-light, #ffffff)');
+        const bgEnabled = cfg.background?.enabled !== false;
+        const bgColor = bgEnabled
+            ? this._resolveEntityStateColor(
+                cfg.background?.color,
+                'color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent))'
+            )
+            : 'transparent';
+        const borderEnabled = cfg.border?.enabled !== false;
+        const borderWidth = cfg.border?.width ?? 1;
+        const borderColor = borderEnabled
+            ? this._resolveEntityStateColor(cfg.border?.color, 'theme:components.slider.border.color.default')
+            : 'transparent';
+        const fontSize = cfg.font_size ?? 14;
+
+        // transition-duration is deliberately NOT set here — it's applied imperatively
+        // per action by _showDragBadge()/_hideDragBadge() so the show (opacity 0→1)
+        // is always an instant pop-in and only the release-side hide honours
+        // release.duration/behavior. A single static duration here would fade BOTH
+        // directions since it's the same CSS transition rule either way.
+        return html`
+            <div
+                class="drag-badge ${placementClass}"
+                style="
+                    color: ${textColor};
+                    background-color: ${bgColor};
+                    border: ${borderEnabled ? `${borderWidth}px solid ${borderColor}` : 'none'};
+                    font-size: ${fontSize}px;
+                "
+            ></div>
+        `;
+    }
+
+    /**
+     * Lazily query and cache the drag-badge shadow-DOM element. Re-queried whenever
+     * the cached reference is no longer attached (e.g. after a full re-render
+     * recreated the shell), so callers never need to worry about staleness.
+     * @returns {HTMLElement|null}
+     * @private
+     */
+    _getDragBadgeEl() {
+        if (this._dragBadgeEl?.isConnected) return this._dragBadgeEl;
+        this._dragBadgeEl = /** @type {HTMLElement|null} */ (this.shadowRoot?.querySelector('.drag-badge') ?? null);
+        return this._dragBadgeEl;
+    }
+
+    /**
+     * Format the live drag value for the badge, reusing the same locale-aware
+     * formatter and resolved display unit (style.track.display.unit / entity
+     * unit_of_measurement) as the rest of the card — see _updateControlConfig().
+     * @returns {string}
+     * @private
+     */
+    _formatDragBadgeValue() {
+        const cfg = this.config?.drag_badge;
+        const decimals = cfg?.format?.decimals;
+        const showUnit = cfg?.format?.show_unit !== false;
+        const unit = cfg?.format?.unit || this._displayConfig?.unit || '';
+
+        const numberOpts = Number.isFinite(decimals)
+            ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
+            : {};
+        const formatted = haFormatNumber(this.hass, this._sliderValue, numberOpts);
+        return showUnit && unit ? `${formatted} ${unit}` : formatted;
+    }
+
+    /**
+     * Reposition and re-label the badge for the CURRENT this._sliderValue. Called on
+     * every drag tick (from the input/pointermove handlers) — reuses _dragBadgeZone,
+     * cached from the most recent full render, and _calculateValuePercent() (against
+     * DISPLAY range, matching how the fill/progress-bar position themselves) rather
+     * than re-deriving control-zone geometry per frame.
+     * @private
+     */
+    _updateDragBadgePosition() {
+        const cfg = this.config?.drag_badge;
+        if (!cfg?.enabled) return;
+        const zone = this._dragBadgeZone;
+        const el = this._getDragBadgeEl();
+        if (!zone || !el) return;
+
+        const percent = this._calculateValuePercent(this._sliderValue);
+        const offsetX = cfg.offset?.x ?? 0;
+        const offsetY = cfg.offset?.y ?? 0;
+
+        // Mirror the leading-edge math _generateProgressBar() uses for the fill/needle
+        // itself, so the badge always lines up with wherever the visible fill actually
+        // is — including when style.track.invert_fill flips which end it grows from.
+        // x/y anchor the SIDE of the track the CSS placement class (.horizontal /
+        // .vertical-left / .vertical-right, set in _renderDragBadge()) pushes away
+        // from — left edge for picard's left-anchored vertical badge, right edge for
+        // every other vertical component, bottom edge for horizontal (below the track).
+        let x, y;
+        if (zone.isVertical) {
+            const p = this._invertFill ? percent : (1 - percent);
+            x = zone.isPicard ? zone.x : zone.x + zone.width;
+            y = zone.y + p * zone.height;
+        } else {
+            const p = this._invertFill ? (1 - percent) : percent;
+            x = zone.x + p * zone.width;
+            y = zone.y + zone.height;
+        }
+
+        el.style.left = `${x + offsetX}px`;
+        el.style.top = `${y + offsetY}px`;
+        el.textContent = this._formatDragBadgeValue();
+    }
+
+    /**
+     * Show the drag badge — called the moment a user drag actually starts (never for
+     * entity-driven/external value changes, which don't touch this at all). Always an
+     * instant pop-in regardless of style.drag_badge.release.* — that config only
+     * governs the hide side. transition-duration is force-reset to 0ms first because
+     * the cached element may still carry the fade duration left over from a previous
+     * release. See _hideDragBadge() for the release-side counterpart.
+     * @private
+     */
+    _showDragBadge() {
+        const cfg = this.config?.drag_badge;
+        if (!cfg?.enabled) return;
+        const el = this._getDragBadgeEl();
+        if (!el) return;
+
+        el.style.transitionDuration = '0ms';
+        el.classList.add('visible');
+        this._updateDragBadgePosition();
+    }
+
+    /**
+     * Hide the drag badge on release (pointer-up), before the entity commit.
+     * Branches on style.drag_badge.release.behavior: 'fade' sets transition-duration
+     * to release.duration so the CSS opacity transition plays; 'instant' — or
+     * prefers-reduced-motion, which always wins regardless of config — sets it to
+     * 0ms so the badge disappears on the same frame.
+     * @private
+     */
+    _hideDragBadge() {
+        const el = this._getDragBadgeEl();
+        if (!el) return;
+
+        const cfg = this.config?.drag_badge;
+        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        const instant = reducedMotion || cfg?.release?.behavior === 'instant';
+        const duration = cfg?.release?.duration ?? 500;
+
+        el.style.transitionDuration = instant ? '0ms' : `${duration}ms`;
+        el.classList.remove('visible');
+    }
+
+    /**
      * Handle slider input (while dragging)
      * @private
      */
@@ -3405,6 +3641,7 @@ export class LCARdSSlider extends LCARdSButton {
                 if (!this._isHorizontalDragging) {
             this._isHorizontalDragging = true;
             this._playSound('slider_drag_start');
+            this._showDragBadge();
         } else {
             this._playSound('slider_change');
         }
@@ -3435,6 +3672,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Update visuals immediately
         this._updateDynamicElements();
+        this._updateDragBadgePosition();
     }
 
     /**
@@ -3444,6 +3682,7 @@ export class LCARdSSlider extends LCARdSButton {
     async _handleSliderChange(event) {
         this._playSound('slider_drag_end');
         this._isHorizontalDragging = false;
+        this._hideDragBadge();
 
         let value = parseFloat(event.target.value);
         const rawValue = value;
@@ -3474,6 +3713,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._isDragging = true;
         this._verticalSliderOverlay = event.currentTarget; // Store reference
         this._playSound('slider_drag_start');
+        this._showDragBadge();
         this._updateVerticalSliderValue(event);
 
         // Add global listeners for drag
@@ -3505,6 +3745,7 @@ export class LCARdSSlider extends LCARdSButton {
         window.removeEventListener('mouseup', this._handleVerticalSliderMouseUp);
 
         this._playSound('slider_drag_end');
+        this._hideDragBadge();
 
         // Call service to update entity
         await this._setEntityValue(this._sliderValue);
@@ -3519,6 +3760,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._isDragging = true;
         this._verticalSliderOverlay = event.currentTarget; // Store reference
         this._playSound('slider_drag_start');
+        this._showDragBadge();
         this._updateVerticalSliderValueFromTouch(event);
 
         // Add global listeners for drag
@@ -3550,6 +3792,7 @@ export class LCARdSSlider extends LCARdSButton {
         window.removeEventListener('touchend', this._handleVerticalSliderTouchEnd);
 
         this._playSound('slider_drag_end');
+        this._hideDragBadge();
 
         // Call service to update entity
         await this._setEntityValue(this._sliderValue);
@@ -3590,6 +3833,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         this._sliderValue = value;
         this._updateDynamicElements();
+        this._updateDragBadgePosition();
         this.requestUpdate();
     }
 
@@ -3620,6 +3864,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         this._sliderValue = value;
         this._updateDynamicElements();
+        this._updateDragBadgePosition();
         this.requestUpdate();
     }
 
@@ -3949,6 +4194,16 @@ export class LCARdSSlider extends LCARdSButton {
         const controlZone = (effectiveMode === 'shaped' && zones._shaped) ? zones._shaped : zones.control;
         const isVertical = orientation === 'vertical';
 
+        // Cache for the imperative per-drag-frame badge position updater — see
+        // _updateDragBadgePosition(). Percent-to-pixel math there reuses this exact
+        // box because _calculateValuePercent() is already computed against the same
+        // DISPLAY range that controlZone's pixel width/height spans. isPicard drives
+        // the vertical anchor side (left for picard's decorative shell, right for
+        // every other vertical component) — see _renderDragBadge() for the matching
+        // CSS placement class.
+        const isPicard = (this.config.component || this._sliderStyle?.component || 'default') === 'picard';
+        this._dragBadgeZone = { x: controlZone.x, y: controlZone.y, width: controlZone.width, height: controlZone.height, isVertical, isPicard };
+
         // Map control range into display-range pixel space so the overlay/input
         // spans only the fraction of the track that the control range covers.
         // This keeps the thumb and the progress bar fill in exact alignment even
@@ -3984,6 +4239,7 @@ export class LCARdSSlider extends LCARdSButton {
                             "
                         ></div>
                     ` : ''}
+                    ${!this._controlConfig.locked ? this._renderDragBadge() : ''}
                 </div>
             `;
         }
@@ -4025,6 +4281,7 @@ export class LCARdSSlider extends LCARdSButton {
                         "
                     />
                 ` : ''}
+                ${!this._controlConfig.locked ? this._renderDragBadge() : ''}
             </div>
         `;
     }

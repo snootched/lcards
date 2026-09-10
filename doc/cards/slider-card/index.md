@@ -116,6 +116,8 @@ value_tween:                # see Value Tween below
   enabled: true
   duration: 500
   ease: outQuad
+drag_badge:                  # see Drag Value Badge below
+  enabled: true
 sounds: {}
 
 # ── Layout ─────────────────────────────────────────────────────────────────────
@@ -149,6 +151,7 @@ triggers_update: []
 | `text` | object | Text label definitions — see [Text Fields](../../core/text-fields.md) |
 | `style` | object | Visual style overrides — see [Style Object](#style-object) |
 | `value_tween` | object | Ease the track (fill or pills) and markers between values on entity-driven changes — see [Value Tween](#value-tween) |
+| `drag_badge` | object | Floating badge showing the live value while dragging — see [Drag Value Badge](#drag-value-badge) |
 
 ---
 
@@ -334,7 +337,7 @@ style:
 
 ## Value Tween
 
-Eases the gauge fill, the current-value indicator, pills, and threshold/range markers between their old and new positions whenever the bound entity's state changes on its own — a genuine LCARS-style scroll/sweep instead of an instant snap. Only applies to entity-driven changes; dragging the slider directly stays instant. Purely positional — it does not animate any text field's content (there's no "current value" text scroll/odometer effect; text fields, if configured, always show the correct value immediately).
+Eases the gauge fill, the current-value indicator, pills, and threshold/range markers between their old and new positions whenever the bound entity's state changes on its own — a genuine LCARS-style scroll/sweep instead of an instant snap. Only applies to entity-driven changes; dragging the slider directly stays instant (see [Drag Value Badge](#drag-value-badge) for live feedback during the drag itself). Purely positional — it does not animate any text field's content (there's no "current value" text scroll/odometer effect; text fields, if configured, always show the correct value immediately).
 
 ```yaml
 value_tween:
@@ -357,6 +360,54 @@ value_tween:
 The slider editor's Value Animation section always shows `track` (its label switches between "Fill" and "Pills" to match the card's current track type) and hides `markers` only in `shaped` mode, which never renders them.
 
 Zone/threshold *colours* are never tweened (they stay an instant, alert-like state change), and this has no effect while a `component: shaped` fill colour or range band colour changes — only positional/numeric elements animate.
+
+---
+
+## Drag Value Badge
+
+A floating badge that follows the drag position while you're actively dragging the slider — before the value is committed to the entity on release. Mirrors HA's native slider drag indicator. Works the same way across all three track types (`pills`, `gauge`, `shaped`): anchored below the track in horizontal orientation, and beside it in vertical — to the right for the default component, to the left for `component: picard`. It's never shown for entity-driven/external value changes — only for an actual user drag.
+
+```yaml
+drag_badge:
+  enabled: true
+  format:
+    decimals: 0          # blank = locale-default formatting
+    show_unit: true
+    unit: ""              # blank = use the track's display unit
+  font_size: 14
+  offset: { x: 0, y: 0 }
+  color:
+    default: "var(--lcars-text-light)"
+  background:
+    enabled: true
+    color:
+      default: "var(--lcars-blue)"
+  border:
+    enabled: true
+    width: 1
+    color:
+      default: "var(--lcars-blue)"
+  release:
+    behavior: fade         # "fade" | "instant" — always instant under prefers-reduced-motion
+    duration: 500            # ms, only used when behavior: fade
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Show the badge while dragging |
+| `format.decimals` | number | locale default | Fixed decimal places |
+| `format.show_unit` | boolean | `true` | Show the unit suffix |
+| `format.unit` | string | track display unit | Unit override — blank uses `style.track.display.unit` / entity `unit_of_measurement` |
+| `font_size` | number | `14` | Badge text size in pixels |
+| `offset.x` / `offset.y` | number | `0` | Pixel nudge from the default anchor point |
+| `color` | string / state-object | theme text colour | Badge text colour — supports [state-based colours](../../core/colours.md) |
+| `background.enabled` | boolean | `true` | Show a background chip behind the text |
+| `background.color` | string / state-object | theme-aware translucent surface | Badge background colour |
+| `border.enabled` | boolean | `true` | Show a border around the badge |
+| `border.width` | number | `1` | Border width in pixels |
+| `border.color` | string / state-object | theme border colour | Badge border colour |
+| `release.behavior` | string | `fade` | `fade` = linger briefly then fade out; `instant` = hide immediately on release. Always `instant` under the OS-level prefers-reduced-motion setting, regardless of this value |
+| `release.duration` | number | `500` | Fade-out duration in milliseconds (only used when `release.behavior: fade`) |
 
 ---
 

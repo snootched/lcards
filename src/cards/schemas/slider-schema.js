@@ -1341,6 +1341,153 @@ export function getSliderSchema(options = {}) {
             },
 
             // ============================================================================
+            // DRAG VALUE BADGE
+            // ============================================================================
+
+            drag_badge: {
+                type: 'object',
+                description: 'Live value badge that follows the drag position while the slider is being actively dragged by the user (never shown for entity-driven/external state changes). Mirrors HA\'s native slider drag badge.',
+                examples: [
+                    { enabled: true },
+                    { enabled: true, format: { decimals: 0, show_unit: true }, release: { behavior: 'instant' } }
+                ],
+                properties: {
+                    enabled: {
+                        type: 'boolean',
+                        default: false,
+                        description: 'Show a live value badge that tracks the drag position while dragging',
+                        'x-ui-hints': {
+                            label: 'Enable Value Badge',
+                            selector: { boolean: {} }
+                        }
+                    },
+                    format: {
+                        type: 'object',
+                        description: 'Number formatting for the badge text',
+                        properties: {
+                            decimals: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 4,
+                                description: 'Fixed number of decimal places. Leave blank to use locale-default formatting.',
+                                'x-ui-hints': {
+                                    label: 'Decimal Places',
+                                    helper: 'Leave blank for locale-default formatting',
+                                    selector: { number: { mode: 'box', min: 0, max: 4, step: 1 } }
+                                }
+                            },
+                            show_unit: {
+                                type: 'boolean',
+                                default: true,
+                                description: 'Show the unit suffix on the badge',
+                                'x-ui-hints': {
+                                    label: 'Show Unit',
+                                    selector: { boolean: {} }
+                                }
+                            },
+                            unit: {
+                                type: 'string',
+                                description: 'Unit suffix override. Leave blank to use the track\'s display unit (style.track.display.unit / entity unit_of_measurement).',
+                                examples: ['°C', '%', 'lux'],
+                                'x-ui-hints': {
+                                    label: 'Unit Override',
+                                    helper: 'Leave blank to use the track\'s display unit'
+                                }
+                            }
+                        }
+                    },
+                    font_size: {
+                        type: 'number',
+                        minimum: 8,
+                        maximum: 48,
+                        default: 14,
+                        description: 'Badge text size in pixels',
+                        'x-ui-hints': {
+                            label: 'Font Size',
+                            selector: { number: { mode: 'box', min: 8, max: 48, unit_of_measurement: 'px' } }
+                        }
+                    },
+                    offset: {
+                        type: 'object',
+                        description: 'Pixel offset from the default anchor point (above the track in horizontal orientation, beside it in vertical).',
+                        properties: {
+                            x: { type: 'number', description: 'Horizontal offset in pixels' },
+                            y: { type: 'number', description: 'Vertical offset in pixels' }
+                        }
+                    },
+                    color: { ...stateColorSchema, description: 'Badge text colour. Falls back to theme:components.slider.drag_badge.text.color.' },
+                    background: {
+                        type: 'object',
+                        description: 'Badge background chip',
+                        properties: {
+                            enabled: {
+                                type: 'boolean',
+                                default: true,
+                                description: 'Show a background chip behind the badge text',
+                                'x-ui-hints': { label: 'Show Background', selector: { boolean: {} } }
+                            },
+                            color: { ...stateColorSchema, description: 'Badge background colour. Falls back to a theme-aware translucent surface colour.' }
+                        }
+                    },
+                    border: {
+                        type: 'object',
+                        description: 'Badge border',
+                        properties: {
+                            enabled: {
+                                type: 'boolean',
+                                default: true,
+                                description: 'Show a border around the badge',
+                                'x-ui-hints': { label: 'Show Border', selector: { boolean: {} } }
+                            },
+                            width: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 10,
+                                default: 1,
+                                description: 'Border width in pixels'
+                            },
+                            color: { ...stateColorSchema, description: 'Badge border colour. Falls back to theme:components.slider.border.color.default.' }
+                        }
+                    },
+                    release: {
+                        type: 'object',
+                        description: 'What happens to the badge when the drag is released (pointer-up), before the entity commit.',
+                        properties: {
+                            behavior: {
+                                type: 'string',
+                                enum: ['fade', 'instant'],
+                                default: 'fade',
+                                description: 'fade = linger briefly then fade out; instant = hide immediately on release. Automatically forced to instant when prefers-reduced-motion is active.',
+                                'x-ui-hints': {
+                                    label: 'Release Behaviour',
+                                    selector: {
+                                        select: {
+                                            mode: 'dropdown',
+                                            options: [
+                                                { value: 'fade', label: 'Fade out (default)' },
+                                                { value: 'instant', label: 'Hide instantly' }
+                                            ]
+                                        }
+                                    }
+                                }
+                            },
+                            duration: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 2000,
+                                default: 500,
+                                description: 'Fade-out duration in milliseconds (only used when behavior = fade)',
+                                'x-ui-hints': {
+                                    label: 'Fade Duration',
+                                    selector: { number: { mode: 'box', min: 0, max: 2000, step: 50, unit_of_measurement: 'ms' } }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+
+            // ============================================================================
             // SOUNDS
             // ============================================================================
 

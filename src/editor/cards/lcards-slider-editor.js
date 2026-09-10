@@ -695,8 +695,125 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 ` : ''}
             </lcards-form-section>
 
+            <!-- Live Drag-Value Badge -->
+            ${this._renderDragBadgeConfiguration()}
+
             <!-- Color-Coded Ranges -->
             ${this._renderRangesConfiguration()}
+        `;
+    }
+
+    /**
+     * Live drag-value badge configuration — a floating badge that follows the drag
+     * position while the user is actively dragging the slider (mirrors HA's native
+     * slider drag badge). Never shown for entity-driven/external value changes.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderDragBadgeConfiguration() {
+        const enabled = this.config?.drag_badge?.enabled === true;
+        const backgroundEnabled = this.config?.drag_badge?.background?.enabled !== false;
+        const borderEnabled = this.config?.drag_badge?.border?.enabled !== false;
+        const releaseBehavior = this.config?.drag_badge?.release?.behavior ?? 'fade';
+
+        return html`
+            <lcards-form-section
+                header="Live Value Badge"
+                description="Floating badge that follows the drag position while dragging — shows the value before it's committed to the entity, like HA's native slider drag indicator."
+                icon="mdi:tooltip-text"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                ${FormField.renderField(this, 'drag_badge.enabled', {
+                    label: 'Enable Value Badge'
+                })}
+
+                ${enabled ? html`
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'drag_badge.format.decimals', {
+                            label: 'Decimal Places',
+                            helper: 'Leave blank for locale-default formatting'
+                        })}
+                        ${FormField.renderField(this, 'drag_badge.format.show_unit', {
+                            label: 'Show Unit'
+                        })}
+                    </lcards-grid-layout>
+                    ${FormField.renderField(this, 'drag_badge.format.unit', {
+                        label: 'Unit Override',
+                        helper: 'Leave blank to use the track\'s display unit'
+                    })}
+
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'drag_badge.font_size', {
+                            label: 'Font Size (px)'
+                        })}
+                        ${FormField.renderField(this, 'drag_badge.offset.x', {
+                            label: 'Offset X (px)'
+                        })}
+                    </lcards-grid-layout>
+                    ${FormField.renderField(this, 'drag_badge.offset.y', {
+                        label: 'Offset Y (px)',
+                        helper: 'Default anchor is above the track (horizontal) or beside it (vertical)'
+                    })}
+
+                    <lcards-color-section-v2
+                        .editor=${this}
+                        .entityId=${this.config?.entity || ''}
+                        basePath="drag_badge.color"
+                        header="Badge Text Colour"
+                        description="State-based colour of the badge text"
+                        .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                        ?allowCustomStates=${true}
+                        ?expanded=${false}>
+                    </lcards-color-section-v2>
+
+                    ${FormField.renderField(this, 'drag_badge.background.enabled', {
+                        label: 'Show Background'
+                    })}
+                    ${backgroundEnabled ? html`
+                        <lcards-color-section-v2
+                            .editor=${this}
+                            .entityId=${this.config?.entity || ''}
+                            basePath="drag_badge.background.color"
+                            header="Badge Background Colour"
+                            description="State-based colour of the badge background chip"
+                            .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                            ?allowCustomStates=${true}
+                            ?expanded=${false}>
+                        </lcards-color-section-v2>
+                    ` : ''}
+
+                    ${FormField.renderField(this, 'drag_badge.border.enabled', {
+                        label: 'Show Border'
+                    })}
+                    ${borderEnabled ? html`
+                        ${FormField.renderField(this, 'drag_badge.border.width', {
+                            label: 'Border Width (px)'
+                        })}
+                        <lcards-color-section-v2
+                            .editor=${this}
+                            .entityId=${this.config?.entity || ''}
+                            basePath="drag_badge.border.color"
+                            header="Badge Border Colour"
+                            description="State-based colour of the badge border"
+                            .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                            ?allowCustomStates=${true}
+                            ?expanded=${false}>
+                        </lcards-color-section-v2>
+                    ` : ''}
+
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'drag_badge.release.behavior', {
+                            label: 'Release Behaviour',
+                            helper: 'What happens when you let go, before the entity commit. Always instant when reduced-motion is enabled.'
+                        })}
+                        ${releaseBehavior === 'fade' ? FormField.renderField(this, 'drag_badge.release.duration', {
+                            label: 'Fade Duration'
+                        }) : ''}
+                    </lcards-grid-layout>
+                ` : ''}
+            </lcards-form-section>
         `;
     }
 
