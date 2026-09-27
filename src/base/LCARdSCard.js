@@ -3132,8 +3132,37 @@ export class LCARdSCard extends LCARdSNativeCard {
         let isPressed = false;
 
         /**
+         * Fully materialize a CSS color expression into a literal rgb()/rgba()
+         * string via a computed-style round trip, so it's safe to place in a
+         * raw SVG presentation attribute. This is stronger than
+         * ColorUtils.resolveCssVariable(): the default hover/pressed tokens
+         * resolve to `color-mix(in srgb, var(...) 85%, white 15%)` (see
+         * ColorUtils.lighten()/darken()), and only the browser's own CSS
+         * engine can evaluate the color-mix() wrapper itself — regex-based
+         * var() substitution alone leaves it as an (attribute-unsafe in some
+         * engines) color-mix() string. Using the actual el (not a scratch
+         * element) keeps shadow-DOM-scoped custom properties visible.
+         */
+        const materializeColor = (el, prop, value) => {
+            if (!el || !value) return value;
+            const previous = el.style.getPropertyValue(prop);
+            el.style.setProperty(prop, value);
+            const computed = getComputedStyle(el).getPropertyValue(prop);
+            if (previous) {
+                el.style.setProperty(prop, previous);
+            } else {
+                el.style.removeProperty(prop);
+            }
+            return computed || value;
+        };
+
+        /**
          * Apply fill color to background element
-         * Uses style.fill for SVG elements (higher specificity than setAttribute)
+         * Uses setAttribute('fill', ...) rather than style.fill so this doesn't
+         * permanently shadow anime.js's own attribute-based writes to `fill` —
+         * an inline style always wins the CSS cascade over the SVG presentation
+         * attribute anime.js animates, which silently defeats fill-property
+         * animations (see #401).
          */
         const applyColor = (color) => {
             if (!targetElement || !color) {
@@ -3144,8 +3173,8 @@ export class LCARdSCard extends LCARdSNativeCard {
                 return;
             }
 
-            // Use style.fill for higher CSS specificity (overrides inline style="fill: ...")
-            targetElement.style.fill = color;
+            const resolved = materializeColor(targetElement, 'fill', color);
+            targetElement.setAttribute('fill', /** @type {string} */ (resolved));
 
             lcardsLog.trace('[LCARdSCard] Applied interaction color', {
                 color,
@@ -3155,12 +3184,15 @@ export class LCARdSCard extends LCARdSNativeCard {
         };
 
         /**
-         * Apply stroke color to all border path elements
+         * Apply stroke color to all border path elements.
+         * See applyColor() above for why this uses setAttribute() instead of style.stroke.
          */
         const applyBorderColor = (color) => {
             if (!color || !borderElements.length) return;
             for (const el of borderElements) {
-                /** @type {HTMLElement} */ (el).style.stroke = color;
+                const target = /** @type {HTMLElement} */ (el);
+                const resolved = materializeColor(target, 'stroke', color);
+                target.setAttribute('stroke', /** @type {string} */ (resolved));
             }
             lcardsLog.trace('[LCARdSCard] Applied border interaction color', { color });
         };

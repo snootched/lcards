@@ -6184,7 +6184,8 @@ export class LCARdSButton extends LCARdSCard {
                     height="${height}"
                     rx="${border.radius}"
                     ry="${border.radius}"
-                    style="fill: ${backgroundColor}; pointer-events: all;"
+                    fill="${backgroundColor}"
+                    style="pointer-events: all;"
                 />`;
     }
 
