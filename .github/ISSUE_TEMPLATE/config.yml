@@ -4,5 +4,5 @@ contact_links:
     url: https://lcards.unimatrix01.ca
     about: Check the docs first — configuration reference, card guides, and troubleshooting tips.
   - name: Discussions (Q&A / Configuration Help)
-    url: http://lcards.unimatrix01.ca/discussions
+    url: https://github.com/snootched/LCARdS/discussions
     about: Not a bug? Use Discussions for configuration questions, showcase posts, and general help.

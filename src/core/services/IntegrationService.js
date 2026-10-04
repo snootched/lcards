@@ -56,8 +56,15 @@ export class IntegrationService extends BaseService {
         /** @private — cached HASS reference updated on every updateHass() call */
         this._hass = null;
 
-        /** @private — ensures we only probe once */
+        /** @private — the probe chain has been started (only ever once per page) */
         this._probed = false;
+
+        /** @private — the probe chain finished (success, or all retries failed) */
+        this._probeComplete = false;
+
+        /** @private — retry bookkeeping for transient probe failures */
+        this._probeAttempt = 0;
+        this._retryTimer = null;
 
         /**
          * @private
@@ -80,7 +87,7 @@ export class IntegrationService extends BaseService {
      * @type {boolean}
      */
     get isReady() {
-        return this._probed;
+        return this._probeComplete;
     }
 
     /**
@@ -96,9 +103,14 @@ export class IntegrationService extends BaseService {
         return this._readyPromise;
     }
 
+    /** Backoff before each retry of a failed lcards/info probe (ms). */
+    static PROBE_RETRY_DELAYS_MS = [1000, 3000, 8000];
+
     /**
      * Called by _updateHass on every HASS update.
-     * Probes lcards/info once — on the first update where hass.connection exists.
+     * Starts the lcards/info probe once — on the first update where
+     * hass.connection exists. Later updates only refresh the cached hass (used
+     * by retries).
      *
      * @param {Object} hass - Home Assistant instance
      */
@@ -106,30 +118,43 @@ export class IntegrationService extends BaseService {
         this._hass = hass;
         if (this._probed || !hass?.connection) return;
         this._probed = true;
-        // Fire-and-forget — errors are caught inside initialize()
+        // Fire-and-forget — errors are handled inside the probe chain
         this.initialize(hass);
     }
 
     /**
-     * Probe the backend integration.
+     * Probe the backend integration (lcards/info), retrying transient failures.
      *
-     * Sends lcards/info via the HA WebSocket connection. On success sets
-     * this.available = true and this.version. On any error (integration not
-     * installed, WS not ready, timeout) sets this.available = false silently.
+     * On success sets `available`, `version`, `options`, `capabilities` and
+     * starts the lcards_event listener. A failed attempt is logged with its
+     * reason and retried after PROBE_RETRY_DELAYS_MS; only when every retry has
+     * failed does the service settle into degraded mode. `onReady()` resolves
+     * once — on the first success or after the final failure — so consumers
+     * never observe a transient "unavailable" state.
      *
-     * Safe to call multiple times — subsequent calls re-probe and update state.
+     * Safe to call again later to force a fresh probe chain.
      *
      * @param {Object} hass - Home Assistant instance
-     * @returns {Promise<void>}
+     * @returns {Promise<void>} resolves when this attempt (not the whole chain) settles
      */
     async initialize(hass) {
-        if (!hass?.connection) {
+        if (hass) this._hass = hass;
+        if (!this._hass?.connection) {
             lcardsLog.warn('[IntegrationService] No HASS connection available — skipping probe');
             return;
         }
+        clearTimeout(this._retryTimer);
+        this._retryTimer = null;
+        this._probeAttempt = 0;
+        await this._runProbeAttempt();
+    }
 
+    /** @private */
+    async _runProbeAttempt() {
+        const attempt = ++this._probeAttempt;
+        const delays = IntegrationService.PROBE_RETRY_DELAYS_MS;
         try {
-            const result = await hass.connection.sendMessagePromise({
+            const result = await this._hass.connection.sendMessagePromise({
                 type: 'lcards/info',
             });
 
@@ -140,26 +165,47 @@ export class IntegrationService extends BaseService {
             this.capabilities = new Set(Array.isArray(result?.capabilities) ? result.capabilities : []);
 
             lcardsLog.info(
-                `[IntegrationService] Backend available v${this.version} (${this.storageKeyCount ?? '?'} storage keys, capabilities: [${[...this.capabilities].join(', ')}])`
+                `[IntegrationService] Backend available v${this.version} (${this.storageKeyCount ?? '?'} storage keys, capabilities: [${[...this.capabilities].join(', ')}])${attempt > 1 ? ` after ${attempt} attempts` : ''}`
             );
 
             // Subscribe to the lcards_event push channel now that we know
             // the backend is live and the WS connection is ready.
             this._startEventListener();
-        } catch {
+            this._finishProbe();
+        } catch (err) {
+            const reason = /** @type {any} */ (err)?.code
+                ? `${/** @type {any} */ (err).code}: ${/** @type {any} */ (err).message ?? ''}`
+                : /** @type {any} */ (err)?.message ?? String(err);
+            const delay = delays[attempt - 1];
+            if (delay !== undefined) {
+                lcardsLog.warn(
+                    `[IntegrationService] lcards/info probe failed (attempt ${attempt}/${delays.length + 1}: ${reason}) — retrying in ${delay / 1000}s`
+                );
+                this._retryTimer = setTimeout(() => {
+                    this._retryTimer = null;
+                    this._runProbeAttempt();
+                }, delay);
+                return;
+            }
             this.available = false;
             this.version = null;
             this.storageKeyCount = null;
             this.options = null;
             this.capabilities = new Set();
-            lcardsLog.info(
-                '[IntegrationService] Backend not found — degraded mode (integration not installed)'
+            lcardsLog.warn(
+                `[IntegrationService] Backend not reachable after ${attempt} attempts (${reason}) — degraded mode. Is the LCARdS integration set up?`
             );
-        } finally {
-            // Resolve the readiness promise regardless of probe outcome so that
-            // consumers awaiting onReady() are not left hanging.
-            this._readyResolve?.();
+            this._finishProbe();
         }
+    }
+
+    /**
+     * Mark the probe chain finished and release onReady() waiters (idempotent).
+     * @private
+     */
+    _finishProbe() {
+        this._probeComplete = true;
+        this._readyResolve?.();
     }
 
     // -----------------------------------------------------------------------

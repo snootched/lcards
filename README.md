@@ -79,6 +79,8 @@ Requires **Home Assistant 2026.10 or newer**. There are no external dependencies
 
 → **[Full installation guide](https://lcards.unimatrix01.ca/getting-started/installation)**
 
+**Need help?** Open the LCARdS panel → **Welcome** → **Support & system info** for a health check and a one-click, pre-filled bug report — see **[Getting Help](https://lcards.unimatrix01.ca/getting-started/getting-help)**.
+
 <br>
 
 ---

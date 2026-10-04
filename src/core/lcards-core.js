@@ -111,10 +111,17 @@ class LCARdSCore {
      * @returns {Promise<void>}
      */
     async initialize(hass) {
-        // Return existing promise if already initializing
+        // Already initializing: wait, then apply THIS caller's hass. Module load
+        // starts init with a connection-less stub; a real hass arriving meanwhile
+        // (config panel, first card) must not be dropped, or services such as
+        // IntegrationService don't see a connection until the next state change.
+        // Capture the promise first — the first caller's `finally` nulls it.
         if (this._coreInitPromise) {
             lcardsLog.debug('[LCARdSCore] Core initialization already in progress, waiting...');
-            return this._coreInitPromise;
+            const pending = this._coreInitPromise;
+            await pending;
+            if (hass) this._updateHass(hass);
+            return;
         }
 
         // Return immediately if already initialized

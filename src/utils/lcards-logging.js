@@ -176,13 +176,47 @@ function createStyleArgs(level, message, ...args) {
   ];
 }
 
+// ─── Recent warnings/errors (support bundle) ─────────────────────────────────
+// Captured regardless of the console log level so "Copy support info" can show
+// what LCARdS complained about even when the user runs at level 'error'.
+const RECENT_LOG_LIMIT = 25;
+const RECENT_MSG_MAX = 300;
+/** @type {{t: string, level: 'warn'|'error', message: string}[]} */
+const _recentLogEntries = [];
+
+function _stringifyLogPart(part) {
+  if (part instanceof Error) return `${part.name}: ${part.message}`;
+  if (typeof part === 'string') return part;
+  try { return JSON.stringify(part); } catch { return String(part); }
+}
+
+function _recordRecent(level, message, args) {
+  const text = [message, ...args].map(_stringifyLogPart).join(' ');
+  _recentLogEntries.push({
+    t: new Date().toISOString(),
+    level,
+    message: text.length > RECENT_MSG_MAX ? `${text.slice(0, RECENT_MSG_MAX)}…` : text,
+  });
+  if (_recentLogEntries.length > RECENT_LOG_LIMIT) _recentLogEntries.shift();
+}
+
+/**
+ * The most recent LCARdS warnings and errors (oldest first), for support info.
+ * @returns {{t: string, level: 'warn'|'error', message: string}[]}
+ */
+export function getRecentLogEntries() {
+  return [..._recentLogEntries];
+}
+
 export function logError(message, ...args) {
+  _recordRecent('error', message, args);
   if (shouldLog('error')) {
     console.error(...createStyleArgs('error', message, ...args));
   }
 }
 
 export function logWarn(message, ...args) {
+  _recordRecent('warn', message, args);
   if (shouldLog('warn')) {
     console.warn(...createStyleArgs('warn', message, ...args));
   }

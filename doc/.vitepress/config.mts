@@ -131,6 +131,7 @@ export default withMermaid(defineConfig({
           { text: 'What is LCARdS?',      link: '/getting-started/what-is-lcards' },
           { text: 'Installation',          link: '/getting-started/installation' },
           { text: 'Coming from CB-LCARS', link: '/getting-started/cb-lcars-migration' },
+          { text: 'Getting Help',         link: '/getting-started/getting-help' },
         ],
       },
       {
@@ -294,6 +295,7 @@ export default withMermaid(defineConfig({
             { text: 'What is LCARdS?',           link: '/getting-started/what-is-lcards' },
             { text: 'Installation',               link: '/getting-started/installation' },
             { text: 'Coming from CB-LCARS',    link: '/getting-started/cb-lcars-migration' },
+            { text: 'Getting Help',            link: '/getting-started/getting-help' },
           ],
         },
       ],

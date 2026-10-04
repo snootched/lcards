@@ -1,0 +1,72 @@
+name: Issue template check
+
+# Blank issues are disabled in .github/ISSUE_TEMPLATE/config.yml, but issues
+# created via the API, `gh issue create`, or by copy/paste can still skip the
+# forms. This labels such issues `needs-template` and asks (once) for the
+# template — it never closes anything. Maintainers/collaborators are exempt.
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.issue.pull_request == null &&
+      !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const LABEL = 'needs-template';
+            const MARKER = '<!-- lcards-template-check -->';
+            // Headings GitHub renders for our issue forms (bug_report.yml / feature_request.yml).
+            const TEMPLATE_HEADINGS = [
+              // bug report — headings present in both the current and pre-2026.10 template,
+              // so editing an older report never gets it flagged
+              ['### LCARdS Version', '### What happened?'],
+              ['### What problem does this solve?'],               // feature request
+            ];
+
+            const issue = context.payload.issue;
+            const body = issue.body ?? '';
+            const usesTemplate = TEMPLATE_HEADINGS.some(group => group.every(h => body.includes(h)));
+            const { owner, repo } = context.repo;
+            const hasLabel = issue.labels.some(l => l.name === LABEL);
+
+            if (usesTemplate) {
+              if (hasLabel) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name: LABEL }).catch(() => {});
+                core.info(`#${issue.number} now uses a template — removed ${LABEL}`);
+              }
+              return;
+            }
+
+            // Ensure the label exists, then apply it.
+            await github.rest.issues.getLabel({ owner, repo, name: LABEL }).catch(() =>
+              github.rest.issues.createLabel({ owner, repo, name: LABEL, color: 'fbca04',
+                description: 'Issue does not use the bug/feature template' }));
+            if (!hasLabel) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number: issue.number, labels: [LABEL] });
+            }
+
+            // Comment once per issue.
+            const comments = await github.paginate(github.rest.issues.listComments,
+              { owner, repo, issue_number: issue.number, per_page: 100 });
+            if (comments.some(c => c.body?.includes(MARKER))) return;
+
+            const base = `https://github.com/${owner}/${repo}/issues/new`;
+            await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: [
+              MARKER,
+              `Thanks for the report! It looks like this issue wasn't created from one of our templates, which we need to diagnose problems.`,
+              '',
+              `**Easiest:** in Home Assistant open the **LCARdS** sidebar panel → **Welcome** → **Support & system info** → **Report an issue**. It runs a health check (it may already point out the fix) and opens a bug report with your versions and system info filled in.`,
+              '',
+              `Or use the forms directly: [🐞 Bug report](${base}?template=bug_report.yml) · [✨ Feature request](${base}?template=feature_request.yml)`,
+              '',
+              `You can also edit this issue to include the template sections — the \`${LABEL}\` label is removed automatically once they're present.`,
+            ].join('\n') });

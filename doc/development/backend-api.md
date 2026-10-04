@@ -47,6 +47,28 @@ const result = await this.hass.connection.sendMessagePromise({
 
 ---
 
+## `lcards/diagnostics`
+
+**Admin only.** Backend environment facts for support. Used by the config panel's Welcome → Support & system info section (`src/utils/support-info.js`), and shares its collector (`custom_components/lcards/support.py`) with HA's standard **Download diagnostics** for the integration.
+
+```javascript
+const diag = await this.hass.connection.sendMessagePromise({ type: 'lcards/diagnostics' });
+// → {
+//   versions: { integration, home_assistant, min_home_assistant },
+//   safe_mode, recovery_mode,
+//   resources: { mode, entries: [{ url, type, legacy }], lcards_count, legacy_lcards, card_mod },
+//   extra_module_urls: [...],            // frontend: extra_module_url, minus LCARdS's own
+//   card_mod_in_extra_module_url: bool,
+//   components: { uix, hacs, card_mod },
+//   config_entry: { present, options },
+//   storage: { schema_version, key_count }   // counts only, never contents
+// }
+```
+
+Non-admin callers get an `unauthorized` error; the frontend then shows "Backend checks need an admin user".
+
+---
+
 ## Storage API
 
 All storage commands are under `lcards/storage/*`. The store is a flat key/value namespace persisted to `.storage/lcards` in the HA config directory — survives HA restarts and HACS upgrades.
@@ -295,7 +317,8 @@ Use dot-separated namespaces to avoid collisions between cards and services:
 
 | Command | Required params | Optional params | Returns |
 |---|---|---|---|
-| `lcards/info` | — | — | `{ available, version }` |
+| `lcards/info` | — | — | `{ available, version, storage_key_count, options, capabilities }` |
+| `lcards/diagnostics` (admin) | — | — | backend support facts (see above) |
 | `lcards/storage/get` | — | `key: string` | `{ key, value }` |
 | `lcards/storage/set` | `data: object` | — | `{ ok, keys }` |
 | `lcards/storage/delete` | `key: string` | — | `{ ok, existed }` |

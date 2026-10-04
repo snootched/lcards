@@ -2,7 +2,8 @@
  * @fileoverview LCARdS About / Welcome Tab
  *
  * Displays a Get Started checklist, a Panel Guide with clickable tab
- * navigation cards, and resource links. Fires `lcards-navigate-tab`
+ * navigation cards, a Support & system info health check (copy support info /
+ * open a prefilled GitHub bug report), and resource links. Fires `lcards-navigate-tab`
  * (bubbles, composed) when the user clicks a Panel Guide card so the
  * parent config panel can switch tabs without tight coupling.
  *
@@ -11,16 +12,157 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { copyTextToClipboard } from '../../utils/clipboard-utils.js';
+import { buildSupportReport, openIssueForReport } from '../../utils/support-info.js';
+import '../../editor/components/shared/lcards-message.js';
 
 export class LCARdSAboutTab extends LitElement {
   static properties = {
     hass: { type: Object },
+    _report:        { type: Object,  state: true },
+    _reportLoading: { type: Boolean, state: true },
+    _includeConfig: { type: Boolean, state: true },
+    _supportNotice: { type: String,  state: true },
   };
 
   constructor() {
     super();
     /** @type {any} */
     this.hass = undefined;
+    /** @type {{info: object, checks: any[], markdown: string, compactMarkdown: string}|null} */
+    this._report = null;
+    this._reportLoading = false;
+    this._includeConfig = false;
+    this._supportNotice = '';
+    this._noticeTimer = null;
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    clearTimeout(this._noticeTimer);
+  }
+
+  updated(changed) {
+    // Collect once hass is available. Pre-collecting matters: the copy / report
+    // buttons must act synchronously in the click (clipboard + window.open are
+    // blocked after an awaited round-trip in Safari/Firefox).
+    if (changed.has('hass') && this.hass && !this._report && !this._reportLoading) {
+      this._refreshSupport();
+    }
+  }
+
+  // ============================================================================
+  // SUPPORT & SYSTEM INFO
+  // ============================================================================
+
+  async _refreshSupport() {
+    this._reportLoading = true;
+    try {
+      this._report = await buildSupportReport({ hass: this.hass, includeConfig: this._includeConfig });
+    } catch (err) {
+      lcardsLog.error('[AboutTab] Failed to collect support info', err);
+    } finally {
+      this._reportLoading = false;
+    }
+  }
+
+  _flashNotice(text) {
+    this._supportNotice = text;
+    clearTimeout(this._noticeTimer);
+    this._noticeTimer = setTimeout(() => { this._supportNotice = ''; }, 6000);
+  }
+
+  async _copySupport() {
+    if (!this._report) return;
+    const ok = await copyTextToClipboard(this._report.markdown);
+    this._flashNotice(ok ? 'Support info copied to the clipboard.' : 'Copy failed — select the text in the preview below and copy it manually.');
+  }
+
+  _openIssue() {
+    if (!this._report) return;
+    const { truncated, copied } = openIssueForReport(this._report);
+    copied.then((ok) => this._flashNotice(
+      !ok ? 'GitHub opened — copy failed, so paste the preview text below into "LCARdS support info".'
+        : truncated ? 'GitHub opened with a summary — full support info is on your clipboard; paste it into "LCARdS support info".'
+        : 'GitHub opened with your support info prefilled (also copied to the clipboard). Review it and describe the problem.'));
+  }
+
+  _toggleIncludeConfig(e) {
+    this._includeConfig = e.target.checked;
+    this._refreshSupport();
+  }
+
+  _renderSupportSection() {
+    const STATUS_ICON = { ok: 'mdi:check-circle', warn: 'mdi:alert', error: 'mdi:close-circle', info: 'mdi:information-outline' };
+    const report = this._report;
+    const checks = report?.checks ?? [];
+    const problems = checks.filter(c => c.status === 'warn' || c.status === 'error');
+    const info = /** @type {any} */ (report?.info);
+
+    return html`
+      <div class="section">
+        <div class="section-header">
+          <ha-icon icon="mdi:lifebuoy"></ha-icon>
+          Support &amp; system info
+        </div>
+        <p class="section-intro">
+          A health check of your setup. If something isn't working, copy this info or open a pre-filled
+          GitHub bug report — it's opened for you to review; nothing is sent automatically.
+        </p>
+
+        ${!report ? html`
+          <div class="support-loading">${this._reportLoading ? 'Collecting system info…' : 'System info unavailable.'}</div>
+        ` : html`
+          ${problems.length ? html`
+            <lcards-message type="${problems.some(c => c.status === 'error') ? 'error' : 'warning'}">
+              <strong>${problems.length} issue${problems.length === 1 ? '' : 's'} found</strong> — see the checks below for fixes.
+            </lcards-message>
+          ` : ''}
+
+          <div class="support-versions">
+            <span><b>LCARdS</b> ${info?.lcards?.version ?? '—'}</span>
+            <span><b>Integration</b> ${info?.lcards?.backendVersion ?? '—'}</span>
+            <span><b>Home Assistant</b> ${info?.ha?.version ?? '—'}</span>
+            <span><b>Frontend</b> ${info?.ha?.frontendVersion ?? '—'}</span>
+          </div>
+
+          <ul class="support-checks">
+            ${checks.map(c => html`
+              <li class="check ${c.status}">
+                <ha-icon icon="${STATUS_ICON[c.status] ?? 'mdi:circle-small'}"></ha-icon>
+                <div class="check-body">
+                  <span class="check-title">${c.title}</span>
+                  ${c.detail ? html`<span class="check-detail">${c.detail}</span>` : ''}
+                  ${c.fix ? html`<span class="check-fix">Fix: ${c.fix}</span>` : ''}
+                </div>
+              </li>
+            `)}
+          </ul>
+
+          <div class="support-actions">
+            <ha-button appearance="filled" @click=${this._openIssue} ?disabled=${this._reportLoading}>
+              <ha-icon icon="mdi:bug-outline" slot="start"></ha-icon>Report an issue
+            </ha-button>
+            <ha-button appearance="outlined" @click=${this._copySupport} ?disabled=${this._reportLoading}>
+              <ha-icon icon="mdi:content-copy" slot="start"></ha-icon>Copy support info
+            </ha-button>
+            <ha-button appearance="plain" @click=${this._refreshSupport} ?disabled=${this._reportLoading}>
+              <ha-icon icon="mdi:refresh" slot="start"></ha-icon>Refresh
+            </ha-button>
+            <ha-checkbox .checked=${this._includeConfig} @change=${this._toggleIncludeConfig}>
+              Include data-source names &amp; entity IDs
+            </ha-checkbox>
+          </div>
+
+          ${this._supportNotice ? html`<div class="support-notice">${this._supportNotice}</div>` : ''}
+
+          <details class="support-preview">
+            <summary>Preview what will be shared</summary>
+            <pre>${report.markdown}</pre>
+          </details>
+        `}
+      </div>
+    `;
   }
 
   // ============================================================================
@@ -65,6 +207,29 @@ export class LCARdSAboutTab extends LitElement {
         label: 'Storage',
         desc: 'Advanced: Inspect and manage the raw key/value data LCARdS stores for persistent configuration (data that is not stored in HA helpers - use with caution)',
       },
+    ];
+  }
+
+  /**
+   * Resources section links. Bug reports go through the Support & system info
+   * section (prefilled form), so there is deliberately no bare "issues" link.
+   */
+  static get _RESOURCE_LINKS() {
+    return [
+      { icon: 'mdi:book-open-variant', title: 'Documentation', caption: 'lcards.unimatrix01.ca',
+        href: 'https://lcards.unimatrix01.ca' },
+      { icon: 'mdi:lifebuoy', title: 'Getting Help', caption: 'Troubleshooting & reporting problems',
+        href: 'https://lcards.unimatrix01.ca/getting-started/getting-help' },
+      { icon: 'mdi:forum-outline', title: 'Discussions', caption: 'Questions, config help & showcase',
+        href: 'https://github.com/snootched/LCARdS/discussions' },
+      { icon: 'mdi:github', title: 'GitHub Repository', caption: 'github.com/snootched/LCARdS',
+        href: 'https://github.com/snootched/LCARdS' },
+      { icon: 'mdi:tag-multiple-outline', title: 'Releases', caption: "What's new in each version",
+        href: 'https://github.com/snootched/LCARdS/releases' },
+      { icon: 'mdi:source-branch', title: 'HA-LCARS Theme', caption: 'github.com/th3jesta/ha-lcars',
+        href: 'https://github.com/th3jesta/ha-lcars' },
+      { icon: 'mdi:puzzle-outline', title: 'UI eXtension (UIX)', caption: 'Required by HA-LCARS (replaces card-mod)',
+        href: 'https://github.com/Lint-Free-Technology/uix' },
     ];
   }
 
@@ -192,6 +357,9 @@ export class LCARdSAboutTab extends LitElement {
         </div>
       </div>
 
+      <!-- ── Support & system info ───────────────────────────────── -->
+      ${this._renderSupportSection()}
+
       <!-- ── Resources ─────────────────────────────────────────── -->
       <div class="section">
         <div class="section-header">
@@ -199,50 +367,16 @@ export class LCARdSAboutTab extends LitElement {
           Resources
         </div>
         <div class="links-grid">
-          <a class="link-card" href="https://lcards.unimatrix01.ca" target="_blank" rel="noopener">
-            <ha-icon icon="mdi:book-open-variant"></ha-icon>
-            <div class="link-body">
-              <span class="link-title">Documentation</span>
-              <span class="link-url">lcards.unimatrix01.ca</span>
-            </div>
-            <ha-icon icon="mdi:open-in-new" class="link-external"></ha-icon>
-          </a>
-
-          <a class="link-card" href="https://github.com/snootched/LCARdS" target="_blank" rel="noopener">
-            <ha-icon icon="mdi:github"></ha-icon>
-            <div class="link-body">
-              <span class="link-title">GitHub Repository</span>
-              <span class="link-url">github.com/snootched/LCARdS</span>
-            </div>
-            <ha-icon icon="mdi:open-in-new" class="link-external"></ha-icon>
-          </a>
-
-          <a class="link-card" href="https://github.com/snootched/LCARdS/issues" target="_blank" rel="noopener">
-            <ha-icon icon="mdi:bug-outline"></ha-icon>
-            <div class="link-body">
-              <span class="link-title">Report an Issue</span>
-              <span class="link-url">github.com/snootched/LCARdS/issues</span>
-            </div>
-            <ha-icon icon="mdi:open-in-new" class="link-external"></ha-icon>
-          </a>
-
-          <a class="link-card" href="https://github.com/snootched/LCARdS/releases" target="_blank" rel="noopener">
-            <ha-icon icon="mdi:tag-multiple-outline"></ha-icon>
-            <div class="link-body">
-              <span class="link-title">Releases</span>
-              <span class="link-url">github.com/snootched/LCARdS/releases</span>
-            </div>
-            <ha-icon icon="mdi:open-in-new" class="link-external"></ha-icon>
-          </a>
-
-          <a class="link-card" href="https://github.com/th3jesta/ha-lcars" target="_blank" rel="noopener">
-            <ha-icon icon="mdi:source-branch"></ha-icon>
-            <div class="link-body">
-              <span class="link-title">HA-LCARS Theme</span>
-              <span class="link-url">github.com/th3jesta/ha-lcars</span>
-            </div>
-            <ha-icon icon="mdi:open-in-new" class="link-external"></ha-icon>
-          </a>
+          ${LCARdSAboutTab._RESOURCE_LINKS.map(link => html`
+            <a class="link-card" href="${link.href}" target="_blank" rel="noopener">
+              <ha-icon icon="${link.icon}"></ha-icon>
+              <div class="link-body">
+                <span class="link-title">${link.title}</span>
+                <span class="link-url">${link.caption}</span>
+              </div>
+              <ha-icon icon="mdi:open-in-new" class="link-external"></ha-icon>
+            </a>
+          `)}
         </div>
       </div>
 
@@ -429,6 +563,108 @@ export class LCARdSAboutTab extends LitElement {
     }
 
     /* ── Links grid ──────────────────────────────────── */
+    /* ── Support & system info ── */
+    .support-loading,
+    .support-notice {
+      color: var(--secondary-text-color);
+      font-size: var(--ha-font-size-s, 0.875rem);
+      padding: var(--ha-space-2) 0;
+    }
+
+    .support-notice {
+      color: var(--primary-text-color);
+    }
+
+    .support-versions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--ha-space-2) var(--ha-space-5);
+      margin: var(--ha-space-3) 0;
+      color: var(--secondary-text-color);
+      font-size: var(--ha-font-size-s, 0.875rem);
+    }
+
+    .support-versions b {
+      color: var(--primary-text-color);
+      font-weight: 500;
+    }
+
+    .support-checks {
+      list-style: none;
+      margin: 0 0 var(--ha-space-3);
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--ha-space-2);
+    }
+
+    .check {
+      display: flex;
+      gap: var(--ha-space-2);
+      align-items: flex-start;
+    }
+
+    .check ha-icon {
+      --mdc-icon-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .check.ok ha-icon    { color: var(--success-color); }
+    .check.warn ha-icon  { color: var(--warning-color); }
+    .check.error ha-icon { color: var(--error-color); }
+    .check.info ha-icon  { color: var(--secondary-text-color); }
+
+    .check-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .check-title {
+      color: var(--primary-text-color);
+    }
+
+    .check-detail,
+    .check-fix {
+      color: var(--secondary-text-color);
+      font-size: var(--ha-font-size-s, 0.875rem);
+      overflow-wrap: anywhere;
+    }
+
+    .check-fix {
+      color: var(--primary-text-color);
+    }
+
+    .support-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--ha-space-2);
+    }
+
+    .support-preview {
+      margin-top: var(--ha-space-3);
+    }
+
+    .support-preview summary {
+      cursor: pointer;
+      color: var(--secondary-text-color);
+    }
+
+    .support-preview pre {
+      max-height: 320px;
+      overflow: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-family: var(--ha-font-family-code, monospace);
+      font-size: var(--ha-font-size-xs, 0.75rem);
+      padding: var(--ha-space-3);
+      border-radius: var(--ha-border-radius-md);
+      background: var(--secondary-background-color);
+      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 60%, transparent);
+    }
+
     .links-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

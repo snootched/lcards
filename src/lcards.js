@@ -3,6 +3,7 @@ import * as LCARdS from './lcards-vars.js'
 import { lcardsCore } from './core/lcards-core.js';
 import { ALERT_MODE_TRANSFORMS } from './core/themes/alertModeTransform.js';
 import { injectPalette } from './core/themes/paletteInjector.js';
+import { collectSupportInfo, buildSupportReport, copySupportInfo, reportIssue } from './utils/support-info.js';
 
 // 1. Integration-configured log level — baked into the script URL as ?log=<level>
 //    by frontend.py when the integration loads. Applies the persistent user preference
@@ -76,46 +77,70 @@ window.lcards.version = LCARdS.LCARdS_VERSION;
 
 /**
  * window.lcards.info()
- * Returns a snapshot of the current LCARdS runtime state —
- * useful for troubleshooting and paste into bug reports.
+ * Synchronous snapshot of the LCARdS runtime — versions, integration, theme,
+ * UIX/card-mod — for a quick look in the browser console.
+ *
+ * For a bug report use the full, checked support info instead:
+ *   await window.lcards.support.copy()     // copy markdown to the clipboard
+ *   await window.lcards.support.openIssue() // copy + open the prefilled GitHub form
+ * (or Config panel → Welcome → Support & system info).
  *
  * Usage (browser console): window.lcards.info()
  */
 window.lcards.info = function () {
     const core = window.lcards.core;
+    const hass = core?._currentHass;
+    const integration = core?.integrationService;
+    const w = /** @type {any} */ (window);
     const info = {
-        version:   LCARdS.LCARdS_VERSION,
-        buildDate: __LCARDS_BUILD_DATE__,
-        homepage:  LCARdS.project_url,
-        logLevel:  lcardsGetGlobalLogLevel(),
-        preview:   window.lcards?.core?.integrationService?.options?.enable_previews ?? false,
-        cards: [
-            'lcards-button',
-            'lcards-elbow',
-            'lcards-chart',
-            'lcards-slider',
-            'lcards-data-grid',
-            'lcards-msd-card',
-            'lcards-alert-overlay',
-        ],
+        version:        LCARdS.LCARdS_VERSION,
+        backendVersion: integration?.version ?? null,
+        integration:    !!integration?.available,
+        buildDate:      __LCARDS_BUILD_DATE__,
+        homepage:       LCARdS.project_url,
+        haVersion:      hass?.config?.version ?? null,
+        haTheme:        hass?.selectedTheme?.theme || hass?.themes?.theme || null,
+        uix:            !!customElements.get('uix-node') || !!hass?.config?.components?.includes('uix'),
+        cardMod:        !!customElements.get('card-mod') || !!w.card_mod_patch_state,
+        logLevel:       lcardsGetGlobalLogLevel(),
+        preview:        integration?.options?.enable_previews ?? false,
+        cards:          (w.customCards ?? []).map(c => c.type).filter(t => typeof t === 'string' && t.startsWith('lcards-')),
         core: {
             initialized: !!core?._coreInitialized,
             alertMode:   core?.themeManager?.getAlertMode?.() ?? null,
             theme:       core?.themeManager?.getActiveTheme?.()?.id ?? null,
-            dataSources: core?.dataSourceManager ? Object.keys(core.dataSourceManager.sources ?? {}).length : null,
+            dataSources: core?.dataSourceManager?.sources?.size ?? null,
         },
     };
     // Pretty-print to console and also return for programmatic use
     console.group('%c LCARdS Info ', 'background:#1b4f8a;color:#7eb6e8;font-weight:bold;padding:2px 6px;border-radius:4px;');
-    console.log('Version  :', info.version);
+    console.log('Version  :', info.version, info.backendVersion && info.backendVersion !== info.version
+        ? `⚠ integration is ${info.backendVersion} — hard-refresh the browser` : `(integration ${info.integration ? info.backendVersion : 'not responding'})`);
     console.log('Build    :', info.buildDate);
-    console.log('Homepage :', info.homepage);
+    console.log('HA       :', info.haVersion, '| theme:', info.haTheme);
+    console.log('Styling  :', `UIX ${info.uix ? 'installed' : 'not installed'}`, info.cardMod ? '| ⚠ card-mod present (remove it — HA-LCARS uses UIX)' : '');
     console.log('Log level:', info.logLevel);
     console.log('Preview  :', info.preview, info.preview === false ? '— call await window.lcards.refreshOptions() if you just changed this' : '');
     console.log('Cards    :', info.cards.join(', '));
     console.log('Core     :', info.core);
+    console.log('Bug report? Run: await window.lcards.support.copy()  — or Config panel → Welcome → Support & system info');
     console.groupEnd();
     return info;
+};
+
+/**
+ * window.lcards.support — full support info for bug reports.
+ *   collect({includeConfig})  → snapshot object
+ *   report({includeConfig})   → {info, checks, markdown, compactMarkdown}
+ *   copy({includeConfig})     → copies markdown to the clipboard
+ *   openIssue({includeConfig})→ copies + opens the prefilled GitHub bug form
+ * includeConfig adds data-source names/entity IDs (off by default).
+ */
+window.lcards.support = {
+    collect:   (opts) => collectSupportInfo(opts),
+    report:    (opts) => buildSupportReport(opts),
+    copy:      (opts) => copySupportInfo(opts),
+    openIssue: (opts) => reportIssue(opts),
 };
 
 /**

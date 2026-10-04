@@ -503,10 +503,14 @@ export class LCARdSConfigPanel extends LitElement {
 
     // Refresh integration options on every panel connect so that settings
     // changed since boot (e.g. toggling Enable Preview Features) are reflected
-    // immediately without a full page reload.
-    window.lcards?.core?.integrationService?.refreshOptions?.().then(() => {
-      this.requestUpdate();
-    });
+    // immediately without a full page reload. On a fresh load the initial
+    // lcards/info probe is still running and fetches the options itself, so
+    // just wait for it instead of re-fetching without a connection.
+    const integration = window.lcards?.core?.integrationService;
+    if (integration) {
+      (integration.isReady ? integration.refreshOptions() : integration.onReady())
+        .then(() => this.requestUpdate());
+    }
 
     lcardsLog.debug('[ConfigPanel] Panel connected');
   }

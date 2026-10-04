@@ -32,6 +32,8 @@ import probatio as vol
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.components import websocket_api
 
+from .support import async_collect_backend_diagnostics
+
 from .const import (
     DOMAIN,
     DOMAIN_VERSION,
@@ -117,6 +119,8 @@ def async_setup_ws(hass: HomeAssistant) -> None:
         ws_storage_devices_clear,
         # Browser-to-all-browsers event relay
         ws_fire_event,
+        # Support / diagnostics (admin)
+        ws_lcards_diagnostics,
     )
     for cmd in commands:
         websocket_api.async_register_command(hass, cmd)
@@ -174,6 +178,27 @@ async def ws_lcards_info(
             "capabilities":      ["scoped_storage"],
         },
     )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/diagnostics",
+    }
+)
+@websocket_api.async_response
+async def ws_lcards_diagnostics(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Handle lcards/diagnostics (admin only).
+
+    Backend environment facts for the config panel's support section —
+    the same data as HA's "Download diagnostics" (see support.py).
+    """
+    if not _require_admin(connection, msg):
+        return
+    connection.send_result(msg["id"], await async_collect_backend_diagnostics(hass))
 
 
 # ---------------------------------------------------------------------------

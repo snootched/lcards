@@ -4,6 +4,8 @@
 
 - **Home Assistant 2026.10 or newer.** LCARdS relies on 2026.10's dashboard visibility handling and validation library; on older versions the integration logs an error and does not load.
 
+Something not working after installing? See [Getting Help](getting-help.md) — the LCARdS panel's Welcome tab has a built-in health check.
+
 ## Quick Start
 
 1. Install from HACS

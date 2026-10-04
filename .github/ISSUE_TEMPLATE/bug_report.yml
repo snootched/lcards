@@ -5,7 +5,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug! Please fill out as much as you can — the version numbers, YAML config, and browser console output are especially important for diagnosing issues quickly.
+        Thanks for taking the time to report a bug!
+
+        **Fastest way:** in Home Assistant open the **LCARdS** sidebar panel → **Welcome** → **Support & system info** → **Report an issue**. It opens this form with your versions and system info already filled in (and runs a health check first — it may point out the fix, e.g. a stale browser cache or card-mod still installed).
+
+        Then describe the problem, the steps to reproduce, and your card YAML below.
 
   - type: dropdown
     id: card_type
@@ -32,8 +36,8 @@ body:
     id: lcards_version
     attributes:
       label: LCARdS Version
-      description: Run `window.lcards.info()` in the browser console for a full summary, or check `window.lcards.version` directly.
-      placeholder: "e.g. 2026.03.07-alpha"
+      description: Filled in automatically by **Report an issue**. Otherwise see the version in the LCARdS panel header, or run `window.lcards.version` in the browser console.
+      placeholder: "e.g. 2026.10.0"
     validations:
       required: true
 
@@ -41,8 +45,22 @@ body:
     id: ha_version
     attributes:
       label: Home Assistant Version
-      description: Settings → About → Version
-      placeholder: "e.g. 2025.12.1"
+      description: Filled in automatically by **Report an issue**. Otherwise Settings → About → Version.
+      placeholder: "e.g. 2026.10.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: LCARdS support info
+      description: >-
+        Filled in automatically by **Report an issue**. Otherwise open the LCARdS panel → Welcome →
+        Support & system info → **Copy support info** and paste it here (or run
+        `await window.lcards.support.copy()` in the browser console). Review it before submitting —
+        it holds versions, environment details and recent LCARdS warnings (which may mention
+        entity names); data-source entity IDs are only included if you opted in.
+      placeholder: Paste the copied support info here
     validations:
       required: true
 
@@ -50,6 +68,7 @@ body:
     id: browser
     attributes:
       label: Browser
+      description: Optional — already included in the support info.
       options:
         - Chrome / Chromium
         - Firefox
@@ -59,7 +78,7 @@ body:
         - Home Assistant Companion App (iOS)
         - Other
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: description
@@ -106,7 +125,7 @@ body:
     attributes:
       label: Browser Console Output
       description: |
-        Open the browser console (F12 → Console tab), run `window.lcards.info()`, and paste the output here. Also include any errors or warnings visible in the console.
+        Optional. Recent LCARdS warnings/errors are already in the support info — paste anything else from the browser console (F12 → Console) that looks related, especially red errors.
       render: shell
       placeholder: Paste console output here
 
