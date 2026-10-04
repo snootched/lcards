@@ -620,8 +620,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                             <div class="quick-add-buttons">
                                 ${availableComponentFields.map(fieldName => html`
                                     <ha-button
-                                        @click=${() => this._addField(fieldName)}
-                                        style="--mdc-theme-primary: var(--accent-color)">
+                                        @click=${() => this._addField(fieldName)}>
                                         <ha-icon icon="mdi:plus" slot="start"></ha-icon>
                                         ${fieldName}
                                     </ha-button>

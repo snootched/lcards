@@ -106,7 +106,7 @@ Import from `src/editor/components/shared/` — never recreate these:
 Use these HA-native elements where appropriate. Do **not** fabricate alternatives:
 
 - `ha-expansion-panel` — collapsible sections
-- `ha-tab-group` / `ha-tab-panel` — tab layouts (used internally by base)
+- `ha-tab-group` / `ha-tab-group-tab` — tab layouts (used internally by base). Note: `<ha-tab-panel>` used by `LCARdSBaseEditor` is **not** an HA element (never defined) — it's an unknown inline wrapper toggled with `?hidden`; don't style it expecting block layout.
 - `ha-selector` — generic HA selector (entity, device, number, text, select, etc.)
 - `ha-alert` — info/warning/error banners
 - `ha-entity-picker` — entity ID autocomplete
@@ -114,11 +114,23 @@ Use these HA-native elements where appropriate. Do **not** fabricate alternative
 
 **Do NOT use `ha-textfield`** — it wraps a deprecated MDC component that renders at 0px height in newer HA versions. Use `ha-selector` with `{ text: {} }` for text inputs and `{ number: { mode: 'box' } }` for numeric inputs instead. Event: `@value-changed` / `e.detail.value`.
 
+**Do NOT use `ha-formfield`** — it is still MWC-based (a likely future removal) and HA no longer registers it eagerly (only via the lazily-loaded boolean/select selectors). `ha-switch` and `ha-checkbox` are WebAwesome components with a clickable default-slot label — put the label text inside the control (HA's own pattern, see `ha-form-boolean.ts`):
+
+```javascript
+html`<ha-switch .checked=${on} @change=${(e) => this._toggle(e.target.checked)}>Invert Fill</ha-switch>`
+```
+
+**`ha-icon-button`** (WebAwesome): pass an `.path` (mdi/js SVG path) **or** an `<ha-icon icon="mdi:…">` child — it has **no `icon` property** (`icon="mdi:x"` renders an empty button). Always set `.label`. Size via `--ha-icon-button-size`; icon colour via `color:` (the icon uses `currentColor`) — `--md-icon-button-*` / `--mdc-icon-button-size` are dead. Never use `<mwc-icon-button>` (unregistered since HA 2026.3).
+
+**Chips** (`ha-assist-chip` / `ha-filter-chip` / `ha-chip-set`, WebAwesome since HA 2026.10): still honoured — `--ha-assist-chip-filled-container-color`, `--md-assist-chip-label-text-color`, `--md-sys-color-on-surface`, `--md-filter-chip-selected-container-color`. Sizing hooks are `--ha-button-height` (chip height) and `--ha-chip-label-size`; `--md-filter-chip-*-space`, `--md-sys-color-primary` and `--ha-assist-chip-container-height` do nothing. `ha-filter-chip` toggles its own `selected` on click — for radio-style groups call `e.preventDefault()` on the click when the chip is already active, or it shows deselected.
+
+`npm run build` runs `scripts/validate-ha-compat.js`, which fails on these known-dead elements, attributes and CSS hooks.
+
 ---
 
 ## CSS & Theming Conventions
 
-LCARdS requires HA 2026.6+. Use HA CSS variables — no fallbacks needed unless noted.
+LCARdS requires HA 2026.10+. Use HA CSS variables — no fallbacks needed unless noted.
 
 ### Box shadows — always use HA vars
 

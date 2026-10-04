@@ -212,14 +212,16 @@ html`
 
 **Select/Dropdown:**
 ```javascript
-<ha-select
-    label="Choose Option"
+<ha-selector
+    .hass=${this.hass}
+    .label=${'Choose Option'}
+    .selector=${{ select: { mode: 'dropdown', options: [
+        { value: 'option1', label: 'Option 1' },
+        { value: 'option2', label: 'Option 2' },
+    ] } }}
     .value=${this._value}
-    @selected=${this._handleSelect}
-    @closed=${(e) => e.stopPropagation()}>
-    <mwc-list-item value="option1">Option 1</mwc-list-item>
-    <mwc-list-item value="option2">Option 2</mwc-list-item>
-</ha-select>
+    @value-changed=${this._handleChange}>
+</ha-selector>
 ```
 
 **Entity Picker:**

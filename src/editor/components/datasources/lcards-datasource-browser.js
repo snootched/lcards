@@ -324,7 +324,6 @@ export class LCARdSDataSourceBrowser extends LitElement {
             .filled=${true}
             style="
               --ha-assist-chip-filled-container-color: var(--primary-color);
-              --md-sys-color-primary: var(--text-primary-color, white);
               --md-sys-color-on-surface: var(--text-primary-color, white);
             ">
           </ha-assist-chip>

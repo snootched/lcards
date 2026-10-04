@@ -292,17 +292,15 @@ export class LCARdSProcessorEditor extends LitElement {
 
         <!-- YAML Editor Toggle -->
         ${this._selectedType ? html`
-          <ha-formfield label="Advanced (YAML)">
-            <ha-checkbox
-              .checked="${this._useYaml}"
-              @change="${(e) => {
-                this._useYaml = e.target.checked;
-                if (e.target.checked) {
-                  this._yamlValue = configToYaml(this._config);
-                }
-              }}"
-            ></ha-checkbox>
-          </ha-formfield>
+          <ha-checkbox
+            .checked="${this._useYaml}"
+            @change="${(e) => {
+              this._useYaml = e.target.checked;
+              if (e.target.checked) {
+                this._yamlValue = configToYaml(this._config);
+              }
+            }}"
+          >Advanced (YAML)</ha-checkbox>
         ` : ''}
 
         <!-- YAML Editor -->

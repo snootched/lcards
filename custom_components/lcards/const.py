@@ -2,8 +2,14 @@
 import logging
 
 DOMAIN = "lcards"
+
+# Minimum supported Home Assistant (major, minor). Keep in sync with hacs.json
+# "homeassistant". 2026.10: core-evaluated dashboard visibility, probatio
+# validation (voluptuous only exists via HA's compat shim).
+MIN_HA_VERSION = (2026, 10)
+
 FRONTEND_SCRIPT_URL = "lcards.js"
-DOMAIN_VERSION = "2026.09.1-dev0"
+DOMAIN_VERSION = "2026.10.0-dev0"
 
 # Options
 CONF_SHOW_PANEL = "show_panel"

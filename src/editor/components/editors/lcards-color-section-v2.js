@@ -230,15 +230,15 @@ export class LCARdSColorSectionV2 extends LitElement {
                     margin-left: 8px;
                 }
 
+                /* ha-icon-button (WebAwesome) draws its icon in currentColor */
                 .editor-item-actions ha-icon-button {
                     --ha-icon-button-size: 40px;
                     --mdc-icon-size: 20px;
-                    --md-icon-button-icon-color: var(--primary-text-color);
-                    --md-icon-button-hover-icon-color: var(--error-color);
+                    color: var(--primary-text-color);
                 }
 
                 .editor-item-actions ha-icon-button:hover {
-                    --md-icon-button-icon-color: var(--error-color);
+                    color: var(--error-color);
                 }
 
                 /* Expand icon spacing */

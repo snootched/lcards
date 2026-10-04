@@ -27,7 +27,7 @@ Provides the lcards/* WebSocket command namespace:
   lcards/storage/devices/clear — remove a device record entirely    (admin)
 """
 import logging
-import voluptuous as vol
+import probatio as vol
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.components import websocket_api

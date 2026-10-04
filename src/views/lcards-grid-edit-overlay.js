@@ -234,7 +234,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             padding: 10px 14px;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.6)) 88%, transparent);
             backdrop-filter: blur(12px) saturate(1.1);
-            -webkit-backdrop-filter: blur(12px) saturate(1.1);
             border: var(--ha-border-width-sm, 1px) solid color-mix(in oklab, var(--divider-color, rgba(255,255,255,.1)) 60%, transparent);
             border-radius: var(--ha-border-radius-pill, 9999px);
             box-shadow: 0 4px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07);
@@ -346,7 +345,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             user-select: none;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.5)) 75%, transparent);
             backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
             border: var(--ha-border-width-sm, 1px) solid color-mix(in oklab, var(--divider-color) 50%, transparent);
             border-radius: var(--ha-border-radius-sm, 4px) var(--ha-border-radius-sm, 4px) 0 0;
             box-sizing: border-box;
@@ -376,7 +374,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             writing-mode: vertical-rl;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.5)) 75%, transparent);
             backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
             border: var(--ha-border-width-sm, 1px) solid color-mix(in oklab, var(--divider-color) 50%, transparent);
             border-radius: var(--ha-border-radius-sm, 4px) 0 0 var(--ha-border-radius-sm, 4px);
             box-sizing: border-box;
@@ -572,7 +569,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             gap: 2px;
             background: color-mix(in oklab, var(--card-background-color, #1c1c28) 85%, rgba(0,0,0,.3));
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
             border: var(--ha-border-width-sm,1px) solid rgba(255,255,255,.14);
             border-radius: var(--ha-border-radius-md, 8px);
             padding: 4px;
@@ -696,7 +692,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             pointer-events: auto;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.7)) 90%, transparent);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border: var(--ha-border-width-sm,1px) solid var(--divider-color);
             border-radius: var(--ha-border-radius-md, 8px);
             padding: 10px 14px;
@@ -732,7 +727,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             box-sizing: border-box;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.85)) 92%, transparent);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border: var(--ha-border-width-sm,1px) solid var(--divider-color);
             border-radius: var(--ha-border-radius-md, 8px);
             padding: 10px 14px;
@@ -773,7 +767,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             pointer-events: auto;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.9)) 93%, transparent);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border: var(--ha-border-width-sm,1px) solid var(--divider-color);
             border-radius: var(--ha-border-radius-md, 8px);
             padding: 10px 12px;
@@ -848,7 +841,6 @@ export class LCARdSGridEditOverlay extends LitElement {
             resize: both;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.9)) 95%, transparent);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border: var(--ha-border-width-sm,1px) solid var(--divider-color);
             border-radius: var(--ha-border-radius-md, 8px);
             box-shadow: 0 4px 24px rgba(0,0,0,.5);

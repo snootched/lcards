@@ -46,7 +46,7 @@ The `reload` and `set_log_level` services always use the lcards_event push
 channel (with optional per-device/per-user targeting).
 """
 import logging
-import voluptuous as vol
+import probatio as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall
 

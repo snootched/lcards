@@ -676,3 +676,29 @@ function parsePxValue(str) {
     const n = parseFloat(str);
     return isNaN(n) ? 0 : n;
 }
+
+/**
+ * Resolve row tracks for visibility-controlled rows.
+ *
+ * A row registered by one or more visibility-controlled cards gets its
+ * `targetHeight` while ANY of those cards is shown (HA's hui-card sets
+ * `hidden` when its Visibility conditions fail) and collapses to `0px` once
+ * all of them are hidden. In edit mode every such row is expanded, matching
+ * HA showing every card while editing. Rows with no entries keep their
+ * base track.
+ *
+ * @param {string[]} baseRows  row tracks from config (not mutated)
+ * @param {{rowIndex: number, hidden: boolean, targetHeight: string}[]} entries
+ * @param {boolean} editMode
+ * @returns {string[]} resolved row tracks
+ */
+export function resolveVisibilityRowTracks(baseRows, entries, editMode) {
+    const rows = [...baseRows];
+    const rowTracks = new Map(); // rowIndex -> resolved track
+    for (const { rowIndex, hidden, targetHeight } of entries) {
+        if (editMode || !hidden) rowTracks.set(rowIndex, targetHeight);
+        else if (!rowTracks.has(rowIndex)) rowTracks.set(rowIndex, '0px');
+    }
+    for (const [rowIndex, track] of rowTracks) rows[rowIndex] = track;
+    return rows;
+}

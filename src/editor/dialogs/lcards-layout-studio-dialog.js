@@ -420,7 +420,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                     ?outlined=${true}
                     headerLevel="4">
                     <div class="ct-remove">
-                        <ha-button class="danger" appearance="plain" @click=${() => this._removeCard(i)}>
+                        <ha-button variant="danger" appearance="plain" @click=${() => this._removeCard(i)}>
                             <ha-icon icon="mdi:delete-outline" slot="start"></ha-icon>Remove card
                         </ha-button>
                     </div>
@@ -778,7 +778,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                 .inline2 ha-input,
                 .inline2 ha-selector { flex: 1; min-width: 0; }
                 .ct-remove { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-                .ct-remove .danger { --mdc-theme-primary: var(--error-color, #ef4444); color: var(--error-color, #ef4444); }
+                
                 .card-editor-host {
                     border-top: var(--ha-border-width-sm, 1px) solid var(--divider-color);
                     padding-top: 12px;

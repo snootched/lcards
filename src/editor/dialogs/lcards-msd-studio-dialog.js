@@ -17350,21 +17350,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                     <div style="font-size: 14px; font-weight: 500; color: var(--primary-text-color);">${label}</div>
-                    <ha-formfield alignEnd spaceBetween .label=${'Match Line Color'}>
-                        <ha-switch
-                            .checked=${matchesLine}
-                            @change=${(e) => {
-                                this._lineFormData.style = {
-                                    ...this._lineFormData.style,
-                                    [markerKey]: {
-                                        ...this._lineFormData.style[markerKey],
-                                        [colorProp]: e.target.checked ? 'match_line' : ''
-                                    }
-                                };
-                                this.requestUpdate();
-                            }}>
-                        </ha-switch>
-                    </ha-formfield>
+                    <ha-switch
+                        .checked=${matchesLine}
+                        @change=${(e) => {
+                            this._lineFormData.style = {
+                                ...this._lineFormData.style,
+                                [markerKey]: {
+                                    ...this._lineFormData.style[markerKey],
+                                    [colorProp]: e.target.checked ? 'match_line' : ''
+                                }
+                            };
+                            this.requestUpdate();
+                        }}>Match Line Color</ha-switch>
                 </div>
                 ${!matchesLine ? html`
                     <lcards-color-picker

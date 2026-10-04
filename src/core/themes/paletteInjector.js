@@ -105,19 +105,6 @@ export const GREEN_ALERT_PALETTE = {
 
 
 /**
- * Fix ha-select helper text color by copying from ha-textfield
- * @private
- */
-function _fixMdcSelectLabelColor(rootElement = document.documentElement) {
-  const styles = getComputedStyle(rootElement);
-  const textFieldColor = styles.getPropertyValue('--mdc-text-field-label-ink-color').trim();
-
-  if (textFieldColor) {
-    rootElement.style.setProperty('--mdc-select-label-ink-color', textFieldColor);
-  }
-}
-
-/**
  * Inject palette as CSS variables on document root
  *
  * This function should be called during LCARdS core initialization to ensure
@@ -148,11 +135,6 @@ export function injectPalette(palette = GREEN_ALERT_PALETTE, rootElement = null)
     '--lcards-blue-medium': palette['blue-medium'],
     '--lcards-moonlight': palette['moonlight']
   });
-
-  // Fix missing HA CSS variable: --mdc-select-label-ink-color
-  // Some HA themes don't define this variable, causing ha-select helper text to be invisible
-  // Copy from --mdc-text-field-label-ink-color which is properly defined
-  _fixMdcSelectLabelColor(/** @type {HTMLElement} */ (root));
 }
 
 /**

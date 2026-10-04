@@ -4,7 +4,7 @@ Single source of truth for all HA i18n/locale-aware formatting in LCARdS.
 
 ## Purpose
 
-Delegates entirely to the `hass.format*` public API family (stable since HA 2024.4+, guaranteed on the LCARdS 2026.3.0 minimum). All cards, editors, charts, and datasource utilities **must** import from this module — never call `hass.format*` directly elsewhere.
+Delegates entirely to the `hass.format*` public API family (stable since HA 2024.4+, guaranteed on the LCARdS HA 2026.10 minimum). All cards, editors, charts, and datasource utilities **must** import from this module — never call `hass.format*` directly elsewhere.
 
 ## Why a Centralized Utility?
 

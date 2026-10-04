@@ -130,6 +130,20 @@ This is distinct from repainting **static resolved colors** that reference an al
 
 ---
 
+## Animating `fill` / `stroke` on SVG elements
+
+anime.js v4 decides whether to write a tweened `fill`/`stroke` value via `element.setAttribute(...)` or `element.style[...] = ...` based on whether the target already carries that XML attribute at animation-start time. Any render or imperative code path that also colors the same element **must** use `setAttribute('fill'/'stroke', ...)`, never an inline `style="fill: ...;"`/`style="stroke: ...;"` — an inline style always wins the CSS cascade over the presentation attribute, silently defeating the animation regardless of which one anime.js is updating. This bit `lcards-button`'s `.button-bg` (issue #401): `_setupBaseInteractivity()`'s hover/pressed color helpers pre-set `style.fill` on every render, permanently shadowing any `fill` animation. See `applyColor()`/`applyBorderColor()` in `src/base/LCARdSCard.js` for the fixed pattern — `setAttribute()` plus a computed-style round trip (`materializeColor()`) to fully flatten `var()`/`color-mix()` (the default hover/pressed tokens resolve to `color-mix(in srgb, var(...) ..., ...)`, which regex-based `var()` substitution alone doesn't evaluate) into a literal `rgb()`/`rgba()` before it touches the attribute.
+
+### `target:` selectors — use classes, not tag names
+
+`lcards-button`/`lcards-elbow` implement no `getAnimationTarget()` semantic-targeting layer (unlike MSD overlays), so a `target:` string is resolved as a plain `querySelectorAll(...)` CSS selector against the card's DOM. The underlying element for `.button-bg` is a `<rect>` for scalar-radius presets (`barrel`, `filled`) but a `<path>` for per-corner-radius presets (`lozenge`, `bullet`, `capped`) — a tag-name selector like `target: path` or `target: rect` will only match some presets and silently animate nothing on the others. Always target the stable class instead: `target: .button-bg` / `target: .button-border`.
+
+### Known limitation — a looping animation always wins over hover/pressed feedback on the same property
+
+There is no coordination between `AnimationManager`/anime.js and `_setupBaseInteractivity()`'s hover/pressed handlers — they don't know about each other. A `loop: true` animation targeting `fill` (e.g. `color-shift`) re-writes the `fill` attribute on every animation frame for as long as it runs; `applyColor()` on `mouseenter` writes it exactly once. The animation's next frame immediately overwrites the hover value, so `style.card.color.background.hover` (or `pressed`) is effectively invisible whenever a looping animation targets the same property on the same element. This is expected, not a bug — if hover/pressed feedback needs to stay visible, animate a different property (`stroke`/border) or a separate decorative element instead of the property carrying interactive state color.
+
+---
+
 ## Anti-patterns
 
 ❌ Don't use v3 `anime.timeline().add({ targets })` syntax — it's broken in v4

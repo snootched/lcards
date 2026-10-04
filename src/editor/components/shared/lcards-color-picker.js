@@ -354,15 +354,9 @@ export class LCARdSColorPicker extends LitElement {
                 color: var(--primary-color);
             }
 
-            /* Chips with no-leading-icon: equalise leading/trailing space so the label
-               stays horizontally centred in both selected and unselected states.
-               MD3 normally reduces leading-space when a leading icon (checkmark) is
-               present; forcing it equal to trailing-space keeps text visually centred. */
-            .sections ha-filter-chip[no-leading-icon] {
-                --md-filter-chip-leading-space: var(--ha-space-3);
-                --md-filter-chip-with-leading-icon-leading-space: var(--ha-space-3);
-                --md-filter-chip-trailing-space: var(--ha-space-3);
-            }
+            /* no-leading-icon chips: HA's WebAwesome chip (2026.10+) pads both sides
+               equally when no icon is rendered, so labels stay centred in both
+               selected and unselected states without overrides. */
 
             /* vertical bar between scope chips and Picker */
             .sections .separator {
@@ -937,7 +931,19 @@ export class LCARdSColorPicker extends LitElement {
         this._searchText = ev.target.value || '';
     }
 
-    _selectPickerFamily(family) {
+    /**
+     * Family chips act as a radio group. HA's filter chip toggles its own
+     * `selected` on click; re-clicking the active chip would leave it visually
+     * deselected (our state doesn't change, so Lit never re-sets it), so cancel
+     * the click — the chip reverts its own toggle on preventDefault().
+     * @param {string} family
+     * @param {Event} [ev]
+     */
+    _selectPickerFamily(family, ev) {
+        if (this._selectedFamily === family) {
+            ev?.preventDefault();
+            return;
+        }
         this._selectedFamily = family;
     }
 
@@ -974,7 +980,7 @@ export class LCARdSColorPicker extends LitElement {
                             no-leading-icon
                             .selected=${this._selectedCategoryGroup === group && isListMode}
                             .label=${CATEGORY_GROUP_LABELS[group]}
-                            @click=${() => { this._popoverMode = ''; this._selectCategoryGroup(group); }}>
+                            @click=${(e) => { if (this._selectedCategoryGroup === group && isListMode) { e.preventDefault(); return; } this._popoverMode = ''; this._selectCategoryGroup(group); }}>
                         </ha-filter-chip>
                     `)}
                     <div class="separator"></div>
@@ -1005,14 +1011,14 @@ export class LCARdSColorPicker extends LitElement {
                             no-leading-icon
                             .selected=${this._selectedFamily === 'all'}
                             .label=${'All'}
-                            @click=${() => this._selectPickerFamily('all')}>
+                            @click=${(e) => this._selectPickerFamily('all', e)}>
                         </ha-filter-chip>
                         ${familiesPresent.map(family => html`
                             <ha-filter-chip
                                 .selected=${this._selectedFamily === family}
                                 .label=${FAMILY_LABELS[family]}
                                 title=${FAMILY_HUE_RANGES[family] || ''}
-                                @click=${() => this._selectPickerFamily(family)}>
+                                @click=${(e) => this._selectPickerFamily(family, e)}>
                                 <span slot="icon" class="chip-swatch"
                                     style="background-color: ${FAMILY_SWATCH_COLORS[family]}">
                                 </span>

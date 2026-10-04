@@ -53,6 +53,7 @@ import {
     getAreaNames,
     renameAreaSettings,
     pruneAreaSettings,
+    resolveVisibilityRowTracks,
 } from './layout-grid-utils.js';
 import {
     buildGridStyle,
@@ -121,7 +122,7 @@ export class LCARdSLayoutView extends LitElement {
         this._baseRows = ['1fr', '1fr', '1fr']; // rows from config, never modified by visibility logic
         this._areas    = Array(3).fill(null).map(() => Array(3).fill('.'));
         this._gap      = '5px';
-        this._visibilityRows  = []; // [{rowIndex, entity, expectedState, targetHeight}]
+        this._visibilityRows  = []; // [{rowIndex, cardEl, targetHeight}]
         this._cardElements    = []; // HA-provided pre-built card elements
         this._mediaQueryLists = []; // active MediaQueryList instances
         this._pendingAddArea  = null; // area name waiting for HA's card picker to save
@@ -139,22 +140,29 @@ export class LCARdSLayoutView extends LitElement {
         // to avoid shadow-DOM issues.
         this._boundHostPointerMove = this._onHostPointerMove.bind(this);
         this._boundHostPointerUp   = this._onHostPointerUp.bind(this);
+        // hui-card fires a bubbling, composed `card-visibility-changed` whenever it
+        // hides/shows itself (same signal hui-section listens to).
+        this._boundCardVisibilityChanged = () => this._scheduleRowHeights();
     }
 
     connectedCallback() {
         super.connectedCallback();
         this.addEventListener('pointermove', this._boundHostPointerMove);
         this.addEventListener('pointerup',   this._boundHostPointerUp);
+        this.addEventListener('card-visibility-changed', this._boundCardVisibilityChanged);
         // Recompute fr row allocations whenever the host changes size (window resize,
         // sidebar toggle that changes our bounding box, devtools open/close).
-        this._hostResizeObserver = new ResizeObserver(() => {
-            if (this._resizeRaf) cancelAnimationFrame(this._resizeRaf);
-            this._resizeRaf = requestAnimationFrame(() => {
-                this._resizeRaf = null;
-                this._applyVisibilityRowHeights();
-            });
-        });
+        this._hostResizeObserver = new ResizeObserver(() => this._scheduleRowHeights());
         this._hostResizeObserver.observe(this);
+    }
+
+    /** rAF-debounced _applyVisibilityRowHeights() (resize + card visibility changes). */
+    _scheduleRowHeights() {
+        if (this._resizeRaf) cancelAnimationFrame(this._resizeRaf);
+        this._resizeRaf = requestAnimationFrame(() => {
+            this._resizeRaf = null;
+            this._applyVisibilityRowHeights();
+        });
     }
 
     _onHostPointerMove(e) {
@@ -191,7 +199,9 @@ export class LCARdSLayoutView extends LitElement {
         this._hass = hass;
         this._propagateHass();
         if (this._editOverlayEl) this._editOverlayEl.hass = hass;
-        this._applyVisibilityRowHeights();
+        // No row recompute here: visibility-driven rows follow hui-card's own
+        // `card-visibility-changed` event (see connectedCallback), so entity
+        // updates don't force a layout read on every state change.
     }
     get hass() { return this._hass; }
 
@@ -265,6 +275,7 @@ export class LCARdSLayoutView extends LitElement {
         this._teardownMediaQueries();
         this.removeEventListener('pointermove', this._boundHostPointerMove);
         this.removeEventListener('pointerup',   this._boundHostPointerUp);
+        this.removeEventListener('card-visibility-changed', this._boundCardVisibilityChanged);
         this._hostResizeObserver?.disconnect();
         this._hostResizeObserver = null;
         if (this._resizeRaf) { cancelAnimationFrame(this._resizeRaf); this._resizeRaf = null; }
@@ -485,7 +496,6 @@ export class LCARdSLayoutView extends LitElement {
             padding: 8px 12px;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.6)) 88%, transparent);
             backdrop-filter: blur(12px) saturate(1.1);
-            -webkit-backdrop-filter: blur(12px) saturate(1.1);
             border: var(--ha-border-width-sm, 1px) solid color-mix(in oklab, var(--divider-color, rgba(255,255,255,.1)) 60%, transparent);
             border-radius: var(--ha-border-radius-pill, 9999px);
             box-shadow: 0 4px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07);
@@ -594,7 +604,6 @@ export class LCARdSLayoutView extends LitElement {
             pointer-events: auto;
             background: color-mix(in oklab, var(--card-background-color, #1c1c28) 85%, rgba(0,0,0,.3));
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
             border: var(--ha-border-width-sm,1px) solid rgba(255,255,255,.14);
             border-radius: var(--ha-border-radius-md, 8px);
             padding: 4px;
@@ -638,7 +647,6 @@ export class LCARdSLayoutView extends LitElement {
             pointer-events: auto;
             background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.85)) 94%, transparent);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border: var(--ha-border-width-sm, 1px) solid var(--divider-color);
             border-radius: var(--ha-border-radius-md, 8px);
             padding: 12px 14px;
@@ -889,9 +897,16 @@ export class LCARdSLayoutView extends LitElement {
     }
 
     /**
-     * Scan placed cards for state-visibility conditions that govern entire rows.
-     * Fills this._visibilityRows with {rowIndex, entity, expectedState, targetHeight}.
+     * Scan placed cards for Visibility conditions that govern entire rows.
+     * Fills this._visibilityRows with {rowIndex, cardEl, targetHeight}.
      * Called after every card placement so the list stays in sync.
+     *
+     * Conditions are not parsed here — any non-empty `visibility` (any condition
+     * type, lovelace `entity` or core `entity_id` shape) registers the card, and
+     * _applyVisibilityRowHeights() reads HA's own verdict from the hui-card's
+     * `hidden` state. HA evaluates stateful conditions server-side (2026.10+)
+     * and the visibility editor rewrites them into core shape, so re-evaluating
+     * them here would drift from HA.
      */
     _collectVisibilityRows() {
         this._visibilityRows = [];
@@ -907,17 +922,7 @@ export class LCARdSLayoutView extends LitElement {
             // Only forward a definite viewport/pixel height (same rule as applyGridItemHeight).
             const h = config.layout?.height;
             if (!h || h === 'auto' || h === '100%') continue;
-            for (const cond of visibility) {
-                if (cond.condition === 'state' && cond.entity && cond.state != null) {
-                    this._visibilityRows.push({
-                        rowIndex,
-                        entity: cond.entity,
-                        expectedState: String(cond.state),
-                        targetHeight: h,
-                    });
-                    break;
-                }
-            }
+            this._visibilityRows.push({ rowIndex, cardEl, targetHeight: h });
         }
     }
 
@@ -935,14 +940,14 @@ export class LCARdSLayoutView extends LitElement {
         const grid = this._qh('#grid-root');
         if (!grid) return;
 
-        const rows = [...this._baseRows];
-
-        // In edit mode HA shows all cards regardless of visibility conditions,
-        // so expand every visibility-controlled row to its target height.
-        for (const { rowIndex, entity, expectedState, targetHeight } of (this._visibilityRows ?? [])) {
-            const state = this._hass?.states?.[entity]?.state;
-            rows[rowIndex] = (this._editMode || state === expectedState) ? targetHeight : '0px';
-        }
+        // Visibility-controlled rows follow hui-card's own `hidden` verdict
+        // (see resolveVisibilityRowTracks for the open/collapse rule).
+        const rows = resolveVisibilityRowTracks(
+            this._baseRows,
+            (this._visibilityRows ?? []).map(({ rowIndex, cardEl, targetHeight }) =>
+                ({ rowIndex, hidden: !!cardEl.hidden, targetHeight })),
+            this._editMode,
+        );
 
         // Identify fr tracks in the resolved rows.
         const frTracks = [];

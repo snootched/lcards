@@ -151,13 +151,13 @@ Use Home Assistant's **native card Visibility** for per-card conditions — open
 
 ### Visibility-driven row sizing
 
-When a card has a **state** Visibility condition and spans an entire row by itself, the layout view can automatically collapse that row to `0px` when the card is hidden and restore it when the card appears — without any manual CSS.
+When a card has a Visibility condition and occupies a row, the layout view can automatically collapse that row to `0px` when the card is hidden and restore it when the card appears — without any manual CSS.
 
 **Requirements:**
 
-1. The card must be a `custom:lcards-layout-card` with an explicit, definite `layout.height` (e.g. `height: 10vh` or `height: 120px`). Percentage and `auto` heights are not supported — the row would have nothing to size to.
-2. The Visibility condition must be a `state` condition (not `numeric_state`, `screen`, etc.).
-3. The card must be the only occupant of its row (so the row is fully controlled by that card's visibility).
+1. The card must have an explicit, definite `layout.height` (e.g. `height: 10vh` or `height: 120px`) — typically a `custom:lcards-layout-card`. Percentage and `auto` heights are not supported — the row would have nothing to size to.
+2. Any Visibility condition type works (`state`, `numeric_state`, `screen`, `user`, `template`, `and`/`or`/`not`, …). The view follows HA's own verdict — it watches whether HA hid the card rather than re-evaluating the condition.
+3. The row collapses only when **every** visibility-controlled card in it is hidden. Cards in the row without a Visibility condition don't hold it open, so a row is best owned by a single visibility-controlled card.
 
 ```yaml
 cards:
@@ -170,11 +170,11 @@ cards:
       grid-area: top-bar               # the row containing top-bar collapses when hidden
     visibility:
       - condition: state
-        entity: input_boolean.show_top_bar
-        state: "on"
+        entity_id: input_boolean.show_top_bar   # HA's Visibility editor saves this shape;
+        state: "on"                             # the older `entity:` key works too
 ```
 
-When `input_boolean.show_top_bar` is `"on"`, the row is set to `10vh`. When it's anything else, the row is set to `0px`. Any `1fr` rows in the layout are recomputed to fill the remaining space correctly.
+When `input_boolean.show_top_bar` is `"on"`, the row is set to `10vh`. When it's anything else, the row is set to `0px`. Any `1fr` rows in the layout are recomputed to fill the remaining space correctly. In dashboard edit mode every visibility-controlled row is expanded, matching HA showing every card while editing.
 
 > **Sidebar / window resize:** row heights are recomputed automatically via a `ResizeObserver` whenever the host element changes size (HA sidebar opens/closes, window resized, dev tools toggled).
 

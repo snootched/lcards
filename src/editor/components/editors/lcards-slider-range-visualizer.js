@@ -790,21 +790,15 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
 
                 <!-- Manual Toggles -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; background: var(--secondary-background-color); border-radius: 8px;">
-                    <ha-formfield .label="${'Invert Fill'}">
-                        <ha-switch
-                            .checked="${this.invertFill}"
-                            @change="${(e) => this._toggleSetting('invertFill', e.target.checked)}"
-                            ?disabled="${this.disabled}">
-                        </ha-switch>
-                    </ha-formfield>
+                    <ha-switch
+                        .checked="${this.invertFill}"
+                        @change="${(e) => this._toggleSetting('invertFill', e.target.checked)}"
+                        ?disabled="${this.disabled}">Invert Fill</ha-switch>
 
-                    <ha-formfield .label="${'Invert Value'}">
-                        <ha-switch
-                            .checked="${this.invertValue}"
-                            @change="${(e) => this._toggleSetting('invertValue', e.target.checked)}"
-                            ?disabled="${this.disabled}">
-                        </ha-switch>
-                    </ha-formfield>
+                    <ha-switch
+                        .checked="${this.invertValue}"
+                        @change="${(e) => this._toggleSetting('invertValue', e.target.checked)}"
+                        ?disabled="${this.disabled}">Invert Value</ha-switch>
                 </div>
             </div>
         `;

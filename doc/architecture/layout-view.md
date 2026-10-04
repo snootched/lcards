@@ -101,17 +101,21 @@ The view solves this entirely in JS:
 
 ### `_baseRows` and `_visibilityRows`
 
-`_baseRows` holds the row tracks as parsed from config (never modified at runtime). After every card placement, `_collectVisibilityRows()` scans the placed cards for `state` Visibility conditions. For each matching card — one that has a definite `layout.height` on a `custom:lcards-layout-card` and a single-row `grid-area` — it records `{ rowIndex, entity, expectedState, targetHeight }` in `_visibilityRows`.
+`_baseRows` holds the row tracks as parsed from config (never modified at runtime). After every card placement, `_collectVisibilityRows()` scans the placed cards for a non-empty `visibility` array — any condition type or shape; conditions are **not** parsed. For each card with a definite `layout.height` and a `grid-area` it records `{ rowIndex, cardEl, targetHeight }` in `_visibilityRows`.
+
+The view deliberately never evaluates conditions itself. HA's `hui-card` owns that (since HA 2026.10 stateful conditions are evaluated by core over a `subscribe_condition` websocket subscription, and HA's Visibility editor rewrites `state`/`numeric_state` conditions from lovelace `entity` shape into core `entity_id` shape). The view reads the outcome: `hui-card` toggles its `hidden` attribute and fires a bubbling, composed `card-visibility-changed` event — the same signal `hui-section` uses.
 
 ### `_applyVisibilityRowHeights()`
 
-Called from three places: end of `_placeCards()`, every `updated()` (after Lit renders), and every `set hass()` (entity state changes):
+Called from: end of `_placeCards()`, every `updated()` (after Lit renders), and — rAF-debounced via `_scheduleRowHeights()` — every `card-visibility-changed` event and every host resize. It is **not** called from `set hass()`: entity updates reach it only through hui-card's visibility event, so ordinary state changes cost no layout reads.
 
-1. **Build candidate rows** — start from `_baseRows`, override visibility rows with `targetHeight` or `'0px'` based on current entity state.
+1. **Build candidate rows** — start from `_baseRows`; a visibility row gets `targetHeight` if the view is in edit mode or **any** of its registered cards is not `hidden`, otherwise `'0px'`.
 2. **Identify `fr` tracks** — locate all `Nfr` tracks in the candidate rows.
 3. **Resolve non-fr sizes** — temporarily write the rows with every `fr` replaced by `0px` and force a reflow (`getComputedStyle`), so the browser evaluates all `clamp()`, `vh`, `px`, and `min()`/`max()` tracks to their actual pixel sizes.
 4. **Compute fr allocation** — `frSpace = hostHeight - sum(non-fr rows) - sum(gaps)`. This is exact regardless of what the CSS Grid engine would have done.
 5. **Final write** — replace every `Nfr` track with `round(frSpace × N / totalFR)px` and write `grid.style.gridTemplateRows` directly (bypassing Lit to avoid a re-render feedback loop).
+
+Nested `hui-card`s (inside an MSD control, `lcards-layout-card` child, or elbow symbiont) never reach the view's listener: the enclosing top-level `hui-card` catches and stops `card-visibility-changed` from its own inner element.
 
 ### `ResizeObserver`
 

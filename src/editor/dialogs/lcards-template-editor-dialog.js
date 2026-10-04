@@ -104,12 +104,7 @@ export class LCARdSTemplateEditorDialog extends LitElement {
                 font-size: 14px;
             }
 
-            .row-actions {
-                display: flex;
-                gap: 4px;
-            }
-
-            .row-actions mwc-icon-button {
+            ha-icon-button[slot="actions"] {
                 --ha-icon-button-size: 32px;
                 --mdc-icon-size: 20px;
             }
@@ -310,26 +305,29 @@ export class LCARdSTemplateEditorDialog extends LitElement {
                 ?expanded=${isExpanded}
                 @toggle=${() => this._toggleRowExpanded(index)}>
 
-                <mwc-icon-button
+                <ha-icon-button
                     slot="actions"
                     @click=${() => this._moveRowUp(index)}
-                    ?disabled=${index === 0}
+                    .disabled=${index === 0}
+                    .label=${'Move up'}
                     title="Move up">
                     <ha-icon icon="mdi:arrow-up"></ha-icon>
-                </mwc-icon-button>
-                <mwc-icon-button
+                </ha-icon-button>
+                <ha-icon-button
                     slot="actions"
                     @click=${() => this._moveRowDown(index)}
-                    ?disabled=${index === this._editingRows.length - 1}
+                    .disabled=${index === this._editingRows.length - 1}
+                    .label=${'Move down'}
                     title="Move down">
                     <ha-icon icon="mdi:arrow-down"></ha-icon>
-                </mwc-icon-button>
-                <mwc-icon-button
+                </ha-icon-button>
+                <ha-icon-button
                     slot="actions"
                     @click=${() => this._deleteRow(index)}
+                    .label=${'Delete row'}
                     title="Delete row">
                     <ha-icon icon="mdi:delete"></ha-icon>
-                </mwc-icon-button>
+                </ha-icon-button>
 
                 ${this._renderRowCells(row, index)}
                 ${this._renderRowStyle(row, index)}
@@ -355,17 +353,19 @@ export class LCARdSTemplateEditorDialog extends LitElement {
                             placeholder="Enter text or template (e.g., {{states.sensor.temp.state}})"
                             @input=${(e) => this._handleCellValueChange(rowIndex, cellIndex, e.target.value)}>
                         </ha-input>
-                        <mwc-icon-button
+                        <ha-icon-button
                             class="entity-picker-button"
                             @click=${() => this._openEntityPicker(rowIndex, cellIndex)}
+                            .label=${'Insert entity template'}
                             title="Insert entity template">
                             <ha-icon icon="mdi:home-assistant"></ha-icon>
-                        </mwc-icon-button>
-                        <mwc-icon-button
+                        </ha-icon-button>
+                        <ha-icon-button
                             @click=${() => this._deleteCell(rowIndex, cellIndex)}
+                            .label=${'Remove cell'}
                             title="Remove cell">
                             <ha-icon icon="mdi:close"></ha-icon>
-                        </mwc-icon-button>
+                        </ha-icon-button>
                     </div>
                 `)}
                 <ha-button

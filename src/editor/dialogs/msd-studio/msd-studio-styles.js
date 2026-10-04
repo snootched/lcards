@@ -267,7 +267,6 @@ export const msdStudioStyles = css`
     .card-picker-button {
         height: 80px;
         flex-direction: column;
-        --ha-button-text-color: var(--primary-text-color);
     }
 
     .card-picker-button ha-icon {

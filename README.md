@@ -74,7 +74,7 @@ LCARdS supersedes CB-LCARS. You can run both side-by-side while transitioning �
 2. Restart Home Assistant
 3. Go to **Settings → Integrations → Add Integration → LCARdS**
 
-There are no external dependencies — use with [**HA-LCARS themes**](https://github.com/th3jesta/ha-lcars) for the full experience.
+Requires **Home Assistant 2026.10 or newer**. There are no external dependencies — use with [**HA-LCARS themes**](https://github.com/th3jesta/ha-lcars) for the full experience.
 
 
 → **[Full installation guide](https://lcards.unimatrix01.ca/getting-started/installation)**

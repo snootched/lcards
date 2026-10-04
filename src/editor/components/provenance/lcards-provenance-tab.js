@@ -2200,7 +2200,6 @@ export class LCARdSProvenanceTab extends LitElement {
                   .filled=${true}
                   style="
                     --ha-assist-chip-filled-container-color: ${this._getSourceBadgeColor(source)};
-                    --md-sys-color-primary: white;
                     --md-sys-color-on-surface: white;
                   ">
                 </ha-assist-chip>

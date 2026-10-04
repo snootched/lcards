@@ -672,23 +672,23 @@ export class LCARdSAnimationEditor extends LitElement {
             <div class="animation-chips">
               <ha-assist-chip
                 .filled=${true}
-                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color) 80%, transparent); --md-sys-color-on-surface: var(--primary-text-color);"
                 .label=${isCustom ? 'custom' : this._formatPresetName(preset)}>
               </ha-assist-chip>
               <ha-assist-chip
                 .filled=${true}
-                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-color) 80%, transparent); --md-sys-color-on-surface: var(--primary-text-color);"
                 .label=${this._formatTrigger(trigger)}>
               </ha-assist-chip>
               ${isSystem ? html`<ha-assist-chip
                 .filled=${true}
-                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--info-color, #039be5) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--info-color, #039be5) 80%, transparent); --md-sys-color-on-surface: var(--primary-text-color);"
                 label="component">
                 <ha-icon slot="icon" icon="mdi:puzzle-outline"></ha-icon>
               </ha-assist-chip>` : ''}
               ${!isEnabled ? html`<ha-assist-chip
                 .filled=${true}
-                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-background-color, #000000) 80%, transparent); --md-sys-color-primary: var(--primary-text-color); --md-sys-color-on-surface: var(--primary-text-color);"
+                style="--ha-assist-chip-filled-container-color: color-mix(in srgb, var(--primary-background-color, #000000) 80%, transparent); --md-sys-color-on-surface: var(--primary-text-color);"
                 label="disabled"></ha-assist-chip>` : ''}
             </div>
           </div>

@@ -260,10 +260,10 @@ export class LCARdSChartLivePreview extends LitElement {
                 </span>
                 ${this.showRefreshButton ? html`
                     <ha-icon-button
-                        icon="mdi:refresh"
                         @click=${this._handleRefresh}
-                        title="Refresh preview"
-                        aria-label="Refresh preview">
+                        .label=${'Refresh preview'}
+                        title="Refresh preview">
+                        <ha-icon icon="mdi:refresh"></ha-icon>
                     </ha-icon-button>
                 ` : ''}
             </div>

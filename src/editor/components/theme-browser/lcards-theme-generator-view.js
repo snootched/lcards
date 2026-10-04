@@ -628,7 +628,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
         .gen-field-label { font-weight: 500; font-size: var(--ha-font-size-m); display: flex; flex-direction: column; gap: 2px; }
         .gen-field-label-row { display: flex; align-items: center; gap: 4px; }
         .gen-field-info { position: relative; display: inline-flex; }
-        .gen-field-info-btn { --mdc-icon-button-size: 20px; --mdc-icon-size: 16px; color: var(--secondary-text-color); }
+        .gen-field-info-btn { --ha-icon-button-size: 20px; --mdc-icon-size: 16px; color: var(--secondary-text-color); }
         .gen-field-info-popup {
           position: absolute; left: 0; top: 100%; z-index: 10; margin-top: 4px;
           width: max-content; max-width: 260px; padding: var(--ha-space-2) var(--ha-space-3);
@@ -651,7 +651,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
         .gen-search-container { display: flex; gap: var(--ha-space-3); align-items: center; margin-bottom: var(--ha-space-3); }
         .gen-search-wrapper { flex: 1; position: relative; min-width: 200px; max-width: 400px; }
         .gen-legacy-search { width: 100%; }
-        .gen-search-clear { position: absolute; right: var(--ha-space-1); top: 50%; transform: translateY(-50%); --mdc-icon-button-size: 32px; }
+        .gen-search-clear { position: absolute; right: var(--ha-space-1); top: 50%; transform: translateY(-50%); --ha-icon-button-size: 32px; }
         .gen-category-filters { display: flex; gap: var(--ha-space-2); flex-wrap: wrap; margin-bottom: var(--ha-space-3); }
         .gen-category-chip {
           appearance: none; border: var(--ha-border-width-sm) solid var(--divider-color); background: var(--secondary-background-color);

@@ -334,10 +334,11 @@ The dialog imports and uses:
 The dialog uses CSS custom properties for theming:
 
 ```css
---mdc-dialog-min-width: 95vw;
---mdc-dialog-max-width: 95vw;
---mdc-dialog-min-height: 90vh;
---mdc-dialog-max-height: 90vh;
+/* ha-dialog (WebAwesome) sizing — see studio-dialog-styles.js */
+--ha-dialog-width-md: min(95vw, 95vw);
+--ha-dialog-width-lg: min(95vw, 95vw);
+--ha-dialog-min-height: 90vh;
+--ha-dialog-max-height: 90vh;
 --primary-color: Theme primary color
 --secondary-background-color: Background for panels
 --divider-color: Border colors

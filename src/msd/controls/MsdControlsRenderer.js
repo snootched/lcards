@@ -389,10 +389,11 @@ export class MsdControlsRenderer {
    * pipeline created it (#387).
    *
    * hui-card-wrapped controls (the preferred path — see createControlElement())
-   * just need plain property assignment: hui-card's own `hass` setter
-   * evaluates `config.visibility` and only redistributes hass to the real
-   * inner card when conditions pass — that IS the visibility fix, so nothing
-   * else should reach past it into the inner card directly.
+   * just need plain property assignment: hui-card evaluates `config.visibility`
+   * itself (stateful conditions server-side via `subscribe_condition`; screen/
+   * user/time/location and legacy-semantics state conditions client-side) and
+   * forwards hass to the real inner card — that IS the visibility fix, so
+   * nothing else should reach past it into the inner card directly.
    *
    * Raw-card controls (the hui-card-unavailable fallback path) still go
    * through `_applyHassToCard()`'s existing per-card-type branching exactly
@@ -634,7 +635,11 @@ export class MsdControlsRenderer {
     // treat any control that opts into visibility as always-update, so the
     // hui-card wrapper (see createControlElement()) keeps getting fresh hass
     // every tick to re-evaluate its condition, instead of freezing forever
-    // after its first render.
+    // after its first render. Still required on HA 2026.10+: core pushes
+    // results for most conditions via `subscribe_condition`, but `location`
+    // and lovelace state/numeric_state conditions with legacy-only semantics
+    // (`attribute`, entity-id comparison values) are still evaluated
+    // client-side from hass.states (frontend src/common/condition/translate.ts).
     const hasVisibility = Array.isArray(overlay.card?.visibility) && overlay.card.visibility.length > 0;
     const alwaysUpdate = overlay.triggers_update === 'all' || hasVisibility;
     if (alwaysUpdate) {
@@ -840,8 +845,8 @@ export class MsdControlsRenderer {
         // its native `visibility:` conditional evaluation runs — the same
         // mechanism a card gets automatically on a real dashboard, and the
         // same fix already used by lcards-layout-card.js's `_createChild()`.
-        // hui-card evaluates `config.visibility` in its own `hass` setter and
-        // only forwards hass to the real inner card when conditions pass;
+        // hui-card evaluates `config.visibility` itself (core-pushed for most
+        // conditions, client-side for the rest) and hides/shows itself;
         // cards never need to implement visibility themselves.
         const config = this._buildCardConfig(cardDef, overlay.id);
         cardElement = createHuiCardWrapper(config, this.hass, { editMode: this._editMode });

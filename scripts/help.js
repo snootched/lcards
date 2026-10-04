@@ -43,6 +43,7 @@ const CATEGORIES = [
     scripts: {
       'validate:css-vars': { when: 'every build', desc: 'Lints every --lcars-*/--lcards-*/theme: reference against the registered var lists. Also runs inside `build`.' },
       'validate:css-vars:verbose': { when: 'as needed', desc: 'Same, with full per-file detail — use when the plain summary doesn\'t pinpoint a violation.' },
+      'validate:ha-compat': { when: 'every build', desc: 'Fails on HA elements/attributes/CSS hooks/imports known to be removed or dead in the minimum supported HA (mwc-*, ha-formfield, ha-icon-button icon=, --mdc-theme-primary, voluptuous, …). Runs inside `build`.' },
       'validate:doc-examples': { when: 'as needed', desc: 'Validates YAML code examples embedded in doc/ against the real config schema.' },
       'validate:doc-examples:strict': { when: 'every build', desc: 'Same, but fails on any violation. Runs inside `build`.' },
     },
@@ -59,13 +60,14 @@ const CATEGORIES = [
     name: 'HA Impact Analysis',
     scripts: {
       'check:ha-impact': { when: 'as needed', desc: 'Diffs local frontend/homeassistant-core checkouts, hands the diff to Claude Code CLI for a HIGH/MEDIUM/LOW report. Run periodically, or after pulling those repos.' },
-      'check:ha-impact:quick': { when: 'as needed', desc: 'Same diff, no Claude Code hand-off — fast, free, deterministic file/CSS-var list only.' },
+      'check:ha-impact:quick': { when: 'as needed', desc: 'Same diff, no Claude Code hand-off — fast, free, deterministic file/CSS-var list plus element-existence and dead-CSS-hook scans. Add --ref=<tag> to analyze an upstream release tag without checking it out.' },
     },
   },
   {
     name: 'Testing',
     scripts: {
-      'test:routing': { when: 'as needed', desc: 'Runs the MSD routing test suite. The only automated tests in this repo — everything else is manual in HA Lovelace.' },
+      'test': { when: 'before commit', desc: 'Runs every node:test suite under tests/ (routing, layout-view row logic, HA compat lint rules). Card rendering is still tested manually in HA Lovelace.' },
+      'test:routing': { when: 'as needed', desc: 'Runs only the MSD routing test suite.' },
     },
   },
   {

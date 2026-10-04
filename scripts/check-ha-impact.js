@@ -23,13 +23,24 @@
  *   node scripts/check-ha-impact.js --quick          tier 1 only, no LLM call
  *   node scripts/check-ha-impact.js --pull           git pull checkouts first (only if clean)
  *   node scripts/check-ha-impact.js --include-core   also analyze homeassistant-core
+ *   node scripts/check-ha-impact.js --since=<sha>    diff <sha>..HEAD instead of the saved
+ *                                                    baseline; never writes .state.json
+ *   node scripts/check-ha-impact.js --ref=<tag|sha>  analyze that frontend ref (e.g. an upcoming
+ *                                                    release tag) instead of the checkout's HEAD —
+ *                                                    read via git, nothing is checked out
+ *
+ * Tier 1 also always runs two frontend health checks against the analyzed ref:
+ *   - element existence: every <ha-*|hui-*|wa-*|mwc-*|paper-*> tag LCARdS renders must
+ *     be defined there (@customElement / customElements.define / a webawesome import)
+ *   - dead CSS hooks: HA-namespace vars LCARdS *sets* (--ha-*, --mdc-*, --dialog-*, --md-*)
+ *     that the frontend source never references
  *
  * @module scripts/check-ha-impact
  */
 
 import { execFileSync, spawnSync } from 'child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir } from 'os';
 
@@ -42,6 +53,8 @@ const QUICK = ARGS.has('--quick');
 const PULL = ARGS.has('--pull');
 const INCLUDE_CORE = ARGS.has('--include-core');
 const HELP = ARGS.has('--help') || ARGS.has('-h');
+const SINCE = process.argv.slice(2).find(a => a.startsWith('--since='))?.slice('--since='.length) || null;
+const FRONTEND_REF = process.argv.slice(2).find(a => a.startsWith('--ref='))?.slice('--ref='.length) || 'HEAD';
 
 // ─── ANSI colour helpers ──────────────────────────────────────────────────────
 const RED = s => `\x1b[31m${s}\x1b[0m`;
@@ -60,6 +73,10 @@ Options:
   --quick          Tier 1 only (deterministic file/var diff) — no Claude CLI call
   --pull           git pull --ff-only the checkouts first (skipped if dirty)
   --include-core   Also analyze the homeassistant-core checkout
+  --since=<sha>    Diff <sha>..HEAD instead of the saved baseline (re-check a
+                   past range); never writes .state.json
+  --ref=<tag|sha>  Analyze this frontend ref instead of the checkout's HEAD
+                   (e.g. --ref=20260930.0); nothing is checked out
   --help, -h       Show this help
 `);
   process.exit(0);
@@ -76,24 +93,126 @@ const STATE_PATH = join(REPORTS_DIR, '.state.json');
 // Mirrors ha-lcars's RELEVANT_PATH_PREFIXES pattern, but scoped to what LCARdS
 // actually depends on (see .github/instructions/editor.instructions.md
 // "Approved HA Elements" + doc/development/ha-css-vars.md "Variable Sources").
+// The static list covers infrastructure; the files defining every <ha-*>/<hui-*>
+// element LCARdS renders are added automatically (deriveLcardsElementPaths),
+// so a newly used element can't silently fall outside the filter.
 const FRONTEND_RELEVANT_PATHS = [
+  'package.json',                    // @home-assistant/webawesome / lit bumps
   'src/resources/theme/',
   'src/resources/styles/',
-  'src/components/ha-button*',
-  'src/components/ha-textfield*',
-  'src/components/ha-textarea*',
-  'src/components/ha-circular-progress*',
-  'src/components/ha-expansion-panel*',
-  'src/components/ha-tab-group*',
-  'src/components/ha-tab-panel*',
   'src/components/ha-selector/',
-  'src/components/ha-alert*',
-  'src/components/ha-entity-picker*',
-  'src/components/ha-icon-button*',
-  'src/components/ha-card*',
+  'src/components/ha-form/',
+  'src/components/input/',
+  'src/components/chips/',
+  'src/components/ha-media-item-picker*',
+  'src/mixins/',                     // e.g. ConditionalListenerMixin (hui-card visibility)
+  'src/common/controllers/',
+  'src/common/condition/',
   'src/panels/lovelace/',
   'src/layouts/',
 ];
+
+/**
+ * Every HA-provided element tag LCARdS renders (markup or createElement).
+ * @returns {Set<string>}
+ */
+function lcardsUsedTags() {
+  const tags = new Set();
+  const RE_TAG = /<((?:ha|hui|wa|mwc|paper)-[a-z0-9-]+)|createElement\(\s*['"]((?:ha|hui|wa|mwc|paper)-[a-z0-9-]+)['"]/g;
+  for (const file of walk(join(ROOT, 'src'), f => f.endsWith('.js'))) {
+    for (const m of readFileSync(file, 'utf-8').matchAll(RE_TAG)) tags.add(m[1] || m[2]);
+  }
+  return tags;
+}
+
+/**
+ * Map of element tag -> defining file in the frontend at `ref`:
+ * @customElement / customElements.define, plus wa-* elements HA registers by
+ * importing @home-assistant/webawesome components.
+ * @returns {Map<string, string>|null} null when the frontend repo is unavailable
+ */
+function frontendElementDefs(frontendPath, ref) {
+  let out;
+  try {
+    out = git(frontendPath, ['grep', '-n', '-E',
+      '@customElement\\("[a-z0-9-]+"\\)|customElements\\.define\\(\\s*"[a-z0-9-]+"|webawesome/dist/components/[a-z0-9-]+/',
+      ref, '--', 'src']);
+  } catch {
+    return null;
+  }
+  const defs = new Map();
+  const prefix = `${ref}:`;
+  for (const raw of out.split('\n')) {
+    const line = raw.startsWith(prefix) ? raw.slice(prefix.length) : raw;
+    const file = line.split(':')[0];
+    for (const m of line.matchAll(/@customElement\("([a-z0-9-]+)"\)|customElements\.define\(\s*"([a-z0-9-]+)"/g)) {
+      const tag = m[1] || m[2];
+      if (!defs.has(tag)) defs.set(tag, file);
+    }
+    for (const m of line.matchAll(/webawesome\/dist\/components\/([a-z0-9-]+)\//g)) {
+      if (!defs.has(`wa-${m[1]}`)) defs.set(`wa-${m[1]}`, file);
+    }
+  }
+  return defs;
+}
+
+/**
+ * Resolve every element LCARdS renders to the frontend file defining it, so
+ * changes to those files are always in the relevant-path filter.
+ */
+function deriveLcardsElementPaths(defs, tags) {
+  if (!defs) return [];
+  return [...new Set([...tags].filter(t => defs.has(t) && !t.startsWith('wa-')).map(t => defs.get(t)))].sort();
+}
+
+/**
+ * Health checks against the frontend at `ref` (tier 1, deterministic):
+ *   missingTags   — tags LCARdS renders that HA no longer defines (render as empty unknown elements)
+ *   deadHooks     — HA-owned CSS vars LCARdS sets that HA never references (silently do nothing)
+ *   unverifiedMd  — --md-* vars LCARdS sets that HA src never references (may still be read inside
+ *                   @material/web, which isn't in the frontend src tree — verify by hand)
+ */
+// Tags LCARdS renders on purpose even though HA never defined them. Keep this
+// list tiny and justified — everything else missing is a real break.
+const KNOWN_UNDEFINED_TAGS = new Map([
+  // Never existed in HA. Used as a plain `?hidden` tab-content wrapper by
+  // LCARdSBaseEditor and a few dialogs; as an unknown (display:inline) element
+  // its min-height/vertical padding rules don't apply, so swapping in a <div>
+  // changes every editor's layout. Migrate deliberately, with a visual check.
+  ['ha-tab-panel', 'LCARdS tab-content wrapper (never an HA element)'],
+]);
+
+function frontendHealthChecks(frontendPath, ref, defs, tags) {
+  const missingTags = defs ? [...tags].filter(t => !defs.has(t) && !KNOWN_UNDEFINED_TAGS.has(t)).sort() : [];
+
+  const sets = new Map(); // var -> Set<file>
+  const reads = new Set();
+  const RE_SET = /(--(?:ha|mdc|md|dialog)-[a-z0-9-]+)\s*:/g;
+  const RE_READ = /var\(\s*(--[a-z0-9-]+)/g;
+  for (const file of walk(join(ROOT, 'src'), f => f.endsWith('.js'))) {
+    const text = readFileSync(file, 'utf-8');
+    for (const m of text.matchAll(RE_SET)) {
+      if (!sets.has(m[1])) sets.set(m[1], new Set());
+      sets.get(m[1]).add(relative(ROOT, file));
+    }
+    for (const m of text.matchAll(RE_READ)) reads.add(m[1]);
+  }
+  let referenced;
+  try {
+    referenced = new Set(git(frontendPath, ['grep', '-ohE', '--', '--[a-zA-Z0-9_-]+', ref, '--', 'src'])
+      .split('\n').map(l => l.slice(l.lastIndexOf(':') + 1)));
+  } catch {
+    return { missingTags, deadHooks: [], unverifiedMd: [] };
+  }
+  const deadHooks = [];
+  const unverifiedMd = [];
+  for (const [v, files] of [...sets].sort()) {
+    // LCARdS's own variables (set and read by LCARdS) aren't HA hooks
+    if (referenced.has(v) || reads.has(v)) continue;
+    (v.startsWith('--md-') ? unverifiedMd : deadHooks).push({ v, files: [...files] });
+  }
+  return { missingTags, deadHooks, unverifiedMd };
+}
 
 const CORE_RELEVANT_PATHS = [
   'homeassistant/components/frontend/',
@@ -104,7 +223,7 @@ const CORE_RELEVANT_PATHS = [
 // ─── Small helpers ────────────────────────────────────────────────────────────
 
 function git(repoPath, args) {
-  return execFileSync('git', ['-C', repoPath, ...args], { encoding: 'utf-8' }).trim();
+  return execFileSync('git', ['-C', repoPath, ...args], { encoding: 'utf-8', maxBuffer: 512 * 1024 * 1024 }).trim();
 }
 
 function loadState() {
@@ -118,6 +237,7 @@ function loadState() {
 }
 
 function saveState(state) {
+  if (SINCE) return; // --since re-checks an arbitrary range; never move the baseline
   mkdirSync(REPORTS_DIR, { recursive: true });
   writeFileSync(STATE_PATH, JSON.stringify(state, null, 2) + '\n');
 }
@@ -138,14 +258,14 @@ function walk(dir, predicate, base = dir) {
   return results;
 }
 
-/** Extract all `--name:` CSS custom property declarations from HA theme files. */
-function extractFrontendCssVars(frontendPath) {
-  const themeDir = join(frontendPath, 'src', 'resources', 'theme');
-  const files = walk(themeDir, f => f.endsWith('.globals.ts'));
+/** Extract all `--name:` CSS custom property declarations from HA theme files at `ref`. */
+function extractFrontendCssVars(frontendPath, ref) {
+  const files = git(frontendPath, ['ls-tree', '-r', '--name-only', ref, '--', 'src/resources/theme'])
+    .split('\n').filter(f => f.endsWith('.globals.ts'));
   const vars = new Set();
   const RE_VAR = /--([\w-]+)\s*:/g;
   for (const file of files) {
-    const text = readFileSync(file, 'utf-8');
+    const text = git(frontendPath, ['show', `${ref}:${file}`]);
     for (const m of text.matchAll(RE_VAR)) vars.add(m[1]);
   }
   return vars;
@@ -163,7 +283,7 @@ function diffSets(prevArr, nextSet) {
  * filter to relevant paths, and (for frontend) diff the CSS var snapshot.
  * Returns null if the repo is missing, or a result object otherwise.
  */
-function analyzeRepo({ name, repoPath, relevantPaths, state, trackCssVars }) {
+function analyzeRepo({ name, repoPath, relevantPaths, state, trackCssVars, ref = 'HEAD' }) {
   if (!existsSync(repoPath)) {
     console.warn(YELLOW(`⚠  ${name}: not found at ${repoPath} — skipping.`));
     return null;
@@ -186,12 +306,12 @@ function analyzeRepo({ name, repoPath, relevantPaths, state, trackCssVars }) {
     }
   }
 
-  const headSha = git(repoPath, ['rev-parse', 'HEAD']);
+  const headSha = git(repoPath, ['rev-parse', `${ref}^{commit}`]);
   const repoState = state[name] || {};
-  const lastSha = repoState.lastSha;
+  const lastSha = SINCE ? git(repoPath, ['rev-parse', SINCE]) : repoState.lastSha;
 
   let cssVarDiff = null;
-  const nextCssVars = trackCssVars ? extractFrontendCssVars(repoPath) : null;
+  const nextCssVars = trackCssVars ? extractFrontendCssVars(repoPath, headSha) : null;
 
   if (!lastSha) {
     console.log(`  No prior baseline — recording HEAD (${headSha.slice(0, 7)}) as the starting point.`);
@@ -212,7 +332,8 @@ function analyzeRepo({ name, repoPath, relevantPaths, state, trackCssVars }) {
     .split('\n')
     .filter(Boolean);
 
-  if (trackCssVars) {
+  // The saved var snapshot belongs to the saved baseline, not to --since.
+  if (trackCssVars && !SINCE) {
     cssVarDiff = diffSets(repoState.cssVarSnapshot, nextCssVars);
   }
 
@@ -242,11 +363,40 @@ function analyzeRepo({ name, repoPath, relevantPaths, state, trackCssVars }) {
 
 const state = loadState();
 
+const usedTags = lcardsUsedTags();
+const elementDefs = existsSync(FRONTEND_PATH) ? frontendElementDefs(FRONTEND_PATH, FRONTEND_REF) : null;
+const frontendElementPaths = deriveLcardsElementPaths(elementDefs, usedTags);
+console.log(DIM(`Watching ${frontendElementPaths.length} frontend element file(s) derived from LCARdS src/.`));
+
+// ─── Tier 1 health checks (always run) ────────────────────────────────────────
+let health = null;
+if (elementDefs) {
+  health = frontendHealthChecks(FRONTEND_PATH, FRONTEND_REF, elementDefs, usedTags);
+  console.log(BOLD(`\n— frontend health @ ${FRONTEND_REF} —`));
+  if (health.missingTags.length) {
+    console.log(RED(`  ✖ ${health.missingTags.length} element(s) LCARdS renders are not defined by HA (render as empty unknown tags):`));
+    for (const t of health.missingTags) console.log(RED(`      <${t}>`));
+  } else {
+    console.log(GREEN(`  ✓ all ${usedTags.size} HA element tags LCARdS renders are defined`));
+  }
+  if (health.deadHooks.length) {
+    console.log(RED(`  ✖ ${health.deadHooks.length} HA CSS hook(s) LCARdS sets are never referenced by HA (silently do nothing):`));
+    for (const { v, files } of health.deadHooks) console.log(RED(`      ${v}`) + DIM(`  ${files.slice(0, 3).join(', ')}`));
+  } else {
+    console.log(GREEN('  ✓ every --ha-*/--mdc-*/--dialog-* hook LCARdS sets is referenced by HA'));
+  }
+  if (health.unverifiedMd.length) {
+    console.log(YELLOW(`  ? ${health.unverifiedMd.length} --md-* var(s) not referenced in HA src — may be read inside @material/web; verify:`));
+    for (const { v, files } of health.unverifiedMd) console.log(YELLOW(`      ${v}`) + DIM(`  ${files.slice(0, 3).join(', ')}`));
+  }
+}
+
 const repos = [
   {
     name: 'frontend',
     repoPath: FRONTEND_PATH,
-    relevantPaths: FRONTEND_RELEVANT_PATHS,
+    relevantPaths: [...new Set([...FRONTEND_RELEVANT_PATHS, ...frontendElementPaths])],
+    ref: FRONTEND_REF,
     trackCssVars: true,
   },
 ];
@@ -329,11 +479,20 @@ is just the file-level filter, you need the real diffs to judge impact:
 
 ${repoSections}
 
-Pay special attention to:
+${health && (health.missingTags.length || health.deadHooks.length || health.unverifiedMd.length) ? `Deterministic frontend health checks @ ${FRONTEND_REF} already flagged (verify, explain impact, suggest fixes):
+${health.missingTags.map(t => `  - element <${t}> is rendered by LCARdS but not defined by HA`).join('\n')}
+${health.deadHooks.map(({ v, files }) => `  - CSS hook ${v} is set by LCARdS (${files.join(', ')}) but never referenced by HA`).join('\n')}
+${health.unverifiedMd.map(({ v, files }) => `  - --md-* var ${v} (${files.join(', ')}) not referenced in HA src — check whether a remaining @material/web component still reads it`).join('\n')}
+
+` : ''}Pay special attention to:
   - CSS custom property renames, removals, or value-meaning changes (--ha-*, --primary-*, --mdc-*, --md-*)
   - Changes to the approved HA elements LCARdS uses (props/attributes added, removed, or renamed; \
 slot/shadow-DOM structure changes; deprecations)
   - Any MWC→WebAwesome migration activity (new wa-* elements, mwc-* removals, changed event names)
+  - Dependency version bumps in package.json that LCARdS inherits at runtime \
+(@home-assistant/webawesome, lit) — LCARdS renders wa-* elements directly
+  - Elements losing their last eager importer (LCARdS can't import HA modules; it relies on \
+someone else registering every element it renders)
 
 Do NOT report pure logic changes, translation/localization changes, or test-only changes.
 
