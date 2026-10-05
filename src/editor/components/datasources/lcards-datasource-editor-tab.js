@@ -22,6 +22,7 @@ import './lcards-global-datasources-panel.js';
 import '../../dialogs/lcards-datasource-studio-dialog.js';
 import './lcards-datasource-browser.js';
 import '../shared/lcards-message.js';
+import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
 
 export class LCARdSDataSourceEditorTab extends LitElement {
   static get properties() {
@@ -462,7 +463,7 @@ export class LCARdSDataSourceEditorTab extends LitElement {
       dialog.appendChild(cancelButton);
       dialog.appendChild(deleteButton);
 
-      document.body.appendChild(dialog);
+      mountDialogNearHomeAssistant(dialog, this);
 
       // Small delay to ensure dialog is in DOM before opening
       setTimeout(() => {
@@ -471,7 +472,7 @@ export class LCARdSDataSourceEditorTab extends LitElement {
       }, 0);
 
       dialog.addEventListener('closed', () => {
-        document.body.removeChild(dialog);
+        dialog.remove();
       }, { once: true });
     });
   }

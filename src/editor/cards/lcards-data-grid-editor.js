@@ -39,6 +39,7 @@ import '../components/provenance/lcards-provenance-tab.js';
 
 // Import Configuration Studio dialog (V4 - with WYSIWYG editing)
 import '../dialogs/lcards-data-grid-studio-dialog.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 export class LCARdSDataGridEditor extends LCARdSBaseEditor {
 
@@ -193,7 +194,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
         });
 
         // Append to body and show
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
     }
 }
 

@@ -29,6 +29,7 @@ import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 import { editorWidgetStyles } from './editor-widget-styles.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-color-picker.js';
+import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
 
 export class LCARdSColorSectionV2 extends LitElement {
 
@@ -1006,7 +1007,7 @@ export class LCARdSColorSectionV2 extends LitElement {
                 dialog.remove();
             });
 
-            document.body.appendChild(dialog);
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 
@@ -1061,7 +1062,7 @@ export class LCARdSColorSectionV2 extends LitElement {
                 dialog.remove();
             });
 
-            document.body.appendChild(dialog);
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 }

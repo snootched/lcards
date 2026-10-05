@@ -24,6 +24,7 @@ import '../components/yaml/lcards-yaml-editor.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../components/shared/lcards-color-picker.js';
 import '../components/provenance/lcards-provenance-tab.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -1016,7 +1017,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         dialog.headerTitle = 'Select Content Card Type';
 
         this._cardPickerDialogRef = dialog;
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
         // @ts-ignore - TS2339: auto-suppressed
         dialog.open = true;
 
@@ -1148,7 +1149,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
             }
         });
 
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
         // @ts-ignore - TS2339: auto-suppressed
         dialog.open = true;
     }

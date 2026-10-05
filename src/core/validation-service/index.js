@@ -368,8 +368,8 @@ export class CoreValidationService {
    * @private
    */
   _validateAgainstSchema(data, schema, result, path) {
-    // Handle oneOf - try each option and succeed if any match
-    if (schema.oneOf) {
+    // Handle oneOf/anyOf - try each option and succeed if any match
+    if (schema.oneOf || schema.anyOf) {
       return this._validateOneOf(data, schema, result, path);
     }
 
@@ -400,14 +400,16 @@ export class CoreValidationService {
   }
 
   /**
-   * Validate oneOf (data must match exactly one schema)
+   * Validate oneOf/anyOf. Both pass when at least one option matches (a
+   * multi-match oneOf is tolerated, which makes the two equivalent here).
    * @private
    */
   _validateOneOf(data, schema, result, path) {
     const matchedSchemas = [];
+    const options = schema.oneOf ?? schema.anyOf;
 
-    for (let i = 0; i < schema.oneOf.length; i++) {
-      const option = schema.oneOf[i];
+    for (let i = 0; i < options.length; i++) {
+      const option = options[i];
       const tempResult = { valid: true, errors: [], warnings: [] };
 
       this._validateAgainstSchema(data, option, tempResult, path);
@@ -420,7 +422,7 @@ export class CoreValidationService {
     // oneOf requires exactly one match
     if (matchedSchemas.length === 0) {
       // Get expected types from oneOf options
-      const expectedTypes = schema.oneOf
+      const expectedTypes = options
         .map(opt => opt.type || 'object')
         .filter((v, i, a) => a.indexOf(v) === i); // unique
 

@@ -39,6 +39,7 @@ import '../../cards/lcards-chart.js';  // Import card directly for manual instan
 import { getChartSchema } from '../../cards/schemas/chart-schema.js';
 import '../components/shared/lcards-color-picker.js';
 import '../components/shared/lcards-color-list.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 export class LCARdSChartStudioDialog extends LitElement {
     static get properties() {
@@ -950,7 +951,7 @@ export class LCARdSChartStudioDialog extends LitElement {
             });
 
             // Append to body
-            document.body.appendChild(dialog);
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 

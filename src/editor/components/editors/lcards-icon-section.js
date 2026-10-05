@@ -28,6 +28,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { editorWidgetStyles } from './editor-widget-styles.js';
 import '../shared/lcards-form-section.js';
+import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
 
 export class LCARdSIconSection extends LitElement {
 
@@ -783,7 +784,7 @@ export class LCARdSIconSection extends LitElement {
 
             dialog.appendChild(closeButton);
             dialog.addEventListener('closed', () => dialog.remove());
-            document.body.appendChild(dialog);
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 
@@ -826,7 +827,7 @@ export class LCARdSIconSection extends LitElement {
             dialog.appendChild(footerDiv);
 
             dialog.addEventListener('closed', () => dialog.remove());
-            document.body.appendChild(dialog);
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 }

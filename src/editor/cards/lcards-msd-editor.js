@@ -189,7 +189,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
         const lovelace = this._getLovelace();
 
         this._cardPickerDialogRef = dialog;
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
 
         // Open dialog first so it's visible and upgraded
         // @ts-ignore - TS2339: auto-suppressed

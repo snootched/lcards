@@ -16,6 +16,7 @@ import { parseLayoutConfig, getAreaNames } from '../../views/layout-grid-utils.j
 
 // Side-effect import: registers <lcards-layout-studio-dialog>.
 import '../dialogs/lcards-layout-studio-dialog.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
 
@@ -83,7 +84,7 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
             if (this._studioDialog === dialog) this._studioDialog = null;
         });
 
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
         lcardsLog.debug('[LayoutCardEditor] Opened Layout Studio');
     }
 

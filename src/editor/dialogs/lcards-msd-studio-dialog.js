@@ -65,6 +65,7 @@ import { searchableSelectStyles } from '../components/shared/searchable-select-s
 // Native HA Card Picker & Editor Integration
 import { MSDCardPickerManager } from './msd-studio/msd-card-picker-manager.js';
 import { MSDEventInterceptor } from './msd-studio/msd-event-interceptor.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 import { normalizeHACardType, isBuiltinCardType } from '../../utils/ha-card-factory.js';
 
 // Mode constants
@@ -3147,7 +3148,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 dialog.remove();
             });
 
-            document.body.appendChild(dialog);
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 
@@ -18757,7 +18758,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 dialog.remove();
             });
 
-            document.body.appendChild(dialog);
+            mountDialogNearHomeAssistant(dialog, this);
         });
     }
 

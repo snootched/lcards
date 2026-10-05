@@ -31,6 +31,7 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/templates/lcards-template-evaluation-tab.js';
 import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 // @ts-ignore - TS2417: static side extends - getConfigElement signature
 const _overflowOpts = [
@@ -1126,7 +1127,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
             }
         });
 
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
         // @ts-ignore - TS2339: auto-suppressed
         setTimeout(() => { dialog.open = true; }, 10);
     }

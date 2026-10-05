@@ -54,12 +54,15 @@ export function findHomeAssistantRoot(startEl) {
 /**
  * Appends a dialog element into the same composed subtree as `<home-assistant>`
  * (its shadow root) so Lit context-consuming HA components work inside it.
+ * HA 2026.10+ pickers (e.g. ha-entity-picker) read states/registries from contexts
+ * provided by `<home-assistant>`, so a dialog under `document.body` gets none.
  * Falls back to `document.body` if `<home-assistant>` can't be found.
  * @param {Element} dialogEl - The dialog element to mount.
- * @param {Element} startEl - Element to start the `<home-assistant>` search from.
+ * @param {Element} [startEl] - Element to start the `<home-assistant>` search from
+ *   (defaults to the page's `<home-assistant>`).
  */
 export function mountDialogNearHomeAssistant(dialogEl, startEl) {
-  const haRoot = findHomeAssistantRoot(startEl);
+  const haRoot = (startEl && findHomeAssistantRoot(startEl)) ?? document.querySelector('home-assistant');
   const mountRoot = haRoot?.shadowRoot ?? document.body;
   mountRoot.appendChild(dialogEl);
 }

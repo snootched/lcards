@@ -44,6 +44,7 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/templates/lcards-template-evaluation-tab.js';
 import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 // @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSElbowEditor extends LCARdSBaseEditor {
@@ -272,7 +273,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         dialog.headerTitle = 'Select Symbiont Card Type';
 
         this._symbioCardPickerDialogRef = dialog;
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
         // @ts-ignore - TS2339: auto-suppressed
         dialog.open = true;
 
@@ -415,7 +416,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             }
         });
 
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
         // @ts-ignore - TS2339: auto-suppressed
         setTimeout(() => { dialog.open = true; }, 10);
         lcardsLog.debug('[ElbowEditor] Opened symbiont card editor dialog for:', currentCard.type);

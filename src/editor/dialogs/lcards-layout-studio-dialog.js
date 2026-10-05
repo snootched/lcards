@@ -30,6 +30,7 @@ import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-color-picker.js';
 import '../components/yaml/lcards-yaml-editor.js';
 import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 const ALIGN_V_OPTIONS = [
     { value: 'stretch', label: 'Stretch (default)' },
@@ -663,7 +664,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         // @ts-ignore - ha-dialog props
         dialog.heading = 'Select a card';
         this._pickerDialog = dialog;
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog, this);
         // @ts-ignore
         dialog.open = true;
         // @ts-ignore

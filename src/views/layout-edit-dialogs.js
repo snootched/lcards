@@ -7,6 +7,8 @@
  * action uses `variant="danger"`.
  */
 
+import { mountDialogNearHomeAssistant } from '../utils/lcards-shared-helpers.js';
+
 /**
  * Show a destructive-action confirmation dialog.
  * @param {object} opts
@@ -60,7 +62,7 @@ export function showConfirmDeleteDialog({ title, message, confirmText = 'Delete'
             resolve(false);
         });
 
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog);
     });
 }
 
@@ -101,6 +103,6 @@ export function showInfoDialog({ title, message }) {
             resolve();
         });
 
-        document.body.appendChild(dialog);
+        mountDialogNearHomeAssistant(dialog);
     });
 }
