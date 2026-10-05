@@ -61,6 +61,9 @@ export const RULES = [
   { id: 'ha-icon-button-icon-attr', kind: 'js', pattern: /<ha-icon-button\b[^>]*?\sicon=/g,
     reason: 'ha-icon-button has no `icon` property — the button renders without an icon',
     fix: 'pass .path=${mdiX} or an <ha-icon icon="mdi:…"> child, plus .label' },
+  { id: 'dialog-on-body', kind: 'js', pattern: /document\.body\.(?:appendChild|append)\(\s*[\w.]*(?:dialog|Dialog|portal|Portal)\w*\s*\)/g,
+    reason: 'outside <home-assistant>: HA components inside get no Lit contexts (ha-dialog, ha-entity-picker render broken/empty since HA 2026.7) and hass-action/more-info events never reach HA',
+    fix: 'mountDialogNearHomeAssistant(el) from src/utils/lcards-shared-helpers.js' },
 
   // ── Dead CSS hooks (nothing in HA reads them any more) ──────────────────
   { id: 'mdc-theme-primary', kind: 'js', pattern: /--mdc-theme-primary\b/g,

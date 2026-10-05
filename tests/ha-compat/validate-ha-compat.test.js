@@ -37,6 +37,14 @@ test('catches ha-icon-button icon= attribute, including across lines', () => {
     assert.deepEqual(ids('<ha-icon-button .label=${"R"}>\n  <ha-icon icon="mdi:refresh"></ha-icon>'), []);
 });
 
+test('catches dialogs/portals mounted on document.body', () => {
+    assert.deepEqual(ids('document.body.appendChild(dialog);'), ['dialog-on-body']);
+    assert.deepEqual(ids('document.body.appendChild(this._portal);'), ['dialog-on-body']);
+    // temporary probes / non-HA overlays are fine
+    assert.deepEqual(ids('document.body.appendChild(probe);'), []);
+    assert.deepEqual(ids('mountDialogNearHomeAssistant(dialog, this);'), []);
+});
+
 test('catches dead CSS hooks', () => {
     assert.deepEqual(ids('style="--mdc-theme-primary: red"'), ['mdc-theme-primary']);
     assert.deepEqual(ids('.b { --mdc-icon-button-size: 20px; }'), ['mdc-icon-button-size']);

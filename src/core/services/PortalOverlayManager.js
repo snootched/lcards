@@ -125,6 +125,17 @@ export class PortalOverlayManager extends BaseService {
     // -------------------------------------------------------------------------
 
     /**
+     * Whether any slot currently shows a card (which needs live HASS).
+     * @returns {boolean}
+     */
+    hasActiveContent() {
+        for (const slot of this._slots.values()) {
+            if (slot.contentElement) return true;
+        }
+        return false;
+    }
+
+    /**
      * Show a named portal overlay slot.  If the name is already active,
      * the existing slot is torn down and replaced (last-in-wins).
      *
@@ -206,7 +217,10 @@ export class PortalOverlayManager extends BaseService {
             '  min-height:   0      !important;',
             '}',
         ].join('\n');
-        document.head.appendChild(portalStyleEl);
+        // The portal lives inside <home-assistant>'s shadow root, which document
+        // styles don't reach: put the rule in the portal's own root.
+        const styleRoot = portal.getRootNode();
+        (styleRoot instanceof ShadowRoot ? styleRoot : document.head).appendChild(portalStyleEl);
 
         // ── Layout: position + size ───────────────────────────────────────────
         const pos = POSITION_MAP[options.position ?? 'center'] ?? POSITION_MAP['center'];

@@ -34,6 +34,7 @@ import { BaseService                } from '../BaseService.js';
 import { screenEffectPresetRegistry } from './ScreenEffectPresetRegistry.js';
 import { lcardsLog                  } from '../../utils/lcards-logging.js';
 import { ColorUtils                 } from '../themes/ColorUtils.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 // Ordered slot names — the portal creates them in this order so z-index follows
 // document order naturally.  Each slot is a direct child of the portal div.
@@ -98,8 +99,10 @@ export class ScreenEffectManager extends BaseService {
             });
         }
 
-        document.body.appendChild(this._portal);
-        lcardsLog.debug('[ScreenEffectManager] Portal created on document.body');
+        // Inside <home-assistant> (like HA's own dialogs) so HA cards shown in the
+        // portal get Lit contexts and their hass-action/more-info events reach HA.
+        mountDialogNearHomeAssistant(this._portal);
+        lcardsLog.debug('[ScreenEffectManager] Portal created');
     }
 
     /** @private */

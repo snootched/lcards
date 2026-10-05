@@ -59,6 +59,9 @@ import { PortalOverlayManager } from './services/PortalOverlayManager.js';
  * - Multi-instance support
  */
 class LCARdSCore {
+    /** How often the global HASS feed checks <home-assistant>.hass (ms). */
+    static GLOBAL_HASS_POLL_MS = 500;
+
     constructor() {
         // ===== SHARED SYSTEMS (Lazy-initialized) =====
         this.systemsManager = null;      // Entity state tracking
@@ -356,6 +359,7 @@ class LCARdSCore {
             });
 
             this._coreInitialized = true;
+            this._startGlobalHassFeed();
 
             // Mount global UI sound listener and alert subscription (after core is marked ready)
             this.soundManager.mountGlobalUIListener();
@@ -597,6 +601,30 @@ class LCARdSCore {
     }
 
     /**
+     * Keep core's HASS live where no LCARdS card feeds it.
+     *
+     * Cards forward HASS via ingestHass(), and skip it when none of their own
+     * entities changed. On pages without LCARdS cards (e.g. Developer Tools)
+     * nothing fed core, so portal overlay cards froze at their first render;
+     * an overlay card can also watch entities no LCARdS card does. HA keeps the
+     * live HASS on <home-assistant> and fires no change event, so poll its
+     * identity, only while no card is registered or an overlay shows a card.
+     * @private
+     */
+    _startGlobalHassFeed() {
+        if (this._globalHassTimer) return;
+        this._globalHassTimer = setInterval(() => {
+            const needsFeed = this._cardInstances.size === 0
+                || this.portalOverlayManager?.hasActiveContent();
+            if (!needsFeed) return;
+            const hass = /** @type {any} */ (document.querySelector('home-assistant'))?.hass;
+            if (hass && hass !== this._currentHass && hass !== this._pendingHass) {
+                this.ingestHass(hass);
+            }
+        }, LCARdSCore.GLOBAL_HASS_POLL_MS);
+    }
+
+    /**
      * Ingest HASS updates (called from card HASS update handlers)
      * Deduplicates multiple per-tick calls so only one _updateHass propagation fires per microtask.
      * @param {Object} hass - Updated HASS instance
@@ -803,6 +831,9 @@ class LCARdSCore {
      */
     destroy() {
         lcardsLog.info('[LCARdSCore] 🚨 Destroying core systems...');
+
+        clearInterval(this._globalHassTimer);
+        this._globalHassTimer = null;
 
         // Unregister all cards
         Array.from(this._cardInstances.keys()).forEach(cardId => {
