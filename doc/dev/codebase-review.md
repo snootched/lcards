@@ -33,7 +33,7 @@ the Lovelace UI.
 - **Documented internal contracts.** `.github/copilot-instructions.md` and
   `.github/instructions/*.md` describe the singleton model, template
   evaluator, datasources, animation system, and editor patterns with concrete
-  do/don't examples — unusually thorough for a HA custom card project.
+  do/don't examples, unusually thorough for a HA custom card project.
 - **Validator infrastructure already exists.** `scripts/validate-css-vars.js`
   is a 4-pass governance gate on `--lcars-*`, `--lcards-*`, and `theme:`
   paths, wired into `npm run build` and CI. This sets a precedent for the
@@ -53,7 +53,7 @@ the Lovelace UI.
 1. **Two `deepMerge` implementations with different semantics.**
    `src/utils/deepMerge.js` MUTATES its target;
    `src/core/config-manager/merge-helpers.js` returns a new object. Both
-   are used — sometimes within the same render path. Consolidating without
+   are used, sometimes within the same render path. Consolidating without
    regressions requires a behaviour-preserving migration with tests, which
    is why it is recommended as a P0 follow-up rather than collapsed in the
    current PR.
@@ -82,8 +82,8 @@ the Lovelace UI.
 6. **Pre-existing TypeScript errors.** `npm run typecheck` now reports 123
    errors (up from 9 at the time of the original review), concentrated in
    `editor/dialogs/lcards-layout-studio-dialog.js` (29) and
-   `editor/dialogs/lcards-msd-studio-dialog.js` (27) — both added after
-   this review — plus scattered errors in `utils/state-color-resolver.js`,
+   `editor/dialogs/lcards-msd-studio-dialog.js` (27), both added after
+   this review, plus scattered errors in `utils/state-color-resolver.js`,
    `utils/lcards-anim-helpers.js`, `cards/lcards-layout-card.js`, and
    others. None are introduced by this PR, but the growth means "clear the
    pre-existing errors" is now a materially bigger job than originally
@@ -181,7 +181,7 @@ lcards/
   See 3.2.
 - **Editor base + tabs are well-factored.** `LCARdSBaseEditor`,
   `FormField`, `editor-styles`, and `editor-component-styles` already
-  encode "the canonical way" — the gap is enforcement, not design.
+  encode "the canonical way": the gap is enforcement, not design.
 
 ### 3.2 Duplication hotspots
 
@@ -230,14 +230,14 @@ lcards/
   `devDependencies`. Build-time gates (CSS vars, hassfest, version) and
   manual smoke tests in HA are the only checks.
 - **High-leverage candidates for a first test pass:**
-  - `deepMerge` (both variants) — pin current semantics before
+  - `deepMerge` (both variants): pin current semantics before
     consolidation.
-  - `ThemeTokenResolver` — token resolution and computed expression
+  - `ThemeTokenResolver`: token resolution and computed expression
     evaluation (`lighten`/`darken`/`alpha`/`base`).
-  - `UnifiedTemplateEvaluator` — JS / token / datasource / Jinja2 phases.
-  - `RulesEngine` — patch ordering and merge semantics.
-  - `core/config-manager` — layer ordering and provenance tracking.
-  - `validate-doc-examples.js` — golden fixture for the doc validator.
+  - `UnifiedTemplateEvaluator`: JS / token / datasource / Jinja2 phases.
+  - `RulesEngine`: patch ordering and merge semantics.
+  - `core/config-manager`: layer ordering and provenance tracking.
+  - `validate-doc-examples.js`: golden fixture for the doc validator.
 - **No CI gate for `npm run typecheck`.** Pre-existing errors would block
   enabling it; clean those up first.
 
@@ -260,7 +260,7 @@ lcards/
 - No top-level "What can each card do?" feature matrix; users have to
   read each card page to discover capabilities.
 - No "common patterns" cookbook (e.g. "alert-coloured button that
-  blinks when a sensor is unavailable") — most knowledge lives in the
+  blinks when a sensor is unavailable"); most knowledge lives in the
   examples folder.
 - `doc/development/custom-card.md` is light on the *new* card recipe
   (CARD_TYPE, getStubConfig, registration in `src/lcards.js`,
@@ -276,21 +276,21 @@ lcards/
 
 | Priority | Area     | Recommendation                                                                                                                                            | Effort | Risk | Suggested PR Slice                                                                                          | Files / Paths                                                                                                                |
 |----------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|--------|------|-------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
-| **P0**   | core     | Consolidate `deepMerge` into one canonical, documented immutable variant; migrate all callers. Ship with a tiny test fixture pinning current semantics.   | M      | Med  | "Unify deepMerge" — single PR with table of before/after call sites + golden test.                          | `src/utils/deepMerge.js`, `src/core/config-manager/merge-helpers.js`, every importer (see §3.2 row 1-2).                     |
-| **P0**   | tooling  | Introduce a unit-test runner (Vitest, no transpile config required for ESM). Seed with `deepMerge`, `ThemeTokenResolver`, `UnifiedTemplateEvaluator`.     | M      | Low  | "Bootstrap Vitest" — config + 3 small specs only; no CI changes.                                            | `vitest.config.js`, `tests/`, `package.json`.                                                                                |
-| **P0**   | docs     | ✅ Done. Tagged all 41 snippet-style YAML blocks with ` ```yaml alternatives ` so the doc validator skips YAML parsing (but still checks type refs) for those blocks. Then enable `--strict` in CI.                                  | S      | Low  | "Make doc YAML zero-warning" — tagged blocks with the new `alternatives` meta hint. | `doc/core/colours.md`, `doc/core/text-fields.md`, `doc/core/rules/*`, `doc/cards/msd/line-overlay.md`, `doc/configuration/browser-mod.md`. |
-| **P1**   | core     | Replace ad-hoc `clamp` and `isPlainObject` clones with shared utils.                                                                                      | S      | Low  | "Shared maths/object utils" — add `src/utils/numberUtils.js`, re-export `isPlain`.                          | §3.2 rows 3, 4.                                                                                                              |
-| **P1**   | core     | Replace 71 `JSON.parse(JSON.stringify(...))` clones with `cloneConfig()` (using `structuredClone` when available, fallback otherwise).                    | M      | Med  | "Introduce cloneConfig()" — incremental: add helper, replace high-traffic call sites first.                 | `src/utils/cloneConfig.js`, callers found via `grep -rn "JSON.parse(JSON.stringify" src/`.                                   |
-| **P1**   | cards    | Extract preset-normalisation into a `BasePresetResolver` mixin/helper.                                                                                    | M      | Med  | "Preset resolver shared helper" — one card per PR (start with `lcards-button`).                             | `src/cards/lcards-button.js`, `lcards-slider.js`, `lcards-elbow.js`, `lcards-select-menu.js`.                                |
-| **P1**   | editors  | Make `editorStyles` import mandatory across all editor components; add an ESLint-style grep gate to validate-css-vars to catch drift.                     | S      | Low  | "Editor CSS consistency" — one-line imports + remove duplicated tokens.                                     | The 10 components listed in §3.3.                                                                                            |
-| **P1**   | docs     | Add a "Cards feature matrix" page (rows = cards, columns = capabilities like presets / zones / actions / animations / rules).                             | S      | Low  | "Feature matrix" — single new page, link from `/cards/`.                                                    | `doc/cards/feature-matrix.md`, `doc/.vitepress/config.mts`.                                                                  |
-| **P1**   | tooling  | Wire `npm run validate:doc-examples` into `.github/workflows/docs.yml` once warnings are zero.                                                            | XS     | Low  | "Gate docs build on YAML validator" — single workflow edit.                                                 | `.github/workflows/docs.yml`.                                                                                                |
-| **P2**   | core     | Split `LCARdSCard` (4 631 LOC) into focused mixins: zones, text fields, rules patching, theme token glue, action wiring.                                  | L      | High | "LCARdSCard mixin split" — one mixin per PR, behaviour-preserving.                                          | `src/base/LCARdSCard.js`, new `src/base/mixins/*.js`.                                                                        |
-| **P2**   | cards    | Split `lcards-button.js` into preset / zone / SVG / class modules.                                                                                        | L      | High | "lcards-button modularisation" — multi-PR series, one extracted module each.                                | `src/cards/lcards-button.js`, new `src/cards/button/*.js`.                                                                   |
+| **P0**   | core     | Consolidate `deepMerge` into one canonical, documented immutable variant; migrate all callers. Ship with a tiny test fixture pinning current semantics.   | M      | Med  | "Unify deepMerge": single PR with table of before/after call sites + golden test.                          | `src/utils/deepMerge.js`, `src/core/config-manager/merge-helpers.js`, every importer (see §3.2 row 1-2).                     |
+| **P0**   | tooling  | Introduce a unit-test runner (Vitest, no transpile config required for ESM). Seed with `deepMerge`, `ThemeTokenResolver`, `UnifiedTemplateEvaluator`.     | M      | Low  | "Bootstrap Vitest": config + 3 small specs only; no CI changes.                                            | `vitest.config.js`, `tests/`, `package.json`.                                                                                |
+| **P0**   | docs     | ✅ Done. Tagged all 41 snippet-style YAML blocks with ` ```yaml alternatives ` so the doc validator skips YAML parsing (but still checks type refs) for those blocks. Then enable `--strict` in CI.                                  | S      | Low  | "Make doc YAML zero-warning": tagged blocks with the new `alternatives` meta hint. | `doc/core/colours.md`, `doc/core/text-fields.md`, `doc/core/rules/*`, `doc/cards/msd/line-overlay.md`, `doc/configuration/browser-mod.md`. |
+| **P1**   | core     | Replace ad-hoc `clamp` and `isPlainObject` clones with shared utils.                                                                                      | S      | Low  | "Shared maths/object utils": add `src/utils/numberUtils.js`, re-export `isPlain`.                          | §3.2 rows 3, 4.                                                                                                              |
+| **P1**   | core     | Replace 71 `JSON.parse(JSON.stringify(...))` clones with `cloneConfig()` (using `structuredClone` when available, fallback otherwise).                    | M      | Med  | "Introduce cloneConfig()": incremental: add helper, replace high-traffic call sites first.                 | `src/utils/cloneConfig.js`, callers found via `grep -rn "JSON.parse(JSON.stringify" src/`.                                   |
+| **P1**   | cards    | Extract preset-normalisation into a `BasePresetResolver` mixin/helper.                                                                                    | M      | Med  | "Preset resolver shared helper": one card per PR (start with `lcards-button`).                             | `src/cards/lcards-button.js`, `lcards-slider.js`, `lcards-elbow.js`, `lcards-select-menu.js`.                                |
+| **P1**   | editors  | Make `editorStyles` import mandatory across all editor components; add an ESLint-style grep gate to validate-css-vars to catch drift.                     | S      | Low  | "Editor CSS consistency": one-line imports + remove duplicated tokens.                                     | The 10 components listed in §3.3.                                                                                            |
+| **P1**   | docs     | Add a "Cards feature matrix" page (rows = cards, columns = capabilities like presets / zones / actions / animations / rules).                             | S      | Low  | "Feature matrix": single new page, link from `/cards/`.                                                    | `doc/cards/feature-matrix.md`, `doc/.vitepress/config.mts`.                                                                  |
+| **P1**   | tooling  | Wire `npm run validate:doc-examples` into `.github/workflows/docs.yml` once warnings are zero.                                                            | XS     | Low  | "Gate docs build on YAML validator": single workflow edit.                                                 | `.github/workflows/docs.yml`.                                                                                                |
+| **P2**   | core     | Split `LCARdSCard` (4 631 LOC) into focused mixins: zones, text fields, rules patching, theme token glue, action wiring.                                  | L      | High | "LCARdSCard mixin split": one mixin per PR, behaviour-preserving.                                          | `src/base/LCARdSCard.js`, new `src/base/mixins/*.js`.                                                                        |
+| **P2**   | cards    | Split `lcards-button.js` into preset / zone / SVG / class modules.                                                                                        | L      | High | "lcards-button modularisation": multi-PR series, one extracted module each.                                | `src/cards/lcards-button.js`, new `src/cards/button/*.js`.                                                                   |
 | **P2**   | tooling  | ✅ Done. Imported all 7 non-MSD card schemas directly into `scripts/validate-doc-examples.js` (Node-importable ESM). Pre-processes each schema with `stripSchemaRestrictions` to remove empty `enum: []`, dangling `$ref`, and `additionalProperties: false` before compiling with ajv@8. Validates every card config node found in parsed YAML blocks (including nested cards). Schema issues reported in a separate `⚠️ schema warning(s)` section; `--strict` promotes them to errors. | `src/cards/schemas/*.js`, `scripts/validate-doc-examples.js`. |
 | **P2**   | tooling  | Clear the 123 pre-existing TypeScript errors and gate `npm run typecheck` in CI.                                                                          | L      | Med  | "Typecheck clean + CI gate."                                                                                | `src/editor/dialogs/lcards-layout-studio-dialog.js`, `src/editor/dialogs/lcards-msd-studio-dialog.js`, `src/utils/state-color-resolver.js`, others. |
-| **P2**   | config   | Share styling between the HA `LCARdSConfigPanel` tabs and the per-card editor tabs.                                                                        | M      | Low  | "Panel/editor CSS parity" — one new shared module.                                                          | `src/panels/lcards-config-panel.js`, `src/editor/base/editor-styles.js`.                                                     |
-| **P2**   | docs     | Cookbook of recipes (alert-coloured button, datasource-driven sparkline, rule-driven flash, theme override).                                              | M      | Low  | "Cookbook section" — one or two recipes per PR.                                                             | `doc/cards/cookbook/**`, sidebar.                                                                                            |
+| **P2**   | config   | Share styling between the HA `LCARdSConfigPanel` tabs and the per-card editor tabs.                                                                        | M      | Low  | "Panel/editor CSS parity": one new shared module.                                                          | `src/panels/lcards-config-panel.js`, `src/editor/base/editor-styles.js`.                                                     |
+| **P2**   | docs     | Cookbook of recipes (alert-coloured button, datasource-driven sparkline, rule-driven flash, theme override).                                              | M      | Low  | "Cookbook section": one or two recipes per PR.                                                             | `doc/cards/cookbook/**`, sidebar.                                                                                            |
 
 ---
 
@@ -299,7 +299,7 @@ lcards/
 > Sized for review-in-an-hour. Each builds on the previous but is
 > standalone if the order shifts.
 
-### PR 1 — Bootstrap Vitest (P0)
+### PR 1: Bootstrap Vitest (P0)
 - **Goal.** Make tests possible.
 - **Scope.** Add Vitest config, `tests/utils/deepMerge.spec.js` pinning
   *both* current implementations' semantics, README note.
@@ -307,7 +307,7 @@ lcards/
   `package.json` (add `test` script).
 - **Validation.** `npm test` green, no production code touched.
 
-### PR 2 — Unify `deepMerge` (P0, depends on PR 1)
+### PR 2: Unify `deepMerge` (P0, depends on PR 1)
 - **Goal.** One canonical, documented immutable `deepMerge`; mutating
   call sites either migrate to immutable or use a clearly-named
   `mergeInto` helper for the rare case where mutation is the contract.
@@ -318,7 +318,7 @@ lcards/
 - **Validation.** Vitest specs from PR 1, build, manual smoke test of
   preset inheritance and rules patching.
 
-### PR 3 — Doc YAML zero-warning + CI gate (P0/P1)
+### PR 3: Doc YAML zero-warning + CI gate (P0/P1)
 - **Goal.** `npm run validate:doc-examples --strict` exits clean and is
   enforced by `docs.yml`.
 - **Scope.** ✅ All 41 snippet-style blocks tagged with ` ```yaml alternatives `
@@ -328,21 +328,21 @@ lcards/
 - **Validation.** `npm run validate:doc-examples:strict` exits 0;
   `npm run docs:build` succeeds.
 
-### PR 4 — Shared maths/object utils (P1)
+### PR 4: Shared maths/object utils (P1)
 - **Goal.** Eliminate `clamp` and `isPlainObject` duplicates.
 - **Scope.** New `src/utils/numberUtils.js` with `clamp`. Promote
   `isPlain` to the canonical predicate.
 - **Validation.** Vitest spec for `clamp` edge cases (NaN, equal
   bounds, reversed bounds).
 
-### PR 5 — `cloneConfig()` (P1, depends on PR 1)
+### PR 5: `cloneConfig()` (P1, depends on PR 1)
 - **Goal.** One safe deep-clone helper; remove
   `JSON.parse(JSON.stringify(...))`.
 - **Scope.** Add helper, replace top 10 highest-traffic call sites
   (rules engine, presets, theme manager, datasource subscribers).
 - **Validation.** Spec covering Date/Map/undefined handling.
 
-### PR 6 — Editor CSS consistency (P1)
+### PR 6: Editor CSS consistency (P1)
 - **Goal.** Every editor component imports `editorStyles`. Add a small
   grep validator to catch regressions.
 - **Scope.** §3.3 drift list; add a check to `validate-css-vars.js`
@@ -350,24 +350,24 @@ lcards/
   `static get styles()` without importing `editorStyles`.
 - **Validation.** Validator green; visual smoke test of each editor.
 
-### PR 7 — Cards feature matrix + cookbook seed (P1)
+### PR 7: Cards feature matrix + cookbook seed (P1)
 - **Goal.** A single page that answers "what can each card do?" and one
   worked recipe.
 - **Scope.** New md pages, sidebar entries, cross-links from card pages.
 - **Validation.** `npm run docs:build`, `npm run validate:doc-examples`.
 
-### PR 8 — `BasePresetResolver` for buttons (P1)
+### PR 8: `BasePresetResolver` for buttons (P1)
 - **Goal.** Extract preset normalisation from `lcards-button.js` into a
   reusable helper; prove the shape on one card before generalising.
 - **Scope.** New `src/cards/preset/BasePresetResolver.js`; refactor
   button only.
 - **Validation.** Visual smoke + Vitest spec for preset merge order.
 
-### PR 9 — Apply `BasePresetResolver` to slider/elbow/select-menu (P1)
+### PR 9: Apply `BasePresetResolver` to slider/elbow/select-menu (P1)
 - **Goal.** Roll out the helper from PR 8.
 - **Scope.** One card at a time inside this PR if diff is small.
 
-### PR 10 — Typecheck clean + CI gate (P2)
+### PR 10: Typecheck clean + CI gate (P2)
 - **Goal.** `npm run typecheck` is clean and enforced.
 - **Scope.** Fix the 123 pre-existing errors, add the workflow step.
 
@@ -414,7 +414,7 @@ grep -rL 'editorStyles\|editor-styles\|editor-component-styles' src/editor/compo
   `src/core/validation-service/schemas/`. Confirmed schemas are
   registered at runtime by cards (`registerSchema()` static methods),
   which is why a Node-side import of the production validator is
-  non-trivial — recorded as P2 follow-up.
+  non-trivial; recorded as P2 follow-up.
 - **Doc/code drift.** Cross-referenced `customElements.define(...)` in
   `src/lcards.js` against every `type: custom:lcards-*` value found in
   `doc/**.md`. Discrepancies fixed in this PR.

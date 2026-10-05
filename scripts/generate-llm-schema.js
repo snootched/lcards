@@ -152,14 +152,14 @@ const cards = {};
 for (const [key, schema] of Object.entries(strippedCards)) cards[key] = dedupe(schema, defs);
 
 const bundle = {
-  $comment: 'Auto-generated from src/cards/schemas/*.js by scripts/generate-llm-schema.js — do not hand-edit.',
+  $comment: 'Auto-generated from src/cards/schemas/*.js by scripts/generate-llm-schema.js; do not hand-edit.',
   lcards_version: pkg.version,
   generated_at: new Date().toISOString(),
   usage: 'Each key under "cards" is a JSON Schema (draft-07) for one LCARdS custom card type, stripped of ' +
     'editor-only metadata. Shared building blocks are hoisted into "$defs" and referenced via ' +
     '{"$ref": "#/$defs/<name>"} to keep this file a reasonable size. ' +
     'When generating LCARdS YAML, only use properties that appear in the relevant card\'s schema (resolving ' +
-    'any $ref against $defs) — do not invent keys. MSD (custom:lcards-msd) is not included here; see the MSD docs instead.',
+    'any $ref against $defs); do not invent keys. MSD (custom:lcards-msd) is not included here; see the MSD docs instead.',
   $defs: Object.fromEntries(defs),
   cards,
 };

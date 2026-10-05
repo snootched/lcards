@@ -1,6 +1,6 @@
 # Using LCARdS with browser_mod
 
-LCARdS and [browser_mod](https://github.com/thomasloven/hass-browser_mod) are complementary — LCARdS handles full-screen graphical alerts and theme transforms, browser_mod handles popups, navigation, and device sensors. They work side-by-side without conflict.
+LCARdS and [browser_mod](https://github.com/thomasloven/hass-browser_mod) are complementary: LCARdS handles full-screen graphical alerts and theme transforms, browser_mod handles popups, navigation, and device sensors. They work side-by-side without conflict.
 
 ::: info No dependency
 LCARdS works fully without browser_mod installed. Everything here is optional.
@@ -10,7 +10,7 @@ LCARdS works fully without browser_mod installed. Everything here is optional.
 
 ## Integration Patterns
 
-### Pattern 1 — LCARdS effects alongside a browser_mod popup
+### Pattern 1: LCARdS effects alongside a browser_mod popup
 
 Use browser_mod for the information/button layer; LCARdS for the visual atmosphere:
 
@@ -39,7 +39,7 @@ action:
 
 ---
 
-### Pattern 2 — Full LCARS alert with browser_mod acknowledgement button
+### Pattern 2: Full LCARS alert with browser_mod acknowledgement button
 
 LCARdS owns the persistent alert state; browser_mod provides the confirm dialog:
 
@@ -63,7 +63,7 @@ action:
 
 ---
 
-### Pattern 3 — Targeted effect on one device
+### Pattern 3: Targeted effect on one device
 
 ::: warning Independent device IDs
 `lcards_device_id` and browser_mod's `BrowserID` are separate identifiers. To use the same name in both, set it at the URL:
@@ -84,7 +84,7 @@ action:
   - service: browser_mod.popup
     data:
       title: "Kitchen Timer"
-      content: "Timer expired — check the oven!"
+      content: "Timer expired - check the oven!"
       timeout: 15000
     target:
       browser_id:
@@ -93,7 +93,7 @@ action:
 
 ---
 
-### Pattern 4 — browser_mod activity sensor gating an LCARdS effect
+### Pattern 4: browser_mod activity sensor gating an LCARdS effect
 
 Only fire the effect on a tablet that is actively in use:
 
@@ -115,9 +115,9 @@ action:
 
 ---
 
-### Pattern 5 — Trigger LCARdS effects from browser_mod JavaScript
+### Pattern 5: Trigger LCARdS effects from browser_mod JavaScript
 
-No server round-trip — runs entirely in the browser:
+No server round-trip, runs entirely in the browser:
 
 ```yaml alternatives
 service: browser_mod.javascript
@@ -168,7 +168,7 @@ data:
 
 | | LCARdS | browser_mod |
 |---|---|---|
-| Full-screen visual overlay | ✅ Portal with backdrop/color/canvas slots | ⚠️ `<ha-dialog>` — not a screen portal |
+| Full-screen visual overlay | ✅ Portal with backdrop/color/canvas slots | ⚠️ `<ha-dialog>`: not a screen portal |
 | Global theme transform | ✅ HSL rewrite of `--lcars-*` and `--lcards-*` vars | ❌ |
 | Backdrop filter / canvas animations | ✅ | ❌ |
 | Persistent alert state | ✅ `input_select.lcards_alert_mode` | ❌ Transient |

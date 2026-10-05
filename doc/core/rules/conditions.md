@@ -15,8 +15,8 @@ The `when` block of a rule evaluates to `true` or `false`. When it matches, the 
 | **Day of week** | `weekday_in` | Current day is in a list |
 | **Sun elevation** | `sun_elevation` | Sun is `above`/`below` a degree threshold |
 | **Random chance** | `random_chance` | Evaluates true with a given probability (0.0–1.0) |
-| **JavaScript** | `condition` / `javascript` | Arbitrary JS expression — returns truthy |
-| **Jinja2** | `condition` / `jinja2` | Arbitrary HA Jinja2 template — returns truthy |
+| **JavaScript** | `condition` / `javascript` | Arbitrary JS expression: returns truthy |
+| **Jinja2** | `condition` / `jinja2` | Arbitrary HA Jinja2 template: returns truthy |
 | **All of (AND)** | `all` | Every sub-condition must be true |
 | **Any of (OR)** | `any` | At least one sub-condition must be true |
 | **Not (NOT)** | `not` | Inverts a single sub-condition |
@@ -27,7 +27,7 @@ The `when` block of a rule evaluates to `true` or `false`. When it matches, the 
 
 Combine any conditions with `all`, `any`, and `not`. They nest arbitrarily.
 
-### `all` — AND
+### `all`: AND
 
 ```yaml
 when:
@@ -48,7 +48,7 @@ when:
     state: "on"
 ```
 
-### `any` — OR
+### `any`: OR
 
 ```yaml
 when:
@@ -59,7 +59,7 @@ when:
       state: "on"
 ```
 
-### `not` — NOT
+### `not`: NOT
 
 ```yaml
 when:
@@ -139,7 +139,7 @@ when:
 ```
 
 The condition-group editor's operator dropdown offers these as ready-made
-"between" / "between (exclusive)" options — pick one and it fills in both
+"between" / "between (exclusive)" options; pick one and it fills in both
 bound fields for you.
 
 ### Examples
@@ -161,7 +161,7 @@ when:
   attribute: brightness
   above: 200
 
-# Regex — match any "heating*" state
+# Regex - match any "heating*" state
 when:
   entity: climate.lounge
   regex: "^heat"
@@ -179,7 +179,7 @@ when:
 ```
 
 ::: info Reactivity
-The Rules Engine is reactive — it only re-evaluates when a watched entity changes. Add `entity: sensor.time` to purely time-based rules so they re-evaluate every minute.
+The Rules Engine is reactive: it only re-evaluates when a watched entity changes. Add `entity: sensor.time` to purely time-based rules so they re-evaluate every minute.
 :::
 
 ```yaml
@@ -201,12 +201,12 @@ Valid values: `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`.
 ### Sun elevation
 
 ```yaml alternatives
-# Night — sun below horizon
+# Night - sun below horizon
 when:
   sun_elevation:
     below: 0
 
-# Golden hour — sun low but above horizon
+# Golden hour - sun low but above horizon
 when:
   sun_elevation:
     above: 0
@@ -225,14 +225,14 @@ when:
     entity: sensor.brightness_raw   # numeric state to read
     input:  [0, 1000]               # raw value range
     output: [0, 100]                # mapped value range
-    above: 70                       # compare mapped value — here: > 70%
+    above: 70                       # compare mapped value - here: > 70%
 ```
 
 | Property | Required | Description |
 |----------|----------|-------------|
 | `entity` | ✅ | Entity whose `state` is mapped |
-| `input` | ✅ | `[min, max]` — expected range of the raw entity value |
-| `output` | ✅ | `[min, max]` — range the value is mapped into |
+| `input` | ✅ | `[min, max]`: expected range of the raw entity value |
+| `output` | ✅ | `[min, max]`: range the value is mapped into |
 | `clamp` | ❌ | Clamp input to range before mapping (default `true`) |
 | `above` / `below` / `equals` … | ✅ (one) | Comparison applied to the **mapped** value |
 
@@ -289,7 +289,7 @@ when:
 |----------|-------------|
 | `entity` | The card's bound entity object (if any) |
 | `hass` | Full Home Assistant object |
-| `states` | `hass.states` — shorthand for all entity states |
+| `states` | `hass.states`: shorthand for all entity states |
 
 ### Jinja2
 
@@ -318,7 +318,7 @@ when:
 
 ---
 
-## Combining Conditions — Full Example
+## Combining Conditions: Full Example
 
 ```yaml
 rules:
@@ -348,5 +348,5 @@ rules:
 
 ## See Also
 
-- [Rules Engine](index.md) — rule structure, apply block, priority, examples
-- [Templates](../templates/) — template syntax used outside of rules
+- [Rules Engine](index.md): rule structure, apply block, priority, examples
+- [Templates](../templates/): template syntax used outside of rules

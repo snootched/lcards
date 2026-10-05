@@ -43,7 +43,7 @@
         Reset to Defaults
       </button>
       <span v-if="reducedMotionNotice" class="anim-note">
-        prefers-reduced-motion is on — autoplay skipped, use Replay to preview
+        prefers-reduced-motion is on: autoplay skipped, use Replay to preview
       </span>
     </div>
 
@@ -329,7 +329,7 @@ function onJsonInput(key, raw) {
     jsonErrors[key] = ''
     schedulePlay()
   } catch (e) {
-    jsonErrors[key] = 'invalid JSON — not applied'
+    jsonErrors[key] = 'invalid JSON, not applied'
   }
 }
 

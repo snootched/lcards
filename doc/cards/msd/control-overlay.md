@@ -2,7 +2,7 @@
 
 `type: control`
 
-Embeds any Home Assistant card — built-in or custom — at a fixed position on the MSD canvas. Supports all 9 attachment points for line connections.
+Embeds any Home Assistant card (built-in or custom) at a fixed position on the MSD canvas. Supports all 9 attachment points for line connections.
 
 ---
 
@@ -32,16 +32,16 @@ msd:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `id` | string | — | Unique identifier — required; used for line connections and rule targeting |
-| `type` | string | — | Must be `control` |
-| `card` | object | — | Any HA card config (required) |
-| `anchor` | string | — | Named anchor to centre the overlay on |
-| `position` | array | — | Explicit `[x, y]` coordinates — overrides `anchor` |
-| `size` | array | — | `[width, height]` in viewBox units |
+| `id` | string | - | Unique identifier: required; used for line connections and rule targeting |
+| `type` | string | - | Must be `control` |
+| `card` | object | - | Any HA card config (required) |
+| `anchor` | string | - | Named anchor to centre the overlay on |
+| `position` | array | - | Explicit `[x, y]` coordinates; overrides `anchor` |
+| `size` | array | - | `[width, height]` in viewBox units |
 | `visible` | boolean | `true` | Show or hide the overlay |
-| `z_index` | number | — | Stacking order (higher = in front) |
+| `z_index` | number | - | Stacking order (higher = in front) |
 | `locked` | boolean | `false` | Editor-only: when true, MSD Studio disables drag/resize for this overlay |
-| `tags` | list | — | Tags for rule targeting |
+| `tags` | list | - | Tags for rule targeting |
 
 Either `anchor` or `position` must be provided.
 

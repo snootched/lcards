@@ -603,7 +603,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         {
             type: 'section',
             header: 'Sizing',
-            description: 'Override card dimensions — useful in stacks, overlays, or any auto-height container',
+            description: 'Override card dimensions: useful in stacks, overlays, or any auto-height container',
             icon: 'mdi:resize',
             expanded: false,
             outlined: true,
@@ -775,7 +775,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                 <ha-selector .hass=${this.hass}
                     .label=${'Default Outer Corner Curve'}
-                    .helper=${'Outer corner/end-cap arc radius — applied to all 4 corners unless overridden'}
+                    .helper=${'Outer corner/end-cap arc radius: applied to all 4 corners unless overridden'}
                     .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
                     .value=${defOC}
                     @value-changed=${(e) => this._setConfigValue('elbow.frame.outer_curve', e.detail.value)}>
@@ -783,7 +783,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                 <ha-selector .hass=${this.hass}
                     .label=${'Default Inner Corner Curve'}
-                    .helper=${'Default inner corner curve; only applied when both adjacent sides are enabled — open-side corners are always square'}
+                    .helper=${'Default inner corner curve; only applied when both adjacent sides are enabled; open-side corners are always square'}
                     .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
                     .value=${defIC}
                     @value-changed=${(e) => this._setConfigValue('elbow.frame.inner_curve', e.detail.value)}>
@@ -857,7 +857,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <ha-selector .hass=${this.hass}
                         .label=${'Inner ring inner curve'}
-                        .helper=${'Inner ring corner curve; only applied when both adjacent sides are enabled — open-side corners are always square'}
+                        .helper=${'Inner ring corner curve; only applied when both adjacent sides are enabled; open-side corners are always square'}
                         .selector=${{ number: { min: 0, max: 250, step: 1, mode: 'slider', unit_of_measurement: 'px' } }}
                         .value=${iDefIC}
                         @value-changed=${(e) => this._setConfigValue('elbow.frame.segments.inner_frame.inner_curve', e.detail.value)}>
@@ -1036,9 +1036,9 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .hass=${this.hass}
                     .label=${'Bar Width Mode (Vertical)'}
                     .helper=${isCssBarWidth
-                        ? 'CSS expression — edit via YAML'
+                        ? 'CSS expression: edit via YAML'
                         : barWidth === 'theme'
-                            ? 'Dynamic — follows input_number.lcars_vertical'
+                            ? 'Dynamic: follows input_number.lcars_vertical'
                             : 'Static pixel value'}
                     .selector=${{
                         select: {
@@ -1084,9 +1084,9 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     .hass=${this.hass}
                     .label=${'Bar Height Mode (Horizontal)'}
                     .helper=${isCssBarHeight
-                        ? 'CSS expression — edit via YAML'
+                        ? 'CSS expression: edit via YAML'
                         : barHeight === 'theme'
-                            ? 'Dynamic — follows input_number.lcars_horizontal'
+                            ? 'Dynamic: follows input_number.lcars_horizontal'
                             : 'Static pixel value'}
                     .selector=${{
                         select: {
@@ -1151,7 +1151,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Outer Arc Radius'}
-                    .helper=${isCssOuterCurve ? 'CSS expression — edit via YAML' : `→ ${calculatedOuterCurve.toFixed(1)} px`}
+                    .helper=${isCssOuterCurve ? 'CSS expression: edit via YAML' : `→ ${calculatedOuterCurve.toFixed(1)} px`}
                     .selector=${{
                         select: {
                             mode: 'dropdown',
@@ -1160,7 +1160,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                 { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
                                 { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)  ★ paired elbows' },
                                 { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
-                                { value: 'arm_fill',   label: 'arm_fill  (max arm — full sweep)' },
+                                { value: 'arm_fill',   label: 'arm_fill  (max arm, full sweep)' },
                                 { value: 'manual',     label: 'manual  (explicit px)' },
                                 ...(isCssOuterCurve ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
                             ]
@@ -1187,7 +1187,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Inner Arc Radius'}
-                    .helper=${isCssInnerCurve ? 'CSS expression — edit via YAML' : `→ ${calculatedInnerCurve.toFixed(1)} px`}
+                    .helper=${isCssInnerCurve ? 'CSS expression: edit via YAML' : `→ ${calculatedInnerCurve.toFixed(1)} px`}
                     .selector=${{
                         select: {
                             mode: 'dropdown',
@@ -1229,9 +1229,9 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         select: {
                             mode: 'dropdown',
                             options: [
-                                { value: 'card',   label: 'card  — clamp to card viewport (default)' },
-                                { value: 'none',   label: 'none  — no clamp (consistent paired elbows)' },
-                                { value: 'manual', label: 'manual  — explicit px ceiling' },
+                                { value: 'card',   label: 'card: clamp to card viewport (default)' },
+                                { value: 'none',   label: 'none: no clamp (consistent paired elbows)' },
+                                { value: 'manual', label: 'manual: explicit px ceiling' },
                             ]
                         }
                     }}
@@ -1251,7 +1251,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <lcards-message
                         type=${clampModeValue === 'none' ? 'success' : 'info'}
                         message=${clampModeValue === 'none'
-                            ? 'No clamping — the arc radius is exactly the computed value. The SVG clips overflow at the card edge. Use this for paired elbows in different-height cards so both render identically.'
+                            ? 'No clamping: the arc radius is exactly the computed value. The SVG clips overflow at the card edge. Use this for paired elbows in different-height cards so both render identically.'
                             : 'The arc radius is clamped to min(card_width, card_height) at render time. Two elbows with the same config in differently-sized cards may render with different radii. Use none to prevent this.'}>
                     </lcards-message>
                 `}
@@ -1261,7 +1261,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         .hass=${this.hass}
                         .label=${'Diagonal Angle Mode'}
                         .helper=${segment.diagonal_angle === 'theme'
-                            ? 'Dynamic — follows input_number.lcars_elbow_angle'
+                            ? 'Dynamic: follows input_number.lcars_elbow_angle'
                             : 'Static angle value'}
                         .selector=${{
                             select: {
@@ -1711,7 +1711,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             <!-- ── Corner Curves ────────────────────────────────────────────── -->
             <lcards-form-section
                 header="Corner Curves"
-                description="Arc radii for both segments — dual preview updates live as you drag"
+                description="Arc radii for both segments: dual preview updates live as you drag"
                 icon="mdi:vector-curve"
                 ?expanded=${true}
                 ?outlined=${true}>
@@ -1738,13 +1738,13 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <ha-selector .hass=${this.hass}
                         .label=${'Outer Arc Radius'}
-                        .helper=${isCssOuterOC ? 'CSS expression — edit via YAML' : `→ ${outerOCPx.toFixed(1)} px`}
+                        .helper=${isCssOuterOC ? 'CSS expression: edit via YAML' : `→ ${outerOCPx.toFixed(1)} px`}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'auto',       label: 'auto / arm_width  (bar_width ÷ 2)' },
                             { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
                             { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)  ★ paired elbows' },
                             { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
-                            { value: 'arm_fill',   label: 'arm_fill  (max arm — full sweep)' },
+                            { value: 'arm_fill',   label: 'arm_fill  (max arm, full sweep)' },
                             { value: 'manual',     label: 'manual  (explicit px)' },
                             ...(isCssOuterOC ? [{ value: 'css', label: 'CSS expression (YAML only)' }] : []),
                         ]}}}
@@ -1764,7 +1764,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <ha-selector .hass=${this.hass}
                         .label=${'Inner Arc Radius'}
-                        .helper=${isCssOuterIC ? 'CSS expression — edit via YAML' : `→ ${outerICPx.toFixed(1)} px`}
+                        .helper=${isCssOuterIC ? 'CSS expression: edit via YAML' : `→ ${outerICPx.toFixed(1)} px`}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'auto',       label: 'auto  (outer ÷ 2, LCARS formula)' },
                             { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)' },
@@ -1792,13 +1792,13 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <ha-selector .hass=${this.hass}
                         .label=${'Curve Clamp'}
                         .helper=${{
-                            card:   'card  — clamp to card dimensions (default)',
-                            none:   'none  — no clamp; card clips SVG overflow',
-                            manual: `manual  — ceiling at ${typeof outerClamp === 'number' ? outerClamp : 100} px`,
+                            card:   'card: clamp to card dimensions (default)',
+                            none:   'none: no clamp; card clips SVG overflow',
+                            manual: `manual: ceiling at ${typeof outerClamp === 'number' ? outerClamp : 100} px`,
                         }[outerClampMode] ?? ''}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'card',   label: 'card  (clamp to card size)' },
-                            { value: 'none',   label: 'none  (no clamp — use with arm_max for paired elbows)' },
+                            { value: 'none',   label: 'none  (no clamp; use with arm_max for paired elbows)' },
                             { value: 'manual', label: 'manual  (explicit px ceiling)' },
                         ]}}}
                         .value=${outerClampMode}
@@ -1822,7 +1822,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <ha-selector .hass=${this.hass}
                         .label=${'Outer Arc Radius'}
-                        .helper=${isCssInnerOC ? 'CSS expression — edit via YAML' : `→ ${innerOCPx.toFixed(1)} px`}
+                        .helper=${isCssInnerOC ? 'CSS expression: edit via YAML' : `→ ${innerOCPx.toFixed(1)} px`}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'auto',       label: `auto  (concentric → ${innerOCAutoValue.toFixed(1)} px)` },
                             { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
@@ -1848,7 +1848,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     <ha-selector .hass=${this.hass}
                         .label=${'Inner Arc Radius'}
-                        .helper=${isCssInnerIC ? 'CSS expression — edit via YAML' : `→ ${innerICPx.toFixed(1)} px`}
+                        .helper=${isCssInnerIC ? 'CSS expression: edit via YAML' : `→ ${innerICPx.toFixed(1)} px`}
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'auto',       label: 'auto  (outer ÷ 2, LCARS formula)' },
                             { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)' },
@@ -1900,7 +1900,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
                         Embed any Home Assistant card inside the elbow’s content area.
                         Enable <strong>Imprint</strong> to inject background color, text color, and font
-                        directly into the child card’s shadow root — no card-mod required.
+                        directly into the child card’s shadow root, no card-mod required.
                         If the embedded card config includes a <code>card_mod</code> block and
                         card-mod is installed, LCARdS will defer to card-mod instead.
                     </p>
@@ -2003,11 +2003,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             .label=${'Overflow'}
                             .helper=${'Sets both axes unless overridden below. Default: hidden (clips content).'}
                             .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'hidden',  label: 'Hidden — clips content (default)' },
-                                { value: 'visible', label: 'Visible — content paints outside' },
-                                { value: 'clip',    label: 'Clip — hard clip, no scroll' },
-                                { value: 'scroll',  label: 'Scroll — always shows scrollbar' },
-                                { value: 'auto',    label: 'Auto — scrollbar only when needed' },
+                                { value: 'hidden',  label: 'Hidden: clips content (default)' },
+                                { value: 'visible', label: 'Visible: content paints outside' },
+                                { value: 'clip',    label: 'Clip: hard clip, no scroll' },
+                                { value: 'scroll',  label: 'Scroll: always shows scrollbar' },
+                                { value: 'auto',    label: 'Auto: scrollbar only when needed' },
                             ] } }}
                             .value=${symbiont.overflow ?? 'hidden'}
                             @value-changed=${(e) => this._setConfigValue('symbiont.overflow', e.detail.value === 'hidden' ? undefined : e.detail.value)}>
@@ -2018,7 +2018,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             .label=${'Overflow X (horizontal)'}
                             .helper=${'Overrides the Overflow setting for the horizontal axis only.'}
                             .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: '',        label: '— inherit from Overflow —' },
+                                { value: '',        label: '(inherit from Overflow)' },
                                 { value: 'hidden',  label: 'Hidden' },
                                 { value: 'visible', label: 'Visible' },
                                 { value: 'clip',    label: 'Clip' },
@@ -2034,7 +2034,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             .label=${'Overflow Y (vertical)'}
                             .helper=${'Overrides the Overflow setting for the vertical axis only.'}
                             .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: '',        label: '— inherit from Overflow —' },
+                                { value: '',        label: '(inherit from Overflow)' },
                                 { value: 'hidden',  label: 'Hidden' },
                                 { value: 'visible', label: 'Visible' },
                                 { value: 'clip',    label: 'Clip' },
@@ -2074,7 +2074,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Width'}
-                            .helper=${'CSS width of the symbiont container — e.g. "50%" or "200px". Leave blank to fill the available area.'}
+                            .helper=${'CSS width of the symbiont container, e.g. "50%" or "200px". Leave blank to fill the available area.'}
                             .selector=${{ text: {} }}
                             .value=${symbiont.size?.width ?? ''}
                             @value-changed=${(e) => this._setConfigValue('symbiont.size.width', e.detail.value || null)}>
@@ -2083,7 +2083,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Height'}
-                            .helper=${'CSS height of the symbiont container — e.g. "50%" or "150px". Leave blank to fill the available area.'}
+                            .helper=${'CSS height of the symbiont container, e.g. "50%" or "150px". Leave blank to fill the available area.'}
                             .selector=${{ text: {} }}
                             .value=${symbiont.size?.height ?? ''}
                             @value-changed=${(e) => this._setConfigValue('symbiont.size.height', e.detail.value || null)}>
@@ -2144,7 +2144,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                     .entityId=${this.config?.entity || ''}
                                     basePath="symbiont.imprint.background"
                                     header="Background"
-                                    description="Background colour for each state — null = transparent (do not imprint)"
+                                    description="Background colour for each state: null = transparent (do not imprint)"
                                     .suggestedStates=${['default', 'active', 'inactive', 'zero', 'non_zero']}
                                     ?allowCustomStates=${true}
                                     ?expanded=${false}>
@@ -2164,7 +2164,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                     .entityId=${this.config?.entity || ''}
                                     basePath="symbiont.imprint.text.color"
                                     header="Text Colour"
-                                    description="Text colour for each state — null = do not imprint"
+                                    description="Text colour for each state: null = do not imprint"
                                     .suggestedStates=${['default', 'active', 'inactive', 'zero', 'non_zero']}
                                     ?allowCustomStates=${true}
                                     ?expanded=${false}>
@@ -2353,7 +2353,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     _renderActionsTab() {
         const isInteractive = this.config.interactive !== false;
         const cursorOptions = [
-            { value: 'pointer',      label: 'Pointer (hand) — default' },
+            { value: 'pointer',      label: 'Pointer (hand), default' },
             { value: 'default',      label: 'Default (arrow)' },
             { value: 'none',         label: 'None (hidden)' },
             { value: 'not-allowed',  label: 'Not allowed' },
@@ -3023,17 +3023,17 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const f = (n) => n.toFixed(1);
         const messages = which === 'outer' ? {
             auto:       `bar_width ÷ 2 = ${f(barW / 2)} px. Classic LCARS sweep from the vertical arm.`,
-            arm_height: `bar_height ÷ 2 = ${f(barH / 2)} px. Based on the horizontal arm — ${barH < barW ? 'smaller than auto for this config' : 'useful when bar_height is the dominant arm'}.`,
-            arm_max:    `max(${barW}, ${barH}) ÷ 2 = ${f(Math.max(barW, barH) / 2)} px. Uses the larger arm — same as auto when bar_width ≥ bar_height. Recommended for consistent paired elbows.`,
-            arm_min:    `min(${barW}, ${barH}) ÷ 2 = ${f(Math.min(barW, barH) / 2)} px. Tightest arc, based on the thinner arm. ${barW !== barH ? 'Significantly smaller than auto for asymmetric bars.' : 'Equal bars — same as auto.'}`,
-            arm_fill:   `max(${barW}, ${barH}) = ${f(Math.max(barW, barH))} px. Maximum sweep — fills the entire dominant arm. Dramatic effect; arc may be clipped by the card edge.`,
+            arm_height: `bar_height ÷ 2 = ${f(barH / 2)} px. Based on the horizontal arm: ${barH < barW ? 'smaller than auto for this config' : 'useful when bar_height is the dominant arm'}.`,
+            arm_max:    `max(${barW}, ${barH}) ÷ 2 = ${f(Math.max(barW, barH) / 2)} px. Uses the larger arm; same as auto when bar_width ≥ bar_height. Recommended for consistent paired elbows.`,
+            arm_min:    `min(${barW}, ${barH}) ÷ 2 = ${f(Math.min(barW, barH) / 2)} px. Tightest arc, based on the thinner arm. ${barW !== barH ? 'Significantly smaller than auto for asymmetric bars.' : 'Equal bars: same as auto.'}`,
+            arm_fill:   `max(${barW}, ${barH}) = ${f(Math.max(barW, barH))} px. Maximum sweep: fills the entire dominant arm. Dramatic effect; arc may be clipped by the card edge.`,
         } : {
-            auto:       `outer_curve ÷ 2 = ${f((outerPx || resolvedPx * 2) / 2)} px. LCARS concentric formula — matches the outer arc's curvature family.`,
-            arm_max:    `max(${barW}, ${barH}) ÷ 2 = ${f(Math.max(barW, barH) / 2)} px. Independent of outer_curve — based on the larger arm.`,
+            auto:       `outer_curve ÷ 2 = ${f((outerPx || resolvedPx * 2) / 2)} px. LCARS concentric formula: matches the outer arc's curvature family.`,
+            arm_max:    `max(${barW}, ${barH}) ÷ 2 = ${f(Math.max(barW, barH) / 2)} px. Independent of outer_curve, based on the larger arm.`,
             arm_width:  `bar_width ÷ 2 = ${f(barW / 2)} px. Based on the vertical arm width.`,
-            arm_height: `bar_height ÷ 2 = ${f(barH / 2)} px. Based on the horizontal arm — ${barH < barW ? 'tighter than arm_width for this config' : 'same as arm_width for this config'}.`,
+            arm_height: `bar_height ÷ 2 = ${f(barH / 2)} px. Based on the horizontal arm: ${barH < barW ? 'tighter than arm_width for this config' : 'same as arm_width for this config'}.`,
             arm_min:    `min(${barW}, ${barH}) ÷ 2 = ${f(Math.min(barW, barH) / 2)} px. Tightest inner arc.`,
-            arm_fill:   `max(${barW}, ${barH}) = ${f(Math.max(barW, barH))} px. Very large inner arc — likely exceeds the outer. Use with care.`,
+            arm_fill:   `max(${barW}, ${barH}) = ${f(Math.max(barW, barH))} px. Very large inner arc; likely exceeds the outer. Use with care.`,
         };
 
         const text = messages[mode];

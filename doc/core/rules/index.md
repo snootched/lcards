@@ -1,6 +1,6 @@
 # Rules Engine
 
-Rules let you apply style changes to groups of cards based on entity state — without touching each card individually. A single rule can update dozens of overlays at once.
+Rules let you apply style changes to groups of cards based on entity state, without touching each card individually. A single rule can update dozens of overlays at once.
 
 ---
 
@@ -62,7 +62,7 @@ rules:
 
 A `when` block evaluates to `true` or `false`. When it matches, the `apply` block fires; when it stops matching, the patch is removed.
 
-**Quick reference — all condition types** (see [Conditions Reference](conditions.md) for full details):
+**Quick reference: all condition types** (see [Conditions Reference](conditions.md) for full details):
 
 | Type | Key | Example |
 |------|-----|---------|
@@ -108,7 +108,7 @@ when:
   condition: "[[[return states['sensor.temperature'].state > 25]]]"
 ```
 
-> For the full condition reference — all operators, `map_range_cond`, `random_chance`, nested logic, template variables — see **[Conditions Reference](conditions.md)**.
+> For the full condition reference (all operators, `map_range_cond`, `random_chance`, nested logic, template variables) see **[Conditions Reference](conditions.md)**.
 
 ---
 
@@ -121,23 +121,23 @@ The `apply.overlays` object maps **selectors** to patch objects. Selectors are t
 ```yaml
 apply:
   overlays:
-    my-overlay-id:          # Direct ID — exact match
+    my-overlay-id:          # Direct ID - exact match
       style:
         color: var(--lcars-red)
 
-    tag:alert:              # Tag selector — all overlays tagged 'alert'
+    tag:alert:              # Tag selector - all overlays tagged 'alert'
       style:
         color: var(--lcars-alert-red)
 
-    type:gauge:             # Type selector — all overlays of type 'gauge'
+    type:gauge:             # Type selector - all overlays of type 'gauge'
       style:
         opacity: 1
 
-    pattern:^temp_.*:       # Regex pattern — overlays whose ID matches
+    pattern:^temp_.*:       # Regex pattern - overlays whose ID matches
       style:
         color: var(--lcars-yellow)
 
-    all:                    # Wildcard — every registered overlay
+    all:                    # Wildcard - every registered overlay
       style:
         opacity: 0.5
     exclude: [header, nav]  # Exclude specific IDs from 'all' or tag/type/pattern selectors
@@ -437,8 +437,8 @@ rm.getRuleTrace('my-rule-id', 20)    // history for one rule
 
 ## See Also
 
-- [Conditions Reference](conditions.md) — all condition types, operators, `map_range_cond`, `random_chance`, template conditions
-- [Rule-Based Animations](../animations/rule-based-animations.md) — triggering animations across cards from rules
+- [Conditions Reference](conditions.md): all condition types, operators, `map_range_cond`, `random_chance`, template conditions
+- [Rule-Based Animations](../animations/rule-based-animations.md): triggering animations across cards from rules
 - [Architecture: Rules Engine](../../architecture/subsystems/rules-engine.md)
 
 ---

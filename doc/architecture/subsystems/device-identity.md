@@ -11,7 +11,7 @@
 
 ### What makes a "device"?
 
-A **device** in LCARdS is a specific browser profile on a specific machine — not the physical hardware. Two different Chrome profiles on the same laptop are two different devices. This matches how browser_mod and similar integrations handle device identity.
+A **device** in LCARdS is a specific browser profile on a specific machine, not the physical hardware. Two different Chrome profiles on the same laptop are two different devices. This matches how browser_mod and similar integrations handle device identity.
 
 | Concept | Implementation |
 |---------|---------------|
@@ -43,7 +43,7 @@ const dim = window.lcards.core.deviceIdentityManager;
 // Rename this device (persists to backend immediately)
 await dim.setDisplayName('Kitchen Tablet');
 
-// Explicit heartbeat (called automatically at startup — you rarely need this)
+// Explicit heartbeat (called automatically at startup - you rarely need this)
 await dim.registerHeartbeat();
 ```
 
@@ -53,14 +53,14 @@ await dim.registerHeartbeat();
 
 On the first HASS update, `_init()` runs once and:
 
-1. **Loads or creates UUID** — checks `localStorage['lcards_device_id']`; generates a v4 UUID if absent.
-2. **Applies `?lcards_device=` URL parameter** — if present, sets the display name *and* persists it to localStorage.
-3. **Seeds display name** — if no display name is set, auto-derives one from the user-agent string (e.g. `Chrome-Android`, `Safari-iPhone`, `Firefox-Linux`).
-4. **Registers heartbeat** — after `IntegrationService.onReady()` resolves, sends display name, ISO timestamp, and user-agent to `_device_<uuid>` in backend storage.
+1. **Loads or creates UUID**: checks `localStorage['lcards_device_id']`; generates a v4 UUID if absent.
+2. **Applies `?lcards_device=` URL parameter**: if present, sets the display name *and* persists it to localStorage.
+3. **Seeds display name**: if no display name is set, auto-derives one from the user-agent string (e.g. `Chrome-Android`, `Safari-iPhone`, `Firefox-Linux`).
+4. **Registers heartbeat**: after `IntegrationService.onReady()` resolves, sends display name, ISO timestamp, and user-agent to `_device_<uuid>` in backend storage.
 
 ---
 
-## Naming Convention — URL Parameter
+## Naming Convention: URL Parameter
 
 Following the `?lcards_log_level=debug` convention, device names are set via:
 

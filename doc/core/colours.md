@@ -7,7 +7,7 @@ LCARdS accepts several colour formats wherever a colour value is expected. You c
 ## Colour Value Formats
 
 :::tip Alert system interaction
-CSS colour vars (`--lcars-*` and `--lcards-*`) are automatically shifted by the Alert system when an alert mode is active. Hard-coded hex values remain static — useful when you don't want a specific colour to respond to alerts. Use `base()` to reference a token or CSS variable but always receive its pre-alert baseline value — see [Computed Colour Tokens](#computed-colour-tokens) below.
+CSS colour vars (`--lcars-*` and `--lcards-*`) are automatically shifted by the Alert system when an alert mode is active. Hard-coded hex values remain static, useful when you don't want a specific colour to respond to alerts. Use `base()` to reference a token or CSS variable but always receive its pre-alert baseline value; see [Computed Colour Tokens](#computed-colour-tokens) below.
 :::
 
 | Format | Example | Notes |
@@ -60,7 +60,7 @@ color: "lighten(var(--lcards-blue), 0.15)"    # Lighten by 15%
 color: "alpha(var(--lcards-orange), 0.6)"     # Set opacity to 60%
 ```
 
-#### `base()` — Alert-Mode-Immune Colours
+#### `base()`: Alert-Mode-Immune Colours
 
 Use `base()` when you want a token or CSS variable to **always resolve to its green-alert (unmutated) baseline value**, regardless of the active alert mode.
 
@@ -72,14 +72,14 @@ color: "base(--lcards-blue-lightest)"
 `base()` looks up the green-alert snapshot captured at theme load time for `--lcars-*` variables, and uses the `GREEN_ALERT_PALETTE` for `--lcards-*` variables. If the snapshot has not been captured yet it falls back to the live DOM value.
 
 :::info
-`base()` only protects values going through `ThemeTokenResolver` (style fields, token config values). Animation params that are bare `var()` strings (e.g. `lead_color` / `trail_color` in stagger-flash) read the live CSS variable directly — use a hard-coded hex for those if alert-mode immunity is required.
+`base()` only protects values going through `ThemeTokenResolver` (style fields, token config values). Animation params that are bare `var()` strings (e.g. `lead_color` / `trail_color` in stagger-flash) read the live CSS variable directly; use a hard-coded hex for those if alert-mode immunity is required.
 :::
 
 ---
 
 ## State-Based Colour Maps
 
-Instead of a single colour string, you can supply an object whose keys are entity states. LCARdS resolves the matching colour from the entity bound to the card — including exact states, numeric ranges, and classified states like `active`/`inactive`.
+Instead of a single colour string, you can supply an object whose keys are entity states. LCARdS resolves the matching colour from the entity bound to the card, including exact states, numeric ranges, and classified states like `active`/`inactive`.
 
 ```yaml
 style:
@@ -89,8 +89,8 @@ style:
       active: "var(--lcards-orange)"
       inactive: "var(--lcards-gray)"
       unavailable: "var(--lcards-alert-red)"
-      heat: "var(--lcards-alert-red)"       # Custom state — exact match
-      cool: "var(--lcards-blue)"            # Custom state — exact match
+      heat: "var(--lcards-alert-red)"       # Custom state - exact match
+      cool: "var(--lcards-blue)"            # Custom state - exact match
 ```
 
 ### State Keys
@@ -98,42 +98,42 @@ style:
 | Key | Description |
 |-----|-------------|
 | `default` | Fallback for any unmatched state, or cards without an entity |
-| `active` | Entity is in an on/running/locked state — [see full list](#active-inactive-state-lists) |
-| `inactive` | Entity is off/idle/unlocked — [see full list](#active-inactive-state-lists) |
+| `active` | Entity is in an on/running/locked state: [see full list](#active-inactive-state-lists) |
+| `inactive` | Entity is off/idle/unlocked: [see full list](#active-inactive-state-lists) |
 | `unavailable` | `unavailable` · `unknown` |
-| `zero` | Entity state parses to exactly `0` — checked before range conditions |
-| `non_zero` | Entity state is any non-zero number — catch-all used only when no range condition matched |
-| `above:N` | Numeric state > `N` — e.g. `above:50` |
-| `at_least:N` | Numeric state ≥ `N` — e.g. `at_least:50` |
-| `below:N` | Numeric state < `N` — e.g. `below:20` |
-| `at_most:N` | Numeric state ≤ `N` — e.g. `at_most:20` |
-| `between:N:M` | Numeric state `N ≤ value ≤ M` — e.g. `between:20:80` |
-| `between_exclusive:N:M` | Numeric state `N < value < M` — e.g. `between_exclusive:20:80` |
-| Any custom string | Exact match against entity state — e.g. `heat`, `cooling`, `buffering` |
+| `zero` | Entity state parses to exactly `0`: checked before range conditions |
+| `non_zero` | Entity state is any non-zero number: catch-all used only when no range condition matched |
+| `above:N` | Numeric state > `N`: e.g. `above:50` |
+| `at_least:N` | Numeric state ≥ `N`: e.g. `at_least:50` |
+| `below:N` | Numeric state < `N`: e.g. `below:20` |
+| `at_most:N` | Numeric state ≤ `N`: e.g. `at_most:20` |
+| `between:N:M` | Numeric state `N ≤ value ≤ M`: e.g. `between:20:80` |
+| `between_exclusive:N:M` | Numeric state `N < value < M`: e.g. `between_exclusive:20:80` |
+| Any custom string | Exact match against entity state: e.g. `heat`, `cooling`, `buffering` |
 
 :::details Active / inactive state lists
 **`active`** matches: `on` · `open` · `playing` · `home` · `heat` · `cool` · `auto` · `fan_only` · `dry` · `locked` · `armed_home` · `armed_away` · `armed_night` · `armed_vacation` · `armed_custom_bypass` · `cleaning` · `mowing` · `docked` · `returning` · `paused` · `active` · `above_horizon`
 
-**`inactive`** matches: `off` · `closed` · `away` · `idle` · `stopped` · `standby` · `unlocked` · `disarmed` · `inactive` — and any state not in the `active` or `unavailable` lists
+**`inactive`** matches: `off` · `closed` · `away` · `idle` · `stopped` · `standby` · `unlocked` · `disarmed` · `inactive`, and any state not in the `active` or `unavailable` lists
 :::
 
 ### Resolution Order
 
 For each colour field, the resolved value is determined in this order:
 
-0. **`state_attribute` match** — if [`state_attribute`](#exact-match-keys-from-an-attribute--state_attribute) is set, `String(entity.attributes[state_attribute])` is looked up first; a matching key wins immediately
-1. **Exact state match** — e.g. the entity state is `"heat"` and a `heat:` key exists
-2. **`zero`** — numeric value is exactly `0` and a `zero:` key exists
-3. **Range conditions** (`above:N`/`at_least:N`, `below:N`/`at_most:N`, `between:N:M`/`between_exclusive:N:M`) — all matching ranges are evaluated and the most specific one wins:
-   - `between`/`between_exclusive` — narrowest range (smallest `M − N`) wins
-   - `above`/`at_least` — highest threshold wins
-   - `below`/`at_most` — lowest threshold wins
-4. **`non_zero`** — numeric value is non-zero and no range matched
-5. **Classified state** — `active`, `inactive`, or `unavailable` per the table above
-6. **`default`** — final fallback
+0. **`state_attribute` match**: if [`state_attribute`](#exact-match-keys-from-an-attribute--state_attribute) is set, `String(entity.attributes[state_attribute])` is looked up first; a matching key wins immediately
+1. **Exact state match**: e.g. the entity state is `"heat"` and a `heat:` key exists
+2. **`zero`**: numeric value is exactly `0` and a `zero:` key exists
+3. **Range conditions** (`above:N`/`at_least:N`, `below:N`/`at_most:N`, `between:N:M`/`between_exclusive:N:M`); all matching ranges are evaluated and the most specific one wins:
+   - `between`/`between_exclusive`: narrowest range (smallest `M − N`) wins
+   - `above`/`at_least`: highest threshold wins
+   - `below`/`at_most`: lowest threshold wins
+4. **`non_zero`**: numeric value is non-zero and no range matched
+5. **Classified state**: `active`, `inactive`, or `unavailable` per the table above
+6. **`default`**: final fallback
 
 :::tip Attribute-driven lookups
-Steps 2–4 compare against `parseFloat(entity.state)` by default — fine for numeric sensors. For non-numeric entities (lights, covers, climate), use `ranges_attribute` to compare range conditions against an attribute value, or `state_attribute` to drive exact-key matching from an attribute. See the sections below.
+Steps 2–4 compare against `parseFloat(entity.state)` by default, fine for numeric sensors. For non-numeric entities (lights, covers, climate), use `ranges_attribute` to compare range conditions against an attribute value, or `state_attribute` to drive exact-key matching from an attribute. See the sections below.
 :::
 
 ---
@@ -151,13 +151,13 @@ State-based colour objects are accepted wherever a `color:` value is expected, i
 - `symbiont.imprint.background` and `symbiont.imprint.text.color` (lcards-elbow)
 - Background animation `config.color`
 - Divider `color`
-- `lcards-slider`: `style.gauge.indicator.color` / `.border.color`, `style.gauge.progress_bar.color`, `style.ranges[].color` and `ranges[].indicator.color` / `.border.color`, `style.shaped.fill.color` / `track.background`, `style.border.<side>.color` — see [Slider Card](../cards/slider-card/) for the full field list
+- `lcards-slider`: `style.gauge.indicator.color` / `.border.color`, `style.gauge.progress_bar.color`, `style.ranges[].color` and `ranges[].indicator.color` / `.border.color`, `style.shaped.fill.color` / `track.background`, `style.border.<side>.color`; see [Slider Card](../cards/slider-card/) for the full field list
 
 ---
 
 ## Examples
 
-### Climate card — multi-field state colours
+### Climate card: multi-field state colours
 
 A button that changes background, border, and text colour based on a climate entity's state:
 
@@ -197,7 +197,7 @@ style:
     width: 2
 ```
 
-### Numeric sensor — range-based colour
+### Numeric sensor: range-based colour
 
 A battery sensor card that uses ranges to colour-code charge level:
 
@@ -209,7 +209,7 @@ style:
     color:
       background:
         zero: "var(--lcards-alert-red)"        # exactly 0 %
-        below:20: "var(--lcards-alert-red)"    # critical — checked after zero
+        below:20: "var(--lcards-alert-red)"    # critical - checked after zero
         below:50: "var(--lcards-alert-yellow)" # low
         non_zero: "var(--lcards-green)"        # any positive level, no range matched
         default: "var(--lcards-gray)"
@@ -217,15 +217,15 @@ style:
 
 ---
 
-## Range Conditions on Non-Numeric Entities — `ranges_attribute`
+## Range Conditions on Non-Numeric Entities: `ranges_attribute`
 
-Range keys (`above:N`, `below:N`, `between:N:M`) compare against the **numeric form of the entity state**. For many entities this works out of the box — sensors report numeric strings like `"72.4"`. But some domains give non-numeric states:
+Range keys (`above:N`, `below:N`, `between:N:M`) compare against the **numeric form of the entity state**. For many entities this works out of the box: sensors report numeric strings like `"72.4"`. But some domains give non-numeric states:
 
 - Lights: `state = "on"` / `"off"`
 - Cover/valve: `state = "open"` / `"closed"`
 - Media players: `state = "playing"` / `"idle"`
 
-For these, `ranges_attribute` tells LCARdS to compare range conditions against a named entity attribute instead of the entity state string. This applies to **all** state maps on the card simultaneously — colours, borders, icons, and text. Exact-state and classified-state matching are unaffected; only steps 2–4 of the resolution order (zero, ranges, non\_zero) use the attribute value.
+For these, `ranges_attribute` tells LCARdS to compare range conditions against a named entity attribute instead of the entity state string. This applies to **all** state maps on the card simultaneously: colours, borders, icons, and text. Exact-state and classified-state matching are unaffected; only steps 2–4 of the resolution order (zero, ranges, non\_zero) use the attribute value.
 
 ```yaml alternatives
 ranges_attribute: brightness_pct   # special virtual attribute (see below)
@@ -238,11 +238,11 @@ ranges_attribute: humidity         # climate sensor attribute
 
 | Value | What it provides |
 |-------|-----------------|
-| `brightness_pct` | `Math.round(attributes.brightness / 2.55)` — converts the raw 0–255 HA light brightness to a 0–100 percentage, so thresholds can be written in familiar percentage terms |
+| `brightness_pct` | `Math.round(attributes.brightness / 2.55)`: converts the raw 0–255 HA light brightness to a 0–100 percentage, so thresholds can be written in familiar percentage terms |
 
 All other values are treated as literal attribute names read directly from `entity.attributes`.
 
-### Example — light with brightness-based colour and icon
+### Example: light with brightness-based colour and icon
 
 ```yaml
 type: custom:lcards-button
@@ -276,9 +276,9 @@ style:
 
 ---
 
-## Exact-Match Keys from an Attribute — `state_attribute`
+## Exact-Match Keys from an Attribute: `state_attribute`
 
-Range conditions work against numeric attribute values via `ranges_attribute`. For **exact-string keys** — states like `heating`, `cooling`, `fade`, `true` — the matching key normally comes from `entity.state`. `state_attribute` overrides that source so the lookup key comes from an attribute instead.
+Range conditions work against numeric attribute values via `ranges_attribute`. For **exact-string keys** (states like `heating`, `cooling`, `fade`, `true`) the matching key normally comes from `entity.state`. `state_attribute` overrides that source so the lookup key comes from an attribute instead.
 
 One use case is **climate entities**, where the top-level state is `heat` or `cool` (the mode) but `hvac_action` (`heating`, `cooling`, `idle`, `off`) is the more granular and useful signal for colouring:
 
@@ -298,7 +298,7 @@ icon_area_background:
   idle: transparent
 ```
 
-Attribute values are serialized via `String()` before the lookup — so boolean attributes become `"true"` / `"false"`, and `null` becomes `"null"`. Write your YAML keys as those literal strings:
+Attribute values are serialized via `String()` before the lookup, so boolean attributes become `"true"` / `"false"`, and `null` becomes `"null"`. Write your YAML keys as those literal strings:
 
 ```yaml
 state_attribute: charging   # boolean attribute
@@ -310,7 +310,7 @@ icon_style:
 
 ### What it affects
 
-`state_attribute` applies to **all exact-string lookups across the entire card** — `icon_style.color`, `icon_style.icon`, `icon_area_background`, `background`, border colour, text colours, and so on. Classified state (`active`/`inactive`/`unavailable`) is always derived from `entity.state` and is unaffected.
+`state_attribute` applies to **all exact-string lookups across the entire card**: `icon_style.color`, `icon_style.icon`, `icon_area_background`, `background`, border colour, text colours, and so on. Classified state (`active`/`inactive`/`unavailable`) is always derived from `entity.state` and is unaffected.
 
 ### `state_attribute` vs `ranges_attribute`
 
@@ -334,7 +334,7 @@ ranges_attribute: current_humidity  # range keys: above:60 / below:30
 
 ---
 
-## Custom State Classification — `state_classification`
+## Custom State Classification: `state_classification`
 
 By default, LCARdS maps raw entity states to one of four style buckets:
 
@@ -345,9 +345,9 @@ By default, LCARdS maps raw entity states to one of four style buckets:
 | `inactive` | everything else |
 | `default` | card has no entity |
 
-When a preset is applied (e.g. `preset: lozenge`), the preset's `inactive` colour silently fills in the bucket — meaning all unmapped states get the preset's inactive shade, even when you only defined a `default` colour.
+When a preset is applied (e.g. `preset: lozenge`), the preset's `inactive` colour silently fills in the bucket, meaning all unmapped states get the preset's inactive shade, even when you only defined a `default` colour.
 
-`state_classification` lets you override this mapping — and define your own named buckets beyond the four built-in ones.
+`state_classification` lets you override this mapping, and define your own named buckets beyond the four built-in ones.
 
 ### Built-in bucket overrides
 
@@ -367,7 +367,7 @@ style:
 
 ### Custom buckets
 
-You can define your own bucket names as keys alongside `active` and `inactive`. Any key that isn't a reserved word becomes a custom bucket — assign it an array of raw entity states, then use that key name in your colour config exactly like `active` or `inactive`.
+You can define your own bucket names as keys alongside `active` and `inactive`. Any key that isn't a reserved word becomes a custom bucket: assign it an array of raw entity states, then use that key name in your colour config exactly like `active` or `inactive`.
 
 ```yaml
 type: custom:lcards-button
@@ -427,7 +427,7 @@ state_classification:
   else: default
 ```
 
-**Binary sensor — treat all states as active unless unavailable:**
+**Binary sensor, treat all states as active unless unavailable:**
 ```yaml
 state_classification:
   else: active
@@ -460,7 +460,7 @@ icon_style:
 icon_area_background: "{{ 'alpha(var(--lcards-alert-red), 0.15)' if is_state('climate.living_room', 'heat') else 'transparent' }}"
 ```
 
-The template must evaluate to a valid colour string — a hex value, CSS variable, `theme:` token, or computed token. Setting the **entire field** to a template is the primary use case; per-key values inside a state map were already resolved.
+The template must evaluate to a valid colour string: a hex value, CSS variable, `theme:` token, or computed token. Setting the **entire field** to a template is the primary use case; per-key values inside a state map were already resolved.
 
 :::tip
 For most cases a state map with `state_attribute` is simpler and more readable. Reach for a template when the logic can't be expressed as a flat key map.
@@ -468,11 +468,11 @@ For most cases a state map with `state_attribute` is simpler and more readable. 
 
 ### Driving colour from a different entity than the one bound to the card
 
-State-map keys (`active`/`inactive`/`above:N`/…) are always selected by classifying the card's **own** `entity:` — there's no way to make key *selection* read a different entity. If you need a colour to react to an entity other than the one the card displays or controls, put a template in the colour *value* instead — the template can reference any entity via `is_state()` / `state_attr()` regardless of which one the card is bound to:
+State-map keys (`active`/`inactive`/`above:N`/…) are always selected by classifying the card's **own** `entity:`; there's no way to make key *selection* read a different entity. If you need a colour to react to an entity other than the one the card displays or controls, put a template in the colour *value* instead: the template can reference any entity via `is_state()` / `state_attr()` regardless of which one the card is bound to:
 
 ```yaml no-validate
 type: custom:lcards-slider
-entity: input_number.target_temp   # bound entity — drives the slider's value
+entity: input_number.target_temp   # bound entity - drives the slider's value
 control:
   min: 0
   max: 100
@@ -482,4 +482,4 @@ style:
       color: "{{ 'var(--lcards-green)' if is_state('input_boolean.system_armed', 'on') else 'var(--lcards-gray)' }}"
 ```
 
-This works nested inside a state-object key too — a template buried under `color.active` is evaluated exactly like a flat one. Prefer Jinja2 (`{{ }}`/`{% %}`) over JS (`[[[...]]]`) here: Jinja2 templates are auto-scanned for entity references and re-evaluate automatically when they change, while a JS template referencing `states['some.entity']` needs an explicit `triggers_update: ['some.entity']` at the card-config root to live-update.
+This works nested inside a state-object key too: a template buried under `color.active` is evaluated exactly like a flat one. Prefer Jinja2 (`{{ }}`/`{% %}`) over JS (`[[[...]]]`) here: Jinja2 templates are auto-scanned for entity references and re-evaluate automatically when they change, while a JS template referencing `states['some.entity']` needs an explicit `triggers_update: ['some.entity']` at the card-config root to live-update.

@@ -115,15 +115,15 @@ window.lcards.info = function () {
     // Pretty-print to console and also return for programmatic use
     console.group('%c LCARdS Info ', 'background:#1b4f8a;color:#7eb6e8;font-weight:bold;padding:2px 6px;border-radius:4px;');
     console.log('Version  :', info.version, info.backendVersion && info.backendVersion !== info.version
-        ? `⚠ integration is ${info.backendVersion} — hard-refresh the browser` : `(integration ${info.integration ? info.backendVersion : 'not responding'})`);
+        ? `⚠ integration is ${info.backendVersion}; hard-refresh the browser` : `(integration ${info.integration ? info.backendVersion : 'not responding'})`);
     console.log('Build    :', info.buildDate);
     console.log('HA       :', info.haVersion, '| theme:', info.haTheme);
-    console.log('Styling  :', `UIX ${info.uix ? 'installed' : 'not installed'}`, info.cardMod ? '| ⚠ card-mod present (remove it — HA-LCARS uses UIX)' : '');
+    console.log('Styling  :', `UIX ${info.uix ? 'installed' : 'not installed'}`, info.cardMod ? '| ⚠ card-mod present (remove it; HA-LCARS uses UIX)' : '');
     console.log('Log level:', info.logLevel);
-    console.log('Preview  :', info.preview, info.preview === false ? '— call await window.lcards.refreshOptions() if you just changed this' : '');
+    console.log('Preview  :', info.preview, info.preview === false ? '(call await window.lcards.refreshOptions() if you just changed this)' : '');
     console.log('Cards    :', info.cards.join(', '));
     console.log('Core     :', info.core);
-    console.log('Bug report? Run: await window.lcards.support.copy()  — or Config panel → Welcome → Support & system info');
+    console.log('Bug report? Run: await window.lcards.support.copy(), or open Config panel → Welcome → Support & system info');
     console.groupEnd();
     return info;
 };
@@ -431,7 +431,7 @@ const LCARdSCardClasses = [
         type: 'lcards-layout-card',
         name: 'LCARdS Layout Card',
         preview: false,
-        description: 'CSS Grid container card with a visual editor — build sub-grids and place cards into named areas',
+        description: 'CSS Grid container card with a visual editor. Build sub-grids and place cards into named areas',
         documentationURL: "https://lcards.unimatrix01.ca/cards/layout-view/#layout-card",
     }
 ];

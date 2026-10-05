@@ -9,14 +9,14 @@ window.lcards.info()   // prints version, build date, log level, core status
 :::
 
 ::: tip URL log level override
-Append `?lcards_log_level=debug` (or `trace`) to the HA URL to set the log level before the page fully loads — useful for catching early init errors.
+Append `?lcards_log_level=debug` (or `trace`) to the HA URL to set the log level before the page fully loads, useful for catching early init errors.
 :::
 
 ---
 
 ## General Debug Utilities
 
-### `setLevel(level)` — Log level
+### `setLevel(level)`: Log level
 
 Sets the global log level for all LCARdS output.
 
@@ -30,7 +30,7 @@ window.lcards.debug.setLevel('trace')   // maximum verbosity
 
 > Also available as `window.lcards.setGlobalLogLevel(level)` for backward compatibility.
 
-### `getLevel()` — Current log level
+### `getLevel()`: Current log level
 
 Returns the current global log level string.
 
@@ -39,7 +39,7 @@ window.lcards.debug.getLevel()
 // Returns: 'info'
 ```
 
-### `perf` — Performance monitor
+### `perf`: Performance monitor
 
 Shortcuts to the internal performance monitor.
 
@@ -55,7 +55,7 @@ window.lcards.debug.perf.status()
 // { fps: 60, isMonitoring: true, settled: true, thresholds: { ... }, ... }
 ```
 
-### `theme` — Theme inspection
+### `theme`: Theme inspection
 
 Shortcuts to `ThemeManager` state.
 
@@ -86,9 +86,9 @@ These live on the root `window.lcards` namespace rather than `debug.*`:
 
 | API | Description |
 |---|---|
-| `window.lcards.info()` | Runtime snapshot — version, build date, log level, core status |
-| `window.lcards.alert.*` | Alert mode control — see [Alert Mode](../core/alert-mode.md) |
-| `window.lcards.sound.*` | Sound system debug — `play(event)`, `preview(assetKey)`, `getSchemes()`, `getEvents()` |
+| `window.lcards.info()` | Runtime snapshot: version, build date, log level, core status |
+| `window.lcards.alert.*` | Alert mode control: see [Alert Mode](../core/alert-mode.md) |
+| `window.lcards.sound.*` | Sound system debug: `play(event)`, `preview(assetKey)`, `getSchemes()`, `getEvents()` |
 
 ---
 
@@ -98,7 +98,7 @@ Introspect the `window.lcards.core.*` singleton registry directly. These live on
 
 ### `debug.core()`
 
-Returns `window.lcards.core.getDebugInfo()` — a snapshot of all core manager states.
+Returns `window.lcards.core.getDebugInfo()`, a snapshot of all core manager states.
 
 ```javascript
 window.lcards.debug.core()
@@ -151,7 +151,7 @@ window.lcards.debug.singletons()
 
 ## MSD Card API (`window.lcards.cards.msd`)
 
-Production utilities for locating MSD card elements by config ID. These work in normal use — not just debug sessions.
+Production utilities for locating MSD card elements by config ID. These work in normal use, not just debug sessions.
 
 | Method | Returns | Description |
 |---|---|---|
@@ -210,11 +210,11 @@ window.lcards.debug.msd.listMsdCards()
 
 All namespace methods are called as `window.lcards.debug.msd.<namespace>.<method>()`.
 
-### `routing` — Routing resolution
+### `routing`: Routing resolution
 
 | Method | Description |
 |--------|-------------|
-| `inspect(overlayId, cardId?)` | The overlay's actual routed points/path, read-only from the route cache — never computes or mutates routing state |
+| `inspect(overlayId, cardId?)` | The overlay's actual routed points/path, read-only from the route cache; never computes or mutates routing state |
 | `inspectAll(cardId?)` | Like `inspect()`, but for every overlay currently in the route cache at once |
 | `trunks(cardId?)` | List every registered trunk row (config-seeded and spontaneously-discovered) with its bounds, centerline, and member set |
 | `stats(cardId?)` | Router statistics: cache size, obstacle count, trunk/crossing registry counts, registry version |
@@ -228,7 +228,7 @@ console.table(window.lcards.debug.msd.routing.trunks())
 window.lcards.debug.msd.routing.stats()                 // { size, obstacles, trunks, crossings, registryVersion, ... }
 ```
 
-### `data` — DataSource state
+### `data`: DataSource state
 
 | Method | Description |
 |--------|-------------|
@@ -240,7 +240,7 @@ window.lcards.debug.msd.data.trace('sensor.temperature')
 
 > For broader DataSource introspection, use `window.lcards.debug.datasources.*`.
 
-### `rules` — Rules engine
+### `rules`: Rules engine
 
 | Method | Description |
 |--------|-------------|
@@ -253,7 +253,7 @@ window.lcards.debug.msd.rules.listActive({ includeDisabled: true, verbose: true 
 
 > For full rules engine introspection, use `window.lcards.debug.singleton('rulesManager')`.
 
-### `animations` — Animation state
+### `animations`: Animation state
 
 | Method | Description |
 |--------|-------------|
@@ -270,7 +270,7 @@ window.lcards.debug.msd.animations.inspect('my_anim_id')
 window.lcards.debug.msd.animations.trigger('cpu_status', 'pulse', { duration: 500 })
 ```
 
-### `overlays` — Overlay inspection
+### `overlays`: Overlay inspection
 
 | Method | Description |
 |--------|-------------|
@@ -288,7 +288,7 @@ window.lcards.debug.msd.overlays.list()
 window.lcards.debug.msd.overlays.findByEntity('sensor.temperature')
 ```
 
-### `pipeline` — Pipeline lifecycle
+### `pipeline`: Pipeline lifecycle
 
 | Method | Description |
 |--------|-------------|
@@ -304,7 +304,7 @@ window.lcards.debug.msd.pipeline.stages()
 window.lcards.debug.msd.pipeline.rerun()
 ```
 
-### `anchors` — Anchor system
+### `anchors`: Anchor system
 
 | Method | Description |
 |--------|-------------|

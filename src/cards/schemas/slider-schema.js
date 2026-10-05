@@ -833,7 +833,7 @@ export function getSliderSchema(options = {}) {
                                         minimum: -180,
                                         maximum: 180,
                                         default: 180,
-                                        description: 'Rotation in degrees (default: 180 — triangle points toward ticks)',
+                                        description: 'Rotation in degrees (default: 180, triangle points toward ticks)',
                                         'x-ui-hints': {
                                             selector: { number: { mode: 'slider', min: -180, max: 180, step: 1, unit_of_measurement: '°' } }
                                         }
@@ -873,7 +873,7 @@ export function getSliderSchema(options = {}) {
                                     },
                                     {
                                         type: 'string',
-                                        description: 'CSS variable or px/rem value for uniform corner radius — resolved at render time',
+                                        description: 'CSS variable or px/rem value for uniform corner radius, resolved at render time',
                                         examples: [
                                             'var(--ha-card-border-radius)',
                                             'var(--ha-card-border-radius, 12px)',
@@ -883,7 +883,7 @@ export function getSliderSchema(options = {}) {
                                     },
                                     {
                                         type: 'object',
-                                        description: 'Per-corner radius — use to round only specific corners (e.g. only the free end on a bordered LCARS slider). Each corner also accepts a CSS variable string.',
+                                        description: 'Per-corner radius: use to round only specific corners (e.g. only the free end on a bordered LCARS slider). Each corner also accepts a CSS variable string.',
                                         properties: {
                                             top_left:     { oneOf: [ { type: 'number', minimum: 0 }, { type: 'string' } ] },
                                             top_right:    { oneOf: [ { type: 'number', minimum: 0 }, { type: 'string' } ] },
@@ -892,7 +892,7 @@ export function getSliderSchema(options = {}) {
                                         }
                                     }
                                 ],
-                                description: 'Corner radius — number or CSS variable string for uniform rounding, or per-corner object. Supports var(--ha-card-border-radius), px values, and rem values.',
+                                description: 'Corner radius: number or CSS variable string for uniform rounding, or per-corner object. Supports var(--ha-card-border-radius), px values, and rem values.',
                                 examples: [
                                     12,
                                     'var(--ha-card-border-radius)',
@@ -1020,18 +1020,18 @@ export function getSliderSchema(options = {}) {
 
                     ranges: {
                         type: 'array',
-                        description: 'Colour-coded value ranges and point markers.\n\nTwo item types:\n• Band range (min+max): coloured background zone — rect in gauge mode, segment overrides in pills mode.\n• Value marker (value): live point indicator — triangle on gauge ticks, highlighted pill in pills mode.\n\nmin/max/value resolve static numbers, {entity.state}/{entity.attributes.x}/{states.domain.object_id.state} tokens, {datasource:name}, {config.x}/{variables.x} tokens, theme token references, and [[[JS]]] — evaluated synchronously (no Jinja2; see range.label.text for full Jinja2/DataSource async support on the label caption).',
+                        description: 'Colour-coded value ranges and point markers.\n\nTwo item types:\n• Band range (min+max): coloured background zone, rect in gauge mode, segment overrides in pills mode.\n• Value marker (value): live point indicator, triangle on gauge ticks, highlighted pill in pills mode.\n\nmin/max/value resolve static numbers, {entity.state}/{entity.attributes.x}/{states.domain.object_id.state} tokens, {datasource:name}, {config.x}/{variables.x} tokens, theme token references, and [[[JS]]], evaluated synchronously (no Jinja2; see range.label.text for full Jinja2/DataSource async support on the label caption).',
                         items: {
                             type: 'object',
                             properties: {
                                 min: {
                                     type: ['number', 'string'],
-                                    description: 'Range start value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, [[[JS return expr]]]. (Synchronous only — no Jinja2.)',
+                                    description: 'Range start value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, [[[JS return expr]]]. (Synchronous only; no Jinja2.)',
                                     examples: [0, 18, 80, '{entity.attributes.min_temp}', '{states.input_number.low.state}', '{datasource:low_threshold}', '[[[return Number(entity.state) - 5]]]']
                                 },
                                 max: {
                                     type: ['number', 'string'],
-                                    description: 'Range end value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, [[[JS return expr]]]. (Synchronous only — no Jinja2.)',
+                                    description: 'Range end value (in display space). Supports static numbers or templates: {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, [[[JS return expr]]]. (Synchronous only; no Jinja2.)',
                                     examples: [20, 24, 100, '{entity.attributes.max_temp}', '{states.input_number.high.state}', '{datasource:high_threshold}', '[[[return Number(entity.state) + 5]]]']
                                 },
                                 color: stateColorSchema,
@@ -1044,10 +1044,10 @@ export function getSliderSchema(options = {}) {
                                 },
                                 value: {
                                     type: ['string', 'number'],
-                                    description: 'Numeric value or template resolving to a position on the track. When present (instead of min/max), renders a point marker rather than a coloured band. Supports {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, and [[[JS]]] templates. (Synchronous only — no Jinja2.)',
+                                    description: 'Numeric value or template resolving to a position on the track. When present (instead of min/max), renders a point marker rather than a coloured band. Supports {entity.state}, {entity.attributes.xxx}, {states.domain.object_id.state}, {datasource:name}, {config.x}, {variables.x}, and [[[JS]]] templates. (Synchronous only; no Jinja2.)',
                                     'x-ui-hints': {
                                         label: 'Marker Value',
-                                        helper: 'Template or number — places a visual marker at this value rather than drawing a coloured band'
+                                        helper: 'Template or number: places a visual marker at this value rather than drawing a coloured band'
                                     }
                                 },
                                 indicator: {
@@ -1106,10 +1106,10 @@ export function getSliderSchema(options = {}) {
                                     properties: {
                                         text: {
                                             type: 'string',
-                                            description: 'Label text. Supports the full template system: {entity.attributes.xxx} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], and {datasource:name} references — or a plain static string.',
+                                            description: 'Label text. Supports the full template system: {entity.attributes.xxx} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], and {datasource:name} references, or a plain static string.',
                                             'x-ui-hints': {
                                                 label: 'Label Text',
-                                                helper: 'Static text or a template — {entity.attributes.x} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], or {datasource:name} are all supported.'
+                                                helper: 'Static text or a template: {entity.attributes.x} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], or {datasource:name} are all supported.'
                                             }
                                         },
                                         color: { ...stateColorSchema, description: 'State-based colour of the label text. Falls back to theme:components.slider.indicator.label.color.' },
@@ -1163,7 +1163,7 @@ export function getSliderSchema(options = {}) {
                             },
                             radius: {
                                 type: 'number',
-                                description: 'Corner radius in pixels — lozenge auto = min(w,h)/2, rounded default = 8',
+                                description: 'Corner radius in pixels: lozenge auto = min(w,h)/2, rounded default = 8',
                                 examples: [8, 20, 40],
                                 'x-ui-hints': {
                                     label: 'Corner Radius',
@@ -1332,7 +1332,7 @@ export function getSliderSchema(options = {}) {
                             markers: {
                                 type: 'boolean',
                                 default: true,
-                                description: 'Tween threshold/range marker position (and, in pills mode, which pill is highlighted). Applies to `gauge` and `pills` track types — `shaped` never renders markers at all.',
+                                description: 'Tween threshold/range marker position (and, in pills mode, which pill is highlighted). Applies to `gauge` and `pills` track types: `shaped` never renders markers at all.',
                                 'x-ui-hints': { label: 'Markers', selector: { boolean: {} } }
                             }
                         }

@@ -493,7 +493,7 @@ export class LCARdSConfigPanel extends LitElement {
       lcardsLog.warn('[ConfigPanel] LCARdS core not yet loaded');
       setTimeout(() => {
         if (!window.lcards?.core?.helperManager) {
-          this._showWarning('LCARdS core not detected. Please ensure at least one LCARdS card is added to a dashboard.');
+          this._showWarning('LCARdS core did not initialize. Hard-refresh the browser (Ctrl+Shift+R). If this persists, check Settings → Integrations → LCARdS.');
         }
       }, 2000); // Give core time to initialize
     }

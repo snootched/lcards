@@ -11,7 +11,7 @@ This section documents lower-level implementation details that underpin the subs
 | [Background Animation System](#background-animation-system) | Canvas2D rendering pipeline for animated card backgrounds |
 | [DataSource Buffers](#datasource-buffer-structure) | Internal buffer and processor-output data shape |
 | [HA Entity Display](#ha-entity-display-utility) | Locale-aware entity value formatting |
-| [HA Services — Implementation Notes](#ha-services--implementation-notes) | Backend service architecture and server-push channel |
+| [HA Services: Implementation Notes](#ha-services--implementation-notes) | Backend service architecture and server-push channel |
 | [Shape Texture System](#shape-texture-system) | SVG-native declarative texture effects inside card shapes |
 | [Persistent Storage](#persistent-storage) | HA-backed key/value store for user and layout state |
 
@@ -47,7 +47,7 @@ Consult this when displaying entity values, units, or state strings in cards to 
 
 ---
 
-## HA Services — Implementation Notes
+## HA Services: Implementation Notes
 
 [Full reference →](./ha-services.md)
 

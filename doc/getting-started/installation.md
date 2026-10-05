@@ -4,7 +4,7 @@
 
 - **Home Assistant 2026.10 or newer.** LCARdS relies on 2026.10's dashboard visibility handling and validation library; on older versions the integration logs an error and does not load.
 
-Something not working after installing? See [Getting Help](getting-help.md) — the LCARdS panel's Welcome tab has a built-in health check.
+Something not working after installing? See [Getting Help](getting-help.md); the LCARdS panel's Welcome tab has a built-in health check.
 
 ## Quick Start
 
@@ -15,7 +15,7 @@ Something not working after installing? See [Getting Help](getting-help.md) — 
 :::tip HA-LCARS Theme Integration
 LCARdS supports and integrates well with [**HA-LCARS themes**](https://github.com/th3jesta/ha-lcars).  Use these two together for the best experience.
 
-Once HA-LCARS is installed, append the **LCARdS theme profiles** to your `themes.yaml` to map the full LCARdS colour palette to the HA-LCARS chrome and HA core colour tokens in one step — see [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles.md).
+Once HA-LCARS is installed, append the **LCARdS theme profiles** to your `themes.yaml` to map the full LCARdS colour palette to the HA-LCARS chrome and HA core colour tokens in one step; see [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles.md).
 :::
 
 ## 1. Install via HACS
@@ -39,7 +39,7 @@ LCARdS is now active. It automatically:
 
 1. Download `lcards.zip` from the [latest GitHub release](https://github.com/snootched/lcards/releases/latest)
 2. Extract the contents into `config/custom_components/lcards/`
-   (the directory should contain `manifest.json` and `__init__.py` directly — not a nested `lcards/lcards/` folder)
+   (the directory should contain `manifest.json` and `__init__.py` directly, not a nested `lcards/lcards/` folder)
 3. **Restart Home Assistant**
 4. Go to **Settings → Integrations → Add Integration → LCARdS**
 
@@ -60,13 +60,13 @@ After installation, LCARdS integration options can be configured from the integr
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| Show sidebar panel | On | Display the LCARdS Config entry in the Home Assistant sidebar. Disable if you prefer a cleaner sidebar — the integration stays active and all cards continue to work. |
+| Show sidebar panel | On | Display the LCARdS Config entry in the Home Assistant sidebar. Disable if you prefer a cleaner sidebar; the integration stays active and all cards continue to work. |
 | Sidebar Title | LCARdS Config | Customizable title for the sidebar entry. |
 | Sidebar Icon | `mdi:space-invaders` | Customizable icon for the sidebar entry. |
 | Log Level | `warn` | Default logging level for all cards. `debug`, `trace` are excessively versbose - only used for deep troubleshooting. |
 | Enable Preview Features | `false` | Unlocks features that are still under active development. These may change during development - Please provide your feedback, discuss or get help on GitHub Issues and Discussions. |
 
-Changes take effect immediately — no restart required.
+Changes take effect immediately; no restart required.
 
 ## 3. LCARdS Configuarion - Config Panel
 
@@ -78,6 +78,6 @@ Follow the setup flow in the Config Panel, and explore other options like:
 - Customise Alert Mode colour palettes
 - Configure sound schemes and overrides
 
-After setup, if you don't want it visible all the time, toggle **Show sidebar panel** off in the integration options — it can be re-enabled at any time.
+After setup, if you don't want it visible all the time, toggle **Show sidebar panel** off in the integration options; it can be re-enabled at any time.
 
 See [Configuration overview](../configuration/) for full details.

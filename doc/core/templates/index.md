@@ -35,12 +35,12 @@ text:
 | `{config.NAME}` | A value from this card's own config |
 | `{variables.NAME}` | A value from `config.variables` |
 | `{hass.user.name}` | The current Home Assistant user's name |
-| `{theme:token.path}` | Theme token value — see [Themes](../themes/) |
+| `{theme:token.path}` | Theme token value: see [Themes](../themes/) |
 
 For DataSource values (`{ds:...}`), see [Section 4](#4-data-source-templates-ds--datasource) below.
 
 > [!NOTE]
-> This single-brace `{...}` syntax is an LCARdS-specific shorthand, not a Home Assistant or Jinja2 convention — it exists because it resolves synchronously (no network round trip), which some render paths require. If you already know HA's Jinja2 templating from automations or other cards, reach for [Jinja2 templates](#3-jinja2-templates) (`{{ }}`, real double braces) instead — it's the actual HA template engine and supports everything you already know (`states()`, `state_attr()`, filters, etc.). Use single-brace tokens when you specifically need the synchronous fast path.
+> This single-brace `{...}` syntax is an LCARdS-specific shorthand, not a Home Assistant or Jinja2 convention; it exists because it resolves synchronously (no network round trip), which some render paths require. If you already know HA's Jinja2 templating from automations or other cards, reach for [Jinja2 templates](#3-jinja2-templates) (`{{ }}`, real double braces) instead; it's the actual HA template engine and supports everything you already know (`states()`, `state_attr()`, filters, etc.). Use single-brace tokens when you specifically need the synchronous fast path.
 
 ---
 
@@ -69,9 +69,9 @@ text:
 
 | Variable | Type | Contents |
 |----------|------|----------|
-| `entity` | object | Current entity state — `entity.state`, `entity.attributes.*`, `entity.entity_id`, `entity.last_changed` |
-| `hass` | object | Full Home Assistant object — `hass.states`, `hass.services`, `hass.user`, `hass.themes` |
-| `states` | object | Shorthand for `hass.states` — a different entity's state object, e.g. `states['sensor.outdoor_temp'].state` |
+| `entity` | object | Current entity state: `entity.state`, `entity.attributes.*`, `entity.entity_id`, `entity.last_changed` |
+| `hass` | object | Full Home Assistant object: `hass.states`, `hass.services`, `hass.user`, `hass.themes` |
+| `states` | object | Shorthand for `hass.states`; a different entity's state object, e.g. `states['sensor.outdoor_temp'].state` |
 | `config` | object | This card's full config |
 | `variables` | object | `config.variables` |
 | `theme` | object | Current theme token tree |
@@ -104,14 +104,14 @@ For values from a named [data source](../datasources/). The `{ds:name}` shorthan
 
 **No format specifier** → HA-native display: locale-formatted number + unit from entity metadata (e.g. `4,73 °C`). Equivalent to HA's `haFormatEntityState()`.
 
-**With a format specifier** → you own the output. The number is formatted to the spec and returned with **no auto-unit** — append any suffix you want.
+**With a format specifier** → you own the output. The number is formatted to the spec and returned with **no auto-unit**; append any suffix you want.
 
 | Specifier | Example | Result |
 |-----------|---------|--------|
-| *(none)* | `{ds:temp}` | `4,73 °C` — HA-native, locale-formatted + unit |
-| `:.Nf` | `{ds:temp:.1f}` | `4,7` — N decimal places, no unit |
-| `:int` | `{ds:temp:int}` | `5` — rounded integer, no unit |
-| `:.N%` | `{ds:progress:.0%}` | `75%` — percentage |
+| *(none)* | `{ds:temp}` | `4,73 °C`: HA-native, locale-formatted + unit |
+| `:.Nf` | `{ds:temp:.1f}` | `4,7`: N decimal places, no unit |
+| `:int` | `{ds:temp:int}` | `5`: rounded integer, no unit |
+| `:.N%` | `{ds:progress:.0%}` | `75%`: percentage |
 | `:str` | `{ds:label:str}` | raw string coercion |
 
 To access a specific **processor buffer**, use the long form with a dotted path:
@@ -138,14 +138,14 @@ See [Data Sources](../datasources/) for declaring and configuring sources.
 
 Templates are evaluated in most string-valued config properties:
 
-- `text.*.content` — label text
-- `style.*` — style values, including colours and token references
-- `tap_action.service_data.*` — action parameters
-- `tap_action.navigation_path` — dashboard path
-- `tap_action.url_path` — URL
-- `icon` — icon name
-- `rules.*.when.*.condition` — rule condition expressions (JS and Jinja2) — see [Rule Conditions](../rules/conditions.md)
-- Slider card `style.ranges[].value` / `.min` / `.max` — marker/band positions (JS, token, and DataSource only — no Jinja2, since these resolve synchronously on every state update) and `style.ranges[].label.text` — marker caption text (all 4 types, including Jinja2) — see [Slider Card](../../cards/slider-card/)
+- `text.*.content`: label text
+- `style.*`: style values, including colours and token references
+- `tap_action.service_data.*`: action parameters
+- `tap_action.navigation_path`: dashboard path
+- `tap_action.url_path`: URL
+- `icon`: icon name
+- `rules.*.when.*.condition`: rule condition expressions (JS and Jinja2); see [Rule Conditions](../rules/conditions.md)
+- Slider card `style.ranges[].value` / `.min` / `.max`: marker/band positions (JS, token, and DataSource only; no Jinja2, since these resolve synchronously on every state update) and `style.ranges[].label.text`: marker caption text (all 4 types, including Jinja2); see [Slider Card](../../cards/slider-card/)
 
 ---
 
@@ -153,10 +153,10 @@ Templates are evaluated in most string-valued config properties:
 
 When a value could match multiple syntaxes, evaluation proceeds in this order:
 
-1. `[[[...]]]` — JavaScript (evaluated first)
-2. `{token}` — Token substitution
-3. `{ds:...}` / `{datasource:...}` — data source
-4. `{{...}}` — Jinja2 (HA server-evaluated, async)
+1. `[[[...]]]`: JavaScript (evaluated first)
+2. `{token}`: Token substitution
+3. `{ds:...}` / `{datasource:...}`: data source
+4. `{{...}}`: Jinja2 (HA server-evaluated, async)
 
 ---
 
@@ -166,7 +166,7 @@ LCARdS re-renders a card (and re-evaluates all its templates) whenever a relevan
 
 ### Automatic tracking
 
-Entity references in **Jinja2** templates are detected automatically — no extra config needed:
+Entity references in **Jinja2** templates are detected automatically, no extra config needed:
 
 ```yaml
 text:
@@ -184,7 +184,7 @@ The following Jinja2 call patterns are scanned:
 
 ### Manual tracking with `triggers_update`
 
-JavaScript templates (`[[[...]]]`) are opaque to static analysis — LCARdS cannot know which entities they reference. Declare them explicitly:
+JavaScript templates (`[[[...]]]`) are opaque to static analysis; LCARdS cannot know which entities they reference. Declare them explicitly:
 
 ```yaml
 type: custom:lcards-button
@@ -206,5 +206,5 @@ text:
 `triggers_update` also works for **token** or **data source** templates whose entity IDs are assembled dynamically and cannot be inferred at parse time.
 
 > [!NOTE]
-> `triggers_update` is additive — the card's primary `entity` is always tracked regardless.
+> `triggers_update` is additive: the card's primary `entity` is always tracked regardless.
 

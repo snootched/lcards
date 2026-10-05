@@ -198,17 +198,17 @@ export function getMsdSchema() {
             entity: {
               ...entitySchema,
               optional: true,
-              description: 'Line overlays: entity to bind style.color to (state-color object) — see style.color. Not used by control overlays, which already have their own entity via the embedded card.'
+              description: 'Line overlays: entity to bind style.color to (state-color object); see style.color. Not used by control overlays, which already have their own entity via the embedded card.'
             },
             state_attribute: {
               type: 'string',
               optional: true,
-              description: 'Line overlays: attribute whose string value is matched against style.color state keys instead of the raw entity state (e.g. "fade", "true") — mirrors the button card\'s state_attribute, scoped per-line'
+              description: 'Line overlays: attribute whose string value is matched against style.color state keys instead of the raw entity state (e.g. "fade", "true"); mirrors the button card\'s state_attribute, scoped per-line'
             },
             ranges_attribute: {
               type: 'string',
               optional: true,
-              description: 'Line overlays: attribute value compared against above:/below:/between: keys in style.color — mirrors the button card\'s ranges_attribute, scoped per-line'
+              description: 'Line overlays: attribute value compared against above:/below:/between: keys in style.color; mirrors the button card\'s ranges_attribute, scoped per-line'
             },
             style: {
               type: 'object',
@@ -217,7 +217,7 @@ export function getMsdSchema() {
               properties: {
                 color: {
                   ...stateColorSchema,
-                  description: 'Stroke color: a literal/token/CSS value, or a state-color object resolved against `entity` (same state-color pipeline as buttons/sliders — requires `entity` to be set)'
+                  description: 'Stroke color: a literal/token/CSS value, or a state-color object resolved against `entity` (same state-color pipeline as buttons/sliders; requires `entity` to be set)'
                 },
                 width: {
                   type: 'number',
@@ -288,17 +288,17 @@ export function getMsdSchema() {
                 marker_start: {
                   type: ['string', 'object'],
                   optional: true,
-                  description: 'Marker (arrowhead/dot/etc.) at the path start. Polyline shapes only — meaningless for rect/circle.'
+                  description: 'Marker (arrowhead/dot/etc.) at the path start. Polyline shapes only; meaningless for rect/circle.'
                 },
                 marker_mid: {
                   type: ['string', 'object'],
                   optional: true,
-                  description: 'Marker at each interior path vertex. Polyline shapes only — meaningless for rect/circle.'
+                  description: 'Marker at each interior path vertex. Polyline shapes only; meaningless for rect/circle.'
                 },
                 marker_end: {
                   type: ['string', 'object'],
                   optional: true,
-                  description: 'Marker at the path end. Polyline shapes only — meaningless for rect/circle.'
+                  description: 'Marker at the path end. Polyline shapes only; meaningless for rect/circle.'
                 },
                 animatable: {
                   type: 'boolean',
@@ -355,7 +355,7 @@ export function getMsdSchema() {
               'x-ui': {
                 control: 'yaml',
                 label: 'Triggers Update',
-                helper: 'Array of entity IDs, or "all" for control overlays — declares extra HASS dependencies static analysis can\'t detect'
+                helper: 'Array of entity IDs, or "all" for control overlays: declares extra HASS dependencies static analysis can\'t detect'
               }
             },
             z_index: {
@@ -367,13 +367,13 @@ export function getMsdSchema() {
               type: 'boolean',
               optional: true,
               default: false,
-              description: 'Control/shape overlays only: when true, MSD Studio\'s editor canvas disables drag/resize/vertex-editing for this overlay (Edit/Duplicate/Delete in the list panel remain available). Editor-only — has no effect on runtime rendering or line overlays.'
+              description: 'Control/shape overlays only: when true, MSD Studio\'s editor canvas disables drag/resize/vertex-editing for this overlay (Edit/Duplicate/Delete in the list panel remain available). Editor-only; has no effect on runtime rendering or line overlays.'
             },
             // Line overlay anchor/endpoint fields
             anchor: {
               type: ['string', 'array'],
               optional: true,
-              description: 'Line overlays: start-point anchor name or [x,y]. Control overlays: deprecated alias for position — use position instead.'
+              description: 'Line overlays: start-point anchor name or [x,y]. Control overlays: deprecated alias for position; use position instead.'
             },
             anchor_side: {
               type: 'string',
@@ -408,12 +408,12 @@ export function getMsdSchema() {
               enum: ['auto', 'direct', 'manhattan', 'smart', 'grid', 'manual'],
               optional: true,
               default: 'auto',
-              description: 'Routing algorithm. auto (recommended): always full pathfinding — obstacle avoidance, trunk bundling, crossing avoidance — regardless of whether obstacles/channels are present. direct: straight line, no pathfinding. manual: explicit waypoints. Escape hatches for the cheap/non-participating alternative: manhattan (fixed 2-elbow shape, no pathfinding, no bundling, no crossing avoidance) or grid (pathfinding + bundling/crossing avoidance, without the extra local-search refinement pass smart adds). smart is what auto resolves to.'
+              description: 'Routing algorithm. auto (recommended): always full pathfinding (obstacle avoidance, trunk bundling, crossing avoidance) regardless of whether obstacles/channels are present. direct: straight line, no pathfinding. manual: explicit waypoints. Escape hatches for the cheap/non-participating alternative: manhattan (fixed 2-elbow shape, no pathfinding, no bundling, no crossing avoidance) or grid (pathfinding + bundling/crossing avoidance, without the extra local-search refinement pass smart adds). smart is what auto resolves to.'
             },
             waypoints: {
               type: 'array',
               optional: true,
-              description: 'Array of waypoints for manual routing. Each waypoint is a coordinate pair [x, y], optionally [x, y, radius] to override this corner\'s rounding radius (round) or chamfer size (bevel) — omit the 3rd slot to inherit corner_radius — or an anchor name string. Line will pass through waypoints in order.',
+              description: 'Array of waypoints for manual routing. Each waypoint is a coordinate pair [x, y], optionally [x, y, radius] to override this corner\'s rounding radius (round) or chamfer size (bevel); omit the 3rd slot to inherit corner_radius. A waypoint can also be an anchor name string. Line will pass through waypoints in order.',
               items: {
                 oneOf: [
                   { type: 'array', minItems: 2, maxItems: 3, items: { type: 'number' } },
@@ -457,20 +457,20 @@ export function getMsdSchema() {
               min: 0,
               optional: true,
               default: 34,
-              description: 'Line overlays, or shape overlays (kind: polyline): corner cut size in viewBox units — arc radius for round corners, or diagonal chamfer size for bevel corners. For shape kind: rect, sets rx/ry directly.'
+              description: 'Line overlays, or shape overlays (kind: polyline): corner cut size in viewBox units: arc radius for round corners, or diagonal chamfer size for bevel corners. For shape kind: rect, sets rx/ry directly.'
             },
             corner_radius_mode: {
               type: 'string',
               enum: ['auto', 'forced'],
               optional: true,
               default: 'auto',
-              description: 'Line overlays only (routing behavior, not shape overlay rendering): whether corner_radius is a target or a hard requirement for round/bevel corners. auto (default): corner size may shrink so the router stays free to avoid forcing a detour or an unnecessary line crossing near tight geometry. forced: always reserves room for the full configured radius, matching pre-2026.07 behavior — can force routing detours or crossings.'
+              description: 'Line overlays only (routing behavior, not shape overlay rendering): whether corner_radius is a target or a hard requirement for round/bevel corners. auto (default): corner size may shrink so the router stays free to avoid forcing a detour or an unnecessary line crossing near tight geometry. forced: always reserves room for the full configured radius, matching pre-2026.07 behavior; can force routing detours or crossings.'
             },
             corner_room_weight: {
               type: 'number',
               min: 0,
               optional: true,
-              description: 'Line overlays only, round/bevel corner_style: how strongly the smart-routing refinement pass tries to recover this line\'s full corner_radius when a tight detour would otherwise shrink it. On by default (card-wide default in routing.corner_room_weight) — a route that leaves more room for the configured corner is preferred over the plain-cheapest route, when the difference is small. Set to 0 on a line to opt it out.'
+              description: 'Line overlays only, round/bevel corner_style: how strongly the smart-routing refinement pass tries to recover this line\'s full corner_radius when a tight detour would otherwise shrink it. On by default (card-wide default in routing.corner_room_weight); a route that leaves more room for the configured corner is preferred over the plain-cheapest route, when the difference is small. Set to 0 on a line to opt it out.'
             },
             corner_angle: {
               type: 'number',
@@ -484,7 +484,7 @@ export function getMsdSchema() {
               type: 'number',
               min: 0,
               optional: true,
-              description: 'Line overlays only: overrides the mandatory cardinal stub length (viewBox units) departing/arriving anchor_side or attach_side, instead of the router\'s own auto-computed floor (which scales with grid_resolution and can force a longer straight lead-out than a specific line\'s own geometry needs). Leave unset for the default. Going below one grid cell risks re-triggering an internal same-cell short-circuit — use window.lcards.debug.msd.routing.inspect(id).meta.debug to see the router\'s own resolved value first.'
+              description: 'Line overlays only: overrides the mandatory cardinal stub length (viewBox units) departing/arriving anchor_side or attach_side, instead of the router\'s own auto-computed floor (which scales with grid_resolution and can force a longer straight lead-out than a specific line\'s own geometry needs). Leave unset for the default. Going below one grid cell risks re-triggering an internal same-cell short-circuit; use window.lcards.debug.msd.routing.inspect(id).meta.debug to see the router\'s own resolved value first.'
             },
             smoothing_mode: {
               type: 'string',
@@ -513,7 +513,7 @@ export function getMsdSchema() {
       animations: {
         type: 'array',
         optional: true,
-        description: 'Animations that bulk-target overlays in the shared overlay group by CSS selector (data-overlay-id, class, etc.) — e.g. animate every overlay whose id starts with "shield_" with one declaration, instead of repeating the animation on each overlay. Same target/targets selector syntax as base_svg.animations and per-overlay animations; matches shape, line, and control overlays uniformly.',
+        description: 'Animations that bulk-target overlays in the shared overlay group by CSS selector (data-overlay-id, class, etc.), e.g. animate every overlay whose id starts with "shield_" with one declaration, instead of repeating the animation on each overlay. Same target/targets selector syntax as base_svg.animations and per-overlay animations; matches shape, line, and control overlays uniformly.',
         items: animationSchema,
         'x-ui': {
           control: 'animation-editor',
@@ -532,11 +532,11 @@ export function getMsdSchema() {
             enum: ['manhattan', 'smart', 'grid', 'auto'],
             optional: true,
             default: 'auto',
-            description: 'Card-wide override for every line whose own route is unset/auto (per-line route: still wins). auto (default): full pathfinding — obstacle avoidance, trunk bundling, crossing avoidance (this is what an unset line gets). manhattan/grid: force the whole card to the cheap/non-participating or no-refinement alternative instead. smart: same as auto, spelled out explicitly.',
+            description: 'Card-wide override for every line whose own route is unset/auto (per-line route: still wins). auto (default): full pathfinding: obstacle avoidance, trunk bundling, crossing avoidance (this is what an unset line gets). manhattan/grid: force the whole card to the cheap/non-participating or no-refinement alternative instead. smart: same as auto, spelled out explicitly.',
             'x-ui': {
               control: 'select',
               label: 'Default Routing Mode',
-              helper: 'Global routing strategy applied to every line that leaves route unset — per-line route: always overrides this'
+              helper: 'Global routing strategy applied to every line that leaves route unset; per-line route: always overrides this'
             }
           },
 
@@ -553,7 +553,7 @@ export function getMsdSchema() {
             min: 5,
             optional: true,
             default: 64,
-            description: 'Grid cell size for grid-based routing (viewBox units; values below 5 are coerced to 32). Unset by default — auto-scales from view_box size instead of a fixed number (~1/12th of the shorter dimension, clamped to [16, 64]; 64 shown here is that ceiling, not a fixed default)'
+            description: 'Grid cell size for grid-based routing (viewBox units; values below 5 are coerced to 32). Unset by default; auto-scales from view_box size instead of a fixed number (~1/12th of the shorter dimension, clamped to [16, 64]; 64 shown here is that ceiling, not a fixed default)'
           },
           min_stub_length_factor: {
             type: 'number',
@@ -567,7 +567,7 @@ export function getMsdSchema() {
             min: 0,
             optional: true,
             default: 2,
-            description: 'A* cost for changing direction — higher values produce straighter paths with fewer turns'
+            description: 'A* cost for changing direction: higher values produce straighter paths with fewer turns'
           },
           route_hint_penalty: {
             type: 'number',
@@ -673,7 +673,7 @@ export function getMsdSchema() {
             min: 0,
             optional: true,
             default: 4,
-            description: 'Card-wide default strength for recovering a line\'s full corner_radius near tight detours (see the per-line field of the same name for the full explanation). On by default — the LCARS rounded-corner look is the intended out-of-the-box result. Set to 0 to disable card-wide; individual lines can still opt back in via their own corner_room_weight.'
+            description: 'Card-wide default strength for recovering a line\'s full corner_radius near tight detours (see the per-line field of the same name for the full explanation). On by default; the LCARS rounded-corner look is the intended out-of-the-box result. Set to 0 to disable card-wide; individual lines can still opt back in via their own corner_room_weight.'
           },
 
           // Channel configuration
@@ -775,14 +775,14 @@ export function getMsdSchema() {
             min: 0,
             optional: true,
             default: 4,
-            description: 'Per-cell penalty for crossing another line\'s segment — a deterrent, not a hard block'
+            description: 'Per-cell penalty for crossing another line\'s segment: a deterrent, not a hard block'
           },
           crossing_min_length: {
             type: 'number',
             min: 0,
             optional: true,
             default: 12,
-            description: 'Minimum straight-run length to register as avoidable (viewBox units) — smaller than trunk_min_length so short stub legs are still avoidable'
+            description: 'Minimum straight-run length to register as avoidable (viewBox units), smaller than trunk_min_length so short stub legs are still avoidable'
           },
 
           // Cost function weights
@@ -881,7 +881,7 @@ export function getMsdSchema() {
         type: 'string',
         enum: ['all'],
         optional: true,
-        description: 'Card-wide escape hatch: every control overlay receives every HASS update unconditionally, bypassing the per-control entity-diff optimization for the whole card. Discouraged — prefer the per-overlay control `triggers_update: all` scoped to just the problem control.',
+        description: 'Card-wide escape hatch: every control overlay receives every HASS update unconditionally, bypassing the per-control entity-diff optimization for the whole card. Discouraged; prefer the per-overlay control `triggers_update: all` scoped to just the problem control.',
         'x-ui': {
           control: 'select',
           label: 'Update All Controls (discouraged)',

@@ -61,12 +61,12 @@ background_animation:
 
 ## Schema Structure
 
-Effects are rendered in order — first effect is the bottom layer. Combine with `inset` to constrain the animation canvas to a sub-area of the card.
+Effects are rendered in order: first effect is the bottom layer. Combine with `inset` to constrain the animation canvas to a sub-area of the card.
 
 ```yaml
 background_animation:
   fps: 30           # Max render FPS (default: 30). Use 60 for high-refresh/desktop displays.
-  inset:            # Canvas-level inset (optional) — all sides default to 0
+  inset:            # Canvas-level inset (optional) - all sides default to 0
     top: 0
     right: 0
     bottom: 40      # e.g. leave space for a footer bar
@@ -102,7 +102,7 @@ background_animation:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `fps` | number | Maximum frames per second for the animation render loop. Default `30` — half the native browser rate, sufficient for ambient animations and conserves CPU on low-end devices (Android tablets etc). Set to `60` for smoother feel on desktop or high-refresh displays. |
+| `fps` | number | Maximum frames per second for the animation render loop. Default `30`, half the native browser rate, sufficient for ambient animations and conserves CPU on low-end devices (Android tablets etc). Set to `60` for smoother feel on desktop or high-refresh displays. |
 | `inset` | object \| `'auto'` | Canvas-level offset applied to all effects. `'auto'` is only meaningful on elbow cards; on other card types it resolves to all-zero. |
 | `inset.top` | number | Pixels to inset from top (default: 0) |
 | `inset.right` | number | Pixels to inset from right (default: 0) |
@@ -119,7 +119,7 @@ The canvas minimum dimension is clamped to 1 px.
 | `config` | object | ✅ | Preset-specific configuration |
 | `zoom` | object | ❌ | Optional zoom wrapper configuration |
 
-Colour parameters in `config` accept all standard LCARdS colour formats — CSS variables, theme tokens, hex, rgba, and computed expressions (`darken()`, `alpha()`, etc.). See [Colours](../colours.md).
+Colour parameters in `config` accept all standard LCARdS colour formats: CSS variables, theme tokens, hex, rgba, and computed expressions (`darken()`, `alpha()`, etc.). See [Colours](../colours.md).
 
 ---
 
@@ -263,7 +263,7 @@ background_animation:
 
 ### Performance Tips
 
-- **FPS cap**: Default is 30fps — suitable for most devices. Set `fps: 60` only on desktop/high-refresh displays where the extra smoothness is noticeable.
+- **FPS cap**: Default is 30fps, suitable for most devices. Set `fps: 60` only on desktop/high-refresh displays where the extra smoothness is noticeable.
 - **Limit layers**: 2-3 effects is usually sufficient
 - **Use opacity**: Lower alpha values reduce visual noise
 - **Disable scroll on zoom**: Set `scroll_speed_x: 0` and `scroll_speed_y: 0` when using zoom
@@ -276,7 +276,7 @@ background_animation:
 
 Effect config parameters can react to live HA entity state or attributes. Works identically in both `background_animation` and `shape_texture`.
 
-### `map_range` — Recommended
+### `map_range`: Recommended
 
 Linearly maps an entity attribute (or state) from one numeric range to another. No template knowledge required.
 
@@ -287,11 +287,11 @@ config:
       attribute: brightness   # entity attribute to read (omit to use entity.state)
       input:  [0, 255]        # input range (raw entity value)
       output: [-200, 200]     # output range (effect param value)
-      # entity_id: light.other  # optional — defaults to the card's config.entity
-      # clamp: true             # optional, default true — clamp output to range
+      # entity_id: light.other  # optional - defaults to the card's config.entity
+      # clamp: true             # optional, default true - clamp output to range
 ```
 
-**Full example — plasma speed tracks light brightness:**
+**Full example, plasma speed tracks light brightness:**
 
 ```yaml
 entity: light.tv
@@ -322,7 +322,7 @@ background_animation:
 | `entity_id` | string | ❌ | Override entity. Defaults to card-bound `entity`. |
 | `clamp` | boolean | ❌ | Clamp output to range (default: `true`). |
 
-### Template string — Advanced
+### Template string: Advanced
 
 Evaluated on every hass update. Full JavaScript template access.
 
@@ -337,9 +337,9 @@ config:
     default: 20
 ```
 
-**Supported template types:** `[[[JavaScript]]]`, `{token.path}` — both work in any config key.
+**Supported template types:** `[[[JavaScript]]]`, `{token.path}`; both work in any config key.
 
-> **Note:** Both forms are available in `shape_texture.config` and `background_animation` effect `config`. The UI editor does not expose entity binding — use YAML mode to configure it.
+> **Note:** Both forms are available in `shape_texture.config` and `background_animation` effect `config`. The UI editor does not expose entity binding; use YAML mode to configure it.
 
 ---
 
@@ -442,7 +442,7 @@ background_animation:
 
 ### Colours Not Resolving
 
-- **Theme tokens**: Verify token path exists in the active theme — see [Themes](../themes/)
+- **Theme tokens**: Verify token path exists in the active theme; see [Themes](../themes/)
 - **Quotes**: RGBA and computed expressions must be quoted in YAML
 - **Hex colours**: Include the `#` prefix
 
@@ -475,7 +475,7 @@ background_animation:
 
 ## See Also
 
-- [Preset Reference](background-animations/preset-reference.md) — full config tables and examples for all 7 presets
-- [Animations](../animations.md) — anime.js-powered card animations (different system)
-- [Filters](filters.md) — SVG filter effects
+- [Preset Reference](background-animations/preset-reference.md): full config tables and examples for all 7 presets
+- [Animations](../animations.md): anime.js-powered card animations (different system)
+- [Filters](filters.md): SVG filter effects
 

@@ -175,11 +175,7 @@ function deriveLcardsElementPaths(defs, tags) {
 // Tags LCARdS renders on purpose even though HA never defined them. Keep this
 // list tiny and justified — everything else missing is a real break.
 const KNOWN_UNDEFINED_TAGS = new Map([
-  // Never existed in HA. Used as a plain `?hidden` tab-content wrapper by
-  // LCARdSBaseEditor and a few dialogs; as an unknown (display:inline) element
-  // its min-height/vertical padding rules don't apply, so swapping in a <div>
-  // changes every editor's layout. Migrate deliberately, with a visual check.
-  ['ha-tab-panel', 'LCARdS tab-content wrapper (never an HA element)'],
+  // [tag, reason] - currently empty (ha-tab-panel was migrated to a plain <div>).
 ]);
 
 function frontendHealthChecks(frontendPath, ref, defs, tags) {

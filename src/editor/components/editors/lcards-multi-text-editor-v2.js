@@ -313,12 +313,12 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
 
                 ${FormField.renderField(this.editor, 'text.default.background_width', {
                     label: 'Background Width (Fixed)',
-                    helper: 'Exact px width — overrides auto-sizing. Text overflows if content is wider.'
+                    helper: 'Exact px width: overrides auto-sizing. Text overflows if content is wider.'
                 })}
 
                 ${FormField.renderField(this.editor, 'text.default.background_min_width', {
                     label: 'Background Min Width',
-                    helper: 'Auto-sizes with text but never shrinks below this value — safe for dynamic content.'
+                    helper: 'Auto-sizes with text but never shrinks below this value, so safe for dynamic content.'
                 })}
             </lcards-form-section>
 
@@ -406,7 +406,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
             ${FormField.renderField(this.editor, `text.${fieldName}.display_format`, {
                 label: 'Display Format',
                 helper: hasDefaults && !fieldConfig.display_format
-                    ? 'Inherits from defaults — friendly = HA-translated, raw = actual state, parts = value+unit, unit = unit only'
+                    ? 'Inherits from defaults: friendly = HA-translated, raw = actual state, parts = value+unit, unit = unit only'
                     : 'How entity state tokens are rendered: friendly, raw, parts, or unit'
             })}
 
@@ -452,8 +452,8 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                 ${FormField.renderField(this.editor, `text.${fieldName}.font_size`, {
                     label: 'Font Size (px)',
                     helper: hasDefaults && !fieldConfig.font_size
-                        ? 'Inherits from defaults — use this OR Font Size %, not both'
-                        : 'Absolute font size in px — overrides Font Size % when set explicitly'
+                        ? 'Inherits from defaults: use this OR Font Size %, not both'
+                        : 'Absolute font size in px: overrides Font Size % when set explicitly'
                 })}
 
                 <!-- Fill-sizing group -->
@@ -568,12 +568,12 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
 
                 ${FormField.renderField(this.editor, `text.${fieldName}.background_width`, {
                     label: 'Background Width (Fixed)',
-                    helper: 'Exact px width — overrides auto-sizing. Text overflows if content is wider.'
+                    helper: 'Exact px width: overrides auto-sizing. Text overflows if content is wider.'
                 })}
 
                 ${FormField.renderField(this.editor, `text.${fieldName}.background_min_width`, {
                     label: 'Background Min Width',
-                    helper: 'Auto-sizes with text but never shrinks below this value — safe for dynamic content.'
+                    helper: 'Auto-sizes with text but never shrinks below this value, so safe for dynamic content.'
                 })}
             </lcards-form-section>
 

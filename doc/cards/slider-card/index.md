@@ -62,7 +62,7 @@ type: custom:lcards-slider
 # ── Entity & mode ─────────────────────────────────────────────────────────────────
 entity: light.bedroom      # entity to display / control
 ranges_attribute: ""       # entity attribute for range conditions
-preset: pills-left-border  # visual preset — see Presets
+preset: pills-left-border  # visual preset - see Presets
 component: shaped          # advanced: 'shaped' or 'picard'
 
 # ── Control ─────────────────────────────────────────────────────────────────────
@@ -144,14 +144,14 @@ triggers_update: []
 |--------|------|-------------|
 | `type` | string | `custom:lcards-slider` (required) |
 | `entity` | string | Entity to display and/or control |
-| `ranges_attribute` | string | Entity attribute for range conditions — see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
-| `preset` | string | Visual style preset — see [Presets](#presets) |
+| `ranges_attribute` | string | Entity attribute for range conditions: see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
+| `preset` | string | Visual style preset: see [Presets](#presets) |
 | `component` | string | Advanced SVG component: `shaped` or `picard` |
-| `control` | object | Control behaviour — see [Control Options](#control-options) |
-| `text` | object | Text label definitions — see [Text Fields](../../core/text-fields.md) |
-| `style` | object | Visual style overrides — see [Style Object](#style-object) |
-| `value_tween` | object | Ease the track (fill or pills) and markers between values on entity-driven changes — see [Value Tween](#value-tween) |
-| `drag_badge` | object | Floating badge showing the live value while dragging — see [Drag Value Badge](#drag-value-badge) |
+| `control` | object | Control behaviour: see [Control Options](#control-options) |
+| `text` | object | Text label definitions: see [Text Fields](../../core/text-fields.md) |
+| `style` | object | Visual style overrides: see [Style Object](#style-object) |
+| `value_tween` | object | Ease the track (fill or pills) and markers between values on entity-driven changes; see [Value Tween](#value-tween) |
+| `drag_badge` | object | Floating badge showing the live value while dragging; see [Drag Value Badge](#drag-value-badge) |
 
 ---
 
@@ -208,7 +208,7 @@ The slider auto-detects interactivity and default attribute from the entity doma
 | `valve` | Yes | `current_valve_position` | 0 – 100 |
 | `input_number` | Yes | state | entity `min`/`max`/`step` |
 | `number` | Yes | state | entity `min`/`max`/`step` |
-| `sensor` | No (read-only) | state | — |
+| `sensor` | No (read-only) | state | - |
 
 All other domains default to read-only (locked). Set `control.locked: true/false` to override.
 
@@ -223,75 +223,75 @@ All other domains default to read-only (locked). Set `control.locked: true/false
 | `type` | string | preset default | `pills`, `gauge`, or `shaped` |
 | `orientation` | string | `horizontal` | `horizontal` or `vertical` |
 | `height` | number / string | theme | Track height in px or CSS value |
-| `margin` | number / object | theme | Space around track — number (all sides) or `{ top, right, bottom, left }` |
+| `margin` | number / object | theme | Space around track: number (all sides) or `{ top, right, bottom, left }` |
 | `invert_fill` | boolean | `false` | Fill from the opposite end (right/top instead of left/bottom) |
 | `display.min` | number | `control.min` | Minimum value shown on visual scale |
 | `display.max` | number | `control.max` | Maximum value shown on visual scale |
-| `display.unit` | string | entity unit | Display unit — overrides entity `unit_of_measurement` |
+| `display.unit` | string | entity unit | Display unit: overrides entity `unit_of_measurement` |
 | `segments.enabled` | boolean | `true` | Enable pill segments (pills mode) |
 | `segments.count` | number | `15` | Number of pill segments |
 | `segments.gap` | number / string | `4` | Gap between pills in px |
 | `segments.shape.radius` | number | `4` | Pill corner radius in px |
 | `segments.size.width` | number | `12` | Fixed pill width in px (horizontal orientation) |
 | `segments.size.height` | number | `12` | Fixed pill height in px (vertical orientation) |
-| `segments.gradient.start` | string | — | Gradient start colour |
-| `segments.gradient.end` | string | — | Gradient end colour |
-| `segments.appearance.filled.opacity` | number | — | Opacity of filled pills (0–1) |
-| `segments.appearance.unfilled.opacity` | number | — | Opacity of unfilled pills (0–1) |
+| `segments.gradient.start` | string | - | Gradient start colour |
+| `segments.gradient.end` | string | - | Gradient end colour |
+| `segments.appearance.filled.opacity` | number | - | Opacity of filled pills (0–1) |
+| `segments.appearance.unfilled.opacity` | number | - | Opacity of unfilled pills (0–1) |
 
 ### `style.gauge`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `progress_bar.color` | string / object | theme | Filled bar colour — [state map](../../core/colours.md) supported |
+| `progress_bar.color` | string / object | theme | Filled bar colour: [state map](../../core/colours.md) supported |
 | `progress_bar.height` | number | theme | Bar cross-sectional thickness in px |
 | `progress_bar.layer` | string | `background` | `background` (behind ticks) or `foreground` (in front) |
 | `progress_bar.align` | string | `middle` | Cross-axis alignment: `start`, `middle`, or `end` |
-| `progress_bar.padding` | object | — | Fine-tune offset from aligned position: `{ top, right, bottom, left }` |
-| `progress_bar.radius` | number / object | — | Corner radius in px, or `{ start, end }` per-end |
-| `progress_bar.background.color` | string / object | — | Background track colour (drawn behind fill) |
+| `progress_bar.padding` | object | - | Fine-tune offset from aligned position: `{ top, right, bottom, left }` |
+| `progress_bar.radius` | number / object | - | Corner radius in px, or `{ start, end }` per-end |
+| `progress_bar.background.color` | string / object | - | Background track colour (drawn behind fill) |
 | `progress_bar.background.height` | number | same as bar | Background track cross-section in px |
-| `progress_bar.background.radius` | number / object | — | Background track corner radius or `{ start, end }` |
+| `progress_bar.background.radius` | number / object | - | Background track corner radius or `{ start, end }` |
 | `progress_bar.background.min` | number | `control.min` | Value where background track starts |
 | `progress_bar.background.max` | number | `control.max` | Value where background track ends |
 | `scale.tick_marks.major.enabled` | boolean | `true` | Show major ticks |
-| `scale.tick_marks.major.interval` | number | — | Major tick interval in value units |
+| `scale.tick_marks.major.interval` | number | - | Major tick interval in value units |
 | `scale.tick_marks.major.color` | string / object | theme | Major tick colour |
-| `scale.tick_marks.major.height` | number | — | Major tick height in px |
-| `scale.tick_marks.major.width` | number | — | Major tick width in px |
+| `scale.tick_marks.major.height` | number | - | Major tick height in px |
+| `scale.tick_marks.major.width` | number | - | Major tick width in px |
 | `scale.tick_marks.minor.enabled` | boolean | `true` | Show minor ticks |
-| `scale.tick_marks.minor.interval` | number | — | Minor tick interval in value units |
+| `scale.tick_marks.minor.interval` | number | - | Minor tick interval in value units |
 | `scale.tick_marks.minor.color` | string / object | theme | Minor tick colour |
-| `scale.tick_marks.minor.height` | number | — | Minor tick height in px |
-| `scale.tick_marks.minor.width` | number | — | Minor tick width in px |
+| `scale.tick_marks.minor.height` | number | - | Minor tick height in px |
+| `scale.tick_marks.minor.width` | number | - | Minor tick width in px |
 | `scale.labels.enabled` | boolean | `true` | Show scale value labels |
 | `scale.labels.show_unit` | boolean | `true` | Append unit suffix to labels |
 | `scale.labels.unit` | string | entity unit | Override unit suffix on labels |
 | `scale.labels.color` | string / object | theme | Label colour |
-| `scale.labels.font_size` | number | — | Label font size in px |
-| `scale.labels.padding` | number | — | Label padding in px |
+| `scale.labels.font_size` | number | - | Label font size in px |
+| `scale.labels.padding` | number | - | Label padding in px |
 | `indicator.enabled` | boolean / string | `true` | Show current value indicator. Also accepts a Jinja2/JS template resolving to a boolean for state-driven visibility, e.g. `"{{ not is_state('sensor.x', 'unavailable') }}"` |
 | `indicator.type` | string | `line` | `line`, `round`, or `triangle` |
-| `indicator.color` | string / object | theme | Indicator colour — [state map](../../core/colours.md) supported |
-| `indicator.size.width` | number | — | Indicator width in px |
-| `indicator.size.height` | number | — | Indicator height in px |
+| `indicator.color` | string / object | theme | Indicator colour: [state map](../../core/colours.md) supported |
+| `indicator.size.width` | number | - | Indicator width in px |
+| `indicator.size.height` | number | - | Indicator height in px |
 | `indicator.rotation` | number | `0` | Rotation angle in degrees (triangle type) |
-| `indicator.offset.x` | number | — | Horizontal position offset in px |
-| `indicator.offset.y` | number | — | Vertical position offset in px |
-| `indicator.border.enabled` | boolean | — | Show indicator border |
-| `indicator.border.width` | number | — | Indicator border width in px |
-| `indicator.border.color` | string / object | — | Indicator border colour |
+| `indicator.offset.x` | number | - | Horizontal position offset in px |
+| `indicator.offset.y` | number | - | Vertical position offset in px |
+| `indicator.border.enabled` | boolean | - | Show indicator border |
+| `indicator.border.width` | number | - | Indicator border width in px |
+| `indicator.border.color` | string / object | - | Indicator border colour |
 | `marker_indicator.type` | string | `triangle` | Default shape for value-marker range indicators |
 | `marker_indicator.align` | string | `center` | Cross-axis alignment for markers: `start`, `center`, `end` |
 | `marker_indicator.size.width` | number | `20` | Default marker width in px |
 | `marker_indicator.size.height` | number | `20` | Default marker height in px |
 | `marker_indicator.rotation` | number | `180` | Default marker rotation in degrees |
-| `marker_indicator.offset.x` | number | — | Horizontal offset in px |
-| `marker_indicator.offset.y` | number | — | Vertical offset in px |
+| `marker_indicator.offset.x` | number | - | Horizontal offset in px |
+| `marker_indicator.offset.y` | number | - | Vertical offset in px |
 | `marker_indicator.color` | string / object | range colour | Default marker colour |
-| `marker_indicator.border.enabled` | boolean | — | Show marker border |
-| `marker_indicator.border.width` | number | — | Marker border width in px |
-| `marker_indicator.border.color` | string / object | — | Marker border colour |
+| `marker_indicator.border.enabled` | boolean | - | Show marker border |
+| `marker_indicator.border.width` | number | - | Marker border width in px |
+| `marker_indicator.border.color` | string / object | - | Marker border colour |
 
 ```yaml
 style:
@@ -337,14 +337,14 @@ style:
 
 ## Value Tween
 
-Eases the gauge fill, the current-value indicator, pills, and threshold/range markers between their old and new positions whenever the bound entity's state changes on its own — a genuine LCARS-style scroll/sweep instead of an instant snap. Only applies to entity-driven changes; dragging the slider directly stays instant (see [Drag Value Badge](#drag-value-badge) for live feedback during the drag itself). Purely positional — it does not animate any text field's content (there's no "current value" text scroll/odometer effect; text fields, if configured, always show the correct value immediately).
+Eases the gauge fill, the current-value indicator, pills, and threshold/range markers between their old and new positions whenever the bound entity's state changes on its own: a genuine LCARS-style scroll/sweep instead of an instant snap. Only applies to entity-driven changes; dragging the slider directly stays instant (see [Drag Value Badge](#drag-value-badge) for live feedback during the drag itself). Purely positional: it does not animate any text field's content (there's no "current value" text scroll/odometer effect; text fields, if configured, always show the correct value immediately).
 
 ```yaml
 value_tween:
   enabled: true      # default true. Forced off under the OS-level prefers-reduced-motion setting
   duration: 500       # ms, 0-5000, default 500
   ease: outQuad        # default outQuad
-  targets:               # which elements animate — all default true
+  targets:               # which elements animate - all default true
     track: true
     markers: true
 ```
@@ -353,19 +353,19 @@ value_tween:
 |-------|------|-------------|
 | `enabled` | boolean | Enable value tweening (default `true`) |
 | `duration` | number | Tween duration in milliseconds, 0-5000 (default `500`) |
-| `ease` | string | Any anime.js v4 named easing that takes no extra parameters — `linear`, the `in`/`out`/`inOut`/`outIn` variants of Power/Quad/Cubic/Quart/Quint/Sine/Expo/Circ/Back/Elastic/Bounce, or `spring` (default `outQuad`) |
+| `ease` | string | Any anime.js v4 named easing that takes no extra parameters: `linear`, the `in`/`out`/`inOut`/`outIn` variants of Power/Quad/Cubic/Quart/Quint/Sine/Expo/Circ/Back/Elastic/Bounce, or `spring` (default `outQuad`) |
 | `targets.track` | boolean | Tween the card's primary value representation, whichever form the current track type gives it: the gauge/shaped fill plus its value indicator/needle, or the pills opacity sweep. A card is always in exactly one track type, so this single flag covers whichever one applies |
-| `targets.markers` | boolean | Tween threshold/range marker position — including its label, if any, which moves in lockstep with the marker regardless of whether `label.text` is a static string or a template (only the label's *position* is animated, never its content). In `pills` mode this also governs which pill is highlighted as the marker sweeps. Applies to `gauge` and `pills` track types — `shaped` never renders markers at all |
+| `targets.markers` | boolean | Tween threshold/range marker position: including its label, if any, which moves in lockstep with the marker regardless of whether `label.text` is a static string or a template (only the label's *position* is animated, never its content). In `pills` mode this also governs which pill is highlighted as the marker sweeps. Applies to `gauge` and `pills` track types; `shaped` never renders markers at all |
 
 The slider editor's Value Animation section always shows `track` (its label switches between "Fill" and "Pills" to match the card's current track type) and hides `markers` only in `shaped` mode, which never renders them.
 
-Zone/threshold *colours* are never tweened (they stay an instant, alert-like state change), and this has no effect while a `component: shaped` fill colour or range band colour changes — only positional/numeric elements animate.
+Zone/threshold *colours* are never tweened (they stay an instant, alert-like state change), and this has no effect while a `component: shaped` fill colour or range band colour changes; only positional/numeric elements animate.
 
 ---
 
 ## Drag Value Badge
 
-A floating badge that follows the drag position while you're actively dragging the slider — before the value is committed to the entity on release. Mirrors HA's native slider drag indicator. Works the same way across all three track types (`pills`, `gauge`, `shaped`): anchored below the track in horizontal orientation, and beside it in vertical — to the right for the default component, to the left for `component: picard`. It's never shown for entity-driven/external value changes — only for an actual user drag.
+A floating badge that follows the drag position while you're actively dragging the slider, before the value is committed to the entity on release. Mirrors HA's native slider drag indicator. Works the same way across all three track types (`pills`, `gauge`, `shaped`): anchored below the track in horizontal orientation, and beside it in vertical: to the right for the default component, to the left for `component: picard`. It's never shown for entity-driven/external value changes; only for an actual user drag.
 
 ```yaml
 drag_badge:
@@ -388,7 +388,7 @@ drag_badge:
     color:
       default: "var(--lcars-blue)"
   release:
-    behavior: fade         # "fade" | "instant" — always instant under prefers-reduced-motion
+    behavior: fade         # "fade" | "instant" - always instant under prefers-reduced-motion
     duration: 500            # ms, only used when behavior: fade
 ```
 
@@ -397,10 +397,10 @@ drag_badge:
 | `enabled` | boolean | `false` | Show the badge while dragging |
 | `format.decimals` | number | locale default | Fixed decimal places |
 | `format.show_unit` | boolean | `true` | Show the unit suffix |
-| `format.unit` | string | track display unit | Unit override — blank uses `style.track.display.unit` / entity `unit_of_measurement` |
+| `format.unit` | string | track display unit | Unit override: blank uses `style.track.display.unit` / entity `unit_of_measurement` |
 | `font_size` | number | `14` | Badge text size in pixels |
 | `offset.x` / `offset.y` | number | `0` | Pixel nudge from the default anchor point |
-| `color` | string / state-object | theme text colour | Badge text colour — supports [state-based colours](../../core/colours.md) |
+| `color` | string / state-object | theme text colour | Badge text colour: supports [state-based colours](../../core/colours.md) |
 | `background.enabled` | boolean | `true` | Show a background chip behind the text |
 | `background.color` | string / state-object | theme-aware translucent surface | Badge background colour |
 | `border.enabled` | boolean | `true` | Show a border around the badge |
@@ -433,46 +433,46 @@ style:
       max: 100
       color: "var(--warning-color)"
       opacity: 0.3
-    # Value marker — triangle at a live entity value, with a caption
+    # Value marker - triangle at a live entity value, with a caption
     - value: "{entity.attributes.target_temp}"
       color: "var(--lcards-orange)"
       label:
         text: "Target"
 ```
 
-`min`/`max`/`value` all support [templates](../../core/templates/) — but only the **synchronous** subset (JS, token, DataSource — no Jinja2), since these positions are resolved on every entity-state update. `label.text` supports the **full** template system, including Jinja2, since it's resolved separately and doesn't need to be synchronous.
+`min`/`max`/`value` all support [templates](../../core/templates/), but only the **synchronous** subset (JS, token, DataSource; no Jinja2), since these positions are resolved on every entity-state update. `label.text` supports the **full** template system, including Jinja2, since it's resolved separately and doesn't need to be synchronous.
 
 ### Range band fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `min` | number / string | required | Band start value — supports templates: `{entity.state}`, `{entity.attributes.x}`, `{states.domain.object_id.state}`, `{datasource:name}`, `{config.x}`, `{variables.x}`, `[[[JS]]]` |
-| `max` | number / string | required | Band end value — supports the same templates as `min` |
-| `color` | string / object | — | Band fill colour — [state map](../../core/colours.md) supported |
+| `min` | number / string | required | Band start value: supports templates: `{entity.state}`, `{entity.attributes.x}`, `{states.domain.object_id.state}`, `{datasource:name}`, `{config.x}`, `{variables.x}`, `[[[JS]]]` |
+| `max` | number / string | required | Band end value: supports the same templates as `min` |
+| `color` | string / object | - | Band fill colour: [state map](../../core/colours.md) supported |
 | `opacity` | number | `0.3` | Band opacity (0–1) |
 
 ### Value marker fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `value` | number / string | required | Position value — supports templates: `{entity.state}`, `{entity.attributes.x}`, `{states.domain.object_id.state}`, `{datasource:name}`, `{config.x}`, `{variables.x}`, `[[[JS]]]` |
-| `color` | string / object | — | Marker colour — [state map](../../core/colours.md) supported |
+| `value` | number / string | required | Position value: supports templates: `{entity.state}`, `{entity.attributes.x}`, `{states.domain.object_id.state}`, `{datasource:name}`, `{config.x}`, `{variables.x}`, `[[[JS]]]` |
+| `color` | string / object | - | Marker colour: [state map](../../core/colours.md) supported |
 | `indicator.type` | string | `triangle` | Shape: `line`, `round`, `triangle` |
 | `indicator.align` | string | `center` | Cross-axis pin: `start`, `center`, `end` |
-| `indicator.color` | string / object | range colour | Indicator fill colour — overrides the range's own `color` for the indicator only |
+| `indicator.color` | string / object | range colour | Indicator fill colour: overrides the range's own `color` for the indicator only |
 | `indicator.size.width` | number | `20` | Width in px |
 | `indicator.size.height` | number | `20` | Height in px |
 | `indicator.rotation` | number | `180` | Rotation in degrees |
-| `indicator.offset.x` | number | — | Horizontal offset in px |
-| `indicator.offset.y` | number | — | Vertical offset in px |
-| `indicator.border.enabled` | boolean | — | Show border on indicator |
-| `indicator.border.color` | string / object | — | Border colour |
-| `indicator.border.width` | number | — | Border width in px |
+| `indicator.offset.x` | number | - | Horizontal offset in px |
+| `indicator.offset.y` | number | - | Vertical offset in px |
+| `indicator.border.enabled` | boolean | - | Show border on indicator |
+| `indicator.border.color` | string / object | - | Border colour |
+| `indicator.border.width` | number | - | Border width in px |
 | `pill_style.stroke` | boolean | `true` | Pills mode: outline on marker pill |
 | `pill_style.stroke_width` | number | `2` | Pills mode: outline thickness in px |
-| `pill_style.stroke_color` | string/object | — | Pills mode: outline colour. Falls back to the pill fill colour (`color`) if unset. Supports state-object syntax |
+| `pill_style.stroke_color` | string/object | - | Pills mode: outline colour. Falls back to the pill fill colour (`color`) if unset. Supports state-object syntax |
 
-Global marker defaults can be set at `style.gauge.marker_indicator` — individual range entries override per field.
+Global marker defaults can be set at `style.gauge.marker_indicator`; individual range entries override per field.
 
 ### Label fields
 
@@ -480,13 +480,13 @@ An optional text caption next to the marker (gauge mode) or highlighted pill (pi
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `label.text` | string | — | Label text. Nothing renders unless this is set. Supports **all four** [template types](../../core/templates/), including Jinja2 and DataSource |
-| `label.color` | string / object | theme default | Label text colour — [state map](../../core/colours.md) supported |
-| `label.font_size` | number | `14` | Font size in px — defaults to the gauge tick-label size |
-| `label.offset.x` | number | — | Horizontal offset in px from the default position |
-| `label.offset.y` | number | — | Vertical offset in px from the default position |
+| `label.text` | string | - | Label text. Nothing renders unless this is set. Supports **all four** [template types](../../core/templates/), including Jinja2 and DataSource |
+| `label.color` | string / object | theme default | Label text colour: [state map](../../core/colours.md) supported |
+| `label.font_size` | number | `14` | Font size in px: defaults to the gauge tick-label size |
+| `label.offset.x` | number | - | Horizontal offset in px from the default position |
+| `label.offset.y` | number | - | Vertical offset in px from the default position |
 
-Default position (no `offset` set): above the marker in horizontal orientation, beside it in vertical orientation. There's no automatic collision avoidance against tick labels, the value readout, or other markers — use `offset` to manually clear overlaps, the same way `indicator.offset` already works for the marker shape itself.
+Default position (no `offset` set): above the marker in horizontal orientation, beside it in vertical orientation. There's no automatic collision avoidance against tick labels, the value readout, or other markers; use `offset` to manually clear overlaps, the same way `indicator.offset` already works for the marker shape itself.
 
 ---
 
@@ -516,21 +516,21 @@ style:
 |-------|------|---------|-------------|
 | `style.shaped.type` | string | `lozenge` | Shape: `lozenge`, `rect`, `rounded`, `diamond`, `hexagon`, `polygon`, `path` |
 | `style.shaped.radius` | number | auto | Corner radius override in px |
-| `style.shaped.fill.color` | string / object | theme | Fill colour for the active portion — [state map](../../core/colours.md) supported |
-| `style.shaped.track.background` | string / object | theme | Interior background (empty portion) colour — [state map](../../core/colours.md) supported |
+| `style.shaped.fill.color` | string / object | theme | Fill colour for the active portion: [state map](../../core/colours.md) supported |
+| `style.shaped.track.background` | string / object | theme | Interior background (empty portion) colour; [state map](../../core/colours.md) supported |
 | `style.shaped.text_bands.top.size` | number | `36` | Top text band height in px (vertical mode) |
 | `style.shaped.text_bands.bottom.size` | number | `36` | Bottom text band height in px (vertical mode) |
 | `style.shaped.text_bands.left.size` | number | `60` | Left text band width in px (horizontal mode) |
 | `style.shaped.text_bands.right.size` | number | `60` | Right text band width in px (horizontal mode) |
-| `style.shaped.polygon.points` | array | — | `[[xPct, yPct], ...]` vertices (0–1) for polygon shape |
-| `style.shaped.path.d` | string | — | Raw SVG path `d` attribute (absolute coords) |
+| `style.shaped.polygon.points` | array | - | `[[xPct, yPct], ...]` vertices (0–1) for polygon shape |
+| `style.shaped.path.d` | string | - | Raw SVG path `d` attribute (absolute coords) |
 | `style.shaped.path.translate` | boolean | `false` | Translate path to shape body origin |
 
 ---
 
 ## Picard Component
 
-Use `component: picard` for the Picard-style gauge rendering — a decorative range frame, a dedicated solid value bar, and a scanning activity indicator alongside the standard gauge elements. Requires `component: picard` explicitly; presets like `picard-gauge-vertical` only declare compatibility, they don't set it for you.
+Use `component: picard` for the Picard-style gauge rendering: a decorative range frame, a dedicated solid value bar, and a scanning activity indicator alongside the standard gauge elements. Requires `component: picard` explicitly; presets like `picard-gauge-vertical` only declare compatibility, they don't set it for you.
 
 ```yaml
 type: custom:lcards-slider
@@ -556,7 +556,7 @@ style:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `style.range.border.color` | string / object | theme | Range track border colour — [state map](../../core/colours.md) supported |
+| `style.range.border.color` | string / object | theme | Range track border colour: [state map](../../core/colours.md) supported |
 | `style.range.frame.color` | string / object | range border colour | Decorative outline colour around the range track. Falls back to `range.border.color` if unset |
 | `style.solid_bar.color` | string / object | range border colour | Solid value-bar colour. Falls back to `range.border.color` if unset |
 | `style.animation.indicator.color` | string / object | theme | Colour of the scanning/activity indicator shown during the built-in animation, if enabled on the preset |
@@ -586,14 +586,14 @@ text:
 
 ## `style.border`
 
-The slider border is a **per-side cap** system — each side is configured independently. This differs from the button card border structure.
+The slider border is a **per-side cap** system: each side is configured independently. This differs from the button card border structure.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `border.radius` | number / string / object | Uniform corner radius in px, a CSS variable string, or `{ top_left, top_right, bottom_right, bottom_left }` per-corner |
 | `border.left.enabled` | boolean | Enable left border cap |
 | `border.left.size` | number | Left border width in px |
-| `border.left.color` | string / object | Left border colour — [state map](../../core/colours.md) supported |
+| `border.left.color` | string / object | Left border colour: [state map](../../core/colours.md) supported |
 | `border.right.enabled` | boolean | Enable right border cap |
 | `border.right.size` | number | Right border width in px |
 | `border.right.color` | string / object | Right border colour |

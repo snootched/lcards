@@ -435,7 +435,7 @@ export class LCARdSFilterEditor extends LitElement {
                                 ${info.params.map(p => html`
                                     <li>
                                         <code>${p.key}</code>${p.default !== undefined ? html` (default: <code>${JSON.stringify(p.default)}</code>)` : ''}
-                                        ${p.description ? ` — ${p.description}` : ''}
+                                        ${p.description ? `: ${p.description}` : ''}
                                     </li>
                                 `)}
                             </ul>

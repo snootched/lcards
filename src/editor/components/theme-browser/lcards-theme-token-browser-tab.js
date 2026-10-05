@@ -32,6 +32,7 @@ import '../../dialogs/pack-explorer/lcards-pack-explorer-dialog.js';
 import '../../../panels/components/shared/lcards-scope-selector.js';
 import { STORAGE_KEY_THEME_OVERRIDES } from '../../../core/services/ScopedSettingsConstants.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
+import { activeHaThemeName } from '../../../utils/support-info.js';
 import { LEGACY_FIELD_DEFS } from './lcards-theme-generator-view.js';
 
 const LEGACY_KEY_SET = new Set(LEGACY_FIELD_DEFS.map(f => f.key));
@@ -2089,10 +2090,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       'ha-legacy':   { title: 'HA Legacy Semantic (--primary-*, --text-*, etc.)', vars: [] },
       'ha-color':    { title: 'HA Color System (--ha-color-*)', vars: [] },
       'ha-space':    { title: 'HA Spacing Scale (--ha-space-*)', vars: [] },
-      'ha-shape':    { title: 'HA Shape — Border Radius & Width', vars: [] },
-      'ha-motion':   { title: 'HA Motion — Animation Durations', vars: [] },
-      'ha-type':     { title: 'HA Typography — Font & Line Height', vars: [] },
-      'ha-elevation':{ title: 'HA Elevation — Box Shadows', vars: [] },
+      'ha-shape':    { title: 'HA Shape: Border Radius & Width', vars: [] },
+      'ha-motion':   { title: 'HA Motion: Animation Durations', vars: [] },
+      'ha-type':     { title: 'HA Typography: Font & Line Height', vars: [] },
+      'ha-elevation':{ title: 'HA Elevation: Box Shadows', vars: [] },
       'ha-system':   { title: 'HA System (icons, chips, dialogs, …)', vars: [] },
       'material':    { title: 'Material Design (--mdc-*, --md-*)', vars: [] },
       'wa':          { title: 'WebAwesome (--wa-*)', vars: [] },
@@ -3089,49 +3090,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * Detect the active Home Assistant theme name
    */
   _detectHaTheme() {
-    try {
-      // Try multiple methods to detect HA theme
-
-      // Method 1: Check hass.themes
-      if (this.hass?.themes?.theme) {
-        this._haThemeName = this.hass.themes.theme;
-        return;
-      }
-
-      // Method 2: Check hass.selectedTheme
-      if (this.hass?.selectedTheme) {
-        this._haThemeName = this.hass.selectedTheme;
-        return;
-      }
-
-      // Method 3: Check document data attribute
-      const themeAttr = document.documentElement.getAttribute('data-theme');
-      if (themeAttr) {
-        this._haThemeName = themeAttr;
-        return;
-      }
-
-      // Method 4: Check for theme in localStorage
-      const savedTheme = localStorage.getItem('selectedTheme');
-      if (savedTheme) {
-        try {
-          const parsed = JSON.parse(savedTheme);
-          this._haThemeName = parsed.theme || parsed;
-          return;
-        } catch (e) {
-          this._haThemeName = savedTheme;
-          return;
-        }
-      }
-
-      // Fallback
-      this._haThemeName = 'Default';
-
-      lcardsLog.debug('[ThemeTokenBrowser] Detected HA theme:', this._haThemeName);
-    } catch (error) {
-      lcardsLog.warn('[ThemeTokenBrowser] Error detecting HA theme:', error);
-      this._haThemeName = 'Unknown';
-    }
+    this._haThemeName = activeHaThemeName(this.hass) || 'Default';
+    lcardsLog.debug('[ThemeTokenBrowser] Detected HA theme:', this._haThemeName);
   }
 
   /**
@@ -3646,7 +3606,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     }
 
     // Format additional settings for black_alert and hue anchor modes
-    let additionalSettings = '—';
+    let additionalSettings = '-';
 
     if (mode === 'black_alert' && transform.contrastEnhancement) {
       const ce = transform.contrastEnhancement;
@@ -4174,7 +4134,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           <div class="override-edit-panel">
             <div class="override-edit-panel-header">
               <span class="override-edit-token-path">theme:${tokenPath}</span>
-              <span class="override-edit-default">Default: <code>${String(defaultValue ?? '—')}</code></span>
+              <span class="override-edit-default">Default: <code>${String(defaultValue ?? '-')}</code></span>
             </div>
 
             ${showAlertWarning ? html`
@@ -4257,7 +4217,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           ${isColor ? html`
             <span class="override-color-swatch" style="background:${defaultValue}"></span>
           ` : ''}
-          <span class="override-value-text" title="${defaultValue}">${String(defaultValue ?? '—')}</span>
+          <span class="override-value-text" title="${defaultValue}">${String(defaultValue ?? '-')}</span>
         </td>
         <td class="override-value-cell">
           ${hasOverride ? html`
@@ -4265,7 +4225,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
               <span class="override-color-swatch" style="background:${overrideValue}"></span>
             ` : ''}
             <span class="override-value-text override-value-active" title="${overrideValue}">${String(overrideValue)}</span>
-          ` : html`<span class="override-value-empty">—</span>`}
+          ` : html`<span class="override-value-empty">-</span>`}
         </td>
         <td class="override-actions-cell">
           <div class="override-actions">

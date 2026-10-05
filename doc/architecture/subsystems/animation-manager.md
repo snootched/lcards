@@ -1,6 +1,6 @@
 # Animation Manager
 
-> **`window.lcards.core.animationManager`** — Central anime.js v4 coordinator for card and overlay animations.
+> **`window.lcards.core.animationManager`**: Central anime.js v4 coordinator for card and overlay animations.
 
 ---
 
@@ -49,13 +49,13 @@ AnimationManager
 | `on_leave` | When the mouse leaves the card |
 | `on_entity_change` | When a watched entity changes state |
 | `on_datasource_change` | When a DataSource value crosses a threshold or changes |
-| `on_rule` | Internally-synthesized — never set this directly via `trigger:` in your own config. It's applied automatically when an animation is executed via a rule's `apply.animations` targeting; author rule-driven animations through the Rules Engine, not by hand-setting this trigger. |
+| `on_rule` | Internally-synthesized: never set this directly via `trigger:` in your own config. It's applied automatically when an animation is executed via a rule's `apply.animations` targeting; author rule-driven animations through the Rules Engine, not by hand-setting this trigger. |
 
 ---
 
 ## anime.js v4 Note
 
-LCARdS uses **anime.js v4**. The timeline API (`anime.createTimeline()`, renamed from v3's `anime.timeline()`) changed from v3. Always pass targets as CSS selectors or DOM element references resolved at runtime — not stale references cached at config time.
+LCARdS uses **anime.js v4**. The timeline API (`anime.createTimeline()`, renamed from v3's `anime.timeline()`) changed from v3. Always pass targets as CSS selectors or DOM element references resolved at runtime, not stale references cached at config time.
 
 ---
 
@@ -84,13 +84,13 @@ Custom presets are registered via `animation_presets` in pack definitions.
 | `stopAnimation(overlayId)` | `void` | Revert the overlay's entire anime.js scope (all running instances) |
 | `stopAnimations(overlayId, trigger?)` | `void` | Stop animations for one overlay, optionally filtered to a single trigger |
 | `pauseOverlay(overlayId)` / `resumeOverlay(overlayId)` | `void` | Pause/resume the anime.js scope for an overlay |
-| `getActiveAnimations()` | `Object` | `{ [overlayId]: [{ preset, trigger, duration }, ...] }` — only overlays with running animations |
+| `getActiveAnimations()` | `Object` | `{ [overlayId]: [{ preset, trigger, duration }, ...] }`: only overlays with running animations |
 | `getAllAnimationDefinitions()` | `Array` | Every registered animation definition, each tagged with its `overlayId` |
 | `inspectOverlay(overlayId)` | `Object\|null` | Debug snapshot: `{ overlayId, hasScope, activeAnimations, registeredAnimations, hasTriggerManager }` |
 | `dispose()` | `void` | Tear down the manager and all scopes |
 | `scopes` | `Map` | Internal scope registry keyed by overlay ID |
 
-Custom animation presets are registered via `animation_presets` in pack definitions (see [Pack System](pack-system.md)). `ScreenEffectManager` has its own, unrelated `registerPreset()` for full-screen effect presets — don't confuse the two.
+Custom animation presets are registered via `animation_presets` in pack definitions (see [Pack System](pack-system.md)). `ScreenEffectManager` has its own, unrelated `registerPreset()` for full-screen effect presets; don't confuse the two.
 
 ---
 
@@ -120,6 +120,6 @@ am.scopes                        // Map<overlayId, scopeData>
 
 ## See Also
 
-- [Animation Manager — Triggers (Entity Change)](../../core/animations/entity-change-triggers.md)
+- [Animation Manager: Triggers (Entity Change)](../../core/animations/entity-change-triggers.md)
 - [Rule-Based Animations](../../core/animations/rule-based-animations.md)
 - [Pack System](pack-system.md)

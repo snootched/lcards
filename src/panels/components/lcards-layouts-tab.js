@@ -212,14 +212,14 @@ function _generateShellAdaptive(inputs, size) {
         type: 'custom:lcards-button',
         preset: 'panel-light',
         min_height: 10,
-        text: { label: { show: true, content: '[ header — customize me ]' } },
+        text: { label: { show: true, content: '[ header: customize me ]' } },
         view_layout: { 'grid-area': 'header' },
       },
       // content-panel: placeholder — user replaces with a content panel card
       {
         type: 'custom:lcards-button',
         preset: 'outline',
-        text: { label: { show: true, content: '[ content-panel — paste a content panel card here ]' } },
+        text: { label: { show: true, content: '[ content-panel: paste a content panel card here ]' } },
         view_layout: { 'grid-area': 'content-panel' },
       },
       // sidebar-right: placeholder, toggled by the right-sidebar boolean
@@ -443,7 +443,7 @@ const TEMPLATES = [
   {
     id:          'shell-tablet-9',
     section:     'shell',
-    label:       'Adaptive Shell — 9"',
+    label:       'Adaptive Shell: 9"',
     icon:        'mdi:tablet',
     description: 'Full adaptive shell with page-selector sidebar, header, footer, and content-panel zone. Tuned for 9" tablets.',
     inputs: [
@@ -455,7 +455,7 @@ const TEMPLATES = [
   {
     id:          'shell-tablet-11',
     section:     'shell',
-    label:       'Adaptive Shell — 11"',
+    label:       'Adaptive Shell: 11"',
     icon:        'mdi:tablet-dashboard',
     description: 'Full adaptive shell with page-selector sidebar, header, footer, and content-panel zone. Tuned for 11" tablets.',
     inputs: [
@@ -479,8 +479,8 @@ const TEMPLATES = [
         hint:         'Card type rendered for each light entity.',
         type:         'select',
         selector:     { select: { options: [
-          { value: 'custom:lcards-slider', label: 'Slider — brightness control' },
-          { value: 'custom:lcards-button', label: 'Button — on/off toggle' },
+          { value: 'custom:lcards-slider', label: 'Slider: brightness control' },
+          { value: 'custom:lcards-button', label: 'Button: on/off toggle' },
         ], mode: 'dropdown' } },
         defaultValue: 'custom:lcards-slider',
       },
@@ -558,7 +558,7 @@ export class LCARdSLayoutsTab extends LitElement {
     try {
       const result = template.generate(this._params);
       const date   = new Date().toLocaleDateString();
-      const header = `# LCARdS Layout Library — ${date}\n# Requires: layout-card (HACS — custom:grid-layout)\n#\n`;
+      const header = `# LCARdS Layout Library: ${date}\n# Requires: layout-card (HACS: custom:grid-layout)\n#\n`;
 
       if (result.view) {
         this._generatedYaml =

@@ -41,44 +41,44 @@ overlays:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `id` | string | — | Unique identifier (required) |
-| `type` | string | — | Must be `line` |
-| `anchor` | string | — | Source overlay ID, anchor name, or `[x, y]` (required) |
-| `attach_to` | string | — | Destination overlay ID, anchor name, or `[x, y]` (required) |
-| `anchor_side` | string | auto | Attachment side on source — see [Attachment Points](#attachment-points) |
+| `id` | string | - | Unique identifier (required) |
+| `type` | string | - | Must be `line` |
+| `anchor` | string | - | Source overlay ID, anchor name, or `[x, y]` (required) |
+| `attach_to` | string | - | Destination overlay ID, anchor name, or `[x, y]` (required) |
+| `anchor_side` | string | auto | Attachment side on source: see [Attachment Points](#attachment-points) |
 | `attach_side` | string | auto | Attachment side on destination |
 | `anchor_gap` | number | `0` | Offset in viewBox units from source edge |
 | `attach_gap` | number | `0` | Offset in viewBox units from destination edge |
-| `anchor_gap_x` | number | — | Horizontal-only offset from source (overrides `anchor_gap` on X) |
-| `anchor_gap_y` | number | — | Vertical-only offset from source (overrides `anchor_gap` on Y) |
-| `attach_gap_x` | number | — | Horizontal-only offset from destination |
-| `attach_gap_y` | number | — | Vertical-only offset from destination |
-| `route` | string | `auto` | Routing mode — see [Routing Modes](#routing-modes) |
-| `waypoints` | array | — | Explicit coordinate/anchor-name list for `manual` routing — a coordinate entry may add a 3rd number, `[x, y, radius]`, to override just that corner's `corner_radius` (see [Manual Routing](./manual-routing.md#per-waypoint-corner-radius)) |
+| `anchor_gap_x` | number | - | Horizontal-only offset from source (overrides `anchor_gap` on X) |
+| `anchor_gap_y` | number | - | Vertical-only offset from source (overrides `anchor_gap` on Y) |
+| `attach_gap_x` | number | - | Horizontal-only offset from destination |
+| `attach_gap_y` | number | - | Vertical-only offset from destination |
+| `route` | string | `auto` | Routing mode: see [Routing Modes](#routing-modes) |
+| `waypoints` | array | - | Explicit coordinate/anchor-name list for `manual` routing; a coordinate entry may add a 3rd number, `[x, y, radius]`, to override just that corner's `corner_radius` (see [Manual Routing](./manual-routing.md#per-waypoint-corner-radius)) |
 | `route_hint` | string | auto | Initial segment direction: `xy` (horizontal first) or `yx` |
 | `route_hint_last` | string | auto | Final segment direction (same values as `route_hint`) |
-| `route_channels` | list | — | Channel IDs this line routes through — see [Line Routing & Channels](./routing.md#channels) |
-| `clearance` | number | — | Min clearance around obstacles in viewBox units (overrides global default) |
-| `corner_style` | string | `round` | `miter`, `round`, or `bevel` — for routed corners |
+| `route_channels` | list | - | Channel IDs this line routes through: see [Line Routing & Channels](./routing.md#channels) |
+| `clearance` | number | - | Min clearance around obstacles in viewBox units (overrides global default) |
+| `corner_style` | string | `round` | `miter`, `round`, or `bevel`, for routed corners |
 | `corner_radius` | number | `34` | Arc radius (round) or chamfer size (bevel), in viewBox units. `manual` routing: overridable per corner via `waypoints`' optional 3rd number |
-| `corner_radius_mode` | string | `auto` | `auto` or `forced` — `round`/`bevel` only; see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
+| `corner_radius_mode` | string | `auto` | `auto` or `forced`: `round`/`bevel` only; see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
 | `corner_angle` | number | `45` | `bevel` only: diagonal cut angle, 0–90° |
-| `stub_length` | number | — | Overrides the mandatory cardinal departure/arrival stub length (viewBox units) — see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
+| `stub_length` | number | - | Overrides the mandatory cardinal departure/arrival stub length (viewBox units); see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
 | `smoothing_mode` | string | `none` | `none` or `chaikin` |
 | `smoothing_iterations` | number | `0` | Smoothing pass count (0–5) |
-| `entity` | string | — | Entity to bind `style.color` / `style.fill` to (state-color object) — independent of any control's own entity |
-| `state_attribute` | string | — | Attribute whose value is matched against state-color keys instead of the raw entity state (mirrors the button card's `state_attribute`) |
-| `ranges_attribute` | string | — | Attribute value compared against `above:`/`below:`/`between:` keys (mirrors the button card's `ranges_attribute`) |
-| `z_index` | number | `100` | Stacking order — default paints below controls (200), above `base_svg` |
-| `tags` | list | — | Tags for rule targeting |
-| `style` | object | — | SVG style — see [Styling](#styling) |
-| `animations` | array | — | anime.js animations — see [Animations in MSD](../../architecture/msd/index.md) |
+| `entity` | string | - | Entity to bind `style.color` / `style.fill` to (state-color object), independent of any control's own entity |
+| `state_attribute` | string | - | Attribute whose value is matched against state-color keys instead of the raw entity state (mirrors the button card's `state_attribute`) |
+| `ranges_attribute` | string | - | Attribute value compared against `above:`/`below:`/`between:` keys (mirrors the button card's `ranges_attribute`) |
+| `z_index` | number | `100` | Stacking order: default paints below controls (200), above `base_svg` |
+| `tags` | list | - | Tags for rule targeting |
+| `style` | object | - | SVG style: see [Styling](#styling) |
+| `animations` | array | - | anime.js animations; see [Animations in MSD](../../architecture/msd/index.md) |
 
 ---
 
 ## Attachment Points
 
-Lines connect to any of 9 named sides on an overlay (control, or [shape](./shape-overlay.md) of kind `rect`/`circle`) — or to a specific vertex (`vertex0`, `vertex1`, ...) of a `polyline` shape. Omit the side fields and the system picks the closest pair automatically.
+Lines connect to any of 9 named sides on an overlay (control, or [shape](./shape-overlay.md) of kind `rect`/`circle`), or to a specific vertex (`vertex0`, `vertex1`, ...) of a `polyline` shape. Omit the side fields and the system picks the closest pair automatically.
 
 | Side | Description |
 |------|-------------|
@@ -103,7 +103,7 @@ Lines connect to any of 9 named sides on an overlay (control, or [shape](./shape
   attach_side: left
 ```
 
-In the MSD Studio editor, entering Connect Mode shows these as clickable dots on every control/shape/anchor — click a source point then a target point to create a line prefilled with the correct `anchor`/`attach_to`/`*_side`. Dragging an existing line's endpoint near a valid point snaps onto it the same way.
+In the MSD Studio editor, entering Connect Mode shows these as clickable dots on every control/shape/anchor: click a source point then a target point to create a line prefilled with the correct `anchor`/`attach_to`/`*_side`. Dragging an existing line's endpoint near a valid point snaps onto it the same way.
 
 ---
 
@@ -138,16 +138,16 @@ For independent axis control use `anchor_gap_x` / `anchor_gap_y` (overrides `anc
 
 | Mode | Description |
 |------|-------------|
-| `auto` | Default — resolves to `manhattan` for simple layouts; upgrades to `smart` automatically when obstacles or channels are present |
-| `direct` | Straight line between endpoints — never pathfinds |
+| `auto` | Default: resolves to `manhattan` for simple layouts; upgrades to `smart` automatically when obstacles or channels are present |
+| `direct` | Straight line between endpoints: never pathfinds |
 | `manhattan` | L-shaped single bend |
-| `smart` | A* pathfinding + refinement — obstacle avoidance, trace bundling, crossing avoidance |
+| `smart` | A* pathfinding + refinement: obstacle avoidance, trace bundling, crossing avoidance |
 | `grid` | A* pathfinding without the refinement pass |
 | `manual` | Explicit `waypoints` list |
 
-Routed lines automatically **bundle** with nearby parallel lines and **avoid crossing** other lines — see [Line Routing & Channels](./routing.md) for how that works, how to tune it, and how to guide lines with channels. Note that only `smart`/`grid` (or upgraded `auto`) lines participate: plain `manhattan` lines never bundle or avoid crossings.
+Routed lines automatically **bundle** with nearby parallel lines and **avoid crossing** other lines; see [Line Routing & Channels](./routing.md) for how that works, how to tune it, and how to guide lines with channels. Note that only `smart`/`grid` (or upgraded `auto`) lines participate: plain `manhattan` lines never bundle or avoid crossings.
 
-`route_hint`/`route_hint_last` steer the first/last segment direction for every pathfinding mode (`manhattan`, `smart`, `grid`, and `auto` once it upgrades to one of those) — not just `manhattan`. If you don't set them explicitly, `anchor_side`/`attach_side` set to `left`/`right`/`top`/`bottom` auto-derive the equivalent hint (`left`/`right` → horizontal, `top`/`bottom` → vertical), even when `anchor`/`attach_to` is a plain coordinate or named point anchor with no attachment-point geometry of its own — the side still expresses "leave/arrive from this direction." Corner sides (`top-left`, etc.) and `center` are ambiguous for a single axis and fall back to an automatic direction based on which axis has the larger distance between the two endpoints.
+`route_hint`/`route_hint_last` steer the first/last segment direction for every pathfinding mode (`manhattan`, `smart`, `grid`, and `auto` once it upgrades to one of those), not just `manhattan`. If you don't set them explicitly, `anchor_side`/`attach_side` set to `left`/`right`/`top`/`bottom` auto-derive the equivalent hint (`left`/`right` → horizontal, `top`/`bottom` → vertical), even when `anchor`/`attach_to` is a plain coordinate or named point anchor with no attachment-point geometry of its own; the side still expresses "leave/arrive from this direction." Corner sides (`top-left`, etc.) and `center` are ambiguous for a single axis and fall back to an automatic direction based on which axis has the larger distance between the two endpoints.
 
 ```yaml
 # Straight line
@@ -196,27 +196,27 @@ See [Manual Routing](./manual-routing.md) for the full waypoints syntax.
 
 ```yaml
 style:
-  color: var(--lcars-orange)    # Color — CSS variable, hex, rgb/rgba, theme: token, or a state-color object (see Dynamic Styling)
+  color: var(--lcars-orange)    # Color - CSS variable, hex, rgb/rgba, theme: token, or a state-color object (see Dynamic Styling)
   width: 2                      # Thickness in viewBox units
   opacity: 0.8                  # 0–1
 ```
 
-`stroke` / `stroke_width` (underscore) are accepted as legacy aliases for `color` / `width` — new configs should use `color`/`width`.
+`stroke` / `stroke_width` (underscore) are accepted as legacy aliases for `color` / `width`; new configs should use `color`/`width`.
 
 ### Dash patterns
 
 ```yaml
 style:
-  dash_array: "5,5"       # 5px dash, 5px gap — string "5,5" or array [5, 5]
+  dash_array: "5,5"       # 5px dash, 5px gap - string "5,5" or array [5, 5]
   dash_offset: 0           # Starting offset
-  line_cap: round           # round | square | butt — shapes the ends of every dash segment
-  line_join: miter          # miter | round | bevel — at path corners
+  line_cap: round           # round | square | butt - shapes the ends of every dash segment
+  line_join: miter          # miter | round | bevel - at path corners
   miter_limit: 4             # Used when line_join: miter
 ```
 
-`line_cap` has no visible effect on a *solid* stroke's closed shapes (a filled rect/circle border with no `dash_array` has no open dash ends to cap). But once a `dash_array` is set, `line_cap` shapes every individual dash segment — including on closed or curved paths, like a circle's border.
+`line_cap` has no visible effect on a *solid* stroke's closed shapes (a filled rect/circle border with no `dash_array` has no open dash ends to cap). But once a `dash_array` is set, `line_cap` shapes every individual dash segment, including on closed or curved paths, like a circle's border.
 
-**Round dots, not squares:** a "dot" made from a non-zero-length dash (e.g. `"2,2"`) with `line_cap: round` renders as an elongated pill/stadium shape, not a circle — rounding just softens the ends of an already-sized rectangle. For a true circle, use a **zero-length dash**: `dash_array: "0,4"` with `line_cap: round`. A zero-length dash's two round end-caps coincide into a perfect circle whose diameter equals `width` — so it scales correctly with stroke width, and you get true dots. The Studio dialog's "Dotted" and "Dash-Dot" presets already do this automatically. For widely-spaced circles, use the "Custom" pattern option: set Dash Length to `0`, Gap Length to whatever spacing you want, and Line Cap to `round`.
+**Round dots, not squares:** a "dot" made from a non-zero-length dash (e.g. `"2,2"`) with `line_cap: round` renders as an elongated pill/stadium shape, not a circle; rounding just softens the ends of an already-sized rectangle. For a true circle, use a **zero-length dash**: `dash_array: "0,4"` with `line_cap: round`. A zero-length dash's two round end-caps coincide into a perfect circle whose diameter equals `width`, so it scales correctly with stroke width, and you get true dots. The Studio dialog's "Dotted" and "Dash-Dot" presets already do this automatically. For widely-spaced circles, use the "Custom" pattern option: set Dash Length to `0`, Gap Length to whatever spacing you want, and Line Cap to `round`.
 
 ### Fill (self-intersecting/closed paths)
 
@@ -226,7 +226,7 @@ style:
   fill_opacity: 0.3           # 0–1
 ```
 
-`fill` defaults to `none`. It matters most on [shape overlays](./shape-overlay.md) (`rect`/`circle`/closed `polyline`), where it's the primary way to shade a room/zone — but it applies to any line style resolution the same way.
+`fill` defaults to `none`. It matters most on [shape overlays](./shape-overlay.md) (`rect`/`circle`/closed `polyline`), where it's the primary way to shade a room/zone, but it applies to any line style resolution the same way.
 
 ### Gradients
 
@@ -238,7 +238,7 @@ style:
       - { offset: '100%', color: var(--lcars-orange) }
 ```
 
-Renders as a standard left-to-right SVG `linearGradient` built from `stops`. A shorthand string form is also accepted: `gradient: "var(--lcars-blue)-to-var(--lcars-orange)"`. `type`/`direction` fields are accepted in config but not yet applied to the render (always a horizontal linear gradient regardless of value) — don't rely on `type: radial` or a non-horizontal `direction` doing anything yet.
+Renders as a standard left-to-right SVG `linearGradient` built from `stops`. A shorthand string form is also accepted: `gradient: "var(--lcars-blue)-to-var(--lcars-orange)"`. `type`/`direction` fields are accepted in config but not yet applied to the render (always a horizontal linear gradient regardless of value); don't rely on `type: radial` or a non-horizontal `direction` doing anything yet.
 
 ### Patterns
 
@@ -250,7 +250,7 @@ style:
     opacity: 0.5
 ```
 
-Currently always renders as a repeating dot pattern (a 1-viewBox-unit-radius circle tiled at `size` spacing) regardless of `pattern.type` — `type: lines`/`diagonal`/`grid`/custom SVG are accepted in config but not yet implemented differently from `dots`.
+Currently always renders as a repeating dot pattern (a 1-viewBox-unit-radius circle tiled at `size` spacing) regardless of `pattern.type`; `type: lines`/`diagonal`/`grid`/custom SVG are accepted in config but not yet implemented differently from `dots`.
 
 ### Markers (arrows)
 
@@ -258,11 +258,11 @@ Currently always renders as a repeating dot pattern (a 1-viewBox-unit-radius cir
 style:
   marker_end:
     type: arrow            # arrow (alias: triangle) | dot | diamond | line | rect (alias: square)
-    size: 10                # viewBox units — a plain numeric size, default 10 (not a small/medium/large preset)
+    size: 10                # viewBox units - a plain numeric size, default 10 (not a small/medium/large preset)
     fill: var(--lcars-orange)   # defaults to line color
     stroke: none                # optional outline
     stroke_width: 0
-    align: center                # center (default) | edge — 'edge' pins the shape's back edge (not tip) to the endpoint, so a thick line's cap never pokes past a pointed marker
+    align: center                # center (default) | edge - 'edge' pins the shape's back edge (not tip) to the endpoint, so a thick line's cap never pokes past a pointed marker
 
   marker_start:
     type: dot
@@ -277,7 +277,7 @@ Both `fill` and `stroke` accept the literal string `"match_line"` to inherit the
 
 ### State-based color and fill
 
-`style.color` and `style.fill` accept a state-color object, resolved against the line's own `entity` — the same pipeline used by buttons and sliders:
+`style.color` and `style.fill` accept a state-color object, resolved against the line's own `entity`, the same pipeline used by buttons and sliders:
 
 ```yaml
 overlays:
@@ -296,7 +296,7 @@ overlays:
         size: 10
 ```
 
-`state_attribute` matches an attribute's value against the state-color keys instead of the raw entity state; `ranges_attribute` compares an attribute against `above:`/`below:`/`between:` keys — both scoped per-line, independent of any control's own entity.
+`state_attribute` matches an attribute's value against the state-color keys instead of the raw entity state; `ranges_attribute` compares an attribute against `above:`/`below:`/`between:` keys, both scoped per-line, independent of any control's own entity.
 
 ### Templated values
 
@@ -325,7 +325,7 @@ overlays:
 
 ## Animations
 
-Lines accept an `animations:` array — anime.js triggers/presets, same syntax as control overlays and `base_svg.animations`:
+Lines accept an `animations:` array: anime.js triggers/presets, same syntax as control overlays and `base_svg.animations`:
 
 ```yaml
 - id: power_line
@@ -379,7 +379,7 @@ overlays:
     # Corner rendering / smoothing (routed corners, and manual waypoint paths)
     corner_style: string          # miter | round | bevel (default: round)
     corner_radius: number         # viewBox units (default: 34)
-    corner_radius_mode: string    # auto | forced (default: auto) — round/bevel only
+    corner_radius_mode: string    # auto | forced (default: auto) - round/bevel only
     corner_angle: number          # bevel only, 0-90 (default: 45)
     stub_length: number           # Optional: overrides mandatory cardinal stub length (viewBox units)
     smoothing_mode: string        # none | chaikin (default: none)
@@ -396,7 +396,7 @@ overlays:
 
     # Styling
     style:                        # Optional styling
-      color: string | object      # Line color — literal/token, or state-color object (default: var(--lcars-white))
+      color: string | object      # Line color - literal/token, or state-color object (default: var(--lcars-white))
       width: number                # Line thickness (default: 2)
       opacity: number               # Transparency 0-1 (default: 1.0)
       line_cap: string               # round | square | butt (default: butt)
@@ -404,10 +404,10 @@ overlays:
       miter_limit: number            # Miter limit (default: 4)
       dash_array: string | array     # Dash pattern (e.g. "5,5" or [5, 5])
       dash_offset: number            # Dash offset (default: 0)
-      fill: string | object          # Fill color — literal/token, or state-color object (default: none)
+      fill: string | object          # Fill color - literal/token, or state-color object (default: none)
       fill_opacity: number           # Fill opacity 0-1 (default: 1)
-      gradient: object                # { stops: [{offset, color}, ...] } — always linear
-      pattern: object                 # { color, size, opacity } — always dots
+      gradient: object                # { stops: [{offset, color}, ...] } - always linear
+      pattern: object                 # { color, size, opacity } - always dots
       animatable: boolean             # Eligible as an animation target (default: true)
 
       # Markers
@@ -431,7 +431,7 @@ overlays:
 
 ## See Also
 
-- [Line Routing & Channels](./routing.md) — bundling, crossing avoidance, channels, global routing config
-- [Shape Overlay](./shape-overlay.md) — polylines/rects/circles sharing this exact style system
+- [Line Routing & Channels](./routing.md): bundling, crossing avoidance, channels, global routing config
+- [Shape Overlay](./shape-overlay.md): polylines/rects/circles sharing this exact style system
 - [Control Overlay](./control-overlay.md)
 - [Manual Routing](./manual-routing.md)

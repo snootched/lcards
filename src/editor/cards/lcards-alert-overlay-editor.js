@@ -224,7 +224,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         .hass=${this.hass}
                         .label=${'Dismiss Mode'}
                         .helper=${{
-                            'dismiss':      'Dismiss: hides the overlay only — the input_select is not changed',
+                            'dismiss':      'Dismiss: hides the overlay only; the input_select is not changed',
                             'reset':        'Reset: hides the overlay AND sets input_select back to green_alert',
                             'auto-dismiss': 'Auto-Dismiss: overlay hides automatically after the configured timeout',
                             'auto-reset':   'Auto-Reset: overlay hides automatically AND resets alert_mode after the configured timeout',
@@ -339,8 +339,8 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     <strong>Per-condition overrides</strong>
                     <p style="margin:8px 0 0 0; font-size:13px; line-height:1.4;">
                         Each section below lets you customise what is shown when that alert mode
-                        is active. <strong>Alert Button Overrides</strong> — patch the default LCARdS alert button
-                        text and colours without replacing the full card. <em>Content card</em> — replace the default
+                        is active. <strong>Alert Button Overrides</strong>: patch the default LCARdS alert button
+                        text and colours without replacing the full card. <em>Content card</em>: replace the default
                         entirely with any HA card. All other settings
                         override the global defaults from the <strong>Config</strong> and
                         <strong>Backdrop</strong> tabs.
@@ -415,7 +415,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         ` : html`
                             <lcards-message
                                 type="info"
-                                message="No custom card set — the built-in lcards-button default will be used for this condition.">
+                                message="No custom card set: the built-in lcards-button default will be used for this condition.">
                             </lcards-message>
                         `}
 
@@ -493,9 +493,9 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Position (override)'}
-                        .helper=${'Content anchor point override for this condition — leave unset to use global default'}
+                        .helper=${'Content anchor point override for this condition. Leave unset to use global default'}
                         .selector=${{ select: { mode: 'dropdown', options: [
-                            { value: '', label: '— Use global default —' },
+                            { value: '', label: '(Use global default)' },
                             ...POSITION_OPTIONS,
                         ]}}}
                         .value=${pos}
@@ -506,7 +506,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Width (override)'}
-                            .helper=${'CSS width override, e.g. 400px — blank = global default'}
+                            .helper=${'CSS width override, e.g. 400px; blank = global default'}
                             .selector=${{ text: {} }}
                             .value=${width}
                             @value-changed=${(e) => this._setConditionProp(condKey, 'width', e.detail.value || undefined)}>
@@ -515,7 +515,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Height (override)'}
-                            .helper=${'CSS height override, e.g. 300px — blank = global default'}
+                            .helper=${'CSS height override, e.g. 300px; blank = global default'}
                             .selector=${{ text: {} }}
                             .value=${height}
                             @value-changed=${(e) => this._setConditionProp(condKey, 'height', e.detail.value || undefined)}>
@@ -579,14 +579,14 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
 
                 <lcards-message
                     type="info"
-                    message="These overrides are applied on top of the built-in default alert button. Only specify the fields you want to change — type, component, and preset are inherited automatically. Has no effect when a custom Content Card is set above.">
+                    message="These overrides are applied on top of the built-in default alert button. Only specify the fields you want to change; type, component, and preset are inherited automatically. Has no effect when a custom Content Card is set above.">
                 </lcards-message>
 
                 <!-- Alert label -->
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Alert Label (alert_text)'}
-                    .helper=${'Override the top alert label text — leave blank to use the built-in default (e.g. ALERT)'}
+                    .helper=${'Override the top alert label text. Leave blank to use the built-in default (e.g. ALERT)'}
                     .selector=${{ text: {} }}
                     .value=${alertLabel}
                     @value-changed=${(e) => this._setAlertButtonProp(condKey, 'text.alert_text.content', e.detail.value)}>
@@ -635,7 +635,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Sub-text Content'}
-                        .helper=${'Override the sub-text message — leave blank to use the built-in default (e.g. CONDITION: RED)'}
+                        .helper=${'Override the sub-text message: leave blank to use the built-in default (e.g. CONDITION: RED)'}
                         .selector=${{ text: {} }}
                         .value=${isEntityMode ? '' : subTextVal}
                         @value-changed=${(e) => this._setAlertButtonProp(condKey, 'text.sub_text.content', e.detail.value)}>
@@ -758,7 +758,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         }
 
         const options = [
-            ...(isCondition ? [{ value: '__inherit__', label: '— Inherit global —' }] : []),
+            ...(isCondition ? [{ value: '__inherit__', label: '(Inherit global)' }] : []),
             { value: '__none__', label: 'None (disabled)' },
             ...slotPresets.map(p => ({ value: p.name, label: p.label ?? p.name })),
         ];
@@ -1001,7 +1001,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 // @ts-ignore - TS2339: auto-suppressed
                 if (ha?.showToast) {
                     // @ts-ignore - TS2339: auto-suppressed
-                    ha.showToast({ message: 'Card picker loading — click "Add Card" once on any dashboard view to enable it, then try again.', duration: 4000 });
+                    ha.showToast({ message: 'Card picker loading: click "Add Card" once on any dashboard view to enable it, then try again.', duration: 4000 });
                 }
             } catch (_) { /* ignore */ }
             return;

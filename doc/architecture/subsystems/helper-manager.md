@@ -1,6 +1,6 @@
 # Helper Manager
 
-> **`window.lcards.core.helperManager`** — Lifecycle management for LCARdS `input_*` helper entities.
+> **`window.lcards.core.helperManager`**: Lifecycle management for LCARdS `input_*` helper entities.
 
 ---
 
@@ -14,9 +14,9 @@
 
 | File | Role |
 |---|---|
-| `core/helpers/lcards-helper-manager.js` | Service — lifecycle, subscriptions, value cache |
-| `core/helpers/lcards-helper-registry.js` | Schema registry — defines all required helpers with types/defaults |
-| `core/helpers/lcards-helper-api.js` | WebSocket operations — `ensureHelper`, `getHelperValue`, `setHelperValue` |
+| `core/helpers/lcards-helper-manager.js` | Service: lifecycle, subscriptions, value cache |
+| `core/helpers/lcards-helper-registry.js` | Schema registry: defines all required helpers with types/defaults |
+| `core/helpers/lcards-helper-api.js` | WebSocket operations: `ensureHelper`, `getHelperValue`, `setHelperValue` |
 
 ---
 
@@ -24,12 +24,12 @@
 
 | Helper entity | Type | Purpose |
 |---|---|---|
-| `input_select.lcards_alert_mode` | `input_select` | Current alert state (`green_alert`/`red_alert`/`yellow_alert`/`blue_alert`/`gray_alert`/`black_alert` — note the `_alert` suffix on every option) |
+| `input_select.lcards_alert_mode` | `input_select` | Current alert state (`green_alert`/`red_alert`/`yellow_alert`/`blue_alert`/`gray_alert`/`black_alert`; note the `_alert` suffix on every option) |
 | `input_select.lcards_sound_scheme` | `input_select` | Active sound scheme |
 | `input_boolean.lcards_sounds_enabled` | `input_boolean` | Global sound on/off |
 | `input_number.lcards_sound_volume` | `input_number` | Master volume 0–1 |
 
-This is a commonly-used subset, not the full list — `HELPER_REGISTRY` defines around 49 helpers total, grouped into three categories: `alert_system` (~36, incl. per-alert-color LAB tuning knobs), `ha_lcars_theme` (~7), and `sound` (~6). Helpers can be auto-created from the [Config Panel](../../configuration/).
+This is a commonly-used subset, not the full list; `HELPER_REGISTRY` defines around 49 helpers total, grouped into three categories: `alert_system` (~36, incl. per-alert-color LAB tuning knobs), `ha_lcars_theme` (~7), and `sound` (~6). Helpers can be auto-created from the [Config Panel](../../configuration/).
 
 ---
 
@@ -49,7 +49,7 @@ const unsub = hm.subscribeToHelper('alert_mode', (newValue, oldValue) => {
   console.log('Alert mode changed to', newValue);
 });
 
-// Later — call the returned unsub() to remove just this callback,
+// Later - call the returned unsub() to remove just this callback,
 // or hm.unsubscribeFromHelper('alert_mode') to clear ALL callbacks for that key.
 ```
 
@@ -92,6 +92,6 @@ await hm.getMissingHelpers()                 // list helpers not yet created
 
 ## See Also
 
-- [Configuration — Helpers](../../configuration/persistent-helpers.md)
+- [Configuration: Helpers](../../configuration/persistent-helpers.md)
 - [Alert Mode](../../core/alert-mode.md)
 - [Config Panel](../../configuration/index.md)

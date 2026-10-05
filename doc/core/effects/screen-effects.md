@@ -2,14 +2,14 @@
 
 > **Full-screen visual effects that sit above all HA and LCARdS UI**
 
-Screen effects cover the entire viewport with composited overlays — blur, colour tints, TV static, pixelation, glitch artefacts, CRT scanlines, and more. They are designed for alert states, dramatic transitions, and automation-triggered feedback.
+Screen effects cover the entire viewport with composited overlays: blur, colour tints, TV static, pixelation, glitch artefacts, CRT scanlines, and more. They are designed for alert states, dramatic transitions, and automation-triggered feedback.
 
 ---
 
 ## Quick Start
 
 ```js
-// Browser console — play for 2 seconds then auto-dismiss
+// Browser console - play for 2 seconds then auto-dismiss
 window.lcards.screenEffect.play('static', { duration: 2000 })
 
 // Apply slot effects persistently (stays until cleared)
@@ -34,7 +34,7 @@ data:
 
 ### Backdrop presets
 
-These use the CSS `backdrop-filter` property — they filter the browser content visually without obscuring it with an opaque layer. Works best on content-rich dashboards.
+These use the CSS `backdrop-filter` property; they filter the browser content visually without obscuring it with an opaque layer. Works best on content-rich dashboards.
 
 #### `blur`
 
@@ -106,7 +106,7 @@ Semi-transparent colour flood over the entire screen.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `color` | string | `'rgba(0,0,0,0.5)'` | Any CSS colour — hex, rgb, rgba, hsl |
+| `color` | string | `'rgba(0,0,0,0.5)'` | Any CSS colour: hex, rgb, rgba, hsl |
 
 ```yaml
 service: lcards.trigger_effect
@@ -122,7 +122,7 @@ data:
 
 #### `vignette`
 
-Dark radial gradient at the screen edges — like a cinematic vignette.
+Dark radial gradient at the screen edges, like a cinematic vignette.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -135,7 +135,7 @@ Dark radial gradient at the screen edges — like a cinematic vignette.
 These draw directly above all content using a Canvas2D rAF loop. They blend with the underlying screen using CSS `mix-blend-mode` so content shows through.
 
 ::: info Canvas and screen content
-For browser security reasons, canvas effects cannot read the actual pixels of the HA dashboard — they generate synthetic overlays. The visual result is an obscuring or distorting texture layered over the real content.
+For browser security reasons, canvas effects cannot read the actual pixels of the HA dashboard; they generate synthetic overlays. The visual result is an obscuring or distorting texture layered over the real content.
 :::
 
 #### `static`
@@ -164,7 +164,7 @@ data:
 
 #### `pixelate`
 
-Mosaic of small dark blocks with subtle lightness variance. Simulates low-resolution signal degradation. Uses `mix-blend-mode: multiply` — blocks darken content proportionally.
+Mosaic of small dark blocks with subtle lightness variance. Simulates low-resolution signal degradation. Uses `mix-blend-mode: multiply`; blocks darken content proportionally.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -240,10 +240,10 @@ data:
 
 ### `lcards.trigger_effect`
 
-Fire one or more layered screen effects from an automation, script, or developer tools. Each of the three **slots** is configured independently — include only the slots you want.
+Fire one or more layered screen effects from an automation, script, or developer tools. Each of the three **slots** is configured independently; include only the slots you want.
 
 ```yaml
-# Full red alert — blur + red tint + TV static
+# Full red alert - blur + red tint + TV static
 service: lcards.trigger_effect
 data:
   layers:
@@ -271,7 +271,7 @@ data:
 ```
 
 ```yaml
-# Persistent blur on a specific user — stays until lcards.clear_effect
+# Persistent blur on a specific user - stays until lcards.clear_effect
 service: lcards.trigger_effect
 data:
   layers:
@@ -355,7 +355,7 @@ window.lcards.screenEffect.applySlot('canvas', 'static', { opacity: 0.3 })
 // apply() is a shorthand for single-slot presets by name
 window.lcards.screenEffect.apply('blur', { amount: '12px' })
 
-// Transient single-slot effect — auto-dismisses after duration ms
+// Transient single-slot effect - auto-dismisses after duration ms
 window.lcards.screenEffect.play('static', { duration: 2000, scale: 6 })
 
 // Remove effects
@@ -380,6 +380,6 @@ window.lcards.screenEffect.registerPreset('my-green', {
 
 ## Related
 
-- [Background Animations](./background-animations.md) — card-scoped canvas animations
-- [Card Animations](../animations.md) — anime.js per-element animations
-- [Alert Overlay](../../cards/alert-overlay/) — full-screen alert card that uses screen effects for its backdrop
+- [Background Animations](./background-animations.md): card-scoped canvas animations
+- [Card Animations](../animations.md): anime.js per-element animations
+- [Alert Overlay](../../cards/alert-overlay/): full-screen alert card that uses screen effects for its backdrop

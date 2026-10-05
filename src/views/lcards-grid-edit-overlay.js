@@ -51,9 +51,9 @@ const AREA_ALIGN_H_OPTIONS = [
     { value: 'end',     label: 'Right' },
 ];
 const AREA_OVERFLOW_OPTIONS = [
-    { value: 'visible', label: 'Visible — bleeds beyond cell' },
-    { value: 'clip',    label: 'Clip — hard clip, no scroll' },
-    { value: 'hidden',  label: 'Hidden — clip + block context' },
+    { value: 'visible', label: 'Visible: bleeds beyond cell' },
+    { value: 'clip',    label: 'Clip: hard clip, no scroll' },
+    { value: 'hidden',  label: 'Hidden: clip + block context' },
     { value: 'auto',    label: 'Scroll when needed (auto)' },
     { value: 'scroll',  label: 'Always scroll' },
 ];
@@ -2160,7 +2160,7 @@ export class LCARdSGridEditOverlay extends LitElement {
                     <div class="drag-grip" @pointerdown=${this._areaPanelDragStart} title="Drag to move">
                         <ha-icon icon="mdi:drag"></ha-icon>
                     </div>
-                    <div class="ap-title">Area — ${name}</div>
+                    <div class="ap-title">Area: ${name}</div>
                     <button class="ap-close" title="Close" @click=${() => { this._areaSettings = null; }}>×</button>
                 </div>
                 <div class="ap-body">

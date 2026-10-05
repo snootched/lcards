@@ -33,7 +33,7 @@
 export const LCARDS_IMAGES_PACK = {
     id: 'lcards_images',
     version: __LCARDS_VERSION__,
-    description: 'LCARdS built-in image library — named raster and SVG images for card backgrounds and shape textures',
+    description: 'LCARdS built-in image library: named raster and SVG images for card backgrounds and shape textures',
 
     /**
      * Image asset definitions.
@@ -59,49 +59,49 @@ export const LCARDS_IMAGES_PACK = {
             url: '/lcards/images/astrographix_visuals-sun-1494070_1920.jpg',
             label: 'Sun',
             category: 'space',
-            description: 'Close-up of the sun — astrographix_visuals (Pixabay #1494070)',
+            description: 'Close-up of the sun: astrographix_visuals (Pixabay #1494070)',
         },
         stars_blue_green: {
             url: '/lcards/images/geralt-stars-2643089_1920.jpg',
             label: 'Stars (blue/green)',
             category: 'space',
-            description: 'Star field — geralt (Pixabay #2643089)',
+            description: 'Star field: geralt (Pixabay #2643089)',
         },
         starry_sky: {
             url: '/lcards/images/hans-starry-sky-1655503_1920.jpg',
             label: 'Starry Sky',
             category: 'space',
-            description: 'Starry night sky — hans (Pixabay #1655503)',
+            description: 'Starry night sky: hans (Pixabay #1655503)',
         },
         ds9_station: {
             url: '/lcards/images/janson_g-space-station-2749367.png',
             label: 'DS9 Model Station',
             category: 'sci-fi',
-            description: 'Space station — janson_g (Pixabay #2749367)',
+            description: 'Space station: janson_g (Pixabay #2749367)',
         },
         borg_cube: {
             url: '/lcards/images/kifoku-borg-5108780.png',
             label: 'Borg Cube',
             category: 'sci-fi',
-            description: 'Borg — kifoku (Pixabay #5108780)',
+            description: 'Borg: kifoku (Pixabay #5108780)',
         },
         stars_blue: {
             url: '/lcards/images/pexels-stars-2179083_1920.jpg',
             label: 'Stars (blue)',
             category: 'space',
-            description: 'Star field — Pexels (#2179083)',
+            description: 'Star field: Pexels (#2179083)',
         },
         nebula_green_orange: {
             url: '/lcards/images/wikiimages-space-11097_1920.jpg',
             label: 'Nebula (green/orange)',
             category: 'space',
-            description: 'Deep space — WikiImages (Pixabay #11097)',
+            description: 'Deep space: WikiImages (Pixabay #11097)',
         },
         nebula_orange_red: {
             url: '/lcards/images/wikiimages-stars-67616_1920.jpg',
             label: 'Nebula (orange/red)',
             category: 'space',
-            description: 'Star field — WikiImages (Pixabay #67616)',
+            description: 'Star field: WikiImages (Pixabay #67616)',
         },
     }
 };

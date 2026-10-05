@@ -22,7 +22,7 @@ rules:
           duration: 1000
 ```
 
-When `sensor.cpu_temp` exceeds 75, all cards tagged `temperature_widgets` start pulsing. When it drops back below 75, the rule unmatches and the animations **stop automatically** — no cleanup needed.
+When `sensor.cpu_temp` exceeds 75, all cards tagged `temperature_widgets` start pulsing. When it drops back below 75, the rule unmatches and the animations **stop automatically**, no cleanup needed.
 
 ---
 
@@ -57,7 +57,7 @@ apply:
 ```
 
 ::: info Different from style patch selectors
-Style patches (`apply.overlays`) use **colon-prefixed map keys** — e.g. `tag:alert-buttons:`. Animation commands use **property names on array items** — e.g. `- tag: alert-buttons`. The two systems look similar but have different YAML structures.
+Style patches (`apply.overlays`) use **colon-prefixed map keys**, e.g. `tag:alert-buttons:`. Animation commands use **property names on array items**, e.g. `- tag: alert-buttons`. The two systems look similar but have different YAML structures.
 :::
 
 ---
@@ -80,7 +80,7 @@ apply:
         blur_max: 12
 ```
 
-`map_range` descriptors work here too — map a live sensor value to an animation parameter:
+`map_range` descriptors work here too; map a live sensor value to an animation parameter:
 
 ```yaml
 apply:
@@ -99,7 +99,7 @@ apply:
 
 ---
 
-## Lifecycle — Automatic Stop on Unmatch
+## Lifecycle: Automatic Stop on Unmatch
 
 Looping animations started by a rule are tracked by the Rules Engine. When the rule transitions from matched to unmatched, all looping animations it started are stopped automatically.
 
@@ -124,7 +124,7 @@ Non-looping animations (`loop: false`) run to completion regardless of whether t
 
 ## Multi-Card Coordination Example
 
-Red alert: pulse action buttons, strobe the alert overlay, shimmer all elbows — all from one rule.
+Red alert: pulse action buttons, strobe the alert overlay, shimmer all elbows, all from one rule.
 
 ```yaml
 rules:
@@ -172,7 +172,7 @@ apply:
 
 ## See Also
 
-- [Animations overview](../animations.md) — structure, per-card triggers, options
-- [Preset Reference](preset-reference.md) — all available presets
-- [Entity Change Triggers](entity-change-triggers.md) — per-card entity-based triggers
-- [Rules Engine](../rules/) — full rules reference including conditions and the `apply` block
+- [Animations overview](../animations.md): structure, per-card triggers, options
+- [Preset Reference](preset-reference.md): all available presets
+- [Entity Change Triggers](entity-change-triggers.md): per-card entity-based triggers
+- [Rules Engine](../rules/): full rules reference including conditions and the `apply` block

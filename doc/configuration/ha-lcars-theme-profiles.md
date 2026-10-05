@@ -35,7 +35,7 @@ Both profiles include independent **light** and **dark** mode sections and cover
 
 ## Installation
 
-The profiles are appended to the end of your existing HA-LCARS `themes.yaml` file.  This is the standard HA-LCARS extension pattern — no existing theme entries are modified.
+The profiles are appended to the end of your existing HA-LCARS `themes.yaml` file.  This is the standard HA-LCARS extension pattern; no existing theme entries are modified.
 
 1. Open your HA-LCARS `themes.yaml` file (typically `config/themes/ha-lcars/themes.yaml`).
 2. Scroll to the **very end** of the file.
@@ -49,7 +49,7 @@ The profiles are appended to the end of your existing HA-LCARS `themes.yaml` fil
 
 ### HA Core Colour Tokens
 
-Home Assistant's frontend exposes an 11-shade scale (05 → 95) for five colour families: `primary`, `neutral`, `orange`, `red`, and `green`.  These are consumed by stock HA components.  The profiles map each HA shade **1:1** to the matching stop on the [LCARdS 11-stop palette scale](../core/themes/index.md#lcards-css-colour-palette) — LCARdS's own palette was expanded from its original 7 canon stops specifically so this mapping wouldn't need to lossily collapse multiple HA shades onto the same colour.
+Home Assistant's frontend exposes an 11-shade scale (05 → 95) for five colour families: `primary`, `neutral`, `orange`, `red`, and `green`.  These are consumed by stock HA components.  The profiles map each HA shade **1:1** to the matching stop on the [LCARdS 11-stop palette scale](../core/themes/index.md#lcards-css-colour-palette); LCARdS's own palette was expanded from its original 7 canon stops specifically so this mapping wouldn't need to lossily collapse multiple HA shades onto the same colour.
 
 The family mapping differs per profile accent:
 
@@ -63,9 +63,9 @@ The family mapping differs per profile accent:
 
 ### Semantic Tokens (text-on-fill contrast)
 
-Remapping the shade scale alone isn't enough for readable text: HA computes button, chip, and form-field text colours (`--ha-color-on-*`) by referencing a fixed tone number within the same palette (e.g. "text = tone 40 of whatever primary is"), on the assumption that any colour a theme substitutes will still read clearly at that tone. That assumption doesn't hold equally for every hue — LCARdS's orange family has a narrower readable-lightness range than its blue family, which is why the Red Accent profile could otherwise generate low-contrast button text.
+Remapping the shade scale alone isn't enough for readable text: HA computes button, chip, and form-field text colours (`--ha-color-on-*`) by referencing a fixed tone number within the same palette (e.g. "text = tone 40 of whatever primary is"), on the assumption that any colour a theme substitutes will still read clearly at that tone. That assumption doesn't hold equally for every hue: LCARdS's orange family has a narrower readable-lightness range than its blue family, which is why the Red Accent profile could otherwise generate low-contrast button text.
 
-Both profiles now explicitly set the full `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer, with every text/background pairing checked against real WCAG contrast math and corrected where HA's mechanical default would fail — rather than relying on the shade-scale remapping to produce readable results by chance. See [ha-css-vars.md](../development/ha-css-vars.md#layer-2--semantic-colour-tokens) for the full technical detail.
+Both profiles now explicitly set the full `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer, with every text/background pairing checked against real WCAG contrast math and corrected where HA's mechanical default would fail, rather than relying on the shade-scale remapping to produce readable results by chance. See [ha-css-vars.md](../development/ha-css-vars.md#layer-2--semantic-colour-tokens) for the full technical detail.
 
 ---
 

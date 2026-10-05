@@ -292,9 +292,9 @@ export class LCARdSRuleApplyEditor extends LitElement {
                     ${overlays.map(ov => html`
                         <tr>
                             <td class="ref-id">${ov.id}</td>
-                            <td class="ref-type">${ov.type || '—'}</td>
-                            <td class="ref-tags">${ov.tags?.length ? ov.tags.join(', ') : '—'}</td>
-                            <td class="ref-source">${ov.sourceCardId || '—'}</td>
+                            <td class="ref-type">${ov.type || '-'}</td>
+                            <td class="ref-tags">${ov.tags?.length ? ov.tags.join(', ') : '-'}</td>
+                            <td class="ref-source">${ov.sourceCardId || '-'}</td>
                             <td>
                                 <button
                                     class="copy-btn"
@@ -312,7 +312,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
 
             <div class="selectors-info">
                 <strong>Bulk selectors:</strong>
-                <code>all</code> — every overlay ·
+                <code>all</code>: every overlay ·
                 <code>type:&lt;typename&gt;</code> ·
                 <code>tag:&lt;tagname&gt;</code> ·
                 <code>pattern:&lt;regex&gt;</code> ·

@@ -362,7 +362,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
             <lcards-form-section
               header="Storage Keys"
               icon="mdi:database"
-              description="Live view of all persisted backend data. Use with care — deleting keys may reset service configuration."
+              description="Live view of all persisted backend data. Use with care: deleting keys may reset service configuration."
               ?expanded=${true}
               ?outlined=${true}
               ?noCollapse=${true}

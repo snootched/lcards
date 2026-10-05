@@ -18,7 +18,7 @@ filters:
     value: 1.3
 ```
 
-Filters are applied in order — first filter is innermost.
+Filters are applied in order: first filter is innermost.
 
 ---
 
@@ -26,8 +26,8 @@ Filters are applied in order — first filter is innermost.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `type` | string | — | Filter type (required) — see tables below |
-| `value` | string / number / object | — | Filter value — format depends on type |
+| `type` | string | - | Filter type (required): see tables below |
+| `value` | string / number / object | - | Filter value: format depends on type |
 | `mode` | string | `css` | `css` for CSS filter functions, `svg` for SVG filter primitives |
 
 ---
@@ -85,7 +85,7 @@ filters:
 
 ## SVG Filters (`mode: svg`)
 
-SVG filters use the browser's SVG filter pipeline and support compositing, displacement, turbulence, and colour matrix operations. More powerful than CSS filters — use when CSS isn't sufficient.
+SVG filters use the browser's SVG filter pipeline and support compositing, displacement, turbulence, and colour matrix operations. More powerful than CSS filters; use when CSS isn't sufficient.
 
 Multiple SVG filter primitives in the same `filters:` array are chained in sequence (output of each becomes input to the next).
 
@@ -93,7 +93,7 @@ Multiple SVG filter primitives in the same `filters:` array are chained in seque
 |--------|---------------|--------|
 | `feGaussianBlur` | `stdDeviation` (number) | Gaussian blur (SVG quality) |
 | `feColorMatrix` | `type` (`saturate` / `hueRotate` / `matrix` / `luminanceToAlpha`), `values` | Colour transformations |
-| `feOffset` | `dx`, `dy` (numbers) | Shift the image — use before `feBlend` for shadow effects |
+| `feOffset` | `dx`, `dy` (numbers) | Shift the image: use before `feBlend` for shadow effects |
 | `feBlend` | `mode` (`normal` / `multiply` / `screen` / `overlay` / etc.), `in2` | Blend two layers |
 | `feComposite` | `operator` (`over` / `in` / `out` / `arithmetic`), plus `k1–k4` for arithmetic | Composite two layers |
 | `feMorphology` | `operator` (`erode` / `dilate`), `radius` | Shrink or grow shapes |
@@ -149,7 +149,7 @@ filters:
 
 ## Live Demos
 
-Every filter type below runs live in your browser — the actual `applyBaseSvgFilters()` source, not a hand-copied approximation — with tweakable controls and a copy-pasteable YAML snippet.
+Every filter type below runs live in your browser (the actual `applyBaseSvgFilters()` source, not a hand-copied approximation) with tweakable controls and a copy-pasteable YAML snippet.
 
 ### CSS Filters
 
@@ -209,7 +209,7 @@ Every filter type below runs live in your browser — the actual `applyBaseSvgFi
 #### `feDisplacementMap`
 <FilterPlayground type="feDisplacementMap" />
 
-> `feDisplacementMap` distorts using a displacement map from another source — on its own (without a `feTurbulence` primitive feeding it real noise) this demo has nothing to displace *by*, so it may look like a no-op. Chain it after `feTurbulence` in a real config to see the distortion.
+> `feDisplacementMap` distorts using a displacement map from another source; on its own (without a `feTurbulence` primitive feeding it real noise) this demo has nothing to displace *by*, so it may look like a no-op. Chain it after `feTurbulence` in a real config to see the distortion.
 
 #### `tint`
 <FilterPlayground type="tint" />
@@ -218,6 +218,6 @@ Every filter type below runs live in your browser — the actual `applyBaseSvgFi
 
 ## Related
 
-- [Animations](../animations.md) — animate CSS filter values over time using the `pulse` or custom anime.js presets
-- [Styles](../styles.md) — card background and border styles
-- [Background Animations](background-animations.md) — canvas-based animated backgrounds (separate from filters)
+- [Animations](../animations.md): animate CSS filter values over time using the `pulse` or custom anime.js presets
+- [Styles](../styles.md): card background and border styles
+- [Background Animations](background-animations.md): canvas-based animated backgrounds (separate from filters)

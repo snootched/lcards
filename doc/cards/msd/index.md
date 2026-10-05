@@ -2,7 +2,7 @@
 
 `custom:lcards-msd-card`
 
-Master Systems Display — a zoomable SVG canvas on which you position any Home Assistant card as an overlay. Lines (routes) connect anchors across the canvas, and shapes (polylines, rectangles, circles) add freeform decorative or structural geometry — rooms, zones, conduits. Supports rules-based automation of overlay styles and base SVG filters.
+Master Systems Display: a zoomable SVG canvas on which you position any Home Assistant card as an overlay. Lines (routes) connect anchors across the canvas, and shapes (polylines, rectangles, circles) add freeform decorative or structural geometry: rooms, zones, conduits. Supports rules-based automation of overlay styles and base SVG filters.
 
 ::: tip New to MSD?
 This page is the config reference. For a UI-only walkthrough of building your first MSD (no YAML) using MSD Studio, see [Quick Start](./quick-start.md).
@@ -46,8 +46,8 @@ msd:
 | `msd` | object | Full MSD configuration (required) |
 | `id` | string | Card ID for rule targeting |
 | `tags` | list | Tags for rule targeting |
-| `rules` | list | Rules for dynamic overlay styling — see [Rules Engine](../../core/rules/) |
-| `data_sources` | object | data source definitions — see [Data Sources](../../core/datasources/) |
+| `rules` | list | Rules for dynamic overlay styling: see [Rules Engine](../../core/rules/) |
+| `data_sources` | object | data source definitions: see [Data Sources](../../core/datasources/) |
 
 ---
 
@@ -58,10 +58,10 @@ msd:
 | `base_svg` | object | SVG source and filters (required) |
 | `view_box` | string / array | `"auto"` or `[minX, minY, width, height]` |
 | `anchors` | object | Named `[x, y]` anchor points for overlay placement |
-| `overlays` | list | Control, line, and shape overlays — see below |
-| `routing` | object | Global line routing settings — see below |
-| `channels` | object | Named routing corridors for guiding/bundling lines — see below |
-| `animations` | list | Bulk-target a group of overlays with one animation, by CSS selector — see below |
+| `overlays` | list | Control, line, and shape overlays; see below |
+| `routing` | object | Global line routing settings: see below |
+| `channels` | object | Named routing corridors for guiding/bundling lines; see below |
+| `animations` | list | Bulk-target a group of overlays with one animation, by CSS selector; see below |
 
 ---
 
@@ -69,14 +69,14 @@ msd:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `source` | string | SVG source — `builtin:<name>`, `/local/path.svg`, a `media-source://…` content ID picked via the HA media library, or `none` |
-| `filters` | list | CSS/SVG filters (opacity, blur, brightness, tint, etc.) — see [Base SVG Filters](./base-svg-filters.md) |
+| `source` | string | SVG source: `builtin:<name>`, `/local/path.svg`, a `media-source://…` content ID picked via the HA media library, or `none` |
+| `filters` | list | CSS/SVG filters (opacity, blur, brightness, tint, etc.); see [Base SVG Filters](./base-svg-filters.md) |
 | `render_visual` | boolean | Default `true`. Set `false` to hide the SVG as the visible background (e.g. to use `background_animation` instead) while still parsing it for anchors. |
-| `harvest_landmarks` | boolean | Default `true`. Computes geometric landmark anchors (`hull_center`, `extremity_bow`/`extremity_stern`/`extremity_top`/`extremity_bottom`, `lateral_a`/`lateral_b`) from the SVG's own silhouette — see [Automatic Anchors](#automatic-anchors) below. |
-| `harvest_svg_elements` | boolean | Default `true`. Harvests anchors from any named `<circle>`/`<text>`/`<g>` element already present in the SVG markup — see [Automatic Anchors](#automatic-anchors) below. |
-| `animations` | list | Animations targeting elements *inside* the base SVG, by id/class — same `target`/`targets` selector syntax as [Card Animations](../../core/animations.md). Not to be confused with `msd.animations` (below), which targets *overlays*, not base-SVG internals. |
+| `harvest_landmarks` | boolean | Default `true`. Computes geometric landmark anchors (`hull_center`, `extremity_bow`/`extremity_stern`/`extremity_top`/`extremity_bottom`, `lateral_a`/`lateral_b`) from the SVG's own silhouette; see [Automatic Anchors](#automatic-anchors) below. |
+| `harvest_svg_elements` | boolean | Default `true`. Harvests anchors from any named `<circle>`/`<text>`/`<g>` element already present in the SVG markup; see [Automatic Anchors](#automatic-anchors) below. |
+| `animations` | list | Animations targeting elements *inside* the base SVG, by id/class; same `target`/`targets` selector syntax as [Card Animations](../../core/animations.md). Not to be confused with `msd.animations` (below), which targets *overlays*, not base-SVG internals. |
 
-In MSD Studio's Base SVG tab, the "Browse HA Media" source mode lets you pick an SVG uploaded to Home Assistant's media library, filtered to SVG's actual MIME type (`image/svg+xml`) so only SVG files show up — alongside the existing Asset Library (built-in ships) and Custom Path (typed `/local/…` or URL) modes.
+In MSD Studio's Base SVG tab, the "Browse HA Media" source mode lets you pick an SVG uploaded to Home Assistant's media library, filtered to SVG's actual MIME type (`image/svg+xml`) so only SVG files show up, alongside the existing Asset Library (built-in ships) and Custom Path (typed `/local/…` or URL) modes.
 
 ### Filters
 
@@ -93,7 +93,7 @@ base_svg:
     brightness: 0.8
 ```
 
-Rules can change `filters` dynamically — see the rules example below.
+Rules can change `filters` dynamically; see the rules example below.
 
 ---
 
@@ -110,12 +110,12 @@ anchors:
 
 ### Automatic Anchors
 
-Anchors listed under `anchors:` aren't the only ones available — every `base_svg` also contributes two automatically-derived sources, both on by default:
+Anchors listed under `anchors:` aren't the only ones available: every `base_svg` also contributes two automatically-derived sources, both on by default:
 
-* **Computed landmarks** (`base_svg.harvest_landmarks`) — a fixed set of geometric anchors derived from the SVG's own silhouette: `hull_center`, `extremity_bow`, `extremity_stern`, `extremity_top`, `extremity_bottom`, and (on twin-hull shapes, e.g. nacelles) `lateral_a`/`lateral_b`. Useful for attaching overlays to a blueprint that has no hand-placed anchors at all.
-* **Harvested SVG elements** (`base_svg.harvest_svg_elements`) — any named `<circle id="...">`, `<ellipse id="...">`, `<text id="...">`, `<rect id="...">`, or `<g id="...">` element already present in the SVG markup is exposed as an anchor under that element's own `id` (`rect` uses its bounding-box center; the others use their native position). Since these ids often come straight from the design tool that exported the SVG, they can be arbitrary/auto-numbered (e.g. `g293`) rather than meaningful names.
+* **Computed landmarks** (`base_svg.harvest_landmarks`): a fixed set of geometric anchors derived from the SVG's own silhouette: `hull_center`, `extremity_bow`, `extremity_stern`, `extremity_top`, `extremity_bottom`, and (on twin-hull shapes, e.g. nacelles) `lateral_a`/`lateral_b`. Useful for attaching overlays to a blueprint that has no hand-placed anchors at all.
+* **Harvested SVG elements** (`base_svg.harvest_svg_elements`): any named `<circle id="...">`, `<ellipse id="...">`, `<text id="...">`, `<rect id="...">`, or `<g id="...">` element already present in the SVG markup is exposed as an anchor under that element's own `id` (`rect` uses its bounding-box center; the others use their native position). Since these ids often come straight from the design tool that exported the SVG, they can be arbitrary/auto-numbered (e.g. `g293`) rather than meaningful names.
 
-All three sources merge into one anchor set with this precedence — later wins on a name collision:
+All three sources merge into one anchor set with this precedence, later wins on a name collision:
 
 ```
 computed landmarks  <  harvested SVG elements  <  anchors: (this section)
@@ -123,7 +123,7 @@ computed landmarks  <  harvested SVG elements  <  anchors: (this section)
 
 So defining `bridge: [520, 380]` under `anchors:` always overrides a same-named computed or harvested anchor. Set `base_svg.harvest_landmarks: false` and/or `base_svg.harvest_svg_elements: false` to disable either automatic source entirely (e.g. to silence a noisy harvested-element list).
 
-In MSD Studio's Anchors tab, the two automatic sources are shown in their own read-only **"Base SVG: Computed"** and **"Base SVG: Harvested"** sections (search/filter both by name), alongside the toggle switches above. Each entry has a **Promote to User Anchor** action that opens the Add Anchor form pre-filled with its current position — useful for renaming a harvested `g293` into something meaningful before it becomes a real, editable entry under `anchors:`. A **Promote All** action does the same in bulk for everything currently matching the active filter.
+In MSD Studio's Anchors tab, the two automatic sources are shown in their own read-only **"Base SVG: Computed"** and **"Base SVG: Harvested"** sections (search/filter both by name), alongside the toggle switches above. Each entry has a **Promote to User Anchor** action that opens the Add Anchor form pre-filled with its current position, useful for renaming a harvested `g293` into something meaningful before it becomes a real, editable entry under `anchors:`. A **Promote All** action does the same in bulk for everything currently matching the active filter.
 
 ---
 
@@ -135,7 +135,7 @@ Embeds any HA card at a position on the canvas.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string | Overlay ID — required; used for rule targeting |
+| `id` | string | Overlay ID: required; used for rule targeting |
 | `type` | string | `control` |
 | `anchor` | string | Anchor name to centre on |
 | `position` | array | Explicit `[x, y]` position (overrides `anchor`) |
@@ -157,7 +157,7 @@ Embeds any HA card at a position on the canvas.
     preset: lozenge
 ```
 
-Full reference: [Control Overlay](./control-overlay.md) — attachment points, `card:` examples, rules integration.
+Full reference: [Control Overlay](./control-overlay.md): attachment points, `card:` examples, rules integration.
 
 ### Line Overlay
 
@@ -169,7 +169,7 @@ Routes a line between two anchors on the canvas.
 | `type` | string | `line` |
 | `anchor` | string | Source anchor name |
 | `attach_to` | string | Target anchor name |
-| `route` | string | Routing algorithm — see table below |
+| `route` | string | Routing algorithm: see table below |
 | `waypoints` | list | Intermediate `[x, y]` points or anchor names |
 | `route_hint` | string | Initial segment direction: `xy` (horizontal first) or `yx` |
 | `corner_style` | string | `miter`, `round`, or `bevel` |
@@ -181,11 +181,11 @@ Routes a line between two anchors on the canvas.
 
 | `route` value | Description |
 |--------------|-------------|
-| `auto` | Recommended default — always full pathfinding: obstacle avoidance, trunk bundling, crossing avoidance |
+| `auto` | Recommended default: always full pathfinding: obstacle avoidance, trunk bundling, crossing avoidance |
 | `direct` | Straight line |
-| `manhattan` | L-shaped (single bend) — advanced opt-out, no bundling/crossing avoidance |
-| `smart` | What `auto` resolves to — A* pathfinding plus a refinement pass |
-| `grid` | Same as `smart` without the refinement pass — advanced opt-out |
+| `manhattan` | L-shaped (single bend): advanced opt-out, no bundling/crossing avoidance |
+| `smart` | What `auto` resolves to: A* pathfinding plus a refinement pass |
+| `grid` | Same as `smart` without the refinement pass, advanced opt-out |
 | `manual` | Explicit `waypoints` list |
 
 ```yaml
@@ -199,11 +199,11 @@ Routes a line between two anchors on the canvas.
   corner_radius: 6
 ```
 
-Full reference: [Line Overlay](./line-overlay.md) — attachment sides, gaps, dynamic/state-based color, gradients, patterns, markers, animations.
+Full reference: [Line Overlay](./line-overlay.md): attachment sides, gaps, dynamic/state-based color, gradients, patterns, markers, animations.
 
 ### Shape Overlay
 
-Freeform geometry — polylines, rectangles, circles — for rooms, zones, conduits, and other decorative or structural shapes. Shares its complete styling system with the line overlay (dashed strokes, state-based color/fill, animations), and lines can attach to a shape's corners or vertices the same way they attach to controls.
+Freeform geometry (polylines, rectangles, circles) for rooms, zones, conduits, and other decorative or structural shapes. Shares its complete styling system with the line overlay (dashed strokes, state-based color/fill, animations), and lines can attach to a shape's corners or vertices the same way they attach to controls.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -228,7 +228,7 @@ Freeform geometry — polylines, rectangles, circles — for rooms, zones, condu
     fill: alpha(var(--lcars-orange), 0.12)
 ```
 
-Full reference: [Shape Overlay](./shape-overlay.md) — all three kinds, attachment points, drawing/editing in MSD Studio.
+Full reference: [Shape Overlay](./shape-overlay.md): all three kinds, attachment points, drawing/editing in MSD Studio.
 
 ---
 
@@ -244,9 +244,9 @@ Global routing defaults that apply to all lines unless overridden per-line. The 
 | `trunk_line_spacing` | number | `8` | Lane gap between bundled lines (viewBox units) |
 | `trunk_proximity` | number | `32` | How close lines must run to bundle (viewBox units) |
 | `crossing_avoid_enabled` | boolean | `true` | Lines avoid crossing each other when a small detour suffices |
-| `crossing_avoid_bias` | number | `4` | Crossing penalty — higher accepts longer detours |
+| `crossing_avoid_bias` | number | `4` | Crossing penalty: higher accepts longer detours |
 
-New to routing? [Routing Concepts](./routing-concepts.md) covers the mental model first. Full reference — including channels, bundling behavior, and every advanced knob: [Line Routing & Channels](./routing.md).
+New to routing? [Routing Concepts](./routing-concepts.md) covers the mental model first. Full reference, including channels, bundling behavior, and every advanced knob: [Line Routing & Channels](./routing.md).
 
 ---
 
@@ -274,7 +274,7 @@ Lines opt in with `route_channels: [main_bus]`. See [Line Routing & Channels](./
 ## `animations` (Overlay Group) Object
 
 Bulk-target a *group* of overlays with one animation declaration, by CSS selector
-against `data-overlay-id` (or any other attribute/class) — instead of repeating the
+against `data-overlay-id` (or any other attribute/class), instead of repeating the
 same `animations:` entry on every overlay in the group. Defined **directly under
 `msd:`**, sibling to `overlays`/`base_svg`:
 
@@ -287,44 +287,44 @@ msd:
       duration: 800
 ```
 
-This matches shape, line, and control overlays uniformly — the selector runs against
+This matches shape, line, and control overlays uniformly; the selector runs against
 the shared overlay container, so it doesn't care what kind of overlay it lands on.
 For control overlays embedding a non-LCARdS HA card, this animates the control's own
 positioned wrapper (opacity/transform/glow-style effects), not the embedded card's
-internals — LCARdS has no access to an arbitrary HA card's own DOM.
+internals; LCARdS has no access to an arbitrary HA card's own DOM.
 
 Each entry uses the exact same field set as `base_svg.animations` and per-overlay
-`animations:` — see [Card Animations](../../core/animations.md) for the full
+`animations:`; see [Card Animations](../../core/animations.md) for the full
 `trigger`/`preset`/`duration`/`ease`/`loop`/`target`/`targets`/etc. reference.
 
 **Target the animatable element, not the overlay's `<g>` wrapper.** Every shape/line
 overlay renders as `<g data-overlay-id="...">` wrapping its actual visible geometry
 (a `<path>`, `<rect>`, or `<ellipse>` marked `data-animatable="true"`). A selector
 matching only the wrapper (`[data-overlay-id^="shield_"]` alone) still animates
-*something* — `opacity`/`transform`-based presets look correct, since those
-composite across the whole subtree regardless of which element they're set on — but
+*something*: `opacity`/`transform`-based presets look correct, since those
+composite across the whole subtree regardless of which element they're set on, but
 color-based presets (`stroke`/`fill`, e.g. `stagger-flash`'s `trail_color`) silently
 do nothing visible: `stroke`/`fill` are inherited SVG properties, and the inner
 geometry element already carries its own explicit `stroke`/`fill` (from the
 overlay's own `style.color`/`style.fill`), which always wins over an inherited value
 from an animated ancestor. Append `[data-animatable="true"]` to reach the real
-element (as in the example above) to avoid this — control overlays are the
+element (as in the example above) to avoid this; control overlays are the
 exception: the `<foreignObject>` itself is the correct target, with no descendant
 equivalent.
 
 The MSD Studio editor's target/targets picker builds this correctly for you: pick
 **"All Shapes overlays"**, **"All Lines overlays"**, or **"All Controls overlays"**
 to bulk-target by overlay type, or **"All `"<prefix>_*"` overlays"** for any group
-of overlays sharing an id prefix before their first underscore — e.g. Shield
+of overlays sharing an id prefix before their first underscore, e.g. Shield
 Bubble's `shield_fore`/`shield_starboard`/`shield_aft`/`shield_port` (or
 `shield_section_N`) convention automatically offers an **"All `"shield_*"`
 overlays"** option once 2+ segments exist. These options are pre-aimed at the
 correct element (the animatable descendant for shape/line, the wrapper itself for
 controls), so picking one sidesteps the wrapper-vs-animatable-element pitfall above
-entirely — prefer them over hand-writing the selector.
+entirely; prefer them over hand-writing the selector.
 
 This does not play in MSD Studio's live preview while editing, matching
-`base_svg.animations` and per-overlay animations — check the effect in the actual
+`base_svg.animations` and per-overlay animations; check the effect in the actual
 Lovelace dashboard.
 
 ---

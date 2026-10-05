@@ -43,11 +43,19 @@ function detectStyling(hass) {
     };
 }
 
+/**
+ * The HA theme this browser actually renders: the user's own pick, else the global theme.
+ * @param {any} hass
+ * @returns {string|null}
+ */
+export function activeHaThemeName(hass) {
+    return hass?.selectedTheme?.theme || hass?.themes?.theme || null;
+}
+
 function detectTheme(hass) {
     const rootStyle = getComputedStyle(document.documentElement);
     return {
-        // What this browser actually renders: the user's own pick, else the global theme.
-        haTheme: hass?.selectedTheme?.theme || hass?.themes?.theme || null,
+        haTheme: activeHaThemeName(hass),
         defaultTheme: hass?.themes?.default_theme ?? null,
         darkMode: hass?.themes?.darkMode ?? null,
         haLcarsActive: HA_LCARS_PROBE_VARS.some(v => rootStyle.getPropertyValue(v).trim() !== ''),

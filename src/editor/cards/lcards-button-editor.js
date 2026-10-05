@@ -275,12 +275,12 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
             ? Object.keys(this.hass.states[entityId].attributes || {}).sort()
                   .map(attr => ({ value: attr, label: attr }))
             : [];
-        const options = [{ value: '__none__', label: '— Control entity state' }, ...attrOpts];
+        const options = [{ value: '__none__', label: '(Control entity state)' }, ...attrOpts];
         return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'Attribute'}
-                .helper=${'Entity attribute to control. Select "— Control entity state" to clear.'}
+                .helper=${'Entity attribute to control. Select "(Control entity state)" to clear.'}
                 .disabled=${!entityId}
                 .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
                 .value=${currentAttribute || '__none__'}
@@ -579,7 +579,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         baseConfig.push({
             type: 'section',
             header: 'Sizing',
-            description: 'Override card dimensions — useful in stacks, overlays, or any auto-height container',
+            description: 'Override card dimensions: useful in stacks, overlays, or any auto-height container',
             icon: 'mdi:resize',
             expanded: false,
             outlined: true,
@@ -596,8 +596,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         { type: 'field', path: 'max_width',  label: 'Max Width',  helper: 'Ceiling width. Bare integer = px, or CSS units (e.g. 600px, 80vw).' },
                         { type: 'field', path: 'overflow',   label: 'Overflow',   helper: 'Sets both axes. Use overflow_x / overflow_y to override per axis.' },
                         { type: 'field', path: 'z_index',    label: 'Z-Index',    helper: 'Stacking order. Higher = in front within the same stacking context.' },
-                        { type: 'field', path: 'overflow_x', label: 'Overflow X', helper: 'Horizontal axis — overrides the Overflow setting.' },
-                        { type: 'field', path: 'overflow_y', label: 'Overflow Y', helper: 'Vertical axis — overrides the Overflow setting.' },
+                        { type: 'field', path: 'overflow_x', label: 'Overflow X', helper: 'Horizontal axis: overrides the Overflow setting.' },
+                        { type: 'field', path: 'overflow_y', label: 'Overflow Y', helper: 'Vertical axis: overrides the Overflow setting.' },
                     ]
                 },
                 { type: 'custom', render: () => this._renderLayoutCardHint() }
@@ -755,7 +755,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _renderActionsTab() {
         const isInteractive = this.config.interactive !== false;
         const cursorOptions = [
-            { value: 'pointer',      label: 'Pointer (hand) — default' },
+            { value: 'pointer',      label: 'Pointer (hand), default' },
             { value: 'default',      label: 'Default (arrow)' },
             { value: 'none',         label: 'None (hidden)' },
             { value: 'not-allowed',  label: 'Not allowed' },
@@ -1215,7 +1215,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     </lcards-message>
                 ` : html`
                     <lcards-message type="info">
-                        Ranges are evaluated top-to-bottom — the first match wins.
+                        Ranges are evaluated top-to-bottom; the first match wins.
                         Each row maps a value condition to a component preset.
                         The attribute used for range comparisons is set in
                         <strong>Entity Configuration → Range Attribute</strong> above.
@@ -1426,7 +1426,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 headerLevel="4">
 
                 <lcards-message type="info"
-                    message="These colors take highest priority — they override both the active preset and the segments settings below. Leave blank to inherit from the active preset.">
+                    message="These colors take highest priority: they override both the active preset and the segments settings below. Leave blank to inherit from the active preset.">
                 </lcards-message>
 
                 <div style="display: flex; flex-direction: column; gap: 8px; padding: 8px 0;">

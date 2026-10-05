@@ -104,17 +104,17 @@ triggers_update: []
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `type` | string | — | `custom:lcards-chart` (required) |
-| `source` | string | — | Single entity ID (simple mode) |
-| `attribute` | string | — | Entity attribute to track (with `source`) |
-| `sources` | list | — | Multiple entities or data source references |
-| `data_sources` | object | — | Named data source definitions — see [Data Sources](../../core/datasources/) |
-| `chart_type` | string | `line` | Chart type — see [Chart Types](#chart-types) |
-| `series_names` | list | — | Display names for each series (matches `sources` order) |
+| `type` | string | - | `custom:lcards-chart` (required) |
+| `source` | string | - | Single entity ID (simple mode) |
+| `attribute` | string | - | Entity attribute to track (with `source`) |
+| `sources` | list | - | Multiple entities or data source references |
+| `data_sources` | object | - | Named data source definitions: see [Data Sources](../../core/datasources/) |
+| `chart_type` | string | `line` | Chart type: see [Chart Types](#chart-types) |
+| `series_names` | list | - | Display names for each series (matches `sources` order) |
 | `xaxis_type` | string | `datetime` | X-axis scale: `datetime`, `category`, or `numeric` |
 | `max_points` | number | `0` | Maximum history points to render; `0` = unlimited |
-| `show_legend` | boolean | `false` | **Deprecated** — use `style.legend.show` instead |
-| `style` | object | — | All chart appearance config — see [style Object](#style-object) |
+| `show_legend` | boolean | `false` | **Deprecated**: use `style.legend.show` instead |
+| `style` | object | - | All chart appearance config: see [style Object](#style-object) |
 
 ---
 
@@ -139,7 +139,7 @@ triggers_update: []
 | `treemap` | Treemap chart |
 | `boxPlot` | Box plot |
 
-> **Note**: `candlestick`, `rangeBar`, `rangeArea`, `polarArea`, `treemap`, and `boxPlot` require datasource data in the ApexCharts-specific format for those types (e.g. OHLC arrays for `candlestick`). They are advanced chart types — refer to the [ApexCharts documentation](https://apexcharts.com/docs) for data format details.
+> **Note**: `candlestick`, `rangeBar`, `rangeArea`, `polarArea`, `treemap`, and `boxPlot` require datasource data in the ApexCharts-specific format for those types (e.g. OHLC arrays for `candlestick`). They are advanced chart types; refer to the [ApexCharts documentation](https://apexcharts.com/docs) for data format details.
 
 ---
 
@@ -193,7 +193,7 @@ See [Data Sources](../../core/datasources/) for full processing options.
 
 ## `style` Object
 
-All chart appearance configuration lives under `style`. Colour values accept all formats supported by [Colours](../../core/colours.md) — `var(--lcars-*)`, `{theme:...}`, hex, and rgba.
+All chart appearance configuration lives under `style`. Colour values accept all formats supported by [Colours](../../core/colours.md): `var(--lcars-*)`, `{theme:...}`, hex, and rgba.
 
 ### `style.colors`
 
@@ -201,13 +201,13 @@ Controls colours for every visual element. All sub-keys are optional.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `style.colors.series` | list | Series fill/line colours — cycles through array |
-| `style.colors.stroke` | list | Series stroke/outline colours — cycles through array |
-| `style.colors.fill` | list | Area fill colours — cycles through array |
+| `style.colors.series` | list | Series fill/line colours: cycles through array |
+| `style.colors.stroke` | list | Series stroke/outline colours: cycles through array |
+| `style.colors.fill` | list | Area fill colours: cycles through array |
 | `style.colors.background` | string | Chart background colour |
 | `style.colors.foreground` | string | Default text and label colour |
 | `style.colors.grid` | string | Grid line colour |
-| `style.colors.marker.fill` | list | Data point fill colours — defaults to `series` colours |
+| `style.colors.marker.fill` | list | Data point fill colours: defaults to `series` colours |
 | `style.colors.marker.stroke` | list | Data point stroke colours |
 | `style.colors.axis.x` | string | X-axis label colour |
 | `style.colors.axis.y` | string | Y-axis label colour |
@@ -246,11 +246,11 @@ style:
 |-------|------|---------|-------------|
 | `style.fill.type` | string | `solid` | `solid`, `gradient`, `pattern`, `image` |
 | `style.fill.opacity` | number | `0.7` | Fill opacity |
-| `style.fill.gradient.shade` | string | — | `light` or `dark` |
-| `style.fill.gradient.type` | string | — | `horizontal`, `vertical`, `diagonal1`, `diagonal2` |
-| `style.fill.gradient.shadeIntensity` | number | — | Shade intensity |
-| `style.fill.gradient.opacityFrom` | number | — | Gradient start opacity |
-| `style.fill.gradient.opacityTo` | number | — | Gradient end opacity |
+| `style.fill.gradient.shade` | string | - | `light` or `dark` |
+| `style.fill.gradient.type` | string | - | `horizontal`, `vertical`, `diagonal1`, `diagonal2` |
+| `style.fill.gradient.shadeIntensity` | number | - | Shade intensity |
+| `style.fill.gradient.opacityFrom` | number | - | Gradient start opacity |
+| `style.fill.gradient.opacityTo` | number | - | Gradient end opacity |
 
 ```yaml
 style:
@@ -280,8 +280,8 @@ style:
 | `style.grid.show` | boolean | `true` | Show/hide grid lines |
 | `style.grid.opacity` | number | `0.3` | Grid line opacity |
 | `style.grid.stroke_dash_array` | number | `4` | Grid line dash gap |
-| `style.grid.row_colors` | list | — | Alternating row background colours |
-| `style.grid.column_colors` | list | — | Alternating column background colours |
+| `style.grid.row_colors` | list | - | Alternating row background colours |
+| `style.grid.column_colors` | list | - | Alternating column background colours |
 
 ---
 
@@ -333,7 +333,7 @@ style:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `style.yaxis.labels.show` | boolean | `true` | Show/hide axis labels |
-| `style.yaxis.decimals` | number | — | Round displayed values to N decimal places (axis labels, tooltips, and data labels) |
+| `style.yaxis.decimals` | number | - | Round displayed values to N decimal places (axis labels, tooltips, and data labels) |
 | `style.yaxis.border.show` | boolean | `false` | Show/hide axis border line |
 | `style.yaxis.ticks.show` | boolean | `false` | Show/hide tick marks |
 
@@ -367,9 +367,9 @@ Controls ApexCharts' built-in theme/palette engine. Takes lower precedence than 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `style.theme.mode` | string | `dark` | `dark` or `light` |
-| `style.theme.palette` | string | — | ApexCharts palette name (e.g. `palette1`-`palette10`) |
+| `style.theme.palette` | string | - | ApexCharts palette name (e.g. `palette1`-`palette10`) |
 | `style.theme.monochrome.enabled` | boolean | `false` | Use a single-hue monochrome palette |
-| `style.theme.monochrome.color` | string | — | Base colour for monochrome palette |
+| `style.theme.monochrome.color` | string | - | Base colour for monochrome palette |
 | `style.theme.monochrome.shade_to` | string | `dark` | `dark` or `light` |
 | `style.theme.monochrome.shade_intensity` | number | `0.65` | Shade spread |
 
@@ -377,16 +377,16 @@ Controls ApexCharts' built-in theme/palette engine. Takes lower precedence than 
 
 ### `style.formatters`
 
-Custom format strings for axis labels and tooltips. These use a lightweight chart-specific syntax — they are **not** evaluated by the LCARdS template engine.
+Custom format strings for axis labels and tooltips. These use a lightweight chart-specific syntax; they are **not** evaluated by the LCARdS template engine.
 
 **Axis label format strings** (`xaxis_label`, `yaxis_label`) work in two modes:
-- **Date format** (no `{` in string): formats x-axis timestamps using tokens — `HH:mm`, `MMM DD`, `YYYY-MM-DD`, `ddd`, etc. Only meaningful for `xaxis_label` on `datetime` axes.
-- **Value template** (contains `{value}`): replaces `{value}` with the axis value — e.g. `{value}°C`, `{value}%`.
+- **Date format** (no `{` in string): formats x-axis timestamps using tokens: `HH:mm`, `MMM DD`, `YYYY-MM-DD`, `ddd`, etc. Only meaningful for `xaxis_label` on `datetime` axes.
+- **Value template** (contains `{value}`): replaces `{value}` with the axis value, e.g. `{value}°C`, `{value}%`.
 
 **Tooltip format strings** (`tooltip`) support:
-- `{x|format}` — x value formatted as a date using the given tokens (e.g. `{x|MMM DD HH:mm}`)
-- `{x}` — x value formatted as a date with the default format (`MMM DD HH:mm`)
-- `{y}` — y value
+- `{x|format}`: x value formatted as a date using the given tokens (e.g. `{x|MMM DD HH:mm}`)
+- `{x}`: x value formatted as a date with the default format (`MMM DD HH:mm`)
+- `{y}`: y value
 
 | Field | Type | Examples |
 |-------|------|----------|
@@ -394,7 +394,7 @@ Custom format strings for axis labels and tooltips. These use a lightweight char
 | `style.formatters.yaxis_label` | string | `{value}°C` · `{value}%` · `{value} kWh` |
 | `style.formatters.tooltip` | string | `{x\|MMM DD HH:mm}: {y}°C` · `{x}: {y}` |
 
-> **Note**: `style.formatters.yaxis_label` sets a single formatter for all y-axes. For per-axis formatting on multi-axis charts, use `style.chart_options` (see below) — but be aware that `formatter` must be a JavaScript function and cannot be expressed in YAML. Use `decimalsInFloat` in `chart_options.yaxis[*]` for decimal precision per axis instead.
+> **Note**: `style.formatters.yaxis_label` sets a single formatter for all y-axes. For per-axis formatting on multi-axis charts, use `style.chart_options` (see below), but be aware that `formatter` must be a JavaScript function and cannot be expressed in YAML. Use `decimalsInFloat` in `chart_options.yaxis[*]` for decimal precision per axis instead.
 
 ---
 
@@ -402,7 +402,7 @@ Custom format strings for axis labels and tooltips. These use a lightweight char
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `style.animation.preset` | string | Animation preset name — see table below |
+| `style.animation.preset` | string | Animation preset name: see table below |
 
 ```yaml
 style:
@@ -423,7 +423,7 @@ style:
 
 ### `style.chart_options`
 
-Raw ApexCharts options object, merged on top of all other style settings. Use this for advanced ApexCharts configuration that has no LCARdS-level equivalent — such as multi-axis `yaxis` arrays, `plotOptions`, `annotations`, etc.
+Raw ApexCharts options object, merged on top of all other style settings. Use this for advanced ApexCharts configuration that has no LCARdS-level equivalent, such as multi-axis `yaxis` arrays, `plotOptions`, `annotations`, etc.
 
 ```yaml
 style:

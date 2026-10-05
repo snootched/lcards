@@ -11,7 +11,7 @@ Each button is a full `lcards-button` under the hood, so every preset, style ove
 ## Quick Start
 
 ```yaml
-# Minimal — entity options auto-enumerated, single column, lozenge preset
+# Minimal - entity options auto-enumerated, single column, lozenge preset
 type: custom:lcards-select-menu
 entity: input_select.view_selector
 preset: lozenge
@@ -88,7 +88,7 @@ type: custom:lcards-select-menu
 entity: input_select.view_selector
 
 # ── Preset ─────────────────────────────────────────────────────────────────────
-preset: lozenge              # button shape preset — see Presets
+preset: lozenge              # button shape preset - see Presets
 
 # ── Grid layout ────────────────────────────────────────────────────────────────
 grid:
@@ -97,7 +97,7 @@ grid:
   grid-auto-rows: 48px
 
 # ── Options ────────────────────────────────────────────────────────────────────
-options:                     # object or array form — see Options
+options:                     # object or array form - see Options
   Bridge:
     label: BRIDGE
     icon: mdi:bridge
@@ -153,10 +153,10 @@ tags: [nav]
 | `type` | string | `custom:lcards-select-menu` (required) |
 | `entity` | string | `input_select.*` or `select.*` entity to monitor and control |
 | `preset` | string | Button shape preset applied to every option button (e.g. `lozenge`, `bullet`) |
-| `grid` | object | Layout grid — see [`grid`](#grid-object) below |
-| `options` | object / list | Option overrides — see [`options`](#options) below |
-| `style` | object | Visual style overrides for all buttons — see [`style`](#style-object) below |
-| `button_template` | object | Advanced base `lcards-button` config applied to every option — see [`button_template`](#button_template) below |
+| `grid` | object | Layout grid: see [`grid`](#grid-object) below |
+| `options` | object / list | Option overrides: see [`options`](#options) below |
+| `style` | object | Visual style overrides for all buttons: see [`style`](#style-object) below |
+| `button_template` | object | Advanced base `lcards-button` config applied to every option; see [`button_template`](#button_template) below |
 
 ---
 
@@ -167,16 +167,16 @@ Controls how the option buttons are arranged.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `columns` | number / string | `1` | Number of equal-width columns, or any valid CSS `grid-template-columns` string |
-| `rows` | number / string | — | Number of rows or CSS `grid-template-rows` value |
-| `grid-template-columns` | string | — | Raw CSS value — overrides `columns` when set |
+| `rows` | number / string | - | Number of rows or CSS `grid-template-rows` value |
+| `grid-template-columns` | string | - | Raw CSS value: overrides `columns` when set |
 | `gap` | string | `4px` | Gap applied to both rows and columns |
-| `row-gap` | string | — | Row gap override |
-| `column-gap` | string | — | Column gap override |
-| `grid-auto-rows` | string | — | CSS `grid-auto-rows` for implicit row height (e.g. `56px`, `auto`) |
+| `row-gap` | string | - | Row gap override |
+| `column-gap` | string | - | Column gap override |
+| `grid-auto-rows` | string | - | CSS `grid-auto-rows` for implicit row height (e.g. `56px`, `auto`) |
 | `grid-auto-flow` | string | `row` | CSS `grid-auto-flow` value: `row`, `column`, `dense`, `row dense`, `column dense` |
-| `justify-items` | string | — | CSS `justify-items` for cell alignment: `stretch`, `start`, `end`, `center` |
-| `align-items` | string | — | CSS `align-items` for cell alignment: `stretch`, `start`, `end`, `center` |
-| `height` | string | — | Sizing mode: `fit`, `100%`, or any CSS height — see [Height modes](#height-modes) below |
+| `justify-items` | string | - | CSS `justify-items` for cell alignment: `stretch`, `start`, `end`, `center` |
+| `align-items` | string | - | CSS `align-items` for cell alignment: `stretch`, `start`, `end`, `center` |
+| `height` | string | - | Sizing mode: `fit`, `100%`, or any CSS height; see [Height modes](#height-modes) below |
 
 ```yaml
 grid:
@@ -191,11 +191,11 @@ grid:
 
 | Value | Behavior |
 |-------|----------|
-| _(unset)_ | **Natural** — the option grid is as tall as its rows; the card flows like normal content. |
-| `fit` | **Content-driven, published** — the card computes its exact natural height from config (`rows × row-height max + gaps`, using the pixel max of `grid-auto-rows`) and sets it as a definite pixel height on the card element. Use this when a *parent* grid track must size itself to the menu (an `auto` or `minmax(0, max-content)` track): measuring the menu through HA's `hui-card` wrapper via intrinsic CSS sizing is unreliable, while a definite pixel height always works. Requires a pixel-bounded `grid-auto-rows` (`minmax(Apx, Bpx)` or `Npx`). |
-| `100%` | **Bounded fill** — the option grid fills whatever height its container provides. With a pixel-bounded `grid-auto-rows`, a `ResizeObserver` measures the container and computes a concrete per-button height within the bounds; if even the minimum row height cannot fit, buttons stay at the minimum and the grid scrolls internally instead of overflowing. With a flexible max (e.g. `minmax(40px, 1fr)`), CSS distributes the height directly. |
+| _(unset)_ | **Natural**: the option grid is as tall as its rows; the card flows like normal content. |
+| `fit` | **Content-driven, published**: the card computes its exact natural height from config (`rows × row-height max + gaps`, using the pixel max of `grid-auto-rows`) and sets it as a definite pixel height on the card element. Use this when a *parent* grid track must size itself to the menu (an `auto` or `minmax(0, max-content)` track): measuring the menu through HA's `hui-card` wrapper via intrinsic CSS sizing is unreliable, while a definite pixel height always works. Requires a pixel-bounded `grid-auto-rows` (`minmax(Apx, Bpx)` or `Npx`). |
+| `100%` | **Bounded fill**: the option grid fills whatever height its container provides. With a pixel-bounded `grid-auto-rows`, a `ResizeObserver` measures the container and computes a concrete per-button height within the bounds; if even the minimum row height cannot fit, buttons stay at the minimum and the grid scrolls internally instead of overflowing. With a flexible max (e.g. `minmax(40px, 1fr)`), CSS distributes the height directly. |
 
-Example — a sidebar where the menu's row hugs its content and a filler panel absorbs the leftover (the pattern used by the shell strategy):
+Example: a sidebar where the menu's row hugs its content and a filler panel absorbs the leftover (the pattern used by the shell strategy):
 
 ```yaml
 type: custom:lcards-layout-card
@@ -219,7 +219,7 @@ cards:
     min_height: 1           # lets the filler shrink with its row
 ```
 
-The `minmax(0, max-content)` row tracks the menu's published height exactly, capped by the container; the filler row takes the rest. Buttons placed in rows that can shrink should set a small `min_height` — without one, the theme minimum (`--lcars-button-min-height`, typically 56px) keeps them painting at full size even in a collapsed row.
+The `minmax(0, max-content)` row tracks the menu's published height exactly, capped by the container; the filler row takes the rest. Buttons placed in rows that can shrink should set a small `min_height`; without one, the theme minimum (`--lcars-button-min-height`, typically 56px) keeps them painting at full size even in a collapsed row.
 
 ---
 
@@ -227,7 +227,7 @@ The `minmax(0, max-content)` row tracks the menu's published height exactly, cap
 
 Defines which options appear and how each one looks. Two forms are accepted:
 
-### Object form — entity order, per-option overrides
+### Object form: entity order, per-option overrides
 
 Keys match the entity's option values (case-sensitive). The order of the entity attribute is preserved. Any option not listed in the object still appears with its defaults.
 
@@ -241,7 +241,7 @@ options:
     icon: mdi:engine
 ```
 
-### Array form — explicit order and filtering
+### Array form: explicit order and filtering
 
 Provides full control over order, and options not listed are hidden. A `value` field is required for each entry. Use this form for manual menus that don't need an entity.
 
@@ -264,10 +264,10 @@ options:
 | `value` | string | Entity option value (required in array form; the key in object form) |
 | `label` | string | Display text. Defaults to `value` |
 | `icon` | string | MDI icon (e.g. `mdi:home`). Sets `show_icon: true` automatically |
-| `style` | object | Per-option style overrides — same structure as card-level [`style`](#style-object) |
-| `tap_action` | object | Per-option tap action — see [Actions](../../core/actions.md) |
-| `hold_action` | object | Per-option hold action — see [Actions](../../core/actions.md) |
-| `double_tap_action` | object | Per-option double-tap action — see [Actions](../../core/actions.md) |
+| `style` | object | Per-option style overrides: same structure as card-level [`style`](#style-object) |
+| `tap_action` | object | Per-option tap action: see [Actions](../../core/actions.md) |
+| `hold_action` | object | Per-option hold action: see [Actions](../../core/actions.md) |
+| `double_tap_action` | object | Per-option double-tap action: see [Actions](../../core/actions.md) |
 
 ---
 
@@ -279,15 +279,15 @@ The style resolves in this order (last wins): preset defaults → `button_templa
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `style.card.color.background` | string / object | theme | Button background — [state map](../../core/colours.md) supported (`active` = selected, `inactive` = unselected) |
-| `style.text.default.color` | string / object | theme | Text colour — [state map](../../core/colours.md) supported |
+| `style.card.color.background` | string / object | theme | Button background: [state map](../../core/colours.md) supported (`active` = selected, `inactive` = unselected) |
+| `style.text.default.color` | string / object | theme | Text colour: [state map](../../core/colours.md) supported |
 | `style.text.default.font_size` | number / string | theme | Font size in px or CSS value |
 | `style.text.default.font_weight` | number / string | theme | CSS font-weight |
 | `style.text.default.text_transform` | string | theme | `uppercase`, `lowercase`, `capitalize`, or `none` |
-| `style.text.default.letter_spacing` | string | — | CSS letter-spacing value |
+| `style.text.default.letter_spacing` | string | - | CSS letter-spacing value |
 | `style.border.radius` | number / string / object | theme | Corner radius in px, CSS string, or `{ top_left, top_right, bottom_right, bottom_left }` |
 | `style.border.width` | number / string | theme | Border width in px |
-| `style.border.color` | string / object | theme | Border colour — [state map](../../core/colours.md) supported |
+| `style.border.color` | string / object | theme | Border colour: [state map](../../core/colours.md) supported |
 | `style.opacity` | number | `0.88` | Base opacity for unselected options (0–1) |
 
 ```yaml
@@ -313,7 +313,7 @@ The card manages text layer visibility automatically:
 
 | Layer | Default | Notes |
 |-------|---------|-------|
-| `text.label` | `show: true` | **Primary display text** — always shows the option label |
+| `text.label` | `show: true` | **Primary display text**: always shows the option label |
 | `text.name` | `show: false` | Hidden by default (would show LCARS top-left tag) |
 | `text.state` | `show: false` | Hidden by default |
 
@@ -352,7 +352,7 @@ The **Style tab** in the visual editor opens a full `lcards-button` sub-editor t
 
 ## Actions
 
-Actions follow a waterfall priority — the first value found in this chain wins (independently for each action type):
+Actions follow a waterfall priority: the first value found in this chain wins (independently for each action type):
 
 ```
 per-option action → card-level action → button_template action → built-in default
@@ -382,10 +382,10 @@ options:
 
 | Domain | Notes |
 |--------|-------|
-| `input_select.*` | Full read/write — calls `input_select.select_option` |
-| `select.*` | Full read/write — calls `select.select_option` |
+| `input_select.*` | Full read/write: calls `input_select.select_option` |
+| `select.*` | Full read/write: calls `select.select_option` |
 
-The `entity` field is optional. Omitting it disables automatic option enumeration and active-state detection — use with array-form `options` for fully manual menus.
+The `entity` field is optional. Omitting it disables automatic option enumeration and active-state detection; use with array-form `options` for fully manual menus.
 
 ---
 

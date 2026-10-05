@@ -572,7 +572,7 @@ export class CoreValidationService {
       result.warnings.push({
         type: 'unrecognized_discriminator',
         field: fieldPath,
-        message: `No params schema for ${field}="${discriminatorValue}" — validated generically`,
+        message: `No params schema for ${field}="${discriminatorValue}", validated generically`,
         context: { field: fieldPath, [field]: discriminatorValue }
       });
     }

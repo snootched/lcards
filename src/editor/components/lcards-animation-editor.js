@@ -743,7 +743,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .selector=${{ text: {} }}
               .value=${anim.id || ''}
               .label=${'Animation ID'}
-              .helper=${'Letters, numbers, hyphens and underscores only — e.g. my-pulse'}
+              .helper=${'Letters, numbers, hyphens and underscores only, e.g. my-pulse'}
               @value-changed=${(e) => this._handleIdChange(index, e.detail.value)}>
             </ha-selector>
             ${idError ? html`
@@ -1006,7 +1006,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .selector=${{ number: { min: 1, max: 10, step: 1, mode: 'slider' } }}
               .value=${params.bounces ?? 3}
               .label=${'Number of Bounces'}
-              .helper=${'When > 1, this preset forces outQuad easing and multiplies duration by this count — see the info guide above.'}
+              .helper=${'When > 1, this preset forces outQuad easing and multiplies duration by this count; see the info guide above.'}
               @value-changed=${(e) => this._updateParam(index, 'bounces', e.detail.value)}>
             </ha-selector>
           </div>
@@ -1043,7 +1043,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .selector=${{ number: { min: -45, max: 45, step: 1, mode: 'box' } }}
               .value=${params.from_skewX ?? 0}
               .label=${'From Skew X (degrees)'}
-              .helper=${'Optional starting X skew — if either From field is set, the animation goes from these values to Skew X/Y above instead of from 0'}
+              .helper=${'Optional starting X skew: if either From field is set, the animation goes from these values to Skew X/Y above instead of from 0'}
               @value-changed=${(e) => this._updateParam(index, 'from_skewX', e.detail.value)}>
             </ha-selector>
             <ha-selector
@@ -1051,7 +1051,7 @@ export class LCARdSAnimationEditor extends LitElement {
               .selector=${{ number: { min: -45, max: 45, step: 1, mode: 'box' } }}
               .value=${params.from_skewY ?? 0}
               .label=${'From Skew Y (degrees)'}
-              .helper=${'Optional starting Y skew — see From Skew X'}
+              .helper=${'Optional starting Y skew: see From Skew X'}
               @value-changed=${(e) => this._updateParam(index, 'from_skewY', e.detail.value)}>
             </ha-selector>
           </div>
@@ -1749,7 +1749,7 @@ export class LCARdSAnimationEditor extends LitElement {
           .label=${'Attribute (optional)'}
           .helper=${'Attribute to read instead of entity state. Applies to from_state, to_state, and while. Use brightness_pct for a computed 0\u2013100 light brightness percentage.'}
           .selector=${{ select: { mode: 'dropdown', custom_value: true, options: [
-            { value: '__none__', label: '\u2014 Use entity state' },
+            { value: '__none__', label: '(Use entity state)' },
             ...getAttributeOptions(this.hass, anim.entity || this.cardElement?.config?.entity)
           ] } }}
           .value=${anim.attribute || '__none__'}
@@ -1760,7 +1760,7 @@ export class LCARdSAnimationEditor extends LitElement {
           style="width: 100%; margin-bottom: 12px;">
         </ha-selector>
 
-        <lcards-message type="warning" .message=${'\u26a0\ufe0f from_state and to_state are fire-and-forget gates \u2014 they control when an animation starts but will NOT stop a looping animation. To automatically stop a loop when a condition clears, add a While Condition below.'}></lcards-message>
+        <lcards-message type="warning" .message=${'\u26a0\ufe0f from_state and to_state are fire-and-forget gates: they control when an animation starts but will NOT stop a looping animation. To automatically stop a loop when a condition clears, add a While Condition below.'}></lcards-message>
 
         <ha-input
           label="From State (optional)"
@@ -2134,7 +2134,7 @@ export class LCARdSAnimationEditor extends LitElement {
                 ${paramEntries.map(([key, fieldSchema]) => html`
                   <li>
                     <code>${key}</code>${fieldSchema.default !== undefined ? html` (default: <code>${JSON.stringify(fieldSchema.default)}</code>)` : ''}
-                    ${fieldSchema.description ? ` — ${fieldSchema.description}` : ''}
+                    ${fieldSchema.description ? `: ${fieldSchema.description}` : ''}
                   </li>
                 `)}
               </ul>
@@ -2143,7 +2143,7 @@ export class LCARdSAnimationEditor extends LitElement {
             <pre class="preset-info-guide-example">${exampleYaml}</pre>
             ${missingFields.length ? html`
               <p class="preset-info-guide-missing-note">
-                No known default to show for: ${missingFields.map(f => html`<code>${f}</code>`)} — add these yourself before using this example.
+                No known default to show for: ${missingFields.map(f => html`<code>${f}</code>`)}. Add these yourself before using this example.
               </p>
             ` : ''}
             ${this._renderMapRangeNote()}
@@ -2174,7 +2174,7 @@ export class LCARdSAnimationEditor extends LitElement {
   _renderMapRangeNote() {
     return html`
       <lcards-message type="info">
-        <strong>Entity-reactive parameters:</strong> <code>duration</code>, <code>delay</code>, and any preset param above can live-track an entity's value instead of a fixed number — edit this animation's YAML directly to use it:<br><br>
+        <strong>Entity-reactive parameters:</strong> <code>duration</code>, <code>delay</code>, and any preset param above can live-track an entity's value instead of a fixed number. Edit this animation's YAML directly to use it:<br><br>
         <code>speed: { map_range: { entity: sensor.grid_power, input: [0, 5000], output: [8, 0.5] } }</code><br><br>
         <code>output</code> can also be a two-color pair (<code>['#00ff88', '#ff4400']</code>) to interpolate color instead of a number.
       </lcards-message>
@@ -2460,7 +2460,7 @@ export class LCARdSAnimationEditor extends LitElement {
 
         <lcards-message
             type="info"
-            message="If the element list below looks empty or incomplete, click Refresh — the live preview reloads periodically and this list can go stale.">
+            message="If the element list below looks empty or incomplete, click Refresh; the live preview reloads periodically and this list can go stale.">
         </lcards-message>
         <ha-button
             outlined
@@ -2991,7 +2991,7 @@ export class LCARdSAnimationEditor extends LitElement {
       return {
         valid: false,
         count: 0,
-        message: 'Cannot validate — card preview not available',
+        message: 'Cannot validate: card preview not available',
         type: 'warning'
       };
     }

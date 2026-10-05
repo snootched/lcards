@@ -35,7 +35,7 @@ Issues need the bug report template so we have the versions and environment we n
 
 ## Other ways to collect info
 
-**Download diagnostics** — Home Assistant's standard diagnostics file:
+**Download diagnostics**, Home Assistant's standard diagnostics file:
 **Settings → Devices & services → LCARdS → ⋮ → Download diagnostics**. It contains the same backend facts plus Home Assistant's own system information.
 
 **Browser console** (F12 → Console):

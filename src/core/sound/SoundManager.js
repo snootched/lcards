@@ -677,12 +677,12 @@ export class SoundManager extends BaseService {
   async _writeCustomSchemes(mutate) {
     const integration = this._core?.integrationService;
     if (!integration?.available) {
-      return { ok: false, error: 'Backend unavailable — cannot save.' };
+      return { ok: false, error: 'Backend unavailable: cannot save.' };
     }
     const existing = (await integration.readStorage(STORAGE_KEY_CUSTOM_SOUND_SCHEMES)) || {};
     const updated = mutate(existing);
     const wrote = await integration.writeStorage({ [STORAGE_KEY_CUSTOM_SOUND_SCHEMES]: updated });
-    if (!wrote) return { ok: false, error: 'Failed to save — backend write error.' };
+    if (!wrote) return { ok: false, error: 'Failed to save: backend write error.' };
     return { ok: true };
   }
 

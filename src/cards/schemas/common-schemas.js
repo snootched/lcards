@@ -343,7 +343,7 @@ export const animationSchema = {
         },
         while: {
             type: 'object',
-            description: 'Lifecycle condition for looping animations (requires the top-level loop: true field). The animation plays while the condition is true and stops automatically when it becomes false. Note: to_state/from_state are fire-and-forget gates \u2014 they control when the animation starts but will not stop it. Use while to auto-stop a looping animation. The 4 numeric bound keys (above/at_least/below/at_most) AND-combine when more than one is present, so a range can be expressed by combining two of them \u2014 e.g. { at_least: 20, at_most: 80 } for an inclusive range, or { above: 20, below: 80 } for an exclusive one.',
+            description: 'Lifecycle condition for looping animations (requires the top-level loop: true field). The animation plays while the condition is true and stops automatically when it becomes false. Note: to_state/from_state are fire-and-forget gates: they control when the animation starts but will not stop it. Use while to auto-stop a looping animation. The 4 numeric bound keys (above/at_least/below/at_most) AND-combine when more than one is present, so a range can be expressed by combining two of them, e.g. { at_least: 20, at_most: 80 } for an inclusive range, or { above: 20, below: 80 } for an exclusive one.',
             properties: {
                 state:     { type: 'string', description: 'Play while entity value equals this string' },
                 not_state: { type: 'string', description: 'Play while entity value does NOT equal this string' },
@@ -982,7 +982,7 @@ export function getTextSchema(options = {}) {
                     font_weight: {
                         type: ['string', 'number'],
                         default: 'normal',
-                        description: 'Font weight — CSS keyword (normal, bold) or numeric value (100–900)',
+                        description: 'Font weight: CSS keyword (normal, bold) or numeric value (100–900)',
                         examples: ['normal', 'bold', 100, 300, 400, 700, 900]
                     },
                     font_family: {
@@ -1073,7 +1073,7 @@ export function getTextSchema(options = {}) {
                         description: 'Minimum width of the background rect (px). Auto-sizes to text width but never smaller than this value. Safe for dynamic content.',
                         'x-ui-hints': {
                             label: 'Background Min Width',
-                            helper: 'Auto-sizes with text but will not shrink below this value — safe for dynamic content.',
+                            helper: 'Auto-sizes with text but will not shrink below this value, so safe for dynamic content.',
                             selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
                         }
                     },
@@ -1212,7 +1212,7 @@ export function getTextSchema(options = {}) {
                 font_weight: {
                     type: ['string', 'number'],
                     default: 'normal',
-                    description: 'Font weight — CSS keyword (normal, bold) or numeric value (100–900)',
+                    description: 'Font weight: CSS keyword (normal, bold) or numeric value (100–900)',
                     examples: ['normal', 'bold', 100, 300, 400, 700, 900]
                 },
                 font_family: {
@@ -1373,7 +1373,7 @@ export function getTextSchema(options = {}) {
                     description: 'Minimum width of the background rect (px). Auto-sizes to text width but never smaller than this value. Safe for dynamic content.',
                     'x-ui-hints': {
                         label: 'Background Min Width',
-                        helper: 'Auto-sizes with text but will not shrink below this value — safe for dynamic content.',
+                        helper: 'Auto-sizes with text but will not shrink below this value, so safe for dynamic content.',
                         selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
                     }
                 }
@@ -1500,7 +1500,7 @@ const backgroundAnimationEffectSchema = {
         },
         zoom: {
             type: 'object',
-            description: 'Optional zoom wrapper — creates layered depth effect',
+            description: 'Optional zoom wrapper: creates layered depth effect',
             properties: {
                 layers:          { type: 'number', minimum: 1, default: 4 },
                 scale_from:      { type: 'number', default: 0.5 },
@@ -1686,7 +1686,7 @@ export const triggersUpdateSchema = {
         label: 'Extra entity triggers',
         helper:
             'Entity IDs whose state changes should re-evaluate this card\'s templates. '
-            + 'Only needed for JS templates — Jinja2 entity references are tracked automatically.',
+            + 'Only needed for JS templates: Jinja2 entity references are tracked automatically.',
         selector: { entity: {} }
     }
 };
@@ -1755,11 +1755,11 @@ export const cardMaxWidthSchema = {
 };
 
 const _overflowOptions = [
-    { value: 'visible', label: 'Visible — content paints outside the box' },
-    { value: 'hidden',  label: 'Hidden — clips without scroll' },
-    { value: 'clip',    label: 'Clip — hard clip, no programmatic scroll' },
-    { value: 'scroll',  label: 'Scroll — always shows scrollbar' },
-    { value: 'auto',    label: 'Auto — scrollbar only when needed' },
+    { value: 'visible', label: 'Visible: content paints outside the box' },
+    { value: 'hidden',  label: 'Hidden: clips without scroll' },
+    { value: 'clip',    label: 'Clip: hard clip, no programmatic scroll' },
+    { value: 'scroll',  label: 'Scroll: always shows scrollbar' },
+    { value: 'auto',    label: 'Auto: scrollbar only when needed' },
 ];
 
 export const cardOverflowSchema = {

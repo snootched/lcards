@@ -8,22 +8,22 @@ Most LCARdS cards support a `text` object that lets you place any number of labe
 
 ```
 text:
-  default:              ← Shared styles — never rendered itself
+  default:              ← Shared styles - never rendered itself
   │  font_size: 12
   │  color: "var(--lcars-moonlight)"
   │
-  label:                ← Named field (name is arbitrary) — rendered as text
+  label:                ← Named field (name is arbitrary) - rendered as text
   │  content: "Temperature"
   │  position: top-left     ← inherits font_size, color from default
   │
-  value:                ← Another field — only set what differs
+  value:                ← Another field - only set what differs
      content: "{entity.state}°C"
      zone: body         ← which card zone to render inside
      font_size: 28      ← overrides default
      font_weight: bold
 ```
 
-Every named key except `default` is rendered as an SVG `<text>` element. Fields go into **zones** — named rectangular regions on the card's SVG surface (e.g. `body`, `track`, `horizontal_bar`). Without a `zone:` key a field goes to the card's primary zone.
+Every named key except `default` is rendered as an SVG `<text>` element. Fields go into **zones**: named rectangular regions on the card's SVG surface (e.g. `body`, `track`, `horizontal_bar`). Without a `zone:` key a field goes to the card's primary zone.
 
 All options in the per-field table below are also valid in `text.default` as shared defaults.
 
@@ -33,15 +33,15 @@ All options in the per-field table below are also valid in `text.default` as sha
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `content` | string | — | Text content; supports all [template syntaxes](templates/) |
+| `content` | string | - | Text content; supports all [template syntaxes](templates/) |
 | `show` | boolean | `true` | Show or hide this field |
-| `position` | string | from `default` | Grid position — see Position Values below |
-| `x` | number | — | Absolute X in pixels (overrides `position`) |
-| `y` | number | — | Absolute Y in pixels (overrides `position`) |
-| `x_percent` | number | — | X as percentage of the **zone width** (0–100) — `0` = left edge, `100` = right edge of the zone |
-| `y_percent` | number | — | Y as percentage of the **zone height** (0–100) — `0` = top edge, `100` = bottom edge of the zone |
+| `position` | string | from `default` | Grid position: see Position Values below |
+| `x` | number | - | Absolute X in pixels (overrides `position`) |
+| `y` | number | - | Absolute Y in pixels (overrides `position`) |
+| `x_percent` | number | - | X as percentage of the **zone width** (0–100); `0` = left edge, `100` = right edge of the zone |
+| `y_percent` | number | - | Y as percentage of the **zone height** (0–100); `0` = top edge, `100` = bottom edge of the zone |
 | `font_size` | number / string | from `default` | Size in px, or CSS value (`14px`, `1.2rem`, `var(--lcars-text-size)`) |
-| `font_size_percent` | number | — | Font size as a percentage of the **zone height** (1–100); overrides `font_size` when set. 100 = full zone height. See [Zones](#zones). |
+| `font_size_percent` | number | - | Font size as a percentage of the **zone height** (1–100); overrides `font_size` when set. 100 = full zone height. See [Zones](#zones). |
 | `font_weight` | string / number | `"normal"` | CSS font-weight keyword (`normal`, `bold`) or numeric (100–900) |
 | `font_family` | string | from `default` | CSS font-family or variable, e.g. `"Antonio, sans-serif"` or `var(--lcars-font)` |
 | `text_transform` | string | `"none"` | `none`, `uppercase`, `lowercase`, `capitalize` |
@@ -49,11 +49,11 @@ All options in the per-field table below are also valid in `text.default` as sha
 | `anchor` | string | `"middle"` | SVG horizontal alignment: `start` (left), `middle` (centre), `end` (right) |
 | `baseline` | string | `"middle"` | SVG vertical alignment: `hanging` (top), `middle`, `central`, `alphabetic` (bottom) |
 | `rotation` | number | `0` | Rotation in degrees (−360 to 360) |
-| `padding` | number / object | — | Offset in px: single number (all sides) or `{ top, right, bottom, left }` |
-| `stretch` | boolean / number | — | Stretch/compress glyph spacing to fill a fraction of the **zone width** using SVG `textLength`. `true` = 100%, `0.8` = 80%. Pairs naturally with `font_size_percent` to fill both axes independently. |
+| `padding` | number / object | - | Offset in px: single number (all sides) or `{ top, right, bottom, left }` |
+| `stretch` | boolean / number | - | Stretch/compress glyph spacing to fill a fraction of the **zone width** using SVG `textLength`. `true` = 100%, `0.8` = 80%. Pairs naturally with `font_size_percent` to fill both axes independently. |
 | `zone` | string | auto | Named zone to render this field inside. Defaults to the card's primary zone (`body`, `track`, first border, etc.). See [Zones](#zones). |
 | `template` | boolean | `true` | Templates in `content` are evaluated by default. Set to `false` to render `{...}` / `[[[...]]]` text literally instead of evaluating it |
-| `display_format` | string | `"friendly"` | How to format entity state/attribute tokens — see [Display Format](#display-format) below |
+| `display_format` | string | `"friendly"` | How to format entity state/attribute tokens; see [Display Format](#display-format) below |
 
 ### Position Values
 
@@ -85,7 +85,7 @@ The built-in button presets define three standard fields:
 | `name` | `"{entity.attributes.friendly_name}"` | `show: false` | Entity friendly name |
 | `state` | `"{entity.state}"` | `show: false` | Raw entity state value |
 
-These originate from the cb-lcars / custom-button-card heritage. To use them, just add the field to your `text:` config — the preset's positioning and styling are already in place:
+These originate from the cb-lcars / custom-button-card heritage. To use them, just add the field to your `text:` config; the preset's positioning and styling are already in place:
 
 ```yaml
 text:
@@ -96,7 +96,7 @@ text:
     show: true            # switch on with preset defaults intact
 ```
 
-You can always define completely new field names (e.g. `value`, `subtitle`, `unit`) — these are entirely independent of the preset-defined fields.
+You can always define completely new field names (e.g. `value`, `subtitle`, `unit`); these are entirely independent of the preset-defined fields.
 
 ---
 
@@ -162,7 +162,7 @@ text:
 
 Adding a `background` color to a text field draws an opaque rectangle behind the glyphs, creating the classic LCARS bar-break effect where the label floats inside a colored bar.
 
-`background` accepts the same state-map object as text `color` — a plain string is **not** supported; always use object form:
+`background` accepts the same state-map object as text `color`: a plain string is **not** supported; always use object form:
 
 ```yaml alternatives
 # Single colour (all states)
@@ -178,11 +178,11 @@ background:
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `background` | state-map | — | Background rect colour — must be a state-map object (`{ default: 'black' }`). Supports all states used by text `color`. |
+| `background` | state-map | - | Background rect colour: must be a state-map object (`{ default: 'black' }`). Supports all states used by text `color`. |
 | `background_padding` | number (px) | `8` | Horizontal space between glyphs and box edges |
-| `background_radius` | number (px) | `4` | Corner radius of the background rect — `0` = sharp, higher values round the corners |
-| `background_width` | number (px) | auto | **Fixed** explicit width. Overrides auto-sizing — text overflows if content is wider |
-| `background_min_width` | number (px) | — | **Minimum** width. Auto-sizes from text but never shrinks below this value |
+| `background_radius` | number (px) | `4` | Corner radius of the background rect: `0` = sharp, higher values round the corners |
+| `background_width` | number (px) | auto | **Fixed** explicit width. Overrides auto-sizing; text overflows if content is wider |
+| `background_min_width` | number (px) | - | **Minimum** width. Auto-sizes from text but never shrinks below this value |
 
 ### Aligning stacked cards
 
@@ -198,7 +198,7 @@ text:
     background_min_width: 120   # all stacked cards share this minimum box width
 ```
 
-> **Note on `background_width` + `anchor`:** when a fixed width is set, `background_padding` no longer controls box _width_ — it still controls the anchor offset so the text sits `background_padding` px from the box's anchored edge. Extra space accumulates on the opposite side. With `anchor: end` this means the right edge stays pinned and extra space grows leftward, which is usually the desired alignment behaviour.
+> **Note on `background_width` + `anchor`:** when a fixed width is set, `background_padding` no longer controls box _width_; it still controls the anchor offset so the text sits `background_padding` px from the box's anchored edge. Extra space accumulates on the opposite side. With `anchor: end` this means the right edge stays pinned and extra space grows leftward, which is usually the desired alignment behaviour.
 
 ---
 
@@ -235,9 +235,9 @@ content: "[[[return Math.round(entity.attributes.brightness / 255 * 100) + '%']]
 # Jinja2 (server-evaluated)
 content: "{{ states('sensor.temperature') }}°C"
 
-# DataSource — HA-native (locale-formatted + unit)
+# DataSource - HA-native (locale-formatted + unit)
 content: "{ds:temp}"
-# DataSource — explicit precision (no auto-unit, you control the suffix)
+# DataSource - explicit precision (no auto-unit, you control the suffix)
 content: "{ds:temp:.1f} °C"
 ```
 
@@ -247,7 +247,7 @@ See [Templates](templates/) for full details.
 
 ## Zones
 
-Every card automatically divides its SVG surface into named **zones** — rectangular areas that text fields can be targeted to via the `zone:` key.  The 9-point positioning system, padding, and `font_size_percent` all operate within the zone bounds, not the full card.
+Every card automatically divides its SVG surface into named **zones**: rectangular areas that text fields can be targeted to via the `zone:` key.  The 9-point positioning system, padding, and `font_size_percent` all operate within the zone bounds, not the full card.
 
 ### Auto-calculated zones per card type
 
@@ -258,11 +258,11 @@ Every card automatically divides its SVG surface into named **zones** — rectan
 |------|------------|
 | **Button** (preset mode, no icon) | `body` = full card area · `full` = full card area (always)<br/> ![Button zones](../public/img/zones-button.png) |
 | **Button** (preset mode, area icon) | `body` = card area excluding icon strip · `full` = full card area · `icon` = icon strip only <br/> ![Button zones with icon](../public/img/zones-button-icon.png)|
-| **Button** (component mode) | Named zones sourced from the SVG component's internal `zones` definition — these are declared by the component pack, not by your card config.  You can add additional custom zones if desired. <br/><br/> ![Button component DPAD](../public/img/zones-button-dpad.png) ![Button component ALERT](../public/img/zones-button-alert.png) |
+| **Button** (component mode) | Named zones sourced from the SVG component's internal `zones` definition; these are declared by the component pack, not by your card config.  You can add additional custom zones if desired. <br/><br/> ![Button component DPAD](../public/img/zones-button-dpad.png) ![Button component ALERT](../public/img/zones-button-alert.png) |
 | **Slider** | `track` (inner track bounds) + one zone per enabled border: `left`, `right`, `top`, `bottom` <br/> ![Slider zones](../public/img/zones-slider.png)|
 | **Elbow** (simple, L-corner left) | `vertical_bar` · `left_bar` *(alias for `vertical_bar`)* · `horizontal_bar` · `body` · `full` <br/> ![Elbow Left](../public/img/zones-elbow-left.png)|
 | **Elbow** (simple, L-corner right) | `vertical_bar` · `right_bar` *(alias for `vertical_bar`)* · `horizontal_bar` · `body` · `full` <br/> ![Elbow Right](../public/img/zones-elbow-right.png)|
-| **Elbow** (simple, open) | `horizontal_bar` · `body` · `full` — no vertical bar zone <br/> ![Elbow Open](../public/img/zones-elbow-open.png)|
+| **Elbow** (simple, open) | `horizontal_bar` · `body` · `full`: no vertical bar zone <br/> ![Elbow Open](../public/img/zones-elbow-open.png)|
 | **Elbow** (simple, contained) | `left_bar` · `right_bar` · `horizontal_bar` · `body` · `full` <br/> ![Elbow Contained](../public/img/zones-elbow-contained.png)|
 | **Elbow** (segmented) | `outer_vertical_bar` · `inner_vertical_bar` · `outer_horizontal_bar` · `inner_horizontal_bar` · `body` · `full` <br/> ![Elbow Segmented](../public/img/zones-elbow-segmented.png)|
 | **Elbow** (frame) | `top` · `bottom` · `left` · `right` · `body` · `full` <br/> ![Elbow Frame](../public/img/zones-elbow-frame.png) |
@@ -341,9 +341,9 @@ The toggle is also available in the **Zones → Developer Tools** section of the
 
 `font_size_percent: 100` makes cap-height letters fill the full zone height.  The SVG `font-size` attribute is set to `zone_height / cap_height_ratio` so the visible cap-tops span the entire zone; `font_size_percent: 50` makes them fill half the zone height, and so on.  The text is optically centred at the target position via a matching y-shift.
 
-The default `cap_height_ratio` is `0.86` (measured for the Antonio font used in LCARS themes — at this value `font_size_percent: 100` causes caps to fill the zone exactly).  Set a custom value on any text field to calibrate for other fonts; `cap_height_ratio: 1.0` means caps equal the full em-square with no correction.
+The default `cap_height_ratio` is `0.86` (measured for the Antonio font used in LCARS themes; at this value `font_size_percent: 100` causes caps to fill the zone exactly).  Set a custom value on any text field to calibrate for other fonts; `cap_height_ratio: 1.0` means caps equal the full em-square with no correction.
 
-`font_size_percent` controls the **vertical** fill; add `stretch: true` to also fill the **horizontal** axis.  The two are independent — SVG scales glyph spacing via `textLength` without affecting font size:
+`font_size_percent` controls the **vertical** fill; add `stretch: true` to also fill the **horizontal** axis.  The two are independent: SVG scales glyph spacing via `textLength` without affecting font size:
 
 ```yaml
 text:
@@ -362,14 +362,14 @@ The `display_format` option controls how entity state and attribute token values
 
 | Value | Description | Example (door sensor) |
 |-------|-------------|----------------------|
-| `friendly` | HA-translated display string — matches native HA cards (**default**) | `"Open"` |
+| `friendly` | HA-translated display string: matches native HA cards (**default**) | `"Open"` |
 | `raw` | Unmodified state/attribute value from `hass.states` | `"on"` |
 | `parts` | Value and unit joined from HA's ToParts API | `"23.5 °C"` |
 | `unit` | Unit portion only from HA's ToParts API | `"°C"` |
 
 ### YAML Examples
 
-**Door sensor — show friendly state:**
+**Door sensor, show friendly state:**
 ```yaml
 text:
   status:
@@ -377,7 +377,7 @@ text:
     display_format: friendly   # "Open" or "Closed" instead of "on"/"off"
 ```
 
-**Temperature sensor — show just the unit:**
+**Temperature sensor, show just the unit:**
 ```yaml
 text:
   unit_label:
@@ -392,7 +392,7 @@ text:
     content: "[[[return entity.state]]]"   # JS templates always receive raw values
 ```
 
-**Card-wide default — all text fields use friendly display:**
+**Card-wide default, all text fields use friendly display:**
 ```yaml
 text:
   default:
@@ -407,7 +407,7 @@ text:
 ### Notes
 
 - `display_format` only affects display strings. State classification logic (active/inactive/unavailable) always operates on raw state values.
-- `[[[JavaScript]]]` templates are **unaffected** — they always receive the raw entity object. Call `hass.formatEntityState(entity)` directly if needed.
+- `[[[JavaScript]]]` templates are **unaffected**: they always receive the raw entity object. Call `hass.formatEntityState(entity)` directly if needed.
 - Jinja2 templates (`{{ ... }}`) are server-evaluated and unaffected.
 - When `show_unit: true` is set on a slider or text field, the unit is derived from HA's ToParts API to ensure it matches HA's own display exactly.
 

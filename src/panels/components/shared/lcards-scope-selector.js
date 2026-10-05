@@ -309,7 +309,7 @@ export class LCARdSScopeSelector extends LitElement {
           ${isAdminTarget
             ? html`Editing <strong>${scope}</strong> overrides for <strong>${adminTargetName}</strong>`
             : scope === 'global'
-              ? html`Editing <strong>global</strong> overrides — applied to all users on this install`
+              ? html`Editing <strong>global</strong> overrides: applied to all users on this install`
               : html`Editing your own <strong>${scope}</strong> overrides`}
         </span>
       </div>

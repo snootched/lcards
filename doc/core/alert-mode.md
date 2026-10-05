@@ -2,13 +2,13 @@
 
 Alert Mode gives LCARdS coordinated, dashboard-wide visual states that match the classic Star Trek red/yellow alert experience.
 
-Alert mode is more than a colour change — it shifts the entire dashboard UI together:
+Alert mode is more than a colour change; it shifts the entire dashboard UI together:
 
-- **Theme colours transform** — the whole HA UI palette shifts; hues, saturation, and token values rotate to match the alert level across every element on screen. All transform parameters are fully configurable per alert mode via the **Alert Mode Lab** in the LCARdS Config Panel.
-- **Sound plays** — the Sound Manager fires the matching alert audio scheme automatically.
-- **Alert Overlay activates** — the `lcards-alert-overlay` card reacts and displays its full-screen backdrop and content card for the triggered alert condition.
-- **Rules-driven animations** — cards and MSD overlays can be configured to pulse, flash, or animate when a specific alert level is active. This is opt-in via the Rules Engine, not automatic.
-- **HA helpers stay in sync** — the `input_select.lcards_alert_mode` helper always reflects the current state, so HA automations can both trigger and react to alert level changes.
+- **Theme colours transform**: the whole HA UI palette shifts; hues, saturation, and token values rotate to match the alert level across every element on screen. All transform parameters are fully configurable per alert mode via the **Alert Mode Lab** in the LCARdS Config Panel.
+- **Sound plays**: the Sound Manager fires the matching alert audio scheme automatically.
+- **Alert Overlay activates**: the `lcards-alert-overlay` card reacts and displays its full-screen backdrop and content card for the triggered alert condition.
+- **Rules-driven animations**: cards and MSD overlays can be configured to pulse, flash, or animate when a specific alert level is active. This is opt-in via the Rules Engine, not automatic.
+- **HA helpers stay in sync**: the `input_select.lcards_alert_mode` helper always reflects the current state, so HA automations can both trigger and react to alert level changes.
 
 ---
 
@@ -16,9 +16,9 @@ Alert mode is more than a colour change — it shifts the entire dashboard UI to
 
 | Level | Description |
 |-------|-------------|
-| `green` | Normal operation — default state |
+| `green` | Normal operation: default state |
 | `yellow` | Caution / yellow alert |
-| `red` | Red alert — maximum urgency |
+| `red` | Red alert: maximum urgency |
 | `blue` | Blue alert (specific condition) |
 | `gray` | Reduced / standby mode |
 | `black` | Black alert |
@@ -45,7 +45,7 @@ tap_action:
 
 === HA Automation
 
-Use the helper in any automation — changes all browsers simultaneously:
+Use the helper in any automation; changes all browsers simultaneously:
 
 ```yaml
 action:
@@ -58,7 +58,7 @@ action:
 === LCARdS Services
 
 Use the dedicated `lcards.*` services to get **per-device or per-user targeting**.
-When targeting fields are present the `input_select` helper is **not** written — the
+When targeting fields are present the `input_select` helper is **not** written; the
 alert is applied as a local, transient change on matching sessions only.
 
 ```yaml alternatives
@@ -149,7 +149,7 @@ input_select:
 ```
 
 ::: tip
-The **Helpers** tab in the Config Panel creates all LCARdS helpers — including this one — in a single click.
+The **Helpers** tab in the Config Panel creates all LCARdS helpers (including this one) in a single click.
 :::
 
 ---
@@ -160,7 +160,7 @@ The **Helpers** tab in the Config Panel creates all LCARdS helpers — including
 
 The **Alert Mode Lab** tab in the LCARdS Config Panel is the primary tool for configuring how each alert level looks and behaves:
 
-- Colour palette transforms — adjust hue rotation, saturation shift, and lightness for the full dashboard palette per alert level
+- Colour palette transforms: adjust hue rotation, saturation shift, and lightness for the full dashboard palette per alert level
 - Preview transforms live before saving
 - Configure sounds per alert level
 

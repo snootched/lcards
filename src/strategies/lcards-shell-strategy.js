@@ -218,7 +218,7 @@ function _roomLightControllerCard(roomEntity) {
     };
 }
 
-function _contentPlaceholderCard(message = 'Content Area — select a Room Selector Entity in the dashboard settings to enable the room light controller.') {
+function _contentPlaceholderCard(message = 'Content Area: select a Room Selector Entity in the dashboard settings to enable the room light controller.') {
     return {
         type: 'custom:lcards-button',
         preset: 'outline',
@@ -306,7 +306,7 @@ function _autoAreasRoomCard(areas, stateEntity) {
         type: 'custom:lcards-button',
         preset: 'outline',
         interactive: false,
-        text: { label: { show: true, content: 'Tap a room to select it — add an input_text helper entity in dashboard settings to enable light filtering.' } },
+        text: { label: { show: true, content: 'Tap a room to select it; add an input_text helper entity in dashboard settings to enable light filtering.' } },
         view_layout: { 'grid-area': 'list' },
     };
 
@@ -747,7 +747,7 @@ export class LCARdSShellDashboardStrategy extends HTMLElement {
                     .sort((a, b) => a.name.localeCompare(b.name));
                 contentCard = areas.length > 0
                     ? _autoAreasRoomCard(areas, roomEntity)
-                    : _contentPlaceholderCard('No areas found — add rooms in Settings → Areas & Zones, then reload.');
+                    : _contentPlaceholderCard('No areas found: add rooms in Settings → Areas & Zones, then reload.');
             } else {
                 // Entity mode: input_select / select options drive the room list.
                 contentCard = _roomLightControllerCard(roomEntity);

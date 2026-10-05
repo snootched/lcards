@@ -403,7 +403,7 @@ export class LCARdSProcessorEditor extends LitElement {
       ></ha-selector>
 
       <div class="helper-text">
-        Maps values from input range to output range — e.g. sensor 0–100 → display 0–1
+        Maps values from input range to output range, e.g. sensor 0–100 → display 0–1
       </div>
     `;
   }
@@ -593,7 +593,7 @@ export class LCARdSProcessorEditor extends LitElement {
       ></ha-selector>
 
       <div class="helper-text">
-        Outputs an object — access values with <code>{ds:name.proc_key.min}</code> etc.
+        Outputs an object; access values with <code>{ds:name.proc_key.min}</code> etc.
       </div>
     `;
   }
@@ -670,7 +670,7 @@ export class LCARdSProcessorEditor extends LitElement {
         .required="${true}"
         @value-changed="${(e) => this._updateConfig('condition', e.detail.value)}"
       ></ha-selector>
-      <div class="helper-text">JavaScript condition on the value — e.g. <code>&gt; 20</code>, <code>!== 0</code></div>
+      <div class="helper-text">JavaScript condition on the value: e.g. <code>&gt; 20</code>, <code>!== 0</code></div>
 
       <ha-selector
         // @ts-ignore - TS2339: auto-suppressed

@@ -82,15 +82,15 @@ graph LR
 
 ## Core Services
 
-These services start on page load and become accessible to all LCARdS cards via **`window.lcards.core.*`**. Cards interact with them transparently — they do not need to implement any of this themselves.
+These services start on page load and become accessible to all LCARdS cards via **`window.lcards.core.*`**. Cards interact with them transparently; they do not need to implement any of this themselves.
 
 | Service | `window.lcards.core.*` | What it does |
 |---|---|---|
 | **Integration Service** | `integrationService` | Probes the HA Python backend on startup; sets `available` flag and `capabilities` Set so other services can gate on backend APIs. Falls back gracefully when the integration is absent. Exposes `onReady()` Promise API. |
-| **Systems Manager** | `systemsManager` | Centralised entity state subscriptions; cards register interest and receive smart push notifications — no duplicate subscriptions |
+| **Systems Manager** | `systemsManager` | Centralised entity state subscriptions; cards register interest and receive smart push notifications; no duplicate subscriptions |
 | **DataSource Manager** | `dataSourceManager` | Named data buffers tied to entities; records history, runs processing pipelines (moving average, min/max, aggregation) and notifies subscribers |
 | **Rules Engine** | `rulesManager` | Evaluates conditions and hot-patches LCARd styles at runtime; target any card by tag, type, or ID |
-| **Theme Manager** | `themeManager` | Token-based theming (colours, spacing, borders, and more); resolves theme tokens in any card field. Also owns alert-mode state (`setAlertMode()` / `getAlertMode()`) — coordinated alert states (green / red / yellow / blue / gray / black) that drive palette shifts and are driven by `input_select.lcards_alert_mode` |
+| **Theme Manager** | `themeManager` | Token-based theming (colours, spacing, borders, and more); resolves theme tokens in any card field. Also owns alert-mode state (`setAlertMode()` / `getAlertMode()`): coordinated alert states (green / red / yellow / blue / gray / black) that drive palette shifts and are driven by `input_select.lcards_alert_mode` |
 | **Animation Manager** | `animationManager` | Coordinates Anime.js v4 animations; provides built-in configurable presets or accepts custom anime.js parameters |
 | **Sound Manager** | `soundManager` | LCARS-style audio feedback for card interactions and UI events; configurable scheme with per-event overrides; supports per-user and per-device scope via ScopedSettingsService |
 | **Style Preset Manager** | `stylePresetManager` | Central registry of named style presets for buttons, sliders, elbows; consumed from packs |
@@ -104,7 +104,7 @@ These services start on page load and become accessible to all LCARdS cards via 
 | **Portal Overlay Manager** | `portalOverlayManager` | Shared portal overlay lifecycle engine for dialogs and modal card overlays rendered above the dashboard |
 | **Connection Overlay Service** | `connectionOverlayService` | Monitors HA WebSocket health and shows a full-screen connection-lost overlay when the frontend loses server contact |
 
-**Template Support** — any text field in any card supports four syntaxes (JS `[[[...]]]`, LCARdS tokens `{...}`, DataSource `{ds:...}`, Jinja2 `{{...}}`), orchestrated by `UnifiedTemplateEvaluator`. See [Template System](subsystems/template-system.md) for the full reference.
+**Template Support**: any text field in any card supports four syntaxes (JS `[[[...]]]`, LCARdS tokens `{...}`, DataSource `{ds:...}`, Jinja2 `{{...}}`), orchestrated by `UnifiedTemplateEvaluator`. See [Template System](subsystems/template-system.md) for the full reference.
 
 ---
 

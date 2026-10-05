@@ -23,7 +23,7 @@ features:
     link: /getting-started/what-is-lcards
     linkText: What is LCARdS?
   - title: The Cards
-    details: Buttons, elbows, sliders, charts, data grids, MSD, and more — all themeable and reactive.
+    details: Buttons, elbows, sliders, charts, data grids, MSD, and more, all themeable and reactive.
     link: /cards/
     linkText: Browse the cards
   - title: Core Concepts

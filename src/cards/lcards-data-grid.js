@@ -199,7 +199,7 @@ export class LCARdSDataGrid extends LCARdSCard {
 
         /* Empty cells show placeholder for better visibility */
         .grid-cell:empty::before {
-          content: '—';
+          content: '-';
           opacity: 0.4;
           color: var(--secondary-text-color, #999);
         }
@@ -730,7 +730,7 @@ export class LCARdSDataGrid extends LCARdSCard {
         this._trackedEntities.push(cellStr);
       }
       const stateObj = this.hass?.states?.[cellStr];
-      return stateObj ? haFormatState(this.hass, stateObj) : '—';
+      return stateObj ? haFormatState(this.hass, stateObj) : '-';
     }
 
     // Static text
@@ -781,7 +781,7 @@ export class LCARdSDataGrid extends LCARdSCard {
    * @returns {string} Formatted value
    */
   _formatCellValue(value, format = '{value}') {
-    if (value === null || value === undefined) return '—';
+    if (value === null || value === undefined) return '-';
 
     const numValue = Number(value);
     const isNumber = !isNaN(numValue);

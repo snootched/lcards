@@ -197,18 +197,18 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                         </ha-tab-group-tab>
 
                         <!-- Tab Panels -->
-                        <ha-tab-panel value="basic" ?hidden=${this._activeTab !== 'basic'}>
+                        <div class="tab-panel" ?hidden=${this._activeTab !== 'basic'}>
                             ${this._activeTab === 'basic' ? this._renderBasicTab() : ''}
-                        </ha-tab-panel>
-                        <ha-tab-panel value="timing" ?hidden=${this._activeTab !== 'timing'}>
+                        </div>
+                        <div class="tab-panel" ?hidden=${this._activeTab !== 'timing'}>
                             ${this._activeTab === 'timing' ? this._renderTimingTab() : ''}
-                        </ha-tab-panel>
-                        <ha-tab-panel value="transform" ?hidden=${this._activeTab !== 'transform'}>
+                        </div>
+                        <div class="tab-panel" ?hidden=${this._activeTab !== 'transform'}>
                             ${this._activeTab === 'transform' ? this._renderTransformTab() : ''}
-                        </ha-tab-panel>
-                        <ha-tab-panel value="advanced" ?hidden=${this._activeTab !== 'advanced'}>
+                        </div>
+                        <div class="tab-panel" ?hidden=${this._activeTab !== 'advanced'}>
                             ${this._activeTab === 'advanced' ? this._renderAdvancedTab() : ''}
-                        </ha-tab-panel>
+                        </div>
                     </ha-tab-group>
                 </div>
 

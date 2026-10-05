@@ -129,14 +129,14 @@ static getConfigElement() {
 }
 ```
 
-HA calls `getConfigElement()` when opening the visual editor panel. The returned element must already be registered as a custom element — importing the editor file at the top of the card file is one way to guarantee that.
+HA calls `getConfigElement()` when opening the visual editor panel. The returned element must already be registered as a custom element; importing the editor file at the top of the card file is one way to guarantee that.
 
 ```javascript
 // src/cards/lcards-mycard.js
-import '../editor/cards/lcards-mycard-editor.js';  // side-effect import — registers the element
+import '../editor/cards/lcards-mycard-editor.js';  // side-effect import - registers the element
 ```
 
-This side-effect import is the established pattern — every built-in editor is wired up this way (see [Bundle Inclusion](#5-bundle-inclusion) below), not through `src/lcards.js`.
+This side-effect import is the established pattern: every built-in editor is wired up this way (see [Bundle Inclusion](#5-bundle-inclusion) below), not through `src/lcards.js`.
 
 ## 3. `_buildConfigTab` Reference
 
@@ -185,7 +185,7 @@ this._updateConfig({
 
 ## 5. Bundle Inclusion
 
-Every built-in editor is reachable purely through the card file's side-effect import from step 2 (`lcards-button.js` imports `lcards-button-editor.js`, `lcards-msd.js` imports `lcards-msd-editor.js`, etc.) — none of them are imported from `src/lcards.js`. That single import is sufficient: Vite pulls the editor into the bundle, and its own guarded `customElements.define()` call registers it. No further wiring is needed.
+Every built-in editor is reachable purely through the card file's side-effect import from step 2 (`lcards-button.js` imports `lcards-button-editor.js`, `lcards-msd.js` imports `lcards-msd-editor.js`, etc.); none of them are imported from `src/lcards.js`. That single import is sufficient: Vite pulls the editor into the bundle, and its own guarded `customElements.define()` call registers it. No further wiring is needed.
 
 ## Related
 

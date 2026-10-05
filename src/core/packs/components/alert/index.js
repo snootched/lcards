@@ -391,7 +391,7 @@ export const alertComponents = {
             pack: 'lcards_buttons',
             id: 'alert',
             name: 'Alert Symbol',
-            description: 'LCARS alert symbol — shield design with animated bars and condition presets',
+            description: 'LCARS alert symbol: shield design with animated bars and condition presets',
             version: '2.0.0'
         }
     }

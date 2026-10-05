@@ -18,7 +18,7 @@ export const FILTER_TYPE_INFO = {
   'blur': {
     description: 'Applies Gaussian blur to soften edges and create depth effects.',
     params: [
-      { key: 'value', default: '0px', description: 'CSS length — e.g. 2px, 5px, 10px.' }
+      { key: 'value', default: '0px', description: 'CSS length: e.g. 2px, 5px, 10px.' }
     ],
     example: "filters:\n  - { mode: css, type: blur, value: '3px' }"
   },
@@ -91,9 +91,9 @@ export const FILTER_TYPE_INFO = {
 
   // ── SVG Filter Primitives ────────────────────────────────────────────
   'feGaussianBlur': {
-    description: 'SVG blur filter — smoother than CSS blur, chains with other SVG filters.',
+    description: 'SVG blur filter: smoother than CSS blur, chains with other SVG filters.',
     params: [
-      { key: 'stdDeviation', default: 0, description: 'Amount of blur — 0 = none, higher = more blur.' }
+      { key: 'stdDeviation', default: 0, description: 'Amount of blur: 0 = none, higher = more blur.' }
     ],
     example: 'filters:\n  - { mode: svg, type: feGaussianBlur, value: { stdDeviation: 4 } }'
   },
@@ -108,15 +108,15 @@ export const FILTER_TYPE_INFO = {
   'feOffset': {
     description: 'Shifts the filter result by dx/dy pixels. Essential for creating shadow effects when combined with blur.',
     params: [
-      { key: 'dx', default: 0, description: 'Horizontal offset — positive = right, negative = left.' },
-      { key: 'dy', default: 0, description: 'Vertical offset — positive = down, negative = up.' }
+      { key: 'dx', default: 0, description: 'Horizontal offset: positive = right, negative = left.' },
+      { key: 'dy', default: 0, description: 'Vertical offset: positive = down, negative = up.' }
     ],
     example: 'filters:\n  - { mode: svg, type: feOffset, value: { dx: 3, dy: 3 } }'
   },
   'feBlend': {
     description: 'Blends the current filter result with another input (defaults to SourceGraphic) using any of the 16 standard CSS blend modes (multiply, screen, overlay, etc.).',
     params: [
-      { key: 'mode', default: 'normal', description: 'Blend mode — try screen/lighten after a blur for glow effects.' }
+      { key: 'mode', default: 'normal', description: 'Blend mode: try screen/lighten after a blur for glow effects.' }
     ],
     example: 'filters:\n  - { mode: svg, type: feBlend, value: { mode: screen } }'
   },
@@ -127,7 +127,7 @@ export const FILTER_TYPE_INFO = {
       { key: 'k1', default: 0, description: 'Arithmetic coefficient (only used when operator is arithmetic).' },
       { key: 'k2', default: 0, description: 'Arithmetic coefficient.' },
       { key: 'k3', default: 0, description: 'Arithmetic coefficient.' },
-      { key: 'k4', default: 0, description: 'Arithmetic coefficient — result = k1·i1·i2 + k2·i1 + k3·i2 + k4.' }
+      { key: 'k4', default: 0, description: 'Arithmetic coefficient: result = k1·i1·i2 + k2·i1 + k3·i2 + k4.' }
     ],
     example: 'filters:\n  - { mode: svg, type: feComposite, value: { operator: over } }'
   },
@@ -143,26 +143,26 @@ export const FILTER_TYPE_INFO = {
     description: 'Generates Perlin noise patterns for organic textures. Commonly used with feDisplacementMap for distortion/warping effects.',
     params: [
       { key: 'type', default: 'turbulence', description: "'turbulence' (cloudy) | 'fractalNoise' (softer)." },
-      { key: 'baseFrequency', default: 0.05, description: 'Noise detail — lower = larger features.' },
+      { key: 'baseFrequency', default: 0.05, description: 'Noise detail: lower = larger features.' },
       { key: 'numOctaves', default: 1, description: 'Layers of noise detail.' },
-      { key: 'seed', default: 0, description: 'Randomization seed — change for a different pattern.' }
+      { key: 'seed', default: 0, description: 'Randomization seed: change for a different pattern.' }
     ],
     example: 'filters:\n  - { mode: svg, type: feTurbulence, value: { baseFrequency: 0.02, numOctaves: 3 } }'
   },
   'feDisplacementMap': {
     description: 'Warps/distorts the image based on color values from another source. Perfect for wavy, liquid, or turbulent effects.',
     params: [
-      { key: 'scale', default: 10, description: 'Displacement strength — higher = more distortion.' },
-      { key: 'xChannelSelector', default: 'R', description: "Color channel driving horizontal displacement — 'R' | 'G' | 'B' | 'A'." },
-      { key: 'yChannelSelector', default: 'G', description: "Color channel driving vertical displacement — 'R' | 'G' | 'B' | 'A'." }
+      { key: 'scale', default: 10, description: 'Displacement strength: higher = more distortion.' },
+      { key: 'xChannelSelector', default: 'R', description: "Color channel driving horizontal displacement: 'R' | 'G' | 'B' | 'A'." },
+      { key: 'yChannelSelector', default: 'G', description: "Color channel driving vertical displacement: 'R' | 'G' | 'B' | 'A'." }
     ],
     example: 'filters:\n  - { mode: svg, type: feTurbulence, value: { baseFrequency: 0.02, numOctaves: 3 } }\n  - { mode: svg, type: feDisplacementMap, value: { scale: 20 } }',
-    tip: 'Add a Turbulence filter right before this one — Turbulence generates the displacement map this filter distorts by.'
+    tip: 'Add a Turbulence filter right before this one: Turbulence generates the displacement map this filter distorts by.'
   },
   'tint': {
-    description: 'Composites a flat color wash over the content — a cheap way to apply an alert/status tint. Requires an SVG root (not supported on data-grid).',
+    description: 'Composites a flat color wash over the content: a cheap way to apply an alert/status tint. Requires an SVG root (not supported on data-grid).',
     params: [
-      { key: 'color', default: 'rgba(0,0,0,0.4)', description: 'Tint color — the alpha channel controls how much content shows through.' }
+      { key: 'color', default: 'rgba(0,0,0,0.4)', description: 'Tint color: the alpha channel controls how much content shows through.' }
     ],
     example: "filters:\n  - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }"
   }

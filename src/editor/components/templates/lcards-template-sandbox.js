@@ -876,21 +876,21 @@ export class LCARdSTemplateSandbox extends LitElement {
             Help
           </ha-tab-group-tab>
 
-          <ha-tab-panel value="output" ?hidden=${this._activeMainTab !== 'output'}>
+          <div class="tab-panel" ?hidden=${this._activeMainTab !== 'output'}>
             <div class="tab-panel-content">
               ${this._renderOutputTabNew()}
             </div>
-          </ha-tab-panel>
-          <ha-tab-panel value="context" ?hidden=${this._activeMainTab !== 'context'}>
+          </div>
+          <div class="tab-panel" ?hidden=${this._activeMainTab !== 'context'}>
             <div class="tab-panel-content">
               ${this._renderContextTab()}
             </div>
-          </ha-tab-panel>
-          <ha-tab-panel value="help" ?hidden=${this._activeMainTab !== 'help'}>
+          </div>
+          <div class="tab-panel" ?hidden=${this._activeMainTab !== 'help'}>
             <div class="tab-panel-content">
               ${this._renderHelpTab()}
             </div>
-          </ha-tab-panel>
+          </div>
         </ha-tab-group>
       </div>
     `;
@@ -1549,7 +1549,7 @@ export class LCARdSTemplateSandbox extends LitElement {
                     <code style="background: var(--code-background-color); padding: 2px 6px; border-radius: 3px;">${token.raw}</code>
                     <div style="font-size: 12px; margin-top: 4px; color: var(--secondary-text-color);">
                       Type: ${token.type}
-                      ${token.suggestion ? html` — <em>${token.suggestion}</em>` : ''}
+                      ${token.suggestion ? html`: <em>${token.suggestion}</em>` : ''}
                     </div>
                   </div>
                 </div>

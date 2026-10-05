@@ -2,7 +2,7 @@
 
 `custom:lcards-alert-overlay`
 
-The Alert Overlay card reacts to the `input_select.lcards_alert_mode` helper and displays a full-screen backdrop and content card whenever the system enters an alert state. It is a **singleton infrastructure card** — add one instance to every dashboard that should show overlays.  You can place it out of the way in the view - in normal dashboard mode it has no visual presence.  In edit mode it will show an info box so you can identify it in the editor.
+The Alert Overlay card reacts to the `input_select.lcards_alert_mode` helper and displays a full-screen backdrop and content card whenever the system enters an alert state. It is a **singleton infrastructure card**: add one instance to every dashboard that should show overlays.  You can place it out of the way in the view - in normal dashboard mode it has no visual presence.  In edit mode it will show an info box so you can identify it in the editor.
 
 ---
 
@@ -10,14 +10,14 @@ The Alert Overlay card reacts to the `input_select.lcards_alert_mode` helper and
 
 The `input_select.lcards_alert_mode` helper entity must exist in Home Assistant. This can be created automatically from the LCARdS Config Panel, or can be created manually with the options: `green_alert`, `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_alert` - see [Helpers](/configuration/persistent-helpers)
 
-Optionally, create the `input_select.lcards_alert_transition_style` helper to enable screen transition effects when the alert mode changes. This can also be created from the Config Panel — see [Transition Effects](#transition-effects).
+Optionally, create the `input_select.lcards_alert_transition_style` helper to enable screen transition effects when the alert mode changes. This can also be created from the Config Panel; see [Transition Effects](#transition-effects).
 
 ---
 
 ## Quick Start
 
 ```yaml
-# Minimal — add this to every dashboard that should react to alert modes
+# Minimal - add this to every dashboard that should react to alert modes
 type: custom:lcards-alert-overlay
 ```
 
@@ -27,8 +27,8 @@ The built-in defaults display an LCARS shield symbol styled for the active condi
 
 ## Common Properties
 
-::: tip Infrastructure card — no common properties
-This card renders as a zero-size sentinel element in the HA grid. The overlay is injected into `document.body` and always covers the full viewport. Unlike other LCARdS cards, it does **not** support the standard common properties — no `height`, `width`, `id`, `tags`, `grid_options`, sizing, actions, text fields, or animations keys.
+::: tip Infrastructure card: no common properties
+This card renders as a zero-size sentinel element in the HA grid. The overlay is injected into `document.body` and always covers the full viewport. Unlike other LCARdS cards, it does **not** support the standard common properties: no `height`, `width`, `id`, `tags`, `grid_options`, sizing, actions, text fields, or animations keys.
 :::
 
 ---
@@ -63,7 +63,7 @@ auto_dismiss_seconds: 30        # seconds; required for auto-dismiss / auto-rese
 position: center                # center | top | bottom | top-left | top-right
                                 # bottom-left | bottom-right | left | right
 width: 400px                    # content card width (any CSS value)
-height: auto                    # content card height; usually omit — SVG cards self-size from width
+height: auto                    # content card height; usually omit - SVG cards self-size from width
 
 # ── Screen effects ─────────────────────────────────────────────────────────────
 layers:
@@ -90,7 +90,7 @@ conditions:
     alert_button:               # patch the built-in default button (partial override)
       text:
         sub_text:
-          content: CONDITION RED — ALL HANDS TO BATTLE STATIONS
+          content: CONDITION RED - ALL HANDS TO BATTLE STATIONS
     # content:                  # OR replace entirely with any HA card config
     #   type: custom:lcards-button
     #   preset: condition_red
@@ -106,28 +106,28 @@ conditions:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `type` | string | — | `custom:lcards-alert-overlay` (required) |
-| `dismiss_mode` | string | `dismiss` | What happens when the user taps the backdrop — see [Dismiss](#dismiss) |
-| `auto_dismiss_seconds` | number | — | Seconds before the overlay auto-dismisses. Required when `dismiss_mode` is `auto-dismiss` or `auto-reset`. Min: 1. Can be overridden per condition. |
-| `position` | string | `center` | Where to place the content card within the overlay — see [Position](#position) |
-| `width` | string | `auto` | Global content card width (CSS value, e.g. `400px`, `50vw`). For the default alert button and other SVG component cards, width alone is sufficient — height is computed automatically from the SVG's aspect ratio. |
+| `type` | string | - | `custom:lcards-alert-overlay` (required) |
+| `dismiss_mode` | string | `dismiss` | What happens when the user taps the backdrop; see [Dismiss](#dismiss) |
+| `auto_dismiss_seconds` | number | - | Seconds before the overlay auto-dismisses. Required when `dismiss_mode` is `auto-dismiss` or `auto-reset`. Min: 1. Can be overridden per condition. |
+| `position` | string | `center` | Where to place the content card within the overlay; see [Position](#position) |
+| `width` | string | `auto` | Global content card width (CSS value, e.g. `400px`, `50vw`). For the default alert button and other SVG component cards, width alone is sufficient; height is computed automatically from the SVG's aspect ratio. |
 | `height` | string | `auto` | Global content card height (CSS value). Only needed when the content card cannot determine its own height from width (e.g. custom cards that don't embed a component SVG). |
-| `layers` | object | — | Per-slot screen effect configuration — see [Layers](#layers) |
-| `conditions` | object | — | Per-condition overrides — see [Conditions](#conditions) |
+| `layers` | object | - | Per-slot screen effect configuration: see [Layers](#layers) |
+| `conditions` | object | - | Per-condition overrides: see [Conditions](#conditions) |
 
 ---
 
 ## Layers
 
-The `layers` key configures the screen effects shown behind the overlay content when the alert is active. It maps three independent **slots** — each slot corresponds to a rendering layer:
+The `layers` key configures the screen effects shown behind the overlay content when the alert is active. It maps three independent **slots**, each slot corresponds to a rendering layer:
 
 | Slot | Presets | Effect |
 |------|---------|--------|
-| `backdrop` | `blur`, `grayscale`, `saturate`, `contrast`, `hue-rotate` | CSS `backdrop-filter` — filters the dashboard behind the overlay |
+| `backdrop` | `blur`, `grayscale`, `saturate`, `contrast`, `hue-rotate` | CSS `backdrop-filter`: filters the dashboard behind the overlay |
 | `color` | `color-tint`, `vignette` | Transparent colour overlay rendered above the blur |
 | `canvas` | `static`, `pixelate`, `glitch`, `scanlines` | Canvas2D animation rendered above the colour layer |
 
-Configure only the slots you need — omit a slot to leave it inactive:
+Configure only the slots you need; omit a slot to leave it inactive:
 
 ```yaml
 # Default-like setup: blur + red tint (no canvas)
@@ -175,7 +175,7 @@ layers: null
 
 | Preset | Parameter | Default | Description |
 |--------|-----------|---------|-------------|
-| `color-tint` | `color` | `rgba(0,0,0,0.5)` | Flat colour flood — any CSS colour |
+| `color-tint` | `color` | `rgba(0,0,0,0.5)` | Flat colour flood: any CSS colour |
 | `vignette` | `opacity` | `0.7` | Dark radial fade at screen edges |
 
 **`canvas` slot presets**
@@ -187,7 +187,7 @@ layers: null
 | `glitch` | `intensity`, `maxShift`, `bandHeight`, `opacity`, `fps` | Horizontal displacement bands |
 | `scanlines` | `lineHeight`, `opacity`, `scroll` | CRT horizontal lines |
 
-> **Colour values**: All `color-text` params — `color-tint`'s `color`, and the canvas presets' `static.color` / `pixelate.color` — support the full LCARdS colour expression syntax: hex, `rgb()`/`rgba()`, `var(--css-variable)`, theme tokens (`theme:palette.moonlight`), CSS named colours (`cornflowerblue`), and computed expressions (`alpha(theme:colors.ui.primary, 0.4)`). For alert-mode-aware colours use `var(--lcards-*)` or `var(--lcars-*)` variables.
+> **Colour values**: All `color-text` params (`color-tint`'s `color`, and the canvas presets' `static.color` / `pixelate.color`) support the full LCARdS colour expression syntax: hex, `rgb()`/`rgba()`, `var(--css-variable)`, theme tokens (`theme:palette.moonlight`), CSS named colours (`cornflowerblue`), and computed expressions (`alpha(theme:colors.ui.primary, 0.4)`). For alert-mode-aware colours use `var(--lcards-*)` or `var(--lcars-*)` variables.
 
 ---
 
@@ -215,12 +215,12 @@ When the user taps the backdrop tint:
 
 | `dismiss_mode` | Behaviour |
 |----------------|-----------|
-| `dismiss` | Hides the overlay on this dashboard only. Alert mode stays active — other dashboards still show overlays. The overlay will reappear if the mode changes again. |
+| `dismiss` | Hides the overlay on this dashboard only. Alert mode stays active; other dashboards still show overlays. The overlay will reappear if the mode changes again. |
 | `reset` | Hides the overlay **and** sets `lcards_alert_mode` back to `green_alert`, clearing the alert system-wide. |
 | `auto-dismiss` | Overlay hides automatically after `auto_dismiss_seconds`. The user can still tap the backdrop to dismiss early. Alert mode stays active (same as `dismiss`). |
 | `auto-reset` | Overlay hides automatically after `auto_dismiss_seconds` **and** resets `lcards_alert_mode` back to `green_alert` (same as `reset`, but triggered by timer). |
 
-For auto-dismiss modes, set `auto_dismiss_seconds` at the top level. Individual conditions can override the timeout — see [Conditions](#conditions).
+For auto-dismiss modes, set `auto_dismiss_seconds` at the top level. Individual conditions can override the timeout; see [Conditions](#conditions).
 
 ```yaml
 # Auto-dismiss: overlay hides after 30 seconds, alert mode stays active
@@ -253,13 +253,13 @@ The helper is **optional**. If it does not exist, or if its value is `off`, the 
 
 Create the helper from the **LCARdS Config Panel → Alert System section**, or add it manually in HA with the entity ID `input_select.lcards_alert_transition_style` and the options listed below.
 
-Once the helper exists you can change the active effect at any time — from the Config Panel, a dashboard dropdown, or an automation.
+Once the helper exists you can change the active effect at any time: from the Config Panel, a dashboard dropdown, or an automation.
 
 ### Available Effects
 
 | Value | Description |
 |-------|-------------|
-| `off` | No transition — colours swap instantly (default) |
+| `off` | No transition: colours swap instantly (default) |
 | `blur_fade` | The main view blurs and dims, colours swap, then sharpens back |
 | `fade_only` | The main view fades to near-black, colours swap, then fades back in |
 | `flash` | A full-screen accent-coloured flash fades in and out over the swap |
@@ -268,13 +268,13 @@ Once the helper exists you can change the active effect at any time — from the
 | `static` | A canvas-based pixelated noise overlay (tinted to the alert accent) plays over the swap |
 | `wipe` | A translucent accent-coloured panel wipes across the screen and back |
 
-> **Note**: Transition effects apply globally to the entire page — they are not specific to any one dashboard or overlay instance. The effect plays on every alert mode change regardless of which dashboard triggered it.
+> **Note**: Transition effects apply globally to the entire page; they are not specific to any one dashboard or overlay instance. The effect plays on every alert mode change regardless of which dashboard triggered it.
 
 ---
 
 ## Conditions
 
-Override any default for a specific alert mode. All keys are optional — only specify what you want to change.
+Override any default for a specific alert mode. All keys are optional; only specify what you want to change.
 
 ```yaml
 conditions:
@@ -296,8 +296,8 @@ Condition keys: `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_
 | Option | Type | Description |
 |--------|------|-------------|
 | `content` | object | Full HA card config to render inside the overlay. Any card type works. Overrides `alert_button` entirely. |
-| `alert_button` | object | Patch merged onto the default alert button — override only the fields you need. See [Default Alert Button Overrides](#default-alert-button-overrides). |
-| `layers` | object | Per-slot effect overrides merged on top of the global `layers`. Only slots present in the condition override are applied — absent slots inherit global. Set a slot to `null` to explicitly clear it for this condition. |
+| `alert_button` | object | Patch merged onto the default alert button. Override only the fields you need. See [Default Alert Button Overrides](#default-alert-button-overrides). |
+| `layers` | object | Per-slot effect overrides merged on top of the global `layers`. Only slots present in the condition override are applied; absent slots inherit global. Set a slot to `null` to explicitly clear it for this condition. |
 | `position` | string | Position override for this condition |
 | `width` | string | Content card width override. SVG component cards (e.g. the default alert button) derive their height from this automatically. |
 | `height` | string | Content card height override, for custom cards that cannot self-size from width alone. |
@@ -307,7 +307,7 @@ Condition keys: `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_
 
 ## Content Cards
 
-The `content` value inside a condition is a standard HA card config. Any card type can be used — it is instantiated and mounted exactly as it would be on a normal dashboard. LCARdS cards have full support for templates, entities, actions, and animations.
+The `content` value inside a condition is a standard HA card config. Any card type can be used; it is instantiated and mounted exactly as it would be on a normal dashboard. LCARdS cards have full support for templates, entities, actions, and animations.
 
 ```yaml
 conditions:
@@ -337,7 +337,7 @@ If no `content` is specified for a condition, a built-in default is used: the LC
 
 ## Default Alert Button Overrides
 
-The `alert_button` key lets you patch specific fields on the built-in default alert button **without having to supply a full `content:` block**. Only specify the fields you want to change — `type`, `component`, and `preset` are inherited from the built-in default automatically.
+The `alert_button` key lets you patch specific fields on the built-in default alert button **without having to supply a full `content:` block**. Only specify the fields you want to change; `type`, `component`, and `preset` are inherited from the built-in default automatically.
 
 This is the "middle tier" between no customisation and a full `content:` override:
 
@@ -355,10 +355,10 @@ conditions.<key>.content               ← full card config override (existing)
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `text` | object | Text field overrides — mirrors the `text` property of `lcards-button` |
+| `text` | object | Text field overrides: mirrors the `text` property of `lcards-button` |
 | `text.alert_text.content` | string | Override the top alert label (default: `ALERT`) |
 | `text.sub_text.content` | string | Override the sub-text message. Supports static strings and LCARdS templates. |
-| `alert` | object | Alert component config overrides — e.g. `alert.color.shape`, `alert.color.bars` |
+| `alert` | object | Alert component config overrides: e.g. `alert.color.shape`, `alert.color.bars` |
 
 ### Static text override
 
@@ -412,7 +412,7 @@ conditions:
 
 ## Examples
 
-### Minimal — built-in defaults for everything
+### Minimal: built-in defaults for everything
 
 ```yaml
 type: custom:lcards-alert-overlay
@@ -494,7 +494,7 @@ conditions:
         alert_text:
           content: ALERT
         sub_text:
-          content: CONDITION RED — ALL HANDS TO BATTLE STATIONS
+          content: CONDITION RED - ALL HANDS TO BATTLE STATIONS
 
   yellow_alert:
     width: 500px
@@ -529,15 +529,15 @@ conditions:
         alert_text:
           content: ALERT
         sub_text:
-          content: CONDITION BLACK — SILENT RUNNING
+          content: CONDITION BLACK - SILENT RUNNING
 ```
 
 ---
 
 ## Limitations
 
-- **Single instance per dashboard** — only the first instance connected to the DOM becomes active. Any additional instances are automatically suppressed: they have no visual presence in normal mode and show a "DUPLICATE — INACTIVE" warning placeholder in edit mode. Remove duplicate instances to avoid confusion.
-- **Not targetable by the rules engine** — the overlay does not extend `LCARdSCard` and has no card ID or tags. Rules cannot target it. The content card *inside* the overlay does support rules if it is an `lcards-*` card type.
+- **Single instance per dashboard**: only the first instance connected to the DOM becomes active. Any additional instances are automatically suppressed: they have no visual presence in normal mode and show a "DUPLICATE · INACTIVE" warning placeholder in edit mode. Remove duplicate instances to avoid confusion.
+- **Not targetable by the rules engine**: the overlay does not extend `LCARdSCard` and has no card ID or tags. Rules cannot target it. The content card *inside* the overlay does support rules if it is an `lcards-*` card type.
 
 ---
 
@@ -546,7 +546,7 @@ conditions:
 LCARdS exposes shorthand services for every alert mode. These are the recommended way to trigger alerts from automations and scripts:
 
 ```yaml alternatives
-# Shorthand services — broadcast to all dashboards (writes input_select)
+# Shorthand services - broadcast to all dashboards (writes input_select)
 service: lcards.red_alert
 service: lcards.yellow_alert
 service: lcards.blue_alert
@@ -554,7 +554,7 @@ service: lcards.black_alert
 service: lcards.gray_alert
 service: lcards.clear_alert   # → green_alert
 
-# With per-device targeting — does NOT write the global input_select
+# With per-device targeting - does NOT write the global input_select
 # (alert is transient / local to matching devices only)
 service: lcards.red_alert
 data:
@@ -586,6 +586,6 @@ window.lcards.greenAlert()
 
 ---
 
-> **Using LCARdS with browser_mod?** See [Using LCARdS with browser_mod](/configuration/browser-mod) — including patterns for stacking browser_mod popups with LCARdS screen effects, combined targeting, and driving LCARdS effects from browser_mod JavaScript.
+> **Using LCARdS with browser_mod?** See [Using LCARdS with browser_mod](/configuration/browser-mod), including patterns for stacking browser_mod popups with LCARdS screen effects, combined targeting, and driving LCARdS effects from browser_mod JavaScript.
 
 ---

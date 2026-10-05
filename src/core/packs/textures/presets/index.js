@@ -98,7 +98,7 @@ export const CANVAS_TEXTURE_PRESETS = {
 
     'fluid': {
         name:        'Fluid',
-        description: 'Swirling noise field — organic, continuously morphing colour wash',
+        description: 'Swirling noise field: organic, continuously morphing colour wash',
         effectClass: FluidTextureEffect,
         defaults: {
             color:          'rgba(100,180,255,0.8)',
@@ -111,7 +111,7 @@ export const CANVAS_TEXTURE_PRESETS = {
 
     'plasma': {
         name:        'Plasma',
-        description: 'Two-colour plasma bands — vivid alternating colour field',
+        description: 'Two-colour plasma bands: vivid alternating colour field',
         effectClass: PlasmaTextureEffect,
         defaults: {
             color_a:        'rgba(80,0,255,0.9)',
@@ -176,7 +176,7 @@ export const CANVAS_TEXTURE_PRESETS = {
 
     'image': {
         name:        'Image',
-        description: 'User-supplied image clipped to the card shape — supports /local/ paths and external HTTPS URLs',
+        description: 'User-supplied image clipped to the card shape; supports /local/ paths and external HTTPS URLs',
         effectClass: ImageTextureEffect,
         defaults: {
             source:   '',

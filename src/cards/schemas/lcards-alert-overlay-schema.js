@@ -47,7 +47,7 @@ export const alertOverlaySchema = {
         },
         layers: {
             oneOf: [
-                { type: 'null', description: 'null — explicitly disables all screen effect layers (useful as a per-condition override).' },
+                { type: 'null', description: 'null: explicitly disables all screen effect layers (useful as a per-condition override).' },
                 {
                     type: 'object',
                     description: 'Screen effect layers applied independently behind the overlay. Absent slot = disabled; null slot = explicitly cleared.',
@@ -135,18 +135,18 @@ export const alertOverlaySchema = {
                         type: 'object',
                         description:
                             'Patch merged on top of the default lcards-button alert card for this condition. ' +
-                            'Only specify fields to override — type, component, and preset are inherited from the built-in default. ' +
+                            'Only specify fields to override: type, component, and preset are inherited from the built-in default. ' +
                             'Supports all lcards-button text and alert config keys. ' +
                             'Ignored when `content` is also specified (content takes full precedence).',
                         properties: {
                             text: {
                                 type: 'object',
-                                description: 'Text field overrides — e.g. text.sub_text.content or text.alert_text.content',
+                                description: 'Text field overrides: e.g. text.sub_text.content or text.alert_text.content',
                                 additionalProperties: true,
                             },
                             alert: {
                                 type: 'object',
-                                description: 'Alert component config overrides — e.g. alert.color.shape, alert.color.bars',
+                                description: 'Alert component config overrides: e.g. alert.color.shape, alert.color.bars',
                                 additionalProperties: true,
                             },
                         },

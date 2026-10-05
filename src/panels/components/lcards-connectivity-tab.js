@@ -155,7 +155,6 @@ export class LCARdSConnectivityTab extends LitElement {
         this._remoteUpdatePending   = false;
         this._reloadSent            = null;
         this._dirtyServiceKeys      = new Set();
-        this._awaitingRetry         = false;
         this._boundHandleOverlayDismiss       = () => { this._testActive = false; };
         this._boundHandleRemoteConfigChange   = () => this._handleRemoteConfigChange();
     }
@@ -171,21 +170,6 @@ export class LCARdSConnectivityTab extends LitElement {
         super.disconnectedCallback();
         document.removeEventListener('lcards-connection-overlay-dismissed', this._boundHandleOverlayDismiss);
         document.removeEventListener('lcards-connection-config-changed', this._boundHandleRemoteConfigChange);
-    }
-
-    willUpdate(changedProps) {
-        super.willUpdate(changedProps);
-        // Don't trigger a background reload while a save/reset/clear is in progress.
-        // Those operations own their own force-reload cycle; an extra _loadConfig call
-        // here would race against it and could clobber _editConfig with stale data.
-        if (this._saving) return;
-        // Retry if _scopedValues is null — happens when the integration service wasn't
-        // ready on the first call. Skip while _awaitingRetry is true: the onReady()
-        // callback owns the next load attempt to avoid stacking concurrent loads.
-        if (changedProps.has('hass') && this.hass &&
-            (!this._editConfig || !this._scopedValues) && !this._awaitingRetry) {
-            this._loadConfig();
-        }
     }
 
     // -------------------------------------------------------------------------
@@ -288,39 +272,31 @@ export class LCARdSConnectivityTab extends LitElement {
         };
     }
 
-    async _loadConfig() {
+    /** Load (once at a time) the scoped config into _editConfig. */
+    _loadConfig() {
+        this._loadConfigPromise ??= this._doLoadConfig().finally(() => { this._loadConfigPromise = null; });
+        return this._loadConfigPromise;
+    }
+
+    async _doLoadConfig() {
         this._loading = true;
         this._error   = null;
         try {
-            // Load flat per-scope data for all keys (badges + resolved values).
-            await this._loadScopedValues();
-            // _scopedValues is null when integration hasn't been probed yet.
-            // Register a one-shot retry via onReady() only when integration exists but
-            // isn't available yet. If available=true, the bail was from the _scopedLoading
-            // guard (concurrent call) — willUpdate handles that on the next hass update.
-            // _awaitingRetry prevents stacking multiple onReady() listeners, which would
-            // create an infinite microtask loop once the promise resolves.
-            if (!this._scopedValues) {
-                const intSvc = window.lcards?.core?.integrationService;
-                if (intSvc && !intSvc.available && !this._awaitingRetry) {
-                    this._awaitingRetry = true;
-                    intSvc.onReady().then(() => {
-                        this._awaitingRetry = false;
-                        if (!this.isConnected || this._editConfig) return;
-                        if (intSvc.available) {
-                            this._loadConfig();
-                        } else {
-                            // Integration not installed or failed probe — fall through to defaults.
-                            this._editConfig = this._defaultConfig();
-                            this.requestUpdate();
-                        }
-                    }).catch(() => {
-                        this._awaitingRetry = false;
-                        this.requestUpdate();
-                    });
-                }
+            // Scoped reads go through the integration, so wait for its probe to finish.
+            const intSvc = window.lcards?.core?.integrationService;
+            if (intSvc && !intSvc.isReady) await intSvc.onReady();
+            if (!this.isConnected) return;
+            if (!intSvc?.available) {
+                // Integration not installed or probe failed: show defaults (degraded mode).
+                this._editConfig = this._defaultConfig();
                 return;
             }
+            // Load flat per-scope data for all keys (badges + resolved values). Forced so a
+            // concurrent scope-change load can't make this one bail with no data.
+            await this._loadScopedValues(true);
+            // Superseded by a newer load (e.g. a scope-tab click): that load populates.
+            if (!this._scopedValues && this._scopedLoading) return;
+            if (!this._scopedValues) throw new Error('scoped settings read failed');
             // Assemble the effective nested config from resolved flat values.
             this._editConfig = this._buildEffectiveConfig();
             this._isDirty = false;
@@ -451,7 +427,7 @@ export class LCARdSConnectivityTab extends LitElement {
             setTimeout(() => { this._reloadSent = null; }, 2000);
         } catch (err) {
             lcardsLog.warn('[ConnectivityTab] Failed to broadcast reload:', err);
-            this._error = 'Could not broadcast reload — requires admin access.';
+            this._error = 'Could not broadcast reload: requires admin access.';
         } finally {
             this._saving = false;
         }
@@ -469,7 +445,7 @@ export class LCARdSConnectivityTab extends LitElement {
             setTimeout(() => { this._reloadSent = null; }, 2000);
         } catch (err) {
             lcardsLog.warn('[ConnectivityTab] Failed to broadcast page reload:', err);
-            this._error = 'Could not broadcast page reload — requires admin.';
+            this._error = 'Could not broadcast page reload: requires admin.';
         } finally {
             this._saving = false;
         }
@@ -828,7 +804,7 @@ export class LCARdSConnectivityTab extends LitElement {
         await this._loadScopedValues(true);
         if (!this.isConnected || !this._scopedValues) return;
         // Guard: if the user made edits while the load was in flight, don't clobber
-        // their changes. willUpdate will rebuild on the next hass update if needed.
+        // their changes.
         if (this._isDirty) return;
         this._editConfig = this._buildEffectiveConfig();
         const cfg = this._editConfig;
@@ -840,10 +816,9 @@ export class LCARdSConnectivityTab extends LitElement {
     // -------------------------------------------------------------------------
 
     render() {
-        // Show spinner while actively loading OR when we have no data yet (e.g. waiting
-        // for the integration onReady() retry — _loading may have cleared but _editConfig
-        // is still null, which would otherwise fall through to _defaultConfig() and show
-        // wrong values like enabled=false even though storage has enabled=true).
+        // Show spinner while loading OR when there is no data yet, rather than falling
+        // through to _defaultConfig() and showing wrong values (e.g. enabled=false while
+        // storage has enabled=true).
         if (this._loading || (!this._editConfig && !this._error)) {
             return html`<div class="loading">Loading settings…</div>`;
         }
@@ -905,7 +880,7 @@ export class LCARdSConnectivityTab extends LitElement {
             <lcards-message type="info">
               <strong>Connection Overlay</strong>
               <p style="margin:8px 0 4px 0; font-size:13px; line-height:1.5;">
-                Displays a full-screen overlay whenever your browser loses its connection to Home Assistant —
+                Displays a full-screen overlay whenever your browser loses its connection to Home Assistant,
                 useful for kiosk displays so you always know when the dashboard is offline.
               </p>
               <p style="margin:0; font-size:13px; line-height:1.5;">
@@ -924,7 +899,7 @@ export class LCARdSConnectivityTab extends LitElement {
 
             ${this._isDirty ? html`
               <lcards-message type="warning">
-                <strong>Unsaved changes</strong> — your edits won't take effect until you click <em>Save</em> below.
+                <strong>Unsaved changes</strong>: your edits won't take effect until you click <em>Save</em> below.
               </lcards-message>
             ` : ''}
 
@@ -1033,7 +1008,7 @@ export class LCARdSConnectivityTab extends LitElement {
                   <ha-selector
                     .hass=${this.hass}
                     .label=${'Enable Borg font replacement'}
-                    .helper=${'When disabled, all other assimilation effects still run — only the font stays unchanged'}
+                    .helper=${'When disabled, all other assimilation effects still run; only the font stays unchanged'}
                     .selector=${{ boolean: {} }}
                     .value=${this._editConfig?.message?.borgLayers?.fontSwap ?? true}
                     @value-changed=${(e) => {
@@ -1128,7 +1103,7 @@ export class LCARdSConnectivityTab extends LitElement {
                     <ha-selector
                       .hass=${this.hass}
                       .label=${'Width'}
-                      .helper=${'CSS width — e.g. 400px, 40vw, auto'}
+                      .helper=${'CSS width: e.g. 400px, 40vw, auto'}
                       .selector=${{ text: {} }}
                       .value=${cfg.width ?? 'auto'}
                       @value-changed=${(e) => this._set('width', e.detail.value)}>
@@ -1138,7 +1113,7 @@ export class LCARdSConnectivityTab extends LitElement {
                     <ha-selector
                       .hass=${this.hass}
                       .label=${'Height'}
-                      .helper=${'CSS height — e.g. 300px, 30vh, auto'}
+                      .helper=${'CSS height: e.g. 300px, 30vh, auto'}
                       .selector=${{ text: {} }}
                       .value=${cfg.height ?? 'auto'}
                       @value-changed=${(e) => this._set('height', e.detail.value)}>
@@ -1248,7 +1223,7 @@ export class LCARdSConnectivityTab extends LitElement {
             ${this._confirmClear ? html`
               <div class="banner warning">
                 <ha-icon icon="mdi:alert"></ha-icon>
-                <span>This will remove <strong>all ${this._scopeInfo.scope}-scoped overrides</strong> for the connection overlay — fields will fall back to lower scopes. Are you sure?</span>
+                <span>This will remove <strong>all ${this._scopeInfo.scope}-scoped overrides</strong> for the connection overlay: fields will fall back to lower scopes. Are you sure?</span>
                 <div class="confirm-actions">
                   <ha-button variant="danger" ?disabled=${this._saving} @click=${this._resetScope}>
                     ${this._saving ? 'Resetting…' : 'Yes, reset all'}
@@ -1261,7 +1236,7 @@ export class LCARdSConnectivityTab extends LitElement {
               <ha-button
                 variant="danger"
                 ?disabled=${this._saving || !hasScopeData || this._confirmClear}
-                title="Remove all stored overrides at this scope — fields fall back to lower scopes"
+                title="Remove all stored overrides at this scope; fields fall back to lower scopes"
                 @click=${this._requestClearScope}>
                 <ha-icon slot="icon" icon="mdi:delete-sweep-outline"></ha-icon>
                 Reset ${this._scopeInfo.scope}

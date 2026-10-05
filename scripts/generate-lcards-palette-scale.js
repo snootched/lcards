@@ -232,22 +232,22 @@ let html = `<!DOCTYPE html>
   .corrected-badge { font-size: 8px; background: #ffd60a; color: #000; border-radius: 3px; padding: 1px 4px; vertical-align: middle; }
   .mode-label { font-size: 11px; opacity: 0.6; text-transform: uppercase; margin: 12px 0 4px; }
 </style></head><body>
-<h1>LCARdS 11-Stop Palette Scale — Review</h1>
+<h1>LCARdS 11-Stop Palette Scale Review</h1>
 <div class="legend">
   <span>solid dark border = canon anchor (unchanged)</span>
   <span>dotted gray border = interpolated (new)</span>
   <span style="color:#f00">dashed red border = shipped slot-95 value (neon/electric extrapolation)</span>
   <span style="color:#666">dashed gray border = fade-to-white alternative (not shipped, comparison only)</span>
-  <span style="color:#39f">solid blue border = ha-lcars's generic &amp;base formula (reference only — see note below)</span>
+  <span style="color:#39f">solid blue border = ha-lcars's generic &amp;base formula (reference only; see note below)</span>
 </div>
 <p>Var name shown is the <code>--lcards-&lt;family&gt;-&lt;suffix&gt;</code> suffix actually referenced by the theme YAML
 (e.g. <code>-darkest</code> for the canon anchors, <code>-10</code>/<code>-50</code>/<code>-60</code>/<code>-95</code> for the new computed stops).</p>
 <p><b>About the blue-bordered row:</b> this is <i>not</i> vanilla Home Assistant and not any currently-running theme.
 It's ha-lcars's own generic fallback mechanism (the <code>&amp;base</code> block in <code>ha-lcars/src/preamble.yaml</code>,
-shared by every non-LCARdS theme in that repo) — <code>color-mix(in oklch, seed N%, black/white)</code> at fixed
+shared by every non-LCARdS theme in that repo): <code>color-mix(in oklch, seed N%, black/white)</code> at fixed
 percentages, seeded from <i>our own</i> family's <code>-40</code>/base canon color. It answers: "if we'd only defined the
 base color and let ha-lcars generate the rest automatically like every other theme does, what would we have gotten?"
-— useful as a neutral baseline to see how far our hand-picked canon anchors diverge from an automatic ramp.</p>`;
+This is useful as a neutral baseline to see how far our hand-picked canon anchors diverge from an automatic ramp.</p>`;
 
 for (const family of FAMILIES) {
   const { scale, meta, fadeToWhite95 } = results[family];
@@ -263,15 +263,15 @@ for (const family of FAMILIES) {
     html += swatchCell(haDefault[tone], tone, undefined, 'ha-default');
   }
   html += '</div>';
-  html += `<h3>Slot 95 — shipped (neon/electric) vs. fade-to-white alternative (not shipped)</h3><div class="mini-row">`;
+  html += `<h3>Slot 95: shipped (neon/electric) vs. fade-to-white alternative (not shipped)</h3><div class="mini-row">`;
   html += swatchCell(scale['95'], '95', '95', 'extrapolated');
   html += swatchCell(fadeToWhite95, '95', '95', 'not-shipped');
   html += '</div>';
 }
 
 html += `<h2>HA Component Mockups</h2>
-<p>Hand-built approximations of <code>&lt;wa-button variant="brand/danger/warning/success"&gt;</code> styling — solid
-("loud" fill + on-loud text) and outlined ("normal" tier) — using the actual resolved colors from both profiles'
+<p>Hand-built approximations of <code>&lt;wa-button variant="brand/danger/warning/success"&gt;</code> styling, solid
+("loud" fill + on-loud text) and outlined ("normal" tier), using the actual resolved colors from both profiles'
 generated <code>ha-color-fill-*</code>/<code>ha-color-on-*</code> tokens. A yellow "corrected" badge means Phase-2
 contrast validation overrode HA's mechanical tone-index default (typically white text) with black or white,
 whichever actually passes against that background.</p>`;

@@ -36,7 +36,7 @@ export class IntegrationService extends BaseService {
 
         /**
          * Snapshot of configured options from the integration's config entry, or null.
-         * Keys: show_panel, sidebar_title, sidebar_icon, log_level
+         * Keys: show_panel, sidebar_title, sidebar_icon, log_level, enable_previews
          * @type {Object|null}
          */
         this.options = null;

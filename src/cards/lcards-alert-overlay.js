@@ -107,7 +107,7 @@ export class LCARdSAlertOverlay extends LitElement {
 
     setConfig(config) {
         if (!config || typeof config !== 'object') {
-            throw new Error('[LCARdSAlertOverlay] Invalid config — must be an object');
+            throw new Error('[LCARdSAlertOverlay] Invalid config - must be an object');
         }
         this.config = config;
 
@@ -639,7 +639,7 @@ export class LCARdSAlertOverlay extends LitElement {
                 <div class="ep-header">
                     <span class="ep-icon">&#9888;</span>
                     <span class="ep-title">Alert Overlay</span>
-                    ${isDuplicate ? html`<span class="ep-badge">DUPLICATE — INACTIVE</span>` : html`<span class="ep-badge ep-badge--active">ACTIVE</span>`}
+                    ${isDuplicate ? html`<span class="ep-badge">DUPLICATE · INACTIVE</span>` : html`<span class="ep-badge ep-badge--active">ACTIVE</span>`}
                 </div>
                 <div class="ep-body">
                     ${isDuplicate

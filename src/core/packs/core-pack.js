@@ -13,5 +13,5 @@ export const CORE_PACK = {
   id:          'core',
   name:        'LCARdS Core',
   version:     __LCARDS_VERSION__,
-  description: 'LCARdS system core — version anchor and global defaults'
+  description: 'LCARdS system core: version anchor and global defaults'
 };

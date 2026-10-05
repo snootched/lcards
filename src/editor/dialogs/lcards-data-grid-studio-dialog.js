@@ -857,7 +857,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                                 @click=${() => this._editCell(rowIndex, col, value)}
                                 @mouseenter=${(e) => e.target.style.borderColor = 'var(--primary-color)'}
                                 @mouseleave=${(e) => e.target.style.borderColor = 'transparent'}>
-                                    ${value || html`<span style="opacity: 0.3;">—</span>`}
+                                    ${value || html`<span style="opacity: 0.3;">-</span>`}
                                 </div>
                             `;
                         })}
@@ -1087,7 +1087,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                                 @click=${() => this._editCell(rowIndex, col, value)}
                                 @mouseenter=${(e) => e.target.style.borderColor = 'var(--primary-color)'}
                                 @mouseleave=${(e) => e.target.style.borderColor = 'transparent'}>
-                                    ${value || html`<span style="opacity: 0.3;">—</span>`}
+                                    ${value || html`<span style="opacity: 0.3;">-</span>`}
                                 </div>
                             `;
                         })}
@@ -1206,7 +1206,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                                 @click=${() => this._editCell(rowIndex, col, value)}
                                 @mouseenter=${(e) => e.target.style.borderColor = 'var(--primary-color)'}
                                 @mouseleave=${(e) => e.target.style.borderColor = 'transparent'}>
-                                    ${value || html`<span style="opacity: 0.3;">—</span>`}
+                                    ${value || html`<span style="opacity: 0.3;">-</span>`}
                                 </div>
                             `;
                         })}

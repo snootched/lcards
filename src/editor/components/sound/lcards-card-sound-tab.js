@@ -209,7 +209,7 @@ export class LCARdSCardSoundTab extends LitElement {
         ${!globalSoundOn ? html`
           <div class="banner info">
             <ha-icon icon="mdi:volume-off"></ha-icon>
-            Global sounds are currently disabled — enable them in
+            Global sounds are currently disabled. Enable them in
             <strong>Config Panel → Sound</strong> for card overrides to take effect.
           </div>
         ` : ''}
@@ -250,7 +250,7 @@ export class LCARdSCardSoundTab extends LitElement {
           ${this._audioAssets.length === 0 ? html`
             <div class="empty-hint">
               <ha-icon icon="mdi:information-outline"></ha-icon>
-              No audio assets registered — load a sound pack to enable per-event overrides.
+              No audio assets registered. Load a sound pack to enable per-event overrides.
             </div>
           ` : ''}
 
@@ -277,7 +277,7 @@ export class LCARdSCardSoundTab extends LitElement {
                           .hass=${this.hass}
                           .value=${overrideValue}
                           .audioAssets=${this._audioAssets}
-                          .schemeLabel=${'— (use global)'}
+                          .schemeLabel=${'(use global)'}
                           ?disabled=${!masterEnabled}
                           @value-changed=${(e) => this._setOverride(evtKey, e.detail.value)}
                         ></lcards-sound-source-selector>

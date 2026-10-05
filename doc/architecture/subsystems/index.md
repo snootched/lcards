@@ -23,7 +23,7 @@ LCARdS exposes a set of singleton services on `window.lcards.core.*`, all instan
 | [Sound System](#sound-system) | `soundManager` | Event-driven audio with scheme mapping |
 | [Style Preset Manager](#style-preset-manager) | `stylePresetManager` | Named preset bundles loaded from packs |
 | [Systems Manager](#systems-manager) | `systemsManager` | Entity state cache, subscriptions, overlay registry |
-| [Template System](#template-system) | *(no singleton — instantiated per use)* | Unified evaluator for all four template types |
+| [Template System](#template-system) | *(no singleton: instantiated per use)* | Unified evaluator for all four template types |
 | [Theme System](#theme-system) | `themeManager` | Token resolution, alert palette transforms |
 | [Validation Service](#validation-service) | `validationService` | Runtime config schema validation by card type |
 
@@ -93,7 +93,7 @@ Consult this when implementing per-device configuration or device-specific featu
 
 **`window.lcards.core.helperManager`** · [Full reference →](./helper-manager.md)
 
-Manages HA `input_*` helper entities (select, boolean, number) for persistent frontend state — alert mode, sound schemes, user preferences. Provides typed read/write access and auto-creation of missing helpers.
+Manages HA `input_*` helper entities (select, boolean, number) for persistent frontend state: alert mode, sound schemes, user preferences. Provides typed read/write access and auto-creation of missing helpers.
 
 Consult this when implementing features that need HA-backed persistent storage or when reading/writing alert and sound configuration.
 
@@ -123,7 +123,7 @@ Consult this when creating new packs, adding component types, or understanding h
 
 **`window.lcards.core.rulesManager`** · [Full reference →](./rules-engine.md)
 
-Evaluates rule conditions on every HASS state push and produces style patches that are merged onto target overlays — overlays have no knowledge that a rule is driving them. Supports complex multi-condition logic and cross-card overlay targeting by tag, type, ID, or pattern.
+Evaluates rule conditions on every HASS state push and produces style patches that are merged onto target overlays; overlays have no knowledge that a rule is driving them. Supports complex multi-condition logic and cross-card overlay targeting by tag, type, ID, or pattern.
 
 Consult this when implementing conditional styling, state-dependent animations, or coordinated alert patterns across multiple cards.
 
@@ -181,9 +181,9 @@ Consult this when cards need entity state subscriptions, when registering overla
 
 ## Template System
 
-**`new UnifiedTemplateEvaluator(...)`** — not a core singleton; cards instantiate one directly · [Full reference →](./template-system.md)
+**`new UnifiedTemplateEvaluator(...)`**: not a core singleton; cards instantiate one directly · [Full reference →](./template-system.md)
 
-Unified evaluator for all four LCARdS template types — JavaScript `[[[...]]]`, LCARdS tokens `{...}`, DataSource references `{ds:...}`, and Jinja2 `{{...}}` — applied in a fixed priority order via `UnifiedTemplateEvaluator`.
+Unified evaluator for all four LCARdS template types (JavaScript `[[[...]]]`, LCARdS tokens `{...}`, DataSource references `{ds:...}`, and Jinja2 `{{...}}`) applied in a fixed priority order via `UnifiedTemplateEvaluator`.
 
 Consult this when implementing dynamic text fields, understanding template evaluation order, or injecting custom context into expressions.
 
@@ -193,7 +193,7 @@ Consult this when implementing dynamic text fields, understanding template evalu
 
 **`window.lcards.core.themeManager`** · [Full reference →](./theme-system.md)
 
-Token-based theming with alert-mode palette transformations. Maintains the active theme registry and resolves `theme:` token paths to concrete CSS values. The resolver singleton (`themeManager.resolver`) must be accessed via `window.lcards.core` — module-level imports have no token tree.
+Token-based theming with alert-mode palette transformations. Maintains the active theme registry and resolves `theme:` token paths to concrete CSS values. The resolver singleton (`themeManager.resolver`) must be accessed via `window.lcards.core`; module-level imports have no token tree.
 
 Consult this when implementing theme-aware styling, accessing theme tokens in code or config, or supporting alert-triggered palette swaps.
 

@@ -344,11 +344,11 @@ export function getElbowSchema(options = {}) {
                                     }
                                 ],
                                 default: 'auto',
-                                description: "Outer corner radius. Keywords: 'auto'/'arm_width' = bar_width/2 (LCARS classic), 'arm_height' = bar_height/2, 'arm_max' = max(bar_width,bar_height)/2 (recommended for paired elbows — same as auto for typical configs), 'arm_min' = min(bar_width,bar_height)/2, 'arm_fill' = max(bar_width,bar_height) (fills dominant arm). Or set explicit pixels.",
-                                $comment: 'Arc tangent points always arrive at 0° to their edges. Render-time clamp: outerRadius ≤ min(card_w, card_h) keeps tangent points within card viewport. Use arm_max for consistent paired elbows — equals auto (bar_width/2) when bar_width >= bar_height.',
+                                description: "Outer corner radius. Keywords: 'auto'/'arm_width' = bar_width/2 (LCARS classic), 'arm_height' = bar_height/2, 'arm_max' = max(bar_width,bar_height)/2 (recommended for paired elbows, same as auto for typical configs), 'arm_min' = min(bar_width,bar_height)/2, 'arm_fill' = max(bar_width,bar_height) (fills dominant arm). Or set explicit pixels.",
+                                $comment: 'Arc tangent points always arrive at 0° to their edges. Render-time clamp: outerRadius ≤ min(card_w, card_h) keeps tangent points within card viewport. Use arm_max for consistent paired elbows; equals auto (bar_width/2) when bar_width >= bar_height.',
                                 'x-ui-hints': {
                                     label: 'Outer Curve',
-                                    helper: 'Arc radius mode — arm_max recommended for consistent paired elbows',
+                                    helper: 'Arc radius mode: arm_max recommended for consistent paired elbows',
                                     defaultOneOfBranch: 0,
                                     selector: {
                                         number: {
@@ -377,7 +377,7 @@ export function getElbowSchema(options = {}) {
                                 $comment: 'LCARS formula default: inner_curve = outer_curve / 2. Keywords use the same bar dimension formulas as outer_curve, independently of the outer value.',
                                 'x-ui-hints': {
                                     label: 'Inner Curve',
-                                    helper: 'Inner arc radius — auto = outer_curve / 2 (LCARS formula)',
+                                    helper: 'Inner arc radius: auto = outer_curve / 2 (LCARS formula)',
                                     selector: {
                                         number: {
                                             mode: 'slider',
@@ -392,13 +392,13 @@ export function getElbowSchema(options = {}) {
                                     {
                                         type: 'string',
                                         enum: ['card', 'none'],
-                                        description: "'card' (default) clamps outer_curve to min(card_w, card_h) — keeps arc within viewport. 'none' disables clamping — arc is exactly the computed value; SVG overflow:hidden clips any overflow. Use 'none' for consistent paired elbows regardless of card height."
+                                        description: "'card' (default) clamps outer_curve to min(card_w, card_h), keeps arc within viewport. 'none' disables clamping: arc is exactly the computed value; SVG overflow:hidden clips any overflow. Use 'none' for consistent paired elbows regardless of card height."
                                     },
                                     {
                                         type: 'number',
                                         minimum: 0,
                                         maximum: 500,
-                                        description: 'Explicit px ceiling for outer radius — hard cap independent of card or arm dimensions'
+                                        description: 'Explicit px ceiling for outer radius: hard cap independent of card or arm dimensions'
                                     }
                                 ],
                                 default: 'card',
@@ -760,7 +760,7 @@ export function getElbowSchema(options = {}) {
                     },
                     imprint: {
                         type: 'object',
-                        description: 'Style imprinting — injects resolved styles into the embedded card shadow root',
+                        description: 'Style imprinting: injects resolved styles into the embedded card shadow root',
                         properties: {
                             enabled: { type: 'boolean', default: true },
                             background: {
@@ -797,28 +797,28 @@ export function getElbowSchema(options = {}) {
                                             { type: 'number', description: 'Top-left border radius (px)' },
                                             { type: 'string', enum: ['match'], description: "Use 'match' to mirror the elbow's inner arc radius" }
                                         ],
-                                        description: "Top-left border radius — number (px) or 'match' to mirror elbow inner arc"
+                                        description: "Top-left border radius: number (px) or 'match' to mirror elbow inner arc"
                                     },
                                     top_right: {
                                         oneOf: [
                                             { type: 'number', description: 'Top-right border radius (px)' },
                                             { type: 'string', enum: ['match'], description: "Use 'match' to mirror the elbow's inner arc radius" }
                                         ],
-                                        description: "Top-right border radius — number (px) or 'match' to mirror elbow inner arc"
+                                        description: "Top-right border radius: number (px) or 'match' to mirror elbow inner arc"
                                     },
                                     bottom_left: {
                                         oneOf: [
                                             { type: 'number', description: 'Bottom-left border radius (px)' },
                                             { type: 'string', enum: ['match'], description: "Use 'match' to mirror the elbow's inner arc radius" }
                                         ],
-                                        description: "Bottom-left border radius — number (px) or 'match' to mirror elbow inner arc"
+                                        description: "Bottom-left border radius: number (px) or 'match' to mirror elbow inner arc"
                                     },
                                     bottom_right: {
                                         oneOf: [
                                             { type: 'number', description: 'Bottom-right border radius (px)' },
                                             { type: 'string', enum: ['match'], description: "Use 'match' to mirror the elbow's inner arc radius" }
                                         ],
-                                        description: "Bottom-right border radius — number (px) or 'match' to mirror elbow inner arc"
+                                        description: "Bottom-right border radius: number (px) or 'match' to mirror elbow inner arc"
                                     }
                                 }
                             }

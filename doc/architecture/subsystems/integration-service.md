@@ -1,6 +1,6 @@
 # Integration Service
 
-> **`window.lcards.core.integrationService`** — Backend availability probe, capability flag, and storage convenience API.
+> **`window.lcards.core.integrationService`**: Backend availability probe, capability flag, and storage convenience API.
 
 ---
 
@@ -8,7 +8,7 @@
 
 `IntegrationService` probes the LCARdS HA backend on startup to determine whether the Python integration is installed and active. All other services and cards that want to call backend WebSocket APIs check `integrationService.available` before doing so, allowing LCARdS to degrade gracefully when the integration is absent (e.g. legacy plugin-only setups or development without HA).
 
-It also exposes three convenience methods — `readStorage()`, `writeStorage()`, and `deleteStorage()` — so services and cards can access the backend persistent store without reimplementing the guard-and-call pattern.
+It also exposes three convenience methods (`readStorage()`, `writeStorage()`, and `deleteStorage()`) so services and cards can access the backend persistent store without reimplementing the guard-and-call pattern.
 
 ---
 
@@ -23,7 +23,7 @@ It also exposes three convenience methods — `readStorage()`, `writeStorage()`,
 - Send the `lcards/info` WebSocket command on the first HASS update that has a live connection
 - Set `this.available = true/false` based on whether the integration responds
 - Surface `this.version`, `this.storageKeyCount`, and `this.options` for diagnostics
-- Probe exactly once per page load — subsequent HASS updates are ignored
+- Probe exactly once per page load: subsequent HASS updates are ignored
 - Provide `readStorage()` / `writeStorage()` / `deleteStorage()` with built-in availability guards
 
 ---
@@ -86,7 +86,7 @@ await integration.deleteStorage('my_service_prefs');
 
 ### `resetStorage() → Promise<boolean>`
 
-Wipes the **entire** store — all keys removed, saved to disk. Irreversible. Returns `true` on success.
+Wipes the **entire** store: all keys removed, saved to disk. Irreversible. Returns `true` on success.
 
 After calling this, services must invalidate their in-memory caches or they will re-write stale data on the next save operation.
 
@@ -105,8 +105,8 @@ if (integration.available) {
     // Reads / writes go to the persistent HA .storage/lcards file
     const value = await integration.readStorage('sound_overrides');
 } else {
-    // Integration unavailable — log a warning and operate with empty / default state
-    lcardsLog.warn('[MyService] Integration unavailable — overrides will not be persisted');
+    // Integration unavailable - log a warning and operate with empty / default state
+    lcardsLog.warn('[MyService] Integration unavailable - overrides will not be persisted');
 }
 ```
 
@@ -114,7 +114,7 @@ if (integration.available) {
 
 ## Push Channel
 
-After a successful `lcards/info` probe, `IntegrationService` subscribes via the `lcards/subscribe` WS command. This gives Python service handlers a way to push instructions to all connected browser tabs — including non-admin users — without a WS request/response cycle.
+After a successful `lcards/info` probe, `IntegrationService` subscribes via the `lcards/subscribe` WS command. This gives Python service handlers a way to push instructions to all connected browser tabs (including non-admin users) without a WS request/response cycle.
 
 The `lcards/subscribe` command is registered by the Python integration and is not admin-gated, unlike the HA-native `subscribeEvents` API which restricts custom bus event types to admin users.
 
@@ -139,20 +139,20 @@ The subscription is cleaned up automatically when the WebSocket connection close
 
 | `data.action` | JS response |
 |---------------------|-------------|
-| `reload` | `window.location.reload()` — immediate, unconditional |
+| `reload` | `window.location.reload()`: immediate, unconditional |
 | `set_log_level` | `window.lcards.setGlobalLogLevel(data.level)` if available |
-| `set_alert_mode` | `window.lcards.setAlertMode(data.mode, { skipHelperSync: true })` — targeted (local-only) alert change; skips writing back to the `input_select` helper so it doesn't re-trigger this on every tab |
+| `set_alert_mode` | `window.lcards.setAlertMode(data.mode, { skipHelperSync: true })`: targeted (local-only) alert change; skips writing back to the `input_select` helper so it doesn't re-trigger this on every tab |
 | `clear_effect` | `window.lcards.screenEffect.clearSlot(data.slot)`, or `.clear()` (all slots) if `data.slot` is omitted |
 | `play_sound` | `soundManager.playAsset(data.asset_key)` (exact asset, bypasses scheme) if present, else `soundManager.play(data.event_type)` (scheme/override-aware) |
 | `trigger_effect` | Applies `data.layers` (`{ backdrop, color, canvas }`, each `{ preset, ...params }` or `null` to clear) via `screenEffectManager`; auto-clears after `data.duration` ms if given |
-| `show_portal_card` | `pom.show('ha-service', options)` — displays a card/message via `PortalOverlayManager` |
-| `clear_portal_card` | `pom.hide('ha-service')` — clears the `'ha-service'` POM slot |
-| `borg_assimilate` | `borgAssimilationManager.assimilate(opts)` — starts the Borg-assimilation screen takeover |
-| `borg_deassimilate` | `borgAssimilationManager.deassimilate(opts)` — reverts it, optionally with an outro |
-| `reload_connection_config` | `connectionOverlayService.loadConfig()` — re-reads connection-overlay config from the scoped waterfall and re-renders if active; skipped if this device originated the save (`data.origin_device_id` matches) |
-| anything else | `lcardsLog.debug` — logged and ignored |
+| `show_portal_card` | `pom.show('ha-service', options)`: displays a card/message via `PortalOverlayManager` |
+| `clear_portal_card` | `pom.hide('ha-service')`: clears the `'ha-service'` POM slot |
+| `borg_assimilate` | `borgAssimilationManager.assimilate(opts)`: starts the Borg-assimilation screen takeover |
+| `borg_deassimilate` | `borgAssimilationManager.deassimilate(opts)`: reverts it, optionally with an outro |
+| `reload_connection_config` | `connectionOverlayService.loadConfig()`: re-reads connection-overlay config from the scoped waterfall and re-renders if active; skipped if this device originated the save (`data.origin_device_id` matches) |
+| anything else | `lcardsLog.debug`: logged and ignored |
 
-Note: with `subscribeMessage`, the payload is delivered directly as `data` — it is not wrapped in an event envelope (no `event.data` unwrapping needed).
+Note: with `subscribeMessage`, the payload is delivered directly as `data`; it is not wrapped in an event envelope (no `event.data` unwrapping needed).
 
 ### Triggering from Python
 
@@ -163,7 +163,7 @@ hass.bus.async_fire("lcards_event", {"action": "reload"})
 hass.bus.async_fire("lcards_event", {"action": "set_log_level", "level": level})
 ```
 
-The event is a **broadcast by default** — every browser tab with an active `IntegrationService` subscription receives it simultaneously. Services that support targeting fields (`target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names`) filter delivery on the Python side so only matching sessions act on the event.
+The event is a **broadcast by default**: every browser tab with an active `IntegrationService` subscription receives it simultaneously. Services that support targeting fields (`target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names`) filter delivery on the Python side so only matching sessions act on the event.
 
 → See [HA Services](../internals/ha-services) for the full Python action reference and automation examples.
 → See [HA Integration Architecture](../ha-integration#python--js-push-channel) for the sequence diagram.
@@ -174,9 +174,9 @@ The event is a **broadcast by default** — every browser tab with an active `In
 
 When `available === false` (integration not installed, or removed):
 
-- All three storage helpers return `undefined` / `false` silently — no throws
+- All three storage helpers return `undefined` / `false` silently; no throws
 - Services log a warning and operate with empty / in-memory-only state; they do not fall back to `localStorage`
-- Cards continue to work fully — JS injection is independent of the integration probe
+- Cards continue to work fully: JS injection is independent of the integration probe
 - `window.lcards.info()` reports `integration: { available: false, version: null }`
 
 ---
@@ -186,7 +186,7 @@ When `available === false` (integration not installed, or removed):
 The probe hits the `lcards/info` command. The expanded response (since Phase 2C) includes storage diagnostics and the options snapshot:
 
 ```python
-# custom_components/lcards/websocket_api.py — ws_lcards_info response
+# custom_components/lcards/websocket_api.py - ws_lcards_info response
 {
     "available":         True,
     "version":           "2026.3.25",
@@ -217,7 +217,7 @@ const integration = window.lcards.core.integrationService;
 // Resolves immediately if already probed; otherwise waits for the probe to finish
 await integration.onReady();
 
-// Boolean — true once probe has run (pass or fail)
+// Boolean - true once probe has run (pass or fail)
 const alreadyRan = integration.isReady;
 ```
 

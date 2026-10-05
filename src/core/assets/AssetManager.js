@@ -35,7 +35,7 @@ const ASSET_TYPES = {
    * as `builtin:<key>` just like MSD SVGs use `builtin:<key>`.
    */
   image: {
-    description: 'Raster and SVG image files (URL registry — no content fetch)',
+    description: 'Raster and SVG image files (URL registry, no content fetch)',
     sanitize: false,
     cache: false,  // no content to cache — ImageLoader handles its own cache
     lazyLoad: false,

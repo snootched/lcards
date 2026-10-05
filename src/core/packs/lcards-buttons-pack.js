@@ -24,7 +24,7 @@ export const LCARDS_BUTTONS_PACK = {
   id:          'lcards_buttons',
   name:        'LCARdS Buttons',
   version:     __LCARDS_VERSION__,
-  description: 'Button style presets — all overlay shapes and variants',
+  description: 'Button style presets: all overlay shapes and variants',
 
   style_presets: {
     button: BUTTON_PRESETS

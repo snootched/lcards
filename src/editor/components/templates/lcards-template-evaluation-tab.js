@@ -290,23 +290,23 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
         <div class="syntax-list">
           <div class="syntax-item">
             <code class="syntax-code">[[[...]]]</code>
-            <span class="syntax-description">JavaScript expression — Evaluated client-side with access to entity, config, hass</span>
+            <span class="syntax-description">JavaScript expression: evaluated client-side with access to entity, config, hass</span>
           </div>
           <div class="syntax-item">
             <code class="syntax-code">{theme:token.path}</code>
-            <span class="syntax-description">LCARdS theme token — Single curly braces with <strong>theme:</strong> prefix</span>
+            <span class="syntax-description">LCARdS theme token: single curly braces with <strong>theme:</strong> prefix</span>
           </div>
           <div class="syntax-item">
             <code class="syntax-code">{datasource:name}</code>
-            <span class="syntax-description">LCARdS datasource token — Single curly braces with <strong>datasource:</strong> or <strong>ds:</strong> prefix</span>
+            <span class="syntax-description">LCARdS datasource token: single curly braces with <strong>datasource:</strong> or <strong>ds:</strong> prefix</span>
           </div>
           <div class="syntax-item">
             <code class="syntax-code">{entity.state}</code>
-            <span class="syntax-description">LCARdS simple token — Single curly braces for entity/config/variables paths</span>
+            <span class="syntax-description">LCARdS simple token: single curly braces for entity/config/variables paths</span>
           </div>
           <div class="syntax-item">
             <code class="syntax-code">{{...}}</code>
-            <span class="syntax-description">Jinja2 template — Double curly braces, evaluated by Home Assistant (async)</span>
+            <span class="syntax-description">Jinja2 template: double curly braces, evaluated by Home Assistant (async)</span>
           </div>
         </div>
       </lcards-form-section>

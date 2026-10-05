@@ -1,6 +1,6 @@
 # Style Preset Manager
 
-> **`window.lcards.core.stylePresetManager`** — Central registry of named style presets for buttons, sliders, and elbows.
+> **`window.lcards.core.stylePresetManager`**: Central registry of named style presets for buttons, sliders, and elbows.
 
 ---
 
@@ -51,14 +51,14 @@ export const BUTTONS_PACK = {
 |---|---|---|
 | `getPreset(type, name, themeManager?)` | `Object\|null` | Full preset definition (extends chain resolved, theme tokens resolved if a `themeManager` is passed), or `null` if not found |
 | `getPresetNames(type)` | `string[]` | All preset names for an overlay type (plain strings, `'base'` filtered out) |
-| `getAvailablePresets(type)` | `string[]` | Same array as `getPresetNames(type)` — `getPresetNames` is a thin wrapper around this with an `initialized` guard |
+| `getAvailablePresets(type)` | `string[]` | Same array as `getPresetNames(type)`: `getPresetNames` is a thin wrapper around this with an `initialized` guard |
 | `getPresetMetadata(type, name)` | `Object\|null` | Metadata for one preset: `{ id, type, extends, description, pack, presetType }` |
-| `getAllPresetsWithSource()` | `Object` | `{ [overlayType]: metadata[] }` for every type — used to build the Pack Explorer tree |
+| `getAllPresetsWithSource()` | `Object` | `{ [overlayType]: metadata[] }` for every type, used to build the Pack Explorer tree |
 | `hasPreset(type, name)` | `boolean` | Whether a preset exists |
 | `getAvailableOverlayTypes()` | `string[]` | All overlay types that have at least one preset registered |
 | `getDebugInfo()` | `Object` | Stats snapshot: pack count, cache size, presets by type, pack details |
 
-Note: `getAvailablePresets()`/`getPresetNames()` return **plain preset-name strings**, not objects — use `getPresetMetadata(type, name)` or `getAllPresetsWithSource()` for the metadata-bearing form (`{ id, type, extends, description, pack, presetType }`).
+Note: `getAvailablePresets()`/`getPresetNames()` return **plain preset-name strings**, not objects; use `getPresetMetadata(type, name)` or `getAllPresetsWithSource()` for the metadata-bearing form (`{ id, type, extends, description, pack, presetType }`).
 
 ```javascript
 const spm = window.lcards.core.stylePresetManager
@@ -106,14 +106,14 @@ spm.getAllPresetsWithSource()                   // { overlayType: metadata[] } f
 
 ## Built-in Presets
 
-Preset catalogs change as packs evolve — `spm.getPresetNames(type)` in the console is the authoritative current list. As of this build:
+Preset catalogs change as packs evolve; `spm.getPresetNames(type)` in the console is the authoritative current list. As of this build:
 
 | Type | Presets |
 |---|---|
 | `button` | `lozenge`, `lozenge-right`, `bullet`, `bullet-right`, `capped`, `capped-right`, `barrel`, `barrel-right`, `filled`, `filled-right`, `outline`, `outline-right`, `icon`, `text-only`, six `bar-label-*` variants, `panel-light`, `panel-dark` |
 | `slider` | `pills-basic`, `pills-left-border`, `pills-left-border-rounded`, `gauge-basic`, `gauge-left-border`, `gauge-left-border-rounded`, `shaped-vertical`, `shaped-horizontal`, `picard-gauge-vertical` |
 
-`elbow` shapes (`header-left`, `header-right`, `footer-left`, `footer-right`) are **not** `StylePresetManager` presets — elbows are structural path generators registered as `ComponentManager` components instead: `window.lcards.core.componentManager.getComponentsByType('elbow')`. See [Component Manager](component-manager.md).
+`elbow` shapes (`header-left`, `header-right`, `footer-left`, `footer-right`) are **not** `StylePresetManager` presets; elbows are structural path generators registered as `ComponentManager` components instead: `window.lcards.core.componentManager.getComponentsByType('elbow')`. See [Component Manager](component-manager.md).
 
 ---
 

@@ -80,7 +80,7 @@ flowchart TB
 
 ## Pack Format
 
-Every pack is a plain JavaScript object. All keys are optional — PackManager ignores keys it doesn't recognise and skips empty ones silently.
+Every pack is a plain JavaScript object. All keys are optional; PackManager ignores keys it doesn't recognise and skips empty ones silently.
 
 ```js
 {
@@ -158,7 +158,7 @@ Every pack is a plain JavaScript object. All keys are optional — PackManager i
 
 | Pack ID | File | Key(s) | Registry |
 |---|---|---|---|
-| `core` | `core-pack.js` | *(none — version anchor only)* | Pack Explorer |
+| `core` | `core-pack.js` | *(none: version anchor only)* | Pack Explorer |
 | `lcards_buttons` | `lcards-buttons-pack.js` | `style_presets.button` | StylePresetManager |
 | `lcards_sliders` | `lcards-sliders-pack.js` | `style_presets.slider` | StylePresetManager |
 | `lcards_elbows` | `lcards-elbows-pack.js` | `components` (type: `elbow`) | ComponentManager |
@@ -168,7 +168,7 @@ Every pack is a plain JavaScript object. All keys are optional — PackManager i
 | `lcards_alerts` | `lcards-alerts-pack.js` | `audio_assets` | AssetManager |
 | `builtin_msd_backgrounds` | `builtin-msd.js` | `svg_assets` | AssetManager |
 | `core_fonts` | `core-fonts-pack.js` | `font_assets` | AssetManager |
-| `lcards_textures` | `lcards-textures-pack.js` | *(metadata only — `SHAPE_TEXTURE_PRESETS` consumed directly by render methods)* | Pack Explorer |
+| `lcards_textures` | `lcards-textures-pack.js` | *(metadata only: `SHAPE_TEXTURE_PRESETS` consumed directly by render methods)* | Pack Explorer |
 | `lcards_images` | `lcards-images-pack.js` | `image_assets` | AssetManager |
 | `lcards_power` | `lcards-power-pack.js` | `audio_assets` | AssetManager |
 
@@ -220,7 +220,7 @@ src/core/packs/
     lcards-example-pack.js          ← full-feature template for third-party authors
 ```
 
-**Rule**: `loadBuiltinPacks.js` imports packs; it does not define them — even `CORE_PACK` and `CORE_FONTS_PACK` live in their own wrapper files (`core-pack.js`, `core-fonts-pack.js`), not inline.
+**Rule**: `loadBuiltinPacks.js` imports packs; it does not define them; even `CORE_PACK` and `CORE_FONTS_PACK` live in their own wrapper files (`core-pack.js`, `core-fonts-pack.js`), not inline.
 
 **Rule**: Pack wrapper files live at the `packs/` root. Never put a pack wrapper inside a domain subfolder.
 
@@ -241,7 +241,7 @@ lcards-core.js _performInitialization():
            step 3: pack.rules           → RulesEngine (direct push)
            step 4: pack.audio/svg/font/image → AssetManager.preloadFromPack()
            step 5: pack.sound_schemes   → SoundManager.registerSchemes()
-           step 6: (animations — cache-on-demand, no registration)
+           step 6: (animations - cache-on-demand, no registration)
            step 7: pack.components      → ComponentManager.registerComponentsFromPack()
 ```
 
@@ -264,7 +264,7 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
 
 ## How to Add a New Pack
 
-1. **Create the pack wrapper file at the `packs/` root** (never in a domain subfolder — see the file-structure rule above):
+1. **Create the pack wrapper file at the `packs/` root** (never in a domain subfolder; see the file-structure rule above):
    ```js
    // src/core/packs/lcards-my-pack.js
    export const MY_PACK = {
@@ -289,9 +289,9 @@ Note: ComponentManager initializes from `components/index.js` at step 1 *before*
 
 ## How to Add a New Component Type
 
-Component types are just a `components` pack under the hood — follow [How to Add a New Pack](#how-to-add-a-new-pack) above for the wrapper file and `loadBuiltinPacks.js` registration. Two things are specific to components:
+Component types are just a `components` pack under the hood; follow [How to Add a New Pack](#how-to-add-a-new-pack) above for the wrapper file and `loadBuiltinPacks.js` registration. Two things are specific to components:
 
-1. **`metadata.type` is required** on every component definition — `ComponentManager` uses it to group components for `getComponentsByType('mytype')`:
+1. **`metadata.type` is required** on every component definition; `ComponentManager` uses it to group components for `getComponentsByType('mytype')`:
    ```js
    // src/core/packs/components/mytype/index.js
    export const myTypeComponents = {
@@ -305,7 +305,7 @@ Component types are just a `components` pack under the hood — follow [How to A
    ```
    The pack wrapper (`src/core/packs/components/lcards-mytype-pack.js`) just sets `components: myTypeComponents`, same shape as the `MY_PACK` example above.
 
-2. **Also add the new type to the `components/index.js` spread**, so `ComponentManager`'s synchronous bootstrap load includes it immediately — before packs have finished loading asynchronously:
+2. **Also add the new type to the `components/index.js` spread**, so `ComponentManager`'s synchronous bootstrap load includes it immediately, before packs have finished loading asynchronously:
    ```js
    import { myTypeComponents } from './mytype/index.js';
    export const components = {

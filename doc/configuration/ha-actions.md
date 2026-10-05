@@ -4,7 +4,7 @@
 
 LCARdS registers a set of HA **actions** under the `lcards` domain. Once the integration is installed they appear automatically in:
 
-- **Automations & Scripts** — `action:` blocks in YAML or the visual editor
+- **Automations & Scripts**: `action:` blocks in YAML or the visual editor
 - **Voice assistants** that call HA services
 - **Developer Tools → Actions** (one-shot testing)
 - The **REST / WebSocket API** for external integrations
@@ -29,7 +29,7 @@ See [Users & Devices](/configuration/users-devices) for how device IDs and displ
 
 ## Alert Mode Actions
 
-Alert state is stored in `input_select.lcards_alert_mode` — the single source of truth. All alert actions update that entity, which propagates automatically to the `ThemeManager` (colour palette), `SoundManager` (alert sounds), and any `lcards-alert-overlay` cards on the dashboards.
+Alert state is stored in `input_select.lcards_alert_mode`, the single source of truth. All alert actions update that entity, which propagates automatically to the `ThemeManager` (colour palette), `SoundManager` (alert sounds), and any `lcards-alert-overlay` cards on the dashboards.
 
 ### `lcards.set_alert_mode`
 
@@ -47,7 +47,7 @@ data:
 
 ### Shortcut actions
 
-One-shot actions that each set the corresponding alert mode directly. All support [targeting](#targeting) — when targeting fields are present only the matched browsers update their local alert state (global `input_select.lcards_alert_mode` is not written).
+One-shot actions that each set the corresponding alert mode directly. All support [targeting](#targeting); when targeting fields are present only the matched browsers update their local alert state (global `input_select.lcards_alert_mode` is not written).
 
 | Action | Effect |
 |--------|--------|
@@ -68,7 +68,7 @@ action: lcards.red_alert
 
 Play or clear layered screen effects on connected browser tabs. Supports [targeting](#targeting).
 
-Effects are applied per slot — `backdrop` (CSS filters), `color` (colour overlay), and `canvas` (animated canvas). Slots are independent: you can update one without touching the others. See [Screen Effects](/core/effects/screen-effects) for the full preset reference and parameter docs.
+Effects are applied per slot: `backdrop` (CSS filters), `color` (colour overlay), and `canvas` (animated canvas). Slots are independent: you can update one without touching the others. See [Screen Effects](/core/effects/screen-effects) for the full preset reference and parameter docs.
 
 ### `lcards.trigger_effect`
 
@@ -76,14 +76,14 @@ Play one or more layered screen effects.
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `layers` | object | ✅ | Per-slot effect config — see below |
+| `layers` | object | ✅ | Per-slot effect config: see below |
 | `duration` | number | | Auto-clear all effects after this many ms (100–300000). Omit for a persistent effect that must be cleared manually. |
 | `target_device_ids` | list | | → [Targeting](#targeting) |
 | `target_device_names` | list | | → [Targeting](#targeting) |
 | `target_user_ids` | list | | → [Targeting](#targeting) |
 | `target_user_names` | list | | → [Targeting](#targeting) |
 
-**`layers` object** — each key is a slot name; omit a slot to leave it unchanged, set it to `null` to clear it. Each slot object requires a `preset` key plus any preset-specific overrides:
+**`layers` object**: each key is a slot name; omit a slot to leave it unchanged, set it to `null` to clear it. Each slot object requires a `preset` key plus any preset-specific overrides:
 
 | Slot | Preset | Key params |
 |------|--------|------------|
@@ -102,7 +102,7 @@ Play one or more layered screen effects.
 See [Screen Effects](/core/effects/screen-effects) for full parameter details.
 
 ```yaml
-# Red-tinted blur — persistent until cleared
+# Red-tinted blur - persistent until cleared
 action: lcards.trigger_effect
 data:
   layers:
@@ -179,19 +179,19 @@ data:
 
 ## Sound Actions
 
-Play a sound effect on connected browser tabs — without touching alert mode, theme, or any screen effect. Useful for subtle audio cues from automations (e.g. a soft chime when a kiosk tablet wakes). Supports [targeting](#targeting).
+Play a sound effect on connected browser tabs, without touching alert mode, theme, or any screen effect. Useful for subtle audio cues from automations (e.g. a soft chime when a kiosk tablet wakes). Supports [targeting](#targeting).
 
-Sound playback always respects the target device's master **Sound Effects Enabled** toggle (`input_boolean.lcards_sound_enabled`) — if the user has muted sounds, `play_sound` stays silent too. It does *not* check the `cards` / `ui` / `alerts` category toggles, since an automation-triggered sound isn't tied to any of those categories.
+Sound playback always respects the target device's master **Sound Effects Enabled** toggle (`input_boolean.lcards_sound_enabled`); if the user has muted sounds, `play_sound` stays silent too. It does *not* check the `cards` / `ui` / `alerts` category toggles, since an automation-triggered sound isn't tied to any of those categories.
 
 See [Sound Configuration](/configuration/sounds) for the full event list, schemes, and per-user/per-device overrides.
 
 ### `lcards.play_sound`
 
-Provide either `event_type` or `asset_key` — not both. If both are given, `asset_key` wins.
+Provide either `event_type` or `asset_key`, not both. If both are given, `asset_key` wins.
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `event_type` | select | | Plays whatever sound is currently configured for that UI event on the target device — respects its per-event override and active sound scheme. One of the 26 event keys listed in [Sound Configuration](/configuration/sounds#what-events-are-covered). |
+| `event_type` | select | | Plays whatever sound is currently configured for that UI event on the target device; respects its per-event override and active sound scheme. One of the 26 event keys listed in [Sound Configuration](/configuration/sounds#what-events-are-covered). |
 | `asset_key` | string | | Plays one exact sound file (e.g. `lcards_default_system_ready`), bypassing the target's scheme/overrides entirely. Find valid keys via the Config Panel Sound tab or `window.lcards.core.assetManager.getRegistry('audio').list()` in the browser console. |
 | `target_device_ids` | list | | → [Targeting](#targeting) |
 | `target_device_names` | list | | → [Targeting](#targeting) |
@@ -229,7 +229,7 @@ data:
 
 Display or clear a custom HA card over the full-screen portal on connected browser tabs. Supports [targeting](#targeting).
 
-Cards are mounted in the `'ha-service'` portal slot, which is independent of the Alert and Connection overlay slots — they do not interfere with each other.
+Cards are mounted in the `'ha-service'` portal slot, which is independent of the Alert and Connection overlay slots; they do not interfere with each other.
 
 For more advanced use-cases, you can refer to [using browser_mod](./browser-mod.md) integration page.
 
@@ -240,7 +240,7 @@ Displays a card or message in the portal overlay.
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `content` | object | ✅ | Any HA card config (`type: custom:lcards-button`, `type: entities`, etc.) |
-| `layers` | object | | SEM effect layers — same shape as `lcards.trigger_effect` |
+| `layers` | object | | SEM effect layers: same shape as `lcards.trigger_effect` |
 | `position` | select | | Content anchor. Default: `center`. Options: `center`, `top`, `top-left`, `top-right`, `bottom`, `bottom-left`, `bottom-right`, `left`, `right` |
 | `width` | string | | CSS width for the content container, e.g. `'400px'` |
 | `height` | string | | CSS height for the content container |
@@ -283,7 +283,7 @@ data:
 
 ### `lcards.clear_portal_card`
 
-Hides the portal card shown by `show_portal_card`. Only clears the `'ha-service'` slot — alert and connection overlays are unaffected. Supports [targeting](#targeting).
+Hides the portal card shown by `show_portal_card`. Only clears the `'ha-service'` slot; alert and connection overlays are unaffected. Supports [targeting](#targeting).
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
@@ -318,23 +318,23 @@ Trigger the Borg assimilation on one or all connected browsers.
 
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `intro_duration` | No | — | Auto-dismiss the intro after this many ms (1000–60000). Omit for click-to-dismiss. |
+| `intro_duration` | No | - | Auto-dismiss the intro after this many ms (1000–60000). Omit for click-to-dismiss. |
 | `site_count` | No | `8` | Number of injection sites on screen (1–20) |
 | `tendrils_per_site` | No | `5` | Bézier tendrils per injection site (1–24) |
 | `tendril_length` | No | `600` | Maximum tendril reach in pixels (100–1200) |
 | `particle_count` | No | `2` | Nano-probe particles per tendril (0–6); `0` disables particles |
 | `transition_style` | No | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only`, `off` |
-| `font_swap` | No | `true` | Set to `false` to skip the Borg font injection — all other effects (palette, canvas intro, persistent layers) still run. |
+| `font_swap` | No | `true` | Set to `false` to skip the Borg font injection; all other effects (palette, canvas intro, persistent layers) still run. |
 | `suppress_persistent` | No | `false` | Suppress all persistent effects after intro. Ignored if `persistent_layers` is also set. |
-| `intro_layers` | No | — | **Advanced.** Full per-slot layers dict. Canvas param keys accept either snake_case or camelCase — both are normalised. Values override the corresponding flat shortcuts. |
-| `persistent_layers` | No | — | **Advanced.** Full per-slot layers dict. Overrides `suppress_persistent` when set. Pass `{}` to suppress all. |
-| `target_device_ids` | No | — | → [Targeting](#targeting) |
-| `target_device_names` | No | — | → [Targeting](#targeting) |
-| `target_user_ids` | No | — | → [Targeting](#targeting) |
-| `target_user_names` | No | — | → [Targeting](#targeting) |
+| `intro_layers` | No | - | **Advanced.** Full per-slot layers dict. Canvas param keys accept either snake_case or camelCase; both are normalised. Values override the corresponding flat shortcuts. |
+| `persistent_layers` | No | - | **Advanced.** Full per-slot layers dict. Overrides `suppress_persistent` when set. Pass `{}` to suppress all. |
+| `target_device_ids` | No | - | → [Targeting](#targeting) |
+| `target_device_names` | No | - | → [Targeting](#targeting) |
+| `target_user_ids` | No | - | → [Targeting](#targeting) |
+| `target_user_names` | No | - | → [Targeting](#targeting) |
 
 ```yaml
-# Broadcast — click-to-dismiss
+# Broadcast - click-to-dismiss
 action: lcards.borg_assimilate
 ```
 
@@ -369,14 +369,14 @@ data:
 ```
 
 ```yaml
-# Suppress all persistent effects — palette + font only
+# Suppress all persistent effects - palette + font only
 action: lcards.borg_assimilate
 data:
   suppress_persistent: true
 ```
 
 ```yaml
-# Keep the existing font — palette + canvas intro still run
+# Keep the existing font - palette + canvas intro still run
 action: lcards.borg_assimilate
 data:
   font_swap: false
@@ -398,15 +398,15 @@ Reverse the Borg assimilation and restore all browsers to normal.
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `with_outro` | No | `true` | Play outro layers before reverting. `false` = immediate silent revert. |
-| `outro_layers` | No | — | Layers dict for the outro. Longest `duration` param determines wait time. Omit for defaults (glitch on canvas, 1200 ms). |
+| `outro_layers` | No | - | Layers dict for the outro. Longest `duration` param determines wait time. Omit for defaults (glitch on canvas, 1200 ms). |
 | `revert_transition_style` | No | `fade_only` | Palette transition back to normal: `flash`, `fade_only`, `blur_fade`, `off` |
-| `target_device_ids` | No | — | → [Targeting](#targeting) |
-| `target_device_names` | No | — | → [Targeting](#targeting) |
-| `target_user_ids` | No | — | → [Targeting](#targeting) |
-| `target_user_names` | No | — | → [Targeting](#targeting) |
+| `target_device_ids` | No | - | → [Targeting](#targeting) |
+| `target_device_names` | No | - | → [Targeting](#targeting) |
+| `target_user_ids` | No | - | → [Targeting](#targeting) |
+| `target_user_names` | No | - | → [Targeting](#targeting) |
 
 ```yaml
-# Broadcast — default glitch outro
+# Broadcast - default glitch outro
 action: lcards.borg_deassimilate
 ```
 
@@ -447,7 +447,7 @@ Forces the matching browser tabs to reload (`window.location.reload()`). Useful 
 | `target_user_names` | list | | → [Targeting](#targeting) |
 
 ```yaml
-# Broadcast — reload all tabs
+# Broadcast - reload all tabs
 action: lcards.reload
 ```
 
@@ -465,7 +465,7 @@ This *immediately* reloads the matched browser tabs. Use with care if users are 
 
 ### `lcards.set_log_level`
 
-Changes the JS frontend log level at runtime across matched tabs and updates the Python logger hierarchy simultaneously. Verbose output appears in the browser console immediately — no HA restart or page reload required. Supports [targeting](#targeting).
+Changes the JS frontend log level at runtime across matched tabs and updates the Python logger hierarchy simultaneously. Verbose output appears in the browser console immediately, no HA restart or page reload required. Supports [targeting](#targeting).
 
 | Field | Type | Required | Options |
 |-------|------|----------|---------|
@@ -554,7 +554,7 @@ action:
         - Kitchen Tablet
 ```
 
-### Borg mode — assimilate all browsers, auto-revert after 30 minutes
+### Borg mode: assimilate all browsers, auto-revert after 30 minutes
 
 ```yaml
 automation:
@@ -575,8 +575,8 @@ automation:
 
 ## Related
 
-- [Borg Assimilation](/core/borg) — full console API, layer params, and sequence documentation
-- [Screen Effects](/core/effects/screen-effects) — full preset reference for `layers` params used by `trigger_effect`, `show_portal_card`, and the borg actions
-- [Sound Configuration](/configuration/sounds) — event list, schemes, and per-user/per-device overrides used by `play_sound`
-- [Users & Devices](/configuration/users-devices) — how device IDs and display names are assigned
-- [Alert Mode Lab](/configuration/alert-mode-lab) — interactive alert mode configuration
+- [Borg Assimilation](/core/borg): full console API, layer params, and sequence documentation
+- [Screen Effects](/core/effects/screen-effects): full preset reference for `layers` params used by `trigger_effect`, `show_portal_card`, and the borg actions
+- [Sound Configuration](/configuration/sounds): event list, schemes, and per-user/per-device overrides used by `play_sound`
+- [Users & Devices](/configuration/users-devices): how device IDs and display names are assigned
+- [Alert Mode Lab](/configuration/alert-mode-lab): interactive alert mode configuration

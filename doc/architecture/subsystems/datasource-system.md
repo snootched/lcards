@@ -1,6 +1,6 @@
 # DataSource System
 
-> **`window.lcards.core.dataSourceManager`** — Named entity data buffers with history and processing pipelines.
+> **`window.lcards.core.dataSourceManager`**: Named entity data buffers with history and processing pipelines.
 
 ---
 
@@ -8,7 +8,7 @@
 
 `DataSourceManager` extends `BaseService` and manages a collection of named `DataSource` instances. Each source subscribes to a single HA entity, records a rolling value history, runs processor pipelines, and notifies subscribers on every update.
 
-Cards never talk to HA entity state directly for data — they declare data sources in config and subscribe to the manager.
+Cards never talk to HA entity state directly for data; they declare data sources in config and subscribe to the manager.
 
 ---
 
@@ -55,7 +55,7 @@ data_sources:
     entity: sensor.temperature
     update_interval: 5000       # throttle, in MILLISECONDS (0–10000); default 100
     history: { hours: 6 }       # historical preload window (hours: 1–168, or days: 1–7)
-    processing:                 # named map, not a list — each key is the processor's name
+    processing:                 # named map, not a list - each key is the processor's name
       celsius:
         type: convert_unit
         from: fahrenheit
@@ -93,36 +93,36 @@ Each processor declares its input via `input_source`:
 - **No `input_source`**: processor reads from the raw entity value pushed by HA
 - **`input_source: other_key`**: processor reads from the *output* of the named processor
 
-A processor only ever sees one input — either the raw entity value or the output of its `input_source` target. Processors with no shared dependencies run in an unspecified order relative to each other; only declared chains are ordered.
+A processor only ever sees one input: either the raw entity value or the output of its `input_source` target. Processors with no shared dependencies run in an unspecified order relative to each other; only declared chains are ordered.
 
-**Circular dependencies throw at initialization** — the DataSource will fail to configure.
+**Circular dependencies throw at initialization**: the DataSource will fail to configure.
 
 ```yaml
 data_sources:
   temp_sensor:
     entity: sensor.outdoor_temp
     processing:
-      # Step 1 — reads raw entity value (no input_source)
+      # Step 1 - reads raw entity value (no input_source)
       celsius:
         type: convert_unit
         from: f
         to: c
 
-      # Step 2 — reads output of 'celsius' processor
+      # Step 2 - reads output of 'celsius' processor
       smoothed:
         type: smooth
         input_source: celsius
         method: moving_average
         window: 5
 
-      # Step 3 — reads output of 'smoothed'
+      # Step 3 - reads output of 'smoothed'
       display:
         type: round
         input_source: smoothed
         precision: 1
 ```
 
-> `convert_unit`'s own `from`/`to` fields are unit codes, not dependency references — don't confuse them with the chaining `input_source` field above. This double-use of the word "from" is a real overload in the underlying processor config, not a documentation inconsistency.
+> `convert_unit`'s own `from`/`to` fields are unit codes, not dependency references; don't confuse them with the chaining `input_source` field above. This double-use of the word "from" is a real overload in the underlying processor config, not a documentation inconsistency.
 
 Access each stage in templates: `{ds:temp_sensor.celsius}`, `{ds:temp_sensor.smoothed}`, `{ds:temp_sensor.display}`.
 
@@ -205,7 +205,7 @@ dsm.getSource('sensor_temp').getRecent(50)     // last 50 { t, v } points
 
 ## Debug Namespace (`window.lcards.debug.datasources`)
 
-Specialized introspection tools for deep DataSource analysis — processor graphs, validation, buffer stats.
+Specialized introspection tools for deep DataSource analysis: processor graphs, validation, buffer stats.
 
 ::: tip
 ```javascript

@@ -1421,7 +1421,7 @@ export class LCARdSChartStudioDialog extends LitElement {
             {
                 value: 'line', label: 'Line', icon: 'mdi:chart-line', minSeries: 1,
                 desc: 'Trends over time',
-                infoText: 'Plots a continuous line from entity history. Works out of the box with any DataSource — each {t, v} point becomes a data point. Best for temperature, power, or any value that changes over time.'
+                infoText: 'Plots a continuous line from entity history. Works out of the box with any DataSource: each {t, v} point becomes a data point. Best for temperature, power, or any value that changes over time.'
             },
             {
                 value: 'area', label: 'Area', icon: 'mdi:chart-areaspline', minSeries: 1,
@@ -1446,19 +1446,19 @@ export class LCARdSChartStudioDialog extends LitElement {
             {
                 value: 'heatmap', label: 'Heatmap', icon: 'mdi:grid', minSeries: 1,
                 desc: 'Matrix / density',
-                infoText: 'Grid of color-intensity cells. Each series becomes one row, and values over time form the columns. Works with entity history — great for showing daily/weekly patterns across multiple entities.'
+                infoText: 'Grid of color-intensity cells. Each series becomes one row, and values over time form the columns. Works with entity history, great for showing daily/weekly patterns across multiple entities.'
             },
             {
                 value: 'pie', label: 'Pie', icon: 'mdi:chart-pie', minSeries: 2,
                 desc: 'Proportions (2+ series)',
                 special: true,
-                infoText: 'Shows proportional slices of a whole. Requires 2+ series, each holding a single numeric value (not a time-series). Use sensors that naturally return a single current value — e.g., energy usage per zone. Time-series history buffers are not suited for this type.'
+                infoText: 'Shows proportional slices of a whole. Requires 2+ series, each holding a single numeric value (not a time-series). Use sensors that naturally return a single current value, e.g., energy usage per zone. Time-series history buffers are not suited for this type.'
             },
             {
                 value: 'donut', label: 'Donut', icon: 'mdi:chart-donut', minSeries: 2,
                 desc: 'Proportions (2+ series)',
                 special: true,
-                infoText: 'Like Pie but with an open centre. Same data requirements — 2+ series each with a single numeric value. The centre can display a total or label.'
+                infoText: 'Like Pie but with an open centre. Same data requirements: 2+ series each with a single numeric value. The centre can display a total or label.'
             },
             {
                 value: 'radar', label: 'Radar', icon: 'mdi:radar', minSeries: 1,
@@ -1475,7 +1475,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 value: 'polarArea', label: 'Polar', icon: 'mdi:chart-donut-variant', minSeries: 1,
                 desc: 'Directional data',
                 special: true,
-                infoText: 'Equal-angle segments with varying radius. Similar to Pie — requires category counts, one value per series. Each series becomes one segment, sized by its value. Not suited for time-series history buffers.'
+                infoText: 'Equal-angle segments with varying radius. Similar to Pie; requires category counts, one value per series. Each series becomes one segment, sized by its value. Not suited for time-series history buffers.'
             },
             {
                 value: 'treemap', label: 'Treemap', icon: 'mdi:view-grid', minSeries: 1,
@@ -1541,7 +1541,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                             <div>
                                 <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">
                                     ${selected.label}
-                                    ${selected.special ? html`<span style="font-size: 11px; font-weight: 400; opacity: 0.8;"> — requires custom data format</span>` : ''}
+                                    ${selected.special ? html`<span style="font-size: 11px; font-weight: 400; opacity: 0.8;"> (requires custom data format)</span>` : ''}
                                 </div>
                                 <div style="font-size: 13px; line-height: 1.5; color: var(--secondary-text-color);">
                                     ${selected.infoText}

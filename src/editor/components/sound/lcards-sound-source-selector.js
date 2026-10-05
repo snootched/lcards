@@ -44,7 +44,7 @@ export class LCARdSSoundSourceSelector extends LitElement {
     this.value = '__scheme__';
     this.audioAssets = [];
     this.disabled = false;
-    this.schemeLabel = '— Use scheme default —';
+    this.schemeLabel = '(Use scheme default)';
     // True while the user has switched the dropdown to "Browse HA Media" but
     // hasn't picked an item yet — value hasn't changed, so this can't be
     // derived from `value` alone.

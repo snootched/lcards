@@ -339,13 +339,13 @@ window.lcards.core.helperManager
 
 ### Alert Lab & Configuration Panel
 
-Both consumers use the same Helper Manager API already documented above — no new methods. The Alert Lab reads/writes `alert_lab_{mode}_{hue,saturation,lightness}` keys via `getHelperValue()`/`setHelperValue()` on open/save; the Config Panel lists helper status via `getAllHelpers()` + `helperExists()` + `getHelperValue()`, and bulk-creates missing ones via `ensureAllHelpers()`.
+Both consumers use the same Helper Manager API already documented above; no new methods. The Alert Lab reads/writes `alert_lab_{mode}_{hue,saturation,lightness}` keys via `getHelperValue()`/`setHelperValue()` on open/save; the Config Panel lists helper status via `getAllHelpers()` + `helperExists()` + `getHelperValue()`, and bulk-creates missing ones via `ensureAllHelpers()`.
 
 ## Best Practices
 
 - **Naming:** prefix all helpers with `lcards_`, snake_case entity IDs, group by category in the registry.
-- **Error handling:** wrap `createHelper()`/`setHelperValue()` calls in try/catch — see the Error Handling notes under Helper API above.
+- **Error handling:** wrap `createHelper()`/`setHelperValue()` calls in try/catch; see the Error Handling notes under Helper API above.
 - **State:** subscribe to changes for reactive updates instead of polling, and unsubscribe on component cleanup (`unsubscribeFromHelper()` or the function returned by `subscribeToHelper()`).
 - **Performance:** batch helper creation via `ensureAllHelpers()` rather than looping `ensureHelper()` calls; avoid excessive subscriptions.
 
-There is no automated test suite for this project — validate helper changes manually: create via the Config Panel, confirm the entity appears in HA, exercise Alert Lab save/reload, and trigger a value change from an automation.
+There is no automated test suite for this project; validate helper changes manually: create via the Config Panel, confirm the entity appears in HA, exercise Alert Lab save/reload, and trigger a value change from an automation.

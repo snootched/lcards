@@ -929,7 +929,7 @@ export class LCARdSSoundConfigTab extends LitElement {
         <!-- ── BROWSER AUTOPLAY NOTICE ── -->
         <lcards-message
           type="info"
-          .message=${'<strong>Browser audio policy:</strong> Most sounds play after the first user interaction (tap or click). The <em>System Ready</em> startup sound plays on page load — for it to work your browser must allow audio autoplay for this URL. <a href="https://lcards.unimatrix01.ca/configuration/sounds#browser-audio-policy" target="_blank" rel="noopener noreferrer">Browser setup instructions →</a>'}
+          .message=${'<strong>Browser audio policy:</strong> Most sounds play after the first user interaction (tap or click). The <em>System Ready</em> startup sound plays on page load. For it to work your browser must allow audio autoplay for this URL. <a href="https://lcards.unimatrix01.ca/configuration/sounds#browser-audio-policy" target="_blank" rel="noopener noreferrer">Browser setup instructions →</a>'}
         ></lcards-message>
 
         <!-- ── GLOBAL SETTINGS GROUP ── -->
@@ -1025,7 +1025,7 @@ export class LCARdSSoundConfigTab extends LitElement {
           <div class="control-row">
             <div class="control-label">
               Active Scheme
-              <span class="hint">"None (silent)" plays nothing by default — per-event overrides below still apply on top of it</span>
+              <span class="hint">"None (silent)" plays nothing by default: per-event overrides below still apply on top of it</span>
             </div>
             <div class="scheme-row">
               <ha-selector
@@ -1079,8 +1079,8 @@ export class LCARdSSoundConfigTab extends LitElement {
               header="Per-Event Overrides"
               icon="mdi:tune-variant"
               description=${window.lcards?.core?.soundManager?.isCustomScheme(schemeValue)
-                ? `Editing "${schemeValue.slice(7)}" directly — click Save to commit changes to this custom scheme`
-                : 'Override individual events on top of the active (built-in) scheme — click Save to commit changes'}
+                ? `Editing "${schemeValue.slice(7)}" directly: click Save to commit changes to this custom scheme`
+                : 'Override individual events on top of the active (built-in) scheme. Click Save to commit changes'}
               ?expanded=${false}
               ?outlined=${true}
               class="${!masterEnabled ? 'dimmed' : ''}">
@@ -1191,8 +1191,8 @@ export class LCARdSSoundConfigTab extends LitElement {
                                 .value=${overrideValue}
                                 .audioAssets=${this._audioAssets}
                                 .schemeLabel=${window.lcards?.core?.soundManager?.isCustomScheme(schemeValue)
-                                  ? '— Not set in this scheme (silent) —'
-                                  : '— Use scheme default —'}
+                                  ? '(Not set in this scheme: silent)'
+                                  : '(Use scheme default)'}
                                 ?disabled=${!masterEnabled}
                                 @value-changed=${(e) => this._setOverride(evt.key, e.detail.value)}
                               ></lcards-sound-source-selector>
@@ -1469,7 +1469,7 @@ export class LCARdSSoundConfigTab extends LitElement {
           <div class="scoped-overrides-header">
             <ha-icon icon="mdi:tune"></ha-icon>
             <span>Per-Event Overrides
-              <span class="hint">&nbsp;—&nbsp;override individual events at the ${scope} level</span>
+              <span class="hint">&nbsp;Â·&nbsp;override individual events at the ${scope} level</span>
             </span>
             ${hasAnyScopedOverride ? html`
               <ha-button

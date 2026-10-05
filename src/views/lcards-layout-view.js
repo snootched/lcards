@@ -78,9 +78,9 @@ const ALIGN_H_OPTIONS = [
     { value: 'end',     label: 'Right' },
 ];
 const PLACEMENT_OVERFLOW_OPTIONS = [
-    { value: 'visible', label: 'Visible — bleeds beyond cell' },
-    { value: 'clip',    label: 'Clip — hard clip, no scroll' },
-    { value: 'hidden',  label: 'Hidden — clip + block context' },
+    { value: 'visible', label: 'Visible: bleeds beyond cell' },
+    { value: 'clip',    label: 'Clip: hard clip, no scroll' },
+    { value: 'hidden',  label: 'Hidden: clip + block context' },
     { value: 'auto',    label: 'Scroll when needed (auto)' },
     { value: 'scroll',  label: 'Always scroll' },
 ];
@@ -1063,7 +1063,7 @@ export class LCARdSLayoutView extends LitElement {
                     <div class="drag-grip" @pointerdown=${this._placementDragStart} title="Drag to move">
                         <ha-icon icon="mdi:drag"></ha-icon>
                     </div>
-                    <div class="placement-title">Placement — ${label}</div>
+                    <div class="placement-title">Placement: ${label}</div>
                 </div>
                 <div class="placement-field">
                     <label>Align ↕</label>

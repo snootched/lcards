@@ -372,7 +372,7 @@ export class LCARdSRuleEditorDialog extends LitElement {
 
                     ${this._applyWarning ? html`
                         <ha-alert alert-type="warning">
-                            The Apply section is empty — this rule will fire but do nothing.
+                            The Apply section is empty; this rule will fire but do nothing.
                             Add at least one overlay target or tag target.
                         </ha-alert>
                     ` : ''}

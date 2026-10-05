@@ -1,6 +1,6 @@
 # Component Manager
 
-> **`window.lcards.core.componentManager`** — Registry of SVG component definitions for button component mode.
+> **`window.lcards.core.componentManager`**: Registry of SVG component definitions for button component mode.
 
 ---
 
@@ -23,7 +23,7 @@
 | `dpad` | D-pad directional control (9 segments: up/down/left/right, 4 diagonal corners, center) |
 | `dpad_voyager` | Alternate D-pad visual variant |
 | `alert` | Alert shield shape (2 segments: shape, bars) |
-| `header-left` / `header-right` / `footer-left` / `footer-right` / `header-contained` / `footer-contained` | Elbow shape variants (distributed via `lcards_elbows` pack — no `elbow_` prefix on the IDs) |
+| `header-left` / `header-right` / `footer-left` / `footer-right` / `header-contained` / `footer-contained` | Elbow shape variants (distributed via `lcards_elbows` pack; no `elbow_` prefix on the IDs) |
 
 ---
 
@@ -37,7 +37,7 @@
   orientation: 'square',
   features: ['multi-segment', 'state-based-styling', 'zones', 'text-overlay'],
 
-  // Named rectangular regions in viewBox coordinate space — used for text overlay placement
+  // Named rectangular regions in viewBox coordinate space - used for text overlay placement
   zones: {
     up: { x: 34, y: 0.5, width: 12, height: 9.5 },
     // ... down / left / right / center / up_left / up_right / down_left / down_right
@@ -60,7 +60,7 @@
   getPresetNames() { return Object.keys(this.presets); },
 
   metadata: {
-    type: 'dpad',           // Required — used by ComponentManager for getComponentsByType()
+    type: 'dpad',           // Required - used by ComponentManager for getComponentsByType()
     card_type: 'button',    // Which card editor this component is valid for
     pack: 'lcards_buttons',
     id: 'dpad',
@@ -71,7 +71,7 @@
 }
 ```
 
-Per-segment actions (`tap_action`, etc.) are not part of the component definition — they're supplied by the card config (e.g. `dpad.segments.up.tap_action`) and merged on top of these defaults at render time.
+Per-segment actions (`tap_action`, etc.) are not part of the component definition; they're supplied by the card config (e.g. `dpad.segments.up.tap_action`) and merged on top of these defaults at render time.
 
 ---
 
@@ -97,7 +97,7 @@ export const ELBOW_PACK = {
 | `getComponentMetadata(name)` | `Object\|null` | Just the `metadata` block (or a minimal fallback for legacy components without one) |
 | `hasComponent(name)` | `boolean` | True if a component with this name is registered |
 | `getAllComponentNames()` | `string[]` | All registered component names |
-| `getComponentsByType(type)` | `string[]` | Names of all components matching a type string — **names only**, not full definitions |
+| `getComponentsByType(type)` | `string[]` | Names of all components matching a type string: **names only**, not full definitions |
 | `getComponentTypes()` | `string[]` | All distinct type strings in use |
 | `registerComponentsFromPack(pack)` | `void` | Bulk-register `pack.components`, tagging each with `pack: pack.id` |
 
@@ -148,6 +148,6 @@ cm.getComponentsByType('dpad') // names of that type (string[], not full defs)
 
 ## See Also
 
-- [Button Card — Component Mode](../../cards/button/)
+- [Button Card: Component Mode](../../cards/button/)
 - [Asset Manager](asset-manager.md)
 - [Pack System](pack-system.md)

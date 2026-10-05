@@ -352,7 +352,7 @@ export class LCARdSZoneListEditor extends LitElement {
                     <ha-selector
                         .selector=${{ text: {} }}
                         .value=${zone.name}
-                        .label=${'Zone name — referenced as zone: in text fields'}
+                        .label=${'Zone name: referenced as zone: in text fields'}
                         @value-changed=${(e) => this._rename(index, e.detail.value)}>
                     </ha-selector>
                 </div>

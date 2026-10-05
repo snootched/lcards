@@ -292,7 +292,7 @@ export const LCARDS_EXAMPLE_PACK = {
   id:          'lcards_example',
   name:        'LCARdS Example',
   version:     '1.0.0',
-  description: 'Full-feature example pack — template for third-party pack authors',
+  description: 'Full-feature example pack: template for third-party pack authors',
 
   // ── Data sections (all optional — delete what you don't use) ─────
   style_presets: STYLE_PRESETS,

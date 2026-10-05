@@ -147,7 +147,7 @@ export function evaluateSupportChecks(info) {
 const STATUS_ICON = { ok: '✅', warn: '⚠️', error: '❌', info: 'ℹ️' };
 
 function cell(v) {
-    if (v === null || v === undefined || v === '') return '—';
+    if (v === null || v === undefined || v === '') return '-';
     return String(v).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 }
 
@@ -178,7 +178,7 @@ export function formatSupportMarkdown(info, checks, { compact = false } = {}) {
     lines.push('');
     lines.push('**Checks**');
     for (const c of checks ?? []) {
-        lines.push(`- ${STATUS_ICON[c.status] ?? '•'} ${c.title}${c.detail ? ` — ${c.detail}` : ''}`);
+        lines.push(`- ${STATUS_ICON[c.status] ?? '•'} ${c.title}${c.detail ? ` · ${c.detail}` : ''}`);
     }
     if (compact) return lines.join('\n');
 
@@ -219,10 +219,10 @@ export function buildIssueUrl(info, fullMarkdown, compactMarkdown, { repo = DEFA
         params.set(ISSUE_FIELDS.diagnostics, diag);
         return `${base}?${params.toString()}`;
     };
-    const note = '\n\n> Full support info was copied to your clipboard — paste it here to replace this summary.';
+    const note = '\n\n> Full support info was copied to your clipboard. Paste it here to replace this summary.';
     let url = make(fullMarkdown);
     if (url.length <= MAX_ISSUE_URL_LENGTH) return { url, truncated: false };
     url = make(compactMarkdown + note);
     if (url.length <= MAX_ISSUE_URL_LENGTH) return { url, truncated: true };
-    return { url: make('Support info was copied to your clipboard — paste it here.'), truncated: true };
+    return { url: make('Support info was copied to your clipboard. Paste it here.'), truncated: true };
 }

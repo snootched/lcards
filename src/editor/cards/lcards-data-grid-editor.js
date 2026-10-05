@@ -118,7 +118,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
             <!-- Sizing -->
             <lcards-form-section
                 header="Sizing"
-                description="Override card dimensions — useful in stacks, overlays, or any auto-height container"
+                description="Override card dimensions: useful in stacks, overlays, or any auto-height container"
                 icon="mdi:resize"
                 ?expanded=${false}
                 ?outlined=${true}

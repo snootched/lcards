@@ -1,6 +1,6 @@
 # Sound Effects
 
-LCARdS cards play audio feedback automatically for interactions — taps, holds, hover, slider drags, and toggle state changes. No config is needed to get the default behaviour; sounds follow the active scheme and global settings set up in [Sound Configuration](../configuration/sounds.md).
+LCARdS cards play audio feedback automatically for interactions: taps, holds, hover, slider drags, and toggle state changes. No config is needed to get the default behaviour; sounds follow the active scheme and global settings set up in [Sound Configuration](../configuration/sounds.md).
 
 This page covers how sounds are triggered per card and how to customise or silence them at the card level.
 
@@ -14,11 +14,11 @@ When you interact with a card, LCARdS fires a sound event. The `SoundManager` re
 Card config (sounds:) → Device override → User override → Global setting → Scheme default → Silence
 ```
 
-If you haven't set anything on the card, the global scheme and settings apply. Card-level config raises or lowers priority only for this card — it never affects other cards.
+If you haven't set anything on the card, the global scheme and settings apply. Card-level config raises or lowers priority only for this card; it never affects other cards.
 
 ---
 
-## Per-Card Override — `sounds:`
+## Per-Card Override: `sounds:`
 
 Add a `sounds:` block to any card config to control its sound behaviour independently of global settings.
 
@@ -71,9 +71,9 @@ Asset keys are strings in the form `scheme:event` (e.g. `lcards_default:card_tap
 | `card_double_tap` | ✅ | ✅ | ✅ | ✅ |
 | `card_hover` | ✅ | ✅ | ✅ | ✅ |
 | `toggle_on` / `toggle_off` | ✅ | ✅ | ✅ | ✅ |
-| `slider_drag_start` | — | — | ✅ | — |
-| `slider_change` | — | — | ✅ | — |
-| `slider_drag_end` | — | — | ✅ | — |
+| `slider_drag_start` | - | - | ✅ | - |
+| `slider_change` | - | - | ✅ | - |
+| `slider_drag_end` | - | - | ✅ | - |
 
 All tap/hold/hover/toggle events are fired by the shared action handler and are available on every card type. Slider-specific events only fire on slider cards.
 
@@ -115,6 +115,6 @@ sounds:
 
 ## See Also
 
-- [Sound Configuration](../configuration/sounds.md) — system-wide setup, schemes, per-user and per-device overrides
-- [HA Actions — `lcards.play_sound`](../configuration/ha-actions.md#lcards-play_sound) — trigger a sound from an automation
-- [Actions](actions.md) — tap, hold, and double-tap action configuration
+- [Sound Configuration](../configuration/sounds.md): system-wide setup, schemes, per-user and per-device overrides
+- [HA Actions: `lcards.play_sound`](../configuration/ha-actions.md#lcards-play_sound): trigger a sound from an automation
+- [Actions](actions.md): tap, hold, and double-tap action configuration

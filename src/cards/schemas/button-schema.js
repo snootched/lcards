@@ -817,7 +817,7 @@ export function getButtonSchema(options = {}) {
                     //   alert.color.bars  → bars.style.stroke
                     color: {
                         type: 'object',
-                        description: 'Colour shorthand — overrides the active preset\'s colours',
+                        description: 'Colour shorthand: overrides the active preset\'s colours',
                         properties: {
                             shape: {
                                 type: 'string',
@@ -956,7 +956,7 @@ export function getButtonSchema(options = {}) {
 
             ranges_attribute: {
                 type: 'string',
-                description: 'Entity attribute to use as the numeric value for ALL state-based range conditions (above:/below:/between: keys) across the entire card — icon_style.icon, icon_style.color, text color, background, border, and config.ranges preset switching. Use "brightness_pct" for a computed 0-100 light brightness value. Defaults to evaluating the raw entity state string.',
+                description: 'Entity attribute to use as the numeric value for ALL state-based range conditions (above:/below:/between: keys) across the entire card: icon_style.icon, icon_style.color, text color, background, border, and config.ranges preset switching. Use "brightness_pct" for a computed 0-100 light brightness value. Defaults to evaluating the raw entity state string.',
                 examples: ['brightness_pct', 'brightness', 'temperature', 'percentage', 'current_position'],
                 'x-ui-hints': {
                     label: 'Range Attribute',

@@ -23,13 +23,13 @@ import './shared/lcards-form-section.js';
 
 const BLEND_MODE_OPTIONS = [
     { value: 'normal',      label: 'Normal',      hint: 'Texture draws directly over the button fill (default)' },
-    { value: 'screen',      label: 'Screen',       hint: 'Lightens underlying colour — great for glows on dark buttons' },
-    { value: 'overlay',     label: 'Overlay',      hint: 'Increases contrast — dark areas darker, light areas lighter' },
-    { value: 'multiply',    label: 'Multiply',     hint: 'Darkens — useful for shadow or vignette effects' },
+    { value: 'screen',      label: 'Screen',       hint: 'Lightens underlying colour: great for glows on dark buttons' },
+    { value: 'overlay',     label: 'Overlay',      hint: 'Increases contrast: dark areas darker, light areas lighter' },
+    { value: 'multiply',    label: 'Multiply',     hint: 'Darkens: useful for shadow or vignette effects' },
     { value: 'hard-light',  label: 'Hard Light',   hint: 'Strong contrast boost, more vivid than Overlay' },
     { value: 'soft-light',  label: 'Soft Light',   hint: 'Gentle contrast variation, subtle and natural' },
-    { value: 'color-dodge', label: 'Color Dodge',  hint: 'Brightens dramatically — great for energy/shimmer effects' },
-    { value: 'color-burn',  label: 'Color Burn',   hint: 'Darkens and saturates — intense shadow effect' },
+    { value: 'color-dodge', label: 'Color Dodge',  hint: 'Brightens dramatically: great for energy/shimmer effects' },
+    { value: 'color-burn',  label: 'Color Burn',   hint: 'Darkens and saturates: intense shadow effect' },
 ];
 
 // Presets that have a scrolling animation speed multiplier
@@ -305,7 +305,7 @@ export class LCARdSShapeTextureEditor extends LitElement {
                                     .selector=${{ number: { min: 0, max: 10, step: 0.1, mode: 'slider' } }}
                                     .value=${this.config?.speed ?? 1.0}
                                     .label=${'Speed Multiplier'}
-                                    .helper=${'Scales all scroll speeds — 0 freezes, 1 = default, 2 = double'}
+                                    .helper=${'Scales all scroll speeds: 0 freezes, 1 = default, 2 = double'}
                                     @value-changed=${(e) => this._update('speed', e.detail.value)}
                                 ></ha-selector>
                             </div>
@@ -690,7 +690,7 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
                     <lcards-form-section header="Secondary Wave" ?expanded=${false} .nested=${true}>
                         <div class="row" style="font-size:12px;color:var(--secondary-text-color);padding-bottom:8px;line-height:1.5">
-                            Adds a second harmonic to the <em>same</em> fill surface — not a separate layer or colour.
+                            Adds a second harmonic to the <em>same</em> fill surface: not a separate layer or colour.
                             Set Height to 0 to disable.
                         </div>
                         <div class="row"><ha-selector .hass=${this.hass}

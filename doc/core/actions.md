@@ -8,11 +8,11 @@ LCARdS cards support actions `tap_action`, `hold_action`, and `double_tap_action
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `action` | string | Action type — see table below (required) |
+| `action` | string | Action type: see table below (required) |
 | `entity` | string | Override entity for `toggle` / `more-info` (defaults to the card's `entity`) |
 | `service` | string | Service to call, e.g. `light.turn_on` (alias: `perform_action`) |
 | `service_data` | object | Data passed to the service (alias: `data`) |
-| `target` | object | HA service target — `entity_id`, `device_id`, or `area_id` |
+| `target` | object | HA service target: `entity_id`, `device_id`, or `area_id` |
 | `navigation_path` | string | Dashboard path for `navigate` action, must start with `/` |
 | `url_path` | string | URL to open for `url` action |
 | `pipeline_id` | string | Assist pipeline ID to use (optional, `assist` action only) |
@@ -31,7 +31,7 @@ LCARdS cards support actions `tap_action`, `hold_action`, and `double_tap_action
 | `navigate` | Navigate to a dashboard path |
 | `url` | Open a URL |
 | `assist` | Open the HA Assist dialog |
-| `none` | Do nothing — suppresses the default action |
+| `none` | Do nothing: suppresses the default action |
 
 ---
 
@@ -54,7 +54,7 @@ Tap and hold actions are unaffected by this flag.
 
 ```yaml
 type: custom:lcards-button
-interactive: false    # decorative — no hand cursor or hover effects
+interactive: false    # decorative - no hand cursor or hover effects
 tap_action:
   action: toggle      # still fires on tap
 ```

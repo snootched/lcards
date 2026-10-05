@@ -39,21 +39,21 @@ See [`LICENSE`](https://github.com/snootched/lcards/blob/main/LICENSE) in the re
 A very sincere thanks to these projects, their authors, contributors and communities.
 They make tinkering with Home Assistant dashboards genuinely fun.
 
-[**ha-lcars theme**](https://github.com/th3jesta/ha-lcars) — the definitive LCARS theme for Home Assistant
+[**ha-lcars theme**](https://github.com/th3jesta/ha-lcars): the definitive LCARS theme for Home Assistant
 
 [**HA-LCARS Discord**](https://discord.gg/gGxud6Y6WJ) - Such a great community to share this hobby with!
 
-**All Star Trek & LCARS fans** — your passion drives this project. 🖖
+**All Star Trek & LCARS fans**: your passion drives this project. 🖖
 
 ## Design References
 
-[**LCARSlad London**](https://twitter.com/lcarslad) — excellent LCARS images and diagrams used as design reference.
+[**LCARSlad London**](https://twitter.com/lcarslad): excellent LCARS images and diagrams used as design reference.
 
-[**meWho Titan.DS**](https://www.mewho.com/titan) — interactive LCARS design demo and colour reference.
+[**meWho Titan.DS**](https://www.mewho.com/titan): interactive LCARS design demo and colour reference.
 
-[**TheLCARS.com**](https://www.thelcars.com) — LCARS design reference, and the original base reference for colours, Data Cascade, and Pulsewave animations.
+[**TheLCARS.com**](https://www.thelcars.com): LCARS design reference, and the original base reference for colours, Data Cascade, and Pulsewave animations.
 
-[**lcars** (joernweissenborn)](https://github.com/joernweissenborn/lcars) — the SVG used inline in the D-pad control.
+[**lcars** (joernweissenborn)](https://github.com/joernweissenborn/lcars): the SVG used inline in the D-pad control.
 
 ## Bundled Libraries
 

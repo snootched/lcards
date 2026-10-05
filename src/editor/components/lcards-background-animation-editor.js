@@ -557,7 +557,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
                 ${guide.params.map(p => html`
                   <li>
                     <code>${p.key}</code>${p.default !== undefined ? html` (default: <code>${JSON.stringify(p.default)}</code>)` : ''}
-                    ${p.description ? ` — ${p.description}` : ''}
+                    ${p.description ? `: ${p.description}` : ''}
                   </li>
                 `)}
               </ul>
@@ -866,10 +866,10 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       <lcards-form-section
         header="Fill"
         icon="mdi:water"
-        description="Floods or drains a waterline over the terrain above — doesn't change the terrain itself"
+        description="Floods or drains a waterline over the terrain above; doesn't change the terrain itself"
         ?expanded=${true}>
         <div class="param-grid">
-          ${this._renderField({ key: 'fill_level', label: 'Fill Level', type: 'number', min: 0, max: 0.95, step: 0.05, default: 0, helper: '0 = no water, full terrain visible. Raise it to flood the lowest rings — they become Fill Colour instead of their normal colour, leaving isolated nebula-like blobs at the peaks.' }, config, index)}
+          ${this._renderField({ key: 'fill_level', label: 'Fill Level', type: 'number', min: 0, max: 0.95, step: 0.05, default: 0, helper: '0 = no water, full terrain visible. Raise it to flood the lowest rings: they become Fill Colour instead of their normal colour, leaving isolated nebula-like blobs at the peaks.' }, config, index)}
           ${this._renderField({ key: 'fill_color', label: 'Fill Colour', type: 'color', default: '', fullWidth: true, helper: 'Leave empty for literal transparency (the card background shows through as "space"). Set a colour (e.g. black) to bake the void into the effect itself.' }, config, index)}
         </div>
       </lcards-form-section>
@@ -880,7 +880,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
         description="What fills each contour ring above the waterline"
         ?expanded=${true}>
         <div class="param-grid">
-          ${this._renderField({ key: 'blend_colors', label: 'Blend Between Colours', type: 'boolean', default: true, helper: 'On = colours (and the Fill waterline) fade smoothly. Off = every edge is a hard cutoff with no blending anywhere — flat, solid rings and a crisp shoreline, matching real contour maps and the reference site\'s look.' }, config, index)}
+          ${this._renderField({ key: 'blend_colors', label: 'Blend Between Colours', type: 'boolean', default: true, helper: 'On = colours (and the Fill waterline) fade smoothly. Off = every edge is a hard cutoff with no blending anywhere: flat, solid rings and a crisp shoreline, matching real contour maps and the reference site\'s look.' }, config, index)}
         </div>
         <lcards-color-list
           .hass=${this.hass}
@@ -979,7 +979,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           @value-changed=${(e) => this._updateEffectConfig(index, 'pattern', e.detail.value)}
         ></ha-selector>
         ${(config.pattern ?? 'default') === 'custom' ? html`
-          <lcards-message type="info" .message=${'Custom timing requires a YAML-supplied "timing" array of { duration, delay } objects — one per row. Edit this card\'s YAML directly to set the timing property.'}></lcards-message>
+          <lcards-message type="info" .message=${'Custom timing requires a YAML-supplied "timing" array of { duration, delay } objects, one per row. Edit this card\'s YAML directly to set the timing property.'}></lcards-message>
         ` : ''}
         <div class="param-grid">
           ${this._renderField({ key: 'speed_multiplier', label: 'Speed Multiplier (1.0 = normal)', type: 'number', min: 0.1, max: 10, step: 0.1, default: 1.0, helper: '2.0 = twice as fast, 0.5 = half speed' }, config, index)}

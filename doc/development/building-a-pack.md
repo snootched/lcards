@@ -1,6 +1,6 @@
 # Building a Pack
 
-A pack is a self-contained bundle of themed assets that a third party (or you) can distribute to extend LCARdS. A single pack can contribute any combination of style presets, components, themes, rules, audio, SVG images, and fonts — or just one of those things.
+A pack is a self-contained bundle of themed assets that a third party (or you) can distribute to extend LCARdS. A single pack can contribute any combination of style presets, components, themes, rules, audio, SVG images, and fonts, or just one of those things.
 
 ::: tip Canonical template
 `src/core/packs/example/lcards-example-pack.js` is the authoritative, fully-commented template. This guide summarises the key concepts; refer to that file for the complete field reference.
@@ -63,7 +63,7 @@ style_presets: {
 }
 ```
 
-Use `{theme:token.path}` tokens wherever possible — they resolve at render time so presets work across all themes.
+Use `{theme:token.path}` tokens wherever possible; they resolve at render time so presets work across all themes.
 
 ### `components`
 
@@ -80,7 +80,7 @@ components: {
 }
 ```
 
-`metadata.type` is required — it drives `getComponentsByType('my_type')` queries.
+`metadata.type` is required; it drives `getComponentsByType('my_type')` queries.
 
 ### `themes`
 
@@ -203,7 +203,7 @@ export const alwaysLoad = [
 
 ### External / third-party packs
 
-Call `PackManager.registerPack()` after the LCARdS core has initialized. There is no dedicated readiness event — `window.lcards.core` and its managers are attached synchronously during LCARdS's own module load, well before any HA card can mount, so a script that loads *after* the LCARdS bundle can call `registerPack()` immediately. A load-order-independent script should still poll for `packManager` to appear, in case it runs first:
+Call `PackManager.registerPack()` after the LCARdS core has initialized. There is no dedicated readiness event; `window.lcards.core` and its managers are attached synchronously during LCARdS's own module load, well before any HA card can mount, so a script that loads *after* the LCARdS bundle can call `registerPack()` immediately. A load-order-independent script should still poll for `packManager` to appear, in case it runs first:
 
 ```javascript
 import { MY_PACK } from './lcards-my-pack.js';

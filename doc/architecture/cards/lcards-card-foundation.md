@@ -131,7 +131,7 @@ unsubscribe();
 const result = await this.processTemplate(template);
 ```
 
-See [Templates](../../core/templates/) for the full syntax reference. Note: tokens use **single** braces (`{entity.state}`) — double braces (`{{ }}`) are Jinja2.
+See [Templates](../../core/templates/) for the full syntax reference. Note: tokens use **single** braces (`{entity.state}`); double braces (`{{ }}`) are Jinja2.
 
 #### Theme Access
 
@@ -171,7 +171,7 @@ await this.callService('light', 'turn_on', {
 #### Actions
 
 ```javascript
-// Setup action handlers (3rd arg: optional options — animationManager, elementId, entity, disableHover, etc.)
+// Setup action handlers (3rd arg: optional options - animationManager, elementId, entity, disableHover, etc.)
 this._actionCleanup = this.setupActions(element, {
     tap_action: { action: 'toggle' },
     hold_action: { action: 'more-info' }
@@ -272,7 +272,7 @@ rules:
 
 #### Critical Implementation Details
 
-**1. Always call `requestUpdate()` after applying patches** — Lit won't re-render without it (see `_resolveCardStyle()` above).
+**1. Always call `requestUpdate()` after applying patches**: Lit won't re-render without it (see `_resolveCardStyle()` above).
 
 **2. Use inline styles, not CSS classes:**
 
@@ -311,7 +311,7 @@ return html`
 
 **4. Trigger initial evaluation when HASS available:**
 
-Handled automatically by `_registerOverlayForRules()` — see the Complete Flow diagram below.
+Handled automatically by `_registerOverlayForRules()`. See the Complete Flow diagram below.
 
 #### Performance Optimization
 
@@ -326,7 +326,7 @@ await this._rulesManager.setupHassMonitoring(this._hass);
 
 **How it works:**
 
-1. **WebSocket Subscription**: Subscribes directly to HASS `state_changed` events — shared across all cards
+1. **WebSocket Subscription**: Subscribes directly to HASS `state_changed` events, shared across all cards
 2. **Dependency Tracking**: Only listens to entities referenced in your rules
 3. **Selective Dirty-Marking**: Only marks rules dirty when their entities change (O(1) lookup via cached Set)
 4. **Efficient Callbacks**: Only triggers re-evaluation when rules are actually dirty
@@ -402,16 +402,16 @@ Common issues and solutions:
 
 #### Advanced: Multiple Overlays
 
-`_registerOverlayForRules()` can only be called **once per card** — it's what wires up the card's single rules-re-evaluation callback. If your card has multiple sub-components that each need independent rule targeting (like a button with a separate icon), register the first through `_registerOverlayForRules()` and any additional ones directly with `SystemsManager` (this is the same pattern `LCARdSMSDCard` uses for its overlays):
+`_registerOverlayForRules()` can only be called **once per card**; it's what wires up the card's single rules-re-evaluation callback. If your card has multiple sub-components that each need independent rule targeting (like a button with a separate icon), register the first through `_registerOverlayForRules()` and any additional ones directly with `SystemsManager` (this is the same pattern `LCARdSMSDCard` uses for its overlays):
 
 ```javascript
 _handleFirstUpdate() {
     super._handleFirstUpdate();
 
-    // Main component — this call sets up the rules callback
+    // Main component - this call sets up the rules callback
     this._registerOverlayForRules(`button-${this._cardGuid}`, 'button', ['button']);
 
-    // Additional sub-component — register directly, _registerOverlayForRules() is used up
+    // Additional sub-component - register directly, _registerOverlayForRules() is used up
     this._singletons.systemsManager.registerOverlay(`icon-${this._cardGuid}`, {
         id: `icon-${this._cardGuid}`,
         type: 'icon',
@@ -464,13 +464,13 @@ segments.forEach(segment => {
 
 ### Feeding HASS to Singletons
 
-LCARdSCard calls `window.lcards.core.ingestHass(hass)` on every HASS update, enabling cross-card coordination and shared entity state — see the flow below.
+LCARdSCard calls `window.lcards.core.ingestHass(hass)` on every HASS update, enabling cross-card coordination and shared entity state. See the flow below.
 
 ### Entity Caching via CoreSystemsManager
 
 CoreSystemsManager maintains a single global entity-state cache shared by all LCARdSCards:
 - First access to an entity: cache miss → direct HASS lookup → cache populated
-- Subsequent accesses: cache hit — no repeated HASS lookups
+- Subsequent accesses: cache hit, no repeated HASS lookups
 - Cache is updated automatically on HASS changes
 - With N cards reading the same entity, this collapses N HASS lookups down to one cache update plus N cheap cache reads
 
@@ -502,7 +502,7 @@ window.lcards.core.ingestHass(hass) (feed to singletons)
 | `_singletons` | Object | Singleton system references (coordinator, theme, rules, etc.) |
 | `_initialized` | Boolean | Whether card is fully initialized |
 | `_entitySubscriptions` | Set | Tracked entity subscriptions for cleanup |
-| `_cardContext` | — | Removed — cards use `this._singletons` for all manager access |
+| `_cardContext` | - | Removed: cards use `this._singletons` for all manager access |
 | `_overlayRegistered` | Boolean | Whether overlay is registered with RulesEngine |
 | `_currentRulePatches` | Object | Cached rule patches for this overlay |
 
@@ -510,7 +510,7 @@ window.lcards.core.ingestHass(hass) (feed to singletons)
 
 | Method | Parameters | Returns | Description |
 |--------|------------|---------|-------------|
-| `processTemplate(template, options)` | template: string, options?: Object | `Promise<string>` | Process all 4 template types — [[[JS]]], {token}, {datasource:name}, {{ Jinja2 }} — via `UnifiedTemplateEvaluator.evaluateAsync()` |
+| `processTemplate(template, options)` | template: string, options?: Object | `Promise<string>` | Process all 4 template types: [[[JS]]], {token}, {datasource:name}, {{ Jinja2 }}, via `UnifiedTemplateEvaluator.evaluateAsync()` |
 | `getThemeToken(path, fallback)` | path: string, fallback: any | any | Get theme token value |
 | `getStylePreset(type, name)` | type: string, name: string | Object\|null | Get style preset config |
 | `resolveStyle(base, tokens, overrides)` | base: Object, tokens: Array, overrides: Object | Object | Resolve combined styles |
@@ -518,8 +518,8 @@ window.lcards.core.ingestHass(hass) (feed to singletons)
 | `subscribeToEntity(entityId, callback)` | entityId: string, callback: Function | Function | Subscribe to entity changes (returns unsubscribe function) |
 | `callService(domain, service, data)` | domain: string, service: string, data?: Object | Promise | Call HA service |
 | `setupActions(element, actions, options)` | element: HTMLElement, actions: Object, options?: Object | Function | Setup action handlers (options: animationManager, elementId, entity, animations, soundOverride, disableHover) |
-| `_registerOverlayForRules(overlayId, type, tags)` | overlayId: string, type: string, tags?: `Array<string>` | void | Register overlay with RulesEngine for rule-based styling. Callable **once per card** — subsequent calls warn and no-op; for additional sub-component overlays call `this._singletons.systemsManager.registerOverlay()` directly (tags default to []) |
-| `_getMergedStyleWithRules(baseStyle)` | baseStyle: Object | Object | Merge base style with active rule patches (rules have highest priority). Call last, from your own card-specific resolve method (e.g. `_resolveButtonStyle()`) — see the Basic Setup example above. |
+| `_registerOverlayForRules(overlayId, type, tags)` | overlayId: string, type: string, tags?: `Array<string>` | void | Register overlay with RulesEngine for rule-based styling. Callable **once per card**; subsequent calls warn and no-op; for additional sub-component overlays call `this._singletons.systemsManager.registerOverlay()` directly (tags default to []) |
+| `_getMergedStyleWithRules(baseStyle)` | baseStyle: Object | Object | Merge base style with active rule patches (rules have highest priority). Call last, from your own card-specific resolve method (e.g. `_resolveButtonStyle()`). See the Basic Setup example above. |
 | `_applyRulePatches(patches)` | patches: Object | void | Internal method to apply rule patches and trigger callback |
 
 ### Lifecycle Hooks

@@ -36,11 +36,6 @@ export const editorStyles = css`
         padding: var(--ha-space-3) 0;
     }
 
-    ha-tab-panel {
-        padding: 0px;
-        min-height: 400px;
-    }
-
     /* Expansion panel styling */
     ha-expansion-panel {
         margin-bottom: var(--lcards-section-spacing, 16px);

@@ -44,9 +44,9 @@ const ALIGN_H_OPTIONS = [
     { value: 'end',     label: 'Right' },
 ];
 const OVERFLOW_OPTIONS = [
-    { value: 'visible', label: 'Visible — bleeds beyond cell' },
-    { value: 'clip',    label: 'Clip — hard clip, no scroll' },
-    { value: 'hidden',  label: 'Hidden — clip + block context' },
+    { value: 'visible', label: 'Visible: bleeds beyond cell' },
+    { value: 'clip',    label: 'Clip: hard clip, no scroll' },
+    { value: 'hidden',  label: 'Hidden: clip + block context' },
     { value: 'auto',    label: 'Scroll when needed (auto)' },
     { value: 'scroll',  label: 'Always scroll' },
 ];
@@ -407,7 +407,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         const vl = card.view_layout ?? {};
         const { view_layout, ...cardOnly } = card;
         const areaNames = getAreaNames(parseLayoutConfig(this.config?.layout).areas);
-        const areaOptions = [{ value: '', label: '— none —' }, ...areaNames.map(n => ({ value: n, label: n }))];
+        const areaOptions = [{ value: '', label: '(none)' }, ...areaNames.map(n => ({ value: n, label: n }))];
         const areaName = vl['grid-area'];
 
         return html`

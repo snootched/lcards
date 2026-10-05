@@ -35,20 +35,20 @@ config:
 
   # Pattern
   pattern: "both"            # "both" | "horizontal" | "vertical" | "diagonal" | "hexagonal" | "dots"
-  dot_radius: 2              # Dot radius in px — only used when pattern is "dots"
-  hex_radius: 40             # Hexagon size in px — only used when pattern is "hexagonal"
+  dot_radius: 2              # Dot radius in px - only used when pattern is "dots"
+  hex_radius: 40             # Hexagon size in px - only used when pattern is "hexagonal"
   show_border_lines: true    # Draw lines at canvas edges
   fill_color: ""             # Optional cell background fill (empty = transparent)
 ```
 
 **Modes:**
 
-- **Simple**: Set `major_row_interval: 0` and `major_col_interval: 0` — basic uniform grid
-- **Enhanced**: Set intervals > 0 — adds emphasised major lines at regular intervals
+- **Simple**: Set `major_row_interval: 0` and `major_col_interval: 0`: basic uniform grid
+- **Enhanced**: Set intervals > 0: adds emphasised major lines at regular intervals
 - **Spacing-based**: Use `line_spacing` for a uniform grid
 - **Cell-based**: Use `num_rows` / `num_cols` for an exact cell count
 
-`pattern: diagonal` and `pattern: hexagonal` (sized by `hex_radius`) produce the same line pattern as the dedicated [`grid-diagonal`](#grid-diagonal)/[`grid-hexagonal`](#grid-hexagonal) presets below, but combined with `grid`'s other options (`num_rows`/`num_cols`, major/minor intervals) — the dedicated presets remain as convenience shorthands with their own tuned defaults, so either works. `pattern: dots` is a separate mode: a field of dots instead of lines, sized by `dot_radius`.
+`pattern: diagonal` and `pattern: hexagonal` (sized by `hex_radius`) produce the same line pattern as the dedicated [`grid-diagonal`](#grid-diagonal)/[`grid-hexagonal`](#grid-hexagonal) presets below, but combined with `grid`'s other options (`num_rows`/`num_cols`, major/minor intervals); the dedicated presets remain as convenience shorthands with their own tuned defaults, so either works. `pattern: dots` is a separate mode: a field of dots instead of lines, sized by `dot_radius`.
 
 **Examples:**
 
@@ -218,7 +218,7 @@ config:
   max_radius: 2              # Maximum star radius (px)
   min_opacity: 0.3           # Minimum star opacity (0–1)
   max_opacity: 1.0           # Maximum star opacity (0–1)
-  colors:                    # Single colour or array — each star picks one randomly
+  colors:                    # Single colour or array - each star picks one randomly
     - "var(--lcards-blue-lightest)"
     - "#4455ff"
   scroll_speed_x: 30         # Horizontal scroll speed (px/sec)
@@ -242,7 +242,7 @@ config:
 | `depth_factor` | 0.5 | Speed multiplier between layers |
 | `seed` | 1 | Random seed. Each zoom layer gets an incremented seed automatically. |
 
-Stars are distributed across depth layers with farther layers moving slower. When using the zoom wrapper, each layer receives a unique seed — producing distinct star patterns per zoom level for a convincing "flying through space" effect.
+Stars are distributed across depth layers with farther layers moving slower. When using the zoom wrapper, each layer receives a unique seed, producing distinct star patterns per zoom level for a convincing "flying through space" effect.
 
 **Examples:**
 
@@ -306,7 +306,7 @@ config:
   max_radius: 0.4            # Maximum cloud radius (0–1, fraction of canvas)
   min_opacity: 0.3           # Minimum cloud opacity (0–1)
   max_opacity: 0.8           # Maximum cloud opacity (0–1)
-  colors:                    # Single colour or array — each cloud picks one randomly
+  colors:                    # Single colour or array - each cloud picks one randomly
     - "var(--lcards-blue-medium)"
     - "var(--lcards-orange)"
     - "var(--lcards-blue-light)"
@@ -331,7 +331,7 @@ config:
 | `scroll_speed_y` | 5 | Vertical speed (px/sec) |
 | `seed` | 1 | Random seed for reproducible placement |
 
-Each cloud's pixel positions are displaced via 2D Perlin noise — `turbulence` controls the magnitude, `noise_scale` controls feature size — producing realistic organic cloud shapes.
+Each cloud's pixel positions are displaced via 2D Perlin noise (`turbulence` controls the magnitude, `noise_scale` controls feature size) producing realistic organic cloud shapes.
 
 **Examples:**
 
@@ -389,27 +389,27 @@ Each cloud's pixel positions are displaced via 2D Perlin noise — `turbulence` 
 
 ## `contour-field`
 
-Topographic-style banded noise field — an LCARS star-chart contour look. Paints a drifting noise field, then slices it into colour bands like a topographic map.
+Topographic-style banded noise field: an LCARS star-chart contour look. Paints a drifting noise field, then slices it into colour bands like a topographic map.
 
 **Configuration:**
 
 ```yaml
 preset: contour-field
 config:
-  # Noise — shapes the raw terrain
+  # Noise - shapes the raw terrain
   seed: 1                    # Random seed for a reproducible field
   noise_scale: 0.005         # Smaller = a few large blobs; larger = many small ripples
   num_octaves: 2             # Layers of fine detail (1 = smooth, 8 = rough/cloud-like)
 
-  # Contour Bands — always sliced across the full peaks-and-valleys range
+  # Contour Bands - always sliced across the full peaks-and-valleys range
   num_bands: 5               # Low = bold stepped rings; high = near-continuous gradient
-  cell_size: 1                # Sample resolution — larger is blockier/cheaper
+  cell_size: 1                # Sample resolution - larger is blockier/cheaper
 
-  # Fill — floods/drains a waterline over the terrain, doesn't change it
+  # Fill - floods/drains a waterline over the terrain, doesn't change it
   fill_level: 0.45            # 0 = no water, full terrain visible
   fill_color: ""              # Colour for flooded rings (empty = transparent "space")
 
-  # Colour — what fills each ring above the waterline
+  # Colour - what fills each ring above the waterline
   blend_colors: true          # true = smooth fades; false = flat, hard-edged rings
   colors:                     # One colour, or several stops across the contour range
     - "alpha(#130b81, 0.08)"
@@ -425,15 +425,15 @@ config:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `seed` | random | Random seed — same seed + settings always produce the same field |
-| `noise_scale` | 0.005 | Noise detail — lower = larger, smoother features |
+| `seed` | random | Random seed: same seed + settings always produce the same field |
+| `noise_scale` | 0.005 | Noise detail: lower = larger, smoother features |
 | `num_octaves` | 2 | Layers of noise detail |
 | `num_bands` | 5 | Number of contour rings |
 | `cell_size` | 1 | Sample resolution in px |
 | `fill_level` | 0.45 | Waterline height, 0–1 |
-| `fill_color` | — | Colour painted over flooded rings |
+| `fill_color` | - | Colour painted over flooded rings |
 | `blend_colors` | true | Smooth band transitions vs. hard edges |
-| `colors` | — | Colour stop(s) across the contour range |
+| `colors` | - | Colour stop(s) across the contour range |
 | `scroll_speed_x` | -3 | Horizontal drift speed (px/sec) |
 | `scroll_speed_y` | 0.45 | Vertical drift speed (px/sec) |
 | `opacity` | 1 | Overall effect opacity |
@@ -470,7 +470,7 @@ Lower `num_bands` + `cell_size` for a blocky, retro-LCARS look; raise them for a
 
 ## `cascade`
 
-LCARS data-waterfall background. Renders cascading rows of random data cells cycling through three configurable colour stops — replicates the classic CB-LCARS `cb-lcars-animation-cascade` decorative background.
+LCARS data-waterfall background. Renders cascading rows of random data cells cycling through three configurable colour stops. Replicates the classic CB-LCARS `cb-lcars-animation-cascade` decorative background.
 
 **Configuration:**
 
@@ -499,7 +499,7 @@ config:
   # Timing
   pattern: default           # default | niagara | fast | custom
   speed_multiplier: 1.0      # 2.0 = twice as fast, 0.5 = half speed
-  duration: null             # ms — overrides pattern when set
+  duration: null             # ms - overrides pattern when set
 
   opacity: 1.0               # Overall opacity (0–1)
 ```
@@ -517,7 +517,7 @@ config:
 | `colors.text` | `var(--lcards-blue-darkest)` | Colour at mid-cycle snap (75–90%) |
 | `colors.end` | `var(--lcars-moonlight)` | Colour at cycle end (90–100%) |
 | `pattern` | `'default'` | `default` (authentic LCARS rhythm), `niagara` (uniform waterfall), `fast`, `custom` |
-| `timing` | — | Custom array of `{ duration, delay }`, one per row (applied round-robin if there are more rows than entries), used when `pattern: custom`. **`duration` is milliseconds, `delay` is seconds** — easy to mix up since only one of the two is ms. |
+| `timing` | - | Custom array of `{ duration, delay }`, one per row (applied round-robin if there are more rows than entries), used when `pattern: custom`. **`duration` is milliseconds, `delay` is seconds**, easy to mix up since only one of the two is ms. |
 | `speed_multiplier` | 1.0 | Multiplier applied to all row durations |
 | `duration` | null | Override all row durations in ms (takes precedence over pattern) |
 | `opacity` | 1 | Overall effect opacity |
@@ -583,7 +583,7 @@ config:
     font_size: 8
     opacity: 0.6
 
-# Custom per-row timing — duration is ms, delay is seconds
+# Custom per-row timing - duration is ms, delay is seconds
 - preset: cascade
   config:
     format: digit
@@ -607,7 +607,7 @@ config:
 
 ## `level`
 
-Animated tank/gauge-style fill bar — colour gradient, dual overlapping waves, sloshing physics, and an edge glow.
+Animated tank/gauge-style fill bar: colour gradient, dual overlapping waves, sloshing physics, and an edge glow.
 
 **Configuration:**
 
@@ -642,7 +642,7 @@ config:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `color_a` | `rgba(0,200,100,0.7)` | Primary fill colour / gradient start |
-| `color_b` | — | Gradient end colour |
+| `color_b` | - | Gradient end colour |
 | `fill_pct` | 50 | Fill level, 0–100 |
 | `direction` | `up` | Fill direction |
 | `edge_glow` | true | Glow along the fill edge |
@@ -678,17 +678,17 @@ config:
 
 ## Texture Presets
 
-`fluid`, `plasma`, `flow`, `shimmer`, and `scanlines` are one-shot Canvas2D texture generators sharing a small, near-identical config shape — a colour (or two), a couple of shape parameters, and `opacity`. Documented together here rather than as five separate essays.
+`fluid`, `plasma`, `flow`, `shimmer`, and `scanlines` are one-shot Canvas2D texture generators sharing a small, near-identical config shape: a colour (or two), a couple of shape parameters, and `opacity`. Documented together here rather than as five separate essays.
 
 ### `fluid`
 
-Swirling noise field — organic, continuously morphing colour wash.
+Swirling noise field: organic, continuously morphing colour wash.
 
 ```yaml
 preset: fluid
 config:
   color: "rgba(100,180,255,0.8)"
-  base_frequency: 0.010    # Noise detail — lower = larger features
+  base_frequency: 0.010    # Noise detail - lower = larger features
   num_octaves: 4           # Layers of noise detail
   scroll_speed_x: 7
   scroll_speed_y: 10
@@ -699,7 +699,7 @@ config:
 
 ### `plasma`
 
-Two-colour plasma bands — a vivid, classic alternating colour field.
+Two-colour plasma bands: a vivid, classic alternating colour field.
 
 ```yaml
 preset: plasma
@@ -716,7 +716,7 @@ config:
 
 ### `flow`
 
-Directional streaming streaks — energy conduits / data-stream look.
+Directional streaming streaks: energy conduits / data-stream look.
 
 ```yaml
 preset: flow
@@ -761,7 +761,7 @@ config:
   opacity: 1
 ```
 
-**Example — layered texture stack:**
+**Example, layered texture stack:**
 
 ```yaml
 - preset: fluid
@@ -780,9 +780,9 @@ config:
 
 User-supplied image rendered as a full-bleed canvas background behind the card SVG. Drawn at `z-index: -1` and composited with any other effects in the stack.
 
-> **Correction:** every example on this page previously used `url:` as the config key — that never worked. `ImageEffect` (and the real editor UI) only ever read/write `source:`. Fixed below.
+> **Correction:** every example on this page previously used `url:` as the config key; that never worked. `ImageEffect` (and the real editor UI) only ever read/write `source:`. Fixed below.
 
-The `source` field supports all LCARdS template syntaxes — `{entity.attributes.entity_picture}`, `[[[JS]]]`, etc. Templates are evaluated on every HASS update, so the image automatically follows entity attribute changes.
+The `source` field supports all LCARdS template syntaxes: `{entity.attributes.entity_picture}`, `[[[JS]]]`, etc. Templates are evaluated on every HASS update, so the image automatically follows entity attribute changes.
 
 **Configuration:**
 
@@ -799,10 +799,10 @@ config:
 | Config key | Default | Description |
 |---|---|---|
 | `source` | `''` | `/local/` path, `https://` URL, `builtin:<key>`, `media-source://…` content ID (HA media library item), or a template string |
-| `size` | `'cover'` | `cover` — fill (may crop) · `contain` — fit (may letterbox) · `fill` — stretch · `<n>px` — explicit width in px, height scales to match the image's aspect ratio |
+| `size` | `'cover'` | `cover`: fill (may crop) · `contain`: fit (may letterbox) · `fill`: stretch · `<n>px`: explicit width in px, height scales to match the image's aspect ratio |
 | `position` | `'center'` | CSS `background-position`: keywords (`top left`) or percentages (`50% 0%`) |
 | `opacity` | `1` | Layer opacity. Use with other stacked effects for blending. |
-| `repeat` | `false` | Tile the image — useful for textures or patterns |
+| `repeat` | `false` | Tile the image: useful for textures or patterns |
 
 **Examples:**
 
@@ -857,14 +857,14 @@ background_animation:
 ```
 
 ::: info SVG files
-`.svg` files work as image sources — they load via an `<img>` element and paint into Canvas2D. SVG files must be self-contained (no external resource references). Files without explicit `width`/`height` attributes are rendered at canvas size automatically.
+`.svg` files work as image sources; they load via an `<img>` element and paint into Canvas2D. SVG files must be self-contained (no external resource references). Files without explicit `width`/`height` attributes are rendered at canvas size automatically.
 :::
 
 ::: info HA Media Library
 The editor's "Image Source" field offers a **Browse HA Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `source`. This is resolved to a real URL at render time via `AssetManager.resolveMediaSourceUrl()`, cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../../../architecture/subsystems/asset-manager.md).
 :::
 
-No live demo here — a meaningful preview needs a real image, and there's no built-in asset that resolves outside a full HA + LCARdS runtime (the demos on this page only load the renderer itself, not the full asset-manager pack system `builtin:`/media-library references depend on).
+No live demo here: a meaningful preview needs a real image, and there's no built-in asset that resolves outside a full HA + LCARdS runtime (the demos on this page only load the renderer itself, not the full asset-manager pack system `builtin:`/media-library references depend on).
 
 ::: warning HTTP URLs
 Using an `http://` URL on an HTTPS dashboard is blocked by the browser's mixed-content policy. Use `/local/` paths or `https://` URLs instead. The editor shows a warning when an HTTP URL is detected.
@@ -874,14 +874,14 @@ Using an `http://` URL on an HTTPS dashboard is blocked by the browser's mixed-c
 
 ## `solid`
 
-A single flat colour, filling the whole background canvas. Renders behind `base_svg` — the tint shows through any transparent regions of the SVG artwork on top, without touching the artwork itself. The cheapest, simplest preset — a single fill per frame, no procedural noise.
+A single flat colour, filling the whole background canvas. Renders behind `base_svg`: the tint shows through any transparent regions of the SVG artwork on top, without touching the artwork itself. The cheapest, simplest preset: a single fill per frame, no procedural noise.
 
 **Configuration:**
 
 ```yaml
 preset: solid
 config:
-  color: "rgba(0, 0, 0, 0.4)"   # Fill colour — alpha controls how much shows through base_svg
+  color: "rgba(0, 0, 0, 0.4)"   # Fill colour - alpha controls how much shows through base_svg
   opacity: 1                    # Multiplies with any alpha already in color
 ```
 
@@ -908,5 +908,5 @@ config:
 
 ## See Also
 
-- [Background Animations overview](../background-animations.md) — schema, zoom wrapper, effect stacking, entity binding
-- [Animations](../../animations.md) — anime.js-powered card animations (different system)
+- [Background Animations overview](../background-animations.md): schema, zoom wrapper, effect stacking, entity binding
+- [Animations](../../animations.md): anime.js-powered card animations (different system)

@@ -283,7 +283,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
   }
 
   _formatDate(isoString) {
-    if (!isoString) return '—';
+    if (!isoString) return '-';
     try {
       return new Date(isoString).toLocaleString();
     } catch {
@@ -321,10 +321,10 @@ export class LCARdsUsersDevicesTab extends LitElement {
 
   _renderCurrentSession() {
     const dim = this._dim();
-    const deviceId = dim?.deviceId ?? '—';
+    const deviceId = dim?.deviceId ?? '-';
     const lastSeen = this._formatDate(dim?.lastSeen);
     const userName = this.hass?.user?.name ?? 'Unknown';
-    const userId = this.hass?.user?.id ?? '—';
+    const userId = this.hass?.user?.id ?? '-';
 
     return html`
       <lcards-form-section

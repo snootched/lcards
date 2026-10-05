@@ -154,9 +154,9 @@ export class LCARdSBaseEditor extends LitElement {
                     `)}
 
                     ${tabs.map((tab, index) => html`
-                        <ha-tab-panel value="${index}" ?hidden=${this._selectedTab !== index}>
+                        <div class="tab-panel" ?hidden=${this._selectedTab !== index}>
                             ${this._renderTabContent(tab)}
-                        </ha-tab-panel>
+                        </div>
                     `)}
                 </ha-tab-group>
             </div>
@@ -1036,14 +1036,14 @@ export class LCARdSBaseEditor extends LitElement {
         const entityId = this.config?.entity;
         const current = this.config?.ranges_attribute || '';
         const options = [
-            { value: '__none__', label: '— Use entity state' },
+            { value: '__none__', label: '(Use entity state)' },
             ...this._getRangesAttributeOptions()
         ];
         return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'Range Attribute'}
-                .helper=${'Attribute value compared against range conditions (above:/below:/between:). Select "— Use entity state" to clear.'}
+                .helper=${'Attribute value compared against range conditions (above:/below:/between:). Select "(Use entity state)" to clear.'}
                 .disabled=${!entityId}
                 .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
                 .value=${current || '__none__'}
@@ -1095,14 +1095,14 @@ export class LCARdSBaseEditor extends LitElement {
                   .map(attr => ({ value: attr, label: attr }))
             : [];
         const allOptions = [
-            { value: '__none__', label: '— Use entity state' },
+            { value: '__none__', label: '(Use entity state)' },
             ...options
         ];
         return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'State Attribute'}
-                .helper=${'Attribute whose string value is matched against color-config keys (e.g. "fade", "true"). Select "— Use entity state" to clear.'}
+                .helper=${'Attribute whose string value is matched against color-config keys (e.g. "fade", "true"). Select "(Use entity state)" to clear.'}
                 .disabled=${!entityId}
                 .selector=${{ select: { mode: 'dropdown', options: allOptions, custom_value: true } }}
                 .value=${current || '__none__'}
@@ -1128,7 +1128,7 @@ export class LCARdSBaseEditor extends LitElement {
     _renderStateClassificationElseSelector() {
         const current = this.config?.state_classification?.else ?? '__none__';
         const options = [
-            { value: '__none__',  label: '— Inactive (default)' },
+            { value: '__none__',  label: '(Inactive, default)' },
             { value: 'default',   label: 'Default' },
             { value: 'active',    label: 'Active' },
             { value: 'inactive',  label: 'Inactive' },
@@ -1489,11 +1489,11 @@ export class LCARdSBaseEditor extends LitElement {
                 <ha-tab-group-tab value="3" ?active=${(this._developerSubTab || 0) === 3}>Provenance</ha-tab-group-tab>
                 <ha-tab-group-tab value="4" ?active=${(this._developerSubTab || 0) === 4}>Templates</ha-tab-group-tab>
 
-                <ha-tab-panel value="0" ?hidden=${(this._developerSubTab || 0) !== 0}>${this._renderDataSourcesTab()}</ha-tab-panel>
-                <ha-tab-panel value="1" ?hidden=${(this._developerSubTab || 0) !== 1}>${this._renderRulesTab()}</ha-tab-panel>
-                <ha-tab-panel value="2" ?hidden=${(this._developerSubTab || 0) !== 2}>${this._renderThemeTokensTab()}</ha-tab-panel>
-                <ha-tab-panel value="3" ?hidden=${(this._developerSubTab || 0) !== 3}>${this._renderProvenanceTab()}</ha-tab-panel>
-                <ha-tab-panel value="4" ?hidden=${(this._developerSubTab || 0) !== 4}>${this._renderTemplatesTab()}</ha-tab-panel>
+                <div class="tab-panel" ?hidden=${(this._developerSubTab || 0) !== 0}>${this._renderDataSourcesTab()}</div>
+                <div class="tab-panel" ?hidden=${(this._developerSubTab || 0) !== 1}>${this._renderRulesTab()}</div>
+                <div class="tab-panel" ?hidden=${(this._developerSubTab || 0) !== 2}>${this._renderThemeTokensTab()}</div>
+                <div class="tab-panel" ?hidden=${(this._developerSubTab || 0) !== 3}>${this._renderProvenanceTab()}</div>
+                <div class="tab-panel" ?hidden=${(this._developerSubTab || 0) !== 4}>${this._renderTemplatesTab()}</div>
             </ha-tab-group>
         `;
     }

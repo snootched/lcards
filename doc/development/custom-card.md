@@ -1,6 +1,6 @@
 # Building a Custom Card
 
-This guide walks through creating a new LCARdS card from scratch — from the class skeleton through registration in Home Assistant.
+This guide walks through creating a new LCARdS card from scratch, from the class skeleton through registration in Home Assistant.
 
 ## Class Hierarchy
 
@@ -38,7 +38,7 @@ export class LCARdSMyCard extends LCARdSCard {
 
   /** Register YAML validation schema with CoreConfigManager. */
   static registerSchema() {
-    // Optional — omit if your card needs no YAML validation.
+    // Optional - omit if your card needs no YAML validation.
     // Example:
     // window.lcards?.core?.configManager?.registerCardSchema('lcards-mycard', schema);
   }
@@ -93,7 +93,7 @@ export class LCARdSMyCard extends LCARdSCard {
 
   /**
    * Called on every HASS update.
-   * Cache entity references here — do NOT read this.hass.states inside render().
+   * Cache entity references here - do NOT read this.hass.states inside render().
    */
   _handleHassUpdate(newHass, oldHass) {
     super._handleHassUpdate(newHass, oldHass);  // ALWAYS call super
@@ -125,7 +125,7 @@ export class LCARdSMyCard extends LCARdSCard {
     style = this._getMergedStyleWithRules(style);
 
     this._cardStyle = style;
-    this.requestUpdate();   // CRITICAL — always call after updating _cardStyle
+    this.requestUpdate();   // CRITICAL - always call after updating _cardStyle
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -158,17 +158,17 @@ export class LCARdSMyCard extends LCARdSCard {
 Every `_handleFirstUpdate` and `_handleHassUpdate` override must call `super` before your code, or base-class wiring (logging, entity tracking, template processing) will be skipped.
 :::
 
-## 3. Entity State — Correct Pattern
+## 3. Entity State: Correct Pattern
 
 **Cache the entity in `_handleHassUpdate`, read from cache in render:**
 
 ```javascript
-// Good — base class updates this._entity automatically
+// Good - base class updates this._entity automatically
 _renderCard() {
   return html`<span>${this._entity?.state}</span>`;
 }
 
-// Bad — re-reads the entire states map on every render cycle
+// Bad - re-reads the entire states map on every render cycle
 _renderCard() {
   const state = this.hass.states[this.config.entity_id]?.state;
   return html`<span>${state}</span>`;
@@ -179,7 +179,7 @@ _renderCard() {
 
 ## 4. Rules Engine Integration
 
-Already shown in the skeleton above: call `_registerOverlayForRules(id, type, tags)` once in `_handleFirstUpdate`, and re-run `_resolveStyle()` — which merges rule patches via `_getMergedStyleWithRules()` and calls `requestUpdate()` — both there and in `_onRulePatchesChanged`. That's the whole contract; there's no additional wiring required.
+Already shown in the skeleton above: call `_registerOverlayForRules(id, type, tags)` once in `_handleFirstUpdate`, and re-run `_resolveStyle()` (which merges rule patches via `_getMergedStyleWithRules()` and calls `requestUpdate()`) both there and in `_onRulePatchesChanged`. That's the whole contract; there's no additional wiring required.
 
 ## 5. Register the Card
 
@@ -190,7 +190,7 @@ All registration happens in `src/lcards.js`. Never call `customElements.define` 
 
 import { LCARdSMyCard } from './cards/lcards-mycard.js';
 
-// 1. Register the custom element (always guarded — never re-define on HMR/SPA reload).
+// 1. Register the custom element (always guarded - never re-define on HMR/SPA reload).
 if (!customElements.get('lcards-mycard')) {
   customElements.define('lcards-mycard', LCARdSMyCard);
 }
@@ -211,14 +211,14 @@ window.customCards.push({
 ## 6. Build and Test
 
 ```bash
-npm run build          # the only build — validated, versioned, use for dev and release alike
+npm run build          # the only build - validated, versioned, use for dev and release alike
 ```
 
 Copy `dist/lcards.js` to `<HA config>/www/community/lcards/lcards.js`, then hard-refresh (Ctrl+Shift+R) in the browser. The card selector should now show your new card.
 
 ## 7. Logging
 
-Use `lcardsLog` — never `console.log`:
+Use `lcardsLog`, never `console.log`:
 
 ```javascript
 import { lcardsLog } from '../utils/lcards-logging.js';

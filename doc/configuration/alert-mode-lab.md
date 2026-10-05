@@ -6,7 +6,7 @@ The **Alert Mode Lab** is a tab in the [LCARdS Config Panel](./index.md) for cus
 
 ## What It Does
 
-LCARdS Alert Mode shifts card colours across your entire dashboard when an alert is active. The Lab lets you tune how each alert level looks by adjusting per-mode colour parameters — then saves those values as HA input helpers so they persist across restarts.
+LCARdS Alert Mode shifts card colours across your entire dashboard when an alert is active. The Lab lets you tune how each alert level looks by adjusting per-mode colour parameters, then saves those values as HA input helpers so they persist across restarts.
 
 ---
 
@@ -66,7 +66,7 @@ Changes in the Lab are reflected in real time on any open Lovelace dashboard. Yo
 
 ## Saving Settings
 
-Click **Save** in the Lab to write all current parameter values to their corresponding `input_number` helpers. These helpers are created and managed automatically — you don't need to set them up manually.
+Click **Save** in the Lab to write all current parameter values to their corresponding `input_number` helpers. These helpers are created and managed automatically; you don't need to set them up manually.
 
 Helper naming convention: `input_number.lcards_alert_lab_<mode>_<parameter>`, for example:
 - `input_number.lcards_alert_lab_red_hue`
@@ -77,6 +77,6 @@ Helper naming convention: `input_number.lcards_alert_lab_<mode>_<parameter>`, fo
 
 ## Related
 
-- [Alert Mode](../core/alert-mode.md) — how alert mode works, how to trigger it, and how cards respond
-- [Persistent Helpers](persistent-helpers.md) — full helper reference including alert Lab parameters
-- [Sounds](../core/sounds.md) — per-mode sound events fired when alert mode changes
+- [Alert Mode](../core/alert-mode.md): how alert mode works, how to trigger it, and how cards respond
+- [Persistent Helpers](persistent-helpers.md): full helper reference including alert Lab parameters
+- [Sounds](../core/sounds.md): per-mode sound events fired when alert mode changes

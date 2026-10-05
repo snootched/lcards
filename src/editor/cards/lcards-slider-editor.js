@@ -322,7 +322,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         }
 
         const options = [
-            { value: '', label: '— None —' },
+            { value: '', label: '(None)' },
             ...filteredPresets.map(name => ({
                 value: name,
                 label: name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -334,7 +334,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
         const helperText = currentComponent
             ? `Presets compatible with the '${currentComponent}' component`
-            : 'Quick styling — select a component first to narrow the list';
+            : 'Quick styling: select a component first to narrow the list';
 
         return html`
             <ha-selector
@@ -371,12 +371,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             ? Object.keys(this.hass.states[entityId].attributes || {}).sort()
                   .map(attr => ({ value: attr, label: attr }))
             : [];
-        const options = [{ value: '__none__', label: '— Control entity state' }, ...attrOpts];
+        const options = [{ value: '__none__', label: '(Control entity state)' }, ...attrOpts];
         return html`
             <ha-selector
                 .hass=${this.hass}
                 .label=${'Attribute'}
-                .helper=${'Entity attribute to control (e.g. brightness). Select "— Control entity state" to clear.'}
+                .helper=${'Entity attribute to control (e.g. brightness). Select "(Control entity state)" to clear.'}
                 .disabled=${!entityId}
                 .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
                 .value=${currentValue || '__none__'}
@@ -529,7 +529,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             {
                 type: 'section',
                 header: 'Sizing',
-                description: 'Override card dimensions — useful in stacks, overlays, or any auto-height container',
+                description: 'Override card dimensions: useful in stacks, overlays, or any auto-height container',
                 icon: 'mdi:resize',
                 expanded: false,
                 outlined: true,
@@ -719,7 +719,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         return html`
             <lcards-form-section
                 header="Live Value Badge"
-                description="Floating badge that follows the drag position while dragging — shows the value before it's committed to the entity, like HA's native slider drag indicator."
+                description="Floating badge that follows the drag position while dragging; shows the value before it's committed to the entity, like HA's native slider drag indicator."
                 icon="mdi:tooltip-text"
                 ?expanded=${false}
                 ?outlined=${true}
@@ -837,7 +837,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 <lcards-message
                     type="info"
-                    message="Band ranges colour a fixed zone on the track. Value markers track a live entity attribute (e.g. current temperature) — shown as an indicator shape in gauge mode and a highlighted pill in pills mode.">
+                    message="Band ranges colour a fixed zone on the track. Value markers track a live entity attribute (e.g. current temperature), shown as an indicator shape in gauge mode and a highlighted pill in pills mode.">
                 </lcards-message>
 
                 <div class="range-list" style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;">
@@ -1026,7 +1026,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         // @ts-ignore - TS2353: auto-suppressed
                         type: 'select',
                         options: [
-                            { value: '', label: '— Inherit from gauge.indicator —' },
+                            { value: '', label: '(Inherit from gauge.indicator)' },
                             { value: 'line', label: 'Line' },
                             { value: 'round', label: 'Round (ellipse)' },
                             { value: 'triangle', label: 'Triangle' }
@@ -1148,7 +1148,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 ${FormField.renderField(this, `${basePath}.label.text`, {
                     label: 'Label Text',
-                    helper: 'Static text or a template — {entity.attributes.x} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], or {datasource:name} are all supported.'
+                    helper: 'Static text or a template: {entity.attributes.x} / {states.entity_id.state} tokens, {{ Jinja2 }}, [[[ JS ]]], or {datasource:name} are all supported.'
                 })}
 
                 <lcards-grid-layout columns="2">
@@ -1394,11 +1394,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     <lcards-grid-layout>
                         ${FormField.renderField(this, 'style.gauge.progress_bar.radius.start', {
                             label: 'Radius Start',
-                            helper: 'Fill bar start-end radius — left (horizontal) or bottom (vertical)'
+                            helper: 'Fill bar start-end radius: left (horizontal) or bottom (vertical)'
                         })}
                         ${FormField.renderField(this, 'style.gauge.progress_bar.radius.end', {
                             label: 'Radius End',
-                            helper: 'Fill bar end radius — right (horizontal) or top (vertical)'
+                            helper: 'Fill bar end radius: right (horizontal) or top (vertical)'
                         })}
                     </lcards-grid-layout>
 
@@ -1465,11 +1465,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     <lcards-grid-layout>
                         ${FormField.renderField(this, 'style.gauge.progress_bar.background.radius.start', {
                             label: 'Radius Start',
-                            helper: 'Background start-end radius — left (horizontal) or bottom (vertical). Defaults to fill radius.'
+                            helper: 'Background start-end radius: left (horizontal) or bottom (vertical). Defaults to fill radius.'
                         })}
                         ${FormField.renderField(this, 'style.gauge.progress_bar.background.radius.end', {
                             label: 'Radius End',
-                            helper: 'Background end radius — right (horizontal) or top (vertical). Defaults to fill radius.'
+                            helper: 'Background end radius: right (horizontal) or top (vertical). Defaults to fill radius.'
                         })}
                     </lcards-grid-layout>
 
@@ -1733,7 +1733,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 ${FormField.renderField(this, 'style.shaped.radius', {
                     label: 'Corner Radius (px)',
-                    helper: 'Override auto radius — lozenge defaults to min(w,h)/2, rounded defaults to 8'
+                    helper: 'Override auto radius: lozenge defaults to min(w,h)/2, rounded defaults to 8'
                 })}
             </lcards-form-section>
 
@@ -1782,11 +1782,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     <lcards-grid-layout columns="2">
                         ${FormField.renderField(this, 'style.shaped.text_bands.top.size', {
                             label: 'Top Band (px)',
-                            helper: 'Space above shape — typically for value label'
+                            helper: 'Space above shape: typically for value label'
                         })}
                         ${FormField.renderField(this, 'style.shaped.text_bands.bottom.size', {
                             label: 'Bottom Band (px)',
-                            helper: 'Space below shape — typically for name label'
+                            helper: 'Space below shape: typically for name label'
                         })}
                     </lcards-grid-layout>
                 ` : html`
@@ -1953,7 +1953,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         return html`
             <lcards-form-section
                 header="Corner Radius"
-                description="Round the card corners — clips all borders and content uniformly"
+                description="Round the card corners: clips all borders and content uniformly"
                 icon="mdi:rounded-corner"
                 ?expanded=${false}
                 ?outlined=${true}

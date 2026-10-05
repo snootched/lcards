@@ -1057,7 +1057,7 @@ export class LCARdSColorPicker extends LitElement {
     _getSectionTitle() {
         const scopeLabel = CATEGORY_GROUP_LABELS[this._selectedCategoryGroup];
         if (this._selectedFamily === 'all') return scopeLabel;
-        return `${scopeLabel} — ${FAMILY_LABELS[this._selectedFamily]}`;
+        return `${scopeLabel} · ${FAMILY_LABELS[this._selectedFamily]}`;
     }
 
     /**
@@ -1076,7 +1076,7 @@ export class LCARdSColorPicker extends LitElement {
             <div class="color-list" role="listbox">
                 <ha-combo-box-item type="button"
                     @click=${() => this._selectAndClose('')}>
-                    <span slot="headline">— None —</span>
+                    <span slot="headline">(None)</span>
                 </ha-combo-box-item>
                 <ha-combo-box-item type="button"
                     @click=${() => this._selectAndClose('transparent')}>
@@ -1535,7 +1535,7 @@ export class LCARdSColorPicker extends LitElement {
                 </div>
                 ` : html`
                 <div class="builder-row" style="font-size:12px; color: var(--secondary-text-color); padding: 4px 0;">
-                    Returns the colour’s pre-alert, green-alert baseline value — immune to alert-mode hue shifts.
+                    Returns the colour’s pre-alert, green-alert baseline value, immune to alert-mode hue shifts.
                 </div>
                 `}
 
@@ -1795,7 +1795,7 @@ export class LCARdSColorPicker extends LitElement {
 
     /** Label for a builder color slot — falls back to raw value or placeholder. */
     _getBuilderColorLabel(value) {
-        if (!value) return '— Select Variable —';
+        if (!value) return '(Select Variable)';
         if (value === 'transparent') return 'Transparent';
         return this._cssVariables.find(v => v.value === value)?.label || value;
     }
@@ -1893,13 +1893,13 @@ export class LCARdSColorPicker extends LitElement {
      * @private
      */
     _getTriggerLabel() {
-        if (!this.value) return '— None —';
+        if (!this.value) return '(None)';
         const { color } = this._parseIncomingValue(this.value);
         if (color === 'transparent') return 'Transparent';
         if (color === 'match-light') return 'Match Light Colour';
         const matchingVar = this._cssVariables.find(v => v.value === color);
         if (matchingVar) return matchingVar.label;
-        return color || '— None —';
+        return color || '(None)';
     }
 
     /**

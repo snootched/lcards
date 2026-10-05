@@ -9,9 +9,9 @@ All standard LCARS buttons, plus advanced multi-segment controls.
 ![Button Card](/img/lcards-button.png)
 
 - Built-in preset library: lozenge, bullet, capped, outline, pill, text, and more
-- **Component mode** — embed SVG components (D-pad, Alert, custom shapes) with per-segment interactivity
-- Canvas-based **background animations** — stackable layers with zoom and pan
-- Rules Engine integration — styles hot-patched at runtime
+- **Component mode**: embed SVG components (D-pad, Alert, custom shapes) with per-segment interactivity
+- Canvas-based **background animations**: stackable layers with zoom and pan
+- Rules Engine integration: styles hot-patched at runtime
 
 [Button Documentation](button/)
 
@@ -25,7 +25,7 @@ Classic LCARS corner designs.
 - Built-in preset library: `header-left`, `header-right`, `footer-left`, `footer-right` and more
 - **Simple** and **segmented** (Picard-style double elbow) styles
 - Fully configurable LCARS arc geometry or diagonal-cut corners
-- Symbiont support — embed other HA cards inside the elbow area
+- Symbiont support: embed other HA cards inside the elbow area
 - Animated 'textures' available
 
 [Elbow Documentation](elbow/)
@@ -41,7 +41,7 @@ Interactive sliders for display and control.
 - Built-in presets: **pills** (segmented bar) and **gauge** (ruler with tick marks)
 - Horizontal and vertical orientations with independent fill and control inversion
 - Separate min/max for display range vs. control range
-- Domain auto-detection — interactive for controllable domains, display-only for sensors
+- Domain auto-detection: interactive for controllable domains, display-only for sensors
 
 [Slider Documentation](slider-card/)
 
@@ -66,8 +66,8 @@ LCARS data grids with cascade animations.
 
 ![Data Grid Card](/img/lcards-data-grid.gif)
 
-- **Data mode** — real entity states, attributes, or template values
-- **Decorative mode** — cascading generated data for aesthetics
+- **Data mode**: real entity states, attributes, or template values
+- **Decorative mode**: cascading generated data for aesthetics
 - LCARS-style cascade animation with built-in speed presets
 - CSS Grid layout with full style cascading
 
@@ -105,8 +105,8 @@ Create your own Master Systems Display with controls and routable lines
 
 
 - Embed any HA card as a positioned **control overlay**
-- **Line overlays** — SVG lines with smart routing and avoid-obstacle algorithms
-- **Studio Editor** — visual configuration with live preview and drag-to-reposition
+- **Line overlays**: SVG lines with smart routing and avoid-obstacle algorithms
+- **Studio Editor**: visual configuration with live preview and drag-to-reposition
 - Animate lines independently with rules
 
 [MSD Documentation](msd/)
@@ -119,10 +119,10 @@ Features and concepts shared across the card system:
 
 | Topic | What it covers |
 |-------|---------------|
-| [Common Card Properties](common.md) | `id`, `tags`, `height`, `width`, `grid_options` — properties shared by all cards |
+| [Common Card Properties](common.md) | `id`, `tags`, `height`, `width`, `grid_options`, properties shared by all cards |
 | [Colours](../core/colours.md) | Colour formats, state-based colour system, resolution order |
-| [Actions](../core/actions.md) | `tap_action`, `hold_action`, `double_tap_action` — all action types and options |
-| [Text Fields](../core/text-fields.md) | Multi-field text system — placement, fonts, colour, templates |
+| [Actions](../core/actions.md) | `tap_action`, `hold_action`, `double_tap_action`, all action types and options |
+| [Text Fields](../core/text-fields.md) | Multi-field text system: placement, fonts, colour, templates |
 | [Templates](../core/templates/) | Dynamic content: JS, Jinja2, LCARdS token data source templates |
 | [Animations](../core/animations.md) | Per-card animations with multiple trigger types |
 | [Background Animations](../core/effects/background-animations.md) | Canvas-based animated backgrounds (grid, starfield, nebula, etc.) |

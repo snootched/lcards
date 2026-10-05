@@ -2,7 +2,7 @@
 
 `custom:lcards-data-grid`
 
-A grid of cells displaying real entity data, templates, or decorative auto-generated data — with cascade colour animations for an authentic LCARS data display look.
+A grid of cells displaying real entity data, templates, or decorative auto-generated data, with cascade colour animations for an authentic LCARS data display look.
 
 ---
 
@@ -142,17 +142,17 @@ triggers_update: []
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `type` | string | — | `custom:lcards-data-grid` (required) |
+| `type` | string | - | `custom:lcards-data-grid` (required) |
 | `data_mode` | string | `decorative` | `decorative` or `data` (required). Legacy values auto-migrated. |
-| `rows` | list | — | Row definitions — data mode only; see [Data Mode: Rows](#data-mode-rows) |
+| `rows` | list | - | Row definitions: data mode only; see [Data Mode: Rows](#data-mode-rows) |
 | `format` | string | `mixed` | Random data format for decorative mode: `digit`, `float`, `alpha`, `hex`, `mixed` |
 | `refresh_interval` | number | `0` | Auto-refresh interval in ms for decorative mode (`0` = disabled) |
-| `grid` | object | — | CSS Grid layout config — see [Grid Layout](#grid-layout) |
-| `style` | object | — | Grid-wide cell styles — see [`style` Object](#style-object) |
-| `columns` | list | — | Per-column style overrides — see [Column Styles](#column-styles) |
-| `animations` | list | — | Card animations — see [Animations](../../core/animations.md) |
-| `animation` | object | — | Cascade-specific config: custom timing and change-highlight — see [Cascade Animation](#cascade-animation) |
-| `filters` | list | — | Visual filters applied to the entire grid — see [Filters](../../core/effects/filters.md) |
+| `grid` | object | - | CSS Grid layout config: see [Grid Layout](#grid-layout) |
+| `style` | object | - | Grid-wide cell styles: see [`style` Object](#style-object) |
+| `columns` | list | - | Per-column style overrides: see [Column Styles](#column-styles) |
+| `animations` | list | - | Card animations: see [Animations](../../core/animations.md) |
+| `animation` | object | - | Cascade-specific config: custom timing and change-highlight; see [Cascade Animation](#cascade-animation) |
+| `filters` | list | - | Visual filters applied to the entire grid; see [Filters](../../core/effects/filters.md) |
 
 ---
 
@@ -163,10 +163,10 @@ Each row is an array of cell values. Cells are auto-detected:
 | Cell value | Type | How it is shown |
 |------------|------|----------------|
 | `"Static text"` | Static | Displayed as-is |
-| `sensor.entity_id` | Entity | Live state — locale-formatted + unit via `haFormatState` |
+| `sensor.entity_id` | Entity | Live state: locale-formatted + unit via `haFormatState` |
 | `"{{ jinja2 }}"` | Template | HA-evaluated template |
 | `"{datasource:name}"` | DataSource | HA-native: locale-formatted + unit |
-| `"{datasource:name:.2f}"` | DataSource | Formatted number only — no auto-unit |
+| `"{datasource:name:.2f}"` | DataSource | Formatted number only: no auto-unit |
 
 ```yaml
 rows:
@@ -196,18 +196,18 @@ Uses CSS Grid. Specify any valid CSS Grid values:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `grid-template-columns` | string | — | CSS columns definition, e.g. `"repeat(12, 1fr)"` or `"100px 1fr 2fr"` |
-| `grid-template-rows` | string | — | CSS rows definition, e.g. `"repeat(8, auto)"` |
-| `gap` | string | — | Uniform cell gap, e.g. `"8px"` |
-| `row-gap` | string | — | Vertical gap between rows |
-| `column-gap` | string | — | Horizontal gap between columns |
+| `grid-template-columns` | string | - | CSS columns definition, e.g. `"repeat(12, 1fr)"` or `"100px 1fr 2fr"` |
+| `grid-template-rows` | string | - | CSS rows definition, e.g. `"repeat(8, auto)"` |
+| `gap` | string | - | Uniform cell gap, e.g. `"8px"` |
+| `row-gap` | string | - | Vertical gap between rows |
+| `column-gap` | string | - | Horizontal gap between columns |
 | `grid-auto-flow` | string | `row` | Auto-placement algorithm: `row`, `column`, `dense`, `row dense`, `column dense` |
 | `justify-items` | string | `stretch` | Horizontal alignment of cells in their areas: `stretch`, `start`, `end`, `center` |
 | `align-items` | string | `stretch` | Vertical alignment of cells in their areas: `stretch`, `start`, `end`, `center` |
-| `justify-content` | string | — | Horizontal alignment of the grid within the card: `start`, `end`, `center`, `space-between`, `space-around`, `space-evenly` |
-| `align-content` | string | — | Vertical alignment of the grid within the card: `start`, `end`, `center`, `space-between`, `space-around`, `space-evenly` |
-| `grid-auto-columns` | string | — | Width of implicit columns, e.g. `"1fr"` |
-| `grid-auto-rows` | string | — | Height of implicit rows, e.g. `"auto"` |
+| `justify-content` | string | - | Horizontal alignment of the grid within the card: `start`, `end`, `center`, `space-between`, `space-around`, `space-evenly` |
+| `align-content` | string | - | Vertical alignment of the grid within the card: `start`, `end`, `center`, `space-between`, `space-around`, `space-evenly` |
+| `grid-auto-columns` | string | - | Width of implicit columns, e.g. `"1fr"` |
+| `grid-auto-rows` | string | - | Height of implicit rows, e.g. `"auto"` |
 
 ```yaml
 grid:
@@ -321,7 +321,7 @@ animations:
         text: "var(--lcars-blue-darkest)"
         end: "var(--lcars-moonlight)"
 
-animation:              # top-level singular key — separate from animations array
+animation:              # top-level singular key - separate from animations array
   timing:
     - { duration: 3000, delay: 0.1 }   # Row 0
     - { duration: 2000, delay: 0.2 }   # Row 1
@@ -332,7 +332,7 @@ animation:              # top-level singular key — separate from animations ar
 
 ## Change Highlight Animation
 
-Highlight cells that have just changed — draws attention to live data updates. Change-highlight is configured via the **top-level `animation:` key** (singular), separate from the `animations:` array used for the cascade preset.
+Highlight cells that have just changed. Draws attention to live data updates. Change-highlight is configured via the **top-level `animation:` key** (singular), separate from the `animations:` array used for the cascade preset.
 
 ```yaml
 animation:              # top-level singular key
@@ -373,7 +373,7 @@ type: custom:lcards-data-grid
 data_mode: data
 
 rows:
-  # Header row — styled via per-row style
+  # Header row - styled via per-row style
   - values: [SUBSYSTEM, VALUE, STATUS]
     style:
       background: "alpha(var(--lcars-orange), 0.08)"
@@ -381,7 +381,7 @@ rows:
       font_weight: bold
       align: center
 
-  # Entity cells — auto-subscribed live values
+  # Entity cells - auto-subscribed live values
   - [CPU, sensor.cpu_usage, "{{ 'OK' if states('sensor.cpu_usage')|float < 80 else 'WARN' }}"]
   - [RAM, sensor.memory_used_percent, "{{ 'OK' if states('sensor.memory_used_percent')|float < 90 else 'WARN' }}"]
 

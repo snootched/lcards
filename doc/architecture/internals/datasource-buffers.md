@@ -53,16 +53,16 @@ Processor buffers are named outputs from data processors. Each processor has a u
 Reference buffers using dot notation:
 
 ```yaml alternatives
-# Main buffer — no format spec: HA-native (locale-formatted + unit, e.g. "23,4 °C")
+# Main buffer - no format spec: HA-native (locale-formatted + unit, e.g. "23,4 °C")
 text: "{datasource:temp_sensor}"        # Uses .v
 text: "{ds:temp_sensor}"                # Short form
 
-# Processor buffer — no format spec: unit appended from entity metadata
+# Processor buffer - no format spec: unit appended from entity metadata
 text: "{datasource:temp_sensor.celsius}"
 
-# With format spec — you own the output (no auto-unit)
+# With format spec - you own the output (no auto-unit)
 text: "{ds:temp_sensor.rolling_avg:.1f}"           # "71.8"
-text: "{ds:temp_sensor.celsius:.1f} °C"            # "23.4 °C" — manual unit
+text: "{ds:temp_sensor.celsius:.1f} °C"            # "23.4 °C" - manual unit
 
 # Multiple in one string
 text: "Temp: {ds:temp_sensor.celsius:.1f} (avg: {ds:temp_sensor.rolling_avg:.1f})"
@@ -79,7 +79,7 @@ const data = source.getCurrentData();
 // Main buffer
 console.log(data.v);                     // 72.5
 
-// Processor buffers — nested under `processing`
+// Processor buffers - nested under `processing`
 console.log(data.processing.celsius);        // 22.5
 console.log(data.processing.rolling_avg);    // 71.8
 ```

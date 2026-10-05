@@ -12,11 +12,11 @@ It has three sections. Non-admin users see only **Current Session**. HA admins s
 
 ## Current Session
 
-Shows the identity of the current browser session — this is your **device record** as seen by LCARdS.
+Shows the identity of the current browser session: this is your **device record** as seen by LCARdS.
 
 | Field | Description |
 |-------|-------------|
-| **Device name** | Human-readable label for this browser. Editable by any user — click the edit icon, type a new name, and save. Also settable via the URL parameter `?lcards_device=My%20Tablet` on first visit. |
+| **Device name** | Human-readable label for this browser. Editable by any user: click the edit icon, type a new name, and save. Also settable via the URL parameter `?lcards_device=My%20Tablet` on first visit. |
 | **Device ID** | Stable UUID stored in this browser's `localStorage`. Persists across page reloads and HA logins from the same browser profile. |
 | **Last seen** | Timestamp of this device's last heartbeat to the backend. |
 | **User agent** | Browser/OS string recorded at last registration. |
@@ -31,7 +31,7 @@ Lists every HA user who has at least one stored per-user override. For each entr
 
 - The HA display name (resolved from the HA auth list)
 - The opaque HA user ID
-- A **Clear overrides** action — removes all per-user scoped settings for that user, reverting them to Device → Global fallback
+- A **Clear overrides** action: removes all per-user scoped settings for that user, reverting them to Device → Global fallback
 
 > Clearing overrides does not affect the user's device records or any global settings.
 
@@ -43,12 +43,12 @@ Lists every device that has ever registered a heartbeat with the LCARdS backend.
 
 | Column | Description |
 |--------|-------------|
-| **Name** | Display name — click the edit (pencil) icon to rename inline |
+| **Name** | Display name: click the edit (pencil) icon to rename inline |
 | **Last seen** | ISO timestamp of the last heartbeat |
 | **Device ID** | Stable UUID for targeting services |
 | **Delete** | Removes the entire device record from the backend (requires confirmation). Any scoped overrides stored for this device are also deleted. |
 
-Deleting a device does not prevent it from re-registering — if the browser visits the dashboard again it will create a new record with the same UUID.
+Deleting a device does not prevent it from re-registering: if the browser visits the dashboard again it will create a new record with the same UUID.
 
 ---
 
@@ -64,13 +64,13 @@ Device scope  →  User scope  →  Global scope  →  HA helper fallback
 - **User** overrides apply to a specific HA user regardless of which device they use.
 - **Global** is the installation-wide default, shared by everyone.
 
-Per-user and per-device overrides are configured in the individual feature tabs (e.g. [Sound](../core/sounds.md) → *Per-User / Per-Device Overrides* section). The **Users & Devices** tab is the admin view for managing *existing* records — it does not expose raw setting values.
+Per-user and per-device overrides are configured in the individual feature tabs (e.g. [Sound](../core/sounds.md) → *Per-User / Per-Device Overrides* section). The **Users & Devices** tab is the admin view for managing *existing* records; it does not expose raw setting values.
 
 ---
 
 ## Related
 
-- [Sounds](sounds.md) — configure per-user/device sound overrides
-- [Configuration overview](./index.md) — panel setup and all tabs overview
-- [HA Services — targeting](../architecture/internals/ha-services.md) — use device/user IDs in `lcards.*` service calls
-- [Scoped Settings Service](../architecture/subsystems/scoped-settings.md) — developer reference for the underlying storage system
+- [Sounds](sounds.md): configure per-user/device sound overrides
+- [Configuration overview](./index.md): panel setup and all tabs overview
+- [HA Services: targeting](../architecture/internals/ha-services.md): use device/user IDs in `lcards.*` service calls
+- [Scoped Settings Service](../architecture/subsystems/scoped-settings.md): developer reference for the underlying storage system

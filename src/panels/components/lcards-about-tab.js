@@ -75,15 +75,15 @@ export class LCARdSAboutTab extends LitElement {
   async _copySupport() {
     if (!this._report) return;
     const ok = await copyTextToClipboard(this._report.markdown);
-    this._flashNotice(ok ? 'Support info copied to the clipboard.' : 'Copy failed — select the text in the preview below and copy it manually.');
+    this._flashNotice(ok ? 'Support info copied to the clipboard.' : 'Copy failed: select the text in the preview below and copy it manually.');
   }
 
   _openIssue() {
     if (!this._report) return;
     const { truncated, copied } = openIssueForReport(this._report);
     copied.then((ok) => this._flashNotice(
-      !ok ? 'GitHub opened — copy failed, so paste the preview text below into "LCARdS support info".'
-        : truncated ? 'GitHub opened with a summary — full support info is on your clipboard; paste it into "LCARdS support info".'
+      !ok ? 'GitHub opened: copy failed, so paste the preview text below into "LCARdS support info".'
+        : truncated ? 'GitHub opened with a summary: full support info is on your clipboard; paste it into "LCARdS support info".'
         : 'GitHub opened with your support info prefilled (also copied to the clipboard). Review it and describe the problem.'));
   }
 
@@ -107,7 +107,7 @@ export class LCARdSAboutTab extends LitElement {
         </div>
         <p class="section-intro">
           A health check of your setup. If something isn't working, copy this info or open a pre-filled
-          GitHub bug report — it's opened for you to review; nothing is sent automatically.
+          GitHub bug report: it's opened for you to review; nothing is sent automatically.
         </p>
 
         ${!report ? html`
@@ -115,15 +115,15 @@ export class LCARdSAboutTab extends LitElement {
         ` : html`
           ${problems.length ? html`
             <lcards-message type="${problems.some(c => c.status === 'error') ? 'error' : 'warning'}">
-              <strong>${problems.length} issue${problems.length === 1 ? '' : 's'} found</strong> — see the checks below for fixes.
+              <strong>${problems.length} issue${problems.length === 1 ? '' : 's'} found</strong>. See the checks below for fixes.
             </lcards-message>
           ` : ''}
 
           <div class="support-versions">
-            <span><b>LCARdS</b> ${info?.lcards?.version ?? '—'}</span>
-            <span><b>Integration</b> ${info?.lcards?.backendVersion ?? '—'}</span>
-            <span><b>Home Assistant</b> ${info?.ha?.version ?? '—'}</span>
-            <span><b>Frontend</b> ${info?.ha?.frontendVersion ?? '—'}</span>
+            <span><b>LCARdS</b> ${info?.lcards?.version ?? '-'}</span>
+            <span><b>Integration</b> ${info?.lcards?.backendVersion ?? '-'}</span>
+            <span><b>Home Assistant</b> ${info?.ha?.version ?? '-'}</span>
+            <span><b>Frontend</b> ${info?.ha?.frontendVersion ?? '-'}</span>
           </div>
 
           <ul class="support-checks">
@@ -187,7 +187,7 @@ export class LCARdSAboutTab extends LitElement {
         index: 3,
         icon: 'mdi:wifi-off',
         label: 'Connectivity',
-        desc: 'Configure the connection-lost overlay — what is shown when HA loses its WebSocket connection, and the "connection restored" confirmation banner',
+        desc: 'Configure the connection-lost overlay: what is shown when HA loses its WebSocket connection, and the "connection restored" confirmation banner',
       },
       {
         index: 4,
@@ -289,7 +289,7 @@ export class LCARdSAboutTab extends LitElement {
             <div class="step-number">3</div>
             <div class="step-body">
               <span class="step-title">Customize Sounds</span>
-              <span class="step-desc">Configure audio feedback for alert modes and card interactions — assign sounds and adjust volume levels</span>
+              <span class="step-desc">Configure audio feedback for alert modes and card interactions: assign sounds and adjust volume levels</span>
             </div>
           </li>
         </ol>

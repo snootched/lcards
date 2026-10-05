@@ -115,7 +115,7 @@ const AUDIO_ASSETS = {
   },
   lcards_default_alert_clear: {
     url: `${BASE_URL}/alert_clear.mp3`,
-    description: 'Alert cleared — all-clear tone',
+    description: 'Alert cleared: all-clear tone',
   },
   lcards_default_system_ready: {
     url: `${BASE_URL}/system_ready.mp3`,

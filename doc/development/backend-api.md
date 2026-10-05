@@ -1,16 +1,16 @@
 # Backend API
 
-Developer reference for calling LCARdS WebSocket commands from JS card code — cards, services, and the Config Panel.
+Developer reference for calling LCARdS WebSocket commands from JS card code: cards, services, and the Config Panel.
 
 ::: tip Integration availability
-Always check `window.lcards.core.integrationService.available` before calling `lcards/*` commands. When the Python integration is absent, commands will reject. Cards should degrade gracefully — see [Degraded mode](#degraded-mode).
+Always check `window.lcards.core.integrationService.available` before calling `lcards/*` commands. When the Python integration is absent, commands will reject. Cards should degrade gracefully; see [Degraded mode](#degraded-mode).
 :::
 
 ---
 
 ## Calling Pattern
 
-Use `sendMessagePromise()` on the HASS connection you already have — inside a card that's `this.hass.connection`; inside a core singleton/service (which holds its own `this._hass`) it's `this._hass.connection`. Every example below is written from inside a card method.
+Use `sendMessagePromise()` on the HASS connection you already have: inside a card that's `this.hass.connection`; inside a core singleton/service (which holds its own `this._hass`) it's `this._hass.connection`. Every example below is written from inside a card method.
 
 ```javascript
 class MyCard extends LCARdSCard {
@@ -28,13 +28,13 @@ class MyCard extends LCARdSCard {
 }
 ```
 
-For one-off calls from the browser console (debugging / testing), use `window.hassConnection` instead — see [browser console testing](../architecture/internals/storage#browser-console-testing).
+For one-off calls from the browser console (debugging / testing), use `window.hassConnection` instead; see [browser console testing](../architecture/internals/storage#browser-console-testing).
 
 ---
 
 ## `lcards/info`
 
-Backend availability probe. Normally you do not call this directly — `IntegrationService` probes it once on startup and exposes the result as `integrationService.available`. Useful for diagnostic tooling.
+Backend availability probe. Normally you do not call this directly; `IntegrationService` probes it once on startup and exposes the result as `integrationService.available`. Useful for diagnostic tooling.
 
 ```javascript
 const result = await this.hass.connection.sendMessagePromise({
@@ -71,7 +71,7 @@ Non-admin callers get an `unauthorized` error; the frontend then shows "Backend 
 
 ## Storage API
 
-All storage commands are under `lcards/storage/*`. The store is a flat key/value namespace persisted to `.storage/lcards` in the HA config directory — survives HA restarts and HACS upgrades.
+All storage commands are under `lcards/storage/*`. The store is a flat key/value namespace persisted to `.storage/lcards` in the HA config directory; survives HA restarts and HACS upgrades.
 
 → Full schema reference: [Persistent Storage](../architecture/internals/storage).
 
@@ -112,7 +112,7 @@ await this.hass.connection.sendMessagePromise({
 ```
 
 ::: warning Shallow merge
-`set` merges at the top level only — if `user.preferences` already exists, it is **replaced**, not deep-merged. Read first, spread, then write if you need to update one sub-key:
+`set` merges at the top level only: if `user.preferences` already exists, it is **replaced**, not deep-merged. Read first, spread, then write if you need to update one sub-key:
 ```javascript
 const { value: prefs } = await this.hass.connection.sendMessagePromise({
   type: 'lcards/storage/get', key: 'user.preferences',
@@ -128,7 +128,7 @@ await this.hass.connection.sendMessagePromise({
 
 ### `lcards/storage/delete`
 
-Remove a single key. Returns `existed: false` if the key was not present — not an error.
+Remove a single key. Returns `existed: false` if the key was not present, not an error.
 
 ```javascript
 const { existed } = await this.hass.connection.sendMessagePromise({
@@ -172,20 +172,20 @@ All sixteen `lcards.*` HA services accept four optional fields that limit which 
 
 | Field | Type | Resolved by |
 |-------|------|-------------|
-| `target_device_ids` | `list[string]` | Used as-is — browser device UUIDs (`lcards_device_id` from `localStorage`) |
-| `target_device_names` | `list[string]` | Resolved server-side — matched case-insensitively against the device display name set in the LCARdS config panel or `?lcards_device=` URL param |
-| `target_user_ids` | `list[string]` | Used as-is — HA user IDs |
-| `target_user_names` | `list[string]` | Resolved server-side — matched case-insensitively against the HA user display name |
+| `target_device_ids` | `list[string]` | Used as-is: browser device UUIDs (`lcards_device_id` from `localStorage`) |
+| `target_device_names` | `list[string]` | Resolved server-side: matched case-insensitively against the device display name set in the LCARdS config panel or `?lcards_device=` URL param |
+| `target_user_ids` | `list[string]` | Used as-is: HA user IDs |
+| `target_user_names` | `list[string]` | Resolved server-side: matched case-insensitively against the HA user display name |
 
-Omitting all four fields produces a **broadcast** — identical to the existing behaviour before targeting was added. Fully backward-compatible.
+Omitting all four fields produces a **broadcast**, identical to the existing behaviour before targeting was added. Fully backward-compatible.
 
 **Union semantics**: a session accepts the event if it appears in *any* of the resolved lists.
 
-**Non-unique device display names**: if two devices share the same display name, `target_device_names` will match both. This is intentional — it makes a useful grouping mechanism for identically-configured kiosk pairs.
+**Non-unique device display names**: if two devices share the same display name, `target_device_names` will match both. This is intentional: it makes a useful grouping mechanism for identically-configured kiosk pairs.
 
 ### Alert mode: global vs. local state
 
-This mirrors the sound system model. Without targeting, alert services write `input_select.lcards_alert_mode` — shared persistent state for everyone. With targeting, the `input_select` is **not written**; a `set_alert_mode` event is pushed directly to matching sessions as a transient, local-only state change.
+This mirrors the sound system model. Without targeting, alert services write `input_select.lcards_alert_mode`: shared persistent state for everyone. With targeting, the `input_select` is **not written**; a `set_alert_mode` event is pushed directly to matching sessions as a transient, local-only state change.
 
 | Call | What changes |
 |------|-------------|
@@ -194,7 +194,7 @@ This mirrors the sound system model. Without targeting, alert services write `in
 
 ### Finding IDs and names
 
-**Browser console** — run this on any target device or user session to get the exact values to paste into service calls:
+**Browser console**: run this on any target device or user session to get the exact values to paste into service calls:
 
 ```javascript
 window.lcards.targeting.getMyIds()
@@ -209,7 +209,7 @@ All registered device names are visible from the LCARdS Config Panel → **Users
 
 ### Example: target by display name
 
-`target_device_names` and `target_user_names` work the same way on any service — resolved server-side against the display names set in the Config Panel / HA Users page:
+`target_device_names` and `target_user_names` work the same way on any service, resolved server-side against the display names set in the Config Panel / HA Users page:
 
 ```yaml
 action: lcards.reload
@@ -221,7 +221,7 @@ data:
 
 ### Example: target by UUID
 
-`target_device_ids` and `target_user_ids` take the exact values from `window.lcards.targeting.getMyIds()` — useful for automations that need a stable identifier instead of a display name:
+`target_device_ids` and `target_user_ids` take the exact values from `window.lcards.targeting.getMyIds()`, useful for automations that need a stable identifier instead of a display name:
 
 ```yaml
 action: lcards.red_alert
@@ -232,7 +232,7 @@ data:
 
 ### Example: combine multiple targeting fields
 
-All four fields are merged with union semantics — useful when you want to target a named device group plus one specific user:
+All four fields are merged with union semantics, useful when you want to target a named device group plus one specific user:
 
 ```yaml
 action: lcards.yellow_alert
@@ -258,8 +258,8 @@ async _loadPreferences(defaultPreferences) {
     });
     return value ?? defaultPreferences;
   } catch (err) {
-    // err.code === 'storage_unavailable' — integration not ready
-    // err.code === 'unknown_command'     — old integration version without storage
+    // err.code === 'storage_unavailable' - integration not ready
+    // err.code === 'unknown_command' - old integration version without storage
     lcardsLog.warn('[MyCard] Storage unavailable, using defaults', err);
     return defaultPreferences;
   }
@@ -273,8 +273,8 @@ async _loadPreferences(defaultPreferences) {
 When `integrationService.available === false` (integration not installed or failed to load):
 
 - All `lcards/*` commands will reject
-- Cards must fall back gracefully — use `localStorage` or in-memory defaults for non-critical state
-- Core card rendering continues to work — JS injection and integration availability are independent
+- Cards must fall back gracefully: use `localStorage` or in-memory defaults for non-critical state
+- Core card rendering continues to work: JS injection and integration availability are independent
 
 ```javascript
 async _loadPreferences() {
@@ -317,10 +317,10 @@ Use dot-separated namespaces to avoid collisions between cards and services:
 
 | Command | Required params | Optional params | Returns |
 |---|---|---|---|
-| `lcards/info` | — | — | `{ available, version, storage_key_count, options, capabilities }` |
-| `lcards/diagnostics` (admin) | — | — | backend support facts (see above) |
-| `lcards/storage/get` | — | `key: string` | `{ key, value }` |
-| `lcards/storage/set` | `data: object` | — | `{ ok, keys }` |
-| `lcards/storage/delete` | `key: string` | — | `{ ok, existed }` |
-| `lcards/storage/reset` | — | — | `{ ok }` |
-| `lcards/storage/dump` | — | — | `{ version, data }` |
+| `lcards/info` | - | - | `{ available, version, storage_key_count, options, capabilities }` |
+| `lcards/diagnostics` (admin) | - | - | backend support facts (see above) |
+| `lcards/storage/get` | - | `key: string` | `{ key, value }` |
+| `lcards/storage/set` | `data: object` | - | `{ ok, keys }` |
+| `lcards/storage/delete` | `key: string` | - | `{ ok, existed }` |
+| `lcards/storage/reset` | - | - | `{ ok }` |
+| `lcards/storage/dump` | - | - | `{ version, data }` |

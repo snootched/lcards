@@ -27,7 +27,7 @@ export const LCARDS_SLIDERS_PACK = {
   id:          'lcards_sliders',
   name:        'LCARdS Sliders',
   version:     __LCARDS_VERSION__,
-  description: 'Slider style presets — pills (segmented), gauge (ruler), and shaped (clip-path fill) visual styles',
+  description: 'Slider style presets: pills (segmented), gauge (ruler), and shaped (clip-path fill) visual styles',
 
   style_presets: {
     slider: SLIDER_PRESETS

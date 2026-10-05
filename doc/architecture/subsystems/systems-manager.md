@@ -1,6 +1,6 @@
 # Systems Manager
 
-> **`window.lcards.core.systemsManager`** — Centralised entity state subscriptions and push notifications.
+> **`window.lcards.core.systemsManager`**: Centralised entity state subscriptions and push notifications.
 
 ---
 
@@ -20,7 +20,7 @@
 
 - Maintain a `Map<entityId, stateObject>` cache updated on every HASS push
 - Allow cards to subscribe per entity ID with a callback
-- Deduplicate subscriptions — N cards watching the same entity = one internal subscription
+- Deduplicate subscriptions: N cards watching the same entity = one internal subscription
 - Provide overlay registry used by the `RulesEngine` for cross-card targeting
 - Notify subscribers synchronously on each HASS push (only changed entities are dispatched)
 
@@ -28,7 +28,7 @@
 
 ## Overlay Registry
 
-Cards register their overlays here so the Rules Engine can target them by ID, tag, or type. `registerOverlay()` takes the overlay ID and its metadata as two **separate positional arguments** — the ID is not repeated inside the metadata object:
+Cards register their overlays here so the Rules Engine can target them by ID, tag, or type. `registerOverlay()` takes the overlay ID and its metadata as two **separate positional arguments**: the ID is not repeated inside the metadata object:
 
 ```javascript
 const sm = window.lcards.core.systemsManager;
@@ -51,7 +51,7 @@ sm.unregisterOverlay(`button-${this._cardGuid}`);
 ```javascript
 const sm = window.lcards.core.systemsManager;
 
-// Subscribe — returns unsubscribe function
+// Subscribe - returns unsubscribe function
 const unsub = sm.subscribeToEntity('sensor.temperature', (state) => {
   this._temp = state;
   this.requestUpdate();
@@ -76,7 +76,7 @@ card.set hass(newHass)
     → notify subscribers for changed entities only
 ```
 
-"Changed" is `state` string change **or** `last_updated` change — the latter
+"Changed" is `state` string change **or** `last_updated` change, the latter
 also bumps on attribute-only updates (e.g. `brightness` changing while a
 light stays `"on"`), so attribute-driven subscribers fire correctly.
 `last_changed` alone is not sufficient: HA only bumps it on a `state` string
@@ -93,7 +93,7 @@ transition, not on attribute-only changes.
 | `registerOverlay(overlayId, metadata)` | `void` | Register an overlay: `metadata` is `{ type?, tags?, sourceCardId?, element? }` |
 | `unregisterOverlay(overlayId)` | `void` | Remove an overlay from the registry |
 | `getOverlay(overlayId)` | `Object\|null` | A single overlay's metadata by ID |
-| `getAllTargetableOverlays()` | `Object[]` | All registered overlay metadata objects — used by `RulesEngine` for selector resolution |
+| `getAllTargetableOverlays()` | `Object[]` | All registered overlay metadata objects: used by `RulesEngine` for selector resolution |
 | `getOverlayRegistry()` | `Map<string, Object>` | The raw `overlayId → metadata` map |
 | `getOverlaysBySource(cardId)` | `Object[]` | All overlays registered by a specific card |
 | `getOverlaysByTag(tag)` | `Object[]` | All overlays with a given tag |

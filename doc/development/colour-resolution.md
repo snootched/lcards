@@ -1,4 +1,4 @@
-# Colour Resolution — Developer Guide
+# Colour Resolution: Developer Guide
 
 LCARdS supports three forms of colour expression throughout the theming, rules, and background animation systems. **Using the wrong resolution API is the most common source of computed colours silently not working.** This guide defines the correct pattern for each context.
 
@@ -40,7 +40,7 @@ Concrete colour string usable by Canvas2D, anime.js, fillStyle, etc.
 ```
 
 **Why two steps?**
-`ThemeTokenResolver` outputs `var(--name)` CSS strings for CSS-variable inputs (useful in Lit/CSS contexts). Canvas2D APIs (`fillStyle`, gradients) cannot use `var()` strings — they need materialised hex/rgb values. `resolveCssVariable` performs that final materialisation.
+`ThemeTokenResolver` outputs `var(--name)` CSS strings for CSS-variable inputs (useful in Lit/CSS contexts). Canvas2D APIs (`fillStyle`, gradients) cannot use `var()` strings; they need materialised hex/rgb values. `resolveCssVariable` performs that final materialisation.
 
 ---
 
@@ -48,7 +48,7 @@ Concrete colour string usable by Canvas2D, anime.js, fillStyle, etc.
 
 ### A. Cards and CSS/Lit contexts
 
-`ThemeTokenResolver.resolve()` alone is sufficient — the browser renders `var()` strings natively.
+`ThemeTokenResolver.resolve()` alone is sufficient; the browser renders `var()` strings natively.
 
 ```javascript
 // In a card or style resolver
@@ -65,7 +65,7 @@ Also used by `state-color-resolver.js` for all state-based colour lookups.
 
 ### B. Canvas2D effect constructors and per-frame draw calls
 
-Always use **both steps** — the resolved value must be a concrete colour.
+Always use **both steps**: the resolved value must be a concrete colour.
 
 ```javascript
 import { ColorUtils } from '../../../themes/ColorUtils.js';
@@ -90,7 +90,7 @@ this.resolvedColors = this.colors.map(_resolve);
 
 ### C. Effect `updateConfig()` methods
 
-Live config updates arrive **after** `_resolveConfigColors` preprocessing has already run, so `updateConfig` must also apply the two-step pattern — it cannot rely on the preprocessing pipeline.
+Live config updates arrive **after** `_resolveConfigColors` preprocessing has already run, so `updateConfig` must also apply the two-step pattern; it cannot rely on the preprocessing pipeline.
 
 ```javascript
 updateConfig(cfg) {
@@ -115,7 +115,7 @@ When effects are created via `BackgroundAnimationRenderer`, `_resolveConfigColor
 - Nested plain objects: `colors: { start: 'var(--lcars-blue)', text: '...' }`
 - Arrays of strings: `colors: ['darken(...)', '#ff0']`
 
-**You do not need to manually resolve colours inside `createEffects`** — the config passed in is already concrete. However, effect **constructors** still need to handle the case where they are instantiated directly (outside the preset pipeline), so they should always use the two-step pattern themselves (see **Context B**).
+**You do not need to manually resolve colours inside `createEffects`**: the config passed in is already concrete. However, effect **constructors** still need to handle the case where they are instantiated directly (outside the preset pipeline), so they should always use the two-step pattern themselves (see **Context B**).
 
 ---
 
@@ -125,10 +125,10 @@ When effects are created via `BackgroundAnimationRenderer`, `_resolveConfigColor
 This handles `var(--name)` but silently ignores computed expressions like `darken(var(--x), 0.3)`.
 
 ```javascript
-// ❌ WRONG — computed expressions are silently ignored
+// ❌ WRONG - computed expressions are silently ignored
 this.color = ColorUtils.resolveCssVariable(config.color);
 
-// ✅ CORRECT — handles all three expression forms
+// ✅ CORRECT - handles all three expression forms
 const _res = window.lcards?.core?.themeManager?.resolver;
 this.color = ColorUtils.resolveCssVariable(_res ? _res.resolve(config.color, config.color) : config.color, '#000');
 ```
@@ -137,15 +137,15 @@ this.color = ColorUtils.resolveCssVariable(_res ? _res.resolve(config.color, con
 The resolver returns `var(--name)` strings for CSS variables, which Canvas2D cannot use.
 
 ```javascript
-// ❌ WRONG for canvas — fillStyle receives 'var(--lcars-orange)' which is ignored
+// ❌ WRONG for canvas - fillStyle receives 'var(--lcars-orange)' which is ignored
 ctx.fillStyle = resolver.resolve(config.color, '#000');
 
-// ✅ CORRECT — materialise the var() after resolving
+// ✅ CORRECT - materialise the var() after resolving
 ctx.fillStyle = ColorUtils.resolveCssVariable(resolver.resolve(config.color, '#000'), '#000');
 ```
 
 ❌ **Skipping nested objects or arrays in preprocessors**
-`_resolveConfigColors` recurses into nested objects and arrays — do not write a simplified version that only iterates top-level keys.
+`_resolveConfigColors` recurses into nested objects and arrays; do not write a simplified version that only iterates top-level keys.
 
 ---
 

@@ -10,10 +10,10 @@ LCARdS stores user preferences and application state in a **persistent key/value
 |---|---|
 | **Python file** | `custom_components/lcards/storage.py` |
 | **HA storage key** | `.storage/lcards` (inside the HA config directory) |
-| **Format** | JSON — `{ "data": { "<key>": <value> } }` |
+| **Format** | JSON: `{ "data": { "<key>": <value> } }` |
 | **Schema version** | 1 |
-| **Access** | WebSocket API — `lcards/storage/*` commands |
-| **Instance** | `hass.data["lcards"]["storage"]` — initialised in `async_setup_entry()` |
+| **Access** | WebSocket API: `lcards/storage/*` commands |
+| **Instance** | `hass.data["lcards"]["storage"]`: initialised in `async_setup_entry()` |
 
 ---
 
@@ -96,7 +96,7 @@ Shallow-merge one or many key→value pairs into the store. Existing keys not me
 
 ### `lcards/storage/delete`
 
-Remove a single key. Returns `existed: false` if the key was not present — not an error.
+Remove a single key. Returns `existed: false` if the key was not present, not an error.
 
 **Request:**
 ```json
@@ -158,7 +158,7 @@ HA start
   → WS commands           look up hass.data["lcards"]["storage"] at call time
 
 Options change / entry reload
-  → async_unload_entry()  (storage instance is NOT cleared — the dict key persists)
+  → async_unload_entry()  (storage instance is NOT cleared - the dict key persists)
   → async_setup_entry()   creates a fresh LCARdSStorage and reloads from disk
                           overwrites hass.data["lcards"]["storage"]
 ```
@@ -219,7 +219,7 @@ conn.sendMessagePromise({ type: "lcards/storage/dump" })
   .then(console.log)
   .catch(console.error)
 ```
-A `code: "storage_unavailable"` error means `async_setup_entry()` did not complete — reload the integration from **Settings → Integrations → LCARdS → ⋮ → Reload** and try again.
+A `code: "storage_unavailable"` error means `async_setup_entry()` did not complete; reload the integration from **Settings → Integrations → LCARdS → ⋮ → Reload** and try again.
 :::
 
 ---

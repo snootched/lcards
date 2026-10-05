@@ -8,7 +8,7 @@
 
 ## Overview
 
-The Screen Effect System provides a full-screen composited effect layer that sits above all other LCARdS and Home Assistant UI elements. It is the single authoritative surface for any visual effect that should cover the entire viewport — blur, pixelation, TV static, glitch artefacts, colour tints, and so on.
+The Screen Effect System provides a full-screen composited effect layer that sits above all other LCARdS and Home Assistant UI elements. It is the single authoritative surface for any visual effect that should cover the entire viewport: blur, pixelation, TV static, glitch artefacts, colour tints, and so on.
 
 Effects are declaratively registered as named **presets** in a shared registry. The same preset name works consistently across all consumers:
 
@@ -26,11 +26,11 @@ On first use `ScreenEffectManager` appends a single `position:fixed; inset:0; z-
 
 | Slot | Element | Rendering mechanism |
 |---|---|---|
-| `backdrop` | `<div>` | CSS `backdrop-filter` — blurs/filters whatever is behind it |
-| `canvas` | `<canvas>` | Canvas2D rAF loop — draws directly above all content |
-| `color` | `<div>` | CSS `background` — semi-transparent colour overlay |
+| `backdrop` | `<div>` | CSS `backdrop-filter`: blurs/filters whatever is behind it |
+| `canvas` | `<canvas>` | Canvas2D rAF loop: draws directly above all content |
+| `color` | `<div>` | CSS `background`: semi-transparent colour overlay |
 
-Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-alert-overlay`), `ConnectionOverlayService`, and the `show_portal_card` HA service all inject content into this shared portal via `PortalOverlayManager` — there is only one portal div on the page at any given time. Each consumer owns an independent named slot (`'alert-overlay'`, `'connection-overlay'`, `'ha-service'`) so their DOM subtrees are separate and can coexist.
+Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-alert-overlay`), `ConnectionOverlayService`, and the `show_portal_card` HA service all inject content into this shared portal via `PortalOverlayManager`; there is only one portal div on the page at any given time. Each consumer owns an independent named slot (`'alert-overlay'`, `'connection-overlay'`, `'ha-service'`) so their DOM subtrees are separate and can coexist.
 
 ### Preset API shape
 
@@ -40,7 +40,7 @@ Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-
   slot:     'canvas' | 'backdrop' | 'color',
   label:    'Human-readable name',        // shown in the visual editor dropdown
   defaults: { /* default param values */ },
-  params_schema: [                         // optional — drives the editor UI
+  params_schema: [                         // optional - drives the editor UI
     {
       key:         'amount',              // param key in resolvedParams
       type:        'text' | 'number' | 'color-text',
@@ -53,14 +53,14 @@ Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-
   ],
   enter(slotEl, resolvedParams) {
     // activate: set CSS, start rAF loop, etc.
-    // slotEl is the slot's <div>/<canvas> — EXCEPT for 'backdrop' presets
+    // slotEl is the slot's <div>/<canvas> - EXCEPT for 'backdrop' presets
     // where slotEl is the portal element itself (see Implementation Notes).
     return () => { /* cleanup */ };
   },
 }
 ```
 
-`color-text` params automatically go through three-step color resolution before `enter()` is called — see Implementation Notes.
+`color-text` params automatically go through three-step color resolution before `enter()` is called; see Implementation Notes.
 
 ## Built-in Presets
 
@@ -86,10 +86,10 @@ Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-
 | Preset | Default params | Description |
 |---|---|---|
 | `static` | `opacity: 0.55, scale: 4, color: '#ffffff', tintStrength: 0` | TV static noise; `scale` controls block size; `color`/`tintStrength` blend toward a tint |
-| `pixelate` | `pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80, color: '#8c9aa6', tintStrength: 0` | Mosaic dark blocks; `multiply` blend — simulates low-res signal degradation; `color`/`tintStrength` blend toward a tint |
+| `pixelate` | `pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80, color: '#8c9aa6', tintStrength: 0` | Mosaic dark blocks; `multiply` blend, simulates low-res signal degradation; `color`/`tintStrength` blend toward a tint |
 | `glitch` | `intensity: 0.08, maxShift: 40, bandHeight: 4, opacity: 0.85, fps: 20` | Sparse horizontal displacement bands + thin chroma edges; `overlay` blend |
 | `scanlines` | `lineHeight: 4, opacity: 0.25, scroll: 0` | CRT horizontal line overlay; `scroll` px/s for animation |
-| `borg-assimilation` | `siteCount: 7, tendrilsPerSite: 8, tendrilLength: 600, particleCount: 2, color: '#00cc44', glowColor: '#00ff66'` | Borg nano-tube assimilation lattice — tapered gradient tendrils branch outward from staggered injection sites, interconnect via cross-bridge arcs with junction nodes, and carry nano-probe particles; runs indefinitely until dismissed |
+| `borg-assimilation` | `siteCount: 7, tendrilsPerSite: 8, tendrilLength: 600, particleCount: 2, color: '#00cc44', glowColor: '#00ff66'` | Borg nano-tube assimilation lattice: tapered gradient tendrils branch outward from staggered injection sites, interconnect via cross-bridge arcs with junction nodes, and carry nano-probe particles; runs indefinitely until dismissed |
 
 ---
 
@@ -133,7 +133,7 @@ window.lcards.screenEffect.list()
 Fire one or more layered screen effects from an automation or script. Effects are specified per **slot** (`backdrop`, `color`, `canvas`), each independently.
 
 ```yaml
-# Red alert — blur + red tint + static noise
+# Red alert - blur + red tint + static noise
 service: lcards.trigger_effect
 data:
   layers:
@@ -163,7 +163,7 @@ data:
 ```
 
 ```yaml
-# Borg assimilation — persistent until manually cleared (no duration)
+# Borg assimilation - persistent until manually cleared (no duration)
 service: lcards.trigger_effect
 data:
   layers:
@@ -177,7 +177,7 @@ data:
 ```
 
 ```yaml
-# Persistent blur targeting a user — must be cleared manually
+# Persistent blur targeting a user - must be cleared manually
 service: lcards.trigger_effect
 data:
   layers:
@@ -209,7 +209,7 @@ sem.applySlot('color',    'color-tint', { color: 'rgba(180,0,0,0.35)' })
 // apply() is a shorthand for single-slot presets by name
 sem.apply('blur', { amount: '16px' })   // returns true if activated
 
-// Transient effect — Returns Promise<void> that resolves when auto-dismissed
+// Transient effect - Returns Promise<void> that resolves when auto-dismissed
 await sem.play('glitch', { duration: 800 })
 
 // Remove a slot or all slots
@@ -226,7 +226,7 @@ sem.listPresets()
 // Retrieve a single preset definition (label, slot, params_schema, defaults)
 sem.getPreset('blur')
 
-// Return a catalog array for all presets — used by the visual editor
+// Return a catalog array for all presets - used by the visual editor
 sem.catalog()
 // → [ { name, label, slot, params_schema }, ... ]
 ```
@@ -301,7 +301,7 @@ npm run build
 | System | Relationship |
 |---|---|
 | **Alert overlay** (`lcards-alert-overlay`) | Delegates its blur/tint backdrop to `ScreenEffectManager` via `applySlot()`. Card config uses `layers: { backdrop, color, canvas }`. Config authority stays in the card; SEM owns the DOM. |
-| **Alert transitions** (`alertTransitions.js`) | Separate system — animates `home-assistant-main` during the CSS variable swap that changes the global theme colour. Not screen-level compositing. |
+| **Alert transitions** (`alertTransitions.js`) | Separate system: animates `home-assistant-main` during the CSS variable swap that changes the global theme colour. Not screen-level compositing. |
 | **Background animations** | Card-scoped Canvas2D renders on the card element. No relationship to the screen-level portal. |
 | **Animation system** (`AnimationManager`) | Element-scoped anime.js animations. Not suitable for screen-wide effects. |
 
@@ -309,9 +309,9 @@ npm run build
 
 ## Implementation Notes
 
-**Color resolution for `color-text` params**: Before `enter()` is called, `ScreenEffectManager` resolves all `color-text` params through a three-step process: (1) substitute `var()` references from live computed DOM style; (2) route through `ThemeTokenResolver` for computed expressions (`alpha()`, `darken()`, token paths); (3) materialise any `var()` the resolver itself emits. This order prevents cache-poisoning — the resolver's cache key becomes a concrete colour string rather than a raw `var()` reference that could be stale from before the LCARS theme committed its CSS variables.
+**Color resolution for `color-text` params**: Before `enter()` is called, `ScreenEffectManager` resolves all `color-text` params through a three-step process: (1) substitute `var()` references from live computed DOM style; (2) route through `ThemeTokenResolver` for computed expressions (`alpha()`, `darken()`, token paths); (3) materialise any `var()` the resolver itself emits. This order prevents cache-poisoning: the resolver's cache key becomes a concrete colour string rather than a raw `var()` reference that could be stale from before the LCARS theme committed its CSS variables.
 
-**`backdrop-filter` and `mix-blend-mode` compositing**: Canvas presets that set `mix-blend-mode` (`static`, `glitch`, `pixelate`) cause the browser to promote the portal into its own compositing layer. When this happens, a `backdrop-filter` applied to a *child element inside the portal* cannot reach through to the content behind the portal — the filter is resolved against an already-composited surface. To avoid this, `ScreenEffectManager` applies the backdrop-filter from the `backdrop` slot **directly on the portal element itself** rather than on the slot's child `<div>`. The portal-level filter is resolved before child compositing, so canvas blend-modes render correctly on top of the already-filtered background. The `scanlines` preset does not set `mix-blend-mode` and is not affected by this constraint.
+**`backdrop-filter` and `mix-blend-mode` compositing**: Canvas presets that set `mix-blend-mode` (`static`, `glitch`, `pixelate`) cause the browser to promote the portal into its own compositing layer. When this happens, a `backdrop-filter` applied to a *child element inside the portal* cannot reach through to the content behind the portal; the filter is resolved against an already-composited surface. To avoid this, `ScreenEffectManager` applies the backdrop-filter from the `backdrop` slot **directly on the portal element itself** rather than on the slot's child `<div>`. The portal-level filter is resolved before child compositing, so canvas blend-modes render correctly on top of the already-filtered background. The `scanlines` preset does not set `mix-blend-mode` and is not affected by this constraint.
 
 **Canvas security**: Canvas2D cannot call `ctx.drawWindow()` or sample arbitrary DOM content in the browser for security reasons. The `pixelate` preset therefore generates synthetic colour blocks rather than true pixel-sampling of the viewport content. The visual result is an obscuring mosaic overlay, which is consistent with what the alert transition system already does.
 

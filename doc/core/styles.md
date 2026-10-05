@@ -1,6 +1,6 @@
 # Card Styles
 
-The `style:` block controls the visual appearance of a card — background colours, borders, and dimensions. Style values layer on top of a preset and can be further overridden at runtime by the Rules Engine.
+The `style:` block controls the visual appearance of a card: background colours, borders, and dimensions. Style values layer on top of a preset and can be further overridden at runtime by the Rules Engine.
 
 ---
 
@@ -52,7 +52,7 @@ style:
         pressed: var(--lcards-orange-dark)      # During press/tap
 ```
 
-All [colour formats](colours.md) are accepted — hex, rgb(), CSS variables, and `{theme:...}` tokens.
+All [colour formats](colours.md) are accepted: hex, rgb(), CSS variables, and `{theme:...}` tokens.
 
 ---
 
@@ -62,16 +62,16 @@ Controls the border drawn around the card.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `color` | colour | Border colour — supports all colour formats and state variants (same structure as `card.color.background`) |
+| `color` | colour | Border colour: supports all colour formats and state variants (same structure as `card.color.background`) |
 | `width` | number | Border thickness in px |
-| `radius` | number / object | Corner radius in px — uniform or per-corner |
+| `radius` | number / object | Corner radius in px: uniform or per-corner |
 
 ### Border radius
 
 ```yaml alternatives
 style:
   border:
-    radius: 8                # Uniform — all four corners
+    radius: 8                # Uniform - all four corners
 
 style:
   border:
@@ -108,7 +108,7 @@ style:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `color` | colour | Icon colour — supports state variants |
+| `color` | colour | Icon colour: supports state variants |
 | `size` | number | Icon size in px |
 
 ---
@@ -152,7 +152,7 @@ You only need to set the properties that differ from the preset. To inspect what
 
 ## Related
 
-- [Presets](presets.md) — named style collections for quick setup
-- [Colours](colours.md) — accepted colour formats, theme tokens, state maps
-- [Rules Engine](rules/) — how style patches are applied at runtime
-- [Main Engineering](../cards/main-engineering.md) — inspect runtime effective config per card
+- [Presets](presets.md): named style collections for quick setup
+- [Colours](colours.md): accepted colour formats, theme tokens, state maps
+- [Rules Engine](rules/): how style patches are applied at runtime
+- [Main Engineering](../cards/main-engineering.md): inspect runtime effective config per card

@@ -31,7 +31,7 @@ export const LCARDS_ELBOWS_PACK = {
   id:          'lcards_elbows',
   name:        'LCARdS Elbows',
   version:     __LCARDS_VERSION__,
-  description: 'Elbow component definitions — path generators and layout metadata for all elbow orientations',
+  description: 'Elbow component definitions: path generators and layout metadata for all elbow orientations',
 
   components: elbowComponents
 };

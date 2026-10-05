@@ -1,6 +1,6 @@
 # Data Sources
 
-Data Sources give cards access to entity history, real-time updates, and processed values — beyond the plain current state that HA cards normally see.
+Data Sources give cards access to entity history, real-time updates, and processed values, beyond the plain current state that HA cards normally see.
 
 ---
 
@@ -64,14 +64,14 @@ chart_type: area
 ```yaml
 data_sources:
   my_source:
-    entity: sensor.power_usage      # Required — entity to track
-    attribute: current              # Optional — track attribute instead of state
+    entity: sensor.power_usage      # Required - entity to track
+    attribute: current              # Optional - track attribute instead of state
     windowSeconds: 120              # Rolling buffer window size in seconds (default: 60)
     minEmitMs: 500                  # Min ms between updates emitted downstream (default: 100)
     history:
       hours: 24                     # Preload history (1–168 hours)
     processing:
-      # Named processors — each stores results in its own buffer
+      # Named processors - each stores results in its own buffer
       kilowatts:
         type: scale
         input_range: [0, 1000]
@@ -113,8 +113,8 @@ Each processor transforms data and stores results under its name. Processors can
 | `expression` | Custom JS expression | `expression` (uses `value`, `history`) |
 | `clamp` | Clamp to min/max | `min`, `max` |
 | `rate` | Rate of change per unit time | `period` |
-| `trend` | Linear trend direction | — |
-| `delta` | Difference from previous value | — |
+| `trend` | Linear trend direction | - |
+| `delta` | Difference from previous value | - |
 | `duration` | Time spent meeting a condition | `condition`, `reset_on` |
 | `statistics` | Min/max/avg/std over window | `window` |
 | `threshold` | On/off based on threshold | `above`, `below` |
@@ -140,10 +140,10 @@ processing:
 ## Accessing Values in Templates
 
 ```yaml alternatives
-# No format spec — HA-native: locale-formatted number + unit from entity metadata
+# No format spec - HA-native: locale-formatted number + unit from entity metadata
 "{ds:temp}"                          # → "4,73 °C"  (locale + unit)
 
-# With format spec — you own the output: number only, no auto-unit
+# With format spec - you own the output: number only, no auto-unit
 "{ds:temp:.1f}"                      # → "4,7"  (1 decimal, no unit)
 "{ds:temp:.0f}"                      # → "5"    (integer, no unit)
 "{ds:temp:.1f} °C"                   # → "4,7 °C"  (explicit unit suffix)

@@ -52,6 +52,7 @@ export class LCARdSLayoutCard extends LitElement {
     static properties = {
         hass:     { attribute: false },
         editing:  { type: Boolean },   // set by the editor to reserve the overlay gutter
+        preview:  { type: Boolean },   // set by hui-card in dashboard edit mode
         _config:  { state: true },
         _columns: { state: true },
         _rows:    { state: true },
@@ -67,6 +68,7 @@ export class LCARdSLayoutCard extends LitElement {
         this._areas    = [['.', '.']];
         this._gap      = '5px';
         this.editing   = false;
+        this.preview   = false;
         this._cardElements = [];
         this._helpers  = null;
     }
@@ -157,12 +159,13 @@ export class LCARdSLayoutCard extends LitElement {
             if (customElements.get('hui-card')) {
                 const el = document.createElement('hui-card');
                 el.config = cardConfig;
-                el.editMode = false;
+                el.preview = this.preview;
                 if (this._hass) el.hass = this._hass;
                 return el;
             }
             if (this._helpers?.createCardElement) {
                 const el = this._helpers.createCardElement(cardConfig);
+                el.preview = this.preview;
                 if (this._hass) el.hass = this._hass;
                 return el;
             }
@@ -192,6 +195,12 @@ export class LCARdSLayoutCard extends LitElement {
         // 'auto' too (not just #grid-root) or it contributes 0 to the row's
         // max-content and the whole card collapses.
         this.style.height = this._config?.layout?.height ?? '100%';
+
+        // Like hui-stack-card: in edit mode, children stay visible even when their
+        // Visibility conditions are not met.
+        if (changed.has('preview')) {
+            for (const el of this._cardElements ?? []) el.preview = this.preview;
+        }
 
         if (changed.has('_config') || changed.has('_columns') || changed.has('_rows')
             || changed.has('_areas') || changed.has('_gap') || changed.has('editing')) {

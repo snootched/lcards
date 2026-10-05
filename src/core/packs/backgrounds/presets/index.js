@@ -42,14 +42,14 @@ export const BACKGROUND_PRESETS = {
         { key: 'line_width_minor', default: 1, description: 'Minor line thickness in px.' },
         { key: 'line_width_major', default: 2, description: 'Major (emphasised) line thickness in px.' },
         { key: 'color', default: 'rgba(255, 153, 102, 0.3)', description: 'Minor line color.' },
-        { key: 'color_major', description: 'Major line color — falls back to color if unset.' },
+        { key: 'color_major', description: 'Major line color: falls back to color if unset.' },
         { key: 'major_row_interval', default: 0, description: 'Draw a major line every N rows (0 = disabled).' },
         { key: 'major_col_interval', default: 0, description: 'Draw a major line every N columns (0 = disabled).' },
         { key: 'scroll_speed_x', default: 20, description: 'Horizontal scroll speed in px/s.' },
         { key: 'scroll_speed_y', default: 20, description: 'Vertical scroll speed in px/s.' },
-        { key: 'pattern', default: 'both', description: "Line pattern: 'both' | 'horizontal' | 'vertical' | 'diagonal' | 'hexagonal' | 'dots'. The diagonal/hexagonal presets below hardcode this — set it directly here if you want it combined with grid's other options (num_rows/num_cols, major/minor intervals)." },
-        { key: 'dot_radius', default: 2, description: "Dot radius in px — only used when pattern is 'dots'." },
-        { key: 'hex_radius', default: 40, description: "Hexagon size in px — only used when pattern is 'hexagonal'." },
+        { key: 'pattern', default: 'both', description: "Line pattern: 'both' | 'horizontal' | 'vertical' | 'diagonal' | 'hexagonal' | 'dots'. The diagonal/hexagonal presets below hardcode this; set it directly here if you want it combined with grid's other options (num_rows/num_cols, major/minor intervals)." },
+        { key: 'dot_radius', default: 2, description: "Dot radius in px: only used when pattern is 'dots'." },
+        { key: 'hex_radius', default: 40, description: "Hexagon size in px: only used when pattern is 'hexagonal'." },
         { key: 'fill_color', default: 'transparent', description: 'Solid fill painted behind each cell.' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
@@ -106,7 +106,7 @@ export const BACKGROUND_PRESETS = {
     name: 'Diagonal Grid',
     description: 'Diagonal hatched grid pattern',
     guide: {
-      summary: 'A 45-degree hatched variant of the grid effect — same scrolling-line mechanism as Grid, fixed to a diagonal pattern.',
+      summary: 'A 45-degree hatched variant of the grid effect: same scrolling-line mechanism as Grid, fixed to a diagonal pattern.',
       params: [
         { key: 'line_spacing', default: 30, description: 'Pixel spacing between lines.' },
         { key: 'line_width', default: 1, description: 'Line thickness in px.' },
@@ -208,16 +208,16 @@ export const BACKGROUND_PRESETS = {
     guide: {
       summary: 'Randomly-placed stars that scroll across the canvas, split into parallax layers so nearer "layers" drift faster than farther ones for a sense of depth.',
       params: [
-        { key: 'seed', description: 'Random seed — same seed always generates the same star layout.' },
+        { key: 'seed', description: 'Random seed: same seed always generates the same star layout.' },
         { key: 'count', default: 150, description: 'Number of stars.' },
         { key: 'min_radius', default: 0.5, description: 'Smallest star radius in px.' },
         { key: 'max_radius', default: 2, description: 'Largest star radius in px.' },
         { key: 'min_opacity', default: 0.3, description: 'Dimmest star opacity.' },
         { key: 'max_opacity', default: 1.0, description: 'Brightest star opacity.' },
-        { key: 'colors', default: ['#ffffff'], description: 'Star color(s) — also accepts a single color.' },
+        { key: 'colors', default: ['#ffffff'], description: 'Star color(s); also accepts a single color.' },
         { key: 'scroll_speed_x', default: 30, description: 'Horizontal scroll speed in px/s.' },
         { key: 'scroll_speed_y', default: 0, description: 'Vertical scroll speed in px/s.' },
-        { key: 'parallax_layers', default: 3, description: 'Number of depth layers — more layers = more depth.' },
+        { key: 'parallax_layers', default: 3, description: 'Number of depth layers: more layers = more depth.' },
         { key: 'depth_factor', default: 0.5, description: 'Speed variation between layers.' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
@@ -271,15 +271,15 @@ export const BACKGROUND_PRESETS = {
     guide: {
       summary: 'Soft, drifting cloud blobs built from Perlin-noise turbulence, layered and scrolled to give an organic nebula look.',
       params: [
-        { key: 'seed', description: 'Random seed — same seed always generates the same cloud layout.' },
+        { key: 'seed', description: 'Random seed: same seed always generates the same cloud layout.' },
         { key: 'cloud_count', default: 4, description: 'Number of cloud blobs.' },
         { key: 'min_radius', default: 0.15, description: 'Smallest cloud radius, as a fraction of canvas size (0-1).' },
         { key: 'max_radius', default: 0.4, description: 'Largest cloud radius, as a fraction of canvas size (0-1).' },
         { key: 'min_opacity', default: 0.3, description: 'Dimmest cloud opacity.' },
         { key: 'max_opacity', default: 0.8, description: 'Brightest cloud opacity.' },
-        { key: 'colors', default: ['#FF00FF'], description: 'Cloud color(s) — also accepts a single color.' },
+        { key: 'colors', default: ['#FF00FF'], description: 'Cloud color(s); also accepts a single color.' },
         { key: 'turbulence', default: 0.5, description: 'How ragged/organic the cloud edges are.' },
-        { key: 'noise_scale', default: 0.003, description: 'Noise detail — lower = larger, smoother features.' },
+        { key: 'noise_scale', default: 0.003, description: 'Noise detail: lower = larger, smoother features.' },
         { key: 'scroll_speed_x', default: 5, description: 'Horizontal scroll speed in px/s.' },
         { key: 'scroll_speed_y', default: 5, description: 'Vertical scroll speed in px/s.' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
@@ -330,15 +330,15 @@ export const BACKGROUND_PRESETS = {
     name: 'Contour Field',
     description: 'Topographic-style banded noise field (LCARS star-chart contour look)',
     guide: {
-      summary: 'Paints a drifting noise field, then slices it into color bands — like a topographic map. Noise shapes the raw terrain (how big and rough the features are). Contour Bands controls how that terrain is sliced into rings — the full peaks-and-valleys range, always present underneath. Fill floods/drains a waterline over that terrain without changing it, for empty "space" between blobs. Colour sets what fills each ring.',
+      summary: 'Paints a drifting noise field, then slices it into color bands, like a topographic map. Noise shapes the raw terrain (how big and rough the features are). Contour Bands controls how that terrain is sliced into rings: the full peaks-and-valleys range, always present underneath. Fill floods/drains a waterline over that terrain without changing it, for empty "space" between blobs. Colour sets what fills each ring.',
       params: [
-        { key: 'seed', description: 'Random seed — same seed + settings always generates the same field.' },
+        { key: 'seed', description: 'Random seed: same seed + settings always generates the same field.' },
         { key: 'noise_scale', default: 0.005, description: 'Smaller = a few large drifting blobs; larger = many small, busy ripples.' },
-        { key: 'num_octaves', default: 2, description: 'Layers of fine detail — 1 = smooth blobs, 8 = rough, cloud-like fuzz.' },
+        { key: 'num_octaves', default: 2, description: 'Layers of fine detail: 1 = smooth blobs, 8 = rough, cloud-like fuzz.' },
         { key: 'num_bands', default: 5, description: 'Low = bold stepped contour rings; high = a smooth, near-continuous gradient.' },
-        { key: 'cell_size', default: 1, description: 'Sample resolution — larger is blockier/cheaper, smaller is crisper/costlier.' },
+        { key: 'cell_size', default: 1, description: 'Sample resolution: larger is blockier/cheaper, smaller is crisper/costlier.' },
         { key: 'fill_level', default: 0.45, description: '0 = no water, full terrain visible; raise it to flood the lowest rings.' },
-        { key: 'fill_color', description: 'Color painted over flooded rings — leave empty for literal transparency.' },
+        { key: 'fill_color', description: 'Color painted over flooded rings: leave empty for literal transparency.' },
         { key: 'blend_colors', default: true, description: 'On = colors fade smoothly between rings; off = hard-cutoff flat rings.' },
         { key: 'colors', description: 'One color, or several stops spread across the full contour range.' },
         { key: 'scroll_speed_x', default: -3, description: 'Horizontal scroll speed in px/s.' },
@@ -395,11 +395,11 @@ export const BACKGROUND_PRESETS = {
     name: 'Data Cascade',
     description: 'LCARS waterfall colour-cycling data grid (decorative)',
     guide: {
-      summary: 'A grid of characters that color-cycle from a start color through to an end color, evoking a Matrix-style/LCARS data waterfall. Purely decorative — the characters themselves are randomized, not meaningful data.',
+      summary: 'A grid of characters that color-cycle from a start color through to an end color, evoking a Matrix-style/LCARS data waterfall. Purely decorative: the characters themselves are randomized, not meaningful data.',
       params: [
         { key: 'format', default: 'hex', description: "Character set: 'digit' | 'float' | 'alpha' | 'hex' | 'mixed'." },
         { key: 'pattern', default: 'default', description: "Row timing pattern: 'default' (authentic LCARS rhythm) | 'niagara' (uniform waterfall) | 'fast' | 'custom' (use the timing param below)." },
-        { key: 'timing', description: "Only used when pattern is 'custom' — an array of { duration, delay } objects, one per row, applied round-robin if there are more rows than entries. duration is in milliseconds; delay is in SECONDS (converted ×1000 internally) — easy to mix up since duration is not." },
+        { key: 'timing', description: "Only used when pattern is 'custom': an array of { duration, delay } objects, one per row, applied round-robin if there are more rows than entries. duration is in milliseconds; delay is in SECONDS (converted ×1000 internally); easy to mix up since duration is not." },
         { key: 'speed_multiplier', default: 1.0, description: 'Overall cycling speed multiplier.' },
         { key: 'colors.start', default: 'var(--lcards-blue-light)', description: 'Color a cell starts at.' },
         { key: 'colors.text', default: 'var(--lcards-blue-darkest)', description: 'Color a cell settles at mid-cycle.' },
@@ -452,13 +452,13 @@ export const BACKGROUND_PRESETS = {
     name: 'Level',
     description: 'Animated fill-bar with gradient, dual wave, sloshing physics and bloom glow',
     guide: {
-      summary: 'An animated tank/gauge-style fill bar — the fill level rises to fill_pct, with an optional gradient, a wavy top edge (up to two overlapping waves), sloshing physics, and an edge glow.',
+      summary: 'An animated tank/gauge-style fill bar: the fill level rises to fill_pct, with an optional gradient, a wavy top edge (up to two overlapping waves), sloshing physics, and an edge glow.',
       params: [
         { key: 'color_a', default: 'rgba(0,200,100,0.7)', description: 'Primary fill color (or gradient start).' },
-        { key: 'color_b', description: 'Gradient end color — omit for a flat fill.' },
+        { key: 'color_b', description: 'Gradient end color: omit for a flat fill.' },
         { key: 'gradient_crossover', default: 80, description: 'Percent of fill height where the gradient crosses over.' },
         { key: 'fill_pct', default: 50, description: 'Fill level, 0-100.' },
-        { key: 'direction', default: 'up', description: "Fill direction — 'up' | 'down' | 'left' | 'right'." },
+        { key: 'direction', default: 'up', description: "Fill direction: 'up' | 'down' | 'left' | 'right'." },
         { key: 'edge_glow', default: true, description: 'Whether to draw a glow along the fill edge.' },
         { key: 'wave_height', default: 4, description: 'Primary wave amplitude in px.' },
         { key: 'wave_speed', default: 20, description: 'Primary wave speed.' },
@@ -499,12 +499,12 @@ export const BACKGROUND_PRESETS = {
 
   'fluid': {
     name: 'Fluid',
-    description: 'Swirling noise field — organic, continuously morphing colour wash',
+    description: 'Swirling noise field: organic, continuously morphing colour wash',
     guide: {
       summary: 'A single-color noise-driven wash that continuously swirls and morphs, like flowing liquid or smoke.',
       params: [
         { key: 'color', default: 'rgba(100,180,255,0.8)', description: 'Wash color.' },
-        { key: 'base_frequency', default: 0.010, description: 'Noise detail — lower = larger features.' },
+        { key: 'base_frequency', default: 0.010, description: 'Noise detail: lower = larger features.' },
         { key: 'num_octaves', default: 4, description: 'Layers of noise detail.' },
         { key: 'scroll_speed_x', default: 7, description: 'Horizontal drift speed.' },
         { key: 'scroll_speed_y', default: 10, description: 'Vertical drift speed.' },
@@ -526,13 +526,13 @@ export const BACKGROUND_PRESETS = {
 
   'plasma': {
     name: 'Plasma',
-    description: 'Two-colour plasma bands — vivid alternating colour field',
+    description: 'Two-colour plasma bands: vivid alternating colour field',
     guide: {
       summary: 'A classic two-color "plasma" noise field, alternating vividly between Color A and Color B as it drifts.',
       params: [
         { key: 'color_a', default: 'rgba(80,0,255,0.9)', description: 'First plasma color.' },
         { key: 'color_b', default: 'rgba(255,40,120,0.9)', description: 'Second plasma color.' },
-        { key: 'base_frequency', default: 0.012, description: 'Noise detail — lower = larger features.' },
+        { key: 'base_frequency', default: 0.012, description: 'Noise detail: lower = larger features.' },
         { key: 'scroll_speed_x', default: 8, description: 'Horizontal drift speed.' },
         { key: 'scroll_speed_y', default: 5, description: 'Vertical drift speed.' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
@@ -558,7 +558,7 @@ export const BACKGROUND_PRESETS = {
       summary: 'Noise-driven streaks that stream in one direction, like flowing energy conduits or data streams.',
       params: [
         { key: 'color', default: 'rgba(0,200,255,0.7)', description: 'Streak color.' },
-        { key: 'base_frequency', default: 0.012, description: 'Noise detail — lower = larger features.' },
+        { key: 'base_frequency', default: 0.012, description: 'Noise detail: lower = larger features.' },
         { key: 'wave_scale', default: 8, description: 'Streak waviness.' },
         { key: 'scroll_speed_x', default: 50, description: 'Horizontal stream speed.' },
         { key: 'scroll_speed_y', default: 0, description: 'Vertical stream speed.' },
@@ -607,7 +607,7 @@ export const BACKGROUND_PRESETS = {
     name: 'Scanlines',
     description: 'CRT-style scanline overlay',
     guide: {
-      summary: 'A static CRT-style scanline pattern — evenly spaced horizontal or vertical lines overlaid on the canvas.',
+      summary: 'A static CRT-style scanline pattern: evenly spaced horizontal or vertical lines overlaid on the canvas.',
       params: [
         { key: 'color', default: 'rgba(0,0,0,0.25)', description: 'Scanline color.' },
         { key: 'line_spacing', default: 4, description: 'Pixel spacing between lines.' },
@@ -640,7 +640,7 @@ export const BACKGROUND_PRESETS = {
     name: 'Background Image',
     description: 'User-supplied image rendered behind the entire card',
     guide: {
-      summary: 'Renders a static or entity-reactive image behind the whole card. Accepts /local/ paths, builtin:key references, and external https:// URLs — source also supports template syntax for entity-reactive images (e.g. an entity_picture).',
+      summary: 'Renders a static or entity-reactive image behind the whole card. Accepts /local/ paths, builtin:key references, and external https:// URLs. Source also supports template syntax for entity-reactive images (e.g. an entity_picture).',
       params: [
         { key: 'source', description: '/local/ path, builtin:key, https:// URL, or a template string.' },
         { key: 'size', default: 'cover', description: "'cover' | 'contain' | 'stretch'." },
@@ -670,9 +670,9 @@ export const BACKGROUND_PRESETS = {
     name: 'Solid Colour',
     description: 'Flat colour fill rendered behind the card SVG',
     guide: {
-      summary: 'A single flat color, filling the whole background canvas. Renders behind base_svg — the tint shows through any transparent regions of the SVG artwork on top, without touching the artwork itself. The cheapest, simplest background_animation preset — a single fill per frame, no procedural noise.',
+      summary: 'A single flat color, filling the whole background canvas. Renders behind base_svg: the tint shows through any transparent regions of the SVG artwork on top, without touching the artwork itself. The cheapest, simplest background_animation preset: a single fill per frame, no procedural noise.',
       params: [
-        { key: 'color', default: 'rgba(0, 0, 0, 0.4)', description: 'Fill color — the alpha channel controls how much shows through base_svg.' },
+        { key: 'color', default: 'rgba(0, 0, 0, 0.4)', description: 'Fill color: the alpha channel controls how much shows through base_svg.' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity, multiplies with any alpha already in color.' }
       ],
       example: "background_animation:\n  - preset: solid\n    config:\n      color: 'rgba(180, 0, 0, 0.35)'"

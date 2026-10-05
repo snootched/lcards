@@ -13,13 +13,13 @@
 ```
 Card YAML config
       ↓  (highest priority)
-Device scope  — localStorage UUID → _device_<uuid> in HA backend
+Device scope - localStorage UUID → _device_<uuid> in HA backend
       ↓
-User scope    — HA user ID (server-side) → _user_<userid> in HA backend
+User scope - HA user ID (server-side) → _user_<userid> in HA backend
       ↓
-Global tier   — HA input helpers / legacy flat storage key
+Global tier - HA input helpers / legacy flat storage key
       ↓  (lowest priority / fallback)
-globalFallback() function — provided by caller
+globalFallback() function - provided by caller
 ```
 
 Settings are **resolved at read time** by walking the scope list and returning the first non-null hit. Writes target a single explicit scope.
@@ -45,7 +45,7 @@ Async waterfall read. Stops at the first scope that returns a non-null value; if
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `key` | `string` | — | Storage key (use a constant from `ScopedSettingsConstants.js`) |
+| `key` | `string` | - | Storage key (use a constant from `ScopedSettingsConstants.js`) |
 | `scopes` | `string[]` | `['device','user','global']` | Ordered list of scopes to probe |
 | `globalFallback` | `function\|null` | `null` | Synchronous function returning the global value |
 
@@ -138,7 +138,7 @@ _device_<uuid>           → { sound_volume: 0.6, display_name: "Kitchen Tablet"
 sound_overrides          → { tap: "beep.wav" }   ← legacy global flat key
 ```
 
-User IDs are always derived **server-side** from the authenticated WebSocket connection — the browser never sends a user ID for per-user operations.
+User IDs are always derived **server-side** from the authenticated WebSocket connection; the browser never sends a user ID for per-user operations.
 
 ---
 
@@ -166,7 +166,7 @@ User IDs are always derived **server-side** from the authenticated WebSocket con
 
 Config Panel tabs that use `ScopedSettingsService` should track **which specific fields** the user changed, not just whether any field changed. This prevents all 25 keys being written to the target scope on every save, which would cause per-field "device" badges to appear on unchanged fields.
 
-The connectivity tab implements this via `_dirtyServiceKeys: Set<string>` — a set of flat storage key names (e.g. `'conn_overlay_msg_size'`) that are added whenever `_set()` or a YAML editor fires. On save, `_buildSparseConfig()` builds a config object containing only those keys. Since `ConnectionOverlayService.saveConfig()` checks `'key' in config` before each write, only the dirty keys hit storage.
+The connectivity tab implements this via `_dirtyServiceKeys: Set<string>`, a set of flat storage key names (e.g. `'conn_overlay_msg_size'`) that are added whenever `_set()` or a YAML editor fires. On save, `_buildSparseConfig()` builds a config object containing only those keys. Since `ConnectionOverlayService.saveConfig()` checks `'key' in config` before each write, only the dirty keys hit storage.
 
 When implementing new config tabs:
 - Track a `Set` of which flat keys were touched

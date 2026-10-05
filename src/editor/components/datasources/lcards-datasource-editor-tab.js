@@ -84,10 +84,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
         margin-bottom: 12px;
       }
 
-      ha-tab-panel {
-        padding: 16px;
-      }
-
       .card-sources-header {
         display: flex;
         justify-content: space-between;
@@ -158,12 +154,12 @@ export class LCARdSDataSourceEditorTab extends LitElement {
             Global Sources
           </ha-tab-group-tab>
 
-          <ha-tab-panel value="card" ?hidden=${this._activeSubTab !== 'card'}>
+          <div class="tab-panel" ?hidden=${this._activeSubTab !== 'card'}>
             ${this._activeSubTab === 'card' ? this._renderCardSources() : ''}
-          </ha-tab-panel>
-          <ha-tab-panel value="global" ?hidden=${this._activeSubTab !== 'global'}>
+          </div>
+          <div class="tab-panel" ?hidden=${this._activeSubTab !== 'global'}>
             ${this._activeSubTab === 'global' ? this._renderGlobalSources() : ''}
-          </ha-tab-panel>
+          </div>
         </ha-tab-group>
       </div>
 

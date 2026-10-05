@@ -13,8 +13,8 @@ The background animation system handles full-bleed card backgrounds. `shape_text
 
 ## Supported Card Types
 
-- **Button card** — preset mode only (no custom SVG, no component mode)
-- **Elbow card** — simple and segmented styles
+- **Button card**: preset mode only (no custom SVG, no component mode)
+- **Elbow card**: simple and segmented styles
 
 The guard `_supportsShapeTexture()` on `LCARdSButton` returns `true` only when `!this._processedSvg && !this.config?.component && !this.config?.svg`.
 
@@ -75,7 +75,7 @@ shape_texture:
 
 ## Preset Reference
 
-All 11 built-in presets are listed below. Color fields accept any of: `rgba()`, `#hex`, `var(--css-variable)`, `{theme:token.path}`, or state-based maps — the color pipeline resolves all formats before they reach the Canvas2D renderer (see [Color Pipeline](#color-pipeline)).
+All 11 built-in presets are listed below. Color fields accept any of: `rgba()`, `#hex`, `var(--css-variable)`, `{theme:token.path}`, or state-based maps; the color pipeline resolves all formats before they reach the Canvas2D renderer (see [Color Pipeline](#color-pipeline)).
 
 ### `grid`
 
@@ -128,7 +128,7 @@ Scrolling dot grid.
 
 ### `fluid`
 
-Organic swirling noise field. Uses a Canvas2D fBm (fractional Brownian motion) Perlin-style value-noise algorithm that advances its offset each frame, producing a seamlessly morphing colour wash — no repeating loops or scroll seams. `base_frequency` controls feature size (lower = larger blobs); `num_octaves` controls detail.
+Organic swirling noise field. Uses a Canvas2D fBm (fractional Brownian motion) Perlin-style value-noise algorithm that advances its offset each frame, producing a seamlessly morphing colour wash, no repeating loops or scroll seams. `base_frequency` controls feature size (lower = larger blobs); `num_octaves` controls detail.
 
 | Config key | Default | Description |
 |---|---|---|
@@ -185,7 +185,7 @@ Animated level-indicator fill bar that rises from the bottom (or fills from the 
 |---|---|---|
 | `color` / `color_a` | `rgba(0,200,100,0.7)` | Primary fill colour (bottom/left). `color` is a backward-compatible alias for `color_a`. |
 | `color_b` | `null` | Secondary colour (top/right). When set, a gradient is drawn from `color_a` to `color_b`. |
-| `gradient_crossover` | `80` | 0–100 — percentage of fill height that stays `color_a` before transitioning to `color_b`. |
+| `gradient_crossover` | `80` | 0–100: percentage of fill height that stays `color_a` before transitioning to `color_b`. |
 | `fill_pct` | `50` | Fill percentage 0–100; supports templates. |
 | `direction` | `'up'` | `'up'` (bottom→top) \| `'down'` (top→bottom) \| `'right'` (left→right) \| `'left'` (right→left) |
 | `edge_glow` | `true` | Bloom highlight on the leading edge. |
@@ -200,7 +200,7 @@ Animated level-indicator fill bar that rises from the bottom (or fills from the 
 | `slosh_amount` | `0` | 0–1 tilt intensity. Makes the fluid rock as if in a vessel. |
 | `slosh_period` | `3` | Seconds per slosh cycle. |
 
-All four `direction` values render waves on the leading edge — `down`/`left` are mirror-reflections of `up`/`right`, so the same `wave_height`/`wave_speed`/`wave_count` parameters apply symmetrically.
+All four `direction` values render waves on the leading edge; `down`/`left` are mirror-reflections of `up`/`right`, so the same `wave_height`/`wave_speed`/`wave_count` parameters apply symmetrically.
 
 ### `scanlines`
 
@@ -217,13 +217,13 @@ Classic CRT-style scan-line overlay. Works as a darkening (or lightening) overla
 
 ### `image`
 
-User-supplied image rendered inside the card shape, clipped to the shape geometry via a Canvas2D Path2D clip path. Like all other presets, this runs inside `CanvasTextureRenderer`. There is no continuous per-frame draw cost when the image is static — the RAF loop is always running but the draw call is a single GPU blit.
+User-supplied image rendered inside the card shape, clipped to the shape geometry via a Canvas2D Path2D clip path. Like all other presets, this runs inside `CanvasTextureRenderer`. There is no continuous per-frame draw cost when the image is static; the RAF loop is always running but the draw call is a single GPU blit.
 
 | Config key | Default | Description |
 |---|---|---|
-| `source` | `''` | `/local/` path, `https://` URL, `builtin:<key>` reference, `media-source://…` content ID (HA media library item), or a template (e.g. `'{entity.attributes.entity_picture}'`). SVG files are also supported — they are loaded via `<img>` and painted into Canvas2D like any raster image. |
+| `source` | `''` | `/local/` path, `https://` URL, `builtin:<key>` reference, `media-source://…` content ID (HA media library item), or a template (e.g. `'{entity.attributes.entity_picture}'`). SVG files are also supported; they are loaded via `<img>` and painted into Canvas2D like any raster image. |
 | `size` | `'cover'` | `'cover'` \| `'contain'` \| `'fill'` \| `'<n>px'` (explicit pixel size for the shorter axis) |
-| `position` | `'center'` | CSS `background-position` style string — keywords (`top left`, `center`, `bottom right`) or percentages (`50% 50%`) |
+| `position` | `'center'` | CSS `background-position` style string: keywords (`top left`, `center`, `bottom right`) or percentages (`50% 50%`) |
 | `repeat` | `false` | If `true`, tiles the image across the shape rather than fitting it |
 | `opacity` | `1` | Top-level `shape_texture.opacity` applies here via the standard pipeline; no `config.opacity` needed |
 
@@ -253,9 +253,9 @@ shape_texture:
 
 `source` also accepts a `builtin:<key>` reference (a key registered in `lcards-images-pack` or via the Config Panel) or a `media-source://…` content ID. For the latter, the editor's "Image Source" field offers a **Browse HA Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `source`. At render time this is resolved to a real URL via `AssetManager.resolveMediaSourceUrl()` (the `media_source/resolve_media` websocket command), cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../subsystems/asset-manager.md).
 
-> **SVG files**: `.svg` sources work — they load via `<img>` and are painted into Canvas2D. SVG files should be self-contained; files without explicit `width`/`height` attributes fall back to canvas dimensions automatically.
+> **SVG files**: `.svg` sources work; they load via `<img>` and are painted into Canvas2D. SVG files should be self-contained; files without explicit `width`/`height` attributes fall back to canvas dimensions automatically.
 
-> **HTTP URLs on HTTPS dashboards**: The editor shows a warning when the URL begins with `http:` and the dashboard is served over HTTPS. Mixed-content requests are blocked by most browsers — prefer `/local/` paths or `https://` URLs.
+> **HTTP URLs on HTTPS dashboards**: The editor shows a warning when the URL begins with `http:` and the dashboard is served over HTTPS. Mixed-content requests are blocked by most browsers; prefer `/local/` paths or `https://` URLs.
 
 ## Architecture
 
@@ -284,22 +284,22 @@ Colors in `shape_texture` config travel through a four-stage resolution pipeline
 ```
 User config value (JS template / token / theme token / CSS var / rgba / hex / state map)
     │
-    ▼  Stage 0 — Template evaluation (in _resolveShapeTextureConfig)
+    ▼  Stage 0 - Template evaluation (in _resolveShapeTextureConfig)
     │  Evaluates [[[JS]]] and {token} templates in all config string values
     │  fill_pct also supports { default: N, template: "[[[...]]]" } object form
     │
-    ▼  Stage 1 — resolveThemeTokensRecursive()   (in _resolveShapeTextureConfig)
+    ▼  Stage 1 - resolveThemeTokensRecursive()   (in _resolveShapeTextureConfig)
     │  Resolves {theme:…} tokens → CSS variable or concrete value
     │
-    ▼  Stage 2 — ColorUtils.resolveCssVariable() (per color field, same function)
+    ▼  Stage 2 - ColorUtils.resolveCssVariable() (per color field, same function)
     │  Resolves var(--…) CSS variables → concrete color strings
     │
-    ▼  Stage 3 — TextureEffect constructor / update()
+    ▼  Stage 3 - TextureEffect constructor / update()
        Canvas2D fillStyle / strokeStyle / createLinearGradient stop-color
        Color is already a concrete rgba/hex string by this stage
 ```
 
-By the time a color value reaches the Canvas2D effect, it is a concrete `rgba(…)` or `#hex` string. No CSS variable resolution happens inside the effect — that is handled in Stage 2 by `ColorUtils.resolveCssVariable()` in `_resolveShapeTextureConfig()`. This means effects can pass the color string directly to `ctx.fillStyle` or `ctx.strokeStyle` without further processing.
+By the time a color value reaches the Canvas2D effect, it is a concrete `rgba(…)` or `#hex` string. No CSS variable resolution happens inside the effect; that is handled in Stage 2 by `ColorUtils.resolveCssVariable()` in `_resolveShapeTextureConfig()`. This means effects can pass the color string directly to `ctx.fillStyle` or `ctx.strokeStyle` without further processing.
 
 ### Template Support
 
@@ -308,13 +308,13 @@ All `config` string values support synchronous JS templates (`[[[…]]]`) and `{
 The `fill_pct` field additionally supports two template syntaxes:
 
 ```yaml alternatives
-# Form 1 — direct string template (evaluated as a numeric value)
+# Form 1 - direct string template (evaluated as a numeric value)
 shape_texture:
   preset: level
   config:
     fill_pct: "[[[return entity.attributes.battery_level ?? 0]]]"
 
-# Form 2 — object with template key and fallback default
+# Form 2 - object with template key and fallback default
 shape_texture:
   preset: level
   config:
@@ -369,7 +369,7 @@ Because `_resolveShapeTextureConfig()` reads directly from `this.config` at ever
 
 | File | Role |
 |---|---|
-| `src/core/packs/textures/CanvasTextureRenderer.js` | Main Canvas2D renderer — creates `<canvas>`, drives RAF loop, manages `ResizeObserver`, delegates to effect |
+| `src/core/packs/textures/CanvasTextureRenderer.js` | Main Canvas2D renderer: creates `<canvas>`, drives RAF loop, manages `ResizeObserver`, delegates to effect |
 | `src/core/packs/textures/presets/index.js` | `CANVAS_TEXTURE_PRESETS` registry (also exported as `SHAPE_TEXTURE_PRESETS` for backward compat) |
 | `src/core/packs/textures/effects/` | One `BaseTextureEffect` subclass per preset |
 | `src/core/packs/textures/effects/noise-helpers.js` | Shared fBm noise math and `parseColorToRgba` used by fluid/plasma effects |

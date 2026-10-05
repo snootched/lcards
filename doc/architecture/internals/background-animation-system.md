@@ -83,10 +83,10 @@ background_animation:
 
 ```javascript
 // GridEffect.draw()
-1. Apply scroll offset via ctx.translate(scrollX, scrollY) — updated each frame, no bound/wrap
+1. Apply scroll offset via ctx.translate(scrollX, scrollY) - updated each frame, no bound/wrap
 2. Compute how many tiles are needed to cover the viewport at the current scroll position
 3. For each tile: draw cell fill, then minor grid lines, then major grid lines
-   (batched into single stroke() calls per line style — no offscreen/cached canvas)
+   (batched into single stroke() calls per line style - no offscreen/cached canvas)
 ```
 
 ---
@@ -172,7 +172,7 @@ class ZoomEffect {
   }
 
   draw(ctx, width, height) {
-    // Render the base effect ONCE per frame into an off-screen buffer —
+    // Render the base effect ONCE per frame into an off-screen buffer - 
     // every layer below stamps this buffer via drawImage() (a cheap GPU
     // blit) instead of re-running the full baseEffect.draw() N times.
     this._frameCtx.clearRect(0, 0, width, height);
@@ -276,7 +276,7 @@ export const BACKGROUND_PRESETS = {
 | `starfield` | StarfieldEffect | Parallax multi-layer scrolling star field |
 | `nebula` | NebulaEffect | Gas-cloud turbulence effect |
 | `contour-field` | ContourFieldEffect | Topographic-style banded noise field (LCARS star-chart contour look) |
-| `solid` | SolidEffect | Flat colour fill rendered behind the card SVG (cheapest preset — single fill per frame) |
+| `solid` | SolidEffect | Flat colour fill rendered behind the card SVG (cheapest preset, single fill per frame) |
 | `cascade` | CascadeEffect | Falling character/symbol cascade |
 | `level` | LevelTextureEffect | Animated fill-bar level indicator |
 | `fluid` | FluidTextureEffect | Organic fractal noise blobs |
@@ -337,8 +337,8 @@ Canvas uses **source-over compositing** by default, allowing layers to blend.
 
 | Threshold | Default | Behaviour |
 |-----------|---------|----------|
-| `reduceEffects` | 24 fps | `Canvas2DRenderer` skips every other render frame — halves draw work while keeping the RAF loop alive |
-| `disable3D` | 12 fps | `Canvas2DRenderer.stop()` is called after **3 consecutive** checks below this level — recovery probe is scheduled automatically (see below) |
+| `reduceEffects` | 24 fps | `Canvas2DRenderer` skips every other render frame, halves draw work while keeping the RAF loop alive |
+| `disable3D` | 12 fps | `Canvas2DRenderer.stop()` is called after **3 consecutive** checks below this level; recovery probe is scheduled automatically (see below) |
 
 Note: these thresholds measure **device-level FPS** (the PM's own RAF loop), not the per-card capped output rate configured via `fps:`. A card capped at 30fps on a 60fps device will show 60fps in the PM.
 
@@ -355,7 +355,7 @@ When `shouldDisable3D` triggers, the animation does not stop permanently. A reco
 
 When the probe fires:
 - If the tab is hidden or the card is off-screen, the probe is deferred (without consuming the backoff slot) and rescheduled at the same delay.
-- Otherwise, `start()` is called — the PM's 5-second settle window resets so stale low-FPS readings are discarded, and the device gets a fresh evaluation.
+- Otherwise, `start()` is called; the PM's 5-second settle window resets so stale low-FPS readings are discarded, and the device gets a fresh evaluation.
 - If FPS recovers: the renderer runs normally and the backoff counter resets on the next `clear()` / card destruction.
 - If FPS is still too low: PM fires `shouldDisable3D` again → another stop + the next (longer) backoff delay.
 
@@ -363,8 +363,8 @@ This means a device that temporarily spikes under load (e.g. a heavy page load o
 
 ### Relationship to the per-card `fps:` cap
 
-- The `fps:` config key (default `30`) is a **render budget** — the canvas is only cleared and redrawn when at least `1000/fps` ms have elapsed since the last drawn frame. This is the primary throttle for CPU budget on low-end devices.
-- The PM thresholds are **emergency degradation** — they activate only when the device genuinely cannot sustain even the capped rate.
+- The `fps:` config key (default `30`) is a **render budget**: the canvas is only cleared and redrawn when at least `1000/fps` ms have elapsed since the last drawn frame. This is the primary throttle for CPU budget on low-end devices.
+- The PM thresholds are **emergency degradation**: they activate only when the device genuinely cannot sustain even the capped rate.
 - The thresholds are intentionally set below the default 30fps cap so that normal 30fps operation never spuriously triggers frame-skipping.
 
 ### Console Troubleshooting
@@ -399,7 +399,7 @@ renderer.start();
 window.lcards.setGlobalLogLevel('debug')
 ```
 
-Threshold changes via `setThresholds()` are session-only — they reset on page reload. To make them permanent, update the defaults in `src/core/animation/PerformanceMonitor.js`.
+Threshold changes via `setThresholds()` are session-only; they reset on page reload. To make them permanent, update the defaults in `src/core/animation/PerformanceMonitor.js`.
 
 
 ## See Also

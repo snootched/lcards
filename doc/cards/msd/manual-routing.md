@@ -49,11 +49,11 @@ corner_style: round
 corner_radius: 34       # line-wide default
 waypoints:
   - [150, 200, 8]        # this corner rounds tighter (radius 8)
-  - [300, 200]            # no override — uses the line default (34)
+  - [300, 200]            # no override - uses the line default (34)
   - [300, 400, 60]        # this corner rounds wider (radius 60)
 ```
 
-Omit the 3rd number to inherit the line's `corner_radius`. Like the line-wide value, a per-waypoint radius is a *target*, not a guarantee — it still shrinks if the waypoint's adjacent legs are too short to fit it, exactly the same room-adaptive clamping `corner_radius` already gets. Named-anchor waypoints (below) can't carry a radius, since they're a string, not a coordinate — an anchor waypoint's corner always uses the line default.
+Omit the 3rd number to inherit the line's `corner_radius`. Like the line-wide value, a per-waypoint radius is a *target*, not a guarantee; it still shrinks if the waypoint's adjacent legs are too short to fit it, exactly the same room-adaptive clamping `corner_radius` already gets. Named-anchor waypoints (below) can't carry a radius, since they're a string, not a coordinate; an anchor waypoint's corner always uses the line default.
 
 ### Named Anchor Waypoints
 

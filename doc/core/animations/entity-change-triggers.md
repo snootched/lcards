@@ -20,7 +20,7 @@ If `entity` is omitted, the card's own entity is watched.
 
 ## State Gates (`from_state` / `to_state`)
 
-These are **fire-and-forget gates** — they filter *when* the animation starts but do not stop a looping animation once it has begun.
+These are **fire-and-forget gates**: they filter *when* the animation starts but do not stop a looping animation once it has begun.
 
 ```yaml
 # Only fires when transitioning from "off" → "on"
@@ -39,7 +39,7 @@ Use `to_state` alone when you only care about the destination. Use `from_state` 
 
 ## Lifecycle Conditions (`while`)
 
-`while` turns an animation into a **lifecycle-managed loop** — it starts when the condition becomes true and stops automatically when it becomes false. Requires `loop: true`.
+`while` turns an animation into a **lifecycle-managed loop**: it starts when the condition becomes true and stops automatically when it becomes false. Requires `loop: true`.
 
 ```yaml
 # Pulse while the light is on; stop when it turns off
@@ -111,7 +111,7 @@ Use `attribute` to watch a specific entity attribute instead of the main state:
 
 The animation editor's Attribute field is a searchable dropdown listing the
 selected `entity`'s actual attributes (with `brightness_pct` injected right
-after `brightness`), not just a free-text box — pick an entity first to
+after `brightness`), not just a free-text box; pick an entity first to
 populate it.
 
 `attribute` applies to `from_state`, `to_state`, and `while` alike.
@@ -201,6 +201,6 @@ See the [Animations overview](../animations.md#map_range-descriptors) for the fu
 
 ## See Also
 
-- [Animations overview](../animations.md) — structure, options, easing
-- [Preset Reference](preset-reference.md) — all available presets
-- [Rule-based Animations](rule-based-animations.md) — entity conditions across multiple cards via the Rules Engine
+- [Animations overview](../animations.md): structure, options, easing
+- [Preset Reference](preset-reference.md): all available presets
+- [Rule-based Animations](rule-based-animations.md): entity conditions across multiple cards via the Rules Engine

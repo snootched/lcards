@@ -37,10 +37,10 @@ LCARdS targets HA 2026.6+ and uses HA CSS variables throughout its editor, panel
 
 **LCARdS pattern:**
 ```css
-/* Exact match — no fallback needed */
+/* Exact match - no fallback needed */
 transition: all var(--ha-animation-duration-fast);
 
-/* Approximate match — include original as fallback */
+/* Approximate match - include original as fallback */
 transition: all var(--ha-animation-duration-normal, 0.2s);
 transition: max-height var(--ha-animation-duration-slow, 0.3s);
 ```
@@ -66,7 +66,7 @@ transition: max-height var(--ha-animation-duration-slow, 0.3s);
 | `--ha-border-radius-pill` | `9999px` | Chips, pills |
 | `--ha-border-radius-circle` | `50%` | Avatars, circular buttons |
 
-**No HA var for:** 3px, 6px, 10px, 22px — these remain hardcoded where used.
+**No HA var for:** 3px, 6px, 10px, 22px; these remain hardcoded where used.
 
 **LCARdS implementation:** `--ha-border-radius-sm/md/lg/3xl` used throughout `editor/base/` and `editor/components/shared/`. Expansion panels use `var(--ha-card-border-radius, var(--ha-border-radius-3xl))` so the LCARS theme's large card radius applies.
 
@@ -108,7 +108,7 @@ border: var(--ha-border-width-md) solid var(--primary-color);
 | `--ha-space-9` | `36px` | `--ha-space-19` | `76px` |
 | `--ha-space-10` | `40px` | `--ha-space-20` | `80px` |
 
-**No HA var for:** 2px, 6px, 10px, 14px, 18px — leave those hardcoded.
+**No HA var for:** 2px, 6px, 10px, 14px, 18px; leave those hardcoded.
 
 **LCARdS implementation:** All padding, margin, and gap values that are 4px multiples use `--ha-space-*` across `editor/base/` and `editor/components/shared/`. Shorthand values mixing mapped and unmapped sizes (e.g. `padding: 2px 8px`) are left as-is or split into separate properties.
 
@@ -133,9 +133,9 @@ border: var(--ha-border-width-md) solid var(--primary-color);
 | `--ha-font-size-4xl` | `32px` | Not currently used |
 | `--ha-font-size-5xl` | `40px` | Not currently used |
 
-**No HA var for:** 13px, 18px — remain hardcoded.
+**No HA var for:** 13px, 18px; remain hardcoded.
 
-**LCARdS implementation:** `--ha-font-size-s/m/l` used throughout `editor/base/` and `editor/components/shared/`. Panel files use em/rem for intentional relative scaling — those are correct as-is.
+**LCARdS implementation:** `--ha-font-size-s/m/l` used throughout `editor/base/` and `editor/components/shared/`. Panel files use em/rem for intentional relative scaling; those are correct as-is.
 
 ### Font Weight
 
@@ -149,7 +149,7 @@ border: var(--ha-border-width-md) solid var(--primary-color);
 | `--ha-font-weight-heading` | `var(--ha-font-weight-bold)` | |
 | `--ha-font-weight-action` | `var(--ha-font-weight-medium)` | Buttons |
 
-**No HA var for:** 600 — HA uses 300/400/500/700 only.
+**No HA var for:** 600; HA uses 300/400/500/700 only.
 
 ### Font Family
 
@@ -183,7 +183,7 @@ border: var(--ha-border-width-md) solid var(--primary-color);
 | `--ha-box-shadow-m` | `0 3px 6px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.15)` | same with opacity 0.35/0.45 |
 | `--ha-box-shadow-l` | `0 6px 12px rgba(0,0,0,0.12), 0 16px 32px rgba(0,0,0,0.2)` | same with opacity 0.4/0.55 |
 
-**LCARdS implementation:** Used everywhere — editor panels, overlays, cards. The `--wa-shadow-s/m/l` WebAwesome aliases resolve to these same vars.
+**LCARdS implementation:** Used everywhere: editor panels, overlays, cards. The `--wa-shadow-s/m/l` WebAwesome aliases resolve to these same vars.
 
 ---
 
@@ -200,10 +200,10 @@ When a LCARdS theme overrides palette atoms, the semantic tokens cascade automat
 
 ---
 
-### Layer 1 — Colour Palette Atoms
+### Layer 1: Colour Palette Atoms
 
 **Source:** `color/core.globals.ts`
-**Purpose:** Raw colour scales. Do not use directly in component CSS — use semantic tokens instead. These are the values theme authors override to remap HA's entire colour system.
+**Purpose:** Raw colour scales. Do not use directly in component CSS; use semantic tokens instead. These are the values theme authors override to remap HA's entire colour system.
 
 Each palette has 11 stops (05–95) going from darkest to lightest.
 
@@ -217,7 +217,7 @@ Each palette has 11 stops (05–95) going from darkest to lightest.
 | `--ha-color-black` | `#000000` | |
 | `--ha-color-white` | `#ffffff` | |
 
-**LCARdS/HA-LCARS theme mapping:** All five palettes are fully remapped in both the Red Accent and Blue Accent themes, 1:1 across the full 11-stop scale (not a lossy nearest-stop collapse — LCARdS's own palette was expanded to a genuine 11-stop scale specifically to support this; see [LCARdS Colour Palette](../core/themes/index.md#lcards-css-colour-palette)):
+**LCARdS/HA-LCARS theme mapping:** All five palettes are fully remapped in both the Red Accent and Blue Accent themes, 1:1 across the full 11-stop scale (not a lossy nearest-stop collapse; LCARdS's own palette was expanded to a genuine 11-stop scale specifically to support this; see [LCARdS Colour Palette](../core/themes/index.md#lcards-css-colour-palette)):
 
 | HA palette | LCARdS Red theme maps to | LCARdS Blue theme maps to |
 |---|---|---|
@@ -227,14 +227,14 @@ Each palette has 11 stops (05–95) going from darkest to lightest.
 | `ha-color-red-*` | `--lcards-orange-*` scale | `--lcards-orange-*` scale |
 | `ha-color-green-*` | `--lcards-green-*` scale | `--lcards-green-*` scale |
 
-**Remapping the palette alone is not sufficient.** HA's semantic tokens (Layer 2, below) assume any hue survives readably at a given tone number — true for HA's smoothly-generated palettes, not for every hand-picked LCARdS hue (orange has a much narrower usable-lightness band than blue). Both Picard profiles therefore also explicitly override the full `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer, each value WCAG-validated rather than trusting the tone-index convention blindly — see Layer 2 below.
+**Remapping the palette alone is not sufficient.** HA's semantic tokens (Layer 2, below) assume any hue survives readably at a given tone number; true for HA's smoothly-generated palettes, not for every hand-picked LCARdS hue (orange has a much narrower usable-lightness band than blue). Both Picard profiles therefore also explicitly override the full `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer, each value WCAG-validated rather than trusting the tone-index convention blindly; see Layer 2 below.
 
 ---
 
-### Layer 2 — Semantic Colour Tokens
+### Layer 2: Semantic Colour Tokens
 
 **Source:** `color/semantic.globals.ts`
-**Responsive:** Different light/dark values. All reference palette atoms — so remapping the palette atoms (Layer 1) cascades here automatically.
+**Responsive:** Different light/dark values. All reference palette atoms, so remapping the palette atoms (Layer 1) cascades here automatically.
 
 #### Text
 
@@ -301,7 +301,7 @@ Key values (light theme):
 | `--ha-color-fill-warning-loud-resting` | `orange-70` | Warning button |
 | `--ha-color-fill-success-loud-resting` | `green-50` | Success badge |
 
-**HA's `<ha-button>` `appearance` attribute maps directly onto this scale**: `appearance="accent"` uses `fill-{role}-loud-resting`, `appearance="filled"` uses `fill-{role}-normal-resting` (`ha-button.ts`). HA's generated ramps guarantee `quiet < normal < loud` reads as a real prominence hierarchy; LCARdS's hand-picked canon palette doesn't guarantee this everywhere (e.g. blue's `-lightest` stop is a deliberately vivid electric-cyan accent, more saturated than its own family's tone-40 anchor). Where this is a confirmed visible problem, fix it with a hand-picked tone-number swap for that specific (role, mode, tier) cell in `generate-lcards-ha-semantic-tokens.js`'s `FILL` table — not an automated chroma-clamping pass (a prior automated attempt made real UI worse and was reverted).
+**HA's `<ha-button>` `appearance` attribute maps directly onto this scale**: `appearance="accent"` uses `fill-{role}-loud-resting`, `appearance="filled"` uses `fill-{role}-normal-resting` (`ha-button.ts`). HA's generated ramps guarantee `quiet < normal < loud` reads as a real prominence hierarchy; LCARdS's hand-picked canon palette doesn't guarantee this everywhere (e.g. blue's `-lightest` stop is a deliberately vivid electric-cyan accent, more saturated than its own family's tone-40 anchor). Where this is a confirmed visible problem, fix it with a hand-picked tone-number swap for that specific (role, mode, tier) cell in `generate-lcards-ha-semantic-tokens.js`'s `FILL` table, not an automated chroma-clamping pass (a prior automated attempt made real UI worse and was reverted).
 
 #### On-Colors (text on fills)
 
@@ -316,7 +316,7 @@ Pattern: `--ha-color-on-[role]-[loudness]`
 | `--ha-color-on-warning-loud` | `white` | Text on warning button |
 | `--ha-color-on-success-loud` | `white` | Text on success button |
 
-**Not derived from a contrast formula.** These are hand-picked *tone references* — HA never computes an actual WCAG ratio here, and `on-*-loud` is a hardcoded literal `white` for every role in every theme regardless of the hue underneath it. LCARdS's two Picard profiles instead run each value through `generate-lcards-ha-semantic-tokens.js`: HA's tone-index convention picks a starting value, then real WCAG contrast math (4.5:1 AA) against the actual resolved LCARdS hex substitutes white/black wherever the mechanical default fails — see [Regenerating the theme profiles](#regenerating-the-theme-profiles) below.
+**Not derived from a contrast formula.** These are hand-picked *tone references*: HA never computes an actual WCAG ratio here, and `on-*-loud` is a hardcoded literal `white` for every role in every theme regardless of the hue underneath it. LCARdS's two Picard profiles instead run each value through `generate-lcards-ha-semantic-tokens.js`: HA's tone-index convention picks a starting value, then real WCAG contrast math (4.5:1 AA) against the actual resolved LCARdS hex substitutes white/black wherever the mechanical default fails; see [Regenerating the theme profiles](#regenerating-the-theme-profiles) below.
 
 #### Other
 
@@ -328,7 +328,7 @@ Pattern: `--ha-color-on-[role]-[loudness]`
 
 ---
 
-### Layer 3 — Legacy Semantic Variables
+### Layer 3: Legacy Semantic Variables
 
 **Source:** `color/color.globals.ts`
 **Theme-author overridable:** These are the variables set in HA theme YAML files (including our `ha-lcars-lcards-themes.yaml`). They feed both legacy HA components and some new ones.
@@ -337,7 +337,7 @@ Pattern: `--ha-color-on-[role]-[loudness]`
 
 | Variable | Default | LCARdS/HA-LCARS theme |
 |---|---|---|
-| `--primary-color` | `#009ac7` (primary-40) | `var(--lcars-ui-tertiary)` — orange or blue per theme variant |
+| `--primary-color` | `#009ac7` (primary-40) | `var(--lcars-ui-tertiary)`: orange or blue per theme variant |
 | `--dark-primary-color` | darker teal | |
 | `--light-primary-color` | lighter teal | |
 | `--accent-color` | `#ff9800` | `var(--lcars-orange)` |
@@ -396,17 +396,17 @@ Available as CSS variables for use in card configs and themes:
 
 #### Data Visualization
 
-`--color-1` through `--color-54` — 54 distinct hues for history graphs, energy dashboards, calendar.
+`--color-1` through `--color-54`: 54 distinct hues for history graphs, energy dashboards, calendar.
 
 #### RGB Component Variants (Legacy)
 
-Used for `rgba(var(--rgb-primary-color), 0.5)` patterns. **Superseded by `color-mix()`** — prefer `color-mix(in srgb, var(--primary-color) 50%, transparent)` in new code.
+Used for `rgba(var(--rgb-primary-color), 0.5)` patterns. **Superseded by `color-mix()`**: prefer `color-mix(in srgb, var(--primary-color) 50%, transparent)` in new code.
 
 `--rgb-primary-color`, `--rgb-accent-color`, `--rgb-primary-text-color`, `--rgb-secondary-text-color`, `--rgb-card-background-color`, `--rgb-warning-color`, `--rgb-error-color`, `--rgb-success-color`, `--rgb-info-color`
 
 ---
 
-### Layer 3b — WebAwesome Aliases
+### Layer 3b: WebAwesome Aliases
 
 **Source:** `color/wa.globals.ts`
 Maps HA semantic tokens to WebAwesome component var names. Available for use in LCARdS if targeting WA components directly.
@@ -449,23 +449,23 @@ Pattern: `--wa-color-[role]-fill-[loudness]`, `--wa-color-[role]-border-[loudnes
 | `--primary-background-color`, `--secondary-background-color`, `--card-background-color` | ✅ Used throughout |
 | `--error-color`, `--warning-color`, `--success-color`, `--info-color` | ✅ Used throughout |
 | `--divider-color`, `--chip-background-color` | ✅ Used for borders and structural dividers |
-| `--ha-font-size-xl/2xl/3xl/4xl/5xl` | ⬜ Not yet needed — no UI elements at those sizes |
+| `--ha-font-size-xl/2xl/3xl/4xl/5xl` | ⬜ Not yet needed: no UI elements at those sizes |
 | `--ha-font-weight-*` | ⬜ Still hardcoded (500, 600, 700); future cleanup pass |
 | `--ha-line-height-*` | ⬜ Still hardcoded; future cleanup pass |
 | `--ha-space-11` through `--ha-space-20` | ⬜ No values that large in editor scope |
-| `--ha-color-*` semantic tokens | ✅ Not used directly in LCARdS's own component CSS, but explicitly set (not just cascaded) by both HA-LCARS Picard theme profiles — see below |
+| `--ha-color-*` semantic tokens | ✅ Not used directly in LCARdS's own component CSS, but explicitly set (not just cascaded) by both HA-LCARS Picard theme profiles; see below |
 
 ### What the HA-LCARS theme profile sets
 
-**Authoritative source:** `ha-lcars/src/themes/lcards_picard_{red,blue}.yaml` (in the separate `ha-lcars` repository), assembled by ha-lcars's own **unmodified, stock** `py/generate_themes.py` into the installable `ha-lcars/themes/lcars.yaml`. `yaml/theme/ha-lcars-lcards-themes.yaml` in *this* repo is a vendored copy-paste-able mirror for users who don't want to depend on the ha-lcars HACS release cycle — keep it resynced when the ha-lcars source changes.
+**Authoritative source:** `ha-lcars/src/themes/lcards_picard_{red,blue}.yaml` (in the separate `ha-lcars` repository), assembled by ha-lcars's own **unmodified, stock** `py/generate_themes.py` into the installable `ha-lcars/themes/lcars.yaml`. `yaml/theme/ha-lcars-lcards-themes.yaml` in *this* repo is a vendored copy-paste-able mirror for users who don't want to depend on the ha-lcars HACS release cycle; keep it resynced when the ha-lcars source changes.
 
-**Both profile files are fully self-contained — zero changes to shared ha-lcars source** (`preamble.yaml`, `defaults.yaml`, `generate_themes.py` are byte-identical to upstream `origin/master`). Everything LCARdS-specific, including the four numeric palette stops per family (`-10`/`-50`/`-60`/`-95`) that used to live in ha-lcars's shared `&lcars-variables` anchor, is declared directly in each profile file — a genuine drop-in with no upstream PR or fork maintenance required.
+**Both profile files are fully self-contained: zero changes to shared ha-lcars source** (`preamble.yaml`, `defaults.yaml`, `generate_themes.py` are byte-identical to upstream `origin/master`). Everything LCARdS-specific, including the four numeric palette stops per family (`-10`/`-50`/`-60`/`-95`) that used to live in ha-lcars's shared `&lcars-variables` anchor, is declared directly in each profile file: a genuine drop-in with no upstream PR or fork maintenance required.
 
 Each profile sets:
 
 | Category | Status |
 |---|---|
-| `ha-color-primary-05` through `-95` | ✅ Full 1:1 11-stop mapping to LCARdS orange (Red) or blue (Blue) — no lossy collapsing |
+| `ha-color-primary-05` through `-95` | ✅ Full 1:1 11-stop mapping to LCARdS orange (Red) or blue (Blue), no lossy collapsing |
 | `ha-color-neutral-05` through `-95` | ✅ Full 1:1 mapping to LCARdS gray scale |
 | `ha-color-orange-05` through `-95` | ✅ Full 1:1 mapping to LCARdS yellow scale |
 | `ha-color-red-05` through `-95` | ✅ Full 1:1 mapping to LCARdS orange scale (errors/danger → orange) |
@@ -484,19 +484,19 @@ Each profile sets:
 | Climate domain state colors | ✅ Mapped to LCARS palette |
 | Sidebar, header, slider, toggle vars | ✅ Full LCARS styling |
 | `ha-font-family-body` | ✅ Set to Tungsten/Antonio LCARS font stack |
-| `ha-box-shadow-s/m/l` | ⬜ Not overridden — default HA shadows used |
-| `ha-animation-duration-*` | ⬜ Not overridden — default timing used |
-| `ha-border-radius-*` | ⬜ Not overridden — uses `ha-card-border-radius: var(--lcars-outer-radius)` for cards |
+| `ha-box-shadow-s/m/l` | ⬜ Not overridden: default HA shadows used |
+| `ha-animation-duration-*` | ⬜ Not overridden: default timing used |
+| `ha-border-radius-*` | ⬜ Not overridden: uses `ha-card-border-radius: var(--lcars-outer-radius)` for cards |
 
-Build-time validation: ha-lcars's own stock `generate_themes.py` runs its existing non-fatal WCAG verifier, `verify_contrast_rule()`, on every build (checks `lcars-ui-*`/`lcars-card-*` LCARS-aesthetic decorative text across all 24 themes). The `on-*`/`fill-*` semantic-token pairs are validated separately, client-side, by `generate-lcards-ha-semantic-tokens.js` itself (see below) — no ha-lcars-side verifier needed.
+Build-time validation: ha-lcars's own stock `generate_themes.py` runs its existing non-fatal WCAG verifier, `verify_contrast_rule()`, on every build (checks `lcars-ui-*`/`lcars-card-*` LCARS-aesthetic decorative text across all 24 themes). The `on-*`/`fill-*` semantic-token pairs are validated separately, client-side, by `generate-lcards-ha-semantic-tokens.js` itself (see below); no ha-lcars-side verifier needed.
 
 ---
 
 ## Regenerating the theme profiles
 
-Three scripts in `lcards/scripts/`, run in order, take the LCARdS canon palette all the way to installable ha-lcars theme files. All three are idempotent — safe to re-run after any change, they replace their own previously-written blocks rather than duplicating them.
+Three scripts in `lcards/scripts/`, run in order, take the LCARdS canon palette all the way to installable ha-lcars theme files. All three are idempotent: safe to re-run after any change, they replace their own previously-written blocks rather than duplicating them.
 
-**1. `generate-lcards-palette-scale.js` — 7 canon stops → 11-stop scale**
+**1. `generate-lcards-palette-scale.js`: 7 canon stops → 11-stop scale**
 
 Reads the 7 hand-picked canon Picard-screen anchors from `src/core/themes/paletteInjector.js`'s `GREEN_ALERT_PALETTE` (the *only* place those 7 values should ever be hand-edited) and computes the 4 gap/extrapolated stops per family (`-10`, `-50`, `-60`, `-95`) via OKLCH interpolation.
 
@@ -505,12 +505,12 @@ npm run lcars:palette-scale          # dry run, writes reports/palette-scale-rev
 npm run lcars:palette-scale:write    # patches GREEN_ALERT_PALETTE in paletteInjector.js, resyncs the docs snapshot (below)
 ```
 
-Always review `reports/palette-scale-review.html` before the `:write` variant — the `-95` slot in particular is extrapolated (no real anchor on either side) and is a judgment call, not a mechanical derivation. A snapshot of this review artifact (per-family swatch rows: canon anchors vs. computed/extrapolated stops, contrast ratios, and `<wa-button>` fill/accent mockups) is kept as visual reference at **[Palette Scale Review](/reports/palette-scale-review.html)** — it's a static copy, not live-generated; `lcars:palette-scale:write` keeps it in sync automatically.
+Always review `reports/palette-scale-review.html` before the `:write` variant; the `-95` slot in particular is extrapolated (no real anchor on either side) and is a judgment call, not a mechanical derivation. A snapshot of this review artifact (per-family swatch rows: canon anchors vs. computed/extrapolated stops, contrast ratios, and `<wa-button>` fill/accent mockups) is kept as visual reference at **[Palette Scale Review](/reports/palette-scale-review.html)**: it's a static copy, not live-generated; `lcars:palette-scale:write` keeps it in sync automatically.
 
-**2. `generate-lcards-ha-semantic-tokens.js` — palette → both ha-lcars profile files**
+**2. `generate-lcards-ha-semantic-tokens.js`: palette → both ha-lcars profile files**
 
 Reads the full resolved palette back out of `paletteInjector.js` and derives everything both profile files need:
-- The 4 numeric palette-stop declarations per family (literal hex, self-contained — no shared ha-lcars source touched).
+- The 4 numeric palette-stop declarations per family (literal hex, self-contained; no shared ha-lcars source touched).
 - The 1:1 `ha-color-{primary,neutral,orange,red,green}-{05..95}` ramp.
 - The full `on-*`/`fill-*`/`border-*`/`surface-*`/`form-background-*` semantic layer, per light/dark mode, WCAG-validated (see Layer 2 above).
 
@@ -519,12 +519,12 @@ npm run lcars:semantic-tokens          # dry run, prints YAML + contrast report 
 npm run lcars:semantic-tokens:write    # patches both profile YAML files in ../ha-lcars/src/themes/
 ```
 
-This assumes a sibling `ha-lcars` checkout at `../ha-lcars` relative to this repo. **It does not touch anything outside `src/themes/lcards_picard_{red,blue}.yaml`** — no shared ha-lcars files.
+This assumes a sibling `ha-lcars` checkout at `../ha-lcars` relative to this repo. **It does not touch anything outside `src/themes/lcards_picard_{red,blue}.yaml`**: no shared ha-lcars files.
 
 **3. Regenerate the installable theme file and rebuild**
 
 ```bash
-npm run lcars:generate-themes   # ha-lcars's own stock generator — assembles themes/lcars.yaml
+npm run lcars:generate-themes   # ha-lcars's own stock generator - assembles themes/lcars.yaml
 npm run build                   # validates CSS vars, rebuilds LCARdS itself
 npm run lcars:export-vendored   # resyncs the copy-paste-able yaml/theme/ha-lcars-lcards-themes.yaml
 ```
@@ -536,8 +536,8 @@ npm run lcars:regenerate
 ```
 
 **Values that are hand-maintained, not generated** (edit directly in the two profile files, no script involved):
-- `lcars-settings-card-color` — the medium-luminance background ha-lcars uses for config/dialog/profile/more-info panels (paired with hardcoded white text in ha-lcars's own shared `card-mod-css`). Currently `var(--lcards-gray)` in both profiles.
-- `lcars-ui-{primary,secondary,tertiary,quaternary}` and their `-text` companions, and everything under `modes:` that isn't a `ha-color-*` semantic token (e.g. `lcars-alert-color`, `success-color`/`warning-color`/`error-color`, `lcars-ui-quaternary-text`) — these drive most of the rest of HA's UI indirectly via `defaults.yaml`'s fallback chain (e.g. `lcars-ui-app-header-background-color: var(--lcars-ui-primary)`) and don't need per-profile overrides beyond the base set already present.
+- `lcars-settings-card-color`: the medium-luminance background ha-lcars uses for config/dialog/profile/more-info panels (paired with hardcoded white text in ha-lcars's own shared `card-mod-css`). Currently `var(--lcards-gray)` in both profiles.
+- `lcars-ui-{primary,secondary,tertiary,quaternary}` and their `-text` companions, and everything under `modes:` that isn't a `ha-color-*` semantic token (e.g. `lcars-alert-color`, `success-color`/`warning-color`/`error-color`, `lcars-ui-quaternary-text`); these drive most of the rest of HA's UI indirectly via `defaults.yaml`'s fallback chain (e.g. `lcars-ui-app-header-background-color: var(--lcars-ui-primary)`) and don't need per-profile overrides beyond the base set already present.
 
 ---
 
@@ -546,21 +546,21 @@ npm run lcars:regenerate
 ### Structural container backgrounds (editor/panel sections)
 
 ```css
-/* Standard section — 50% blend, works with HA-LCARS where card-bg = secondary-bg */
+/* Standard section - 50% blend, works with HA-LCARS where card-bg = secondary-bg */
 background-color: color-mix(
     in srgb,
     var(--secondary-background-color) 50%,
     color-mix(in srgb, var(--primary-background-color) 25%, transparent)
 );
 
-/* Focused/active state — slightly more opaque */
+/* Focused/active state - slightly more opaque */
 background-color: color-mix(
     in srgb,
     var(--secondary-background-color) 65%,
     color-mix(in srgb, var(--primary-background-color) 35%, transparent)
 );
 
-/* Inner card/container — solid secondary background */
+/* Inner card/container - solid secondary background */
 background: var(--secondary-background-color);
 ```
 
@@ -591,6 +591,6 @@ background: color-mix(in srgb, var(--error-color) 5%, transparent);
 ### Code block backgrounds
 
 ```css
-/* Terminal/code feel — darker than card background */
+/* Terminal/code feel - darker than card background */
 background: var(--primary-background-color);
 ```

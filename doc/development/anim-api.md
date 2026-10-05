@@ -1,9 +1,9 @@
 # Animation API
 
-Pack and card developer reference for `window.lcards.anim` — the LCARdS interface to anime.js v4.
+Pack and card developer reference for `window.lcards.anim`, the LCARdS interface to anime.js v4.
 
 ::: info anime.js v4
-LCARdS bundles **anime.js v4**. The v4 API differs from v3 in several important ways — always use `ease` not `easing`, and the timeline API has changed. Refer to the [anime.js v4 docs](https://animejs.com) for the full reference.
+LCARdS bundles **anime.js v4**. The v4 API differs from v3 in several important ways: always use `ease` not `easing`, and the timeline API has changed. Refer to the [anime.js v4 docs](https://animejs.com) for the full reference.
 :::
 
 ---
@@ -16,7 +16,7 @@ All anime.js primitives and LCARdS animation utilities live here.
 
 | Property | Source | Description |
 |---|---|---|
-| `anim.animejs` | `anime` (full module) | Full anime.js module — all exports available |
+| `anim.animejs` | `anime` (full module) | Full anime.js module, all exports available |
 | `anim.anime` | `anime.animate` | Create a single animation (most common call) |
 | `anim.stagger` | `anime.stagger` | Stagger function for sequenced delays |
 | `anim.spring` | `anime.createSpring` | Spring physics easing generator |
@@ -79,13 +79,13 @@ These wrappers live on `window.lcards.anim` and handle shadow-DOM target resolut
 Full-featured card animation entry point. Resolves targets within a scope's shadow root, expands presets, handles stagger batching, timeline markers, and CSS variable resolution.
 
 ```javascript
-// scope    — anime.js scope object (from AnimationManager or createScope)
-// options  — { type, targets, root?, ...animOptions }
-//   type     (required) — preset name or anime.js property key
-//   targets  (required) — CSS selector string, Element, or array
-//   root     (optional) — shadow root or element to query within (default: document)
-// hass     — HA hass object (optional, unused currently, reserved)
-// onInstanceCreated — callback(animInstance) called after the animation is created
+// scope - anime.js scope object (from AnimationManager or createScope)
+// options - { type, targets, root?, ...animOptions }
+//   type     (required) - preset name or anime.js property key
+//   targets  (required) - CSS selector string, Element, or array
+//   root     (optional) - shadow root or element to query within (default: document)
+// hass - HA hass object (optional, unused currently, reserved)
+// onInstanceCreated - callback(animInstance) called after the animation is created
 
 await window.lcards.anim.animateElement(scope, {
   type: 'pulse',
@@ -99,13 +99,13 @@ await window.lcards.anim.animateElement(scope, {
 
 ### `anim.animateWithRoot(options)`
 
-Simpler wrapper — resolves targets within a root and calls `anime.animate()` directly. Does not expand presets. Use when you want raw anime.js params with shadow-DOM target resolution.
+Simpler wrapper: resolves targets within a root and calls `anime.animate()` directly. Does not expand presets. Use when you want raw anime.js params with shadow-DOM target resolution.
 
 ```javascript
-// options — { targets, root?, scopeId?, ...animeOptions }
-//   targets  (required) — selector, Element, or array
-//   root     (optional) — root to query within (default: document)
-//   scopeId  (optional) — key in anim.scopes Map; if present, animation is registered to that scope
+// options - { targets, root?, scopeId?, ...animeOptions }
+//   targets  (required) - selector, Element, or array
+//   root     (optional) - root to query within (default: document)
+//   scopeId  (optional) - key in anim.scopes Map; if present, animation is registered to that scope
 
 await window.lcards.anim.animateWithRoot({
   targets: '.status-bar',
@@ -120,9 +120,9 @@ await window.lcards.anim.animateWithRoot({
 Waits for a CSS selector to appear in the DOM using `MutationObserver`. Returns a `Promise<Element>`.
 
 ```javascript
-// selector  — CSS selector string
-// root      — Element or Document to search within (default: document)
-// timeout   — ms before rejection (default: 2000)
+// selector - CSS selector string
+// root - Element or Document to search within (default: document)
+// timeout - ms before rejection (default: 2000)
 
 const el = await window.lcards.anim.waitForElement('#my-id', shadowRoot, 3000);
 ```
@@ -147,7 +147,7 @@ Preset names are passed as the `type` field when using `animateElement` or in ca
 
 ## Active scopes
 
-`anim.scopes` is a `Map` maintained by `AnimationManager`. Overlays register a scope entry here on creation. Pack code should generally not interact with this directly — use `AnimationManager.createScopeForOverlay()` instead.
+`anim.scopes` is a `Map` maintained by `AnimationManager`. Overlays register a scope entry here on creation. Pack code should generally not interact with this directly; use `AnimationManager.createScopeForOverlay()` instead.
 
 ```javascript
 // Inspect active scope IDs
@@ -172,6 +172,6 @@ The following are kept on the root `window.lcards` namespace for older code. Pre
 
 ## See Also
 
-- [Card Animations](../core/animations.md) — YAML-level animation config for LCARdS cards
-- [Animation Manager](../architecture/subsystems/animation-manager.md) — core singleton that owns scopes
+- [Card Animations](../core/animations.md): YAML-level animation config for LCARdS cards
+- [Animation Manager](../architecture/subsystems/animation-manager.md): core singleton that owns scopes
 - [Debug API](debug-api.md)

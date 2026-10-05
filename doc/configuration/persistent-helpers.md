@@ -1,9 +1,9 @@
 # Persistent Helpers
 
-LCARdS uses Home Assistant `input_*` helpers to store settings persistently — alert mode state, sound configuration, and HA-LCARS sizing values. They survive HA restarts and can be used in automations.
+LCARdS uses Home Assistant `input_*` helpers to store settings persistently: alert mode state, sound configuration, and HA-LCARS sizing values. They survive HA restarts and can be used in automations.
 
 ::: tip Create helpers from the Config Panel
-The easiest way is the **Config Panel** → **Helpers** tab → **Create All Helpers** — one click creates everything. See [LCARdS Config Panel](./index.md) for setup.
+The easiest way is the **Config Panel** → **Helpers** tab → **Create All Helpers**: one click creates everything. See [LCARdS Config Panel](./index.md) for setup.
 :::
 
 ---
@@ -14,10 +14,10 @@ The easiest way is the **Config Panel** → **Helpers** tab → **Create All Hel
 
 | Helper | Type | Purpose |
 |--------|------|---------|
-| `input_select.lcards_alert_mode` | `input_select` | Active alert level — `green_alert`, `red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert` |
+| `input_select.lcards_alert_mode` | `input_select` | Active alert level: `green_alert`, `red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert` |
 | `input_boolean.lcards_alert_mode_auto_switch` | `input_boolean` | Automatically activates alert mode when the `input_select` changes |
 | `input_text.lcards_alert_message` | `input_text` | Custom message displayed in the alert overlay content card |
-| `input_select.lcards_alert_transition_style` | `input_select` | Screen-transition effect when alert mode switches — `off`, `blur_fade`, `fade_only`, `flash`, `color_bleed`, `flicker`, `static`, `wipe` |
+| `input_select.lcards_alert_transition_style` | `input_select` | Screen-transition effect when alert mode switches: `off`, `blur_fade`, `fade_only`, `flash`, `color_bleed`, `flicker`, `static`, `wipe` |
 
 ### Sound
 
@@ -46,7 +46,7 @@ These helpers control dimensions, appearance, and features of the HA-LCARS theme
 
 ### Alert Mode Lab Parameters (auto-managed)
 
-The [Alert Mode Lab](alert-mode-lab.md) creates and manages a set of `input_number` helpers for each alert level — controlling hue, saturation, lightness, and anchor/contrast parameters. These helpers are created automatically when you save from the Lab and **do not need to be created manually**. See [Alert Mode Lab](alert-mode-lab.md) for details.
+The [Alert Mode Lab](alert-mode-lab.md) creates and manages a set of `input_number` helpers for each alert level, controlling hue, saturation, lightness, and anchor/contrast parameters. These helpers are created automatically when you save from the Lab and **do not need to be created manually**. See [Alert Mode Lab](alert-mode-lab.md) for details.
 
 ---
 

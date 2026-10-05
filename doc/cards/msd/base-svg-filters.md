@@ -136,13 +136,13 @@ filters:
 ## SVG Filter Primitives
 
 Lower-level SVG `<filter>` primitives, for effects the CSS filter list above
-can't express. Requires array format with `mode: svg` — SVG filters need an
+can't express. Requires array format with `mode: svg`; SVG filters need an
 `<svg>` root, so these aren't available on non-SVG cards like data-grid.
 Chain multiple primitives in the same `filters:` array to compose more
 complex effects (each primitive's output feeds the next).
 
 ### feGaussianBlur
-SVG blur filter — smoother than CSS blur, chains with other SVG filters.
+SVG blur filter: smoother than CSS blur, chains with other SVG filters.
 
 ```yaml
 filters:
@@ -184,7 +184,7 @@ filters:
   - { mode: svg, type: feBlend, value: { mode: screen } }
 ```
 
-**Use cases**: Glow effects — try screen/lighten mode after a blur.
+**Use cases**: Glow effects; try screen/lighten mode after a blur.
 
 ### feComposite
 Combines two inputs (the previous filter result and SourceGraphic by
@@ -233,16 +233,16 @@ filters:
 **Use cases**: Wavy, liquid, or turbulent distortion effects.
 
 ::: tip
-Add a Turbulence filter right before this one — Turbulence generates the
+Add a Turbulence filter right before this one: Turbulence generates the
 displacement map this filter distorts by.
 :::
 
 ### Tint
 
-The one friendly *compound* SVG type — internally expands to a chained
+The one friendly *compound* SVG type: internally expands to a chained
 `feFlood`+`feComposite` pair, so it composites a flat color wash over the
 base SVG (a real color tint, not an approximation) from a single filter
-entry. Same SVG-only requirement as the primitives above — not available on
+entry. Same SVG-only requirement as the primitives above; not available on
 non-SVG cards like data-grid. The color's alpha channel controls how much
 of the artwork shows through.
 

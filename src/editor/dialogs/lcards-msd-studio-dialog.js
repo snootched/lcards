@@ -1500,7 +1500,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                  mode whose behavior branches on _drawShapeState.kind. All three
                                  share the same mode identifier, so _setMode's own toggle-by-
                                  identity check can't distinguish "switch kind while staying in
-                                 draw mode" from "toggle the whole mode off" — handled explicitly
+                                 draw mode" from "toggle the whole mode off" - handled explicitly
                                  here instead. -->
                             ${[
                                 { kind: 'polyline', icon: 'mdi:vector-polyline', tooltip: 'Draw Polyline/Path' },
@@ -10252,7 +10252,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             auto: {
                 title: 'Auto (Recommended)',
                 icon: 'mdi:auto-fix',
-                description: 'Always uses full pathfinding: automatically avoids obstacles, bundles with nearby parallel lines into shared trunks, and avoids crossing other lines — whether or not obstacles or channels are present. Best for most use cases. See Bundling and Crossing Avoidance below for how those two behaviors work.',
+                description: 'Always uses full pathfinding: automatically avoids obstacles, bundles with nearby parallel lines into shared trunks, and avoids crossing other lines, whether or not obstacles or channels are present. Best for most use cases. See Bundling and Crossing Avoidance below for how those two behaviors work.',
                 diagram: html`
                     <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
                         <!-- Source -->
@@ -10272,7 +10272,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             bundling: {
                 title: 'Bundling (Trunk-and-Branch)',
                 icon: 'mdi:transit-connection-variant',
-                description: 'Lines that run close and parallel automatically bundle into a shared trunk — the first line keeps its path as the centerline, and later lines ride evenly-spaced lanes beside it, branching apart where their destinations diverge. This happens spontaneously between any two auto-routed lines running near each other; no configuration or shared channel needed. Tunables: Trace Bundling & Crossings section.',
+                description: 'Lines that run close and parallel automatically bundle into a shared trunk: the first line keeps its path as the centerline, and later lines ride evenly-spaced lanes beside it, branching apart where their destinations diverge. This happens spontaneously between any two auto-routed lines running near each other; no configuration or shared channel needed. Tunables: Trace Bundling & Crossings section.',
                 diagram: html`
                     <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
                         <!-- Source A -->
@@ -10296,7 +10296,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             crossing: {
                 title: 'Crossing Avoidance',
                 icon: 'mdi:vector-intersection',
-                description: 'A line\'s path is discouraged from cutting across another line\'s already-drawn segment — a soft deterrent, not a hard block. If the only alternative is a long detour, the line crosses cleanly rather than pay for an expensive detour. Tunables: Trace Bundling & Crossings section (Crossing Penalty).',
+                description: 'A line\'s path is discouraged from cutting across another line\'s already-drawn segment: a soft deterrent, not a hard block. If the only alternative is a long detour, the line crosses cleanly rather than pay for an expensive detour. Tunables: Trace Bundling & Crossings section (Crossing Penalty).',
                 diagram: html`
                     <svg viewBox="0 0 200 80" style="width: 100%; height: auto;">
                         <!-- Source -->
@@ -11011,7 +11011,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             this._controlFormZIndex = raw === '' ? null : Number(raw);
                             this.requestUpdate();
                         }}
-                        hint="Higher values paint on top. Leave blank to use the default (200 — controls paint over lines).">
+                        hint="Higher values paint on top. Leave blank to use the default (200, so controls paint over lines).">
                     </ha-input>
                 </lcards-form-section>
 
@@ -11024,7 +11024,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Lock this overlay'}
-                        .helper=${'When enabled, this overlay can\'t be dragged or resized on the canvas — a large overlay that mostly covers other overlays (e.g. an elbow spanning a big area) can otherwise block clicks meant for whatever is visually underneath it. Edit it via this form or the list panel\'s Lock icon instead.'}
+                        .helper=${'When enabled, this overlay can\'t be dragged or resized on the canvas. A large overlay that mostly covers other overlays (e.g. an elbow spanning a big area) can otherwise block clicks meant for whatever is visually underneath it. Edit it via this form or the list panel\'s Lock icon instead.'}
                         .selector=${{ boolean: {} }}
                         .value=${this._controlFormLocked === true}
                         @value-changed=${(e) => {
@@ -11052,7 +11052,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         LCARdS already auto-detects most entities this card's config depends on.
                         Only needed when the embedded card references an entity in a way that
                         can't be statically detected (e.g. a dynamically-computed key, or a card
-                        that matches entities by wildcard/device class at runtime) — otherwise the
+                        that matches entities by wildcard/device class at runtime); otherwise the
                         card would stop updating after its first render.
                     </lcards-message>
 
@@ -11086,7 +11086,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <lcards-message type="warning" style="margin-top: 12px;">
                             This control refreshes on every Home Assistant state change,
                             bypassing the per-control optimization. Only use this if the embedded
-                            card's dependencies genuinely can't be enumerated — prefer "Specific
+                            card's dependencies genuinely can't be enumerated: prefer "Specific
                             entities" whenever possible.
                         </lcards-message>
                     `}
@@ -11114,7 +11114,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <div class="subform-field-stack">
                 <lcards-form-section
                     header="Control Animations"
-                    description="Configure animations for this control's positioned wrapper (opacity/transform/glow-style effects) — not the embedded card's own internals"
+                    description="Configure animations for this control's positioned wrapper (opacity/transform/glow-style effects), not the embedded card's own internals"
                     icon="mdi:animation"
                     ?expanded=${true}>
 
@@ -11198,7 +11198,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
 
                     <div style="text-align: center; color: var(--secondary-text-color); font-size: 12px; margin: -8px 0;">
-                        — OR —
+                        - OR -
                     </div>
 
                     <!-- Enhanced Dropdown Card Selector -->
@@ -12470,7 +12470,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <lcards-form-section
                     header="Shape Overlays"
-                    description="Freeform decorative/structural geometry — polylines, rectangles, circles. Draw directly on the canvas with the toolbar buttons, or add one here."
+                    description="Freeform decorative/structural geometry: polylines, rectangles, circles. Draw directly on the canvas with the toolbar buttons, or add one here."
                     icon="mdi:shape"
                     ?expanded=${true}>
 
@@ -12950,16 +12950,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 ${expanded ? html`
                     <div class="preset-info-guide-body">
                         <ul>
-                            <li><strong>Bundle two or more lines to run together:</strong> point them at the same channel and leave "Discoverable by nearby lines" on — no need to list it in every line's <code>route_channels</code>.</li>
+                            <li><strong>Bundle two or more lines to run together:</strong> point them at the same channel and leave "Discoverable by nearby lines" on: no need to list it in every line's <code>route_channels</code>.</li>
                             <li><strong>A channel must always be used, no matter the cost:</strong> set its mode to <code>force</code>.</li>
-                            <li><strong>A channel is just a suggestion, only worth it if it's actually shorter/cleaner:</strong> set its mode to <code>prefer</code> — it's compared against the plain route and only wins on real cost.</li>
+                            <li><strong>A channel is just a suggestion, only worth it if it's actually shorter/cleaner:</strong> set its mode to <code>prefer</code>. It's compared against the plain route and only wins on real cost.</li>
                             <li><strong>Keep lines away from a region entirely:</strong> set its mode to <code>avoid</code>.</li>
-                            <li><strong>Chaining two or more channels on one line</strong> (<code>route_channels: [a, b, ...]</code>): pick any order — the router figures out which one to visit first based on geometry, not the order you checked them in.</li>
+                            <li><strong>Chaining two or more channels on one line</strong> (<code>route_channels: [a, b, ...]</code>): pick any order. The router figures out which one to visit first based on geometry, not the order you checked them in.</li>
                             <li><strong>Force a straight run north/south instead of east/west (or vice versa):</strong> set the channel's Flow Direction explicitly to <code>vertical</code>/<code>horizontal</code> instead of <code>auto</code>.</li>
-                            <li><strong>A bundled corridor's lead-in run is longer than it looks like it needs to be:</strong> lower that line's <code>corner_radius</code> — it drives both the lane-separation reservation before a bundled line's first turn and (in <code>forced</code> mode) the mandatory cardinal stub. <code>min_stub_length_factor</code> (Common Routing Options) only affects the small safety floor underneath that, not the <code>corner_radius</code>-driven part.</li>
-                            <li><strong>Lines splitting onto their own lanes get a tight/squashed corner right where they separate:</strong> increase Lane Spacing (per-channel, or <code>trunk_line_spacing</code> card-wide) instead of raising <code>corner_radius</code> — those specific corners are capped by lane spacing, not by <code>corner_radius</code>.</li>
-                            <li><strong>A corner elsewhere in the route (a tight detour, not a lane split) looks squashed:</strong> check Corner Room Weight (Common Routing Options, on by default) — it's the general-purpose mechanism for recovering a tight detour's corner toward its full configured radius.</li>
-                            <li><strong>A specific line's corner must render at its exact configured size everywhere, no matter what else is nearby:</strong> set that line's <code>corner_radius_mode</code> to <code>forced</code> — accepts the tradeoff of removing its lead-in from crossing-avoidance consideration entirely, which can force otherwise-avoidable detours or line crossings near tight geometry.</li>
+                            <li><strong>A bundled corridor's lead-in run is longer than it looks like it needs to be:</strong> lower that line's <code>corner_radius</code>. It drives both the lane-separation reservation before a bundled line's first turn and (in <code>forced</code> mode) the mandatory cardinal stub. <code>min_stub_length_factor</code> (Common Routing Options) only affects the small safety floor underneath that, not the <code>corner_radius</code>-driven part.</li>
+                            <li><strong>Lines splitting onto their own lanes get a tight/squashed corner right where they separate:</strong> increase Lane Spacing (per-channel, or <code>trunk_line_spacing</code> card-wide) instead of raising <code>corner_radius</code>. Those specific corners are capped by lane spacing, not by <code>corner_radius</code>.</li>
+                            <li><strong>A corner elsewhere in the route (a tight detour, not a lane split) looks squashed:</strong> check Corner Room Weight (Common Routing Options, on by default). It's the general-purpose mechanism for recovering a tight detour's corner toward its full configured radius.</li>
+                            <li><strong>A specific line's corner must render at its exact configured size everywhere, no matter what else is nearby:</strong> set that line's <code>corner_radius_mode</code> to <code>forced</code>. This accepts the tradeoff of removing its lead-in from crossing-avoidance consideration entirely, which can force otherwise-avoidable detours or line crossings near tight geometry.</li>
                         </ul>
                         <p>
                             For the full mental model (a decision-flow diagram of how routing modes interact), see the
@@ -13904,7 +13904,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 <br/>• <strong>Prefer</strong>: Lines are rewarded for traveling through, and bundle into evenly-spaced lanes
                                 <br/>• <strong>Avoid</strong>: Lines are penalized for entering
                                 <br/>• <strong>Force</strong>: Lines referencing the channel must route through it
-                                <br/><br/>Lines opt in with <code>route_channels: [channel_id]</code> — and, separately,
+                                <br/><br/>Lines opt in with <code>route_channels: [channel_id]</code>. Separately,
                                 any line routing nearby can also discover and bundle with a channel automatically,
                                 whether or not it lists it in <code>route_channels</code>. Turn off "Discoverable by
                                 nearby lines" on a channel to scope it to only the lines that explicitly reference it.
@@ -13922,7 +13922,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <!-- Common Routing Options (general grid/A* tunables users adjust most) -->
                 <lcards-form-section
                     header="Common Routing Options"
-                    description="The big levers — how tightly lines can bend and detour, and how much they favor straight paths"
+                    description="The big levers: how tightly lines can bend and detour, and how much they favor straight paths"
                     icon="mdi:routes"
                     ?expanded=${false}
                     style="margin-bottom: 16px;">
@@ -13930,7 +13930,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-message type="info" style="margin-bottom: 16px;">
                         <strong>Applies to <code>auto</code> (default), <code>smart</code>, and <code>grid</code> lines</strong>
                         <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                            <code>route: auto</code> always does full pathfinding, so these apply to it too — not
+                            <code>route: auto</code> always does full pathfinding, so these apply to it too, not
                             just an explicit <code>smart</code>/<code>grid</code>. Only <code>manhattan</code> and
                             <code>direct</code>/<code>manual</code> opt out. Separate from the canvas's own
                             drawing/snap grid, which only affects the Studio's visual editing surface, not the
@@ -13977,7 +13977,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             .value=${routing.corner_room_weight}
                             .label=${'Corner Room Weight'}
                             @value-changed=${(e) => this._updateRoutingConfig('corner_room_weight', e.detail.value)}
-                            helper="How strongly a tight detour's corner tries to recover its full corner_radius (default: 4 — on; set 0 to disable). Also settable per-line. See Pathfinding Refinement under Advanced Routing Configuration for the related Proximity Band option.">
+                            helper="How strongly a tight detour's corner tries to recover its full corner_radius (default: 4, on; set 0 to disable). Also settable per-line. See Pathfinding Refinement under Advanced Routing Configuration for the related Proximity Band option.">
                         </ha-selector>
                     </div>
                 </lcards-form-section>
@@ -13996,7 +13996,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <code>route: auto</code> line gets by default. See the <strong>Bundling</strong> and
                             <strong>Crossing Avoidance</strong> topics in Routing Modes Reference above for how it
                             works. Only <code>route: manhattan</code> and <code>route: direct</code>/<code>manual</code>
-                            opt out — declaration order in YAML never changes the outcome.
+                            opt out. Declaration order in YAML never changes the outcome.
                         </p>
                     </lcards-message>
 
@@ -14024,7 +14024,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             .value=${routing.trunk_line_spacing}
                             .label=${'Lane Spacing'}
                             @value-changed=${(e) => this._updateRoutingConfig('trunk_line_spacing', e.detail.value)}
-                            helper="Gap between bundled lines (default: 8). Also sets how rounded their lane-separation corners can get, independent of corner_radius — wider spacing allows a bigger achieved radius right where lines split onto their own lanes.">
+                            helper="Gap between bundled lines (default: 8). Also sets how rounded their lane-separation corners can get, independent of corner_radius: wider spacing allows a bigger achieved radius right where lines split onto their own lanes.">
                         </ha-selector>
                         <ha-selector
                             .hass=${this.hass}
@@ -14056,7 +14056,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <!-- Global Routing Defaults (Advanced) -->
                 <lcards-form-section
                     header="Advanced Routing Configuration"
-                    description="Deep router internals — rarely needed"
+                    description="Deep router internals: rarely needed"
                     icon="mdi:tune"
                     ?expanded=${false}
                     style="margin-bottom: 16px;">
@@ -14065,11 +14065,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-message type="info" style="margin-bottom: 16px;">
                         <strong>When These Settings Apply</strong>
                         <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                            These parameters affect any line that does full pathfinding — <code>route: auto</code>
-                            (the default), <code>smart</code>, or <code>grid</code> — regardless of whether
+                            These parameters affect any line that does full pathfinding (<code>route: auto</code>
+                            (the default), <code>smart</code>, or <code>grid</code>), regardless of whether
                             obstacles or channels are present.
                             <br/><br/>Lines with <code>route: manhattan</code>, <code>direct</code>, or
-                            <code>manual</code> are not affected by these settings — they never pathfind.
+                            <code>manual</code> are not affected by these settings; they never pathfind.
                         </p>
                         <div style="margin-top: 8px;">
                             <a href="https://lcards.unimatrix01.ca/cards/msd/routing.html"
@@ -14084,8 +14084,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <strong>Parameter Guide</strong>
                         <div style="margin: 8px 0 0 0; font-size: 12px; line-height: 1.6;">
                             <div style="margin-bottom: 6px;">
-                                <strong>Grid Resolution, Min Stub Length Factor, Corner Room Weight, Turn Penalty, and Clearance</strong> are common tunables — see
-                                the Common Routing Options section above. Corner Room Weight is one of the two primary levers for corner appearance (the other, <code>corner_radius</code>, is per-line) — it's grouped with the general tunables here rather than under Pathfinding Refinement below because of how often it actually matters in practice.
+                                <strong>Grid Resolution, Min Stub Length Factor, Corner Room Weight, Turn Penalty, and Clearance</strong> are common tunables: see
+                                the Common Routing Options section above. Corner Room Weight is one of the two primary levers for corner appearance (the other, <code>corner_radius</code>, is per-line). It's grouped with the general tunables here rather than under Pathfinding Refinement below because of how often it actually matters in practice.
                             </div>
 
                             <div style="margin-bottom: 6px;"><strong>Path Smoothing</strong></div>
@@ -14122,7 +14122,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <div style="margin-bottom: 6px;"><strong>Cost Function Weights</strong></div>
                             <div style="margin-left: 12px;">
                                 • <strong>Bend / Proximity Cost</strong>: Per-bend and per-obstacle-proximity cost terms in the pathfinding cost formula<br/>
-                                • <strong>Hint Penalty</strong>: Cost for a first/last move disagreeing with route_hint (soft — obstacles still win)
+                                • <strong>Hint Penalty</strong>: Cost for a first/last move disagreeing with route_hint (soft: obstacles still win)
                             </div>
                         </div>
                     </lcards-message>
@@ -14165,7 +14165,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <div style="font-weight: 500; margin-bottom: 8px;">
                             Pathfinding Refinement
                             <span style="font-weight: 400; font-size: 12px; color: var(--secondary-text-color); margin-left: 8px;">
-                                (Runs whenever Proximity Band below is above 0, or Corner Room Weight — moved to Common Routing Options above, on by default — is above 0)
+                                (Runs whenever Proximity Band below is above 0, or Corner Room Weight (moved to Common Routing Options above, on by default) is above 0)
                             </span>
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
@@ -14175,7 +14175,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${routing.smart_proximity}
                                 .label=${'Proximity Band'}
                                 @value-changed=${(e) => this._updateRoutingConfig('smart_proximity', e.detail.value)}
-                                helper="Extra obstacle avoidance distance (default: 0 — off unless > 0)">
+                                helper="Extra obstacle avoidance distance (default: 0, off unless > 0)">
                             </ha-selector>
                             <ha-selector
                                 .hass=${this.hass}
@@ -14649,7 +14649,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         style="margin-top: 16px; display: block;"
                         .hass=${this.hass}
                         .label=${'Discoverable by nearby lines'}
-                        .helper=${'When off, only lines that explicitly list this channel in route_channels can ever use it — a nearby line that does NOT reference it will never spontaneously bundle into it, even if it routes close and parallel.'}
+                        .helper=${'When off, only lines that explicitly list this channel in route_channels can ever use it. A nearby line that does NOT reference it will never spontaneously bundle into it, even if it routes close and parallel.'}
                         .selector=${{ boolean: {} }}
                         .value=${data.discoverable !== false}
                         @value-changed=${(e) => this._updateChannelFormField('discoverable', e.detail.value)}>
@@ -15531,7 +15531,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-form-section header="Points" description="Ordered vertex list, in viewBox units" icon="mdi:vector-point" ?expanded=${true}>
                         ${(this._shapeFormData.points || []).length > MAX_INLINE_EDITABLE_SHAPE_POINTS ? html`
                             <lcards-message type="info">
-                                <strong>${(this._shapeFormData.points || []).length} points — too many to edit individually here.</strong>
+                                <strong>${(this._shapeFormData.points || []).length} points: too many to edit individually here.</strong>
                                 <p style="margin: 8px 0; font-size: 13px;">
                                     Rendering one row per point (X/Y fields) for a shape this large freezes the
                                     browser. Drag points directly on the canvas, or edit the raw
@@ -15688,7 +15688,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             this._shapeFormData.z_index = raw === '' ? null : Number(raw);
                             this.requestUpdate();
                         }}
-                        hint="Higher values paint on top. Leave blank to use the default (50 — shapes paint under lines and controls).">
+                        hint="Higher values paint on top. Leave blank to use the default (50, so shapes paint under lines and controls).">
                     </ha-input>
                 </lcards-form-section>
 
@@ -15779,7 +15779,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 .selector=${{ entity: {} }}
                 .value=${entityId}
                 .label=${'Entity'}
-                .helper=${"Bind this shape's color and/or fill to an entity's state (optional) — leave blank for fixed colors"}
+                .helper=${"Bind this shape's color and/or fill to an entity's state (optional). Leave blank for fixed colors"}
                 @value-changed=${(e) => {
                     this._shapeFormData.entity = e.detail.value || '';
                     this.requestUpdate();
@@ -15793,7 +15793,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     .label=${'State Attribute'}
                     .helper=${'Match this attribute\'s value instead of raw entity state'}
                     .disabled=${!entityId}
-                    .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '— Use entity state' }, ...attrOptions], custom_value: true } }}
+                    .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '(Use entity state)' }, ...attrOptions], custom_value: true } }}
                     .value=${this._shapeFormData.state_attribute || '__none__'}
                     @value-changed=${(e) => {
                         const v = (e.detail.value ?? '').trim();
@@ -15806,7 +15806,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     .label=${'Range Attribute'}
                     .helper=${'Attribute compared against above:/below:/between: keys'}
                     .disabled=${!entityId}
-                    .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '— Use entity state' }, ...rangesAttrOptions], custom_value: true } }}
+                    .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '(Use entity state)' }, ...rangesAttrOptions], custom_value: true } }}
                     .value=${this._shapeFormData.ranges_attribute || '__none__'}
                     @value-changed=${(e) => {
                         let v = (e.detail.value ?? '').trim();
@@ -16030,7 +16030,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 ] } }}
                                 .value=${style.line_cap || 'butt'}
                                 .label=${'Line Cap'}
-                                helper="Shape of each dash segment's ends — set to Round for circular dots"
+                                helper="Shape of each dash segment's ends: set to Round for circular dots"
                                 @value-changed=${(e) => {
                                     this._shapeFormData.style = { ...this._shapeFormData.style, line_cap: e.detail.value };
                                     this.requestUpdate();
@@ -16158,11 +16158,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <!-- Shared entity binding for both Color and Fill below -->
-                <lcards-form-section header="Entity Binding" description="Optional — powers state-based color and/or fill below" icon="mdi:target" ?expanded=${true}>
+                <lcards-form-section header="Entity Binding" description="Optional: powers state-based color and/or fill below" icon="mdi:target" ?expanded=${true}>
                     ${this._renderShapeEntityBindingSection()}
                 </lcards-form-section>
 
-                <lcards-form-section header="Color" description="Stroke color — fixed, or state/range keys bound to the entity above" icon="mdi:palette" ?expanded=${true}>
+                <lcards-form-section header="Color" description="Stroke color: fixed, or state/range keys bound to the entity above" icon="mdi:palette" ?expanded=${true}>
                     <lcards-color-section-v2
                         .editor=${this._getShapeColorEditorAdapter()}
                         .config=${this._shapeFormData}
@@ -16174,7 +16174,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </lcards-color-section-v2>
                 </lcards-form-section>
 
-                <lcards-form-section header="Fill" description="Only visible on closed shapes — fixed, or state/range keys bound to the same entity above" icon="mdi:format-color-fill" ?expanded=${true}>
+                <lcards-form-section header="Fill" description="Only visible on closed shapes: fixed, or state/range keys bound to the same entity above" icon="mdi:format-color-fill" ?expanded=${true}>
                     <lcards-color-section-v2
                         .editor=${this._getShapeColorEditorAdapter()}
                         .config=${this._shapeFormData}
@@ -16212,7 +16212,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const isBulk = this._bulkEditKind === 'shape' && this._bulkEditTargetIds !== null;
         const isEditing = !!this._editingShapeId;
         const title = isBulk
-            ? `Bulk Edit Style — ${this._bulkEditTargetIds.length} shapes selected`
+            ? `Bulk Edit Style: ${this._bulkEditTargetIds.length} shapes selected`
             : (isEditing ? `Edit Shape: ${this._shapeFormData.id}` : 'Add Shape');
 
         return html`
@@ -16227,7 +16227,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div class="subform-config">
                         ${isBulk ? html`
                             <lcards-message type="info" style="margin-bottom: 12px;">
-                                Only fields you change below are applied — untouched fields are left as-is on each of the ${this._bulkEditTargetIds.length} selected shapes.
+                                Only fields you change below are applied; untouched fields are left as-is on each of the ${this._bulkEditTargetIds.length} selected shapes.
                             </lcards-message>
                         ` : html`
                             <ha-tab-group @wa-tab-show=${this._handleShapeFormTabChange} class="subform-tabs">
@@ -16522,7 +16522,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const isBulk = this._bulkEditKind === 'line' && this._bulkEditTargetIds !== null;
         const isEditing = !!this._editingLineId;
         const title = isBulk
-            ? `Bulk Edit Style — ${this._bulkEditTargetIds.length} lines selected`
+            ? `Bulk Edit Style: ${this._bulkEditTargetIds.length} lines selected`
             : (isEditing ? `Edit Line: ${this._lineFormData.id}` : 'Add Line');
 
         return html`
@@ -16540,7 +16540,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div class="subform-config">
                         ${isBulk ? html`
                             <lcards-message type="info" style="margin-bottom: 12px;">
-                                Only fields you change below are applied — untouched fields are left as-is on each of the ${this._bulkEditTargetIds.length} selected lines.
+                                Only fields you change below are applied; untouched fields are left as-is on each of the ${this._bulkEditTargetIds.length} selected lines.
                             </lcards-message>
                         ` : html`
                             <!-- Subtabs -->
@@ -16790,7 +16790,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             this._lineFormData.z_index = raw === '' ? null : Number(raw);
                             this.requestUpdate();
                         }}
-                        hint="Higher values paint on top. Leave blank to use the default (100 — lines paint under controls).">
+                        hint="Higher values paint on top. Leave blank to use the default (100, so lines paint under controls).">
                     </ha-input>
                 </lcards-form-section>
             </div>
@@ -16807,9 +16807,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const routeInfoMap = {
             'direct': { icon: 'mdi:vector-line', title: 'Direct', description: 'Straight line from source to target' },
             'manual': { icon: 'mdi:map-marker-path', title: 'Manual', description: 'Draw custom path through explicit waypoints' },
-            'auto': { icon: 'mdi:routes', title: 'Auto', description: 'Full pathfinding: obstacle avoidance, trunk bundling with nearby lines, and crossing avoidance — always, whether or not obstacles/channels are present' },
-            'manhattan': { icon: 'mdi:vector-polyline', title: 'Manhattan (Advanced)', description: 'A fixed single-bend elbow shape — no pathfinding, no obstacle avoidance, no bundling, no crossing avoidance. The cheap, fully predictable opt-out from Auto.' },
-            'grid': { icon: 'mdi:grid', title: 'Grid (Advanced)', description: 'Same full pathfinding as Auto — obstacle avoidance, bundling, crossing avoidance — but skips the extra local-search refinement pass Auto/Smart adds on top.' }
+            'auto': { icon: 'mdi:routes', title: 'Auto', description: 'Full pathfinding: obstacle avoidance, trunk bundling with nearby lines, and crossing avoidance, always, whether or not obstacles/channels are present' },
+            'manhattan': { icon: 'mdi:vector-polyline', title: 'Manhattan (Advanced)', description: 'A fixed single-bend elbow shape: no pathfinding, no obstacle avoidance, no bundling, no crossing avoidance. The cheap, fully predictable opt-out from Auto.' },
+            'grid': { icon: 'mdi:grid', title: 'Grid (Advanced)', description: 'Same full pathfinding as Auto: obstacle avoidance, bundling, crossing avoidance, but skips the extra local-search refinement pass Auto/Smart adds on top.' }
         };
         const routeInfo = routeInfoMap[routeMode] || routeInfoMap['auto'];
 
@@ -16824,9 +16824,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
             if (hasChannels) {
                 autoContext = 'This line routes through its configured channel(s).';
             } else if (hasObstacles) {
-                autoContext = 'Obstacles are present on this card — this line will avoid them.';
+                autoContext = 'Obstacles are present on this card, so this line will avoid them.';
             } else {
-                autoContext = 'No obstacles or channels on this card — a direct path with no avoidance needed. Still bundles with nearby parallel lines and avoids crossing them.';
+                autoContext = 'No obstacles or channels on this card: a direct path with no avoidance needed. Still bundles with nearby parallel lines and avoids crossing them.';
             }
         }
 
@@ -16848,8 +16848,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     { value: 'auto', label: 'Auto (Recommended)' },
                                     { value: 'direct', label: 'Direct (Straight line)' },
                                     { value: 'manual', label: 'Manual (Custom waypoints)' },
-                                    { value: 'manhattan', label: 'Manhattan (Advanced — opt out of bundling)' },
-                                    { value: 'grid', label: 'Grid (Advanced — skip refinement pass)' }
+                                    { value: 'manhattan', label: 'Manhattan (Advanced: opt out of bundling)' },
+                                    { value: 'grid', label: 'Grid (Advanced: skip refinement pass)' }
                                 ]
                             }
                         }}
@@ -16889,7 +16889,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         <lcards-message
                             type="tip"
                             .title=${'What this line will do'}
-                            .message=${'Same bundling, crossing avoidance, and obstacle avoidance as Auto — just without the extra refinement pass. Rarely needed; use Auto unless you have a specific reason to skip refinement.'}>
+                            .message=${'Same bundling, crossing avoidance, and obstacle avoidance as Auto, just without the extra refinement pass. Rarely needed; use Auto unless you have a specific reason to skip refinement.'}>
                         </lcards-message>
                     ` : ''}
 
@@ -17100,7 +17100,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                                                 this.requestUpdate();
                                                             }}
                                                             style="flex: 0.8; min-width: 70px;"
-                                                            title="Overrides this corner's ${this._lineFormData.corner_style === 'bevel' ? 'cut size' : 'radius'} — blank inherits the line default (${this._lineFormData.corner_radius ?? 34})">
+                                                            title="Overrides this corner's ${this._lineFormData.corner_style === 'bevel' ? 'cut size' : 'radius'}. Blank inherits the line default (${this._lineFormData.corner_radius ?? 34})">
                                                         </ha-input>
                                                     </div>
                                                 `}
@@ -17190,7 +17190,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     }
                                     this.requestUpdate();
                                 }}
-                                hint="Overrides the mandatory departure/arrival stub length (leave empty to use the router's own auto/forced resolution — see Corner Size Mode on the Style tab). Going below one grid cell risks re-triggering an internal same-cell short-circuit; check window.lcards.debug.msd.routing.inspect(id).meta.debug for the router's resolved value first."
+                                hint="Overrides the mandatory departure/arrival stub length (leave empty to use the router's own auto/forced resolution: see Corner Size Mode on the Style tab). Going below one grid cell risks re-triggering an internal same-cell short-circuit; check window.lcards.debug.msd.routing.inspect(id).meta.debug for the router's resolved value first."
                                 style="width: 100%; margin-top: 12px;">
                             </ha-input>
 
@@ -17275,7 +17275,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     .selector=${{ entity: {} }}
                     .value=${entityId}
                     .label=${'Entity'}
-                    .helper=${"Bind this line's color to an entity's state (optional) — leave blank for a fixed color"}
+                    .helper=${"Bind this line's color to an entity's state (optional). Leave blank for a fixed color"}
                     @value-changed=${(e) => {
                         this._lineFormData.entity = e.detail.value || '';
                         this.requestUpdate();
@@ -17289,7 +17289,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .label=${'State Attribute'}
                         .helper=${'Match this attribute\'s value instead of raw entity state'}
                         .disabled=${!entityId}
-                        .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '— Use entity state' }, ...attrOptions], custom_value: true } }}
+                        .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '(Use entity state)' }, ...attrOptions], custom_value: true } }}
                         .value=${this._lineFormData.state_attribute || '__none__'}
                         @value-changed=${(e) => {
                             const v = (e.detail.value ?? '').trim();
@@ -17302,7 +17302,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         .label=${'Range Attribute'}
                         .helper=${'Attribute compared against above:/below:/between: keys'}
                         .disabled=${!entityId}
-                        .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '— Use entity state' }, ...rangesAttrOptions], custom_value: true } }}
+                        .selector=${{ select: { mode: 'dropdown', options: [{ value: '__none__', label: '(Use entity state)' }, ...rangesAttrOptions], custom_value: true } }}
                         .value=${this._lineFormData.ranges_attribute || '__none__'}
                         @value-changed=${(e) => {
                             let v = (e.detail.value ?? '').trim();
@@ -17407,7 +17407,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         mode: 'dropdown',
                         options: [
                             { value: 'center', label: 'Center (default)' },
-                            { value: 'edge', label: 'Edge (projects past line end — hides thick-line overshoot)' }
+                            { value: 'edge', label: 'Edge (projects past line end; hides thick-line overshoot)' }
                         ]
                     }
                 }}
@@ -17774,7 +17774,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </lcards-form-section>
 
                 <!-- Line Style / Line Shape stacked one-per-row (not the shared
-                     .subform-columns-2's default 1fr-1fr) — side by side caused
+                     .subform-columns-2's default 1fr-1fr) - side by side caused
                      horizontal scroll here, especially with the advanced stroke
                      properties section expanded. -->
                 <div class="subform-columns-2" style="grid-template-columns: 1fr;">
@@ -18313,7 +18313,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <div style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #0a0a0a; border-radius: 8px; border: 1px solid #333; overflow: hidden;">
                 ${isTemplateColor ? html`
-                    <lcards-message type="info" message="Templates aren't evaluated in this preview — showing the default color." style="width: 100%;">
+                    <lcards-message type="info" message="Templates aren't evaluated in this preview: showing the default color." style="width: 100%;">
                     </lcards-message>
                 ` : ''}
                 <!-- color: sets currentColor fallback for unfilled markers (card host normally provides this) -->
@@ -18437,7 +18437,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <div style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #0a0a0a; border-radius: 8px; border: 1px solid #333; overflow: hidden;">
                 ${isTemplateColor ? html`
-                    <lcards-message type="info" message="Templates aren't evaluated in this preview — showing the default color." style="width: 100%;">
+                    <lcards-message type="info" message="Templates aren't evaluated in this preview: showing the default color." style="width: 100%;">
                     </lcards-message>
                 ` : ''}
                 <svg viewBox="0 0 200 280" preserveAspectRatio="xMidYMid meet" style="flex: 1; width: 100%; min-height: 0; max-height: 500px; color: ${color};">

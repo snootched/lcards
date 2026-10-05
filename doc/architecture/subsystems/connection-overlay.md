@@ -9,17 +9,17 @@
 
 ## Overview
 
-The Connection Overlay Service monitors the Home Assistant WebSocket connection and displays a full-screen overlay whenever the frontend loses contact with the HA server. It is a `BaseService` singleton that is active on every page the LCARdS module is loaded — no card placement is required.
+The Connection Overlay Service monitors the Home Assistant WebSocket connection and displays a full-screen overlay whenever the frontend loses contact with the HA server. It is a `BaseService` singleton that is active on every page the LCARdS module is loaded; no card placement is required.
 
 Key capabilities:
 
 - **Automatic detection** via two complementary signals (WS events + `hass.connected` flag)
-- **Per-scope config** via the ScopedSettings waterfall — device, user, or global overrides
-- **Config auto-refresh** — re-reads config from the scoped waterfall after every HA reconnect, so settings saved just before an HA restart are always picked up without a page reload
-- **Three display modes** — simple text message, a full custom HA card, or a Borg-assimilation takeover
-- **Optional reconnection banner** — brief confirmation overlay that auto-dismisses after reconnection
-- **SEM integration** — backdrop, canvas, and colour effect layers via `ScreenEffectManager`
-- **Stackable with alert overlay** — both overlays can be visible simultaneously; the connection overlay renders on top when both are active
+- **Per-scope config** via the ScopedSettings waterfall: device, user, or global overrides
+- **Config auto-refresh**: re-reads config from the scoped waterfall after every HA reconnect, so settings saved just before an HA restart are always picked up without a page reload
+- **Three display modes**: simple text message, a full custom HA card, or a Borg-assimilation takeover
+- **Optional reconnection banner**: brief confirmation overlay that auto-dismisses after reconnection
+- **SEM integration**: backdrop, canvas, and colour effect layers via `ScreenEffectManager`
+- **Stackable with alert overlay**: both overlays can be visible simultaneously; the connection overlay renders on top when both are active
 
 ---
 
@@ -55,11 +55,11 @@ ConnectionOverlayService (BaseService singleton)
 
 Two complementary signals are monitored so that disconnection is caught reliably under all conditions:
 
-1. **`hass.connection` WebSocket events** (primary) — `home-assistant-js-websocket` fires `'disconnected'` on close and `'ready'` on (re)connect on the `Connection` object. The library has **no** `'reconnected'` event — `'ready'` is the correct reconnect signal, and it fires after auth completes on both the initial connection and every subsequent reconnect. These fire regardless of dashboard activity, avoiding false positives from idle dashboards (no state changes → no `updateHass` calls is normal and is **not** a disconnect signal).
+1. **`hass.connection` WebSocket events** (primary): `home-assistant-js-websocket` fires `'disconnected'` on close and `'ready'` on (re)connect on the `Connection` object. The library has **no** `'reconnected'` event; `'ready'` is the correct reconnect signal, and it fires after auth completes on both the initial connection and every subsequent reconnect. These fire regardless of dashboard activity, avoiding false positives from idle dashboards (no state changes → no `updateHass` calls is normal and is **not** a disconnect signal).
 
-2. **`hass.connected` flag** (belt-and-suspenders) — HA propagates the `hass.connected` boolean on connect/disconnect transitions. `updateHass()` monitors it to catch any edge-cases where the WS event fires slightly outside the `updateHass` call cycle.
+2. **`hass.connected` flag** (belt-and-suspenders): HA propagates the `hass.connected` boolean on connect/disconnect transitions. `updateHass()` monitors it to catch any edge-cases where the WS event fires slightly outside the `updateHass` call cycle.
 
-The service subscribes to `hass.connection` events each time it sees a new `connection` object, and unsubscribes from the old one. Subscription is idempotent — re-subscribing to the same connection object is skipped.
+The service subscribes to `hass.connection` events each time it sees a new `connection` object, and unsubscribes from the old one. Subscription is idempotent: re-subscribing to the same connection object is skipped.
 
 ---
 
@@ -67,11 +67,11 @@ The service subscribes to `hass.connection` events each time it sees a new `conn
 
 ### Resolved config shape
 
-This mirrors `DEFAULT_CONFIG` in `ConnectionOverlayService.js` — the built-in defaults before any scoped-settings overrides are applied. **`enabled` defaults to `false`** — the overlay is opt-in and must be explicitly turned on per scope.
+This mirrors `DEFAULT_CONFIG` in `ConnectionOverlayService.js`: the built-in defaults before any scoped-settings overrides are applied. **`enabled` defaults to `false`**: the overlay is opt-in and must be explicitly turned on per scope.
 
 ```js
 {
-  enabled:  false,          // Opt-in — must be explicitly enabled per scope
+  enabled:  false,          // Opt-in - must be explicitly enabled per scope
   dismiss:  true,           // Whether clicking the backdrop dismisses it
   position: 'center',       // Content anchor: 'center' | 'top' | 'top-left' | 'bottom-right' | ...
   width:    'auto',         // CSS width for the content container ('auto' = size to content)
@@ -89,7 +89,7 @@ This mirrors `DEFAULT_CONFIG` in `ConnectionOverlayService.js` — the built-in 
     size:      42,             // px
     weight:    '400',          // CSS font-weight
     transform: 'uppercase',    // CSS text-transform
-    // SEM layers used only when mode = 'borg' — mirrors the connectivity tab's
+    // SEM layers used only when mode = 'borg' - mirrors the connectivity tab's
     // Borg-mode editor defaults (borg-assimilation canvas preset + saturate/tint).
     borgLayers: {
       canvas:   { preset: 'borg-assimilation', siteCount: 8, tendrilsPerSite: 5, tendrilLength: 600, particleCount: 2, color: 'var(--lcars-martian)', glowColor: 'var(--lcards-yellow)' },
@@ -138,7 +138,7 @@ This mirrors `DEFAULT_CONFIG` in `ConnectionOverlayService.js` — the built-in 
 
 ---
 
-## Config Resolution — Scoped Waterfall
+## Config Resolution: Scoped Waterfall
 
 Config is stored as **25 flat keys** in `ScopedSettingsService` (one per independently overridable field). Resolution order, first non-null wins:
 
@@ -146,7 +146,7 @@ Config is stored as **25 flat keys** in `ScopedSettingsService` (one per indepen
 Device scope → User scope → Global scope → Built-in defaults
 ```
 
-Flat keys are independent — a device-scoped colour does **not** clobber a global-scoped text value. This allows kiosks or individual users to override only the fields they care about.
+Flat keys are independent: a device-scoped colour does **not** clobber a global-scoped text value. This allows kiosks or individual users to override only the fields they care about.
 
 Config is re-read from the full waterfall after every HA reconnect (`_doReconnected()` → `loadConfig()`), so settings saved just before an HA restart are picked up automatically without a page reload. A brief in-memory optimistic patch is also applied immediately after a successful save so that `_onDisconnected()` sees the correct flags even if the subsequent `loadConfig()` WS reads are interrupted by an HA restart.
 
@@ -184,7 +184,7 @@ Config is re-read from the full waterfall after every HA reconnect (`_doReconnec
 
 ## Portal Structure
 
-The overlay is managed entirely by `PortalOverlayManager` (POM) under the named slot `'connection-overlay'`. `ConnectionOverlayService` calls `pom.show('connection-overlay', options)` and `pom.hide('connection-overlay')` — it does not manage any DOM directly.
+The overlay is managed entirely by `PortalOverlayManager` (POM) under the named slot `'connection-overlay'`. `ConnectionOverlayService` calls `pom.show('connection-overlay', options)` and `pom.hide('connection-overlay')`; it does not manage any DOM directly.
 
 POM injects the following structure into `ScreenEffectManager`'s shared `position:fixed` portal (`z-index:9100`, appended to `document.body`):
 
@@ -197,9 +197,9 @@ ScreenEffectManager portal  (position:fixed, inset:0, z:9100)
   │   └─ wrapperEl  (z:11)
   │
   └─ [slot: 'connection-overlay']
-      ├─ dismissEl              (position:absolute, inset:0, z:10)  — click-to-dismiss
+      ├─ dismissEl              (position:absolute, inset:0, z:10) - click-to-dismiss
       └─ wrapperEl              (position:absolute, inset:0, z:11, display:flex)
-          └─ contentContainer   (flex child — width/height from config)
+          └─ contentContainer   (flex child - width/height from config)
               └─ content card element  OR  text <div>
 ```
 
@@ -209,7 +209,7 @@ Slots are independent DOM subtrees. When both overlays are active, the connectio
 
 ## SEM Layer Ownership
 
-When the overlay is visible with `layers` configured, `PortalOverlayManager` acquires the `backdrop`, `canvas`, and `color` SEM slots on behalf of the `'connection-overlay'` slot. Only one POM slot can own the SEM effect slots at a time (last-in-wins). All three slots are explicitly cleared when the slot is hidden — even if only some were occupied — to avoid leaving stale effects.
+When the overlay is visible with `layers` configured, `PortalOverlayManager` acquires the `backdrop`, `canvas`, and `color` SEM slots on behalf of the `'connection-overlay'` slot. Only one POM slot can own the SEM effect slots at a time (last-in-wins). All three slots are explicitly cleared when the slot is hidden (even if only some were occupied) to avoid leaving stale effects.
 
 POM calls `sem.setOverlayOccupied(true)` as soon as any slot is shown, and `sem.setOverlayOccupied(false)` when all slots have been hidden.
 
@@ -217,7 +217,7 @@ POM calls `sem.setOverlayOccupied(true)` as soon as any slot is shown, and `sem.
 
 ## Alert Overlay Co-existence
 
-Both the connection overlay and the alert overlay use `PortalOverlayManager` with independent named slots (`'connection-overlay'` and `'alert-overlay'`). They stack freely — there is no suppression logic. If an alert is active and HA disconnects, the connection overlay appears on top of the alert overlay (last `appendChild` wins at equal z-index).
+Both the connection overlay and the alert overlay use `PortalOverlayManager` with independent named slots (`'connection-overlay'` and `'alert-overlay'`). They stack freely: there is no suppression logic. If an alert is active and HA disconnects, the connection overlay appears on top of the alert overlay (last `appendChild` wins at equal z-index).
 
 The SEM effect slots are shared (last-in-wins): the connection overlay's `layers` config will evict the alert overlay's SEM effects if both are active simultaneously. If the connection overlay is configured without `layers` (text or card mode only), the alert backdrop effects are unaffected.
 
@@ -231,7 +231,7 @@ When `config.reconnected.enabled` is `true`, a brief confirmation overlay is sho
 2. Either a custom card (`config.reconnected.content`) or a plain text `<div>` is rendered
 3. A timer fires after `auto_dismiss_seconds` and calls `_removePortal()`
 
-The banner uses `PortalOverlayManager` under the `'connection-overlay'` slot — the existing slot is replaced (last-in-wins). No additional DOM elements are created.
+The banner uses `PortalOverlayManager` under the `'connection-overlay'` slot; the existing slot is replaced (last-in-wins). No additional DOM elements are created.
 
 ---
 
@@ -249,7 +249,7 @@ An arbitrary HA card config (`config.content`) is mounted as a custom element vi
 
 ### Borg mode (`message.mode = 'borg'`)
 
-Instead of the standard portal overlay, a disconnect delegates entirely to `BorgAssimilationManager.assimilate(opts)` — `message.borgLayers` (minus `paletteHue`, passed separately) becomes the `intro` layer config. There is no `disconnect_delay_ms` tolerance window in this mode; assimilation starts immediately on disconnect. On reconnect, `BorgAssimilationManager.deassimilate()` reverts it — the `reconnected.*` text/banner fields are not used.
+Instead of the standard portal overlay, a disconnect delegates entirely to `BorgAssimilationManager.assimilate(opts)`: `message.borgLayers` (minus `paletteHue`, passed separately) becomes the `intro` layer config. There is no `disconnect_delay_ms` tolerance window in this mode; assimilation starts immediately on disconnect. On reconnect, `BorgAssimilationManager.deassimilate()` reverts it; the `reconnected.*` text/banner fields are not used.
 
 ---
 
@@ -327,18 +327,18 @@ Admin browser
 | Remote user scope | All sessions logged in as that user |
 | Own-user scope | All sessions logged in as the saving user |
 | Global scope | All connected browsers (no target filter) |
-| Own-device scope | No broadcast needed — `loadConfig()` runs locally |
+| Own-device scope | No broadcast needed: `loadConfig()` runs locally |
 
 ### Admin buttons in Config Panel action row
 
 | Button | Action |
 |---|---|
-| **Reload Config** | Broadcasts `reload_connection_config` to all browsers — they call `loadConfig()` without a page reload |
-| **Reload Pages** | Broadcasts `action: reload` — all browsers call `window.location.reload()` (nuclear option for deep state drift) |
+| **Reload Config** | Broadcasts `reload_connection_config` to all browsers; they call `loadConfig()` without a page reload |
+| **Reload Pages** | Broadcasts `action: reload`; all browsers call `window.location.reload()` (nuclear option for deep state drift) |
 
 ### Config Panel live update
 
 When a `reload_connection_config` event fires on a browser that has the Config Panel open:
 
-- **No unsaved edits**: the panel silently re-loads `_scopedValues` and rebuilds its form — badges update to reflect the new scope state.
-- **Unsaved edits present**: a blue info banner appears — "Settings were updated from another device. [Discard edits & refresh]" — preserving the in-progress work until the user decides.
+- **No unsaved edits**: the panel silently re-loads `_scopedValues` and rebuilds its form; badges update to reflect the new scope state.
+- **Unsaved edits present**: a blue info banner appears: "Settings were updated from another device. [Discard edits & refresh]", preserving the in-progress work until the user decides.

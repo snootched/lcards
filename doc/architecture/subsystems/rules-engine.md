@@ -1,12 +1,12 @@
 # Rules Engine
 
-> **`window.lcards.core.rulesManager`** — Evaluates conditions and hot-patches card styles at runtime.
+> **`window.lcards.core.rulesManager`**: Evaluates conditions and hot-patches card styles at runtime.
 
 ---
 
 ## Overview
 
-`RulesEngine` extends `BaseService`. It maintains a compiled index of rules, tracks which entities each rule depends on, and re-evaluates dirty rules on every HASS state push. Matched rules produce **patches** — plain style objects that are merged onto target overlays without those overlays needing to know the rule exists.
+`RulesEngine` extends `BaseService`. It maintains a compiled index of rules, tracks which entities each rule depends on, and re-evaluates dirty rules on every HASS state push. Matched rules produce **patches**: plain style objects that are merged onto target overlays without those overlays needing to know the rule exists.
 
 ---
 
@@ -24,8 +24,8 @@
 
 When `RulesEngine` is constructed it immediately compiles every rule's `when` block into an optimised predicate tree via `compileRule()` in `compileConditions.js`. The result is stored in `this.compiledRules` (a `Map<ruleId, { tree, deps }>`):
 
-- **`tree`** — a recursive node structure (`all`, `any`, `not`, leaf comparisons, `javascript`, `jinja2`) that `evalCompiled()` walks during evaluation.
-- **`deps`** — sets of entity IDs, performance-metric keys, and feature flags that the rule references, used to build the dependency index.
+- **`tree`**: a recursive node structure (`all`, `any`, `not`, leaf comparisons, `javascript`, `jinja2`) that `evalCompiled()` walks during evaluation.
+- **`deps`**: sets of entity IDs, performance-metric keys, and feature flags that the rule references, used to build the dependency index.
 
 Compilation happens once per `RulesEngine` instance (at construction). If rules are replaced, a new `RulesEngine` instance is created rather than mutating the existing one. Compilation issues (e.g. a plain string `condition` without `[[[ ]]]` or `{{ }}`) are logged as warnings and the affected rule falls back to an always-true node.
 
@@ -71,7 +71,7 @@ rules:
       above: 75
     apply:
       overlays:
-        tag:temp_widget:     # tag selector — all overlays tagged 'temp_widget'
+        tag:temp_widget:     # tag selector - all overlays tagged 'temp_widget'
           style:
             color: var(--lcars-red)
       animations:
@@ -106,11 +106,11 @@ rules:
 | `in` | array | State is one of the listed values |
 | `not_in` | array | State is not in the listed values |
 | `regex` | string | State matches regular expression |
-| `attribute` | string | Attribute name — pair with comparison operator |
-| `all` | condition[] | AND — all nested conditions must match |
-| `any` | condition[] | OR — at least one nested condition must match |
+| `attribute` | string | Attribute name: pair with comparison operator |
+| `all` | condition[] | AND: all nested conditions must match |
+| `any` | condition[] | OR: at least one nested condition must match |
 | `not` | condition | Negate a nested condition |
-| `condition` | string | JS `[[[code]]]` or Jinja2 `{{template}}` — truthy return |
+| `condition` | string | JS `[[[code]]]` or Jinja2 `{{template}}`: truthy return |
 | `jinja2` | string | Explicit Jinja2 template |
 | `javascript` | string | Explicit JavaScript expression |
 | `time_between` | `"HH:MM-HH:MM"` | True when current time is in range |
@@ -133,7 +133,7 @@ when:
 The condition-group editor's operator dropdown offers this as ready-made
 "between" / "between (exclusive)" options for entity and entity-attribute
 conditions. `sun_elevation`/`perf_metric` already expose all 4 bound fields
-at once, so a range needs no special operator there — just fill in two of
+at once, so a range needs no special operator there; just fill in two of
 the four fields.
 
 ---

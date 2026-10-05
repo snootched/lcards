@@ -238,7 +238,7 @@ export const SLIDER_PRESETS = {
   // =====================================
   'pills-left-border-rounded': {
     extends: 'slider.pills-left-border',
-    description: 'Pills slider with left border and rounded free-end corners. The left (bordered) end stays flat; only the right end is rounded — classic LCARS end-cap look. Override style.border.radius for a different radius or per-corner control.',
+    description: 'Pills slider with left border and rounded free-end corners. The left (bordered) end stays flat; only the right end is rounded, classic LCARS end-cap look. Override style.border.radius for a different radius or per-corner control.',
     compatibleComponents: ['default'],
 
     style: {

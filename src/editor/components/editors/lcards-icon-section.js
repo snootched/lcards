@@ -315,15 +315,15 @@ export class LCARdSIconSection extends LitElement {
                         • <strong>default</strong> → fallback for all other states
                         <br><br>
                         Numeric states (e.g. counts, sensor values):<br>
-                        • <strong>zero</strong> → entity state is exactly 0 — higher priority than ranges<br>
-                        • <strong>above:N</strong> → value &gt; N — e.g. <code>above:50</code><br>
-                        • <strong>at_least:N</strong> → value ≥ N — e.g. <code>at_least:50</code><br>
-                        • <strong>below:N</strong> → value &lt; N — e.g. <code>below:20</code><br>
-                        • <strong>at_most:N</strong> → value ≤ N — e.g. <code>at_most:20</code><br>
-                        • <strong>between:N:M</strong> → N ≤ value ≤ M — e.g. <code>between:20:80</code><br>
-                        • <strong>between_exclusive:N:M</strong> → N &lt; value &lt; M — e.g. <code>between_exclusive:20:80</code><br>
+                        • <strong>zero</strong> → entity state is exactly 0, higher priority than ranges<br>
+                        • <strong>above:N</strong> → value &gt; N, e.g. <code>above:50</code><br>
+                        • <strong>at_least:N</strong> → value ≥ N, e.g. <code>at_least:50</code><br>
+                        • <strong>below:N</strong> → value &lt; N, e.g. <code>below:20</code><br>
+                        • <strong>at_most:N</strong> → value ≤ N, e.g. <code>at_most:20</code><br>
+                        • <strong>between:N:M</strong> → N ≤ value ≤ M, e.g. <code>between:20:80</code><br>
+                        • <strong>between_exclusive:N:M</strong> → N &lt; value &lt; M, e.g. <code>between_exclusive:20:80</code><br>
                         When multiple ranges match, the most specific one wins (narrowest / highest above/at_least / lowest below/at_most).<br>
-                        • <strong>non_zero</strong> → any non-zero number — catch-all when no range matched<br>
+                        • <strong>non_zero</strong> → any non-zero number, catch-all when no range matched<br>
                     </div>
                     ` : ''}
                 </div>

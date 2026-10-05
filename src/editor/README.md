@@ -75,20 +75,20 @@ render() {
             </ha-tab-group-tab>
         </ha-tab-group>
 
-        <!-- Tab Panels (use ha-tab-panel for proper structure) -->
+        <!-- Tab panels: plain divs (HA has no ha-tab-panel element) -->
         ${this._activeTab === 'config' ? html`
-            <ha-tab-panel>
+            <div class="tab-panel">
                 <div class="tab-panel-content">
                     <!-- Content here -->
                 </div>
-            </ha-tab-panel>
+            </div>
         ` : ''}
         ${this._activeTab === 'style' ? html`
-            <ha-tab-panel>
+            <div class="tab-panel">
                 <div class="tab-panel-content">
                     <!-- Content here -->
                 </div>
-            </ha-tab-panel>
+            </div>
         ` : ''}
     `;
 }
@@ -110,7 +110,7 @@ _handleTabChange(event) {
 - Handler: `event.target.activeTab?.getAttribute('value')`
 
 **Scrolling:**
-- Wrap content in `.tab-panel-content` div (ha-tab-panel has shadow DOM)
+- Wrap content in a `.tab-panel-content` div
 - CSS: `overflow-y: auto; max-height: calc(75vh - 120px); padding: 16px;`
 
 #### Dialogs (`lcards-dialog`)
@@ -2177,7 +2177,7 @@ Comprehensive polish and consistency pass across all editor components to standa
   - Removed ~55 lines of custom `.view-tab` CSS
 
 - ✅ **DataSource Editor** - Card Sources, Global Sources
-  - Refactored to use `<ha-tab-panel>` structure
+  - Refactored to use `ha-tab-group` tabs with plain `<div class="tab-panel">` panels
   - Removed ~40 lines of custom `.tab` CSS
 
 **HA Native Tab Pattern**:
@@ -2188,9 +2188,9 @@ Comprehensive polish and consistency pass across all editor components to standa
   <ha-tab-group-tab value="0" ?active=${this._selectedTab === 0}>
     Label
   </ha-tab-group-tab>
-  <ha-tab-panel value="0" ?hidden=${this._selectedTab !== 0}>
+  <div class="tab-panel" ?hidden=${this._selectedTab !== 0}>
     Content
-  </ha-tab-panel>
+  </div>
 </ha-tab-group>
 
 _handleTabChange(event) {
