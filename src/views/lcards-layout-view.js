@@ -196,8 +196,8 @@ export class LCARdSLayoutView extends LitElement {
     }
 
     set hass(hass) {
+        // hui-view already sets hass on every card element before the view itself.
         this._hass = hass;
-        this._propagateHass();
         if (this._editOverlayEl) this._editOverlayEl.hass = hass;
         // No row recompute here: visibility-driven rows follow hui-card's own
         // `card-visibility-changed` event (see connectedCallback), so entity
@@ -1194,16 +1194,6 @@ export class LCARdSLayoutView extends LitElement {
             composed: true,
             detail: { suggested: [] },
         }));
-    }
-
-    _propagateHass() {
-        if (!this._hass || !this._cardElements) return;
-        for (const cardEl of this._cardElements) {
-            try {
-                if (typeof cardEl.setHass === 'function') cardEl.setHass(this._hass);
-                else cardEl.hass = this._hass;
-            } catch { /* ignore */ }
-        }
     }
 
     /**

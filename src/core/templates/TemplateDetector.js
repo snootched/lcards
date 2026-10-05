@@ -35,30 +35,29 @@ export class TemplateDetector {
    * Detect what types of templates are present in content
    *
    * @param {string} content - Content to analyze
-   * @returns {{hasMSD: boolean, hasDatasources: boolean, hasHA: boolean, hasJinja2: boolean, hasJavaScript: boolean, hasTokens: boolean}}
+   * @returns {{hasMSD: boolean, hasDatasources: boolean, hasJinja2: boolean, hasJavaScript: boolean, hasTokens: boolean}}
    *
    * @example
    * TemplateDetector.detectTemplateTypes('{sensor.temp}')
-   * // => { hasMSD: true, hasDatasources: false, hasHA: false, hasJinja2: false, hasJavaScript: false, hasTokens: false }
+   * // => { hasMSD: true, hasDatasources: false, hasJinja2: false, hasJavaScript: false, hasTokens: false }
    *
    * TemplateDetector.detectTemplateTypes('{datasource:sensor.temp}')
-   * // => { hasMSD: false, hasDatasources: true, hasHA: false, hasJinja2: false, hasJavaScript: false, hasTokens: false }
+   * // => { hasMSD: false, hasDatasources: true, hasJinja2: false, hasJavaScript: false, hasTokens: false }
    *
    * TemplateDetector.detectTemplateTypes('{{states("sensor.temp")}}')
-   * // => { hasMSD: false, hasDatasources: false, hasHA: true, hasJinja2: true, hasJavaScript: false, hasTokens: false }
+   * // => { hasMSD: false, hasDatasources: false, hasJinja2: true, hasJavaScript: false, hasTokens: false }
    *
    * TemplateDetector.detectTemplateTypes('[[[return entity.state]]]')
-   * // => { hasMSD: false, hasDatasources: false, hasHA: false, hasJinja2: false, hasJavaScript: true, hasTokens: false }
+   * // => { hasMSD: false, hasDatasources: false, hasJinja2: false, hasJavaScript: true, hasTokens: false }
    *
    * TemplateDetector.detectTemplateTypes('{entity.state}')
-   * // => { hasMSD: false, hasDatasources: false, hasHA: false, hasJinja2: false, hasJavaScript: false, hasTokens: true }
+   * // => { hasMSD: false, hasDatasources: false, hasJinja2: false, hasJavaScript: false, hasTokens: true }
    */
   static detectTemplateTypes(content) {
     if (!content || typeof content !== 'string') {
       return {
         hasMSD: false,
         hasDatasources: false,
-        hasHA: false,
         hasJinja2: false,
         hasJavaScript: false,
         hasTokens: false
@@ -68,7 +67,6 @@ export class TemplateDetector {
     return {
       hasMSD: this.hasMSDTemplates(content),
       hasDatasources: this.hasMSDDatasources(content),
-      hasHA: this.hasJinja2Templates(content),
       hasJinja2: this.hasJinja2Templates(content),
       hasJavaScript: this.hasJavaScript(content),
       hasTokens: this.hasTokens(content)
@@ -177,18 +175,6 @@ export class TemplateDetector {
   }
 
   /**
-   * Check if content has Home Assistant templates
-   *
-   * Alias for hasJinja2Templates() for backward compatibility
-   *
-   * @param {string} content - Content to check
-   * @returns {boolean} True if has HA templates ({{...}})
-   */
-  static hasHATemplates(content) {
-    return this.hasJinja2Templates(content);
-  }
-
-  /**
    * Check if content has JavaScript templates
    *
    * JavaScript templates use triple brackets: [[[JavaScript code]]]
@@ -274,9 +260,9 @@ export class TemplateDetector {
 
     if (types.hasMSD) result.push('MSD');
     if (types.hasDatasources) result.push('Datasource');
-    if (types.hasHA) result.push('HA');
+    if (types.hasJinja2) result.push('HA');
     if (types.hasJavaScript) result.push('JavaScript');
-    if (types.hasTokens && !types.hasHA) result.push('Token');
+    if (types.hasTokens && !types.hasJinja2) result.push('Token');
 
     return result;
   }

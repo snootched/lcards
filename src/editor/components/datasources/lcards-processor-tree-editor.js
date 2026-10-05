@@ -604,7 +604,6 @@ export class LCARdSProcessorTreeEditor extends LitElement {
       </div>
 
       <lcards-processor-editor
-        // @ts-ignore - TS2339: auto-suppressed
         .hass="${this.hass}"
         .mode="${this._editorMode}"
         .processorKey="${this._editingKey}"

@@ -2755,7 +2755,6 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Useful for determining which theme colors/styles to apply
      *
      * Enhanced to support more domains and state patterns.
-     * Alias: _getButtonState() for backward compatibility
      *
      * @param {Object} entity - Entity state object (optional, uses card's entity if not provided)
      * @returns {string} State classification: 'active', 'inactive', 'unavailable', or 'default'
@@ -2816,16 +2815,6 @@ export class LCARdSCard extends LCARdSNativeCard {
         return sc?.else ?? 'inactive';
     }
 
-    /**
-     * Alias for _classifyEntityState() for backward compatibility
-     * Used by button, elbow, and slider cards
-     * @returns {string} State classification
-     * @protected
-     */
-    _getButtonState() {
-        return this._classifyEntityState();
-    }
-
     // ============================================================================
     // STATE-BASED COLOR RESOLUTION
     // ============================================================================
@@ -2850,7 +2839,7 @@ export class LCARdSCard extends LCARdSNativeCard {
     _resolveEntityStateColor(colorConfig, fallback = null) {
         return this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: colorConfig,
             fallback: fallback
         });
@@ -4648,21 +4637,9 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @protected
      */
     _attachSegmentActions(element, segment) {
-        // This is a placeholder - subclasses should implement if needed
-        // or use LCARdSActionHandler directly
-        const listeners = [];
-
-        if (segment.tap_action) {
-            const handler = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this._actionHandler.handleAction(element, this.hass, segment.tap_action, 'tap');
-            };
-            element.addEventListener('click', handler);
-            listeners.push(() => element.removeEventListener('click', handler));
-        }
-
-        // Return cleanup function
-        return () => listeners.forEach(cleanup => cleanup());
+        const { tap_action, hold_action, double_tap_action } = segment;
+        if (!tap_action && !hold_action && !double_tap_action) return () => {};
+        // SVG segment elements: setupActions only attaches listeners, so the cast is safe.
+        return this.setupActions(/** @type {HTMLElement} */ (element), { tap_action, hold_action, double_tap_action }, { elementId: segment.id });
     }
 }

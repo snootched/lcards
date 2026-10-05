@@ -20,6 +20,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { haFormatState, haFormatAttrValue, haFormatAttrName } from '../../../utils/ha-entity-display.js';
+import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 
 export class LCARdSDataSourceBrowser extends LitElement {
   static get properties() {
@@ -416,31 +417,13 @@ export class LCARdSDataSourceBrowser extends LitElement {
 
     const configJson = JSON.stringify(config, null, 2);
 
-    try {
-      await navigator.clipboard.writeText(configJson);
-
-      // Show success feedback (using alert for now, can be enhanced with toast)
-      const event = new CustomEvent('show-notification', {
-        detail: {
-          message: `Config for "${sourceName}" copied to clipboard`,
-          type: 'success'
-        },
-        bubbles: true,
-        composed: true
-      });
-      this.dispatchEvent(event);
-    } catch (error) {
-      lcardsLog.error('[DataSourceBrowser] Failed to copy config:', error);
-      const event = new CustomEvent('show-notification', {
-        detail: {
-          message: 'Failed to copy config to clipboard',
-          type: 'error'
-        },
-        bubbles: true,
-        composed: true
-      });
-      this.dispatchEvent(event);
-    }
+    const ok = await copyTextToClipboard(configJson);
+    // HA's toast system listens for hass-notification
+    this.dispatchEvent(new CustomEvent('hass-notification', {
+      detail: { message: ok ? `Config for "${sourceName}" copied to clipboard` : 'Failed to copy config to clipboard' },
+      bubbles: true,
+      composed: true
+    }));
   }
 
   /**

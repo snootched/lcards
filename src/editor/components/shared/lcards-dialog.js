@@ -77,7 +77,6 @@ export class LCARdSDialog extends LitElement {
     return html`
       <ha-dialog
         .open=${this.open}
-        // @ts-ignore - TS2339: auto-suppressed
         .headerTitle=${this.heading || undefined}
         ?prevent-scrim-close=${preventClose}
         @closed=${this._handleClosed}>

@@ -105,15 +105,6 @@ export class RollingBuffer {
   }
 
   /**
-   * Add method (alias for push for compatibility)
-   * @param {number} timestamp - Data timestamp
-   * @param {number} value - Data value
-   */
-  add(timestamp, value) {
-    return this.push(timestamp, value);
-  }
-
-  /**
    * Get data as parallel arrays { t: timestamps[], v: values[] }
    * Returns data in chronological order (oldest first)
    */

@@ -262,15 +262,6 @@ export class LCARdSColorSection extends LitElement {
     }
 
     /**
-     * Render simple single color picker (legacy, for backward compatibility)
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderSimpleColor() {
-        return this._renderSingleColor();
-    }
-
-    /**
      * Render single color picker
      * @returns {TemplateResult}
      * @private

@@ -2607,7 +2607,7 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // 3. Get current button state and actual entity state
-        const buttonState = this._getButtonState();
+        const buttonState = this._classifyEntityState();
         const actualEntityState = this._entity?.state;
 
         // 4. Apply state-based theme defaults (only if not explicitly set in config)
@@ -2893,7 +2893,7 @@ export class LCARdSButton extends LCARdSCard {
             if (typeof iconStyle.icon === 'object') {
                 const resolvedIconName = this._resolveStateValue({
                     actualState: this._entity?.state,
-                    classifiedState: this._getButtonState(),
+                    classifiedState: this._classifyEntityState(),
                     colorConfig: iconStyle.icon,
                     fallback: iconName
                 });
@@ -2931,7 +2931,7 @@ export class LCARdSButton extends LCARdSCard {
             }
 
             // Get current button state for state-based colors
-            const buttonState = this._getButtonState();
+            const buttonState = this._classifyEntityState();
 
             // Get theme tokens for icons
             const iconTokens = /** @type {any} */(this)._theme?.tokens?.components?.button?.icon || {};
@@ -3327,7 +3327,6 @@ export class LCARdSButton extends LCARdSCard {
         lcardsLog.trace(`[LCARdSButton] Tracking ${this._trackedEntities.length} entities`, this._trackedEntities);
     }
 
-    // NOTE: _getButtonState() is now inherited from LCARdSCard base class
     // Provides standardized state classification across all cards
 
     /**
@@ -4223,7 +4222,7 @@ export class LCARdSButton extends LCARdSCard {
             return null;
         }
 
-        const buttonState = this._buttonStyle?._currentState || this._getButtonState();
+        const buttonState = this._buttonStyle?._currentState || this._classifyEntityState();
         const actualEntityState = this._entity?.state;
 
         // Merge user config with preset defaults
@@ -4513,7 +4512,7 @@ export class LCARdSButton extends LCARdSCard {
     _generateButtonSVG(width, height, config) {
         // Read styling from _buttonStyle (resolved from preset/tokens)
         // Use CB-LCARS nested schema
-        const buttonState = this._buttonStyle?._currentState || this._getButtonState();
+        const buttonState = this._buttonStyle?._currentState || this._classifyEntityState();
         const actualEntityState = this._entity?.state;
 
         // Background color: card.color.background.{state}
@@ -4823,7 +4822,7 @@ export class LCARdSButton extends LCARdSCard {
         };
 
         // Get current state for state-based colors
-        const state = this._getButtonState();
+        const state = this._classifyEntityState();
 
         // Width: border.width (can be object for per-side or single value)
         let globalWidth = 2;
@@ -5411,7 +5410,7 @@ export class LCARdSButton extends LCARdSCard {
         const textAreaBounds = this._calculateTextAreaBounds(buttonWidth, buttonHeight, iconConfig);
 
         // Get entity state for color resolution
-        const entityState = this._getButtonState();
+        const entityState = this._classifyEntityState();
 
         for (const [fieldId, field] of Object.entries(textFields)) {
             // Skip if not visible
@@ -5792,7 +5791,7 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // Color resolution context
-        const entityState       = this._getButtonState();
+        const entityState       = this._classifyEntityState();
         const actualEntityState = this._entity?.state;
 
         const textElements = [];

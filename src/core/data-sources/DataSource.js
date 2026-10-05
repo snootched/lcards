@@ -176,30 +176,6 @@ export class DataSource {
   }
 
   /**
-   * Getter for backward compatibility - redirects to ProcessorManager
-   * @deprecated Use this.processorManager.processors instead
-   */
-  get transformations() {
-    return this.processorManager ? this.processorManager.processors : new Map();
-  }
-
-  /**
-   * Getter for backward compatibility - redirects to ProcessorManager
-   * @deprecated Use this.processorManager.processors instead
-   */
-  get aggregations() {
-    return this.processorManager ? this.processorManager.processors : new Map();
-  }
-
-  /**
-   * Getter for backward compatibility - redirects to ProcessorManager
-   * Provides unified access to all processors
-   */
-  get processing() {
-    return this.processorManager ? this.processorManager.processors : new Map();
-  }
-
-  /**
    * Start the data source with proper initialization sequence
    * @returns {Promise} Resolves when fully initialized
    */
@@ -719,9 +695,14 @@ export class DataSource {
     return results;
   }
 
+  /** @returns {Map} Configured processors (empty when none). */
+  _processors() {
+    return this.processorManager ? this.processorManager.processors : new Map();
+  }
+
   /**
-   * Enhanced debug method to show transformation and aggregation data
-   * @returns {Object} Debug information including transformations and aggregations
+   * Enhanced debug method to show processor data
+   * @returns {Object} Debug information including processor outputs
    */
   getDebugInfo() {
     const currentData = this.getCurrentData();
@@ -731,15 +712,11 @@ export class DataSource {
       currentValue: currentData.v,
       timestamp: currentData.t ? new Date(currentData.t).toISOString() : null,
       bufferSize: this.buffer.size(),
-      transformations: {
-        count: this.transformations.size,
-        data: currentData.transformations,
-        processors: Array.from(this.transformations.keys())
-      },
-      aggregations: {
-        count: this.aggregations.size,
-        data: currentData.aggregations,
-        processors: Array.from(this.aggregations.keys())
+      processors: {
+        count: this._processors().size,
+        keys: Array.from(this._processors().keys()),
+        transformations: currentData.transformations,
+        aggregations: currentData.aggregations
       },
       stats: currentData.stats
     };
@@ -1182,13 +1159,9 @@ export class DataSource {
       },
       buffer: this.buffer.getStats(),
       subscribers: this.subscribers.size,
-      transformations: {
-        size: this.transformations.size,
-        keys: Array.from(this.transformations.keys())
-      },
-      aggregations: {
-        size: this.aggregations.size,
-        keys: Array.from(this.aggregations.keys())
+      processors: {
+        size: this._processors().size,
+        keys: Array.from(this._processors().keys())
       },
       state: {
         started: this._started,

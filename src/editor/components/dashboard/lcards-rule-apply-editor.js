@@ -21,6 +21,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
 import '../shared/lcards-form-section.js';
+import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 
 /** MDI path for content-copy icon */
 const MDI_COPY = 'M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z';
@@ -218,9 +219,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
     }
 
     _copyToClipboard(text) {
-        navigator.clipboard?.writeText(text).catch(() => {
-            lcardsLog.warn('[LCARdSRuleApplyEditor] clipboard copy failed');
-        });
+        copyTextToClipboard(text);
     }
 
     // ─── Render ──────────────────────────────────────────────────────────────
@@ -238,7 +237,6 @@ export class LCARdSRuleApplyEditor extends LitElement {
                     ?outlined=${false}>
 
                     <ha-code-editor
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .value=${this._yamlText}
                         mode="yaml"

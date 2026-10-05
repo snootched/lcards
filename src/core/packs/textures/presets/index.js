@@ -187,9 +187,3 @@ export const CANVAS_TEXTURE_PRESETS = {
     },
 
 };
-
-/**
- * Backward-compat alias — existing imports of SHAPE_TEXTURE_PRESETS continue to work.
- * @type {typeof CANVAS_TEXTURE_PRESETS}
- */
-export const SHAPE_TEXTURE_PRESETS = CANVAS_TEXTURE_PRESETS;

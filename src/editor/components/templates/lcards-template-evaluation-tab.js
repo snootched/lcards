@@ -21,6 +21,7 @@ import { editorStyles } from '../../base/editor-styles.js';
 import '../shared/lcards-message.js';
 import '../shared/lcards-form-section.js';
 import './lcards-template-sandbox.js';
+import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 
 export class LCARdSTemplateEvaluationTab extends LitElement {
   static get properties() {
@@ -727,43 +728,17 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
    * Copy text to clipboard with visual feedback
    */
   async _copyToClipboard(text, event) {
-    try {
-      await navigator.clipboard.writeText(text);
-
-      // Show success feedback on the icon button that was clicked
-      const button = event.target.closest('ha-icon-button');
-      if (button) {
-        const iconElement = button.querySelector('ha-icon');
-        if (iconElement) {
-          const originalIcon = iconElement.icon;
-          iconElement.icon = 'mdi:check';
-          iconElement.style.color = 'var(--success-color, #4caf50)';
-
-          setTimeout(() => {
-            iconElement.icon = originalIcon;
-            iconElement.style.color = '';
-          }, 2000);
-        }
-      }
-    } catch (error) {
-      lcardsLog.error('[TemplateEvaluationTab] Failed to copy to clipboard:', error);
-
-      // Show error feedback
-      const button = event.target.closest('ha-icon-button');
-      if (button) {
-        const iconElement = button.querySelector('ha-icon');
-        if (iconElement) {
-          const originalIcon = iconElement.icon;
-          iconElement.icon = 'mdi:alert-circle';
-          iconElement.style.color = 'var(--error-color, #f44336)';
-
-          setTimeout(() => {
-            iconElement.icon = originalIcon;
-            iconElement.style.color = '';
-          }, 2000);
-        }
-      }
-    }
+    const ok = await copyTextToClipboard(text);
+    // Flash the clicked icon button: check on success, alert on failure
+    const iconElement = event.target.closest('ha-icon-button')?.querySelector('ha-icon');
+    if (!iconElement) return;
+    const originalIcon = iconElement.icon;
+    iconElement.icon = ok ? 'mdi:check' : 'mdi:alert-circle';
+    iconElement.style.color = ok ? 'var(--success-color, #4caf50)' : 'var(--error-color, #f44336)';
+    setTimeout(() => {
+      iconElement.icon = originalIcon;
+      iconElement.style.color = '';
+    }, 2000);
   }
 
   /**
@@ -772,9 +747,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
   _renderSandbox() {
     return html`
       <lcards-template-sandbox
-        // @ts-ignore - TS2339: auto-suppressed
         .hass=${this.hass}
-        // @ts-ignore - TS2339: auto-suppressed
         .config=${this.config}
         .open=${this._sandboxOpen}
         .initialData=${this._sandboxInitialData}

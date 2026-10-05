@@ -206,7 +206,6 @@ export class LCARdSFontSelector extends LitElement {
 
         return html`
             <ha-selector
-                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{
                     select: {
@@ -229,7 +228,6 @@ export class LCARdSFontSelector extends LitElement {
     _renderCustomInput() {
         return html`
             <ha-selector
-                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ text: {} }}
                 .value=${this._displayValue || ''}

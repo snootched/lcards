@@ -168,7 +168,7 @@ Every pack is a plain JavaScript object. All keys are optional; PackManager igno
 | `lcards_alerts` | `lcards-alerts-pack.js` | `audio_assets` | AssetManager |
 | `builtin_msd_backgrounds` | `builtin-msd.js` | `svg_assets` | AssetManager |
 | `core_fonts` | `core-fonts-pack.js` | `font_assets` | AssetManager |
-| `lcards_textures` | `lcards-textures-pack.js` | *(metadata only: `SHAPE_TEXTURE_PRESETS` consumed directly by render methods)* | Pack Explorer |
+| `lcards_textures` | `lcards-textures-pack.js` | *(metadata only: `CANVAS_TEXTURE_PRESETS` consumed directly by render methods)* | Pack Explorer |
 | `lcards_images` | `lcards-images-pack.js` | `image_assets` | AssetManager |
 | `lcards_power` | `lcards-power-pack.js` | `audio_assets` | AssetManager |
 

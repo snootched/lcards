@@ -357,7 +357,6 @@ export class AlertModeColorWheel extends LitElement {
         y="${y2 * 1.1}"
         class="wheel-label"
         style="font-weight: 600;">
-        // @ts-ignore - TS2339: auto-suppressed
         Target Hue: ${this.hueShift}°
       </text>
     `;
@@ -374,7 +373,6 @@ export class AlertModeColorWheel extends LitElement {
 
     return svg`
       <g class="transform-arrows">
-        // @ts-ignore - TS2339: auto-suppressed
         ${this.originalColors
           .filter(orig => !this.hiddenVariables.has(orig.varName))
           .map((orig, filteredIndex) => {
@@ -414,7 +412,6 @@ export class AlertModeColorWheel extends LitElement {
   _renderOriginalDots() {
     return svg`
       <g class="original-dots">
-        // @ts-ignore - TS2339: auto-suppressed
         ${this.originalColors
           .filter(colorData => !this.hiddenVariables.has(colorData.varName))
           .map(colorData => {
@@ -446,7 +443,6 @@ ${colorData.color}</title>
   _renderTransformedDots() {
     return svg`
       <g class="transformed-dots">
-        // @ts-ignore - TS2339: auto-suppressed
         ${this.transformedColors
           // @ts-ignore - TS2339: auto-suppressed
           .filter((_, index) => !this.hiddenVariables.has(this.originalColors[index]?.varName))

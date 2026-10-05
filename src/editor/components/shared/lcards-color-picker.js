@@ -79,6 +79,7 @@ import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 import { getColorFamily, getColorSortKey, compareColorSortKeys, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
 import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
 import { getKnownVariableCatalog } from '../../../core/themes/knownThemeVariables.js';
+import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 
 /** Catalog categories that are colors (excludes lcars-structural: radius/border-width/font-family vars). */
 const KNOWN_COLOR_CATALOG_CATEGORIES = new Set(['lcards-palette', 'lcars-semantic', 'lcars-named', 'msd', 'ha-palette', 'ha-semantic', 'ha-legacy']);
@@ -1170,7 +1171,6 @@ export class LCARdSColorPicker extends LitElement {
             <div class="custom-color-input">
                 <span class="color-swatch-sm" style="background-color: ${previewColor};"></span>
                 <ha-selector
-                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .selector=${{ text: {} }}
                     .value=${currentVal || ''}
@@ -1525,7 +1525,6 @@ export class LCARdSColorPicker extends LitElement {
                 <div class="builder-row">
                     <label>${this._getAmountLabel()}: ${this._amount}%</label>
                     <ha-selector
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .selector=${{ number: { min: 0, max: 100, step: 5, mode: 'slider' }}}
                         .value=${this._amount}
@@ -2193,28 +2192,13 @@ export class LCARdSColorPicker extends LitElement {
         const expression = this._buildExpression();
         if (!expression) return;
 
-        try {
-            if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(expression);
-            } else {
-                // Fallback for HTTP / iframe contexts where clipboard API is unavailable
-                const ta = document.createElement('textarea');
-                ta.value = expression;
-                ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-            }
-            this._copySuccess = true;
+        if (!(await copyTextToClipboard(expression))) return;
+        this._copySuccess = true;
+        this.requestUpdate();
+        setTimeout(() => {
+            this._copySuccess = false;
             this.requestUpdate();
-            setTimeout(() => {
-                this._copySuccess = false;
-                this.requestUpdate();
-            }, 2000);
-        } catch (err) {
-            lcardsLog.debug('[ColorPicker] Failed to copy expression:', err);
-        }
+        }, 2000);
     }
 
     /**

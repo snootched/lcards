@@ -285,7 +285,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     <div class="identity-grid">
                         <div>
                             <ha-selector
-                                // @ts-ignore - TS2339: auto-suppressed
                                 .hass=${this.hass}
                                 .label=${'Rule ID *'}
                                 .helper=${'Unique identifier: letters, digits, _ or - (must start with letter or _)'}
@@ -301,7 +300,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
                         </div>
                         <div>
                             <ha-selector
-                                // @ts-ignore - TS2339: auto-suppressed
                                 .hass=${this.hass}
                                 .label=${'Name (optional)'}
                                 .helper=${'Human-readable label for this rule'}
@@ -315,7 +313,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     <!-- Priority + Enabled + Stop row -->
                     <div class="identity-right">
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Priority'}
                             .helper=${'Higher values execute first (0–1000)'}
@@ -325,7 +322,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
                         </ha-selector>
 
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Enabled'}
                             .helper=${'Disable to temporarily skip this rule'}
@@ -335,7 +331,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
                         </ha-selector>
 
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Stop Processing'}
                             .helper=${'When true, lower-priority rules will not be evaluated after this one matches'}
@@ -355,7 +350,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     ?outlined=${false}>
 
                     <lcards-condition-group-editor
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .value=${this._when}
                         @value-changed=${(e) => this._when = e.detail.value}>
@@ -378,9 +372,7 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     ` : ''}
 
                     <lcards-rule-apply-editor
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
-                        // @ts-ignore - TS2339: auto-suppressed
                         .editor=${this.editor}
                         .value=${this._apply}
                         @value-changed=${(e) => {

@@ -366,6 +366,3 @@ export class ProcessorManager {
     this._executionOrderValid = false;
   }
 }
-
-// Re-export Processor for backward compatibility
-export { Processor } from './processors/BaseProcessor.js';

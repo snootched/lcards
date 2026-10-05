@@ -164,12 +164,10 @@ export class LCARdSDataSourceEditorTab extends LitElement {
       </div>
 
       <lcards-datasource-studio-dialog
-        // @ts-ignore - TS2339: auto-suppressed
         .hass=${this.hass}
         .mode=${this._dialogMode}
         .sourceName=${this._editingSource?.name}
         .sourceConfig=${this._editingSource?.config}
-        // @ts-ignore - TS2339: auto-suppressed
         .cardConfig=${this.editor?.config}
         .open=${this._dialogOpen}
         @save=${this._handleDialogSave}
@@ -178,9 +176,7 @@ export class LCARdSDataSourceEditorTab extends LitElement {
 
       <lcards-datasource-browser
         ${ref(this._browserRef)}
-        // @ts-ignore - TS2339: auto-suppressed
         .hass=${this.hass}
-        // @ts-ignore - TS2339: auto-suppressed
         .cardConfig=${this.editor?.config}
         .open=${this._browserOpen}
         @close=${() => this._browserOpen = false}
@@ -206,11 +202,8 @@ export class LCARdSDataSourceEditorTab extends LitElement {
       </div>
 
       <lcards-card-datasources-list
-        // @ts-ignore - TS2339: auto-suppressed
         .editor=${this.editor}
-        // @ts-ignore - TS2339: auto-suppressed
         .config=${this.editor.config}
-        // @ts-ignore - TS2339: auto-suppressed
         .hass=${this.hass}
         @edit-datasource=${this._handleEditRequest}
         @delete-datasource=${this._handleDeleteRequest}
@@ -222,7 +215,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
   _renderGlobalSources() {
     return html`
       <lcards-global-datasources-panel
-        // @ts-ignore - TS2339: auto-suppressed
         .hass=${this.hass}>
       </lcards-global-datasources-panel>
     `;

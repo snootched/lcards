@@ -18,7 +18,6 @@ Three data modes with prominent card-style buttons:
 - **DataSource Mode**: Real-time data from sensors or DataSources
 
 ### 3. Integrated Grid Designer
-- Embeds `lcards-visual-grid-designer` component
 - Visual controls for rows, columns, and gap
 - Supports both visual and CSS text editor modes
 
@@ -310,7 +309,7 @@ The dialog follows LCARdS patterns:
 
 1. **Extends LitElement**: Uses Lit for templating and reactivity
 2. **Uses lcards-dialog**: Wraps ha-dialog with proper event handling
-3. **Integrates existing components**: Reuses visual-grid-designer, live-preview, color-section, etc.
+3. **Integrates existing components**: Reuses shared components (lcards-form-section, lcards-color-section, etc.)
 4. **Launches sub-dialogs**: Opens specialized dialogs for template/datasource/spreadsheet configuration
 5. **Implements validation**: Validates before save with helpful error messages
 6. **Responsive design**: Adapts layout for mobile devices
@@ -322,11 +321,7 @@ The dialog imports and uses:
 - `lcards-dialog`: Base dialog wrapper
 - `lcards-form-section`: Collapsible sections
 - `lcards-message`: Info/warning messages
-- `lcards-visual-grid-designer`: Grid configuration
 - `lcards-color-section`: Color configuration
-- `lcards-data-grid-live-preview`: Live preview
-- `lcards-template-editor-dialog`: Template row editor
-- `lcards-datasource-picker-dialog`: DataSource selection
 - `lcards-spreadsheet-editor-dialog`: Spreadsheet configuration
 
 ## Styling

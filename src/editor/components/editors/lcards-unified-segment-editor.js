@@ -257,7 +257,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     Applied to all segments unless overridden (${basePath})
                 </div>
                 <lcards-multi-action-editor
-                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .actions=${this._getDefaultActions()}
                     @value-changed=${this._handleDefaultActionsChange}>
@@ -271,9 +270,7 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     ?expanded=${false}>
 
                     <lcards-color-section-v2
-                        // @ts-ignore - TS2339: auto-suppressed
                         .editor=${this.editor}
-                        // @ts-ignore - TS2339: auto-suppressed
                         .config=${this.editor.config}
                         basePath="${basePath}.style.fill"
                         header="Fill"
@@ -284,9 +281,7 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     </lcards-color-section-v2>
 
                     <lcards-color-section-v2
-                        // @ts-ignore - TS2339: auto-suppressed
                         .editor=${this.editor}
-                        // @ts-ignore - TS2339: auto-suppressed
                         .config=${this.editor.config}
                         basePath="${basePath}.style.stroke"
                         header="Stroke"
@@ -297,14 +292,11 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     </lcards-color-section-v2>
 
                     <ha-selector
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .label=${'Stroke Width'}
                         .helper=${'SVG stroke width (number or string)'}
                         .selector=${{ text: {} }}
-                        // @ts-ignore - TS2339: auto-suppressed
                         .value=${this.editor._getConfigValue(`${basePath}.style.stroke-width`) || ''}
-                        // @ts-ignore - TS2339: auto-suppressed
                         @value-changed=${(e) => this.editor._setConfigValue(`${basePath}.style.stroke-width`, e.detail.value)}>
                     </ha-selector>
                 </lcards-form-section>
@@ -323,10 +315,8 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     </lcards-message>
 
                     <lcards-animation-editor
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .animations=${defaultConfig.animations || []}
-                        // @ts-ignore - TS2339: auto-suppressed
                         .cardElement=${this.editor._cardElement}
                         @animations-changed=${(e) => {
                             // @ts-ignore - TS2339: auto-suppressed
@@ -406,14 +396,11 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     <!-- Show manual selector field for custom mode if not auto-discovered -->
                     ${!isPredefined && !isDiscovered ? html`
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'CSS Selector'}
                             .helper=${'Element selector (e.g., #id, .class, [data-segment=\'name\'])'}
                             .selector=${{ text: {} }}
-                            // @ts-ignore - TS2339: auto-suppressed
                             .value=${this.editor._getConfigValue(`${this._getBasePath(segmentId)}.selector`) || ''}
-                            // @ts-ignore - TS2339: auto-suppressed
                             @value-changed=${(e) => this.editor._setConfigValue(`${this._getBasePath(segmentId)}.selector`, e.detail.value)}>
                         </ha-selector>
                     ` : ''}
@@ -422,11 +409,8 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     <div class="form-row">
                         <label>Entity Override</label>
                         <ha-entity-picker
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
-                            // @ts-ignore - TS2339: auto-suppressed
                             .value=${this.editor._getConfigValue(`${this._getBasePath(segmentId)}.entity`) || ''}
-                            // @ts-ignore - TS2339: auto-suppressed
                             @value-changed=${(e) => this.editor._setConfigValue(`${this._getBasePath(segmentId)}.entity`, e.detail.value)}
                             allow-custom-entity>
                         </ha-entity-picker>
@@ -439,7 +423,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                         Override default actions for this segment
                     </div>
                     <lcards-multi-action-editor
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .actions=${this._getSegmentActions(segmentId)}
                         @value-changed=${(e) => this._handleSegmentActionsChange(segmentId, e)}>
@@ -564,10 +547,8 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 `}
 
                 <lcards-animation-editor
-                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .animations=${animations}
-                    // @ts-ignore - TS2339: auto-suppressed
                     .cardElement=${this.editor._cardElement}
                     @animations-changed=${(e) => {
                         // @ts-ignore - TS2339: auto-suppressed
@@ -595,9 +576,7 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 ?expanded=${false}>
 
                 <lcards-color-section-v2
-                    // @ts-ignore - TS2339: auto-suppressed
                     .editor=${this.editor}
-                    // @ts-ignore - TS2339: auto-suppressed
                     .config=${this.editor.config}
                     basePath="${basePath}.style.fill"
                     header="Fill"
@@ -608,9 +587,7 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 </lcards-color-section-v2>
 
                 <lcards-color-section-v2
-                    // @ts-ignore - TS2339: auto-suppressed
                     .editor=${this.editor}
-                    // @ts-ignore - TS2339: auto-suppressed
                     .config=${this.editor.config}
                     basePath="${basePath}.style.stroke"
                     header="Stroke"
@@ -621,19 +598,15 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                 </lcards-color-section-v2>
 
                 <ha-selector
-                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .label=${'Stroke Width'}
                     .helper=${'SVG stroke width (overrides default)'}
                     .selector=${{ text: {} }}
-                    // @ts-ignore - TS2339: auto-suppressed
                     .value=${this.editor._getConfigValue(`${basePath}.style.stroke-width`) || ''}
-                    // @ts-ignore - TS2339: auto-suppressed
                     @value-changed=${(e) => this.editor._setConfigValue(`${basePath}.style.stroke-width`, e.detail.value)}>
                 </ha-selector>
 
                 <ha-selector
-                    // @ts-ignore - TS2339: auto-suppressed
                     .hass=${this.hass}
                     .label=${'Opacity'}
                     .helper=${'SVG opacity (0.0 = transparent, 1.0 = opaque)'}
@@ -645,9 +618,7 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                             mode: 'box'
                         }
                     }}
-                    // @ts-ignore - TS2339: auto-suppressed
                     .value=${this.editor._getConfigValue(`${basePath}.style.opacity`) || ''}
-                    // @ts-ignore - TS2339: auto-suppressed
                     @value-changed=${(e) => this.editor._setConfigValue(`${basePath}.style.opacity`, e.detail.value)}>
                 </ha-selector>
             </lcards-form-section>

@@ -20,7 +20,6 @@ import { originBadge } from './shared/scoped-field-helpers.js';
 import '../../editor/components/shared/lcards-form-section.js';
 import '../../editor/components/shared/lcards-message.js';
 import '../../editor/components/sound/lcards-sound-source-selector.js';
-import './lcards-preview-chip.js';
 import './shared/lcards-scope-selector.js';
 
 const CATEGORY_LABELS = {
@@ -433,15 +432,6 @@ export class LCARdSSoundConfigTab extends LitElement {
     this._adminTargetBasic = null;
     this._loadScopedValues();
     this._loadScopedOverrides();
-  }
-
-  /**
-   * Load admin user list (from users/list + config/auth/list for display names)
-   * and device list (from devices/list).  Silently no-ops for non-admin.
-   * @deprecated Use <lcards-scope-selector> which handles this internally.
-   */
-  async _loadAdminLists() {
-    // No-op: admin list loading is now owned by <lcards-scope-selector>.
   }
 
   /**

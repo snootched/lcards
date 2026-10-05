@@ -205,14 +205,11 @@ lcards/
   field, panel, and tab tokens. `editorStyles` is consumed by all cards'
   editors and ~half of the shared components.
 - **Drift list (components missing the import).**
-  `lcards-chart-live-preview.js`,
   `lcards-msd-live-preview.js`,
   `lcards-shape-texture-editor.js`,
   `pack-explorer/lcards-pack-explorer-tab.js`,
   `templates/lcards-template-sandbox.js`,
-  `editors/lcards-color-selector.js`,
   `editors/lcards-unified-segment-editor.js`,
-  `editors/lcards-grid-row-editor.js`,
   `editors/lcards-border-editor.js`,
   `editors/lcards-slider-range-visualizer.js`.
 - **Config panel vs. editor parity.** `lcards-config-panel.js` and the

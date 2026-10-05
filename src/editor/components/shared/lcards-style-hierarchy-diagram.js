@@ -4,16 +4,13 @@
  * Visual SVG diagram showing style precedence for Data Grid cards
  *
  * @element lcards-style-hierarchy-diagram
- * @property {String} mode - Display mode: 'all', 'data-table', or 'manual'
  */
 
 import { LitElement, html, css, svg } from 'lit';
 
 export class LCARdSStyleHierarchyDiagram extends LitElement {
     static get properties() {
-        return {
-            mode: { type: String } // 'all' | 'data-table' | 'manual'
-        };
+        return {};
     }
 
     static get styles() {
@@ -221,23 +218,6 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
         `;
     }
 
-    _getLevels() {
-        // Deprecated - keeping for backward compatibility
-        const base = [
-            { name: 'Grid-wide', desc: 'Applies to all cells' }
-        ];
-
-        // @ts-ignore - TS2339: auto-suppressed
-        if (this.mode === 'data-table' || this.mode === 'all') {
-            base.push({ name: 'Header', desc: 'Spreadsheet headers' });
-            base.push({ name: 'Column', desc: 'Column-specific' });
-        }
-
-        base.push({ name: 'Row', desc: 'Row-specific' });
-        base.push({ name: 'Cell', desc: 'Individual cells' });
-
-        return base;
-    }
 }
 
 if (!customElements.get('lcards-style-hierarchy-diagram')) customElements.define('lcards-style-hierarchy-diagram', LCARdSStyleHierarchyDiagram);

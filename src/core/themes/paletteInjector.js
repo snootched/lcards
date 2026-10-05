@@ -187,11 +187,9 @@ export function isPaletteInjected(rootElement = null) {
 // ALERT MODE SYSTEM
 // ============================================================================
 
-import { transformColorToAlertMode, ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
+import { transformColorToAlertMode, isKnownAlertMode } from './alertModeTransform.js';
 import { runTransitionEffect } from './alertTransitions.js';
 
-// Re-export ALERT_MODE_TRANSFORMS for external use
-export { ALERT_MODE_TRANSFORMS } from './alertModeTransform.js';
 
 /**
  * Reload Home Assistant theme to restore original CSS variables
@@ -330,7 +328,7 @@ export async function setAlertMode(mode, hass, rootElement = null, opts = {}) {
   const { transitionStyle = 'off' } = opts;
 
   // Validate mode
-  if (!ALERT_MODE_TRANSFORMS[mode]) {
+  if (!isKnownAlertMode(mode)) {
     lcardsLog.warn(`[PaletteInjector] Unknown alert mode: ${mode}, using green_alert`);
     mode = 'green_alert';
   }

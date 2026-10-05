@@ -240,8 +240,6 @@ export function logTrace(message, ...args) {
   }
 }
 
-// Alias
-export const logLog = logInfo;
 
 
 

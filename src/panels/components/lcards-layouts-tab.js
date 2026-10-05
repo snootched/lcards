@@ -19,6 +19,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import '../../editor/components/shared/lcards-form-section.js';
+import { copyTextToClipboard } from '../../utils/clipboard-utils.js';
 
 // ============================================================================
 // MINIMAL YAML SERIALIZER
@@ -597,14 +598,10 @@ export class LCARdSLayoutsTab extends LitElement {
 
   async _handleCopy() {
     if (!this._generatedYaml) return;
-    try {
-      await navigator.clipboard.writeText(this._generatedYaml);
-      this._copyFeedback = true;
-      this.requestUpdate();
-      setTimeout(() => { this._copyFeedback = false; this.requestUpdate(); }, 2000);
-    } catch (err) {
-      lcardsLog.warn('[LCARdSLayoutsTab] Clipboard write failed', err);
-    }
+    if (!(await copyTextToClipboard(this._generatedYaml))) return;
+    this._copyFeedback = true;
+    this.requestUpdate();
+    setTimeout(() => { this._copyFeedback = false; this.requestUpdate(); }, 2000);
   }
 
   _renderTemplateCard(t) {

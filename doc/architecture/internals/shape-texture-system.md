@@ -370,10 +370,9 @@ Because `_resolveShapeTextureConfig()` reads directly from `this.config` at ever
 | File | Role |
 |---|---|
 | `src/core/packs/textures/CanvasTextureRenderer.js` | Main Canvas2D renderer: creates `<canvas>`, drives RAF loop, manages `ResizeObserver`, delegates to effect |
-| `src/core/packs/textures/presets/index.js` | `CANVAS_TEXTURE_PRESETS` registry (also exported as `SHAPE_TEXTURE_PRESETS` for backward compat) |
+| `src/core/packs/textures/presets/index.js` | `CANVAS_TEXTURE_PRESETS` registry |
 | `src/core/packs/textures/effects/` | One `BaseTextureEffect` subclass per preset |
 | `src/core/packs/textures/effects/noise-helpers.js` | Shared fBm noise math and `parseColorToRgba` used by fluid/plasma effects |
-| `src/core/packs/textures/index.js` | Re-exports |
 | `src/core/packs/lcards-textures-pack.js` | Pack metadata |
 | `src/editor/components/lcards-shape-texture-editor.js` | Editor UI component |
 | `src/core/packs/shared/ImageLoader.js` | Singleton image cache; resolves `builtin:key` references via AssetManager |

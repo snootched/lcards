@@ -17,7 +17,8 @@
 import { ThemeTokenResolver, initializeTokenResolver, getTokenResolver } from './ThemeTokenResolver.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../../core/BaseService.js';
-import { setAlertMode as injectAlertMode, ALERT_MODE_TRANSFORMS, captureOriginalColors } from './paletteInjector.js';
+import { setAlertMode as injectAlertMode, captureOriginalColors } from './paletteInjector.js';
+import { isKnownAlertMode } from './alertModeTransform.js';
 import { loadAlertTransformsFromHelpers } from './alertModeTransform.js';
 import { STORAGE_KEY_THEME_OVERRIDES } from '../services/ScopedSettingsConstants.js';
 
@@ -561,7 +562,7 @@ export class ThemeManager extends BaseService {
    * @private
    */
   async _applyAlertMode(mode, opts = {}) {
-    if (!ALERT_MODE_TRANSFORMS[mode]) {
+    if (!isKnownAlertMode(mode)) {
       lcardsLog.warn(`[ThemeManager] Unknown alert mode: ${mode}`);
       return;
     }

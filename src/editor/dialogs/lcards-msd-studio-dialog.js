@@ -41,7 +41,6 @@ import '../components/shared/lcards-message.js';
 import '../components/shared/lcards-shield-bubble-diagram.js';
 import { infoGuideStyles } from '../components/shared/info-guide-styles.js';
 import { ROUTING_CONCEPTS_DOCS_URL } from '../components/shared/docs-links.js';
-import '../components/editors/lcards-color-section.js';
 import '../components/editors/lcards-position-picker.js';
 import '../components/lcards-msd-live-preview.js';
 import '../components/lcards-animation-editor.js';
@@ -49,7 +48,6 @@ import '../components/lcards-filter-editor.js';
 import '../components/lcards-background-animation-editor.js';
 import '../components/editors/lcards-color-section-v2.js';
 import '../components/yaml/lcards-yaml-editor.js';
-import '../components/lcards-card-picker-wrapper.js';
 import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
 
 // d3-zoom imports for pan/zoom functionality
@@ -67,6 +65,7 @@ import { searchableSelectStyles } from '../components/shared/searchable-select-s
 // Native HA Card Picker & Editor Integration
 import { MSDCardPickerManager } from './msd-studio/msd-card-picker-manager.js';
 import { MSDEventInterceptor } from './msd-studio/msd-event-interceptor.js';
+import { normalizeHACardType, isBuiltinCardType } from '../../utils/ha-card-factory.js';
 
 // Mode constants
 const MODES = {
@@ -11358,7 +11357,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         try {
             const cardType = cardConfig.type;
-            const normalizedType = this._normalizeCardType(cardType);
+            const normalizedType = normalizeHACardType(cardType);
 
             lcardsLog.trace('[MSDStudio] Creating preview card in tab:', { cardType, normalizedType });
 
@@ -11558,15 +11557,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return cardType;
         }
 
-        // Standard HA cards with hyphens
-        const standardCards = [
-            'picture-entity', 'picture-glance', 'weather-forecast',
-            'media-control', 'history-graph', 'statistics-graph',
-            'horizontal-stack', 'vertical-stack', 'alarm-panel'
-        ];
-
-        // If it contains a hyphen and isn't a standard HA card, it's likely custom
-        if (cardType.includes('-') && !standardCards.includes(cardType)) {
+        // If it contains a hyphen and isn't a built-in HA card, it's likely custom
+        if (cardType.includes('-') && !isBuiltinCardType(cardType)) {
             return `custom:${cardType}`;
         }
 
@@ -11856,39 +11848,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return lovelaceConfig;
     }
 
-    /**
-     * DEPRECATED: Force-loading attempts
-     *
-     * This method attempted multiple strategies to force-load hui-card-picker:
-     * 1. horizontal-stack.getConfigElement() - didn't trigger picker load
-     * 2. Direct import from hardcoded paths - paths don't exist in HA's webpack build
-     * 3. show-dialog event with hui-dialog-edit-card - wrong dialog type
-     * 4. show-dialog event with hui-dialog-create-card - dialogImport contract unclear
-     * 5. Direct createElement('hui-dialog-create-card') - element not pre-registered
-     *
-     * CONCLUSION: hui-card-picker is ONLY loaded when user clicks "Add Card" in HA's UI.
-     * We cannot programmatically trigger HA's lazy-load without the actual webpack chunk path.
-     *
-     * The Tier 2 experience (dropdown + graphical editor) is the reliable fallback.
-     * @returns {Promise<boolean>} Always returns false
-     * @private
-     */
-    async _forceLoadHAComponents() {
-        lcardsLog.debug('[MSDStudio] Force-loading disabled - using Tier 2 mode');
-        return false;
-    }
 
-
-
-    /**
-     * Alternative: Force-load by creating temporary grid card editor
-     * @returns {Promise<boolean>}
-     * @private
-     */
-    async _forceLoadViaGridCard() {
-        // Deprecated - direct import strategy in _ensureHAComponentsLoaded handles this now
-        return false;
-    }
 
     /**
      * Get Lovelace instance for hui components with robust fallbacks
@@ -12227,7 +12187,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         try {
             const cardType = cardConfig.type;
-            const normalizedType = this._normalizeCardType(cardType);
+            const normalizedType = normalizeHACardType(cardType);
 
             lcardsLog.debug('[MSD Studio] Creating preview card:', { cardType, normalizedType });
 
@@ -12283,27 +12243,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
     }
 
-    /**
-     * Normalize card type to element name
-     * @param {string} cardType - Card type from config
-     * @returns {string} Element tag name
-     * @private
-     */
-    _normalizeCardType(cardType) {
-        if (!cardType) return '';
-
-        // Handle custom:prefix
-        if (cardType.startsWith('custom:')) {
-            return cardType.substring(7);
-        }
-
-        // Handle HA built-in cards
-        if (!cardType.includes('-')) {
-            return `hui-${cardType}-card`;
-        }
-
-        return cardType;
-    }
 
     /**
      * Render Lines tab.

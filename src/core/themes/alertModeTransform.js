@@ -218,8 +218,15 @@ export function getDefaultAlertModeTransform(mode) {
   return DEFAULT_ALERT_MODE_TRANSFORMS[mode] ? { ...DEFAULT_ALERT_MODE_TRANSFORMS[mode] } : null;
 }
 
-// Backwards compatibility: export defaults as ALERT_MODE_TRANSFORMS
-export const ALERT_MODE_TRANSFORMS = DEFAULT_ALERT_MODE_TRANSFORMS;
+/**
+ * Whether `mode` is a built-in alert mode (e.g. 'red_alert').
+ *
+ * @param {string} mode - Alert mode name
+ * @returns {boolean}
+ */
+export function isKnownAlertMode(mode) {
+  return Object.prototype.hasOwnProperty.call(DEFAULT_ALERT_MODE_TRANSFORMS, mode);
+}
 
 /**
  * Calculate shortest distance between two hues on circular color wheel

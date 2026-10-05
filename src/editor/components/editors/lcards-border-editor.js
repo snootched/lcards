@@ -241,7 +241,6 @@ export class LCARdSBorderEditor extends LitElement {
 
                 ${isUnified ? html`
                     <ha-selector
-                        // @ts-ignore - TS2339: auto-suppressed
                         .hass=${this.hass}
                         .label=${'Width (px)'}
                         .selector=${{
@@ -259,7 +258,6 @@ export class LCARdSBorderEditor extends LitElement {
                 ` : html`
                     <div class="per-side-grid">
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Top (px)'}
                             .selector=${{
@@ -275,7 +273,6 @@ export class LCARdSBorderEditor extends LitElement {
                             @value-changed=${(e) => this._updateBorderProperty('width.top', e.detail.value)}>
                         </ha-selector>
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Right (px)'}
                             .selector=${{
@@ -291,7 +288,6 @@ export class LCARdSBorderEditor extends LitElement {
                             @value-changed=${(e) => this._updateBorderProperty('width.right', e.detail.value)}>
                         </ha-selector>
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Bottom (px)'}
                             .selector=${{
@@ -307,7 +303,6 @@ export class LCARdSBorderEditor extends LitElement {
                             @value-changed=${(e) => this._updateBorderProperty('width.bottom', e.detail.value)}>
                         </ha-selector>
                         <ha-selector
-                            // @ts-ignore - TS2339: auto-suppressed
                             .hass=${this.hass}
                             .label=${'Left (px)'}
                             .selector=${{

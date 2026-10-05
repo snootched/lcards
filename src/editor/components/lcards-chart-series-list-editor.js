@@ -167,7 +167,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
 
       <!-- DataSource Creation/Edit Dialog (always rendered, controlled by .open) -->
       <lcards-datasource-studio-dialog
-        // @ts-ignore - TS2339: auto-suppressed
         .hass=${this.hass}
         .mode=${this._currentEditingDataSource ? 'edit' : 'add'}
         .sourceName=${this._currentEditingDataSource || ''}
@@ -265,7 +264,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
         <!-- Mode Toggle (at top for visibility) -->
         <div class="form-row">
           <ha-selector
-            // @ts-ignore - TS2339: auto-suppressed
             .hass=${this.hass}
             .selector=${{
               select: {
@@ -291,7 +289,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           <!-- Entity Mode (Default) -->
           <div class="form-row">
             <ha-selector
-              // @ts-ignore - TS2339: auto-suppressed
               .hass=${this.hass}
               .selector=${{ entity: {} }}
               .value=${entity}
@@ -309,7 +306,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           ${entity ? html`
             <div class="form-row">
               <ha-selector
-                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ select: { options: attributeOptions } }}
                 .value=${attribute}
@@ -325,7 +321,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           <div class="form-row">
             <label class="form-label">History Window: ${windowHours}h</label>
             <ha-selector
-              // @ts-ignore - TS2339: auto-suppressed
               .hass=${this.hass}
               .selector=${{ number: { min: 1, max: 168, step: 1, mode: 'slider', unit_of_measurement: 'hours' } }}
               .value=${windowHours}
@@ -339,7 +334,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           <!-- DataSource Mode -->
           <div class="form-row">
             <ha-selector
-              // @ts-ignore - TS2339: auto-suppressed
               .hass=${this.hass}
               .selector=${{ select: { options: this._getDataSourceOptions(), mode: 'dropdown' } }}
               .value=${existingDataSource}
@@ -378,7 +372,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
       <lcards-form-section header="Series Options" icon="mdi:palette" ?expanded=${true}>
         <div class="form-row">
           <ha-selector
-            // @ts-ignore - TS2339: auto-suppressed
             .hass=${this.hass}
             .selector=${{ text: {} }}
             .value=${item.name || ''}
@@ -391,7 +384,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           <!-- Buffer Selection (main buffer or processor buffers) -->
           <div class="form-row">
             <ha-selector
-              // @ts-ignore - TS2339: auto-suppressed
               .hass=${this.hass}
               .selector=${{ select: { options: this._getBufferOptions(existingDataSource), mode: 'dropdown' } }}
               .value=${item.buffer || 'main'}
@@ -407,7 +399,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
         <div class="form-row-grid">
           <div class="form-row">
             <ha-selector
-              // @ts-ignore - TS2339: auto-suppressed
               .hass=${this.hass}
               .selector=${{
                 select: {
@@ -431,7 +422,6 @@ export class LCARdSChartSeriesListEditor extends LitElement {
 
         <div class="form-row">
           <ha-selector
-            // @ts-ignore - TS2339: auto-suppressed
             .hass=${this.hass}
             .selector=${{ number: { min: 0, max: 5, mode: 'box' } }}
             .value=${item.yaxis || 0}

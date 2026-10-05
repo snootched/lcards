@@ -18,6 +18,7 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 import '../shared/lcards-message.js';
 import '../shared/lcards-form-section.js';
 import './lcards-rule-editor-dialog.js';
+import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 
 export class LCARdSRulesDashboard extends LitElement {
     static get properties() {
@@ -756,12 +757,8 @@ export class LCARdSRulesDashboard extends LitElement {
             // Convert rule object to YAML-like string
             const yaml = this._ruleToYAML(rule);
 
-            // Copy to clipboard
-            navigator.clipboard.writeText(yaml).then(() => {
-                lcardsLog.info('[RulesDashboard] Copied rule YAML to clipboard:', rule.id);
-                // Could show a toast notification here if available
-            }).catch(err => {
-                lcardsLog.error('❌ [RulesDashboard] Failed to copy to clipboard:', err);
+            copyTextToClipboard(yaml).then(ok => {
+                if (ok) lcardsLog.info('[RulesDashboard] Copied rule YAML to clipboard:', rule.id);
             });
         } catch (error) {
             lcardsLog.error('❌ [RulesDashboard] Error copying rule YAML:', error);
@@ -1291,12 +1288,10 @@ rules:
     _renderEditDialog() {
         return html`
             <lcards-rule-editor-dialog
-                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .mode=${this._editMode}
                 .rule=${this._editingRule}
                 .open=${this._editDialogOpen}
-                // @ts-ignore - TS2339: auto-suppressed
                 .editor=${this.editor}
                 @save=${this._handleRuleSave}
                 @cancel=${this._handleRuleDialogClose}>

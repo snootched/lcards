@@ -236,8 +236,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
     const entity = stats.config?.entity || 'N/A';
     const windowSeconds = stats.config?.windowSeconds || 60;
     const bufferSize = stats.buffer?.size || 0;
-    const transformCount = stats.transformations?.size || 0;
-    const aggregationCount = stats.aggregations?.size || 0;
+    const processorCount = stats.processors?.size || 0;
 
     return html`
       <div class="source-card ${isAutoCreated ? 'auto-created' : 'configured'}">
@@ -261,24 +260,14 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
             <span class="value">${windowSeconds}s</span>
           </div>
 
-          <!-- Transformations & Aggregations -->
-          ${transformCount > 0 ? html`
+          <!-- Processors -->
+          ${processorCount > 0 ? html`
             <div class="detail-row">
               <span class="label">
                 <ha-icon icon="mdi:function-variant" style="--mdc-icon-size: 16px; vertical-align: middle;"></ha-icon>
-                Transformations:
+                Processors:
               </span>
-              <span class="value" style="color: var(--primary-color); font-weight: 500;">${transformCount}</span>
-            </div>
-          ` : ''}
-
-          ${aggregationCount > 0 ? html`
-            <div class="detail-row">
-              <span class="label">
-                <ha-icon icon="mdi:chart-line" style="--mdc-icon-size: 16px; vertical-align: middle;"></ha-icon>
-                Aggregations:
-              </span>
-              <span class="value" style="color: var(--primary-color); font-weight: 500;">${aggregationCount}</span>
+              <span class="value" style="color: var(--primary-color); font-weight: 500;">${processorCount}</span>
             </div>
           ` : ''}
 

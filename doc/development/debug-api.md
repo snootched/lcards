@@ -16,26 +16,24 @@ Append `?lcards_log_level=debug` (or `trace`) to the HA URL to set the log level
 
 ## General Debug Utilities
 
-### `setLevel(level)`: Log level
+### `setGlobalLogLevel(level)`: Log level
 
-Sets the global log level for all LCARdS output.
+Sets the global log level for all LCARdS output. The level is saved in this browser and survives reloads.
 
 ```javascript
-window.lcards.debug.setLevel('error')   // errors only
-window.lcards.debug.setLevel('warn')
-window.lcards.debug.setLevel('info')    // default
-window.lcards.debug.setLevel('debug')
-window.lcards.debug.setLevel('trace')   // maximum verbosity
+window.lcards.setGlobalLogLevel('error')   // errors only
+window.lcards.setGlobalLogLevel('warn')
+window.lcards.setGlobalLogLevel('info')    // default
+window.lcards.setGlobalLogLevel('debug')
+window.lcards.setGlobalLogLevel('trace')   // maximum verbosity
 ```
 
-> Also available as `window.lcards.setGlobalLogLevel(level)` for backward compatibility.
-
-### `getLevel()`: Current log level
+### `getGlobalLogLevel()`: Current log level
 
 Returns the current global log level string.
 
 ```javascript
-window.lcards.debug.getLevel()
+window.lcards.getGlobalLogLevel()
 // Returns: 'info'
 ```
 

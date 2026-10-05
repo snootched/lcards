@@ -654,7 +654,6 @@ Before submitting editor code:
 
 **Good Examples to Follow:**
 - `lcards-button-editor.js` - Complete 8-tab editor with all patterns
-- `lcards-datasource-dialog.js` - Dialog with proper header slot
 - `lcards-multi-text-editor.js` - Complex form with ha-button conversion
 - `lcards-template-sandbox.js` - Tabs with scrollable content
 
@@ -1559,7 +1558,6 @@ editor/
 │   │   ├── lcards-form-field.js         # Smart auto-rendering field
 │   │   ├── lcards-form-section.js       # Collapsible sections
 │   │   ├── lcards-grid-layout.js        # Two-column responsive layout
-│   │   ├── lcards-color-selector.js     # LCARS palette + custom colors
 │   │   ├── lcards-color-section.js      # State-based color groups (enhanced)
 │   │   ├── lcards-color-picker.js       # NEW: Unified color picker with CSS vars
 │   │   ├── lcards-object-editor.js      # NEW: Generic object property editor
@@ -1607,7 +1605,6 @@ Validation is performed by CoreValidationService singleton.
   - Auto-generates labels from schema or path
 - **lcards-form-section** - Collapsible section with ha-expansion-panel
 - **lcards-grid-layout** - Responsive two-column layout (stacks on mobile)
-- **lcards-color-selector** - Color picker with LCARS palette presets
 - **lcards-color-section** - Specialized for state-based colors (enhanced with color-picker)
 - **lcards-entity-field** - Entity picker with domain filtering
 
@@ -2270,7 +2267,6 @@ _handleTabChange(event) {
   - Header: Custom `.dialog-header` with title only
   - Special: Tree navigation + detail panel
 
-- [ ] **DataSource Dialog** (`lcards-datasource-dialog.js`) - Form dialog ✅ USES lcards-dialog
   - Size: Medium (~600px width)
   - Heading: Dynamic "Add Datasource" / "Edit Datasource: {name}"
   - Structure: Form with validation
@@ -2686,11 +2682,9 @@ ha-button[size="small"] {
 
 | File | Plain Controls | Type | Notes |
 |------|----------------|------|-------|
-| `lcards-datasource-dialog.js` | 3 | 1 select, 2 inputs | Update interval dropdown, entity_id, history_size |
 | `lcards-template-sandbox.js` | 5 | 2 selects, 3 inputs | Example dropdowns, mock entity state inputs |
 | `lcards-theme-token-browser-tab.js` | 2 | 1 select, 1 input | Category filter, search input |
 | `lcards-entity-field.js` | 1 | 1 input | Entity ID text input |
-| `lcards-color-selector.js` | 1 | 1 input | Custom color hex input |
 | `lcards-padding-editor.js` | 1 | 1 input | Numeric padding value |
 | `lcards-action-editor.js` | 3 | 1 select, 2 inputs | Action type dropdown, service/navigation inputs |
 | `lcards-card-config-section.js` | 7 | 2 selects, 5 inputs | ID, tags, preset, layout dropdowns + text inputs |

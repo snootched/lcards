@@ -1,7 +1,7 @@
 import { lcardsSetGlobalLogLevel, lcardsGetGlobalLogLevel, lcardsLog, lcardsLogBanner} from './utils/lcards-logging.js';
 import * as LCARdS from './lcards-vars.js'
 import { lcardsCore } from './core/lcards-core.js';
-import { ALERT_MODE_TRANSFORMS } from './core/themes/alertModeTransform.js';
+import { isKnownAlertMode } from './core/themes/alertModeTransform.js';
 import { injectPalette } from './core/themes/paletteInjector.js';
 import { collectSupportInfo, buildSupportReport, copySupportInfo, reportIssue } from './utils/support-info.js';
 
@@ -161,10 +161,8 @@ async function initializeCustomCard() {
     // Call log banner function immediately when the script loads
     //window.lcards.lcardsLog = lcardsLog; // Expose the logging function globally
 
-    // Expose debug helpers (the module already attaches API; this ensures references exist)
+    // Debug namespace (log level lives at window.lcards.setGlobalLogLevel / getGlobalLogLevel)
     window.lcards.debug = window.lcards.debug || {};
-    window.lcards.debug.setLevel = lcardsSetGlobalLogLevel;
-    window.lcards.debug.getLevel = lcardsGetGlobalLogLevel;
 
     // Animation namespace organization
     window.lcards.anim = {
@@ -321,7 +319,6 @@ initializeCustomCard()
         if (!customElements.get('lcards-alert-overlay')) customElements.define('lcards-alert-overlay', LCARdSAlertOverlay);
         if (!customElements.get('lcards-select-menu')) customElements.define('lcards-select-menu', LCARdSSelectMenu);
         if (!customElements.get('lcards-layout-card')) customElements.define('lcards-layout-card', LCARdSLayoutCard);
-        //customElements.define('lcards-config-panel', LCARdSConfigPanel);
 
         lcardsLog.debug('[lcards.js] All custom elements registered after core initialization');
 
@@ -495,7 +492,7 @@ window.lcards.setAlertMode = async (mode, opts = {}) => {
   // callService write-back and send an invalid option to HA (causing a UI toast).
   // This protects against stale helper values, misconfigured input_select initial
   // states, or any other source that could produce a non-LCARdS mode string.
-  if (!ALERT_MODE_TRANSFORMS[mode]) {
+  if (!isKnownAlertMode(mode)) {
     lcardsLog.warn(`⚠️ [LCARdS] setAlertMode called with unknown mode: '${mode}' — ignoring`);
     return;
   }

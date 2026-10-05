@@ -13,6 +13,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { editorStyles } from '../../base/editor-styles.js';
 import '../shared/lcards-form-section.js';
+import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 
 /**
  * Provenance Inspector Tab Component
@@ -3480,30 +3481,24 @@ export class LCARdSProvenanceTab extends LitElement {
 
   async _copyFieldPath(path, e) {
     e.stopPropagation();
-    await this._copyToClipboard(path);
-    this._showToast(`Copied field path: ${path}`);
+    await this._copyWithToast(path, `Copied field path: ${path}`);
   }
 
   async _copyValue(value, e) {
     e.stopPropagation();
     const displayValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-    await this._copyToClipboard(displayValue);
-    this._showToast('Copied value!');
+    await this._copyWithToast(displayValue, 'Copied value!');
   }
 
   async _copyTokenSyntax(tokenPath, e) {
     e.stopPropagation();
     const syntax = `theme:${tokenPath}`;
-    await this._copyToClipboard(syntax);
-    this._showToast(`Copied: ${syntax}`);
+    await this._copyWithToast(syntax, `Copied: ${syntax}`);
   }
 
-  async _copyToClipboard(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (err) {
-      lcardsLog.error('[ProvenanceTab] Failed to copy to clipboard:', err);
-    }
+  async _copyWithToast(text, successMessage) {
+    const ok = await copyTextToClipboard(text);
+    this._showToast(ok ? successMessage : 'Copy failed');
   }
 
   _showToast(message) {

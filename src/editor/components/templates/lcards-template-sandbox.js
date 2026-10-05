@@ -57,6 +57,7 @@ import { EXAMPLE_TEMPLATES, getExampleIds } from './template-examples.js';
 import '../shared/lcards-dialog.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-collapsible-section.js';
+import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 
 export class LCARdSTemplateSandbox extends LitElement {
   static get properties() {
@@ -1139,7 +1140,6 @@ export class LCARdSTemplateSandbox extends LitElement {
           <div class="form-row">
             <label class="form-label">Entity Mode</label>
             <ha-selector
-              // @ts-ignore - TS2339: auto-suppressed
               .hass=${this.hass}
               .selector=${{ boolean: {} }}
               .label=${'Use Mock Entity'}
@@ -1153,7 +1153,6 @@ export class LCARdSTemplateSandbox extends LitElement {
             <div class="form-row">
               <label class="form-label">Entity ID</label>
               <ha-entity-picker
-                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .value=${this._mockEntityId}
                 @value-changed=${(e) => this._handleEntityPickerChange(e)}>
@@ -1181,7 +1180,6 @@ export class LCARdSTemplateSandbox extends LitElement {
 
               ${Object.keys(entityState.attributes || {}).length > 0 ? html`
                 <ha-selector
-                  // @ts-ignore - TS2339: auto-suppressed
                   .hass=${this.hass}
                   .label=${'Quick Insert Attribute'}
                   .helper=${'Select attribute to insert into template'}
@@ -1209,7 +1207,6 @@ export class LCARdSTemplateSandbox extends LitElement {
             <div class="form-row">
               <label class="form-label">Entity ID</label>
               <ha-selector
-                // @ts-ignore - TS2339: auto-suppressed
                 .hass=${this.hass}
                 .selector=${{ text: {} }}
                 .label=${'Enter entity ID (e.g. light.kitchen)'}
@@ -1279,7 +1276,6 @@ export class LCARdSTemplateSandbox extends LitElement {
             ?expanded=${true}>
 
             <ha-selector
-              // @ts-ignore - TS2339: auto-suppressed
               .hass=${this.hass}
               .label=${'Available Data Sources'}
               .helper=${'Select DataSource to view details'}
@@ -1376,11 +1372,11 @@ export class LCARdSTemplateSandbox extends LitElement {
 
           ${isSuccess ? html`
             <div class="action-buttons">
-              <ha-button @click=${() => this._copyToClipboard(String(result.result))}>
+              <ha-button @click=${() => copyTextToClipboard(String(result.result))}>
                 <ha-icon icon="mdi:content-copy" slot="start"></ha-icon>
                 Copy Result
               </ha-button>
-              <ha-button @click=${() => this._copyToClipboard(this._templateInput)}>
+              <ha-button @click=${() => copyTextToClipboard(this._templateInput)}>
                 <ha-icon icon="mdi:code-braces" slot="start"></ha-icon>
                 Copy Template
               </ha-button>
@@ -1522,11 +1518,11 @@ export class LCARdSTemplateSandbox extends LitElement {
 
             ${status === 'success' ? html`
               <div class="action-buttons">
-                <ha-button @click=${() => this._copyToClipboard(resultStr)}>
+                <ha-button @click=${() => copyTextToClipboard(resultStr)}>
                   <ha-icon icon="mdi:content-copy" slot="start"></ha-icon>
                   Copy Result
                 </ha-button>
-                <ha-button @click=${() => this._copyToClipboard(this._templateInput)}>
+                <ha-button @click=${() => copyTextToClipboard(this._templateInput)}>
                   <ha-icon icon="mdi:code-braces" slot="start"></ha-icon>
                   Copy Template
                 </ha-button>
@@ -2326,15 +2322,6 @@ export class LCARdSTemplateSandbox extends LitElement {
 
     const theme = themeManager.getActiveTheme?.();
     return theme?.name || 'Unknown theme';
-  }
-
-  async _copyToClipboard(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-      lcardsLog.debug('[TemplateSandbox] Copied to clipboard');
-    } catch (error) {
-      lcardsLog.error('[TemplateSandbox] Failed to copy:', error);
-    }
   }
 
   /**

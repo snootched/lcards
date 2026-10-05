@@ -390,9 +390,6 @@ export class AdvancedRenderer {
       .sort((a, b) => OverlayUtils.compareByZIndex(a.o, b.o, declOrder))
       .forEach(({ el }) => overlayGroup.appendChild(el));
 
-    // NEW: schedule deferred line refresh to fix first-load orientation/position
-    this._scheduleDeferredLineRefresh(overlays, this._staticAnchors, viewBox);
-
     this.lastRenderArgs = { resolvedModel, overlays, svg };
 
     lcardsLog.debug('[AdvancedRenderer] Render complete', {
@@ -800,15 +797,6 @@ export class AdvancedRenderer {
     }
 
     return { point, side: effectiveSide };
-  }
-
-  /**
-   * Schedule deferred line refresh
-   * No-op maintained for backwards compatibility with render pipeline
-   * @private
-   */
-  _scheduleDeferredLineRefresh(overlays, anchorsRef, viewBox) {
-    // No-op: Lines are now refreshed immediately during render
   }
 
   /**

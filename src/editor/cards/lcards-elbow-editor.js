@@ -2469,7 +2469,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         if (currentStyle === 'segmented' && !supportedFeatures.includes('segmented')) {
             this._setConfigValue('elbow.style', 'simple');
             // Show a message to user
-            this.dispatchEvent(new CustomEvent('show-notification', {
+            this.dispatchEvent(new CustomEvent('hass-notification', {
                 bubbles: true,
                 composed: true,
                 detail: {

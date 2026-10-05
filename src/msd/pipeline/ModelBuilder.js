@@ -6,7 +6,6 @@
  * fully-resolved model ready for AdvancedRenderer.
  */
 
-import { resolveDesiredAnimations } from '../../core/animation/resolveAnimations.js';
 import { resolveDesiredTimelines } from '../../core/animation/resolveTimelines.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { isHAEntity } from '../utils/HADomains.js';

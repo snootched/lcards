@@ -37,6 +37,7 @@ import '../components/editors/lcards-font-selector.js';
 import '../components/lcards-animation-editor.js';
 import '../components/lcards-filter-editor.js';
 import '../../cards/lcards-data-grid.js';
+import { copyTextToClipboard } from '../../utils/clipboard-utils.js';
 
 export class LCARdSDataGridStudioDialogV4 extends LitElement {
     static get properties() {
@@ -891,16 +892,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     /**
      * Copy text to clipboard
      */
-    _copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(() => {
-            // Show a brief success message
-            lcardsLog.info('[DataGridStudioV4] Copied to clipboard:', text);
-            // TODO: Could show a toast notification here
-        }).catch(err => {
-            lcardsLog.error('[DataGridStudioV4] Failed to copy:', err);
-        });
-    }
-
     // ========================================
     // GRID STRUCTURE TAB (Main Tab)
     // ========================================
@@ -3158,14 +3149,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
      * Copy template to clipboard
      */
     async _copyTemplate(template) {
-        try {
-            await navigator.clipboard.writeText(template);
+        if (await copyTextToClipboard(template)) {
             lcardsLog.info('[DataGridStudioV4] Template copied to clipboard:', template);
-
-            // Show brief success feedback (optional)
-            // Could trigger a toast notification here if available
-        } catch (err) {
-            lcardsLog.error('[DataGridStudioV4] Failed to copy template:', err);
         }
     }
 

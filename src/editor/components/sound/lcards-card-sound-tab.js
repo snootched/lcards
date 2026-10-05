@@ -273,7 +273,6 @@ export class LCARdSCardSoundTab extends LitElement {
                       <td class="event-label">${label}</td>
                       <td>
                         <lcards-sound-source-selector
-                          // @ts-ignore - TS2339: auto-suppressed
                           .hass=${this.hass}
                           .value=${overrideValue}
                           .audioAssets=${this._audioAssets}

@@ -1390,7 +1390,7 @@ export class LCARdSSlider extends LCARdSButton {
         if (colorConfig && typeof colorConfig === 'object') {
             const resolved = this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig,
                 fallback
             });
@@ -1961,7 +1961,7 @@ export class LCARdSSlider extends LCARdSButton {
             `${window.lcards?.core?.themeManager?.getAlertMode?.() || 'green_alert'}|` +
             // Entity state + classified state bust the cache when state-aware range
             // colors resolve differently (e.g. { active: red, inactive: gray }).
-            `${this._entity?.state ?? ''}|${this._getButtonState?.() ?? ''}`; // Bust cache on alert mode change
+            `${this._entity?.state ?? ''}|${this._classifyEntityState() ?? ''}`; // Bust cache on alert mode change
 
         // Check memoization cache
         if (this._memoizedTrack && this._memoizedTrackConfig === configHash) {
@@ -1992,13 +1992,13 @@ export class LCARdSSlider extends LCARdSButton {
         const radius = trackConfig?.shape?.radius ?? 4;
         let gradientStart = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: trackConfig?.gradient?.start,
             fallback: 'theme:components.slider.pills.gradient.start'
         }) ?? ''));
         let gradientEnd = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: trackConfig?.gradient?.end,
             fallback: 'theme:components.slider.pills.gradient.end'
         }) ?? ''));
@@ -2204,7 +2204,7 @@ export class LCARdSSlider extends LCARdSButton {
                 text: String(this._resolveTemplateValue(rawLabelText) ?? rawLabelText),
                 color: this._resolveColorValue(String(this._resolveStateValue({
                     actualState: this._entity?.state,
-                    classifiedState: this._getButtonState(),
+                    classifiedState: this._classifyEntityState(),
                     colorConfig: range.label.color,
                     fallback: 'theme:components.slider.indicator.label.color'
                 }) ?? '')),
@@ -2392,7 +2392,7 @@ export class LCARdSSlider extends LCARdSButton {
             type: indicatorConfig.type || 'line',
             color: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: indicatorConfig.color,
                 fallback: 'theme:components.slider.indicator.color'
             }) ?? '')),
@@ -2404,7 +2404,7 @@ export class LCARdSSlider extends LCARdSButton {
             borderEnabled: indicatorConfig.border?.enabled !== false,
             borderColor: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: indicatorConfig.border?.color,
                 fallback: 'theme:components.slider.indicator.border.color'
             }) ?? '')),
@@ -2526,7 +2526,7 @@ export class LCARdSSlider extends LCARdSButton {
             controlMax: this._controlConfig.max,
             displayMin: this._displayConfig.min,
             displayMax: this._displayConfig.max,
-            classifiedState: this._getButtonState?.() ?? '',
+            classifiedState: this._classifyEntityState() ?? '',
             resolvedMarkerValues: this._resolvedMarkerValues,
             resolvedRangeBounds: this._resolvedRangeBounds
         });
@@ -2604,7 +2604,7 @@ export class LCARdSSlider extends LCARdSButton {
         const majorInterval = tickConfig?.major?.interval || 10; // Value units (not percentage)
         const majorColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: tickConfig?.major?.color,
             fallback: 'theme:components.slider.gauge.tick.major.color.default'
         }) ?? ''));
@@ -2616,7 +2616,7 @@ export class LCARdSSlider extends LCARdSButton {
         const minorInterval = tickConfig?.minor?.interval || 2; // Value units (not percentage)
         const minorColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: tickConfig?.minor?.color,
             fallback: 'theme:components.slider.gauge.tick.minor.color.default'
         }) ?? ''));
@@ -2635,7 +2635,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Label color - state-aware resolution for tick labels
         const tickLabelColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: labelConfig?.color,
             fallback: 'theme:components.slider.gauge.label.color.default'
         }) ?? ''));
@@ -2644,7 +2644,7 @@ export class LCARdSSlider extends LCARdSButton {
         const progressConfig = gaugeConfig?.progress_bar;
         const progressColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: progressConfig?.color,
             fallback: 'theme:components.slider.gauge.progress_bar.color.default'
         }) ?? ''));
@@ -2673,7 +2673,7 @@ export class LCARdSSlider extends LCARdSButton {
         const bgPbPath = (px, py, pw, ph, isH, fill) => pbRect(bgPr, px, py, pw, ph, isH, fill);
         const progressBgColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: progressConfig?.background?.color,
             fallback: ''
         }) ?? ''));
@@ -4023,41 +4023,41 @@ export class LCARdSSlider extends LCARdSButton {
             // Progress bar color (state-aware)
             progressBar: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.gauge?.progress_bar?.color,
                 fallback: 'theme:components.slider.gauge.progress_bar.color.default'
             }) ?? '')),
             // Range frame and borders
             rangeBorder: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.range?.border?.color,
                 fallback: 'theme:components.slider.range.border.color'
             }) ?? '')),
             rangeFrame: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.range?.frame?.color,
                 fallback: ''
             }) ?? '')) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Solid bar (defaults to same as top border)
             solidBar: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.solid_bar?.color,
                 fallback: ''
             }) ?? '')) || this._resolveStateBorderColor(borderConfig?.top?.color),
             // Animation indicator
             animationIndicator: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.animation?.indicator?.color,
                 fallback: 'theme:components.slider.animation.indicator.color'
             }) ?? '')),
             // Shaped component: track background (the "empty" portion inside the shape)
             trackBackground: this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: this._sliderStyle?.shaped?.track?.background ?? this._sliderStyle?.track?.background,
                 fallback: 'var(--lcards-gray-dark, #12121c)'
             }) ?? ''))
@@ -4397,7 +4397,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Fill colour: shaped-specific override (state-aware) → gauge active colour → default
         const fillColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: this._sliderStyle?.shaped?.fill?.color,
             fallback: this._sliderStyle?.gauge?.fill?.color?.active ?? 'theme:components.slider.shaped.fill.color'
         }) ?? ''));
@@ -4602,7 +4602,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Get fill color (state-aware progress_bar color)
         const fillColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: progressBarConfig.color,
             fallback: 'theme:components.slider.gauge.progress_bar.color.default'
         }) ?? ''));
@@ -4628,7 +4628,7 @@ export class LCARdSSlider extends LCARdSButton {
         // Optional background track — extent clamped to background.min/max (defaults to control range)
         const bgColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: progressBarConfig.background?.color,
             fallback: ''
         }) ?? ''));
@@ -4814,7 +4814,7 @@ export class LCARdSSlider extends LCARdSButton {
             // (range.color is the band fill — a separate concept)
             const markerColor = this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
-                classifiedState: this._getButtonState(),
+                classifiedState: this._classifyEntityState(),
                 colorConfig: riCfg.color ?? presetMarker.color,
                 fallback: 'theme:components.slider.indicator.color'
             }) ?? ''));
@@ -4850,7 +4850,7 @@ export class LCARdSSlider extends LCARdSButton {
                 borderEnabled: riCfg.border?.enabled   ?? presetMarker.border?.enabled   ?? false,
                 borderColor:   this._resolveColorValue(String(this._resolveStateValue({
                     actualState: this._entity?.state,
-                    classifiedState: this._getButtonState(),
+                    classifiedState: this._classifyEntityState(),
                     colorConfig: riCfg.border?.color ?? presetMarker.border?.color,
                     fallback: 'theme:components.slider.indicator.border.color'
                 }) ?? '')),
@@ -4952,7 +4952,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         const labelColor = this._resolveColorValue(String(this._resolveStateValue({
             actualState: this._entity?.state,
-            classifiedState: this._getButtonState(),
+            classifiedState: this._classifyEntityState(),
             colorConfig: range.label.color,
             fallback: 'theme:components.slider.indicator.label.color'
         }) ?? ''));

@@ -93,7 +93,7 @@ When a call reaches the front of the queue, it:
 Transform spec (defined in `alertModeTransform.js`). Alert mode keys always carry the `_alert` suffix (`green_alert`, `red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert`, `borg_alert`) and each transform is an HSL hue-shift/anchor spec, not a literal palette-token map:
 
 ```javascript
-ALERT_MODE_TRANSFORMS['red_alert'] = {
+DEFAULT_ALERT_MODE_TRANSFORMS['red_alert'] = {
   hueShift: 0,                    // target red
   hueStrength: 0.8,
   saturationMultiplier: 1.4,
