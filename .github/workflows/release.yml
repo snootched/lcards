@@ -142,7 +142,7 @@ jobs:
       - name: Build integration JS
         run: npm run build:integration
         # build:integration = vite build --mode integration && node scripts/copy-assets.js
-        # This produces custom_components/lcards/lcards.js and copies
+        # This produces custom_components/lcards/lcards.js (+ chunks/) and copies
         # src/assets/{fonts,msd,sounds} into custom_components/lcards/
 
       - name: Verify build output
@@ -153,6 +153,13 @@ jobs:
             ERRORS=$((ERRORS + 1))
           else
             echo "✅ lcards.js — $(du -sh custom_components/lcards/lcards.js | cut -f1)"
+          fi
+          # Lazily loaded chunks (e.g. ApexCharts) must ship next to lcards.js
+          if ! ls custom_components/lcards/chunks/*.js >/dev/null 2>&1; then
+            echo "❌ Missing lazy chunks: custom_components/lcards/chunks/"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "✅ chunks/: $(ls custom_components/lcards/chunks/*.js | wc -l) file(s)"
           fi
           for DIR in fonts msd sounds; do
             if [ ! -d "custom_components/lcards/$DIR" ]; then
