@@ -242,7 +242,6 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
         <div class="info-card-actions">
           <ha-button
             class="open-sandbox-button"
-            raised
             @click=${this._openSandbox}>
             <ha-icon icon="mdi:flask-outline" slot="start"></ha-icon>
             Open Sandbox

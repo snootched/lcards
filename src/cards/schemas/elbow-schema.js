@@ -596,6 +596,7 @@ export function getElbowSchema(options = {}) {
                         type: 'object',
                         description: 'Legacy colour override (use segment.color or segments.*.color instead)',
                         deprecated: true,
+                        'x-replacement': 'segment.color or segments.*.color',
                         properties: {
                             background: {
                                 type: 'string',

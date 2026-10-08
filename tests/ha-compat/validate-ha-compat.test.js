@@ -24,6 +24,20 @@ test('catches unregistered/removed elements', () => {
     assert.deepEqual(ids('<paper-dropdown-menu>'), ['paper-element']);
 });
 
+test('catches ha-input helper= (ha-input only has hint), across lines and after arrow fns', () => {
+    assert.deepEqual(ids('<ha-input .value=${v} helper="Pixels"></ha-input>'), ['ha-input-helper']);
+    assert.deepEqual(ids('<ha-input\n  .value=${v}\n  @input=${(e) => this._set(e)}\n  .helper=${"x"}>'), ['ha-input-helper']);
+    assert.deepEqual(ids('<ha-input .value=${v} hint="Pixels"></ha-input>'), []);
+    // helper on ha-selector is a real property
+    assert.deepEqual(ids('<ha-selector .helper=${"x"}></ha-selector>'), []);
+});
+
+test('catches ha-button raised (MWC attribute)', () => {
+    assert.deepEqual(ids('<ha-button raised @click=${f}>'), ['ha-button-raised']);
+    assert.deepEqual(ids('<ha-button\n  @click=${() => this._x()}\n  ?raised=${on}>'), ['ha-button-raised']);
+    assert.deepEqual(ids('<ha-button appearance=${on ? "accent" : "plain"}>'), []);
+});
+
 test('allows the corrected element forms', () => {
     assert.deepEqual(ids('<ha-icon-button .label=${"Up"}><ha-icon icon="mdi:arrow-up"></ha-icon></ha-icon-button>'), []);
     assert.deepEqual(ids('<ha-switch .checked=${on}>Invert Fill</ha-switch>'), []);

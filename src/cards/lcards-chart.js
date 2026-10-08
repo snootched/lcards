@@ -1,67 +1,72 @@
 /**
  * LCARdS Chart Card
  *
- * Data visualization using ApexCharts library (bundled, v5).
- * Supports real-time and historical data via the unified DataSource + ProcessorManager pipeline.
+ * Data visualization using the ApexCharts library (v7, loaded lazily on first render).
  *
- * Features:
- * - Real-time data updates via DataSourceManager
- * - Multiple chart types (line, area, bar, column, pie, donut, scatter, radar, etc.)
- * - Theme token integration via resolveThemeTokensRecursive
- * - Rules-engine dynamic styling
- * - Per-series processor buffer selection (main buffer or any processor output)
- * - Full ApexCharts style control via nested style config
+ * Series (`sources[]`) load through ChartSeriesFetcher:
+ * - `{ entity }`: Home Assistant history for the time window, plus live updates
+ * - `{ entity, statistics: { type, period } }`: long-term statistics
+ * - `{ datasource, buffer }`: an LCARdS DataSource (processors, shared sources)
+ * Any series can be bucketed with `group_by` (incl. minmax/box/ohlc for
+ * rangeArea/boxPlot/candlestick). Legacy configs (source, series_N
+ * data_sources, series_names, ...) are migrated in memory by
+ * migrateChartConfig(); the editor persists the migration on save.
  *
- * @example Basic Usage
+ * @example
  * ```yaml
  * type: custom:lcards-chart
  * chart_type: line
+ * graph_span: 24h
  * sources:
- *   - my_temp_sensor
- * data_sources:
- *   my_temp_sensor:
- *     entity: sensor.temperature
- *     history:
- *       preload: true
- *       hours: 24
- * ```
- *
- * @example Multi-Series with Processor Buffer
- * ```yaml
- * type: custom:lcards-chart
- * chart_type: line
- * sources:
- *   - temp_ds
- *   - datasource: temp_ds
+ *   - entity: sensor.temperature
+ *     name: Temperature
+ *   - datasource: temp
  *     buffer: smoothed
  * data_sources:
- *   temp_ds:
+ *   temp:
  *     entity: sensor.temperature
- *     history:
- *       preload: true
- *       hours: 24
  *     processing:
  *       smoothed:
  *         type: smooth
  *         method: moving_average
  *         window: 5
  * ```
- *
- * Buffer selector format (in sources array objects):
- * - Omit or 'main': Main RollingBuffer (raw historical data)
- * - 'processorKey': Output buffer from a processor defined in processing.*
  */
 
 import { html, css, svg } from 'lit';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import ApexCharts from 'apexcharts';
-import { ApexChartsAdapter } from '../charts/ApexChartsAdapter.js';
+import {
+  buildChartOptions,
+  buildApexSeries,
+  chartStyleDefaults,
+  windowAxis
+} from '../charts/chart-options-builder.js';
+import { ChartSeriesFetcher } from '../charts/chart-series-fetcher.js';
+import { normalizeChartSources, arrayChartProblem } from '../charts/chart-sources.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { getChartSchema } from './schemas/chart-schema.js';
 // Import chart editor for GUI editing
 import '../editor/cards/lcards-chart-editor.js';
+
+/** @type {Promise<any>|null} */
+let apexChartsPromise = null;
+
+/**
+ * Load ApexCharts on first use. It is built into its own chunk, so pages
+ * without a chart never download it. A failed load is not cached.
+ * @returns {Promise<any>} The ApexCharts constructor
+ */
+function loadApexCharts() {
+  apexChartsPromise ??= import('apexcharts')
+    .then(module => module.default)
+    .catch(error => {
+      apexChartsPromise = null;
+      throw error;
+    });
+  return apexChartsPromise;
+}
 
 export class LCARdSChart extends LCARdSCard {
   static CARD_TYPE = 'chart';
@@ -70,7 +75,7 @@ export class LCARdSChart extends LCARdSCard {
     return {
       ...super.properties,
       _chartReady: { type: Boolean, state: true },
-      _chartData: { type: Array, state: true }
+      _dataArrived: { type: Boolean, state: true }
     };
   }
 
@@ -89,6 +94,7 @@ export class LCARdSChart extends LCARdSCard {
           width: 100%;
           height: 100%;
           background: transparent;
+          position: relative;
         }
 
         .chart-container {
@@ -97,113 +103,183 @@ export class LCARdSChart extends LCARdSCard {
           position: relative;
         }
 
-        .chart-loading {
+        /* Loading / error states sit over the (always mounted) chart container */
+        .chart-overlay {
+          position: absolute;
+          inset: 0;
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 100%;
-          height: 100%;
-          color: var(--primary-text-color, var(--lcards-moonlight, #d3d3d3));
+          text-align: center;
+          padding: var(--ha-space-5);
           font-size: 14px;
+        }
+
+        .chart-loading {
+          color: var(--primary-text-color, var(--lcards-moonlight, #d3d3d3));
         }
 
         .chart-error {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 100%;
           color: var(--error-color, #ff0000);
-          font-size: 14px;
-          text-align: center;
-          padding: 20px;
         }
+
+        .chart-preview {
+          --preview-accent-color: var(--preview-accent, var(--lcars-orange, var(--primary-color)));
+        }
+        .chart-preview .preview-bg {
+          fill: color-mix(in srgb, var(--secondary-background-color) 50%, transparent);
+        }
+        .chart-preview .preview-grid {
+          stroke: var(--divider-color);
+          stroke-width: 1;
+        }
+        .chart-preview .preview-line {
+          fill: none;
+          stroke: var(--preview-accent-color);
+          stroke-width: 3;
+        }
+        .chart-preview .preview-area {
+          fill: color-mix(in srgb, var(--preview-accent-color) 30%, transparent);
+          stroke: var(--preview-accent-color);
+          stroke-width: 2;
+        }
+        .chart-preview .preview-bar {
+          fill: var(--preview-accent-color);
+          opacity: 0.8;
+        }
+        .chart-preview .preview-title {
+          fill: var(--preview-accent-color);
+          font-size: 16px;
+          font-weight: bold;
+        }
+        .chart-preview .preview-hint {
+          fill: var(--secondary-text-color);
+          font-size: 12px;
+        }
+
+        /* Content of a style.formatters.tooltip template (ApexCharts tooltip.custom) */
+        .lcards-chart-tooltip {
+          padding: var(--ha-space-1) var(--ha-space-2);
+        }
+
       `
     ];
-  }
-
-  /**
-   * Tell Home Assistant how much grid space this card needs
-   * @returns {number} Number of grid rows (50px per row)
-   */
-  getCardSize() {
-    // _configPx returns null for relative/viewport units so they don't produce
-    // a wrong row count — those cases fall through to the 200px default.
-    return Math.ceil((this._configPx(this.config.height) || 200) / 50);
   }
 
   constructor() {
     super();
     this._chart = null;
     this._chartReady = false;
-    this._chartData = [];
-    this._dataSubscriptions = [];
     this._chartOptions = null;
     this._error = null;
     this._chartInitialized = false; // Track if we've tried to initialize
-    this._registeredDataSources = new Set(); // Track datasources for cleanup
-    /** @type {string[]|undefined} */
-    this._seriesNames = undefined;
+    this._chartGeneration = 0; // Bumped on every init/teardown so a stale async init is dropped
+    /** @type {import('../charts/chart-sources.js').ChartSeries[]} */
+    this._series = [];
+    /** @type {Array<Array<{t: number, v: any}>|undefined>} Latest points per series */
+    this._seriesPoints = [];
+    this._dataArrived = false;
+    /** @type {ChartSeriesFetcher|null} */
+    this._fetcher = null;
+    this._firstUpdateDone = false;
   }
 
   /**
-   * Handle first update - initialize chart
+   * Handle first update: register with rules and start loading series.
    * @protected
    */
   async _handleFirstUpdate() {
     // Note: LCARdSCard doesn't implement _handleFirstUpdate, don't call super
-
-    // Re-detect preview mode now that we're in the DOM
-    // Need to check shadow DOM boundaries too
-    const isInCardPicker = this._checkForAncestor(['hui-card-picker', 'hui-card-preview']);
-    const isInEditDialog = this._checkForAncestor(['hui-dialog-edit-card', 'hui-dialog-create-card']);
-    const isInStudioDialog = this._checkForAncestor(['lcards-chart-studio-dialog', 'lcards-data-grid-studio-dialog-v4']);
-    const isPreview = isInCardPicker || isInEditDialog || isInStudioDialog || this._isPreviewMode;
-
-    lcardsLog.debug('[LCARdSChart] Preview detection in _handleFirstUpdate:', {
-      isInCardPicker,
-      isInEditDialog,
-      isInStudioDialog,
-      isPreviewFromNativeCard: this._isPreviewMode,
-      finalDecision: isPreview,
-      hasParent: !!this.parentElement,
-      parentTag: this.parentElement?.tagName,
-      parentClass: this.parentElement?.className,
-      hasSource: !!(this.config.source || this.config.data_source || this.config.sources)
-    });
-
-    // Register with RulesEngine
     const overlayId = this.config.id || `chart-${this._cardGuid}`;
     this._registerOverlayForRules(overlayId, 'chart', this.config.tags || []);
 
-    // Skip data source subscription and chart init in preview mode UNLESS in studio dialog (live preview)
-    if (isPreview && !isInStudioDialog) {
-      lcardsLog.debug('[LCARdSChart] Preview mode detected - skipping data source subscription and chart initialization');
-      this._chartReady = true; // Mark as "ready" to show preview
-      this._isPreviewMode = true; // Update flag for render
+    this._firstUpdateDone = true;
+    this._subscribeToAlertMode();
+    await this._startLoading();
+  }
+
+  /**
+   * Reconnected after a view switch: resume loading (the fetcher was stopped
+   * on disconnect).
+   * @protected
+   */
+  async _onConnected() {
+    // The base initialises singletons (DataSourceManager etc.) here.
+    await super._onConnected();
+    if (this._firstUpdateDone && !this._fetcher && this.isConnected) {
+      this._subscribeToAlertMode();
+      await this._startLoading();
+    }
+  }
+
+  /**
+   * Whether to show the static placeholder instead of a live chart: in the
+   * card picker, or when no series are configured. The HA edit dialog shows
+   * the real chart (loading series has no side effects).
+   * @private
+   */
+  _showPlaceholder() {
+    return this._series.length === 0 || this._checkForAncestor(['hui-card-picker']);
+  }
+
+  /**
+   * (Re)start loading every series for the current config.
+   * @private
+   */
+  async _startLoading() {
+    this._stopLoading();
+    this._series = normalizeChartSources(this.config);
+    this._seriesPoints = [];
+    this._dataArrived = false;
+    this._error = null;
+
+    if (this._showPlaceholder()) {
+      this.requestUpdate();
       return;
     }
 
-    // Studio dialog: allow full chart initialization for live preview
-    if (isInStudioDialog) {
-      lcardsLog.debug('[LCARdSChart] Studio dialog detected - allowing full chart initialization for live preview');
-      this._isPreviewMode = false; // CRITICAL: Override any preview detection from parent
-    }
-
-    // Wait for config processing to complete (includes data_sources creation)
+    // Card-local data_sources must exist before DataSource series attach.
     if (this._configProcessingPromise) {
-      lcardsLog.trace('[LCARdSChart] Waiting for config processing to complete...');
       await this._configProcessingPromise;
-      lcardsLog.trace('[LCARdSChart] Config processing complete, continuing with subscription');
     }
+    if (!this.isConnected) return;
 
-    // Subscribe to data sources (may auto-create them)
-    await this._subscribeToDataSources();
+    this._fetcher = new ChartSeriesFetcher({
+      getHass: () => this.hass,
+      getDataSourceManager: () => this._singletons?.dataSourceManager,
+      onUpdate: (index, points) => this._onSeriesUpdate(index, points),
+      logId: this.config?.id || this._cardGuid
+    });
+    this._fetcher.start(this._series, { graph_span: this.config.graph_span, span: this.config.span });
+    this.requestUpdate();
+  }
 
-    // Subscribe to alert mode changes so chart colors re-resolve when the palette shifts
-    this._subscribeToAlertMode();
+  /** @private */
+  _stopLoading() {
+    this._fetcher?.stop();
+    this._fetcher = null;
+  }
 
-    // Note: Chart initialization now happens in updated() after container is rendered
+  /**
+   * New points for one series from the fetcher.
+   * @private
+   * @param {number} index
+   * @param {Array<{t: number, v: any}>} points
+   */
+  _onSeriesUpdate(index, points) {
+    this._seriesPoints[index] = points;
+    if (!this._dataArrived) {
+      this._dataArrived = true;
+      this.requestUpdate(); // render the container; updated() initialises the chart
+      return;
+    }
+    if (!this._chart || !this._chartReady) return;
+    try {
+      this._chart.updateOptions({ xaxis: this._windowAxis() }, false, false);
+      this._chart.updateSeries(this._buildApexSeries(), false);
+    } catch (error) {
+      lcardsLog.error('[LCARdSChart] Error updating chart data:', error);
+    }
   }
 
   /**
@@ -227,29 +303,17 @@ export class LCARdSChart extends LCARdSCard {
   updated(changedProperties) {
     super.updated(changedProperties);
 
-    // Only initialize once, after data is ready, when not in preview mode
-    if (this._chartInitialized || this._isPreviewMode) {
+    if (this._chartInitialized || !this._dataArrived) {
       return;
     }
 
-    // Wait until at least one series has data before initializing
-    const hasAnyData = Array.isArray(this._chartData) &&
-      this._chartData.some(d => Array.isArray(d) && d.length > 0);
-    if (!hasAnyData) {
-      return;
-    }
-
-    // Get the container and check if it has dimensions
     const container = /** @type {HTMLElement|null} */ (this.renderRoot.querySelector('.chart-container'));
     if (!container) {
       return;
     }
 
-    const width = container.offsetWidth || container.clientWidth;
-    const height = container.offsetHeight || container.clientHeight;
-
-    // Only initialize if container has actual dimensions
-    if (width > 0 && height > 0) {
+    // Only initialize once the container has real dimensions
+    if (container.offsetWidth > 0 && container.offsetHeight > 0) {
       this._chartInitialized = true;
       this._initializeChart();
     }
@@ -264,13 +328,11 @@ export class LCARdSChart extends LCARdSCard {
     const maxLevels = 20;
 
     for (let i = 0; i < maxLevels && current; i++) {
-      // Check if current element matches
       for (const selector of selectors) {
         if (current.tagName && current.tagName.toLowerCase() === selector.toLowerCase()) {
           return true;
         }
       }
-
       // Move up: try parentElement first, then host (shadow DOM)
       current = current.parentElement || /** @type {ShadowRoot} */ (current.parentNode)?.host || /** @type {ShadowRoot} */ (current.getRootNode())?.host;
     }
@@ -289,8 +351,8 @@ export class LCARdSChart extends LCARdSCard {
   }
 
   /**
-   * Subscribe to ThemeManager alert mode changes.
-   * Called once after first update (skipped in preview mode).
+   * Subscribe to ThemeManager alert mode changes so chart colours re-resolve
+   * when the palette shifts.
    * @private
    */
   _subscribeToAlertMode() {
@@ -302,264 +364,68 @@ export class LCARdSChart extends LCARdSCard {
       this._alertModeUnsubscribe = themeManager.subscribeToAlertMode(
         this._handleAlertModeChange.bind(this)
       );
-      lcardsLog.debug('[LCARdSChart] Subscribed to ThemeManager alert mode changes');
     } else {
-      lcardsLog.warn('[LCARdSChart] ThemeManager.subscribeToAlertMode not available — alert mode subscription skipped');
+      lcardsLog.warn('[LCARdSChart] ThemeManager.subscribeToAlertMode not available; alert mode subscription skipped');
     }
   }
 
   /**
    * Called by ThemeManager AFTER CSS variables have been written and the
-   * token resolver cache has been cleared.  Re-resolves all chart colours
-   * so the canvas reflects the new palette immediately.
+   * token resolver cache has been cleared.
    * @private
    * @param {string} _mode - Incoming alert mode (unused; colours are re-read from CSS)
    */
   _handleAlertModeChange(_mode) {
     if (this._chart && this._chartReady) {
-      lcardsLog.debug(`[LCARdSChart] Alert mode changed to '${_mode}' — updating chart colours`);
       this._updateChartOptions();
     }
   }
 
   /**
-   * Extract data from the selected buffer.
-   * Supports main RollingBuffer or any processor output buffer by key.
-   *
+   * Display details for a series: legend name and unit.
    * @private
-   * @param {Object} data - DataSource emission object with {buffer: RollingBuffer, ...}
-   * @param {Object} dataSourceRef - Reference to the actual DataSource instance
-   * @param {string|null} bufferSelector - 'main' (or falsy) for raw history, or a processor key
-   * @returns {Array} Array of {t, v} data points
+   * @param {import('../charts/chart-sources.js').ChartSeries} series
+   * @returns {{name: string, unit: string|undefined}}
    */
-  _getBufferData(data, dataSourceRef, bufferSelector) {
-    // Main (raw historical) buffer
-    if (!bufferSelector || bufferSelector === 'main') {
-      return data.buffer.getAll();
-    }
-
-    // Processor buffer: use the last segment so 'type.key' notation still resolves the key
-    const key = bufferSelector.split('.').pop();
-
-    if (dataSourceRef?.processorManager?.processorBuffers?.has(key)) {
-      const processorBuffer = dataSourceRef.processorManager.processorBuffers.get(key);
-      const bufferData = processorBuffer.getAll();
-      lcardsLog.debug(`[LCARdSChart] Using processor buffer: ${key} (${bufferData.length} points)`);
-      return bufferData;
-    }
-
-    lcardsLog.warn(`[LCARdSChart] Buffer not found: '${bufferSelector}', falling back to main buffer`);
-    return data.buffer.getAll();
+  _seriesDisplay(series) {
+    const entity = series.entity ? this.getEntityState(series.entity) : null;
+    const name = series.name
+      ?? entity?.attributes?.friendly_name
+      ?? series.entity
+      ?? (series.buffer ? `${series.datasource} (${series.buffer})` : series.datasource);
+    const unit = series.unit ?? (series.attribute ? undefined : entity?.attributes?.unit_of_measurement);
+    return { name, unit };
   }
 
   /**
-   * Subscribe to data sources for live updates
-   * Auto-creates data sources if they don't exist (for standalone usage)
+   * Series with display details resolved (legend name, unit).
    * @private
+   * @returns {Array<Object>}
    */
-  async _subscribeToDataSources() {
-    if (!this._singletons?.dataSourceManager) {
-      lcardsLog.warn('[LCARdSChart] DataSourceManager not available');
-      return;
-    }
-
-    // Get source(s)
-    const sourceRef = this.config.source || this.config.data_source || this.config.sources;
-    if (!sourceRef) {
-      lcardsLog.warn('[LCARdSChart] No data source configured');
-      return;
-    }
-
-    const sources = Array.isArray(sourceRef) ? sourceRef : [sourceRef];
-
-    // Subscribe to each source (auto-create if needed)
-    for (let index = 0; index < sources.length; index++) {
-      const sourceConfig = sources[index];
-
-      // Extract datasource ID from config (can be string or object)
-      const sourceId = typeof sourceConfig === 'string' ? sourceConfig : (sourceConfig.datasource || sourceConfig.id || sourceConfig.name);
-
-      if (!sourceId) {
-        lcardsLog.warn(`[LCARdSChart] Invalid source config at index ${index}:`, sourceConfig);
-        continue;
-      }
-
-      // Try to get existing data source
-      let dataSource = this._singletons.dataSourceManager.getSource(sourceId);
-
-      // Auto-create if doesn't exist
-      if (!dataSource) {
-        lcardsLog.debug(`[LCARdSChart] Auto-creating data source: ${sourceId}`);
-
-        try {
-          // Check if sourceId looks like an entity ID (domain.entity_name)
-          const isEntityId = /^[a-z_]+\.[a-z0-9_]+$/.test(sourceId);
-
-          if (!isEntityId) {
-            lcardsLog.warn(`[LCARdSChart] Invalid source reference: ${sourceId} (must be entity ID or configured data source)`);
-            continue;
-          }
-
-          // Create data source with history enabled for charts
-          dataSource = await this._singletons.dataSourceManager.createDataSource(
-            sourceId,
-            {
-              entity: sourceId,
-              history: {
-                preload: true,
-                hours: this.config.history_hours || 24  // Allow config override
-              }
-            },
-            this._cardGuid,          // Pass card identifier
-            true                     // Mark as auto-created (CHART ONLY)
-          );
-
-          // Track this datasource for cleanup
-          this._registeredDataSources.add(sourceId);
-
-          lcardsLog.info(`[LCARdSChart] ✅ Auto-created data source for entity: ${sourceId}`);
-
-        } catch (error) {
-          lcardsLog.error(`[LCARdSChart] Failed to auto-create data source for ${sourceId}:`, error);
-          continue;
-        }
-      }
-
-      // Subscribe to updates
-      const subscription = dataSource.subscribe((data) => {
-        lcardsLog.trace(`[LCARdSChart] Data update for ${sourceId}:`, data);
-        this._handleDataUpdate(index, data);
-      });
-
-      this._dataSubscriptions.push(subscription);
-
-      lcardsLog.debug(`[LCARdSChart] Subscribed to data source: ${sourceId}`);
-    }
+  _displaySeries() {
+    return this._series.map(s => ({ ...s, ...this._seriesDisplay(s) }));
   }
 
   /**
-   * Handle data update from data source
+   * Series in ApexCharts format (see buildApexSeries).
    * @private
-   * @param {number} seriesIndex - Index of the series
-   * @param {Object|Array} data - New data points (can be DataSource update object or array)
+   * @returns {Array<any>}
    */
-  _handleDataUpdate(seriesIndex, data) {
-    // Extract buffer array from DataSource update object if needed
-    // DataSource emits { buffer: RollingBuffer, transformations: {}, aggregations: {}, ... }
-    let dataArray;
-    if (data?.buffer && typeof data.buffer.getAll === 'function') {
-      // Get buffer selector from series config (default to 'main')
-      const sourceRef = this.config.source || this.config.data_source || this.config.sources;
-      const sources = Array.isArray(sourceRef) ? sourceRef : [sourceRef];
-      const sourceConfig = sources[seriesIndex];
-
-      // Get the DataSource reference to access processor buffers
-      let dataSourceRef = null;
-      if (sourceConfig && this._singletons?.dataSourceManager) {
-        const sourceId = typeof sourceConfig === 'string' ? sourceConfig : (sourceConfig.datasource || sourceConfig.id || sourceConfig.name);
-        dataSourceRef = this._singletons.dataSourceManager.getSource(sourceId);
-      }
-
-      // Construct buffer selector
-      let bufferSelector = null;
-      if (typeof sourceConfig === 'object') {
-        if (sourceConfig.buffer) {
-          // Buffer field can be:
-          // - "main"
-          // - "transformation.smoothed" (dot notation - editor format)
-          // - "transformation" (type only)
-          if (sourceConfig.key && !sourceConfig.buffer.includes('.')) {
-            // Separate buffer and key: combine them
-            bufferSelector = `${sourceConfig.buffer}.${sourceConfig.key}`;
-          } else {
-            // Already has dot notation or is 'main'
-            bufferSelector = sourceConfig.buffer;
-          }
-        } else if (sourceConfig.key) {
-          // Just key (legacy format)
-          bufferSelector = sourceConfig.key;
-        }
-      }
-
-      dataArray = this._getBufferData(data, dataSourceRef, bufferSelector);
-    } else if (Array.isArray(data)) {
-      dataArray = data;
-    } else {
-      dataArray = [];
-    }
-
-    // Store data for chart initialization (ensure _chartData is an array)
-    if (!Array.isArray(this._chartData)) {
-      this._chartData = [];
-    }
-    this._chartData[seriesIndex] = dataArray;
-
-    // If chart isn't ready yet, trigger a render to initialize it via updated()
-    if (!this._chart || !this._chartReady) {
-      this.requestUpdate();
-      return;
-    }
-
-    // For multi-series: rebuild ALL series data
-    const sourceRef = this.config.source || this.config.data_source || this.config.sources;
-    const sources = Array.isArray(sourceRef) ? sourceRef : [sourceRef];
-
-    const allSeriesData = sources.map((source, idx) => {
-      const data = this._chartData[idx] || [];
-      const transformed = this._transformDataForSeries(data);
-      const sourceName = typeof source === 'string' ? source : (source.datasource || source.name || source.id);
-      const displayName = this._seriesNames?.[idx] || sourceName;
-
-      return {
-        name: displayName,
-        data: transformed
-      };
+  _buildApexSeries() {
+    return buildApexSeries({
+      series: this._displaySeries(),
+      points: this._seriesPoints,
+      chartType: this.config.chart_type || 'line'
     });
-
-    // Update ALL series at once
-    try {
-      this._chart.updateSeries(allSeriesData, false);
-    } catch (error) {
-      lcardsLog.error(`[LCARdSChart] Error updating chart data:`, error);
-    }
   }
 
   /**
-   * Transform data source data to ApexCharts series format
+   * Fix the datetime x-axis to the chart's time window.
    * @private
-   * @param {Array} data - Raw data from data source
-   * @returns {Array} Transformed data
+   * @returns {Object} xaxis options (empty for non-time charts)
    */
-  _transformDataForSeries(data) {
-    if (!Array.isArray(data)) {
-      return [];
-    }
-
-    return data.map(point => {
-      // Support different data formats
-      // RollingBuffer format: {t: timestamp, v: value}
-      if (typeof point === 'object' && point.t !== undefined && point.v !== undefined) {
-        return {
-          x: point.t,
-          y: point.v
-        };
-      }
-      // Legacy format: {timestamp, value}
-      else if (typeof point === 'object' && point.timestamp && point.value !== undefined) {
-        return {
-          x: point.timestamp,
-          y: point.value
-        };
-      }
-      // ApexCharts native format: {x, y}
-      else if (typeof point === 'object' && point.x !== undefined && point.y !== undefined) {
-        return point;
-      }
-      // Fallback
-      else {
-        return point;
-      }
-    });
+  _windowAxis() {
+    return windowAxis(this.config, this._fetcher?.span);
   }
 
   /**
@@ -568,48 +434,27 @@ export class LCARdSChart extends LCARdSCard {
    * @private
    */
   async _initializeChart() {
+    const generation = ++this._chartGeneration;
     const container = /** @type {HTMLElement|null} */ (this.renderRoot.querySelector('.chart-container'));
     if (!container) {
-      lcardsLog.error('[LCARdSChart] Chart container not found');
-      this._error = 'Chart container not found';
-      this.requestUpdate();
+      this._chartInitialized = false;
       return;
     }
-
-    // Check if ApexCharts is available
-    if (!window.ApexCharts && !ApexCharts) {
-      lcardsLog.error('[LCARdSChart] ApexCharts not available');
-      this._error = 'ApexCharts library not available';
-      this.requestUpdate();
-      return;
-    }
-
-    // Get container dimensions (should be valid now)
-    const containerWidth = container.offsetWidth || container.clientWidth || 400;
-    const containerHeight = container.offsetHeight || container.clientHeight || 200;
-
-    lcardsLog.debug(`[LCARdSChart] Container dimensions:`, {
-      offsetWidth: container.offsetWidth,
-      clientWidth: container.clientWidth,
-      offsetHeight: container.offsetHeight,
-      clientHeight: container.clientHeight,
-      finalWidth: containerWidth,
-      finalHeight: containerHeight
-    });
 
     try {
-      // Build chart options with explicit dimensions
-      this._chartOptions = this._buildChartOptions(containerWidth, containerHeight);
+      this._chartOptions = this._buildChartOptions(container.offsetWidth || 400, container.offsetHeight || 200);
 
-      // Create chart instance
-      const ApexChartsClass = window.ApexCharts || ApexCharts;
-      this._chart = new ApexChartsClass(container, this._chartOptions);
+      const ApexCharts = await loadApexCharts();
+      // The card may have been disconnected or reconfigured while the chunk loaded.
+      if (generation !== this._chartGeneration || !container.isConnected) {
+        return;
+      }
+      this._chart = new ApexCharts(container, this._chartOptions);
       await this._chart.render();
 
       this._chartReady = true;
       this._error = null;
-
-      lcardsLog.debug(`[LCARdSChart] Chart initialized for ${this._cardGuid}`);
+      lcardsLog.debug(`[LCARdSChart] Chart initialized for ${this.config?.id || this._cardGuid}`);
     } catch (error) {
       lcardsLog.error(`[LCARdSChart] Error initializing chart:`, error);
       this._error = `Chart initialization failed: ${error.message}`;
@@ -619,181 +464,37 @@ export class LCARdSChart extends LCARdSCard {
 
   /**
    * Build ApexCharts options from config
-   * Ported from ApexChartsOverlayRenderer with LCARdSCard enhancements
    * @private
    * @param {number} width - Container width in pixels
    * @param {number} height - Container height in pixels
    * @returns {Object} ApexCharts options
    */
   _buildChartOptions(width = 400, height = 200) {
-    // Get style with rule patches applied
-    const style = this._getMergedStyleWithRules(this.config.style || {});
-
-    // Build style baseline from theme's components.chart tokens so minimal
-    // configs get LCARS colors / typography instead of ApexCharts palette1 defaults.
-    // User style always wins because deepMerge puts it on top.
-    let tokenStyleDefaults = {};
     const tm = this._singletons?.themeManager;
-    if (tm) {
-      const seriesColors = tm.getToken('components.chart.colors');
-      const gridColor    = tm.getToken('components.chart.gridColor');
-      const axisColor    = tm.getToken('components.chart.axisColor');
-      const strokeWidth  = tm.getToken('components.chart.strokeWidth');
-      const fontFamily   = tm.getToken('components.chart.fontFamily');
-      const fontSize     = tm.getToken('components.chart.fontSize');
-
-      if (seriesColors != null) {
-        tokenStyleDefaults.colors = { series: seriesColors };
-      }
-      if (gridColor != null) {
-        tokenStyleDefaults.colors = { ...tokenStyleDefaults.colors, grid: gridColor };
-      }
-      if (axisColor != null) {
-        tokenStyleDefaults.colors = {
-          ...tokenStyleDefaults.colors,
-          axis: { x: axisColor, y: axisColor }
-        };
-      }
-      if (strokeWidth != null) {
-        tokenStyleDefaults.stroke = { width: strokeWidth };
-      }
-      if (fontFamily != null) {
-        tokenStyleDefaults.typography = { font_family: fontFamily };
-      }
-      if (fontSize != null) {
-        tokenStyleDefaults.typography = { ...tokenStyleDefaults.typography, font_size: fontSize };
-      }
-
-      lcardsLog.trace('[LCARdSChart] Chart token defaults:', tokenStyleDefaults);
-    }
-
-    // token defaults < user style: user config always overrides
-    const mergedStyle = deepMerge(tokenStyleDefaults, style);
-
-    // Merge chart_type from config root into style for adapter
-    let enhancedStyle = {
-      chart_type: this.config.chart_type || 'line',
-      ...mergedStyle
-    };
-
-    // Map xaxis_type into chart_options so it passes through the adapter's
-    // highest-precedence override path (deepMerge with style.chart_options).
-    if (this.config.xaxis_type) {
-      enhancedStyle = {
-        ...enhancedStyle,
-        chart_options: {
-          xaxis: { type: this.config.xaxis_type },
-          ...(enhancedStyle.chart_options || {})
-        }
-      };
-    }
-
-    // If any series uses type 'scatter', ensure markers are visible.
-    // In a mixed chart (e.g. line+scatter), ApexCharts defaults markers.size to 0
-    // for line-type charts, making scatter dots invisible.
-    const hasScatterSeries = Object.values(this.config.data_sources || {}).some(ds => ds.type === 'scatter');
-    if (hasScatterSeries && !enhancedStyle.markers?.size) {
-      enhancedStyle = { ...enhancedStyle, markers: { ...enhancedStyle.markers, size: 6 } };
-    }
-
-    // CRITICAL: Resolve all theme tokens recursively BEFORE passing to adapter
-    // This handles tokens like 'theme:colors.chart.grid' and color manipulation
-    // functions like 'alpha(colors.chart.grid, 0.05)'
-    if (this._singletons?.themeManager) {
-      enhancedStyle = resolveThemeTokensRecursive(enhancedStyle, this._singletons.themeManager);
-      lcardsLog.trace(`[LCARdSChart] Resolved theme tokens in style:`, enhancedStyle);
-    }
-
-    // Check if we have actual data
-    const hasData = this._chartData && this._chartData.length > 0 &&
-                    this._chartData.some(s => s.data && Array.isArray(s.data) && s.data.length > 0);
-
-    // Use ApexChartsAdapter.generateOptions() for full feature parity with MSD
-    // This gives us all 50+ style properties (nested structure):
-    // - colors.series, colors.stroke, colors.fill, colors.marker.*
-    // - colors.grid, grid.show, grid.opacity, grid.row_colors, grid.column_colors
-    // - colors.axis.x, colors.axis.y, colors.axis.border, colors.axis.ticks
-    // - colors.legend.default, colors.legend.items, legend.show
-    // - theme.mode, theme.palette, theme.monochrome.*
-    // - typography.font_family, typography.font_size
-    // - display.toolbar, display.tooltip.*
-    // - animation.preset
-    // - and all chart-type-specific defaults
-    const options = ApexChartsAdapter.generateOptions(
-      enhancedStyle,
-      [width, height],
-      {
-        hasData,
-        // Pass context for theme token resolution
-        config: this.config,
-        card: this,
-        hass: this.hass
-      }
+    // Theme defaults < card style (with rule patches): user config always wins
+    const style = deepMerge(
+      tm ? chartStyleDefaults(path => tm.getToken(path)) : {},
+      this._getMergedStyleWithRules(this.config.style || {})
     );
 
-    // Get series data and merge into options
-    const series = this._getSeriesData();
-    const finalOptions = {
-      ...options,
-      series
-    };
-
-    lcardsLog.trace(`[LCARdSChart] Built chart options using ApexChartsAdapter:`, finalOptions);
-
-    return finalOptions;
-  }
-
-  /**
-   * Get series data formatted for ApexCharts.
-   * Name resolution order: config.series_names[i] → data_sources[id].name → source ID.
-   * Per-series type override is read from data_sources[id].type if set.
-   * @private
-   * @returns {Array} Series array for ApexCharts
-   */
-  _getSeriesData() {
-    const sourceRef = this.config.source || this.config.data_source || this.config.sources;
-    if (!sourceRef) {
-      return [];
-    }
-
-    const sources = Array.isArray(sourceRef) ? sourceRef : [sourceRef];
-
-    // Explicit series_names array still respected for backward compat
-    const explicitNames = this.config.series_names;
-    const nameOverrides = Array.isArray(explicitNames) ? explicitNames
-      : (explicitNames ? [explicitNames] : []);
-
-    return sources.map((sourceConfig, index) => {
-      const data = this._chartData?.[index] || [];
-      const seriesData = this._transformDataForSeries(data);
-
-      const sourceId = typeof sourceConfig === 'string'
-        ? sourceConfig
-        : (sourceConfig.datasource || sourceConfig.name || sourceConfig.id);
-
-      // Resolve display name: explicit override > DS config name > source ID
-      const dsConfig = this.config.data_sources?.[sourceId];
-      const displayName = nameOverrides[index] || dsConfig?.name || sourceId;
-
-      const seriesEntry = { name: displayName, data: seriesData };
-
-      // Optional per-series chart type override (e.g., mixed line+bar)
-      if (dsConfig?.type) {
-        seriesEntry.type = dsConfig.type;
-      }
-
-      return seriesEntry;
+    return buildChartOptions({
+      config: this.config,
+      style,
+      series: this._displaySeries(),
+      points: this._seriesPoints,
+      span: this._fetcher?.span,
+      size: [width, height],
+      hass: this.hass,
+      resolveStyle: tm ? (st) => resolveThemeTokensRecursive(st, tm) : undefined
     });
   }
 
   /**
-   * Override setConfig to destroy and reinitialize chart when config changes.
-   * Without this, changes to legend, axes, markers, etc. in the editor/YAML
-   * have no effect until the page is reloaded, because _chartInitialized stays true.
+   * Config changed (editor, YAML, Studio): tear down the chart and reload
+   * series with the new config.
    * @override
    */
   setConfig(config) {
-    // Destroy existing chart so updated() will reinitialize it with new options
     if (this._chart) {
       try {
         this._chart.destroy();
@@ -804,12 +505,17 @@ export class LCARdSChart extends LCARdSCard {
     }
     this._chartReady = false;
     this._chartInitialized = false;
+    this._chartGeneration++;
 
     super.setConfig(config);
+
+    if (this._firstUpdateDone && this.isConnected) {
+      this._startLoading();
+    }
   }
 
   /**
-   * Update chart options (for rule-based style changes)
+   * Update chart options (rule patches, alert mode) without a full reinit
    * @private
    */
   _updateChartOptions() {
@@ -817,9 +523,6 @@ export class LCARdSChart extends LCARdSCard {
 
     try {
       const newOptions = this._buildChartOptions();
-
-      // Pass all style-related options so changes to legend, axes,
-      // markers, tooltip, etc. are reflected without a full reinit
       this._chart.updateOptions({
         colors: newOptions.colors,
         stroke: newOptions.stroke,
@@ -832,8 +535,6 @@ export class LCARdSChart extends LCARdSCard {
         xaxis: newOptions.xaxis,
         yaxis: newOptions.yaxis
       }, false, false);
-
-      lcardsLog.trace(`[LCARdSChart] Updated chart options for ${this._cardGuid}`);
     } catch (error) {
       lcardsLog.error(`[LCARdSChart] Error updating chart options:`, error);
     }
@@ -844,157 +545,78 @@ export class LCARdSChart extends LCARdSCard {
    * @protected
    */
   _renderCard() {
-    // Preview mode - show placeholder SVG
-    if (this._isPreviewMode) {
+    if (this._showPlaceholder()) {
       return this._renderPreview();
     }
 
-    // Check if no data source configured (non-preview stub config case)
-    const sourceRef = this.config.source || this.config.data_source || this.config.sources;
-    if (!sourceRef) {
-      return html`
-        <div class="lcards-card-container">
-          <div class="chart-loading">
-            <p>📊 LCARdS Chart</p>
-            <p style="font-size: 0.9em; opacity: 0.7;">Configure a data source to display chart</p>
-          </div>
-        </div>
-      `;
-    }
-
-    if (this._error) {
-      return html`
-        <div class="lcards-card-container">
-          <div class="chart-error">
-            ${this._error}
-          </div>
-        </div>
-      `;
-    }
-
-    // Show container immediately when we have data
-    // Chart will initialize in updated() lifecycle when container has dimensions
-    if (!this._chartData || this._chartData.length === 0) {
-      return html`
-        <div class="lcards-card-container">
-          <div class="chart-loading">
-            Loading chart data...
-          </div>
-        </div>
-      `;
-    }
-
-    // The host element height is set by the base class from config.height (if
-    // present) or by the HA grid/stack slot. The container fills 100% of that.
+    // Keep .chart-container mounted while the chart exists: ApexCharts owns its
+    // children. Loading and error states are overlays.
+    const problems = this._series
+      .map(s => arrayChartProblem(s, this.config.chart_type || 'line'))
+      .filter(Boolean);
     return html`
       <div class="lcards-card-container">
         <div class="chart-container"></div>
+        ${this._error || problems.length
+          ? html`<div class="chart-overlay chart-error">${this._error ?? problems[0]}</div>`
+          : !this._dataArrived
+            ? html`<div class="chart-overlay chart-loading">Loading chart data...</div>`
+            : ''}
       </div>
     `;
   }
 
   /**
-   * Render preview mode placeholder
+   * Render preview mode placeholder (card picker / edit dialog without data).
+   * Colours come from CSS classes because SVG presentation attributes can't
+   * resolve var().
    * @private
    */
   _renderPreview() {
     const chartType = this.config.chart_type || 'line';
-    const color = this.config.style?.colors?.[0] || '#FF9900';
+    const seriesColor = this.config.style?.colors?.series?.[0];
+    const accent = typeof seriesColor === 'string' && !seriesColor.startsWith('theme:')
+      ? `--preview-accent: ${seriesColor}`
+      : '';
 
     return html`
       <div class="lcards-card-container">
-        <svg viewBox="0 0 400 200" style="width: 100%; height: 100%;">
-          <rect width="400" height="200" fill="rgba(0,0,0,0.3)" rx="4"/>
-          <line x1="0" y1="50" x2="400" y2="50" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-          <line x1="0" y1="100" x2="400" y2="100" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-          <line x1="0" y1="150" x2="400" y2="150" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-          <line x1="100" y1="0" x2="100" y2="200" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-          <line x1="200" y1="0" x2="200" y2="200" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-          <line x1="300" y1="0" x2="300" y2="200" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-
-          ${this._renderPreviewChart(chartType, color)}
-
-          <text x="200" y="30" text-anchor="middle" fill="${color}" font-size="16" font-weight="bold">
-            📊 ${chartType.toUpperCase()} Chart
-          </text>
-          <text x="200" y="190" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="12">
-            Configure source to display data
-          </text>
+        <svg class="chart-preview" viewBox="0 0 400 200" style="width: 100%; height: 100%; ${accent}">
+          <rect class="preview-bg" width="400" height="200" rx="4"/>
+          ${[50, 100, 150].map(y => svg`<line class="preview-grid" x1="0" y1=${y} x2="400" y2=${y}/>`)}
+          ${[100, 200, 300].map(x => svg`<line class="preview-grid" x1=${x} y1="0" x2=${x} y2="200"/>`)}
+          ${this._renderPreviewChart(chartType)}
+          <text class="preview-title" x="200" y="30" text-anchor="middle">${chartType.toUpperCase()} CHART</text>
+          <text class="preview-hint" x="200" y="190" text-anchor="middle">Configure a source to display data</text>
         </svg>
       </div>
     `;
   }
 
   /**
-   * Render preview chart based on type
+   * Render the preview shape for a chart type
    * @private
+   * @param {string} chartType
    */
-  _renderPreviewChart(chartType, color) {
-    if (chartType === 'line') {
-      return svg`
-        <path
-          d="M 20,140 L 80,120 L 140,160 L 200,80 L 260,100 L 320,60 L 380,90"
-          fill="none"
-          stroke="${color}"
-          stroke-width="3"
-        />
-      `;
+  _renderPreviewChart(chartType) {
+    if (chartType === 'area' || chartType === 'rangeArea') {
+      return svg`<path class="preview-area" d="M 20,140 L 80,120 L 140,160 L 200,80 L 260,100 L 320,60 L 380,90 L 380,180 L 20,180 Z"/>`;
     }
-
-    if (chartType === 'area') {
-      return svg`
-        <path
-          d="M 20,140 L 80,120 L 140,160 L 200,80 L 260,100 L 320,60 L 380,90 L 380,180 L 20,180 Z"
-          fill="${color}"
-          fill-opacity="0.3"
-          stroke="${color}"
-          stroke-width="2"
-        />
-      `;
+    if (chartType === 'bar' || chartType === 'column') {
+      return [[40, 120, 60], [120, 100, 80], [200, 80, 100], [280, 110, 70]]
+        .map(([x, y, h]) => svg`<rect class="preview-bar" x=${x} y=${y} width="40" height=${h}/>`);
     }
-
-    if (chartType === 'bar') {
-      return svg`
-        <rect x="40" y="120" width="40" height="60" fill="${color}" opacity="0.8"/>
-        <rect x="120" y="100" width="40" height="80" fill="${color}" opacity="0.8"/>
-        <rect x="200" y="80" width="40" height="100" fill="${color}" opacity="0.8"/>
-        <rect x="280" y="110" width="40" height="70" fill="${color}" opacity="0.8"/>
-      `;
-    }
-
-    // Default to line
-    return svg`
-      <path
-        d="M 20,140 L 80,120 L 140,160 L 200,80 L 260,100 L 320,60 L 380,90"
-        fill="none"
-        stroke="${color}"
-        stroke-width="3"
-      />
-    `;
+    return svg`<path class="preview-line" d="M 20,140 L 80,120 L 140,160 L 200,80 L 260,100 L 320,60 L 380,90"/>`;
   }
 
   /**
-   * Cleanup on disconnect — called by LCARdSCard.disconnectedCallback()
+   * Cleanup on disconnect (called by LCARdSCard.disconnectedCallback()).
+   * _onConnected() resumes loading if the card comes back.
    * @protected
    */
   _onDisconnected() {
-    // Unsubscribe from chart-specific data source subscriptions
-    if (this._dataSubscriptions) {
-      this._dataSubscriptions.forEach(subscription => {
-        try {
-          if (typeof subscription === 'function') {
-            subscription();
-          } else if (typeof subscription?.unsubscribe === 'function') {
-            subscription.unsubscribe();
-          }
-        } catch (error) {
-          lcardsLog.warn('[LCARdSChart] Error unsubscribing:', error);
-        }
-      });
-      this._dataSubscriptions = [];
-    }
+    this._stopLoading();
 
-    // Destroy ApexCharts instance
     if (this._chart) {
       try {
         this._chart.destroy();
@@ -1006,8 +628,9 @@ export class LCARdSChart extends LCARdSCard {
 
     this._chartReady = false;
     this._chartInitialized = false;
+    this._chartGeneration++;
+    this._dataArrived = false;
 
-    // Unsubscribe from alert mode changes
     this._alertModeUnsubscribe?.();
     this._alertModeUnsubscribe = null;
 
@@ -1039,9 +662,8 @@ export class LCARdSChart extends LCARdSCard {
   static getStubConfig() {
     return {
       type: 'custom:lcards-chart',
-      chart_type: 'line',
-      // Note: No source - chart will show "No data configured" message
-      // This avoids creating data source subscriptions in preview
+      chart_type: 'line'
+      // No sources: the card picker shows the static preview
     };
   }
 
@@ -1070,8 +692,7 @@ export class LCARdSChart extends LCARdSCard {
     configManager.registerCardDefaults('chart', {
         chart_type: 'line',           // Default chart type
         height: 300,                  // Default height in pixels
-        xaxis_type: 'datetime',       // Default x-axis type
-        max_points: 0                 // No point limit by default (0 = unlimited)
+        xaxis_type: 'datetime'        // Default x-axis type
     });
 
     // Use static import (no .then() needed)

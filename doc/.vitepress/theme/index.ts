@@ -5,6 +5,7 @@ import HomeBadges from './HomeBadges.vue'
 import AnimationPlayground from './AnimationPlayground.vue'
 import FilterPlayground from './FilterPlayground.vue'
 import EffectPlayground from './EffectPlayground.vue'
+import ChartDemo from './ChartDemo.vue'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -61,6 +62,10 @@ export default {
     // (own IntersectionObserver) since several presets do real per-frame
     // per-pixel noise generation.
     app.component('EffectPlayground', EffectPlayground)
+    // Live chart demos (imports the real src/charts pipeline + ApexCharts
+    // client-side, on generated sample data). Used by ```yaml live fences and
+    // <ChartDemo editable /> on the chart playground page.
+    app.component('ChartDemo', ChartDemo)
   },
 
   Layout() {

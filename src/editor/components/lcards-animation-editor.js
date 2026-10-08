@@ -1269,7 +1269,7 @@ export class LCARdSAnimationEditor extends LitElement {
             .value=${params.delay ?? 0}
             min="0"
             step="100"
-            helper="Delay before animation starts"
+            hint="Delay before animation starts"
             @input=${(e) => this._updateParam(index, 'delay', Number(e.target.value))}>
           </ha-input>` : ''}
 
@@ -1418,7 +1418,7 @@ export class LCARdSAnimationEditor extends LitElement {
           min="0.1"
           max="10"
           step="0.1"
-          helper="Default: 1.675. Higher = steeper curve"
+          hint="Default: 1.675. Higher = steeper curve"
           @input=${(e) => this._updateEaseParam(index, 'power', Number(e.target.value))}>
         </ha-input>
       `;
@@ -1434,7 +1434,7 @@ export class LCARdSAnimationEditor extends LitElement {
           min="0"
           max="5"
           step="0.1"
-          helper="Default: 1.70158. Higher = more overshoot"
+          hint="Default: 1.70158. Higher = more overshoot"
           @input=${(e) => this._updateEaseParam(index, 'overshoot', Number(e.target.value))}>
         </ha-input>
       `;
@@ -1451,7 +1451,7 @@ export class LCARdSAnimationEditor extends LitElement {
             min="0.1"
             max="5"
             step="0.1"
-            helper="Default: 1"
+            hint="Default: 1"
             @input=${(e) => this._updateEaseParam(index, 'amplitude', Number(e.target.value))}>
           </ha-input>
 
@@ -1462,7 +1462,7 @@ export class LCARdSAnimationEditor extends LitElement {
             min="0.1"
             max="2"
             step="0.05"
-            helper="Default: 0.3"
+            hint="Default: 0.3"
             @input=${(e) => this._updateEaseParam(index, 'period', Number(e.target.value))}>
           </ha-input>
         </div>
@@ -1765,7 +1765,7 @@ export class LCARdSAnimationEditor extends LitElement {
         <ha-input
           label="From State (optional)"
           .value=${anim.from_state || ''}
-          .helper=${'Fire-and-forget gate: only trigger when transitioning FROM this value (leave empty for any)'}
+          .hint=${'Fire-and-forget gate: only trigger when transitioning FROM this value (leave empty for any)'}
           @input=${(e) => this._updateAnimation(index, 'from_state', e.target.value)}
           style="width: 100%; margin-bottom: 12px;">
         </ha-input>
@@ -1773,7 +1773,7 @@ export class LCARdSAnimationEditor extends LitElement {
         <ha-input
           label="To State (optional)"
           .value=${anim.to_state || ''}
-          .helper=${'Fire-and-forget gate: only trigger when transitioning TO this value (leave empty for any)'}
+          .hint=${'Fire-and-forget gate: only trigger when transitioning TO this value (leave empty for any)'}
           @input=${(e) => this._updateAnimation(index, 'to_state', e.target.value)}
           style="width: 100%; margin-bottom: 12px;">
         </ha-input>
@@ -1818,7 +1818,7 @@ export class LCARdSAnimationEditor extends LitElement {
               label="Value"
               type=${whileIsNumeric ? 'number' : 'text'}
               .value=${whileValue}
-              .helper=${whileIsNumeric ? 'Numeric threshold' : 'State string (e.g. on, off, heating)'}
+              .hint=${whileIsNumeric ? 'Numeric threshold' : 'State string (e.g. on, off, heating)'}
               @input=${(e) => this._updateWhileConditionValue(index, whileType, e.target.value)}
               style="flex: 1;">
             </ha-input>

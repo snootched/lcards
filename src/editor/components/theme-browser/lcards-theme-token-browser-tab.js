@@ -1448,7 +1448,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           <div class="info-card-actions">
             <ha-button
               class="open-browser-button"
-              raised
               @click=${this._openDialog}>
               <ha-icon icon="mdi:palette" slot="start"></ha-icon>
               Open Theme Browser

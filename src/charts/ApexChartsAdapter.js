@@ -1,34 +1,36 @@
 /**
- * [ApexChartsAdapter] Lightweight translator between MSD DataSource and ApexCharts
- * 📊 Handles format conversion without modifying DataSource architecture
+ * [ApexChartsAdapter] Maps the chart card's nested `style` config to ApexCharts options.
  *
  * Responsibilities:
- * - Convert RollingBuffer format to ApexCharts series format
- * - Support dot notation for enhanced DataSource paths
- * - Map MSD style config to ApexCharts options
- * - Handle multi-series aggregation
- * - Provide exact pixel dimensions for HTML overlay rendering
- * - Resolve CSS variables to computed colors (canvas compatibility)
+ * - Translate style.* (colours, stroke, fill, grid, axes, legend, markers, data
+ *   labels, tooltip, theme, typography, animation presets) into ApexCharts options
+ * - Apply LCARS defaults per chart type
+ * - Build annotations (zero line, thresholds) and label/tooltip formatters
+ * - Merge style.chart_options last (highest precedence)
+ * - Resolve remaining CSS variables to concrete colours
  *
- * Integration:
- * - Works with ApexChartsOverlayRenderer for HTML div overlay approach
- * - Integrates with MSD DataSourceManager for real-time data
- * - Supports time windowing and data decimation
- * - Expects theme tokens to be pre-resolved by calling card
- *
- * Note: Theme token resolution (theme:, alpha(), darken(), etc.) is handled
- * by the calling card (lcards-chart.js) using resolveThemeTokensRecursive().
- * This adapter focuses on CSS variable resolution for canvas compatibility.
+ * Series data is built by the chart card; this adapter only produces options.
+ * Theme tokens (theme:, alpha(), darken(), ...) are resolved by the card before
+ * calling generateOptions().
  *
  * @module ApexChartsAdapter
- * @requires lcards-logging
- * @requires deepMerge
  */
 
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { haFormatNumber } from '../utils/ha-entity-display.js';
+import { BUILTIN_THEMES_PACK } from '../core/packs/builtin-themes.js';
+
+/** Series colours used when a series sets its own colour and no palette is configured. */
+const DEFAULT_SERIES_COLORS = [
+  'var(--lcars-orange, #FF9900)',
+  'var(--lcars-blue, #9999FF)',
+  'var(--lcars-yellow, #FFCC66)',
+  'var(--lcars-green, #33CC99)',
+  'var(--lcars-red, #CC6666)',
+  'var(--lcars-lilac, #CC99CC)'
+];
 
 export class ApexChartsAdapter {
   /**
@@ -55,222 +57,14 @@ export class ApexChartsAdapter {
   ];
 
   /**
-   * Convert MSD DataSource to ApexCharts series format
-   * @param {string} sourceRef - DataSource reference (supports dot notation like "temp.transformations.celsius")
-   * @param {Object} dataSourceManager - MSD DataSourceManager instance
-   * @param {Object} config - Configuration options
-   * @returns {Array} ApexCharts series array
-   */
-  static convertToSeries(sourceRef, dataSourceManager, config = {}) {
-    try {
-      // Parse dot notation (e.g., "temp.transformations.celsius")
-      const { dataSource, dataPath } = this._resolveDataSourcePath(sourceRef, dataSourceManager);
-
-      if (!dataSource) {
-        lcardsLog.warn(`[ApexChartsAdapter] DataSource not found: ${sourceRef}`);
-        return [];
-      }
-
-      // Get historical data with error boundary
-      let data;
-      try {
-        if (dataPath) {
-          data = this._getEnhancedData(dataSource, dataPath, config);
-        } else {
-          data = this._getRawData(dataSource, config);
-        }
-      } catch (dataError) {
-        lcardsLog.error(`[ApexChartsAdapter] Error getting data for ${sourceRef}:`, dataError);
-        return [];
-      }
-
-      if (!data || data.length === 0) {
-        lcardsLog.warn(`[ApexChartsAdapter] No data available for: ${sourceRef}`);
-        return [];
-      }
-
-      // Convert to ApexCharts format
-      const seriesName = config.name || this._extractSeriesName(sourceRef);
-
-      // ✅ NEW: Detect if data contains multi-value arrays (from rolling_statistics)
-      // Check first data point to determine if values are arrays
-      const hasArrayValues = data.length > 0 && Array.isArray(data[0].value || data[0].v);
-
-      if (hasArrayValues) {
-        // ✅ NEW: Handle multi-value array data for rangeArea, candlestick, boxPlot
-        const validData = data
-          .filter(point => {
-            const x = point.timestamp || point.t;
-            const y = point.value || point.v;
-
-            // For array values, validate x and that y is an array
-            const isValid = (
-              x !== undefined &&
-              x !== null &&
-              !isNaN(Number(x)) &&
-              Array.isArray(y) &&
-              y.length > 0 &&
-              y.every(val => val !== null && val !== undefined && !isNaN(Number(val)) && isFinite(val))
-            );
-
-            if (!isValid && config.debug) {
-              lcardsLog.debug(`[ApexChartsAdapter] Filtered invalid multi-value point:`, { x, y, point });
-            }
-
-            return isValid;
-          })
-          .map(point => ({
-            x: point.timestamp || point.t,
-            y: point.value || point.v  // Keep as array for ApexCharts
-          }));
-
-        // ✅ NEW: Log info about multi-value data processing
-        if (validData.length > 0 && config.debug) {
-          const sampleY = validData[0].y;
-          lcardsLog.debug(`[ApexChartsAdapter] Processing multi-value data for ${seriesName}:`, {
-            points: validData.length,
-            valuesPerPoint: sampleY.length,
-            sample: sampleY
-          });
-        }
-
-        // ✅ FIXED: Log warning if data was filtered
-        if (validData.length < data.length) {
-          lcardsLog.warn(`[ApexChartsAdapter] Filtered ${data.length - validData.length} invalid multi-value points from ${sourceRef}`, {
-            original: data.length,
-            valid: validData.length
-          });
-        }
-
-        // ✅ FIXED: Return empty series if no valid data
-        if (validData.length === 0) {
-          lcardsLog.warn(`[ApexChartsAdapter] No valid multi-value data points for series ${seriesName} (${sourceRef})`);
-          return [{
-            name: seriesName,
-            data: []
-          }];
-        }
-
-        return [{
-          name: seriesName,
-          data: validData
-        }];
-      }
-
-      // ✅ EXISTING: Handle single-value data (original code path)
-      const validData = data
-        .filter(point => {
-          const x = point.timestamp || point.t;
-          const y = point.value || point.v;
-
-          // Strict validation: both x and y must be valid numbers
-          const isValid = (
-            x !== undefined &&
-            x !== null &&
-            !isNaN(Number(x)) &&
-            y !== undefined &&
-            y !== null &&
-            !isNaN(Number(y)) &&
-            isFinite(y)  // Reject Infinity and -Infinity
-          );
-
-          if (!isValid && config.debug) {
-            lcardsLog.debug(`[ApexChartsAdapter] Filtered invalid point:`, { x, y, point });
-          }
-
-          return isValid;
-        })
-        .map(point => ({
-          x: point.timestamp || point.t,
-          y: point.value || point.v
-        }));
-
-      // ✅ FIXED: Log warning if data was filtered
-      if (validData.length < data.length) {
-        lcardsLog.warn(`[ApexChartsAdapter] Filtered ${data.length - validData.length} invalid points from ${sourceRef}`, {
-          original: data.length,
-          valid: validData.length
-        });
-      }
-
-      // ✅ FIXED: Return empty series if no valid data (prevents ApexCharts errors)
-      if (validData.length === 0) {
-        lcardsLog.warn(`[ApexChartsAdapter] No valid data points for series ${seriesName} (${sourceRef})`);
-        return [{
-          name: seriesName,
-          data: []  // Empty array is safe for ApexCharts
-        }];
-      }
-
-      return [{
-        name: seriesName,
-        data: validData
-      }];
-
-    } catch (error) {
-      lcardsLog.error(`[ApexChartsAdapter] Critical error in convertToSeries for ${sourceRef}:`, error);
-      return [];
-    }
-  }
-
-  /**
-   * Convert multiple DataSources to multi-series format
-   * @param {Array<string>|string} sourceRefs - Array of DataSource references or single reference
-   * @param {Object} dataSourceManager - MSD DataSourceManager instance
-   * @param {Object} config - Configuration options
-   * @param {Object} [config.seriesNames] - Map of sourceRef to series name
-   * @returns {Array} ApexCharts multi-series array
-   */
-  static convertToMultiSeries(sourceRefs, dataSourceManager, config = {}) {
-    if (!Array.isArray(sourceRefs)) {
-      return this.convertToSeries(sourceRefs, dataSourceManager, config);
-    }
-
-    const allSeries = [];
-
-    sourceRefs.forEach(sourceRef => {
-      const series = this.convertToSeries(sourceRef, dataSourceManager, {
-        ...config,
-        name: config.seriesNames?.[sourceRef] || this._extractSeriesName(sourceRef)
-      });
-
-      // ✅ FIXED: Only add series with valid data
-      if (series && series.length > 0) {
-        // Validate each series has at least some data or is intentionally empty
-        const validSeries = series.filter(s => {
-          if (!s.data || !Array.isArray(s.data)) {
-            lcardsLog.warn(`[ApexChartsAdapter] Series ${s.name} has invalid data structure`);
-            return false;
-          }
-          return true;  // Keep series even if empty (ApexCharts can handle empty arrays)
-        });
-
-        allSeries.push(...validSeries);
-      }
-    });
-
-    // ✅ FIXED: Ensure at least one series exists (even if empty)
-    if (allSeries.length === 0) {
-      lcardsLog.warn(`[ApexChartsAdapter] No valid series data from sources:`, sourceRefs);
-      // Return single empty series to prevent ApexCharts initialization errors
-      return [{
-        name: 'No Data',
-        data: []
-      }];
-    }
-
-    return allSeries;
-  }
-
-  /**
-   * Generate ApexCharts options from MSD style config
+   * Generate ApexCharts options from the chart card's style config.
    *
-   * ✅ MODERNIZED (2026-01): Uses standard LCARdS utilities
-   * - Theme tokens resolved by calling card (lcards-chart.js line 552)
-   * - Supports ALL ApexCharts color properties (series, stroke, fill, markers, etc.)
-   * - Resolves CSS variables to actual colors (ApexCharts is canvas-based)
-   * - Uses standard deepMerge utility from utils
-   * - Maintains backward compatibility with existing configs
+   * - Theme tokens are resolved by the calling card (resolveThemeTokensRecursive)
+   * - Supports all ApexCharts colour properties (series, stroke, fill, markers, etc.)
+   * - Resolves CSS variables to concrete colours: ApexCharts draws SVG but derives
+   *   shades, gradients and opacity mixes from colour values in JS, so var()
+   *   strings must be resolved first
+   * - style.chart_options is deep-merged last (highest precedence)
    *
    * @param {Object} style - MSD overlay style configuration (theme tokens already resolved)
    * @param {Array} size - Chart size [width, height]
@@ -282,9 +76,8 @@ export class ApexChartsAdapter {
     // SETUP & THEME RESOLUTION
     // ============================================================================
 
-    // Note: Chart card already resolves theme tokens before calling this method
-    // (see lcards-chart.js line 552: resolveThemeTokensRecursive)
-    // We just need to handle any remaining CSS variables for canvas compatibility
+    // The chart card already resolves theme tokens before calling this method;
+    // only remaining CSS variables are handled here.
 
     let chartType = style.chart_type || style.type || 'line';
 
@@ -398,7 +191,8 @@ export class ApexChartsAdapter {
     const markerStrokeColors = normalizeColorArray(style.colors?.marker?.stroke) ?? [foregroundColor];
     const markerStrokeWidth = style.markers?.stroke?.width ?? 2;
     const markerSize = style.markers?.size ?? 0;
-    const markerShape = style.markers?.shape ?? 'circle';
+    // 'rhombus' was offered by older schemas; ApexCharts calls it 'diamond'.
+    const markerShape = style.markers?.shape === 'rhombus' ? 'diamond' : (style.markers?.shape ?? 'circle');
 
     // Data label colors
     const dataLabelColors = normalizeColorArray(style.colors?.data_labels) ?? [foregroundColor];
@@ -499,7 +293,9 @@ export class ApexChartsAdapter {
       fill: {
         colors: nullToUndefined(fillColors),
         type: fillType,
-        opacity: fillOpacity
+        opacity: fillOpacity,
+        // Schema keys already use ApexCharts names (shade, type, shadeIntensity, opacityFrom, opacityTo)
+        ...(style.fill?.gradient && { gradient: style.fill.gradient })
       },
 
       // Grid
@@ -507,7 +303,6 @@ export class ApexChartsAdapter {
         show: showGrid,
         borderColor: gridColor,
         strokeDashArray: style.grid?.stroke_dash_array ?? 4,
-        opacity: style.grid?.opacity ?? 0.3,
         ...(gridRowColors && { row: { colors: gridRowColors } }),
         ...(gridColumnColors && { column: { colors: gridColumnColors } })
       },
@@ -543,7 +338,11 @@ export class ApexChartsAdapter {
             fontSize: `${fontSize}px`,
             fontFamily: fontFamily
           },
-          ...(valueFormatter && { formatter: valueFormatter })
+          // Without decimals, ApexCharts takes label precision from the data,
+          // so averaged values print as "800.000000000000"; cap at 2 decimals.
+          formatter: valueFormatter ?? ((val) => (typeof val === 'number'
+            ? haFormatNumber(context?.hass, val, { maximumFractionDigits: 2 })
+            : val))
         },
         axisBorder: {
           show: showYAxisBorder,
@@ -561,7 +360,7 @@ export class ApexChartsAdapter {
         showForSingleSeries: showLegend, // ApexCharts hides legend for 1 series by default
         position: legendPosition,
         horizontalAlign: legendHorizontalAlign,
-        fontSize: `${fontSize + 2}px`,
+        fontSize: `${style.legend?.font_size ?? fontSize + 2}px`,
         fontFamily: fontFamily,
         labels: {
           // Use explicit color array if provided, otherwise fall back to
@@ -583,9 +382,12 @@ export class ApexChartsAdapter {
       dataLabels: {
         enabled: showDataLabels,
         offsetY: dataLabelOffsetY,
+        // ApexCharts 7 animates labels on every update by default; live HA data
+        // updates often, so keep labels still (pre-7 behaviour).
+        animate: { enabled: false },
         style: {
           colors: nullToUndefined(dataLabelColors),
-          fontSize: `${fontSize}px`,
+          fontSize: `${style.data_labels?.font_size ?? fontSize}px`,
           fontFamily: fontFamily
         },
         ...(valueFormatter && { formatter: valueFormatter })
@@ -618,15 +420,26 @@ export class ApexChartsAdapter {
 
       // Annotations (threshold lines, zero line)
       // Built from style.zero_line and style.thresholds[]
-      annotations: this._buildAnnotations(style)
+      annotations: this._buildAnnotations(style, { fontFamily, fontSize })
     };
 
     // ============================================================================
     // APPLY TYPE-SPECIFIC DEFAULTS
     // ============================================================================
 
-    const typeDefaults = this._getChartTypeDefaults(chartType, style);
+    const typeDefaults = this._getChartTypeDefaults(chartType, style, context?.hass);
     const optionsWithTypeDefaults = deepMerge(baseOptions, typeDefaults);
+
+    // ============================================================================
+    // PER-SERIES OPTIONS (sources[] display fields, multiple Y axes)
+    // ============================================================================
+
+    if (Array.isArray(context.series) && context.series.length) {
+      this._applySeriesOptions(optionsWithTypeDefaults, context.series, context.yaxis, {
+        valueDecimals,
+        hass: context.hass
+      });
+    }
 
     // ============================================================================
     // APPLY ANIMATION PRESET
@@ -719,6 +532,14 @@ export class ApexChartsAdapter {
     if (style.chart_options) {
       finalOptions = deepMerge(optionsWithTypeDefaults, style.chart_options);
       lcardsLog.debug('[ApexChartsAdapter] Applied chart_options overrides');
+
+      // chart_options must not switch to a chart type we don't support (some
+      // ApexCharts types are premium features).
+      const overriddenType = finalOptions.chart?.type;
+      if (overriddenType && overriddenType !== apexChartType && !this.VALID_CHART_TYPES.includes(overriddenType)) {
+        lcardsLog.warn(`[ApexChartsAdapter] chart_options.chart.type '${overriddenType}' is not supported; using '${apexChartType}'`);
+        finalOptions.chart.type = apexChartType;
+      }
     }
 
     // ============================================================================
@@ -730,9 +551,8 @@ export class ApexChartsAdapter {
     // - Variables from style.chart_options overrides
     // - Variables that slipped through earlier resolution
     //
-    // CRITICAL: ApexCharts is canvas-based and doesn't understand CSS variables.
-    // This is adapter-specific logic that must remain because CSS variables
-    // work in HTML/CSS but not in canvas rendering contexts.
+    // ApexCharts computes shades, gradients and opacity mixes from colour values
+    // in JS, so it needs concrete colours rather than var() strings.
     lcardsLog.debug('[ApexChartsAdapter] 🔍 Starting final CSS variable resolution pass');
     finalOptions = this._resolveAllCssVariables(finalOptions);
     lcardsLog.debug('[ApexChartsAdapter] ✅ Final CSS variable resolution complete');
@@ -793,136 +613,29 @@ export class ApexChartsAdapter {
   }
 
   /**
-   * Get animation preset from pack registry or builtin presets
+   * Look up a chart animation preset (`style.animation.preset`).
    * @private
    * @param {string} presetName - Animation preset name
-   * @returns {Object|null} Animation configuration or null
+   * @returns {Object|null} ApexCharts `chart.animations` config, or null
    */
   static _getAnimationPreset(presetName) {
-    try {
-      // First try: Access pack registry via CoreConfigManager singleton (works in both MSD and standalone)
-      const coreConfigManager = window.lcards?.core?.configManager;
-      const packRegistry = coreConfigManager?.context?.packRegistry;
-
-      if (packRegistry) {
-        // Check all packs for animation presets
-        const packs = packRegistry.getAllPacks();
-        for (const pack of packs) {
-          if (pack.chartAnimationPresets && pack.chartAnimationPresets[presetName]) {
-            lcardsLog.debug(`[ApexChartsAdapter] Found animation preset '${presetName}' in pack: ${pack.id}`);
-            return pack.chartAnimationPresets[presetName];
-          }
-        }
-      }
-
-      // Fallback: Use builtin presets (for cases where PackRegistry not available)
-      const builtinPresets = this._getBuiltinAnimationPresets();
-      if (builtinPresets[presetName]) {
-        lcardsLog.debug(`[ApexChartsAdapter] Using builtin animation preset: ${presetName}`);
-        return builtinPresets[presetName];
-      }
-
+    const preset = BUILTIN_THEMES_PACK.chartAnimationPresets?.[presetName];
+    if (!preset) {
       lcardsLog.warn(`[ApexChartsAdapter] Animation preset not found: ${presetName}`);
       return null;
-
-    } catch (error) {
-      lcardsLog.error('[ApexChartsAdapter] Error loading animation preset:', error);
-      return null;
     }
-  }
-
-  /**
-   * Get builtin animation presets (for standalone cards without PackRegistry)
-   * @private
-   * @returns {Object} Builtin animation presets
-   */
-  static _getBuiltinAnimationPresets() {
-    return {
-      lcars_standard: {
-        enabled: true,
-        easing: 'easeinout',
-        speed: 800,
-        animateGradually: {
-          enabled: true,
-          delay: 150
-        },
-        dynamicAnimation: {
-          enabled: true,
-          speed: 350
-        }
-      },
-      lcars_dramatic: {
-        enabled: true,
-        easing: 'easeout',
-        speed: 1200,
-        animateGradually: {
-          enabled: true,
-          delay: 200
-        },
-        dynamicAnimation: {
-          enabled: true,
-          speed: 500
-        }
-      },
-      lcars_minimal: {
-        enabled: true,
-        easing: 'easein',
-        speed: 400,
-        animateGradually: {
-          enabled: false
-        },
-        dynamicAnimation: {
-          enabled: true,
-          speed: 200
-        }
-      },
-      lcars_realtime: {
-        enabled: false,
-        easing: 'linear',
-        speed: 0,
-        animateGradually: {
-          enabled: false
-        },
-        dynamicAnimation: {
-          enabled: true,
-          speed: 100
-        }
-      },
-      lcars_alert: {
-        enabled: true,
-        easing: 'easeout',
-        speed: 600,
-        animateGradually: {
-          enabled: true,
-          delay: 100
-        },
-        dynamicAnimation: {
-          enabled: true,
-          speed: 250
-        }
-      },
-      none: {
-        enabled: false,
-        easing: 'linear',
-        speed: 0,
-        animateGradually: {
-          enabled: false
-        },
-        dynamicAnimation: {
-          enabled: false
-        }
-      }
-    };
+    return preset;
   }
 
   /**
    * Get LCARS-optimized defaults for specific chart type
    * @private
    * @param {string} chartType - Chart type
-   * @param {Object} style - MSD style configuration
+   * @param {Object} style - Chart style configuration
+   * @param {Object} [hass] - For locale-aware number formatting
    * @returns {Object} ApexCharts options specific to chart type
    */
-  static _getChartTypeDefaults(chartType, style) {
+  static _getChartTypeDefaults(chartType, style, hass = null) {
     // Use themeManager resolver if available; otherwise fall back to CSS variable strings
     // (which are resolved in the final _resolveAllCssVariables pass)
     const resolveToken = (tokenPath, fallback) => {
@@ -944,6 +657,18 @@ export class ApexChartsAdapter {
         return { plotOptions: { bar: { horizontal: true } } };
       case 'radialBar':
         return {
+          // Several gauges only show values on hover, so the legend carries
+          // them (shown unless style.legend.show is false).
+          legend: {
+            show: style.legend?.show ?? true,
+            showForSingleSeries: style.legend?.show ?? true,
+            formatter: (seriesName, opts) => {
+              const value = opts?.w?.globals?.series?.[opts.seriesIndex];
+              if (typeof value !== 'number') return seriesName;
+              const text = style.value_format === 'percent' ? `${Math.round(value)}%` : haFormatNumber(hass, value, { maximumFractionDigits: 1 });
+              return `${seriesName}: ${text}`;
+            }
+          },
           plotOptions: {
             radialBar: {
               hollow: {
@@ -973,8 +698,10 @@ export class ApexChartsAdapter {
                     return style.value_format === 'percent' ? `${Math.round(val)}%` : val;
                   }
                 },
+                // A sum of unrelated gauges (battery + humidity) means nothing,
+                // so the total is opt-in (style.gauge_total).
                 total: {
-                  show: true,
+                  show: style.gauge_total === true,
                   label: 'TOTAL',
                   fontSize: resolveToken('typography.fontSize.sm', '12px'),
                   fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
@@ -1004,21 +731,8 @@ export class ApexChartsAdapter {
           xaxis: {
             type: 'datetime',
             labels: {
-              datetimeUTC: false,
-              style: {
-                colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'),
-                fontSize: resolveToken('typography.fontSize.xs', '10px'),
-                fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif')
-              }
-            }
-          },
-          yaxis: {
-            labels: {
-              style: {
-                colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'),
-                fontSize: resolveToken('typography.fontSize.xs', '10px'),
-                fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif')
-              }
+              // Axis label colours/fonts come from style (base options), not per type
+              datetimeUTC: false
             }
           },
           dataLabels: {
@@ -1106,32 +820,19 @@ export class ApexChartsAdapter {
         };
 
       case 'rangeArea':
+        // Type defaults are merged over the base options, so fall back to the
+        // user's style rather than overriding it.
         return {
           stroke: {
-            curve: 'straight',
-            width: [0, 2, 2, 0], // Outer lines invisible, inner lines visible
-            colors: [
-              'transparent',
-              resolveToken('colors.accent.primary', 'var(--lcars-orange, #FF9900)'),
-              resolveToken('colors.accent.primary', 'var(--lcars-orange, #FF9900)'),
-              'transparent'
-            ]
+            curve: style.stroke?.curve ?? 'straight',
+            width: style.stroke?.width ?? 1
           },
           fill: {
-            type: 'solid',
-            opacity: 0.2
+            type: style.fill?.type ?? 'solid',
+            opacity: style.fill?.opacity ?? 0.35
           },
           markers: {
-            size: 0
-          },
-          legend: {
-            show: true,
-            position: style.legend?.position ?? 'top',
-            fontSize: resolveToken('typography.fontSize.sm', '12px'),
-            fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
-            labels: {
-              colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))')
-            }
+            size: style.markers?.size ?? 0
           }
         };
 
@@ -1183,12 +884,8 @@ export class ApexChartsAdapter {
           xaxis: {
             type: 'datetime',
             labels: {
-              datetimeUTC: false,
-              style: {
-                colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'),
-                fontSize: resolveToken('typography.fontSize.xs', '10px'),
-                fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif')
-              }
+              // Axis label colours/fonts come from style (base options), not per type
+              datetimeUTC: false
             }
           }
         };
@@ -1249,7 +946,9 @@ export class ApexChartsAdapter {
       const afterResolver = resolver ? resolver.resolve(obj, obj) : obj;
       // ColorUtils.resolveCssVariable now does in-place per-var substitution so
       // multi-value strings (font-family stacks, etc.) are fully preserved.
-      const resolved = afterResolver.includes('var(') ? ColorUtils.resolveCssVariable(afterResolver) : afterResolver;
+      const resolved = typeof afterResolver === 'string' && afterResolver.includes('var(')
+        ? ColorUtils.resolveCssVariable(afterResolver)
+        : afterResolver;
       if (original !== resolved) {
         lcardsLog.debug(`[ApexChartsAdapter] 🎨 Resolved CSS variable: ${original} → ${resolved}`);
       }
@@ -1261,215 +960,97 @@ export class ApexChartsAdapter {
   }
 
   /**
-   * Resolve DataSource path with dot notation support
+   * Apply per-series display fields from sources[] and the card's yaxis[].
+   *
+   * Series fields (color, stroke_width, curve, stroke_dash, opacity) override
+   * the matching style.* value for that series only. Card yaxis[] entries
+   * become ApexCharts axes; each series joins the axis named by its yaxis_id
+   * (or the first axis). Units and float_precision drive tooltip values.
+   *
    * @private
+   * @param {Object} options - ApexCharts options (mutated)
+   * @param {Array<Object>} series - Normalised series with resolved `name`/`unit`
+   * @param {Array<Object>|undefined} yaxisConfig - Card yaxis[]
+   * @param {{valueDecimals: number|null, hass?: Object}} format
    */
-  static _resolveDataSourcePath(sourceRef, dataSourceManager) {
-    if (!sourceRef || typeof sourceRef !== 'string') {
-      return { dataSource: null, dataPath: null };
-    }
+  static _applySeriesOptions(options, series, yaxisConfig, { valueDecimals, hass }) {
+    const perSeries = (field, fallback) => (series.some(s => s[field] !== undefined)
+      ? series.map((s, i) => s[field] ?? (Array.isArray(fallback) ? fallback[i % fallback.length] : fallback))
+      : null);
 
-    // Check for dot notation (e.g., "temp.transformations.celsius")
-    if (sourceRef.includes('.')) {
-      const parts = sourceRef.split('.');
-      const sourceId = parts[0];
-      const dataPath = parts.slice(1).join('.');
+    const baseColors = Array.isArray(options.colors) && options.colors.length ? options.colors : DEFAULT_SERIES_COLORS;
+    const colors = perSeries('color', baseColors);
+    if (colors) options.colors = colors;
 
-      const dataSource = dataSourceManager.getSource(sourceId);
-      return { dataSource, dataPath };
-    }
+    const width = perSeries('stroke_width', options.stroke?.width);
+    if (width) options.stroke.width = width;
+    const curve = perSeries('curve', options.stroke?.curve);
+    if (curve) options.stroke.curve = curve;
+    const dash = perSeries('stroke_dash', options.stroke?.dashArray ?? 0);
+    if (dash) options.stroke.dashArray = dash;
+    const opacity = perSeries('opacity', options.fill?.opacity);
+    if (opacity) options.fill.opacity = opacity;
 
-    // Simple source reference
-    const dataSource = dataSourceManager.getSource(sourceRef);
-    return { dataSource, dataPath: null };
-  }
-
-/**
- * Get raw DataSource buffer data with strict validation
- * @private
- */
-static _getRawData(dataSource, config) {
-  const currentData = dataSource.getCurrentData();
-  if (!currentData?.buffer) return [];
-
-  const bufferData = currentData.buffer.getAll();
-  if (!Array.isArray(bufferData) || bufferData.length === 0) return [];
-
-  // Apply time window filter if specified
-  let filteredData = bufferData;
-  if (config.time_window) {
-    const timeWindowMs = this._parseTimeWindow(config.time_window);
-    const cutoffTime = Date.now() - timeWindowMs;
-    filteredData = bufferData.filter(point => {
-      const timestamp = point?.t;
-      return timestamp && timestamp >= cutoffTime;
-    });
-  }
-
-  // Apply max points limit if specified (data decimation)
-  if (config.max_points && filteredData.length > config.max_points) {
-    const step = Math.floor(filteredData.length / config.max_points);
-    const decimated = [];
-    for (let i = 0; i < filteredData.length; i += step) {
-      decimated.push(filteredData[i]);
-    }
-    // Always include last point
-    if (decimated[decimated.length - 1] !== filteredData[filteredData.length - 1]) {
-      decimated.push(filteredData[filteredData.length - 1]);
-    }
-    filteredData = decimated;
-  }
-
-  // ✅ CRITICAL: Filter out invalid points BEFORE conversion
-  return filteredData
-    .filter(point => {
-      if (!point) return false;
-      const t = point.t;
-      const v = point.v;
-      return (
-        t !== undefined &&
-        t !== null &&
-        !isNaN(Number(t)) &&
-        v !== undefined &&
-        v !== null &&
-        !isNaN(Number(v)) &&
-        isFinite(v)
-      );
-    })
-    .map(point => ({
-      timestamp: point.t,
-      value: point.v
-    }));
-}
-
-  /**
-   * Get enhanced DataSource data (transformation/aggregation)
-   * @private
-   */
-  static _getEnhancedData(dataSource, dataPath, config) {
-    // For transformations, get transformed history buffer
-    if (dataPath.startsWith('transformations.')) {
-      const transformKey = dataPath.replace('transformations.', '');
-
-      try {
-        const history = dataSource.getTransformedHistory(transformKey, config.max_points || 500);
-
-        if (!history || history.length === 0) {
-          lcardsLog.warn(`[ApexChartsAdapter] No transformed history for ${dataPath}`);
-          return [];
-        }
-
-        // Apply time window filter if specified
-        let filteredHistory = history;
-        if (config.time_window) {
-          const timeWindowMs = this._parseTimeWindow(config.time_window);
-          const cutoffTime = Date.now() - timeWindowMs;
-          filteredHistory = history.filter(point => {
-            const ts = point.timestamp || point.t;
-            return ts >= cutoffTime;
-          });
-        }
-
-        return filteredHistory.map(point => ({
-          timestamp: point.timestamp || point.t,
-          value: point.value || point.v
-        }));
-      } catch (error) {
-        lcardsLog.error(`[ApexChartsAdapter] Error getting transformed history:`, error);
-        return [];
-      }
-    }
-
-    // For aggregations, create synthetic time series from current values
-    if (dataPath.startsWith('aggregations.')) {
-      const currentData = dataSource.getCurrentData();
-      const aggParts = dataPath.replace('aggregations.', '').split('.');
-
-      let value = currentData.aggregations;
-      for (const part of aggParts) {
-        if (value && typeof value === 'object' && part in value) {
-          value = value[part];
-        } else {
-          value = null;
-          break;
-        }
-      }
-
-      if (value === null || value === undefined) {
-        return [];
-      }
-
-      // ✅ NEW: Handle array values from rolling_statistics aggregations
-      // rolling_statistics can output arrays like [min, max] or [open, high, low, close]
-      if (Array.isArray(value)) {
-        return [{
-          timestamp: Date.now(),
-          value: value  // Keep as array for multi-value charts
-        }];
-      }
-
-      // ✅ EXISTING: Handle single numeric values
-      return [{
-        timestamp: Date.now(),
-        value: typeof value === 'number' ? value : 0
-      }];
-    }
-
-    return [];
-  }
-
-  /**
-   * Map MSD smoothing mode to ApexCharts curve type
-   * @private
-   * @param {string} smoothingMode - MSD smoothing mode
-   * @returns {string} ApexCharts curve type
-   */
-  static _mapSmoothingMode(smoothingMode) {
-    const mapping = {
-      'none': 'straight',
-      'linear': 'straight',
-      'constrained': 'smooth',
-      'bezier': 'smooth',
-      'spline': 'smooth',
-      'chaikin': 'smooth',
-      'stepped': 'stepline'
+    const format = (value, decimals, unit) => {
+      if (typeof value !== 'number') return value;
+      const text = decimals !== null && decimals !== undefined
+        ? haFormatNumber(hass, value, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+        : haFormatNumber(hass, value, { maximumFractionDigits: 2 });
+      return unit ? `${text} ${unit}` : text;
     };
 
-    return mapping[smoothingMode] || 'straight';
+    // Tooltip: per-series unit and precision
+    if (series.some(s => s.unit || s.float_precision !== undefined)) {
+      options.tooltip = {
+        ...options.tooltip,
+        y: {
+          ...options.tooltip?.y,
+          formatter: (value, /** @type {{seriesIndex?: number}} */ opts = {}) => {
+            const s = series[opts.seriesIndex ?? -1] ?? {};
+            return format(value, s.float_precision ?? valueDecimals, s.unit);
+          }
+        }
+      };
+    }
+
+    // Multiple Y axes
+    if (Array.isArray(yaxisConfig) && yaxisConfig.length) {
+      const base = Array.isArray(options.yaxis) ? options.yaxis[0] : (options.yaxis ?? {});
+      const firstId = yaxisConfig[0].id;
+      options.yaxis = yaxisConfig.map(axis => {
+        const members = series.filter(s => (s.yaxis_id ?? firstId) === axis.id);
+        const decimals = axis.decimals ?? valueDecimals;
+        const unit = members.length && members.every(m => m.unit === members[0].unit) ? members[0].unit : undefined;
+        return {
+          ...base,
+          seriesName: members.map(m => m.name),
+          show: axis.show ?? true,
+          opposite: axis.opposite ?? false,
+          ...(axis.min !== undefined && { min: axis.min }),
+          ...(axis.max !== undefined && { max: axis.max }),
+          labels: {
+            ...base.labels,
+            formatter: (value) => format(value, decimals, unit)
+          }
+        };
+      });
+    }
   }
 
   /**
-   * Map MSD gradient config to ApexCharts gradient format
+   * Build annotations (zero line, threshold lines) from style config
    * @private
-   * @param {Object} gradient - MSD gradient configuration
-   * @returns {Object} ApexCharts gradient object
-   */
-  static _mapGradient(gradient) {
-    if (!gradient) return undefined;
-
-    return {
-      shade: 'dark',
-      type: gradient.type === 'radial' ? 'vertical' : 'vertical',
-      shadeIntensity: 0.5,
-      gradientToColors: gradient.stops ?
-        gradient.stops.map(stop => stop.color) :
-        undefined,
-      inverseColors: false,
-      opacityFrom: gradient.stops?.[0]?.opacity || 0.8,
-      opacityTo: gradient.stops?.[gradient.stops.length - 1]?.opacity || 0.1,
-      stops: gradient.stops ?
-        gradient.stops.map(stop => parseInt(stop.offset)) :
-        [0, 100]
-    };
-  }
-
-  /**
-   * Build annotations (threshold lines) from style config
-   * @private
-   * @param {Object} style - MSD style configuration
+   * @param {Object} style - Chart style configuration
+   * @param {{fontFamily?: string, fontSize?: number}} [font] - Chart typography for labels
    * @returns {Object} ApexCharts annotations object
    */
-  static _buildAnnotations(style) {
+  static _buildAnnotations(style, { fontFamily, fontSize } = /** @type {{fontFamily?: string, fontSize?: number}} */ ({})) {
+    const labelText = 'var(--lcars-text-dark, #000000)';
+    const labelFont = {
+      fontSize: `${Math.max(8, (fontSize ?? 12) - 2)}px`,
+      fontFamily: fontFamily ?? 'Antonio, Helvetica Neue, sans-serif'
+    };
+
     const annotations = {
       yaxis: [],
       xaxis: [],
@@ -1486,8 +1067,9 @@ static _getRawData(dataSource, config) {
         label: {
           text: 'Zero',
           style: {
-            color: '#fff',
-            background: style.zero_line_color || 'var(--lcars-gray, var(--lcards-gray-medium, #666688))'
+            color: labelText,
+            background: style.zero_line_color || 'var(--lcars-gray, var(--lcards-gray-medium, #666688))',
+            ...labelFont
           }
         }
       });
@@ -1505,10 +1087,9 @@ static _getRawData(dataSource, config) {
           label: threshold.label ? {
             text: threshold.label,
             style: {
-              color: '#fff',
+              color: labelText,
               background: threshold.color || 'var(--lcars-red, var(--lcards-orange-dark, #dd4444))',
-              fontSize: '10px',
-              fontFamily: 'var(--lcars-font, var(--lcars-fallback-font, Antonio))'
+              ...labelFont
             },
             position: 'right',
             offsetX: 0,
@@ -1519,45 +1100,6 @@ static _getRawData(dataSource, config) {
     }
 
     return annotations;
-  }
-
-  /**
-   * Parse time window string to milliseconds
-   * @private
-   * @param {string|number} timeWindow - Time window specification (e.g., "12h", "24h", "30m")
-   * @returns {number} Time window in milliseconds
-   */
-  static _parseTimeWindow(timeWindow) {
-    if (typeof timeWindow === 'number') return timeWindow;
-    if (!timeWindow || typeof timeWindow !== 'string') return 0;
-
-    const match = timeWindow.match(/^(\d+(?:\.\d+)?)\s*([smhd])$/i);
-    if (!match) return 0;
-
-    const value = parseFloat(match[1]);
-    const multipliers = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
-    return value * (multipliers[match[2].toLowerCase()] || 0);
-  }
-
-  /**
-   * Format value for display
-   * @private
-   * @param {number} value - Numeric value
-   * @param {string|Function} format - Format specification
-   * @param {Object} [hass] - Home Assistant instance for locale-aware formatting
-   * @returns {string} Formatted value
-   */
-  static _formatValue(value, format, hass = null) {
-    if (typeof format === 'function') {
-      return format(value);
-    }
-
-    if (typeof format === 'string') {
-      // Simple template replacement
-      return format.replace('{value}', haFormatNumber(hass, value, { maximumFractionDigits: 1 }));
-    }
-
-    return haFormatNumber(hass, value, { maximumFractionDigits: 1 });
   }
 
   /**
@@ -1588,21 +1130,16 @@ static _getRawData(dataSource, config) {
   }
 
   /**
-   * Create tooltip formatter from template string
+   * Create a custom tooltip renderer from a template string.
    *
-   * ✅ FIX: Returns complete custom tooltip HTML structure to prevent ApexCharts
-   * from re-processing formatted content. ApexCharts' internal formatter can
-   * misinterpret characters in formatted dates (e.g., "Jan" → "Jamn" when it
-   * treats the second 'M' as a minute format token).
-   *
-   * By returning the outer <div class="apexcharts-tooltip"> wrapper, we signal
-   * to ApexCharts that this is a fully custom tooltip and content should not
-   * be re-formatted.
+   * ApexCharts places the returned HTML inside its own `.apexcharts-tooltip`
+   * element, so only the inner content is returned (a nested
+   * `.apexcharts-tooltip` would stay at opacity 0).
    *
    * @private
    * @param {string} format - Format template (e.g., "{x|MMM DD}: {y}°C")
    * @param {Object} [hass] - Home Assistant instance for locale-aware formatting
-   * @returns {Function} ApexCharts tooltip formatter
+   * @returns {Function} ApexCharts tooltip.custom function
    */
   static _createTooltipFormatter(format, hass = null) {
     return function({ series, seriesIndex, dataPointIndex, w }) {
@@ -1611,120 +1148,79 @@ static _getRawData(dataSource, config) {
 
       let output = format;
 
-      // Handle {x|format} syntax for date formatting
-      const xMatch = output. match(/\{x\|([^}]+)\}/);
+      // {x|format} formats the x value as a date; plain {x} uses a default format
+      const xMatch = output.match(/\{x\|([^}]+)\}/);
       if (xMatch) {
-        const dateFormat = xMatch[1];
-        const formattedX = ApexChartsAdapter._formatDate(x, dateFormat, hass);
-        output = output.replace(xMatch[0], formattedX);
+        output = output.replace(xMatch[0], ApexChartsAdapter._formatDate(x, xMatch[1], hass));
       } else if (output.includes('{x}')) {
         const formattedX = typeof x === 'number' ? ApexChartsAdapter._formatDate(x, 'MMM DD HH:mm', hass) : x;
         output = output.replace('{x}', formattedX);
       }
 
-      // Handle {y} syntax for value
       if (output.includes('{y}')) {
         const formattedY = typeof y === 'number' ? haFormatNumber(hass, y, { maximumFractionDigits: 1 }) : y;
         output = output.replace('{y}', formattedY);
       }
 
-      // ✅ FIX: Return complete custom tooltip structure WITHOUT hardcoded styles
-      // The outer wrapper signals to ApexCharts: "Don't re-format this content"
-      // ApexCharts will apply its own tooltip styling from the configured options
-      return `
-        <div class="apexcharts-tooltip">
-          <div class="apexcharts-tooltip-text">
-            ${output}
-          </div>
-        </div>
-      `;
+      if (output.includes('{seriesName}')) {
+        output = output.replace('{seriesName}', w.globals.seriesNames?.[seriesIndex] ?? '');
+      }
+
+      return `<div class="apexcharts-tooltip-text lcards-chart-tooltip">${output}</div>`;
     };
   }
 
   /**
-   * Format date using simple format string.
-   * Delegates to Intl.DateTimeFormat for locale-aware formatting when possible,
-   * falling back to manual token substitution for format strings not directly
-   * expressible via Intl options.
+   * Format a date with moment-style tokens in a single pass, so text inserted
+   * for one token (e.g. the month name "May") is never re-read as another
+   * token. Wrap literal text in square brackets: "[at] HH:mm".
+   *
+   * Tokens: YYYY YY MMMM MMM MM M dddd ddd DD D HH H hh h mm m ss s A a
+   *
    * @private
-   * @param {number|Date} timestamp - Timestamp or Date object
+   * @param {number|Date} timestamp - Timestamp (ms) or Date
    * @param {string} format - Format string (e.g., "MMM DD", "HH:mm", "YYYY-MM-DD HH:mm")
-   * @param {Object} [hass] - Home Assistant instance for locale settings
+   * @param {Object} [hass] - Home Assistant instance (locale for month/day names)
    * @returns {string} Formatted date string
    */
   static _formatDate(timestamp, format, hass = null) {
-    const date = typeof timestamp === 'number' ? new Date(timestamp) : timestamp;
-
-    if (!date || isNaN(date.getTime())) {
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    if (isNaN(date.getTime())) {
       return String(timestamp);
     }
 
     const locale = hass?.locale?.language ?? 'en';
+    const name = (options) => new Intl.DateTimeFormat(locale, options).format(date);
+    const pad = (n) => String(n).padStart(2, '0');
+    const hours = date.getHours();
+    const hours12 = hours % 12 || 12;
 
-    // Simple format string replacement (common patterns)
-    let formatted = format;
+    const tokens = {
+      YYYY: () => String(date.getFullYear()),
+      YY: () => String(date.getFullYear()).slice(-2),
+      MMMM: () => name({ month: 'long' }),
+      MMM: () => name({ month: 'short' }),
+      MM: () => pad(date.getMonth() + 1),
+      M: () => String(date.getMonth() + 1),
+      dddd: () => name({ weekday: 'long' }),
+      ddd: () => name({ weekday: 'short' }),
+      DD: () => pad(date.getDate()),
+      D: () => String(date.getDate()),
+      HH: () => pad(hours),
+      H: () => String(hours),
+      hh: () => pad(hours12),
+      h: () => String(hours12),
+      mm: () => pad(date.getMinutes()),
+      m: () => String(date.getMinutes()),
+      ss: () => pad(date.getSeconds()),
+      s: () => String(date.getSeconds()),
+      A: () => (hours >= 12 ? 'PM' : 'AM'),
+      a: () => (hours >= 12 ? 'pm' : 'am')
+    };
 
-    // Year
-    formatted = formatted.replace('YYYY', String(date.getFullYear()));
-    formatted = formatted.replace('YY', String(date.getFullYear()).slice(-2));
-
-    // Month — use Intl for locale-aware short/long month names
-    const monthShort = new Intl.DateTimeFormat(locale, { month: 'short' }).format(date);
-    const monthLong = new Intl.DateTimeFormat(locale, { month: 'long' }).format(date);
-    formatted = formatted.replace('MMMM', monthLong);
-    formatted = formatted.replace('MMM', monthShort);
-    formatted = formatted.replace('MM', String(date.getMonth() + 1).padStart(2, '0'));
-    formatted = formatted.replace('M', String(date.getMonth() + 1));
-
-    // Day — use Intl for locale-aware short/long weekday names
-    const dayShort = new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date);
-    const dayLong = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(date);
-    formatted = formatted.replace('dddd', dayLong);
-    formatted = formatted.replace('ddd', dayShort);
-    formatted = formatted.replace('DD', String(date.getDate()).padStart(2, '0'));
-    formatted = formatted.replace('D', String(date.getDate()));
-
-    // Hours
-    formatted = formatted.replace('HH', String(date.getHours()).padStart(2, '0'));
-    formatted = formatted.replace('H', String(date.getHours()));
-    const hours12 = date.getHours() % 12 || 12;
-    formatted = formatted.replace('hh', String(hours12).padStart(2, '0'));
-    formatted = formatted.replace('h', String(hours12));
-
-    // Minutes
-    formatted = formatted.replace('mm', String(date.getMinutes()).padStart(2, '0'));
-    formatted = formatted.replace('m', String(date.getMinutes()));
-
-    // Seconds
-    formatted = formatted.replace('ss', String(date.getSeconds()).padStart(2, '0'));
-    formatted = formatted.replace('s', String(date.getSeconds()));
-
-    // AM/PM
-    formatted = formatted.replace('A', date.getHours() >= 12 ? 'PM' : 'AM');
-    formatted = formatted.replace('a', date.getHours() >= 12 ? 'pm' : 'am');
-
-    return formatted;
-  }
-
-  /**
-   * Extract series name from source reference
-   * @private
-   * @param {string} sourceRef - DataSource reference
-   * @returns {string} Human-readable series name
-   */
-  static _extractSeriesName(sourceRef) {
-    if (!sourceRef) return 'Series';
-
-    // For dot notation, use the last part as name
-    if (sourceRef.includes('.')) {
-      const parts = sourceRef.split('.');
-      return parts[parts.length - 1]
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, c => c.toUpperCase());
-    }
-
-    return sourceRef
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, c => c.toUpperCase());
+    return format.replace(
+      /\[([^\]]*)\]|YYYY|YY|MMMM|MMM|MM|M|dddd|ddd|DD|D|HH|H|hh|h|mm|m|ss|s|A|a/g,
+      (match, literal) => (literal !== undefined ? literal : tokens[match]())
+    );
   }
 }

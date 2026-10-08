@@ -115,6 +115,10 @@ render() { const s = this.hass.states[this.config.entity]; }
 const unsub = this._singletons.systemsManager.subscribeToEntity(id, cb);
 ```
 
+### Exception: history over time (lcards-chart)
+
+`subscribeToEntity()` delivers current state only. The chart needs history for a time window, so `src/charts/chart-series-fetcher.js` subscribes to HA's `history/stream` (and fetches `recorder/statistics_during_period`) directly on `hass.connection`. It owns its own cleanup (`stop()`, called from `_onDisconnected()`) and resubscribes on connection `ready`. Reuse that fetcher rather than adding new raw WebSocket subscriptions to cards.
+
 ---
 
 ## Action Handling

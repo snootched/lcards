@@ -1,10 +1,13 @@
 /**
  * @fileoverview LCARdS Chart Editor
  *
- * Visual configuration editor for chart cards with 1-tab structure.
- * Supports 16 chart types with comprehensive styling and data visualization features.
- * All configuration is done through the Chart Configuration Studio (full-screen visual editor).
+ * Launcher for the Chart Configuration Studio plus identification/sizing.
  *
+ * Legacy chart configs are upgraded to the current sources[] format when the
+ * editor opens: the first setConfig() fires config-changed once, so HA's Save
+ * persists the upgrade and Cancel discards it. Later setConfig() calls (HA
+ * re-sends the config on every keystroke in its code editor) only migrate for
+ * display and never fire, so legacy YAML being typed is not rewritten.
  */
 
 import { html } from 'lit';
@@ -12,6 +15,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { fireEvent } from 'custom-card-helpers';
 import { configToYaml } from '../utils/yaml-utils.js';
+import { migrateChartConfig } from '../../charts/chart-config-migration.js';
 
 // Import shared form components
 import '../components/shared/lcards-message.js';
@@ -27,7 +31,30 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'chart';
-        lcardsLog.debug('[LCARdSChartEditor] Editor initialized with cardType: chart (1 tab: Configuration Studio launcher)');
+        /** Set once: only the first setConfig() after opening may upgrade. */
+        this._openedConfigSeen = false;
+        /** @type {string[]} Migration notes shown in the upgrade notice */
+        this._upgradeNotes = [];
+    }
+
+    /**
+     * Migrate legacy configs before the base editor clones/validates them.
+     * @param {Object} config
+     * @override
+     */
+    setConfig(config) {
+        const { config: migrated, changed, notes } = migrateChartConfig(config);
+        const firstCall = !this._openedConfigSeen;
+        this._openedConfigSeen = true;
+
+        super.setConfig(migrated);
+
+        if (firstCall && changed) {
+            this._upgradeNotes = notes;
+            lcardsLog.info('[LCARdSChartEditor] Upgraded legacy chart config', notes);
+            // After the first render, so HA has the editor wired up.
+            this.updateComplete.then(() => fireEvent(this, 'config-changed', { config: this.config }));
+        }
     }
 
     /**
@@ -54,22 +81,23 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
      */
     _renderConfigurationTab() {
         return html`
+            ${this._upgradeNotes.length ? html`
+                <ha-alert alert-type="info" title="Chart format upgraded">
+                    This card was upgraded to the current chart format. Save to keep the change.
+                </ha-alert>
+            ` : ''}
+
             <!-- Studio Launcher Card (Top Priority) -->
             <div class="info-card">
                 <div class="info-card-content">
-                    <h3>📊 Chart Configuration Studio</h3>
+                    <h3>Chart Configuration Studio</h3>
                     <p>
-                        <strong>Full-screen immersive workspace</strong> with live preview
-                        <br />
-                        Visual chart designer, 16 chart types, and comprehensive styling
-                    </p>
-                    <p style="font-size: 13px; color: var(--secondary-text-color);">
-                        Build your chart visually with instant feedback. Configure data sources, colors, animations, and more.
+                        <strong>Full-screen workspace</strong> with live preview: series, time span,
+                        axes, colours, animations and more.
                     </p>
                 </div>
                 <div class="info-card-actions">
                     <ha-button
-                        raised
                         @click=${this._openChartStudio}>
                         <ha-icon icon="mdi:chart-line" slot="start"></ha-icon>
                         Open Configuration Studio
@@ -106,7 +134,7 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
                 ?outlined=${true}
                 headerLevel="4">
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--ha-space-2);">
                     ${FormField.renderField(this, 'height', { label: 'Height' })}
 
                     ${FormField.renderField(this, 'width', { label: 'Width' })}
@@ -139,21 +167,12 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
     async _openChartStudio() {
         lcardsLog.debug('[ChartEditor] Opening Chart Configuration Studio');
 
-        const dialog = document.createElement('lcards-chart-studio-dialog');
-        // @ts-ignore - TS2339: auto-suppressed
+        const dialog = /** @type {any} */ (document.createElement('lcards-chart-studio-dialog'));
         dialog.hass = this.hass;
-
-        // Deep clone current config
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.config = JSON.parse(JSON.stringify(this.config || {}));
 
-        // Listen for config changes
-        dialog.addEventListener('config-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
-            lcardsLog.debug('[ChartEditor] Studio config changed:', e.detail.config);
-
-            // Replace config entirely (don't merge)
-            // @ts-ignore - TS2339: auto-suppressed
+        // Studio sends the whole config: replace, don't merge (deleted keys must go)
+        dialog.addEventListener('config-changed', (/** @type {CustomEvent} */ e) => {
             this.config = e.detail.config;
 
             // Sync to YAML and notify HA

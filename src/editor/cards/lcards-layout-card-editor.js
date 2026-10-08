@@ -53,7 +53,7 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
                     </div>
                 </div>
                 <div class="info-card-actions">
-                    <ha-button raised @click=${this._openStudio}>
+                    <ha-button @click=${this._openStudio}>
                         <ha-icon icon="mdi:view-grid-plus" slot="start"></ha-icon>
                         Open Layout Studio
                     </ha-button>

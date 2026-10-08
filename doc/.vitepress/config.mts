@@ -11,6 +11,24 @@ const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.ur
  * template compiler doesn't try to interpret them as interpolations.
  * Needed because LCARdS docs show Jinja2 / HA template syntax in prose.
  */
+/**
+ * ```yaml live  code blocks render as usual, followed by a live <ChartDemo>
+ * built from the same YAML (one source of truth; the doc-example validator
+ * still checks the block). Used by the chart card docs.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function liveChartFence(md: any) {
+  const fence = md.renderer.rules.fence
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  md.renderer.rules.fence = (tokens: any[], idx: number, options: any, env: any, self: any) => {
+    const html = fence(tokens, idx, options, env, self)
+    const info = (tokens[idx].info || '').trim().split(/\s+/)
+    if (!/^ya?ml$/.test(info[0]) || !info.includes('live')) return html
+    const src = encodeURIComponent(tokens[idx].content)
+    return `${html}<ClientOnly><ChartDemo src="${src}" /></ClientOnly>`
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function vPreBracesRule(md: any) {
   // 1. Patch code_inline renderer: add v-pre so Vue skips interpolation inside <code>
@@ -106,6 +124,7 @@ export default withMermaid(defineConfig({
     config(md) {
       tabsMarkdownPlugin(md)
       vPreBracesRule(md)
+      liveChartFence(md)
     },
   },
 
@@ -117,6 +136,19 @@ export default withMermaid(defineConfig({
   vite: {
     define: {
       __LCARDS_VERSION__: JSON.stringify(pkg.version),
+    },
+    // mermaid's core build imports some CommonJS/UMD-only packages directly.
+    // The dev server must pre-bundle them or the browser fails with "does not
+    // provide an export named 'default'". vitepress-plugin-mermaid's own
+    // include list (merged with this one) misses these (fastdom is new in
+    // mermaid 11.17; fcose is used by architecture diagrams, duration by gantt).
+    optimizeDeps: {
+      include: [
+        'mermaid > fastdom',
+        'mermaid > fastdom/extensions/fastdom-promised.js',
+        'mermaid > cytoscape-fcose',
+        'mermaid > dayjs/plugin/duration.js',
+      ],
     },
   },
 
@@ -317,7 +349,17 @@ export default withMermaid(defineConfig({
             { text: 'Button',         link: '/cards/button/' },
             { text: 'Elbow',          link: '/cards/elbow/' },
             { text: 'Slider',         link: '/cards/slider-card/' },
-            { text: 'Chart',          link: '/cards/chart/' },
+            {
+              text: 'Chart',
+              collapsed: true,
+              items: [
+                { text: 'Overview',      link: '/cards/chart/' },
+                { text: 'Series & Time', link: '/cards/chart/series' },
+                { text: 'Styling',       link: '/cards/chart/styling' },
+                { text: 'Playground',    link: '/cards/chart/playground' },
+                { text: 'Upgrading',     link: '/cards/chart/upgrading' },
+              ],
+            },
             { text: 'Data Grid',      link: '/cards/data-grid/' },
             { text: 'Layout View',    link: '/cards/layout-view/' },
             {

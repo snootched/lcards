@@ -865,6 +865,7 @@ export function getMsdSchema() {
                 enum: ['bundling', 'avoiding', 'waypoint'],
                 optional: true,
                 deprecated: true,
+                'x-replacement': 'mode (bundling→prefer, avoiding→avoid, waypoint→force)',
                 description: 'DEPRECATED: Use mode instead (bundling→prefer, avoiding→avoid, waypoint→force)'
               }
             }

@@ -8,6 +8,12 @@ import { haFormatNumber } from '../../utils/ha-entity-display.js';
 
 import { RollingBuffer } from './RollingBuffer.js';
 import { ProcessorManager } from './ProcessorManager.js';
+import {
+  toNumericValue,
+  normalizeAttribute,
+  historyNeedsAttributes,
+  historyStatesToPoints
+} from './ha-history-utils.js';
 
 // Node.js polyfills for test environment
 const isNode = typeof window === 'undefined';
@@ -42,6 +48,15 @@ export class DataSource {
     if (!this.cfg.entity) {
       lcardsLog.debug('[DataSource] ⚠️ No entity specified in config');
       this.cfg.entity = '';
+    }
+
+    // `attribute: 'state'` (written by older editors) means the entity state,
+    // not an attribute named "state". Normalise once so every read site agrees.
+    const attribute = normalizeAttribute(this.cfg.attribute);
+    if (attribute) {
+      this.cfg.attribute = attribute;
+    } else {
+      delete this.cfg.attribute;
     }
 
     // This allows expressions to access entity attributes
@@ -396,11 +411,24 @@ export class DataSource {
       return;
     }
 
-    const hours = Math.max(1, Math.min(168, this.cfg.history?.hours || 6)); // 1-168 hours
+    // `history.preload` is the older spelling of `history.enabled`.
+    const history = this.cfg.history || {};
+    if (history.enabled === false || history.preload === false) {
+      return;
+    }
+    const requestedHours = history.hours ?? (history.days ? history.days * 24 : 6);
+    const hours = Math.max(1, Math.min(168, requestedHours)); // 1-168 hours
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - hours * 3600000);
 
     lcardsLog.trace(`[DataSource] 🔄 Preloading history for ${this.cfg.entity}`);
+
+    // Long-term statistics only cover the entity state, so attribute series
+    // go straight to state history.
+    if (historyNeedsAttributes(this.cfg)) {
+      await this._preloadStateHistoryWS(startTime, endTime);
+      return;
+    }
 
     try {
       // Use modern WebSocket call for statistics (preferred)
@@ -416,16 +444,11 @@ export class DataSource {
         const statistics = statisticsData[this.cfg.entity];
         lcardsLog.trace(`[DataSource] 📊 Got statistics points`,statistics);
 
-        for (const stat of statistics) {
-          const timestamp = new Date(stat.start).getTime();
-          const value = this._extractStatisticValue(stat);
-
-          if (value !== null) {
-            this.buffer.push(timestamp, value);
-            this._processValue(timestamp, value);
-            this._stats.historyLoaded++;
-          }
-        }
+        this._loadHistoryPoints(
+          statistics
+            .map(stat => ({ t: new Date(stat.start).getTime(), v: this._extractStatisticValue(stat) }))
+            .filter(p => p.v !== null && Number.isFinite(p.t))
+        );
 
         lcardsLog.trace(`[DataSource] ✅ Loaded statistics points`);
         return; // Success with statistics
@@ -449,42 +472,22 @@ export class DataSource {
     try {
       lcardsLog.trace(`[DataSource] 📚 Trying WebSocket state history for ${this.cfg.entity}`);
 
-      // Use modern WebSocket call for history
+      // Attributes are only sent when the series needs one; minimal responses
+      // drop attributes from most rows, so ask for full rows in that case.
+      const needsAttributes = historyNeedsAttributes(this.cfg);
       const historyData = await this.hass.connection.sendMessagePromise({
         type: 'history/history_during_period',
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
         entity_ids: [this.cfg.entity],
-        minimal_response: true,
-        no_attributes: true
+        minimal_response: !needsAttributes,
+        no_attributes: !needsAttributes
       });
 
-      if (historyData && historyData[0]) {
-        const states = historyData[0];
-        lcardsLog.trace(`[DataSource] 📊 Got history states`);
-
-        for (const state of states) {
-          const timestamp = new Date(state.last_changed || state.last_updated).getTime();
-
-          // ✅ ENHANCED: Support nested attribute paths
-          let rawValue;
-          if (this.cfg.attribute_path) {
-            rawValue = this._extractNestedAttribute(state.attributes, this.cfg.attribute_path);
-          } else if (this.cfg.attribute) {
-            rawValue = state.attributes?.[this.cfg.attribute];
-          } else {
-            rawValue = state.state;
-          }
-
-          const value = this._toNumber(rawValue);
-
-          if (value !== null) {
-            this.buffer.push(timestamp, value);
-            this._processValue(timestamp, value);
-            this._stats.historyLoaded++;
-          }
-        }
-
+      // Reply shape: { [entity_id]: [{ s, a?, lc?, lu }, ...] }
+      const states = historyData?.[this.cfg.entity];
+      if (Array.isArray(states) && states.length) {
+        this._loadHistoryPoints(historyStatesToPoints(states, this.cfg));
         lcardsLog.trace(`[DataSource] ✅ Loaded history points`);
       } else {
         // Debug only: Entity may not have history yet (new entity, HA just started, or history not enabled)
@@ -495,6 +498,19 @@ export class DataSource {
 
       // Final fallback: try direct REST API if available
       await this._preloadHistoryREST(startTime, endTime);
+    }
+  }
+
+  /**
+   * Push preloaded history points into the buffer and processors.
+   * @private
+   * @param {Array<{t: number, v: number}>} points
+   */
+  _loadHistoryPoints(points) {
+    for (const { t, v } of points) {
+      this.buffer.push(t, v);
+      this._processValue(t, v);
+      this._stats.historyLoaded++;
     }
   }
 
@@ -510,7 +526,8 @@ export class DataSource {
       lcardsLog.debug(`[DataSource] 🌐 Trying REST API history for ${this.cfg.entity}`);
 
       const startParam = startTime.toISOString();
-      const url = `/api/history/period/${startParam}?filter_entity_id=${this.cfg.entity}&minimal_response&no_attributes`;
+      const lean = historyNeedsAttributes(this.cfg) ? '' : '&minimal_response&no_attributes';
+      const url = `/api/history/period/${startParam}?filter_entity_id=${this.cfg.entity}${lean}`;
 
       const response = await fetch(url, {
         headers: {
@@ -523,34 +540,10 @@ export class DataSource {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
+      // REST reply shape: [[{ state, attributes?, last_changed, last_updated }, ...]]
       const historyData = await response.json();
-
-      if (historyData && historyData[0]) {
-        const states = historyData[0];
-        lcardsLog.trace(`[DataSource] 📊 Got history states`);
-
-        for (const state of states) {
-          const timestamp = new Date(state.last_changed || state.last_updated).getTime();
-
-          // ✅ ENHANCED: Support nested attribute paths
-          let rawValue;
-          if (this.cfg.attribute_path) {
-            rawValue = this._extractNestedAttribute(state.attributes, this.cfg.attribute_path);
-          } else if (this.cfg.attribute) {
-            rawValue = state.attributes?.[this.cfg.attribute];
-          } else {
-            rawValue = state.state;
-          }
-
-          const value = this._toNumber(rawValue);
-
-          if (value !== null) {
-            this.buffer.push(timestamp, value);
-            this._processValue(timestamp, value);
-            this._stats.historyLoaded++;
-          }
-        }
-
+      if (Array.isArray(historyData?.[0])) {
+        this._loadHistoryPoints(historyStatesToPoints(historyData[0], this.cfg));
         lcardsLog.trace(`[DataSource] ✅ Loaded history points`);
       }
     } catch (error) {
@@ -1014,99 +1007,13 @@ export class DataSource {
    * @returns {number|null} Converted number or null if invalid
    */
   _toNumber(raw) {
-    if (raw === null || raw === undefined) {
-      return null;
+    const value = toNumericValue(raw, this.cfg.enum_mapping);
+    if (value === null && typeof raw === 'string' && (this.cfg.debug || this.cfg.enum_mapping_debug)) {
+      lcardsLog.debug(
+        `[DataSource] ${this.cfg.entity}: non-numeric value "${raw}" skipped (consider enum_mapping)`
+      );
     }
-
-    // Handle numeric values
-    if (typeof raw === 'number') {
-      return isNaN(raw) ? null : raw;
-    }
-
-    // Handle string values
-    if (typeof raw === 'string') {
-      // ✅ ENHANCED DEBUG: Log what we're checking
-      if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-        lcardsLog.debug(
-          `[DataSource] ${this.cfg.entity}: _toNumber called with string: "${raw}"\n` +
-          `  Has enum_mapping: ${!!this.cfg.enum_mapping}\n` +
-          `  Enum mapping keys: ${this.cfg.enum_mapping ? Object.keys(this.cfg.enum_mapping).join(', ') : 'none'}`
-        );
-      }
-
-      // Check enum_mapping first (before any other conversion)
-      if (this.cfg.enum_mapping && typeof this.cfg.enum_mapping === 'object') {
-        // ✅ ENHANCED DEBUG: Show the lookup attempt
-        if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-          lcardsLog.debug(
-            `[DataSource] ${this.cfg.entity}: Looking up "${raw}" in enum_mapping\n` +
-            `  Found: ${this.cfg.enum_mapping[raw] !== undefined}\n` +
-            `  Value: ${this.cfg.enum_mapping[raw]}`
-          );
-        }
-
-        if (this.cfg.enum_mapping[raw] !== undefined) {
-          const mappedValue = this.cfg.enum_mapping[raw];
-
-          // Validate mapped value is numeric
-
-          if (typeof mappedValue === 'number' && isFinite(mappedValue)) {
-            lcardsLog.debug(
-              `[DataSource] ${this.cfg.entity}: ✅ Enum mapping "${raw}" → ${mappedValue}`
-            );
-            return mappedValue;
-          } else {
-            lcardsLog.warn(
-              `[DataSource] ${this.cfg.entity}: ❌ Invalid enum mapping value for "${raw}": ${mappedValue} (must be a number)`
-            );
-          }
-        }
-      }
-
-      // Try direct numeric conversion
-      const num = parseFloat(raw);
-      if (!isNaN(num) && isFinite(num)) {
-        return num;
-      }
-
-      // Handle boolean-like strings
-      const lowerRaw = raw.toLowerCase().trim();
-      if (lowerRaw === 'on' || lowerRaw === 'true' || lowerRaw === 'active' || lowerRaw === 'open') {
-        if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-          lcardsLog.debug(`[DataSource] ${this.cfg.entity}: Boolean mapping "${raw}" → 1`);
-        }
-        return 1;
-      }
-
-      if (lowerRaw === 'off' || lowerRaw === 'false' || lowerRaw === 'inactive' || lowerRaw === 'closed') {
-        if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-          lcardsLog.debug(`[DataSource] ${this.cfg.entity}: Boolean mapping "${raw}" → 0`);
-        }
-        return 0;
-      }
-
-      // Handle unavailable/unknown states
-      if (lowerRaw === 'unavailable' || lowerRaw === 'unknown') {
-        return null;
-      }
-
-      // Log unhandled strings
-      if (this.cfg.debug || this.cfg.enum_mapping_debug) {
-        lcardsLog.warn(
-          `[DataSource] ${this.cfg.entity}: ⚠️ Unhandled string value: "${raw}" ` +
-          `(consider adding to enum_mapping)`
-        );
-      }
-
-      return null;
-    }
-
-    // Handle boolean values
-    if (typeof raw === 'boolean') {
-      return raw ? 1 : 0;
-    }
-
-    return null;
+    return value;
   }
 
   /**

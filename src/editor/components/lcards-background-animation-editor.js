@@ -901,7 +901,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           <ha-input
             type="number"
             label="Rows (blank = auto)"
-            helper="Leave empty to fill card height automatically"
+            hint="Leave empty to fill card height automatically"
             min="1"
             max="50"
             step="1"
@@ -912,7 +912,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           <ha-input
             type="number"
             label="Columns (blank = auto)"
-            helper="Leave empty to fill card width automatically"
+            hint="Leave empty to fill card width automatically"
             min="1"
             max="100"
             step="1"

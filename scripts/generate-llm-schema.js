@@ -73,7 +73,22 @@ function stripForLLM(node) {
     for (const v of node) out.push(stripForLLM(v));
   } else {
     for (const [k, v] of Object.entries(node)) {
-      if (k === 'x-ui-hints') continue;
+      if (k === 'x-ui-hints' || k === 'x-replacement') continue;
+      // Deprecated keys still validate for old configs, but an LLM should only
+      // ever write the current form.
+      if (k === 'properties' && v && typeof v === 'object' && !Array.isArray(v)) {
+        out[k] = Object.fromEntries(
+          Object.entries(v)
+            .filter(([, prop]) => !prop?.deprecated)
+            .map(([name, prop]) => [name, stripForLLM(prop)])
+        );
+        continue;
+      }
+      if ((k === 'anyOf' || k === 'oneOf') && Array.isArray(v)) {
+        const current = v.filter(branch => !branch?.deprecated);
+        out[k] = (current.length ? current : v).map(stripForLLM);
+        continue;
+      }
       if (k === 'examples' && Array.isArray(v)) {
         out[k] = v.slice(0, 1).map(stripForLLM);
         continue;

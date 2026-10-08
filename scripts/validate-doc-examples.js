@@ -58,6 +58,7 @@ import { getButtonSchema }       from '../src/cards/schemas/button-schema.js';
 import { getSliderSchema }       from '../src/cards/schemas/slider-schema.js';
 import { getElbowSchema }        from '../src/cards/schemas/elbow-schema.js';
 import { getChartSchema }        from '../src/cards/schemas/chart-schema.js';
+import { migrateChartConfig }    from '../src/charts/chart-config-migration.js';
 import { dataGridSchema }        from '../src/cards/schemas/data-grid-schema.js';
 import { getAlertOverlaySchema } from '../src/cards/schemas/lcards-alert-overlay-schema.js';
 import { getSelectMenuSchema }   from '../src/cards/schemas/select-menu-schema.js';
@@ -344,6 +345,21 @@ function main() {
         const validate = cardValidators.get(tag);
         if (!validate) continue; // msd-card, config-panel, or unknown — skip
         totalSchemaChecked++;
+
+        // Chart examples must use the current sources[] format: legacy keys still
+        // work for users but docs should only teach the canonical form.
+        if (tag === 'lcards-chart') {
+          const { changed, notes } = migrateChartConfig(cardNode);
+          if (changed) {
+            const entry = {
+              file: rel, line: b.line,
+              msg: `Chart example uses the legacy format (${notes.join('; ') || 'legacy keys'})`,
+            };
+            if (STRICT) errors.push(entry); else schemaWarnings.push(entry);
+            blockSchemaIssues++;
+          }
+        }
+
         const valid = validate(cardNode);
         if (!valid) {
           for (const err of (validate.errors || [])) {

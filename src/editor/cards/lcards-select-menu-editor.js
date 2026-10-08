@@ -480,7 +480,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 </lcards-message>
 
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-                    <ha-button raised @click=${() => this._openButtonTemplateEditor()}>
+                    <ha-button @click=${() => this._openButtonTemplateEditor()}>
                         <ha-icon icon="mdi:pencil" slot="start"></ha-icon>
                         ${template ? 'Edit Button Style…' : 'Configure Button Style…'}
                     </ha-button>
@@ -650,13 +650,13 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
 
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                     <ha-button
-                            ?raised=${!hasExplicit}
+                            appearance=${!hasExplicit ? 'accent' : 'outlined'}
                             @click=${() => hasExplicit ? this._requestConfirm('switch-to-entity') : null}>
                         <ha-icon icon="mdi:link-variant" slot="start"></ha-icon>
                         Entity-linked${!hasExplicit ? ' \u2713' : ''}
                     </ha-button>
                     <ha-button
-                            ?raised=${hasExplicit}
+                            appearance=${hasExplicit ? 'accent' : 'outlined'}
                             @click=${() => !hasExplicit ? this._requestConfirm('switch-to-manual') : null}>
                         <ha-icon icon="mdi:playlist-edit" slot="start"></ha-icon>
                         Manual / Overrides${hasExplicit ? ' \u2713' : ''}

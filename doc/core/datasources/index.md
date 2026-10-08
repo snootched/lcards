@@ -53,7 +53,8 @@ type: custom:lcards-chart
 data_sources:
   temp:
     entity: sensor.temperature
-source: temp
+sources:
+  - datasource: temp
 chart_type: area
 ```
 
@@ -93,9 +94,12 @@ data_sources:
 |-------|------|-------------|
 | `entity` | string | Entity ID to subscribe to |
 | `attribute` | string | Attribute to track instead of state |
-| `windowSeconds` | number | Rolling buffer window size in seconds (default: 60) |
+| `enum_mapping` | object | Numbers for non-numeric states, e.g. `{ heat: 2, cool: 1, off: 0 }` (`on`/`off` already map to 1/0) |
+| `windowSeconds` | number | Sets the buffer size: about 10 points per second of window, at most 1,000 points (default: 60, so 600 points) |
 | `minEmitMs` | number | Min ms between downstream updates (throttle, default: 100) |
-| `history.hours` | number | Hours of history to preload (1–168) |
+| `history.enabled` | boolean | Preload history when the dashboard loads (default: `true`) |
+| `history.hours` | number | Hours of history to preload (1–168, default 6) |
+| `history.days` | number | Days of history to preload (1–7), instead of `hours` |
 | `processing` | object | Named processing pipeline steps |
 
 ---
@@ -158,14 +162,13 @@ processing:
 
 ## Data Sources in Charts
 
-For chart series, use `buffer` to select which data series to plot:
+A chart series can plot a data source's values, or one of its processor buffers:
 
 ```yaml
 sources:
+  - datasource: temp       # raw values
   - datasource: temp
-    buffer: main           # Raw entity history (default)
-  - datasource: temp
-    buffer: smoothed       # From 'smoothed' processor
+    buffer: smoothed       # values from the 'smoothed' processor
 ```
 
-See the [Chart card](../../cards/chart/) for full `sources` configuration.
+Data sources live in your browser: they are created when the dashboard loads, preload some history, then follow live changes. They keep a limited number of recent points (see `windowSeconds`), so for plain entity history or long spans, plot the entity directly instead. The [Chart card](../../cards/chart/#where-the-data-comes-from) compares the options.

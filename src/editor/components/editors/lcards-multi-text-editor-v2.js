@@ -647,7 +647,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
                     <div class="custom-field-input">
                         <ha-input
                             .label=${'Custom Field Name'}
-                            .helper=${'Alphanumeric and underscore only'}
+                            .hint=${'Alphanumeric and underscore only'}
                             .value=${this._newFieldName}
                             @input=${(e) => this._newFieldName = e.target.value}
                             @keydown=${(e) => {

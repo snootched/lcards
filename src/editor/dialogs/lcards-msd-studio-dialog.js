@@ -11175,7 +11175,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div style="padding: 16px; background: var(--card-background-color); border-radius: 8px; text-align: center;">
                         <div style="margin-bottom: 12px; font-weight: 500;">Quick Add Card</div>
                         <ha-button
-                            raised
                             @click=${async () => {
                                 try {
                                     const cardConfig = await this._requestCardFromPicker('control');
@@ -11296,7 +11295,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             ` : lovelace && customElements.get('hui-card-element-editor') ? html`
                                 <!-- Graphical Editor (Modal) -->
                                 <ha-button
-                                    raised
                                     @click=${this._openCardEditorModal}
                                     style="width: 100%; margin-bottom: 12px;">
                                     <ha-icon icon="mdi:pencil" slot="start"></ha-icon>

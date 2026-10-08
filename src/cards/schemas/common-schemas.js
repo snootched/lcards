@@ -96,6 +96,12 @@ export const dataSourcesSchema = {
                 description: 'Entity attribute to track instead of state',
                 examples: ['temperature', 'brightness', 'current']
             },
+            enum_mapping: {
+                type: 'object',
+                description: 'Map non-numeric states to numbers so they can be plotted or processed (on/off map to 1/0 automatically)',
+                additionalProperties: { type: 'number' },
+                examples: [{ heat: 2, cool: 1, off: 0 }]
+            },
             update_interval: {
                 type: 'number',
                 minimum: 0,
@@ -110,6 +116,12 @@ export const dataSourcesSchema = {
                     enabled: {
                         type: 'boolean',
                         description: 'Enable historical data preload (default: true)'
+                    },
+                    preload: {
+                        type: 'boolean',
+                        deprecated: true,
+                        'x-replacement': 'history.enabled',
+                        description: 'Older name for history.enabled'
                     },
                     hours: {
                         type: 'number',

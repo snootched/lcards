@@ -1,6 +1,6 @@
 {
   "name": "lcards",
-  "version": "2026.10.0-dev1",
+  "version": "2026.10.0-dev2",
   "type": "module",
   "description": "LCARdS - LCARS card system for Home Assistant",
   "main": "index.js",
@@ -76,7 +76,7 @@
     "@fsegurai/codemirror-theme-vscode-dark": "^6.2.3",
     "@replit/codemirror-indentation-markers": "^6.5.3",
     "animejs": "^4.3.6",
-    "apexcharts": "^5.10.4",
+    "apexcharts": "^7.8.0",
     "custom-card-helpers": "^2.0.0",
     "d3-selection": "^3.0.0",
     "d3-zoom": "^3.0.0",

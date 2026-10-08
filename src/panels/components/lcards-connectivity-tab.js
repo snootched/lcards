@@ -1249,7 +1249,6 @@ export class LCARdSConnectivityTab extends LitElement {
                 Discard changes
               </ha-button>
               <ha-button
-                raised
                 ?disabled=${this._saving || !this._isDirty}
                 @click=${this._saveConfig}>
                 ${this._saving ? 'Saving…' : `Save (${this._scopeInfo.scope})`}

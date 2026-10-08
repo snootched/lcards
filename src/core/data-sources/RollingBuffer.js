@@ -14,8 +14,8 @@ export class RollingBuffer {
     this.capacity = Math.min(capacity, 1000);
 
     // Pre-allocate arrays for performance
-    this._timestamps = new Array(capacity);
-    this._values = new Array(capacity);
+    this._timestamps = new Array(this.capacity);
+    this._values = new Array(this.capacity);
 
     // Circular buffer state
     this._head = 0;      // Next write position

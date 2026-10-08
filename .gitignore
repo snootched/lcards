@@ -416,6 +416,7 @@ dist/lcards.js.map
 # Added to GitHub releases by CI on the release workflow.
 custom_components/lcards/lcards.js
 custom_components/lcards/lcards.js.map
+custom_components/lcards/chunks/
 # Asset directories copied from src/assets/ by scripts/copy-assets.js
 custom_components/lcards/fonts/
 custom_components/lcards/msd/

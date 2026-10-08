@@ -934,8 +934,7 @@ export class LCARdSConfigPanel extends LitElement {
                 </p>
                 <ha-button
                   @click=${this._createAllHelpers}
-                  ?disabled=${this._createInProgress}
-                  raised>
+                  ?disabled=${this._createInProgress}>
                   ${this._createInProgress ? html`<span class="spinner"></span>` : ''}
                   <ha-icon slot="start" icon="mdi:plus-circle"></ha-icon>
                   Create All Missing Helpers

@@ -2,34 +2,446 @@
 
 `custom:lcards-chart`
 
-Data visualization using ApexCharts. Plots entity history, real-time sensor data, and processed data source buffers as line, area, bar, pie, and many other chart types.
+Plots your Home Assistant sensors over time: lines, areas, columns, gauges, range bands, candlesticks and more. Charts pick up your LCARS theme colours and fonts automatically, so most charts need nothing more than a list of entities.
+
+The card is built on [ApexCharts](https://apexcharts.com/), a very capable charting library. You don't need to know ApexCharts to use it: these pages cover everything LCARdS sets up for you.
+
+::: tip Try it
+- In the card editor, **Open Configuration Studio** gives you a live preview while you add series, pick a chart type and adjust colours.
+- The [Playground](./playground) lets you edit chart YAML right here in the docs and see the result.
+:::
+
+The charts on these pages are live previews drawn by the card's own code, using generated sample data.
+
+| Page | Covers |
+|------|--------|
+| [Series & Time](./series) | Series options, time window, grouping, range charts, mixed charts, Y axes |
+| [Styling](./styling) | Colours, lines, legend, axes, reference lines, formatters, animation |
+| [Playground](./playground) | Edit YAML and see the chart live |
+| [Upgrading](./upgrading) | Older chart configs, and coming from apexcharts-card |
 
 ---
 
-## Quick Start
+## Quick start
 
-```yaml
-# Line chart from a single entity
-type: custom:lcards-chart
-source: sensor.temperature
-chart_type: line
-```
+One sensor, last 24 hours:
 
-```yaml
-# Area chart with two sensors
+```yaml live
 type: custom:lcards-chart
 sources:
-  - sensor.temperature
-  - sensor.humidity
+  - entity: sensor.living_room_temperature
+```
+
+Two sensors as filled areas, with names in the legend:
+
+```yaml live
+type: custom:lcards-chart
 chart_type: area
-series_names: [Temperature, Humidity]
+sources:
+  - entity: sensor.living_room_temperature
+    name: Living room
+  - entity: sensor.outdoor_temperature
+    name: Outside
+style:
+  legend:
+    show: true
+```
+
+A week of daily energy use, from Home Assistant's long-term statistics:
+
+```yaml live
+type: custom:lcards-chart
+chart_type: column
+graph_span: 7d
+sources:
+  - entity: sensor.energy_consumption
+    name: Energy per day
+    statistics:
+      type: change
+      period: day
 ```
 
 ---
 
-## Common Properties
+## Where the data comes from
 
-The following properties are shared across all LCARdS cards. See [Common Card Properties](../common.md) for full details.
+Each entry under `sources` is one **series** (one line, area or set of columns). A series gets its data from one of three places:
+
+| | Entity history | Long-term statistics | LCARdS data source |
+|---|---|---|---|
+| **Write it as** | `entity: sensor.x` | `entity: sensor.x` plus `statistics:` | `datasource: name` |
+| **What it is** | Every state change Home Assistant recorded | Home Assistant's own 5-minute and hourly summaries (mean, min, max, sum) | A live buffer LCARdS keeps in your browser, with optional processing |
+| **Stored by** | Home Assistant's recorder database | Home Assistant's recorder database | Your browser, while the dashboard is open |
+| **How far back** | As long as the recorder keeps history (10 days by default) | Hourly summaries are kept indefinitely | What was preloaded (6 hours by default, up to 7 days) plus what arrived since the page loaded |
+| **Live updates** | Yes | Refreshed every 5 minutes (hourly for daily and longer periods) | Yes |
+| **Works for** | Any entity with numeric (or on/off) values | Sensors with a `state_class` (most energy, power and climate sensors) | Any entity |
+| **Best for** | Hours to days of detail | Weeks, months, years | Processed values: smoothing, rates, unit conversion, statistics |
+
+**Which should I use?**
+
+- Start with **entity history**. It is the simplest and shows exactly what Home Assistant recorded.
+- Switch to **long-term statistics** when the chart spans more than a few days, or the sensor changes so often that history gets slow. Statistics also last beyond the recorder's history limit.
+- Use an **LCARdS data source** when you want to plot a *processed* value (a smoothed line, a rate of change, a converted unit), or share one live value between several cards. Data sources are created when the dashboard loads and keep a limited number of recent points (up to 1,000), so they suit short windows. See [Data Sources](../../core/datasources/).
+
+```yaml
+type: custom:lcards-chart
+sources:
+  # Entity history
+  - entity: sensor.living_room_temperature
+
+  # An attribute instead of the state
+  - entity: climate.living_room
+    attribute: current_temperature
+
+  # Long-term statistics
+  - entity: sensor.energy_consumption
+    statistics:
+      type: sum        # mean | min | max | sum | state | change
+      period: day      # 5minute | hour | day | week | month
+
+  # An LCARdS data source, plotting its smoothed values
+  - datasource: living_room
+    buffer: smoothed
+data_sources:
+  living_room:
+    entity: sensor.living_room_temperature
+    processing:
+      smoothed:
+        type: smooth
+        method: exponential
+        alpha: 0.3
+```
+
+::: tip Non-numeric entities
+Charts plot numbers. States like `on`/`off`, `open`/`closed` and `true`/`false` are plotted as 1 and 0 automatically; use `curve: stepline` to draw them as steps. Other states (`heat`, `home`, `docked`, ...) don't plot on their own: pick a numeric attribute instead, or use a data source with `enum_mapping` to turn each state into a number. Chart Studio warns you when a series won't plot.
+:::
+
+```yaml live
+type: custom:lcards-chart
+sources:
+  - entity: light.living_room
+    name: Living room light
+    curve: stepline
+    type: area
+    opacity: 0.4
+```
+
+---
+
+## Chart types
+
+Set the chart type with `chart_type` (default `line`).
+
+| Type | Shows | Data |
+|------|-------|------|
+| `line` | Values over time as lines | Any series |
+| `area` | Lines with the area below filled | Any series |
+| `column` | Vertical bars | Any series; works well with [grouping](./series#grouping) |
+| `bar` | Horizontal bars | Any series |
+| `scatter` | Individual points | Any series |
+| `heatmap` | One row per series, colour by value | Any series; works well with grouping |
+| `radialBar` | Circular gauges, one per series | The latest value of each series (0 to 100 works best) |
+| `pie`, `donut` | Slices of a whole | The latest value of each series (use two or more) |
+| `polarArea` | Slices sized by value | The latest value of each series |
+| `radar` | Values around a polygon | The latest value of each series |
+| `treemap` | Rectangles sized by value | The latest value of each series |
+| `rangeArea` | A shaded band from low to high | See [Range charts](./series#range-charts) |
+| `boxPlot` | Spread of values per time bucket | See [Range charts](./series#range-charts) |
+| `candlestick` | Open, high, low and close per time bucket | See [Range charts](./series#range-charts) |
+| `rangeBar` | Timeline bars from a start to an end time | Not built from entities yet; supply data through [raw options](./styling#raw-apexcharts-options) |
+
+### Gallery
+
+Columns of hourly averages:
+
+```yaml live
+type: custom:lcards-chart
+chart_type: column
+sources:
+  - entity: sensor.house_power
+    name: Power
+    group_by:
+      func: avg
+      duration: 1h
+```
+
+A heatmap of several sensors, one row each:
+
+```yaml live
+type: custom:lcards-chart
+chart_type: heatmap
+sources:
+  - entity: sensor.kitchen_temperature
+    name: Kitchen
+    group_by: { func: avg, duration: 2h }
+  - entity: sensor.bedroom_temperature
+    name: Bedroom
+    group_by: { func: avg, duration: 2h }
+  - entity: sensor.outdoor_temperature
+    name: Outside
+    group_by: { func: avg, duration: 2h }
+```
+
+Gauges showing each sensor's current value:
+
+```yaml live
+type: custom:lcards-chart
+chart_type: radialBar
+sources:
+  - entity: sensor.phone_battery
+    name: Phone
+  - entity: sensor.living_room_humidity
+    name: Humidity
+```
+
+A donut of current values:
+
+```yaml live
+type: custom:lcards-chart
+chart_type: donut
+sources:
+  - entity: sensor.kitchen_power
+    name: Kitchen
+  - entity: sensor.office_power
+    name: Office
+  - entity: sensor.garage_power
+    name: Garage
+style:
+  legend:
+    show: true
+```
+
+Individual readings as points:
+
+```yaml live
+type: custom:lcards-chart
+chart_type: scatter
+graph_span: 6h
+sources:
+  - entity: sensor.house_power
+    name: Power readings
+```
+
+Room temperatures compared on a radar:
+
+```yaml live
+type: custom:lcards-chart
+chart_type: radar
+sources:
+  - entity: sensor.kitchen_temperature
+    name: Kitchen
+  - entity: sensor.bedroom_temperature
+    name: Bedroom
+  - entity: sensor.office_temperature
+    name: Office
+  - entity: sensor.outdoor_temperature
+    name: Outside
+  - entity: sensor.garage_temperature
+    name: Garage
+```
+
+Where the power is going right now, as a treemap and as polar areas:
+
+```yaml live
+type: custom:lcards-chart
+chart_type: treemap
+sources:
+  - entity: sensor.kitchen_power
+    name: Kitchen
+  - entity: sensor.office_power
+    name: Office
+  - entity: sensor.garage_power
+    name: Garage
+  - entity: sensor.laundry_power
+    name: Laundry
+```
+
+```yaml live
+type: custom:lcards-chart
+chart_type: polarArea
+sources:
+  - entity: sensor.kitchen_power
+    name: Kitchen
+  - entity: sensor.office_power
+    name: Office
+  - entity: sensor.garage_power
+    name: Garage
+  - entity: sensor.laundry_power
+    name: Laundry
+style:
+  legend:
+    show: true
+```
+
+A range band (the daily low to high):
+
+```yaml live
+type: custom:lcards-chart
+chart_type: rangeArea
+graph_span: 3d
+sources:
+  - entity: sensor.outdoor_temperature
+    name: Outside
+    group_by:
+      func: minmax
+      duration: 3h
+```
+
+---
+
+## Full examples
+
+### Weather panel
+
+Outdoor temperature as a filled area with humidity on its own axis, frost and heat lines, and a tooltip that reads naturally:
+
+```yaml live
+type: custom:lcards-chart
+chart_type: area
+graph_span: 48h
+yaxis:
+  - id: temperature
+  - id: humidity
+    opposite: true
+    min: 0
+    max: 100
+    decimals: 0
+sources:
+  - entity: sensor.outdoor_temperature
+    name: Temperature
+    unit: °C
+    float_precision: 1
+    group_by:
+      func: avg
+      duration: 30min
+  - entity: sensor.outdoor_humidity
+    name: Humidity
+    type: line
+    yaxis_id: humidity
+    stroke_dash: 4
+    group_by:
+      func: avg
+      duration: 30min
+style:
+  colors:
+    series:
+      - "var(--lcars-orange)"
+      - "var(--lcars-blue)"
+  fill:
+    type: gradient
+    gradient:
+      opacityFrom: 0.6
+      opacityTo: 0.05
+  thresholds:
+    - value: 0
+      label: Frost
+      color: var(--lcars-blue)
+      dash: true
+    - value: 20
+      label: Warm
+      color: var(--lcars-red)
+  legend:
+    show: true
+    position: top
+  formatters:
+    xaxis_label: "ddd HH:mm"
+    tooltip: "{seriesName}, {x|ddd [at] HH:mm}: {y}"
+```
+
+### Energy fortnight
+
+Daily energy use from long-term statistics, with each bar labelled and a line for the daily target:
+
+```yaml live
+type: custom:lcards-chart
+chart_type: column
+graph_span: 14d
+span:
+  end: day
+sources:
+  - entity: sensor.energy_consumption
+    name: Energy per day
+    unit: kWh
+    float_precision: 1
+    statistics:
+      type: change
+      period: day
+style:
+  colors:
+    series:
+      - "var(--lcars-yellow)"
+  data_labels:
+    show: true
+    font_size: 10
+  yaxis:
+    decimals: 0
+  thresholds:
+    - value: 5
+      label: Target
+      color: var(--lcars-green)
+  chart_options:
+    plotOptions:
+      bar:
+        borderRadius: 4
+```
+
+### Power monitor
+
+The last six hours of a busy power sensor: the 10-minute average as an area, and the 10-minute peak as a thin line above it:
+
+```yaml live
+type: custom:lcards-chart
+graph_span: 6h
+sources:
+  - entity: sensor.house_power
+    name: Average
+    type: area
+    opacity: 0.35
+    group_by:
+      func: avg
+      duration: 10min
+  - entity: sensor.house_power
+    name: Peak
+    stroke_width: 1
+    curve: stepline
+    group_by:
+      func: max
+      duration: 10min
+style:
+  legend:
+    show: true
+  thresholds:
+    - value: 2000
+      label: High load
+      color: var(--lcars-red)
+      dash: true
+  display:
+    toolbar: true
+```
+
+A longer example with an LCARdS data source is at the end of [Styling](./styling#a-complete-example).
+
+---
+
+## Card options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `type` | string | - | `custom:lcards-chart` (required) |
+| `sources` | list | - | The series: see [Where the data comes from](#where-the-data-comes-from) and [Series options](./series#series-options) |
+| `chart_type` | string | `line` | See [Chart types](#chart-types) |
+| `graph_span` | string | `24h` | See [Time window](./series#time-window) |
+| `span` | object | - | See [Time window](./series#time-window) |
+| `yaxis` | list | - | See [Y axes](./series#y-axes) |
+| `xaxis_type` | string | `datetime` | `datetime`, `category` or `numeric` |
+| `data_sources` | object | - | LCARdS data sources: see [Data Sources](../../core/datasources/) |
+| `style` | object | - | See [Styling](./styling) |
+
+Older options (`source`, `series_names`, `history_hours`, ...) still work: see [Upgrading](./upgrading).
+
+### Common properties
+
+Shared by all LCARdS cards. See [Common Card Properties](../common.md) for details.
 
 | Category | Config keys | Reference |
 |----------|-------------|-----------|
@@ -39,483 +451,4 @@ The following properties are shared across all LCARdS cards. See [Common Card Pr
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
 | HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
-| Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
-| Animations | `animations` | [Animations](../../core/animations.md) |
 | Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |
-
----
-
-## Config Structure
-
-Annotated map of all top-level keys.
-
-```yaml
-type: custom:lcards-chart
-
-# ── Data source(s) ────────────────────────────────────────────────────────────────
-source: sensor.temperature       # simple single-entity mode
-attribute: current_temperature   # entity attribute to track (with source)
-sources:                         # multi-entity mode
-  - sensor.temperature
-  - sensor.humidity
-data_sources:                    # named data source definitions (for history / processing)
-  climate:
-    entity: sensor.temperature
-    history:
-      hours: 24
-
-# ── Chart type & axes ───────────────────────────────────────────────────────────
-chart_type: line               # line | area | bar | column | scatter | pie | donut | ...
-xaxis_type: datetime           # datetime | category | numeric
-series_names: [Temperature, Humidity]
-max_points: 0                  # max history points to render (0 = unlimited)
-
-# ── Appearance ─────────────────────────────────────────────────────────────────
-style:
-  colors:
-    series:
-      - "var(--lcars-orange)"
-  stroke:
-    curve: smooth
-    width: 2
-  legend:
-    show: true
-  animation:
-    preset: lcars_standard
-
-# ── Layout ─────────────────────────────────────────────────────────────────────
-height: 200
-width: 400
-min_height: 100
-max_height: 400
-overflow: hidden
-z_index: 0
-grid_options:
-  columns: 6
-  rows: 4
-id: my-chart
-tags: [charts]
-triggers_update: []
-```
-
----
-
-## Card Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `type` | string | - | `custom:lcards-chart` (required) |
-| `source` | string | - | Single entity ID (simple mode) |
-| `attribute` | string | - | Entity attribute to track (with `source`) |
-| `sources` | list | - | Multiple entities or data source references |
-| `data_sources` | object | - | Named data source definitions: see [Data Sources](../../core/datasources/) |
-| `chart_type` | string | `line` | Chart type: see [Chart Types](#chart-types) |
-| `series_names` | list | - | Display names for each series (matches `sources` order) |
-| `xaxis_type` | string | `datetime` | X-axis scale: `datetime`, `category`, or `numeric` |
-| `max_points` | number | `0` | Maximum history points to render; `0` = unlimited |
-| `show_legend` | boolean | `false` | **Deprecated**: use `style.legend.show` instead |
-| `style` | object | - | All chart appearance config: see [style Object](#style-object) |
-
----
-
-## Chart Types
-
-| Type | Description |
-|------|-------------|
-| `line` | Line chart |
-| `area` | Area chart (filled under line) |
-| `bar` | Horizontal bar chart |
-| `column` | Vertical column chart |
-| `scatter` | Scatter plot |
-| `pie` | Pie chart |
-| `donut` | Donut chart |
-| `heatmap` | Heatmap |
-| `radialBar` | Radial gauge |
-| `radar` | Radar/spider chart |
-| `candlestick` | OHLC candlestick |
-| `rangeBar` | Range bar (for time spans) |
-| `rangeArea` | Range area (shaded band between two values) |
-| `polarArea` | Polar area chart |
-| `treemap` | Treemap chart |
-| `boxPlot` | Box plot |
-
-> **Note**: `candlestick`, `rangeBar`, `rangeArea`, `polarArea`, `treemap`, and `boxPlot` require datasource data in the ApexCharts-specific format for those types (e.g. OHLC arrays for `candlestick`). They are advanced chart types; refer to the [ApexCharts documentation](https://apexcharts.com/docs) for data format details.
-
----
-
-## Data Sources
-
-Three levels of data configuration:
-
-### Level 1: Simple entity
-
-```yaml
-source: sensor.temperature
-```
-
-Auto-creates a data source with 6 hours of history.
-
-### Level 2: Multiple entities
-
-```yaml
-sources:
-  - sensor.temperature
-  - sensor.humidity
-series_names: [Temperature, Humidity]
-```
-
-### Level 3: Named Data Sources with processing
-
-```yaml
-data_sources:
-  temp:
-    entity: sensor.temperature
-    history:
-      hours: 24
-    processing:
-      smoothed:
-        type: smooth
-        method: exponential
-        alpha: 0.3
-
-sources:
-  - datasource: temp
-    buffer: main          # Raw history
-    name: Raw
-  - datasource: temp
-    buffer: smoothed      # Smoothed values
-    name: Smoothed
-```
-
-See [Data Sources](../../core/datasources/) for full processing options.
-
----
-
-## `style` Object
-
-All chart appearance configuration lives under `style`. Colour values accept all formats supported by [Colours](../../core/colours.md): `var(--lcars-*)`, `{theme:...}`, hex, and rgba.
-
-### `style.colors`
-
-Controls colours for every visual element. All sub-keys are optional.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `style.colors.series` | list | Series fill/line colours: cycles through array |
-| `style.colors.stroke` | list | Series stroke/outline colours: cycles through array |
-| `style.colors.fill` | list | Area fill colours: cycles through array |
-| `style.colors.background` | string | Chart background colour |
-| `style.colors.foreground` | string | Default text and label colour |
-| `style.colors.grid` | string | Grid line colour |
-| `style.colors.marker.fill` | list | Data point fill colours: defaults to `series` colours |
-| `style.colors.marker.stroke` | list | Data point stroke colours |
-| `style.colors.axis.x` | string | X-axis label colour |
-| `style.colors.axis.y` | string | Y-axis label colour |
-| `style.colors.axis.border` | string | Axis border line colour |
-| `style.colors.axis.ticks` | string | Axis tick mark colour |
-| `style.colors.legend.default` | string | Legend text colour |
-| `style.colors.legend.items` | list | Per-series legend item colours |
-| `style.colors.data_labels` | list | Data label colours |
-
-```yaml
-style:
-  colors:
-    series:
-      - "var(--lcars-orange)"
-      - "var(--lcars-blue-light)"
-    background: "transparent"
-    foreground: "var(--lcars-moonlight)"
-    grid: "var(--lcars-gray)"
-```
-
----
-
-### `style.stroke`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.stroke.width` | number | `2` | Line/border stroke width in px |
-| `style.stroke.curve` | string | `smooth` | `smooth`, `straight`, `stepline`, `monotoneCubic` |
-| `style.stroke.dash_array` | number | `0` | Dash gap length; `0` = solid line |
-
----
-
-### `style.fill`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.fill.type` | string | `solid` | `solid`, `gradient`, `pattern`, `image` |
-| `style.fill.opacity` | number | `0.7` | Fill opacity |
-| `style.fill.gradient.shade` | string | - | `light` or `dark` |
-| `style.fill.gradient.type` | string | - | `horizontal`, `vertical`, `diagonal1`, `diagonal2` |
-| `style.fill.gradient.shadeIntensity` | number | - | Shade intensity |
-| `style.fill.gradient.opacityFrom` | number | - | Gradient start opacity |
-| `style.fill.gradient.opacityTo` | number | - | Gradient end opacity |
-
-```yaml
-style:
-  fill:
-    type: gradient
-    gradient:
-      opacityFrom: 0.5
-      opacityTo: 0.05
-```
-
----
-
-### `style.markers`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.markers.size` | number | `4` | Marker size in px; `0` = hidden |
-| `style.markers.shape` | string | `circle` | `circle`, `square`, `rect`, `rhombus` |
-| `style.markers.stroke.width` | number | `2` | Marker stroke width in px |
-
----
-
-### `style.grid`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.grid.show` | boolean | `true` | Show/hide grid lines |
-| `style.grid.opacity` | number | `0.3` | Grid line opacity |
-| `style.grid.stroke_dash_array` | number | `4` | Grid line dash gap |
-| `style.grid.row_colors` | list | - | Alternating row background colours |
-| `style.grid.column_colors` | list | - | Alternating column background colours |
-
----
-
-### `style.legend`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.legend.show` | boolean | `false` | Show/hide legend |
-| `style.legend.position` | string | `bottom` | `top`, `bottom`, `left`, `right` |
-| `style.legend.horizontalAlign` | string | `center` | `left`, `center`, `right` |
-| `style.legend.font_size` | number | `14` | Legend font size in px |
-
----
-
-### `style.data_labels`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.data_labels.show` | boolean | `false` | Show value labels on data points |
-| `style.data_labels.offsetY` | number | `0` | Vertical offset in px |
-| `style.data_labels.font_size` | number | `12` | Label font size in px |
-
----
-
-### `style.xaxis`
-
-Controls x-axis display. The x-axis scale type is set by the top-level `xaxis_type` field, not here.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.xaxis.labels.show` | boolean | `true` | Show/hide axis labels |
-| `style.xaxis.labels.rotate` | number | `0` | Label rotation in degrees |
-| `style.xaxis.border.show` | boolean | `false` | Show/hide axis border line |
-| `style.xaxis.ticks.show` | boolean | `false` | Show/hide tick marks |
-
-```yaml
-xaxis_type: datetime
-style:
-  xaxis:
-    labels:
-      show: true
-      rotate: -45
-```
-
----
-
-### `style.yaxis`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.yaxis.labels.show` | boolean | `true` | Show/hide axis labels |
-| `style.yaxis.decimals` | number | - | Round displayed values to N decimal places (axis labels, tooltips, and data labels) |
-| `style.yaxis.border.show` | boolean | `false` | Show/hide axis border line |
-| `style.yaxis.ticks.show` | boolean | `false` | Show/hide tick marks |
-
-> **Advanced y-axis config** (e.g. `min`, `max`, `opposite`, `seriesName` for multi-axis charts) can be passed directly to ApexCharts via [`style.chart_options`](#stylechart_options).
-
----
-
-### `style.display`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.display.toolbar` | boolean | `false` | Show ApexCharts toolbar (download/zoom controls) |
-| `style.display.tooltip.show` | boolean | `true` | Show/hide hover tooltip |
-| `style.display.tooltip.theme` | string | `dark` | `dark` or `light` |
-
----
-
-### `style.typography`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.typography.font_family` | string | `"Antonio, Helvetica Neue, sans-serif"` | Font family for all chart text |
-| `style.typography.font_size` | number | `12` | Base font size in px |
-
----
-
-### `style.theme`
-
-Controls ApexCharts' built-in theme/palette engine. Takes lower precedence than explicit colour settings.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.theme.mode` | string | `dark` | `dark` or `light` |
-| `style.theme.palette` | string | - | ApexCharts palette name (e.g. `palette1`-`palette10`) |
-| `style.theme.monochrome.enabled` | boolean | `false` | Use a single-hue monochrome palette |
-| `style.theme.monochrome.color` | string | - | Base colour for monochrome palette |
-| `style.theme.monochrome.shade_to` | string | `dark` | `dark` or `light` |
-| `style.theme.monochrome.shade_intensity` | number | `0.65` | Shade spread |
-
----
-
-### `style.formatters`
-
-Custom format strings for axis labels and tooltips. These use a lightweight chart-specific syntax; they are **not** evaluated by the LCARdS template engine.
-
-**Axis label format strings** (`xaxis_label`, `yaxis_label`) work in two modes:
-- **Date format** (no `{` in string): formats x-axis timestamps using tokens: `HH:mm`, `MMM DD`, `YYYY-MM-DD`, `ddd`, etc. Only meaningful for `xaxis_label` on `datetime` axes.
-- **Value template** (contains `{value}`): replaces `{value}` with the axis value, e.g. `{value}°C`, `{value}%`.
-
-**Tooltip format strings** (`tooltip`) support:
-- `{x|format}`: x value formatted as a date using the given tokens (e.g. `{x|MMM DD HH:mm}`)
-- `{x}`: x value formatted as a date with the default format (`MMM DD HH:mm`)
-- `{y}`: y value
-
-| Field | Type | Examples |
-|-------|------|----------|
-| `style.formatters.xaxis_label` | string | `HH:mm` · `MMM DD` · `{value}°C` |
-| `style.formatters.yaxis_label` | string | `{value}°C` · `{value}%` · `{value} kWh` |
-| `style.formatters.tooltip` | string | `{x\|MMM DD HH:mm}: {y}°C` · `{x}: {y}` |
-
-> **Note**: `style.formatters.yaxis_label` sets a single formatter for all y-axes. For per-axis formatting on multi-axis charts, use `style.chart_options` (see below), but be aware that `formatter` must be a JavaScript function and cannot be expressed in YAML. Use `decimalsInFloat` in `chart_options.yaxis[*]` for decimal precision per axis instead.
-
----
-
-### `style.animation`
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `style.animation.preset` | string | Animation preset name: see table below |
-
-```yaml
-style:
-  animation:
-    preset: lcars_standard
-```
-
-| Preset | Description |
-|--------|-------------|
-| `lcars_standard` | Smooth LCARS entrance with slight elastic ease |
-| `lcars_dramatic` | Longer, more theatrical entrance |
-| `lcars_minimal` | Quick, subtle fade-in |
-| `lcars_realtime` | Optimised for frequently updating real-time data |
-| `lcars_alert` | Rapid entrance for alert/status displays |
-| `none` | Disable animation |
-
----
-
-### `style.chart_options`
-
-Raw ApexCharts options object, merged on top of all other style settings. Use this for advanced ApexCharts configuration that has no LCARdS-level equivalent, such as multi-axis `yaxis` arrays, `plotOptions`, `annotations`, etc.
-
-```yaml
-style:
-  chart_options:
-    yaxis:
-      - seriesName: Temperature
-        min: 15
-        max: 30
-        decimalsInFloat: 1
-      - seriesName: Humidity
-        min: 0
-        max: 100
-        opposite: true
-    plotOptions:
-      bar:
-        borderRadius: 4
-```
-
-Refer to the [ApexCharts documentation](https://apexcharts.com/docs/options/) for all available keys.
-
----
-
-## Annotated Example
-
-24-hour dual-series chart with named data source, custom colours, dual Y-axes (via `style.chart_options`), gradient fill, and animation preset:
-
-```yaml
-type: custom:lcards-chart
-xaxis_type: datetime
-
-data_sources:
-  climate:
-    entity: sensor.living_room_temperature
-    history:
-      hours: 24
-    processing:
-      smooth:
-        type: smooth
-        method: exponential
-        alpha: 0.2
-
-sources:
-  - datasource: climate
-    buffer: main
-    name: Temperature
-  - sensor.living_room_humidity
-series_names: [Temperature, Humidity]
-
-chart_type: area
-
-style:
-  colors:
-    series:
-      - "var(--lcars-orange)"
-      - "var(--lcars-blue-light)"
-
-  stroke:
-    curve: smooth
-    width: 2
-
-  fill:
-    type: gradient
-    gradient:
-      opacityFrom: 0.5
-      opacityTo: 0.05
-
-  markers:
-    size: 0
-
-  xaxis:
-    labels:
-      show: true
-
-  legend:
-    show: true
-    position: bottom
-
-  animation:
-    preset: lcars_standard
-
-  chart_options:
-    yaxis:
-      - seriesName: Temperature
-        min: 15
-        max: 30
-        decimalsInFloat: 1
-      - seriesName: Humidity
-        min: 0
-        max: 100
-        opposite: true
-        decimalsInFloat: 0
-```
-
----
-

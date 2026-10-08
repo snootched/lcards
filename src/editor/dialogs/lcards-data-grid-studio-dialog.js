@@ -990,7 +990,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     label="Refresh Interval (ms)"
                     .value=${this._workingConfig.refresh_interval || 0}
                     @input=${(e) => this._updateConfig('refresh_interval', parseInt(e.target.value) || 0)}
-                    helper="Auto-refresh interval (0 = disabled)">
+                    hint="Auto-refresh interval (0 = disabled)">
                 </ha-input>
             </lcards-form-section>
         `;
@@ -1456,14 +1456,14 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         label="Border Width"
                         .value=${this._workingConfig.style?.border_width || 0}
                         @input=${(e) => this._updateConfig('style.border_width', parseInt(e.target.value) || 0)}
-                        helper="Border width in pixels">
+                        hint="Border width in pixels">
                     </ha-input>
 
                     <ha-input
                         label="Border Colour"
                         .value=${this._workingConfig.style?.border_color || ''}
                         @input=${(e) => this._updateConfig('style.border_color', e.target.value)}
-                        helper="Border colour">
+                        hint="Border colour">
                     </ha-input>
                 </lcards-grid-layout>
 
@@ -1551,7 +1551,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         @input=${(e) => this._handleGridRowsChange(parseInt(e.target.value) || 1)}
                         min="1"
                         max="50"
-                        helper="Number of rows">
+                        hint="Number of rows">
                     </ha-input>
 
                     <ha-input
@@ -1561,7 +1561,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         @input=${(e) => this._handleGridColumnsChange(parseInt(e.target.value) || 1)}
                         min="1"
                         max="50"
-                        helper="Number of columns">
+                        hint="Number of columns">
                     </ha-input>
                 </lcards-grid-layout>
 
@@ -1572,7 +1572,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     @input=${(e) => this._handleGridGapChange(parseInt(e.target.value) || 0)}
                     min="0"
                     max="50"
-                    helper="Uniform spacing between cells">
+                    hint="Uniform spacing between cells">
                 </ha-input>
 
                 <lcards-message
@@ -1585,14 +1585,14 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         label="Row Gap"
                         .value=${this._workingConfig.grid?.['row-gap'] || ''}
                         @input=${(e) => this._updateConfig('grid.row-gap', e.target.value)}
-                        helper="Vertical spacing (e.g., '8px')">
+                        hint="Vertical spacing (e.g., '8px')">
                     </ha-input>
 
                     <ha-input
                         label="Column Gap"
                         .value=${this._workingConfig.grid?.['column-gap'] || ''}
                         @input=${(e) => this._updateConfig('grid.column-gap', e.target.value)}
-                        helper="Horizontal spacing (e.g., '8px')">
+                        hint="Horizontal spacing (e.g., '8px')">
                     </ha-input>
                 </lcards-grid-layout>
             </lcards-form-section>
@@ -1657,21 +1657,21 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     label="Grid Template Rows"
                     .value=${this._workingConfig.grid?.['grid-template-rows'] || 'repeat(8, auto)'}
                     @input=${(e) => this._updateConfig('grid.grid-template-rows', e.target.value)}
-                    helper="e.g., 'repeat(8, auto)', '100px 1fr 2fr'">
+                    hint="e.g., 'repeat(8, auto)', '100px 1fr 2fr'">
                 </ha-input>
 
                 <ha-input
                     label="Grid Template Columns"
                     .value=${this._workingConfig.grid?.['grid-template-columns'] || 'repeat(12, 1fr)'}
                     @input=${(e) => this._updateConfig('grid.grid-template-columns', e.target.value)}
-                    helper="e.g., 'repeat(12, 1fr)', '200px 1fr 1fr'">
+                    hint="e.g., 'repeat(12, 1fr)', '200px 1fr 1fr'">
                 </ha-input>
 
                 <ha-input
                     label="Grid Gap"
                     .value=${this._workingConfig.grid?.gap || '8px'}
                     @input=${(e) => this._updateConfig('grid.gap', e.target.value)}
-                    helper="e.g., '8px', '1rem 2rem'">
+                    hint="e.g., '8px', '1rem 2rem'">
                 </ha-input>
             </lcards-form-section>
 
@@ -1737,14 +1737,14 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                         label="Auto Columns"
                         .value=${this._workingConfig.grid?.['grid-auto-columns'] || ''}
                         @input=${(e) => this._updateConfig('grid.grid-auto-columns', e.target.value)}
-                        helper="Width of implicit columns (e.g., 100px, 1fr)">
+                        hint="Width of implicit columns (e.g., 100px, 1fr)">
                     </ha-input>
 
                     <ha-input
                         label="Auto Rows"
                         .value=${this._workingConfig.grid?.['grid-auto-rows'] || ''}
                         @input=${(e) => this._updateConfig('grid.grid-auto-rows', e.target.value)}
-                        helper="Height of implicit rows (e.g., 50px, auto)">
+                        hint="Height of implicit rows (e.g., 50px, auto)">
                     </ha-input>
                 </lcards-grid-layout>
 
@@ -1802,21 +1802,21 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     label="Grid Template Columns"
                     .value=${this._workingConfig.grid?.template_columns || ''}
                     @input=${(e) => this._updateConfig('grid.template_columns', e.target.value)}
-                    helper="Custom CSS Grid template-columns (overrides columns count)">
+                    hint="Custom CSS Grid template-columns (overrides columns count)">
                 </ha-input>
 
                 <ha-input
                     label="Grid Template Rows"
                     .value=${this._workingConfig.grid?.template_rows || ''}
                     @input=${(e) => this._updateConfig('grid.template_rows', e.target.value)}
-                    helper="Custom CSS Grid template-rows (overrides rows count)">
+                    hint="Custom CSS Grid template-rows (overrides rows count)">
                 </ha-input>
 
                 <ha-input
                     label="Grid Auto Flow"
                     .value=${this._workingConfig.grid?.auto_flow || ''}
                     @input=${(e) => this._updateConfig('grid.auto_flow', e.target.value)}
-                    helper="CSS grid-auto-flow value (e.g., 'row', 'column', 'dense')">
+                    hint="CSS grid-auto-flow value (e.g., 'row', 'column', 'dense')">
                 </ha-input>
             </lcards-form-section>
         `;

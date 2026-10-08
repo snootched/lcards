@@ -258,7 +258,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .label=${'Orientation'}
                     .value=${`${orientationLabel} (fixed)`}
                     .disabled=${true}
-                    .helper=${'This component only supports ${metadata.orientation} orientation'}
+                    .hint=${`This component only supports ${metadata.orientation} orientation`}
                 ></ha-input>
             `;
         }
@@ -316,7 +316,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .label=${'Style Preset'}
                     .value=${'No presets available for this component'}
                     .disabled=${true}
-                    .helper=${'Change or clear the component to see presets'}
+                    .hint=${'Change or clear the component to see presets'}
                 ></ha-input>
             `;
         }
@@ -1976,7 +1976,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     <ha-input
                         label="Radius"
                         .value=${toStr(currentRadius)}
-                        helper="Number (12), px (12px), rem (0.75rem), or CSS var: var(--ha-card-border-radius)"
+                        hint="Number (12), px (12px), rem (0.75rem), or CSS var: var(--ha-card-border-radius)"
                         helperPersistent
                         @change=${handleUniform}>
                     </ha-input>
@@ -1985,25 +1985,25 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         <ha-input
                             label="Top Left"
                             .value=${toStr(currentRadius?.top_left)}
-                            helper="Number, px, rem, or CSS var"
+                            hint="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('top_left', e)}>
                         </ha-input>
                         <ha-input
                             label="Top Right"
                             .value=${toStr(currentRadius?.top_right)}
-                            helper="Number, px, rem, or CSS var"
+                            hint="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('top_right', e)}>
                         </ha-input>
                         <ha-input
                             label="Bottom Left"
                             .value=${toStr(currentRadius?.bottom_left)}
-                            helper="Number, px, rem, or CSS var"
+                            hint="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('bottom_left', e)}>
                         </ha-input>
                         <ha-input
                             label="Bottom Right"
                             .value=${toStr(currentRadius?.bottom_right)}
-                            helper="Number, px, rem, or CSS var"
+                            hint="Number, px, rem, or CSS var"
                             @change=${(e) => handleCorner('bottom_right', e)}>
                         </ha-input>
                     </lcards-grid-layout>
