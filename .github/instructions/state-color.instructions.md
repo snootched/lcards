@@ -144,7 +144,7 @@ style:
 
 ### Classified state mapping
 
-`_classifyEntityState()` / `_getButtonState()` maps raw entity states to one of:
+`_classifyEntityState()` maps raw entity states to one of:
 
 - `active` — on, playing, open, locked, heating, cooling, cleaning, … (built-in list in `LCARdSCard.js`)
 - `inactive` — off, paused, idle, closed, unlocked, disarmed, … (catch-all)
