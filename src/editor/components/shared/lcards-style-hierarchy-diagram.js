@@ -197,12 +197,12 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
                         <span>1. Grid-Wide (lowest)</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-box legend-row"></div>
-                        <span>2. Row Styles</span>
+                        <div class="legend-box legend-col"></div>
+                        <span>2. Column Styles (and header rows)</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-box legend-col"></div>
-                        <span>3. Column Styles</span>
+                        <div class="legend-box legend-row"></div>
+                        <span>3. Row Styles</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-box legend-cell"></div>
@@ -211,8 +211,9 @@ export class LCARdSStyleHierarchyDiagram extends LitElement {
                 </div>
 
                 <div class="help-text">
-                    <strong>Style Precedence:</strong> Styles cascade and merge from grid-wide → row → column → cell.
-                    When a cell is in both a styled row AND column, both apply. Cell-level styles override all others.
+                    <strong>Style Precedence:</strong> Styles merge in order: grid-wide, header (header rows only),
+                    column, row, cell. When a cell is in both a styled row and column, the row wins where they overlap.
+                    Cell styles override all others.
                 </div>
             </div>
         `;

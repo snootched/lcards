@@ -12,20 +12,27 @@ const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.ur
  * Needed because LCARdS docs show Jinja2 / HA template syntax in prose.
  */
 /**
- * ```yaml live  code blocks render as usual, followed by a live <ChartDemo>
- * built from the same YAML (one source of truth; the doc-example validator
- * still checks the block). Used by the chart card docs.
+ * ```yaml live  code blocks render as usual, followed by a live demo built
+ * from the same YAML (one source of truth; the doc-example validator still
+ * checks the block). The card `type:` picks the demo component; anything
+ * that isn't a data grid gets <ChartDemo>.
  */
+const LIVE_DEMOS: Record<string, string> = {
+  'lcards-data-grid': 'DataGridDemo',
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function liveChartFence(md: any) {
+function liveDemoFence(md: any) {
   const fence = md.renderer.rules.fence
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   md.renderer.rules.fence = (tokens: any[], idx: number, options: any, env: any, self: any) => {
     const html = fence(tokens, idx, options, env, self)
     const info = (tokens[idx].info || '').trim().split(/\s+/)
     if (!/^ya?ml$/.test(info[0]) || !info.includes('live')) return html
-    const src = encodeURIComponent(tokens[idx].content)
-    return `${html}<ClientOnly><ChartDemo src="${src}" /></ClientOnly>`
+    const content = tokens[idx].content
+    const type = /^type:\s*["']?custom:([\w-]+)/m.exec(content)?.[1] ?? ''
+    const component = LIVE_DEMOS[type] ?? 'ChartDemo'
+    return `${html}<ClientOnly><${component} src="${encodeURIComponent(content)}" /></ClientOnly>`
   }
 }
 
@@ -124,7 +131,7 @@ export default withMermaid(defineConfig({
     config(md) {
       tabsMarkdownPlugin(md)
       vPreBracesRule(md)
-      liveChartFence(md)
+      liveDemoFence(md)
     },
   },
 
@@ -360,7 +367,17 @@ export default withMermaid(defineConfig({
                 { text: 'Upgrading',     link: '/cards/chart/upgrading' },
               ],
             },
-            { text: 'Data Grid',      link: '/cards/data-grid/' },
+            {
+              text: 'Data Grid',
+              collapsed: true,
+              items: [
+                { text: 'Overview',            link: '/cards/data-grid/' },
+                { text: 'Data & Cells',        link: '/cards/data-grid/data' },
+                { text: 'Styling & Animation', link: '/cards/data-grid/styling' },
+                { text: 'Playground',          link: '/cards/data-grid/playground' },
+                { text: 'Upgrading',           link: '/cards/data-grid/upgrading' },
+              ],
+            },
             { text: 'Layout View',    link: '/cards/layout-view/' },
             {
               text: 'MSD',

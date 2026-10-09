@@ -1,663 +1,260 @@
 /**
  * Data Grid Card Schema
  *
- * JSON Schema definition with x-ui-hints for LCARdS Data Grid Card.
- * Supports 2 data modes: decorative (random) and data (real entities/sensors)
- * with full CSS Grid configuration and hierarchical styling.
+ * Two modes: decorative (generated values) and data (rows of text, entity
+ * states, templates and datasource tokens). Legacy keys stay in the schema
+ * with `deprecated: true` + `x-replacement` so old configs validate with a
+ * warning; migrateDataGridConfig() rewrites them (src/data-grid/).
  *
- * Legacy modes (random, template, datasource) are automatically migrated to
- * the new simplified 2-mode architecture.
- *
- * @see doc/editor/schema-ui-hints.md
- * @see doc/user/configuration/cards/data-grid.md
+ * @see doc/cards/data-grid/
  */
 
-import { animationSchema, filterSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema } from './common-schemas.js';
+import {
+    animationSchema, filterSchema, actionSchema, stateColorSchema, dataSourcesSchema,
+    gridOptionsSchema, triggersUpdateSchema, cardIdSchema, tagsSchema,
+    cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema,
+    cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema,
+    cardOverflowYSchema, cardZIndexSchema
+} from './common-schemas.js';
+
+const lengthSchema = (description, examples) => ({
+    type: ['number', 'string'],
+    description,
+    ...(examples ? { examples } : {})
+});
+
+const FORMAT_ENUM = ['digit', 'float', 'alpha', 'hex', 'mixed'];
+
+/**
+ * Style object shared by `style`, `header_style`, `columns[].style`, row
+ * `style` and cell `style`. Keys are snake_case CSS properties; any other CSS
+ * property also works (e.g. `letter_spacing`, `border_top_color`).
+ */
+export const dataGridCellStyleSchema = {
+    type: 'object',
+    description: 'Cell style. Keys are CSS properties in snake_case (font_size, border_bottom_color, ...). Numbers become px.',
+    properties: {
+        color: { ...stateColorSchema, description: 'Text colour, or a state map (default, active, above:80, ...) resolved against the cell entity' },
+        background: { ...stateColorSchema, description: 'Background colour, or a state map resolved against the cell entity' },
+        font_size: lengthSchema('Font size: number (px) or CSS length', [18, '1.2rem']),
+        font_family: { type: 'string', description: 'CSS font-family', examples: ['Antonio, sans-serif'] },
+        font_weight: { type: ['number', 'string'], description: 'CSS font-weight', examples: [400, 'bold'] },
+        align: { type: 'string', enum: ['left', 'center', 'right'], description: 'Horizontal text alignment (default right)' },
+        padding: {
+            oneOf: [
+                { type: ['number', 'string'], description: 'Number (px) or CSS padding' },
+                {
+                    type: 'object',
+                    description: 'Per-side padding in px',
+                    properties: { top: { type: 'number' }, right: { type: 'number' }, bottom: { type: 'number' }, left: { type: 'number' } }
+                }
+            ]
+        },
+        text_transform: { type: 'string', enum: ['none', 'uppercase', 'lowercase', 'capitalize'] },
+        letter_spacing: lengthSchema('CSS letter-spacing'),
+        line_height: { type: ['number', 'string'], description: 'CSS line-height (numbers are unitless)' },
+        white_space: { type: 'string', enum: ['nowrap', 'normal', 'pre', 'pre-wrap', 'pre-line'], description: 'nowrap (default) truncates with an ellipsis' },
+        border_width: lengthSchema('Border width'),
+        border_color: { type: 'string', description: 'Border colour' },
+        border_style: { type: 'string', enum: ['solid', 'dashed', 'dotted', 'double', 'groove', 'ridge', 'inset', 'outset', 'none'] },
+        border_radius: lengthSchema('Border radius')
+    }
+};
+
+/** One cell: plain text / entity id / template, or a cell object. */
+const cellSchema = {
+    anyOf: [
+        { type: 'string', description: 'Static text, an entity id (shows its state) or a template ({{ }}, {datasource:...}, [[[ ]]])' },
+        { type: 'number' },
+        {
+            type: 'object',
+            title: 'Cell object',
+            description: 'A cell with its own style, entity context or actions',
+            properties: {
+                value: { type: ['string', 'number'], description: 'What the cell shows: text, entity id or template' },
+                entity: { type: 'string', format: 'entity', description: 'Entity to show (when value is empty) and to resolve state-map colours and actions against' },
+                attribute: { type: 'string', description: 'Show this attribute of the entity instead of its state' },
+                style: dataGridCellStyleSchema,
+                tap_action: actionSchema,
+                hold_action: actionSchema,
+                double_tap_action: actionSchema
+            }
+        }
+    ]
+};
 
 export const dataGridSchema = {
-    "type": "object",
-    "required": [
-        "type",
-        "data_mode"
-    ],
-    "properties": {
-        // ====================================================================
-        // HOME ASSISTANT REQUIRED PROPERTIES
-        // ====================================================================
-
-        "type": {
-            "type": "string",
-            "const": "custom:lcards-data-grid",
-            "x-ui-hints": {
-                "hidden": true
-            }
+    type: 'object',
+    required: ['type'],
+    properties: {
+        type: {
+            type: 'string',
+            const: 'custom:lcards-data-grid',
+            'x-ui-hints': { hidden: true }
         },
 
-        // ====================================================================
-        // CORE CONFIGURATION
-        // ====================================================================
-
-        "data_mode": {
-            "type": "string",
-            "enum": ["decorative", "data", "random", "template", "datasource"],
-            "default": "decorative",
-            "x-ui-hints": {
-                "label": "Data Mode",
-                "helper": "Choose data input mode: decorative (random) or data (real entities/sensors). Legacy: random→decorative, template/datasource→data",
-                "selector": {
-                    "select": {
-                        "mode": "dropdown",
-                        "options": [
-                            { "value": "decorative", "label": "Decorative (Random Data)" },
-                            { "value": "data", "label": "Data (Real Entities/Sensors)" },
-                            { "value": "random", "label": "⚠️ Random (deprecated, use decorative)" },
-                            { "value": "template", "label": "⚠️ Template (deprecated, use data)" },
-                            { "value": "datasource", "label": "⚠️ DataSource (deprecated, use data)" }
-                        ]
-                    }
+        // ── Mode ────────────────────────────────────────────────────────────
+        data_mode: {
+            oneOf: [
+                {
+                    type: 'string',
+                    enum: ['decorative', 'data'],
+                    description: 'decorative: generated values; data: your rows. Defaults to data when rows are set, otherwise decorative.'
+                },
+                {
+                    type: 'string',
+                    enum: ['random', 'template', 'datasource'],
+                    deprecated: true,
+                    'x-replacement': 'data_mode: decorative (random) or data (template, datasource)'
                 }
-            }
+            ]
         },
 
-        // ====================================================================
-        // RANDOM MODE PROPERTIES
-        // ====================================================================
-
-        "format": {
-            "type": "string",
-            "enum": ["digit", "float", "alpha", "hex", "mixed"],
-            "default": "mixed",
-            "x-ui-hints": {
-                "label": "Data Format",
-                "helper": "Format for randomly generated data",
-                "showIf": { "data_mode": ["decorative", "random"] },
-                "selector": {
-                    "select": {
-                        "mode": "dropdown",
-                        "options": [
-                            { "value": "digit", "label": "Digit (0042, 1337)" },
-                            { "value": "float", "label": "Float (42.17, 3.14)" },
-                            { "value": "alpha", "label": "Alpha (AB, XY)" },
-                            { "value": "hex", "label": "Hex (A3F1, 00FF)" },
-                            { "value": "mixed", "label": "Mixed (various)" }
-                        ]
-                    }
-                }
-            }
+        // ── Decorative mode ─────────────────────────────────────────────────
+        format: {
+            type: 'string',
+            enum: FORMAT_ENUM,
+            default: 'mixed',
+            description: 'Generated value format: digit (0042), float (42.17), alpha (AB), hex (A3F1) or mixed'
+        },
+        refresh_interval: {
+            type: 'number',
+            minimum: 0,
+            default: 0,
+            description: 'Regenerate values every N ms (0 = never)'
+        },
+        refresh_cells: {
+            type: 'number',
+            minimum: 0,
+            maximum: 1,
+            default: 1,
+            description: 'Fraction of cells that change on each refresh (1 = all)'
         },
 
-        "refresh_interval": {
-            "type": "number",
-            "minimum": 0,
-            "default": 0,
-            "x-ui-hints": {
-                "label": "Refresh Interval",
-                "helper": "Auto-refresh interval in milliseconds (0 = disabled)",
-                "showIf": { "data_mode": ["decorative", "random"] },
-                "selector": {
-                    "number": {
-                        "mode": "box",
-                        "min": 0,
-                        "max": 60000,
-                        "step": 100,
-                        "unit_of_measurement": "ms"
-                    }
-                }
-            }
-        },
-
-        // ====================================================================
-        // DATA MODE PROPERTIES
-        // ====================================================================
-
-        "rows": {
-            "type": "array",
-            "x-ui-hints": {
-                "label": "Grid Rows",
-                "helper": "Row definitions with auto-detected cell types (static text, entity IDs, or {{templates}})",
-                "showIf": { "data_mode": ["data", "template", "datasource"] }
-            },
-            "items": {
-                "oneOf": [
+        // ── Data mode ───────────────────────────────────────────────────────
+        rows: {
+            type: 'array',
+            description: 'Data rows. Each row is a list of cells, or { values, style, header }.',
+            items: {
+                oneOf: [
+                    { type: 'array', title: 'Row', items: cellSchema },
                     {
-                        "type": "array",
-                        "title": "Simple Row",
-                        "description": "Array of cell values (auto-detects static text, entity IDs, or templates)",
-                        "items": {
-                            "type": ["string", "number"]
-                        }
-                    },
-                    {
-                        "type": "object",
-                        "title": "Styled Row",
-                        "description": "Row with values and optional style overrides",
-                        "properties": {
-                            "values": {
-                                "type": "array",
-                                "items": {
-                                    "type": ["string", "number"]
-                                }
+                        type: 'object',
+                        title: 'Styled row',
+                        properties: {
+                            values: { type: 'array', items: cellSchema },
+                            style: dataGridCellStyleSchema,
+                            header: { type: 'boolean', description: 'Header row: header defaults plus header_style' },
+                            cellStyles: {
+                                type: 'array',
+                                deprecated: true,
+                                'x-replacement': 'cell objects: { value, style }'
                             },
-                            "style": {
-                                "type": "object",
-                                "description": "Row-level style overrides"
-                            }
+                            sources: { type: 'array', deprecated: true, 'x-replacement': 'values' }
                         },
-                        "required": ["values"]
+                        required: ['values']
                     }
                 ]
             }
         },
+        cell_tap_action: {
+            ...actionSchema,
+            description: 'Tap action for every entity cell that has no tap_action of its own (e.g. { action: more-info })'
+        },
+        data_sources: dataSourcesSchema,
+        triggers_update: triggersUpdateSchema,
 
-        // ====================================================================
-        // CSS GRID CONFIGURATION
-        // ====================================================================
+        // ── Layout ──────────────────────────────────────────────────────────
+        grid: {
+            type: 'object',
+            description: 'CSS Grid layout of the cells',
+            properties: {
+                'grid-template-columns': { type: 'string', description: "Column tracks, e.g. 'repeat(12, 1fr)' or '100px 1fr 2fr'. Decorative mode takes the column count from here." },
+                'grid-template-rows': { type: 'string', description: "Row tracks, e.g. 'repeat(8, auto)'. Decorative mode takes the row count from here." },
+                gap: lengthSchema('Gap between cells (default 8px)', ['8px', 0]),
+                'row-gap': lengthSchema('Gap between rows'),
+                'column-gap': lengthSchema('Gap between columns'),
+                'grid-auto-flow': { type: 'string', enum: ['row', 'column', 'dense', 'row dense', 'column dense'] },
+                'justify-items': { type: 'string', enum: ['stretch', 'start', 'end', 'center'] },
+                'align-items': { type: 'string', enum: ['stretch', 'start', 'end', 'center'] },
+                'justify-content': { type: 'string', enum: ['start', 'end', 'center', 'stretch', 'space-between', 'space-around', 'space-evenly'] },
+                'align-content': { type: 'string', enum: ['start', 'end', 'center', 'stretch', 'space-between', 'space-around', 'space-evenly'] },
+                'grid-auto-columns': { type: 'string' },
+                'grid-auto-rows': { type: 'string' },
+                'grid-template-areas': { type: 'string' },
+                rows: { type: 'number', deprecated: true, 'x-replacement': "grid-template-rows: 'repeat(N, auto)'" },
+                columns: { type: 'number', deprecated: true, 'x-replacement': "grid-template-columns: 'repeat(N, 1fr)'" },
+                cell_width: { type: ['number', 'string'], deprecated: true, 'x-replacement': 'grid-template-columns' }
+            }
+        },
 
-        "grid": {
-            "type": "object",
-            "x-ui-hints": {
-                "label": "Grid Layout Configuration"
-            },
-            "properties": {
-                // Standard CSS Grid Properties
-                "grid-template-columns": {
-                    "type": "string",
-                    "x-ui-hints": {
-                        "label": "Grid Template Columns",
-                        "helper": "CSS Grid columns definition (e.g., 'repeat(12, 1fr)' or '100px 1fr 2fr')",
-                        "selector": {
-                            "text": {
-                                "placeholder": "repeat(12, 1fr)"
-                            }
-                        }
-                    }
-                },
-
-                "grid-template-rows": {
-                    "type": "string",
-                    "x-ui-hints": {
-                        "label": "Grid Template Rows",
-                        "helper": "CSS Grid rows definition (e.g., 'repeat(8, auto)' or '50px 100px auto')",
-                        "selector": {
-                            "text": {
-                                "placeholder": "repeat(8, auto)"
-                            }
-                        }
-                    }
-                },
-
-                "gap": {
-                    "type": "string",
-                    "x-ui-hints": {
-                        "label": "Gap (Uniform)",
-                        "helper": "Uniform spacing between cells (e.g., '8px' or '1rem')",
-                        "selector": {
-                            "text": {
-                                "placeholder": "8px"
-                            }
-                        }
-                    }
-                },
-
-                "row-gap": {
-                    "type": "string",
-                    "x-ui-hints": {
-                        "label": "Row Gap",
-                        "helper": "Vertical spacing between rows",
-                        "selector": {
-                            "text": {
-                                "placeholder": "8px"
-                            }
-                        }
-                    }
-                },
-
-                "column-gap": {
-                    "type": "string",
-                    "x-ui-hints": {
-                        "label": "Column Gap",
-                        "helper": "Horizontal spacing between columns",
-                        "selector": {
-                            "text": {
-                                "placeholder": "8px"
-                            }
-                        }
-                    }
-                },
-
-                "grid-auto-flow": {
-                    "type": "string",
-                    "enum": ["row", "column", "dense", "row dense", "column dense"],
-                    "default": "row",
-                    "x-ui-hints": {
-                        "label": "Auto Flow",
-                        "helper": "How cells automatically fill the grid",
-                        "selector": {
-                            "select": {
-                                "mode": "dropdown",
-                                "options": [
-                                    { "value": "row", "label": "Row" },
-                                    { "value": "column", "label": "Column" },
-                                    { "value": "dense", "label": "Dense" },
-                                    { "value": "row dense", "label": "Row Dense" },
-                                    { "value": "column dense", "label": "Column Dense" }
-                                ]
-                            }
-                        }
-                    }
-                },
-
-                "justify-items": {
-                    "type": "string",
-                    "enum": ["stretch", "start", "end", "center"],
-                    "default": "stretch",
-                    "x-ui-hints": {
-                        "label": "Justify Items",
-                        "helper": "Horizontal alignment of cells within their grid areas",
-                        "selector": {
-                            "select": {
-                                "mode": "dropdown",
-                                "options": [
-                                    { "value": "stretch", "label": "Stretch" },
-                                    { "value": "start", "label": "Start" },
-                                    { "value": "end", "label": "End" },
-                                    { "value": "center", "label": "Center" }
-                                ]
-                            }
-                        }
-                    }
-                },
-
-                "align-items": {
-                    "type": "string",
-                    "enum": ["stretch", "start", "end", "center"],
-                    "default": "stretch",
-                    "x-ui-hints": {
-                        "label": "Align Items",
-                        "helper": "Vertical alignment of cells within their grid areas",
-                        "selector": {
-                            "select": {
-                                "mode": "dropdown",
-                                "options": [
-                                    { "value": "stretch", "label": "Stretch" },
-                                    { "value": "start", "label": "Start" },
-                                    { "value": "end", "label": "End" },
-                                    { "value": "center", "label": "Center" }
-                                ]
-                            }
-                        }
-                    }
-                },
-
-                // Advanced CSS Grid Properties
-                "grid-auto-columns": {
-                    "type": "string",
-                    "x-ui-hints": {
-                        "label": "Auto Columns",
-                        "helper": "Width of implicit columns (e.g., '100px' or '1fr')",
-                        "selector": {
-                            "text": {
-                                "placeholder": "1fr"
-                            }
-                        }
-                    }
-                },
-
-                "grid-auto-rows": {
-                    "type": "string",
-                    "x-ui-hints": {
-                        "label": "Auto Rows",
-                        "helper": "Height of implicit rows (e.g., '50px' or 'auto')",
-                        "selector": {
-                            "text": {
-                                "placeholder": "auto"
-                            }
-                        }
-                    }
-                },
-
-                "justify-content": {
-                    "type": "string",
-                    "enum": ["start", "end", "center", "space-between", "space-around", "space-evenly"],
-                    "x-ui-hints": {
-                        "label": "Justify Content",
-                        "helper": "Horizontal alignment of the grid within the card",
-                        "selector": {
-                            "select": {
-                                "mode": "dropdown",
-                                "options": [
-                                    { "value": "start", "label": "Start" },
-                                    { "value": "end", "label": "End" },
-                                    { "value": "center", "label": "Center" },
-                                    { "value": "space-between", "label": "Space Between" },
-                                    { "value": "space-around", "label": "Space Around" },
-                                    { "value": "space-evenly", "label": "Space Evenly" }
-                                ]
-                            }
-                        }
-                    }
-                },
-
-                "align-content": {
-                    "type": "string",
-                    "enum": ["start", "end", "center", "space-between", "space-around", "space-evenly"],
-                    "x-ui-hints": {
-                        "label": "Align Content",
-                        "helper": "Vertical alignment of the grid within the card",
-                        "selector": {
-                            "select": {
-                                "mode": "dropdown",
-                                "options": [
-                                    { "value": "start", "label": "Start" },
-                                    { "value": "end", "label": "End" },
-                                    { "value": "center", "label": "Center" },
-                                    { "value": "space-between", "label": "Space Between" },
-                                    { "value": "space-around", "label": "Space Around" },
-                                    { "value": "space-evenly", "label": "Space Evenly" }
-                                ]
-                            }
-                        }
-                    }
-                },
-
-                // Legacy Shorthand Properties (deprecated but supported)
-                "rows": {
-                    "type": "number",
-                    "minimum": 1,
-                    "x-ui-hints": {
-                        "label": "Rows (Legacy)",
-                        "helper": "⚠️ Deprecated: Use grid-template-rows instead",
-                        "selector": {
-                            "number": {
-                                "mode": "box",
-                                "min": 1,
-                                "max": 100
-                            }
-                        }
-                    }
-                },
-
-                "columns": {
-                    "type": "number",
-                    "minimum": 1,
-                    "x-ui-hints": {
-                        "label": "Columns (Legacy)",
-                        "helper": "⚠️ Deprecated: Use grid-template-columns instead",
-                        "selector": {
-                            "number": {
-                                "mode": "box",
-                                "min": 1,
-                                "max": 100
-                            }
-                        }
-                    }
-                },
-
-                "cell_width": {
-                    "oneOf": [
-                        {
-                            "type": "string",
-                            "const": "auto",
-                            "title": "Auto"
-                        },
-                        {
-                            "type": "number",
-                            "title": "Fixed Width",
-                            "minimum": 0
-                        }
-                    ],
-                    "x-ui-hints": {
-                        "label": "Cell Width (Legacy)",
-                        "helper": "⚠️ Deprecated: Use grid-template-columns instead"
-                    }
+        // ── Styling ─────────────────────────────────────────────────────────
+        style: { ...dataGridCellStyleSchema, description: 'Grid-wide style for every cell' },
+        header_style: { ...dataGridCellStyleSchema, description: 'Style for rows marked header: true (on top of the header defaults)' },
+        columns: {
+            type: 'array',
+            description: 'Per-column settings, by position',
+            items: {
+                type: 'object',
+                properties: {
+                    style: dataGridCellStyleSchema,
+                    format: { type: 'string', enum: FORMAT_ENUM, description: 'Decorative mode: format for this column' }
                 }
             }
         },
 
-        // ====================================================================
-        // HIERARCHICAL STYLING
-        // ====================================================================
-
-        "style": {
-            "type": "object",
-            "x-ui-hints": {
-                "label": "Grid-Wide Style",
-                "helper": "Default styling applied to all cells"
-            },
-            "properties": {
-                "font_size": {
-                    "type": ["number", "string"],
-                    "x-ui-hints": {
-                        "label": "Font Size",
-                        "helper": "Font size in px or with unit (e.g., '18px', '1.2rem'). Number values auto-convert to px.",
-                        "selector": {
-                            "text": {
-                                "placeholder": "18"
-                            }
-                        }
-                    }
-                },
-
-                "font_family": {
-                    "type": "string",
-                    "format": "font-family",
-                    "x-ui-hints": {
-                        "label": "Font Family",
-                        "helper": "Font family for cell text. Use LCARdS fonts (Antonio, Oswald) or system fonts",
-                        "selector": {
-                            "text": {
-                                "placeholder": "Antonio, sans-serif"
-                            }
-                        }
-                    }
-                },
-
-                "font_weight": {
-                    "type": ["number", "string"],
-                    "x-ui-hints": {
-                        "label": "Font Weight",
-                        "selector": {
-                            "number": {
-                                "mode": "box",
-                                "min": 100,
-                                "max": 900,
-                                "step": 100
-                            }
-                        }
-                    }
-                },
-
-                "color": {
-                    "type": "string",
-                    "format": "color",
-                    "x-ui-hints": {
-                        "label": "Text Color",
-                        "helper": "Cell text color (supports theme tokens like 'theme:colors.lcars.blue')",
-                        "selector": {
-                            "ui_color": {
-                                "default_color": "theme:colors.grid.cellText"
-                            }
-                        }
-                    }
-                },
-
-                "background": {
-                    "type": "string",
-                    "format": "color",
-                    "x-ui-hints": {
-                        "label": "Background Color",
-                        "helper": "Cell background color (supports theme tokens like 'theme:colors.lcars.dark-blue')",
-                        "selector": {
-                            "ui_color": {
-                                "default_color": "transparent"
-                            }
-                        }
-                    }
-                },
-
-                "align": {
-                    "type": "string",
-                    "enum": ["left", "center", "right"],
-                    "default": "right",
-                    "x-ui-hints": {
-                        "label": "Text Alignment",
-                        "selector": {
-                            "select": {
-                                "mode": "dropdown",
-                                "options": [
-                                    { "value": "left", "label": "Left" },
-                                    { "value": "center", "label": "Center" },
-                                    { "value": "right", "label": "Right" }
-                                ]
-                            }
-                        }
-                    }
-                },
-
-                "padding": {
-                    "type": ["number", "string"],
-                    "x-ui-hints": {
-                        "label": "Padding",
-                        "helper": "Cell padding in px or with unit",
-                        "selector": {
-                            "text": {
-                                "placeholder": "8px"
-                            }
-                        }
-                    }
-                },
-
-                "border_width": {
-                    "type": "number",
-                    "minimum": 0,
-                    "x-ui-hints": {
-                        "label": "Border Width",
-                        "selector": {
-                            "number": {
-                                "mode": "box",
-                                "min": 0,
-                                "max": 10,
-                                "unit_of_measurement": "px"
-                            }
-                        }
-                    }
-                },
-
-                "border_color": {
-                    "type": "string",
-                    "format": "color",
-                    "x-ui-hints": {
-                        "label": "Border Color",
-                        "helper": "Cell border color (supports theme tokens)",
-                        "selector": {
-                            "ui_color": {
-                                "default_color": "theme:colors.grid.cellBorder"
-                            }
-                        }
-                    }
-                },
-
-                "border_style": {
-                    "type": "string",
-                    "enum": ["solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset"],
-                    "default": "solid",
-                    "x-ui-hints": {
-                        "label": "Border Style",
-                        "selector": {
-                            "select": {
-                                "mode": "dropdown",
-                                "options": [
-                                    { "value": "solid", "label": "Solid" },
-                                    { "value": "dashed", "label": "Dashed" },
-                                    { "value": "dotted", "label": "Dotted" },
-                                    { "value": "double", "label": "Double" },
-                                    { "value": "groove", "label": "Groove" },
-                                    { "value": "ridge", "label": "Ridge" },
-                                    { "value": "inset", "label": "Inset" },
-                                    { "value": "outset", "label": "Outset" }
-                                ]
-                            }
-                        }
+        // ── Animation ───────────────────────────────────────────────────────
+        animations: {
+            type: 'array',
+            description: 'Card animations. preset: cascade-color runs row by row (params: pattern, speed_multiplier, duration, timing, colors).',
+            items: animationSchema
+        },
+        highlight_changes: {
+            oneOf: [
+                { type: 'boolean', description: 'Pulse cells when their value changes' },
+                {
+                    type: 'object',
+                    description: 'Animate cells when their value changes',
+                    properties: {
+                        preset: { type: 'string', default: 'pulse', description: 'Animation preset, e.g. pulse or glow' },
+                        duration: { type: 'number', minimum: 0, default: 500 },
+                        ease: { type: 'string', default: 'outQuad' },
+                        params: { type: 'object', description: 'Preset params, e.g. { max_scale: 1.08 } or { color, blur_max }' },
+                        max_cells: { type: 'number', minimum: 0, description: 'Most cells to animate at once (default: all, capped at 100)' }
                     }
                 }
-            }
+            ]
+        },
+        filters: {
+            type: 'array',
+            description: 'CSS filters applied to the whole grid',
+            items: filterSchema
         },
 
-        // ====================================================================
-        // ANIMATION CONFIGURATION (Standard animations array pattern)
-        // ====================================================================
-
-        "animations": {
-            "type": "array",
-            "x-ui-hints": {
-                "label": "Animations",
-                "helper": "Animation definitions triggered by events (on_load, on_hover, etc.)"
-            },
-            "items": animationSchema
-        },
-
-        // FILTERS CONFIGURATION (Standard filters array pattern)
-        // ====================================================================
-
-        "filters": {
-            "type": "array",
-            "x-ui-hints": {
-                "label": "Visual Filters",
-                "helper": "CSS and SVG filters applied to the entire data grid"
-            },
-            "items": filterSchema
-        },
-
-        // ====================================================================
-        // CARD METADATA
-        // ====================================================================
-
-        "id": {
-            "type": "string",
-            "x-ui-hints": {
-                "label": "Card ID",
-                "helper": "Unique identifier for rules engine targeting",
-                "selector": {
-                    "text": {}
-                }
-            }
-        },
-
-        "tags": {
-            "type": "array",
-            "items": {
-                "type": "string"
-            },
-            "x-ui-hints": {
-                "label": "Tags",
-                "helper": "Tags for rules engine categorization",
-                "selector": {
-                    "text": {
-                        "multiple": true
-                    }
-                }
-            }
-        },
-
-        // ====================================================================
-        // SIZING
-        // ====================================================================
-
+        // ── Identity & sizing ───────────────────────────────────────────────
+        id: cardIdSchema,
+        tags: tagsSchema,
+        grid_options: gridOptionsSchema,
         height: cardHeightSchema,
-
         width: cardWidthSchema,
-
         min_height: cardMinHeightSchema,
-
         min_width: cardMinWidthSchema,
-
         max_height: cardMaxHeightSchema,
-
         max_width: cardMaxWidthSchema,
-
-        overflow:   cardOverflowSchema,
+        overflow: cardOverflowSchema,
         overflow_x: cardOverflowXSchema,
         overflow_y: cardOverflowYSchema,
-        z_index:    cardZIndexSchema,
+        z_index: cardZIndexSchema,
+
+        // ── Legacy (migrated on load) ───────────────────────────────────────
+        animation: {
+            type: 'object',
+            deprecated: true,
+            'x-replacement': 'highlight_changes, and cascade-color params (pattern, timing) in animations'
+        },
+        font_size: { type: ['number', 'string'], deprecated: true, 'x-replacement': 'style.font_size' },
+        font_family: { type: 'string', deprecated: true, 'x-replacement': 'style.font_family' },
+        font_weight: { type: ['number', 'string'], deprecated: true, 'x-replacement': 'style.font_weight' },
+        align: { type: 'string', deprecated: true, 'x-replacement': 'style.align' }
     }
 };

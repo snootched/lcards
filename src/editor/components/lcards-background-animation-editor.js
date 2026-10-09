@@ -27,7 +27,6 @@ import './shared/lcards-color-picker.js';
 import './shared/lcards-color-list.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
-import './editors/lcards-color-section.js';
 import { BACKGROUND_PRESET_DOCS_URL } from './shared/docs-links.js';
 import { infoGuideStyles } from './shared/info-guide-styles.js';
 import { searchableSelectStyles } from './shared/searchable-select-styles.js';
@@ -266,7 +265,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     this._draggedIndex = null;
     this._expandedEffects = {};
     this._imageSrcModes   = {};
-    this._currentEffectIndex = null; // Track current effect for color section
     this._insetEnabled = false;
     this._expandedGuideIndices = new Set();
   }
@@ -282,16 +280,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     if (!c) return { inset: null, fps: null, effects: [] };
     if (Array.isArray(c)) return { inset: null, fps: null, effects: c };
     return { inset: c.inset ?? null, fps: c.fps ?? null, effects: c.effects ?? [] };
-  }
-
-  /**
-   * Config value setter required by lcards-color-section
-   * Uses _currentEffectIndex to update the correct effect
-   */
-  _setConfigValue(path, value) {
-    if (this._currentEffectIndex !== null) {
-      this._updateEffectConfig(this._currentEffectIndex, path, value);
-    }
   }
 
   render() {
@@ -1014,28 +1002,34 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   }
 
   _renderColorSection(preset, config, index) {
-    // Store current effect index for _setConfigValue callback
-    this._currentEffectIndex = index;
-
-    const colorPaths = [{ path: 'color', label: 'Line Colour', helper: 'Main line colour' }];
+    const slots = [{ key: 'color', label: 'Line Colour', helper: 'Main line colour' }];
 
     if (preset === 'grid' || preset === 'grid-hexagonal') {
-      colorPaths.push({ path: 'color_major', label: 'Major Line Colour', helper: 'Leave empty to use same as main colour' });
+      slots.push({ key: 'color_major', label: 'Major Line Colour', helper: 'Leave empty to use same as main colour' });
     }
 
     if (preset === 'grid' || preset === 'grid-diagonal' || preset === 'grid-hexagonal') {
-      colorPaths.push({ path: 'fill_color', label: 'Fill Colour', helper: 'Cell/area background fill (leave empty for transparent)' });
+      slots.push({ key: 'fill_color', label: 'Fill Colour', helper: 'Cell/area background fill (leave empty for transparent)' });
     }
 
+    // Each picker closes over its own effect index, so several expanded
+    // effects never write into each other.
     return html`
-      <lcards-color-section
-        .editor=${this}
-        header="Colours"
-        .colorPaths=${colorPaths}
-        .getConfigValue=${(path) => config[path] || ''}
-        ?expanded=${true}
-        ?useColorPicker=${true}>
-      </lcards-color-section>
+      <lcards-form-section header="Colours" icon="mdi:palette" ?expanded=${true}>
+        ${slots.map(slot => html`
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; padding: 2px 8px;">${slot.label}</div>
+            <lcards-color-picker
+              .hass=${this.hass}
+              .value=${config[slot.key] || ''}
+              .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-']}
+              ?showPreview=${true}
+              @value-changed=${(e) => this._updateEffectConfig(index, slot.key, e.detail.value)}>
+            </lcards-color-picker>
+            <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px; padding: 0 8px;">${slot.helper}</div>
+          </div>
+        `)}
+      </lcards-form-section>
     `;
   }
 

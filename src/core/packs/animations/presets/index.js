@@ -661,13 +661,15 @@ registerAnimationPreset('cascade', (def) => {
  * @example User Config (data-grid)
  * ```yaml
  * type: custom:lcards-data-grid
- * animation:
- *   type: cascade
- *   pattern: default  # Applies timing pattern to rows automatically
- *   colors:
- *     start: colors.lcars.blue
- *     text: colors.lcars.dark-blue
- *     end: colors.lcars.moonlight
+ * animations:
+ *   - trigger: on_load
+ *     preset: cascade-color
+ *     params:
+ *       pattern: default  # The card applies the per-row timing pattern
+ *       colors:
+ *         start: var(--lcars-blue)
+ *         text: var(--lcars-dark-blue)
+ *         end: var(--lcars-moonlight)
  * ```
  */
 registerAnimationPreset('cascade-color', (def) => {

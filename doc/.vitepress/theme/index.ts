@@ -6,6 +6,7 @@ import AnimationPlayground from './AnimationPlayground.vue'
 import FilterPlayground from './FilterPlayground.vue'
 import EffectPlayground from './EffectPlayground.vue'
 import ChartDemo from './ChartDemo.vue'
+import DataGridDemo from './DataGridDemo.vue'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -66,6 +67,10 @@ export default {
     // client-side, on generated sample data). Used by ```yaml live fences and
     // <ChartDemo editable /> on the chart playground page.
     app.component('ChartDemo', ChartDemo)
+    // Live data grid demos (the card's own src/data-grid model + real
+    // animation presets, on sample values). Picked by ```yaml live fences
+    // whose type is custom:lcards-data-grid, and <DataGridDemo editable />.
+    app.component('DataGridDemo', DataGridDemo)
   },
 
   Layout() {

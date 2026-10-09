@@ -60,6 +60,7 @@ import { getElbowSchema }        from '../src/cards/schemas/elbow-schema.js';
 import { getChartSchema }        from '../src/cards/schemas/chart-schema.js';
 import { migrateChartConfig }    from '../src/charts/chart-config-migration.js';
 import { dataGridSchema }        from '../src/cards/schemas/data-grid-schema.js';
+import { migrateDataGridConfig } from '../src/data-grid/data-grid-config-migration.js';
 import { getAlertOverlaySchema } from '../src/cards/schemas/lcards-alert-overlay-schema.js';
 import { getSelectMenuSchema }   from '../src/cards/schemas/select-menu-schema.js';
 import Ajv                       from 'ajv';
@@ -346,14 +347,16 @@ function main() {
         if (!validate) continue; // msd-card, config-panel, or unknown — skip
         totalSchemaChecked++;
 
-        // Chart examples must use the current sources[] format: legacy keys still
-        // work for users but docs should only teach the canonical form.
-        if (tag === 'lcards-chart') {
-          const { changed, notes } = migrateChartConfig(cardNode);
+        // Chart and data grid examples must use the current format: legacy keys
+        // still work for users but docs should only teach the canonical form.
+        // Upgrading pages mark legacy YAML `no-validate`.
+        const migrator = { 'lcards-chart': migrateChartConfig, 'lcards-data-grid': migrateDataGridConfig }[tag];
+        if (migrator) {
+          const { changed, notes } = migrator(cardNode);
           if (changed) {
             const entry = {
               file: rel, line: b.line,
-              msg: `Chart example uses the legacy format (${notes.join('; ') || 'legacy keys'})`,
+              msg: `${tag === 'lcards-chart' ? 'Chart' : 'Data grid'} example uses the legacy format (${notes.join('; ') || 'legacy keys'})`,
             };
             if (STRICT) errors.push(entry); else schemaWarnings.push(entry);
             blockSchemaIssues++;

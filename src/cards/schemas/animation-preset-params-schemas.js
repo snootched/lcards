@@ -226,9 +226,30 @@ export const cascadeColorParamsSchema = {
   properties: {
     ..._CANONICAL_REDECLARED,
     colors: {
-      type: 'array', minItems: 3, items: { ...simpleColorSchema },
+      anyOf: [
+        { type: 'array', minItems: 3, items: { ...simpleColorSchema } },
+        {
+          type: 'object',
+          description: 'Data grid form: { start, text, end }',
+          properties: { start: { ...simpleColorSchema }, text: { ...simpleColorSchema }, end: { ...simpleColorSchema } }
+        }
+      ],
       description: 'Only indices [0],[1],[2] are used; defaults to 3 theme tokens if omitted.',
       'x-ui-hints': { widget: 'json', label: 'Colors' }
+    },
+    // Read by lcards-data-grid, which runs one cascade per row (buildCascadeRowTimings).
+    pattern: { type: 'string', enum: ['default', 'niagara', 'fast', 'custom'], description: 'Data grid: per-row timing pattern.' },
+    speed_multiplier: { type: 'number', exclusiveMinimum: 0, description: 'Data grid: 2 = twice as fast. Ignored when duration is set.' },
+    timing: {
+      type: 'array',
+      description: 'Data grid: per-row timing for pattern: custom (repeats for further rows).',
+      items: {
+        type: 'object',
+        properties: {
+          duration: { type: 'number', minimum: 0, description: 'Colour cycle length in ms' },
+          delay: { type: 'number', minimum: 0, description: 'Row start delay in seconds' }
+        }
+      }
     },
     property: { type: 'string', default: 'color', description: "Passthrough key used inside keyframe objects. 'fill'/'stroke' for SVG shapes, 'color'/'background-color' only for plain HTML/CSS-rendered targets." },
     mode: {

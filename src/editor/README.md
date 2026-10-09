@@ -1558,7 +1558,7 @@ editor/
 │   │   ├── lcards-form-field.js         # Smart auto-rendering field
 │   │   ├── lcards-form-section.js       # Collapsible sections
 │   │   ├── lcards-grid-layout.js        # Two-column responsive layout
-│   │   ├── lcards-color-section.js      # State-based color groups (enhanced)
+│   │   ├── lcards-color-section-v2.js   # State-based colour list (plain colour or state map)
 │   │   ├── lcards-color-picker.js       # NEW: Unified color picker with CSS vars
 │   │   ├── lcards-object-editor.js      # NEW: Generic object property editor
 │   │   ├── lcards-entity-field.js       # Entity picker wrapper
@@ -1977,93 +1977,27 @@ _renderIconTab() {
 }
 ```
 
-#### Enhanced Color Section
+#### Color Section (v2)
 
-The `lcards-color-section` component now supports three modes for flexible color configuration:
-
-##### 1. State-Based Colors (default)
-For colors that change based on entity state:
-
-```javascript
-import '../components/editors/lcards-color-section.js';
-
-_renderColorsTab() {
-    return html`
-        <!-- State-based colors with enhanced picker -->
-        <lcards-color-section
-            .editor=${this}
-            basePath="style.color.background"
-            header="Background Colors"
-            .states=${['default', 'active', 'inactive', 'unavailable']}
-            ?useColorPicker=${true}
-            ?showPreview=${true}
-            ?expanded=${true}>
-        </lcards-color-section>
-    `;
-}
-```
-
-##### 2. Single Color Mode
-For simple single-color configuration:
+`lcards-color-section-v2` edits one colour path: a plain colour or a state map
+(`default`, `active`, `above:80`, ...). It reads `editor._getConfigValue(basePath)`
+and writes `editor._setConfigValue(basePath, states)`. (The older v1
+`lcards-color-section` with `colorPaths` was removed.)
 
 ```javascript
-_renderColorsTab() {
-    return html`
-        <!-- Single color picker -->
-        <lcards-color-section
-            .editor=${this}
-            basePath="style.track.background"
-            header="Track Background"
-            description="Background color behind pills"
-            ?singleColor=${true}
-            ?expanded=${false}
-            ?useColorPicker=${true}>
-        </lcards-color-section>
-    `;
-}
+import '../components/editors/lcards-color-section-v2.js';
+
+html`
+    <lcards-color-section-v2
+        .editor=${this}
+        .entityId=${this.config?.entity || ''}
+        basePath="style.color.background"
+        header="Background Colours"
+        .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+        ?allowCustomStates=${true}>
+    </lcards-color-section-v2>
+`;
 ```
-
-##### 3. Multiple Single Colors Mode
-For sections with multiple independent color fields:
-
-```javascript
-_renderColorsTab() {
-    return html`
-        <!-- Multiple related color fields in one section -->
-        <lcards-color-section
-            .editor=${this}
-            header="Gradient Colors"
-            description="Start and end colors for gradient"
-            .colorPaths=${[
-                {
-                    path: 'style.gradient.start',
-                    label: 'Gradient Start',
-                    helper: 'Color at minimum value'
-                },
-                {
-                    path: 'style.gradient.end',
-                    label: 'Gradient End',
-                    helper: 'Color at maximum value'
-                }
-            ]}
-            ?expanded=${true}
-            ?useColorPicker=${true}>
-        </lcards-color-section>
-    `;
-}
-```
-
-**Benefits:**
-- ✅ Consistent color configuration across all editors
-- ✅ Single component handles all color use cases
-- ✅ Automatic theme token support with variable prefixes
-- ✅ Built-in color preview
-- ✅ Proper helper text support
-
-**Migration:**
-- Replace direct `lcards-color-picker` usage with `lcards-color-section`
-- Use `singleColor=${true}` for non-state-based colors
-- Use `colorPaths` array for multiple related colors in one section
 
 #### Template Evaluation Tab (v1.19.0)
 ```javascript
@@ -2909,7 +2843,6 @@ import '../components/form/lcards-form-field.js';
 import '../components/form/lcards-form-section.js';
 import '../components/form/lcards-grid-layout.js';
 import '../components/form/lcards-color-picker.js';
-import '../components/form/lcards-color-section.js';
 import '../components/form/lcards-multi-action-editor.js';
 import '../components/form/lcards-border-editor.js';
 import '../components/form/lcards-icon-editor.js';

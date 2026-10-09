@@ -1,10 +1,13 @@
 /**
  * @fileoverview LCARdS Data Grid Editor
  *
- * Visual configuration editor for data grid cards with 1-tab structure.
- * Supports 3 data modes: random (decorative), template (manual), datasource (real-time).
- * All configuration is done through the Configuration Studio (full-screen visual editor).
+ * Launcher for the Data Grid Configuration Studio plus identification/sizing.
  *
+ * Legacy data grid configs are upgraded to the current format when the editor
+ * opens: the first setConfig() fires config-changed once, so HA's Save persists
+ * the upgrade and Cancel discards it. Later setConfig() calls (HA re-sends the
+ * config on every keystroke in its code editor) only migrate for display and
+ * never fire, so legacy YAML being typed is not rewritten.
  */
 
 import { html } from 'lit';
@@ -12,15 +15,12 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { fireEvent } from 'custom-card-helpers';
 import { configToYaml } from '../utils/yaml-utils.js';
+import { migrateDataGridConfig } from '../../data-grid/data-grid-config-migration.js';
 
 // Import shared form components
 import '../components/shared/lcards-message.js';
 import '../components/shared/lcards-form-section.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
-
-// Import specialized editor components
-import '../components/editors/lcards-object-editor.js';
-import '../components/editors/lcards-grid-layout.js';
 
 // Import dashboard components
 import '../components/dashboard/lcards-rules-dashboard.js';
@@ -37,7 +37,7 @@ import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 // Import provenance tab
 import '../components/provenance/lcards-provenance-tab.js';
 
-// Import Configuration Studio dialog (V4 - with WYSIWYG editing)
+// Import Configuration Studio dialog
 import '../dialogs/lcards-data-grid-studio-dialog.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
@@ -46,7 +46,38 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'data-grid';
-        lcardsLog.debug('[LCARdSDataGridEditor] Editor initialized with cardType: data-grid (1 tab: Configuration Studio launcher)');
+        /** Set once: only the first setConfig() after opening may upgrade. */
+        this._openedConfigSeen = false;
+        /** @type {string[]} Migration notes shown in the upgrade notice */
+        this._upgradeNotes = [];
+        /** @type {any} Open studio dialog, kept in sync with hass */
+        this._studio = null;
+    }
+
+    /**
+     * Migrate legacy configs before the base editor clones/validates them.
+     * @param {Object} config
+     * @override
+     */
+    setConfig(config) {
+        const { config: migrated, changed, notes } = migrateDataGridConfig(config);
+        const firstCall = !this._openedConfigSeen;
+        this._openedConfigSeen = true;
+
+        super.setConfig(migrated);
+
+        if (firstCall && changed) {
+            this._upgradeNotes = notes;
+            lcardsLog.info('[LCARdSDataGridEditor] Upgraded legacy data grid config', notes);
+            // After the first render, so HA has the editor wired up.
+            this.updateComplete.then(() => fireEvent(this, 'config-changed', { config: this.config }));
+        }
+    }
+
+    /** @param {Map<string, unknown>} changedProps */
+    updated(changedProps) {
+        super.updated?.(changedProps);
+        if (changedProps.has('hass') && this._studio) this._studio.hass = this.hass;
     }
 
     /**
@@ -73,17 +104,20 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
      */
     _renderConfigurationTab() {
         return html`
+            ${this._upgradeNotes.length ? html`
+                <ha-alert alert-type="info" title="Data grid format upgraded">
+                    This card was upgraded to the current data grid format
+                    (${this._upgradeNotes.join('; ')}). Save to keep the change.
+                </ha-alert>
+            ` : ''}
+
             <!-- Studio Launcher Card (Top Priority) -->
             <div class="info-card">
                 <div class="info-card-content">
-                    <h3>🎨 Configuration Studio</h3>
+                    <h3>Data Grid Configuration Studio</h3>
                     <p>
-                        <strong>Full-screen immersive workspace</strong> with live preview
-                        <br />
-                        Visual grid designer, contextual controls, and real-time updates
-                    </p>
-                    <p style="font-size: 13px; color: var(--secondary-text-color);">
-                        Build your data grid visually with instant feedback. Perfect for beginners and power users alike.
+                        <strong>Full-screen workspace</strong> with live preview: grid layout,
+                        cells, styles, animations and more.
                     </p>
                 </div>
                 <div class="info-card-actions">
@@ -124,7 +158,7 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
                 ?outlined=${true}
                 headerLevel="4">
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--ha-space-2);">
                     ${FormField.renderField(this, 'height')}
 
                     ${FormField.renderField(this, 'width')}
@@ -155,25 +189,13 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
      * @private
      */
     async _openConfigurationStudio() {
-        lcardsLog.debug('[DataGridEditor] Opening Configuration Studio V4');
-
-        const dialog = document.createElement('lcards-data-grid-studio-dialog-v4');
-        // @ts-ignore - TS2339: auto-suppressed
+        const dialog = /** @type {any} */ (document.createElement('lcards-data-grid-studio-dialog-v4'));
         dialog.hass = this.hass;
-
-        // Deep clone current config
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.config = JSON.parse(JSON.stringify(this.config || {}));
+        this._studio = dialog;
 
-        // Listen for config changes
-        dialog.addEventListener('config-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
-            lcardsLog.debug('[DataGridEditor] Studio config changed:', e.detail.config);
-
-            // CRITICAL: Replace config entirely, don't merge
-            // The studio has already cleaned up mode-specific properties
-            // If we merge, deleted keys will persist from the old config
-            // @ts-ignore - TS2339: auto-suppressed
+        // Studio sends the whole config: replace, don't merge (deleted keys must go)
+        dialog.addEventListener('config-changed', (/** @type {CustomEvent} */ e) => {
             this.config = e.detail.config;
 
             // Sync to YAML and notify HA
@@ -187,12 +209,11 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
             this.requestUpdate();
         });
 
-        // Cleanup on close
         dialog.addEventListener('closed', () => {
             dialog.remove();
+            if (this._studio === dialog) this._studio = null;
         });
 
-        // Append to body and show
         mountDialogNearHomeAssistant(dialog, this);
     }
 }

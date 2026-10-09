@@ -36,6 +36,7 @@
     "typecheck": "tsc --pretty false 2>&1 | sort",
     "test": "node --test 'tests/**/*.test.js'",
     "test:routing": "node --test 'tests/routing/*.test.js'",
+    "test:data-grid": "node --test 'tests/data-grid/*.test.js'",
     "create-editor": "node tools/create-editor.js",
     "docs:build": "node scripts/generate-llm-schema.js && vitepress build doc",
     "docs:serve": "vitepress dev doc",
