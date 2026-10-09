@@ -170,7 +170,38 @@ export const dataSourcesSchema = {
                     },
                     required: ['type']
                 }
-            }
+            },
+            window_seconds: {
+                type: ['number', 'string'],
+                description: 'Rolling buffer window: seconds, or a duration like "5m" or "1h". About 10 points per second are kept, at most 1,000 (default 60)',
+                examples: [60, 300, '1h']
+            },
+            min_emit_ms: {
+                type: 'number',
+                minimum: 10,
+                description: 'Minimum ms between updates sent to cards (throttle, default 100)'
+            },
+            coalesce_ms: {
+                type: 'number',
+                minimum: 0,
+                description: 'Window in ms for merging rapid changes into one update (default: 40% of min_emit_ms, at least 20)'
+            },
+            max_delay_ms: {
+                type: 'number',
+                minimum: 0,
+                description: 'Longest ms an update may be held back while merging (default: 3 x coalesce_ms)'
+            },
+            emit_on_same_value: {
+                type: 'boolean',
+                description: 'Send updates even when the value did not change (default true)'
+            },
+            // Older camelCase spellings: still read by DataSource, snake_case wins.
+            windowSeconds: { type: ['number', 'string'], deprecated: true, 'x-replacement': 'window_seconds' },
+            minEmitMs: { type: 'number', deprecated: true, 'x-replacement': 'min_emit_ms' },
+            sampleMs: { type: 'number', deprecated: true, 'x-replacement': 'min_emit_ms' },
+            coalesceMs: { type: 'number', deprecated: true, 'x-replacement': 'coalesce_ms' },
+            maxDelayMs: { type: 'number', deprecated: true, 'x-replacement': 'max_delay_ms' },
+            emitOnSameValue: { type: 'boolean', deprecated: true, 'x-replacement': 'emit_on_same_value' }
         },
         required: ['entity']
     }

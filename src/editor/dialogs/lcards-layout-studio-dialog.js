@@ -28,8 +28,8 @@ import {
 import { showConfirmDeleteDialog, showInfoDialog } from '../../views/layout-edit-dialogs.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-color-picker.js';
-import '../components/yaml/lcards-yaml-editor.js';
-import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
+import '../components/yaml/lcards-studio-yaml-tab.js';
+import { layoutCardSchema } from '../../cards/schemas/layout-card-schema.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 const ALIGN_V_OPTIONS = [
@@ -528,22 +528,15 @@ export class LCARdSLayoutStudioDialog extends LitElement {
     _renderYamlTab() {
         return html`
             <div class="yaml-tab">
-                <lcards-yaml-editor
-                    .value=${configToYaml(this.config ?? {})}
+                <lcards-studio-yaml-tab
                     .hass=${this.hass}
-                    @value-changed=${this._handleYamlChange}>
-                </lcards-yaml-editor>
+                    .config=${this.config ?? {}}
+                    .schema=${layoutCardSchema}
+                    cardType="layout-card"
+                    @yaml-config-changed=${(e) => this._commit(e.detail.config)}>
+                </lcards-studio-yaml-tab>
             </div>
         `;
-    }
-
-    _handleYamlChange(ev) {
-        try {
-            const newConfig = yamlToConfig(ev.detail.value);
-            this._commit(newConfig);
-        } catch (_) {
-            // Invalid YAML mid-edit — wait for valid state
-        }
     }
 
     _handleTabChange(e) {
@@ -766,7 +759,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
 
                 .layout-tab { display: flex; flex-direction: column; gap: 12px; }
                 .yaml-tab { display: flex; flex-direction: column; height: 100%; }
-                .yaml-tab lcards-yaml-editor { flex: 1; min-height: 0; }
+                .yaml-tab lcards-studio-yaml-tab { flex: 1; min-height: 0; }
                 .hint { font-size: 13px; color: var(--secondary-text-color); line-height: 1.5; }
 
                 .card-tab { display: flex; flex-direction: column; gap: 14px; }

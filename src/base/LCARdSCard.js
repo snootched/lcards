@@ -408,7 +408,7 @@ export class LCARdSCard extends LCARdSNativeCard {
     /**
      * Process data_sources configuration to create advanced DataSource instances
      * Allows LCARdSCards to define DataSources with full config (window_seconds,
-     * minEmitMs, coalesceMs, history preload, etc.) without requiring MSD.
+     * min_emit_ms, coalesce_ms, history preload, etc.) without requiring MSD.
      *
      * @example
      * ```yaml
@@ -417,10 +417,11 @@ export class LCARdSCard extends LCARdSNativeCard {
      *   cpu_temp:
      *     entity: sensor.cpu_temp
      *     window_seconds: 3600
-     *     minEmitMs: 250
-     *     coalesceMs: 120
+     *     min_emit_ms: 250
+     *     coalesce_ms: 120
      *     history: { preload: true, hours: 6 }
-     * source: cpu_temp
+     * sources:
+     *   - datasource: cpu_temp
      * ```
      *
      * @param {Object} dataSourcesConfig - data_sources configuration object
@@ -484,7 +485,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                     lcardsLog.debug(`[LCARdSCard] Created DataSource '${name}'`, {
                         entity: config.entity,
                         hasHistory: !!config.history,
-                        windowSeconds: config.windowSeconds,
+                        windowSeconds: config.window_seconds ?? config.windowSeconds,
                         cardId: this._getDisplayId()
                     });
                     return source;

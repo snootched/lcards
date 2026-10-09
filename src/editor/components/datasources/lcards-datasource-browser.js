@@ -468,7 +468,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
           </div>
           <div class="detail-item">
             <span class="detail-label">Window:</span>
-            <span class="detail-value">${dataSource.cfg?.windowSeconds || 60}s</span>
+            <span class="detail-value">${dataSource.windowSeconds || 60}s</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Min Emit:</span>

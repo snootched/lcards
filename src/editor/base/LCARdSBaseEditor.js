@@ -1494,6 +1494,7 @@ export class LCARdSBaseEditor extends LitElement {
                     .value=${this._yamlValue}
                     .schema=${this._getSchema()}
                     .hass=${this.hass}
+                    .cardType=${this.cardType}
                     @value-changed=${this._handleYamlChange}>
                 </lcards-yaml-editor>
             </div>

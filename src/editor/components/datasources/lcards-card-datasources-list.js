@@ -159,7 +159,7 @@ export class LCARdSCardDataSourcesList extends LitElement {
 
             <div class="info-row">
               <span class="label">Window:</span>
-              <span class="value">${config.window_seconds || 60}s</span>
+              <span class="value">${config.window_seconds ?? config.windowSeconds ?? 60}s</span>
             </div>
 
             <!-- Processors -->

@@ -35,6 +35,8 @@ import '../components/editors/lcards-grid-layout.js';
 import '../components/editors/lcards-font-selector.js';
 import '../components/lcards-animation-editor.js';
 import '../components/lcards-filter-editor.js';
+import '../components/yaml/lcards-studio-yaml-tab.js';
+import { dataGridSchema } from '../../cards/schemas/data-grid-schema.js';
 import { copyTextToClipboard } from '../../utils/clipboard-utils.js';
 
 const COLOR_STATES = ['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero'];
@@ -248,10 +250,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     /**
      * Normalised working copy: explicit data_mode, rows as `{ values: [cellObject], style, header }`.
      * @param {Object} config
+     * @param {{ sample?: boolean }} [opts] - sample: add starter rows when data mode has none
      * @returns {Object}
      * @private
      */
-    _normalize(config) {
+    _normalize(config, { sample = true } = {}) {
         const cfg = clone(config);
         cfg.type = cfg.type || 'custom:lcards-data-grid';
         cfg.data_mode = cfg.data_mode || (Array.isArray(cfg.rows) && cfg.rows.length ? 'data' : 'decorative');
@@ -263,7 +266,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 ...(r.header ? { header: true } : {})
             }));
         }
-        if (cfg.data_mode === 'data' && !cfg.rows?.length) cfg.rows = this._sampleRows();
+        if (cfg.data_mode === 'data' && !cfg.rows?.length) cfg.rows = sample ? this._sampleRows() : [];
         return cfg;
     }
 
@@ -734,7 +737,8 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             { id: 'grid-structure', label: 'Grid Structure', icon: 'mdi:table-settings' },
             { id: 'grid-styles', label: 'Grid Styles', icon: 'mdi:palette' },
             { id: 'effects', label: 'Effects', icon: 'mdi:auto-fix' },
-            { id: 'advanced', label: 'Advanced', icon: 'mdi:cog' }
+            { id: 'advanced', label: 'Advanced', icon: 'mdi:cog' },
+            { id: 'yaml', label: 'YAML', icon: 'mdi:code-braces' }
         ];
         return html`
             <ha-dialog open @closed=${this._onDialogClosed} header-title="Data Grid Studio">
@@ -811,6 +815,15 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             case 'grid-styles': return this._renderGridStylesTab();
             case 'effects': return this._renderEffectsTab();
             case 'advanced': return this._renderAdvancedTab();
+            case 'yaml': return html`
+                <lcards-studio-yaml-tab
+                    .hass=${this.hass}
+                    .config=${compactDataGridConfig(this._workingConfig)}
+                    .schema=${dataGridSchema}
+                    cardType="data-grid"
+                    @yaml-config-changed=${(e) => this._applyYaml(e.detail.config)}>
+                </lcards-studio-yaml-tab>
+            `;
             default: return this._renderModeTab();
         }
     }
@@ -945,6 +958,17 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 </lcards-message>
             </lcards-form-section>
         `;
+    }
+
+    /**
+     * Apply a config edited in the YAML tab (migrated and normalised like on open).
+     * @param {Object} config
+     * @private
+     */
+    _applyYaml(config) {
+        this._workingConfig = this._normalize(migrateDataGridConfig(config).config, { sample: false });
+        this._closeEditors();
+        this._changed();
     }
 
     /** @private */

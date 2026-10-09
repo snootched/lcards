@@ -2,7 +2,10 @@
  * @fileoverview LCARdS YAML Editor with Schema Support
  *
  * CodeMirror 6-based YAML editor featuring:
- * - Schema-based autocomplete (property names, enum values)
+ * - Schema-based autocomplete (keys for the mapping at the cursor, including
+ *   list items and oneOf branches; enum values; entities) and key hover help,
+ *   shared with the docs playgrounds via yaml-schema-assist.js
+ * - "Options here" panel: what can go at the cursor, with Insert and docs links
  * - Inline validation with error squiggles
  * - YAML syntax highlighting
  * - Entity and icon autocomplete
@@ -25,14 +28,19 @@ import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, placeholder
 import { EditorState, Compartment } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { yaml } from '@codemirror/lang-yaml';
-import { autocompletion } from '@codemirror/autocomplete';
 import { linter, lintGutter } from '@codemirror/lint';
 import { vsCodeDark } from '@fsegurai/codemirror-theme-vscode-dark';
 import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { bracketMatching, foldGutter, foldKeymap } from '@codemirror/language';
 import { indentationMarkers } from '@replit/codemirror-indentation-markers';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
-import { validateYaml, yamlToConfig } from '../../utils/yaml-utils.js';
+import jsYaml from 'js-yaml';
+import { yamlSchemaAssist, schemaLintSource, insertLines, setLineValue } from './yaml-schema-assist.js';
+import { panelAt, insertLinesFor, quoteIfNeeded } from '../../utils/yaml-options-model.js';
+import { lenientParse } from '../../utils/yaml-schema-path.js';
+import './lcards-yaml-options-panel.js';
+
+const OPTIONS_PANEL_KEY = 'lcards-yaml-options-panel';
 
 export class LCARdSYamlEditor extends LitElement {
 
@@ -40,10 +48,13 @@ export class LCARdSYamlEditor extends LitElement {
         return {
             value: { type: String },           // YAML string
             schema: { type: Object },          // JSON Schema for validation
+            cardType: { type: String },        // e.g. 'chart', for docs links in the options panel
             hass: { type: Object },            // HA instance for entity autocomplete
             readOnly: { type: Boolean },       // Read-only mode
             _isMaximized: { type: Boolean, state: true }, // Maximized state
             _showHelp: { type: Boolean, state: true },     // Help dialog visibility
+            _showOptions: { type: Boolean, state: true },  // "Options here" panel visibility
+            _panel: { type: Object, state: true },         // Options panel content
         };
     }
 
@@ -60,6 +71,13 @@ export class LCARdSYamlEditor extends LitElement {
         this._isMaximized = false;
         this._showHelp = false;
         this._changeDebounceTimer = null;
+        this.cardType = '';
+        this._panel = null;
+        this._panelTimer = null;
+        this._showOptions = true;
+        try {
+            this._showOptions = localStorage.getItem(OPTIONS_PANEL_KEY) !== '0';
+        } catch { /* storage blocked: keep default */ }
     }
 
     static get styles() {
@@ -109,6 +127,28 @@ export class LCARdSYamlEditor extends LitElement {
                 display: flex;
                 align-items: center;
                 justify-content: center;
+            }
+
+            .editor-body {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: var(--ha-space-2);
+                min-height: 0;
+            }
+
+            :host([maximized]) .editor-body {
+                flex-direction: row;
+            }
+
+            :host([maximized]) lcards-yaml-options-panel {
+                width: 380px;
+                flex: none;
+                overflow: auto;
+            }
+
+            ha-icon-button.active {
+                color: #61afef;
             }
 
             .editor-container {
@@ -425,6 +465,14 @@ export class LCARdSYamlEditor extends LitElement {
         return html`
             <div class="editor-wrapper">
                 <div class="toolbar">
+                    ${this.schema ? html`
+                        <ha-icon-button
+                            class=${this._showOptions ? 'active' : ''}
+                            .label=${this._showOptions ? 'Hide options panel' : 'Show options panel'}
+                            @click=${this._toggleOptions}>
+                            <ha-icon icon="mdi:format-list-bulleted-square"></ha-icon>
+                        </ha-icon-button>
+                    ` : ''}
                     <ha-icon-button
                         .label=${'Keyboard shortcuts'}
                         @click=${this._toggleHelp}>
@@ -436,10 +484,20 @@ export class LCARdSYamlEditor extends LitElement {
                         <ha-icon .icon=${this._isMaximized ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'}></ha-icon>
                     </ha-icon-button>
                 </div>
-                <div
-                    class="editor-container"
-                    id="editor-mount"
-                    @keydown=${this._ignoreKeydown}>
+                <div class="editor-body">
+                    <div
+                        class="editor-container"
+                        id="editor-mount"
+                        @keydown=${this._ignoreKeydown}>
+                    </div>
+                    ${this.schema && this._showOptions ? html`
+                        <lcards-yaml-options-panel
+                            ?fill=${this._isMaximized}
+                            .panel=${this._panel}
+                            @option-insert=${this._onOptionInsert}
+                            @value-pick=${this._onValuePick}>
+                        </lcards-yaml-options-panel>
+                    ` : ''}
                 </div>
                 <div class="status-footer">
                     <div class="status-left">
@@ -713,6 +771,7 @@ export class LCARdSYamlEditor extends LitElement {
         }
         if (changedProps.has('schema')) {
             this._updateSchema();
+            this._updatePanel();
         }
         if (changedProps.has('readOnly')) {
             this._updateReadOnly();
@@ -721,6 +780,7 @@ export class LCARdSYamlEditor extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
+        clearTimeout(this._panelTimer);
         if (this._editorView) {
             this._editorView.destroy();
             this._editorView = null;
@@ -796,19 +856,16 @@ export class LCARdSYamlEditor extends LitElement {
                 }
             }),
 
-            // Autocomplete
-            autocompletion({
-                override: [
-                    this._schemaAutocomplete.bind(this),
-                    this._entityAutocomplete.bind(this)
-                ],
-                activateOnTyping: true,
-                maxRenderedOptions: 20
+            // Autocomplete + hover help from the schema
+            yamlSchemaAssist({
+                getSchema: () => this.schema,
+                getEntities: () => Object.entries(this.hass?.states || {})
+                    .map(([id, st]) => ({ id, name: st?.attributes?.friendly_name || '' }))
             }),
 
             // Schema-based linting (validation)
             this._schemaCompartment.of(
-                this.schema ? linter(this._schemaLinter.bind(this), { delay: 300 }) : []
+                this.schema ? linter(schemaLintSource(() => this.schema), { delay: 300 }) : []
             ),
             lintGutter(),
 
@@ -816,6 +873,9 @@ export class LCARdSYamlEditor extends LitElement {
             EditorView.updateListener.of((update) => {
                 if (update.docChanged && !this._updating) {
                     this._onEditorChange();
+                }
+                if (update.docChanged || update.selectionSet) {
+                    this._schedulePanel();
                 }
             }),
 
@@ -833,6 +893,7 @@ export class LCARdSYamlEditor extends LitElement {
             parent: container
         });
 
+        this._updatePanel();
         lcardsLog.debug('[LCARdSYamlEditor] Editor initialized');
     }
 
@@ -866,7 +927,7 @@ export class LCARdSYamlEditor extends LitElement {
 
         this._editorView.dispatch({
             effects: this._schemaCompartment.reconfigure(
-                this.schema ? linter(this._schemaLinter.bind(this), { delay: 300 }) : []
+                this.schema ? linter(schemaLintSource(() => this.schema), { delay: 300 }) : []
             )
         });
 
@@ -909,434 +970,46 @@ export class LCARdSYamlEditor extends LitElement {
                 composed: true
             }));
         }, 1500); // Wait 1.5 seconds after last keystroke before notifying parent
-    }    /**
-     * Schema-based autocomplete provider
-     * Suggests property names and enum values based on JSON Schema
-     * @private
-     */
-    _schemaAutocomplete(context) {
-        if (!this.schema) return null;
-
-        const word = context.matchBefore(/\w*/);
-        if (!word || (word.from === word.to && !context.explicit)) {
-            return null;
-        }
-
-        // Get the current line to determine context
-        const line = context.state.doc.lineAt(context.pos);
-        const lineText = line.text;
-        const beforeCursor = lineText.slice(0, context.pos - line.from);
-
-        // Determine if we're at a property name position (start of line or after whitespace)
-        const isPropertyPosition = /^\s*\w*$/.test(beforeCursor);
-
-        if (isPropertyPosition) {
-            // Determine the current path by analyzing indentation and previous lines
-            const currentPath = this._getCurrentYamlPath(context);
-            const currentSchema = this._getSchemaAtPath(this.schema, currentPath);
-
-            if (currentSchema?.properties) {
-                // Suggest property names with enhanced details
-                const options = Object.keys(currentSchema.properties).map(key => {
-                    const prop = currentSchema.properties[key];
-
-                    // Build detail string from schema metadata
-                    let detail = '';
-                    if (prop.default !== undefined) {
-                        detail = `default: ${JSON.stringify(prop.default)}`;
-                    } else if (prop.type) {
-                        detail = prop.type;
-                    }
-
-                    // Add pattern hint if available
-                    if (prop.pattern) {
-                        detail += ' (pattern)';
-                    }
-
-                    // Add range hint for numbers
-                    if (prop.type === 'number' && (prop.minimum !== undefined || prop.maximum !== undefined)) {
-                        const min = prop.minimum !== undefined ? prop.minimum : '?';
-                        const max = prop.maximum !== undefined ? prop.maximum : '?';
-                        detail += ` (${min}-${max})`;
-                    }
-
-                    return {
-                        label: key,
-                        type: 'property',
-                        detail: detail || prop.description || '',
-                        info: prop.description || '',
-                        boost: prop.required ? 10 : 0
-                    };
-                });
-
-                return {
-                    from: word.from,
-                    options,
-                    validFor: /^\w*$/
-                };
-            }
-
-            // Check for additionalProperties (for dynamic keys like text.label1, text.label2)
-            if (currentSchema?.additionalProperties && typeof currentSchema.additionalProperties === 'object') {
-                const additionalProps = currentSchema.additionalProperties.properties;
-                if (additionalProps) {
-                    const options = Object.keys(additionalProps).map(key => {
-                        const prop = additionalProps[key];
-                        let detail = prop.type || '';
-                        if (prop.default !== undefined) {
-                            detail = `default: ${JSON.stringify(prop.default)}`;
-                        }
-                        return {
-                            label: key,
-                            type: 'property',
-                            detail: detail || prop.description || '',
-                            info: prop.description || ''
-                        };
-                    });
-                    return {
-                        from: word.from,
-                        options,
-                        validFor: /^\w*$/
-                    };
-                }
-            }
-        }
-
-        // Check if we're at a value position for an enum property
-        const propertyMatch = beforeCursor.match(/(\w+):\s*\w*$/);
-        if (propertyMatch) {
-            const propertyName = propertyMatch[1];
-            const currentPath = this._getCurrentYamlPath(context);
-            const currentSchema = this._getSchemaAtPath(this.schema, currentPath);
-            const propSchema = currentSchema?.properties?.[propertyName];
-
-            if (propSchema?.enum) {
-                const options = propSchema.enum.map((val, index) => {
-                    // Use enumDescriptions if available
-                    const description = propSchema.enumDescriptions?.[index] || '';
-
-                    return {
-                        label: String(val),
-                        type: 'enum',
-                        detail: description || 'enum value',
-                        info: description
-                    };
-                });
-
-                return {
-                    from: word.from,
-                    options,
-                    validFor: /^\w*$/
-                };
-            }
-
-            // Check for examples in the schema
-            if (propSchema?.examples && Array.isArray(propSchema.examples)) {
-                const options = propSchema.examples.map(example => ({
-                    label: typeof example === 'string' ? example : JSON.stringify(example),
-                    type: 'example',
-                    detail: 'example value',
-                    apply: typeof example === 'string' ? example : JSON.stringify(example, null, 2)
-                }));
-
-                if (options.length > 0) {
-                    return {
-                        from: word.from,
-                        options,
-                        validFor: /^[\w.:]*$/
-                    };
-                }
-            }
-        }
-
-        return null;
     }
 
     /**
-     * Get the current YAML path based on indentation
+     * Recompute the options panel shortly after the cursor or text changes.
      * @private
      */
-    _getCurrentYamlPath(context) {
-        const doc = context.state.doc;
-        const currentLine = doc.lineAt(context.pos);
-        const currentIndent = currentLine.text.match(/^\s*/)[0].length;
-
-        const path = [];
-
-        // Walk backwards through lines to build the path
-        for (let lineNum = currentLine.number - 1; lineNum >= 1; lineNum--) {
-            const line = doc.line(lineNum);
-            const lineIndent = line.text.match(/^\s*/)[0].length;
-
-            // Skip empty lines and comments
-            if (!line.text.trim() || line.text.trim().startsWith('#')) {
-                continue;
-            }
-
-            // If this line is less indented, it's a parent key
-            if (lineIndent < currentIndent) {
-                const match = line.text.match(/^\s*(\w+):/);
-                if (match) {
-                    path.unshift(match[1]);
-                    // Update current indent to continue looking for parents
-                    if (lineIndent === 0) break; // Reached top level
-                    const currentIndentToFind = lineIndent;
-                    // Continue looking for parents of this line
-                    for (let parentNum = lineNum - 1; parentNum >= 1; parentNum--) {
-                        const parentLine = doc.line(parentNum);
-                        const parentIndent = parentLine.text.match(/^\s*/)[0].length;
-                        if (!parentLine.text.trim() || parentLine.text.trim().startsWith('#')) {
-                            continue;
-                        }
-                        if (parentIndent < currentIndentToFind) {
-                            const parentMatch = parentLine.text.match(/^\s*(\w+):/);
-                            if (parentMatch) {
-                                path.unshift(parentMatch[1]);
-                                if (parentIndent === 0) break;
-                            }
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-
-        return path;
+    _schedulePanel() {
+        if (!this._showOptions || !this.schema) return;
+        clearTimeout(this._panelTimer);
+        this._panelTimer = setTimeout(() => this._updatePanel(), 100);
     }
 
-    /**
-     * Get schema at a specific path
-     * @private
-     */
-    _getSchemaAtPath(schema, path) {
-        let current = schema;
-
-        for (const key of path) {
-            if (!current) return null;
-
-            // Check regular properties
-            if (current.properties?.[key]) {
-                current = current.properties[key];
-            }
-            // Check additionalProperties for dynamic keys
-            else if (current.additionalProperties && typeof current.additionalProperties === 'object') {
-                current = current.additionalProperties;
-            }
-            // Check items for arrays
-            else if (current.items) {
-                current = current.items;
-            }
-            else {
-                return null;
-            }
-        }
-
-        return current;
+    /** @private */
+    _updatePanel() {
+        if (!this._editorView || !this.schema) return;
+        const text = this._editorView.state.doc.toString();
+        const head = this._editorView.state.selection.main.head;
+        this._panel = panelAt(this.schema, text, head, (t) => jsYaml.load(t), this.cardType);
     }
 
-    /**
-     * Entity autocomplete provider
-     * Suggests Home Assistant entities
-     * @private
-     */
-    _entityAutocomplete(context) {
-        if (!this.hass?.states) return null;
-
-        const word = context.matchBefore(/[\w.:]*/);
-        if (!word || word.from === word.to) {
-            return null;
-        }
-
-        // Only trigger for entity-like patterns
-        const text = word.text;
-        if (!text.includes('.') && text.length < 3) {
-            return null;
-        }
-
-        const entities = Object.keys(this.hass.states);
-        const options = entities
-            .filter(entity => entity.toLowerCase().includes(text.toLowerCase()))
-            .slice(0, 50)
-            .map(entity => ({
-                label: entity,
-                type: 'entity',
-                detail: this.hass.states[entity].attributes.friendly_name || '',
-                boost: entity.startsWith(text) ? 10 : 0
-            }));
-
-        if (options.length === 0) return null;
-
-        return {
-            from: word.from,
-            options,
-            validFor: /^[\w.:]*$/
-        };
+    /** @private */
+    _toggleOptions() {
+        this._showOptions = !this._showOptions;
+        try {
+            localStorage.setItem(OPTIONS_PANEL_KEY, this._showOptions ? '1' : '0');
+        } catch { /* storage blocked: session-only */ }
+        if (this._showOptions) this._updatePanel();
     }
 
-    /**
-     * Schema-based linter (validation)
-     * Shows inline errors for YAML syntax and schema violations
-     * @private
-     */
-    _schemaLinter(view) {
-        const diagnostics = [];
-        const yamlText = view.state.doc.toString();
-
-        lcardsLog.debug('[LCARdSYamlEditor] Linter running. Schema available:', !!this.schema);
-
-        // 1. Validate YAML syntax
-        const yamlValidation = validateYaml(yamlText);
-        if (!yamlValidation.valid) {
-            const lineNum = yamlValidation.lineNumber || 1;
-            const line = view.state.doc.line(Math.min(lineNum, view.state.doc.lines));
-
-            diagnostics.push({
-                from: line.from,
-                to: line.to,
-                severity: 'error',
-                message: `YAML Syntax Error: ${yamlValidation.error}`
-            });
-
-            lcardsLog.debug('[LCARdSYamlEditor] YAML syntax error detected');
-            return diagnostics;
-        }
-
-        // 2. Validate against schema if available
-        if (this.schema) {
-            try {
-                const config = yamlToConfig(yamlText);
-                lcardsLog.debug('[LCARdSYamlEditor] Parsed config for validation:', config);
-
-                const errors = this._validateAgainstSchema(config, this.schema);
-                lcardsLog.debug('[LCARdSYamlEditor] Schema validation errors:', errors);
-
-                errors.forEach(error => {
-                    // Try to find the line with the problematic field
-                    const searchPattern = new RegExp(`^\\s*${error.field}:`, 'm');
-                    const match = yamlText.match(searchPattern);
-
-                    let from = 0;
-                    let to = yamlText.length;
-
-                    if (match) {
-                        from = match.index;
-                        const lineEnd = yamlText.indexOf('\n', from);
-                        to = lineEnd > -1 ? lineEnd : yamlText.length;
-                    }
-
-                    diagnostics.push({
-                        from,
-                        to,
-                        severity: 'error',
-                        message: error.message
-                    });
-                });
-            } catch (err) {
-                lcardsLog.warn('[LCARdSYamlEditor] Error during schema validation:', err);
-            }
-        } else {
-            lcardsLog.debug('[LCARdSYamlEditor] No schema available for validation');
-        }
-
-        return diagnostics;
+    /** @private */
+    _onOptionInsert(e) {
+        if (!this._editorView || !this._panel) return;
+        const text = this._editorView.state.doc.toString();
+        const config = lenientParse(text, this._editorView.state.selection.main.head, (t) => jsYaml.load(t));
+        insertLines(this._editorView, insertLinesFor(e.detail.option, this._panel, this.schema, config), this._panel.indent);
     }
 
-    /**
-     * Simple schema validator
-     * @private
-     */
-    _validateAgainstSchema(config, schema) {
-        const errors = [];
-
-        if (!schema.properties) return errors;
-
-        // Check for unknown properties not in schema
-        Object.keys(config).forEach(key => {
-            if (!schema.properties[key]) {
-                errors.push({
-                    field: key,
-                    message: `Unknown property '${key}' is not defined in the schema`
-                });
-            }
-        });
-
-        // Check required properties
-        if (schema.required) {
-            schema.required.forEach(field => {
-                if (config[field] === undefined) {
-                    errors.push({
-                        field,
-                        message: `Required property '${field}' is missing`
-                    });
-                }
-            });
-        }
-
-        // Check property types and enums
-        Object.keys(config).forEach(key => {
-            const propSchema = schema.properties[key];
-            if (!propSchema) return; // Already reported as unknown
-
-            const value = config[key];
-
-            // Type checking
-            if (propSchema.type) {
-                const actualType = Array.isArray(value) ? 'array' : typeof value;
-                if (actualType !== propSchema.type && value !== null) {
-                    errors.push({
-                        field: key,
-                        message: `Property '${key}' should be ${propSchema.type}, got ${actualType}`
-                    });
-                }
-            }
-
-            // Enum checking
-            if (propSchema.enum && !propSchema.enum.includes(value)) {
-                const enumList = propSchema.enum.join(', ');
-                errors.push({
-                    field: key,
-                    message: `Property '${key}' must be one of: ${enumList}`
-                });
-            }
-
-            // Pattern validation for strings
-            if (propSchema.pattern && typeof value === 'string') {
-                const pattern = new RegExp(propSchema.pattern);
-                if (!pattern.test(value)) {
-                    let message = `Property '${key}' does not match required pattern`;
-                    // Add helpful hints for common patterns
-                    if (propSchema.format === 'entity') {
-                        message += ' (expected format: domain.object_id, e.g., light.living_room)';
-                    } else if (key === 'icon') {
-                        message += ' (expected format: mdi:icon-name or si:icon-name)';
-                    } else if (propSchema.examples && propSchema.examples.length > 0) {
-                        message += ` (e.g., ${propSchema.examples[0]})`;
-                    }
-                    errors.push({
-                        field: key,
-                        message
-                    });
-                }
-            }
-
-            // Range validation for numbers
-            if (propSchema.type === 'number' && typeof value === 'number') {
-                if (propSchema.minimum !== undefined && value < propSchema.minimum) {
-                    errors.push({
-                        field: key,
-                        message: `Property '${key}' must be at least ${propSchema.minimum} (got ${value})`
-                    });
-                }
-                if (propSchema.maximum !== undefined && value > propSchema.maximum) {
-                    errors.push({
-                        field: key,
-                        message: `Property '${key}' must be at most ${propSchema.maximum} (got ${value})`
-                    });
-                }
-            }
-        });
-
-        return errors;
+    /** @private */
+    _onValuePick(e) {
+        if (this._editorView) setLineValue(this._editorView, quoteIfNeeded(e.detail.value));
     }
 
     /**

@@ -67,8 +67,8 @@ data_sources:
   my_source:
     entity: sensor.power_usage      # Required - entity to track
     attribute: current              # Optional - track attribute instead of state
-    windowSeconds: 120              # Rolling buffer window size in seconds (default: 60)
-    minEmitMs: 500                  # Min ms between updates emitted downstream (default: 100)
+    window_seconds: 120             # Rolling buffer window size in seconds (default: 60)
+    min_emit_ms: 500                # Min ms between updates emitted downstream (default: 100)
     history:
       hours: 24                     # Preload history (1–168 hours)
     processing:
@@ -95,12 +95,17 @@ data_sources:
 | `entity` | string | Entity ID to subscribe to |
 | `attribute` | string | Attribute to track instead of state |
 | `enum_mapping` | object | Numbers for non-numeric states, e.g. `{ heat: 2, cool: 1, off: 0 }` (`on`/`off` already map to 1/0) |
-| `windowSeconds` | number | Sets the buffer size: about 10 points per second of window, at most 1,000 points (default: 60, so 600 points) |
-| `minEmitMs` | number | Min ms between downstream updates (throttle, default: 100) |
+| `window_seconds` | number / string | Sets the buffer size: about 10 points per second of window, at most 1,000 points (default: 60, so 600 points). Also takes a duration such as `"5m"` |
+| `min_emit_ms` | number | Min ms between downstream updates (throttle, default: 100) |
+| `coalesce_ms` | number | Window in ms for merging rapid changes into one update (default: 40% of `min_emit_ms`, at least 20) |
+| `max_delay_ms` | number | Longest ms an update may be held back while merging (default: 3 x `coalesce_ms`) |
+| `emit_on_same_value` | boolean | Send updates even when the value didn't change (default: `true`) |
 | `history.enabled` | boolean | Preload history when the dashboard loads (default: `true`) |
 | `history.hours` | number | Hours of history to preload (1–168, default 6) |
 | `history.days` | number | Days of history to preload (1–7), instead of `hours` |
 | `processing` | object | Named processing pipeline steps |
+
+Older configs may use camelCase (`windowSeconds`, `minEmitMs`, `coalesceMs`, `maxDelayMs`, `emitOnSameValue`). Those still work; the editor marks them as old names. If both spellings are set, the snake_case one wins.
 
 ---
 
@@ -171,4 +176,4 @@ sources:
     buffer: smoothed       # values from the 'smoothed' processor
 ```
 
-Data sources live in your browser: they are created when the dashboard loads, preload some history, then follow live changes. They keep a limited number of recent points (see `windowSeconds`), so for plain entity history or long spans, plot the entity directly instead. The [Chart card](../../cards/chart/#where-the-data-comes-from) compares the options.
+Data sources live in your browser: they are created when the dashboard loads, preload some history, then follow live changes. They keep a limited number of recent points (see `window_seconds`), so for plain entity history or long spans, plot the entity directly instead. The [Chart card](../../cards/chart/#where-the-data-comes-from) compares the options.

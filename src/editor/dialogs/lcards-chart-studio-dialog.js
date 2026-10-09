@@ -43,6 +43,7 @@ import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.
 import { migrateChartConfig } from '../../charts/chart-config-migration.js';
 import { normalizeChartSources } from '../../charts/chart-sources.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
+import '../components/yaml/lcards-studio-yaml-tab.js';
 
 export class LCARdSChartStudioDialog extends LitElement {
     static get properties() {
@@ -763,6 +764,19 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
+     * Apply a config edited in the YAML tab (legacy series formats are migrated).
+     * @param {CustomEvent} e - detail: { config }
+     * @private
+     */
+    _handleYamlConfig(e) {
+        const config = migrateChartConfig(e.detail.config).config;
+        if (!config.type) config.type = 'custom:lcards-chart';
+        this._workingConfig = config;
+        this.requestUpdate();
+        this._schedulePreviewUpdate();
+    }
+
+    /**
      * Render tab navigation
      * @returns {TemplateResult}
      * @private
@@ -774,7 +788,8 @@ export class LCARdSChartStudioDialog extends LitElement {
             { id: 'elements', icon: 'mdi:widgets', label: 'Elements' },
             { id: 'theme', icon: 'mdi:theme-light-dark', label: 'Theme' },
             { id: 'effects', icon: 'mdi:shimmer', label: 'Effects' },
-            { id: 'advanced', icon: 'mdi:cog', label: 'Advanced' }
+            { id: 'advanced', icon: 'mdi:cog', label: 'Advanced' },
+            { id: 'yaml', icon: 'mdi:code-braces', label: 'YAML' }
         ];
 
         return html`
@@ -808,6 +823,16 @@ export class LCARdSChartStudioDialog extends LitElement {
                 return this._renderEffectsTab();
             case 'advanced':
                 return this._renderAdvancedTab();
+            case 'yaml':
+                return html`
+                    <lcards-studio-yaml-tab
+                        .hass=${this.hass}
+                        .config=${this._workingConfig}
+                        .schema=${this._chartSchema}
+                        cardType="chart"
+                        @yaml-config-changed=${this._handleYamlConfig}>
+                    </lcards-studio-yaml-tab>
+                `;
             default:
                 return html`<p>Unknown tab: ${this._activeTab}</p>`;
         }

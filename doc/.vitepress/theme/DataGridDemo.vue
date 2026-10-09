@@ -9,14 +9,7 @@
     </div>
 
     <div class="grid-demo-body">
-      <textarea
-        v-if="editable"
-        v-model="yamlText"
-        class="grid-demo-editor"
-        wrap="off"
-        spellcheck="false"
-        aria-label="Data grid YAML"
-      ></textarea>
+      <PlaygroundAssist v-if="editable" v-model="yamlText" card="lcards-data-grid" :schema="schemaRef" />
 
       <div class="grid-demo-panel">
         <div v-if="!ready" class="grid-demo-overlay">Loading grid...</div>
@@ -58,6 +51,7 @@
 // cells, style layers, tracks, decorative data, cascade timing), its
 // migration and schema, and the real cascade-color / pulse / glow presets,
 // with sample values standing in for Home Assistant.
+import PlaygroundAssist from './PlaygroundAssist.vue'
 import { ref, shallowRef, watch, nextTick, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { SAMPLE_ENTITIES, samplePoints, describeEntity, tokenLookup, LCARS_DEMO_VARS } from './chart-demo-data.js'
 
@@ -171,6 +165,8 @@ const lastAction = ref('')
 const view = shallowRef({ container: '', cells: [], version: 0 })
 
 let mods = null
+/** Card schema for the playground helpers (set once modules load) */
+const schemaRef = shallowRef(null)
 let renderTimer = null
 let refreshTimer = null
 let animations = []
@@ -498,6 +494,7 @@ onMounted(async () => {
       return fn ? (def) => fn(def) : null
     }
   }
+  schemaRef.value = mods.schema
   ready.value = true
   await nextTick()
   render()
@@ -544,27 +541,20 @@ onUnmounted(() => {
   gap: 12px;
 }
 .is-editable .grid-demo-body {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+/* Keep the preview in view while scrolling the helpers (two-column layout only) */
+@media (min-width: 861px) {
+  .is-editable .grid-demo-panel {
+    align-self: start;
+    position: sticky;
+    top: calc(var(--vp-nav-height) + 12px);
+  }
 }
 @media (max-width: 860px) {
   .is-editable .grid-demo-body {
     grid-template-columns: 1fr;
   }
-}
-.grid-demo-editor {
-  width: 100%;
-  min-height: 320px;
-  padding: 12px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 8px;
-  background: var(--vp-code-block-bg);
-  color: var(--vp-c-text-1);
-  font-family: var(--vp-font-family-mono);
-  font-size: 13px;
-  line-height: 1.5;
-  white-space: pre;
-  overflow: auto;
-  resize: vertical;
 }
 /* LCARS dashboards are dark; the grid sits on a black panel */
 .grid-demo-panel {

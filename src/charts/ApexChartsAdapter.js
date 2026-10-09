@@ -437,7 +437,8 @@ export class ApexChartsAdapter {
     if (Array.isArray(context.series) && context.series.length) {
       this._applySeriesOptions(optionsWithTypeDefaults, context.series, context.yaxis, {
         valueDecimals,
-        hass: context.hass
+        hass: context.hass,
+        markerFillSet: style.colors?.marker?.fill !== undefined
       });
     }
 
@@ -971,16 +972,21 @@ export class ApexChartsAdapter {
    * @param {Object} options - ApexCharts options (mutated)
    * @param {Array<Object>} series - Normalised series with resolved `name`/`unit`
    * @param {Array<Object>|undefined} yaxisConfig - Card yaxis[]
-   * @param {{valueDecimals: number|null, hass?: Object}} format
+   * @param {{valueDecimals: number|null, hass?: Object, markerFillSet?: boolean}} format
+   *   markerFillSet: style.colors.marker.fill was given, so markers keep it
    */
-  static _applySeriesOptions(options, series, yaxisConfig, { valueDecimals, hass }) {
+  static _applySeriesOptions(options, series, yaxisConfig, { valueDecimals, hass, markerFillSet = false }) {
     const perSeries = (field, fallback) => (series.some(s => s[field] !== undefined)
       ? series.map((s, i) => s[field] ?? (Array.isArray(fallback) ? fallback[i % fallback.length] : fallback))
       : null);
 
     const baseColors = Array.isArray(options.colors) && options.colors.length ? options.colors : DEFAULT_SERIES_COLORS;
     const colors = perSeries('color', baseColors);
-    if (colors) options.colors = colors;
+    if (colors) {
+      options.colors = colors;
+      // Markers (incl. the hover dot) follow the series colours unless styled explicitly
+      if (!markerFillSet && options.markers) options.markers.colors = colors;
+    }
 
     const width = perSeries('stroke_width', options.stroke?.width);
     if (width) options.stroke.width = width;

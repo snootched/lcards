@@ -29,12 +29,13 @@ export class DataSource {
    * Create a new DataSource for a Home Assistant entity
    * @param {object} cfg - DataSource configuration
    * @param {string} cfg.entity - Entity ID to monitor
-   * @param {number} [cfg.windowSeconds=60] - Rolling window size in seconds
-   * @param {number} [cfg.minEmitMs=100] - Minimum time between emits
-   * @param {number} [cfg.sampleMs] - Alias for minEmitMs (legacy)
-   * @param {number} [cfg.coalesceMs] - Coalescing window for rapid updates
-   * @param {number} [cfg.maxDelayMs] - Maximum delay before forced emit
-   * @param {boolean} [cfg.emitOnSameValue=true] - Emit even when value unchanged
+   * @param {number|string} [cfg.window_seconds=60] - Rolling window size in seconds (or '5m', '1h')
+   * @param {number} [cfg.min_emit_ms=100] - Minimum time between emits
+   * @param {number} [cfg.coalesce_ms] - Coalescing window for rapid updates
+   * @param {number} [cfg.max_delay_ms] - Maximum delay before forced emit
+   * @param {boolean} [cfg.emit_on_same_value=true] - Emit even when value unchanged
+   *   The older camelCase spellings (windowSeconds, minEmitMs, sampleMs,
+   *   coalesceMs, maxDelayMs, emitOnSameValue) are still read; snake_case wins.
    * @param {Object} [cfg.processing] - Processor configuration
    * @param {Object} [cfg.history] - History preload configuration
    * @param {Object} [cfg.metadata] - Metadata overrides
@@ -62,37 +63,45 @@ export class DataSource {
     // This allows expressions to access entity attributes
     this._lastOriginalState = null;
 
-    // PORT: Complete buffer sizing logic from original
+    // Timing keys are snake_case; the older camelCase spellings still work.
+    const pick = (...keys) => keys.map(k => cfg[k]).find(v => v !== undefined && v !== null);
+    const windowCfg = pick('window_seconds', 'windowSeconds');
+
+    // Buffer sizing from the window
     let wsSec = 60; // Default window
-    if (typeof cfg.windowSeconds === 'number' && isFinite(cfg.windowSeconds)) {
-      wsSec = Math.max(1, cfg.windowSeconds);
-    } else if (typeof cfg.windowSeconds === 'string') {
-      const ms = this._parseTimeWindowMs(cfg.windowSeconds);
+    if (typeof windowCfg === 'number' && isFinite(windowCfg)) {
+      wsSec = Math.max(1, windowCfg);
+    } else if (typeof windowCfg === 'string') {
+      const ms = this._parseTimeWindowMs(windowCfg);
       if (Number.isFinite(ms)) {
         wsSec = Math.max(1, Math.floor(ms / 1000));
       }
     }
+    /** Resolved rolling window in seconds */
+    this.windowSeconds = wsSec;
 
     // Buffer capacity: aim for ~10 points per second for the window
     const capacity = Math.max(60, Math.floor(wsSec * 10));
     this.buffer = new RollingBuffer(capacity);
 
     // PORT: Complete timing configuration from original - MADE MORE AGGRESSIVE
-    const minEmitMs = Number.isFinite(cfg.minEmitMs) ? cfg.minEmitMs
-      : Number.isFinite(cfg.sampleMs) ? cfg.sampleMs : 100;
+    const minEmitCfg = pick('min_emit_ms', 'minEmitMs', 'sampleMs');
+    const minEmitMs = Number.isFinite(minEmitCfg) ? minEmitCfg : 100;
 
     this.minEmitMs = Math.max(10, minEmitMs);
 
     // MORE AGGRESSIVE coalescing by default
-    this.coalesceMs = Number.isFinite(cfg.coalesceMs)
-      ? Math.max(20, cfg.coalesceMs)  // Reduced from 30 to 20
+    const coalesceCfg = pick('coalesce_ms', 'coalesceMs');
+    this.coalesceMs = Number.isFinite(coalesceCfg)
+      ? Math.max(20, coalesceCfg)  // Reduced from 30 to 20
       : Math.max(20, Math.round(this.minEmitMs * 0.4));  // Reduced from 0.6 to 0.4
 
-    this.maxDelayMs = Number.isFinite(cfg.maxDelayMs)
-      ? Math.max(this.minEmitMs, cfg.maxDelayMs)
+    const maxDelayCfg = pick('max_delay_ms', 'maxDelayMs');
+    this.maxDelayMs = Number.isFinite(maxDelayCfg)
+      ? Math.max(this.minEmitMs, maxDelayCfg)
       : Math.max(this.minEmitMs, this.coalesceMs * 3);  // Reduced from 4 to 3
 
-    this.emitOnSameValue = cfg.emitOnSameValue !== false; // Default true
+    this.emitOnSameValue = pick('emit_on_same_value', 'emitOnSameValue') !== false; // Default true
 
     // Subscription management
     this.subscribers = new Set();
@@ -1059,7 +1068,7 @@ export class DataSource {
       ...this._stats,
       config: {
         entity: this.cfg.entity,
-        windowSeconds: this.cfg.windowSeconds,
+        windowSeconds: this.windowSeconds,
         minEmitMs: this.minEmitMs,
         coalesceMs: this.coalesceMs,
         maxDelayMs: this.maxDelayMs

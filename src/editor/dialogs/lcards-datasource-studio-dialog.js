@@ -21,6 +21,8 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
 import '../components/shared/lcards-message.js';
 import '../components/datasources/lcards-processor-tree-editor.js';
+import '../components/yaml/lcards-studio-yaml-tab.js';
+import { dataSourcesSchema } from '../../cards/schemas/common-schemas.js';
 
 export class LCARdSDataSourceStudioDialog extends LitElement {
     static get properties() {
@@ -195,6 +197,9 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                         <ha-tab-group-tab value="advanced" ?active=${this._activeTab === 'advanced'}>
                             Advanced
                         </ha-tab-group-tab>
+                        <ha-tab-group-tab value="yaml" ?active=${this._activeTab === 'yaml'}>
+                            YAML
+                        </ha-tab-group-tab>
 
                         <!-- Tab Panels -->
                         <div class="tab-panel" ?hidden=${this._activeTab !== 'basic'}>
@@ -208,6 +213,18 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                         </div>
                         <div class="tab-panel" ?hidden=${this._activeTab !== 'advanced'}>
                             ${this._activeTab === 'advanced' ? this._renderAdvancedTab() : ''}
+                        </div>
+                        <div class="tab-panel" ?hidden=${this._activeTab !== 'yaml'}>
+                            ${this._activeTab === 'yaml' ? html`
+                                <lcards-studio-yaml-tab
+                                    .hass=${this.hass}
+                                    .config=${this._workingConfig}
+                                    .schema=${dataSourcesSchema.additionalProperties}
+                                    cardType="datasource"
+                                    note="This data source's settings as YAML (the name is set on the Basic tab). Save keeps the changes."
+                                    @yaml-config-changed=${(e) => { this._workingConfig = e.detail.config; this._validate(); }}>
+                                </lcards-studio-yaml-tab>
+                            ` : ''}
                         </div>
                     </ha-tab-group>
                 </div>

@@ -47,8 +47,7 @@ import '../components/lcards-animation-editor.js';
 import '../components/lcards-filter-editor.js';
 import '../components/lcards-background-animation-editor.js';
 import '../components/editors/lcards-color-section-v2.js';
-import '../components/yaml/lcards-yaml-editor.js';
-import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
+import '../components/yaml/lcards-studio-yaml-tab.js';
 
 // d3-zoom imports for pan/zoom functionality
 import { zoom, zoomIdentity } from 'd3-zoom';
@@ -2197,44 +2196,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _renderYamlTab() {
-        // Convert working config to YAML
-        const yamlValue = configToYaml(this._workingConfig);
-
         return html`
-            <div style="padding: 8px; display: flex; flex-direction: column; gap: 16px;">
-                <lcards-message type="info">
-                    <strong>Advanced YAML Editor</strong>
-                    <p style="margin: 8px 0 0 0; font-size: 13px;">
-                        Edit the complete MSD configuration in YAML format with schema-based autocomplete and validation.
-                        Changes made here will be applied when you save the dialog.
-                    </p>
-                </lcards-message>
-
-                <lcards-yaml-editor
-                    .value=${yamlValue}
-                    .schema=${this._getMsdSchema()}
+            <div style="padding: 8px;">
+                <lcards-studio-yaml-tab
                     .hass=${this.hass}
-                    @value-changed=${this._handleYamlChange}
-                    style="flex: 1;">
-                </lcards-yaml-editor>
+                    .config=${this._workingConfig}
+                    .schema=${this._getMsdSchema()}
+                    cardType="msd"
+                    note="Edit the complete MSD configuration as YAML. Changes are applied when you save the dialog."
+                    @yaml-config-changed=${(e) => { this._workingConfig = e.detail.config; this.requestUpdate(); }}>
+                </lcards-studio-yaml-tab>
             </div>
         `;
-    }
-
-    /**
-     * Handle YAML editor changes
-     * @param {CustomEvent} ev - value-changed event from YAML editor
-     * @private
-     */
-    _handleYamlChange(ev) {
-        try {
-            const newConfig = yamlToConfig(ev.detail.value);
-            this._workingConfig = newConfig;
-            this.requestUpdate();
-            lcardsLog.debug('[MSDStudio] YAML updated, config refreshed');
-        } catch (error) {
-            lcardsLog.warn('[MSDStudio] Invalid YAML, config not updated:', error.message);
-        }
     }
 
     /**

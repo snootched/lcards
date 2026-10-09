@@ -9,14 +9,7 @@
     </div>
 
     <div class="chart-demo-body">
-      <textarea
-        v-if="editable"
-        v-model="yamlText"
-        class="chart-demo-editor"
-        wrap="off"
-        spellcheck="false"
-        aria-label="Chart YAML"
-      ></textarea>
+      <PlaygroundAssist v-if="editable" v-model="yamlText" card="lcards-chart" :schema="schemaRef" />
 
       <div class="chart-demo-panel">
         <div ref="chartEl" class="chart-demo-chart" :style="{ height: `${height}px` }"></div>
@@ -42,7 +35,8 @@
 // Live chart demo for the docs. Uses the card's own modules (migration,
 // series normalising, time window, group_by, options builder, ApexCharts
 // adapter) on generated sample data, so demos match what the card draws.
-import { ref, computed, watch, onMounted, onUnmounted, getCurrentInstance } from 'vue'
+import PlaygroundAssist from './PlaygroundAssist.vue'
+import { ref, shallowRef, computed, watch, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { SAMPLE_ENTITIES, samplePoints, sampleStatistics, describeEntity, tokenLookup, LCARS_DEMO_VARS } from './chart-demo-data.js'
 
 const props = defineProps({
@@ -159,6 +153,8 @@ const messages = ref([])
 const copied = ref(false)
 
 let mods = null
+/** Card schema for the playground helpers (set once modules load) */
+const schemaRef = shallowRef(null)
 let chart = null
 let renderTimer = null
 let renderCount = 0
@@ -321,6 +317,7 @@ onMounted(async () => {
     validator: new validation.CoreValidationService({ cacheResults: false }),
     schema: chartSchema.getChartSchema()
   }
+  schemaRef.value = mods.schema
   ready.value = true
   render()
 })
@@ -367,27 +364,20 @@ onUnmounted(() => {
   gap: 12px;
 }
 .is-editable .chart-demo-body {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+/* Keep the preview in view while scrolling the helpers (two-column layout only) */
+@media (min-width: 861px) {
+  .is-editable .chart-demo-panel {
+    align-self: start;
+    position: sticky;
+    top: calc(var(--vp-nav-height) + 12px);
+  }
 }
 @media (max-width: 860px) {
   .is-editable .chart-demo-body {
     grid-template-columns: 1fr;
   }
-}
-.chart-demo-editor {
-  width: 100%;
-  min-height: 320px;
-  padding: 12px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 8px;
-  background: var(--vp-code-block-bg);
-  color: var(--vp-c-text-1);
-  font-family: var(--vp-font-family-mono);
-  font-size: 13px;
-  line-height: 1.5;
-  white-space: pre;
-  overflow: auto;
-  resize: vertical;
 }
 /* LCARS dashboards are dark; charts use light text on a black panel */
 .chart-demo-panel {

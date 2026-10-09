@@ -6,6 +6,12 @@ aside: false
 
 Edit the YAML and the grid redraws as you type. Pick a starting point from the list, or paste a grid from your own dashboard.
 
+**You don't need to know the YAML to start:**
+
+- **Quick settings** above the editor change the most common options for you.
+- **Type in the editor** and it suggests the options that fit where your cursor is, with a short description. Press **Ctrl+Space** to see suggestions anywhere, and hover over a key to read what it does.
+- **Options here** (under the editor) lists everything you can add at the cursor. **Insert** adds it at the right indent, and **Docs** opens its section in a new tab.
+
 <ClientOnly>
   <DataGridDemo editable />
 </ClientOnly>

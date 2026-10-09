@@ -78,6 +78,15 @@ test('per-series display fields override style for that series only', () => {
     assert.deepEqual(o.stroke.curve, ['smooth', 'stepline']);
 });
 
+test('markers (hover dot) follow per-series colours unless marker fill is styled', () => {
+    const series = [{ name: 'A', color: '#00ff00' }];
+    const o = ApexChartsAdapter.generateOptions({ chart_type: 'line' }, [400, 200], { series });
+    assert.equal(o.markers.colors[0], '#00ff00');
+    const styled = ApexChartsAdapter.generateOptions(
+        { chart_type: 'line', colors: { marker: { fill: '#123456' } } }, [400, 200], { series });
+    assert.equal(styled.markers.colors[0], '#123456');
+});
+
 test('yaxis[] maps series by yaxis_id (first axis by default) with units', () => {
     const o = ApexChartsAdapter.generateOptions(
         { chart_type: 'line' },
