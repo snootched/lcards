@@ -35,9 +35,9 @@
     "generate-brand-icon": "node scripts/generate-brand-icon.js",
     "typecheck": "tsc --pretty false 2>&1 | sort",
     "typecheck:check": "node scripts/check-typecheck-baseline.js",
-    "test": "node --import ./tests/setup/browser-shims.js --test 'tests/**/*.test.js'",
-    "test:routing": "node --import ./tests/setup/browser-shims.js --test 'tests/routing/*.test.js'",
-    "test:data-grid": "node --import ./tests/setup/browser-shims.js --test 'tests/data-grid/*.test.js'",
+    "test": "node --import ./tests/setup/browser-shims.js --import ./tests/setup/vite-imports.js --test 'tests/**/*.test.js'",
+    "test:routing": "node --import ./tests/setup/browser-shims.js --import ./tests/setup/vite-imports.js --test 'tests/routing/*.test.js'",
+    "test:data-grid": "node --import ./tests/setup/browser-shims.js --import ./tests/setup/vite-imports.js --test 'tests/data-grid/*.test.js'",
     "create-editor": "node tools/create-editor.js",
     "docs:build": "node scripts/generate-llm-schema.js && vitepress build doc",
     "docs:serve": "vitepress dev doc",
@@ -54,6 +54,7 @@
     "lcars:regenerate": "npm run lcars:semantic-tokens:write && npm run lcars:generate-themes && npm run build && npm run lcars:export-vendored && npm run lcars:export-all-themes"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "ajv": "^8.20.0",
     "inquirer": "^13.1.0",
     "jsdom": "^29.0.1",

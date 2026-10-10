@@ -609,7 +609,7 @@ if (!customElements.get('lcards-my-card')) {
 window.lcards.setGlobalLogLevel('debug')  // Enable debug logging
 window.lcards.core.dataSourceManager.sources  // Inspect DataSources
 window.lcards.core.rulesManager.rules  // Inspect rules
-window.lcards.core.themeManager.getCurrentTheme()  // Current theme
+window.lcards.core.themeManager.getActiveTheme()  // Current theme
 
 // Check card registration
 console.log(window.customCards)
