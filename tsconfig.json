@@ -43,6 +43,6 @@
         "doc-staging",
         "doc-temp",
         "cb-archive",
-        "test"
+        "tests"
     ]
 }

@@ -3374,7 +3374,7 @@ export class LCARdSElbow extends LCARdSButton {
      * @returns {HTMLElement}
      */
     static getConfigElement() {
-        // Static import - editor bundled with card (webpack config doesn't support splitting)
+        // Editor is statically imported (bundled with the card) so this stays synchronous
         return document.createElement('lcards-elbow-editor');
     }
 

@@ -10,18 +10,14 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-
-globalThis.window ??= globalThis;
-globalThis.__LCARDS_VERSION__ ??= 'test';
-
-const {
+import {
     toNumericValue,
     normalizeAttribute,
     getNestedValue,
     historyNeedsAttributes,
     historyStatesToPoints
-} = await import('../../src/core/data-sources/ha-history-utils.js');
-const { DataSource } = await import('../../src/core/data-sources/DataSource.js');
+} from '../../src/core/data-sources/ha-history-utils.js';
+import { DataSource } from '../../src/core/data-sources/DataSource.js';
 
 test('toNumericValue: numbers, numeric strings, booleans, on/off', () => {
     assert.equal(toNumericValue(21.5), 21.5);

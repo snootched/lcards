@@ -2,14 +2,12 @@
  * @fileoverview Shared Node-only harness for RouterCore tests.
  *
  * RouterCore is pure geometry/graph-search with zero DOM dependencies, so it
- * can be exercised directly under `node --test` once the few browser globals
- * its import chain touches (lcards-logging reads `window`, the Vite build
- * injects `__LCARDS_VERSION__`) are shimmed. The shims MUST be installed
- * before the dynamic import below — a static `import` would hoist above them.
+ * can be exercised directly under `node --test`. `window` and
+ * `__LCARDS_VERSION__` come from tests/setup/browser-shims.js (preloaded by the
+ * npm test scripts); the `document` stub below MUST be installed before the
+ * dynamic import, since a static `import` would hoist above it.
  */
 
-globalThis.window = globalThis.window || {};
-globalThis.__LCARDS_VERSION__ = globalThis.__LCARDS_VERSION__ || 'test';
 globalThis.document = globalThis.document || { addEventListener() {} };
 
 const { RouterCore } = await import('../../../src/msd/routing/RouterCore.js');

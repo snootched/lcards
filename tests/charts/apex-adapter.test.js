@@ -4,9 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-globalThis.window ??= globalThis;
-globalThis.__LCARDS_VERSION__ ??= 'test';
-// CSS variables resolve to their fallback: no theme is loaded in node.
+// CSS variables resolve to their fallback: no theme is loaded in node. These
+// stubs must exist before the module loads, hence the dynamic import.
 globalThis.document ??= { documentElement: {} };
 globalThis.getComputedStyle ??= () => ({ getPropertyValue: () => '' });
 const { ApexChartsAdapter } = await import('../../src/charts/ApexChartsAdapter.js');

@@ -1,8 +1,0 @@
-@font-face {
-    font-family: 'lcards_antonio';
-    src: url('/hacsfiles/lcards/fonts/antonio-variablefont_wght-webfont.woff2') format('woff2'),
-         url('/hacsfiles/lcards/fonts/antonio-variablefont_wght-webfont.woff') format('woff'),
-         url('https://fonts.googleapis.com/css2?family=Antonio:wght@100;700&display=swap');
-    font-weight: 100 700;
-    font-style: normal;
-}

@@ -3,11 +3,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-
-globalThis.window ??= globalThis;
-globalThis.__LCARDS_VERSION__ ??= 'test';
-const { ChartSeriesFetcher, trimToWindow } = await import('../../src/charts/chart-series-fetcher.js');
-const { normalizeChartSources, arrayChartProblem } = await import('../../src/charts/chart-sources.js');
+import { ChartSeriesFetcher, trimToWindow } from '../../src/charts/chart-series-fetcher.js';
+import { normalizeChartSources, arrayChartProblem } from '../../src/charts/chart-sources.js';
 
 const tick = () => new Promise(r => setTimeout(r, 5));
 

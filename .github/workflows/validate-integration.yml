@@ -76,10 +76,35 @@ jobs:
       - name: Run documentation YAML validator
         run: npm run validate:doc-examples:strict
 
+  test:
+    name: Tests and Typecheck
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Typecheck (fails only on errors not in scripts/tsc-baseline.txt)
+        run: npm run typecheck:check
+
   validate-build:
     name: Validate Build
     runs-on: ubuntu-latest
     needs:
+      - test
       - validate-css-vars
       - validate-version
       - validate-structure
@@ -110,6 +135,15 @@ jobs:
           else
             echo "✅ lcards.js — $(du -sh custom_components/lcards/lcards.js | cut -f1)"
           fi
+          # Pre-compressed siblings served by HA when the browser accepts them
+          for EXT in br gz; do
+            if [ ! -f "custom_components/lcards/lcards.js.$EXT" ]; then
+              echo "❌ Missing custom_components/lcards/lcards.js.$EXT"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "✅ lcards.js.$EXT: $(du -sh custom_components/lcards/lcards.js.$EXT | cut -f1)"
+            fi
+          done
           for DIR in fonts msd sounds; do
             if [ ! -d "custom_components/lcards/$DIR" ]; then
               echo "❌ Missing asset dir: custom_components/lcards/$DIR"

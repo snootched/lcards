@@ -7,12 +7,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-
-// Browser/build globals the logger and lcards-vars expect at import time.
-globalThis.window ??= globalThis;
-globalThis.__LCARDS_VERSION__ ??= 'test';
-const { CoreValidationService } = await import('../../src/core/validation-service/index.js');
-const { getChartSchema } = await import('../../src/cards/schemas/chart-schema.js');
+import { CoreValidationService } from '../../src/core/validation-service/index.js';
+import { getChartSchema } from '../../src/cards/schemas/chart-schema.js';
 
 const service = () => new CoreValidationService({ cacheResults: false });
 

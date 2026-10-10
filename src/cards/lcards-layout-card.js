@@ -40,8 +40,7 @@ import {
     renderAreaSurfaces,
 } from '../views/layout-render.js';
 
-// Static import so getConfigElement() can return the editor synchronously
-// (the bundle is a single file; no code-splitting).
+// Static import so getConfigElement() can return the editor synchronously.
 import '../editor/cards/lcards-layout-card-editor.js';
 import { layoutCardSchema } from './schemas/layout-card-schema.js';
 

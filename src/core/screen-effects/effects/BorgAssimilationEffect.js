@@ -2,14 +2,12 @@
  * @fileoverview BorgAssimilationEffect — main-thread entry point + inline worker.
  *
  * Creates a sibling <canvas> alongside the SEM-managed slot canvas, then runs
- * the draw loop in a DedicatedWorker via an inline Blob URL.  Using a Blob
- * worker (rather than a separate chunk URL) is required because the LCARdS
- * bundle uses `inlineDynamicImports: true`, which prevents Vite from splitting
- * out a Worker chunk file.
+ * the draw loop in a DedicatedWorker via an inline Blob URL.  A Blob worker
+ * (rather than a separate worker file URL) keeps the effect self-contained:
+ * no extra file has to be resolved against the integration's static path.
  *
- * The worker source is imported with the `?raw` Vite suffix — a static import
- * that Vite inlines as a plain string at build time, compatible with
- * `inlineDynamicImports: true`.
+ * The worker source is imported with the `?raw` Vite suffix, a static import
+ * that Vite inlines as a plain string at build time.
  *
  * The SEM-provided canvas is never transferred so it remains usable by
  * other effects (GlitchEffect, etc.) after the Borg sequence finishes.

@@ -6929,7 +6929,7 @@ export class LCARdSButton extends LCARdSCard {
      * @returns {HTMLElement} Editor element
      */
     static getConfigElement() {
-        // Static import - editor bundled with card (webpack config doesn't support splitting)
+        // Editor is statically imported (bundled with the card) so this stays synchronous
         return document.createElement('lcards-button-editor');
     }
 

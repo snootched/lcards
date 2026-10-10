@@ -154,6 +154,17 @@ jobs:
           else
             echo "✅ lcards.js — $(du -sh custom_components/lcards/lcards.js | cut -f1)"
           fi
+          # Pre-compressed siblings (HA serves .br/.gz when the browser accepts them)
+          for EXT in br gz; do
+            if [ ! -f "custom_components/lcards/lcards.js.$EXT" ]; then
+              echo "❌ Missing custom_components/lcards/lcards.js.$EXT"
+              ERRORS=$((ERRORS + 1))
+            fi
+            if ! ls custom_components/lcards/chunks/*.js.$EXT >/dev/null 2>&1; then
+              echo "❌ Missing chunks/*.js.$EXT"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
           # Lazily loaded chunks (e.g. ApexCharts) must ship next to lcards.js
           if ! ls custom_components/lcards/chunks/*.js >/dev/null 2>&1; then
             echo "❌ Missing lazy chunks: custom_components/lcards/chunks/"

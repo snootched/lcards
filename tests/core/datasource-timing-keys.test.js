@@ -3,12 +3,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-
-globalThis.window ??= globalThis;
-globalThis.__LCARDS_VERSION__ ??= 'test';
-globalThis.requestAnimationFrame ??= (fn) => setTimeout(fn, 16);
-globalThis.cancelAnimationFrame ??= (id) => clearTimeout(id);
-const { DataSource } = await import('../../src/core/data-sources/DataSource.js');
+import { DataSource } from '../../src/core/data-sources/DataSource.js';
 
 const timing = (cfg) => {
     const ds = new DataSource({ entity: 'sensor.x', ...cfg }, null);

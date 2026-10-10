@@ -3,10 +3,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-
-globalThis.window ??= globalThis;
-globalThis.__LCARDS_VERSION__ ??= 'test';
-const { CoreValidationService } = await import('../../src/core/validation-service/index.js');
+import { CoreValidationService } from '../../src/core/validation-service/index.js';
 
 const validate = (data, schema) => new CoreValidationService({ cacheResults: false }).validate(data, schema);
 

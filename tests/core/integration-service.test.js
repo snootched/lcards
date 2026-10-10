@@ -9,11 +9,7 @@
  */
 import { test, mock, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-
-// Browser/build globals the logger and lcards-vars expect at import time.
-globalThis.window ??= globalThis;
-globalThis.__LCARDS_VERSION__ ??= 'test';
-const { IntegrationService } = await import('../../src/core/services/IntegrationService.js');
+import { IntegrationService } from '../../src/core/services/IntegrationService.js';
 
 const INFO = { available: true, version: '2026.10.0', storage_key_count: 3, options: {}, capabilities: ['scoped_storage'] };
 
