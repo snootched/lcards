@@ -1,0 +1,15 @@
+# Lozenge with a more-info tap action and a state-driven background
+type: custom:lcards-button
+entity: switch.demo_switch
+preset: lozenge
+text:
+  label:
+    content: SWITCH
+tap_action:
+  action: more-info
+style:
+  card:
+    color:
+      background:
+        active: "#ff9900"
+        inactive: "#333366"

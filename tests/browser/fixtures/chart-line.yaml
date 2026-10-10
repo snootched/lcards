@@ -1,0 +1,4 @@
+# doc/cards/chart/index.md: single-series history chart
+type: custom:lcards-chart
+sources:
+  - entity: sensor.demo_temperature

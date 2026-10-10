@@ -1,0 +1,6 @@
+# doc/cards/button/index.md: lozenge toggle button
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+tap_action:
+  action: toggle

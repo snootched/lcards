@@ -40,8 +40,11 @@ export function makeStates(states = {}) {
  * @param {object} [opts]
  * @param {Array|Function} [opts.replies] - sendMessagePromise replies: an array
  *   consumed in order (last one repeats; an Error rejects) or `(msg) => reply`.
+ * @param {Function} [opts.onSubscribe] - `(message, push) => void`, called after each
+ *   subscribeMessage so the fake can answer it (e.g. history/stream); `push(payload)`
+ *   delivers to that subscription while it is active.
  */
-export function createFakeConnection({ replies } = {}) {
+export function createFakeConnection({ replies, onSubscribe } = {}) {
     const subs = [];
     const sent = [];
     const listeners = new Map();
@@ -68,6 +71,9 @@ export function createFakeConnection({ replies } = {}) {
         async subscribeMessage(cb, message, options) {
             const sub = { cb, message, options, active: true };
             subs.push(sub);
+            if (onSubscribe) {
+                queueMicrotask(() => onSubscribe(message, (payload) => { if (sub.active) cb(payload); }));
+            }
             return async () => { sub.active = false; };
         },
         async subscribeEvents(cb, eventType) {
@@ -89,11 +95,12 @@ export function createFakeConnection({ replies } = {}) {
  * @param {object} [opts]
  * @param {Record<string, string|object>} [opts.states]
  * @param {Array|Function} [opts.replies] - see createFakeConnection
+ * @param {Function} [opts.onSubscribe] - see createFakeConnection
  * @param {boolean} [opts.darkMode=true]
  * @param {object} [opts.user]
  */
-export function createFakeHass({ states = {}, replies, darkMode = true, user } = {}) {
-    const connection = createFakeConnection({ replies });
+export function createFakeHass({ states = {}, replies, onSubscribe, darkMode = true, user } = {}) {
+    const connection = createFakeConnection({ replies, onSubscribe });
     const serviceCalls = [];
 
     const hass = {

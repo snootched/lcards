@@ -102,9 +102,18 @@ test('deps: entities, perf keys and flags are collected through nesting', () => 
     assert.deepEqual([...deps.flags], ['debug_overlay']);
 });
 
-test('deps: JavaScript conditions contribute no entity deps (current behaviour)', () => {
-    const { deps } = compile({ condition: "[[[ return states['light.desk'].state === 'on' ]]]" });
-    assert.equal(deps.entities.size, 0);
+test('deps: JavaScript conditions depend on the entities they read from states[...]', () => {
+    // Regression: JS rules had no deps, so they never re-evaluated on a state change.
+    const { deps } = compile({
+        condition: `[[[
+            const a = states['light.desk'].state;
+            const b = hass.states["sensor.temp"]?.state;
+            return a === 'on' && Number(b) > states[ \`binary_sensor.door_1\` ].attributes.x && entity.state;
+        ]]]`,
+    });
+    assert.deepEqual([...deps.entities].sort(), ['binary_sensor.door_1', 'light.desk', 'sensor.temp']);
+    // Dynamic lookups cannot be resolved statically.
+    assert.equal(compile({ js: 'return states[id].state' }).deps.entities.size, 0);
 });
 
 test('entity: equals/not_equals/in/not_in/regex/bounds/existence', async () => {
@@ -240,4 +249,37 @@ test('RulesEngine.extractEntityReferences: entity_attr indexes the full entity i
     });
     // Regression: was indexed as 'light', so attribute changes never re-evaluated the rule.
     assert.deepEqual(refs.sort(), ['light.living_room', 'sensor.temp']);
+});
+
+test('RulesEngine.extractEntityReferences: JS, Jinja2 and nested conditions are indexed', async () => {
+    const { RulesEngine } = await import('../../src/core/rules/RulesEngine.js');
+    const engine = new RulesEngine([], null);
+    const refs = engine.extractEntityReferences({
+        when: {
+            all: [
+                { condition: "[[[ return states['input_boolean.toggle'].state === 'on' ]]]" },
+                { not: { entity: 'light.nested', state: 'on' } },
+                { condition: "{{ is_state('switch.jinja', 'on') }}" },
+            ],
+        },
+    });
+    // Regression: only top-level entity keys were indexed, so these rules never
+    // re-evaluated when the entities changed.
+    assert.deepEqual(refs.sort(), ['input_boolean.toggle', 'light.nested', 'switch.jinja']);
+});
+
+test('RulesEngine: JS conditions see the state from the triggering event, not the stale hass', async () => {
+    const { RulesEngine } = await import('../../src/core/rules/RulesEngine.js');
+    const engine = new RulesEngine([], null);
+    const staleHass = { states: { 'input_boolean.t': { state: 'off' }, 'light.x': { state: 'on' } } };
+    engine._freshStateCache.set('input_boolean.t', { entity_id: 'input_boolean.t', state: 'on', attributes: {} });
+    const view = engine._hassWithFreshStates(staleHass);
+    assert.equal(view.states['input_boolean.t'].state, 'on');   // fresh wins
+    assert.equal(view.states['light.x'].state, 'on');           // untouched entities pass through
+    assert.equal('input_boolean.t' in view.states, true);
+    assert.equal(staleHass.states['input_boolean.t'].state, 'off'); // original not mutated
+    const { tree } = compileRule({ id: 'r', when: { condition: "[[[ return states['input_boolean.t'].state === 'on' ]]]" } }, []);
+    assert.equal(await evalCompiled(tree, { hass: view }), true);
+    engine._freshStateCache.clear();
+    assert.equal(engine._hassWithFreshStates(staleHass), staleHass);
 });

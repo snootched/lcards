@@ -40,7 +40,7 @@ const evaluator = new UnifiedTemplateEvaluator({
     hass:      this.hass,
     states:    this.hass.states,                      // flat dict, keyed by full entity_id
     variables: this.config.variables || {},
-    theme:     window.lcards?.core?.themeManager?.getCurrentTheme()
+    theme:     window.lcards?.core?.themeManager?.getActiveTheme()
   },
   dataSourceManager: window.lcards?.core?.dataSourceManager  // null if not needed
 });

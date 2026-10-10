@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LCARdS test harness</title>
+  <style>
+    html, body { margin: 0; background: #000; color: #fff; font-family: sans-serif; }
+    #mount { width: 480px; padding: 16px; }
+    /* Layer B: ?freeze=1 removes transitions. CSS animations are left running:
+       toHaveScreenshot's animations: 'disabled' fast-forwards finite ones to their
+       end state (pausing them here froze fade-ins at opacity 0). */
+    html.freeze *, html.freeze *::before, html.freeze *::after {
+      transition: none !important;
+      caret-color: transparent !important;
+    }
+  </style>
+  <script type="module" src="./harness.js"></script>
+</head>
+<body>
+  <div id="mount"></div>
+</body>
+</html>

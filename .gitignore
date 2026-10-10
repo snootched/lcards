@@ -432,3 +432,9 @@ docs/site/
 doc/.vitepress/dist/
 doc/.vitepress/cache/
 
+
+# Local HA long-lived token for npm run test:ha (never commit)
+.ha-token
+# Playwright output
+test-results/
+playwright-report/

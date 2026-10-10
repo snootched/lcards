@@ -1,0 +1,12 @@
+# Labelled lozenge with an icon area (visual baseline).
+# The lozenge preset sets label.show: false, so a label needs show: true.
+# Icons are stubbed in the harness (no ha-icon), so the icon area draws empty.
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+icon: mdi:lightbulb
+icon_area: left
+text:
+  label:
+    content: MAIN LIGHTS
+    show: true

@@ -235,6 +235,17 @@ export class RulesEngine extends BaseService {
       }
     });
 
+    // The compiler's deps also cover nested all/any/not trees and entities read by
+    // Jinja2 ({{ states('x') }}) and JavaScript (states['x']) conditions; without
+    // them such rules never re-evaluated when those entities changed.
+    try {
+      for (const entityId of compileRule(rule, []).deps.entities) {
+        if (/^[a-z_]+\.[\w-]+$/.test(entityId)) entities.add(entityId);
+      }
+    } catch (_) {
+      // Compilation problems are reported by _compileRules().
+    }
+
     return Array.from(entities);
   }
 
@@ -473,6 +484,20 @@ export class RulesEngine extends BaseService {
    *
    * @param {Object} hass - Fresh Home Assistant state object
    */
+  /**
+   * A hass view whose `states` lookups prefer _freshStateCache (no copying).
+   * @private
+   */
+  _hassWithFreshStates(hass) {
+    const fresh = this._freshStateCache;
+    if (!hass || !fresh?.size) return hass;
+    const states = new Proxy(hass.states ?? {}, {
+      get: (target, key) => (typeof key === 'string' && fresh.has(key) ? fresh.get(key) : target[key]),
+      has: (target, key) => fresh.has(/** @type {string} */ (key)) || key in target,
+    });
+    return { ...hass, states };
+  }
+
   ingestHass(hass) {
     if (!hass || !hass.states) {
       lcardsLog.warn('[RulesEngine] ingestHass: Invalid HASS provided');
@@ -541,8 +566,11 @@ export class RulesEngine extends BaseService {
         getEntity,
         entity: boundEntity ? getEntity(boundEntity) : null,  // ✨ CHANGED: Use passed entity if available
 
-        // HASS access
-        hass: this.systemsManager?.getHass?.(),
+        // HASS access, with states from just-received state_changed events taking
+        // precedence: evaluation runs on the event, before HA hands the cards (and
+        // the systems manager) a new hass, so JS conditions reading states['x']
+        // saw the previous state and never matched on the change.
+        hass: this._hassWithFreshStates(this.systemsManager?.getHass?.()),
 
         // Time/date
         now: Date.now(),

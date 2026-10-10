@@ -1,0 +1,3 @@
+# Invalid: sources must be a list
+type: custom:lcards-chart
+sources: 5

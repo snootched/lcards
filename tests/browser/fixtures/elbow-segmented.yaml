@@ -1,0 +1,13 @@
+# doc/cards/elbow/index.md: segmented footer-right elbow
+type: custom:lcards-elbow
+elbow:
+  type: footer-right
+  style: segmented
+  segments:
+    gap: 4
+    outer_segment:
+      bar_width: 90
+      color: "var(--lcars-orange)"
+    inner_segment:
+      bar_width: 30
+      color: "var(--lcars-moonlight)"

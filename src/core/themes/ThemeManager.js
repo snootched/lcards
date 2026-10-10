@@ -705,21 +705,29 @@ export class ThemeManager extends BaseService {
     const sss = window.lcards?.core?.scopedSettingsService;
     if (!sss || !this.resolver) return;
 
+    // Canonical form of an overrides set, so "nothing changed" can be detected.
+    const signature = (entries) => JSON.stringify([...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+    const before = signature(this.resolver._overrides ?? []);
+
+    let merged = {};
     try {
       const allScopes = await sss.readAllScopes(STORAGE_KEY_THEME_OVERRIDES);
       // Merge: global first, user next, device last (device wins)
-      const merged = {
+      merged = {
         ...(allScopes.global  ?? {}),
         ...(allScopes.user    ?? {}),
         ...(allScopes.device  ?? {}),
       };
-      this.resolver.setOverrides(Object.keys(merged).length ? merged : null);
       lcardsLog.info('[ThemeManager] Token overrides loaded', { count: Object.keys(merged).length });
     } catch (e) {
       lcardsLog.warn('[ThemeManager] Failed to load token overrides:', e);
-      this.resolver.clearOverrides();
     }
 
+    // Only apply and notify on a real change: every card re-processes its config on
+    // lcards:theme-overrides-changed, so the startup load with no (or unchanged)
+    // overrides must not trigger that (it doubled config processing and logging).
+    if (signature(Object.entries(merged)) === before) return;
+    this.resolver.setOverrides(Object.keys(merged).length ? merged : null);
     this._notifyOverridesChanged();
   }
 

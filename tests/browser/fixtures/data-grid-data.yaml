@@ -1,0 +1,18 @@
+# doc/cards/data-grid/index.md: data mode with header row (Jinja2 cells replaced by tokens)
+type: custom:lcards-data-grid
+data_mode: data
+rows:
+  - values: [System, Value, Status]
+    header: true
+  - [Inside, sensor.demo_temperature, OK]
+  - [Outside, sensor.demo_outdoor_temperature, OK]
+  - [Humidity, sensor.demo_humidity, OK]
+grid:
+  grid-template-columns: 140px 1fr 90px
+  gap: 4px
+style:
+  font_size: 18px
+columns:
+  - style:
+      align: left
+      color: var(--lcars-orange)

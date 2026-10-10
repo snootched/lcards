@@ -1,0 +1,194 @@
+# lcards-test dashboard, written by tests/ha/ha-client.mjs (ensureDashboard) on every
+# run. Only lcards_test_* helpers are referenced. Edit here, not in HA.
+title: LCARdS Test
+views:
+  - title: Cards
+    path: cards
+    cards:
+      - type: custom:lcards-button
+        id: test_toggle_button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: TOGGLE
+            show: true
+        tap_action:
+          action: toggle
+      - type: custom:lcards-button
+        id: test_info_button
+        entity: input_number.lcards_test_value
+        preset: lozenge
+        text:
+          label:
+            content: MORE INFO
+            show: true
+        tap_action:
+          action: more-info
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: pills-left-border
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [Helper, Value]
+            header: true
+          - [Toggle, input_boolean.lcards_test_toggle]
+          - [Value, input_number.lcards_test_value]
+          - [Mode, input_select.lcards_test_mode]
+        grid:
+          grid-template-columns: 140px 1fr
+          gap: 4px
+
+  # Same chart in a masonry view and in a sections view. Sections give cards a
+  # definite height; in masonry the chart collapses to 0px (masonry is not a
+  # supported target; the masonry test is marked fixme).
+  - title: Chart masonry
+    path: chart-masonry
+    cards:
+      - type: custom:lcards-chart
+        sources:
+          - entity: input_number.lcards_test_value
+            name: Value
+
+  - title: Chart sections
+    path: chart-sections
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: custom:lcards-chart
+            sources:
+              - entity: input_number.lcards_test_value
+                name: Value
+            grid_options:
+              columns: 12
+              rows: 4
+
+  - title: Layout
+    path: layout
+    type: custom:lcards-layout-view
+    layout:
+      grid-template-columns: 1fr
+      grid-template-rows: 80px 1fr
+      grid-template-areas: |
+        "top"
+        "main"
+      grid-gap: 0px
+    cards:
+      # Row collapse needs a definite layout.height on the hidden card
+      # (doc/cards/layout-view: Visibility-driven row sizing), hence the layout card.
+      - type: custom:lcards-layout-card
+        layout:
+          height: 80px
+          grid-template-columns: 1fr
+          grid-template-rows: 1fr
+        view_layout:
+          grid-area: top
+        visibility:
+          - condition: state
+            entity: input_boolean.lcards_test_visible
+            state: "on"
+        cards:
+          - type: custom:lcards-button
+            id: test_visible_button
+            preset: lozenge
+            text:
+              label:
+                content: CONDITIONAL
+                show: true
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 90
+            bar_height: 20
+        view_layout:
+          grid-area: main
+
+  - title: MSD
+    path: msd
+    cards:
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: none
+          view_box: [0, 0, 600, 300]
+          anchors:
+            a_start: [50, 100]
+            a_end: [550, 100]
+            b_start: [50, 250]
+            b_end: [550, 40]
+          overlays:
+            - id: line_a
+              type: line
+              anchor: a_start
+              attach_to: a_end
+              route: auto
+            - id: line_b
+              type: line
+              anchor: b_start
+              attach_to: b_end
+              route: auto
+
+  # S2 regressions: entity_attr rules, `condition: |` rules, mixed templates.
+  - title: Rules
+    path: rules
+    cards:
+      - type: custom:lcards-button
+        id: test_attr_rule
+        preset: lozenge
+        text:
+          label:
+            content: ATTR RULE
+            show: true
+        style:
+          card:
+            color:
+              background: "#333366"
+        rules:
+          - id: test-attr-rule
+            when:
+              entity_attr: input_number.lcards_test_value
+              attribute: max
+              above: 150
+            apply:
+              overlays:
+                test_attr_rule:
+                  style:
+                    card:
+                      color:
+                        background: "#cc0000"
+      - type: custom:lcards-button
+        id: test_js_rule
+        preset: lozenge
+        text:
+          label:
+            content: JS RULE
+            show: true
+        style:
+          card:
+            color:
+              background: "#333366"
+        rules:
+          - id: test-js-rule
+            when:
+              condition: |
+                [[[
+                  return states['input_boolean.lcards_test_toggle'].state === 'on';
+                ]]]
+            apply:
+              overlays:
+                test_js_rule:
+                  style:
+                    card:
+                      color:
+                        background: "#00aa00"
+      - type: custom:lcards-button
+        id: test_mixed_template
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: "{entity.state} / {{ states('input_select.lcards_test_mode') }}"
+            show: true

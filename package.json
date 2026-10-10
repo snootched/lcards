@@ -51,7 +51,10 @@
     "lcars:generate-themes": "cd ../ha-lcars && python3 py/generate_themes.py",
     "lcars:export-vendored": "node scripts/export-vendored-ha-lcars-theme.js --write",
     "lcars:export-all-themes": "node scripts/export-vendored-ha-lcars-all-themes.js --write",
-    "lcars:regenerate": "npm run lcars:semantic-tokens:write && npm run lcars:generate-themes && npm run build && npm run lcars:export-vendored && npm run lcars:export-all-themes"
+    "lcars:regenerate": "npm run lcars:semantic-tokens:write && npm run lcars:generate-themes && npm run build && npm run lcars:export-vendored && npm run lcars:export-all-themes",
+    "test:browser": "playwright test --project=component",
+    "test:visual": "playwright test --project=visual",
+    "test:ha": "playwright test -c playwright.ha.config.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",

@@ -1,0 +1,29 @@
+# doc/cards/msd/routing.md: forced channel routing, no base SVG
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 600, 300]
+  channels:
+    main_bus:
+      bounds: [250, 90, 300, 20]
+      mode: force
+      direction: horizontal
+      line_spacing: 10
+  anchors:
+    a_start: [50, 100]
+    a_end: [550, 100]
+    b_start: [50, 250]
+    b_end: [550, 40]
+  overlays:
+    - id: line_a
+      type: line
+      anchor: a_start
+      attach_to: a_end
+      route_channels: [main_bus]
+      route: auto
+    - id: line_b
+      type: line
+      anchor: b_start
+      attach_to: b_end
+      route: auto

@@ -100,6 +100,17 @@ jobs:
       - name: Typecheck (fails only on errors not in scripts/tsc-baseline.txt)
         run: npm run typecheck:check
 
+      # Browser component tests run against the built bundle. Visual baselines
+      # (test:visual) and real-HA tests (test:ha) stay local-only.
+      - name: Build bundle for browser tests
+        run: npm run build:integration
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser component tests
+        run: npm run test:browser
+
   validate-build:
     name: Validate Build
     runs-on: ubuntu-latest

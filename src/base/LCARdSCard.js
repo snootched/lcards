@@ -1336,12 +1336,14 @@ export class LCARdSCard extends LCARdSNativeCard {
                     return;
                 }
 
-                // Add metadata for tracking which card registered this rule
-                rule._sourceCardId = sourceCardId;
-                rule._sourceCardType = sourceCardType;
-
-                // Add rule to engine
-                rulesEngine.rules.push(rule);
+                // Register a copy carrying the source-card metadata: HA freezes lovelace
+                // card configs, so writing onto `rule` itself threw and no card-level
+                // rule ever loaded on a real dashboard.
+                rulesEngine.rules.push({
+                    ...rule,
+                    _sourceCardId: sourceCardId,
+                    _sourceCardType: sourceCardType,
+                });
                 addedCount++;
             });
 
@@ -1555,15 +1557,11 @@ export class LCARdSCard extends LCARdSNativeCard {
             return;
         }
 
-        // Merge all patches for this overlay (later patches override)
-        const mergedPatch = myPatches.reduce((acc, patch) => ({
-            ...acc,
-            ...patch,
-            style: {
-                ...(acc.style || {}),
-                ...(patch.style || {})
-            }
-        }), {});
+        // Merge all patches for this overlay. RulesEngine orders them highest priority
+        // first, so merge from the end: the highest-priority rule is applied last and
+        // wins (it used to lose). Deep merge so rules patching different keys under
+        // the same branch (e.g. style.card.color vs style.card.border) both apply.
+        const mergedPatch = [...myPatches].reverse().reduce((acc, patch) => deepMerge(acc, patch), {});
 
         // Check if patches actually changed (avoid unnecessary updates)
         const patchesChanged = JSON.stringify(this._lastRulePatches) !== JSON.stringify(mergedPatch);

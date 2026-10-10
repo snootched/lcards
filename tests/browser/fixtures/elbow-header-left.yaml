@@ -1,0 +1,7 @@
+# doc/cards/elbow/index.md: simple header-left elbow
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  segment:
+    bar_width: 90
+    bar_height: 20

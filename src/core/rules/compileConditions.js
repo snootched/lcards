@@ -168,16 +168,10 @@ function collectDeps(node, deps) {
       }
       break;
     case 'javascript':
-      // Extract entity references from JavaScript code
-      try {
-        const jsTokens = TemplateParser.extractTokens(node.code);
-        jsTokens.forEach(token => {
-          if (token.parts[0] === 'entity') {
-            // This references ctx.entity, dependency will be from rule's entity context
-          }
-        });
-      } catch (error) {
-        // Parsing failed, no dependencies extracted
+      // Entities read as states['domain.object'] (or hass.states[...]): without
+      // these deps the rule never re-evaluated when the entity changed.
+      for (const match of String(node.code).matchAll(/states\s*\[\s*['"`]([a-z_]+\.[\w-]+)['"`]\s*\]/g)) {
+        deps.entities.add(match[1]);
       }
       break;
   }
