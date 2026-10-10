@@ -16,7 +16,7 @@
  *     module_url: /lcards/lcards.js
  * ```
  *
- * @element lcards-config-panel
+ * @element lcards-config-panel-impl (wrapped by the lcards-config-panel shell)
  */
 
 import { LitElement, html, css } from 'lit';
@@ -1269,4 +1269,5 @@ export class LCARdSConfigPanel extends LitElement {
 
 }
 
-if (!customElements.get('lcards-config-panel')) customElements.define('lcards-config-panel', LCARdSConfigPanel);
+// Loaded on demand by lcards-config-panel-shell.js, which owns the `lcards-config-panel` tag HA creates.
+if (!customElements.get('lcards-config-panel-impl')) customElements.define('lcards-config-panel-impl', LCARdSConfigPanel);

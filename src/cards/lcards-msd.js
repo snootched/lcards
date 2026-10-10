@@ -20,8 +20,6 @@ import { getMsdSchema } from './schemas/msd-schema.js';
 import { resolveEffectiveViewBox } from '../utils/lcards-anchor-helpers.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
 
-// Import editor component for getConfigElement()
-import '../editor/cards/lcards-msd-editor.js';
 
 /**
  * LCARdS MSD Card
@@ -42,10 +40,12 @@ export class LCARdSMSDCard extends LCARdSCard {
     /**
      * Get config element (editor) for Home Assistant GUI
      * @static
-     * @returns {HTMLElement} Editor element
+     * @returns {Promise<HTMLElement>} Editor element
      */
-    static getConfigElement() {
-        // Editor is statically imported (bundled with the card) so this stays synchronous
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-msd-editor.js');
         return document.createElement('lcards-msd-editor');
     }
 

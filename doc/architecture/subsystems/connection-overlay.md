@@ -47,7 +47,7 @@ ConnectionOverlayService (BaseService singleton)
 | `src/core/services/PortalOverlayManager.js` | Shared portal DOM lifecycle engine |
 | `src/core/services/ScopedSettingsConstants.js` | Flat storage key constants (`CONN_OVERLAY_*`) |
 | `src/panels/components/lcards-connectivity-tab.js` | Config Panel UI |
-| `src/lcards.js` | `window.lcards.connectionOverlay` console API shim |
+| `src/lcards-main.js` | `window.lcards.connectionOverlay` console API shim |
 
 ---
 

@@ -378,6 +378,11 @@ export class LCARdSLayoutView extends LitElement {
 
         // Create once
         if (!this._editOverlayEl) {
+            // The overlay (and the editor components it uses) loads on first edit;
+            // the element upgrades when its definition arrives, keeping properties
+            // set before then.
+            import('./lcards-grid-edit-overlay.js').catch(error =>
+                lcardsLog.error('[LCARdSLayoutView] Failed to load the grid edit overlay:', error));
             const el = document.createElement('lcards-grid-edit-overlay');
             el.addEventListener('grid-state-changed',     (e) => this._onGridStateChanged(e));
             el.addEventListener('grid-preview-changed',   (e) => this._onGridPreviewChanged(e));

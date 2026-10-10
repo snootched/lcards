@@ -2525,3 +2525,8 @@ export class LCARdSGridEditOverlay extends LitElement {
         }));
     }
 }
+
+// Loaded on demand by lcards-layout-view.js when edit mode first opens.
+if (!customElements.get('lcards-grid-edit-overlay')) {
+    customElements.define('lcards-grid-edit-overlay', LCARdSGridEditOverlay);
+}

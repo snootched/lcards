@@ -98,8 +98,6 @@ import { haFormatStateParts, extractUnit, haFormatNumber } from '../utils/ha-ent
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
 
-// Import editor (registers custom element)
-import '../editor/cards/lcards-slider-editor.js';
 
 /**
  * COLOR RESOLUTION PATTERNS:
@@ -5423,7 +5421,10 @@ export class LCARdSSlider extends LCARdSButton {
      * @static
      * @override
      */
-    static getConfigElement() {
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-slider-editor.js');
         return document.createElement('lcards-slider-editor');
     }
 }

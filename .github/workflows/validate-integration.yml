@@ -146,6 +146,11 @@ jobs:
           else
             echo "✅ lcards.js — $(du -sh custom_components/lcards/lcards.js | cut -f1)"
           fi
+          # lcards.js is a loader stub; the bundle itself is chunks/lcards-main-*.js
+          if ! ls custom_components/lcards/chunks/lcards-main-*.js >/dev/null 2>&1; then
+            echo "❌ Missing main chunk: custom_components/lcards/chunks/lcards-main-*.js"
+            ERRORS=$((ERRORS + 1))
+          fi
           # Pre-compressed siblings served by HA when the browser accepts them
           for EXT in br gz; do
             if [ ! -f "custom_components/lcards/lcards.js.$EXT" ]; then
@@ -209,6 +214,7 @@ jobs:
             "README.md"
             "LICENSE"
             "src/lcards.js"
+            "src/lcards-main.js"
             "src/assets"
             "custom_components/lcards/__init__.py"
             "custom_components/lcards/manifest.json"

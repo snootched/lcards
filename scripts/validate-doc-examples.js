@@ -9,7 +9,7 @@
  *   1. YAML must parse (this catches indentation typos in examples).
  *   2. If the block contains a top-level (or nested-card) `type:` value of
  *      the form `custom:lcards-*`, that suffix must match the real custom
- *      element name registered in `src/lcards.js`. Card identifiers are
+ *      element name registered in `src/lcards-main.js`. Card identifiers are
  *      discovered automatically by scanning for `customElements.define(
  *      'lcards-…', …)` calls — no parallel/invented schema.
  *   3. For blocks that parse successfully AND whose top-level (or nested)
@@ -84,9 +84,9 @@ const STRICT  = args.has('--strict');
 // Directories under doc/ that should not be scanned for prose markdown.
 const SKIP_DOC_DIRS = new Set(['.vitepress', 'public', 'node_modules']);
 
-// ── Discover real LCARdS custom element names from src/lcards.js ─────────────
+// ── Discover real LCARdS custom element names from src/lcards-main.js ─────────
 function discoverRegisteredElements() {
-  const lcardsEntry = path.join(SRC_ROOT, 'lcards.js');
+  const lcardsEntry = path.join(SRC_ROOT, 'lcards-main.js');
   const text = fs.readFileSync(lcardsEntry, 'utf8');
   // Match: customElements.define('lcards-foo', SomeClass) or "lcards-foo".
   // (Backticks are not used for these registrations in the codebase.)
@@ -241,7 +241,7 @@ function collectTypes(node, out) {
 function main() {
   const registered = discoverRegisteredElements();
   if (registered.size === 0) {
-    console.error('❌ Could not discover any registered LCARdS custom elements in src/lcards.js — aborting.');
+    console.error('❌ Could not discover any registered LCARdS custom elements in src/lcards-main.js, aborting.');
     process.exit(2);
   }
 

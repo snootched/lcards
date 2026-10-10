@@ -1146,6 +1146,11 @@ export class LCARdSRulesDashboard extends LitElement {
 
         return html`
             <div class="rules-dashboard">
+                <lcards-message type="info" class="refresh-notice">
+                    New rules apply right away. Changes to an existing rule, or removing one,
+                    apply after a page refresh.
+                </lcards-message>
+
                 <!-- Stats Header -->
                 <div class="dashboard-stats">
                     <div class="stat-card">

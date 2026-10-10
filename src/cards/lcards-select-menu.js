@@ -34,7 +34,6 @@ import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { getSelectMenuSchema } from './schemas/select-menu-schema.js';
 
-import '../editor/cards/lcards-select-menu-editor.js';
 
 export class LCARdSSelectMenu extends LCARdSCard {
 
@@ -907,7 +906,10 @@ export class LCARdSSelectMenu extends LCARdSCard {
         };
     }
 
-    static getConfigElement() {
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-select-menu-editor.js');
         return document.createElement('lcards-select-menu-editor');
     }
 

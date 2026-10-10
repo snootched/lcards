@@ -2,7 +2,7 @@
  * Browser test harness: mounts one LCARdS card from tests/browser/fixtures/<case>.yaml
  * against a fake hass, using the built bundle served at /lcards/lcards.js.
  *
- * URL: /harness.html?case=<fixture>[&freeze=1][&width=480][&height=300][&now=<ms>][&seed=<n>][&connectFirst=1]
+ * URL: /harness.html?case=<fixture>[&freeze=1][&width=480][&height=300][&now=<ms>][&seed=<n>][&log=<level>][&connectFirst=1]
  *
  * Exposes for Playwright:
  *   window.__ready      true once the card rendered and fonts loaded (or 'error')
@@ -147,7 +147,10 @@ async function fontsLoaded() {
     await document.fonts.ready;
 }
 async function mount() {
-    await import('/lcards/lcards.js');
+    // Like HA: /lcards/lcards.js?v=<version>&log=<level> (?log=<level> via the harness).
+    const scriptQuery = new URLSearchParams({ v: 'test' });
+    if (params.get('log')) scriptQuery.set('log', params.get('log'));
+    await import(`/lcards/lcards.js?${scriptQuery}`);
     await customElements.whenDefined('lcards-button');
     if (!caseName) { window.__ready = true; return; }
 

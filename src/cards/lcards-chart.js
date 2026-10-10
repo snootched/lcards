@@ -47,8 +47,6 @@ import { normalizeChartSources, arrayChartProblem } from '../charts/chart-source
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { getChartSchema } from './schemas/chart-schema.js';
-// Import chart editor for GUI editing
-import '../editor/cards/lcards-chart-editor.js';
 
 /** @type {Promise<any>|null} */
 let apexChartsPromise = null;
@@ -671,7 +669,10 @@ export class LCARdSChart extends LCARdSCard {
    * Get config element (editor) for Home Assistant GUI
    * @static
    */
-  static getConfigElement() {
+  static async getConfigElement() {
+    // Editors load on demand (HA awaits getConfigElement), keeping them out of
+    // the bundle every dashboard loads.
+    await import('../editor/cards/lcards-chart-editor.js');
     return document.createElement('lcards-chart-editor');
   }
 

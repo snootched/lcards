@@ -183,10 +183,10 @@ Already shown in the skeleton above: call `_registerOverlayForRules(id, type, ta
 
 ## 5. Register the Card
 
-All registration happens in `src/lcards.js`. Never call `customElements.define` from the card file itself.
+All registration happens in `src/lcards-main.js`. Never call `customElements.define` from the card file itself.
 
 ```javascript
-// src/lcards.js (inside the initializeCustomCard().then() block)
+// src/lcards-main.js (inside the initializeCustomCard().then() block)
 
 import { LCARdSMyCard } from './cards/lcards-mycard.js';
 

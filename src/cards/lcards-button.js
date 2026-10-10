@@ -72,8 +72,6 @@ import { CanvasTextureRenderer } from '../core/packs/textures/CanvasTextureRende
 // Import unified schema
 import { getButtonSchema } from './schemas/button-schema.js';
 
-// Import editor component for getConfigElement()
-import '../editor/cards/lcards-button-editor.js';
 
 export class LCARdSButton extends LCARdSCard {
 
@@ -6926,10 +6924,12 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Get config element for visual editor
-     * @returns {HTMLElement} Editor element
+     * @returns {Promise<HTMLElement>} Editor element
      */
-    static getConfigElement() {
-        // Editor is statically imported (bundled with the card) so this stays synchronous
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-button-editor.js');
         return document.createElement('lcards-button-editor');
     }
 

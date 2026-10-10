@@ -76,8 +76,6 @@ import {
     applyCardConfig
 } from '../utils/ha-card-factory.js';
 
-// Import editor component for getConfigElement()
-import '../editor/cards/lcards-elbow-editor.js';
 
 export class LCARdSElbow extends LCARdSButton {
 
@@ -3371,10 +3369,12 @@ export class LCARdSElbow extends LCARdSButton {
 
     /**
      * Get config element for HA editor
-     * @returns {HTMLElement}
+     * @returns {Promise<HTMLElement>}
      */
-    static getConfigElement() {
-        // Editor is statically imported (bundled with the card) so this stays synchronous
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-elbow-editor.js');
         return document.createElement('lcards-elbow-editor');
     }
 

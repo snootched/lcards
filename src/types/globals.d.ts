@@ -25,6 +25,8 @@ declare global {
 
     interface Window {
         lcards: any;
+        /** Set by the loader stub (src/lcards.js): the integration's ?log= level. */
+        __LCARDS_BOOT__?: { log: string | null };
         lcardsCore: any;
         customCards: any[];
         ApexCharts: any;

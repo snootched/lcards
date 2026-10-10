@@ -62,7 +62,7 @@ test('lcardsCore.initialize under jsdom: every builtin pack registered, default 
     // Left installed: each test file runs in its own process, and core timers
     // may still fire after destroy().
     installJsdom();
-    globalThis.lcards = { core: {} }; // normally created by src/lcards.js
+    globalThis.lcards = { core: {} }; // normally created by src/lcards-main.js
     const { lcardsCore } = await import('../../src/core/lcards-core.js');
     await lcardsCore.initialize(createFakeHass());
     try {

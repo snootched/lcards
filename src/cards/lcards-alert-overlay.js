@@ -19,8 +19,6 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { HATemplateEvaluator } from '../core/templates/HATemplateEvaluator.js';
 import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js';
 
-// Import editor component so getConfigElement() works (bundled together)
-import '../editor/cards/lcards-alert-overlay-editor.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level singleton guard
@@ -749,7 +747,10 @@ export class LCARdSAlertOverlay extends LitElement {
     // HA card API
     // -------------------------------------------------------------------------
 
-    static getConfigElement() {
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-alert-overlay-editor.js');
         return document.createElement('lcards-alert-overlay-editor');
     }
 

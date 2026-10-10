@@ -530,10 +530,10 @@ background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
 
 ## 📦 Custom Element Registration
 
-**Pattern**: All cards register in `src/lcards.js` entry point (editors are the exception — each editor self-registers its own element, in its own file):
+**Pattern**: All cards register in `src/lcards-main.js` entry point (editors are the exception — each editor self-registers its own element, in its own file):
 
 ```javascript
-// In src/lcards.js
+// In src/lcards-main.js
 import { MyCard } from './cards/my-card.js';
 
 if (!customElements.get('lcards-my-card')) {
@@ -582,7 +582,7 @@ if (!customElements.get('lcards-my-card')) {
    static getStubConfig() { return { type: 'custom:lcards-my-card', entity: 'light.example' }; }
    ```
 3. Create editor `src/editor/cards/lcards-mycard-editor.js` extending `LCARdSBaseEditor`
-4. Register in `src/lcards.js`:
+4. Register in `src/lcards-main.js`:
    ```javascript
    import { MyCard } from './cards/lcards-mycard.js';
    if (!customElements.get('lcards-my-card')) {
@@ -624,7 +624,7 @@ $0._singletons.rulesManager  // From any card element
 
 ❌ **Don't** pass HASS object manually between components — use singleton propagation via `ingestHass()`
 ❌ **Don't** create new template evaluators for each evaluation — reuse instances
-❌ **Don't** register custom elements in card files — centralize in `src/lcards.js`
+❌ **Don't** register custom elements in card files — centralize in `src/lcards-main.js`
 ❌ **Don't** access `this.hass.states` on every render — use `this.subscribeToEntity()` or `this.getEntityState()`
 ❌ **Don't** call `systemsManager.subscribeToEntity()` directly from a card — use `this.subscribeToEntity()` so it auto-tracks for cleanup
 ❌ **Don't** manually call `core.unregisterCard()` or `systemsManager.unregisterOverlay()` — the base handles it

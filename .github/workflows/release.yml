@@ -165,6 +165,11 @@ jobs:
               ERRORS=$((ERRORS + 1))
             fi
           done
+          # lcards.js is a loader stub; the bundle itself is chunks/lcards-main-*.js
+          if ! ls custom_components/lcards/chunks/lcards-main-*.js >/dev/null 2>&1; then
+            echo "❌ Missing main chunk: custom_components/lcards/chunks/lcards-main-*.js"
+            ERRORS=$((ERRORS + 1))
+          fi
           # Lazily loaded chunks (e.g. ApexCharts) must ship next to lcards.js
           if ! ls custom_components/lcards/chunks/*.js >/dev/null 2>&1; then
             echo "❌ Missing lazy chunks: custom_components/lcards/chunks/"

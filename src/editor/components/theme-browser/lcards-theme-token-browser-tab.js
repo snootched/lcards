@@ -33,7 +33,7 @@ import '../../../panels/components/shared/lcards-scope-selector.js';
 import { STORAGE_KEY_THEME_OVERRIDES } from '../../../core/services/ScopedSettingsConstants.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 import { activeHaThemeName } from '../../../utils/support-info.js';
-import { LEGACY_FIELD_DEFS } from './lcards-theme-generator-view.js';
+import { LEGACY_FIELD_DEFS } from './theme-legacy-fields.js';
 
 const LEGACY_KEY_SET = new Set(LEGACY_FIELD_DEFS.map(f => f.key));
 
@@ -1702,6 +1702,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     }
 
     if (this._activeView === 'generator') {
+      // Loads on first open (CodeMirror + the bundled HA-LCARS theme YAML); the
+      // element upgrades when the module arrives, keeping .hass set before then.
+      import('./lcards-theme-generator-view.js').catch(error =>
+        lcardsLog.error('[ThemeTokenBrowser] Failed to load the theme generator:', error));
       return html`
         <div class="dialog-body">
           <lcards-theme-generator-view .hass=${this.hass}></lcards-theme-generator-view>

@@ -91,10 +91,10 @@ src/editor/dialogs/lcards-msd-studio-dialog.js: error TS2556: A spread argument 
 src/editor/dialogs/lcards-msd-studio-dialog.js: error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
 src/editor/dialogs/lcards-msd-studio-dialog.js: error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
 src/editor/dialogs/lcards-msd-studio-dialog.js: error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
-src/lcards.js: error TS2551: Property 'customStrategies' does not exist on type 'Window & typeof globalThis'. Did you mean 'CustomStateSet'?
-src/lcards.js: error TS2551: Property 'customStrategies' does not exist on type 'Window & typeof globalThis'. Did you mean 'CustomStateSet'?
-src/lcards.js: error TS2551: Property 'customStrategies' does not exist on type 'Window & typeof globalThis'. Did you mean 'CustomStateSet'?
-src/lcards.js: error TS2551: Property 'customStrategies' does not exist on type 'Window & typeof globalThis'. Did you mean 'CustomStateSet'?
+src/lcards-main.js: error TS2551: Property 'customStrategies' does not exist on type 'Window & typeof globalThis'. Did you mean 'CustomStateSet'?
+src/lcards-main.js: error TS2551: Property 'customStrategies' does not exist on type 'Window & typeof globalThis'. Did you mean 'CustomStateSet'?
+src/lcards-main.js: error TS2551: Property 'customStrategies' does not exist on type 'Window & typeof globalThis'. Did you mean 'CustomStateSet'?
+src/lcards-main.js: error TS2551: Property 'customStrategies' does not exist on type 'Window & typeof globalThis'. Did you mean 'CustomStateSet'?
 src/msd/controls/MsdControlsRenderer.js: error TS2339: Property '_msdCardElement' does not exist on type 'HTMLDivElement'.
 src/msd/pipeline/ConfigProcessor.js: error TS2345: Argument of type 'number[]' is not assignable to parameter of type '[number, number, number, number]'.
 src/msd/pipeline/SvgStructureAnalyzer.js: error TS2322: Type '{}' is not assignable to type '{ [x: string]: [number, number]; }'.

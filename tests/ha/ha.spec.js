@@ -41,6 +41,8 @@ async function openDashboard(page, path, dashboard = TEST_DASHBOARD) {
         const ha = document.querySelector('home-assistant');
         return !!(ha?.shadowRoot && ha.hass?.states && window.lcards?.core?.themeManager);
     }, null, { timeout: 30_000 });
+    // The loader stub loads the main chunk asynchronously; cards are defined after core init.
+    await page.evaluate(() => customElements.whenDefined('lcards-button'));
     return errors;
 }
 
@@ -88,34 +90,110 @@ test('lcards.red_alert / clear_alert services switch the alert mode on the page'
     await expect.poll(mode, { timeout: 15_000 }).toBe('green_alert');
 });
 
-test('card editors render inside HA and lcards cards are offered to the card picker', async ({ page }) => {
+/** Every lazily loaded card editor and a config that opens it. */
+const EDITORS = [
+    ['lcards-button', { type: 'custom:lcards-button', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge' }],
+    ['lcards-elbow', { type: 'custom:lcards-elbow', elbow: { type: 'header-left' } }],
+    ['lcards-slider', { type: 'custom:lcards-slider', entity: 'input_number.lcards_test_value' }],
+    ['lcards-chart', { type: 'custom:lcards-chart', sources: [{ entity: 'input_number.lcards_test_value' }] }],
+    ['lcards-data-grid', { type: 'custom:lcards-data-grid', data_mode: 'decorative' }],
+    ['lcards-msd-card', { type: 'custom:lcards-msd-card', msd: { base_svg: { source: 'none' }, view_box: [0, 0, 600, 300] } }],
+    ['lcards-alert-overlay', { type: 'custom:lcards-alert-overlay' }],
+    ['lcards-select-menu', { type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_mode' }],
+    ['lcards-layout-card', { type: 'custom:lcards-layout-card', cards: [] }],
+];
+
+/** Mount a card's editor inside home-assistant (HA's Lit contexts resolve there). */
+async function mountEditor(page, tag, config) {
+    return page.evaluate(async ({ tag, config }) => {
+        const editor = await customElements.get(tag).getConfigElement();
+        const ha = document.querySelector('home-assistant');
+        editor.hass = ha.hass;
+        editor.setConfig(config);
+        editor.id = 'lcards-test-editor';
+        ha.shadowRoot.appendChild(editor);
+        return editor.localName;
+    }, { tag, config });
+}
+
+/** lcards-* elements in the editor's rendered tree that never got defined. */
+const undefinedLcardsElements = (page) => page.evaluate(() => {
+    const out = new Set();
+    const walk = (root) => {
+        for (const el of root.querySelectorAll('*')) {
+            if (el.localName.startsWith('lcards-') && !customElements.get(el.localName)) out.add(el.localName);
+            if (el.shadowRoot) walk(el.shadowRoot);
+        }
+    };
+    const editor = document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-editor');
+    if (editor?.shadowRoot) walk(editor.shadowRoot);
+    return [...out];
+});
+
+const removeEditor = (page) => page.evaluate(() =>
+    document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-editor')?.remove());
+
+test('every card editor loads on demand and renders inside HA; cards are offered to the picker', async ({ page }) => {
     const errors = await openDashboard(page, 'cards');
     const types = await page.evaluate(() => (window.customCards ?? []).map(c => c.type));
     for (const t of ['lcards-button', 'lcards-chart', 'lcards-slider', 'lcards-elbow', 'lcards-data-grid']) {
         expect(types).toContain(t);
     }
-    for (const [tag, config] of [
-        ['lcards-button', { type: 'custom:lcards-button', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge' }],
-        ['lcards-chart', { type: 'custom:lcards-chart', sources: [{ entity: 'input_number.lcards_test_value' }] }],
-    ]) {
-        const editorTag = await page.evaluate(async ({ tag, config }) => {
-            const Card = customElements.get(tag);
-            const editor = await Card.getConfigElement();
-            const ha = document.querySelector('home-assistant');
-            editor.hass = ha.hass;
-            editor.setConfig(config);
-            editor.id = 'lcards-test-editor';
-            // Mounted inside home-assistant so HA's Lit contexts resolve (as in the real dialog).
-            ha.shadowRoot.appendChild(editor);
-            return editor.localName;
-        }, { tag, config });
-        const editor = page.locator(`#lcards-test-editor`);
-        // Editors nest tab groups (main tabs plus sub-tabs); the first is the top level.
-        await expect(editor.locator('ha-tab-group').first()).toBeVisible({ timeout: 15_000 });
-        await expect(editor.locator('ha-alert[alert-type="error"]')).toHaveCount(0);
-        await page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-editor')?.remove());
+    for (const [tag, config] of EDITORS) {
+        const editorTag = await mountEditor(page, tag, config);
         expect(editorTag).toMatch(/^lcards-.*-editor$/);
+        const editor = page.locator('#lcards-test-editor');
+        // Tabbed editors show a tab group (nested; the first is the top level); the
+        // layout card editor is a single "Open Layout Studio" panel instead.
+        const root = tag === 'lcards-layout-card' ? editor.getByText('Open Layout Studio') : editor.locator('ha-tab-group').first();
+        await expect(root, tag).toBeVisible({ timeout: 15_000 });
+        await expect(editor.locator('ha-alert[alert-type="error"]')).toHaveCount(0);
+        // Split-bundle guard: an editor must not rely on elements another chunk defines.
+        await page.waitForTimeout(300);
+        expect(await undefinedLcardsElements(page), tag).toEqual([]);
+        await removeEditor(page);
     }
+    await settle(page);
+    expect(errors).toEqual([]);
+});
+
+test('rules editor shows the refresh notice for edited or removed rules', async ({ page }) => {
+    await openDashboard(page, 'cards');
+    await mountEditor(page, 'lcards-button', EDITORS[0][1]); // loads the rules dashboard with the editor
+    const text = await page.evaluate(async () => {
+        const el = document.createElement('lcards-rules-dashboard');
+        el.hass = document.querySelector('home-assistant').hass;
+        el.cardId = 'test';
+        document.querySelector('home-assistant').shadowRoot.appendChild(el);
+        await el.updateComplete;
+        const notice = el.shadowRoot.querySelector('lcards-message.refresh-notice');
+        const out = notice?.textContent.replace(/\s+/g, ' ').trim() ?? null;
+        el.remove();
+        return out;
+    });
+    expect(text).toContain('apply after a page refresh');
+    await removeEditor(page);
+});
+
+test('config panel loads on demand from the sidebar URL', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    const panelChunks = [];
+    page.on('request', r => { if (/\/chunks\/lcards-config-panel-[^/]+\.js$/.test(r.url())) panelChunks.push(r.url()); });
+    await page.goto('/lcards-config');
+    await expect(page.locator('lcards-config-panel-impl')).toBeAttached({ timeout: 20_000 });
+    await expect(page.locator('lcards-config-panel-impl ha-tab-group').first()).toBeVisible();
+    expect(panelChunks).toHaveLength(1);
+    await settle(page);
+    expect(errors).toEqual([]);
+});
+
+test('layout view edit mode loads the grid edit overlay on demand', async ({ page }) => {
+    const errors = await openDashboard(page, 'layout');
+    expect(await page.evaluate(() => !!customElements.get('lcards-grid-edit-overlay'))).toBe(false);
+    await page.goto(`/${TEST_DASHBOARD}/layout?edit=1`);
+    await expect(page.locator('lcards-grid-edit-overlay')).toBeAttached({ timeout: 20_000 });
+    // Created first, defined (upgraded) once its chunk arrives.
+    await expect.poll(() => page.evaluate(() => !!customElements.get('lcards-grid-edit-overlay'))).toBe(true);
     await settle(page);
     expect(errors).toEqual([]);
 });

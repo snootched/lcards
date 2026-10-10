@@ -29,6 +29,10 @@ flowchart LR
 
 Rules are defined in the `rules` array of any card config, or in content packs. You manage them from the **Rules** tab in any card editor.
 
+::: tip Refresh after changing an existing rule
+Rules from all cards share one engine, keyed by rule `id`. A **new** rule takes effect as soon as you save the card. Changes to an **existing** rule (same `id`), or removing one, take effect after a page refresh.
+:::
+
 ---
 
 ## Rule Structure

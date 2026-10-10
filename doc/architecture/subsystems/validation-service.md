@@ -28,7 +28,7 @@ Config validation is split across two singletons:
 
 ## Schema Registration
 
-Each card class exposes a static `registerSchema()` method. These are called in `src/lcards.js` after all core services initialise:
+Each card class exposes a static `registerSchema()` method. These are called in `src/lcards-main.js` after all core services initialise:
 
 ```javascript
 // lcards.js (called once at startup, after core is ready)
@@ -54,7 +54,7 @@ static registerSchema() {
 To add a new card type to validation:
 1. Add a schema file at `src/cards/schemas/my-card-schema.js`
 2. Add `static registerSchema()` to your card class calling `configManager.registerCardSchema('my-card', schema)`
-3. Call `MyCard.registerSchema()` in `src/lcards.js` after core initialisation
+3. Call `MyCard.registerSchema()` in `src/lcards-main.js` after core initialisation
 
 Once registered, `configManager.processConfig(userConfig, 'my-card', context)` automatically validates the merged config against that schema on every call; there's no separate opt-in step.
 

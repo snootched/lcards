@@ -112,7 +112,7 @@ export class LCARdSMyCardEditor extends LCARdSBaseEditor {
   }
 }
 
-// Unlike cards (registered centrally in src/lcards.js), editors self-register
+// Unlike cards (registered centrally in src/lcards-main.js), editors self-register
 // in their own file, guarded the same way:
 if (!customElements.get('lcards-mycard-editor')) {
   customElements.define('lcards-mycard-editor', LCARdSMyCardEditor);
@@ -121,22 +121,16 @@ if (!customElements.get('lcards-mycard-editor')) {
 
 ## 2. Link the Editor from the Card
 
-In `src/cards/lcards-mycard.js`, add a static method:
+In `src/cards/lcards-mycard.js`, add an async static method that loads the editor on demand:
 
 ```javascript
-static getConfigElement() {
+static async getConfigElement() {
+  await import('../editor/cards/lcards-mycard-editor.js');
   return document.createElement('lcards-mycard-editor');
 }
 ```
 
-HA calls `getConfigElement()` when opening the visual editor panel. The returned element must already be registered as a custom element; importing the editor file at the top of the card file is one way to guarantee that.
-
-```javascript
-// src/cards/lcards-mycard.js
-import '../editor/cards/lcards-mycard-editor.js';  // side-effect import - registers the element
-```
-
-This side-effect import is the established pattern: every built-in editor is wired up this way (see [Bundle Inclusion](#5-bundle-inclusion) below), not through `src/lcards.js`.
+HA awaits `getConfigElement()` when it opens the visual editor. The dynamic `import()` loads the editor module (which registers its element) only at that moment, so editor code stays out of the bundle every dashboard loads. Do not import the editor at the top of the card file: a static import puts the whole editor back into the main chunk.
 
 ## 3. `_buildConfigTab` Reference
 
@@ -185,7 +179,9 @@ this._updateConfig({
 
 ## 5. Bundle Inclusion
 
-Every built-in editor is reachable purely through the card file's side-effect import from step 2 (`lcards-button.js` imports `lcards-button-editor.js`, `lcards-msd.js` imports `lcards-msd-editor.js`, etc.); none of them are imported from `src/lcards.js`. That single import is sufficient: Vite pulls the editor into the bundle, and its own guarded `customElements.define()` call registers it. No further wiring is needed.
+Every built-in editor is reached only through its card's `getConfigElement()` dynamic import (step 2), so Vite emits it as a separate lazy chunk (`chunks/lcards-<card>-editor-<hash>.js`) that loads the first time the editor opens. The editor's own guarded `customElements.define()` call registers it. No further wiring is needed.
+
+`tests/browser/bundle.spec.js` checks this: every card's `getConfigElement()` must define its editor, rendering cards must load no editor chunk, and the main chunk must stay under its size ceiling.
 
 ## Related
 

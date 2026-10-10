@@ -36,8 +36,6 @@ import {
   buildCascadeRowTimings, cascadeColorList
 } from '../data-grid/data-grid-model.js';
 
-// Import editor component for getConfigElement()
-import '../editor/cards/lcards-data-grid-editor.js';
 
 const ACTION_KEYS = ['tap_action', 'hold_action', 'double_tap_action'];
 
@@ -792,7 +790,10 @@ export class LCARdSDataGrid extends LCARdSCard {
     };
   }
 
-  static getConfigElement() {
+  static async getConfigElement() {
+    // Editors load on demand (HA awaits getConfigElement), keeping them out of
+    // the bundle every dashboard loads.
+    await import('../editor/cards/lcards-data-grid-editor.js');
     return document.createElement('lcards-data-grid-editor');
   }
 

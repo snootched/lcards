@@ -40,8 +40,6 @@ import {
     renderAreaSurfaces,
 } from '../views/layout-render.js';
 
-// Static import so getConfigElement() can return the editor synchronously.
-import '../editor/cards/lcards-layout-card-editor.js';
 import { layoutCardSchema } from './schemas/layout-card-schema.js';
 
 export class LCARdSLayoutCard extends LitElement {
@@ -82,7 +80,10 @@ export class LCARdSLayoutCard extends LitElement {
         };
     }
 
-    static getConfigElement() {
+    static async getConfigElement() {
+        // Editors load on demand (HA awaits getConfigElement), keeping them out of
+        // the bundle every dashboard loads.
+        await import('../editor/cards/lcards-layout-card-editor.js');
         return document.createElement('lcards-layout-card-editor');
     }
 
