@@ -37,10 +37,10 @@ text:
 | `{hass.user.name}` | The current Home Assistant user's name |
 | `{theme:token.path}` | Theme token value: see [Themes](../themes/) |
 
-For DataSource values (`{ds:...}`), see [Section 4](#4-data-source-templates-ds--datasource) below.
+For DataSource values (`{ds:...}`), see [Section 4](#_4-data-source-templates-ds-datasource) below.
 
 > [!NOTE]
-> This single-brace `{...}` syntax is an LCARdS-specific shorthand, not a Home Assistant or Jinja2 convention; it exists because it resolves synchronously (no network round trip), which some render paths require. If you already know HA's Jinja2 templating from automations or other cards, reach for [Jinja2 templates](#3-jinja2-templates) (`{{ }}`, real double braces) instead; it's the actual HA template engine and supports everything you already know (`states()`, `state_attr()`, filters, etc.). Use single-brace tokens when you specifically need the synchronous fast path.
+> This single-brace `{...}` syntax is an LCARdS-specific shorthand, not a Home Assistant or Jinja2 convention; it exists because it resolves synchronously (no network round trip), which some render paths require. If you already know HA's Jinja2 templating from automations or other cards, reach for [Jinja2 templates](#_3-jinja2-templates) (`{{ }}`, real double braces) instead; it's the actual HA template engine and supports everything you already know (`states()`, `state_attr()`, filters, etc.). Use single-brace tokens when you specifically need the synchronous fast path.
 
 ---
 

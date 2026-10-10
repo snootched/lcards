@@ -64,6 +64,7 @@ import { migrateDataGridConfig } from '../src/data-grid/data-grid-config-migrati
 import { getAlertOverlaySchema } from '../src/cards/schemas/lcards-alert-overlay-schema.js';
 import { getSelectMenuSchema }   from '../src/cards/schemas/select-menu-schema.js';
 import Ajv                       from 'ajv';
+import { isTemplateString }      from '../src/utils/template-string.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -152,6 +153,15 @@ function buildCardValidators() {
   // validateFormats: false — silences warnings about HA-specific formats
   // (entity, font-family, color) that ajv does not know about.
   const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
+  // Same rule as CoreValidationService: template strings are evaluated at render
+  // time, so `pattern` only applies to literal values.
+  ajv.removeKeyword('pattern');
+  ajv.addKeyword({
+    keyword: 'pattern',
+    type: 'string',
+    schemaType: 'string',
+    validate: (pattern, data) => isTemplateString(data) || new RegExp(pattern, 'u').test(data),
+  });
   const rawSchemas = [
     ['lcards-button',        getButtonSchema({})],
     ['lcards-slider',        getSliderSchema({})],
@@ -163,6 +173,7 @@ function buildCardValidators() {
   ];
   const validators = new Map();
   for (const [tag, schema] of rawSchemas) {
+    rawCardSchemas.set(tag, schema);
     try {
       const stripped = stripSchemaRestrictions(schema);
       validators.set(tag, ajv.compile(stripped));
@@ -172,6 +183,60 @@ function buildCardValidators() {
     }
   }
   return validators;
+}
+
+// ── Unknown-key check ────────────────────────────────────────────────────────
+// Most card schemas are open (no top-level additionalProperties), so ajv accepts
+// misspelled or invented keys (`text_fields`, `style.width`) and they slip into the
+// docs. This pass walks a config against the raw schema and reports keys that no
+// schema branch declares: a key is known when any branch lists it in `properties`,
+// matches `patternProperties`, or allows it through `additionalProperties`
+// (true or a schema). Schemas that declare no properties at all are open.
+const rawCardSchemas = new Map();
+
+// Keys every card accepts that card schemas don't list (HA / layout plumbing).
+const CARD_PLUMBING_KEYS = new Set(['type', 'grid_options', 'view_layout', 'visibility', 'layout_options', 'card_mod']);
+
+/** Sub-schema for `key` in `schema`, `undefined` if open/unconstrained, or `false` if unknown. */
+function schemaForKey(schema, key) {
+  if (!schema || typeof schema !== 'object') return undefined;
+  const branches = [schema, ...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.allOf ?? [])]
+    .filter(b => b && typeof b === 'object');
+  let declaresProperties = false;
+  for (const b of branches) {
+    if (b !== schema && (b.anyOf || b.oneOf || b.allOf)) {
+      const nested = schemaForKey(b, key);
+      if (nested !== false) return nested;
+      declaresProperties = true;
+      continue;
+    }
+    if (b.properties && Object.prototype.hasOwnProperty.call(b.properties, key)) return b.properties[key];
+    for (const [pattern, sub] of Object.entries(b.patternProperties ?? {})) {
+      if (new RegExp(pattern).test(key)) return sub;
+    }
+    if (b.additionalProperties === true) return undefined;
+    if (b.additionalProperties && typeof b.additionalProperties === 'object') return b.additionalProperties;
+    if (b.properties || b.patternProperties) declaresProperties = true;
+  }
+  return declaresProperties ? false : undefined;
+}
+
+/** Collect `path` strings of keys the schema does not declare. */
+function unknownKeys(value, schema, pathPrefix, out, isCardRoot = false) {
+  if (!value || typeof value !== 'object' || !schema) return out;
+  if (Array.isArray(value)) {
+    const items = schema.items ?? [schema, ...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].find(b => b?.items)?.items;
+    value.forEach((v, i) => unknownKeys(v, items, `${pathPrefix}[${i}]`, out));
+    return out;
+  }
+  for (const [key, v] of Object.entries(value)) {
+    if (isCardRoot && CARD_PLUMBING_KEYS.has(key)) continue;
+    const sub = schemaForKey(schema, key);
+    const p = pathPrefix ? `${pathPrefix}.${key}` : key;
+    if (sub === false) { out.push(p); continue; }
+    if (sub) unknownKeys(v, sub, p, out);
+  }
+  return out;
 }
 
 // ── Collect card nodes from parsed YAML for schema validation ─────────────────
@@ -361,6 +426,12 @@ function main() {
             if (STRICT) errors.push(entry); else schemaWarnings.push(entry);
             blockSchemaIssues++;
           }
+        }
+
+        for (const key of unknownKeys(cardNode, rawCardSchemas.get(tag), '', [], true)) {
+          const entry = { file: rel, line: b.line, msg: `Schema [${tag}] unknown key: ${key}` };
+          if (STRICT) errors.push(entry); else schemaWarnings.push(entry);
+          blockSchemaIssues++;
         }
 
         const valid = validate(cardNode);

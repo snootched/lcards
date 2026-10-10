@@ -37,7 +37,7 @@ LCARdS cards support actions `tap_action`, `hold_action`, and `double_tap_action
 
 ## Hover Effects & Cursor
 
-Hover behaviour (visual feedback like colour changes and animations when the pointer is over the card) can be disabled when interactivy feedback is not desired (for instance using a button card as a decorative panel.)  You may also customize which cursor is shown on hover, should you desire.
+Hover behaviour (visual feedback like colour changes and animations when the pointer is over the card) can be disabled when interactive feedback is not desired (for instance using a button card as a decorative panel.)  You may also customize which cursor is shown on hover, should you desire.
 
 These options are configured directly on the card, and not on individual action objects.
 

@@ -61,6 +61,8 @@ animations:
 | `on_entity_change` | A watched entity changes state |
 | `on_datasource_change` | A configured [DataSource](../architecture/internals/datasource-buffers.md) value changes; requires a `datasource` property alongside the trigger |
 
+`on_state_change`, `on_redraw` and `on_exit` are accepted in configs but not implemented yet: they never fire. Use `on_entity_change` for state changes.
+
 ---
 
 ## Animation Options

@@ -25,7 +25,7 @@ import {
     cardOverflowSchema,
     cardOverflowXSchema,
     cardOverflowYSchema,
-    cardZIndexSchema,
+    cardZIndexSchema, cardLevelProperties
 } from './common-schemas.js';
 
 /**
@@ -42,6 +42,8 @@ export function getSelectMenuSchema(options = {}) {
         type: 'object',
         description: 'Per-option visual overrides',
         properties: {
+            // rules, sounds, variables, zones, debug_zones (LCARdSCard base); card entries below win.
+            ...cardLevelProperties,
             value: {
                 type: 'string',
                 description: 'Option value (required in array form, must match entity option)'

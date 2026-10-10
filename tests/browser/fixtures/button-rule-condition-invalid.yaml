@@ -1,0 +1,20 @@
+# A rule whose condition is a plain string (no [[[ ]]] or {{ }}): logged, never applied.
+type: custom:lcards-button
+id: plain_rule_button
+entity: switch.demo_switch
+preset: lozenge
+style:
+  card:
+    color:
+      background: "#333366"
+rules:
+  - id: plain-string-condition
+    when:
+      condition: switch.demo_switch is on
+    apply:
+      overlays:
+        plain_rule_button:
+          style:
+            card:
+              color:
+                background: "#cc0000"

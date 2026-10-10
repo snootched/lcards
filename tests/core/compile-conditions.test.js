@@ -74,13 +74,14 @@ test('compile: [[[ ]]] with surrounding whitespace (YAML block scalar) still par
     }
 });
 
-test('compile: plain-string condition reports an error but compiles to always-true (current behaviour)', async () => {
+test('compile: plain-string condition reports an error and never matches', async () => {
     const issues = [];
     const { tree } = compile({ condition: 'light.desk is on' }, issues);
     assert.equal(issues.length, 1);
     assert.equal(issues[0].severity, 'error');
-    assert.deepEqual(tree, { type: 'always' });
-    assert.equal(await evalCompiled(tree, ctx()), true);
+    // Changed 2026-10-10: it compiled to 'always', so the rule matched everywhere.
+    assert.equal(tree.type, 'invalid');
+    assert.equal(await evalCompiled(tree, ctx()), false);
 });
 
 test('compile: an unrecognised key compiles to invalid and evaluates false', async () => {

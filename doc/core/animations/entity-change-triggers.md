@@ -136,7 +136,7 @@ Entity values can be mapped to animation parameters dynamically:
         clamp: true
 ```
 
-See the [Animations overview](../animations.md#map_range-descriptors) for the full `map_range` reference.
+See the [Animations overview](../animations.md#map-range-descriptors) for the full `map_range` reference.
 
 ---
 

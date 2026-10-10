@@ -14,7 +14,7 @@ Processors transform data as it flows through a DataSource. Each processor:
 
 | Type | Purpose | Common Use |
 |------|---------|------------|
-| [`convert_unit`](#convert_unit) | Unit conversion | Temperature °F↔°C, power W↔kW |
+| [`convert_unit`](#convert-unit) | Unit conversion | Temperature °F↔°C, power W↔kW |
 | [`scale`](#scale) | Map range to range | 0-100 → 0-255, normalize values |
 | [`smooth`](#smooth) | Reduce noise | Smooth jittery sensors |
 | [`expression`](#expression) | Custom formula | Calculate derived values |

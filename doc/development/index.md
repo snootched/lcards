@@ -31,7 +31,6 @@ Documentation for developers extending LCARdS: building custom cards, editors, a
 
 | Page | Description |
 |---|---|
-| [Codebase Review](/dev/codebase-review) | Architecture findings, duplication hotspots, and prioritized follow-up PR slices |
 
 ## Repository validation commands
 

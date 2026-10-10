@@ -6,7 +6,7 @@
  * root pack that all others build on.  Shows in Pack Explorer
  * as the system version reference.
  *
- * Pack system guide: doc/architecture/pack-system.md
+ * Pack system guide: doc/architecture/subsystems/pack-system.md
  */
 
 export const CORE_PACK = {

@@ -18,6 +18,7 @@ const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.ur
  * that isn't a data grid gets <ChartDemo>.
  */
 const LIVE_DEMOS: Record<string, string> = {
+  'lcards-chart': 'ChartDemo',
   'lcards-data-grid': 'DataGridDemo',
 }
 
@@ -31,7 +32,12 @@ function liveDemoFence(md: any) {
     if (!/^ya?ml$/.test(info[0]) || !info.includes('live')) return html
     const content = tokens[idx].content
     const type = /^type:\s*["']?custom:([\w-]+)/m.exec(content)?.[1] ?? ''
-    const component = LIVE_DEMOS[type] ?? 'ChartDemo'
+    const component = LIVE_DEMOS[type]
+    if (!component) {
+      // No demo for this card type yet: render the YAML only (was: a chart demo).
+      console.warn(`[docs] \`yaml live\` block with no demo for type "${type || '(none)'}" in ${env?.relativePath ?? '?'}`)
+      return html
+    }
     return `${html}<ClientOnly><${component} src="${encodeURIComponent(content)}" /></ClientOnly>`
   }
 }
@@ -77,7 +83,7 @@ function vPreBracesRule(md: any) {
 export default withMermaid(defineConfig({
   title: 'LCARdS',
   description: 'LCARS-inspired card components for Home Assistant',
-  // Custom domain (lcards.unimatrix01.ca) — GitHub Pages serves from root, no subpath needed
+  // Custom domain (lcards.unimatrix01.ca): GitHub Pages serves from root, no subpath needed
   base: '/',
 
   ignoreDeadLinks: false,
@@ -85,7 +91,7 @@ export default withMermaid(defineConfig({
   // Default to dark mode (matches LCARS aesthetic)
   appearance: 'dark',
 
-  // Output goes to doc/.vitepress/dist (VitePress default — consistent across environments)
+  // Output goes to doc/.vitepress/dist (VitePress default: consistent across environments)
 
   sitemap: {
     hostname: SITE_URL,
@@ -139,7 +145,7 @@ export default withMermaid(defineConfig({
   // AnimationPlayground.vue dynamically imports the real src/core/packs/animations
   // preset modules (so docs demos never drift from shipped behaviour). Those
   // modules reference __LCARDS_VERSION__, normally injected by the app's own
-  // vite.config.js — redefine it here so the docs client bundle resolves it too.
+  // vite.config.js: redefine it here so the docs client bundle resolves it too.
   vite: {
     define: {
       __LCARDS_VERSION__: JSON.stringify(pkg.version),
@@ -182,7 +188,7 @@ export default withMermaid(defineConfig({
           { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
           { text: 'Connectivity',      link: '/configuration/connectivity' },
           { text: 'Helpers',           link: '/configuration/persistent-helpers' },
-          { text: 'Sounds',            link: '/configuration/sounds' },
+          { text: 'Sound Configuration',            link: '/configuration/sounds' },
           { text: 'Users & Devices',   link: '/configuration/users-devices' },
           { text: 'HA Actions',         link: '/configuration/ha-actions' },
           { text: 'Using browser_mod', link: '/configuration/browser-mod' },
@@ -224,7 +230,7 @@ export default withMermaid(defineConfig({
               { text: 'Data Sources',      link: '/core/datasources/' },
               { text: 'Presets',           link: '/core/presets' },
               { text: 'Rules Engine',      link: '/core/rules/' },
-              { text: 'Sounds',            link: '/core/sounds' },
+              { text: 'Card Sounds',            link: '/core/sounds' },
               { text: 'Styles',            link: '/core/styles' },
               { text: 'Templates',         link: '/core/templates/' },
               { text: 'Text Fields',       link: '/core/text-fields' },
@@ -243,7 +249,7 @@ export default withMermaid(defineConfig({
               { text: 'Actions',     link: '/core/actions' },
               { text: 'Colours',     link: '/core/colours' },
               { text: 'Presets',     link: '/core/presets' },
-              { text: 'Sounds',      link: '/core/sounds' },
+              { text: 'Card Sounds',      link: '/core/sounds' },
               { text: 'Styles',      link: '/core/styles' },
               { text: 'Text Fields', link: '/core/text-fields' },
             ],
@@ -313,12 +319,6 @@ export default withMermaid(defineConfig({
             text: 'CSS & Theming',
             items: [
               { text: 'HA CSS Variables', link: '/development/ha-css-vars' },
-            ],
-          },
-          {
-            text: 'Internals',
-            items: [
-              { text: 'Codebase Review', link: '/dev/codebase-review' },
             ],
           },
         ],
@@ -410,7 +410,7 @@ export default withMermaid(defineConfig({
             { text: 'Data Sources',          link: '/core/datasources/' },
             { text: 'Presets',               link: '/core/presets' },
             { text: 'Rules Engine',          link: '/core/rules/' },
-            { text: 'Sounds',                link: '/core/sounds' },
+            { text: 'Card Sounds',                link: '/core/sounds' },
             { text: 'Styles',                link: '/core/styles' },
             { text: 'Templates',             link: '/core/templates/' },
             { text: 'Text Fields',           link: '/core/text-fields' },
@@ -427,7 +427,7 @@ export default withMermaid(defineConfig({
             { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
             { text: 'Connectivity',      link: '/configuration/connectivity' },
             { text: 'Helpers',           link: '/configuration/persistent-helpers' },
-            { text: 'Sounds',            link: '/configuration/sounds' },
+            { text: 'Sound Configuration',            link: '/configuration/sounds' },
             { text: 'Users & Devices',   link: '/configuration/users-devices' },
             { text: 'HA Actions',         link: '/configuration/ha-actions' },
             { text: 'Using browser_mod', link: '/configuration/browser-mod' },
@@ -450,7 +450,7 @@ export default withMermaid(defineConfig({
             { text: 'Actions',     link: '/core/actions' },
             { text: 'Colours',     link: '/core/colours' },
             { text: 'Presets',     link: '/core/presets' },
-            { text: 'Sounds',      link: '/core/sounds' },
+            { text: 'Card Sounds',      link: '/core/sounds' },
             { text: 'Styles',      link: '/core/styles' },
             { text: 'Text Fields', link: '/core/text-fields' },
           ],
@@ -612,22 +612,6 @@ export default withMermaid(defineConfig({
           collapsed: false,
           items: [
             { text: 'HA CSS Variables', link: '/development/ha-css-vars' },
-          ],
-        },
-        {
-          text: 'Internals',
-          collapsed: false,
-          items: [
-            { text: 'Codebase Review',  link: '/dev/codebase-review' },
-          ],
-        },
-      ],
-
-      '/dev/': [
-        {
-          text: 'Internals',
-          items: [
-            { text: 'Codebase Review', link: '/dev/codebase-review' },
           ],
         },
       ],

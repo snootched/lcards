@@ -15,7 +15,7 @@ The `when` block of a rule evaluates to `true` or `false`. When it matches, the 
 | **Day of week** | `weekday_in` | Current day is in a list |
 | **Sun elevation** | `sun_elevation` | Sun is `above`/`below` a degree threshold |
 | **Random chance** | `random_chance` | Evaluates true with a given probability (0.0–1.0) |
-| **JavaScript** | `condition` / `javascript` | Arbitrary JS expression: returns truthy |
+| **JavaScript** | `condition` / `javascript` / `js` | Arbitrary JS expression: returns truthy |
 | **Jinja2** | `condition` / `jinja2` | Arbitrary HA Jinja2 template: returns truthy |
 | **All of (AND)** | `all` | Every sub-condition must be true |
 | **Any of (OR)** | `any` | At least one sub-condition must be true |
@@ -257,7 +257,7 @@ For logic that doesn't fit a built-in condition, write JavaScript or Jinja2 dire
 
 ### JavaScript
 
-Use `[[[ ]]]` syntax. Return any truthy value to match. The variables `entity`, `hass`, and `states` are available.
+Use `[[[ ]]]` syntax. Return any truthy value to match. The variables `entity`, `hass`, and `states` are available. The rule re-evaluates whenever an entity read as `states['domain.object']` changes; entities read any other way (a computed id, for example) don't trigger it.
 
 ```yaml
 when:
@@ -315,6 +315,14 @@ when:
 | Latency | Synchronous, instant | Async round-trip |
 | Access to HA functions | ❌ (use `states` directly) | ✅ (`is_state`, `state_attr`, filters…) |
 | Best for | Fast logic, math, multi-entity | HA-native functions, formatted values |
+
+---
+
+## Invalid and Reserved Conditions
+
+- **Unknown key** (a typo such as `entitty:`): the condition never matches.
+- **Plain-string `condition:`** (no `[[[ ]]]` or `{{ }}`, e.g. `condition: light.desk is on`): a warning is logged in the browser console and the condition never matches. Wrap it as JavaScript or Jinja2 instead.
+- **`flag`** and **`perf_metric`** are reserved for development tooling. Nothing provides their values today, so they never match (a `flag` with `is: false` always matches). Don't use them in dashboards.
 
 ---
 

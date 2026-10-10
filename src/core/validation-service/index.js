@@ -18,6 +18,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { TokenValidator } from './TokenValidator.js';
 import { DataSourceValidator } from './DataSourceValidator.js';
 import { ErrorFormatter } from './ErrorFormatter.js';
+import { isTemplateString } from '../../utils/template-string.js';
 
 /**
  * Legacy CoreSchemaRegistry for backward compatibility
@@ -715,8 +716,10 @@ export class CoreValidationService {
       });
     }
 
-    // Pattern validation for strings
-    if (schema.pattern && typeof data === 'string') {
+    // Pattern validation for strings. Template strings ([[[ js ]]], {{ jinja }},
+    // {% %}, {token}) only become their real value at render time, so a pattern
+    // can't judge them (documented colour templates used to warn here).
+    if (schema.pattern && typeof data === 'string' && !isTemplateString(data)) {
       try {
         const pattern = typeof schema.pattern === 'string' ? new RegExp(schema.pattern) : schema.pattern;
         if (!pattern.test(data)) {

@@ -75,7 +75,9 @@ function compileNode(node, issues, ruleId) {
       severity: 'error',
       message: `Plain string conditions not supported. Use [[[ ]]] for JavaScript or {{ }} for Jinja2: "${conditionStr}"`
     });
-    return { type: 'always' };
+    // Never matches (like an unknown condition key); it used to compile to
+    // 'always', so a mistyped condition made the rule apply everywhere.
+    return { type: 'invalid', reason: 'plain-string', raw: conditionStr };
   }
 
   // ✨ NEW: Explicit type support (for power users)

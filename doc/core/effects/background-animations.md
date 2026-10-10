@@ -12,11 +12,12 @@ Background animations provide dynamic visual effects rendered on HTML5 Canvas be
 
 ```yaml
 type: custom:lcards-button
-name: "Animated Button"
-entity_id: light.living_room
-style:
-  width: 400
-  height: 300
+entity: light.living_room
+text:
+  label:
+    content: "Animated Button"
+width: 400
+height: 300
 background_animation:
   - preset: grid
     config:

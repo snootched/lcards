@@ -99,7 +99,7 @@ themes: {
 }
 ```
 
-See the built-in themes in `src/core/packs/themes/builtin-themes.js` for the full token schema.
+See the built-in themes in `src/core/packs/builtin-themes.js` for the full token schema.
 
 ### `rules`
 

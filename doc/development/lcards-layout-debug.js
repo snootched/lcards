@@ -1,5 +1,5 @@
 /**
- * lcards-layout-debug.js — LCARdS Layout View diagnostic tool
+ * lcards-layout-debug.js: LCARdS Layout View diagnostic tool
  *
  * Paste the entire contents of this file into the browser console on any HA
  * dashboard that uses custom:lcards-layout-view.
@@ -7,7 +7,7 @@
  * TIP: If the script reports "lcards-layout-view not found", use Chrome DevTools:
  *   1. Open the Elements panel.
  *   2. Click on the lcards-layout-view element in the tree.
- *   3. Paste the script — it will automatically use your selected element ($0).
+ *   3. Paste the script: it will automatically use your selected element ($0).
  *
  * Run it in multiple states to verify correct behaviour:
  *   - Visibility boolean ON  (e.g. top bar visible)
@@ -91,7 +91,7 @@
     } else {
         console.log('');
         console.log('No visibility-controlled rows detected.');
-        if (baseRows.length === 0) console.warn('  _baseRows is empty — has setConfig() run?');
+        if (baseRows.length === 0) console.warn('  _baseRows is empty: has setConfig() run?');
     }
 
     // Per-row breakdown
@@ -129,7 +129,7 @@
     // ResizeObserver wired?
     console.log('');
     const hasRO = !!view._hostResizeObserver;
-    console.log(`ResizeObserver : ${hasRO ? '✓ connected' : '✗ NOT present — resize will not update rows'}`);
+    console.log(`ResizeObserver : ${hasRO ? '✓ connected' : '✗ NOT present: resize will not update rows'}`);
 
     // LCARdS version
     const ver = window.lcards?.version ?? '(unknown)';

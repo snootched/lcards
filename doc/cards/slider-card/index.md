@@ -38,11 +38,11 @@ The following properties are shared across all LCARdS cards. See [Common Card Pr
 
 | Category | Config keys | Reference |
 |----------|-------------|-----------|
-| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min_height-min_width-max_height-max_width) |
-| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow_x-overflow_y) |
-| Stacking | `z_index` | [Stacking](../common.md#stacking-z_index) |
+| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min-height-min-width-max-height-max-width) |
+| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
+| Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
+| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid-options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
 | Text labels | `text` | [Text Fields](../../core/text-fields.md) |
 | Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
@@ -97,9 +97,10 @@ style:
         end:                 # string or state-based object
           default: "var(--lcars-moonlight)"
   gauge:
-    color:                   # string or state-based object (gauge fill)
-      default: "var(--lcars-orange)"
-      inactive: "var(--lcars-gray)"
+    progress_bar:
+      color:                 # string or state-based object (gauge fill)
+        default: "var(--lcars-orange)"
+        inactive: "var(--lcars-gray)"
   border:
     left:
       enabled: true
@@ -144,7 +145,8 @@ triggers_update: []
 |--------|------|-------------|
 | `type` | string | `custom:lcards-slider` (required) |
 | `entity` | string | Entity to display and/or control |
-| `ranges_attribute` | string | Entity attribute for range conditions: see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
+| `ranges_attribute` | string | Entity attribute for range conditions: see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges-attribute) |
+| `state_attribute` | string | Attribute whose string value drives exact-key colour matching; see [state_attribute](../../core/colours.md#exact-match-keys-from-an-attribute-state-attribute) |
 | `preset` | string | Visual style preset: see [Presets](#presets) |
 | `component` | string | Advanced SVG component: `shaped` or `picard` |
 | `control` | object | Control behaviour: see [Control Options](#control-options) |
@@ -658,11 +660,11 @@ style:
       max: 30
       unit: "°C"
   gauge:
-    color:
-      default: "var(--lcards-blue)"
-      heat: "var(--lcards-alert-red)"
-      cool: "var(--lcards-blue)"
     progress_bar:
+      color:
+        default: "var(--lcards-blue)"
+        heat: "var(--lcards-alert-red)"
+        cool: "var(--lcards-blue)"
       layer: background
       radius: 3
     scale:

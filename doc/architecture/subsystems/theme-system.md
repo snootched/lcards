@@ -176,9 +176,9 @@ window.lcards.debug.singleton('themeManager')
 const tm = window.lcards.core.themeManager
 
 tm.getActiveTheme()                       // active theme object ({ id, name, tokens, ...tokens })
-await tm.activateTheme('cb-lcars')        // switch active theme (async)
+await tm.activateTheme('lcards-default')  // switch active theme (async)
 tm.listThemes()                           // all registered theme IDs
-tm.getToken('palette.moonlight', '#fff')  // resolve a token path with a fallback
+tm.getToken('colors.ui.primary', '#fff')  // resolve a token path with a fallback
 tm.getAlertMode()                         // current alert mode string, e.g. 'green_alert'
 await tm.setAlertMode('red_alert')        // trigger alert mode change
 tm.getThemesWithMetadata()                // full metadata array for every loaded theme

@@ -251,9 +251,6 @@ Every card automatically divides its SVG surface into named **zones**: rectangul
 
 ### Auto-calculated zones per card type
 
-<!-- TODO: Insert raster images here showing each card type with its zones labelled -->
-<!-- One image per card variant (button preset, button component, slider, elbow simple/segmented/frame) -->
-
 | Card | Auto zones |
 |------|------------|
 | **Button** (preset mode, no icon) | `body` = full card area · `full` = full card area (always)<br/> ![Button zones](../public/img/zones-button.png) |

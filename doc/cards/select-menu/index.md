@@ -66,11 +66,11 @@ The following properties are shared across all LCARdS cards. See [Common Card Pr
 
 | Category | Config keys | Reference |
 |----------|-------------|-----------|
-| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min_height-min_width-max_height-max_width) |
-| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow_x-overflow_y) |
-| Stacking | `z_index` | [Stacking](../common.md#stacking-z_index) |
+| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min-height-min-width-max-height-max-width) |
+| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
+| Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
+| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid-options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
 | Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
 | Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |
@@ -156,7 +156,7 @@ tags: [nav]
 | `grid` | object | Layout grid: see [`grid`](#grid-object) below |
 | `options` | object / list | Option overrides: see [`options`](#options) below |
 | `style` | object | Visual style overrides for all buttons: see [`style`](#style-object) below |
-| `button_template` | object | Advanced base `lcards-button` config applied to every option; see [`button_template`](#button_template) below |
+| `button_template` | object | Advanced base `lcards-button` config applied to every option; see [`button_template`](#button-template) below |
 
 ---
 

@@ -95,7 +95,7 @@ function hexOrFallback(v) {
 }
 
 // Numeric slider bounds: prefer explicit x-ui-hints, else schema min/max,
-// else a practical fallback — same precedence AnimationPlayground.vue uses.
+// else a practical fallback: same precedence AnimationPlayground.vue uses.
 function numericBounds(def) {
   const hint = def['x-ui-hints']?.selector?.number
   if (hint) return { min: hint.min ?? def.minimum ?? 0, max: hint.max ?? def.maximum ?? 10, step: hint.step ?? (def.type === 'integer' ? 1 : 0.1) }
@@ -120,7 +120,7 @@ function getFieldSchema(schema, dottedKey) {
   return current
 }
 
-// Builds the flat control list straight from the schema — mirrors
+// Builds the flat control list straight from the schema: mirrors
 // AnimationPlayground.vue's buildControls(), plus one capability that
 // component doesn't need yet: recursing into a nested `type:'object'`
 // sub-schema (cascade's `colors: {start, text, end}`) and flattening each
@@ -152,7 +152,7 @@ function buildControls(schema, prefix = '') {
       const enumBranch = def.oneOf.find((b) => Array.isArray(b.enum))
       if (enumBranch) out.push({ key: fullKey, label, kind: 'select', options: enumBranch.enum })
       // else: no live control for this shape (e.g. a free-form fallback
-      // branch) — still settable by hand in real YAML.
+      // branch): still settable by hand in real YAML.
     } else if (types.includes('string')) {
       out.push({ key: fullKey, label, kind: 'text' })
     }
@@ -169,7 +169,7 @@ function onJsonInput(key, raw) {
 }
 
 // Reassembles the nested config object createEffects() expects from flat,
-// dotted-path control values — the inverse of buildControls()'s recursion
+// dotted-path control values: the inverse of buildControls()'s recursion
 // (e.g. cascade's colors.start/text/end controls become config.colors =
 // {start, text, end}, matching the real runtime config shape).
 function buildConfig() {

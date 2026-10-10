@@ -292,15 +292,21 @@ rules:
 Add `tags` to any overlay so rules can target it with `tag:` selectors:
 
 ```yaml
-# MSD overlay
+# A card
+type: custom:lcards-button
+id: nav-button-1
+tags: [nav, main-panel]
+```
+
+```yaml
+# An MSD overlay (here a control overlay hosting a card)
 overlays:
   - id: nav-button-1
-    type: button
+    type: control
     tags: [nav, main-panel]
-
-# Non-MSD card
-type: custom:lcards-button
-tags: [nav, main-panel]
+    card:
+      type: custom:lcards-button
+      preset: lozenge
 ```
 
 ---

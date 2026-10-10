@@ -76,6 +76,12 @@ jobs:
       - name: Run documentation YAML validator
         run: npm run validate:doc-examples:strict
 
+      - name: Docs em-dash check
+        run: node scripts/check-doc-em-dashes.js
+
+      - name: Build docs site and check every #anchor link
+        run: npm run docs:build
+
   test:
     name: Tests and Typecheck
     runs-on: ubuntu-latest

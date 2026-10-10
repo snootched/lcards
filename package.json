@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "help": "node scripts/help.js",
-    "build": "node scripts/validate-doc-examples.js --strict && node scripts/validate-css-vars.js && node scripts/validate-ha-compat.js && node scripts/set-version.js && vite build --mode integration && node scripts/copy-assets.js",
+    "build": "node scripts/validate-doc-examples.js --strict && node scripts/check-doc-em-dashes.js && node scripts/validate-css-vars.js && node scripts/validate-ha-compat.js && node scripts/set-version.js && vite build --mode integration && node scripts/copy-assets.js",
     "validate:css-vars": "node scripts/validate-css-vars.js",
     "validate:css-vars:verbose": "node scripts/validate-css-vars.js --verbose",
     "validate:ha-compat": "node scripts/validate-ha-compat.js",
@@ -39,7 +39,7 @@
     "test:routing": "node --import ./tests/setup/browser-shims.js --import ./tests/setup/vite-imports.js --test 'tests/routing/*.test.js'",
     "test:data-grid": "node --import ./tests/setup/browser-shims.js --import ./tests/setup/vite-imports.js --test 'tests/data-grid/*.test.js'",
     "create-editor": "node tools/create-editor.js",
-    "docs:build": "node scripts/generate-llm-schema.js && vitepress build doc",
+    "docs:build": "node scripts/generate-llm-schema.js && vitepress build doc && node scripts/check-doc-anchors.js",
     "docs:serve": "vitepress dev doc",
     "docs:serve:network": "vitepress dev doc --host",
     "docs:preview": "vitepress preview doc",
@@ -54,7 +54,8 @@
     "lcars:regenerate": "npm run lcars:semantic-tokens:write && npm run lcars:generate-themes && npm run build && npm run lcars:export-vendored && npm run lcars:export-all-themes",
     "test:browser": "playwright test --project=component",
     "test:visual": "playwright test --project=visual",
-    "test:ha": "playwright test -c playwright.ha.config.js"
+    "test:ha": "playwright test -c playwright.ha.config.js",
+    "docs:check-anchors": "node scripts/check-doc-anchors.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",

@@ -110,7 +110,7 @@ Preset catalogs change as packs evolve; `spm.getPresetNames(type)` in the consol
 
 | Type | Presets |
 |---|---|
-| `button` | `lozenge`, `lozenge-right`, `bullet`, `bullet-right`, `capped`, `capped-right`, `barrel`, `barrel-right`, `filled`, `filled-right`, `outline`, `outline-right`, `icon`, `text-only`, six `bar-label-*` variants, `panel-light`, `panel-dark` |
+| `button` | `lozenge`, `lozenge-right`, `bullet`, `bullet-right`, `capped`, `capped-right`, `barrel`, `barrel-right`, `filled`, `filled-right`, `outline`, `outline-right`, `icon`, `text-only`, `bar-label-base` plus ten `bar-label-*` variants, `panel-light`, `panel-dark` |
 | `slider` | `pills-basic`, `pills-left-border`, `pills-left-border-rounded`, `gauge-basic`, `gauge-left-border`, `gauge-left-border-rounded`, `shaped-vertical`, `shaped-horizontal`, `picard-gauge-vertical` |
 
 `elbow` shapes (`header-left`, `header-right`, `footer-left`, `footer-right`) are **not** `StylePresetManager` presets; elbows are structural path generators registered as `ComponentManager` components instead: `window.lcards.core.componentManager.getComponentsByType('elbow')`. See [Component Manager](component-manager.md).

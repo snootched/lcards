@@ -147,3 +147,14 @@ test('rules: the higher-priority rule wins, and rules on different keys both app
     await expect.poll(() => bgFill(page)).toBe('rgb(0, 170, 0)');
     await expectNoErrors(page);
 });
+
+test('rules: a plain-string condition never applies its patch and logs a warning', async ({ page }) => {
+    const warnings = [];
+    page.on('console', m => { if (m.type() === 'warning') warnings.push(m.text()); });
+    await mountCase(page, 'button-rule-condition-invalid');
+    await page.evaluate(() => window.__setState('switch.demo_switch', 'on'));
+    await page.waitForTimeout(500);
+    // Regression: the condition compiled to "always", so the rule matched everywhere.
+    expect(await bgFill(page)).toBe('rgb(51, 51, 102)');
+    expect(warnings.some(w => w.includes('Plain string condition not supported'))).toBe(true);
+});

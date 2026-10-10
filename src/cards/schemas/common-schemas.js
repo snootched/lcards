@@ -162,11 +162,38 @@ export const dataSourcesSchema = {
                             description: 'Processor type',
                             examples: ['convert_unit', 'smooth', 'expression']
                         },
-                        from: {
+                        input_source: {
                             type: 'string',
-                            description: 'Source processor name to depend on (creates dependency chain). If omitted, uses raw entity value.',
+                            description: 'Name of another processor in this pipeline whose output this one reads (creates a dependency chain). If omitted, uses the raw entity value.',
                             examples: ['fahrenheit', 'smoothed', 'scaled']
-                        }
+                        },
+                        enabled: { type: 'boolean', description: 'Set false to pass values through unchanged (default true)' },
+                        // Per-type parameters (see doc/core/datasources/processor-reference.md).
+                        from: { type: 'string', description: 'convert_unit: source unit (e.g. c, f, w, kw). Not a chaining key: use input_source.' },
+                        to: { type: 'string', description: 'convert_unit: target unit' },
+                        input_range: { type: 'array', items: { type: 'number' }, description: 'scale: [min, max] of the input' },
+                        output_range: { type: 'array', items: { type: 'number' }, description: 'scale: [min, max] of the output' },
+                        curve: { type: 'string', enum: ['linear', 'exponential', 'logarithmic', 'sigmoid'], description: 'scale: mapping curve' },
+                        method: { type: 'string', description: 'smooth: exponential | moving_average | gaussian. round: round | floor | ceil' },
+                        alpha: { type: 'number', description: 'smooth (exponential): weight of the newest value, 0 to 1 (default 0.3)' },
+                        window: { type: ['number', 'string'], description: 'smooth: sample count (default 10). statistics: time window like "5m" or "session"' },
+                        expression: { type: 'string', description: 'expression: JavaScript expression using value/v, t, sources, entity and Math helpers' },
+                        sources: { type: 'array', items: { type: 'string' }, description: 'expression: processor names available as sources[0], sources[1], ...' },
+                        stats: { type: 'array', items: { type: 'string' }, description: 'statistics: min, max, mean, median, std_dev, q1, q3, range, count, sum' },
+                        max_points: { type: 'number', description: 'statistics: keep a time series of this many results' },
+                        unit: { type: 'string', enum: ['per_second', 'per_minute', 'per_hour'], description: 'rate: time unit' },
+                        smoothing: { type: 'boolean', description: 'rate: smooth the rate' },
+                        samples: { type: 'number', description: 'trend: samples in the slope window (default 5)' },
+                        threshold: { type: 'number', description: 'trend: slope below which the trend is stable. threshold: switch point' },
+                        above: { description: 'threshold: output when above (default 1)' },
+                        below: { description: 'threshold: output when below (default 0)' },
+                        hysteresis: { type: 'number', description: 'threshold: dead band around the switch point' },
+                        condition: { type: 'string', description: 'duration: condition like "> 20" that starts the timer' },
+                        reset_on: { type: 'string', description: 'duration: condition that resets the timer' },
+                        min: { type: 'number', description: 'clamp: lower bound' },
+                        max: { type: 'number', description: 'clamp: upper bound' },
+                        precision: { type: 'number', description: 'round: decimal places (default 0)' },
+                        absolute: { type: 'boolean', description: 'delta: report the absolute change' }
                     },
                     required: ['type']
                 }
@@ -1909,4 +1936,31 @@ export const stateClassificationSchema = {
         items: { type: 'string' },
         description: 'Custom bucket: an array of raw entity states that map to this bucket name.',
     },
+};
+
+/**
+ * Card-level keys every LCARdS card reads through the LCARdSCard base class
+ * (rules, sounds, zones, variables). Spread into each card schema's properties.
+ */
+export const cardLevelProperties = {
+    rules: rulesSchema,
+    sounds: soundsSchema,
+    variables: {
+        type: 'object',
+        description: 'Your own named values, available to templates as variables.<name> and {variables.<name>}.',
+        additionalProperties: true,
+    },
+    zones: {
+        type: 'object',
+        description: 'Named rectangles (px or *_percent of the card) that text fields and animations can target.',
+        additionalProperties: {
+            type: 'object',
+            properties: {
+                x: { type: 'number' }, y: { type: 'number' }, width: { type: 'number' }, height: { type: 'number' },
+                x_percent: { type: 'number' }, y_percent: { type: 'number' },
+                width_percent: { type: 'number' }, height_percent: { type: 'number' },
+            },
+        },
+    },
+    debug_zones: { type: 'boolean', description: 'Outline every zone on the card (development aid).' },
 };

@@ -1,4 +1,4 @@
-# Sound Effects
+# Sound Configuration
 
 > **LCARS-style audio feedback for card interactions and HA UI events**
 
@@ -136,7 +136,7 @@ HA admin users see an **Edit as admin** dropdown in each scope section. Selectin
 
 ## Triggering from Automations
 
-Use [`lcards.play_sound`](/configuration/ha-actions#lcards-play_sound) to play a sound on demand from an automation (e.g. a subtle chime alongside a kiosk tablet wake routine) without changing alert mode or any screen effect. It respects the master **Sound Effects Enabled** toggle but not the category toggles, and supports the same per-device/per-user [targeting](/configuration/ha-actions#targeting) as every other LCARdS action.
+Use [`lcards.play_sound`](/configuration/ha-actions#lcards-play-sound) to play a sound on demand from an automation (e.g. a subtle chime alongside a kiosk tablet wake routine) without changing alert mode or any screen effect. It respects the master **Sound Effects Enabled** toggle but not the category toggles, and supports the same per-device/per-user [targeting](/configuration/ha-actions#targeting) as every other LCARdS action.
 
 ---
 

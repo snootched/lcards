@@ -25,11 +25,11 @@ The following properties are shared across all LCARdS cards. See [Common Card Pr
 
 | Category | Config keys | Reference |
 |----------|-------------|-----------|
-| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min_height-min_width-max_height-max_width) |
-| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow_x-overflow_y) |
-| Stacking | `z_index` | [Stacking](../common.md#stacking-z_index) |
+| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min-height-min-width-max-height-max-width) |
+| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
+| Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
+| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid-options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
 | Text labels | `text` | [Text Fields](../../core/text-fields.md) |
 | Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
@@ -78,7 +78,7 @@ tags: [nav]                # group tags
 # ── Appearance ─────────────────────────────────────────────────────────────────
 ranges_attribute: ""      # entity attribute for range conditions
 shape_texture:
-  preset: fluid            # SVG texture clipped to the elbow fill
+  preset: fluid            # Canvas2D texture clipped to the elbow fill
 filters: []               # CSS / SVG filters
 
 # ── Text, actions & animations ──────────────────────────────────────────────────
@@ -118,8 +118,9 @@ triggers_update: []
 | `elbow` | object | Elbow geometry and styling: see [Elbow Types](#elbow-types) (required) |
 | `entity` | string | Entity to monitor for state-based styling |
 | `preset` | string | Optional button-style preset base (e.g. `lozenge`, `pill`) |
-| `ranges_attribute` | string | Entity attribute for range conditions: see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
-| `shape_texture` | object | SVG texture inside the elbow shape fill: see [Button card → Shape Texture](../button/#shape-texture) |
+| `ranges_attribute` | string | Entity attribute for range conditions: see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges-attribute) |
+| `state_attribute` | string | Attribute whose string value drives exact-key colour matching; see [state_attribute](../../core/colours.md#exact-match-keys-from-an-attribute-state-attribute) |
+| `shape_texture` | object | Canvas2D texture inside the elbow shape fill: see [Button card → Shape Texture](../button/#shape-texture) |
 | `filters` | list | Visual filters (CSS / SVG filter primitives); see [Filters](../../core/effects/filters.md) |
 
 ---

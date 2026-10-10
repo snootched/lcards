@@ -98,8 +98,8 @@ style:
 | Key | Description |
 |-----|-------------|
 | `default` | Fallback for any unmatched state, or cards without an entity |
-| `active` | Entity is in an on/running/locked state: [see full list](#active-inactive-state-lists) |
-| `inactive` | Entity is off/idle/unlocked: [see full list](#active-inactive-state-lists) |
+| `active` | Entity is in an on/running/locked state: [see full list](/development/colour-resolution.md) |
+| `inactive` | Entity is off/idle/unlocked: [see full list](/development/colour-resolution.md) |
 | `unavailable` | `unavailable` · `unknown` |
 | `zero` | Entity state parses to exactly `0`: checked before range conditions |
 | `non_zero` | Entity state is any non-zero number: catch-all used only when no range condition matched |
@@ -121,7 +121,7 @@ style:
 
 For each colour field, the resolved value is determined in this order:
 
-0. **`state_attribute` match**: if [`state_attribute`](#exact-match-keys-from-an-attribute--state_attribute) is set, `String(entity.attributes[state_attribute])` is looked up first; a matching key wins immediately
+0. **`state_attribute` match**: if [`state_attribute`](#exact-match-keys-from-an-attribute-state-attribute) is set, `String(entity.attributes[state_attribute])` is looked up first; a matching key wins immediately
 1. **Exact state match**: e.g. the entity state is `"heat"` and a `heat:` key exists
 2. **`zero`**: numeric value is exactly `0` and a `zero:` key exists
 3. **Range conditions** (`above:N`/`at_least:N`, `below:N`/`at_most:N`, `between:N:M`/`between_exclusive:N:M`); all matching ranges are evaluated and the most specific one wins:
@@ -452,7 +452,7 @@ state_classification:
 
 Any colour field also accepts a **Jinja2 / JS template string**. The template is evaluated by the LCARdS template pipeline and the result is used as the colour. This is most useful when the logic is too conditional for a flat state-key map.
 
-```yaml no-validate
+```yaml
 type: custom:lcards-button
 entity: climate.living_room
 icon_style:
@@ -470,7 +470,7 @@ For most cases a state map with `state_attribute` is simpler and more readable. 
 
 State-map keys (`active`/`inactive`/`above:N`/…) are always selected by classifying the card's **own** `entity:`; there's no way to make key *selection* read a different entity. If you need a colour to react to an entity other than the one the card displays or controls, put a template in the colour *value* instead: the template can reference any entity via `is_state()` / `state_attr()` regardless of which one the card is bound to:
 
-```yaml no-validate
+```yaml
 type: custom:lcards-slider
 entity: input_number.target_temp   # bound entity - drives the slider's value
 control:

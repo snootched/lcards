@@ -14,7 +14,7 @@
  *   contained-footer-left, contained-footer-right
  *   (and any others exported from elbows/index.js)
  *
- * Pack system guide: doc/architecture/pack-system.md
+ * Pack system guide: doc/architecture/subsystems/pack-system.md
  */
 
 import { elbowComponents } from './components/elbows/index.js';

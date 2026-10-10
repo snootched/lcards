@@ -41,7 +41,7 @@ SoundManager (BaseService singleton)
 | File | Purpose |
 |------|---------|
 | `src/core/sound/SoundManager.js` | Core singleton: all playback, listeners, scheme management |
-| `src/core/packs/sounds/builtin-sounds.js` | `lcards_default` scheme + asset definitions |
+| `src/core/packs/lcards-default-sound-scheme.js` | `lcards_default` scheme + asset definitions |
 | `src/core/helpers/lcards-helper-registry.js` | Helper definitions for 6 sound config helpers |
 | `src/editor/components/sound/lcards-sound-source-selector.js` | Shared per-event source picker (scheme default / mute / bundled asset / HA media) used by all override tables |
 | `src/editor/components/sound/lcards-card-sound-tab.js` | Per-card sound override tab |
@@ -315,7 +315,7 @@ User-scope overrides win on a per-event basis (individual events can be user-ove
 
 1. Add the key to `EVENT_CATEGORY` in `SoundManager.js` with the appropriate category (`'cards'`, `'ui'`, or `'alerts'`).
 2. Add a human-readable label to `SOUND_EVENT_LABELS`.
-3. Add a mapping to `LCARDS_DEFAULT_SCHEME` in `builtin-sounds.js` (use `null` to silence by default).
+3. Add a mapping to `LCARDS_DEFAULT_SCHEME` in `lcards-default-sound-scheme.js` (use `null` to silence by default).
 4. Fire it via `soundManager.play('my_new_event')` at the appropriate call site.
 
 ---

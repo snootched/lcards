@@ -47,3 +47,17 @@ test('anyOf still rejects a value that matches no option', () => {
     assert.equal(result.valid, false);
     assert.equal(result.errors[0]?.field, 'v');
 });
+
+test('template strings are not pattern-checked (they are evaluated at render time)', async () => {
+    const { getButtonSchema } = await import('../../src/cards/schemas/button-schema.js');
+    const { isTemplateString } = await import('../../src/utils/template-string.js');
+    for (const value of ["[[[ return 'red' ]]]", "{{ 'red' }}", '{% if x %}red{% endif %}', '{variables.accent}']) {
+        assert.equal(isTemplateString(value), true, value);
+        const result = service().validate({ type: 'custom:lcards-button', style: { card: { color: { background: value } } } }, getButtonSchema({}));
+        // Regression: documented colour templates warned "Format validation failed".
+        assert.deepEqual([...result.errors, ...result.warnings].map(e => e.message), [], value);
+    }
+    for (const value of ['#ff9900', 'var(--x)', 'red', 'theme:colors.ui.primary']) assert.equal(isTemplateString(value), false, value);
+    const bad = service().validate({ type: 'custom:lcards-button', style: { card: { color: { background: 'not a colour' } } } }, getButtonSchema({}));
+    assert.ok([...bad.errors, ...bad.warnings].some(e => e.message === 'Format validation failed'), 'literals are still checked');
+});

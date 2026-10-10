@@ -162,11 +162,11 @@ These work on every LCARdS card. See [Common Card Properties](../common.md).
 
 | Category | Config keys | Reference |
 |----------|-------------|-----------|
-| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min_height-min_width-max_height-max_width) |
-| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow_x-overflow_y) |
-| Stacking | `z_index` | [Stacking](../common.md#stacking-z_index) |
+| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min-height-min-width-max-height-max-width) |
+| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
+| Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| HA grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
+| HA grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid-options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
 | Animations | `animations` | [Animations](../../core/animations.md) |
 | Rules | via `id` / `tags`; rule `style` patches apply to the grid-wide `style` | [Rules Engine](../../core/rules/) |

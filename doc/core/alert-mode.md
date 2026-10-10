@@ -166,19 +166,13 @@ The **Alert Mode Lab** tab in the LCARdS Config Panel is the primary tool for co
 
 ### Alert Overlay Card
 
-The `lcards-alert-overlay` card provides the full-screen backdrop and content card. Place one instance on any dashboard view where you want overlay behaviour:
+The `lcards-alert-overlay` card provides the full-screen backdrop and content card shown during an alert. Add one to every dashboard view that should react to alert modes, as the last card in the view:
 
 ```yaml
 type: custom:lcards-alert-overlay
-backdrop:
-  blur: 4px
-  tint_color: "rgba(255, 0, 0, 0.15)"
-content_card:
-  position: center
-  width: 400px
 ```
 
-See [Alert Overlay Card](/cards/alert-overlay/) for the full configuration reference.
+Backdrop layers, the content card, its position and size, and dismiss behaviour are all configurable; see [Alert Overlay Card](/cards/alert-overlay/) for the full reference.
 
 ### Rules-Driven Animations
 
@@ -186,13 +180,15 @@ Cards can be configured to animate when specific alert levels are active. This i
 
 ```yaml
 rules:
-  - conditions:
-      - entity: input_select.lcards_alert_mode
-        state: red_alert
+  - id: red-alert-pulse
+    when:
+      entity: input_select.lcards_alert_mode
+      state: red_alert
     apply:
-      animation: pulse_red
-    targets:
-      tags: [status-indicator]
+      animations:
+        - tag: status-indicator
+          preset: pulse
+          loop: true
 ```
 
 See [Rules Engine](rules/) for the full condition and apply reference.

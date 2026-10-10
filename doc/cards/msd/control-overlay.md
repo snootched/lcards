@@ -38,6 +38,9 @@ msd:
 | `anchor` | string | - | Named anchor to centre the overlay on |
 | `position` | array | - | Explicit `[x, y]` coordinates; overrides `anchor` |
 | `size` | array | - | `[width, height]` in viewBox units |
+| `attachment` | string | `center` | Which point of the control aligns with its anchor or position (one of the 9 [attachment points](#attachment-points)) |
+| `position_side` | string | `center` | When `position` names another control's `id`: which point of that control to align to |
+| `triggers_update` | list / `all` | - | Extra entity IDs the embedded card depends on that LCARdS can't detect; `all` sends every HA update to this control (use only when its entities can't be listed) |
 | `visible` | boolean | `true` | Show or hide the overlay |
 | `z_index` | number | - | Stacking order (higher = in front) |
 | `locked` | boolean | `false` | Editor-only: when true, MSD Studio disables drag/resize for this overlay |

@@ -21,6 +21,37 @@ LCARdS share a set of common top-level configuration properties regardless of ca
 | `grid_options` | object | HA grid sizing: `rows` and `columns` for the Lovelace grid (see below) |
 | `data_sources` | object | Named data source definitions: see [Data Sources](../core/datasources/) |
 | `triggers_update` | list | Extra entity IDs that trigger template re-evaluation; see [Templates](../core/templates/#manual-tracking-with-triggers-update) |
+| `preset` | string | Style preset (button, slider, elbow; select menu option buttons): see [Presets](../core/presets.md) |
+| `rules` | list | Rules that restyle this or other cards when conditions match: see [Rules Engine](../core/rules/) |
+| `animations` | list | Trigger-based animations (on load, on tap, on state change, ...): see [Animations](../core/animations.md) |
+| `background_animation` | list | Canvas background effects (button, elbow, slider): see [Background Animations](../core/effects/background-animations.md) |
+| `filters` | list | CSS / SVG filters applied to the card: see [Filters](../core/effects/filters.md) |
+| `sounds` | object | Per-card sound overrides or `enabled: false`: see [Card Sounds](../core/sounds.md) |
+| `variables` | object | Your own named values for templates (see [Variables](#variables-variables) below) |
+| `zones` / `debug_zones` | object / boolean | Extra named text zones, and outlines for every zone: see [Text Fields](../core/text-fields.md) |
+| `state_attribute` / `ranges_attribute` / `state_classification` | string / string / object | Drive state colours from an attribute or custom buckets: see [Colours](../core/colours.md) |
+
+## Variables (`variables`)
+
+`variables` holds your own named values. Reference them in templates so a value used in several places is set once:
+
+```yaml
+type: custom:lcards-button
+entity: light.kitchen
+variables:
+  accent: "var(--lcars-orange)"
+  room: Kitchen
+text:
+  label:
+    content: "{variables.room}"
+style:
+  card:
+    color:
+      background:
+        active: "[[[ return variables.accent ]]]"
+```
+
+Use `{variables.<name>}` in token templates and `variables.<name>` inside `[[[ JavaScript ]]]` templates. See [Templates](../core/templates/).
 
 ## Card Identification (`id` and `tags`)
 
@@ -241,7 +272,7 @@ All LCARdS cards support the following cross-cutting features in addition to the
 | [Actions](../core/actions.md) | `tap_action`, `hold_action`, and `double_tap_action`, any HA action type |
 | [Animations](../core/animations.md) | Trigger-based card animations (on load, on state change, etc.) |
 | [Background Animations](../core/effects/background-animations.md) | Canvas-rendered animated backgrounds (grid, starfield, fluid, etc.) |
-| [Sound Effects](../core/sounds.md) | Per-card audio playback tied to state changes or actions |
+| [Card Sounds](../core/sounds.md) | Per-card audio playback tied to state changes or actions |
 | [Rules Engine](../core/rules/) | Conditional style patches driven by entity state, time, or tags |
 | [Data Sources](../core/datasources/) | Named entity subscriptions with history buffering and processing |
 | [Templates](../core/templates/) | JS, token, DataSource, and Jinja2 template evaluation in any string field |

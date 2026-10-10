@@ -234,6 +234,29 @@ data:
       scroll: 40
 ```
 
+#### `borg-assimilation`
+
+Green tendrils grow across the screen from several injection sites, with nano-probe particles travelling along them. This is the effect behind [Borg Assimilation](../borg.md), and it can be triggered on its own.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `siteCount` | number | `7` | Number of injection sites (1 to 20) |
+| `tendrilsPerSite` | number | `8` | Tendrils grown from each site (1 to 24) |
+| `tendrilLength` | number | `600` | Maximum tendril reach in px (100 to 1200) |
+| `particleCount` | number | `2` | Particles travelling each tendril (0 to 6; `0` disables) |
+| `color` | string | `'#00cc44'` | Tendril, branch and site colour (hex, CSS variable or computed token) |
+| `glowColor` | string | `'#00ff66'` | Glow at each site and around particles |
+
+```yaml
+service: lcards.trigger_effect
+data:
+  layers:
+    canvas:
+      preset: borg-assimilation
+      siteCount: 5
+      color: var(--lcars-martian)
+```
+
 ---
 
 ## HA Service

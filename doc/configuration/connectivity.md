@@ -95,11 +95,13 @@ Paste any valid HA card YAML into the editor. The card is rendered on top of the
 **Example (minimal LCARdS button card):**
 ```yaml
 type: custom:lcards-button
+text:
+  label:
+    content: "NO SIGNAL"
 style:
-  primary_color: "theme:colors.ui.primary"
-text_fields:
-  - text: "NO SIGNAL"
-    zone: body
+  card:
+    color:
+      background: "theme:colors.ui.primary"
 ```
 
 #### Connection Restored Card

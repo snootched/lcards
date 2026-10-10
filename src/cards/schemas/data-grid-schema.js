@@ -14,7 +14,7 @@ import {
     gridOptionsSchema, triggersUpdateSchema, cardIdSchema, tagsSchema,
     cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema,
     cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema,
-    cardOverflowYSchema, cardZIndexSchema
+    cardOverflowYSchema, cardZIndexSchema, cardLevelProperties
 } from './common-schemas.js';
 
 const lengthSchema = (description, examples) => ({
@@ -34,6 +34,8 @@ export const dataGridCellStyleSchema = {
     type: 'object',
     description: 'Cell style. Keys are CSS properties in snake_case (font_size, border_bottom_color, ...). Numbers become px.',
     properties: {
+        // rules, sounds, variables, zones, debug_zones (LCARdSCard base); card entries below win.
+        ...cardLevelProperties,
         color: { ...stateColorSchema, description: 'Text colour, or a state map (default, active, above:80, ...) resolved against the cell entity' },
         background: { ...stateColorSchema, description: 'Background colour, or a state map resolved against the cell entity' },
         font_size: lengthSchema('Font size: number (px) or CSS length', [18, '1.2rem']),

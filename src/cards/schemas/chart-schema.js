@@ -13,7 +13,7 @@
  * @see doc/user/configuration/cards/chart.md
  */
 
-import { simpleColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema } from './common-schemas.js';
+import { simpleColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, cardLevelProperties } from './common-schemas.js';
 
 /**
  * Get complete chart card schema with nested structure
@@ -92,6 +92,8 @@ export function getChartSchema(options = {}) {
             type: 'object',
             description: 'Bucket points into fixed time intervals. minmax, box and ohlc produce the data rangeArea, boxPlot and candlestick charts need.',
             properties: {
+                // rules, sounds, variables, zones, debug_zones (LCARdSCard base); card entries below win.
+                ...cardLevelProperties,
                 func: {
                     type: 'string',
                     enum: ['avg', 'min', 'max', 'first', 'last', 'sum', 'median', 'delta', 'diff', 'minmax', 'box', 'ohlc'],

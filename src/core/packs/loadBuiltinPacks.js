@@ -10,7 +10,7 @@
  * Every pack has its own dedicated file at the packs/ root.
  * No pack data is defined inline here.
  *
- * Pack system guide: doc/architecture/pack-system.md
+ * Pack system guide: doc/architecture/subsystems/pack-system.md
  */
 
 import { LCARDS_BUTTONS_PACK }   from './lcards-buttons-pack.js';

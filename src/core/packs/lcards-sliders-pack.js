@@ -11,7 +11,7 @@
  * interactivity (control.locked). The component chosen determines
  * the SVG shell; the style preset determines appearance.
  *
- * Pack system guide: doc/architecture/pack-system.md
+ * Pack system guide: doc/architecture/subsystems/pack-system.md
  */
 
 import { SLIDER_PRESETS } from './style-presets/sliders/index.js';

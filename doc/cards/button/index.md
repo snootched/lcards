@@ -35,11 +35,11 @@ The following properties are shared across LCARdS cards. See [Common Card Proper
 
 | Category | Config keys | Reference |
 |----------|-------------|-----------|
-| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min_height-min_width-max_height-max_width) |
-| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow_x-overflow_y) |
-| Stacking | `z_index` | [Stacking](../common.md#stacking-z_index) |
+| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min-height-min-width-max-height-max-width) |
+| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
+| Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid_options) |
+| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid-options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
 | Text labels | `text` | [Text Fields](../../core/text-fields.md) |
 | Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
@@ -216,10 +216,10 @@ Horizontal bars with an opaque text background that creates a "break" in the bar
 | `preset` | string | Button shape preset: see [Presets](#presets) |
 | `component` | string | Component type: `dpad` or `alert`; see [Component Mode: D-pad](#component-mode-d-pad) |
 | `svg` | object | Custom SVG config: see [Custom SVG Mode](#custom-svg-mode) |
-| `interactive` | boolean | `true` by default. Set `false` to suppress hover effects; see [Decorative Buttons](#decorative--non-interactive-buttons) |
-| `ranges_attribute` | string | Entity attribute for range conditions: see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) |
-| `state_attribute` | string | Attribute whose string value drives exact-key colour matching; see [state_attribute](../../core/colours.md#exact-match-keys-from-an-attribute--state_attribute) |
-| `state_classification` | object | Override which state bucket unmapped states fall into (`else: default\|active\|inactive`): see [state_classification](../../core/colours.md#custom-state-classification--state_classification) |
+| `interactive` | boolean | `true` by default. Set `false` to suppress hover effects; see [Decorative Buttons](#decorative-non-interactive-buttons) |
+| `ranges_attribute` | string | Entity attribute for range conditions: see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges-attribute) |
+| `state_attribute` | string | Attribute whose string value drives exact-key colour matching; see [state_attribute](../../core/colours.md#exact-match-keys-from-an-attribute-state-attribute) |
+| `state_classification` | object | Override which state bucket unmapped states fall into (`else: default\|active\|inactive`): see [state_classification](../../core/colours.md#custom-state-classification-state-classification) |
 | `ranges` | list | State-driven preset switching: see [Component Mode: Alert](#component-mode-alert) |
 | `control` | object | Control behaviour: see [Control](#control) |
 | `show_icon` | boolean | Show/hide the icon (default: `true`) |
@@ -227,12 +227,12 @@ Horizontal bars with an opaque text background that creates a "break" in the bar
 | `icon_area` | string | Icon position: `left`, `right`, `top`, `bottom`, `none` (default: `left`) |
 | `icon_area_size` | number | Icon area width/height in px (default: `60`) |
 | `icon_area_background` | string / object | Icon area background: [state map](../../core/colours.md) supported |
-| `icon_style` | object | Advanced icon styling: see [`icon_style` Object](#icon_style-object) |
+| `icon_style` | object | Advanced icon styling: see [`icon_style` Object](#icon-style-object) |
 | `divider` | object | Divider between icon area and content: see [`divider` Object](#divider-object) |
 | `dpad` | object | D-pad segment config: see [Component Mode: D-pad](#component-mode-d-pad) |
 | `alert` | object | Alert component config: see [Component Mode: Alert](#component-mode-alert) |
 | `style` | object | Visual styles: see [`style` Object](#style-object) |
-| `shape_texture` | object | SVG texture inside the button shape: see [Shape Texture](#shape-texture) |
+| `shape_texture` | object | Canvas2D texture drawn inside the button shape: see [Shape Texture](#shape-texture) |
 | `filters` | list | CSS / SVG filters: see [`filters` List](#filters-list) |
 
 ---
@@ -339,7 +339,7 @@ icon_style:
     below:20: mdi:lightbulb-outline
 ```
 
-The same resolution order as state-based colours applies (exact state → zero → ranges → non_zero → classified → default). See [Range Conditions on Non-Numeric Entities](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges_attribute) for the `ranges_attribute` pattern.
+The same resolution order as state-based colours applies (exact state → zero → ranges → non_zero → classified → default). See [Range Conditions on Non-Numeric Entities](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges-attribute) for the `ranges_attribute` pattern.
 
 ---
 
@@ -571,6 +571,14 @@ shape_texture:
   speed: 1.0              # 0 = static
   config: {}
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `preset` | string | Texture preset (see below) |
+| `opacity` | number / state map | Texture opacity, 0 to 1 |
+| `mix_blend_mode` | string | How the texture blends with the fill: `normal`, `multiply`, `screen`, `overlay`, `hard-light`, `soft-light`, `color-burn`, `color-dodge` |
+| `speed` | number | Animation speed multiplier; `0` keeps it static |
+| `config` | object | Preset parameters (see Key Config below) |
 
 ### Available Presets
 

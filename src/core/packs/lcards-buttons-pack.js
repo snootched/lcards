@@ -7,8 +7,8 @@
  * Pack key:  lcards_buttons
  * Registry:  StylePresetManager → style_presets.button.*
  *
- * Schema reference:   doc/architecture/button-schema-definition.md
- * Pack system guide:  doc/architecture/pack-system.md
+ * Schema reference:   src/cards/schemas/button-schema.js (doc/cards/button/index.md)
+ * Pack system guide:  doc/architecture/subsystems/pack-system.md
  */
 
 import { BUTTON_PRESETS } from './style-presets/buttons/index.js';

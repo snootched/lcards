@@ -160,14 +160,14 @@ const STAGE_CONFIG = {
 const stageCfg = STAGE_CONFIG[props.preset] || { kind: 'box' }
 
 // Presets whose real visual work happens entirely inside setup() (WAAPI or
-// self-managed anime calls) — the normal anime.animate() dispatch below must
+// self-managed anime calls): the normal anime.animate() dispatch below must
 // be skipped entirely for these, matching animateElement()'s own behavior.
 const SELF_MANAGED_PRESETS = new Set(['stagger-flash'])
 
-// Full v4 named-easing surface (bare names — v4 dropped the v3 'ease' prefix),
+// Full v4 named-easing surface (bare names: v4 dropped the v3 'ease' prefix),
 // used to populate a real <select> instead of free text. Matches the set the
 // in-app animation editor's own dropdown offers (minus the parametric/advanced
-// options — cubicBezier/spring/steps/irregular/custom — which need their own
+// options: cubicBezier/spring/steps/irregular/custom: which need their own
 // param objects and are out of scope for a plain string field here).
 const EASE_OPTIONS = (() => {
   const bases = ['Quad', 'Cubic', 'Quart', 'Quint', 'Sine', 'Expo', 'Circ', 'Back', 'Elastic', 'Bounce']
@@ -178,7 +178,7 @@ const EASE_OPTIONS = (() => {
 })()
 
 // Synthetic "sample data" for presets whose demo can't just be schema
-// defaults — required fields with no schema default (a stand-in for the
+// defaults: required fields with no schema default (a stand-in for the
 // entity a real dashboard would supply), fields with no default that still
 // need a realistic example so a JSON textarea never starts blank, or
 // defaults that are technically correct but a poor fit for an HTML/CSS demo
@@ -190,7 +190,7 @@ const PRESET_DEMO_DEFAULTS = {
   'stagger-grid': () => ({ grid: [6, 2] }),
   'grid-stagger': () => ({ grid: [6, 3] }),
   // timeline-cascade's real default (loop:false) plays this once and then
-  // just sits there — loop it here so the two-phase sequence is actually
+  // just sits there: loop it here so the two-phase sequence is actually
   // visible without needing to mash Replay.
   'timeline-cascade': () => ({
     steps: [
@@ -211,15 +211,15 @@ const PRESET_DEMO_DEFAULTS = {
   set: () => ({ properties: { opacity: 0.55 } }),
   draw: () => ({ draw: ['0 0', '0 1'] }),
   // Real default `mode` ('css') applies one flat delay to every matched
-  // element — a single cascade-color instance across a whole grid is
+  // element: a single cascade-color instance across a whole grid is
   // genuinely supposed to change all cells in sync (the "per-row cascade"
   // look requires multiple separate instances, one per row, each with its
-  // own delay — see the preset's own JSDoc "Usage Pattern" example, and
+  // own delay: see the preset's own JSDoc "Usage Pattern" example, and
   // lcards-data-grid's pattern:/niagara orchestration which does exactly
   // that). Forcing `stagger_from` here switches to 'animejs' mode so this
   // single demo instance still shows real per-cell staggering.
   'cascade-color': () => ({ colors: ['#93e1ff', '#002241', '#dfe1e8'], stagger_from: 'first' }),
-  // Real default (loop:false, alternate:false) ends at opacity:0 — the
+  // Real default (loop:false, alternate:false) ends at opacity:0: the
   // element visibly vanishes after one pass and never comes back without
   // Replay. Loop it for a demo that stays visible.
   ripple: () => ({ loop: true, alternate: true }),
@@ -260,8 +260,8 @@ function humanize(key) {
 
 const CANONICAL_KEYS = new Set(['duration', 'ease', 'loop', 'alternate', 'delay'])
 
-// Renders demo controls straight from the schema — the same shape the real
-// in-app animation editor reads (x-ui-hints) — so new presets need no
+// Renders demo controls straight from the schema: the same shape the real
+// in-app animation editor reads (x-ui-hints): so new presets need no
 // hand-written UI here, only an entry above if their demo needs multiple
 // targets, text, or SVG geometry.
 function buildControls(schema) {
@@ -286,7 +286,7 @@ function buildControls(schema) {
     const hint = def['x-ui-hints']
     // oneOf fields with a string+enum branch (e.g. stagger-grid/stagger-radial/
     // grid-stagger's `from`) get a real dropdown of the documented values
-    // instead of a raw JSON textarea — the array-position branch (custom
+    // instead of a raw JSON textarea: the array-position branch (custom
     // [x,y]) is a rarer, advanced case not covered by this control; it's
     // still settable by hand in the YAML, just not live-tweakable here.
     const enumBranch = Array.isArray(def.oneOf) ? def.oneOf.find((b) => b.type === 'string' && Array.isArray(b.enum)) : null
@@ -307,7 +307,7 @@ function buildControls(schema) {
       out.push({ key, label: hint?.label || humanize(key), kind: 'text' })
     }
     // oneOf-shaped / untyped fields (e.g. slide.distance) fall through with
-    // no control — they still work via their schema/seed default, just
+    // no control: they still work via their schema/seed default, just
     // aren't live-tweakable in this first pass.
   }
 
@@ -349,7 +349,7 @@ function resolveElements() {
 }
 
 // Trimmed, DOM-only re-implementation of animateElement()'s dispatch logic
-// (lcards-anim-helpers.js) — same marker vocabulary (_timeline/_stagger/
+// (lcards-anim-helpers.js): same marker vocabulary (_timeline/_stagger/
 // _cssAnimation/_animTargets/_drawable/_motionPath), without the
 // HASS/trigger-manager machinery a static docs demo doesn't need.
 function playResult(elements, result) {
@@ -366,7 +366,7 @@ function playResult(elements, result) {
 
   // `_timeline` is a top-level sibling of `.anime` on some presets (sequence)
   // but nested inside `.anime` on others (timeline-cascade, timeline-attention)
-  // — animateElement() explicitly checks both (see lcards-anim-helpers.js
+  // animateElement() explicitly checks both (see lcards-anim-helpers.js
   // ~line 892-902); checking only the nested form silently no-ops `sequence`
   // (its returned `steps` array gets passed through as a bogus tween property).
   const isTimeline = result._timeline === true || animeParams._timeline === true
@@ -397,11 +397,11 @@ function playResult(elements, result) {
     })
   }
 
-  // Target resolution — mirrors animateElement()'s _drawable → _animTargets
+  // Target resolution: mirrors animateElement()'s _drawable → _animTargets
   // precedence (lcards-anim-helpers.js ~line 975-1003), with _motionPath
   // merged in on top regardless of which branch fired (~line 1005-1012).
   // _animTargets can be an array (text presets' split chars) OR a single
-  // element (motionpath's self-contained tracer shape) — anime.animate()
+  // element (motionpath's self-contained tracer shape): anime.animate()
   // accepts both natively, so no array check is needed (an earlier version
   // of this dispatcher required an array here, which silently left
   // motionpath's tracer un-animated at its original 0,0 position).
@@ -419,7 +419,7 @@ function playResult(elements, result) {
   return animeLib.animate(target, processed)
 }
 
-// Plays against the CURRENT DOM state — never remounts by itself. Called
+// Plays against the CURRENT DOM state: never remounts by itself. Called
 // only right after a fresh mount (initial load or a key-bumped remount via
 // fullReplay()), so setup()'s DOM mutations (text-splitting, WAAPI
 // animations, injected keyframes) always start from pristine elements.
@@ -437,7 +437,7 @@ function play() {
 
 // The only path that (re)plays an animation. Always pauses whatever's
 // currently running, then remounts the stage from scratch (fresh DOM, via
-// the :key bump) before playing again — several presets do non-idempotent
+// the :key bump) before playing again: several presets do non-idempotent
 // setup() work (anime.js's splitText wrapping characters in spans, WAAPI
 // animations layered via closures in stagger-flash) that corrupts state or
 // double-fires if re-run against already-mutated elements instead of a
@@ -454,7 +454,7 @@ function schedulePlay() {
   debounceTimer = setTimeout(fullReplay, 150)
 }
 
-// Just tracks the ref — must NOT trigger playback itself. It also fires on
+// Just tracks the ref: must NOT trigger playback itself. It also fires on
 // every remount (replayKey change), and fullReplay() already schedules its
 // own play() via nextTick; playing here too caused every replay/param edit
 // to run two overlapping animation instances on the same elements.
@@ -486,8 +486,8 @@ onMounted(async () => {
     const animeMod = await import('animejs')
     animeLib = animeMod.default ?? animeMod
 
-    // Mirrors src/lcards.js's `window.lcards.anim` block — pure anime.js
-    // wiring, no HASS dependency — so preset internals that reach for
+    // Mirrors src/lcards.js's `window.lcards.anim` block: pure anime.js
+    // wiring, no HASS dependency: so preset internals that reach for
     // window.lcards.animejs.* (createDrawable, createMotionPath, stagger,
     // splitText, createSpring) get the real thing instead of silently
     // falling back.
@@ -533,7 +533,7 @@ onMounted(async () => {
     Object.assign(localParams, PRESET_DEMO_DEFAULTS[props.preset]?.() || {})
     // 3. Canonical duration/ease/loop/alternate fallback from the preset's own
     //    resolved output, since each preset hardcodes its own fallback rather
-    //    than declaring a schema default — keeps the demo honest even where a
+    //    than declaring a schema default: keeps the demo honest even where a
     //    preset's real default has drifted from its prose docs.
     try {
       const probe = getPreset({ ...localParams })

@@ -1,4 +1,4 @@
-# Sound Effects
+# Card Sounds
 
 LCARdS cards play audio feedback automatically for interactions: taps, holds, hover, slider drags, and toggle state changes. No config is needed to get the default behaviour; sounds follow the active scheme and global settings set up in [Sound Configuration](../configuration/sounds.md).
 
@@ -116,5 +116,5 @@ sounds:
 ## See Also
 
 - [Sound Configuration](../configuration/sounds.md): system-wide setup, schemes, per-user and per-device overrides
-- [HA Actions: `lcards.play_sound`](../configuration/ha-actions.md#lcards-play_sound): trigger a sound from an automation
+- [HA Actions: `lcards.play_sound`](../configuration/ha-actions.md#lcards-play-sound): trigger a sound from an automation
 - [Actions](actions.md): tap, hold, and double-tap action configuration
