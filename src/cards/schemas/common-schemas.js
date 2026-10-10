@@ -68,8 +68,8 @@ export const dataSourcesSchema = {
                 history: { hours: 6 },
                 processing: {
                     fahrenheit: { type: 'convert_unit', from: 'c', to: 'f' },
-                    smoothed: { type: 'smooth', from: 'fahrenheit', method: 'exponential', alpha: 0.3 },
-                    rounded: { type: 'round', from: 'smoothed', precision: 1 }
+                    smoothed: { type: 'smooth', input_source: 'fahrenheit', method: 'exponential', alpha: 0.3 },
+                    rounded: { type: 'round', input_source: 'smoothed', precision: 1 }
                 }
             },
             power: {

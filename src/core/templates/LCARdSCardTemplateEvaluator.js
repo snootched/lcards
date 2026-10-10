@@ -196,7 +196,9 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
     // - {entity.state}
     // - {config.name}
     // - {theme:colors.text.onDark}
-    const tokenRegex = /\{(?!\{)(?!%)(?!#)(?!datasource:)(?!ds:)([^{}]+)\}/g;
+    // (?<!\{) stops a match on the inner brace of {{ ... }}: without it, mixed
+    // content like "{entity.state} {{ states('x') }}" lost its Jinja2 expression.
+    const tokenRegex = /(?<!\{)\{(?!\{)(?!%)(?!#)(?!datasource:)(?!ds:)([^{}]+)\}/g;
 
     return content.replace(tokenRegex, (match, token) => {
       try {

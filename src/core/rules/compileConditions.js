@@ -35,7 +35,8 @@ function compileNode(node, issues, ruleId) {
 
   // ✨ NEW: Auto-detect template type from 'condition' field
   if (node.condition) {
-    const conditionStr = String(node.condition);
+    // Trimmed: a YAML block scalar (`condition: |`) keeps a trailing newline.
+    const conditionStr = String(node.condition).trim();
 
     // Debug: Log condition string to help diagnose YAML escaping issues
     if (conditionStr.includes('[[[') || conditionStr.includes('{{')) {
@@ -105,7 +106,14 @@ function compileNode(node, issues, ruleId) {
       c.equals = c.state;
       delete c.state;
     }
-    return { type: node.entity ? 'entity' : 'entity_attr', c };
+    // Attribute conditions come in two forms: `entity_attr: light.x` (documented)
+    // and `entity: light.x` + `attribute:` (written by the condition editor).
+    // Both compare `attributes[attribute]` of the entity.
+    if (node.entity_attr != null || node.attribute != null) {
+      if (!c.entity && typeof node.entity_attr === 'string') c.entity = node.entity_attr;
+      return { type: 'entity_attr', c };
+    }
+    return { type: 'entity', c };
   }
   if (node.time_between) {
     return { type: 'time_between', range: node.time_between };

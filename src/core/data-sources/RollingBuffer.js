@@ -175,7 +175,8 @@ export class RollingBuffer {
     const { t, v } = this.getArrays();
 
     // Find first index where timestamp >= cutoffTime
-    let startIndex = 0;
+    // Default past the end: if every point is older than the window, return none.
+    let startIndex = t.length;
     for (let i = 0; i < t.length; i++) {
       if (t[i] >= cutoffTime) {
         startIndex = i;

@@ -218,9 +218,9 @@ export class RulesEngine extends BaseService {
         }
       }
 
-      // Entity attribute reference (e.g., "sensor.temp.state")
-      if (condition.entity_attr) {
-        const entityId = condition.entity_attr.split('.')[0];
+      // Entity attribute reference: `entity_attr: sensor.temp` (+ `attribute:`)
+      if (typeof condition.entity_attr === 'string') {
+        const entityId = condition.entity_attr.split('.').slice(0, 2).join('.');
         entities.add(entityId);
       }
 

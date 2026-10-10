@@ -205,7 +205,8 @@ export class LCARdSConditionGroupEditor extends LitElement {
         if (cond.condition !== undefined) {
             const cs = String(cond.condition);
             if (cs.includes('[[[') && cs.includes(']]]')) {
-                return { _type: 'javascript', template: cs.slice(3, -3).trim() };
+                // Trimmed: a YAML block scalar (`condition: |`) keeps a trailing newline.
+                return { _type: 'javascript', template: cs.trim().slice(3, -3).trim() };
             }
             return { _type: 'jinja2', template: cs };
         }
