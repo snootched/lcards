@@ -1,74 +1,60 @@
 /**
- * @fileoverview LCARdS Processor Tree Editor
+ * @fileoverview Processing tab of the data source editor: a live preview of the
+ * pipeline over the entity's history, the processors as a tree (each under its
+ * input, numbered in execution order), and the selected processor's settings,
+ * edited inline.
  *
- * Professional split-pane tree editor for processor pipelines.
- * Left pane: Collapsible dependency tree
- * Right pane: Selected processor details with inline editing
- *
- * Features:
- * - Tree view with expand/collapse
- * - Visual dependency hierarchy
- * - Execution order badges
- * - Detail pane with config display
- * - Quick actions (Edit, Delete, Duplicate)
- * - Branching support (multiple processors depending on same parent)
- *
- * Pattern based on DataSource Browser split-pane design.
+ * Execution order and configuration errors come from the real ProcessorManager
+ * (runProcessorPreview), so they always match what a data source does.
  *
  * @element lcards-processor-tree-editor
- * @fires change - When processors config changes with {value: processingConfig}
+ * @fires change - When the processing map changes, detail: { value: processingConfig }
  *
  * @property {Object} hass - Home Assistant instance
- * @property {Object} value - Current processing config (object with processor keys)
- * @property {string} label - Field label
+ * @property {Object} value - The processing map ({ name: { type, ... } })
+ * @property {Object} entry - The whole data source config (for the preview)
+ * @property {string} label - Section label
  */
 
 import { LitElement, html, css, nothing } from 'lit';
-import { lcardsLog } from '../../../utils/lcards-logging.js';
-import './lcards-processor-editor.js';
+import { runProcessorPreview } from '../../../core/data-sources/processor-preview.js';
+import { PROCESSOR_TYPES, processorType, renameProcessor, uniqueProcessorKey, PROCESSOR_KEY_PATTERN } from './processor-types.js';
+import './lcards-processor-form.js';
+import './lcards-processor-preview.js';
+import '../shared/lcards-message.js';
 
 export class LCARdSProcessorTreeEditor extends LitElement {
   static get properties() {
     return {
-      hass: { type: Object },
-      value: { type: Object },
+      hass: { attribute: false },
+      value: { attribute: false },
+      entry: { attribute: false },
       label: { type: String },
-      _processors: { type: Array, state: true },
-      _executionOrder: { type: Array, state: true },
-      _dependencyErrors: { type: Array, state: true },
-      _selectedNode: { type: Object, state: true },
-      _expandedNodes: { state: true, attribute: false },
-      _editorOpen: { type: Boolean, state: true },
-      _editorMode: { type: String, state: true },
-      _editingKey: { type: String, state: true },
-      _editingConfig: { type: Object, state: true }
+      _selectedKey: { state: true },
+      _adding: { state: true },
+      _newType: { state: true },
+      _newName: { state: true },
+      _preview: { state: true },
     };
   }
 
   constructor() {
     super();
-        /** @type {any} */
-        this.hass = undefined;
+    /** @type {any} */
+    this.hass = undefined;
+    /** @type {Object} */
     this.value = {};
+    /** @type {any} */
+    this.entry = null;
     this.label = 'Processors';
-    this._processors = [];
-    this._executionOrder = [];
-    this._dependencyErrors = [];
-    this._selectedNode = null;
-    this._expandedNodes = new Set();
-    this._editorOpen = false;
-    this._editorMode = 'add';
-    this._editingKey = null;
-    this._editingConfig = null;
-  }
-
-  updated(changedProps) {
-    super.updated(changedProps);
-
-    if (changedProps.has('value')) {
-      this._updateProcessorsList();
-      this._computeExecutionOrder();
-    }
+    this._selectedKey = '';
+    this._adding = false;
+    this._newType = 'smooth';
+    this._newName = '';
+    /** @type {any} Latest preview result (runtime errors, latest values) */
+    this._preview = null;
+    /** @type {any} The data source config the preview runs (see willUpdate) */
+    this._previewEntry = null;
   }
 
   static get styles() {
@@ -76,675 +62,326 @@ export class LCARdSProcessorTreeEditor extends LitElement {
       :host {
         display: block;
       }
-
-      .container {
-        display: flex;
-        flex-direction: column;
-        border: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
-        border-radius: var(--ha-card-border-radius, 12px);
-        background: var(--primary-background-color, #fafafa);
-        overflow: hidden;
-        height: calc(55vh - 60px);
+      lcards-processor-preview {
+        margin-bottom: var(--ha-space-4);
       }
-
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px;
-        flex-shrink: 0;
-      }
-
-      .header h3 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 500;
-        color: var(--primary-text-color);
-      }
-
-      /* Error display */
-      .error-list {
-        background: var(--error-color, #f44336);
-        color: white;
-        padding: 12px 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .error-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 14px;
-      }
-
-      /* Split pane layout */
-      .split-pane-container {
+      .errors {
         display: grid;
-        grid-template-columns: 35% 65%;
-        grid-template-rows: 1fr;
-        gap: 12px;
-        flex: 1;
-        overflow: hidden;
+        gap: var(--ha-space-1);
+        margin-bottom: var(--ha-space-3);
       }
-
-      /* Tree pane (left) */
-      .tree-pane {
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        border-right: var(--ha-border-width-sm) solid var(--divider-color);
-        min-height: 0;
+      .split {
+        display: grid;
+        grid-template-columns: minmax(200px, 32%) 1fr;
+        gap: var(--ha-space-4);
+        min-height: 280px;
       }
-
-      .tree-pane-header {
+      @media (max-width: 700px) {
+        .split {
+          grid-template-columns: 1fr;
+        }
+      }
+      .tree {
+        border: var(--ha-border-width-sm) solid var(--divider-color);
+        border-radius: var(--ha-border-radius-md);
+        padding: var(--ha-space-2);
+        align-self: start;
+      }
+      .tree-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 16px;
-        border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
-        flex-shrink: 0;
-      }
-
-      .tree-pane-header span {
-        font-weight: 500;
-        font-size: 14px;
+        gap: var(--ha-space-2);
+        padding: var(--ha-space-1) var(--ha-space-1) var(--ha-space-2);
+        font-weight: 600;
         color: var(--primary-text-color);
       }
-
-      .tree-container {
-        flex: 1;
-        overflow-y: auto;
-        padding: 12px;
-      }
-
-      /* Tree nodes */
-      .tree-node {
-        margin-left: calc(var(--node-level, 0) * 16px);
-        margin-bottom: 2px;
-      }
-
-      .tree-node-content {
+      .node {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px;
-        border-radius: 6px;
+        gap: var(--ha-space-2);
+        width: 100%;
+        box-sizing: border-box;
+        padding: var(--ha-space-2);
+        padding-left: calc(var(--ha-space-2) + var(--depth, 0) * var(--ha-space-4));
+        border: none;
+        border-radius: var(--ha-border-radius-sm);
+        background: none;
+        color: var(--primary-text-color);
+        font: inherit;
+        text-align: left;
         cursor: pointer;
-        transition: all 0.15s;
-        user-select: none;
       }
-
-      .tree-node-content:hover {
+      .node:hover {
         background: var(--secondary-background-color);
       }
-
-      .tree-node-content.selected {
+      .node.selected {
         background: var(--primary-color);
-        color: var(--text-primary-color, white);
+        color: var(--text-primary-color);
       }
-
-      .tree-expander {
-        width: 16px;
-        text-align: center;
-        font-size: 12px;
-        cursor: pointer;
-        transition: transform 0.2s;
-      }
-
-      .tree-expander.leaf {
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      .execution-order {
-        font-size: 11px;
-        font-weight: 600;
-        background: var(--primary-color);
-        color: white;
+      .order {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         width: 20px;
         height: 20px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
+        border-radius: var(--ha-border-radius-circle);
+        background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+        font-size: 11px;
+        font-weight: 600;
       }
-
-      .tree-node-content.selected .execution-order {
-        background: white;
-        color: var(--primary-color);
+      .node.selected .order {
+        background: color-mix(in srgb, var(--text-primary-color) 25%, transparent);
       }
-
-      .node-label {
+      .name {
         flex: 1;
-        font-size: 16px;
-        font-weight: 500;
-      }
-
-      .node-type {
-        font-size: 12px;
-        padding: 2px 8px;
-        background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-        color: var(--primary-color);
-        border-radius: 8px;
-        font-weight: 500;
-      }
-
-      .tree-node-content.selected .node-type {
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-      }
-
-      /* Detail pane (right) */
-      .detail-pane {
-        display: flex;
-        flex-direction: column;
+        min-width: 0;
         overflow: hidden;
-        min-height: 0;
-        padding: 12px;
+        text-overflow: ellipsis;
+        font-weight: 500;
       }
-
-      .detail-pane-content {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-      }
-
-      .detail-panel-empty {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-        color: var(--secondary-text-color);
-        gap: 12px;
-      }
-
-      .detail-panel-empty ha-icon {
-        --mdc-icon-size: 64px;
-        opacity: 0.3;
-      }
-
-      .detail-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 16px;
-        border-radius: 8px;
-        margin-bottom: 16px;
-      }
-
-      .detail-header h3 {
-        margin: 0;
-        flex: 1;
-        font-size: 18px;
-        font-weight: 600;
-      }
-
-      .detail-type-badge {
-        padding: 6px 14px;
-        background: var(--primary-color);
-        color: var(--text-primary-color, white);
-        border-radius: 12px;
+      .node-type {
+        flex: none;
         font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
+        opacity: 0.8;
       }
-
-      /* Action buttons */
-      .action-buttons {
-        display: flex;
-        gap: 8px;
-        padding: 0 16px 16px;
-        flex-wrap: wrap;
-      }
-
-      /* Config display */
-      .config-section {
-        padding: 0 16px 16px;
-      }
-
-      .config-section h4 {
-        margin: 0 0 8px;
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--primary-text-color);
-      }
-
-      .config-display {
-        background: var(--code-background-color, #1e1e1e);
-        border-radius: 8px;
-        padding: 12px;
-        font-family: 'Courier New', monospace;
+      .empty {
+        padding: var(--ha-space-4) var(--ha-space-2);
+        color: var(--secondary-text-color);
         font-size: 13px;
-        color: var(--primary-color);
-        overflow-x: auto;
+        text-align: center;
       }
-
-      .config-display pre {
-        margin: 0;
-        white-space: pre-wrap;
-        word-break: break-word;
+      .add {
+        display: grid;
+        gap: var(--ha-space-2);
+        padding: var(--ha-space-2);
+        margin-bottom: var(--ha-space-2);
+        border-radius: var(--ha-border-radius-sm);
+        background-color: color-mix(
+          in srgb,
+          var(--secondary-background-color) 50%,
+          color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+        );
       }
-
-      .dependency-section {
-        padding: 0 16px 16px;
+      .add-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--ha-space-2);
       }
-
-      .dependency-info {
-        font-size: 14px;
+      .add-help {
+        font-size: 12px;
         color: var(--secondary-text-color);
       }
-
-      .dependency-info strong {
-        color: var(--primary-text-color);
-      }
-
-      .empty-state {
+      .detail-empty {
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 48px 24px;
+        min-height: 200px;
         color: var(--secondary-text-color);
         text-align: center;
       }
-
-      .empty-icon {
-        font-size: 48px;
-        margin-bottom: 16px;
-        opacity: 0.5;
-      }
     `;
   }
 
-  // ========== Data Management ==========
-
-  _updateProcessorsList() {
-    if (!this.value || typeof this.value !== 'object') {
-      this._processors = [];
-      return;
-    }
-
-    this._processors = Object.entries(this.value).map(([key, config]) => ({
-      key,
-      config,
-      type: config.type || 'unknown',
-      from: config.input_source || null
-    }));
+  /** Execution order and configuration errors from the real ProcessorManager (no points needed). */
+  get _structure() {
+    return runProcessorPreview({ processing: this.value ?? {} }, []);
   }
 
-  _computeExecutionOrder() {
-    if (this._processors.length === 0) {
-      this._executionOrder = [];
-      this._dependencyErrors = [];
-      return;
+  willUpdate(changed) {
+    // One object per config change: the preview reruns when its entry changes, and
+    // its result re-renders this element.
+    if (changed.has('value') || changed.has('entry') || !this._previewEntry) {
+      this._previewEntry = { ...(this.entry ?? {}), processing: this.value ?? {} };
     }
-
-    try {
-      // Build dependency graph
-      const graph = new Map();
-      const inDegree = new Map();
-
-      // Initialize
-      this._processors.forEach(proc => {
-        graph.set(proc.key, []);
-        inDegree.set(proc.key, 0);
-      });
-
-      // Build edges
-      this._processors.forEach(proc => {
-        if (proc.from) {
-          if (!graph.has(proc.from)) {
-            this._dependencyErrors.push(
-              `Processor "${proc.key}" depends on non-existent "${proc.from}"`
-            );
-          } else {
-            graph.get(proc.from).push(proc.key);
-            inDegree.set(proc.key, inDegree.get(proc.key) + 1);
-          }
-        }
-      });
-
-      // Topological sort
-      const queue = [];
-      const order = [];
-
-      inDegree.forEach((degree, key) => {
-        if (degree === 0) queue.push(key);
-      });
-
-      while (queue.length > 0) {
-        const current = queue.shift();
-        order.push(current);
-
-        graph.get(current).forEach(dependent => {
-          inDegree.set(dependent, inDegree.get(dependent) - 1);
-          if (inDegree.get(dependent) === 0) {
-            queue.push(dependent);
-          }
-        });
-      }
-
-      // Check for circular dependencies
-      if (order.length !== this._processors.length) {
-        const remaining = this._processors.map(p => p.key).filter(k => !order.includes(k));
-        this._dependencyErrors = [
-          `Circular dependency detected: ${remaining.join(', ')}`
-        ];
-        this._executionOrder = this._processors.map(p => p.key);
-      } else {
-        this._executionOrder = order;
-        this._dependencyErrors = [];
-      }
-    } catch (error) {
-      lcardsLog.error('[ProcessorTreeEditor] Failed to compute execution order:', error);
-      this._dependencyErrors = [error.message];
-      this._executionOrder = this._processors.map(p => p.key);
+    if (changed.has('value')) {
+      const keys = Object.keys(this.value ?? {});
+      if (!keys.includes(this._selectedKey)) this._selectedKey = keys[0] ?? '';
     }
   }
-
-  _buildTree() {
-    const roots = [];
-    const childrenMap = new Map();
-
-    // Initialize children map
-    this._processors.forEach(proc => {
-      childrenMap.set(proc.key, []);
-    });
-
-    // Categorize processors
-    this._processors.forEach(proc => {
-      if (!proc.from) {
-        // No dependency - definitely a root
-        roots.push(proc);
-      } else if (childrenMap.has(proc.from)) {
-        // Has dependency and parent exists - add as child
-        childrenMap.get(proc.from).push(proc);
-      } else {
-        // Has dependency but parent doesn't exist - treat as orphaned root
-        roots.push(proc);
-      }
-    });
-
-    return { roots, childrenMap };
-  }
-
-  // ========== Tree Interaction ==========
-
-  _toggleNode(nodeId) {
-    if (this._expandedNodes.has(nodeId)) {
-      this._expandedNodes.delete(nodeId);
-    } else {
-      this._expandedNodes.add(nodeId);
-    }
-    this.requestUpdate();
-  }
-
-  _selectNode(processor) {
-    this._selectedNode = processor;
-    this.requestUpdate();
-  }
-
-  // ========== CRUD Handlers ==========
-
-  _handleAdd() {
-    this._editorMode = 'add';
-    this._editingKey = null;
-    this._editingConfig = null;
-    this._editorOpen = true;
-  }
-
-  _handleEdit(key) {
-    const processor = this._processors.find(p => p.key === key);
-    if (!processor) return;
-
-    this._editorMode = 'edit';
-    this._editingKey = key;
-    this._editingConfig = { ...processor.config };
-    this._editorOpen = true;
-  }
-
-  _handleDelete(key) {
-    // Check if any other processor depends on this one
-    const dependents = this._processors.filter(p => p.from === key);
-    if (dependents.length > 0) {
-      const names = dependents.map(p => p.key).join(', ');
-      if (!confirm(
-        `Warning: Processors "${names}" depend on "${key}". ` +
-        `Deleting "${key}" will break these dependencies. Continue?`
-      )) {
-        return;
-      }
-    }
-
-    const newValue = { ...this.value };
-    delete newValue[key];
-    this._emitChange(newValue);
-  }
-
-  _handleDuplicate(key) {
-    const processor = this._processors.find(p => p.key === key);
-    if (!processor) return;
-
-    // Find unique name
-    let suffix = 2;
-    let newKey = `${key}_${suffix}`;
-    while (newKey in this.value) {
-      suffix++;
-      newKey = `${key}_${suffix}`;
-    }
-
-    const newValue = {
-      ...this.value,
-      [newKey]: { ...processor.config }
-    };
-
-    this._emitChange(newValue);
-  }
-
-  _handleSave(event) {
-    const { key, config } = event.detail;
-
-    const newValue = { ...this.value };
-
-    // Check if renaming (edit mode with different key)
-    if (this._editorMode === 'edit' && key !== this._editingKey) {
-      delete newValue[this._editingKey];
-    }
-
-    newValue[key] = config;
-    this._emitChange(newValue);
-
-    this._editorOpen = false;
-  }
-
-  _handleCancel() {
-    this._editorOpen = false;
-  }
-
-  _emitChange(newValue) {
-    this.dispatchEvent(new CustomEvent('change', {
-      detail: { value: newValue },
-      bubbles: true,
-      composed: true
-    }));
-  }
-
-  // ========== Rendering ==========
 
   render() {
-    return html`
-      <div class="container">
-        <div class="header">
-          <h3>${this.label}</h3>
-          <ha-button
-            appearance="filled"
-            variant="brand"
-            @click="${this._handleAdd}">
-            <ha-icon icon="mdi:plus" slot="start"></ha-icon>
-            Add Processor
-          </ha-button>
-        </div>
-
-        ${this._dependencyErrors.length > 0 ? html`
-          <div class="error-list">
-            ${this._dependencyErrors.map(error => html`
-              <div class="error-item">
-                <ha-icon icon="mdi:alert-circle"></ha-icon>
-                ${error}
-              </div>
-            `)}
-          </div>
-        ` : nothing}
-
-        ${this._processors.length === 0 ? this._renderEmptyState() : this._renderSplitPane()}
-      </div>
-
-      <lcards-processor-editor
-        .hass="${this.hass}"
-        .mode="${this._editorMode}"
-        .processorKey="${this._editingKey}"
-        .processorConfig="${this._editingConfig}"
-        .existingProcessors="${this._processors.map(p => p.key)}"
-        .open="${this._editorOpen}"
-        @save="${this._handleSave}"
-        @cancel="${this._handleCancel}">
-      </lcards-processor-editor>
-    `;
-  }
-
-  _renderEmptyState() {
-    return html`
-      <div class="empty-state">
-        <div class="empty-icon">⚙️</div>
-        <div>No processors configured</div>
-        <div style="font-size: 12px; margin-top: 8px; opacity: 0.7;">
-          Add processors to transform, smooth, or analyze data
-        </div>
-      </div>
-    `;
-  }
-
-  _renderSplitPane() {
-    const tree = this._buildTree();
+    const processing = this.value ?? {};
+    const keys = Object.keys(processing);
+    const structure = this._structure;
+    const runtime = (this._preview?.errors ?? []).filter(e => !structure.errors.includes(e));
+    const errors = [...structure.errors, ...runtime];
+    const latest = Object.fromEntries((this._preview?.latest ?? []).map(l => [l.key, l.value]));
 
     return html`
-      <div class="split-pane-container">
-        <!-- Left: Tree View -->
-        <div class="tree-pane">
-          <div class="tree-pane-header">
-            <span>Processors (${this._processors.length})</span>
+      <lcards-processor-preview
+        .hass=${this.hass}
+        .entry=${this._previewEntry}
+        .selectedKey=${this._selectedKey}
+        .showErrors=${false}
+        @preview-result=${(e) => { e.stopPropagation(); this._preview = e.detail; }}>
+      </lcards-processor-preview>
+
+      ${errors.length ? html`
+        <div class="errors">
+          ${errors.map(text => html`<lcards-message type="error" .message=${text}></lcards-message>`)}
+        </div>
+      ` : nothing}
+
+      <div class="split">
+        <div class="tree">
+          <div class="tree-head">
+            <span>${this.label} (${keys.length})</span>
+            ${this._adding ? nothing : html`
+              <ha-button appearance="filled" variant="brand" size="small" @click=${this._startAdd}>
+                <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                Add
+              </ha-button>
+            `}
           </div>
-          <div class="tree-container">
-            ${this._renderTreeNodes(tree.roots, tree.childrenMap, 0)}
-          </div>
+          ${this._adding ? this._renderAdd(processing) : nothing}
+          ${keys.length ? this._renderTree(processing, structure.order) : this._adding ? nothing : html`
+            <div class="empty">No processors yet. Add one to smooth, convert, scale or analyse the values.</div>
+          `}
         </div>
 
-        <!-- Right: Detail View -->
-        <div class="detail-pane">
-          <div class="detail-pane-content">
-            ${this._renderDetail()}
-          </div>
+        <div class="detail">
+          ${this._selectedKey && processing[this._selectedKey] ? html`
+            <lcards-processor-form
+              .hass=${this.hass}
+              .processorKey=${this._selectedKey}
+              .config=${processing[this._selectedKey]}
+              .processorKeys=${keys}
+              .latestValue=${latest[this._selectedKey] ?? ''}
+              @processor-change=${this._onChange}
+              @processor-rename=${this._onRename}
+              @processor-duplicate=${this._onDuplicate}
+              @processor-delete=${this._onDelete}>
+            </lcards-processor-form>
+          ` : html`<div class="detail-empty">${keys.length ? 'Select a processor to edit it.' : 'Its settings will appear here.'}</div>`}
         </div>
       </div>
     `;
   }
 
-  _renderTreeNodes(nodes, childrenMap, level) {
-    if (!nodes || nodes.length === 0) return nothing;
+  /** Processors under their input (input_source), numbered in execution order. */
+  _renderTree(processing, order) {
+    const keys = Object.keys(processing);
+    const children = new Map(keys.map(k => [k, []]));
+    const roots = [];
+    for (const key of keys) {
+      const parent = processing[key]?.input_source;
+      if (parent && children.has(parent) && parent !== key) children.get(parent).push(key);
+      else roots.push(key);
+    }
+    const seen = new Set();
+    const rows = [];
+    const walk = (key, depth) => {
+      if (seen.has(key)) return; // cycles are reported above
+      seen.add(key);
+      rows.push({ key, depth });
+      for (const child of children.get(key)) walk(child, depth + 1);
+    };
+    roots.forEach(k => walk(k, 0));
+    keys.filter(k => !seen.has(k)).forEach(k => walk(k, 0));
 
-    return nodes.map(processor => {
-      const hasChildren = childrenMap.get(processor.key)?.length > 0;
-      const isExpanded = this._expandedNodes.has(processor.key);
-      const isSelected = this._selectedNode?.key === processor.key;
-      const executionIndex = this._executionOrder.indexOf(processor.key);
-
+    return rows.map(({ key, depth }) => {
+      const index = order.indexOf(key);
+      const type = processing[key]?.type;
       return html`
-        <div class="tree-node" style="--node-level: ${level}">
-          <div
-            class="tree-node-content ${isSelected ? 'selected' : ''}"
-            @click=${() => this._selectNode(processor)}>
-            <span
-              class="tree-expander ${hasChildren ? '' : 'leaf'}"
-              @click=${(e) => {
-                e.stopPropagation();
-                if (hasChildren) this._toggleNode(processor.key);
-              }}>
-              ${hasChildren ? (isExpanded ? '▼' : '▶') : ''}
-            </span>
-            <div class="execution-order">${executionIndex + 1}</div>
-            <span class="node-label">${processor.key}</span>
-            <span class="node-type">${processor.type}</span>
-          </div>
-          ${isExpanded && hasChildren ? html`
-            ${this._renderTreeNodes(childrenMap.get(processor.key), childrenMap, level + 1)}
-          ` : nothing}
-        </div>
+        <button type="button" class="node ${key === this._selectedKey ? 'selected' : ''}" style="--depth: ${depth}"
+          @click=${() => { this._selectedKey = key; }}>
+          <span class="order">${index >= 0 ? index + 1 : '!'}</span>
+          <span class="name">${key}</span>
+          <span class="node-type">${processorType(type)?.label ?? type}</span>
+        </button>
       `;
     });
   }
 
-  _renderDetail() {
-    if (!this._selectedNode) {
-      return html`
-        <div class="detail-panel-empty">
-          <ha-icon icon="mdi:cursor-pointer"></ha-icon>
-          <p>Select a processor from the tree to view details</p>
-        </div>
-      `;
-    }
-
-    const { key, type, config, from } = this._selectedNode;
-    const children = this._processors.filter(p => p.from === key);
-
+  _renderAdd(processing) {
+    const name = this._newName || uniqueProcessorKey(processing, this._newType);
+    const nameError = !PROCESSOR_KEY_PATTERN.test(name) ? 'Lowercase letters, digits and underscores, starting with a letter or underscore.'
+      : processing[name] ? `"${name}" is already used.` : '';
     return html`
-      <div class="detail-header">
-        <h3>${key}</h3>
-        <span class="detail-type-badge">${type}</span>
-      </div>
-
-      <div class="action-buttons">
-        <ha-button
-          appearance="filled"
-          variant="neutral"
-          @click=${() => this._handleEdit(key)}>
-          <ha-icon icon="mdi:pencil" slot="start"></ha-icon>
-          Edit
-        </ha-button>
-        <ha-button
-          appearance="filled"
-          variant="neutral"
-          @click=${() => this._handleDuplicate(key)}>
-          <ha-icon icon="mdi:content-copy" slot="start"></ha-icon>
-          Duplicate
-        </ha-button>
-        <ha-button
-          appearance="outlined"
-          variant="danger"
-          @click=${() => this._handleDelete(key)}>
-          <ha-icon icon="mdi:delete" slot="start"></ha-icon>
-          Delete
-        </ha-button>
-      </div>
-
-      <div class="config-section">
-        <h4>Configuration</h4>
-        <div class="config-display">
-          <pre>${JSON.stringify(config, null, 2)}</pre>
-        </div>
-      </div>
-
-      <div class="dependency-section">
-        <h4>Dependencies</h4>
-        <div class="dependency-info">
-          <div><strong>Input from:</strong> ${from || '(raw data)'}</div>
-          <div><strong>Output to:</strong> ${children.length > 0 ? children.map(c => c.key).join(', ') : '(final value)'}</div>
+      <div class="add">
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ select: { mode: 'dropdown', options: PROCESSOR_TYPES.map(t => ({ value: t.type, label: t.label })) } }}
+          .label=${'Type'}
+          .required=${false}
+          .value=${this._newType}
+          @value-changed=${(e) => { this._newType = e.detail.value || 'smooth'; this._newName = ''; }}>
+        </ha-selector>
+        <div class="add-help">${processorType(this._newType)?.description ?? ''}</div>
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ text: {} }}
+          .label=${'Name'}
+          .value=${name}
+          @value-changed=${(e) => { this._newName = String(e.detail.value ?? '').trim(); }}>
+        </ha-selector>
+        ${nameError ? html`<div class="add-help" style="color: var(--error-color)">${nameError}</div>`
+          : html`<div class="add-help">It starts on the raw entity value; pick another processor as its Input to chain them.</div>`}
+        <div class="add-actions">
+          <ha-button appearance="plain" size="small" @click=${() => { this._adding = false; }}>Cancel</ha-button>
+          <ha-button variant="brand" size="small" .disabled=${!!nameError} @click=${() => this._add(name)}>Create</ha-button>
         </div>
       </div>
     `;
+  }
+
+  _startAdd() {
+    this._adding = true;
+    this._newType = 'smooth';
+    this._newName = '';
+  }
+
+  _add(name) {
+    const meta = processorType(this._newType);
+    this._emit({ ...(this.value ?? {}), [name]: { type: this._newType, ...structuredClone(meta?.defaults ?? {}) } });
+    this._adding = false;
+    this._selectedKey = name;
+  }
+
+  _onChange(e) {
+    e.stopPropagation();
+    this._emit({ ...(this.value ?? {}), [this._selectedKey]: e.detail.config });
+  }
+
+  _onRename(e) {
+    e.stopPropagation();
+    const { from, to } = e.detail;
+    const next = renameProcessor(this.value ?? {}, from, to);
+    if (next === this.value) return;
+    this._selectedKey = to;
+    this._emit(next);
+  }
+
+  _onDuplicate(e) {
+    e.stopPropagation();
+    const key = e.detail.key;
+    const copy = uniqueProcessorKey(this.value, key);
+    this._emit({ ...(this.value ?? {}), [copy]: structuredClone(this.value[key]) });
+    this._selectedKey = copy;
+  }
+
+  _onDelete(e) {
+    e.stopPropagation();
+    const key = e.detail.key;
+    const users = Object.entries(this.value ?? {})
+      .filter(([k, p]) => k !== key && (p.input_source === key || (Array.isArray(p.sources) && p.sources.includes(key))))
+      .map(([k]) => k);
+    if (users.length && !confirm(`${users.join(', ')} ${users.length > 1 ? 'use' : 'uses'} "${key}". Delete it and switch ${users.length > 1 ? 'them' : 'it'} to the raw value?`)) return;
+    const next = {};
+    for (const [k, p] of Object.entries(this.value ?? {})) {
+      if (k === key) continue;
+      const proc = { ...p };
+      if (proc.input_source === key) delete proc.input_source;
+      if (Array.isArray(proc.sources)) proc.sources = proc.sources.filter(s => s !== key);
+      next[k] = proc;
+    }
+    this._emit(next);
+  }
+
+  _emit(value) {
+    this.dispatchEvent(new CustomEvent('change', { detail: { value }, bubbles: true, composed: true }));
   }
 }
 

@@ -81,32 +81,6 @@ let chart = null
 let observer = null
 let timer = null
 
-const COLORS = ['#ff9966', '#99ccff', '#ffcc66', '#cc99ff', '#66cc99', '#ff6666', '#9999ff', '#ffaacc']
-const fmt = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2))
-
-function chartOptions(series) {
-  const named = series.map((s, i) => ({ ...s, color: s.raw ? '#8a8a99' : COLORS[(i - 1) % COLORS.length] }))
-  const second = named.find(s => s.axis === 1)?.name
-  return {
-    chart: { type: 'line', height: 260, background: 'transparent', foreColor: '#cfcfd8', animations: { enabled: false },
-      toolbar: { show: false }, zoom: { enabled: false } },
-    theme: { mode: 'dark' },
-    series: named.map(s => ({ name: s.name, data: s.points.map(p => [p.t, p.v]) })),
-    colors: named.map(s => s.color),
-    stroke: { width: named.map(s => (s.raw ? 1.5 : 2.5)), curve: 'straight', dashArray: named.map(s => (s.raw ? 3 : 0)) },
-    xaxis: { type: 'datetime', labels: { datetimeUTC: false } },
-    yaxis: named.map((s, i) => ({
-      seriesName: s.axis === 1 ? second : 'raw',
-      opposite: s.axis === 1,
-      show: i === 0 || s.name === second,
-      labels: { formatter: (v) => (Number.isFinite(v) ? fmt(v) : '') },
-    })),
-    legend: { show: true, position: 'top', horizontalAlign: 'left' },
-    grid: { borderColor: '#333' },
-    tooltip: { theme: 'dark', x: { format: 'HH:mm' } },
-  }
-}
-
 async function render() {
   if (!mods) return
   let config
@@ -120,7 +94,7 @@ async function render() {
   const result = mods.runLab(config, { validator: mods.validator, schema: schema.value })
   run.value = result
   chartYaml.value = mods.labChartYaml(config, result)
-  const options = chartOptions(result.series.length ? result.series : [{ name: 'raw', points: [], axis: 0, raw: true }])
+  const options = mods.chartOptions(result.series)
   if (chart) {
     // Series and axes can change shape between edits: rebuild rather than update.
     chart.destroy()
@@ -148,18 +122,20 @@ watch(yamlText, () => {
 })
 
 async function start() {
-  const [apex, yamlMod, core, validation, common] = await Promise.all([
+  const [apex, yamlMod, core, validation, common, chartMod] = await Promise.all([
     import('apexcharts'),
     import('js-yaml'),
     import('./processor-lab-core.js'),
     import('../../../src/core/validation-service/index.js'),
     import('../../../src/cards/schemas/common-schemas.js'),
+    import('../../../src/core/data-sources/processor-preview-chart.js'),
   ])
   mods = {
     ApexCharts: apex.default,
     yaml: yamlMod.default ?? yamlMod,
     runLab: core.runLab,
     labChartYaml: core.labChartYaml,
+    chartOptions: chartMod.processorPreviewChartOptions,
     validator: new validation.CoreValidationService({ cacheResults: false }),
   }
   schema.value = common.dataSourcesSchema.additionalProperties

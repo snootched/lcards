@@ -464,7 +464,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
           </div>
           <div class="detail-item">
             <span class="detail-label">Attribute:</span>
-            <span class="detail-value">${dataSource.cfg?.attribute || '__state__'}</span>
+            <span class="detail-value">${dataSource.cfg?.attribute || 'State'}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Window:</span>
@@ -924,7 +924,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         overflow-y: auto;
         padding: 12px;
         background: var(--code-background-color, #1e1e1e);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
       }
 
       /* Tree nodes */
@@ -1013,7 +1013,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         gap: 12px;
         padding: 16px;
         background: var(--secondary-background-color);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         margin-bottom: 12px;
       }
 
@@ -1113,7 +1113,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         gap: 12px;
         padding: 8px 12px;
         background: var(--secondary-background-color);
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         font-family: 'Courier New', monospace;
         font-size: 13px;
       }
@@ -1163,7 +1163,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         gap: 4px;
         padding: 12px;
         background: var(--code-background-color, #1e1e1e);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         max-height: 400px;
         overflow-y: auto;
       }
@@ -1173,12 +1173,16 @@ export class LCARdSDataSourceBrowser extends LitElement {
         grid-template-columns: 60px 120px 1fr;
         gap: 12px;
         padding: 8px 12px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 4px;
+        background-color: color-mix(
+          in srgb,
+          var(--secondary-background-color) 50%,
+          color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+        );
+        border-radius: var(--ha-border-radius-sm);
         font-family: 'Courier New', monospace;
         font-size: 13px;
         align-items: center;
-        border: var(--ha-border-width-sm) solid rgba(255, 255, 255, 0.1);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .buffer-index {
@@ -1206,7 +1210,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
       .value-display {
         padding: 12px;
         background: var(--code-background-color, #1e1e1e);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         font-family: 'Courier New', monospace;
       }
 

@@ -41,8 +41,9 @@ export function toNumericValue(raw, enumMapping) {
 }
 
 /**
- * Normalise a configured attribute name. `'state'` and `''` mean "the entity
- * state", not an attribute literally called "state".
+ * Normalise a configured attribute name. `'state'`, `''` and `'__state__'` (the
+ * data source editor's "State" choice, which older editors saved) mean "the
+ * entity state", not an attribute by that name.
  *
  * @param {string|null|undefined} attribute
  * @returns {string|null}
@@ -50,7 +51,7 @@ export function toNumericValue(raw, enumMapping) {
 export function normalizeAttribute(attribute) {
   if (typeof attribute !== 'string') return null;
   const trimmed = attribute.trim();
-  return trimmed === '' || trimmed === 'state' ? null : trimmed;
+  return trimmed === '' || trimmed === 'state' || trimmed === '__state__' ? null : trimmed;
 }
 
 /**

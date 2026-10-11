@@ -19,7 +19,7 @@ Manage the [Data Sources](../core/datasources/) attached to this card.
 
 - **Browse all registered sources**: see each source's current value, entity, update rate, and history buffer size
 - **Create a new source**: define a new entity subscription with history preloading and a processing pipeline
-- **Edit an existing source**: change entity, update interval, history settings, or add/modify processors
+- **Edit an existing source**: change entity, update interval, history settings, or add/modify processors, with a live preview of the processors over the entity's recent history (see [Data Sources: in the card editor](../core/datasources/#in-the-card-editor))
 - **Remove a source**: detach a data source from this card
 - **Live values**: values update in real time as entity state changes
 

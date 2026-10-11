@@ -154,3 +154,10 @@ test('DataSource: history.enabled false (and legacy preload false) skips preload
         assert.equal(sent.length, 0);
     }
 });
+
+test('the editor\'s "__state__" placeholder means the entity state, not an attribute', () => {
+    // A new data source in the studio dialog started with attribute: '__state__', so its
+    // history preview looked for an attribute by that name and found nothing (S8).
+    assert.equal(normalizeAttribute('__state__'), null);
+    assert.equal(historyNeedsAttributes({ attribute: '__state__' }), false);
+});

@@ -7,13 +7,9 @@ import { haFormatNumber } from '../../utils/ha-entity-display.js';
  */
 
 import { RollingBuffer } from './RollingBuffer.js';
+import { fetchDataSourceHistory, historySettings } from './history-fetch.js';
 import { ProcessorManager } from './ProcessorManager.js';
-import {
-  toNumericValue,
-  normalizeAttribute,
-  historyNeedsAttributes,
-  historyStatesToPoints
-} from './ha-history-utils.js';
+import { toNumericValue, normalizeAttribute } from './ha-history-utils.js';
 
 // Node.js polyfills for test environment
 const isNode = typeof window === 'undefined';
@@ -449,105 +445,21 @@ export class DataSource {
   }
 
   /**
-   * Preload historical data for the entity
-   * Attempts statistics API first (faster), falls back to state history via WebSocket
+   * Preload history: the same points the editor's processor preview fetches
+   * (history-fetch.js: hourly statistics, else state history, else REST).
    * @private
-   * @async
    */
   async _preloadHistory() {
     if (!this.hass?.connection || !this.cfg.entity) {
       lcardsLog.warn('[DataSource] ⚠️ No HASS connection or entity for history preload');
       return;
     }
-
-    // `history.preload` is the older spelling of `history.enabled`.
-    const history = this.cfg.history || {};
-    if (history.enabled === false || history.preload === false) {
-      return;
-    }
-    const requestedHours = history.hours ?? (history.days ? history.days * 24 : 6);
-    const hours = Math.max(1, Math.min(168, requestedHours)); // 1-168 hours
-    const endTime = new Date();
-    const startTime = new Date(endTime.getTime() - hours * 3600000);
+    if (!historySettings(this.cfg).enabled) return;
 
     lcardsLog.trace(`[DataSource] 🔄 Preloading history for ${this.cfg.entity}`);
-
-    // Long-term statistics only cover the entity state, so attribute series
-    // go straight to state history.
-    if (historyNeedsAttributes(this.cfg)) {
-      await this._preloadStateHistoryWS(startTime, endTime);
-      return;
-    }
-
-    try {
-      // Use modern WebSocket call for statistics (preferred)
-      const statisticsData = await this.hass.connection.sendMessagePromise({
-        type: 'recorder/statistics_during_period',
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
-        statistic_ids: [this.cfg.entity],
-        period: 'hour'
-      });
-
-      if (statisticsData && statisticsData[this.cfg.entity]) {
-        const statistics = statisticsData[this.cfg.entity];
-        lcardsLog.trace(`[DataSource] 📊 Got statistics points`,statistics);
-
-        this._loadHistoryPoints(
-          statistics
-            .map(stat => ({ t: new Date(stat.start).getTime(), v: this._extractStatisticValue(stat) }))
-            .filter(p => p.v !== null && Number.isFinite(p.t))
-        );
-
-        lcardsLog.trace(`[DataSource] ✅ Loaded statistics points`);
-        return; // Success with statistics
-      }
-    } catch (error) {
-      lcardsLog.warn('[DataSource] ⚠️ Statistics failed, trying state history:', error.message);
-    }
-
-    // Fallback: try state history via WebSocket
-    await this._preloadStateHistoryWS(startTime, endTime);
-  }
-
-  /**
-   * Preload history using WebSocket state_history API
-   * @private
-   * @async
-   * @param {Date} startTime - Start time for history query
-   * @param {Date} endTime - End time for history query
-   */
-  async _preloadStateHistoryWS(startTime, endTime) {
-    try {
-      lcardsLog.trace(`[DataSource] 📚 Trying WebSocket state history for ${this.cfg.entity}`);
-
-      // Attributes are only sent when the series needs one; minimal responses
-      // drop attributes from most rows, so ask for full rows in that case.
-      const needsAttributes = historyNeedsAttributes(this.cfg);
-      const historyData = await this.hass.connection.sendMessagePromise({
-        type: 'history/history_during_period',
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
-        entity_ids: [this.cfg.entity],
-        minimal_response: !needsAttributes,
-        no_attributes: !needsAttributes
-      });
-
-      // Reply shape: { [entity_id]: [{ s, a?, lc?, lu }, ...] }
-      const states = historyData?.[this.cfg.entity];
-      if (Array.isArray(states) && states.length) {
-        this._loadHistoryPoints(historyStatesToPoints(states, this.cfg));
-        lcardsLog.trace(`[DataSource] ✅ Loaded history points`);
-      } else {
-        // Debug only: Entity may not have history yet (new entity, HA just started, or history not enabled)
-        lcardsLog.trace('[DataSource] No history data returned from WebSocket call (may be unavailable)');
-      }
-    } catch (error) {
-      lcardsLog.error('[DataSource] ❌ WebSocket state history also failed:', error);
-
-      // Final fallback: try direct REST API if available
-      await this._preloadHistoryREST(startTime, endTime);
-    }
+    const { points, method } = await fetchDataSourceHistory(this.hass, this.cfg);
+    this._loadHistoryPoints(points);
+    lcardsLog.trace(`[DataSource] ✅ Loaded ${points.length} history points (${method})`);
   }
 
   /**
@@ -560,43 +472,6 @@ export class DataSource {
       this.buffer.push(t, v);
       this._processValue(t, v);
       this._stats.historyLoaded++;
-    }
-  }
-
-  /**
-   * Preload history using REST API (fallback method)
-   * @private
-   * @async
-   * @param {Date} startTime - Start time for history query
-   * @param {Date} endTime - End time for history query
-   */
-  async _preloadHistoryREST(startTime, endTime) {
-    try {
-      lcardsLog.debug(`[DataSource] 🌐 Trying REST API history for ${this.cfg.entity}`);
-
-      const startParam = startTime.toISOString();
-      const lean = historyNeedsAttributes(this.cfg) ? '' : '&minimal_response&no_attributes';
-      const url = `/api/history/period/${startParam}?filter_entity_id=${this.cfg.entity}${lean}`;
-
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${this.hass.auth?.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      // REST reply shape: [[{ state, attributes?, last_changed, last_updated }, ...]]
-      const historyData = await response.json();
-      if (Array.isArray(historyData?.[0])) {
-        this._loadHistoryPoints(historyStatesToPoints(historyData[0], this.cfg));
-        lcardsLog.trace(`[DataSource] ✅ Loaded history points`);
-      }
-    } catch (error) {
-      lcardsLog.error('[DataSource] ❌ REST history fallback also failed:', error);
     }
   }
 
@@ -1276,22 +1151,6 @@ export class DataSource {
     this.buffer.clear();
   }
 
-  /**
-   * Extract numeric value from statistics API response
-   * Tries various statistics fields (sum, mean, min, max, state)
-   * @private
-   * @param {Object} stat - Statistics object from HA API
-   * @returns {number|null} Extracted numeric value or null
-   */
-  _extractStatisticValue(stat) {
-    // Priority order for statistic values
-    if (Number.isFinite(stat.mean)) return stat.mean;
-    if (Number.isFinite(stat.state)) return stat.state;
-    if (Number.isFinite(stat.sum)) return stat.sum;
-    if (Number.isFinite(stat.max)) return stat.max;
-    if (Number.isFinite(stat.min)) return stat.min;
-    return null;
-  }
 
 
   /**

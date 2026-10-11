@@ -23,6 +23,8 @@ import '../components/shared/lcards-message.js';
 import '../components/datasources/lcards-processor-tree-editor.js';
 import '../components/yaml/lcards-studio-yaml-tab.js';
 import { dataSourcesSchema } from '../../cards/schemas/common-schemas.js';
+import { historySettings, withHistorySettings, HISTORY_DEFAULT_HOURS } from '../../core/data-sources/history-fetch.js';
+import { dataSourceBufferSize } from '../../core/data-sources/DataSource.js';
 
 export class LCARdSDataSourceStudioDialog extends LitElement {
     static get properties() {
@@ -36,7 +38,8 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
             _activeTab: { type: String, state: true },
             _name: { type: String, state: true },
             _workingConfig: { type: Object, state: true },
-            _validationErrors: { type: Array, state: true }
+            _validationErrors: { type: Array, state: true },
+            _showErrors: { type: Boolean, state: true }
         };
     }
 
@@ -52,6 +55,8 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
         this._name = '';
         this._workingConfig = {};
         this._validationErrors = [];
+        // Errors show once the user has changed something or tried to save.
+        this._showErrors = false;
     }
 
     static get styles() {
@@ -84,20 +89,23 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                     display: flex;
                     flex-direction: column;
                     height: calc(75vh - 100px);
-                    overflow: hidden;
+                    overflow-y: auto;
                 }
 
                 ha-tab-group {
                     display: block;
-                    border-bottom: 1px solid var(--divider-color);
+                    border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
                 }
 
+                /* The tab's content scrolls under the tab bar. ha-tab-group gives its
+                   panels no bounded height, so bound it here (dialog content minus
+                   the tab bar); the dialog content scrolls as a fallback. */
                 .tab-content {
-                    flex: 1;
+                    max-height: calc(75vh - 175px);
                     overflow-y: auto;
                     overflow-x: hidden;
-                    padding: 20px;
-                    min-height: 0;
+                    padding: var(--ha-space-5);
+                    box-sizing: border-box;
                 }
 
                 .grid-2col {
@@ -119,17 +127,11 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
 
                 /* Validation Errors */
                 .validation-errors {
-                    margin: 0 20px 12px 20px;
+                    display: grid;
+                    gap: var(--ha-space-1);
+                    margin: 0 var(--ha-space-5) var(--ha-space-3);
                 }
 
-                .error-item {
-                    padding: 8px 12px;
-                    background: var(--error-color);
-                    color: white;
-                    border-radius: 4px;
-                    margin-bottom: 8px;
-                    font-size: 13px;
-                }
 
                 /* Section spacing */
                 .form-section {
@@ -175,7 +177,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
 
                 <div class="dialog-content">
                     <!-- Validation Errors -->
-                    ${this._validationErrors.length > 0 ? html`
+                    ${this._showErrors && this._validationErrors.length > 0 ? html`
                         <div class="validation-errors">
                             ${this._validationErrors.map(error => html`
                                 <lcards-message type="error" .message=${error}></lcards-message>
@@ -271,6 +273,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                         .required=${true}
                         @value-changed=${(e) => {
                             this._name = e.detail.value;
+                            this._showErrors = true;
                             this._validate();
                         }}>
                     </ha-selector>
@@ -306,7 +309,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                             .value=${this._workingConfig.attribute || '__state__'}
                             .label=${'Attribute'}
                             .helper=${'Entity attribute to track'}
-                            @value-changed=${(e) => this._updateConfig('attribute', e.detail.value)}>
+                            @value-changed=${(e) => this._setAttribute(e.detail.value)}>
                         </ha-selector>
                     ` : ''}
                 </div>
@@ -325,8 +328,8 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                     DataSources buffer incoming entity updates in memory and emit them to cards.
                     These settings control how much data is kept and how frequently updates are sent.<br/><br/>
 
-                    • <strong>Window</strong>: How many seconds of data to keep in memory (the "rolling buffer").
-                      Longer windows support longer chart displays but use more memory.<br/>
+                    • <strong>Window</strong>: Sets the size of the rolling buffer: about 10 points per second of window.
+                      Sensors that change slowly fill it far more slowly, so it can hold hours of their history.<br/>
                     • <strong>Update Rate</strong>: How often to send data to subscribed cards.
                       Home Assistant sends entity changes as they happen (typically 1-60 seconds for sensors).
                       This throttles updates to prevent overwhelming your browser.<br/>
@@ -347,7 +350,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                             .selector=${{ number: { min: 1, max: 3600, mode: 'box', unit_of_measurement: 's' } }}
                             .value=${this._workingConfig.window_seconds || 60}
                             .label=${'Data Window'}
-                            .helper=${'Memory buffer size. Examples: 60s = 1 minute, 300s = 5 minutes, 3600s = 1 hour'}
+                            .helper=${`Sets how many points the data source keeps: about 10 per second of window, at least 60 (now ${dataSourceBufferSize(this._workingConfig).capacity}). Charts and window-based processors (statistics, gaussian smoothing) only see these.`}
                             @value-changed=${(e) => this._updateConfig('window_seconds', e.detail.value)}>
                         </ha-selector>
 
@@ -369,25 +372,24 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                         History Preload
                     </div>
 
-                    <!-- Preload Toggle -->
+                    <!-- Preload Toggle (on unless history.enabled is false) -->
                     <ha-selector
                         .hass=${this.hass}
                         .selector=${{ boolean: {} }}
-                        .value=${this._workingConfig.history?.preload || false}
-                        .label=${'Enable History Preload'}
-                        .helper=${'Automatically load historical data when DataSource starts'}
-                        @value-changed=${(e) => this._updateConfig('history.preload', e.detail.value)}>
+                        .value=${historySettings(this._workingConfig).enabled}
+                        .label=${'Preload history'}
+                        .helper=${'Load recent history from Home Assistant when the data source starts (on by default)'}
+                        @value-changed=${(e) => this._setHistory({ enabled: e.detail.value })}>
                     </ha-selector>
 
-                    <!-- Hours (conditional) -->
-                    ${this._workingConfig.history?.preload ? html`
+                    ${historySettings(this._workingConfig).enabled ? html`
                         <ha-selector
                             .hass=${this.hass}
-                            .selector=${{ number: { min: 1, max: 720, mode: 'box', unit_of_measurement: 'h' } }}
-                            .value=${this._workingConfig.history?.hours || 24}
-                            .label=${'History Duration (hours)'}
-                            .helper=${'How many hours of past data to load (24h = 1 day, 168h = 1 week, 720h = 30 days)'}
-                            @value-changed=${(e) => this._updateConfig('history.hours', e.detail.value)}>
+                            .selector=${{ number: { min: 1, max: 168, mode: 'box', unit_of_measurement: 'h' } }}
+                            .value=${historySettings(this._workingConfig).hours}
+                            .label=${'History to load'}
+                            .helper=${`Hours of history to load (1 to 168, default ${HISTORY_DEFAULT_HOURS}). Home Assistant's hourly statistics are used when available.`}
+                            @value-changed=${(e) => this._setHistory({ hours: e.detail.value })}>
                         </ha-selector>
                     ` : ''}
                 </div>
@@ -402,14 +404,14 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
         return html`
             <div class="tab-content" @click=${this._handleContentClick}>
                 <lcards-message type="info">
-                    <ha-icon icon="mdi:information" slot="start"></ha-icon>
-                    Process data through transformations (scale, smooth, round) and
-                    aggregations (statistics, trends, rates). Processors execute in
-                    dependency order to build complex data pipelines.
+                    Processors transform the values (smooth, convert, scale, round) or analyse them
+                    (statistics, rate, trend). Chain them by choosing another processor as a
+                    processor's Input. The preview runs them over this entity's recent history.
                 </lcards-message>
 
                 <lcards-processor-tree-editor
                     .value=${this._workingConfig.processing || {}}
+                    .entry=${this._workingConfig}
                     .hass=${this.hass}
                     @change=${this._handleProcessingChange}
                     label="Processing Pipeline">
@@ -537,6 +539,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
         this._activeTab = 'basic';
         this._name = this.sourceName || '';
         this._validationErrors = [];
+        this._showErrors = false;
 
         // Deep copy sourceConfig or create default
         if (this.sourceConfig) {
@@ -544,16 +547,11 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
         } else {
             this._workingConfig = {
                 entity: '',
-                attribute: '__state__',
                 window_seconds: 60,
                 min_emit_ms: 100,
                 emit_on_same_value: true,
                 coalesce_ms: 0,
-                max_delay_ms: 0,
-                history: {
-                    preload: false,
-                    hours: 24
-                }
+                max_delay_ms: 0
             };
         }
 
@@ -580,9 +578,32 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
 
         target[parts[parts.length - 1]] = value;
         this._workingConfig = newConfig;
+        this._showErrors = true;
         this._validate();
 
         lcardsLog.debug('[DataSourceStudio] Config updated:', { path, value });
+    }
+
+    /**
+     * Set the tracked attribute. "__state__" is only the dropdown's value for
+     * "State": the config has no attribute then (the preview and the data source
+     * would otherwise look for an attribute by that name).
+     */
+    _setAttribute(value) {
+        /** @type {Record<string, any>} */
+        const next = { ...this._workingConfig };
+        if (!value || value === '__state__') delete next.attribute;
+        else next.attribute = value;
+        this._workingConfig = next;
+        this._showErrors = true;
+        this._validate();
+    }
+
+    /** Switch history preload on/off or set its span. */
+    _setHistory(change) {
+        this._workingConfig = withHistorySettings(this._workingConfig, change);
+        this._showErrors = true;
+        this._validate();
     }
 
     /**
@@ -605,6 +626,12 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
      * Validate form
      */
     _validate() {
+        this._validationErrors = this._errors();
+        return this._validationErrors.length === 0;
+    }
+
+    /** Problems that block saving (no side effects). */
+    _errors() {
         const errors = [];
 
         // Name validation
@@ -621,8 +648,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
             errors.push('Entity is required');
         }
 
-        this._validationErrors = errors;
-        return errors.length === 0;
+        return errors;
     }
 
     /**
@@ -647,14 +673,15 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
      * Check if form is valid
      */
     _isValid() {
-        return this._validate();
+        return this._errors().length === 0;
     }
 
     /**
      * Handle save button
      */
     _handleSave() {
-        if (!this._isValid()) {
+        this._showErrors = true;
+        if (!this._validate()) {
             lcardsLog.warn('[DataSourceStudio] Validation failed:', this._validationErrors);
             return;
         }
@@ -667,13 +694,10 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
             delete cleanConfig.attribute;
         }
 
-        // Remove history if not enabled, and clean up days field (deprecated)
-        if (!cleanConfig.history?.preload) {
-            delete cleanConfig.history;
-        } else if (cleanConfig.history) {
-            // Remove days field - we only use hours now
-            delete cleanConfig.history.days;
-        }
+        // History in the current form (history.enabled, hours; no preload/days)
+        const { history } = withHistorySettings(cleanConfig, {});
+        if (history) cleanConfig.history = history;
+        else delete cleanConfig.history;
 
         // Remove zero values
         if (cleanConfig.coalesce_ms === 0) {

@@ -116,17 +116,19 @@ Each processor transforms data and stores results under its name. Processors can
 | Processor | Purpose | Key params |
 |-----------|---------|------------|
 | `convert_unit` | Convert between unit types | `from`, `to` (e.g. `c`/`f`) |
-| `scale` | Map from one range to another | `input_range`, `output_range` |
-| `smooth` | Smooth noisy values | `method` (`exponential`, `moving_avg`), `alpha`, `window` |
-| `round` | Round to decimal places | `precision` |
-| `expression` | Custom JS expression | `expression` (uses `value`, `history`) |
+| `scale` | Map from one range to another | `input_range`, `output_range`, `curve` |
+| `smooth` | Smooth noisy values | `method` (`exponential`, `moving_average`, `gaussian`), `alpha`, `window` |
+| `round` | Round to decimal places | `precision`, `method` |
+| `expression` | Custom JS expression | `expression` (uses `value`, `sources`, `Math`), `sources` |
 | `clamp` | Clamp to min/max | `min`, `max` |
-| `rate` | Rate of change per unit time | `period` |
-| `trend` | Linear trend direction | - |
-| `delta` | Difference from previous value | - |
+| `rate` | Rate of change per unit time | `unit` (`per_second`, `per_minute`, `per_hour`), `smoothing` |
+| `trend` | Increasing, decreasing or stable | `samples`, `threshold` |
+| `delta` | Difference from previous value | `absolute` |
 | `duration` | Time spent meeting a condition | `condition`, `reset_on` |
-| `statistics` | Min/max/avg/std over window | `window` |
-| `threshold` | On/off based on threshold | `above`, `below` |
+| `statistics` | Min/max/mean and more over a window | `window`, `stats` |
+| `threshold` | Two outputs either side of a threshold | `threshold`, `above`, `below`, `hysteresis` |
+
+The [Processor Reference](./processor-reference) covers every option, with a live lab for each processor.
 
 ```yaml
 processing:
@@ -143,6 +145,16 @@ processing:
     method: exponential
     alpha: 0.2
 ```
+
+### In the card editor
+
+A card editor's **Data Sources** tab (under Main Engineering) creates and edits data sources without YAML. In the data source dialog, the **Processing** tab shows:
+
+- **A preview**: the processors run over the entity's own recent history (the span set under Timing & History, the way the data source preloads it), charted against the raw values. It updates as you edit; the selected processor's line is drawn heavier.
+- **The pipeline**: each processor under its input, numbered in the order they run. Errors such as a missing input or a loop show above it.
+- **The selected processor's settings**, edited in place: its name (renaming updates the processors that use it), its input (the raw value or another processor), and the type's options. **Edit as YAML** switches to its YAML.
+
+The preview runs the same processor code as the dashboard. Live-only behaviour, such as a duration ticking between state changes, isn't shown.
 
 ---
 

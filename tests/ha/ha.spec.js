@@ -333,3 +333,141 @@ test('theme overrides: startup load does not re-process cards; a real change doe
     });
     expect(result).toEqual({ afterReload: 0, afterSet: 1, afterClear: 2, value: '#123456' });
 });
+
+/**
+ * Data source studio (S8): the Processing tab previews the pipeline over the
+ * entity's real history, edits processors inline, and reports pipeline errors.
+ */
+async function openStudio(page, { mode = 'edit', config }) {
+    await mountEditor(page, 'lcards-elbow', EDITORS[1][1]); // its chunk defines the studio dialog
+    await page.evaluate(async ({ mode, config }) => {
+        await customElements.whenDefined('lcards-datasource-studio-dialog');
+        const ha = document.querySelector('home-assistant');
+        const dialog = document.createElement('lcards-datasource-studio-dialog');
+        dialog.id = 'lcards-test-studio';
+        dialog.hass = ha.hass;
+        dialog.mode = mode;
+        if (mode === 'edit') { dialog.sourceName = 'lab'; dialog.sourceConfig = config; }
+        ha.shadowRoot.appendChild(dialog);
+        dialog.open = true;
+        await dialog.updateComplete;
+    }, { mode, config });
+    return page.locator('#lcards-test-studio');
+}
+const closeStudio = (page) => page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio')?.remove());
+const studioConfig = (page) => page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio')._workingConfig);
+
+test('data source studio: the Processing tab previews real history and edits processors inline', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    for (const value of [20, 40, 30, 60]) {
+        await client.callService('input_number', 'set_value', { entity_id: 'input_number.lcards_test_value', value });
+    }
+    const studio = await openStudio(page, { config: {
+        entity: 'input_number.lcards_test_value',
+        processing: { smoothed: { type: 'smooth', alpha: 0.3 } },
+    } });
+    await studio.getByRole('tab', { name: 'Processing' }).click();
+
+    const preview = studio.locator('lcards-processor-preview');
+    const series = preview.locator('.apexcharts-series[seriesName]');
+    await expect(preview.locator('.apexcharts-svg')).toBeVisible({ timeout: 20_000 });
+    await expect(series).toHaveCount(2); // raw + smoothed
+    await expect(preview.locator('.meta')).toContainText('input_number.lcards_test_value');
+
+    // The span is configurable: the data source's own (6 h) by default, any of the offered spans on demand.
+    const previewHours = () => preview.evaluate(el => el._history?.hours);
+    expect(await previewHours()).toBe(6);
+    await preview.locator('ha-selector.span').click();
+    await preview.getByRole('menuitem', { name: 'Last 24 h' }).click();
+    await expect.poll(previewHours).toBe(24);
+    await expect(series).toHaveCount(2);
+
+    // Add a processor inline: it appears in the tree, the form and the chart.
+    await studio.getByRole('button', { name: 'Add' }).click();
+    await studio.getByRole('button', { name: 'Create' }).click();
+    await expect(studio.locator('lcards-processor-tree-editor .node')).toHaveCount(2);
+    await expect(series).toHaveCount(3);
+    expect(Object.keys((await studioConfig(page)).processing)).toEqual(['smoothed', 'smooth']);
+
+    // A pipeline error (a cycle) is reported from the real ProcessorManager.
+    await page.evaluate(() => {
+        const d = document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio');
+        d._workingConfig = { ...d._workingConfig, processing: { a: { type: 'round', input_source: 'b' }, b: { type: 'round', input_source: 'a' } } };
+    });
+    await expect.poll(() => studio.locator('lcards-processor-tree-editor lcards-message[type="error"]').evaluateAll(els => els.map(e => e.message).join(' ')))
+        .toMatch(/Circular dependency/);
+
+    await closeStudio(page);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('data source studio: history preload off writes enabled: false; a new source shows no errors before input', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    let studio = await openStudio(page, { config: { entity: 'input_number.lcards_test_value' } });
+    await studio.getByRole('tab', { name: 'Timing & History' }).click();
+    await studio.locator('ha-selector').filter({ hasText: 'Preload history' }).locator('ha-switch').click();
+    await expect.poll(async () => (await studioConfig(page)).history).toEqual({ enabled: false });
+    await closeStudio(page);
+
+    studio = await openStudio(page, { mode: 'add' });
+    await expect(studio.getByText('Entity is required')).toHaveCount(0);
+    await studio.locator('ha-selector').filter({ hasText: 'DataSource Name' }).locator('input').fill('lab');
+    await expect(studio.getByText('Entity is required')).toBeVisible();
+    await closeStudio(page);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('data source studio: a new source previews its entity\'s history (no attribute placeholder in the config)', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await client.callService('input_number', 'set_value', { entity_id: 'input_number.lcards_test_value', value: 42 });
+    const studio = await openStudio(page, { mode: 'add' });
+    // As a user does: pick the entity on the Basic tab, then open Processing.
+    await page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio')
+        ._updateConfig('entity', 'input_number.lcards_test_value'));
+    expect((await studioConfig(page)).attribute).toBeUndefined();
+    await studio.getByRole('tab', { name: 'Processing' }).click();
+    const preview = studio.locator('lcards-processor-preview');
+    await expect.poll(() => preview.evaluate(el => el._history?.points?.length ?? -1), { timeout: 20_000 }).toBeGreaterThan(0);
+    await closeStudio(page);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('data source studio: a long pipeline scrolls, so every processor is reachable', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const processing = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`p${i}`, { type: 'round', precision: i % 3 }]));
+    const studio = await openStudio(page, { config: { entity: 'input_number.lcards_test_value', processing } });
+    await studio.getByRole('tab', { name: 'Processing' }).click();
+    await expect(studio.locator('lcards-processor-preview .apexcharts-svg')).toBeVisible({ timeout: 20_000 });
+    // What a user can reach: after wheeling down over the dialog (a wheel can't
+    // scroll an overflow: hidden box, unlike scrollIntoView), the element lies inside
+    // the dialog's visible area.
+    const contentBox = () => page.evaluate(() => {
+        const r = document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio')
+            .shadowRoot.querySelector('.dialog-content').getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    const box = await contentBox();
+    await page.mouse.move(box.x, box.y);
+    for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(300);
+    const inView = async (locator) => {
+        const b = await locator.boundingBox();
+        return !!b && b.y >= box.top - 1 && b.y + b.height <= box.bottom + 1;
+    };
+    const last = studio.locator('lcards-processor-tree-editor .node').last();
+    // At the bottom: the form's actions and the end of the tree are on screen.
+    expect(await inView(studio.getByRole('button', { name: 'Delete' }))).toBe(true);
+    expect(await inView(last)).toBe(true);
+    await last.click();
+    await expect(last).toHaveClass(/selected/);
+    // The form's actions at the bottom are reachable too.
+    await studio.getByRole('button', { name: 'Delete' }).click();
+    await expect(studio.locator('lcards-processor-tree-editor .node')).toHaveCount(7);
+    await closeStudio(page);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});

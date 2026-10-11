@@ -12,6 +12,7 @@
 
 import { LitElement, html, css } from 'lit';
 import '../shared/lcards-form-section.js';
+import { historySettings } from '../../../core/data-sources/history-fetch.js';
 
 export class LCARdSCardDataSourcesList extends LitElement {
   static get properties() {
@@ -170,15 +171,11 @@ export class LCARdSCardDataSourcesList extends LitElement {
               </div>
             ` : ''}
 
-            <!-- History -->
-            ${config.history?.preload ? html`
-              <div class="info-row">
-                <span class="label">History:</span>
-                <span class="value">
-                  ${config.history.hours || 0}h, ${config.history.days || 0}d
-                </span>
-              </div>
-            ` : ''}
+            <!-- History preload (on by default) -->
+            <div class="info-row">
+              <span class="label">History:</span>
+              <span class="value">${historySettings(config).enabled ? `last ${historySettings(config).hours} h preloaded` : 'not preloaded'}</span>
+            </div>
 
             <!-- Edit and Remove Actions -->
             <div class="action-buttons">

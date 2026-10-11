@@ -72,7 +72,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
       .source-card {
         background: var(--chip-background-color, var(--card-background-color, #fff));
         border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
-        border-radius: 12px;
+        border-radius: var(--ha-border-radius-lg);
         padding: 16px;
         transition: all 0.2s;
       }
@@ -83,7 +83,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
 
       .source-card.auto-created {
         border-left: 4px solid var(--warning-color, #ff9800);
-        background: rgba(255, 152, 0, 0.05);
+        background: color-mix(in srgb, var(--warning-color, #ff9800) 5%, transparent);
       }
 
       .source-card.configured {
@@ -112,7 +112,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
 
       .badge {
         padding: 2px 8px;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         font-size: 10px;
         font-weight: 600;
         text-transform: uppercase;
@@ -155,7 +155,7 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
         background: var(--primary-color, #03a9f4);
         color: white;
         padding: 2px 8px;
-        border-radius: 12px;
+        border-radius: var(--ha-border-radius-lg);
         font-size: 11px;
         font-weight: 500;
       }
