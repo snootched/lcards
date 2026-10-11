@@ -35,6 +35,11 @@ function liveDemoFence(md: any) {
   md.renderer.rules.fence = (tokens: any[], idx: number, options: any, env: any, self: any) => {
     const html = fence(tokens, idx, options, env, self)
     const info = (tokens[idx].info || '').trim().split(/\s+/)
+    // ```yaml lab: a processor lab around the example (rendered at build time, so the
+    // YAML stays in the page HTML; the lab's code loads in the browser).
+    if (/^ya?ml$/.test(info[0]) && info.includes('lab')) {
+      return `<ProcessorLab src="${encodeURIComponent(tokens[idx].content)}">${html}</ProcessorLab>`
+    }
     if (!/^ya?ml$/.test(info[0]) || !info.includes('live')) return html
     const content = tokens[idx].content
     const type = /^type:\s*["']?custom:([\w-]+)/m.exec(content)?.[1] ?? ''

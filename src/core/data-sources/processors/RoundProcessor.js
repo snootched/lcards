@@ -15,7 +15,7 @@ import { Processor } from './BaseProcessor.js';
  * ```yaml
  * processor_name:
  *   type: round
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   precision: 1            # Decimal places
  *   method: round           # round, floor, ceil
  * ```

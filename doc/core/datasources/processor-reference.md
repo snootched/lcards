@@ -10,6 +10,8 @@ Processors transform data as it flows through a DataSource. Each processor:
 - Optionally uses `input_source` to depend on another processor
 - Outputs a value accessible in templates as `{datasource.processor_name}`
 
+Each section has a **Try it** lab: it runs the real LCARdS processors over a day of generated sample history and charts the raw values against each processor's output. Select **Edit** to change the YAML; any `sensor.*` entity id gets a sample signal.
+
 ## Quick Reference
 
 | Type | Purpose | Common Use |
@@ -77,6 +79,17 @@ processor_name:
 - `brightness` (0-255 ↔ 0-100%)
 - `percent` (0-100)
 
+### Try it
+
+```yaml lab
+entity: sensor.demo_temperature
+processing:
+  fahrenheit:
+    type: convert_unit
+    from: c
+    to: f
+```
+
 ### Examples
 
 ```yaml
@@ -116,6 +129,17 @@ processor_name:
   curve: linear                   # linear, exponential, logarithmic, sigmoid
 ```
 
+### Try it
+
+```yaml lab
+entity: sensor.demo_humidity
+processing:
+  normalized:
+    type: scale
+    input_range: [0, 100]
+    output_range: [0, 1]
+```
+
 ### Examples
 
 ```yaml
@@ -153,7 +177,7 @@ processor_name:
   type: smooth
   input_source: source_processor  # Optional
   method: exponential             # exponential, moving_average, gaussian
-  window: 10                      # For moving_average (samples)
+  window: 10                      # moving_average and gaussian: samples (default 10)
   alpha: 0.3                      # For exponential (0-1, lower = more smoothing)
 ```
 
@@ -173,6 +197,26 @@ processor_name:
 - Weighted average with bell curve
 - Smoothest result
 - Computationally heavier
+
+### Try it
+
+```yaml lab
+# A spiky power sensor: compare the three methods
+entity: sensor.demo_power
+processing:
+  exponential:
+    type: smooth
+    method: exponential
+    alpha: 0.2
+  moving_average:
+    type: smooth
+    method: moving_average
+    window: 6
+  gaussian:
+    type: smooth
+    method: gaussian
+    window: 6
+```
 
 ### Examples
 
@@ -218,11 +262,30 @@ processor_name:
 
 ### Context Variables
 
-- `value` - Current value (if `input_source` specified)
-- `sources[0], sources[1]...` - Array of source values (if `sources` specified)
-- `metadata` - DataSource metadata object
-- `states` - Full HA states object
-- `hass` - Full HASS object
+- `value`, `v` - Current value: the `input_source` processor's output, else the raw entity value
+- `timestamp`, `t` - Time of the value (epoch ms)
+- `sources[0], sources[1]...` - The outputs of the processors listed in `sources` (they always run first)
+- `entity` - The entity's state object (`state`, `attributes`, `entity_id`, `last_changed`, `last_updated`)
+- `buffer` - The data source's raw value buffer
+- `Math`, plus the shortcuts `abs`, `min`, `max`, `round`, `floor`, `ceil`, `pow`, `sqrt`
+
+The expression is a single JavaScript expression (it is evaluated as `return (expression)`), so use the conditional operator rather than `if` or `return` statements. An expression that throws returns no value for that sample.
+
+### Try it
+
+```yaml lab
+# How far the temperature is from its 24 h mean
+entity: sensor.demo_temperature
+processing:
+  daily:
+    type: statistics
+    window: 24h
+    stats: [mean]
+  deviation:
+    type: expression
+    sources: [daily]
+    expression: "value - sources[0].mean"
+```
 
 ### Examples
 
@@ -253,11 +316,7 @@ feels_like:
     - temp_f
     - humidity
     - wind_speed
-  expression: |
-    const t = sources[0];
-    const h = sources[1];
-    const w = sources[2];
-    return t + 0.33 * h - 0.7 * w - 4.0;
+  expression: "sources[0] + 0.33 * sources[1] - 0.7 * sources[2] - 4.0"
 ```
 
 ---
@@ -290,18 +349,37 @@ processor_name:
 - `q3` - 75th percentile
 - `range` - max - min
 - `count` - Number of samples
+- `sum` - Sum of the values
+
+`avg` and `stddev` are accepted as aliases of `mean` and `std_dev`. Defaults: `window: session`, `stats: [min, max, mean]`. A time window covers this processor's own recent inputs, up to the data source's buffer size (`window_seconds` x 10 points, at least 60; 600 by default).
 
 ### Output
 
-Returns object with requested stats:
+Returns an object with the requested stats, plus `oldest` and `newest` (timestamps of the first and last value in the window) and `window`:
 ```javascript
 {
   min: 18.5,
   max: 24.3,
   mean: 21.2,
   median: 21.0,
-  count: 144
+  count: 144,
+  oldest: 1760000000000,
+  newest: 1760086400000,
+  window: '24h'
 }
+```
+
+With `max_points: N` it returns the last N of these results as a time series (each with a `t` timestamp) instead.
+
+### Try it
+
+```yaml lab
+entity: sensor.demo_outdoor_temperature
+processing:
+  last_hour:
+    type: statistics
+    window: 1h
+    stats: [min, max, mean]
 ```
 
 ### Examples
@@ -352,6 +430,18 @@ processor_name:
   smoothing: true                 # Optional: apply smoothing
 ```
 
+### Try it
+
+```yaml lab
+# An energy meter (kWh): its rate per hour is the power in kW
+entity: sensor.demo_energy
+processing:
+  kw:
+    type: rate
+    unit: per_hour
+    smoothing: true
+```
+
 ### Examples
 
 ```yaml
@@ -397,6 +487,22 @@ Returns string:
 - `"increasing"` - Value trending up
 - `"decreasing"` - Value trending down
 - `"stable"` - No significant change
+
+### Try it
+
+```yaml lab
+# trend outputs a word, so it shows in the table, not the chart
+entity: sensor.demo_outdoor_temperature
+processing:
+  smoothed:
+    type: smooth
+    alpha: 0.3
+  direction:
+    type: trend
+    input_source: smoothed
+    samples: 6
+    threshold: 0.02
+```
 
 ### Examples
 
@@ -446,8 +552,22 @@ Returns object:
 ```javascript
 {
   duration_ms: 3600000,           // Milliseconds
-  duration_human: "1h 0m 0s"      // Human-readable
+  duration_human: "1h 0m",        // Human-readable
+  in_condition: true              // Whether the condition holds now
 }
+```
+
+Conditions compare numbers (`>`, `>=`, `<`, `<=`, `==`, `!=`). On/off entities arrive as `1`/`0` (other text states need `enum_mapping` on the data source), so test them with `== 1`.
+
+### Try it
+
+```yaml lab
+# Minutes spent above 21.5 °C (resets each time it drops below)
+entity: sensor.demo_temperature
+processing:
+  warm:
+    type: duration
+    condition: "> 21.5"
 ```
 
 ### Examples
@@ -460,16 +580,15 @@ high_temp_duration:
   condition: "> 25"
   reset_on: "< 20"
 
-# Motion detection duration
+# Motion detection duration (binary_sensor: on = 1)
 motion_duration:
   type: duration
-  condition: "== 'on'"
+  condition: "== 1"
 
-# Door open duration
+# Door open duration (binary_sensor: open = on = 1)
 door_open_time:
   type: duration
-  input_source: door_state
-  condition: "== 'open'"
+  condition: "== 1"
 ```
 
 **Template Access:**
@@ -498,9 +617,23 @@ processor_name:
 
 ### Hysteresis
 
-Prevents rapid switching near threshold:
-- When rising: triggers at `threshold + hysteresis`
-- When falling: triggers at `threshold - hysteresis`
+Prevents rapid switching near the threshold. `hysteresis` is the width of a dead band centred on the threshold:
+- When rising: switches to `above` at `threshold + hysteresis / 2`
+- When falling: switches to `below` at `threshold - hysteresis / 2`
+
+The first value picks the starting state against `threshold` itself.
+
+### Try it
+
+```yaml lab
+# 1 when warm, 0 when not; the 1 °C band stops flapping around 21.5
+entity: sensor.demo_temperature
+processing:
+  warm:
+    type: threshold
+    threshold: 21.5
+    hysteresis: 1
+```
 
 ### Examples
 
@@ -520,7 +653,7 @@ comfort_alert:
   threshold: 25
   above: 1
   below: 0
-  hysteresis: 2  # Triggers at 27°C up, 23°C down
+  hysteresis: 2  # Switches at 26°C rising, 24°C falling
 
 # Custom values
 temp_level:
@@ -545,6 +678,18 @@ processor_name:
   input_source: source_processor  # Optional
   min: 0
   max: 100
+```
+
+### Try it
+
+```yaml lab
+# Cap the spikes of a power sensor at 600 W
+entity: sensor.demo_power
+processing:
+  capped:
+    type: clamp
+    min: 0
+    max: 600
 ```
 
 ### Examples
@@ -592,6 +737,20 @@ processor_name:
 - `floor` - Always round down (0.9 → 0)
 - `ceil` - Always round up (0.1 → 1)
 
+### Try it
+
+```yaml lab
+entity: sensor.demo_temperature
+processing:
+  whole:
+    type: round
+    precision: 0
+  floored:
+    type: round
+    precision: 0
+    method: floor
+```
+
 ### Examples
 
 ```yaml
@@ -634,6 +793,16 @@ processor_name:
   absolute: false                 # true = absolute change, false = signed
 ```
 
+### Try it
+
+```yaml lab
+# Energy used since the previous reading (kWh)
+entity: sensor.demo_energy
+processing:
+  used:
+    type: delta
+```
+
 ### Examples
 
 ```yaml
@@ -660,9 +829,9 @@ significant_change:
 
 ## Chaining Processors
 
-Processors can depend on each other using `input_source`:
+Processors can depend on each other using `input_source` (and an expression's `sources`):
 
-```yaml
+```yaml lab
 data_sources:
   temp:
     entity: sensor.temperature
@@ -696,8 +865,10 @@ data_sources:
 
 **Execution Order:**
 1. `fahrenheit` (no dependencies)
-2. `smoothed` and `stats` (both depend on `fahrenheit`, run in parallel)
-3. `rounded` (depends on `smoothed`)
+2. `smoothed` (depends on `fahrenheit`)
+3. `rounded` and `stats` (both depend on `smoothed`)
+
+Each value runs through the whole chain in that order before the next value arrives.
 
 ---
 
@@ -724,7 +895,3 @@ data_sources:
 3. Prefer exponential smoothing over moving average for displays
 4. Limit statistics windows to what you need
 5. Avoid deeply nested processor chains (>5 levels)
-
----
-
-*Last updated: February 2026 | LCARdS v1.12+*

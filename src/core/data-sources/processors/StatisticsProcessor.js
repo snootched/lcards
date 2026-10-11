@@ -17,7 +17,7 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
  * ```yaml
  * processor_name:
  *   type: statistics
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   window: 24h             # Time window or 'session'
  *   stats: [min, max, mean, median, std_dev, q1, q3, range, count]
  *   max_points: 24          # Optional: if set, returns time-series array
@@ -42,6 +42,7 @@ export class StatisticsProcessor extends Processor {
 
     // Session-wide tracking
     this._sessionValues = [];
+    this._windowInputs = [];
     this._sessionStartTime = Date.now();
 
     // Time-series tracking (if max_points set)
@@ -60,6 +61,13 @@ export class StatisticsProcessor extends Processor {
 
     // Add to session tracking
     this._sessionValues.push({ t: timestamp, v: value });
+
+    // Own input history for time windows: the input may be another processor's
+    // output (input_source), so the main buffer's raw values are not it. Kept to
+    // the main buffer's capacity, the bound time windows always had.
+    this._windowInputs.push({ t: timestamp, v: value });
+    const cap = mainBuffer?.capacity ?? 1000;
+    if (this._windowInputs.length > cap) this._windowInputs.splice(0, this._windowInputs.length - cap);
 
     // Get values from window
     const windowValues = this._getWindowValues(timestamp, mainBuffer);
@@ -121,11 +129,11 @@ export class StatisticsProcessor extends Processor {
       return this._sessionValues;
     }
 
-    // Get values from buffer within time window
+    // This processor's own inputs within the time window
     const cutoffTime = currentTimestamp - this._windowMs;
-    const allData = mainBuffer.getAll();
-
-    return allData.filter(d => d.t >= cutoffTime);
+    const firstInWindow = this._windowInputs.findIndex(d => d.t >= cutoffTime);
+    if (firstInWindow > 0) this._windowInputs.splice(0, firstInWindow);
+    return firstInWindow === -1 ? [] : this._windowInputs;
   }
 
   /**

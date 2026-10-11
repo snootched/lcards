@@ -82,12 +82,11 @@ test('smooth: exponential, moving average, gaussian', () => {
     const exp = run(new SmoothProcessor({ alpha: 0.5 }), [10, 20, 20]);
     assert.deepEqual(exp, [10, 15, 17.5]);
     assert.deepEqual(run(new SmoothProcessor({ method: 'moving_average', window: 2 }), [2, 4, 6]), [2, 3, 5]);
-    // Gaussian weighs the main buffer, newest heaviest.
-    const pts = [1, 2, 3, 4].map((v, i) => ({ t: i, v }));
-    const g = new SmoothProcessor({ method: 'gaussian', window: 4 }).process(4, 3, bufferOf(pts), {});
+    // Gaussian weighs its own recent inputs (not the main buffer), newest heaviest.
+    const g = run(new SmoothProcessor({ method: 'gaussian', window: 4 }), [1, 2, 3, 4]).at(-1);
     assert.ok(g > 2.5 && g < 4, String(g));
-    // Fewer than 3 buffered points: value passes through.
-    assert.equal(new SmoothProcessor({ method: 'gaussian' }).process(7, 0, bufferOf([{ t: 0, v: 7 }]), {}), 7);
+    // Fewer than 3 inputs so far: value passes through.
+    assert.deepEqual(run(new SmoothProcessor({ method: 'gaussian' }), [7, 9]), [7, 9]);
     // Unknown method passes values through.
     assert.deepEqual(run(new SmoothProcessor({ method: 'nope' }), [3, 9]), [3, 9]);
 });
@@ -109,9 +108,13 @@ test('statistics: session window, every stat', () => {
     assert.equal(new StatisticsProcessor({}).process(NaN, 0, bufferOf(), {}), null);
 });
 
-test('statistics: time window reads the main buffer; max_points returns a series', () => {
-    const buf = bufferOf([{ t: 0, v: 100 }, { t: 50_000, v: 1 }, { t: 60_000, v: 3 }]);
+test('statistics: time window over its own inputs; max_points returns a series', () => {
+    // Its own inputs, not the main buffer: with input_source they are another
+    // processor's output (found with the S7 processor preview).
     const p = new StatisticsProcessor({ window: '30s', stats: ['mean', 'count'] });
+    const buf = bufferOf([{ t: 0, v: 999 }]);
+    p.process(100, 0, buf, {});
+    p.process(1, 50_000, buf, {});
     const r = p.process(3, 60_000, buf, {});
     assert.equal(r.mean, 2);
     assert.equal(r.count, 2);

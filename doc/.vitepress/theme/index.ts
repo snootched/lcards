@@ -9,6 +9,7 @@ import ChartDemo from './ChartDemo.vue'
 import DataGridDemo from './DataGridDemo.vue'
 import CardDemo from './CardDemo.vue'
 import CardGallery from './CardGallery.vue'
+import ProcessorLab from './ProcessorLab.vue'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -78,6 +79,8 @@ export default {
     app.component('CardDemo', CardDemo)
     // A grid of real cards, one per option value: <CardGallery set="button-presets" />.
     app.component('CardGallery', CardGallery)
+    // ```yaml lab blocks on the processor reference page.
+    app.component('ProcessorLab', ProcessorLab)
   },
 
   Layout() {

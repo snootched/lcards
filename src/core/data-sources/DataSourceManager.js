@@ -81,6 +81,13 @@ export class DataSourceManager extends BaseService {
    * @returns {Promise<DataSource>}
    */
   async createDataSource(name, config, cardId = null, autoCreated = false) {
+    // Core starts with a stub HASS (no connection) until a card or the page feeds the
+    // real one, and HA configures a card before giving it HASS. A source built on the
+    // stub skips its history preload and fails to subscribe, so wait for the real one.
+    if (!this.sources.has(name) && !this.hass?.connection) {
+      await this._whenConnected();
+    }
+
     // If datasource already exists, add cardId to tracking
     if (this.sources.has(name)) {
       const existing = this.sources.get(name);
@@ -165,6 +172,17 @@ export class DataSourceManager extends BaseService {
     });
 
     return source;
+  }
+
+  /**
+   * Resolves once HASS has a websocket connection (see ingestHass).
+   * @private
+   * @returns {Promise<void>}
+   */
+  _whenConnected() {
+    if (this.hass?.connection) return Promise.resolve();
+    this._connectedWaiters ??= [];
+    return new Promise(resolve => this._connectedWaiters.push(resolve));
   }
 
   /**
@@ -599,6 +617,13 @@ export class DataSourceManager extends BaseService {
 
     // Update HASS reference for lookups
     this.hass = hass;
+
+    // Release data sources waiting for a connected HASS (createDataSource)
+    if (hass.connection && this._connectedWaiters?.length) {
+      const waiters = this._connectedWaiters;
+      this._connectedWaiters = [];
+      waiters.forEach(resolve => resolve());
+    }
 
     // If we have previous HASS, only update changed entities
     if (hassPrevious) {

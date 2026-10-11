@@ -12,8 +12,18 @@ export const DOCS_SITE = 'https://lcards.unimatrix01.ca';
 
 const SIZING = '/cards/common#sizing-height-width-min-height-min-width-max-height-max-width';
 
+// A data source's processing pipeline: processor names are free-form map keys, so
+// any path through `processing` links to the processor reference (cards' data_sources,
+// the docs processor lab).
+const PROCESSORS = '/core/datasources/processor-reference';
+
 /** Detailed maps: dotted key path (list indices dropped) to docs link. */
 const DETAILED = {
+  // The docs processor lab edits one data source entry.
+  'processor-lab': {
+    '': '/core/datasources/#top-level-fields',
+    processing: PROCESSORS
+  },
   chart: {
     '': '/cards/chart/#card-options',
     chart_type: '/cards/chart/#chart-types',
@@ -178,6 +188,7 @@ export function docsFor(cardType, path) {
   const type = normalizeCardType(cardType);
   const map = DETAILED[type] || {};
   const keys = path.filter(seg => typeof seg === 'string');
+  if (keys.slice(0, -1).includes('processing') || (keys[keys.length - 1] === 'processing' && keys.length > 1)) return PROCESSORS;
   for (let n = keys.length; n >= 1; n--) {
     const prefix = keys.slice(0, n).join('.');
     if (map[prefix]) return map[prefix];
@@ -200,5 +211,6 @@ export function listDocsLinks() {
     ...Object.values(DETAILED).flatMap(map => Object.values(map)),
     ...Object.values(CARD_PAGES),
     ...Object.values(COMMON),
+    PROCESSORS,
   ])];
 }

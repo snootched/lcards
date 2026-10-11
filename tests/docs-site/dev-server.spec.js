@@ -46,3 +46,16 @@ test('dev server: a chunk written after startup is served as JavaScript, uncache
         rmSync(file, { force: true });
     }
 });
+
+test('dev server: a processor lab runs and charts', async ({ page }) => {
+    test.setTimeout(120_000);
+    const errors = watchErrors(page);
+    await page.goto('/core/datasources/processor-reference');
+    const lab = page.locator('.processor-lab').first();
+    const chart = lab.locator('.processor-lab-chart .apexcharts-svg');
+    // Scroll again until it shows: VitePress scrolls to the top once it has loaded.
+    await expect.poll(async () => { await lab.scrollIntoViewIfNeeded(); return chart.isVisible(); },
+        { timeout: 60_000, intervals: [500, 1000, 2000] }).toBe(true);
+    await expect(lab.locator('.processor-lab-table tbody tr').first()).toBeVisible();
+    expect(errors).toEqual([]);
+});

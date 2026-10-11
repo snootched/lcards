@@ -15,7 +15,7 @@ import { Processor } from './BaseProcessor.js';
  * ```yaml
  * processor_name:
  *   type: clamp
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   min: 0
  *   max: 100
  * ```

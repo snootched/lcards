@@ -2,7 +2,7 @@
  * @fileoverview Base Processor class for all data processing operations
  *
  * All processors extend this base class which provides:
- * - Dependency tracking via from: field
+ * - Dependency tracking via the input_source: field
  * - Performance statistics
  * - Error handling and fallback values
  * - Standard processing interface
@@ -39,6 +39,15 @@ export class Processor {
    */
   getDependency() {
     return this._dependency;
+  }
+
+  /**
+   * Every processor this one reads, for execution ordering: its input_source
+   * (expression adds its sources).
+   * @returns {string[]}
+   */
+  getDependencies() {
+    return this._dependency ? [this._dependency] : [];
   }
 
   /**

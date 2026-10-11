@@ -66,6 +66,10 @@ test('docs links: detailed maps, common options, card pages, absolute urls', () 
     assert.equal(normalizeCardType('custom:lcards-data-grid'), 'data-grid');
     assert.equal(docsFor('lcards-data-grid', ['rows', 1, 'values', 0, 'style', 'color']), '/cards/data-grid/data#conditional-colours');
     assert.equal(docsFor('button', ['rules']), '/core/rules/');
+    // Processor names are free-form keys: anything under processing links to the reference.
+    assert.equal(docsFor('chart', ['data_sources', 'temp', 'processing', 'smoothed', 'alpha']), '/core/datasources/processor-reference');
+    assert.equal(docsFor('processor-lab', ['processing', 'smoothed', 'type']), '/core/datasources/processor-reference');
+    assert.equal(docsFor('lcards-processor-lab', ['entity']), '/core/datasources/#top-level-fields');
     assert.equal(docsFor('button', ['text', 'label']), '/core/text-fields');
     assert.equal(docsFor('slider', []), '/cards/slider-card/#card-options');
     // Cards without a detailed map fall back to their page.

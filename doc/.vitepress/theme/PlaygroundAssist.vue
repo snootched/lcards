@@ -1,6 +1,7 @@
 <template>
   <div class="pg-assist">
-    <details class="pg-section" open>
+    <!-- Only when this playground defines quick settings (the processor lab has none) -->
+    <details v-if="spec.controls.length" class="pg-section" open>
       <summary>Quick settings</summary>
       <p v-if="!parsed" class="pg-note">Fix the YAML error to use quick settings.</p>
       <div v-else class="pg-controls">

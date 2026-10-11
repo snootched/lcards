@@ -3,7 +3,7 @@
  *
  * Replaces the old transformation/aggregation split with a unified approach:
  * - All processors store historical data in RollingBuffer
- * - Clear dependency chain with from: field
+ * - Clear dependency chain with the input_source: field
  * - Simple access pattern: {datasource.processor_name}
  * - Everything is chartable
  *
@@ -178,9 +178,8 @@ export class ProcessorManager {
     });
 
     this.processors.forEach((processor, key) => {
-      const dep = processor.getDependency(); // Returns 'from' field value or null
-
-      if (dep) {
+      // input_source, plus an expression's sources
+      for (const dep of processor.getDependencies()) {
         if (!this.processors.has(dep)) {
           throw new Error(
             `Processor ${key} depends on unknown processor: ${dep}. ` +
@@ -188,8 +187,10 @@ export class ProcessorManager {
           );
         }
 
-        graph.get(dep).add(key);
-        inDegree.set(key, inDegree.get(key) + 1);
+        if (!graph.get(dep).has(key)) {
+          graph.get(dep).add(key);
+          inDegree.set(key, inDegree.get(key) + 1);
+        }
       }
     });
 

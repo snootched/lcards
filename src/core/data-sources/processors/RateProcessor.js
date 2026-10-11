@@ -15,7 +15,7 @@ import { Processor } from './BaseProcessor.js';
  * ```yaml
  * processor_name:
  *   type: rate
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   unit: per_second        # per_second, per_minute, per_hour
  *   smoothing: true         # Optional: apply smoothing
  * ```

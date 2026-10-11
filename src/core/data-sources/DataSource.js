@@ -24,6 +24,58 @@ const cancelAnimationFrame = isNode
   ? (id) => clearTimeout(id)
   : window.cancelAnimationFrame;
 
+/**
+ * Parse a time window string to milliseconds: "60s", "5m", "2h", "1d".
+ * @param {string} windowStr
+ * @returns {number} Milliseconds, or NaN if invalid
+ */
+export function parseTimeWindowMs(windowStr) {
+  if (typeof windowStr !== 'string') return NaN;
+
+  const match = windowStr.match(/^(\d+(?:\.\d+)?)\s*(s|sec|m|min|h|hr|d|day)s?$/i);
+  if (!match) return NaN;
+
+  const value = parseFloat(match[1]);
+  const unit = match[2].toLowerCase();
+
+  switch (unit) {
+    case 's':
+    case 'sec':
+      return value * 1000;
+    case 'm':
+    case 'min':
+      return value * 60 * 1000;
+    case 'h':
+    case 'hr':
+      return value * 60 * 60 * 1000;
+    case 'd':
+    case 'day':
+      return value * 24 * 60 * 60 * 1000;
+    default:
+      return NaN;
+  }
+}
+
+/**
+ * Rolling window and main buffer capacity of a data source, from `window_seconds`
+ * (seconds or a string like "5m"; default 60 s): about 10 points per second of
+ * window, at least 60 (RollingBuffer caps it at 1000). The processor preview uses
+ * the same size so window-based processors see what a live data source would.
+ * @param {Object} cfg - Data source config
+ * @returns {{windowSeconds: number, capacity: number}}
+ */
+export function dataSourceBufferSize(cfg = {}) {
+  const windowCfg = cfg.window_seconds ?? cfg.windowSeconds;
+  let windowSeconds = 60;
+  if (typeof windowCfg === 'number' && isFinite(windowCfg)) {
+    windowSeconds = Math.max(1, windowCfg);
+  } else if (typeof windowCfg === 'string') {
+    const ms = parseTimeWindowMs(windowCfg);
+    if (Number.isFinite(ms)) windowSeconds = Math.max(1, Math.floor(ms / 1000));
+  }
+  return { windowSeconds, capacity: Math.max(60, Math.floor(windowSeconds * 10)) };
+}
+
 export class DataSource {
   /**
    * Create a new DataSource for a Home Assistant entity
@@ -65,23 +117,11 @@ export class DataSource {
 
     // Timing keys are snake_case; the older camelCase spellings still work.
     const pick = (...keys) => keys.map(k => cfg[k]).find(v => v !== undefined && v !== null);
-    const windowCfg = pick('window_seconds', 'windowSeconds');
 
-    // Buffer sizing from the window
-    let wsSec = 60; // Default window
-    if (typeof windowCfg === 'number' && isFinite(windowCfg)) {
-      wsSec = Math.max(1, windowCfg);
-    } else if (typeof windowCfg === 'string') {
-      const ms = this._parseTimeWindowMs(windowCfg);
-      if (Number.isFinite(ms)) {
-        wsSec = Math.max(1, Math.floor(ms / 1000));
-      }
-    }
+    // Buffer sizing from the window (shared with the processor preview)
+    const { windowSeconds, capacity } = dataSourceBufferSize(cfg);
     /** Resolved rolling window in seconds */
-    this.windowSeconds = wsSec;
-
-    // Buffer capacity: aim for ~10 points per second for the window
-    const capacity = Math.max(60, Math.floor(wsSec * 10));
+    this.windowSeconds = windowSeconds;
     this.buffer = new RollingBuffer(capacity);
 
     // PORT: Complete timing configuration from original - MADE MORE AGGRESSIVE
@@ -1033,30 +1073,7 @@ export class DataSource {
    * @returns {number} Milliseconds or NaN if invalid
    */
   _parseTimeWindowMs(windowStr) {
-    if (typeof windowStr !== 'string') return NaN;
-
-    const match = windowStr.match(/^(\d+(?:\.\d+)?)\s*(s|sec|m|min|h|hr|d|day)s?$/i);
-    if (!match) return NaN;
-
-    const value = parseFloat(match[1]);
-    const unit = match[2].toLowerCase();
-
-    switch (unit) {
-      case 's':
-      case 'sec':
-        return value * 1000;
-      case 'm':
-      case 'min':
-        return value * 60 * 1000;
-      case 'h':
-      case 'hr':
-        return value * 60 * 60 * 1000;
-      case 'd':
-      case 'day':
-        return value * 24 * 60 * 60 * 1000;
-      default:
-        return NaN;
-    }
+    return parseTimeWindowMs(windowStr);
   }
 
   /**

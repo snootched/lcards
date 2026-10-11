@@ -15,7 +15,7 @@ import { Processor } from './BaseProcessor.js';
  * ```yaml
  * processor_name:
  *   type: scale
- *   from: source_processor  # Optional
+ *   input_source: source_processor  # Optional
  *   input_range: [0, 100]
  *   output_range: [0, 1]
  *   curve: linear  # linear, exponential, logarithmic, sigmoid
