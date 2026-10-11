@@ -85,14 +85,17 @@ The MSD card renders a base SVG as its background. Named anchor points embedded 
 
 ```yaml
 type: custom:lcards-msd-card
-svg: /local/lcards/assets/my-ship.svg
-overlays:
-  - id: warp_status
-    position:
-      anchor: warp_core      # binds to <circle id="anchor__warp_core"> in SVG
-    card:
-      type: custom:lcards-button
-      # ...
+msd:
+  base_svg:
+    source: /local/lcards/assets/my-ship.svg
+  overlays:
+    - id: warp_status
+      type: control
+      anchor: warp_core      # an anchor harvested from the SVG (e.g. <circle id="warp_core">)
+      size: [200, 90]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
 ```
 
 ---

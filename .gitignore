@@ -438,3 +438,5 @@ doc/.vitepress/cache/
 # Playwright output
 test-results/
 playwright-report/
+# Built LCARdS bundle published with the docs (scripts/copy-docs-bundle.js)
+doc/public/lcards/

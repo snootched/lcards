@@ -408,6 +408,15 @@ function main() {
       let blockSchemaIssues = 0;
       for (const cardNode of cardNodes) {
         const tag = cardNode.type.slice('custom:'.length); // e.g. 'lcards-button'
+
+        // An MSD needs something to draw on: a base_svg source, or an explicit
+        // view_box (a blank canvas). Without either it can't initialise.
+        if (tag === 'lcards-msd-card' && !cardNode.msd?.base_svg?.source && !Array.isArray(cardNode.msd?.view_box)) {
+          const entry = { file: rel, line: b.line, msg: 'MSD example has neither msd.base_svg.source nor a view_box [x, y, w, h]' };
+          if (STRICT) errors.push(entry); else schemaWarnings.push(entry);
+          blockSchemaIssues++;
+        }
+
         const validate = cardValidators.get(tag);
         if (!validate) continue; // msd-card, config-panel, or unknown — skip
         totalSchemaChecked++;

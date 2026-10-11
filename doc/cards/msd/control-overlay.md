@@ -8,7 +8,7 @@ Embeds any Home Assistant card (built-in or custom) at a fixed position on the M
 
 ## Quick Start
 
-```yaml
+```yaml live
 type: custom:lcards-msd-card
 msd:
   base_svg:
@@ -169,9 +169,13 @@ overlays:
 
 Control overlays integrate with the rules engine via `id` and `tags`. Reference them in `rules` to change style dynamically:
 
-```yaml
+```yaml live
 type: custom:lcards-msd-card
 msd:
+  base_svg:
+    source: builtin:ncc-1701-a-blue
+  anchors:
+    engineering: [300, 520]
   overlays:
     - id: warp_core
       type: control

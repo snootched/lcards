@@ -186,7 +186,7 @@ The following Jinja2 call patterns are scanned:
 
 JavaScript templates (`[[[...]]]`) are opaque to static analysis; LCARdS cannot know which entities they reference. Declare them explicitly:
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.kitchen
 triggers_update:

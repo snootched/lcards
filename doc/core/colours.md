@@ -161,7 +161,7 @@ State-based colour objects are accepted wherever a `color:` value is expected, i
 
 A button that changes background, border, and text colour based on a climate entity's state:
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: climate.living_room
 preset: lozenge
@@ -201,7 +201,7 @@ style:
 
 A battery sensor card that uses ranges to colour-code charge level:
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: sensor.phone_battery
 style:
@@ -244,7 +244,7 @@ All other values are treated as literal attribute names read directly from `enti
 
 ### Example: light with brightness-based colour and icon
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.tv
 ranges_attribute: brightness_pct   # all range conditions compare against 0–100 brightness %
@@ -282,7 +282,7 @@ Range conditions work against numeric attribute values via `ranges_attribute`. F
 
 One use case is **climate entities**, where the top-level state is `heat` or `cool` (the mode) but `hvac_action` (`heating`, `cooling`, `idle`, `off`) is the more granular and useful signal for colouring:
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: climate.living_room
 state_attribute: hvac_action
@@ -321,7 +321,7 @@ The two fields are independent and can be used together:
 | `state_attribute` | Which attribute value is matched against **exact string keys** (`heating`, `true`, …) |
 | `ranges_attribute` | Which attribute's **numeric value** is used for range keys (`above:50`, `between:10:90`, …) |
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: climate.living_room
 state_attribute: hvac_action        # exact keys: heating / cooling / idle
@@ -351,7 +351,7 @@ When a preset is applied (e.g. `preset: lozenge`), the preset's `inactive` colou
 
 ### Built-in bucket overrides
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: person.stefan
 state_classification:
@@ -369,7 +369,7 @@ style:
 
 You can define your own bucket names as keys alongside `active` and `inactive`. Any key that isn't a reserved word becomes a custom bucket: assign it an array of raw entity states, then use that key name in your colour config exactly like `active` or `inactive`.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: person.stefan
 state_classification:
@@ -452,7 +452,7 @@ state_classification:
 
 Any colour field also accepts a **Jinja2 / JS template string**. The template is evaluated by the LCARdS template pipeline and the result is used as the colour. This is most useful when the logic is too conditional for a flat state-key map.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: climate.living_room
 icon_style:
@@ -470,7 +470,7 @@ For most cases a state map with `state_attribute` is simpler and more readable. 
 
 State-map keys (`active`/`inactive`/`above:N`/…) are always selected by classifying the card's **own** `entity:`; there's no way to make key *selection* read a different entity. If you need a colour to react to an entity other than the one the card displays or controls, put a template in the colour *value* instead: the template can reference any entity via `is_state()` / `state_attr()` regardless of which one the card is bound to:
 
-```yaml
+```yaml live
 type: custom:lcards-slider
 entity: input_number.target_temp   # bound entity - drives the slider's value
 control:

@@ -66,8 +66,10 @@ test('docs links: detailed maps, common options, card pages, absolute urls', () 
     assert.equal(normalizeCardType('custom:lcards-data-grid'), 'data-grid');
     assert.equal(docsFor('lcards-data-grid', ['rows', 1, 'values', 0, 'style', 'color']), '/cards/data-grid/data#conditional-colours');
     assert.equal(docsFor('button', ['rules']), '/core/rules/');
-    assert.equal(docsFor('button', ['text', 'label']), '/cards/button/');
-    assert.equal(docsFor('slider', []), '/cards/slider-card/');
+    assert.equal(docsFor('button', ['text', 'label']), '/core/text-fields');
+    assert.equal(docsFor('slider', []), '/cards/slider-card/#card-options');
+    // Cards without a detailed map fall back to their page.
+    assert.equal(docsFor('msd', ['msd', 'anchors']), '/cards/msd/');
     assert.equal(docsUrl('/cards/chart/series#grouping'), 'https://lcards.unimatrix01.ca/cards/chart/series.html#grouping');
     assert.equal(docsUrl('/cards/button/'), 'https://lcards.unimatrix01.ca/cards/button/');
 });

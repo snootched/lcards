@@ -7,6 +7,8 @@ import FilterPlayground from './FilterPlayground.vue'
 import EffectPlayground from './EffectPlayground.vue'
 import ChartDemo from './ChartDemo.vue'
 import DataGridDemo from './DataGridDemo.vue'
+import CardDemo from './CardDemo.vue'
+import CardGallery from './CardGallery.vue'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -71,6 +73,11 @@ export default {
     // animation presets, on sample values). Picked by ```yaml live fences
     // whose type is custom:lcards-data-grid, and <DataGridDemo editable />.
     app.component('DataGridDemo', DataGridDemo)
+    // Real LCARdS cards (button, elbow, slider, select menu) from the published
+    // /lcards/ bundle: ```yaml live fences and <CardDemo editable type="..." />.
+    app.component('CardDemo', CardDemo)
+    // A grid of real cards, one per option value: <CardGallery set="button-presets" />.
+    app.component('CardGallery', CardGallery)
   },
 
   Layout() {

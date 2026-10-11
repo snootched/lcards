@@ -52,7 +52,7 @@ Controls whether the card shows visual hover feedback.
 
 Tap and hold actions are unaffected by this flag.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 interactive: false    # decorative - no hand cursor or hover effects
 tap_action:
@@ -63,7 +63,7 @@ tap_action:
 
 Overrides the CSS cursor independently of `interactive`. Useful when you want hover effects but a non-standard cursor shape, or want to suppress the cursor without disabling all hover effects.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 style:
   cursor: crosshair   # any valid CSS cursor value

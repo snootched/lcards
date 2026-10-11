@@ -6,7 +6,7 @@ The `style:` block controls the visual appearance of a card: background colours,
 
 ## Structure
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.living_room
 preset: lozenge
@@ -117,7 +117,7 @@ style:
 
 Card dimensions are set at the top level, not inside `style:`.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 width: 200
 height: 48

@@ -98,7 +98,7 @@ Channels are **authored corridors**: rectangular regions with a flow direction t
 `channels` lives directly under `msd:`, **not** under `msd.routing:`.
 :::
 
-```yaml
+```yaml live
 type: custom:lcards-msd-card
 msd:
   view_box: [0, 0, 600, 300]
@@ -144,7 +144,7 @@ Any control overlay with `obstacle: true` is avoided by `auto`/`smart`/`grid` ro
 
 Global defaults live in `msd.routing` (per-line properties override where applicable):
 
-```yaml
+```yaml live
 type: custom:lcards-msd-card
 msd:
   view_box: [0, 0, 600, 300]

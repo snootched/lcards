@@ -8,7 +8,7 @@ The Button card covers everything from simple labels and toggle buttons to compl
 
 ## Quick Start
 
-```yaml
+```yaml live
 # Lozenge button - entity toggle
 type: custom:lcards-button
 entity: light.living_room
@@ -17,7 +17,7 @@ tap_action:
   action: toggle
 ```
 
-```yaml
+```yaml live
 # Bar-label section header (decorative)
 type: custom:lcards-button
 preset: bar-label-left
@@ -188,6 +188,10 @@ The card operates in one of three modes, selected by which top-level key is pres
 | `icon` | Square icon-only button with large rounded corners |
 | `text-only` | No background or border: pure text label |
 
+Every standard preset, rendered:
+
+<CardGallery set="button-presets" />
+
 ### Bar Labels
 
 Horizontal bars with an opaque text background that creates a "break" in the bar, classic LCARS header style.
@@ -204,6 +208,10 @@ Horizontal bars with an opaque text background that creates a "break" in the bar
 | `bar-label-bullet-right` | Bar label with rounded left, flat right |
 | `bar-label-capped-left` | Bar label with rounded left, flat right |
 | `bar-label-capped-right` | Bar label with flat left, rounded right |
+
+Every bar label preset, rendered:
+
+<CardGallery set="button-bar-labels" />
 
 ---
 
@@ -429,9 +437,11 @@ The `default` key under `segments` applies shared config to all segments.
 | `icon` | string | MDI icon for this segment |
 | `animations` | list | Segment-specific animations |
 
-```yaml
+```yaml live
 type: custom:lcards-button
 component: dpad
+grid_options:
+  rows: 5            # draws to its cell height: give it rows in a sections view
 dpad:
   segments:
     default:
@@ -497,10 +507,12 @@ boundary, use the new `at_least` key instead to get the old inclusive
 behavior explicitly (see the example below).
 :::
 
-```yaml
+```yaml live
 type: custom:lcards-button
 component: alert
 preset: default          # default, red, yellow, blue, green, grey, black
+grid_options:
+  rows: 4            # draws to its cell height: give it rows in a sections view
 
 # State-driven preset switching
 entity: sensor.threat_level
@@ -530,7 +542,7 @@ ranges:
 | `svg.allow_scripts` | boolean | Allow `<script>` elements inside the SVG (default: `false`) |
 | `svg.segments` | object | Interactive segment configs keyed by element `id`; use `default` for shared config |
 
-```yaml
+```yaml live
 type: custom:lcards-button
 svg:
   content: |
@@ -627,7 +639,7 @@ By default every button shows a pointer cursor and changes colour on hover. For 
 | Hover animations | Fire | Suppressed |
 | Tap / hold actions | Fire normally | Fire normally |
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.corridor
 preset: lozenge
@@ -638,7 +650,7 @@ tap_action:
 
 To keep hover effects but override only the cursor shape, use `style.cursor` independently:
 
-```yaml
+```yaml live
 type: custom:lcards-button
 style:
   cursor: crosshair          # any valid CSS cursor string
@@ -650,7 +662,7 @@ style:
 
 A lozenge button with entity binding, state-based colours, templates, an animation, and actions:
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.workbench
 preset: lozenge

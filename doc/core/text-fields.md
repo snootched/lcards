@@ -130,7 +130,7 @@ text:
 
 ## Example
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: sensor.outdoor_temperature
 preset: lozenge
@@ -319,7 +319,7 @@ Zones can be managed visually using the **Zones** tab in the card editor.
 
 Set `debug_zones: true` on any card to render a coloured, dashed overlay showing every zone's bounds and name on top of the card. Useful when designing text layouts or diagnosing zone placement.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.kitchen
 preset: lozenge

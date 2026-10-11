@@ -20,7 +20,7 @@ The guard `_supportsShapeTexture()` on `LCARdSButton` returns `true` only when `
 
 ## Config Schema
 
-```yaml
+```yaml live
 type: custom:lcards-button
 preset: lozenge
 entity: light.bedroom

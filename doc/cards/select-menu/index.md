@@ -10,14 +10,14 @@ Each button is a full `lcards-button` under the hood, so every preset, style ove
 
 ## Quick Start
 
-```yaml
+```yaml live
 # Minimal - entity options auto-enumerated, single column, lozenge preset
 type: custom:lcards-select-menu
 entity: input_select.view_selector
 preset: lozenge
 ```
 
-```yaml
+```yaml live
 # 3-column grid with custom labels and icons
 type: custom:lcards-select-menu
 entity: input_select.room_scene
@@ -37,7 +37,7 @@ options:
     icon: mdi:desk-lamp
 ```
 
-```yaml
+```yaml live
 # Manual options list (no entity required)
 type: custom:lcards-select-menu
 preset: lozenge
@@ -184,6 +184,10 @@ grid:
   gap: 6px
   grid-auto-rows: 48px
 ```
+
+A few layouts and presets against a sample `input_select` (tap an option to select it):
+
+<CardGallery set="select-menu-layouts" />
 
 ### Height modes
 
@@ -412,7 +416,7 @@ rules:
 
 ## Full Example
 
-```yaml
+```yaml live
 type: custom:lcards-select-menu
 entity: input_select.deck_view
 preset: lozenge

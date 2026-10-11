@@ -806,8 +806,8 @@ export const rulesSchema = {
                         description: 'Base SVG filter updates (MSD cards only)',
                         properties: {
                             filters: {
-                                type: 'object',
-                                description: 'SVG filter properties to update'
+                                type: ['array', 'object'],
+                                description: 'Filters to apply: a stackable filter list [{mode, type, value}] (or the legacy CSS filter object); an empty list clears them'
                             },
                             transition: {
                                 type: 'number',

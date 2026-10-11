@@ -6,9 +6,14 @@ Manual routing allows you to explicitly define the path a line takes by specifyi
 
 ## Configuration
 
-```yaml
+```yaml live
 type: custom:lcards-msd-card
 msd:
+  view_box: [0, 0, 600, 500]
+  anchors:
+    start_point: [40, 60]
+    nav_anchor: [200, 300]
+    end_point: [560, 440]
   overlays:
     - type: line
       id: my_line

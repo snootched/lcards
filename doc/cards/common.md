@@ -35,7 +35,7 @@ LCARdS share a set of common top-level configuration properties regardless of ca
 
 `variables` holds your own named values. Reference them in templates so a value used in several places is set once:
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.kitchen
 variables:
@@ -57,7 +57,7 @@ Use `{variables.<name>}` in token templates and `variables.<name>` inside `[[[ J
 
 `id` and `tags` are used by the [Rules Engine](../core/rules/) to target cards for conditional style patches.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 id: kitchen-light-btn        # unique identifier - target with rules selector `#kitchen-light-btn`
 tags:
@@ -96,13 +96,13 @@ All four properties accept the same value formats:
 
 Set an explicit CSS size on the card's host element, overriding whatever the container would normally assign.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 height: 200          # 200px
 width: 500px
 ```
 
-```yaml
+```yaml live
 type: custom:lcards-button
 height: 50vh         # half viewport height
 width: 100%          # fill container
@@ -112,7 +112,7 @@ width: 100%          # fill container
 
 Set a minimum size floor. The card can grow beyond this value but will not shrink below it. Useful when content length is dynamic and you want to prevent the card from collapsing while still allowing it to expand naturally.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 min_height: 40       # never shorter than 40px
 min_width: 80        # never narrower than 80px
@@ -124,7 +124,7 @@ These override the CSS token defaults (`--lcars-button-min-height` and `--lcars-
 
 Set a maximum size ceiling. The card can shrink below this value but will not grow beyond it. Useful for preventing a card from expanding too far in a flexible or dynamic layout.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 max_height: 200      # never taller than 200px
 max_width: 400px     # never wider than 400px
@@ -156,14 +156,14 @@ Controls what happens when a card's content exceeds its rendered size. Accepts t
 | `scroll` | Always shows a scrollbar |
 | `auto` | Adds a scrollbar only when content overflows |
 
-```yaml
+```yaml live
 type: custom:lcards-button
 overflow: hidden        # clip any content that exceeds the card bounds
 ```
 
 `overflow_x` and `overflow_y` set the horizontal and vertical axes independently and override `overflow` when both are present.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 overflow_x: hidden
 overflow_y: auto        # vertical scrollbar only when needed
@@ -175,7 +175,7 @@ overflow_y: auto        # vertical scrollbar only when needed
 
 Sets the CSS `z-index` on the card's host element, controlling its stacking order relative to adjacent cards in the same grid container. Useful when cards overlap: for example, an alert overlay, a floating panel, or an MSD embed.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 z_index: 10     # render above neighbouring cards (range: -999 to 9999)
 ```
@@ -186,7 +186,7 @@ z_index: 10     # render above neighbouring cards (range: -999 to 9999)
 
 `grid_options` controls how the card occupies the Lovelace grid. This is the standard HA mechanism and is independent of `height`/`width`.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 grid_options:
   columns: 6    # span 6 grid columns (out of 12)

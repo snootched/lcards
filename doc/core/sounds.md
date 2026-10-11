@@ -83,7 +83,7 @@ All tap/hold/hover/toggle events are fired by the shared action handler and are 
 
 ### Silent card
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.desk
 sounds:
@@ -92,7 +92,7 @@ sounds:
 
 ### Custom tap sound, muted hold
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.desk
 sounds:
@@ -102,7 +102,7 @@ sounds:
 
 ### Slider with custom drag sounds
 
-```yaml
+```yaml live
 type: custom:lcards-slider
 entity: light.desk
 sounds:

@@ -291,7 +291,7 @@ rules:
 
 Add `tags` to any overlay so rules can target it with `tag:` selectors:
 
-```yaml
+```yaml live
 # A card
 type: custom:lcards-button
 id: nav-button-1

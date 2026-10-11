@@ -15,6 +15,8 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DOC = join(root, 'doc');
 const SKIP = new Set(['dist', 'cache', 'node_modules']);
+// doc/public/lcards/ is the copied production bundle (scripts/copy-docs-bundle.js), not docs text.
+const SKIP_PATHS = new Set([join(DOC, 'public', 'lcards')]);
 const EXT = /\.(md|vue|ts|mts|js)$/;
 const EM_DASH = '—';
 
@@ -23,7 +25,7 @@ const hits = [];
     for (const name of readdirSync(dir)) {
         const p = join(dir, name);
         if (statSync(p).isDirectory()) {
-            if (!SKIP.has(name)) walk(p);
+            if (!SKIP.has(name) && !SKIP_PATHS.has(p)) walk(p);
         } else if (EXT.test(name)) {
             readFileSync(p, 'utf8').split('\n').forEach((line, i) => {
                 if (line.includes(EM_DASH)) hits.push(`${relative(root, p)}:${i + 1}  ${line.trim().slice(0, 100)}`);

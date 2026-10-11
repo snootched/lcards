@@ -6,7 +6,7 @@ Presets are named collections of style properties. Applying a preset to a card s
 
 ## Applying a Preset
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.living_room
 preset: lozenge
@@ -14,7 +14,7 @@ preset: lozenge
 
 That's it. The preset fills in every visual detail. You can then override any individual property on top:
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.living_room
 preset: lozenge
@@ -65,6 +65,14 @@ These tables list every preset in the built-in packs (`src/core/packs/style-pres
 | `panel-light` | Non-interactive square-cornered panel with a random LCARS label (light) |
 | `panel-dark` | Non-interactive square-cornered panel with a random LCARS label (dark) |
 
+Rendered:
+
+<CardGallery set="button-presets" />
+
+<CardGallery set="button-bar-labels" />
+
+<CardGallery set="button-panels" />
+
 ### Slider (`lcards-slider`)
 
 | Preset | Description |
@@ -79,6 +87,10 @@ These tables list every preset in the built-in packs (`src/core/packs/style-pres
 | `shaped-vertical` | Vertical shaped slider with exterior text labels (`style.shaped.type` picks the shape) |
 | `shaped-horizontal` | Horizontal shaped slider with exterior text labels |
 | `picard-gauge-vertical` | Picard-style vertical gauge |
+
+Rendered:
+
+<CardGallery set="slider-presets" />
 
 ### Elbow and select menu
 

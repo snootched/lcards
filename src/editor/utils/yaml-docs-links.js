@@ -10,7 +10,7 @@
 
 export const DOCS_SITE = 'https://lcards.unimatrix01.ca';
 
-const SIZING = '/cards/common#sizing-height-width-min_height-min_width-max_height-max_width';
+const SIZING = '/cards/common#sizing-height-width-min-height-min-width-max-height-max-width';
 
 /** Detailed maps: dotted key path (list indices dropped) to docs link. */
 const DETAILED = {
@@ -69,6 +69,68 @@ const DETAILED = {
     filters: '/cards/data-grid/styling#filters',
     height: SIZING
   },
+  button: {
+    '': '/cards/button/#card-options',
+    preset: '/cards/button/#presets',
+    component: '/cards/button/#component-mode-d-pad',
+    control: '/cards/button/#control',
+    style: '/cards/button/#style-object',
+    'style.card': '/cards/button/#style-card',
+    'style.border': '/cards/button/#style-border',
+    'style.cursor': '/cards/button/#style-cursor',
+    icon_style: '/cards/button/#icon-style-object',
+    divider: '/cards/button/#divider-object',
+    text: '/core/text-fields',
+    svg: '/cards/button/#svg-object',
+    shape_texture: '/cards/button/#shape-texture',
+    ranges: '/cards/button/#ranges-list-state-driven-preset-switching',
+    alert: '/cards/button/#alert-object',
+    background_animation: '/core/effects/background-animations',
+    tap_action: '/core/actions',
+    hold_action: '/core/actions',
+    double_tap_action: '/core/actions',
+    state_attribute: '/core/colours#exact-match-keys-from-an-attribute-state-attribute',
+    ranges_attribute: '/core/colours#range-conditions-on-non-numeric-entities-ranges-attribute',
+    state_classification: '/core/colours#custom-state-classification-state-classification'
+  },
+  slider: {
+    '': '/cards/slider-card/#card-options',
+    preset: '/cards/slider-card/#presets',
+    control: '/cards/slider-card/#control-options',
+    style: '/cards/slider-card/#style-object',
+    'style.track': '/cards/slider-card/#style-track',
+    'style.gauge': '/cards/slider-card/#style-gauge',
+    'style.ranges': '/cards/slider-card/#ranges',
+    'style.border': '/cards/slider-card/#style-border',
+    value_tween: '/cards/slider-card/#value-tween',
+    text: '/cards/slider-card/#text-labels',
+    tap_action: '/core/actions',
+    state_attribute: '/core/colours#exact-match-keys-from-an-attribute-state-attribute',
+    ranges_attribute: '/core/colours#range-conditions-on-non-numeric-entities-ranges-attribute'
+  },
+  elbow: {
+    '': '/cards/elbow/#card-options',
+    elbow: '/cards/elbow/#elbow-types',
+    'elbow.style': '/cards/elbow/#elbow-styles',
+    'elbow.segment': '/cards/elbow/#segment-options-simple-style',
+    'elbow.segments': '/cards/elbow/#segments-options-segmented-style',
+    text: '/cards/elbow/#text-labels',
+    shape_texture: '/cards/elbow/#shape-texture',
+    symbiont: '/cards/elbow/#symbiont',
+    background_animation: '/cards/elbow/#background-animation-inset',
+    tap_action: '/core/actions',
+    state_attribute: '/core/colours#exact-match-keys-from-an-attribute-state-attribute',
+    ranges_attribute: '/core/colours#range-conditions-on-non-numeric-entities-ranges-attribute'
+  },
+  'select-menu': {
+    '': '/cards/select-menu/#card-options',
+    grid: '/cards/select-menu/#grid-object',
+    options: '/cards/select-menu/#options',
+    style: '/cards/select-menu/#style-object',
+    button_template: '/cards/select-menu/#button-template',
+    tap_action: '/cards/select-menu/#actions',
+    rules: '/cards/select-menu/#rules-engine'
+  },
   datasource: {
     '': '/core/datasources/'
   }
@@ -94,7 +156,7 @@ const COMMON = {
   filters: '/core/effects/filters',
   height: SIZING,
   width: SIZING,
-  grid_options: '/cards/common#ha-grid-sizing-grid_options'
+  grid_options: '/cards/common#ha-grid-sizing-grid-options'
 };
 
 /**
@@ -130,4 +192,13 @@ export function docsFor(cardType, path) {
  */
 export function docsUrl(link) {
   return DOCS_SITE + link.replace(/^([^#]*[^/#])(#|$)/, '$1.html$2');
+}
+
+/** Every site-relative link the maps above can return (tests check each one exists). */
+export function listDocsLinks() {
+  return [...new Set([
+    ...Object.values(DETAILED).flatMap(map => Object.values(map)),
+    ...Object.values(CARD_PAGES),
+    ...Object.values(COMMON),
+  ])];
 }

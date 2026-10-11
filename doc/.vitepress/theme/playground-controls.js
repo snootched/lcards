@@ -10,6 +10,7 @@
 import { parseDocument } from 'yaml';
 import { countTracks, expandTracks, joinTracks } from '../../../src/data-grid/data-grid-model.js';
 import { LCARS_DEMO_VARS, SAMPLE_ENTITIES } from './chart-demo-data.js';
+import { DEMO_ENTITIES } from './card-demo-starters.js';
 
 const STRINGIFY = { flowCollectionPadding: false };
 
@@ -68,6 +69,48 @@ export const PLAYGROUNDS = {
       { label: 'Series 1 colour', kind: 'color', path: ['sources', 0, 'color'] },
       { label: 'Series 2 entity', kind: 'entity', path: ['sources', 1, 'entity'], clearPath: ['sources', 1] },
       { label: 'Legend', kind: 'checkbox', path: ['style', 'legend', 'show'] }
+    ]
+  },
+
+  // Real-card playgrounds (CardDemo.vue). Select options come from each card schema.
+  'lcards-button': {
+    controls: [
+      { label: 'Preset', kind: 'select', path: ['preset'], optional: true },
+      { label: 'Entity', kind: 'entity', path: ['entity'] },
+      { label: 'Label', kind: 'text', path: ['text', 'label', 'content'] },
+      { label: 'Show label', kind: 'checkbox', path: ['text', 'label', 'show'] },
+      { label: 'Background', kind: 'color', path: ['style', 'card', 'color', 'background', 'default'] },
+      { label: 'Background when on', kind: 'color', path: ['style', 'card', 'color', 'background', 'active'] },
+      { label: 'Tap action', kind: 'select', path: ['tap_action', 'action'], optional: true, options: ['toggle', 'more-info', 'navigate', 'none'] }
+    ]
+  },
+
+  'lcards-slider': {
+    controls: [
+      { label: 'Preset', kind: 'select', path: ['preset'], optional: true },
+      { label: 'Entity', kind: 'entity', path: ['entity'] },
+      { label: 'Orientation', kind: 'select', path: ['style', 'track', 'orientation'], optional: true },
+      { label: 'Min', kind: 'number', path: ['control', 'min'], min: -100, max: 1000, step: 1 },
+      { label: 'Max', kind: 'number', path: ['control', 'max'], min: -100, max: 1000, step: 1 }
+    ]
+  },
+
+  'lcards-elbow': {
+    controls: [
+      { label: 'Elbow type', kind: 'select', path: ['elbow', 'type'] },
+      { label: 'Bar width', kind: 'number', path: ['elbow', 'segment', 'bar_width'], min: 10, max: 300, step: 5 },
+      { label: 'Bar height', kind: 'number', path: ['elbow', 'segment', 'bar_height'], min: 4, max: 120, step: 2 },
+      { label: 'Colour', kind: 'color', path: ['elbow', 'segment', 'color'] },
+      { label: 'Label', kind: 'text', path: ['text', 'label', 'content'] }
+    ]
+  },
+
+  'lcards-select-menu': {
+    controls: [
+      { label: 'Entity', kind: 'entity', path: ['entity'] },
+      { label: 'Preset', kind: 'select', path: ['preset'], optional: true },
+      { label: 'Columns', kind: 'number', path: ['grid', 'columns'], min: 1, max: 8, step: 1 },
+      { label: 'Gap', kind: 'text', path: ['grid', 'gap'] }
     ]
   },
 
@@ -158,4 +201,4 @@ export function applyControl(text, control, value) {
 }
 
 /** Sample entities as `{ id, name }` for pickers and completion. */
-export const SAMPLE_ENTITY_OPTIONS = SAMPLE_ENTITIES.map(id => ({ id, name: id.split('.')[1].replace(/^demo_/, '').replace(/_/g, ' ') }));
+export const SAMPLE_ENTITY_OPTIONS = [...SAMPLE_ENTITIES, ...DEMO_ENTITIES].map(id => ({ id, name: id.split('.')[1].replace(/^demo_/, '').replace(/_/g, ' ') }));

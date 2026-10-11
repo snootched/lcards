@@ -12,7 +12,7 @@ This page is the config reference. For a UI-only walkthrough of building your fi
 
 ## Minimal Example
 
-```yaml
+```yaml live
 type: custom:lcards-msd-card
 msd:
   base_svg:
@@ -254,7 +254,7 @@ New to routing? [Routing Concepts](./routing-concepts.md) covers the mental mode
 
 Named routing corridors that guide/force lines through authored regions, with automatic lane separation. Defined **directly under `msd:`** (not under `routing:`):
 
-```yaml
+```yaml live
 type: custom:lcards-msd-card
 msd:
   view_box: [0, 0, 600, 300]
@@ -369,14 +369,14 @@ match/unmatch lifecycle (e.g. "pulse red while this sensor is above threshold").
 
 An MSD card with three anchors, a control overlay, a line, and a rule that changes the base SVG filter on alert:
 
-```yaml
+```yaml live
 type: custom:lcards-msd-card
 msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
     filters:
-      opacity: 0.5
-      brightness: 0.8
+      - { mode: css, type: opacity, value: 0.5 }
+      - { mode: css, type: brightness, value: 0.8 }
 
   anchors:
     bridge: [520, 380]

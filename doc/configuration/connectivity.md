@@ -93,7 +93,7 @@ Paste any valid HA card YAML into the editor. The card is rendered on top of the
 | **Height** | `auto` | CSS height: e.g. `300px`, `30vh`, `auto`. |
 
 **Example (minimal LCARdS button card):**
-```yaml
+```yaml live
 type: custom:lcards-button
 text:
   label:

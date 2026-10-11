@@ -8,7 +8,7 @@ Interactive sliders and read-only gauges for entities like lights, covers, fans,
 
 ## Quick Start
 
-```yaml
+```yaml live
 # Light brightness slider
 type: custom:lcards-slider
 entity: light.bedroom
@@ -17,7 +17,7 @@ control:
   attribute: brightness
 ```
 
-```yaml
+```yaml live
 # Temperature gauge (read-only)
 type: custom:lcards-slider
 entity: sensor.temperature
@@ -170,6 +170,10 @@ triggers_update: []
 | `shaped-vertical` | Vertical lozenge fill with top/bottom text bands (component: `shaped`) |
 | `shaped-horizontal` | Horizontal lozenge fill with left/right text bands (component: `shaped`) |
 | `picard-gauge-vertical` | Picard-style vertical gauge (component: `picard`) |
+
+Every preset, rendered against a sample light (drag to set its brightness):
+
+<CardGallery set="slider-presets" />
 
 ---
 
@@ -496,10 +500,12 @@ Default position (no `offset` set): above the marker in horizontal orientation, 
 
 Use `component: shaped` for a solid fill clipped to a geometric shape.
 
-```yaml
+```yaml live
 type: custom:lcards-slider
 entity: light.bedroom
 component: shaped
+grid_options:
+  rows: 4            # draws to its cell height: give it rows in a sections view
 style:
   shaped:
     type: lozenge       # lozenge | rect | rounded | diamond | hexagon | polygon | path
@@ -534,11 +540,14 @@ style:
 
 Use `component: picard` for the Picard-style gauge rendering: a decorative range frame, a dedicated solid value bar, and a scanning activity indicator alongside the standard gauge elements. Requires `component: picard` explicitly; presets like `picard-gauge-vertical` only declare compatibility, they don't set it for you.
 
-```yaml
+```yaml live
 type: custom:lcards-slider
 entity: sensor.temperature
 component: picard
 preset: picard-gauge-vertical
+grid_options:
+  rows: 7            # draws to its cell height: give it rows in a sections view
+  columns: 6
 style:
   range:
     border:
@@ -626,7 +635,7 @@ style:
 
 A climate thermostat slider with gauge style, tick marks, ranges, text labels, and a tap action:
 
-```yaml
+```yaml live
 type: custom:lcards-slider
 entity: climate.living_room
 preset: gauge-basic

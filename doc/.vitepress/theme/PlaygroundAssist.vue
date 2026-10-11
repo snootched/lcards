@@ -133,7 +133,9 @@ const visibleControls = computed(() => {
       return {
         ...c,
         value: controlValue(c, cfg),
-        choices: c.options || node?.enum || [],
+        // Open string keys (e.g. button `preset`) list their values as examples.
+        choices: c.options || node?.enum
+          || (Array.isArray(node?.examples) && node.examples.every(x => typeof x === 'string') ? node.examples : []),
         help: node?.description || ''
       }
     })

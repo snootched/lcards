@@ -8,7 +8,7 @@ LCARdS cards support stackable CSS and SVG visual filters applied directly to th
 
 `filters` is a top-level card property. It takes an array of filter objects:
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.living_room
 filters:

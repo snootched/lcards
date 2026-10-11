@@ -264,6 +264,13 @@ export class LCARdSMSDCard extends LCARdSCard {
         // Config is ALREADY processed by parent's _processConfigAsync() with provenance
         // After CoreConfigManager processing, config structure is: { type, msd: {...}, __provenance }
         if (this.config?.msd) {
+            // A view_box without a base_svg source is a blank canvas: treat it as
+            // `base_svg: { source: none }` (it used to hang on "Initializing MSD...").
+            // this.config is the processed copy, so replacing msd here is safe.
+            const msd = this.config.msd;
+            if (!msd.base_svg?.source && Array.isArray(msd.view_box)) {
+                this.config.msd = { ...msd, base_svg: { ...(msd.base_svg ?? {}), source: 'none' } };
+            }
             this._msdConfig = this.config.msd;  // ✅ Now has processed config with tokens resolved
             this._fullConfig = this.config;     // ✅ Now has __provenance attached
 

@@ -8,7 +8,7 @@ The Elbow card creates the iconic LCARS corner/cap shapes: the L-shaped coloured
 
 ## Quick Start
 
-```yaml
+```yaml live
 type: custom:lcards-elbow
 elbow:
   type: header-left
@@ -145,6 +145,10 @@ Set via `elbow.type`. The type determines the corner position and shape of the L
 | `diagonal-cap-footer-right` | Bottom-right with configurable diagonal cut on both corners | simple, segmented |
 | `frame` | Full rectangular frame: 2–4 sided border with per-side widths and per-corner radii | simple, segmented |
 
+Every type, rendered:
+
+<CardGallery set="elbow-types" />
+
 ---
 
 ## Elbow Styles
@@ -186,6 +190,10 @@ elbow:
       color: "var(--lcars-moonlight)"
 ```
 
+Both styles side by side:
+
+<CardGallery set="elbow-styles" />
+
 ---
 
 ## Segment Options (Simple Style)
@@ -214,6 +222,10 @@ The `outer_curve` property accepts either an explicit pixel value or a keyword t
 | `"arm_min"` | `min(bar_width, bar_height) / 2` | Based on the thinner arm. Very small with asymmetric bars. Useful for compact corners. |
 | `"arm_fill"` | `max(bar_width, bar_height)` | Maximum sweeping arc: fills the entire dominant arm. Dramatic effect. |
 | number | explicit px | Set the radius directly in pixels. |
+
+Each mode with a 90 px wide vertical arm and a 24 px horizontal arm:
+
+<CardGallery set="elbow-arc-modes" />
 
 **Tangent geometry:** Arcs always arrive at exactly 0° (tangent) to their edges, a property of the quarter-circle shape. The mode controls *where on the edge* the tangent point lands, not the arrival angle.
 
@@ -294,7 +306,7 @@ Changing the helper value updates every elbow using `theme` binding simultaneous
 
 Elbows inherit the full button text system. Common use: a label on the horizontal bar.
 
-```yaml
+```yaml live
 type: custom:lcards-elbow
 elbow:
   type: header-left
@@ -322,7 +334,7 @@ Elbow cards support a canvas-level `inset` on `background_animation` so the anim
 
 Use `inset: auto` to let the card automatically derive the correct inset from its bar geometry:
 
-```yaml
+```yaml live
 type: custom:lcards-elbow
 elbow:
   type: header-left

@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync, statSync, createReadStream } from 'node:fs'
+import { resolve, extname, sep } from 'node:path'
 
 const SITE_URL = 'https://lcards.unimatrix01.ca'
 const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'))
@@ -20,6 +21,11 @@ const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.ur
 const LIVE_DEMOS: Record<string, string> = {
   'lcards-chart': 'ChartDemo',
   'lcards-data-grid': 'DataGridDemo',
+  'lcards-button': 'CardDemo',
+  'lcards-elbow': 'CardDemo',
+  'lcards-slider': 'CardDemo',
+  'lcards-select-menu': 'CardDemo',
+  'lcards-msd-card': 'CardDemo',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,6 +84,34 @@ function vPreBracesRule(md: any) {
       blockToken.children = out
     }
   })
+}
+
+// Live card demos load the production bundle from /lcards/. The built site
+// publishes the copy in doc/public/lcards/ (scripts/copy-docs-bundle.js); the dev
+// server instead serves /lcards/ straight from the build output, so `npm run build`
+// is enough and a rebuild while it runs can't leave it serving its HTML fallback for
+// new chunk names (Vite's view of public/ can miss files after the copy recreates
+// the folder). no-cache: the stub keeps its name across builds, its chunks don't.
+const BUNDLE_DIR = resolve(new URL('../../custom_components/lcards', import.meta.url).pathname)
+const MIME: Record<string, string> = {
+  '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
+  '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.mp3': 'audio/mpeg',
+}
+function devBundlePlugin() {
+  return {
+    name: 'lcards-dev-bundle',
+    apply: 'serve' as const,
+    configureServer(server) {
+      server.middlewares.use('/lcards', (req, res, next) => {
+        const path = decodeURIComponent((req.url ?? '/').split('?')[0])
+        const file = resolve(BUNDLE_DIR, '.' + path)
+        if (!file.startsWith(BUNDLE_DIR + sep) || !existsSync(file) || !statSync(file).isFile()) return next()
+        res.setHeader('Content-Type', MIME[extname(file)] ?? 'application/octet-stream')
+        res.setHeader('Cache-Control', 'no-cache')
+        createReadStream(file).pipe(res)
+      })
+    },
+  }
 }
 
 export default withMermaid(defineConfig({
@@ -147,6 +181,7 @@ export default withMermaid(defineConfig({
   // modules reference __LCARDS_VERSION__, normally injected by the app's own
   // vite.config.js: redefine it here so the docs client bundle resolves it too.
   vite: {
+    plugins: [devBundlePlugin()],
     define: {
       __LCARDS_VERSION__: JSON.stringify(pkg.version),
     },
@@ -353,9 +388,30 @@ export default withMermaid(defineConfig({
           text: 'Card Reference',
           collapsed: false,
           items: [
-            { text: 'Button',         link: '/cards/button/' },
-            { text: 'Elbow',          link: '/cards/elbow/' },
-            { text: 'Slider',         link: '/cards/slider-card/' },
+            {
+              text: 'Button',
+              collapsed: true,
+              items: [
+                { text: 'Overview',   link: '/cards/button/' },
+                { text: 'Playground', link: '/cards/button/playground' },
+              ],
+            },
+            {
+              text: 'Elbow',
+              collapsed: true,
+              items: [
+                { text: 'Overview',   link: '/cards/elbow/' },
+                { text: 'Playground', link: '/cards/elbow/playground' },
+              ],
+            },
+            {
+              text: 'Slider',
+              collapsed: true,
+              items: [
+                { text: 'Overview',   link: '/cards/slider-card/' },
+                { text: 'Playground', link: '/cards/slider-card/playground' },
+              ],
+            },
             {
               text: 'Chart',
               collapsed: true,
@@ -394,7 +450,14 @@ export default withMermaid(defineConfig({
                 { text: 'Base SVG Filters', link: '/cards/msd/base-svg-filters' },
               ],
             },
-            { text: 'Select Menu',    link: '/cards/select-menu/' },
+            {
+              text: 'Select Menu',
+              collapsed: true,
+              items: [
+                { text: 'Overview',   link: '/cards/select-menu/' },
+                { text: 'Playground', link: '/cards/select-menu/playground' },
+              ],
+            },
             { text: 'Alert Overlay',  link: '/cards/alert-overlay/' },
           ],
         },

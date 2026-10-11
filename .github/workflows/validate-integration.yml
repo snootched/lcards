@@ -82,6 +82,12 @@ jobs:
       - name: Build docs site and check every #anchor link
         run: npm run docs:build
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Docs site tests (live card demos and playgrounds)
+        run: npm run test:docs
+
   test:
     name: Tests and Typecheck
     runs-on: ubuntu-latest

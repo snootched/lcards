@@ -159,7 +159,7 @@ ease:                    # Spring physics
 
 A button showing: load animation, tap feedback, hover glow, entity change with state filter, and a text scramble targeted to a specific field.
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.workbench
 preset: lozenge

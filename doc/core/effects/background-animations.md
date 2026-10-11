@@ -10,7 +10,7 @@ Background animations provide dynamic visual effects rendered on HTML5 Canvas be
 
 ### Basic Grid Animation
 
-```yaml
+```yaml live
 type: custom:lcards-button
 entity: light.living_room
 text:
@@ -85,7 +85,7 @@ background_animation:
 
 On elbow cards, set `inset: auto` to let the card compute the correct inset from its bar geometry automatically:
 
-```yaml
+```yaml live
 type: custom:lcards-elbow
 elbow:
   type: header-left
