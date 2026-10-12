@@ -793,7 +793,7 @@ export const rulesSchema = {
             },
             apply: {
                 type: 'object',
-                description: 'Style changes, profile activations, and animations to apply when conditions are met',
+                description: 'Style changes, animations and base SVG filters to apply when conditions are met',
                 properties: {
                     overlays: {
                         type: 'object',
@@ -821,11 +821,14 @@ export const rulesSchema = {
                             }
                         }
                     },
+                    // Retired with pack-level style profiles (PackManager ignores those);
+                    // the rules engine never applied it. Kept only to warn.
                     profiles: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: 'Profile IDs to activate when rule matches',
-                        examples: [['night_mode'], ['alert_profile', 'dim_displays']]
+                        deprecated: true,
+                        'x-replacement': 'overlays (rule profiles were retired and have no effect)',
+                        description: 'Retired: has no effect'
                     },
                     animations: {
                         type: 'array',
@@ -919,7 +922,7 @@ export const rulesSchema = {
                 examples: [
                     { overlays: { temp_display: { style: { color: 'var(--lcars-red)' } } } },
                     { overlays: { 'tag:warning': { style: { opacity: 1 } } }, animations: ['pulse'] },
-                    { base_svg: { filters: [{ mode: 'svg', type: 'tint', value: { color: 'rgba(180,0,0,0.35)' } }], transition: 500 }, profiles: ['alert_mode'] }
+                    { base_svg: { filters: [{ mode: 'svg', type: 'tint', value: { color: 'rgba(180,0,0,0.35)' } }], transition: 500 } }
                 ]
             },
             stop: {

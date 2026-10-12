@@ -663,8 +663,6 @@ export class LCARdSRulesDashboard extends LitElement {
         if (rule.apply) {
             let count = 0;
             if (rule.apply.overlays) count += Object.keys(rule.apply.overlays).length;
-            if (rule.apply.profiles_add) count += rule.apply.profiles_add.length;
-            if (rule.apply.profiles_remove) count += rule.apply.profiles_remove.length;
             if (rule.apply.animations) count += rule.apply.animations.length;
             if (rule.apply.base_svg) count += 1;
             return count;

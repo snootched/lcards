@@ -198,8 +198,7 @@ export class LCARdSRuleEditorDialog extends LitElement {
             Object.keys(rule.apply.overlays || {}).length > 0 ||
             (rule.apply.tags && rule.apply.tags.length > 0) ||
             (rule.apply.animations && rule.apply.animations.length > 0) ||
-            (rule.apply.profiles_add && rule.apply.profiles_add.length > 0) ||
-            (rule.apply.profiles_remove && rule.apply.profiles_remove.length > 0)
+            !!rule.apply.base_svg
         );
         if (!hasApplyContent && !this._applyWarning) {
             lcardsLog.warn('[RuleEditorDialog] Apply section is empty — showing warning before save:', rule.id);

@@ -165,3 +165,21 @@ test('getDependencies: JS context refs and token roots', () => {
     const { ev } = makeEvaluator();
     assert.deepEqual(ev.getDependencies('[[[ return entity.state ]]] {variables.color} {{ states("x") }}').sort(), ['entity', 'variables']);
 });
+
+test('evaluate: {theme:path} tokens resolve through the theme manager (inline, beside text)', () => {
+    const hass = createFakeHass({});
+    // No theme manager: the context's theme tree
+    const withTheme = new LCARdSCardTemplateEvaluator({ hass, theme: { colors: { text: { onDark: '#fff' } } } });
+    assert.equal(withTheme.evaluate('a {theme:colors.text.onDark} b'), 'a #fff b');
+    assert.equal(withTheme.evaluate('{theme:colors.nope}'), '');
+    // The theme manager's resolver wins (references and computed tokens resolve there)
+    const before = window.lcards;
+    window.lcards = { core: { themeManager: { getToken: (path) => (path === 'colors.ui.primary' ? 'var(--lcars-orange)' : undefined) } } };
+    try {
+        const ev = new LCARdSCardTemplateEvaluator({ hass, theme: { colors: { ui: { primary: 'raw' } } } });
+        assert.equal(ev.evaluate('{theme:colors.ui.primary}'), 'var(--lcars-orange)');
+        assert.equal(ev.evaluate('{ theme:colors.ui.primary }'), 'var(--lcars-orange)');
+    } finally {
+        window.lcards = before;
+    }
+});

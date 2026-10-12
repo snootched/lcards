@@ -62,3 +62,13 @@ test('oneOf with the right type but no matching option warns with the closest pr
     assert.equal(result.errors.length, 0);
     assert.ok(result.warnings.length > 0);
 });
+
+test('rules: a retired apply.profiles warns (it never applied) and is not an error', async () => {
+    const { rulesSchema } = await import('../../src/cards/schemas/common-schemas.js');
+    const schema = { type: 'object', properties: { rules: rulesSchema } };
+    const rule = { id: 'r', when: { entity: 'light.x', state: 'on' }, apply: { overlays: { a: { style: {} } }, profiles: ['night_mode'] } };
+    const result = validate({ rules: [rule] }, schema);
+    assert.equal(result.errors.length, 0);
+    const warning = result.warnings.find(w => w.type === 'deprecated_property');
+    assert.match(warning?.message ?? '', /"profiles" is deprecated; use overlays/);
+});

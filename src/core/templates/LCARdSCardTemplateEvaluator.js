@@ -265,6 +265,18 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
    * @returns {*} Resolved value
    */
   _resolveToken(token) {
+    // {theme:path}: the theme manager's resolver (references and computed tokens
+    // resolve there, as for whole-value theme: settings), else the context's theme
+    // tree. A dot-walk can't do it: "theme:colors" isn't a key.
+    if (token.startsWith('theme:')) {
+      const path = token.slice('theme:'.length).trim();
+      const resolved = window.lcards?.core?.themeManager?.getToken?.(path);
+      if (resolved !== undefined && resolved !== null) return resolved;
+      let node = this.context.theme;
+      for (const part of path.split('.')) node = node?.[part];
+      return node ?? '';
+    }
+
     const parsed = TemplateParser.parseToken(token);
     const { parts } = parsed;
 

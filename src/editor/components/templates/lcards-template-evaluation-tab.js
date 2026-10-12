@@ -1,787 +1,287 @@
 /**
- * @fileoverview LCARdS Template Evaluation Tab
+ * @fileoverview LCARdS Template Evaluation Tab (Main Engineering > Templates)
  *
- * Displays all templates and tokens found in card config with live evaluation results.
- * Helps users discover, debug, and utilize templates across all supported syntaxes:
- * - JavaScript: [[[...]]]
- * - LCARdS Tokens: {theme:...}, {datasource:...}, {ds:...}, {entity.state}, etc.
- * - Jinja2: {{...}}
+ * Every config field that holds a template, one row each: the template, its
+ * live result (Jinja2 included) and common syntax mistakes. "Open in sandbox"
+ * loads the whole field into the template sandbox, which can save it back.
  *
  * @element lcards-template-evaluation-tab
- * @property {Object} editor - Parent card editor instance
+ * @property {Object} editor - Parent card editor (LCARdSBaseEditor)
  * @property {Object} config - Full card configuration
  * @property {Object} hass - Home Assistant instance
  */
 
-import { LitElement, html, css } from 'lit';
-import { TemplateDetector } from '../../../core/templates/TemplateDetector.js';
+import { LitElement, html, css, nothing } from 'lit';
 import { UnifiedTemplateEvaluator } from '../../../core/templates/UnifiedTemplateEvaluator.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
-import { editorStyles } from '../../base/editor-styles.js';
-import '../shared/lcards-message.js';
-import '../shared/lcards-form-section.js';
-import './lcards-template-sandbox.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
+import { messageStyles } from '../../base/surface-styles.js';
+import { renderLauncher, launcherStyles } from '../shared/launcher.js';
+import { templateContext, templateFields, templateRefs, unresolvedParts, withValueAt, pathSegments } from './template-context.js';
+import './lcards-template-sandbox.js';
 
 export class LCARdSTemplateEvaluationTab extends LitElement {
-  static get properties() {
-    return {
-      editor: { type: Object },
-      config: { type: Object },
-      hass: { type: Object },
-      _templates: { type: Array, state: true },
-      _isEvaluating: { type: Boolean, state: true },
-      _filterType: { type: String, state: true },
-      _sandboxOpen: { type: Boolean, state: true },
-      _sandboxInitialData: { type: Object, state: true }
-    };
-  }
+    static get properties() {
+        return {
+            editor: { type: Object },
+            config: { type: Object },
+            hass: { type: Object },
+            _rows: { type: Array, state: true },
+            _sandboxOpen: { type: Boolean, state: true },
+            _sandboxInitialData: { type: Object, state: true },
+        };
+    }
 
-  constructor() {
-    super();
+    constructor() {
+        super();
+        /** @type {any} */
+        this.editor = undefined;
         /** @type {any} */
         this.config = undefined;
         /** @type {any} */
         this.hass = undefined;
-    this._templates = [];
-    this._isEvaluating = false;
-    this._filterType = 'all';
-    this._sandboxOpen = false;
-    this._sandboxInitialData = null;
-  }
-
-  static get styles() {
-    return [
-      editorStyles,
-      css`
-        /* Templates list section */
-        .templates-section {
-          margin-top: 16px;
-        }
-
-      .templates-grid {
-        display: grid;
-        gap: 10px;
-        grid-template-columns: 1fr;
-      }
-
-      .template-card {
-        background: var(--chip-background-color, var(--card-background-color));
-        border: var(--ha-border-width-sm) solid var(--divider-color);
-        border-radius: 8px;
-        padding: 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        transition: box-shadow 0.2s, background 0.2s, border-color 0.2s;
-      }
-
-      .template-card:hover {
-        box-shadow: var(--ha-box-shadow-m);
-        border-color: var(--primary-color);
-      }
-
-      /* Color-coded left borders by template type */
-      .template-card.type-javascript {
-        border-left: 4px solid #f7df1e;
-      }
-
-      .template-card.type-token {
-        border-left: 4px solid #61dafb;
-      }
-
-      .template-card.type-theme {
-        border-left: 4px solid #9c27b0;
-      }
-
-      .template-card.type-datasource {
-        border-left: 4px solid #ff9800;
-      }
-
-      .template-card.type-jinja2 {
-        border-left: 4px solid #b71c1c;
-      }
-
-      .template-card.type-error {
-        border-left: 4px solid #f44336;
-        background: rgba(244, 67, 54, 0.05);
-      }
-
-      .template-card-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 4px;
-      }
-
-      .template-path {
-        font-family: 'Courier New', monospace;
-        color: var(--primary-color);
-        font-size: 13px;
-        font-weight: 500;
-        word-break: break-all;
-        flex: 1;
-      }
-
-      .template-type {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 500;
-        text-transform: uppercase;
-        flex-shrink: 0;
-        background: var(--secondary-background-color);
-        color: var(--secondary-text-color);
-      }
-
-      .card-actions {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        flex-shrink: 0;
-      }
-
-      .card-actions ha-icon-button {
-        --ha-icon-button-size: 32px;
-        --mdc-icon-size: 18px;
-      }
-
-      .template-section {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-
-      .template-section-label {
-        font-size: 11px;
-        font-weight: 500;
-        text-transform: uppercase;
-        color: var(--secondary-text-color);
-        letter-spacing: 0.5px;
-      }
-
-      .template-raw {
-        font-family: 'Courier New', monospace;
-        background: var(--code-background-color, #282c34);
-        color: var(--code-text-color, #abb2bf);
-        padding: 12px;
-        border-radius: 4px;
-        font-size: 12px;
-        overflow: auto;
-        white-space: pre-wrap;
-        word-break: break-all;
-        line-height: 1.5;
-        max-height: 120px;
-      }
-
-      .status-success { color: #4caf50; }
-      .status-error { color: #f44336; }
-      .status-warning { color: #ff9800; }
-
-      .empty-state {
-        text-align: center;
-        padding: 48px 24px;
-        color: var(--secondary-text-color);
-      }
-
-      .loading-state {
-        text-align: center;
-        padding: 48px 24px;
-      }
-
-      .error-message {
-        color: var(--error-color, #f44336);
-        font-size: 12px;
-        margin-top: 4px;
-        padding: 8px;
-        background: rgba(244, 67, 54, 0.1);
-        border-radius: 4px;
-      }
-      `
-    ];
-  }
-
-  firstUpdated() {
-    this._discoverTemplates();
-  }
-
-  updated(changedProps) {
-    if (changedProps.has('config')) {
-      this._discoverTemplates();
-    }
-  }
-
-  render() {
-    return html`
-      <div class="tab-content">
-        ${this._renderLauncherCard()}
-        ${this._renderTemplatesSection()}
-      </div>
-      ${this._renderSandbox()}
-    `;
-  }
-
-  _renderLauncherCard() {
-    const templateCount = this._templates.length;
-    const syntaxTypes = [...new Set(this._templates.map(t => t.type))].length;
-
-    return html`
-      <div class="info-card">
-        <div class="info-card-content">
-          <h3>🧪 Template Sandbox</h3>
-          <p>
-            <strong>${templateCount} templates</strong> detected
-            ${syntaxTypes > 0 ? html`<br /><strong>${syntaxTypes} syntax types</strong> in use` : ''}
-          </p>
-          <p style="font-size: 13px; color: var(--secondary-text-color);">
-            Test and debug templates with live evaluation. Supports JavaScript <code>[[[...]]]</code>,
-            Token <code>{...}</code>, and Jinja2 <code>{{...}}</code> syntax.
-          </p>
-        </div>
-        <div class="info-card-actions">
-          <ha-button
-            class="open-sandbox-button"
-            @click=${this._openSandbox}>
-            <ha-icon icon="mdi:flask-outline" slot="start"></ha-icon>
-            Open Sandbox
-          </ha-button>
-        </div>
-      </div>
-    `;
-  }
-
-  _renderTemplatesSection() {
-    if (this._templates.length === 0) {
-      return html`
-        <div class="empty-state">
-          <ha-icon icon="mdi:text-search" style="font-size: 48px; opacity: 0.3;"></ha-icon>
-          <p>No templates detected in card configuration</p>
-        </div>
-      `;
+        this._rows = [];
+        this._sandboxOpen = false;
+        this._sandboxInitialData = null;
+        this._run = 0;
+        this._seenStates = new Map();
     }
 
-    return html`
-      <div class="templates-section">
-        <h3>Templates in Config</h3>
-        ${this._renderTemplatesTable()}
-      </div>
-    `;
-  }
+    static get styles() {
+        return [messageStyles, launcherStyles, css`
+            :host {
+                display: block;
+            }
 
-  _renderHeader() {
-    return html`
-      <div class="header-row">
-        <h3>Template Discovery</h3>
-        <ha-button @click=${this._openSandbox}>
-          <ha-icon icon="mdi:flask-outline" slot="start"></ha-icon>
-          🧪 Open Template Sandbox
-        </ha-button>
-      </div>
-    `;
-  }
+            .fields {
+                display: flex;
+                flex-direction: column;
+                background: var(--primary-background-color);
+                border-radius: var(--ha-border-radius-lg);
+                padding: var(--ha-space-1) var(--ha-space-4);
+            }
 
-  _renderSyntaxReference() {
-    return html`
-      <lcards-form-section
-        header="Template & Token Syntax Reference"
-        icon="mdi:information-outline"
-        ?expanded=${false}>
-        <div class="syntax-list">
-          <div class="syntax-item">
-            <code class="syntax-code">[[[...]]]</code>
-            <span class="syntax-description">JavaScript expression: evaluated client-side with access to entity, config, hass</span>
-          </div>
-          <div class="syntax-item">
-            <code class="syntax-code">{theme:token.path}</code>
-            <span class="syntax-description">LCARdS theme token: single curly braces with <strong>theme:</strong> prefix</span>
-          </div>
-          <div class="syntax-item">
-            <code class="syntax-code">{datasource:name}</code>
-            <span class="syntax-description">LCARdS datasource token: single curly braces with <strong>datasource:</strong> or <strong>ds:</strong> prefix</span>
-          </div>
-          <div class="syntax-item">
-            <code class="syntax-code">{entity.state}</code>
-            <span class="syntax-description">LCARdS simple token: single curly braces for entity/config/variables paths</span>
-          </div>
-          <div class="syntax-item">
-            <code class="syntax-code">{{...}}</code>
-            <span class="syntax-description">Jinja2 template: double curly braces, evaluated by Home Assistant (async)</span>
-          </div>
-        </div>
-      </lcards-form-section>
-    `;
-  }
+            .field {
+                display: flex;
+                flex-direction: column;
+                gap: var(--ha-space-1);
+                padding: var(--ha-space-3) 0;
+                border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
+            }
 
-  _renderFilterBar() {
-    const counts = this._getTypeCounts();
+            .field:last-child {
+                border-bottom: none;
+            }
 
-    const filters = [
-      { label: 'All', value: 'all', count: counts.total },
-      { label: 'JavaScript', value: 'javascript', count: counts.javascript },
-      { label: 'Theme', value: 'theme', count: counts.theme },
-      { label: 'Datasource', value: 'datasource', count: counts.datasource },
-      { label: 'Token', value: 'token', count: counts.token },
-      { label: 'Jinja2', value: 'jinja2', count: counts.jinja2 },
-      { label: 'Errors', value: 'error', count: counts.error }
-    ];
+            .field-head {
+                display: flex;
+                align-items: center;
+                gap: var(--ha-space-2);
+            }
 
-    return html`
-      <div class="filter-chip-wrapper">
-        ${filters.map(filter => html`
-          <button
-            class="lcards-chip ${this._filterType === filter.value ? 'selected' : ''}"
-            @click=${() => this._filterType = filter.value}
-            aria-pressed=${this._filterType === filter.value}>
-            ${filter.label} (${filter.count})
-          </button>
-        `)}
-      </div>
-    `;
-  }
+            .path {
+                flex: 1;
+                min-width: 0;
+                font-family: var(--code-font-family, monospace);
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--primary-text-color);
+                overflow-wrap: anywhere;
+            }
 
-  _renderTemplatesTable() {
-    if (this._isEvaluating) {
-      return html`
-        <div class="loading-state">
-          <ha-spinner size="small"></ha-spinner>
-          <p>Discovering and evaluating templates...</p>
-        </div>
-      `;
+            .kind {
+                padding: 1px var(--ha-space-2);
+                border-radius: var(--ha-border-radius-pill);
+                font-size: 11px;
+                font-weight: 600;
+                background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+                color: var(--primary-text-color);
+                white-space: nowrap;
+            }
+
+            .actions {
+                display: flex;
+                --ha-icon-button-size: 32px;
+                --mdc-icon-size: 18px;
+                color: var(--primary-color);
+            }
+
+            .template {
+                font-family: var(--code-font-family, monospace);
+                font-size: 12px;
+                color: var(--secondary-text-color);
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+                max-height: 6.5em;
+                overflow-y: auto;
+            }
+
+            .result {
+                display: flex;
+                align-items: flex-start;
+                gap: var(--ha-space-2);
+                font-size: 13px;
+                color: var(--primary-text-color);
+            }
+
+            .result ha-icon {
+                --mdc-icon-size: 16px;
+                flex: none;
+                margin-top: 1px;
+            }
+
+            .result.ok ha-icon { color: var(--success-color); }
+            .result.partial ha-icon { color: var(--warning-color); }
+            .result.failed ha-icon { color: var(--error-color); }
+
+            .result .value {
+                font-family: var(--code-font-family, monospace);
+                overflow-wrap: anywhere;
+                white-space: pre-wrap;
+            }
+
+            .result.pending {
+                color: var(--secondary-text-color);
+            }
+
+            .mistake {
+                font-size: 12px;
+                color: var(--warning-color);
+            }
+
+            .mistake code {
+                font-family: var(--code-font-family, monospace);
+            }
+
+            .empty {
+                margin: 0;
+            }
+        `];
     }
 
-    const filteredTemplates = this._getFilteredTemplates();
-
-    if (filteredTemplates.length === 0) {
-      return html`
-        <div class="empty-state">
-          <ha-icon icon="mdi:code-braces"></ha-icon>
-          <p>No templates found in configuration</p>
-          <p style="font-size: 12px;">Templates will appear here when you use JavaScript expressions, tokens, or Jinja2 templates in your card config.</p>
-        </div>
-      `;
+    updated(changed) {
+        if (changed.has('config')) this._discover();
+        else if (changed.has('hass') && this._statesChanged()) this._evaluate();
     }
 
-    return html`
-      <div class="templates-grid">
-        ${filteredTemplates.map(template => this._renderTemplateCard(template))}
-      </div>
-    `;
-  }
-
-  _renderTemplateCard(template) {
-    const typeClass = `type-${template.type.toLowerCase()}`;
-
-    return html`
-      <div class="template-card ${typeClass}">
-        <div class="template-card-header">
-          <div class="template-path">${template.path}</div>
-          <span class="template-type ${typeClass}">${template.type}</span>
-          <div class="card-actions">
-            <ha-icon-button
-              .label=${'Copy Template'}
-              @click=${(e) => this._copyToClipboard(template.raw, e)}>
-              <ha-icon icon="mdi:content-copy"></ha-icon>
-            </ha-icon-button>
-            <ha-icon-button
-              .label=${'Test in Sandbox'}
-              @click=${() => this._testInSandbox(template)}>
-              <ha-icon icon="mdi:flask-outline"></ha-icon>
-            </ha-icon-button>
-          </div>
-        </div>
-
-        <div class="template-section">
-          <div class="template-section-label">Template</div>
-          <div class="template-raw">${template.raw}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  _getTypeCounts() {
-    return {
-      total: this._templates.length,
-      javascript: this._templates.filter(t => t.type === 'JavaScript').length,
-      theme: this._templates.filter(t => t.type === 'Theme').length,
-      datasource: this._templates.filter(t => t.type === 'Datasource').length,
-      token: this._templates.filter(t => t.type === 'Token').length,
-      jinja2: this._templates.filter(t => t.type === 'Jinja2').length,
-      error: this._templates.filter(t => t.type === 'Error').length
-    };
-  }
-
-  _getFilteredTemplates() {
-    if (this._filterType === 'all') {
-      return this._templates;
+    _discover() {
+        this._rows = templateFields(this.config ?? {}).map(f => ({ ...f, status: 'pending', result: '' }));
+        this._evaluate();
     }
 
-    const typeMap = {
-      'javascript': 'JavaScript',
-      'theme': 'Theme',
-      'datasource': 'Datasource',
-      'token': 'Token',
-      'jinja2': 'Jinja2',
-      'error': 'Error'
-    };
-
-    return this._templates.filter(t => t.type === typeMap[this._filterType]);
-  }
-
-  /**
-   * Recursively scan config for all templates and tokens
-   */
-  async _discoverTemplates() {
-    // @ts-ignore - TS2339: auto-suppressed
-    if (!this.config) {
-      this._templates = [];
-      return;
+    /** Evaluate every field the way the card does (Jinja2 included). */
+    async _evaluate() {
+        const run = ++this._run;
+        const config = this.config ?? {};
+        const entity = config.entity ? this.hass?.states?.[config.entity] ?? null : null;
+        const used = new Set();
+        const rows = await Promise.all(this._rows.map(async (row) => {
+            templateRefs(row.value, { entityId: config.entity }).entities.forEach(id => used.add(id));
+            try {
+                const evaluator = new UnifiedTemplateEvaluator({
+                    hass: this.hass,
+                    context: templateContext({
+                        hass: this.hass,
+                        config,
+                        entity,
+                        theme: window.lcards?.core?.themeManager?.getActiveTheme?.(),
+                    }),
+                    dataSourceManager: window.lcards?.core?.dataSourceManager,
+                });
+                const result = String(await evaluator.evaluateAsync(row.value) ?? '');
+                const gaps = unresolvedParts(result);
+                const status = gaps.length && result.trim() === row.value.trim() ? 'failed' : gaps.length ? 'partial' : 'ok';
+                return { ...row, result, status };
+            } catch (err) {
+                lcardsLog.debug('[TemplateEvaluationTab] Evaluation failed', { path: row.path, error: err?.message });
+                return { ...row, result: err?.message ?? String(err), status: 'failed' };
+            }
+        }));
+        if (run !== this._run) return;
+        this._seenStates = new Map([...used].map(id => [id, this.hass?.states?.[id]]));
+        this._rows = rows;
     }
 
-    this._isEvaluating = true;
-    this.requestUpdate();
-
-    try {
-      const templates = [];
-      // @ts-ignore - TS2339: auto-suppressed
-      this._scanObject(this.config, '', templates);
-
-      // Evaluate all templates
-      await this._evaluateTemplates(templates);
-
-      this._templates = templates;
-    } catch (error) {
-      lcardsLog.error('[TemplateEvaluationTab] Error discovering templates:', error);
-      this._templates = [];
-    } finally {
-      this._isEvaluating = false;
-      this.requestUpdate();
-    }
-  }
-
-  /**
-   * Validate token syntax and provide helpful error messages
-   */
-  _validateTokenSyntax(str) {
-    const errors = [];
-
-    // Check for double braces with theme prefix (wrong: {{theme:...}})
-    if (/\{\{theme:/.test(str)) {
-      errors.push({
-        pattern: /\{\{theme:[^}]+\}\}/g,
-        message: 'Wrong syntax: {{theme:...}} should be {theme:...} (single braces)',
-        suggestion: 'Use single curly braces: {theme:token.path}'
-      });
+    _statesChanged() {
+        for (const [id, st] of this._seenStates) if (this.hass?.states?.[id] !== st) return true;
+        return false;
     }
 
-    // Check for missing colon (wrong: {theme.colors})
-    if (/\{theme\./.test(str)) {
-      errors.push({
-        pattern: /\{theme\.[^}]+\}/g,
-        message: 'Wrong syntax: {theme.colors.text.onDark} should be {theme:colors.text.onDark} (colon, not dot)',
-        suggestion: 'Use colon after prefix: {theme:colors.text.onDark}'
-      });
+    render() {
+        const kinds = new Set(this._rows.flatMap(r => r.kinds));
+        const issues = this._rows.filter(r => r.status === 'failed' || r.status === 'partial' || r.mistakes.length).length;
+        return html`
+            ${renderLauncher({
+                icon: 'mdi:code-braces-box',
+                title: 'Templates',
+                description: "Every template in this card's config, evaluated live. Test one, or try new ones, in the sandbox.",
+                stats: [
+                    { value: this._rows.length, label: this._rows.length === 1 ? 'field with a template' : 'fields with templates' },
+                    { value: kinds.size, label: kinds.size === 1 ? 'kind' : 'kinds' },
+                    ...(issues ? [{ value: issues, label: issues === 1 ? 'needs a look' : 'need a look' }] : []),
+                ],
+                actions: [{ label: 'Open sandbox', icon: 'mdi:flask-outline', onClick: () => this._openSandbox() }],
+            })}
+            ${this._rows.length ? html`
+                <div class="fields">${this._rows.map(row => this._renderRow(row))}</div>
+            ` : html`<p class="hint empty">No templates in this card's config yet. Try one in the sandbox.</p>`}
+            <lcards-template-sandbox
+                .hass=${this.hass}
+                .config=${this.config}
+                .open=${this._sandboxOpen}
+                .initialData=${this._sandboxInitialData}
+                @sandbox-closed=${this._handleSandboxClosed}
+                @template-save=${this._handleSave}>
+            </lcards-template-sandbox>
+        `;
     }
 
-    // Check for datasource with dot instead of colon
-    if (/\{(?:datasource|ds)\./.test(str)) {
-      errors.push({
-        pattern: /\{(?:datasource|ds)\.[^}]+\}/g,
-        message: 'Wrong syntax: {datasource.name} should be {datasource:name} (colon, not dot)',
-        suggestion: 'Use colon after prefix: {datasource:sensor_data}'
-      });
+    _renderRow(row) {
+        const icon = { ok: 'mdi:check-circle', partial: 'mdi:alert', failed: 'mdi:close-circle', pending: 'mdi:timer-sand' }[row.status];
+        return html`
+            <div class="field">
+                <div class="field-head">
+                    <span class="path">${row.path}</span>
+                    ${row.kinds.map(k => html`<span class="kind">${k}</span>`)}
+                    <div class="actions">
+                        <ha-icon-button .label=${'Copy template'} title="Copy template" @click=${() => copyTextToClipboard(row.value)}>
+                            <ha-icon icon="mdi:content-copy"></ha-icon>
+                        </ha-icon-button>
+                        <ha-icon-button .label=${'Open in sandbox'} title="Open in sandbox" @click=${() => this._openSandbox({ template: row.value, path: row.path })}>
+                            <ha-icon icon="mdi:flask-outline"></ha-icon>
+                        </ha-icon-button>
+                    </div>
+                </div>
+                <div class="template">${row.value}</div>
+                <div class="result ${row.status}">
+                    <ha-icon icon=${icon}></ha-icon>
+                    <span class="value">${row.status === 'pending' ? 'Evaluating…' : row.result || '(empty)'}</span>
+                </div>
+                ${row.mistakes.map(m => html`<div class="mistake"><code>${m.match}</code>: ${m.message}</div>`)}
+            </div>
+        `;
     }
 
-    // Check for ambiguous tokens without prefix (colors, spacing, etc.)
-    const ambiguousTokens = /\{(colors|spacing|typography|borders|effects|animations|components)\./.test(str);
-    if (ambiguousTokens) {
-      errors.push({
-        pattern: /\{(colors|spacing|typography|borders|effects|animations|components)\.[^}]+\}/g,
-        message: 'Ambiguous syntax: missing theme: prefix',
-        suggestion: 'Add theme: prefix for clarity: {theme:colors.ui.primary}'
-      });
+    /** @param {{template?: string, path?: string}} [initialData] */
+    _openSandbox(initialData = {}) {
+        this._sandboxInitialData = { entity: this.config?.entity, ...initialData };
+        this._sandboxOpen = true;
     }
 
-    return errors;
-  }
-
-  /**
-   * Recursively scan object for template strings
-   */
-  _scanObject(obj, path, templates) {
-    if (!obj || typeof obj !== 'object') {
-      return;
+    _handleSandboxClosed() {
+        this._sandboxOpen = false;
+        this._sandboxInitialData = null;
     }
 
-    for (const [key, value] of Object.entries(obj)) {
-      const currentPath = path ? `${path}.${key}` : key;
-
-      if (typeof value === 'string') {
-        this._checkForTemplates(value, currentPath, templates);
-      } else if (Array.isArray(value)) {
-        value.forEach((item, index) => {
-          const arrayPath = `${currentPath}[${index}]`;
-          if (typeof item === 'string') {
-            this._checkForTemplates(item, arrayPath, templates);
-          } else if (typeof item === 'object') {
-            this._scanObject(item, arrayPath, templates);
-          }
-        });
-      } else if (typeof value === 'object' && value !== null) {
-        this._scanObject(value, currentPath, templates);
-      }
+    /** "Save to <path>": write the field through the editor (configs are frozen; copy, don't mutate). */
+    _handleSave(e) {
+        const { path, value } = e.detail ?? {};
+        if (!path || !this.editor?._updateConfig) return;
+        const root = pathSegments(path)[0];
+        const next = withValueAt(this.editor.config ?? this.config ?? {}, path, value);
+        this.editor._updateConfig({ [root]: next[root] });
+        lcardsLog.debug('[TemplateEvaluationTab] Saved template to', path);
     }
-  }
-
-  /**
-   * Check if string contains templates and categorize them
-   */
-  _checkForTemplates(str, path, templates) {
-    if (!str || typeof str !== 'string') return;
-
-    // Validate token syntax and flag errors
-    const validationErrors = this._validateTokenSyntax(str);
-    if (validationErrors.length > 0) {
-      validationErrors.forEach(errorInfo => {
-        const matches = str.matchAll(errorInfo.pattern);
-        for (const match of matches) {
-          templates.push({
-            path,
-            type: 'Error',
-            raw: match[0],
-            fullString: str,
-            result: errorInfo.message,
-            error: errorInfo.suggestion,
-            status: 'status-error'
-          });
-        }
-      });
-    }
-
-    const types = TemplateDetector.detectTemplateTypes(str);
-
-    // JavaScript templates
-    if (types.hasJavaScript) {
-      const matches = str.matchAll(/\[\[\[([\s\S]*?)\]\]\]/g);
-      for (const match of matches) {
-        templates.push({
-          path,
-          type: 'JavaScript',
-          raw: match[0],
-          fullString: str,
-          result: null,
-          error: null,
-          status: 'status-warning'
-        });
-      }
-    }
-
-    // Theme tokens
-    if (str.includes('{theme:')) {
-      const matches = str.matchAll(/\{theme:([^}]+)\}/g);
-      for (const match of matches) {
-        templates.push({
-          path,
-          type: 'Theme',
-          raw: match[0],
-          fullString: str,
-          result: null,
-          error: null,
-          status: 'status-warning'
-        });
-      }
-    }
-
-    // Datasource tokens
-    if (str.includes('{datasource:') || str.includes('{ds:')) {
-      const matches = str.matchAll(/\{(?:datasource|ds):([^}]+)\}/g);
-      for (const match of matches) {
-        templates.push({
-          path,
-          type: 'Datasource',
-          raw: match[0],
-          fullString: str,
-          result: null,
-          error: null,
-          status: 'status-warning'
-        });
-      }
-    }
-
-    // Simple tokens (excluding theme, datasource, and jinja2)
-    if (types.hasTokens && !types.hasJinja2) {
-      // More careful regex to match simple tokens like {entity.state}
-      // but exclude theme:, datasource:, ds:, and Jinja2 {{
-      const tokenRegex = /\{(?!theme:)(?!datasource:)(?!ds:)(?!\{)([^{}]+)\}/g;
-      let match;
-      while ((match = tokenRegex.exec(str)) !== null) {
-        templates.push({
-          path,
-          type: 'Token',
-          raw: match[0],
-          fullString: str,
-          result: null,
-          error: null,
-          status: 'status-warning'
-        });
-      }
-    }
-
-    // Jinja2 templates
-    if (types.hasJinja2) {
-      const matches = str.matchAll(/\{\{([^}]+)\}\}/g);
-      for (const match of matches) {
-        templates.push({
-          path,
-          type: 'Jinja2',
-          raw: match[0],
-          fullString: str,
-          result: null,
-          error: null,
-          status: 'status-warning'
-        });
-      }
-    }
-  }
-
-  /**
-   * Evaluate all discovered templates
-   */
-  async _evaluateTemplates(templates) {
-    const entity = this._getEntity();
-    const themeManager = window.lcards?.core?.themeManager;
-    const dataSourceManager = window.lcards?.core?.dataSourceManager;
-
-    for (const template of templates) {
-      try {
-        // For Jinja2 templates, don't auto-evaluate (requires Home Assistant server)
-        if (template.type === 'Jinja2') {
-          template.result = '⏳ Not evaluated (use Test button)';
-          template.status = 'status-warning';
-          template.note = 'Jinja2 templates evaluate server-side. Use HA template editor to test.';
-          continue;
-        }
-
-        // Use UnifiedTemplateEvaluator with proper context
-        // Note: This follows the same pattern as LCARdSCard.processTemplate() but adapted for editor context
-        const evaluator = new UnifiedTemplateEvaluator({
-          // @ts-ignore - TS2339: auto-suppressed
-          hass: this.hass,
-          context: {
-            entity,
-            // @ts-ignore - TS2339: auto-suppressed
-            config: this.config,
-            // @ts-ignore - TS2339: auto-suppressed
-            hass: this.hass,
-            theme: themeManager?.getActiveTheme?.(),
-            // Note: NO 'variables' property - this was legacy custom-button-card only
-          },
-          dataSourceManager
-        });
-
-        // Evaluate the template
-        const result = evaluator.evaluateSync(template.fullString);
-        const resultStr = String(result);
-
-        // Use TemplateDetector to check if result still contains template syntax
-        const resultTypes = TemplateDetector.detectTemplateTypes(resultStr);
-        const stillHasTemplates = resultTypes.hasJavaScript || resultTypes.hasTokens ||
-                                  resultTypes.hasDatasources || resultTypes.hasMSD;
-        const isEmpty = resultStr === '' || resultStr.trim() === '';
-
-        if (stillHasTemplates) {
-          template.result = resultStr;
-          template.error = 'Template not resolved - check if datasource/token exists';
-          template.status = 'status-error';
-        } else if (isEmpty && template.raw.trim() !== '') {
-          template.result = '(empty)';
-          template.error = 'Evaluated to empty - token/datasource not found';
-          template.status = 'status-error';
-        } else {
-          template.result = resultStr;
-          template.status = 'status-success';
-        }
-      } catch (error) {
-        template.error = error.message;
-        template.status = 'status-error';
-        lcardsLog.warn('[TemplateEvaluationTab] Template evaluation failed:', template.raw, error);
-      }
-    }
-  }
-
-  /**
-   * Get the entity from config if available
-   */
-  _getEntity() {
-    // @ts-ignore - TS2339: auto-suppressed
-    const entityId = this.config?.entity;
-    // @ts-ignore - TS2339: auto-suppressed
-    if (!entityId || !this.hass?.states) {
-      return null;
-    }
-    // @ts-ignore - TS2339: auto-suppressed
-    return this.hass.states[entityId];
-  }
-
-  /**
-   * Copy text to clipboard with visual feedback
-   */
-  async _copyToClipboard(text, event) {
-    const ok = await copyTextToClipboard(text);
-    // Flash the clicked icon button: check on success, alert on failure
-    const iconElement = event.target.closest('ha-icon-button')?.querySelector('ha-icon');
-    if (!iconElement) return;
-    const originalIcon = iconElement.icon;
-    iconElement.icon = ok ? 'mdi:check' : 'mdi:alert-circle';
-    iconElement.style.color = ok ? 'var(--success-color, #4caf50)' : 'var(--error-color, #f44336)';
-    setTimeout(() => {
-      iconElement.icon = originalIcon;
-      iconElement.style.color = '';
-    }, 2000);
-  }
-
-  /**
-   * Render the template sandbox modal
-   */
-  _renderSandbox() {
-    return html`
-      <lcards-template-sandbox
-        .hass=${this.hass}
-        .config=${this.config}
-        .open=${this._sandboxOpen}
-        .initialData=${this._sandboxInitialData}
-        @sandbox-closed=${this._handleSandboxClosed}>
-      </lcards-template-sandbox>
-    `;
-  }
-
-  /**
-   * Open the template sandbox with optional initial data
-   */
-  _openSandbox(initialData = null) {
-    this._sandboxInitialData = initialData;
-    this._sandboxOpen = true;
-  }
-
-  /**
-   * Test a template in the sandbox
-   */
-  _testInSandbox(template) {
-    // @ts-ignore - TS2339: auto-suppressed
-    const entityId = this.config?.entity || 'light.example';
-    this._openSandbox({
-      template: template.raw,
-      mockEntity: entityId
-    });
-  }
-
-  /**
-   * Handle sandbox closed event
-   */
-  _handleSandboxClosed() {
-    this._sandboxOpen = false;
-    this._sandboxInitialData = null;
-  }
 }
 
 if (!customElements.get('lcards-template-evaluation-tab')) customElements.define('lcards-template-evaluation-tab', LCARdSTemplateEvaluationTab);

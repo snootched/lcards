@@ -460,7 +460,6 @@ export class RulesEngine extends BaseService {
       // DEBUG: Log what we're returning from evaluateDirty
       lcardsLog.trace(`[RulesEngine] evaluateDirty returning:`, {
         overlayPatchesCount: aggregatedResult.overlayPatches?.length || 0,
-        profilesAddCount: aggregatedResult.profilesAdd?.length || 0,
         hasResult: !!aggregatedResult,
         isObject: typeof aggregatedResult === 'object',
         keys: Object.keys(aggregatedResult || {})
@@ -635,8 +634,6 @@ export class RulesEngine extends BaseService {
           isArray: Array.isArray(result.overlayPatches)
         });
 
-        result.profilesAdd = rule.apply.profiles_add || [];
-        result.profilesRemove = rule.apply.profiles_remove || [];
         result.animations = rule.apply.animations || [];
         result.baseSvgUpdate = rule.apply.base_svg || null;
         result.stopAfter = rule.stop === true;
@@ -1052,8 +1049,6 @@ export class RulesEngine extends BaseService {
 
     const aggregated = {
       overlayPatches: [],
-      profilesAdd: [],
-      profilesRemove: [],
       animations: [],
       baseSvgUpdate: null  // ✅ NEW: Aggregate base_svg updates
     };
@@ -1080,16 +1075,10 @@ export class RulesEngine extends BaseService {
       this.processOverlayRules(overlayId, rules, aggregated);
     });
 
-    // Add non-overlay results (profiles, animations, base_svg)
+    // Add non-overlay results (animations, base_svg)
     ruleResults
       .sort((a, b) => (b.priority || 0) - (a.priority || 0))
       .forEach(result => {
-        if (result.profilesAdd) {
-          aggregated.profilesAdd.push(...result.profilesAdd);
-        }
-        if (result.profilesRemove) {
-          aggregated.profilesRemove.push(...result.profilesRemove);
-        }
         if (result.animations) {
           aggregated.animations.push(...result.animations);
         }
@@ -1102,8 +1091,6 @@ export class RulesEngine extends BaseService {
     // DEBUG: Log what we're returning
     lcardsLog.trace(`[RulesEngine] aggregateResults returning:`, {
       overlayPatchesCount: aggregated.overlayPatches.length,
-      profilesAddCount: aggregated.profilesAdd.length,
-      profilesRemoveCount: aggregated.profilesRemove.length,
       animationsCount: aggregated.animations.length,
       hasBaseSvg: !!aggregated.baseSvgUpdate,
       overlayPatches: aggregated.overlayPatches
@@ -1168,8 +1155,6 @@ export class RulesEngine extends BaseService {
   createEmptyResult() {
     return {
       overlayPatches: [],
-      profilesAdd: [],
-      profilesRemove: [],
       animations: [],
       baseSvgUpdate: null  // ✅ NEW: Include base_svg in empty result
     };

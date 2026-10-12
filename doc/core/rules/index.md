@@ -228,15 +228,6 @@ Animation selectors (mutually exclusive, evaluated in order): `overlay` (direct 
 
 Animations started by a rule are **automatically stopped** when the rule unmatches.
 
-### Profiles
-
-```yaml
-apply:
-  profiles:
-    - night_mode
-    - dim_displays
-```
-
 ---
 
 ## Priority

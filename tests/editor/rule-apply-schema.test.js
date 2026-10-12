@@ -20,8 +20,8 @@ const schema = ruleApplySchema({
 });
 const keys = (path, config = {}) => optionsAt(schema, path, config).map(o => o.key);
 
-test('top level: the apply keys', () => {
-    assert.deepEqual(keys([]).sort(), ['animations', 'base_svg', 'overlays', 'profiles']);
+test('top level: the apply keys (the retired profiles key is not offered)', () => {
+    assert.deepEqual(keys([]).sort(), ['animations', 'base_svg', 'overlays']);
 });
 
 test('overlays: every target on the page, the card being edited, and the selectors', () => {

@@ -812,3 +812,114 @@ test("Rules: Apply is the LCARdS YAML editor; it starts with this card and compl
     await removeEditor(page);
     expect(errors).toEqual([]);
 });
+
+/**
+ * Templates tab and sandbox (B3): one row per field with its live result,
+ * the sandbox on the card's context with completion, test values and Save to field.
+ */
+const TPL_CARD = { type: 'custom:lcards-button', id: 'tpl_card', entity: 'input_number.lcards_test_value', preset: 'lozenge',
+    variables: { unit: 'kW' },
+    text: {
+        label: { content: 'Value {entity.state} {variables.unit}', show: true },
+        name: { content: '[[[ return variables.unit + "!" ]]]', show: true },
+        state: { content: '{{ states("input_boolean.lcards_test_toggle") }}', show: true },
+    },
+    style: { card: { color: { background: { default: '{colors.text.onDark}' } } } } };
+
+async function openTemplatesTab(page) {
+    const errors = await openDashboard(page, 'cards');
+    page.on('dialog', d => { throw new Error(`native ${d.type()} dialog: ${d.message()}`); });
+    const editor = await openMainEngineering(page, TPL_CARD);
+    await editor.getByRole('tab', { name: 'Templates', exact: true }).dispatchEvent('click');
+    const tab = editor.locator('lcards-template-evaluation-tab');
+    await expect(tab.locator('.launcher')).toBeVisible();
+    return { errors, editor, tab };
+}
+const fieldRow = (tab, path) => tab.locator('.field', { has: tab.page().locator('.path', { hasText: new RegExp(`^${path.replace(/[.[\]]/g, '\\$&')}$`) }) });
+
+test('Templates: one row per field with its live result (variables, JavaScript, Jinja2); mistakes flagged', async ({ page }) => {
+    const { errors, tab } = await openTemplatesTab(page);
+    await expect(tab.locator('.field')).toHaveCount(4);
+    await expect(fieldRow(tab, 'text.label.content').locator('.result .value')).toHaveText(/^Value \S+ kW$/);
+    await expect(fieldRow(tab, 'text.name.content').locator('.result .value')).toHaveText('kW!');
+    await expect(fieldRow(tab, 'text.state.content').locator('.result .value')).toHaveText(/^(on|off)$/);
+    await expect(fieldRow(tab, 'style.card.color.background.default').locator('.mistake')).toContainText('Missing the theme: prefix');
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test("Templates: Open in sandbox loads the whole field on the card's entity; Save to field writes it", async ({ page }) => {
+    const { errors, editor, tab } = await openTemplatesTab(page);
+    await fieldRow(tab, 'text.label.content').getByRole('button', { name: 'Open in sandbox' }).click();
+    const sandbox = tab.locator('lcards-template-sandbox');
+    await expect(sandbox.locator('ha-dialog')).toHaveAttribute('header-title', 'Template: text.label.content');
+    await expect(sandbox.locator('lcards-template-editor .cm-content')).toHaveText('Value {entity.state} {variables.unit}');
+    await expect(sandbox.locator('.result .value')).toHaveText(/^Value \S+ kW$/);
+    await expect(sandbox.locator('.result .status')).toContainText('Resolved');
+    expect(await sandbox.evaluate(el => el._entityId)).toBe('input_number.lcards_test_value');
+    await sandbox.locator('lcards-template-editor .cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type(' OK');
+    await sandbox.getByRole('button', { name: 'Save to text.label.content' }).click(); // right away: Save flushes
+    await expect(sandbox.locator('ha-dialog')).toHaveCount(0);
+    await expect.poll(() => editor.evaluate(el => el.config.text.label.content)).toBe('Value {entity.state} {variables.unit} OK');
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Template sandbox: completion offers attributes, data sources and theme paths; test values stand in', async ({ page }) => {
+    const { errors, tab } = await openTemplatesTab(page);
+    await page.evaluate(() => window.lcards.core.dataSourceManager.createDataSource('tpl_ds',
+        { entity: 'input_number.lcards_test_value', history: { enabled: false } }, 'other-card'));
+    await tab.getByRole('button', { name: 'Open sandbox' }).click();
+    const sandbox = tab.locator('lcards-template-sandbox');
+    const cm = sandbox.locator('lcards-template-editor .cm-content');
+    const popup = sandbox.locator('lcards-template-editor .cm-tooltip-autocomplete');
+    await cm.click();
+    // Every character reaches the editor (HA's one-key shortcuts, such as "e", don't take them)
+    await page.keyboard.type('{entity.attributes.');
+    await expect(cm).toHaveText('{entity.attributes.');
+    await expect(popup).toContainText('max');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Control+a');
+    await page.keyboard.press('Delete');
+    await page.keyboard.type('{ds:');
+    await expect(popup).toContainText('tpl_ds');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Control+a');
+    await page.keyboard.press('Delete');
+    await page.keyboard.type('{theme:');
+    await expect(popup).toContainText('colors');
+    await page.keyboard.press('Escape');
+    // Escape closed the list only: the sandbox stays open
+    await expect(popup).toHaveCount(0);
+    await expect(sandbox.locator('ha-dialog')).toHaveCount(1);
+    // Insert chips open completion too
+    await page.keyboard.press('Control+a');
+    await page.keyboard.press('Delete');
+    await sandbox.locator('.inserts').getByRole('button', { name: 'Variable', exact: true }).click();
+    await expect(popup).toContainText('unit');
+    await page.keyboard.press('Escape');
+
+    // An example with test values: the data source is a test value
+    await sandbox.evaluate(el => el._loadExample('datasource'));
+    await expect(sandbox.locator('.result .value')).toHaveText('Core temperature: 87.5 °C');
+    await expect(sandbox.locator('.used tr', { hasText: 'core_temp' }).locator('.src')).toHaveText('test');
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Template sandbox: every example resolves', async ({ page }) => {
+    const { errors, tab } = await openTemplatesTab(page);
+    await tab.getByRole('button', { name: 'Open sandbox' }).click();
+    const sandbox = tab.locator('lcards-template-sandbox');
+    const ids = await sandbox.evaluate(el => Object.keys(el.constructor.EXAMPLES ?? {}).length
+        ? Object.keys(el.constructor.EXAMPLES) : [...el.renderRoot.querySelectorAll('.examples ha-selector')].flatMap(s => s.selector.select.options.map(o => o.value)));
+    expect(ids.length).toBeGreaterThan(10);
+    for (const id of ids) {
+        await sandbox.evaluate((el, id) => el._loadExample(id), id);
+        await expect(sandbox.locator('.result .status'), id).toContainText(/^\s*Resolved\s/);
+    }
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
