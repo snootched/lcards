@@ -8,7 +8,7 @@
  * per entity, attribute and span, and reused for a few minutes while editing.
  *
  * @element lcards-processor-preview
- * @fires preview-result - After each run, detail: the runProcessorPreview result
+ * @fires preview-result - After each run, detail: the runProcessorPreview result plus `hours` (the span shown)
  *
  * @property {Object} hass - Home Assistant instance
  * @property {Object} entry - The data source config being edited
@@ -248,10 +248,12 @@ export class LCARdSProcessorPreview extends LitElement {
       this._history = { ...this._history, previewOnly: !settings.enabled };
     }
 
+    if (!this.isConnected) return;
     const result = runProcessorPreview(entry, this._history.points, { entityState: this.hass.states?.[entry.entity] ?? null });
     this._result = result;
     this._status = 'ready';
-    this.dispatchEvent(new CustomEvent('preview-result', { detail: result, bubbles: true, composed: true }));
+    // The result plus the span shown, so a chart made from it covers the same hours.
+    this.dispatchEvent(new CustomEvent('preview-result', { detail: { ...result, hours: this._history.hours }, bubbles: true, composed: true }));
     await this.updateComplete;
     await this._draw(result.series);
   }
@@ -285,12 +287,14 @@ export class LCARdSProcessorPreview extends LitElement {
     const options = processorPreviewChartOptions(series, { ...this._themeColors(), selected: this.selectedKey || null, height: 240 });
     try {
       const ApexCharts = (await import('apexcharts')).default;
+      // Closed (dialog shut, tab changed) while ApexCharts loaded: nothing to draw.
+      if (!this.isConnected || !el.isConnected) return;
       // Series and axes change shape between edits: rebuild rather than update.
       this._chart?.destroy();
       this._chart = new ApexCharts(el, options);
       await this._chart.render();
     } catch (error) {
-      lcardsLog.error('[ProcessorPreview] Chart failed:', error);
+      if (this.isConnected) lcardsLog.error('[ProcessorPreview] Chart failed:', error);
     }
   }
 }

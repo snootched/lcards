@@ -21,6 +21,7 @@ import '../../editor/components/shared/lcards-form-section.js';
 import '../../editor/components/shared/lcards-message.js';
 import '../../editor/components/sound/lcards-sound-source-selector.js';
 import './shared/lcards-scope-selector.js';
+import { surfaceStyles } from '../../editor/base/surface-styles.js';
 
 const CATEGORY_LABELS = {
   cards:  'Card Interactions',
@@ -1539,7 +1540,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     `;
   }
 
-  static styles = css`
+  static styles = [surfaceStyles, css`
     :host {
       flex: 1;
       display: flex;
@@ -1548,28 +1549,7 @@ export class LCARdSSoundConfigTab extends LitElement {
       overflow: hidden;
     }
 
-    .studio-layout {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      background: var(--primary-background-color);
-      min-height: 0;
-      border-radius: var(--ha-card-border-radius, 12px);
-      padding: 16px;
-    }
 
-    .scrollable-body {
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      padding-bottom: 8px;
-      /* Suppress lcards-form-section's own margin-bottom; gap handles spacing */
-      --lcards-section-spacing: 0;
-    }
 
     .banner {
       display: flex;
@@ -1578,11 +1558,6 @@ export class LCARdSSoundConfigTab extends LitElement {
       padding: 12px 16px;
       border-radius: var(--ha-border-radius-md);
       font-size: 0.9em;
-    }
-    .banner.warning {
-      background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
-      color: var(--primary-text-color);
     }
     .banner.info {
       background: color-mix(in srgb, var(--info-color, #03a9f4) 15%, transparent);
@@ -1880,7 +1855,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     .scoped-overrides-table {
       font-size: 0.88rem;
     }
-  `;
+  `];
 }
 
 if (!customElements.get('lcards-sound-config-tab')) customElements.define('lcards-sound-config-tab', LCARdSSoundConfigTab);

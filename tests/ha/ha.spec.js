@@ -3,6 +3,7 @@
  * Fixtures (lcards_test_* helpers, lcards-test dashboard) are created if missing.
  */
 import { test, expect } from '@playwright/test';
+import yaml from 'js-yaml';
 import { readFileSync } from 'node:fs';
 import { HAClient, HA_URL, TEST_DASHBOARD, readToken, ensureHelpers, ensureDashboard, setInputNumberMax } from './ha-client.mjs';
 
@@ -357,7 +358,7 @@ async function openStudio(page, { mode = 'edit', config }) {
 const closeStudio = (page) => page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio')?.remove());
 const studioConfig = (page) => page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio')._workingConfig);
 
-test('data source studio: the Processing tab previews real history and edits processors inline', async ({ page }) => {
+test('data source studio: the preview shows real history beside the tabs; processors edit inline', async ({ page }) => {
     const errors = await openDashboard(page, 'cards');
     for (const value of [20, 40, 30, 60]) {
         await client.callService('input_number', 'set_value', { entity_id: 'input_number.lcards_test_value', value });
@@ -389,6 +390,33 @@ test('data source studio: the Processing tab previews real history and edits pro
     await expect(series).toHaveCount(3);
     expect(Object.keys((await studioConfig(page)).processing)).toEqual(['smoothed', 'smooth']);
 
+    // "Use in a chart": an lcards-chart config for this source, over the span the preview shows.
+    await studio.locator('.chart-yaml summary').click();
+    const chartText = await studio.locator('ha-code-editor.chart-yaml-code').evaluate(el => el.value);
+    const chart = yaml.load(chartText);
+    expect(chart.type).toBe('custom:lcards-chart');
+    expect(chart.graph_span).toBe('24h');
+    expect(chart.sources.map(src => src.buffer ?? 'raw')).toEqual(['raw', 'smoothed', 'smooth']);
+
+    // Edit as YAML opens the code editor.
+    await studio.getByRole('button', { name: 'Edit as YAML' }).click();
+    await expect(studio.locator('lcards-processor-form lcards-yaml-editor .cm-editor')).toBeVisible();
+
+    // Deleting a processor another one uses asks in an HA dialog, not the browser's confirm().
+    page.on('dialog', d => { throw new Error(`native ${d.type()} dialog: ${d.message()}`); });
+    await page.evaluate(() => {
+        const d = document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio');
+        d._workingConfig = { ...d._workingConfig, processing: { base: { type: 'round' }, top: { type: 'round', input_source: 'base' } } };
+    });
+    await studio.locator('lcards-processor-tree-editor .node').first().click();
+    await studio.getByRole('button', { name: 'Delete' }).click();
+    // (the ha-dialog host has no box of its own; its buttons do)
+    const confirmDelete = page.locator('ha-dialog', { hasText: 'uses it as input' }).getByRole('button', { name: 'Delete' });
+    await expect(confirmDelete).toBeVisible();
+    await confirmDelete.click();
+    await expect.poll(async () => Object.keys((await studioConfig(page)).processing)).toEqual(['top']);
+    expect((await studioConfig(page)).processing.top.input_source).toBeUndefined();
+
     // A pipeline error (a cycle) is reported from the real ProcessorManager.
     await page.evaluate(() => {
         const d = document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio');
@@ -405,14 +433,14 @@ test('data source studio: the Processing tab previews real history and edits pro
 test('data source studio: history preload off writes enabled: false; a new source shows no errors before input', async ({ page }) => {
     const errors = await openDashboard(page, 'cards');
     let studio = await openStudio(page, { config: { entity: 'input_number.lcards_test_value' } });
-    await studio.getByRole('tab', { name: 'Timing & History' }).click();
+    await studio.getByRole('tab', { name: 'History & Timing' }).click();
     await studio.locator('ha-selector').filter({ hasText: 'Preload history' }).locator('ha-switch').click();
     await expect.poll(async () => (await studioConfig(page)).history).toEqual({ enabled: false });
     await closeStudio(page);
 
     studio = await openStudio(page, { mode: 'add' });
     await expect(studio.getByText('Entity is required')).toHaveCount(0);
-    await studio.locator('ha-selector').filter({ hasText: 'DataSource Name' }).locator('input').fill('lab');
+    await studio.locator('.tab-content ha-selector').first().locator('input').fill('lab');
     await expect(studio.getByText('Entity is required')).toBeVisible();
     await closeStudio(page);
     await removeEditor(page);
@@ -447,7 +475,7 @@ test('data source studio: a long pipeline scrolls, so every processor is reachab
     // the dialog's visible area.
     const contentBox = () => page.evaluate(() => {
         const r = document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio')
-            .shadowRoot.querySelector('.dialog-content').getBoundingClientRect();
+            .shadowRoot.querySelector('.tab-content').getBoundingClientRect();
         return { top: r.top, bottom: r.bottom, x: r.left + r.width / 2, y: r.top + r.height / 2 };
     });
     const box = await contentBox();

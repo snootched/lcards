@@ -911,14 +911,13 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     ?expanded=${true}
                     ?outlined=${true}>
                     <div class="form-row">
-                        <ha-textarea
+                        <ha-code-editor
+                            mode="yaml"
+                            linewrap
                             .value=${this.config.svg?.content || ''}
-                            @input=${/* @ts-ignore TS2339 */ (e) => this.editor._setConfigValue('svg.content', e.target.value)}
                             placeholder="<svg viewBox='0 0 100 100'>...</svg>"
-                            rows="10"
-                            resize="auto"
-                            style="width: 100%; font-family: monospace;">
-                        </ha-textarea>
+                            @value-changed=${/* @ts-ignore TS2339 */ (e) => { e.stopPropagation(); this.editor._setConfigValue('svg.content', e.detail.value); }}>
+                        </ha-code-editor>
                         <div class="helper-text">
                             ${discoveredIds.length > 0
                                 ? `✓ Found ${discoveredIds.length} segment(s): ${discoveredIds.join(', ')}`

@@ -23,6 +23,7 @@ import {
   rendererStyles
 } from '../../dialogs/pack-explorer/renderers/asset-renderers.js';
 import { CANVAS_TEXTURE_PRESETS } from '../../../core/packs/textures/presets/index.js';
+import { surfaceStyles } from '../../base/surface-styles.js';
 
 export class LCARdSPackExplorerTab extends LitElement {
   static get properties() {
@@ -49,6 +50,7 @@ export class LCARdSPackExplorerTab extends LitElement {
 
   static get styles() {
     return [
+      surfaceStyles,
       rendererStyles,
       css`
       :host {
@@ -60,16 +62,6 @@ export class LCARdSPackExplorerTab extends LitElement {
       }
 
       /* Studio Layout Container */
-      .studio-layout {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        background: var(--primary-background-color);
-        min-height: 0;
-        border-radius: var(--ha-card-border-radius, 12px);
-        padding: 16px;
-      }
 
       .content-container {
         display: flex;

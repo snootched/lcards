@@ -15,6 +15,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { copyTextToClipboard } from '../../utils/clipboard-utils.js';
 import { buildSupportReport, openIssueForReport } from '../../utils/support-info.js';
 import '../../editor/components/shared/lcards-message.js';
+import { surfaceStyles } from '../../editor/base/surface-styles.js';
 
 export class LCARdSAboutTab extends LitElement {
   static properties = {
@@ -394,7 +395,7 @@ export class LCARdSAboutTab extends LitElement {
   // STYLES
   // ============================================================================
 
-  static styles = css`
+  static styles = [surfaceStyles, css`
     :host {
       flex: 1;
       display: flex;
@@ -736,7 +737,7 @@ export class LCARdSAboutTab extends LitElement {
     .footer a:hover {
       text-decoration: underline;
     }
-  `;
+  `];
 }
 
 if (!customElements.get('lcards-about-tab')) {

@@ -20,6 +20,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import '../../editor/components/shared/lcards-form-section.js';
 import { copyTextToClipboard } from '../../utils/clipboard-utils.js';
+import { surfaceStyles } from '../../editor/base/surface-styles.js';
 
 // ============================================================================
 // MINIMAL YAML SERIALIZER
@@ -722,7 +723,7 @@ export class LCARdSLayoutsTab extends LitElement {
   }
 
   static get styles() {
-    return css`
+    return [surfaceStyles, css`
       :host {
         display: flex;
         flex-direction: column;
@@ -730,27 +731,7 @@ export class LCARdSLayoutsTab extends LitElement {
         overflow: hidden;
       }
 
-      .studio-layout {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        background: var(--primary-background-color);
-        min-height: 0;
-        border-radius: var(--ha-card-border-radius, 12px);
-        padding: 16px;
-      }
 
-      .scrollable-body {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        padding-bottom: 8px;
-        --lcards-section-spacing: 0;
-      }
 
       /* Prerequisite banner */
       .banner {
@@ -760,11 +741,6 @@ export class LCARdSLayoutsTab extends LitElement {
         padding: 12px 16px;
         border-radius: var(--ha-border-radius-md);
         font-size: 0.9em;
-      }
-      .banner.warning {
-        background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
-        color: var(--primary-text-color);
       }
       .banner ha-icon { flex-shrink: 0; color: var(--warning-color, #ff9800); }
       .banner code, .banner strong {
@@ -884,7 +860,7 @@ export class LCARdSLayoutsTab extends LitElement {
         max-height: 50vh;
         overflow-y: auto;
       }
-    `;
+    `];
   }
 }
 

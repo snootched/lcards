@@ -20,6 +20,11 @@ import { LitElement, html, css, nothing } from 'lit';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
 import { processorType, processorDocsUrl, unitOptions, unitTargets, PROCESSOR_KEY_PATTERN } from './processor-types.js';
 import '../shared/lcards-message.js';
+import '../yaml/lcards-yaml-editor.js';
+import { dataSourcesSchema } from '../../../cards/schemas/common-schemas.js';
+
+/** One processor's schema (for completion in its YAML view). */
+const PROCESSOR_SCHEMA = dataSourcesSchema.additionalProperties.properties.processing.additionalProperties;
 
 /** Select value for "no input_source" (a select can't hold an empty value). */
 const RAW = '__raw__';
@@ -384,14 +389,14 @@ export class LCARdSProcessorForm extends LitElement {
 
   _renderYaml() {
     return html`
-      <ha-textarea
-        label="Processor (YAML)"
-        resize="auto"
-        rows="8"
+      <lcards-yaml-editor
+        .hass=${this.hass}
         .value=${this._yaml}
-        @change=${(e) => this._applyYaml(e.target.value)}>
-      </ha-textarea>
-      ${this._yamlError ? html`<div class="error">${this._yamlError}</div>` : html`<div class="help">Applies when the field loses focus.</div>`}
+        .schema=${PROCESSOR_SCHEMA}
+        cardType="processor-lab"
+        @value-changed=${(e) => { e.stopPropagation(); this._applyYaml(e.detail.value); }}>
+      </lcards-yaml-editor>
+      ${this._yamlError ? html`<div class="error">${this._yamlError}</div>` : html`<div class="help">Applies a moment after you stop typing.</div>`}
     `;
   }
 

@@ -2,8 +2,10 @@
  * @fileoverview History for a data source: the points a DataSource preloads at
  * startup, fetched the same way for the editor's processor preview.
  *
- * Order: hourly long-term statistics (entity state only), else state history over
- * the websocket (with attributes when the source tracks one), else the REST API.
+ * Order: state history over the websocket (every recorded change, up to now; with
+ * attributes when the source tracks one), else hourly long-term statistics when
+ * that has no points (e.g. older than the recorder keeps; entity state only), and
+ * the REST API when the websocket request fails.
  *
  * @module core/data-sources/history-fetch
  */
@@ -57,33 +59,11 @@ export async function fetchDataSourceHistory(hass, cfg, { hours = historySetting
   if (!hass?.connection || !cfg?.entity) return { points: [], method: 'none' };
   const endTime = new Date(now);
   const startTime = new Date(now - hours * 3_600_000);
-
-  // Long-term statistics only cover the entity state, so attribute series go
-  // straight to state history.
-  if (!historyNeedsAttributes(cfg)) {
-    try {
-      const statisticsData = await hass.connection.sendMessagePromise({
-        type: 'recorder/statistics_during_period',
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
-        statistic_ids: [cfg.entity],
-        period: 'hour'
-      });
-      const rows = statisticsData?.[cfg.entity];
-      if (rows) {
-        const points = rows
-          .map(stat => ({ t: new Date(stat.start).getTime(), v: statisticValue(stat) }))
-          .filter(p => p.v !== null && Number.isFinite(p.t));
-        return { points, method: 'statistics' };
-      }
-    } catch (error) {
-      lcardsLog.warn('[history-fetch] Statistics failed, trying state history:', error.message);
-    }
-  }
-
-  // State history over the websocket. Attributes are only sent when the series
-  // needs one; minimal responses drop them from most rows.
   const needsAttributes = historyNeedsAttributes(cfg);
+
+  // State history: full resolution up to now. Attributes are only sent when the
+  // series needs one; minimal responses drop them from most rows.
+  let websocketFailed = false;
   try {
     const historyData = await hass.connection.sendMessagePromise({
       type: 'history/history_during_period',
@@ -95,15 +75,43 @@ export async function fetchDataSourceHistory(hass, cfg, { hours = historySetting
     });
     // Reply shape: { [entity_id]: [{ s, a?, lc?, lu }, ...] }
     const states = historyData?.[cfg.entity];
-    return { points: Array.isArray(states) ? historyStatesToPoints(states, cfg) : [], method: 'history' };
+    const points = Array.isArray(states) ? historyStatesToPoints(states, cfg) : [];
+    if (points.length) return { points, method: 'history' };
   } catch (error) {
-    lcardsLog.error('[history-fetch] Websocket state history failed:', error);
+    websocketFailed = true;
+    lcardsLog.warn('[history-fetch] Websocket state history failed:', error.message);
   }
 
-  // Last resort: the REST API.
+  // No state history (purged, or not recorded): hourly long-term statistics. They
+  // only cover the entity state.
+  if (!needsAttributes && !websocketFailed) {
+    try {
+      const statisticsData = await hass.connection.sendMessagePromise({
+        type: 'recorder/statistics_during_period',
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        statistic_ids: [cfg.entity],
+        period: 'hour'
+      });
+      const rows = statisticsData?.[cfg.entity];
+      if (Array.isArray(rows) && rows.length) {
+        const points = rows
+          .map(stat => ({ t: new Date(stat.start).getTime(), v: statisticValue(stat) }))
+          .filter(p => p.v !== null && Number.isFinite(p.t));
+        return { points, method: 'statistics' };
+      }
+    } catch (error) {
+      lcardsLog.warn('[history-fetch] Statistics failed:', error.message);
+    }
+    return { points: [], method: 'history' };
+  }
+
+  if (!websocketFailed) return { points: [], method: 'history' };
+
+  // The websocket request failed: try the REST API.
   try {
     const lean = needsAttributes ? '' : '&minimal_response&no_attributes';
-    const url = `/api/history/period/${startTime.toISOString()}?filter_entity_id=${cfg.entity}${lean}`;
+    const url = `/api/history/period/${startTime.toISOString()}?filter_entity_id=${cfg.entity}${lean}&end_time=${encodeURIComponent(endTime.toISOString())}`;
     const response = await fetch(url, {
       headers: { 'Authorization': `Bearer ${hass.auth?.accessToken}`, 'Content-Type': 'application/json' }
     });

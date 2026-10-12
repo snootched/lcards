@@ -45,6 +45,7 @@ import '../components/templates/lcards-template-evaluation-tab.js';
 import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { showInfoDialog } from '../../views/layout-edit-dialogs.js';
 
 // @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSElbowEditor extends LCARdSBaseEditor {
@@ -256,7 +257,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     // @ts-ignore - TS2339: auto-suppressed
                     ha.showToast({ message: 'Card picker loading… please try again in a moment.', duration: 3000 });
                 } else {
-                    alert('Card picker not ready yet. Click "Add Card" on any dashboard view once to enable it, then try again.');
+                    showInfoDialog({
+                        title: 'Card picker not ready',
+                        message: 'Home Assistant hasn’t loaded its card picker yet. On any dashboard, click “Add card” once (you can cancel it), then come back and try again.',
+                    });
                 }
             } catch (_) { /* ignore */ }
             return;

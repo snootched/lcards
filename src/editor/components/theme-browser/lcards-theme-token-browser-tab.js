@@ -34,6 +34,7 @@ import { STORAGE_KEY_THEME_OVERRIDES } from '../../../core/services/ScopedSettin
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 import { activeHaThemeName } from '../../../utils/support-info.js';
 import { LEGACY_FIELD_DEFS } from './theme-legacy-fields.js';
+import { surfaceStyles } from '../../base/surface-styles.js';
 
 const LEGACY_KEY_SET = new Set(LEGACY_FIELD_DEFS.map(f => f.key));
 
@@ -249,6 +250,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
   static get styles() {
     return [
+      surfaceStyles,
       editorStyles,
       css`
         :host {
@@ -260,16 +262,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         }
 
         /* Studio Layout Container */
-        .studio-layout {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          background: var(--primary-background-color);
-          min-height: 0;
-          border-radius: var(--ha-card-border-radius, 12px);
-          padding: 16px;
-        }
 
         /* Dialog styles */
         ha-dialog {

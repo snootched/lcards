@@ -36,20 +36,6 @@ export const editorStyles = css`
         padding: var(--ha-space-3) 0;
     }
 
-    /* Expansion panel styling */
-    ha-expansion-panel {
-        margin-bottom: var(--lcards-section-spacing, 16px);
-        border-radius: var(--ha-card-border-radius, 12px);
-    }
-
-    ha-expansion-panel[outlined] {
-        border: var(--ha-border-width-md) solid var(--divider-color);
-    }
-
-    ha-expansion-panel[expanded] {
-        background-color: var(--secondary-background-color);
-    }
-
     /* Form field spacing */
     .form-field {
         margin-bottom: var(--lcards-section-spacing, 16px);

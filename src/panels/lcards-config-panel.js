@@ -30,6 +30,7 @@ import './components/lcards-about-tab.js';
 import './components/lcards-users-devices-tab.js';
 import './components/lcards-layouts-tab.js';
 import './components/lcards-connectivity-tab.js';
+import { surfaceStyles } from '../editor/base/surface-styles.js';
 
 export class LCARdSConfigPanel extends LitElement {
   static properties = {
@@ -95,7 +96,7 @@ export class LCARdSConfigPanel extends LitElement {
     }
   }
 
-  static styles = css`
+  static styles = [surfaceStyles, css`
     :host {
       display: block;
       height: 100vh;
@@ -112,16 +113,6 @@ export class LCARdSConfigPanel extends LitElement {
     }
 
     /* Helpers tab container */
-    .studio-layout {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      background: var(--primary-background-color);
-      min-height: 0;
-      border-radius: var(--ha-card-border-radius, 12px);
-      padding: 16px;
-    }
 
     /* Helpers tab layout (used only in Helpers tab) */
     .dialog-content {
@@ -472,7 +463,7 @@ export class LCARdSConfigPanel extends LitElement {
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-  `;
+  `];
 
   connectedCallback() {
     super.connectedCallback();

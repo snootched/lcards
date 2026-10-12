@@ -1,30 +1,47 @@
 /**
- * @fileoverview LCARdS DataSource Studio Dialog
+ * @fileoverview Data source studio: create or edit a data source, with a live
+ * preview of its history and processors beside every tab.
  *
- * Modern tabbed dialog for creating/editing DataSource configurations.
- * Replaces old lcards-datasource-dialog with modern patterns.
+ * Built on the studio shell (studio-dialog-styles.js): tabs on the left, the
+ * preview on the right, Cancel / Save in the footer.
  *
  * @element lcards-datasource-studio-dialog
- * @fires save - When datasource is saved (detail: {name, config})
- * @fires cancel - When dialog is cancelled
+ * @fires save - When the data source is saved (detail: {name, config})
+ * @fires cancel - When the dialog is cancelled
  *
  * @property {Object} hass - Home Assistant instance
  * @property {string} mode - 'add' | 'edit'
  * @property {string} sourceName - Existing name (edit mode only)
  * @property {Object} sourceConfig - Existing config (edit mode only)
+ * @property {Object} cardConfig - The card's config (to spot name clashes)
  * @property {boolean} open - Dialog open state
  */
 
-import { LitElement, html, css } from 'lit';
-import { fireEvent } from 'custom-card-helpers';
+import { LitElement, html, css, nothing } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
+import { studioDialogStyles } from './studio-dialog-styles.js';
+import { messageStyles } from '../base/surface-styles.js';
 import '../components/shared/lcards-message.js';
+import '../components/shared/lcards-form-section.js';
 import '../components/datasources/lcards-processor-tree-editor.js';
+import '../components/datasources/lcards-processor-preview.js';
 import '../components/yaml/lcards-studio-yaml-tab.js';
 import { dataSourcesSchema } from '../../cards/schemas/common-schemas.js';
 import { historySettings, withHistorySettings, HISTORY_DEFAULT_HOURS } from '../../core/data-sources/history-fetch.js';
 import { dataSourceBufferSize } from '../../core/data-sources/DataSource.js';
+import { processorChartYaml } from '../../core/data-sources/processor-chart-config.js';
+import { copyTextToClipboard } from '../../utils/clipboard-utils.js';
+
+const DOCS = 'https://lcards.unimatrix01.ca/core/datasources/';
+
+const TABS = [
+    { id: 'basic', icon: 'mdi:database', label: 'Source' },
+    { id: 'timing', icon: 'mdi:history', label: 'History & Timing' },
+    { id: 'transform', icon: 'mdi:function-variant', label: 'Processing' },
+    { id: 'advanced', icon: 'mdi:cog', label: 'Advanced' },
+    { id: 'yaml', icon: 'mdi:code-braces', label: 'YAML' },
+];
 
 export class LCARdSDataSourceStudioDialog extends LitElement {
     static get properties() {
@@ -39,7 +56,10 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
             _name: { type: String, state: true },
             _workingConfig: { type: Object, state: true },
             _validationErrors: { type: Array, state: true },
-            _showErrors: { type: Boolean, state: true }
+            _showErrors: { type: Boolean, state: true },
+            _selectedProcessor: { type: String, state: true },
+            _preview: { state: true },
+            _copied: { type: Boolean, state: true }
         };
     }
 
@@ -57,104 +77,96 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
         this._validationErrors = [];
         // Errors show once the user has changed something or tried to save.
         this._showErrors = false;
+        this._selectedProcessor = '';
+        /** @type {any} The preview's latest runProcessorPreview result */
+        this._preview = null;
+        this._copied = false;
     }
 
     static get styles() {
         return [
             editorStyles,
+            studioDialogStyles,
+            messageStyles,
             css`
                 :host {
                     display: block;
                 }
 
-                ha-dialog {
-                    --ha-dialog-width-md: 90vw;
-                    --ha-dialog-min-height: 75vh;
-                    --ha-dialog-max-height: 85vh;
+                /* Config | preview, as in the chart studio */
+                .studio-layout {
+                    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
                 }
 
-                ha-dialog::part(dialog) {
-                    display: flex;
-                    flex-direction: column;
+                .validation-errors {
+                    display: grid;
+                    gap: var(--ha-space-1);
+                    padding: var(--ha-space-3) var(--ha-space-4) 0;
                 }
 
-                ha-dialog::part(body) {
-                    flex: 1;
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                .dialog-content {
-                    display: flex;
-                    flex-direction: column;
-                    height: calc(75vh - 100px);
-                    overflow-y: auto;
-                }
-
-                ha-tab-group {
+                .tab-content lcards-form-section {
                     display: block;
-                    border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
-                }
-
-                /* The tab's content scrolls under the tab bar. ha-tab-group gives its
-                   panels no bounded height, so bound it here (dialog content minus
-                   the tab bar); the dialog content scrolls as a fallback. */
-                .tab-content {
-                    max-height: calc(75vh - 175px);
-                    overflow-y: auto;
-                    overflow-x: hidden;
-                    padding: var(--ha-space-5);
-                    box-sizing: border-box;
+                    margin-bottom: var(--ha-space-4);
                 }
 
                 .grid-2col {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: 16px;
-                    margin-top: 12px;
+                    gap: var(--ha-space-3);
                 }
 
                 @media (max-width: 600px) {
                     .grid-2col {
                         grid-template-columns: 1fr;
                     }
-
-                    ha-dialog {
-                        --ha-dialog-width-md: 95vw;
-                    }
                 }
 
-                /* Validation Errors */
-                .validation-errors {
-                    display: grid;
-                    gap: var(--ha-space-1);
-                    margin: 0 var(--ha-space-5) var(--ha-space-3);
+                ha-selector {
+                    display: block;
+                    margin-bottom: var(--ha-space-3);
                 }
 
-
-                /* Section spacing */
-                .form-section {
-                    margin-bottom: 24px;
+                .tab-hint {
+                    margin: 0 0 var(--ha-space-3);
                 }
 
-                .form-section:last-child {
-                    margin-bottom: 0;
+                .tab-hint a,
+                .hint a {
+                    color: var(--primary-color);
                 }
 
-                .section-header {
-                    font-size: 16px;
+                /* Preview pane */
+                .preview-panel {
+                    overflow-y: auto;
+                    padding: var(--ha-space-4);
+                    gap: var(--ha-space-4);
+                }
+
+                .chart-yaml summary {
+                    cursor: pointer;
                     font-weight: 600;
-                    margin-bottom: 16px;
                     color: var(--primary-text-color);
+                }
+
+                .chart-yaml-body {
+                    display: grid;
+                    gap: var(--ha-space-2);
+                    margin-top: var(--ha-space-2);
+                }
+
+                .chart-yaml-actions {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
+                    gap: var(--ha-space-2);
                 }
 
-                .section-header ha-icon {
-                    --mdc-icon-size: 20px;
-                    color: var(--primary-color);
+                ha-code-editor.chart-yaml-code {
+                    display: block;
+                    border: var(--ha-border-width-sm) solid var(--divider-color);
+                    border-radius: var(--ha-border-radius-md);
+                    overflow: hidden;
+                    max-height: 320px;
+                    overflow-y: auto;
                 }
             `
         ];
@@ -168,81 +180,46 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
 
     render() {
         if (!this.open) return html``;
-
+        const errors = this._showErrors ? this._validationErrors : [];
         return html`
             <ha-dialog
                 open
                 @closed=${this._handleDialogClosed}
-                .headerTitle=${this.mode === 'add' ? 'Add DataSource' : `Edit DataSource: ${this.sourceName}`}>
+                header-title=${this.mode === 'add' ? 'Add Data Source' : `Edit Data Source: ${this.sourceName}`}>
 
                 <div class="dialog-content">
-                    <!-- Validation Errors -->
-                    ${this._showErrors && this._validationErrors.length > 0 ? html`
-                        <div class="validation-errors">
-                            ${this._validationErrors.map(error => html`
-                                <lcards-message type="error" .message=${error}></lcards-message>
-                            `)}
-                        </div>
-                    ` : ''}
+                    <div class="studio-layout">
+                        <div class="config-panel">
+                            <ha-tab-group @wa-tab-show=${this._handleTabChange}>
+                                ${TABS.map(tab => html`
+                                    <ha-tab-group-tab value=${tab.id} ?active=${this._activeTab === tab.id}>
+                                        <ha-icon icon=${tab.icon}></ha-icon>
+                                        ${tab.label}
+                                    </ha-tab-group-tab>
+                                `)}
+                            </ha-tab-group>
 
-                    <!-- Tab Navigation -->
-                    <ha-tab-group @wa-tab-show=${this._handleTabChange}>
-                        <ha-tab-group-tab value="basic" ?active=${this._activeTab === 'basic'}>
-                            Basic
-                        </ha-tab-group-tab>
-                        <ha-tab-group-tab value="timing" ?active=${this._activeTab === 'timing'}>
-                            Timing & History
-                        </ha-tab-group-tab>
-                        <ha-tab-group-tab value="transform" ?active=${this._activeTab === 'transform'}>
-                            Processing
-                        </ha-tab-group-tab>
-                        <ha-tab-group-tab value="advanced" ?active=${this._activeTab === 'advanced'}>
-                            Advanced
-                        </ha-tab-group-tab>
-                        <ha-tab-group-tab value="yaml" ?active=${this._activeTab === 'yaml'}>
-                            YAML
-                        </ha-tab-group-tab>
+                            ${errors.length ? html`
+                                <div class="validation-errors">
+                                    ${errors.map(error => html`<lcards-message type="error" .message=${error}></lcards-message>`)}
+                                </div>
+                            ` : nothing}
 
-                        <!-- Tab Panels -->
-                        <div class="tab-panel" ?hidden=${this._activeTab !== 'basic'}>
-                            ${this._activeTab === 'basic' ? this._renderBasicTab() : ''}
+                            <div class="tab-content" @click=${this._handleContentClick}>
+                                ${this._renderTab()}
+                            </div>
                         </div>
-                        <div class="tab-panel" ?hidden=${this._activeTab !== 'timing'}>
-                            ${this._activeTab === 'timing' ? this._renderTimingTab() : ''}
+
+                        <div class="preview-panel">
+                            ${this._renderPreview()}
                         </div>
-                        <div class="tab-panel" ?hidden=${this._activeTab !== 'transform'}>
-                            ${this._activeTab === 'transform' ? this._renderTransformTab() : ''}
-                        </div>
-                        <div class="tab-panel" ?hidden=${this._activeTab !== 'advanced'}>
-                            ${this._activeTab === 'advanced' ? this._renderAdvancedTab() : ''}
-                        </div>
-                        <div class="tab-panel" ?hidden=${this._activeTab !== 'yaml'}>
-                            ${this._activeTab === 'yaml' ? html`
-                                <lcards-studio-yaml-tab
-                                    .hass=${this.hass}
-                                    .config=${this._workingConfig}
-                                    .schema=${dataSourcesSchema.additionalProperties}
-                                    cardType="datasource"
-                                    note="This data source's settings as YAML (the name is set on the Basic tab). Save keeps the changes."
-                                    @yaml-config-changed=${(e) => { this._workingConfig = e.detail.config; this._validate(); }}>
-                                </lcards-studio-yaml-tab>
-                            ` : ''}
-                        </div>
-                    </ha-tab-group>
+                    </div>
                 </div>
 
-                <!-- Dialog Actions -->
                 <div slot="footer">
-                    <ha-button
-                        appearance="plain"
-                        @click=${this._handleCancel}>
-                        Cancel
-                    </ha-button>
-                    <ha-button
-                        variant="brand"
-                        @click=${this._handleSave}
-                        .disabled=${!this._isValid()}>
-                        <ha-icon icon="mdi:${this.mode === 'add' ? 'plus' : 'check'}" slot="start"></ha-icon>
+                    <ha-button appearance="plain" @click=${this._handleCancel}>Cancel</ha-button>
+                    <ha-button variant="brand" @click=${this._handleSave} .disabled=${!this._isValid()}>
+                        <ha-icon icon="mdi:check" slot="start"></ha-icon>
                         ${this.mode === 'add' ? 'Create' : 'Save'}
                     </ha-button>
                 </div>
@@ -250,244 +227,204 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
         `;
     }
 
-    /**
-     * Render Basic tab (Name, Entity, Core Settings)
-     */
+    _renderTab() {
+        switch (this._activeTab) {
+            case 'timing': return this._renderTimingTab();
+            case 'transform': return this._renderTransformTab();
+            case 'advanced': return this._renderAdvancedTab();
+            case 'yaml': return html`
+                <lcards-studio-yaml-tab
+                    .hass=${this.hass}
+                    .config=${this._workingConfig}
+                    .schema=${dataSourcesSchema.additionalProperties}
+                    cardType="datasource"
+                    note="This data source as YAML (its name is on the Source tab)."
+                    @yaml-config-changed=${(e) => { this._workingConfig = e.detail.config; this._validate(); }}>
+                </lcards-studio-yaml-tab>
+            `;
+            default: return this._renderBasicTab();
+        }
+    }
+
+    /** The preview, always beside the tabs, and the chart config it stands for. */
+    _renderPreview() {
+        const chartYaml = this._preview?.series?.length && !this._preview.errors?.length
+            ? processorChartYaml(this._workingConfig, this._preview.series, { name: this._name || undefined, hours: this._preview.hours })
+            : '';
+        return html`
+            <lcards-processor-preview
+                .hass=${this.hass}
+                .entry=${this._workingConfig}
+                .selectedKey=${this._activeTab === 'transform' ? this._selectedProcessor : ''}
+                .showErrors=${this._activeTab !== 'transform'}
+                @preview-result=${(e) => { e.stopPropagation(); this._preview = e.detail; }}>
+            </lcards-processor-preview>
+
+            ${chartYaml ? html`
+                <details class="chart-yaml">
+                    <summary>Use in a chart</summary>
+                    <div class="chart-yaml-body">
+                        <div class="hint">An lcards-chart card that plots this data source the way the preview does.</div>
+                        <div class="chart-yaml-actions">
+                            <ha-button size="small" @click=${() => this._copyChart(chartYaml)}>
+                                <ha-icon icon=${this._copied ? 'mdi:check' : 'mdi:content-copy'} slot="start"></ha-icon>
+                                ${this._copied ? 'Copied' : 'Copy chart YAML'}
+                            </ha-button>
+                        </div>
+                        <ha-code-editor class="chart-yaml-code" mode="yaml" read-only .value=${chartYaml}></ha-code-editor>
+                    </div>
+                </details>
+            ` : nothing}
+        `;
+    }
+
+    async _copyChart(text) {
+        await copyTextToClipboard(text);
+        this._copied = true;
+        setTimeout(() => { this._copied = false; }, 1500);
+    }
+
     _renderBasicTab() {
         return html`
-            <div class="tab-content" @click=${this._handleContentClick}>
-                <div class="form-section">
-                    <div class="section-header">
-                        <ha-icon icon="mdi:tag"></ha-icon>
-                        Identification
-                    </div>
+            <lcards-form-section header="Source" icon="mdi:database" ?expanded=${true} noCollapse
+                description="What to track. The name is how cards and templates refer to it, e.g. {ds:name}.">
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ text: {} }}
+                    .value=${this._name}
+                    .label=${'Name'}
+                    .helper=${'Lowercase letters, digits and underscores, e.g. living_room_temp'}
+                    .disabled=${this.mode === 'edit'}
+                    .required=${true}
+                    @value-changed=${(e) => {
+                        this._name = e.detail.value;
+                        this._showErrors = true;
+                        this._validate();
+                    }}>
+                </ha-selector>
 
-                    <!-- Name Field -->
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ entity: {} }}
+                    .value=${this._workingConfig.entity || ''}
+                    .label=${'Entity'}
+                    .required=${true}
+                    @value-changed=${(e) => this._updateConfig('entity', e.detail.value)}>
+                </ha-selector>
+
+                ${this._workingConfig.entity ? html`
                     <ha-selector
                         .hass=${this.hass}
-                        .selector=${{ text: { } }}
-                        .value=${this._name}
-                        .label=${'DataSource Name'}
-                        .helper=${'Unique identifier (e.g., temperature, humidity)'}
-                        .disabled=${this.mode === 'edit'}
-                        .required=${true}
-                        @value-changed=${(e) => {
-                            this._name = e.detail.value;
-                            this._showErrors = true;
-                            this._validate();
-                        }}>
+                        .selector=${{ select: { mode: 'dropdown', options: this._getAttributeOptions(this._workingConfig.entity) } }}
+                        .value=${this._workingConfig.attribute || '__state__'}
+                        .label=${'Attribute'}
+                        .helper=${'Track the state, or one of its attributes'}
+                        .required=${false}
+                        @value-changed=${(e) => this._setAttribute(e.detail.value)}>
                     </ha-selector>
-                </div>
-
-                <div class="form-section">
-                    <div class="section-header">
-                        <ha-icon icon="mdi:database"></ha-icon>
-                        Data Source
-                    </div>
-
-                    <!-- Entity Picker -->
-                    <ha-selector
-                        .hass=${this.hass}
-                        .selector=${{ entity: {} }}
-                        .value=${this._workingConfig.entity || ''}
-                        .label=${'Entity'}
-                        .helper=${'Home Assistant entity to track'}
-                        .required=${true}
-                        @value-changed=${(e) => this._updateConfig('entity', e.detail.value)}>
-                    </ha-selector>
-
-                    <!-- Attribute Selector (conditional on entity) -->
-                    ${this._workingConfig.entity ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{
-                                select: {
-                                    mode: 'dropdown',
-                                    options: this._getAttributeOptions(this._workingConfig.entity)
-                                }
-                            }}
-                            .value=${this._workingConfig.attribute || '__state__'}
-                            .label=${'Attribute'}
-                            .helper=${'Entity attribute to track'}
-                            @value-changed=${(e) => this._setAttribute(e.detail.value)}>
-                        </ha-selector>
-                    ` : ''}
-                </div>
-            </div>
+                ` : nothing}
+            </lcards-form-section>
         `;
     }
 
-    /**
-     * Render Timing & History tab
-     */
     _renderTimingTab() {
+        const history = historySettings(this._workingConfig);
         return html`
-            <div class="tab-content" @click=${this._handleContentClick}>
-                <lcards-message type="info">
-                    <strong>Understanding DataSource Timing</strong><br/>
-                    DataSources buffer incoming entity updates in memory and emit them to cards.
-                    These settings control how much data is kept and how frequently updates are sent.<br/><br/>
-
-                    • <strong>Window</strong>: Sets the size of the rolling buffer: about 10 points per second of window.
-                      Sensors that change slowly fill it far more slowly, so it can hold hours of their history.<br/>
-                    • <strong>Update Rate</strong>: How often to send data to subscribed cards.
-                      Home Assistant sends entity changes as they happen (typically 1-60 seconds for sensors).
-                      This throttles updates to prevent overwhelming your browser.<br/>
-                    • <strong>History Preload</strong>: Fetches past data from HA's database on startup.
-                      Useful for charts that need context immediately.
-                </lcards-message>
-
-                <div class="form-section">
-                    <div class="section-header">
-                        <ha-icon icon="mdi:timer-outline"></ha-icon>
-                        Buffer & Update Settings
-                    </div>
-
-                    <div class="grid-2col">
-                        <!-- Window Seconds -->
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{ number: { min: 1, max: 3600, mode: 'box', unit_of_measurement: 's' } }}
-                            .value=${this._workingConfig.window_seconds || 60}
-                            .label=${'Data Window'}
-                            .helper=${`Sets how many points the data source keeps: about 10 per second of window, at least 60 (now ${dataSourceBufferSize(this._workingConfig).capacity}). Charts and window-based processors (statistics, gaussian smoothing) only see these.`}
-                            @value-changed=${(e) => this._updateConfig('window_seconds', e.detail.value)}>
-                        </ha-selector>
-
-                        <!-- Min Emit (ms) -->
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{ number: { min: 10, max: 5000, mode: 'box', unit_of_measurement: 'ms' } }}
-                            .value=${this._workingConfig.min_emit_ms || 100}
-                            .label=${'Update Rate'}
-                            .helper=${'Throttle: minimum ms between card updates. Lower = more responsive, higher CPU. Typical: 100-500ms'}
-                            @value-changed=${(e) => this._updateConfig('min_emit_ms', e.detail.value)}>
-                        </ha-selector>
-                    </div>
-                </div>
-
-                <div class="form-section">
-                    <div class="section-header">
-                        <ha-icon icon="mdi:history"></ha-icon>
-                        History Preload
-                    </div>
-
-                    <!-- Preload Toggle (on unless history.enabled is false) -->
+            <lcards-form-section header="History" icon="mdi:history" ?expanded=${true} noCollapse
+                description="Recent history loaded from Home Assistant when the data source starts, so charts aren't empty.">
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ boolean: {} }}
+                    .value=${history.enabled}
+                    .label=${'Preload history'}
+                    @value-changed=${(e) => this._setHistory({ enabled: e.detail.value })}>
+                </ha-selector>
+                ${history.enabled ? html`
                     <ha-selector
                         .hass=${this.hass}
-                        .selector=${{ boolean: {} }}
-                        .value=${historySettings(this._workingConfig).enabled}
-                        .label=${'Preload history'}
-                        .helper=${'Load recent history from Home Assistant when the data source starts (on by default)'}
-                        @value-changed=${(e) => this._setHistory({ enabled: e.detail.value })}>
+                        .selector=${{ number: { min: 1, max: 168, mode: 'box', unit_of_measurement: 'h' } }}
+                        .value=${history.hours}
+                        .label=${'Hours to load'}
+                        .helper=${`1 to 168 (default ${HISTORY_DEFAULT_HOURS}). Every recorded change; hourly statistics fill in when none are recorded.`}
+                        @value-changed=${(e) => this._setHistory({ hours: e.detail.value })}>
                     </ha-selector>
+                ` : nothing}
+            </lcards-form-section>
 
-                    ${historySettings(this._workingConfig).enabled ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{ number: { min: 1, max: 168, mode: 'box', unit_of_measurement: 'h' } }}
-                            .value=${historySettings(this._workingConfig).hours}
-                            .label=${'History to load'}
-                            .helper=${`Hours of history to load (1 to 168, default ${HISTORY_DEFAULT_HOURS}). Home Assistant's hourly statistics are used when available.`}
-                            @value-changed=${(e) => this._setHistory({ hours: e.detail.value })}>
-                        </ha-selector>
-                    ` : ''}
+            <lcards-form-section header="Buffer and updates" icon="mdi:timer-outline" ?expanded=${true} noCollapse
+                description="How many points the data source keeps, and how often it updates cards.">
+                <div class="grid-2col">
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ number: { min: 1, max: 3600, mode: 'box', unit_of_measurement: 's' } }}
+                        .value=${this._workingConfig.window_seconds || 60}
+                        .label=${'Window'}
+                        .helper=${`Keeps about 10 points per second of window (now ${dataSourceBufferSize(this._workingConfig).capacity}). Charts and window-based processors see only these.`}
+                        @value-changed=${(e) => this._updateConfig('window_seconds', e.detail.value)}>
+                    </ha-selector>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ number: { min: 10, max: 5000, mode: 'box', unit_of_measurement: 'ms' } }}
+                        .value=${this._workingConfig.min_emit_ms || 100}
+                        .label=${'Update rate'}
+                        .helper=${'Minimum time between card updates'}
+                        @value-changed=${(e) => this._updateConfig('min_emit_ms', e.detail.value)}>
+                    </ha-selector>
                 </div>
-            </div>
+            </lcards-form-section>
         `;
     }
 
-    /**
-     * Render Processing tab (unified transformations + aggregations)
-     */
     _renderTransformTab() {
         return html`
-            <div class="tab-content" @click=${this._handleContentClick}>
-                <lcards-message type="info">
-                    Processors transform the values (smooth, convert, scale, round) or analyse them
-                    (statistics, rate, trend). Chain them by choosing another processor as a
-                    processor's Input. The preview runs them over this entity's recent history.
-                </lcards-message>
-
-                <lcards-processor-tree-editor
-                    .value=${this._workingConfig.processing || {}}
-                    .entry=${this._workingConfig}
-                    .hass=${this.hass}
-                    @change=${this._handleProcessingChange}
-                    label="Processing Pipeline">
-                </lcards-processor-tree-editor>
-            </div>
+            <p class="hint tab-hint">
+                Smooth, convert or analyse the values. Chain processors by picking another one as a processor's Input.
+                <a href="${DOCS}processor-reference.html" target="_blank" rel="noreferrer">Processor reference</a>
+            </p>
+            <lcards-processor-tree-editor
+                .value=${this._workingConfig.processing || {}}
+                .hass=${this.hass}
+                .previewResult=${this._preview}
+                @change=${this._handleProcessingChange}
+                @processor-selected=${(e) => { this._selectedProcessor = e.detail.key; }}
+                label="Processors">
+            </lcards-processor-tree-editor>
         `;
     }
 
-    /**
-     * Render Advanced tab
-     */
     _renderAdvancedTab() {
         return html`
-            <div class="tab-content" @click=${this._handleContentClick}>
-                <lcards-message type="info">
-                    <strong>Rate Control - Advanced Throttling</strong><br/>
-                    These settings provide fine-grained control over update batching and timing.<br/><br/>
-
-                    • <strong>Coalesce</strong>: Groups rapid updates into batches to reduce CPU load.
-                      When Home Assistant sends many quick updates (e.g., rapidly changing sensor),
-                      coalescing waits and sends only the latest value instead of every single change.<br/><br/>
-
-                    • <strong>Max Delay</strong>: Sets a time limit on coalescing to ensure freshness.
-                      Even if coalescing, the DataSource will force an update after this delay
-                      so data doesn't get "stuck" waiting.<br/><br/>
-
-                    <em>Most users don't need to adjust these - the defaults work well.
-                    Use if you have very high-frequency sensors (updating &lt;100ms) or need to tune performance.</em>
-                </lcards-message>
-
-                <div class="form-section">
-                    <div class="section-header">
-                        <ha-icon icon="mdi:timer-sand"></ha-icon>
-                        Rate Control
-                    </div>
-
-                    <div class="grid-2col">
-                        <!-- Coalesce -->
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{ number: { min: 0, max: 1000, mode: 'box', unit_of_measurement: 'ms' } }}
-                            .value=${this._workingConfig.coalesce_ms || 0}
-                            .label=${'Coalesce (ms)'}
-                            .helper=${'Combine multiple updates within this time into one. Reduces CPU for rapidly changing entities. 0 = disabled'}
-                            @value-changed=${(e) => this._updateConfig('coalesce_ms', e.detail.value)}>
-                        </ha-selector>
-
-                        <!-- Max Delay -->
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{ number: { min: 0, max: 10000, mode: 'box', unit_of_measurement: 'ms' } }}
-                            .value=${this._workingConfig.max_delay_ms || 0}
-                            .label=${'Max Delay (ms)'}
-                            .helper=${'Force update after this delay even if coalescing. Ensures data freshness. 0 = no limit'}
-                            @value-changed=${(e) => this._updateConfig('max_delay_ms', e.detail.value)}>
-                        </ha-selector>
-                    </div>
-                </div>
-
-                <div class="form-section">
-                    <div class="section-header">
-                        <ha-icon icon="mdi:cog"></ha-icon>
-                        Behavior
-                    </div>
-
-                    <!-- Emit on Same Value -->
+            <lcards-form-section header="Rate control" icon="mdi:timer-sand" ?expanded=${true} noCollapse
+                description="Merge rapid changes into fewer updates. The defaults suit most sensors.">
+                <div class="grid-2col">
                     <ha-selector
                         .hass=${this.hass}
-                        .selector=${{ boolean: {} }}
-                        .value=${this._workingConfig.emit_on_same_value ?? true}
-                        .label=${'Emit on Same Value'}
-                        .helper=${'Emit updates even when value unchanged'}
-                        @value-changed=${(e) => this._updateConfig('emit_on_same_value', e.detail.value)}>
+                        .selector=${{ number: { min: 0, max: 1000, mode: 'box', unit_of_measurement: 'ms' } }}
+                        .value=${this._workingConfig.coalesce_ms || 0}
+                        .label=${'Coalesce'}
+                        .helper=${'Merge changes within this time (0: off)'}
+                        @value-changed=${(e) => this._updateConfig('coalesce_ms', e.detail.value)}>
+                    </ha-selector>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .selector=${{ number: { min: 0, max: 10000, mode: 'box', unit_of_measurement: 'ms' } }}
+                        .value=${this._workingConfig.max_delay_ms || 0}
+                        .label=${'Max delay'}
+                        .helper=${'Longest a merged update may wait (0: no limit)'}
+                        @value-changed=${(e) => this._updateConfig('max_delay_ms', e.detail.value)}>
                     </ha-selector>
                 </div>
-            </div>
+            </lcards-form-section>
+
+            <lcards-form-section header="Behaviour" icon="mdi:cog" ?expanded=${true} noCollapse>
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{ boolean: {} }}
+                    .value=${this._workingConfig.emit_on_same_value ?? true}
+                    .label=${'Update when the value is unchanged'}
+                    @value-changed=${(e) => this._updateConfig('emit_on_same_value', e.detail.value)}>
+                </ha-selector>
+            </lcards-form-section>
         `;
     }
 

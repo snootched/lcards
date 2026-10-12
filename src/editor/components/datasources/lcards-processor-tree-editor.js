@@ -1,18 +1,19 @@
 /**
- * @fileoverview Processing tab of the data source editor: a live preview of the
- * pipeline over the entity's history, the processors as a tree (each under its
- * input, numbered in execution order), and the selected processor's settings,
- * edited inline.
+ * @fileoverview Processing tab of the data source editor: the processors as a
+ * tree (each under its input, numbered in execution order) and the selected
+ * processor's settings, edited inline. The dialog shows the preview beside it
+ * (lcards-processor-preview) and passes its result back as `previewResult`.
  *
  * Execution order and configuration errors come from the real ProcessorManager
  * (runProcessorPreview), so they always match what a data source does.
  *
  * @element lcards-processor-tree-editor
  * @fires change - When the processing map changes, detail: { value: processingConfig }
+ * @fires processor-selected - When the selected processor changes, detail: { key }
  *
  * @property {Object} hass - Home Assistant instance
  * @property {Object} value - The processing map ({ name: { type, ... } })
- * @property {Object} entry - The whole data source config (for the preview)
+ * @property {Object} previewResult - The preview's latest runProcessorPreview result (latest values, runtime errors)
  * @property {string} label - Section label
  */
 
@@ -20,21 +21,20 @@ import { LitElement, html, css, nothing } from 'lit';
 import { runProcessorPreview } from '../../../core/data-sources/processor-preview.js';
 import { PROCESSOR_TYPES, processorType, renameProcessor, uniqueProcessorKey, PROCESSOR_KEY_PATTERN } from './processor-types.js';
 import './lcards-processor-form.js';
-import './lcards-processor-preview.js';
 import '../shared/lcards-message.js';
+import { showConfirmDeleteDialog } from '../../../views/layout-edit-dialogs.js';
 
 export class LCARdSProcessorTreeEditor extends LitElement {
   static get properties() {
     return {
       hass: { attribute: false },
       value: { attribute: false },
-      entry: { attribute: false },
+      previewResult: { attribute: false },
       label: { type: String },
       _selectedKey: { state: true },
       _adding: { state: true },
       _newType: { state: true },
       _newName: { state: true },
-      _preview: { state: true },
     };
   }
 
@@ -45,25 +45,19 @@ export class LCARdSProcessorTreeEditor extends LitElement {
     /** @type {Object} */
     this.value = {};
     /** @type {any} */
-    this.entry = null;
+    this.previewResult = null;
     this.label = 'Processors';
     this._selectedKey = '';
     this._adding = false;
     this._newType = 'smooth';
     this._newName = '';
-    /** @type {any} Latest preview result (runtime errors, latest values) */
-    this._preview = null;
-    /** @type {any} The data source config the preview runs (see willUpdate) */
-    this._previewEntry = null;
   }
 
   static get styles() {
     return css`
       :host {
         display: block;
-      }
-      lcards-processor-preview {
-        margin-bottom: var(--ha-space-4);
+        container-type: inline-size;
       }
       .errors {
         display: grid;
@@ -76,7 +70,8 @@ export class LCARdSProcessorTreeEditor extends LitElement {
         gap: var(--ha-space-4);
         min-height: 280px;
       }
-      @media (max-width: 700px) {
+      /* Tree above the form when the pane is narrow */
+      @container (max-width: 560px) {
         .split {
           grid-template-columns: 1fr;
         }
@@ -190,14 +185,15 @@ export class LCARdSProcessorTreeEditor extends LitElement {
   }
 
   willUpdate(changed) {
-    // One object per config change: the preview reruns when its entry changes, and
-    // its result re-renders this element.
-    if (changed.has('value') || changed.has('entry') || !this._previewEntry) {
-      this._previewEntry = { ...(this.entry ?? {}), processing: this.value ?? {} };
-    }
     if (changed.has('value')) {
       const keys = Object.keys(this.value ?? {});
       if (!keys.includes(this._selectedKey)) this._selectedKey = keys[0] ?? '';
+    }
+  }
+
+  updated(changed) {
+    if (changed.has('_selectedKey')) {
+      this.dispatchEvent(new CustomEvent('processor-selected', { detail: { key: this._selectedKey }, bubbles: true, composed: true }));
     }
   }
 
@@ -205,19 +201,11 @@ export class LCARdSProcessorTreeEditor extends LitElement {
     const processing = this.value ?? {};
     const keys = Object.keys(processing);
     const structure = this._structure;
-    const runtime = (this._preview?.errors ?? []).filter(e => !structure.errors.includes(e));
+    const runtime = (this.previewResult?.errors ?? []).filter(e => !structure.errors.includes(e));
     const errors = [...structure.errors, ...runtime];
-    const latest = Object.fromEntries((this._preview?.latest ?? []).map(l => [l.key, l.value]));
+    const latest = Object.fromEntries((this.previewResult?.latest ?? []).map(l => [l.key, l.value]));
 
     return html`
-      <lcards-processor-preview
-        .hass=${this.hass}
-        .entry=${this._previewEntry}
-        .selectedKey=${this._selectedKey}
-        .showErrors=${false}
-        @preview-result=${(e) => { e.stopPropagation(); this._preview = e.detail; }}>
-      </lcards-processor-preview>
-
       ${errors.length ? html`
         <div class="errors">
           ${errors.map(text => html`<lcards-message type="error" .message=${text}></lcards-message>`)}
@@ -362,13 +350,16 @@ export class LCARdSProcessorTreeEditor extends LitElement {
     this._selectedKey = copy;
   }
 
-  _onDelete(e) {
+  async _onDelete(e) {
     e.stopPropagation();
     const key = e.detail.key;
     const users = Object.entries(this.value ?? {})
       .filter(([k, p]) => k !== key && (p.input_source === key || (Array.isArray(p.sources) && p.sources.includes(key))))
       .map(([k]) => k);
-    if (users.length && !confirm(`${users.join(', ')} ${users.length > 1 ? 'use' : 'uses'} "${key}". Delete it and switch ${users.length > 1 ? 'them' : 'it'} to the raw value?`)) return;
+    if (users.length && !(await showConfirmDeleteDialog({
+      title: `Delete ${key}?`,
+      message: `${users.join(', ')} ${users.length > 1 ? 'use' : 'uses'} it as input. ${users.length > 1 ? 'They switch' : 'It switches'} to the raw value.`,
+    }))) return;
     const next = {};
     for (const [k, p] of Object.entries(this.value ?? {})) {
       if (k === key) continue;

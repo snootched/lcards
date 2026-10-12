@@ -101,7 +101,7 @@ data_sources:
 | `max_delay_ms` | number | Longest ms an update may be held back while merging (default: 3 x `coalesce_ms`) |
 | `emit_on_same_value` | boolean | Send updates even when the value didn't change (default: `true`) |
 | `history.enabled` | boolean | Preload history when the dashboard loads (default: `true`) |
-| `history.hours` | number | Hours of history to preload (1–168, default 6) |
+| `history.hours` | number | Hours of history to preload (1–168, default 6): every recorded change, or Home Assistant's hourly statistics when none are recorded |
 | `history.days` | number | Days of history to preload (1–7), instead of `hours` |
 | `processing` | object | Named processing pipeline steps |
 

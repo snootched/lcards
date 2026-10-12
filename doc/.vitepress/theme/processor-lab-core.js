@@ -5,7 +5,7 @@
 import { runProcessorPreview } from '../../../src/core/data-sources/processor-preview.js'
 import { dataSourceBufferSize } from '../../../src/core/data-sources/DataSource.js'
 import { samplePoints } from './chart-demo-data.js'
-import yaml from 'js-yaml'
+import { processorChartConfig, processorChartYaml } from '../../../src/core/data-sources/processor-chart-config.js'
 
 /** Hours of generated history a lab runs over. */
 export const LAB_HOURS = 24
@@ -72,80 +72,25 @@ export function runLab(config, { now = Date.now(), validator = null, schema = nu
   }
 }
 
-/** The data source name a lab's chart config uses: its data_sources key, else the entity's object id. */
-function sourceName(name, entity) {
-  return name || String(entity).split('.').pop().replace(/[^a-z0-9_]/gi, '_') || 'lab'
-}
-
 /**
- * An lcards-chart config that plots what the lab charts: the raw values and each
- * processor's numeric output, from a data source with this lab's processing.
- * Chart series plot processor buffers, which must hold numbers: statistics fields
- * and duration minutes come from small expression processors added for the chart.
+ * An lcards-chart config that plots what the lab charts (processorChartConfig in
+ * src/, shared with the editor's data source dialog).
  * @param {Object} config - Parsed lab YAML
  * @param {ReturnType<typeof runLab>} run - The lab's result for that config
- * @returns {{chart: Object, helpers: string[]}|null} The chart card config and the names
- *   of the processors added for it, or null when the lab has an error
+ * @returns {{chart: Object, helpers: string[]}|null} null when the lab has an error
  */
 export function labChartConfig(config, run) {
   const { entry, name } = labEntry(config)
   if (!entry || !run?.series?.length || run.messages.some(m => m.level === 'error')) return null
-  const ds = sourceName(name, run.entity)
-  const processing = { ...(entry.processing ?? {}) }
-  const helpers = []
-  const second = run.series.some(s => s.axis === 1)
-  const sources = []
-
-  for (const s of run.series) {
-    const series = s.raw ? { datasource: ds, name: 'Raw', stroke_dash: 4 } : { datasource: ds }
-    if (!s.raw) {
-      const field = /^(.+)\.([a-z_]+)$/.exec(s.name)
-      const minutes = /^(.+) \(min\)$/.exec(s.name)
-      let buffer = s.name
-      if (field && processing[field[1]]?.type === 'statistics') {
-        buffer = `${field[1]}_${field[2]}`
-        processing[buffer] = { type: 'expression', sources: [field[1]], expression: `sources[0] ? sources[0].${field[2]} : null` }
-        helpers.push(buffer)
-      } else if (minutes && processing[minutes[1]]?.type === 'duration') {
-        buffer = `${minutes[1]}_minutes`
-        processing[buffer] = { type: 'expression', sources: [minutes[1]], expression: 'sources[0] ? sources[0].duration_ms / 60000 : null' }
-        helpers.push(buffer)
-      }
-      series.buffer = buffer
-      series.name = s.name
-    }
-    if (second && s.axis === 1) series.yaxis_id = 'second'
-    sources.push(series)
-  }
-
-  const chart = {
-    type: 'custom:lcards-chart',
-    graph_span: `${LAB_HOURS}h`,
-    data_sources: {
-      [ds]: {
-        entity: run.entity,
-        // Preload the same span of history the lab shows
-        history: entry.history ?? { hours: LAB_HOURS },
-        ...Object.fromEntries(Object.entries(entry).filter(([k]) => !['entity', 'history', 'processing'].includes(k))),
-        processing,
-      },
-    },
-    sources,
-  }
-  if (second) chart.yaxis = [{ id: 'main' }, { id: 'second', opposite: true }]
-  return { chart, helpers }
+  return processorChartConfig({ ...entry, entity: run.entity }, run.series, { name, hours: entry.history?.hours ?? LAB_HOURS })
 }
 
 /**
- * labChartConfig() as YAML for the lab's "Use it in a chart" panel, with a comment
- * on any processors added for the chart.
+ * labChartConfig() as YAML for the lab's "Use it in a chart" panel.
  * @returns {string} '' when the lab has an error
  */
 export function labChartYaml(config, run) {
-  const result = labChartConfig(config, run)
-  if (!result) return ''
-  const note = result.helpers.length
-    ? `# Added for the chart (a series plots numbers): ${result.helpers.join(', ')}\n`
-    : ''
-  return note + yaml.dump(result.chart, { lineWidth: 120, noRefs: true, flowLevel: -1 })
+  const { entry, name } = labEntry(config)
+  if (!entry || !run?.series?.length || run.messages.some(m => m.level === 'error')) return ''
+  return processorChartYaml({ ...entry, entity: run.entity }, run.series, { name, hours: entry.history?.hours ?? LAB_HOURS })
 }

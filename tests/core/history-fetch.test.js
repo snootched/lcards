@@ -44,48 +44,51 @@ test('statisticValue prefers mean, then state, sum, max, min', () => {
     assert.equal(statisticValue({}), null);
 });
 
-test('hourly statistics first, over the requested span', async () => {
+test('state history first: every recorded change up to now, over the requested span', async () => {
     const hass = hassWith({
+        'history/history_during_period': { 'sensor.t': [{ s: '20.5', lu: NOW / 1000 - 3600 }, { s: '21', lu: NOW / 1000 - 60 }] },
+        'recorder/statistics_during_period': () => { throw new Error('statistics should not be asked'); },
+    });
+    const r = await fetchDataSourceHistory(hass, { entity: 'sensor.t', history: { hours: 2 } }, { now: NOW });
+    assert.equal(r.method, 'history');
+    assert.deepEqual(r.points.map(p => p.v), [20.5, 21]);
+    const msg = hass.sent[0];
+    assert.equal(msg.type, 'history/history_during_period');
+    assert.equal(new Date(msg.start_time).getTime(), NOW - 2 * 3_600_000);
+    assert.equal(msg.no_attributes, true);
+});
+
+test('no state history (purged): hourly statistics, with the statistic value', async () => {
+    const hass = hassWith({
+        'history/history_during_period': {},
         'recorder/statistics_during_period': { 'sensor.t': [
             { start: NOW - 7_200_000, mean: 20.5 }, { start: NOW - 3_600_000, mean: 21 }, { start: NOW, mean: null },
         ] },
     });
-    const r = await fetchDataSourceHistory(hass, { entity: 'sensor.t', history: { hours: 2 } }, { now: NOW });
+    const r = await fetchDataSourceHistory(hass, { entity: 'sensor.t' }, { now: NOW });
     assert.equal(r.method, 'statistics');
     assert.deepEqual(r.points.map(p => p.v), [20.5, 21]);
-    const msg = hass.sent[0];
-    assert.equal(msg.period, 'hour');
-    assert.equal(new Date(msg.start_time).getTime(), NOW - 2 * 3_600_000);
+    assert.equal(hass.sent[1].period, 'hour');
 });
 
-test('no statistics for the entity: state history, with enum_mapping', async () => {
+test('state history with enum_mapping; attribute sources never use statistics', async () => {
     const hass = hassWith({
-        'recorder/statistics_during_period': {},
         'history/history_during_period': { 'select.mode': [{ s: 'heat', lu: NOW / 1000 - 60 }, { s: 'off', lu: NOW / 1000 - 30 }] },
     });
     const r = await fetchDataSourceHistory(hass, { entity: 'select.mode', enum_mapping: { heat: 2, off: 0 } }, { now: NOW });
-    assert.equal(r.method, 'history');
     assert.deepEqual(r.points.map(p => p.v), [2, 0]);
-});
 
-test('statistics failing falls back to state history; attribute sources skip statistics', async () => {
-    const failing = hassWith({
-        'recorder/statistics_during_period': new Error('no recorder'),
-        'history/history_during_period': { 'sensor.t': [{ s: '5', lu: NOW / 1000 }] },
-    });
-    assert.equal((await fetchDataSourceHistory(failing, { entity: 'sensor.t' }, { now: NOW })).method, 'history');
-
-    const attr = hassWith({ 'history/history_during_period': { 'light.l': [{ s: 'on', a: { brightness: 99 }, lu: NOW / 1000 }] } });
-    const r = await fetchDataSourceHistory(attr, { entity: 'light.l', attribute: 'brightness' }, { now: NOW });
-    assert.deepEqual(r.points.map(p => p.v), [99]);
+    const attr = hassWith({ 'history/history_during_period': { 'light.l': [{ s: 'on', lu: NOW / 1000 }] } });
+    const none = await fetchDataSourceHistory(attr, { entity: 'light.l', attribute: 'brightness' }, { now: NOW });
+    assert.deepEqual(none.points, []); // no brightness recorded: empty, and no statistics request
     assert.equal(attr.sent.some(m => m.type === 'recorder/statistics_during_period'), false);
     assert.equal(attr.sent[0].no_attributes, false);
 });
 
-test('websocket history failing falls back to REST', async () => {
+test('websocket history failing falls back to REST (not statistics)', async () => {
     const hass = hassWith({
-        'recorder/statistics_during_period': {},
         'history/history_during_period': new Error('socket closed'),
+        'recorder/statistics_during_period': () => { throw new Error('statistics should not be asked'); },
     });
     const realFetch = globalThis.fetch;
     let url = null;
@@ -94,7 +97,7 @@ test('websocket history failing falls back to REST', async () => {
         const r = await fetchDataSourceHistory(hass, { entity: 'sensor.t' }, { now: NOW });
         assert.equal(r.method, 'rest');
         assert.deepEqual(r.points.map(p => p.v), [7]);
-        assert.match(url, /filter_entity_id=sensor\.t&minimal_response&no_attributes/);
+        assert.match(url, /filter_entity_id=sensor\.t&minimal_response&no_attributes&end_time=/);
     } finally {
         globalThis.fetch = realFetch;
     }

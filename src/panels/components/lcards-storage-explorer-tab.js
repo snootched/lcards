@@ -19,6 +19,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import '../../editor/components/shared/lcards-form-section.js';
+import { surfaceStyles } from '../../editor/base/surface-styles.js';
 
 export class LCARdSStorageExplorerTab extends LitElement {
   static properties = {
@@ -28,7 +29,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
     _error:         { state: true },   // string | null
     _expandedKeys:  { state: true },   // Set<string>
     _editingKey:    { state: true },   // string | null — key currently in edit mode
-    _editDraft:     { state: true },   // string — raw JSON textarea content
+    _editDraft:     { state: true },   // string: raw JSON being edited
     _editError:     { state: true },   // string | null — JSON parse error
     _confirmDelete: { state: true },   // string | null — key pending confirmation
     _confirmReset:  { state: true },   // boolean
@@ -116,7 +117,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
     this.requestUpdate();
     // Focus textarea after render
     this.updateComplete.then(() => {
-      /** @type {HTMLTextAreaElement|null} */ (this.shadowRoot?.querySelector('textarea.edit-area'))?.focus();
+      /** @type {HTMLElement|null} */ (this.shadowRoot?.querySelector('.edit-area'))?.focus();
     });
   }
 
@@ -453,14 +454,14 @@ export class LCARdSStorageExplorerTab extends LitElement {
 
           <!-- EDIT AREA -->
           ${isEditing ? html`
-            <textarea
+            <!-- JSON is valid YAML: the YAML mode highlights it; the value is parsed as JSON. -->
+            <ha-code-editor
               class="edit-area"
+              mode="yaml"
+              linewrap
               .value=${this._editDraft}
-              @input=${(e) => { this._editDraft = e.target.value; this._editError = null; }}
-              spellcheck="false"
-              autocomplete="off"
-              rows="10"
-            ></textarea>
+              @value-changed=${(e) => { e.stopPropagation(); this._editDraft = e.detail.value; this._editError = null; }}
+            ></ha-code-editor>
             ${this._editError ? html`
               <div class="edit-error">
                 <ha-icon icon="mdi:alert-circle"></ha-icon>
@@ -483,7 +484,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
   // STYLES
   // ============================================================================
 
-  static styles = css`
+  static styles = [surfaceStyles, css`
     :host {
       flex: 1;
       display: flex;
@@ -492,16 +493,6 @@ export class LCARdSStorageExplorerTab extends LitElement {
       overflow: hidden;
     }
 
-    .studio-layout {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      background: var(--primary-background-color);
-      min-height: 0;
-      border-radius: var(--ha-card-border-radius, 12px);
-      padding: 16px;
-    }
 
     /* ── Header area (fixed, non-scrolling) ── */
     .header-area {
@@ -559,17 +550,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       margin-bottom: 8px;
     }
 
-    .banner.error {
-      background: color-mix(in srgb, var(--error-color, #f44336) 15%, transparent);
-      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color, #f44336) 40%, transparent);
-      color: var(--primary-text-color);
-    }
 
-    .banner.warning {
-      background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
-      color: var(--primary-text-color);
-    }
 
     .banner ha-button {
       margin-left: auto;
@@ -735,23 +716,12 @@ export class LCARdSStorageExplorerTab extends LitElement {
       flex: 1;
     }
 
-    /* ── Edit textarea ── */
-    textarea.edit-area {
-      width: 100%;
-      box-sizing: border-box;
-      font-family: 'Courier New', monospace;
-      font-size: 0.85em;
-      padding: 10px;
-      background: var(--code-editor-background-color, #1e1e1e);
-      color: var(--code-editor-text-color, #d4d4d4);
+    /* ── Edit area (ha-code-editor) ── */
+    ha-code-editor.edit-area {
+      display: block;
       border: var(--ha-border-width-sm) solid var(--divider-color);
       border-radius: 6px;
-      resize: vertical;
-      outline: none;
-    }
-
-    textarea.edit-area:focus {
-      border-color: var(--primary-color);
+      overflow: hidden;
     }
 
     .edit-error {
@@ -779,7 +749,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
       border: var(--ha-border-width-sm) solid var(--divider-color);
     }
 
-  `;
+  `];
 }
 
 if (!customElements.get('lcards-storage-explorer-tab')) customElements.define('lcards-storage-explorer-tab', LCARdSStorageExplorerTab);

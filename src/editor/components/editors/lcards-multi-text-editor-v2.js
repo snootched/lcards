@@ -23,6 +23,7 @@ import { LCARdSFormFieldHelper as FormField } from '../shared/lcards-form-field.
 import './lcards-color-section-v2.js';
 import './lcards-padding-editor.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { showInfoDialog } from '../../../views/layout-edit-dialogs.js';
 
 export class LCARdSMultiTextEditorV2 extends LitElement {
 
@@ -718,7 +719,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
 
         // Check if field already exists
         if (this.text[fieldName]) {
-            alert(`Field "${fieldName}" already exists!`);
+            showInfoDialog({ title: 'Field already exists', message: `This card already has a "${fieldName}" text field.` });
             return;
         }
 

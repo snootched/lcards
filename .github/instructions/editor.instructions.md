@@ -96,8 +96,25 @@ Import from `src/editor/components/shared/` — never recreate these:
 | `lcards-color-picker` | `../components/shared/lcards-color-picker.js` | Standalone color picker |
 | `lcards-color-list` | `../components/shared/lcards-color-list.js` | List of color inputs |
 | `lcards-dialog` | `../components/shared/lcards-dialog.js` | Modal dialog |
-| `lcards-message` | `../components/shared/lcards-message.js` | Alert/info/warning message |
+| `lcards-message` | `../components/shared/lcards-message.js` | Alert/info/warning message (short: see Dialogs, surfaces and messages) |
 | `lcards-zone-list-editor` | `../components/lcards-zone-list-editor.js` (not under `shared/`) | Zone config editor |
+
+## Dialogs, surfaces and messages
+
+The studios (chart, data grid, layout, MSD, data source) and the config panel are the reference look. New or reworked UI follows them; older dialogs are being brought in line (see `reports/ui-consistency-*.md`).
+
+**Dialog shell.** An editor dialog with a preview is a studio: `ha-dialog` with `header-title`, `studioDialogStyles` (`src/editor/dialogs/studio-dialog-styles.js`), `.dialog-content` > `.studio-layout` (split grid) > `.config-panel` (`ha-tab-group` with icon tabs, then a scrolling `.tab-content`) and `.preview-panel`. Footer: Cancel (`appearance="plain"`) then Save (`variant="brand"`, `mdi:check`). YAML is the last tab (`lcards-studio-yaml-tab`, icon `mdi:code-braces`). Mount with `mountDialogNearHomeAssistant()`.
+
+**Surfaces.** Group fields in `lcards-form-section` (the inset section card). Panel tabs use `surfaceStyles` from `src/editor/base/surface-styles.js` (the inset area `.studio-layout` / `.inset-surface` and its `.scrollable-body` / `.scroll-body`); never copy that CSS into a tab. Studio dialogs import `messageStyles` instead, because their own `.studio-layout` is the split grid.
+
+**Messages.**
+- Prefer a form section's `description` or a `.hint` line (`messageStyles`) over an info box.
+- `lcards-message` is for state the user must act on (error, warning) or one short note. One or two sentences plus a docs link; no headings, lists, emoji or paragraphs of prose in the UI (that belongs in `doc/`).
+- `.banner` (`messageStyles`: `info`, `warning`, `error`, `success`) is for a status bar at the top of a panel tab.
+
+**Code.** Code or config text always goes in a code editor: `lcards-yaml-editor` / `lcards-studio-yaml-tab` for LCARdS YAML (schema completion), `ha-code-editor` for other text (`mode="yaml"` also suits JSON; `jinja2` for templates). Never `ha-textarea` or `<textarea>` for code.
+
+**No native dialogs.** Never `confirm()`, `alert()` or `prompt()`. Use `showConfirmDeleteDialog`, `showInfoDialog` and `showPromptDialog` from `src/views/layout-edit-dialogs.js` (HA dialogs, mounted near `home-assistant`).
 
 ---
 

@@ -55,6 +55,7 @@ import './shared/lcards-scope-selector.js';
 import '../../editor/components/shared/lcards-color-picker.js';
 import '../../editor/components/editors/lcards-font-selector.js';
 import '../../editor/components/editors/lcards-position-picker.js';
+import { surfaceStyles } from '../../editor/base/surface-styles.js';
 
 // ---------------------------------------------------------------------------
 // Dropdown option lists
@@ -1476,7 +1477,7 @@ export class LCARdSConnectivityTab extends LitElement {
     // -------------------------------------------------------------------------
 
     static get styles() {
-        return css`
+        return [surfaceStyles, css`
             :host {
                 flex: 1;
                 display: flex;
@@ -1485,29 +1486,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 overflow: hidden;
             }
 
-            .studio-layout {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-                background: var(--primary-background-color);
-                min-height: 0;
-                border-radius: var(--ha-card-border-radius, 12px);
-                padding: 16px;
-            }
 
-            .scrollable-body {
-                flex: 1;
-                overflow-y: auto;
-                overflow-x: hidden;
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-                padding-bottom: 8px;
-                /* Suppress lcards-form-section's own margin-bottom at top level;
-                   gap handles spacing between direct children. */
-                --lcards-section-spacing: 0;
-            }
 
             /* Re-establish spacing between form sections nested inside a parent section. */
             lcards-form-section lcards-form-section {
@@ -1521,16 +1500,6 @@ export class LCARdSConnectivityTab extends LitElement {
                 padding: 12px 16px;
                 border-radius: var(--ha-border-radius-md);
                 font-size: 0.9em;
-            }
-            .banner.warning {
-                background: color-mix(in srgb, var(--warning-color, #ff9800) 15%, transparent);
-                border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent);
-                color: var(--primary-text-color);
-            }
-            .banner.info {
-                background: color-mix(in srgb, var(--info-color, #03a9f4) 12%, transparent);
-                border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 35%, transparent);
-                color: var(--primary-text-color);
             }
 
             .dimmed {
@@ -1631,7 +1600,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 display: flex;
                 flex-direction: column;
             }
-        `;
+        `];
     }
 }
 

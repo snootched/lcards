@@ -75,12 +75,7 @@ export const studioDialogStyles = css`
     }
 
     /* Tab content scrolling */
-    .tab-content {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-        min-height: 0;
-    }
+    /* .tab-content (the scrolling tab body) is defined below with its padding. */
 
     /* Never scrolls — always consumes exactly the space it's given. Overflow
        within the canvas is handled by d3-zoom pan/zoom, not a scrollbar. */

@@ -24,6 +24,7 @@ import '../shared/lcards-message.js';
 import './lcards-multi-action-editor.js';
 import './lcards-color-section-v2.js';
 import '../lcards-animation-editor.js';
+import { showPromptDialog } from '../../../views/layout-edit-dialogs.js';
 
 export class LCARdSUnifiedSegmentEditor extends LitElement {
     static get properties() {
@@ -201,9 +202,14 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
      * Handle add segment button click
      * @private
      */
-    _handleAddSegment() {
-        const segmentId = prompt('Enter segment ID (must match an element id in your SVG):');
-        if (segmentId && segmentId.trim()) {
+    async _handleAddSegment() {
+        const segmentId = await showPromptDialog({
+            title: 'Add segment',
+            message: 'The segment ID must match an element id in your SVG.',
+            label: 'Segment ID',
+            confirmText: 'Add',
+        });
+        if (segmentId) {
             const basePath = `svg.segments.${segmentId.trim()}`;
             // Create empty segment config to make it appear
             // @ts-ignore - TS2339: auto-suppressed
