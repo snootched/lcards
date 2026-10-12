@@ -476,6 +476,19 @@ export class LCARdSButton extends LCARdSCard {
             }
         }
 
+        // Provenance: what the component and its preset supplied (the user's own
+        // values are already in the config layers)
+        if (this._provenanceTracker) {
+            for (const layer of ['component', 'component-preset', 'range']) this._provenanceTracker.clearRuntime(layer);
+            this._trackRuntimeLayer(`${componentName}.segments`, 'component', componentDef.segments, { component: componentName });
+            this._trackRuntimeLayer(`${componentName}.segments`, 'component-preset', presetData?.segments, { component: componentName, preset: resolvedPreset });
+            if (this._activeRangeColorOverrides) {
+                this._trackRuntimeLayer(`${componentName}.color`, 'range', this._activeRangeColorOverrides, { preset: resolvedPreset });
+            }
+            this._trackRuntimeLayer('text', 'component', componentDef.text, { component: componentName });
+            this._trackRuntimeLayer('text', 'component-preset', presetData?.text, { component: componentName, preset: resolvedPreset });
+        }
+
         // ── 3b. Inject component/preset text field defaults into this.config.text ─────────────────
         // Component text fields (positions, fonts, default content) are merged with the active
         // preset's text overrides (preset wins over component). The combined defaults are then
@@ -546,6 +559,14 @@ export class LCARdSButton extends LCARdSCard {
 
         // Write merged list to config.animations (visible in YAML editor)
         this.config.animations = mergedAnims.length > 0 ? mergedAnims : undefined;
+
+        // Provenance: animations the component and its preset added
+        for (const anim of componentAnims) {
+            const fromPreset = presetData?.animations?.some(a => a.id && a.id === anim.id);
+            this._provenanceTracker?.trackRuntime(`animations[${anim.id ?? anim.preset ?? '?'}]`,
+                fromPreset ? 'component-preset' : 'component', anim,
+                { component: componentName, ...(fromPreset ? { preset: resolvedPreset } : {}) });
+        }
 
         // Keep _componentAnimations pointing at the component-originated entries so
         // _setupComponentAnimations can scope them to the SVG container element.
@@ -1578,7 +1599,9 @@ export class LCARdSButton extends LCARdSCard {
             // Evaluate template (handles [[[JS]]], {token}, Jinja2, plain strings)
             let resolvedText;
             try {
-                resolvedText = await this.processTemplate(String(segment.text));
+                resolvedText = await this.processTemplate(String(segment.text), {
+                    field: `${this.config.component || 'svg'}.segments.${segment.id}.text`,
+                });
             } catch (err) {
                 lcardsLog.warn(`[LCARdSButton] Failed to evaluate text template for segment "${segment.id}"`, err);
                 resolvedText = String(segment.text);
@@ -2614,13 +2637,14 @@ export class LCARdSButton extends LCARdSCard {
         if (!this._hasNestedValue(style, 'card.color.background', actualEntityState) &&
             !this._hasNestedValue(style, 'card.color.background', buttonState)) {
 
+            const bgField = `style.card.color.background.${buttonState}`;
             let bgToken = `components.button.background.${buttonState}`;
-            let backgroundColor = this.getThemeToken(bgToken);
+            let backgroundColor = this._themeDefault(bgToken, bgField);
 
             // If 'default' state not found in theme, fall back to 'active'
             if (!backgroundColor && buttonState === 'default') {
                 bgToken = `components.button.background.active`;
-                backgroundColor = this.getThemeToken(bgToken);
+                backgroundColor = this._themeDefault(bgToken, bgField);
             }
 
             if (backgroundColor) {
@@ -2639,13 +2663,14 @@ export class LCARdSButton extends LCARdSCard {
         // Apply text color defaults using text.default.color.{state}
         if (!this._hasNestedValue(style, 'text.default.color', buttonState)) {
 
+            const textField = `style.text.default.color.${buttonState}`;
             let textToken = `components.button.text.color.${buttonState}`;
-            let textColor = this.getThemeToken(textToken);
+            let textColor = this._themeDefault(textToken, textField);
 
             // If 'default' state not found in theme, fall back to 'active'
             if (!textColor && buttonState === 'default') {
                 textToken = `components.button.text.color.active`;
-                textColor = this.getThemeToken(textToken);
+                textColor = this._themeDefault(textToken, textField);
             }
 
             if (textColor) {
@@ -3176,10 +3201,10 @@ export class LCARdSButton extends LCARdSCard {
         // update bug).
         let hasChanges = false;
         if (this.config.style) {
-            hasChanges = await this._preEvaluateStyleTemplates(this.config.style) || hasChanges;
+            hasChanges = await this._preEvaluateStyleTemplates(this.config.style, 'style') || hasChanges;
         }
         if (this.config.icon_style) {
-            hasChanges = await this._preEvaluateStyleTemplates(this.config.icon_style) || hasChanges;
+            hasChanges = await this._preEvaluateStyleTemplates(this.config.icon_style, 'icon_style') || hasChanges;
         }
 
         // Initialize storage for processed templates (survives config replacement)
@@ -3272,7 +3297,7 @@ export class LCARdSButton extends LCARdSCard {
                     // Always process from original template, not previously processed content
                     const processedContent = await this.processTemplate(
                         fieldConfig._originalContent,
-                        { displayFormat: fieldDisplayFormat }
+                        { displayFormat: fieldDisplayFormat, field: `text.${fieldId}.content` }
                     );
 
                     // Store in _processedTemplates (survives config replacement)

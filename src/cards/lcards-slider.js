@@ -859,7 +859,7 @@ export class LCARdSSlider extends LCARdSButton {
      */
     async _processCustomTemplates() {
         if (this.config.style) {
-            await this._preEvaluateStyleTemplates(this.config.style);
+            await this._preEvaluateStyleTemplates(this.config.style, 'style');
         }
         await this._preEvaluateMarkerLabelTemplates();
         await super._processCustomTemplates();
@@ -882,11 +882,11 @@ export class LCARdSSlider extends LCARdSButton {
         const ranges = this.config.style?.ranges;
         if (!Array.isArray(ranges)) return;
 
-        for (const range of ranges) {
+        for (const [i, range] of ranges.entries()) {
             const text = range?.label?.text;
             if (typeof text !== 'string' || !text) continue;
             try {
-                const result = await this.processTemplate(text, { displayFormat: 'friendly' });
+                const result = await this.processTemplate(text, { displayFormat: 'friendly', field: `style.ranges[${i}].label.text` });
                 this._evaluatedStyleCache.set(text, result);
             } catch (e) {
                 lcardsLog.warn('[LCARdSSlider] Failed to pre-evaluate marker label template:', e);

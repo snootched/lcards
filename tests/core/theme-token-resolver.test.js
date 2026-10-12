@@ -131,3 +131,41 @@ test('module singleton: initializeTokenResolver feeds getTokenResolver', () => {
     initializeTokenResolver({ colors: { x: '#111' } });
     assert.equal(getTokenResolver().resolve('colors.x'), '#111');
 });
+
+test('explain: each step from the path to the value (lookup, references, computed, CSS var), matching resolve()', () => {
+    const r = new ThemeTokenResolver(tokens());
+    const plain = r.explain('colors.accent.primary');
+    assert.equal(plain.value, '#ff9900');
+    assert.deepEqual(plain.steps.map(s => s.step), ['lookup']);
+
+    const ref = r.explain('components.button.radius');
+    assert.equal(ref.value, r.resolve('components.button.radius'));
+    assert.deepEqual(ref.steps.map(s => [s.step, s.path]), [['lookup', 'components.button.radius'], ['reference', 'colors.accent.primary']]);
+
+    const cssVar = r.explain('colors.ui.primary');
+    assert.equal(cssVar.value, 'var(--lcards-orange)');
+    assert.deepEqual(cssVar.steps.map(s => s.step), ['lookup', 'css-var']);
+    assert.equal(cssVar.steps[1].variable, '--lcards-orange');
+
+    const computed = r.explain('colors.ui.dim');
+    assert.equal(computed.value, r.resolve('colors.ui.dim'));
+    assert.deepEqual(computed.steps.map(s => s.step), ['lookup', 'computed']);
+    assert.equal(computed.steps[1].expression, 'darken(colors.accent.primary, 0.2)');
+
+    assert.deepEqual(r.explain('colors.nope').steps.map(s => s.step), ['missing']);
+    assert.equal(r.explain('colors.nope').value, undefined);
+    assert.ok(r.explain('colors.loop.a').steps.some(s => s.step === 'circular'));
+});
+
+test('explain: an override wins, with its scope', () => {
+    const r = new ThemeTokenResolver(tokens());
+    r.setOverrides({ 'colors.accent.primary': '#00ff00' }, { 'colors.accent.primary': 'device' });
+    const e = r.explain('colors.accent.primary');
+    assert.equal(e.value, '#00ff00');
+    assert.deepEqual(e.steps.map(s => [s.step, s.scope]), [['override', 'device']]);
+    // An override reached through a reference
+    const viaRef = r.explain('colors.accent.secondary');
+    assert.equal(viaRef.value, '#00ff00');
+    assert.deepEqual(viaRef.steps.map(s => s.step), ['lookup', 'override']);
+    assert.equal(r.resolve('colors.accent.secondary'), '#00ff00');
+});

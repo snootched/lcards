@@ -15,6 +15,18 @@ import { editorStyles } from '../../base/editor-styles.js';
 import '../shared/lcards-form-section.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 
+/** Resolution chain step names (ThemeTokenResolver.explain). */
+const STEP_LABELS = {
+  override: 'Override',
+  lookup: 'Theme token',
+  reference: 'Refers to',
+  computed: 'Computed',
+  'css-var': 'CSS variable',
+  value: 'Value on this card',
+  missing: 'Not in the theme',
+  circular: 'Circular reference',
+};
+
 /**
  * Provenance Inspector Tab Component
  */
@@ -2935,7 +2947,7 @@ export class LCARdSProvenanceTab extends LitElement {
               </div>
               <div class="resolution-step-body">
                 <div class="resolution-step-header">
-                  <span class="resolution-step-label">Step ${index + 1}</span>
+                  <span class="resolution-step-label">Step ${index + 1}: ${STEP_LABELS[step.step] ?? step.step ?? ''}${step.scope ? ` (${step.scope})` : ''}</span>
                   ${step.layer ? html`<span class="source-layer-badge small" data-source="${step.layer}">${this._formatLayerName(step.layer)}</span>` : ''}
                 </div>
                 <div class="resolution-step-content">
@@ -2944,12 +2956,17 @@ export class LCARdSProvenanceTab extends LitElement {
                       <span class="token-label">From:</span>
                       <code class="token-ref">theme:${step.from}</code>
                     </div>
-                  ` : html`
+                  ` : step.path || step.token ? html`
                     <div class="resolution-token">
                       <span class="token-label">Token:</span>
-                      <code class="token-ref">theme:${step.token || themeTokenInfo.path}</code>
+                      <code class="token-ref">theme:${step.path || step.token}</code>
                     </div>
-                  `}
+                  ` : step.variable || step.expression ? html`
+                    <div class="resolution-token">
+                      <span class="token-label">${step.variable ? 'Variable:' : 'Expression:'}</span>
+                      <code class="token-ref">${step.variable || step.expression}</code>
+                    </div>
+                  ` : ''}
                   <div class="resolution-to">
                     <span class="token-label">Resolves to:</span>
                     <div class="token-value">
@@ -3516,215 +3533,26 @@ export class LCARdSProvenanceTab extends LitElement {
 
   async _loadProvenance() {
     try {
-      // Find the actual rendered card in the DOM (it's in the preview panel, not the editor)
-      let card = null;
-
       // @ts-ignore - TS2339: auto-suppressed
       if (!this.config) {
-        lcardsLog.warn('[ProvenanceTab] No config available');
         this._provenance = null;
         return;
       }
 
+      // The card rendered from this editor's config: the preview while editing.
+      // No match (no preview) means nothing to inspect; never another card on the page.
       // @ts-ignore - TS2339: auto-suppressed
-      const cardType = this.config.type?.replace('custom:', '') || 'lcards-button';
-
-      lcardsLog.debug('[ProvenanceTab] Searching for card type:', {
-        // @ts-ignore - TS2339: auto-suppressed
-        rawType: this.config.type,
-        cardType: cardType,
-        // @ts-ignore - TS2339: auto-suppressed
-        configKeys: Object.keys(this.config)
-      });
-
-      // CRITICAL: Find the editor's preview card, not the dashboard card
-      // When editing an existing card, there are TWO instances:
-      //   1. The preview card in the editor dialog (.element-preview container)
-      //   2. The original card on the dashboard
-      // We want the preview card (#1) because that's what the editor is configuring
-      //
-      // DOM structure: .element-preview > hui-section > hui-grid-section > ... > hui-card > lcards-button
-      // So we need to: (1) find .element-preview, (2) search inside it for the card
-
-      // Strategy 1: Search up through parent shadow roots to find .element-preview
-      let searchRoot = this.getRootNode();
-      let previewContainer = null;
-
-      let attempts = 0;
-      while (searchRoot && attempts < 10) {
-        // @ts-ignore - TS2339: auto-suppressed
-        previewContainer = searchRoot.querySelector?.('.element-preview');
-        if (previewContainer) {
-          lcardsLog.debug('[ProvenanceTab] ✅ Found .element-preview container in shadow root');
-          break;
-        }
-
-        // Move to parent shadow root
-        // @ts-ignore - TS2339: auto-suppressed
-        if (searchRoot.host) {
-          // @ts-ignore - TS2339: auto-suppressed
-          searchRoot = searchRoot.host.getRootNode();
-        } else {
-          break;
-        }
-        attempts++;
-      }
-
-      // Strategy 2: If not found in parent chain, search entire document
-      if (!previewContainer) {
-        lcardsLog.debug('[ProvenanceTab] .element-preview not found in parent chain, searching document...');
-
-        // Helper to recursively search shadow roots for .element-preview
-        const findPreviewContainer = (root) => {
-          if (!root) return null;
-
-          const preview = root.querySelector?.('.element-preview');
-          if (preview) return preview;
-
-          // Recursively search child shadow roots
-          const allElements = root.querySelectorAll?.('*') || [];
-          for (const el of allElements) {
-            if (el.shadowRoot) {
-              const found = findPreviewContainer(el.shadowRoot);
-              if (found) return found;
-            }
-          }
-          return null;
-        };
-
-        previewContainer = findPreviewContainer(document);
-        if (previewContainer) {
-          lcardsLog.debug('[ProvenanceTab] ✅ Found .element-preview via document search');
-        }
-      }
-
-      // Strategy 3: Now search INSIDE .element-preview for the card
-      if (previewContainer) {
-        lcardsLog.debug('[ProvenanceTab] Searching inside .element-preview for:', cardType);
-
-        // Search inside the preview container for the card
-        // The card is nested deep: hui-section > hui-grid-section > ... > hui-card > lcards-button
-        const searchInPreview = (root) => {
-          if (!root) return null;
-
-          // Try direct querySelector first
-          let found = root.querySelector?.(cardType);
-          if (found) return found;
-
-          // Recursively search shadow roots
-          const allElements = root.querySelectorAll?.('*') || [];
-          for (const el of allElements) {
-            if (el.shadowRoot) {
-              found = searchInPreview(el.shadowRoot);
-              if (found) return found;
-            }
-          }
-          return null;
-        };
-
-        card = searchInPreview(previewContainer);
-        if (card) {
-          lcardsLog.info('[ProvenanceTab] ✅ Found preview card inside .element-preview');
-        } else {
-          lcardsLog.warn('[ProvenanceTab] ❌ Preview card not found in .element-preview, searched for:', cardType);
-        }
-      }
-
-      // Strategy 4: Fallback - search for any card (might be dashboard card)
-      if (!card) {
-        lcardsLog.debug('[ProvenanceTab] Preview card not found, falling back to any card instance...');
-
-        const searchAnywhere = (root) => {
-          if (!root) return null;
-
-          let found = root.querySelector?.(cardType);
-          if (found) return found;
-
-          const allElements = root.querySelectorAll?.('*') || [];
-          for (const el of allElements) {
-            if (el.shadowRoot) {
-              found = searchAnywhere(el.shadowRoot);
-              if (found) return found;
-            }
-          }
-          return null;
-        };
-
-        card = searchAnywhere(document);
-        if (card) {
-          lcardsLog.warn('[ProvenanceTab] ⚠️ Found card outside .element-preview (may be dashboard card, not preview)');
-        }
-      }
-
-      // If we couldn't find the card, bail out
-      if (!card) {
-        lcardsLog.warn('[ProvenanceTab] Could not find rendered card in DOM after searching', attempts, 'shadow roots');
+      const card = window.lcards?.findCardByConfig?.(this.config);
+      if (!card || typeof card.getProvenance !== 'function') {
+        lcardsLog.debug('[ProvenanceTab] No rendered card for this config (no preview)');
         this._provenance = null;
+        this._provenanceTracker = null;
         return;
       }
 
-      // Check if card supports provenance
-      if (typeof card.getProvenance !== 'function') {
-        lcardsLog.warn('[ProvenanceTab] Card does not support provenance tracking:', card.tagName);
-        this._provenance = null;
-        return;
-      }
-
-      // Log which card we found for debugging
-      const cardGuid = card._cardGuid || 'no-guid';
-      const cardEntity = card.config?.entity || 'no-entity';
-      const cardId = card.config?.id || 'no-id';
-      lcardsLog.info(`[ProvenanceTab] ✅ Loading provenance from card: ${card.tagName}`, {
-        guid: cardGuid,
-        entity: cardEntity,
-        id: cardId,
-        isPreview: !!card.closest('.element-preview')
-      });
-
-      // Get provenance from the actual rendered card
       this._provenance = card.getProvenance();
-      this._provenanceTracker = card._provenanceTracker; // Get the tracker instance
-      lcardsLog.debug('[ProvenanceTab] Loaded provenance from rendered card:', this._provenance);
-      lcardsLog.debug('[ProvenanceTab] Loaded provenance tracker:', this._provenanceTracker);
-
-      // Debug: Check structure in detail
-      if (this._provenance) {
-        lcardsLog.debug('[ProvenanceTab] Provenance keys:', Object.keys(this._provenance));
-        if (this._provenance.config) {
-          lcardsLog.debug('[ProvenanceTab] Config keys:', Object.keys(this._provenance.config));
-
-          // Check card_type
-          lcardsLog.debug('[ProvenanceTab] Card type:', this._provenance.config.card_type);
-
-          // Sample a field
-          const fieldSources = this._provenance.config.field_sources;
-          if (fieldSources) {
-            const sampleKey = Object.keys(fieldSources)[0];
-            lcardsLog.debug('[ProvenanceTab] Sample field key:', sampleKey);
-            lcardsLog.debug('[ProvenanceTab] Sample field data:', fieldSources[sampleKey]);
-          }
-        }
-
-        // Check theme tokens
-        if (this._provenance.theme_tokens) {
-          lcardsLog.debug('[ProvenanceTab] Theme tokens keys:', Object.keys(this._provenance.theme_tokens));
-          const sampleTokenKey = Object.keys(this._provenance.theme_tokens)[0];
-          if (sampleTokenKey) {
-            lcardsLog.debug('[ProvenanceTab] Sample token:', sampleTokenKey, '=', this._provenance.theme_tokens[sampleTokenKey]);
-          }
-
-          // Log all fields that use theme tokens
-          lcardsLog.info('[ProvenanceTab] 🎨 Fields using theme tokens:');
-          for (const [tokenPath, tokenData] of Object.entries(this._provenance.theme_tokens)) {
-            if (tokenData.used_by_fields && tokenData.used_by_fields.length > 0) {
-              lcardsLog.info(`  Token "${tokenPath}" → used by:`, tokenData.used_by_fields);
-            }
-          }
-        }
-      }
-
+      this._provenanceTracker = card._provenanceTracker;
       this._applyFilters();
-
     } catch (error) {
       lcardsLog.error('[ProvenanceTab] Failed to load provenance:', error);
       this._provenance = null;

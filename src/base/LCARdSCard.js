@@ -25,8 +25,12 @@ import { TemplateParser } from '../core/templates/TemplateParser.js';
 import { deepMerge } from '../core/config-manager/merge-helpers.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { ProvenanceTracker } from '../utils/provenance-tracker.js';
+import { templateRefs } from '../core/templates/template-refs.js';
+import { TemplateDetector } from '../core/templates/TemplateDetector.js';
+import { ANIMATION_PRESET_PARAMS_SCHEMAS } from '../cards/schemas/animation-preset-params-schemas.js';
+import { BACKGROUND_ANIMATION_PARAMS_SCHEMAS } from '../cards/schemas/background-animation-params-schemas.js';
 import { escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
-import { resolveStateColor } from '../utils/state-color-resolver.js';
+import { resolveStateColor, stateKeyFor } from '../utils/state-color-resolver.js';
 import { extractAllConfigStrings } from '../utils/extractConfigStrings.js';
 import {
     haFormatState,
@@ -100,7 +104,32 @@ import {
  *     }
  * }
  */
+/** Connected LCARdS cards, newest last (for LCARdSCard.findByConfig). */
+const CONNECTED_CARDS = new Set();
+
+/** Config as comparable text (key order kept: HA hands the same object to editor and preview). */
+const configText = (config) => {
+    try { return JSON.stringify(config); } catch { return null; }
+};
+
 export class LCARdSCard extends LCARdSNativeCard {
+
+    /**
+     * The connected card rendered from this config: in the card editor, the
+     * preview (the dashboard card keeps the saved config once you edit). When two
+     * match (before the first edit), the one connected last: the preview.
+     * @param {Object} config
+     * @returns {LCARdSCard|null}
+     */
+    static findByConfig(config) {
+        const wanted = configText(config);
+        if (!wanted) return null;
+        let found = null;
+        for (const card of CONNECTED_CARDS) {
+            if (card.isConnected && configText(card._rawConfig) === wanted) found = card;
+        }
+        return found;
+    }
 
     static get properties() {
         return {
@@ -243,6 +272,8 @@ export class LCARdSCard extends LCARdSNativeCard {
      */
     connectedCallback() {
         super.connectedCallback();
+        CONNECTED_CARDS.delete(this);
+        CONNECTED_CARDS.add(this);
 
         // Guard against HA layout instability: if the theme CSS has not yet set
         // --ha-card-border-width, HA's card infrastructure can enter an infinite
@@ -347,8 +378,12 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._provenance = result.provenance;
 
             // Track provenance in unified tracker
-            if (this._provenanceTracker && result.provenance) {
+            if (this._provenanceTracker && result.provenance && runId === this._configRunId) {
                 this._provenanceTracker.trackConfig(result.provenance);
+                // Every theme: value the merge resolved, with its field and chain
+                for (const ref of result.provenance.theme_refs ?? []) {
+                    this._trackTokenUse(ref.path, ref.field, ref.ref);
+                }
             }
 
             lcardsLog.trace(`[LCARdSCard] Config processed`, {
@@ -384,6 +419,8 @@ export class LCARdSCard extends LCARdSNativeCard {
                 // This is the authoritative call for all card types — it covers primary
                 // entity, rules, animations, Jinja2 auto-scan, and triggers_update.
                 this._updateTrackedEntities();
+                this._trackStateBranches();
+                this._trackPresetDefaults();
 
                 // Allow subclasses to react to config changes before render
                 // (e.g., button card needs to re-resolve styles when config changes)
@@ -795,6 +832,12 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Call card-specific HASS handler
         if (typeof this._handleHassUpdate === 'function') {
             this._handleHassUpdate(newHass, oldHass);
+        }
+
+        // Provenance: which state branch applies now
+        const entityId = this.config?.entity;
+        if (entityId && oldHass?.states?.[entityId] !== newHass?.states?.[entityId]) {
+            this._trackStateBranches();
         }
     }
 
@@ -1538,6 +1581,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             // No patches for this overlay - clear cached patches if any existed
             if (this._lastRulePatches !== null) {
                 this._lastRulePatches = null;
+                this._provenanceTracker?.clearRulePatches();
 
                 // Restore base config snapshot so rule-applied changes are fully reverted
                 if (this._baseConfig) {
@@ -1653,8 +1697,10 @@ export class LCARdSCard extends LCARdSNativeCard {
                 }
             };
 
-            // Track all patched fields (not just style)
-            trackPatchesRecursive(mergedPatch, this.config);
+            // Track all patched fields (not just style), against the unpatched config;
+            // start over so fields no longer patched drop out
+            this._provenanceTracker.clearRulePatches();
+            trackPatchesRecursive(mergedPatch, this._baseConfig ?? this.config);
         }
 
         // Deep merge patches onto the base config snapshot (not the already-patched config).
@@ -1998,40 +2044,25 @@ export class LCARdSCard extends LCARdSNativeCard {
             // Use async evaluation to support all template types (JavaScript, Tokens, Datasources, Jinja2)
             const result = await evaluator.evaluateAsync(template);
 
-            // Track template provenance
-            if (this._provenanceTracker) {
-                // Extract dependencies from evaluator if available
-                const dependencies = [];
-                if (this._entity?.entity_id) {
-                    dependencies.push(this._entity.entity_id);
-                }
-
-                // Determine processor type
-                let processor = 'unknown';
-                if (template.includes('{%') || template.includes('{{')) {
-                    processor = 'jinja2';
-                } else if (template.includes('[[[')) {
-                    processor = 'javascript';
-                } else if (template.includes('{datasource:') || template.includes('{ds:')) {
-                    processor = 'datasource';
-                }
-
-                // Generate a simple hash for field ID to avoid collisions
-                // Use template + timestamp for uniqueness
-                let hash = 0;
-                for (let i = 0; i < template.length; i++) {
-                    hash = ((hash << 5) - hash) + template.charCodeAt(i);
-                    hash = hash & hash; // Convert to 32-bit integer
-                }
-                const fieldId = `template_${Math.abs(hash)}`;
-
+            // Track template provenance: by field, with what the template refers to
+            if (this._provenanceTracker && TemplateDetector.hasTemplates(template)) {
+                const refs = templateRefs(template, { entityId: this._entity?.entity_id });
+                const types = TemplateDetector.detectTemplateTypes(template);
+                const processor = [
+                    types.hasJavaScript && 'javascript',
+                    types.hasTokens && 'token',
+                    types.hasDatasources && 'datasource',
+                    types.hasJinja2 && 'jinja2',
+                ].filter(Boolean).join('+') || 'token';
+                const field = options.field ?? `template:${template.length > 60 ? `${template.slice(0, 57)}...` : template}`;
                 this._provenanceTracker.trackTemplate(
-                    fieldId,
+                    field,
                     template,
                     result,
-                    dependencies,
+                    [...refs.entities, ...refs.datasources.map(d => `ds:${d}`), ...refs.variables.map(v => `variables.${v}`)],
                     processor
                 );
+                for (const token of refs.themeTokens) this._trackTokenUse(token, [field]);
             }
 
             return result;
@@ -2057,7 +2088,15 @@ export class LCARdSCard extends LCARdSNativeCard {
      *   don't otherwise report "changed" the way tracked text fields do.
      * @protected
      */
-    async _preEvaluateStyleTemplates(obj) {
+    async _preEvaluateStyleTemplates(obj, prefix = '') {
+        // Field path of each string (for provenance), first occurrence wins
+        const paths = new Map();
+        const walk = (node, path) => {
+            if (typeof node === 'string') { if (!paths.has(node)) paths.set(node, path); return; }
+            if (Array.isArray(node)) { node.forEach((v, i) => walk(v, `${path}[${i}]`)); return; }
+            if (node && typeof node === 'object') for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k);
+        };
+        walk(obj, prefix);
         const strings = this._extractAllConfigStrings(obj);
         let evaluatedAny = false;
         for (const str of strings) {
@@ -2065,7 +2104,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             const isJs    = str.includes('[[[');
             if (!isJinja2 && !isJs) continue;
             try {
-                const result = await this.processTemplate(str);
+                const result = await this.processTemplate(str, { field: paths.get(str) || undefined });
                 this._evaluatedStyleCache.set(str, result);
                 evaluatedAny = true;
             } catch (e) {
@@ -2605,6 +2644,146 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
+     * Record a theme token use in provenance: the field(s) using it and how it
+     * resolved, step by step (resolver.explain), ending at the concrete value this
+     * card sees when the token is a CSS variable.
+     *
+     * @param {string} tokenPath - Token path (no 'theme:' prefix)
+     * @param {string|string[]} [fields] - Field(s) using it
+     * @param {string} [originalRef] - What the config said (default 'theme:<path>')
+     * @protected
+     */
+    _trackTokenUse(tokenPath, fields = [], originalRef = undefined) {
+        if (!this._provenanceTracker || !tokenPath) return;
+        const resolver = this._singletons?.themeManager?.resolver ?? window.lcards?.core?.themeManager?.resolver;
+        const explained = resolver?.explain?.(tokenPath) ?? { value: undefined, steps: [] };
+        const steps = [...explained.steps];
+        const last = steps[steps.length - 1];
+        if (last?.step === 'css-var' && this.isConnected) {
+            const concrete = ColorUtils.resolveCssVariable(last.value, null, this);
+            if (concrete && concrete !== last.value) steps.push({ step: 'value', value: concrete });
+        }
+        this._provenanceTracker.trackThemeToken(
+            tokenPath,
+            originalRef ?? `theme:${tokenPath}`,
+            explained.value,
+            steps,
+            Array.isArray(fields) ? fields : [fields]
+        );
+    }
+
+    /**
+     * Record every leaf of `obj` as a runtime provenance layer under `prefix`
+     * (values the card applied after the config merge, e.g. component presets).
+     *
+     * @param {string} prefix - Field path of `obj` (e.g. 'alert.segments')
+     * @param {string} layer - Layer name ('component', 'component-preset', 'range', 'built-in', ...)
+     * @param {*} obj - Object (or a single value) the layer supplied
+     * @param {Object} [detail] - e.g. { component: 'alert' }, { preset: 'condition_red' }
+     * @protected
+     */
+    _trackRuntimeLayer(prefix, layer, obj, detail = undefined) {
+        const tracker = this._provenanceTracker;
+        if (!tracker || obj === undefined) return;
+        const walk = (node, path) => {
+            if (node && typeof node === 'object' && !Array.isArray(node)) {
+                for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k);
+            } else {
+                tracker.trackRuntime(path, layer, node, detail);
+            }
+        };
+        walk(obj, prefix);
+    }
+
+    /**
+     * A built-in default from a theme token (the card's code fallback when the
+     * config sets nothing), recorded in provenance as the field's 'built-in' layer.
+     *
+     * @param {string} tokenPath - Theme token the default comes from
+     * @param {string} field - The config field it stands in for
+     * @param {*} [fallback] - Used when the token isn't set
+     * @returns {*} The token value, else the fallback
+     * @protected
+     */
+    _themeDefault(tokenPath, field, fallback = null) {
+        const value = this.getThemeToken(tokenPath, null, field);
+        const result = value ?? fallback;
+        this._provenanceTracker?.trackRuntime(field, 'built-in', result,
+            value !== null && value !== undefined ? { token: tokenPath } : { token: tokenPath, fallback: true });
+        return result;
+    }
+
+    /**
+     * Provenance: the parameters an animation or background preset filled in
+     * (its defaults, where the config sets none).
+     * @protected
+     */
+    _trackPresetDefaults() {
+        const tracker = this._provenanceTracker;
+        if (!tracker || !this.config) return;
+        tracker.clearRuntime('preset-default');
+        // [list, the key holding its settings, schemas by preset, field prefix]
+        const record = (list, settingsKey, schemas, prefix) => {
+            (Array.isArray(list) ? list : []).forEach((item, i) => {
+                const preset = item?.preset;
+                const props = schemas[preset]?.properties;
+                if (!props) return;
+                for (const [param, schema] of Object.entries(props)) {
+                    if (schema?.default === undefined || item[settingsKey]?.[param] !== undefined) continue;
+                    tracker.trackRuntime(`${prefix}[${i}].${settingsKey}.${param}`, 'preset-default', schema.default, { preset });
+                }
+            });
+        };
+        record(this.config.animations, 'params', ANIMATION_PRESET_PARAMS_SCHEMAS, 'animations');
+        record(this.config.background_animation, 'config', BACKGROUND_ANIMATION_PARAMS_SCHEMAS, 'background_animation');
+    }
+
+    /**
+     * Provenance: for each state-keyed value in the config (active / inactive /
+     * default / zero / above:N ... keys), record which key applies now and its value.
+     * Same precedence as the card's own resolution (stateKeyFor).
+     * @protected
+     */
+    _trackStateBranches() {
+        const tracker = this._provenanceTracker;
+        if (!tracker || !this.config) return;
+        const STATE_KEYS = new Set(['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']);
+        const isStateObject = (node) => node && typeof node === 'object' && !Array.isArray(node)
+            && Object.keys(node).some(k => STATE_KEYS.has(k) || /^(above|below|at_least|at_most|between|between_exclusive):/.test(k))
+            && Object.values(node).every(v => v === null || typeof v !== 'object');
+        const options = {
+            actualState: this._entity?.state,
+            classifiedState: this._classifyEntityState?.(),
+            numericState: this._getNumericStateForRanges?.(),
+            attributeState: this._getAttributeStateForMatching?.(),
+        };
+        tracker.clearRuntime('state');
+        const skip = new Set(['rules', 'data_sources', 'animations', 'grid_options', 'view_layout', 'visibility']);
+        const walk = (node, path) => {
+            if (!node || typeof node !== 'object') return;
+            if (Array.isArray(node)) { node.forEach((v, i) => walk(v, `${path}[${i}]`)); return; }
+            if (isStateObject(node)) {
+                const key = stateKeyFor({ ...options, colorConfig: node });
+                const chosen = key !== null ? node[key] : undefined;
+                const matchLight = typeof chosen === 'string' && /match-(light|brightness)/.test(chosen)
+                    ? this._resolveMatchLightColor?.(chosen) : undefined;
+                tracker.trackRuntime(path, 'state', chosen, {
+                    state: key,
+                    entityState: options.actualState,
+                    classified: options.classifiedState,
+                    ...(matchLight !== undefined ? { matchLight } : {}),
+                });
+                return;
+            }
+            for (const [k, v] of Object.entries(node)) {
+                if (!path && skip.has(k)) continue;
+                walk(v, path ? `${path}.${k}` : k);
+            }
+        };
+        walk(this.config, '');
+    }
+
+    /**
      * Get theme token value
      *
      * Automatically tracks token resolution in provenance for debugging.
@@ -2624,31 +2803,8 @@ export class LCARdSCard extends LCARdSNativeCard {
 
             // Automatically track token resolution in provenance
             if (this._provenanceTracker && value !== fallback) {
-                const originalRef = `theme:${tokenPath}`;
-                const resolutionChain = [{
-                    step: 'token_lookup',
-                    value: value,
-                    source: 'theme.tokens',
-                    themeId: this._singletons.themeManager.activeThemeId
-                }];
-
-                // Normalize usedByField to array
-                const usedByFields = usedByField
-                    ? (Array.isArray(usedByField) ? usedByField : [usedByField])
-                    : [];
-
-                this._provenanceTracker.trackThemeToken(
-                    tokenPath,
-                    originalRef,
-                    value,
-                    resolutionChain,
-                    usedByFields
-                );
-
-                lcardsLog.trace(`[LCARdSCard] Tracked theme token: ${tokenPath}`, {
-                    value,
-                    usedByFields
-                });
+                const fields = usedByField ? (Array.isArray(usedByField) ? usedByField : [usedByField]) : [];
+                this._trackTokenUse(tokenPath, fields, `theme:${tokenPath}`);
             }
 
             return value;
@@ -3552,6 +3708,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      */
     _onDisconnected() {
         super._onDisconnected();
+        CONNECTED_CARDS.delete(this);
 
         // --- Datasource subscriptions ---
         if (this._datasourceSubscriptions && this._datasourceSubscriptions.size > 0) {
@@ -3849,7 +4006,31 @@ export class LCARdSCard extends LCARdSNativeCard {
             lcardsLog.warn(`[LCARdSCard] Provenance tracker not initialized`);
             return null;
         }
-        return this._provenanceTracker.getProvenance(path);
+        if (path) return this._provenanceTracker.getProvenance(path);
+        // Card-wide context: what affects every value at once
+        const themeManager = this._singletons?.themeManager ?? window.lcards?.core?.themeManager;
+        return {
+            ...this._provenanceTracker.getProvenance(),
+            context: {
+                card_type: /** @type {any} */ (this.constructor).CARD_TYPE ?? null,
+                card_id: this.config?.id ?? null,
+                overlay_id: this._overlayId ?? null,
+                theme: themeManager?.activeThemeId ?? null,
+                alert_mode: themeManager?.getAlertMode?.() ?? null,
+                token_overrides: themeManager?.resolver?._overrides?.size ?? 0,
+                entity: this.config?.entity ?? null,
+                entity_state: this._entity?.state ?? null,
+            },
+        };
+    }
+
+    /**
+     * Follow this card's provenance as it changes.
+     * @param {Function} callback - Called once per burst of changes
+     * @returns {Function} Unsubscribe
+     */
+    subscribeProvenance(callback) {
+        return this._provenanceTracker?.subscribe(callback) ?? (() => {});
     }
 
     /**

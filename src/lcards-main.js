@@ -47,6 +47,7 @@ import './patches/hui-view-editor-patch.js';
 
 // LCARdS card imports
 import { LCARdSButton } from './cards/lcards-button.js';
+import { LCARdSCard } from './base/LCARdSCard.js';
 import { LCARdSElbow } from './cards/lcards-elbow.js';
 import { LCARdSChart } from './cards/lcards-chart.js';
 import { LCARdSSlider } from './cards/lcards-slider.js';
@@ -152,6 +153,13 @@ window.lcards.support = {
 window.lcards.refreshOptions = () =>
     window.lcards?.core?.integrationService?.refreshOptions?.()
     ?? Promise.resolve();
+
+/**
+ * The connected LCARdS card rendered from this config (the card editor's
+ * preview while editing). Used by the editor's Provenance tab.
+ * @param {Object} config
+ */
+window.lcards.findCardByConfig = (config) => LCARdSCard.findByConfig(config);
 
 
 async function initializeCustomCard() {

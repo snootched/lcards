@@ -2068,7 +2068,7 @@ export class LCARdSElbow extends LCARdSButton {
         // Pre-evaluate templates in elbow-specific config paths before the button's
         // super call resolves colours synchronously.
         if (this.config.elbow) {
-            await this._preEvaluateStyleTemplates(this.config.elbow);
+            await this._preEvaluateStyleTemplates(this.config.elbow, 'elbow');
         }
         await super._processCustomTemplates();
     }

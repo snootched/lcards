@@ -793,7 +793,7 @@ export class LCARdSMSDCard extends LCARdSCard {
     async _processCustomTemplates() {
         if (!this.config?.msd?.overlays) return;
 
-        const hasChanges = await this._preEvaluateStyleTemplates(this.config.msd.overlays);
+        const hasChanges = await this._preEvaluateStyleTemplates(this.config.msd.overlays, 'msd.overlays');
 
         if (hasChanges && this.hass && this._msdPipeline?.coordinator) {
             this._msdPipeline.coordinator.ingestHass(this.hass);

@@ -923,3 +923,60 @@ test('Template sandbox: every example resolves', async ({ page }) => {
     await removeEditor(page);
     expect(errors).toEqual([]);
 });
+
+/**
+ * Provenance (B4a): the inspector reads the card rendered from the editor's
+ * config (the preview), never another card on the page.
+ */
+test('Provenance: the tab reads the card rendered from this config; without one it shows nothing', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    const config = { type: 'custom:lcards-button', id: 'prov_preview', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge',
+        style: { card: { color: { background: { active: 'theme:colors.ui.primary' } } } } };
+    const editor = await openMainEngineering(page, config);
+    await editor.getByRole('tab', { name: 'Provenance', exact: true }).dispatchEvent('click');
+    const tab = editor.locator('lcards-provenance-tab');
+    // No preview yet: nothing to inspect (the dashboard's own buttons are not this card)
+    await expect.poll(() => tab.evaluate(el => el._provenance)).toBeNull();
+
+    // A preview: a card mounted from the same config
+    await page.evaluate((c) => {
+        const ha = document.querySelector('home-assistant');
+        const card = document.createElement('lcards-button');
+        card.id = 'lcards-test-preview';
+        card.setConfig(c);
+        card.hass = ha.hass;
+        ha.shadowRoot.appendChild(card);
+    }, config);
+    await expect.poll(() => tab.evaluate(async (el) => { await el._loadProvenance(); return el._provenance?.context?.card_id; })).toBe('prov_preview');
+    const token = await tab.evaluate(el => el._provenance.theme_tokens['colors.ui.primary']);
+    expect(token.used_by_fields).toContain('style.card.color.background.active');
+    expect(token.resolution_chain[0].step).toMatch(/lookup|override/);
+    await page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-preview')?.remove());
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Provenance: a field only a rule sets (height) shows in the tree while the rule matches', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await client.callService('input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' });
+    const config = { type: 'custom:lcards-button', id: 'prov_rule_card', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge',
+        rules: [{ id: 'size-rule', when: { entity: 'input_boolean.lcards_test_toggle', state: 'on' },
+            apply: { overlays: { prov_rule_card: { height: 120 } } } }] };
+    const editor = await openMainEngineering(page, config);
+    await page.evaluate((c) => {
+        const ha = document.querySelector('home-assistant');
+        const card = document.createElement('lcards-button');
+        card.id = 'lcards-test-preview';
+        card.setConfig(c);
+        card.hass = ha.hass;
+        ha.shadowRoot.appendChild(card);
+    }, config);
+    const tree = () => page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-preview').getProvenance().config.tree);
+    await client.callService('input_boolean', 'turn_on', { entity_id: 'input_boolean.lcards_test_toggle' });
+    await expect.poll(async () => (await tree()).height?.__source).toBe('rules');
+    await client.callService('input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' });
+    await expect.poll(async () => (await tree()).height).toBeUndefined();
+    await page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-preview')?.remove());
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});

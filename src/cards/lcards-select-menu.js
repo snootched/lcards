@@ -369,11 +369,9 @@ export class LCARdSSelectMenu extends LCARdSCard {
             if (isUnavailable) {
                 bgColor = 'var(--lcars-gray, #333344)';
             } else if (isSelected) {
-                bgColor = this.getThemeToken('components.button.background.active')
-                    || 'var(--lcars-orange, #FF9900)';
+                bgColor = this._themeDefault('components.button.background.active', 'style.card.color.background.active', 'var(--lcars-orange, #FF9900)');
             } else {
-                bgColor = this.getThemeToken('components.button.background.inactive')
-                    || 'var(--lcars-dark-gray, #4D4D4D)';
+                bgColor = this._themeDefault('components.button.background.inactive', 'style.card.color.background.inactive', 'var(--lcars-dark-gray, #4D4D4D)');
             }
         }
 
@@ -386,8 +384,8 @@ export class LCARdSSelectMenu extends LCARdSCard {
         });
         if (!textColor) {
             textColor = isSelected
-                ? (this.getThemeToken('components.button.text.color.active') || 'var(--lcars-ui-secondary, #000000)')
-                : (this.getThemeToken('components.button.text.color.inactive') || 'var(--lcars-ui-primary, #FFFFFF)');
+                ? this._themeDefault('components.button.text.color.active', 'style.text.default.color.active', 'var(--lcars-ui-secondary, #000000)')
+                : this._themeDefault('components.button.text.color.inactive', 'style.text.default.color.inactive', 'var(--lcars-ui-primary, #FFFFFF)');
         }
 
         // ── Border ────────────────────────────────────────────────────────

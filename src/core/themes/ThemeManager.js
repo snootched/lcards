@@ -710,6 +710,8 @@ export class ThemeManager extends BaseService {
     const before = signature(this.resolver._overrides ?? []);
 
     let merged = {};
+    /** @type {Object<string,string>} */
+    const scopes = {};
     try {
       const allScopes = await sss.readAllScopes(STORAGE_KEY_THEME_OVERRIDES);
       // Merge: global first, user next, device last (device wins)
@@ -718,6 +720,10 @@ export class ThemeManager extends BaseService {
         ...(allScopes.user    ?? {}),
         ...(allScopes.device  ?? {}),
       };
+      // Which scope set each path (the last one wins, as in the merge): for provenance
+      for (const scope of ['global', 'user', 'device']) {
+        for (const key of Object.keys(allScopes[scope] ?? {})) scopes[key] = scope;
+      }
       lcardsLog.info('[ThemeManager] Token overrides loaded', { count: Object.keys(merged).length });
     } catch (e) {
       lcardsLog.warn('[ThemeManager] Failed to load token overrides:', e);
@@ -727,7 +733,7 @@ export class ThemeManager extends BaseService {
     // lcards:theme-overrides-changed, so the startup load with no (or unchanged)
     // overrides must not trigger that (it doubled config processing and logging).
     if (signature(Object.entries(merged)) === before) return;
-    this.resolver.setOverrides(Object.keys(merged).length ? merged : null);
+    this.resolver.setOverrides(Object.keys(merged).length ? merged : null, scopes);
     this._notifyOverridesChanged();
   }
 

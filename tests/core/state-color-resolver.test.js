@@ -110,3 +110,24 @@ test('resolveNestedStateColor passes through to resolveStateColor', () => {
     }), '#666');
     assert.equal(resolveNestedStateColor({ actualState: 'heat', classifiedState: 'x', configPath: undefined, fallback: 'fb' }), 'fb');
 });
+
+test('stateKeyFor: names the key resolveStateColor picks, in the same order', async () => {
+    const { stateKeyFor } = await import('../../src/utils/state-color-resolver.js');
+    const config = { default: 'D', active: 'A', inactive: 'I', heat: 'H', zero: 'Z', non_zero: 'NZ', 'above:50': 'HI', 'between:10:20': 'MID', bright: 'ATTR' };
+    const cases = [
+        [{ actualState: 'heat', classifiedState: 'active' }, 'heat'],
+        [{ actualState: 'on', classifiedState: 'active', attributeState: 'bright' }, 'bright'],
+        [{ actualState: '0', classifiedState: 'inactive' }, 'zero'],
+        [{ actualState: '60', classifiedState: 'active' }, 'above:50'],
+        [{ actualState: '15', classifiedState: 'active' }, 'between:10:20'],
+        [{ actualState: '5', classifiedState: 'active' }, 'non_zero'],
+        [{ actualState: 'off', classifiedState: 'inactive' }, 'inactive'],
+        [{ actualState: 'weird', classifiedState: 'unknown' }, 'default'],
+    ];
+    for (const [opts, key] of cases) {
+        assert.equal(stateKeyFor({ ...opts, colorConfig: config }), key, JSON.stringify(opts));
+        assert.equal(resolveStateColor({ ...opts, colorConfig: config }), config[key], JSON.stringify(opts));
+    }
+    assert.equal(stateKeyFor({ actualState: 'x', classifiedState: 'y', colorConfig: { active: 'A' } }), null);
+    assert.equal(stateKeyFor({ actualState: 'x', colorConfig: 'red' }), null);
+});

@@ -1,0 +1,3 @@
+# Select menu on an input_select
+type: custom:lcards-select-menu
+entity: input_select.demo_mode

@@ -267,8 +267,8 @@ export class LCARdSDataGrid extends LCARdSCard {
     const rows = normalizeRows(this.config.rows);
     const cols = dataColumnCount(this.config.rows);
 
-    const next = await Promise.all(rows.map(row =>
-      Promise.all(Array.from({ length: cols }, (_, c) => this._cellText(row.values[c])))
+    const next = await Promise.all(rows.map((row, r) =>
+      Promise.all(Array.from({ length: cols }, (_, c) => this._cellText(row.values[c], `rows[${r}][${c}]`)))
     ));
 
     if (this._gridData.length) this._previousGridData = this._gridData;
@@ -286,13 +286,14 @@ export class LCARdSDataGrid extends LCARdSCard {
   /**
    * Display text for one data cell.
    * @param {*} cell
+   * @param {string} [field] - Its place in the config, for template provenance
    * @returns {Promise<string>}
    * @private
    */
-  async _cellText(cell) {
+  async _cellText(cell, field = undefined) {
     const info = classifyCell(cell);
     if (info.kind === 'template') {
-      const out = await this.processTemplate(info.text);
+      const out = await this.processTemplate(info.text, { field });
       return out === null || out === undefined ? '' : String(out);
     }
     if (info.kind === 'entity') {

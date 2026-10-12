@@ -289,7 +289,7 @@ export class LCARdSChart extends LCARdSCard {
    */
   async _processCustomTemplates() {
     if (this.config.style) {
-      await this._preEvaluateStyleTemplates(this.config.style);
+      await this._preEvaluateStyleTemplates(this.config.style, 'style');
     }
     await super._processCustomTemplates();
   }
@@ -470,10 +470,11 @@ export class LCARdSChart extends LCARdSCard {
   _buildChartOptions(width = 400, height = 200) {
     const tm = this._singletons?.themeManager;
     // Theme defaults < card style (with rule patches): user config always wins
-    const style = deepMerge(
-      tm ? chartStyleDefaults(path => tm.getToken(path)) : {},
-      this._getMergedStyleWithRules(this.config.style || {})
-    );
+    const tokensRead = [];
+    const defaults = tm ? chartStyleDefaults(path => { tokensRead.push(path); return tm.getToken(path); }) : {};
+    const userStyle = this._getMergedStyleWithRules(this.config.style || {});
+    const style = deepMerge(defaults, userStyle);
+    this._trackChartDefaults(defaults, userStyle, tokensRead);
 
     return buildChartOptions({
       config: this.config,
@@ -485,6 +486,26 @@ export class LCARdSChart extends LCARdSCard {
       hass: this.hass,
       resolveStyle: tm ? (st) => resolveThemeTokensRecursive(st, tm) : undefined
     });
+  }
+
+  /**
+   * Provenance: the chart's theme defaults, for each style field the config
+   * doesn't set ('built-in'), and the theme tokens they came from.
+   * @private
+   */
+  _trackChartDefaults(defaults, userStyle, tokensRead) {
+    const tracker = this._provenanceTracker;
+    if (!tracker) return;
+    tracker.clearRuntime('built-in');
+    const walk = (node, user, path) => {
+      if (node && typeof node === 'object' && !Array.isArray(node)) {
+        for (const [k, v] of Object.entries(node)) walk(v, user?.[k], `${path}.${k}`);
+      } else if (user === undefined) {
+        tracker.trackRuntime(path, 'built-in', node, { from: 'chart theme defaults' });
+      }
+    };
+    walk(defaults, userStyle, 'style');
+    for (const token of new Set(tokensRead)) this._trackTokenUse(token, ['style (chart defaults)']);
   }
 
   /**

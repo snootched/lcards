@@ -101,6 +101,72 @@ export class ThemeTokenResolver {
   }
 
   /**
+   * How a token path resolves, step by step, for provenance: the same route
+   * resolve() takes (overrides, the token tree, references, computed tokens),
+   * ending at a value or a CSS variable. A CSS variable's concrete value
+   * depends on the element, so the caller reads it (ColorUtils.resolveCssVariable).
+   *
+   * Steps: { step: 'override', path, value, scope } | { step: 'lookup' | 'reference', path, value }
+   *   | { step: 'computed', expression } | { step: 'css-var', variable, value }
+   *   | { step: 'missing', path } | { step: 'circular', path }
+   *
+   * @param {string} path - Token path (no 'theme:' prefix)
+   * @param {Object} [context] - As for resolve()
+   * @returns {{path: string, value: *, steps: Array<Object>}}
+   */
+  explain(path, context = {}) {
+    const steps = [];
+    const seen = new Set();
+    let current = path;
+    let value;
+    for (let hop = 0; hop < 16; hop++) {
+      if (typeof current !== 'string' || !current) {
+        value = current;
+        break;
+      }
+      if (this._isComputedToken(current)) {
+        steps.push({ step: 'computed', expression: current });
+        value = this._resolveComputedToken(current, context);
+        break;
+      }
+      if (this._overrides?.has(current)) {
+        const overridden = this._overrides.get(current);
+        steps.push({ step: 'override', path: current, value: overridden, scope: this._overrideScopes?.[current] });
+        value = overridden;
+        break;
+      }
+      if (hop > 0 && this._isDirectValue(current)) {
+        value = current;
+        break;
+      }
+      if (seen.has(current)) {
+        steps.push({ step: 'circular', path: current });
+        value = undefined;
+        break;
+      }
+      seen.add(current);
+      const raw = this._getNestedValue(this.tokens, current);
+      if (raw === undefined || raw === null) {
+        steps.push({ step: 'missing', path: current });
+        value = undefined;
+        break;
+      }
+      steps.push({ step: steps.length ? 'reference' : 'lookup', path: current, value: raw });
+      if (typeof raw === 'string' && (this._isTokenReference(raw) || this._isComputedToken(raw))) {
+        current = raw;
+        continue;
+      }
+      value = this._resolveValue(raw, context);
+      break;
+    }
+    if (typeof value === 'string') {
+      const cssVar = /^var\((--[\w-]+)/.exec(value.trim());
+      if (cssVar) steps.push({ step: 'css-var', variable: cssVar[1], value });
+    }
+    return { path, value, steps };
+  }
+
+  /**
    * Create component-scoped resolver
    *
    * Automatically prefixes token paths with component namespace.
@@ -114,20 +180,19 @@ export class ThemeTokenResolver {
    * // Resolves: 'components.text.defaultColor'
    */
   forComponent(componentName) {
-    return (path, fallback = null, context = {}) => {
-      // If path doesn't start with component name, prefix it
-      if (!path.startsWith(`components.${componentName}.`) &&
-          !path.startsWith('colors.') &&
-          !path.startsWith('typography.') &&
-          !path.startsWith('spacing.') &&
-          !path.startsWith('borders.') &&
-          !path.startsWith('effects.') &&
-          !path.startsWith('animations.')) {
-        path = `components.${componentName}.${path}`;
-      }
+    return (path, fallback = null, context = {}) => this.resolve(this.componentPath(componentName, path), fallback, context);
+  }
 
-      return this.resolve(path, fallback, context);
-    };
+  /**
+   * The token path forComponent() resolves: a path outside the shared categories
+   * is taken as relative to components.<componentName>.
+   * @param {string} componentName
+   * @param {string} path
+   * @returns {string}
+   */
+  componentPath(componentName, path) {
+    const shared = ['colors.', 'typography.', 'spacing.', 'borders.', 'effects.', 'animations.', `components.${componentName}.`];
+    return shared.some(prefix => path.startsWith(prefix)) ? path : `components.${componentName}.${path}`;
   }
 
   /**
@@ -146,8 +211,9 @@ export class ThemeTokenResolver {
    * (device wins).  Call clearCache() is handled internally.
    *
    * @param {Object|Map<string,*>|null} overrides - Flat token-path → value map, or null to clear.
+   * @param {Object<string,string>} [scopes] - Token path → the scope that set it ('global' | 'user' | 'device'), for explain()
    */
-  setOverrides(overrides) {
+  setOverrides(overrides, scopes = {}) {
     if (overrides === null || overrides === undefined) {
       this._overrides = null;
     } else if (overrides instanceof Map) {
@@ -155,6 +221,7 @@ export class ThemeTokenResolver {
     } else {
       this._overrides = new Map(Object.entries(overrides));
     }
+    this._overrideScopes = scopes || {};
     this.clearCache();
     lcardsLog.debug('[ThemeTokenResolver] Overrides updated', { count: this._overrides?.size ?? 0 });
   }
