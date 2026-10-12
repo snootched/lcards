@@ -980,3 +980,87 @@ test('Provenance: a field only a rule sets (height) shows in the tree while the 
     await removeEditor(page);
     expect(errors).toEqual([]);
 });
+
+/** Mount a card from `config` inside home-assistant, standing in for the editor's preview. */
+const mountPreview = (page, config) => page.evaluate((c) => {
+    const ha = document.querySelector('home-assistant');
+    document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-preview')?.remove();
+    const card = document.createElement(c.type.replace('custom:', ''));
+    card.id = 'lcards-test-preview';
+    card.setConfig(c);
+    card.hass = ha.hass;
+    ha.shadowRoot.appendChild(card);
+}, config);
+const removePreview = (page) => page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-preview')?.remove());
+
+async function openInspector(page, config) {
+    const editor = await openMainEngineering(page, config);
+    await mountPreview(page, config);
+    await editor.getByRole('tab', { name: 'Provenance', exact: true }).dispatchEvent('click');
+    const tab = editor.locator('lcards-provenance-tab');
+    await expect(tab.locator('.launcher-stats')).toContainText('fields');
+    await tab.getByRole('button', { name: 'Open inspector' }).click();
+    const dialog = tab.locator('ha-dialog');
+    await expect(dialog.locator('.studio-layout')).toBeVisible();
+    return { editor, tab, dialog };
+}
+
+test('Provenance inspector: a field shows its value now and the trail (your config, the token chain)', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await client.callService('input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' });
+    const config = { type: 'custom:lcards-button', id: 'prov_insp', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge',
+        style: { card: { color: { background: { active: 'theme:colors.ui.primary', inactive: '#333366' } } } } };
+    const { dialog } = await openInspector(page, config);
+    await expect(dialog).toHaveAttribute('header-title', 'Provenance: prov_insp');
+    // Search narrows the tree to the field
+    await dialog.locator('ha-input.search input').fill('background.active');
+    await dialog.locator('.field-row[data-path="style.card.color.background.active"]').click();
+    const trail = dialog.locator('.trail');
+    await expect(trail.locator('.config-step.wins')).toContainText('Your config');
+    await expect(trail.locator('.token-step')).toContainText('theme:colors.ui.primary');
+    await expect(trail.locator('.token-step')).toContainText('Value on this card');
+    await expect(dialog.locator('.now .swatch')).toHaveCount(1);
+    // The token's own view, and back to the field from "Used by"
+    // A state-keyed field: its value now is the branch that applies (the toggle is off: inactive)
+    await dialog.locator('ha-input.search input').fill('');
+    await dialog.locator('.field-row[data-path="style.card.color.background"]').click();
+    await expect(dialog.locator('.runtime-step[data-layer="state"]')).toContainText('branch "inactive"');
+    await expect(dialog.locator('.now .value')).toHaveText('#333366');
+    await dialog.locator('.field-row[data-path="style.card.color.background.active"]').click();
+    await trail.getByRole('button', { name: 'Open token' }).click();
+    await expect(dialog.locator('.chain-step[data-step="lookup"]')).toHaveCount(1);
+    await expect(dialog.locator('.chain-step[data-step="value"]')).toHaveCount(1);
+    await dialog.locator('.uses').getByRole('button', { name: 'style.card.color.background.active' }).click();
+    await expect(dialog.locator('.detail-title h3')).toHaveText('style.card.color.background.active');
+    await dialog.locator('ha-button[data-dialog="close"]').click();
+    await expect(dialog).toHaveCount(0);
+    await removePreview(page);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Provenance inspector: live follows the card (a rule applying); paused holds until refresh', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await client.callService('input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' });
+    const config = { type: 'custom:lcards-button', id: 'prov_live', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge',
+        rules: [{ id: 'live-rule', when: { entity: 'input_boolean.lcards_test_toggle', state: 'on' },
+            apply: { overlays: { prov_live: { height: 140 } } } }] };
+    const { dialog } = await openInspector(page, config);
+    const heightRow = dialog.locator('.field-row[data-path="height"]');
+    await expect(heightRow).toHaveCount(0);
+    // Live: the rule applies and the field appears, without reopening
+    await client.callService('input_boolean', 'turn_on', { entity_id: 'input_boolean.lcards_test_toggle' });
+    await expect(heightRow).toHaveCount(1);
+    await heightRow.click();
+    await expect(dialog.locator('.rule-step')).toContainText('live-rule');
+    // Paused: the rule stops, the view holds (and says it changed) until refresh
+    await dialog.locator('ha-switch.live-switch').click();
+    await client.callService('input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' });
+    await expect(dialog.locator('ha-switch.live-switch')).toContainText('Paused (changed)');
+    await expect(heightRow).toHaveCount(1);
+    await dialog.getByRole('button', { name: 'Refresh' }).click();
+    await expect(heightRow).toHaveCount(0);
+    await removePreview(page);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});

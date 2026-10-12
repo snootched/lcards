@@ -92,7 +92,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
             .kind {
                 padding: 1px var(--ha-space-2);
                 border-radius: var(--ha-border-radius-pill);
-                font-size: 11px;
+                font-size: 12px;
                 font-weight: 600;
                 background: color-mix(in srgb, var(--primary-color) 18%, transparent);
                 color: var(--primary-text-color);

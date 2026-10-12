@@ -146,7 +146,7 @@ style: block in card YAML  ← your overrides
 Rule patches               ← runtime, from Rules Engine
 ```
 
-You only need to set the properties that differ from the preset. To inspect what's actually being applied, open the card editor → **Main Engineering** → **Provenance Tracker**.
+You only need to set the properties that differ from the preset. To inspect what's actually being applied, open the card editor → **Main Engineering** → **Provenance**.
 
 ---
 

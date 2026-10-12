@@ -116,7 +116,7 @@ export class LCARdSRulesDashboard extends LitElement {
 
             .pending {
                 margin-top: 2px;
-                font-size: 11px;
+                font-size: 12px;
                 color: var(--warning-color);
             }
 
@@ -190,7 +190,7 @@ export class LCARdSRulesDashboard extends LitElement {
             }
 
             .sub {
-                font-size: 11px;
+                font-size: 12px;
                 color: var(--secondary-text-color);
             }
 
