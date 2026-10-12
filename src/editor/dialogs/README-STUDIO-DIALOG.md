@@ -308,7 +308,7 @@ The dialog maintains internal state:
 The dialog follows LCARdS patterns:
 
 1. **Extends LitElement**: Uses Lit for templating and reactivity
-2. **Uses lcards-dialog**: Wraps ha-dialog with proper event handling
+2. **Uses ha-dialog**: `header-title`, `flexcontent`, its `closed` event stopped
 3. **Integrates existing components**: Reuses shared components (lcards-form-section, lcards-color-section, etc.)
 4. **Launches sub-dialogs**: Opens specialized dialogs for template/datasource/spreadsheet configuration
 5. **Implements validation**: Validates before save with helpful error messages
@@ -318,7 +318,7 @@ The dialog follows LCARdS patterns:
 
 The dialog imports and uses:
 
-- `lcards-dialog`: Base dialog wrapper
+- `ha-dialog`: the dialog itself (HA)
 - `lcards-form-section`: Collapsible sections
 - `lcards-message`: Info/warning messages
 - `lcards-color-section`: Color configuration

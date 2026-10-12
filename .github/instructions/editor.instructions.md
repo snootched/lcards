@@ -95,7 +95,7 @@ Import from `src/editor/components/shared/` — never recreate these:
 | `lcards-collapsible-section` | `../components/shared/lcards-collapsible-section.js` | Collapsible wrapper |
 | `lcards-color-picker` | `../components/shared/lcards-color-picker.js` | Standalone color picker |
 | `lcards-color-list` | `../components/shared/lcards-color-list.js` | List of color inputs |
-| `lcards-dialog` | `../components/shared/lcards-dialog.js` | Modal dialog |
+| `renderLauncher` | `../components/shared/launcher.js` | Launcher card for a Main Engineering tool (black inset, counts, buttons) |
 | `lcards-message` | `../components/shared/lcards-message.js` | Alert/info/warning message (short: see Dialogs, surfaces and messages) |
 | `lcards-zone-list-editor` | `../components/lcards-zone-list-editor.js` (not under `shared/`) | Zone config editor |
 
@@ -113,6 +113,8 @@ The studios (chart, data grid, layout, MSD, data source) and the config panel ar
 - `.banner` (`messageStyles`: `info`, `warning`, `error`, `success`) is for a status bar at the top of a panel tab.
 
 **Code.** Code or config text always goes in a code editor: `lcards-yaml-editor` / `lcards-studio-yaml-tab` for LCARdS YAML (schema completion), `ha-code-editor` for other text (`mode="yaml"` also suits JSON; `jinja2` for templates). Never `ha-textarea` or `<textarea>` for code.
+
+**Plain dialogs.** Use `ha-dialog` with `header-title` (there is no LCARdS wrapper). Stop its `closed` event (`e.stopPropagation()`) so it doesn't close the editor around it, and act only when `e.target === e.currentTarget`: pickers inside fire their own `closed`. Footer: Cancel / Close `appearance="plain"`, then the main action `variant="brand"`.
 
 **No native dialogs.** Never `confirm()`, `alert()` or `prompt()`. Use `showConfirmDeleteDialog`, `showInfoDialog` and `showPromptDialog` from `src/views/layout-edit-dialogs.js` (HA dialogs, mounted near `home-assistant`).
 

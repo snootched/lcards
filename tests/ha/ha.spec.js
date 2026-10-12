@@ -167,7 +167,7 @@ test('rules editor shows the refresh notice for edited or removed rules', async 
         el.cardId = 'test';
         document.querySelector('home-assistant').shadowRoot.appendChild(el);
         await el.updateComplete;
-        const notice = el.shadowRoot.querySelector('lcards-message.refresh-notice');
+        const notice = el.shadowRoot.querySelector('.refresh-notice');
         const out = notice?.textContent.replace(/\s+/g, ' ').trim() ?? null;
         el.remove();
         return out;
@@ -649,6 +649,166 @@ test('Main Engineering: deleting a source other cards use asks in an HA dialog',
     await cancel.click();
     // Cancelled: the source stays in the config.
     expect(await editor.evaluate(el => Object.keys(el.config.data_sources))).toEqual(['me_shared']);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+/**
+ * Rules tab (B2): the shared launcher, HA dialogs for details, add/edit and
+ * delete; the old lcards-dialog wrapper is gone.
+ */
+const RULE_CARD = { type: 'custom:lcards-button', id: 'test_attr_rule', preset: 'lozenge', rules: [{
+    id: 'test-attr-rule',
+    when: { entity_attr: 'input_number.lcards_test_value', attribute: 'max', above: 150 },
+    apply: { overlays: { test_attr_rule: { style: { card: { color: { background: '#cc0000' } } } } } },
+}] };
+
+async function openRulesTab(page) {
+    const errors = await openDashboard(page, 'rules');
+    page.on('dialog', d => { throw new Error(`native ${d.type()} dialog: ${d.message()}`); });
+    const editor = await openMainEngineering(page, RULE_CARD);
+    await editor.getByRole('tab', { name: 'Rules', exact: true }).dispatchEvent('click');
+    const dash = editor.locator('lcards-rules-dashboard');
+    await expect(dash.locator('.launcher')).toBeVisible();
+    return { errors, editor, dash };
+}
+const editorRules = (page) => page.evaluate(() =>
+    document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-editor').config.rules ?? []);
+
+test("Rules: the launcher counts rules; this card's rules edit as YAML, others' are read-only", async ({ page }) => {
+    const { errors, dash } = await openRulesTab(page);
+    await expect(dash.locator('.launcher-stats')).toContainText('1 targeting this card');
+    await expect(dash.locator('.rules-table tr', { hasText: 'test-attr-rule' }).first()).toBeVisible();
+
+    // Another card's rule: read-only YAML, no engine keys.
+    await dash.getByText('All rules on this page').first().dispatchEvent('click');
+    await dash.locator('tr', { hasText: 'test-js-rule' }).getByRole('button', { name: 'View rule' }).click();
+    const dialog = dash.locator('ha-dialog.rule-details');
+    const yamlEditor = dialog.locator('lcards-yaml-editor');
+    expect(await yamlEditor.evaluate(el => el.readOnly)).toBe(true);
+    const viewed = yaml.load(await yamlEditor.evaluate(el => el.value));
+    expect(viewed.id).toBe('test-js-rule');
+    expect(Object.keys(viewed).filter(k => k.startsWith('_'))).toEqual([]);
+    await dialog.locator('ha-button[data-dialog="close"]').click();
+    await expect(dialog).toHaveCount(0);
+
+    // This card's rule: edit the whole rule as YAML; Save takes what was just typed.
+    await dash.locator('.rules-table tr', { hasText: 'test-attr-rule' }).first().getByRole('button', { name: 'Edit as YAML' }).click();
+    expect(await yamlEditor.evaluate(el => el.readOnly)).toBe(false);
+    expect(await yamlEditor.evaluate(el => Object.keys(el.schema.properties.apply.properties.overlays.properties)))
+        .toEqual(expect.arrayContaining(['test_attr_rule']));
+    await yamlEditor.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type('\npriority: 7');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(dialog).toHaveCount(0);
+    expect((await editorRules(page))[0].priority).toBe(7);
+    // The engine still runs the old version until a refresh, and the row says so.
+    await expect(dash.locator('.rules-table tr', { hasText: 'test-attr-rule' }).first().locator('.pending'))
+        .toHaveText('Changed: refresh to apply');
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Rules: a new rule shows in the list at once', async ({ page }) => {
+    const { errors, dash } = await openRulesTab(page);
+    await dash.getByRole('button', { name: 'Add rule' }).click();
+    const ruleDialog = dash.locator('lcards-rule-editor-dialog');
+    await ruleDialog.getByRole('textbox', { name: 'Rule ID' }).fill('test-new-rule');
+    await ruleDialog.getByRole('button', { name: 'Start with test_attr_rule' }).click();
+    await ruleDialog.locator('lcards-yaml-editor .cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type('text:\n  label:\n    content: NEW');
+    await ruleDialog.getByRole('button', { name: 'Create rule' }).click(); // right away: Save flushes the YAML
+    await expect(ruleDialog.locator('ha-dialog')).toHaveCount(0);
+    const rules = await editorRules(page);
+    expect(rules.find(r => r.id === 'test-new-rule')?.apply?.overlays?.test_attr_rule?.text?.label?.content).toBe('NEW');
+    await expect(dash.locator('.launcher-stats')).toContainText('2 targeting this card');
+    await expect(dash.locator('.rules-table tr', { hasText: 'test-new-rule' }).first()).toBeVisible();
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Rules: "Start with this card" on a card without an id asks for one and sets it', async ({ page }) => {
+    const errors = await openDashboard(page, 'rules');
+    page.on('dialog', d => { throw new Error(`native ${d.type()} dialog: ${d.message()}`); });
+    const editor = await openMainEngineering(page, { type: 'custom:lcards-button', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge' });
+    await editor.getByRole('tab', { name: 'Rules', exact: true }).dispatchEvent('click');
+    const dash = editor.locator('lcards-rules-dashboard');
+    await dash.getByRole('button', { name: 'Add rule' }).click();
+    const apply = dash.locator('lcards-rule-apply-editor');
+    await apply.getByRole('button', { name: 'Start with this card' }).click();
+    const prompt = page.locator('ha-dialog', { hasText: 'Rules target cards by id' });
+    await expect(prompt.getByRole('textbox')).toHaveValue('lcards_test_toggle');
+    await prompt.getByRole('button', { name: 'Set id' }).click();
+    await expect.poll(() => editor.evaluate(el => el.config.id)).toBe('lcards_test_toggle');
+    await expect(apply.locator('lcards-yaml-editor .cm-content')).toContainText('lcards_test_toggle:');
+    expect(await apply.locator('lcards-yaml-editor').evaluate(el => Object.keys(el.schema.properties.overlays.properties)))
+        .toContain('lcards_test_toggle');
+    await dash.locator('lcards-rule-editor-dialog').getByRole('button', { name: 'Cancel' }).click();
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Rules: Add rule opens the rule editor in an HA dialog; only the ID is required', async ({ page }) => {
+    const { errors, dash } = await openRulesTab(page);
+    expect(await page.evaluate(() => customElements.get('lcards-dialog'))).toBeUndefined();
+    const ruleDialog = dash.locator('lcards-rule-editor-dialog');
+    for (let round = 0; round < 2; round++) { // reopens after Cancel
+        await dash.getByRole('button', { name: 'Add rule' }).click();
+        await expect(ruleDialog.locator('ha-dialog')).toHaveAttribute('header-title', 'Add Rule');
+        const required = await ruleDialog.evaluate(el => [...el.shadowRoot.querySelectorAll('.identity-grid ha-selector, .identity-right ha-selector')]
+            .filter(s => s.selector?.text || s.selector?.number).map(s => [s.label, s.required]));
+        expect(required).toEqual([['Rule ID', true], ['Name (optional)', false], ['Priority', false]]);
+        await ruleDialog.getByRole('button', { name: 'Cancel' }).click();
+        await expect(ruleDialog.locator('ha-dialog')).toHaveCount(0);
+    }
+    // The editor around it is still open.
+    await expect(dash.locator('.launcher')).toBeVisible();
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Rules: deleting a rule asks in an HA dialog; Cancel keeps it, Delete removes it', async ({ page }) => {
+    const { errors, dash } = await openRulesTab(page);
+    const confirm = page.locator('ha-dialog', { hasText: "removed from this card's config" });
+    await dash.getByRole('button', { name: 'Delete rule' }).first().click();
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    expect((await editorRules(page)).map(r => r.id)).toEqual(['test-attr-rule']);
+    await dash.getByRole('button', { name: 'Delete rule' }).first().click();
+    await confirm.getByRole('button', { name: 'Delete' }).click();
+    await expect.poll(async () => (await editorRules(page)).length).toBe(0);
+    // Still running until a refresh: listed as removed, with no edit buttons.
+    await dash.getByText('All rules on this page').first().dispatchEvent('click');
+    const removedRow = dash.locator('.rules-table tr', { hasText: 'test-attr-rule' }).first();
+    await expect(removedRow.locator('.pending')).toHaveText('Removed: refresh to apply');
+    await expect(removedRow.getByRole('button', { name: 'Edit rule' })).toHaveCount(0);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test("Rules: Apply is the LCARdS YAML editor; it starts with this card and completes the card's keys", async ({ page }) => {
+    const { errors, dash } = await openRulesTab(page);
+    await dash.getByRole('button', { name: 'Add rule' }).click();
+    const apply = dash.locator('lcards-rule-editor-dialog lcards-rule-apply-editor');
+    await apply.getByRole('button', { name: 'Start with test_attr_rule' }).click();
+    const yamlEditor = apply.locator('lcards-yaml-editor');
+    await expect(yamlEditor.locator('.cm-content')).toContainText('test_attr_rule:');
+    // The schema knows this card's patch keys.
+    expect(await yamlEditor.evaluate(el => Object.keys(el.schema.properties.overlays.properties.test_attr_rule.properties)))
+        .toEqual(expect.arrayContaining(['style', 'text']));
+    // Ctrl+Space under the card's key lists its settings.
+    await yamlEditor.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type('tex');
+    await page.keyboard.press('Control+Space');
+    await expect(yamlEditor.locator('.cm-tooltip-autocomplete')).toContainText('text');
+    await page.keyboard.press('Escape');
+    // Typed YAML reaches the rule (after the editor's typing pause).
+    await page.keyboard.type('t:\n  label:\n    content: RED ALERT');
+    await expect.poll(() => apply.evaluate(el => el.value?.overlays?.test_attr_rule?.text?.label?.content), { timeout: 10_000 })
+        .toBe('RED ALERT');
+    await dash.locator('lcards-rule-editor-dialog').getByRole('button', { name: 'Cancel' }).click();
     await removeEditor(page);
     expect(errors).toEqual([]);
 });

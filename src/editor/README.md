@@ -43,7 +43,7 @@ See [Editor Style Guide](../../doc/architecture/editor-style-guide.md) for compl
 
 ❌ **Custom tab implementations** - Use `ha-tab-group` and `ha-tab-group-tab`
 ❌ **Plain HTML controls** - Use HA components (`ha-button`, `ha-textfield`, `ha-select`, etc.)
-❌ **Custom dialog implementations** - Use `lcards-dialog` wrapper
+❌ **Custom dialog implementations** - Use `ha-dialog` (see `.github/instructions/editor.instructions.md`, "Dialogs, surfaces and messages")
 ❌ **Inconsistent spacing** - Use 12px for sections/rows, 8px for gaps
 ❌ **Direct `this.hass.states` access on render** - Cache entity references
 ❌ **`customElements.get()` fallback checks** - All HA components are available
@@ -113,39 +113,27 @@ _handleTabChange(event) {
 - Wrap content in a `.tab-panel-content` div
 - CSS: `overflow-y: auto; max-height: calc(75vh - 120px); padding: 16px;`
 
-#### Dialogs (`lcards-dialog`)
+#### Dialogs (`ha-dialog`)
 
-**Structure:**
+Use `ha-dialog` directly (the old `lcards-dialog` wrapper is retired). Stop its
+`closed` event so it doesn't close the editor around it, and ignore `closed`
+events from pickers inside the form:
+
 ```javascript
-import '../components/common/lcards-dialog.js';
-
-_showDialog() {
-    const dialog = this.renderRoot.querySelector('lcards-dialog');
-    dialog.open = true;
-}
-
 render() {
     return html`
-        <lcards-dialog @closed=${this._handleDialogClose}>
-            <!-- Use slot for heading (NOT .heading property) -->
-            <span slot="heading">Dialog Title</span>
+        <ha-dialog open header-title="Dialog Title"
+            @closed=${(e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._handleCancel(); }}>
+            <ha-input label="Name" .value=${this._name}></ha-input>
 
-            <!-- Dialog content -->
-            <div class="dialog-content">
-                <ha-textfield label="Name" .value=${this._name}></ha-textfield>
-            </div>
-
-            <!-- Footer buttons -->
-            <div slot="footer" class="dialog-footer">
-                <ha-button appearance="plain" @click=${this._handleCancel}>
-                    Cancel
-                </ha-button>
-                <ha-button variant="brand" appearance="accent" @click=${this._handleSave}>
-                    <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
+            <div slot="footer">
+                <ha-button appearance="plain" @click=${this._handleCancel}>Cancel</ha-button>
+                <ha-button variant="brand" @click=${this._handleSave}>
+                    <ha-icon icon="mdi:check" slot="start"></ha-icon>
                     Save
                 </ha-button>
             </div>
-        </lcards-dialog>
+        </ha-dialog>
     `;
 }
 ```
@@ -638,7 +626,7 @@ _updateConfig() { }     // Does this handle an event? Update state? Both?
 Before submitting editor code:
 
 - [ ] All tabs use `ha-tab-group` with proper event handling
-- [ ] All dialogs use `lcards-dialog` with slot-based headers
+- [ ] All dialogs use `ha-dialog` with `header-title`
 - [ ] All buttons use `ha-button` with correct variants
 - [ ] All form controls use HA components (`ha-textfield`, `ha-select`, etc.)
 - [ ] Spacing follows standards (12px sections, 8px gaps)
@@ -662,7 +650,6 @@ Before submitting editor code:
 - `lcards-form-field.js` - Schema-driven fields
 - `lcards-grid-layout.js` - Responsive two-column layout
 - `lcards-color-picker.js` - Unified color picker with CSS vars
-- `lcards-dialog.js` - Standard dialog wrapper
 
 ---
 
@@ -2207,25 +2194,25 @@ _handleTabChange(event) {
   - Buttons: "Cancel" (secondaryAction, plain/neutral) + "Create/Save" (primaryAction, brand/accent) ✅ ALREADY CORRECT
   - Header: None (form starts immediately)
   - Special: Real-time entity validation, disabled fields in edit mode
-  - **Note**: Uses `<lcards-dialog>` wrapper (needs update after wrapper conversion)
+  - **Note**: Now a studio (`ha-dialog`, `studioDialogStyles`)
 
-- [ ] **Transformation Dialog** (`lcards-transformation-dialog.js`) - Form dialog ✅ USES lcards-dialog
+- [ ] **Transformation Dialog** (`lcards-transformation-dialog.js`) - Form dialog
   - Size: Medium (~600px width)
   - Heading: Dynamic "Add Transformation" / "Edit: {key}"
   - Structure: Form with type selector + dynamic config
   - Buttons: "Cancel" (secondaryAction, plain) + "Create/Save" (primaryAction, brand/accent) ✅ ALREADY CORRECT
   - Header: None (form starts immediately)
   - Special: YAML editor mode option
-  - **Note**: Uses `<lcards-dialog>` wrapper (needs update after wrapper conversion)
+  - **Note**: Now a studio (`ha-dialog`, `studioDialogStyles`)
 
-- [ ] **Aggregation Dialog** (`lcards-aggregation-dialog.js`) - Form dialog ✅ USES lcards-dialog
+- [ ] **Aggregation Dialog** (`lcards-aggregation-dialog.js`) - Form dialog
   - Size: Medium (~600px width)
   - Heading: Dynamic "Add Aggregation" / "Edit: {key}"
   - Structure: Form with type selector + dynamic config
   - Buttons: "Cancel" (secondaryAction, plain) + "Create/Save" (primaryAction, brand/accent) ✅ ALREADY CORRECT
   - Header: None (form starts immediately)
   - Special: YAML editor mode option
-  - **Note**: Uses `<lcards-dialog>` wrapper (needs update after wrapper conversion)
+  - **Note**: Now a studio (`ha-dialog`, `studioDialogStyles`)
 
 - [ ] **Rules Dashboard Detail** (`lcards-rules-dashboard.js`) - Preview dialog
   - Size: Medium (~700px width)

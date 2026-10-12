@@ -54,7 +54,6 @@ import { TemplateDetector } from '../../../core/templates/TemplateDetector.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { haFormatState } from '../../../utils/ha-entity-display.js';
 import { EXAMPLE_TEMPLATES, getExampleIds } from './template-examples.js';
-import '../shared/lcards-dialog.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-collapsible-section.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';

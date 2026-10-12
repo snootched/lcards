@@ -87,7 +87,7 @@ export function renderLauncher({ icon, title, description, stats = [], actions }
       ` : nothing}
       <div class="launcher-actions">
         ${actions.map((a, i) => html`
-          <ha-button variant=${i === 0 ? 'brand' : 'neutral'} appearance=${i === 0 ? 'accent' : 'filled'} @click=${a.onClick}>
+          <ha-button variant="brand" appearance=${i === 0 ? 'accent' : 'outlined'} @click=${a.onClick}>
             <ha-icon icon=${a.icon} slot="start"></ha-icon>
             ${a.label}
           </ha-button>

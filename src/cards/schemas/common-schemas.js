@@ -776,6 +776,10 @@ export const rulesSchema = {
                 description: 'Unique rule identifier used for debugging and tracing',
                 examples: ['temp_alert', 'high_cpu_warning', 'offline_status']
             },
+            name: {
+                type: 'string',
+                description: 'A readable label for the rule (shown in the editor)'
+            },
             when: {
                 type: 'object',
                 description: 'Condition(s) that must be met for rule to apply. Supports 20+ condition types including entity state, time, performance, DataSources, and logical composition (all/any/not). Numeric comparisons accept above/below (strict) and at_least/at_most (inclusive).',

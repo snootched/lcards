@@ -1,30 +1,29 @@
 /**
  * @fileoverview LCARdS Rule Apply Editor
  *
- * Pure-YAML editor for the `apply` section of a rule.
- *
- * The overlay patch schema is too wide and per-card-type to be expressed as form
- * fields, so we expose the full `apply` object as a YAML editor and provide a
- * read-only reference panel listing all currently-discoverable overlay targets
- * (via window.lcards.core.systemsManager) so users can look up IDs and selectors
- * without leaving the editor.
+ * YAML editor for the `apply` section of a rule. The patches are too wide and
+ * per-card-type for form fields, so this is the LCARdS YAML editor with a schema
+ * built from the page (rule-apply-schema.js): completion, hover help and the
+ * "Options here" panel know every overlay ID on the page, and a patch for one
+ * completes against that card's own schema. A reference table lists the IDs,
+ * types and tags to target.
  *
  * @element lcards-rule-apply-editor
  * @fires value-changed - When apply object changes (detail: { value: applyObject })
  *
  * @property {Object} value  - The `apply` object
  * @property {Object} hass   - Home Assistant instance
- * @property {Object} editor - Parent editor instance (for context)
+ * @property {Object} editor - Parent editor instance (for the card's id and type)
  */
 
 import { LitElement, html, css } from 'lit';
-import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
 import '../shared/lcards-form-section.js';
+import '../yaml/lcards-yaml-editor.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
-
-/** MDI path for content-copy icon */
-const MDI_COPY = 'M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z';
+import { messageStyles } from '../../base/surface-styles.js';
+import { ruleApplySchema, pageSchemaOptions, cardTypeOf } from './rule-apply-schema.js';
+import { showPromptDialog } from '../../../views/layout-edit-dialogs.js';
 
 export class LCARdSRuleApplyEditor extends LitElement {
     static get properties() {
@@ -34,8 +33,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
             editor:          { type: Object },
             _yamlText:       { type: String,  state: true },
             _yamlError:      { type: String,  state: true },
-            _refExpanded:    { type: Boolean, state: true },
-            _yamlFromUser:   { type: Boolean, state: true }
+            _refExpanded:    { type: Boolean, state: true }
         };
     }
 
@@ -43,137 +41,115 @@ export class LCARdSRuleApplyEditor extends LitElement {
         super();
         /** @type {any} */
         this.hass = undefined;
+        /** @type {any} the card's LCARdSBaseEditor */
+        this.editor = undefined;
         this.value = {};
         this._yamlText = '';
         this._yamlError = '';
         this._refExpanded = false;
-        this._yamlFromUser = false;
-        this._yamlTimer = null;
+        /** The object this editor last emitted (its YAML is already in the editor) */
+        this._emitted = null;
+        this._schema = null;
     }
 
     static get styles() {
-        return css`
+        return [messageStyles, css`
             :host { display: block; }
 
             .yaml-error {
-                color: var(--error-color, #f44336);
+                color: var(--error-color);
                 font-size: 12px;
-                margin-top: 4px;
+                margin-top: var(--ha-space-1);
             }
 
-            /* Reference panel — matches rules-table style */
             .table-wrapper {
                 overflow-x: auto;
-                margin: 0 -12px;
-                padding: 0 12px;
             }
 
             .ref-table {
                 min-width: 100%;
                 width: max-content;
                 border-collapse: collapse;
-                background: var(--card-background-color, #fff);
-                border-radius: 8px;
-                overflow: hidden;
+                font-size: 13px;
             }
 
-            .ref-table thead th {
-                background: var(--secondary-background-color, #f5f5f5);
-                padding: 12px;
+            .ref-table th {
+                padding: var(--ha-space-2) var(--ha-space-3);
                 text-align: left;
                 font-weight: 600;
                 font-size: 12px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                border-bottom: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
+                color: var(--secondary-text-color);
+                border-bottom: var(--ha-border-width-md) solid var(--divider-color);
                 white-space: nowrap;
-            }
-
-            .ref-table tbody tr:hover {
-                background: var(--secondary-background-color, #f5f5f5);
             }
 
             .ref-table td {
-                padding: 12px;
-                border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
+                padding: var(--ha-space-1) var(--ha-space-3);
+                border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
                 white-space: nowrap;
+                color: var(--secondary-text-color);
             }
 
             .ref-table tr:last-child td {
                 border-bottom: none;
             }
 
+            .ref-table tbody tr:hover {
+                background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
+            }
+
             .ref-id {
-                font-family: monospace;
-                font-size: 13px;
+                font-family: var(--code-font-family, monospace);
                 font-weight: 600;
+                color: var(--primary-text-color);
             }
 
-            .ref-type { color: var(--secondary-text-color); }
-
-            .ref-tags {
-                color: var(--secondary-text-color);
-                font-size: 13px;
+            .ref-table ha-icon-button {
+                --ha-icon-button-size: 28px;
+                --mdc-icon-size: 16px;
             }
-
-            .ref-source {
-                color: var(--secondary-text-color);
-                font-size: 13px;
-            }
-
-            .copy-btn {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                background: none;
-                border: none;
-                cursor: pointer;
-                padding: 4px;
-                border-radius: 4px;
-                color: var(--secondary-text-color);
-                opacity: 0.5;
-                transition: opacity 0.15s;
-            }
-            .copy-btn:hover { opacity: 1; }
 
             .ref-empty {
-                color: var(--secondary-text-color);
-                font-style: italic;
-                padding: 12px;
+                margin: 0;
             }
 
-            .selectors-info {
-                margin-top: 8px;
-                padding: 8px 10px;
-                background: var(--secondary-background-color, rgba(0,0,0,0.03));
-                border-radius: 6px;
-                font-size: 11px;
-                color: var(--secondary-text-color);
-                line-height: 1.6;
+            .starter {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: var(--ha-space-2);
+                margin-bottom: var(--ha-space-2);
             }
 
-            .selectors-info code {
-                font-family: monospace;
-                background: var(--card-background-color, #fff);
-                padding: 1px 3px;
-                border-radius: 3px;
+            .selectors {
+                margin: var(--ha-space-2) 0 0;
             }
-        `;
+
+            .selectors code {
+                font-family: var(--code-font-family, monospace);
+            }
+        `];
     }
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
     willUpdate(changedProps) {
-        if (changedProps.has('value')) {
+        if (changedProps.has('value') && this.value !== this._emitted) {
             this._syncFromValue();
         }
     }
 
+    connectedCallback() {
+        super.connectedCallback();
+        // Built once per open: the overlays on the page don't change while the dialog is up.
+        this._schema = null;
+    }
+
     _syncFromValue() {
-        // Skip resync while the user is actively typing YAML to avoid cursor jumps
-        if (this._yamlFromUser) return;
         try {
-            this._yamlText = configToYaml(this.value || {});
+            const value = this.value || {};
+            this._yamlText = Object.keys(value).length ? configToYaml(value) : '';
             this._yamlError = '';
         } catch (err) {
             this._yamlError = String(err);
@@ -190,7 +166,20 @@ export class LCARdSRuleApplyEditor extends LitElement {
         }
     }
 
+    /** The Apply schema for this page (see rule-apply-schema.js). */
+    _getSchema() {
+        if (!this._schema) this._schema = ruleApplySchema(pageSchemaOptions(this.editor));
+        return this._schema;
+    }
+
+    /** Fire the YAML editor's pending change now (call before saving). */
+    flush() {
+        // @ts-ignore - TS2339: lcards-yaml-editor
+        this.renderRoot?.querySelector('lcards-yaml-editor')?.flush?.();
+    }
+
     _emit(newValue) {
+        this._emitted = newValue;
         this.value = newValue;
         this.dispatchEvent(new CustomEvent('value-changed', {
             detail: { value: newValue },
@@ -201,65 +190,83 @@ export class LCARdSRuleApplyEditor extends LitElement {
 
     // ─── Handlers ────────────────────────────────────────────────────────────
 
+    /** The YAML editor already waits for typing to pause before it fires. */
     _handleYamlChange(e) {
+        e.stopPropagation();
         const text = e.detail.value;
         this._yamlText = text;
-        this._yamlFromUser = true;
-        clearTimeout(this._yamlTimer);
-        this._yamlTimer = setTimeout(() => {
-            this._yamlFromUser = false;
-            try {
-                const parsed = yamlToConfig(text);
-                this._yamlError = '';
-                this._emit(parsed || {});
-            } catch (err) {
-                this._yamlError = `YAML error: ${err.message}`;
-            }
-        }, 750);
-    }
-
-    _copyToClipboard(text) {
-        copyTextToClipboard(text);
+        try {
+            const parsed = text.trim() ? yamlToConfig(text) : {};
+            this._yamlError = '';
+            this._emit(parsed || {});
+        } catch (err) {
+            this._yamlError = `YAML error: ${err.message}`;
+        }
     }
 
     // ─── Render ──────────────────────────────────────────────────────────────
 
+    /**
+     * Fill an empty Apply with this card's overlay key, ready for its changes. A
+     * card without an id gets a new random one on every page load, so a rule
+     * can't target it: ask for an id first and set it on the card.
+     */
+    async _startWithCard() {
+        const config = this.editor?.config ?? {};
+        let id = config.id;
+        if (!id) {
+            const taken = new Set(this._getDiscoverableOverlays().map(o => o.id));
+            const base = String(config.entity ?? '').split('.')[1] || cardTypeOf(config).replace(/-/g, '_') || 'card';
+            let suggestion = base;
+            for (let n = 2; taken.has(suggestion); n++) suggestion = `${base}_${n}`;
+            id = await showPromptDialog({
+                title: 'Give this card an id',
+                message: 'Rules target cards by id. This card has none, so it gets a new random one on every page load.',
+                label: 'Card ID',
+                value: suggestion,
+                confirmText: 'Set id',
+            });
+            if (!id) return;
+            if (!/^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(id)) {
+                this._yamlError = 'A card id starts with a letter or _, then letters, digits, _ or -.';
+                return;
+            }
+            this.editor._updateConfig({ id });
+            this._schema = null; // the new id is a target now
+        }
+        this._yamlError = '';
+        this._yamlText = `overlays:\n  ${id}:\n    `;
+    }
+
     render() {
+        const cardId = this.editor?.config?.id;
         return html`
-            <div @value-changed=${(e) => e.stopPropagation()}>
+            ${!this._yamlText.trim() ? html`
+                <div class="starter">
+                    <span class="hint">Type an overlay ID, or start with this card. Ctrl+Space lists what can go next.</span>
+                    <ha-button appearance="outlined" variant="brand" size="small" @click=${() => this._startWithCard()}>
+                        <ha-icon icon="mdi:target" slot="start"></ha-icon>
+                        ${cardId ? `Start with ${cardId}` : 'Start with this card'}
+                    </ha-button>
+                </div>
+            ` : ''}
+            <lcards-yaml-editor
+                .hass=${this.hass}
+                .schema=${this._getSchema()}
+                .value=${this._yamlText}
+                @value-changed=${this._handleYamlChange}>
+            </lcards-yaml-editor>
+            ${this._yamlError ? html`<div class="yaml-error">${this._yamlError}</div>` : ''}
 
-                <!-- YAML editor — always expanded, always the primary UI -->
-                <lcards-form-section
-                    header="Apply (YAML)"
-                    description="Define overlay patches, animations, profiles and base SVG changes"
-                    icon="mdi:code-braces"
-                    ?expanded=${true}
-                    ?outlined=${false}>
-
-                    <ha-code-editor
-                        .hass=${this.hass}
-                        .value=${this._yamlText}
-                        mode="yaml"
-                        @value-changed=${this._handleYamlChange}>
-                    </ha-code-editor>
-                    ${this._yamlError
-                        ? html`<div class="yaml-error">${this._yamlError}</div>`
-                        : ''}
-                </lcards-form-section>
-
-                <!-- Discoverable overlay reference — collapsed by default -->
-                <lcards-form-section
-                    header="Overlay Reference"
-                    description="Live overlay IDs and tags discoverable from registered cards"
-                    icon="mdi:layers-search"
-                    ?expanded=${this._refExpanded}
-                    ?outlined=${false}
-                    @expanded-changed=${(e) => this._refExpanded = e.detail.expanded}>
-
-                    ${this._renderOverlayReference()}
-                </lcards-form-section>
-
-            </div>
+            <lcards-form-section
+                header="Targets on this page"
+                description="Overlay IDs, card types and tags you can change"
+                icon="mdi:layers-search"
+                ?expanded=${this._refExpanded}
+                ?outlined=${false}
+                @expanded-changed=${(e) => this._refExpanded = e.detail.expanded}>
+                ${this._renderOverlayReference()}
+            </lcards-form-section>
         `;
     }
 
@@ -267,58 +274,35 @@ export class LCARdSRuleApplyEditor extends LitElement {
         const overlays = this._getDiscoverableOverlays();
 
         if (overlays.length === 0) {
-            return html`
-                <div class="ref-empty">
-                    No overlay targets discovered yet. Open a card in the Lovelace editor that
-                    uses LCARdS overlays to populate this list.
-                </div>
-            `;
+            return html`<p class="hint ref-empty">No targets on this page yet: cards register when they render.</p>`;
         }
 
         return html`
             <div class="table-wrapper"><table class="ref-table">
                 <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Type</th>
-                        <th>Tags</th>
-                        <th>Source card</th>
-                        <th></th>
-                    </tr>
+                    <tr><th>ID</th><th>Type</th><th>Tags</th><th></th></tr>
                 </thead>
                 <tbody>
                     ${overlays.map(ov => html`
                         <tr>
                             <td class="ref-id">${ov.id}</td>
-                            <td class="ref-type">${ov.type || '-'}</td>
-                            <td class="ref-tags">${ov.tags?.length ? ov.tags.join(', ') : '-'}</td>
-                            <td class="ref-source">${ov.sourceCardId || '-'}</td>
+                            <td>${ov.type || '-'}</td>
+                            <td>${ov.tags?.length ? ov.tags.join(', ') : '-'}</td>
                             <td>
-                                <button
-                                    class="copy-btn"
-                                    title="Copy ID to clipboard"
-                                    @click=${() => this._copyToClipboard(ov.id)}>
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                                        <path d="${MDI_COPY}"/>
-                                    </svg>
-                                </button>
+                                <ha-icon-button .label=${'Copy ID'} title="Copy ID" @click=${() => copyTextToClipboard(ov.id)}>
+                                    <ha-icon icon="mdi:content-copy"></ha-icon>
+                                </ha-icon-button>
                             </td>
                         </tr>
                     `)}
                 </tbody>
             </table></div>
-
-            <div class="selectors-info">
-                <strong>Bulk selectors:</strong>
-                <code>all</code>: every overlay ·
-                <code>type:&lt;typename&gt;</code> ·
-                <code>tag:&lt;tagname&gt;</code> ·
-                <code>pattern:&lt;regex&gt;</code> ·
-                <code>exclude: [id, …]</code>
-            </div>
+            <p class="hint selectors">
+                Selectors: <code>all</code>, <code>type:button</code>, <code>tag:name</code>,
+                <code>pattern:regex</code>; <code>exclude: [id]</code> skips IDs.
+            </p>
         `;
     }
 }
 
 if (!customElements.get('lcards-rule-apply-editor')) customElements.define('lcards-rule-apply-editor', LCARdSRuleApplyEditor);
-

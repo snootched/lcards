@@ -12,13 +12,42 @@
  * @property {Object} hass - Home Assistant instance
  */
 
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
-import '../shared/lcards-message.js';
 import '../shared/lcards-form-section.js';
 import './lcards-rule-editor-dialog.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
+import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
+import '../yaml/lcards-yaml-editor.js';
+import { ruleSchema, pageSchemaOptions, cardTypeOf } from './rule-apply-schema.js';
+import { messageStyles } from '../../base/surface-styles.js';
+import { renderLauncher, launcherStyles } from '../shared/launcher.js';
+import { showConfirmDeleteDialog } from '../../../views/layout-edit-dialogs.js';
+import { DOCS_BASE_URL } from '../shared/docs-links.js';
+
+const RULES_DOCS_URL = `${DOCS_BASE_URL}/core/rules/`;
+
+/** Sortable table columns: [key, heading] (null key: not sortable). */
+/** What a pending rule waits for, shown in its Status cell. */
+const PENDING = {
+    new: 'New: refresh if it has no effect',
+    changed: 'Changed: refresh to apply',
+    removed: 'Removed: refresh to apply',
+};
+
+/** Same rule content, ignoring the engine's `_` keys and key order. */
+function sameRule(a, b) {
+    const canon = (v) => Array.isArray(v) ? v.map(canon)
+        : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).filter(k => !k.startsWith('_')).sort().map(k => [k, canon(v[k])]))
+        : v;
+    return JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+}
+
+const COLUMNS = [
+    ['id', 'Rule'], ['priority', 'Priority'], ['enabled', 'Status'], ['source', 'Source card'],
+    ['target', 'Target'], [null, 'Conditions'], ['actions', 'Changes'],
+];
 
 export class LCARdSRulesDashboard extends LitElement {
     static get properties() {
@@ -31,10 +60,11 @@ export class LCARdSRulesDashboard extends LitElement {
             _sortDirection: { type: String, state: true }, // 'asc' | 'desc'
             _previewDialogOpen: { type: Boolean, state: true },
             _previewRule: { type: Object, state: true },
+            _previewEditable: { type: Boolean, state: true },
+            _previewError: { type: String, state: true },
             _editDialogOpen: { type: Boolean, state: true },
             _editingRule: { type: Object, state: true },
-            _editMode: { type: String, state: true },
-            _confirmDeleteRule: { type: Object, state: true }
+            _editMode: { type: String, state: true }
         };
     }
 
@@ -50,308 +80,215 @@ export class LCARdSRulesDashboard extends LitElement {
         this.cardId = '';
         this._previewDialogOpen = false;
         this._previewRule = null;
+        this._previewEditable = false;
+        this._previewError = '';
+        this._refreshTimer = null;
         this._editDialogOpen = false;
         this._editingRule = null;
         this._editMode = 'add';
-        this._confirmDeleteRule = null;
     }
 
     static get styles() {
-        return css`
+        return [messageStyles, launcherStyles, css`
             :host {
                 display: block;
-                padding: 16px 0;
+                padding: var(--ha-space-4) 0;
             }
 
             .rules-dashboard {
                 display: flex;
                 flex-direction: column;
-                gap: 12px;
+                gap: var(--ha-space-3);
+                --lcards-section-spacing: 0;
             }
 
-            .dashboard-stats {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-                gap: 12px;
-                margin-bottom: 12px;
+            .empty {
+                margin: 0;
             }
 
-            .stat-card {
-                background: var(--card-background-color, #fff);
-                border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
-                border-radius: 12px;
-                padding: 12px;
-                text-align: center;
-            }
-
-            .stat-card.highlight {
-                border-color: var(--primary-color, #03a9f4);
-                background: var(--primary-color, #03a9f4);
-                color: white;
-            }
-
-            .stat-value {
-                font-size: 32px;
-                font-weight: bold;
-                line-height: 1;
-                margin-bottom: 8px;
-            }
-
-            .stat-label {
-                font-size: 12px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                opacity: 0.8;
-            }
-
+            /* The table on the black inset, so rows read clearly on any card background */
             .table-wrapper {
                 overflow-x: auto;
-                overflow-y: visible;
-                margin: 0 -12px;
-                padding: 0 12px;
-                mask-image: linear-gradient(
-                    to right,
-                    transparent,
-                    black 20px,
-                    black calc(100% - 20px),
-                    transparent
-                );
-                -webkit-mask-image: linear-gradient(
-                    to right,
-                    transparent,
-                    black 20px,
-                    black calc(100% - 20px),
-                    transparent
-                );
+                background: var(--primary-background-color);
+                border-radius: var(--ha-border-radius-lg);
+                padding: var(--ha-space-2) var(--ha-space-3);
+            }
+
+            .pending {
+                margin-top: 2px;
+                font-size: 11px;
+                color: var(--warning-color);
+            }
+
+            ha-dialog.rule-details {
+                --ha-dialog-width-md: min(900px, 95vw);
             }
 
             .rules-table {
                 min-width: 100%;
                 width: max-content;
                 border-collapse: collapse;
-                background: var(--card-background-color, #fff);
-                border-radius: 8px;
-                overflow: hidden;
+                font-size: 13px;
             }
 
             .rules-table th {
-                background: var(--secondary-background-color, #f5f5f5);
-                padding: 12px;
+                padding: var(--ha-space-2) var(--ha-space-3);
                 text-align: left;
                 font-weight: 600;
                 font-size: 12px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                cursor: pointer;
-                user-select: none;
-                border-bottom: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
+                color: var(--secondary-text-color);
+                border-bottom: var(--ha-border-width-md) solid var(--divider-color);
                 white-space: nowrap;
             }
 
-            .rules-table th:hover {
-                background: var(--divider-color, #e0e0e0);
+            .rules-table th.sortable {
+                cursor: pointer;
+                user-select: none;
             }
 
-            .rules-table th .sort-indicator {
-                margin-left: 4px;
+            .rules-table th.sortable:hover,
+            .rules-table th.sorted {
+                color: var(--primary-text-color);
+            }
+
+            .rules-table th ha-icon {
+                --mdc-icon-size: 14px;
+                margin-left: var(--ha-space-1);
                 opacity: 0.5;
             }
 
-            .rules-table th.sorted .sort-indicator {
+            .rules-table th.sorted ha-icon {
                 opacity: 1;
             }
 
             .rules-table td {
-                padding: 12px;
-                border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
+                padding: var(--ha-space-2) var(--ha-space-3);
+                border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
                 white-space: nowrap;
+                color: var(--primary-text-color);
             }
 
             .rules-table tr:last-child td {
                 border-bottom: none;
             }
 
-            .rules-table tr.highlight {
-                background: rgba(3, 169, 244, 0.1);
-                border-left: 4px solid var(--primary-color, #03a9f4);
+            .rules-table tbody tr:hover {
+                background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
             }
 
-            .rules-table tr:not(.highlight):hover {
-                background: var(--secondary-background-color, #f5f5f5);
+            .rules-table tr.highlight {
+                background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+                box-shadow: inset var(--ha-border-width-lg) 0 0 var(--primary-color);
+            }
+
+            .mono {
+                font-family: var(--code-font-family, monospace);
             }
 
             .rule-id {
-                font-family: monospace;
-                font-size: 13px;
                 font-weight: 600;
             }
 
-            .rule-priority {
-                font-family: monospace;
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--primary-text-color, #000);
-            }
-
-            .rule-type {
-                display: inline-block;
-                padding: 2px 8px;
-                border-radius: 4px;
+            .sub {
                 font-size: 11px;
-                font-weight: 600;
-                text-transform: uppercase;
-                background: var(--secondary-background-color, #e0e0e0);
-                color: var(--primary-text-color, #000);
+                color: var(--secondary-text-color);
             }
 
-            .rule-enabled {
+            .muted {
+                color: var(--secondary-text-color);
+            }
+
+            .status {
                 display: inline-flex;
                 align-items: center;
-                gap: 4px;
+                gap: var(--ha-space-1);
             }
 
-            .status-badge {
-                display: inline-block;
+            .status-dot {
                 width: 8px;
                 height: 8px;
-                border-radius: 50%;
+                border-radius: var(--ha-border-radius-circle);
+                background: var(--error-color);
             }
 
-            .status-badge.enabled {
-                background: #4caf50;
+            .status-dot.enabled {
+                background: var(--success-color);
             }
 
-            .status-badge.disabled {
-                background: #f44336;
+            .stop-icon {
+                --mdc-icon-size: 16px;
+                color: var(--warning-color);
+                vertical-align: middle;
+                margin-left: var(--ha-space-1);
             }
 
-            .rule-target {
-                font-family: monospace;
-                font-size: 12px;
-                color: var(--secondary-text-color, #666);
-            }
-
-            .rule-conditions {
-                font-size: 12px;
-                color: var(--secondary-text-color, #666);
-            }
-
-            .rule-actions {
-                font-size: 12px;
-                font-weight: 600;
-            }
-
-            .rule-row-actions {
+            .row-actions {
                 display: flex;
-                gap: 8px;
                 align-items: center;
                 justify-content: flex-end;
+                --ha-icon-button-size: 32px;
+                --mdc-icon-size: 18px;
+                color: var(--primary-color);
             }
 
-            .action-button {
-                background: none;
-                border: none;
-                cursor: pointer;
-                padding: 4px;
-                border-radius: 4px;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                color: var(--primary-color, #03a9f4);
-                transition: all 0.2s ease;
-                width: 32px;
-                height: 32px;
+            .row-actions .danger {
+                color: var(--error-color);
             }
 
-            .action-button:hover {
-                background: var(--primary-color, #03a9f4);
-                color: white;
+            /* Rule details dialog */
+            .details {
+                display: flex;
+                flex-direction: column;
+                gap: var(--ha-space-3);
             }
 
-            .action-button ha-icon {
-                --mdc-icon-size: 20px;
+            .details-inset {
+                background: var(--primary-background-color);
+                border-radius: var(--ha-border-radius-lg);
+                padding: var(--ha-space-2) var(--ha-space-4);
             }
 
-            .rule-preview-dialog {
-                padding: 16px;
+            .info-row {
+                display: flex;
+                justify-content: space-between;
+                gap: var(--ha-space-4);
+                padding: 6px 0;
+                border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
             }
 
-            .rule-preview-dialog h3 {
-                margin: 0 0 16px 0;
-                font-size: 18px;
-                font-weight: 600;
-            }
-
-            .rule-preview-dialog .detail-row {
-                display: grid;
-                grid-template-columns: 120px 1fr;
-                gap: 12px;
-                margin-bottom: 12px;
-                padding-bottom: 12px;
-                border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
-            }
-
-            .rule-preview-dialog .detail-row:last-child {
+            .info-row:last-child {
                 border-bottom: none;
-                margin-bottom: 0;
-                padding-bottom: 0;
             }
 
-            .rule-preview-dialog .detail-label {
-                font-weight: 600;
-                color: var(--secondary-text-color, #666);
+            .info-row .label {
+                font-weight: 500;
+                color: var(--secondary-text-color);
             }
 
-            .rule-preview-dialog .detail-value {
-                font-family: monospace;
-                font-size: 13px;
+            .info-row .value {
+                font-family: var(--code-font-family, monospace);
+                text-align: right;
+                overflow-wrap: anywhere;
             }
 
-            .help-content {
-                padding: 12px;
+            .details ha-code-editor {
+                --code-mirror-max-height: 40vh;
             }
-
-            .help-content h4 {
-                margin: 16px 0 8px 0;
-                font-size: 14px;
-                font-weight: 600;
-            }
-
-            .help-content h4:first-child {
-                margin-top: 0;
-            }
-
-            .help-content p {
-                margin: 8px 0;
-                line-height: 1.6;
-                color: var(--secondary-text-color, #666);
-            }
-
-            .help-content code {
-                background: var(--secondary-background-color, #f5f5f5);
-                padding: 2px 6px;
-                border-radius: 3px;
-                font-family: monospace;
-                font-size: 12px;
-            }
-
-            .help-content pre {
-                background: var(--secondary-background-color, #f5f5f5);
-                padding: 12px;
-                border-radius: 8px;
-                overflow-x: auto;
-                margin: 12px 0;
-            }
-
-            .help-content pre code {
-                background: none;
-                padding: 0;
-            }
-        `;
+        `];
     }
 
     connectedCallback() {
         super.connectedCallback();
+        this._loadRules();
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        clearTimeout(this._refreshTimer);
+    }
+
+    willUpdate() {
+        // The engine adds a card's new rules when the card renders its new config
         this._loadRules();
     }
 
@@ -362,12 +299,43 @@ export class LCARdSRulesDashboard extends LitElement {
     _loadRules() {
         const rulesManager = window.lcards?.core?.rulesManager;
         if (rulesManager && typeof rulesManager.getAllRules === 'function') {
-            this._rules = rulesManager.getAllRules() || [];
-            lcardsLog.debug('[RulesDashboard] Loaded rules:', this._rules.length);
+            this._rules = [...(rulesManager.getAllRules() || [])];
         } else {
             lcardsLog.warn('⚠️ [RulesDashboard] RulesManager not available or getAllRules not implemented');
             this._rules = [];
         }
+    }
+
+    /**
+     * The rules to list: the engine's, with this card's own rules taken from its
+     * config. The engine loads a card's rules once per page load (and skips IDs it
+     * already has), so an edited or removed rule stays live until a refresh: those
+     * rows carry `_pending`.
+     * @returns {Array<Object>}
+     * @private
+     */
+    _rows() {
+        // @ts-ignore - TS2339: auto-suppressed
+        const config = this.editor?.config ?? {};
+        const own = config.rules || [];
+        const ownIds = new Set(own.map(r => r.id));
+        const live = new Map(this._rules.map(r => [r.id, r]));
+        const rows = [];
+        for (const rule of this._rules) {
+            if (ownIds.has(rule.id)) continue;
+            const removed = this.cardId && rule._sourceCardId === this.cardId;
+            rows.push(removed ? { ...rule, _pending: 'removed' } : rule);
+        }
+        for (const rule of own) {
+            const running = live.get(rule.id);
+            rows.push({
+                ...rule,
+                _sourceCardId: running?._sourceCardId ?? (this.cardId || 'this card'),
+                _sourceCardType: running?._sourceCardType ?? `lcards-${cardTypeOf(config)}`,
+                _pending: !running ? 'new' : sameRule(running, rule) ? undefined : 'changed',
+            });
+        }
+        return rows;
     }
 
     /**
@@ -414,6 +382,7 @@ export class LCARdSRulesDashboard extends LitElement {
      * @returns {Boolean}
      */
     _isOwnedRule(rule) {
+        if (rule._pending === 'removed') return false;
         // @ts-ignore - TS2339: auto-suppressed
         const myRules = this.editor?.config?.rules || [];
         return myRules.some(r => r.id === rule.id);
@@ -443,33 +412,18 @@ export class LCARdSRulesDashboard extends LitElement {
     }
 
     /**
-     * Request deletion of an owned rule (shows confirmation dialog)
+     * Delete an owned rule, after an HA confirm
      * @param {Object} rule - Rule to delete
      */
-    _handleDeleteRule(rule) {
-        this._confirmDeleteRule = rule;
-    }
-
-    /**
-     * Confirm and execute deletion of the pending rule
-     * @private
-     */
-    _confirmDelete() {
-        if (!this._confirmDeleteRule) return;
-        const rule = this._confirmDeleteRule;
-        this._confirmDeleteRule = null;
+    async _handleDeleteRule(rule) {
+        const confirmed = await showConfirmDeleteDialog({
+            title: `Delete ${rule.id}?`,
+            message: "It's removed from this card's config. Cards keep its effect until the page is refreshed.",
+        });
+        if (!confirmed) return;
         // @ts-ignore - TS2339: auto-suppressed
         const currentRules = this.editor?.config?.rules || [];
-        const updatedRules = currentRules.filter(r => r.id !== rule.id);
-        this._applyRulesChange(updatedRules);
-    }
-
-    /**
-     * Cancel the pending delete
-     * @private
-     */
-    _cancelDelete() {
-        this._confirmDeleteRule = null;
+        this._applyRulesChange(currentRules.filter(r => r.id !== rule.id));
     }
 
     /**
@@ -558,6 +512,9 @@ export class LCARdSRulesDashboard extends LitElement {
         // @ts-ignore - TS2339: auto-suppressed
         fireEvent(this.editor, 'config-changed', { config: this.editor.config });
         this.requestUpdate();
+        // Look again once the card has rendered the new config (a new rule registers then)
+        clearTimeout(this._refreshTimer);
+        this._refreshTimer = setTimeout(() => this.requestUpdate(), 1000);
     }
 
     /**
@@ -748,319 +705,130 @@ export class LCARdSRulesDashboard extends LitElement {
     }
 
     /**
-     * Handle copy YAML action
-     * @param {Object} rule - Rule object
+     * The rule as YAML (a list item, ready for a card's `rules:`), without the
+     * engine's own `_` keys.
+     * @param {Object} rule
+     * @returns {string}
+     */
+    _ruleYaml(rule) {
+        const clean = Object.fromEntries(Object.entries(rule).filter(([k]) => !k.startsWith('_')));
+        return configToYaml([clean]);
+    }
+
+    /**
+     * Copy the rule's YAML to the clipboard
+     * @param {Object} rule
      * @private
      */
     _handleCopyYAML(rule) {
-        try {
-            // Convert rule object to YAML-like string
-            const yaml = this._ruleToYAML(rule);
-
-            copyTextToClipboard(yaml).then(ok => {
-                if (ok) lcardsLog.info('[RulesDashboard] Copied rule YAML to clipboard:', rule.id);
-            });
-        } catch (error) {
-            lcardsLog.error('❌ [RulesDashboard] Error copying rule YAML:', error);
-        }
+        copyTextToClipboard(this._ruleYaml(rule)).then(ok => {
+            if (ok) lcardsLog.info('[RulesDashboard] Copied rule YAML to clipboard:', rule.id);
+        });
     }
 
     /**
-     * Convert rule object to YAML format
-     * @param {Object} rule - Rule object
-     * @returns {String} YAML representation
+     * Open the rule's YAML: editable for this card's own rules, read-only otherwise
+     * @param {Object} rule
+     * @param {boolean} [editable]
      * @private
      */
-    _ruleToYAML(rule) {
-        const indent = (level) => '  '.repeat(level);
-        let yaml = '';
-
-        // Basic properties
-        yaml += `- id: ${rule.id || 'unnamed'}\n`;
-        if (rule.priority !== undefined && rule.priority !== 0) {
-            yaml += `${indent(1)}priority: ${rule.priority}\n`;
-        }
-        if (rule.enabled === false) {
-            yaml += `${indent(1)}enabled: false\n`;
-        }
-        if (rule.stop === true) {
-            yaml += `${indent(1)}stop: true\n`;
-        }
-
-        // Conditions (when)
-        if (rule.when) {
-            yaml += `${indent(1)}when:\n`;
-            yaml += this._conditionsToYAML(rule.when, 2);
-        }
-
-        // Apply section
-        if (rule.apply) {
-            yaml += `${indent(1)}apply:\n`;
-            if (rule.apply.overlays) {
-                yaml += `${indent(2)}overlays:\n`;
-                for (const [overlayId, overlayConfig] of Object.entries(rule.apply.overlays)) {
-                    yaml += `${indent(3)}${overlayId}:\n`;
-                    yaml += this._objectToYAML(overlayConfig, 4);
-                }
-            }
-        }
-
-        return yaml;
-    }
-
-    /**
-     * Convert conditions to YAML
-     * @param {Object} conditions - Conditions object
-     * @param {Number} level - Indentation level
-     * @returns {String} YAML representation
-     * @private
-     */
-    _conditionsToYAML(conditions, level) {
-        const indent = (l) => '  '.repeat(l);
-        let yaml = '';
-
-        if (conditions.all || conditions.any || conditions.not) {
-            const op = conditions.all ? 'all' : conditions.any ? 'any' : 'not';
-            yaml += `${indent(level)}${op}:\n`;
-            const condList = conditions[op];
-            if (Array.isArray(condList)) {
-                condList.forEach(cond => {
-                    yaml += `${indent(level + 1)}- `;
-                    if (cond.entity) {
-                        yaml += `entity: ${cond.entity}\n`;
-                        if (cond.state !== undefined) {
-                            yaml += `${indent(level + 2)}state: "${cond.state}"\n`;
-                        }
-                    }
-                });
-            }
-        } else if (conditions.entity) {
-            yaml += `${indent(level)}entity: ${conditions.entity}\n`;
-            if (conditions.state !== undefined) {
-                yaml += `${indent(level)}state: "${conditions.state}"\n`;
-            }
-        }
-
-        return yaml;
-    }
-
-    /**
-     * Convert object to YAML
-     * @param {Object} obj - Object to convert
-     * @param {Number} level - Indentation level
-     * @returns {String} YAML representation
-     * @private
-     */
-    _objectToYAML(obj, level) {
-        const indent = (l) => '  '.repeat(l);
-        let yaml = '';
-
-        for (const [key, value] of Object.entries(obj)) {
-            if (value === null || value === undefined) continue;
-
-            if (typeof value === 'object' && !Array.isArray(value)) {
-                yaml += `${indent(level)}${key}:\n`;
-                yaml += this._objectToYAML(value, level + 1);
-            } else if (Array.isArray(value)) {
-                yaml += `${indent(level)}${key}:\n`;
-                value.forEach(item => {
-                    if (typeof item === 'object') {
-                        yaml += `${indent(level + 1)}-\n`;
-                        yaml += this._objectToYAML(item, level + 2);
-                    } else {
-                        yaml += `${indent(level + 1)}- ${item}\n`;
-                    }
-                });
-            } else {
-                yaml += `${indent(level)}${key}: ${typeof value === 'string' ? `"${value}"` : value}\n`;
-            }
-        }
-
-        return yaml;
-    }
-
-    /**
-     * Handle preview action
-     * @param {Object} rule - Rule object
-     * @private
-     */
-    _handlePreview(rule) {
-        lcardsLog.trace('[RulesDashboard] Preview rule:', rule.id);
+    _handlePreview(rule, editable = false) {
         this._previewRule = rule;
+        this._previewEditable = editable;
+        this._previewError = '';
         this._previewDialogOpen = true;
     }
 
-    /**
-     * Close preview dialog
-     * @private
-     */
+    /** @private */
     _closePreviewDialog() {
         this._previewDialogOpen = false;
         this._previewRule = null;
+        this._previewError = '';
+    }
+
+    /**
+     * Save the rule from its YAML (a mapping, or a one-item list as copied)
+     * @private
+     */
+    _savePreviewYaml() {
+        const yamlEditor = /** @type {any} */ (this.renderRoot.querySelector('ha-dialog.rule-details lcards-yaml-editor'));
+        yamlEditor?.flush?.();
+        let rule;
+        try {
+            rule = yamlToConfig(yamlEditor?.value ?? '');
+        } catch (err) {
+            this._previewError = `YAML error: ${err.message}`;
+            return;
+        }
+        if (Array.isArray(rule)) rule = rule[0];
+        if (!rule || typeof rule !== 'object' || typeof rule.id !== 'string' || !rule.id.trim()) {
+            this._previewError = 'A rule needs an id.';
+            return;
+        }
+        // @ts-ignore - TS2339: auto-suppressed
+        const rules = [...(this.editor?.config?.rules || [])];
+        const index = rules.findIndex(r => r.id === this._previewRule.id);
+        if (rule.id !== this._previewRule.id && rules.some(r => r.id === rule.id)) {
+            this._previewError = `This card already has a rule with id ${rule.id}.`;
+            return;
+        }
+        if (index >= 0) rules[index] = rule; else rules.push(rule);
+        this._applyRulesChange(rules);
+        this._closePreviewDialog();
     }
 
     /**
      * Render rules table
      * @param {Array} rules - Rules to display
-     * @param {Boolean} highlight - Whether to highlight targeting rules
-     * @returns {TemplateResult}
+     * @param {Boolean} highlight - Whether to highlight rules targeting this card
+     * @returns {import('lit').TemplateResult}
      * @private
      */
     _renderRulesTable(rules, highlight = false) {
         const sortedRules = this._getSortedRules(rules);
+        const sortIcon = (key) => this._sortColumn !== key ? 'mdi:swap-vertical'
+            : this._sortDirection === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down';
 
         return html`
             <div class="table-wrapper">
                 <table class="rules-table">
                     <thead>
                         <tr>
-                            <th @click=${() => this._handleSort('id')}
-                                class=${this._sortColumn === 'id' ? 'sorted' : ''}>
-                                Rule ID
-                                <span class="sort-indicator">
-                                    ${this._sortColumn === 'id' ?
-                                        (this._sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
-                                </span>
-                            </th>
-                            <th @click=${() => this._handleSort('priority')}
-                                class=${this._sortColumn === 'priority' ? 'sorted' : ''}>
-                                Priority
-                                <span class="sort-indicator">
-                                    ${this._sortColumn === 'priority' ?
-                                        (this._sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
-                                </span>
-                            </th>
-                            <th @click=${() => this._handleSort('enabled')}
-                                class=${this._sortColumn === 'enabled' ? 'sorted' : ''}>
-                                Status
-                                <span class="sort-indicator">
-                                    ${this._sortColumn === 'enabled' ?
-                                        (this._sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
-                                </span>
-                            </th>
-                            <th @click=${() => this._handleSort('source')}
-                                class=${this._sortColumn === 'source' ? 'sorted' : ''}>
-                                Source Card
-                                <span class="sort-indicator">
-                                    ${this._sortColumn === 'source' ?
-                                        (this._sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
-                                </span>
-                            </th>
-                            <th @click=${() => this._handleSort('target')}
-                                class=${this._sortColumn === 'target' ? 'sorted' : ''}>
-                                Target
-                                <span class="sort-indicator">
-                                    ${this._sortColumn === 'target' ?
-                                        (this._sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
-                                </span>
-                            </th>
-                            <th>Conditions</th>
-                            <th @click=${() => this._handleSort('actions')}
-                                class=${this._sortColumn === 'actions' ? 'sorted' : ''}>
-                                Actions
-                                <span class="sort-indicator">
-                                    ${this._sortColumn === 'actions' ?
-                                        (this._sortDirection === 'asc' ? '▲' : '▼') : '⇅'}
-                                </span>
-                            </th>
-                            <th>
-                                <!-- Row Actions Column -->
-                            </th>
+                            ${COLUMNS.map(([key, label]) => key ? html`
+                                <th class="sortable ${this._sortColumn === key ? 'sorted' : ''}"
+                                    @click=${() => this._handleSort(key)}>
+                                    ${label}<ha-icon icon=${sortIcon(key)}></ha-icon>
+                                </th>
+                            ` : html`<th>${label}</th>`)}
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         ${sortedRules.map(rule => {
-                            const isTargeting = highlight && this._isTargetingCard(rule, this.cardId);
-                            const hasStop = rule.stop === true;
-                            const cardType = this._getSourceCardType(rule);
+                            const enabled = rule.enabled !== false;
+                            const changes = this._getActionsCount(rule);
                             return html`
-                                <tr class=${isTargeting ? 'highlight' : ''}>
-                                    <td><span class="rule-id">${rule.id || 'N/A'}</span></td>
+                                <tr class=${highlight && this._isTargetingCard(rule, this.cardId) ? 'highlight' : ''}>
+                                    <td class="mono rule-id">${rule.id || '-'}</td>
+                                    <td class="mono">
+                                        ${rule.priority ?? 0}
+                                        ${rule.stop === true ? html`<ha-icon class="stop-icon" icon="mdi:octagon" title="Stops lower-priority rules"></ha-icon>` : nothing}
+                                    </td>
                                     <td>
-                                        <span class="rule-priority">
-                                            ${rule.priority ?? 0}${hasStop ? ' 🛑' : ''}
+                                        <span class="status">
+                                            <span class="status-dot ${enabled ? 'enabled' : ''}"></span>
+                                            ${enabled ? 'Enabled' : 'Disabled'}
                                         </span>
+                                        ${rule._pending ? html`<div class="pending">${PENDING[rule._pending]}</div>` : nothing}
                                     </td>
                                     <td>
-                                        <span class="rule-enabled">
-                                            <span class="status-badge ${rule.enabled !== false ? 'enabled' : 'disabled'}"></span>
-                                            ${rule.enabled !== false ? 'Enabled' : 'Disabled'}
-                                        </span>
+                                        <div class="mono">${this._getSourceCard(rule)}</div>
+                                        <div class="sub">${this._getSourceCardType(rule)}</div>
                                     </td>
-                                    <td>
-                                        <div class="rule-target">
-                                            <div style="font-family: monospace; font-size: 12px;">
-                                                ${this._getSourceCard(rule)}
-                                            </div>
-                                            <div style="font-size: 11px; color: var(--secondary-text-color, #666); margin-top: 2px;">
-                                                ${cardType}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="rule-target">
-                                            ${this._getRuleTargets(rule)}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="rule-conditions">
-                                            ${this._getConditionSummary(rule)}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="rule-actions">
-                                            ${this._getActionsCount(rule)} action${this._getActionsCount(rule) !== 1 ? 's' : ''}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="rule-row-actions">
-                                            <button
-                                                class="action-button"
-                                                @click=${() => this._handlePreview(rule)}
-                                                title="Preview rule details">
-                                                <ha-icon icon="mdi:eye"></ha-icon>
-                                            </button>
-                                            <button
-                                                class="action-button"
-                                                @click=${() => this._handleCopyYAML(rule)}
-                                                title="Copy rule YAML to clipboard">
-                                                <ha-icon icon="mdi:content-copy"></ha-icon>
-                                            </button>
-                                            ${this._isOwnedRule(rule) ? html`
-                                                <button
-                                                    class="action-button"
-                                                    @click=${() => this._handleEditRule(rule)}
-                                                    title="Edit rule">
-                                                    <ha-icon icon="mdi:pencil"></ha-icon>
-                                                </button>
-                                                <button
-                                                    class="action-button"
-                                                    @click=${() => this._handleToggleRule(rule)}
-                                                    title="${rule.enabled !== false ? 'Disable rule' : 'Enable rule'}">
-                                                    <ha-icon icon="${rule.enabled !== false ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'}"></ha-icon>
-                                                </button>
-                                                <button
-                                                    class="action-button"
-                                                    @click=${() => this._handleMoveUp(rule)}
-                                                    title="Move up">
-                                                    <ha-icon icon="mdi:arrow-up"></ha-icon>
-                                                </button>
-                                                <button
-                                                    class="action-button"
-                                                    @click=${() => this._handleMoveDown(rule)}
-                                                    title="Move down">
-                                                    <ha-icon icon="mdi:arrow-down"></ha-icon>
-                                                </button>
-                                                <button
-                                                    class="action-button"
-                                                    style="color: var(--error-color, #f44336);"
-                                                    @click=${() => this._handleDeleteRule(rule)}
-                                                    title="Delete rule">
-                                                    <ha-icon icon="mdi:delete"></ha-icon>
-                                                </button>
-                                            ` : ''}
-                                        </div>
-                                    </td>
+                                    <td class="mono muted">${this._getRuleTargets(rule)}</td>
+                                    <td class="muted">${this._getConditionSummary(rule)}</td>
+                                    <td>${changes}</td>
+                                    <td>${this._renderRowActions(rule, enabled)}</td>
                                 </tr>
                             `;
                         })}
@@ -1071,223 +839,146 @@ export class LCARdSRulesDashboard extends LitElement {
     }
 
     /**
-     * Render preview dialog
-     * @returns {TemplateResult}
+     * A row's buttons: details and copy for every rule; edit, toggle, move and
+     * delete for the rules in this card's config.
+     * @private
+     */
+    _renderRowActions(rule, enabled) {
+        const button = (label, icon, onClick, cls = '') => html`
+            <ha-icon-button class=${cls} .label=${label} title=${label} @click=${onClick}>
+                <ha-icon icon=${icon}></ha-icon>
+            </ha-icon-button>
+        `;
+        return html`
+            <div class="row-actions">
+                ${this._isOwnedRule(rule)
+                    ? button('Edit as YAML', 'mdi:code-braces', () => this._handlePreview(rule, true))
+                    : button('View rule', 'mdi:eye', () => this._handlePreview(rule))}
+                ${button('Copy rule YAML', 'mdi:content-copy', () => this._handleCopyYAML(rule))}
+                ${this._isOwnedRule(rule) ? html`
+                    ${button('Edit rule', 'mdi:pencil', () => this._handleEditRule(rule))}
+                    ${button(enabled ? 'Disable rule' : 'Enable rule', enabled ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off', () => this._handleToggleRule(rule))}
+                    ${button('Move up', 'mdi:arrow-up', () => this._handleMoveUp(rule))}
+                    ${button('Move down', 'mdi:arrow-down', () => this._handleMoveDown(rule))}
+                    ${button('Delete rule', 'mdi:delete', () => this._handleDeleteRule(rule), 'danger')}
+                ` : nothing}
+            </div>
+        `;
+    }
+
+    /**
+     * The rule dialog: a summary and the rule's YAML (editable for this card's rules)
      * @private
      */
     _renderPreviewDialog() {
-        // @ts-ignore - TS2322: auto-suppressed
-        if (!this._previewRule) return '';
+        if (!this._previewRule) return nothing;
 
         const rule = this._previewRule;
-        const targets = this._getRuleTargets(rule);
-        const conditions = this._getConditionSummary(rule);
-        const actions = this._getActionsCount(rule);
+        const editable = this._previewEditable;
+        const changes = this._getActionsCount(rule);
+        const clean = Object.fromEntries(Object.entries(rule).filter(([k]) => !k.startsWith('_')));
+        const rows = [
+            ['Source card', `${this._getSourceCard(rule)} (${this._getSourceCardType(rule)})`],
+            ['Target', this._getRuleTargets(rule)],
+            ['Conditions', this._getConditionSummary(rule)],
+            ['Changes', `${changes} change${changes !== 1 ? 's' : ''}`],
+        ];
 
         return html`
             <ha-dialog
+                class="rule-details"
                 .open=${this._previewDialogOpen}
-                @closed=${(e) => { e.stopPropagation(); this._closePreviewDialog(); }}
-                header-title="Rule Details">
-                <div class="rule-preview-dialog">
-                    <h3>${rule.id || 'Unnamed Rule'}</h3>
-
-                    <div class="detail-row">
-                        <div class="detail-label">Rule ID:</div>
-                        <div class="detail-value">${rule.id || 'N/A'}</div>
+                ?prevent-scrim-close=${editable}
+                @closed=${(e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._closePreviewDialog(); }}
+                header-title=${editable ? `Edit ${rule.id} as YAML` : (rule.id || 'Rule')}>
+                <div class="details">
+                    <div class="details-inset">
+                        ${rows.map(([label, value]) => html`
+                            <div class="info-row"><span class="label">${label}</span><span class="value">${value}</span></div>
+                        `)}
                     </div>
-
-                    <div class="detail-row">
-                        <div class="detail-label">Priority:</div>
-                        <div class="detail-value">${rule.priority ?? 0}${rule.stop ? ' (stops execution)' : ''}</div>
-                    </div>
-
-                    <div class="detail-row">
-                        <div class="detail-label">Status:</div>
-                        <div class="detail-value">${rule.enabled !== false ? 'Enabled' : 'Disabled'}</div>
-                    </div>
-
-                    <div class="detail-row">
-                        <div class="detail-label">Source Card:</div>
-                        <div class="detail-value">${this._getSourceCard(rule)} (${this._getSourceCardType(rule)})</div>
-                    </div>
-
-                    <div class="detail-row">
-                        <div class="detail-label">Target:</div>
-                        <div class="detail-value">${targets}</div>
-                    </div>
-
-                    <div class="detail-row">
-                        <div class="detail-label">Conditions:</div>
-                        <div class="detail-value">${conditions}</div>
-                    </div>
-
-                    <div class="detail-row">
-                        <div class="detail-label">Actions:</div>
-                        <div class="detail-value">${actions} action${actions !== 1 ? 's' : ''}</div>
-                    </div>
+                    ${editable ? html`<p class="hint">The whole rule: id, when, apply, priority, ... Ctrl+Space lists what can go next.</p>` : nothing}
+                    <lcards-yaml-editor
+                        .hass=${this.hass}
+                        .schema=${ruleSchema(pageSchemaOptions(this.editor))}
+                        .value=${configToYaml(clean)}
+                        .readOnly=${!editable}>
+                    </lcards-yaml-editor>
+                    ${this._previewError ? html`<div class="banner error">${this._previewError}</div>` : nothing}
                 </div>
                 <div slot="footer">
-                    <ha-button
-                        variant="brand"
-                        appearance="accent"
-                        @click=${this._closePreviewDialog}
-                        data-dialog="close">
-                        Close
+                    <ha-button appearance="plain" @click=${() => this._handleCopyYAML(rule)}>
+                        <ha-icon icon="mdi:content-copy" slot="start"></ha-icon>
+                        Copy YAML
                     </ha-button>
+                    ${editable ? html`
+                        <ha-button appearance="plain" data-dialog="close">Cancel</ha-button>
+                        <ha-button variant="brand" @click=${() => this._savePreviewYaml()}>
+                            <ha-icon icon="mdi:check" slot="start"></ha-icon>
+                            Save
+                        </ha-button>
+                    ` : html`<ha-button appearance="plain" data-dialog="close">Close</ha-button>`}
                 </div>
             </ha-dialog>
         `;
     }
 
     render() {
-        const myRules = this._rules.filter(r => this._isTargetingCard(r, this.cardId));
-        const totalEnabled = this._rules.filter(r => r.enabled !== false).length;
+        const rows = this._rows();
+        const myRules = rows.filter(r => r._pending !== 'removed' && this._isTargetingCard(r, this.cardId));
+        const active = rows.filter(r => r._pending !== 'removed');
+        const totalEnabled = active.filter(r => r.enabled !== false).length;
 
         return html`
             <div class="rules-dashboard">
-                <lcards-message type="info" class="refresh-notice">
-                    New rules apply right away. Changes to an existing rule, or removing one,
-                    apply after a page refresh.
-                </lcards-message>
+                ${renderLauncher({
+                    icon: 'mdi:format-list-checks',
+                    title: 'Rules',
+                    description: "Rules change cards' settings while their conditions are met, on any card on the page.",
+                    stats: [
+                        { value: myRules.length, label: 'targeting this card' },
+                        { value: active.length, label: 'on this page' },
+                        { value: totalEnabled, label: 'enabled' },
+                    ],
+                    actions: [
+                        { label: 'Add rule', icon: 'mdi:plus', onClick: () => this._handleAddRule() },
+                        { label: 'Rules guide', icon: 'mdi:book-open-variant', onClick: () => window.open(RULES_DOCS_URL, '_blank', 'noopener') },
+                    ],
+                })}
 
-                <!-- Stats Header -->
-                <div class="dashboard-stats">
-                    <div class="stat-card">
-                        <div class="stat-value">${this._rules.length}</div>
-                        <div class="stat-label">Total Rules</div>
-                    </div>
-                    <div class="stat-card highlight">
-                        <div class="stat-value">${myRules.length}</div>
-                        <div class="stat-label">Targeting This Card</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${totalEnabled}</div>
-                        <div class="stat-label">Enabled</div>
-                    </div>
+                <div class="banner info refresh-notice">
+                    <ha-icon icon="mdi:information-outline"></ha-icon>
+                    New rules apply right away. Changes to an existing rule, or removing one, apply after a page refresh.
                 </div>
 
-                <!-- This Card's Rules -->
-                ${myRules.length > 0 ? html`
-                    <lcards-form-section
-                        header="Rules Targeting This Card"
-                        description="Rules that specifically affect this card (highlighted in table below)"
-                        icon="mdi:target"
-                        ?expanded=${true}>
-                        ${this._renderRulesTable(myRules, true)}
-                        <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
-                            <ha-button
-                                variant="brand"
-                                appearance="accent"
-                                @click=${this._handleAddRule}>
-                                <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
-                                Add Rule
-                            </ha-button>
-                        </div>
-                    </lcards-form-section>
-                ` : html`
-                    <lcards-message
-                        type="info"
-                        message="No rules currently target this card.">
-                    </lcards-message>
-                    <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
-                        <ha-button
-                            variant="brand"
-                            appearance="accent"
-                            @click=${this._handleAddRule}>
-                            <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
-                            Add Rule
-                        </ha-button>
-                    </div>
-                `}
-
-                <!-- All Rules in System -->
                 <lcards-form-section
-                    header="All Rules in System"
-                    description="Complete list of all rules registered in the rules engine (rules targeting this card are highlighted)"
-                    icon="mdi:code-braces"
-                    ?expanded=${false}>
-                    ${this._rules.length > 0 ?
-                        this._renderRulesTable(this._rules, true) :
-                        html`<lcards-message type="info" message="No rules found in system."></lcards-message>`
-                    }
+                    header="Rules targeting this card"
+                    icon="mdi:target"
+                    ?expanded=${true}>
+                    ${myRules.length > 0
+                        ? this._renderRulesTable(myRules)
+                        : html`<p class="hint empty">No rules target this card. Add one above, or write them on the YAML tab.</p>`}
                 </lcards-form-section>
 
-                <!-- Help Section -->
                 <lcards-form-section
-                    header="About Rules"
-                    icon="mdi:help-circle"
+                    header="All rules on this page"
+                    description="Rules that target this card are highlighted."
+                    icon="mdi:format-list-bulleted"
                     ?expanded=${false}>
-                    <div class="help-content">
-                        <h4>What are Rules?</h4>
-                        <p>
-                            Rules enable dynamic card behavior based on entity states, time conditions,
-                            and other criteria. When a rule's conditions are met, it applies configuration
-                            patches to modify any aspect of the card (text, style, icons, etc.).
-                        </p>
-
-                        <h4>How to Add Rules</h4>
-                        <p>
-                            Rules are configured in YAML. Add a <code>rules</code> section to your card configuration:
-                        </p>
-                        <pre><code>type: custom:lcards-button
-id: my_button
-entity: light.living_room
-rules:
-  - id: light_on_rule
-    priority: 100
-    when:
-      entity: light.living_room
-      state: "on"
-    apply:
-      overlays:
-        my_button:
-          text:
-            label: "Light ON"
-          style:
-            card:
-              color:
-                background:
-                  active: "var(--lcars-green)"</code></pre>
-
-                        <h4>Rule Structure</h4>
-                        <p>
-                            <code>id</code> - Unique identifier<br>
-                            <code>priority</code> - Higher values execute first (default: 0)<br>
-                            <code>stop</code> - Stop evaluating lower priority rules (default: false)<br>
-                            <code>enabled</code> - Enable/disable rule (default: true)<br>
-                            <code>when</code> - Conditions to check (entity states, time, etc.)<br>
-                            <code>apply.overlays</code> - Configuration patches to apply (can patch any config property)
-                        </p>
-
-                        <h4>What Can Rules Patch?</h4>
-                        <p>
-                            Rules can modify <strong>any configuration property</strong>, including:<br>
-                            • <code>text</code> - Labels, values, units<br>
-                            • <code>style</code> - Colors, sizes, borders<br>
-                            • <code>icon</code> - Icon name, color, size<br>
-                            • <code>dpad</code> - D-pad configuration<br>
-                            • Any other card configuration property
-                        </p>
-
-                        <h4>Editing Rules</h4>
-                        <p>
-                            Use the <strong>Add Rule</strong> button to create rules visually,
-                            or edit your card's YAML configuration directly.
-                        </p>
-                    </div>
+                    ${rows.length > 0
+                        ? this._renderRulesTable(rows, true)
+                        : html`<p class="hint empty">No rules are registered on this page.</p>`}
                 </lcards-form-section>
             </div>
 
             ${this._renderPreviewDialog()}
             ${this._renderEditDialog()}
-            ${this._renderConfirmDeleteDialog()}
         `;
     }
 
     /**
      * Render the rule editor dialog
-     * @returns {TemplateResult}
+     * @returns {import('lit').TemplateResult}
      * @private
      */
     _renderEditDialog() {
@@ -1301,39 +992,6 @@ rules:
                 @save=${this._handleRuleSave}
                 @cancel=${this._handleRuleDialogClose}>
             </lcards-rule-editor-dialog>
-        `;
-    }
-
-    /**
-     * Render the delete confirmation dialog
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderConfirmDeleteDialog() {
-        if (!this._confirmDeleteRule) return html``;
-        const rule = this._confirmDeleteRule;
-        return html`
-            <ha-dialog
-                .open=${true}
-                @closed=${(e) => { e.stopPropagation(); this._cancelDelete(); }}
-                header-title="Delete Rule?">
-                <div style="padding: 8px 0;">
-                    <p>Are you sure you want to delete rule <strong>${rule.id}</strong>?</p>
-                    <p style="color: var(--secondary-text-color, #666); font-size: 13px;">This action cannot be undone.</p>
-                </div>
-                <div slot="footer">
-                    <ha-button
-                        appearance="plain"
-                        @click=${this._cancelDelete}>
-                        Cancel
-                    </ha-button>
-                    <ha-button
-                        variant="danger"
-                        @click=${this._confirmDelete}>
-                        Delete
-                    </ha-button>
-                </div>
-            </ha-dialog>
         `;
     }
 }

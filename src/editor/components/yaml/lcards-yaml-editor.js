@@ -962,14 +962,29 @@ export class LCARdSYamlEditor extends LitElement {
             clearTimeout(this._changeDebounceTimer);
         }
 
-        this._changeDebounceTimer = setTimeout(() => {
-            this.value = newValue; // Only update value when we're ready to notify parent
-            this.dispatchEvent(new CustomEvent('value-changed', {
-                detail: { value: newValue },
-                bubbles: true,
-                composed: true
-            }));
-        }, 1500); // Wait 1.5 seconds after last keystroke before notifying parent
+        this._changeDebounceTimer = setTimeout(() => this._emitChange(), 1500); // Wait 1.5 seconds after last keystroke before notifying parent
+    }
+
+    /** @private */
+    _emitChange() {
+        this._changeDebounceTimer = null;
+        const newValue = this._editorView?.state.doc.toString() ?? this.value;
+        this.value = newValue; // Only update value when we're ready to notify parent
+        this.dispatchEvent(new CustomEvent('value-changed', {
+            detail: { value: newValue },
+            bubbles: true,
+            composed: true
+        }));
+    }
+
+    /**
+     * Fire a change that is still waiting for the typing pause, now. Call it
+     * before reading the value to save, or the last 1.5 s of typing is lost.
+     */
+    flush() {
+        if (!this._changeDebounceTimer) return;
+        clearTimeout(this._changeDebounceTimer);
+        this._emitChange();
     }
 
     /**
