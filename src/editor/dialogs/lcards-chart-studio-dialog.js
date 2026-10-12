@@ -489,53 +489,11 @@ export class LCARdSChartStudioDialog extends LitElement {
                 width: 100%;
             }
 
-            /* DataSource Editor Overlay */
-            .datasource-editor-overlay {
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 1000;
-                backdrop-filter: blur(2px);
-            }
-
-            .datasource-editor-panel {
-                width: 90%;
-                max-width: 900px;
-                height: 80%;
-                background: var(--card-background-color);
-                border-radius: 12px;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            }
-
-            .datasource-editor-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 16px 20px;
-                border-bottom: 1px solid var(--divider-color);
-                background: var(--secondary-background-color);
-            }
-
-            .datasource-editor-header h3 {
-                margin: 0;
-                font-size: 18px;
-                font-weight: 600;
-                color: var(--primary-text-color);
-            }
-
-            .datasource-editor-content {
-                flex: 1;
-                overflow-y: auto;
-                padding: 0;
+            /* Data sources dialog: sized to its content, not the studio's 90vh */
+            ha-dialog.datasources-dialog {
+                --ha-dialog-width-md: min(900px, 95vw);
+                --ha-dialog-min-height: auto;
+                --ha-dialog-max-height: 85vh;
             }
             `
         ];
@@ -1940,26 +1898,21 @@ yaxis:
                         </div>
                     </div>
 
-                    <!-- DataSource Editor Overlay -->
+                    <!-- Data sources: the Main Engineering tab, in its own dialog -->
                     ${this._showDataSourceEditor ? html`
-                        <div class="datasource-editor-overlay">
-                            <div class="datasource-editor-panel">
-                                <div class="datasource-editor-header">
-                                    <h3>Data sources</h3>
-                                    <ha-icon-button
-                                        .label=${'Close'}
-                                        @click=${this._closeDataSourceEditor}>
-                                        <ha-icon icon="mdi:close"></ha-icon>
-                                    </ha-icon-button>
-                                </div>
-                                <div class="datasource-editor-content">
-                                    <lcards-datasource-editor-tab
-                                        .editor=${this._dataSourceHost}
-                                        .hass=${this.hass}>
-                                    </lcards-datasource-editor-tab>
-                                </div>
+                        <ha-dialog
+                            open
+                            class="datasources-dialog"
+                            header-title="Data sources"
+                            @closed=${(e) => { e.stopPropagation(); this._closeDataSourceEditor(); }}>
+                            <lcards-datasource-editor-tab
+                                .editor=${this._dataSourceHost}
+                                .hass=${this.hass}>
+                            </lcards-datasource-editor-tab>
+                            <div slot="footer">
+                                <ha-button appearance="plain" data-dialog="close">Close</ha-button>
                             </div>
-                        </div>
+                        </ha-dialog>
                     ` : ''}
                 </div>
 

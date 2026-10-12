@@ -184,6 +184,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
+                flexcontent
                 @closed=${this._handleDialogClosed}
                 header-title=${this.mode === 'add' ? 'Add Data Source' : `Edit Data Source: ${this.sourceName}`}>
 

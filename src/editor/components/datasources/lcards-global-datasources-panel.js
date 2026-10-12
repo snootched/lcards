@@ -4,7 +4,6 @@
  * Read-only display of all datasources in the DataSourceManager singleton.
  * Shows: which cards use each source, auto-created vs configured, live stats.
  *
- * Similar to Rules Dashboard pattern.
  *
  * @element lcards-global-datasources-panel
  * @property {Object} hass - Home Assistant instance
@@ -13,6 +12,9 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import '../shared/lcards-message.js';
+import '../shared/lcards-form-section.js';
+import { messageStyles } from '../../base/surface-styles.js';
+import { datasourceItemStyles } from './datasource-item-styles.js';
 
 export class LCARdSGlobalDataSourcesPanel extends LitElement {
   static get properties() {
@@ -29,137 +31,15 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
   }
 
   static get styles() {
-    return css`
+    return [messageStyles, datasourceItemStyles, css`
       :host {
         display: block;
       }
 
-      .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 48px 24px;
-        text-align: center;
-        color: var(--secondary-text-color, #727272);
+      .intro {
+        margin: var(--ha-space-3) 0;
       }
-
-      .empty-state ha-icon {
-        --mdc-icon-size: 64px;
-        color: var(--disabled-text-color, #9e9e9e);
-        margin-bottom: 12px;
-      }
-
-      .empty-state p {
-        margin: 8px 0;
-      }
-
-      .empty-state .helper-text {
-        font-size: 14px;
-        max-width: 400px;
-      }
-
-      .info-header {
-        margin-bottom: 12px;
-      }
-
-      .sources-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 12px;
-      }
-
-      .source-card {
-        background: var(--chip-background-color, var(--card-background-color, #fff));
-        border: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
-        border-radius: var(--ha-border-radius-lg);
-        padding: 16px;
-        transition: all 0.2s;
-      }
-
-      .source-card:hover {
-        box-shadow: var(--ha-box-shadow-m);
-      }
-
-      .source-card.auto-created {
-        border-left: 4px solid var(--warning-color, #ff9800);
-        background: color-mix(in srgb, var(--warning-color, #ff9800) 5%, transparent);
-      }
-
-      .source-card.configured {
-        border-left: 4px solid var(--success-color, #4caf50);
-      }
-
-      .source-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 12px;
-        padding-bottom: 8px;
-        border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
-      }
-
-      .source-header ha-icon {
-        --mdc-icon-size: 20px;
-        color: var(--primary-color, #03a9f4);
-      }
-
-      .source-name {
-        font-weight: 600;
-        font-size: 16px;
-        flex: 1;
-      }
-
-      .badge {
-        padding: 2px 8px;
-        border-radius: var(--ha-border-radius-sm);
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: uppercase;
-      }
-
-      .badge.auto-created {
-        background: var(--warning-color, #ff9800);
-        color: white;
-      }
-
-      .source-details {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .detail-row {
-        display: flex;
-        justify-content: space-between;
-        font-size: 14px;
-      }
-
-      .detail-row .label {
-        color: var(--secondary-text-color, #727272);
-      }
-
-      .detail-row .value {
-        color: var(--primary-text-color, #212121);
-        font-weight: 500;
-      }
-
-      .card-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        margin-top: 4px;
-      }
-
-      .card-chip {
-        background: var(--primary-color, #03a9f4);
-        color: white;
-        padding: 2px 8px;
-        border-radius: var(--ha-border-radius-lg);
-        font-size: 11px;
-        font-weight: 500;
-      }
-    `;
+    `];
   }
 
   connectedCallback() {
@@ -194,36 +74,26 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
   render() {
     if (!this._stats) {
       return html`
-        <lcards-message
-          type="warning"
-          message="DataSourceManager not available. Datasources only work with cards that initialize the singleton.">
+        <lcards-message type="warning"
+          message="The data source manager isn't running yet: it starts with the first LCARdS card on the page.">
         </lcards-message>
       `;
     }
 
     const sources = Object.entries(this._stats.sources || {});
-
     if (sources.length === 0) {
       return html`
         <div class="empty-state">
-          <ha-icon icon="mdi:database-off"></ha-icon>
-          <p>No global data sources registered.</p>
-          <p class="helper-text">
-            Data sources appear here when cards create them.
-          </p>
+          <ha-icon icon="mdi:database-off-outline"></ha-icon>
+          <p>No data sources are running on this page.</p>
+          <p class="hint">They appear here when cards create them.</p>
         </div>
       `;
     }
 
     return html`
-      <div class="info-header">
-        <lcards-message
-          type="info"
-          message="These datasources exist across ALL cards in this dashboard. They are managed by the global DataSourceManager singleton.">
-        </lcards-message>
-      </div>
-
-      <div class="sources-grid">
+      <p class="hint intro">Every data source running on this page, shared by all its cards. Read-only; updates every few seconds.</p>
+      <div class="datasources-list">
         ${sources.map(([name, stats]) => this._renderGlobalSource(name, stats))}
       </div>
     `;
@@ -232,82 +102,59 @@ export class LCARdSGlobalDataSourcesPanel extends LitElement {
   _renderGlobalSource(name, stats) {
     const isAutoCreated = stats.autoCreated || false;
     const usedByCards = stats.usedByCards || [];
-    const cardCount = usedByCards.length;
-    const entity = stats.config?.entity || 'N/A';
-    const windowSeconds = stats.config?.windowSeconds || 60;
     const bufferSize = stats.buffer?.size || 0;
     const processorCount = stats.processors?.size || 0;
 
     return html`
-      <div class="source-card ${isAutoCreated ? 'auto-created' : 'configured'}">
-        <div class="source-header">
-          <ha-icon icon="${isAutoCreated ? 'mdi:reload-alert' : 'mdi:cog'}"></ha-icon>
-          <span class="source-name">${name}</span>
-          ${isAutoCreated ? html`
-            <span class="badge auto-created">AUTO-CREATED</span>
-          ` : ''}
-        </div>
-
-        <div class="source-details">
-          <!-- Entity Info -->
-          <div class="detail-row">
-            <span class="label">Entity:</span>
-            <span class="value" style="font-family: monospace; font-size: 0.9em;">${entity}</span>
+      <lcards-form-section
+        header=${name}
+        secondary=${stats.config?.entity || '-'}
+        icon=${isAutoCreated ? 'mdi:auto-fix' : 'mdi:database'}
+        ?outlined=${true}
+        headerLevel="4">
+        <div class="datasource-details">
+          <div class="info-row">
+            <span class="label">Created</span>
+            <span class="chips"><span class="chip ${isAutoCreated ? 'auto' : ''}">${isAutoCreated ? 'automatically (from a template or chart)' : 'from a card config'}</span></span>
           </div>
-
-          <div class="detail-row">
-            <span class="label">Window:</span>
-            <span class="value">${windowSeconds}s</span>
+          <div class="info-row">
+            <span class="label">Entity</span>
+            <span class="value">${stats.config?.entity || '-'}</span>
           </div>
-
-          <!-- Processors -->
+          <div class="info-row">
+            <span class="label">Window</span>
+            <span class="value">${stats.config?.windowSeconds || 60}s</span>
+          </div>
           ${processorCount > 0 ? html`
-            <div class="detail-row">
-              <span class="label">
-                <ha-icon icon="mdi:function-variant" style="--mdc-icon-size: 16px; vertical-align: middle;"></ha-icon>
-                Processors:
-              </span>
-              <span class="value" style="color: var(--primary-color); font-weight: 500;">${processorCount}</span>
+            <div class="info-row">
+              <span class="label">Processors</span>
+              <span class="value">${processorCount}</span>
             </div>
           ` : ''}
-
-          <!-- Buffer Status -->
-          ${bufferSize > 0 ? html`
-            <div class="detail-row">
-              <span class="label">Buffer:</span>
-              <span class="value">${bufferSize} points</span>
-            </div>
-          ` : ''}
-
-          <!-- Usage Info -->
-          <div class="detail-row">
-            <span class="label">Used by:</span>
-            <span class="value">${cardCount} card${cardCount !== 1 ? 's' : ''}</span>
+          <div class="info-row">
+            <span class="label">Buffer</span>
+            <span class="value">${bufferSize} points</span>
           </div>
-
-          ${usedByCards.length > 0 ? html`
-            <div class="card-list">
-              ${usedByCards.map(cardId => html`
-                <span class="card-chip">${cardId}</span>
-              `)}
-            </div>
-          ` : ''}
-
+          <div class="info-row">
+            <span class="label">Used by</span>
+            ${usedByCards.length
+              ? html`<span class="chips">${usedByCards.map(cardId => html`<span class="chip">${cardId}</span>`)}</span>`
+              : html`<span class="value">no cards</span>`}
+          </div>
           ${stats.sourceCard ? html`
-            <div class="detail-row">
-              <span class="label">Source card:</span>
+            <div class="info-row">
+              <span class="label">Defined in</span>
               <span class="value">${stats.sourceCard}</span>
             </div>
           ` : ''}
-
           ${stats.lastUpdate ? html`
-            <div class="detail-row">
-              <span class="label">Last update:</span>
+            <div class="info-row">
+              <span class="label">Last update</span>
               <span class="value">${this._formatTimestamp(stats.lastUpdate)}</span>
             </div>
           ` : ''}
         </div>
-      </div>
+      </lcards-form-section>
     `;
   }
 

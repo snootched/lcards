@@ -8,6 +8,7 @@
 import { LitElement, html, css } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
 import { editorStyles } from './editor-styles.js';
+import { messageStyles } from './surface-styles.js';
 import { configToYaml, yamlToConfig, validateYaml } from '../utils/yaml-utils.js';
 import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -53,7 +54,15 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     static get styles() {
-        return [editorStyles];
+        return [editorStyles, messageStyles, css`
+            .main-engineering-hint {
+                margin: 0 0 var(--ha-space-2);
+            }
+            ha-tab-group-tab ha-icon {
+                --mdc-icon-size: 18px;
+                margin-right: var(--ha-space-2);
+            }
+        `];
     }
 
     /**
@@ -1335,24 +1344,28 @@ export class LCARdSBaseEditor extends LitElement {
      * @protected
      */
     _renderDeveloperTab() {
+        const active = this._developerSubTab || 0;
+        const tabs = [
+            { icon: 'mdi:database', label: 'Data Sources', render: () => this._renderDataSourcesTab() },
+            { icon: 'mdi:format-list-checks', label: 'Rules', render: () => this._renderRulesTab() },
+            { icon: 'mdi:palette-swatch', label: 'Theme Browser', render: () => this._renderThemeTokensTab() },
+            { icon: 'mdi:layers-search', label: 'Provenance', render: () => this._renderProvenanceTab() },
+            { icon: 'mdi:code-braces-box', label: 'Templates', render: () => this._renderTemplatesTab() },
+        ];
         return html`
-            <lcards-message
-                type="info"
-                message="Access and manage core LCARdS systems:\nData Sources\nrules, templates, theme tokens, and provenance tracking.">
-            </lcards-message>
+            <p class="hint main-engineering-hint">
+                This card's data sources, rules, theme tokens, templates, and where each setting comes from.
+            </p>
 
             <ha-tab-group @wa-tab-show=${this._handleDeveloperSubTabChange}>
-                <ha-tab-group-tab value="0" ?active=${(this._developerSubTab || 0) === 0}>Data Sources</ha-tab-group-tab>
-                <ha-tab-group-tab value="1" ?active=${(this._developerSubTab || 0) === 1}>Rules</ha-tab-group-tab>
-                <ha-tab-group-tab value="2" ?active=${(this._developerSubTab || 0) === 2}>Theme Browser</ha-tab-group-tab>
-                <ha-tab-group-tab value="3" ?active=${(this._developerSubTab || 0) === 3}>Provenance</ha-tab-group-tab>
-                <ha-tab-group-tab value="4" ?active=${(this._developerSubTab || 0) === 4}>Templates</ha-tab-group-tab>
-
-                <div class="tab-panel" ?hidden=${(this._developerSubTab || 0) !== 0}>${this._renderDataSourcesTab()}</div>
-                <div class="tab-panel" ?hidden=${(this._developerSubTab || 0) !== 1}>${this._renderRulesTab()}</div>
-                <div class="tab-panel" ?hidden=${(this._developerSubTab || 0) !== 2}>${this._renderThemeTokensTab()}</div>
-                <div class="tab-panel" ?hidden=${(this._developerSubTab || 0) !== 3}>${this._renderProvenanceTab()}</div>
-                <div class="tab-panel" ?hidden=${(this._developerSubTab || 0) !== 4}>${this._renderTemplatesTab()}</div>
+                ${tabs.map((tab, i) => html`
+                    <ha-tab-group-tab value=${String(i)} ?active=${active === i}>
+                        <ha-icon icon=${tab.icon}></ha-icon>
+                        ${tab.label}
+                    </ha-tab-group-tab>
+                `)}
+                <!-- Only the active sub-tab is rendered (the others would poll and load for nothing). -->
+                <div class="tab-panel">${tabs[active]?.render()}</div>
             </ha-tab-group>
         `;
     }

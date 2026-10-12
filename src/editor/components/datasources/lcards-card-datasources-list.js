@@ -12,6 +12,8 @@
 
 import { LitElement, html, css } from 'lit';
 import '../shared/lcards-form-section.js';
+import { messageStyles } from '../../base/surface-styles.js';
+import { datasourceItemStyles } from './datasource-item-styles.js';
 import { historySettings } from '../../../core/data-sources/history-fetch.js';
 
 export class LCARdSCardDataSourcesList extends LitElement {
@@ -30,73 +32,11 @@ export class LCARdSCardDataSourcesList extends LitElement {
   }
 
   static get styles() {
-    return css`
+    return [messageStyles, datasourceItemStyles, css`
       :host {
         display: block;
       }
-
-      .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 48px 24px;
-        text-align: center;
-        color: var(--secondary-text-color, #727272);
-      }
-
-      .empty-state ha-icon {
-        --mdc-icon-size: 64px;
-        color: var(--disabled-text-color, #9e9e9e);
-        margin-bottom: 12px;
-      }
-
-      .empty-state p {
-        margin: 8px 0;
-      }
-
-      .empty-state .helper-text {
-        font-size: 14px;
-        max-width: 400px;
-      }
-
-      .datasources-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      .datasource-details {
-        padding: 8px;
-      }
-
-      .info-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 6px 0;
-        border-bottom: var(--ha-border-width-sm) solid var(--divider-color, #e0e0e0);
-      }
-
-      .info-row:last-of-type {
-        border-bottom: none;
-      }
-
-      .info-row .label {
-        font-weight: 500;
-        color: var(--secondary-text-color, #727272);
-      }
-
-      .info-row .value {
-        color: var(--primary-text-color, #212121);
-        font-family: monospace;
-      }
-
-      .action-buttons {
-        display: flex;
-        gap: 8px;
-        margin-top: 12px;
-      }
-    `;
+    `];
   }
 
   render() {
@@ -108,11 +48,8 @@ export class LCARdSCardDataSourcesList extends LitElement {
       return html`
         <div class="empty-state">
           <ha-icon icon="mdi:database-off-outline"></ha-icon>
-          <p>No data sources configured for this card.</p>
-          <p class="helper-text">
-            Click "+ Add Source" to create a new data source,
-            or edit the YAML tab to configure data sources manually.
-          </p>
+          <p>This card has no data sources.</p>
+          <p class="hint">Add one, or write them on the YAML tab.</p>
         </div>
       `;
     }
@@ -139,41 +76,40 @@ export class LCARdSCardDataSourcesList extends LitElement {
 
         ${isExpanded ? html`
           <div class="datasource-details">
-            <!-- Datasource Name (prominent) -->
             <div class="info-row">
-              <span class="label">Name:</span>
-              <span class="value" style="font-weight: 600; color: var(--primary-color);">${name}</span>
+              <span class="label">Name</span>
+              <span class="value name">${name}</span>
             </div>
 
             <!-- Basic Info -->
             <div class="info-row">
-              <span class="label">Entity:</span>
+              <span class="label">Entity</span>
               <span class="value">${config.entity || 'N/A'}</span>
             </div>
 
             ${config.attribute ? html`
               <div class="info-row">
-                <span class="label">Attribute:</span>
+                <span class="label">Attribute</span>
                 <span class="value">${config.attribute}</span>
               </div>
             ` : ''}
 
             <div class="info-row">
-              <span class="label">Window:</span>
+              <span class="label">Window</span>
               <span class="value">${config.window_seconds ?? config.windowSeconds ?? 60}s</span>
             </div>
 
             <!-- Processors -->
             ${config.processing ? html`
               <div class="info-row">
-                <span class="label">Processors:</span>
+                <span class="label">Processors</span>
                 <span class="value">${Object.keys(config.processing).length}</span>
               </div>
             ` : ''}
 
             <!-- History preload (on by default) -->
             <div class="info-row">
-              <span class="label">History:</span>
+              <span class="label">History</span>
               <span class="value">${historySettings(config).enabled ? `last ${historySettings(config).hours} h preloaded` : 'not preloaded'}</span>
             </div>
 

@@ -358,6 +358,77 @@ async function openStudio(page, { mode = 'edit', config }) {
 const closeStudio = (page) => page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio')?.remove());
 const studioConfig = (page) => page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio')._workingConfig);
 
+test('chart studio: "Manage data sources" opens an HA dialog with the content inset from its edges', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await mountEditor(page, 'lcards-chart', EDITORS[3][1]);
+    await page.evaluate(async () => {
+        const editor = document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-editor');
+        await editor.updateComplete;
+        await editor._openChartStudio();
+    });
+    const studio = page.locator('lcards-chart-studio-dialog');
+    await studio.getByRole('button', { name: 'Manage data sources' }).click();
+    const sources = studio.locator('ha-dialog.datasources-dialog');
+    const tab = sources.locator('lcards-datasource-editor-tab');
+    await expect(tab.locator('.launcher')).toBeVisible();
+    // The launcher sits inside the dialog's padding, not against its sides.
+    const gaps = await sources.evaluate(d => {
+        const panel = d.shadowRoot.querySelector('wa-dialog').shadowRoot.querySelector('[part~="dialog"]').getBoundingClientRect();
+        const launcher = d.querySelector('lcards-datasource-editor-tab').shadowRoot.querySelector('.launcher').getBoundingClientRect();
+        return { left: launcher.left - panel.left, right: panel.right - launcher.right };
+    });
+    expect(gaps.left).toBeGreaterThanOrEqual(12);
+    expect(gaps.right).toBeGreaterThanOrEqual(12);
+    // Add source opens the data source studio with its inset inside the dialog's padding;
+    // Cancel returns to the data sources dialog.
+    await tab.getByRole('button', { name: 'Add source' }).click();
+    const add = tab.locator('lcards-datasource-studio-dialog');
+    await expect(add.locator('.studio-layout')).toBeVisible();
+    const addGaps = await add.evaluate(el => {
+        const d = el.shadowRoot.querySelector('ha-dialog');
+        const panel = d.shadowRoot.querySelector('wa-dialog').shadowRoot.querySelector('[part~="dialog"]').getBoundingClientRect();
+        const inset = el.shadowRoot.querySelector('.studio-layout').getBoundingClientRect();
+        return { left: inset.left - panel.left, right: panel.right - inset.right };
+    });
+    expect(addGaps.left).toBeGreaterThanOrEqual(12);
+    expect(addGaps.right).toBeGreaterThanOrEqual(12);
+    await add.getByRole('button', { name: 'Cancel' }).click();
+    await expect(add.locator('.studio-layout')).toHaveCount(0);
+    await expect(tab.locator('.launcher')).toBeVisible();
+    // Close shuts this dialog only; the chart studio stays open.
+    await sources.locator('ha-button[data-dialog="close"]').click();
+    await expect(sources).toHaveCount(0);
+    await expect(studio.getByRole('button', { name: 'Manage data sources' })).toBeVisible();
+    await page.evaluate(() => document.querySelector('lcards-chart-studio-dialog')?.remove()
+        ?? document.querySelector('home-assistant').shadowRoot.querySelector('lcards-chart-studio-dialog')?.remove());
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('data source studio: the inset fills the dialog on every tab', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    const studio = await openStudio(page, { config: { entity: 'input_number.lcards_test_value' } });
+    const layout = studio.locator('.studio-layout');
+    await expect(layout).toHaveCount(1);
+    // offsetHeight: layout size, unaffected by the dialog's opening scale
+    const height = () => layout.evaluate(el => el.offsetHeight);
+    const minimum = await page.evaluate(() => window.innerHeight * 0.6);
+    const tabs = studio.locator('.config-panel').getByRole('tab');
+    const heights = [];
+    for (let i = 0; i < await tabs.count(); i++) {
+        await tabs.nth(i).click();
+        heights.push(await height());
+    }
+    expect(heights.length).toBeGreaterThan(1);
+    for (const h of heights) {
+        expect(h).toBeGreaterThan(minimum);
+        expect(Math.abs(h - heights[0])).toBeLessThan(2);
+    }
+    await closeStudio(page);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
 test('data source studio: the preview shows real history beside the tabs; processors edit inline', async ({ page }) => {
     const errors = await openDashboard(page, 'cards');
     for (const value of [20, 40, 30, 60]) {
@@ -451,7 +522,7 @@ test('data source studio: a new source previews its entity\'s history (no attrib
     const errors = await openDashboard(page, 'cards');
     await client.callService('input_number', 'set_value', { entity_id: 'input_number.lcards_test_value', value: 42 });
     const studio = await openStudio(page, { mode: 'add' });
-    // As a user does: pick the entity on the Basic tab, then open Processing.
+    // As a user does: pick the entity on the Source tab, then open Processing.
     await page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-studio')
         ._updateConfig('entity', 'input_number.lcards_test_value'));
     expect((await studioConfig(page)).attribute).toBeUndefined();
@@ -496,6 +567,88 @@ test('data source studio: a long pipeline scrolls, so every processor is reachab
     await studio.getByRole('button', { name: 'Delete' }).click();
     await expect(studio.locator('lcards-processor-tree-editor .node')).toHaveCount(7);
     await closeStudio(page);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+/**
+ * Main Engineering (UI consistency B1): each sub-tab renders its tool, the data
+ * source browser opens on the studio shell, and deleting a source other cards use
+ * asks in an HA dialog.
+ */
+async function openMainEngineering(page, config) {
+    await mountEditor(page, 'lcards-button', config);
+    const editor = page.locator('#lcards-test-editor');
+    await editor.getByRole('tab', { name: /Main Engineering/ }).dispatchEvent('click');
+    return editor;
+}
+
+test('Main Engineering: every sub-tab renders its tool', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    const editor = await openMainEngineering(page, { type: 'custom:lcards-button', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge' });
+    for (const [tab, tag] of [
+        ['Data Sources', 'lcards-datasource-editor-tab'], ['Rules', 'lcards-rules-dashboard'],
+        ['Theme Browser', 'lcards-theme-token-browser-tab'], ['Provenance', 'lcards-provenance-tab'],
+        ['Templates', 'lcards-template-evaluation-tab'],
+    ]) {
+        await editor.getByRole('tab', { name: tab, exact: true }).dispatchEvent('click');
+        await expect(editor.locator(tag), tab).toHaveCount(1);
+    }
+    // Only the active sub-tab is rendered.
+    await expect(editor.locator('lcards-datasource-editor-tab')).toHaveCount(0);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Main Engineering: the data source browser opens on the studio shell and shows a source', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await page.evaluate(() => window.lcards.core.dataSourceManager.createDataSource('me_probe',
+        { entity: 'input_number.lcards_test_value', history: { enabled: false } }, 'other-card'));
+    const editor = await openMainEngineering(page, { type: 'custom:lcards-button', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge' });
+    // The launcher is the black inset card (the page background), with an icon heading.
+    const launcher = editor.locator('lcards-datasource-editor-tab .launcher');
+    await expect(launcher.locator('.launcher-head ha-icon')).toHaveAttribute('icon', 'mdi:database-search');
+    expect(await launcher.evaluate(el => {
+        const probe = document.createElement('div');
+        probe.style.background = 'var(--primary-background-color)';
+        el.parentNode.appendChild(probe);
+        const want = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return getComputedStyle(el).backgroundColor === want;
+    })).toBe(true);
+    await editor.getByRole('button', { name: 'Browse sources' }).dispatchEvent('click');
+    const browser = editor.locator('lcards-datasource-browser');
+    const layout = browser.locator('.studio-layout');
+    await expect(layout).toHaveCount(1);
+    // The inset fills the dialog's fixed height, whatever the detail pane holds
+    // (offsetHeight: layout size, unaffected by the dialog's opening scale).
+    const height = () => layout.evaluate(el => el.offsetHeight);
+    const empty = await height();
+    expect(empty).toBeGreaterThan(await page.evaluate(() => window.innerHeight * 0.6));
+    await browser.locator('.tree-node-content', { hasText: 'me_probe' }).first().dispatchEvent('click');
+    await expect(browser.locator('.detail-header h3')).toHaveText('me_probe');
+    expect(Math.abs(await height() - empty)).toBeLessThan(2);
+    await browser.locator('ha-button[data-dialog="close"]').dispatchEvent('click');
+    await expect(browser.locator('.studio-layout')).toHaveCount(0);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Main Engineering: deleting a source other cards use asks in an HA dialog', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    page.on('dialog', d => { throw new Error(`native ${d.type()} dialog: ${d.message()}`); });
+    await page.evaluate(() => window.lcards.core.dataSourceManager.createDataSource('me_shared',
+        { entity: 'input_number.lcards_test_value', history: { enabled: false } }, 'other-card'));
+    const editor = await openMainEngineering(page, { type: 'custom:lcards-button', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge',
+        data_sources: { me_shared: { entity: 'input_number.lcards_test_value' } } });
+    const item = editor.locator('lcards-card-datasources-list lcards-form-section', { hasText: 'me_shared' });
+    await item.getByText('me_shared').first().dispatchEvent('click');
+    await item.getByRole('button', { name: 'Remove' }).dispatchEvent('click');
+    const cancel = page.locator('ha-dialog', { hasText: 'Other cards use it' }).getByRole('button', { name: 'Cancel' });
+    await expect(cancel).toBeVisible();
+    await cancel.click();
+    // Cancelled: the source stays in the config.
+    expect(await editor.evaluate(el => Object.keys(el.config.data_sources))).toEqual(['me_shared']);
     await removeEditor(page);
     expect(errors).toEqual([]);
 });

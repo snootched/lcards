@@ -39,7 +39,11 @@ export const studioDialogStyles = css`
         flex-direction: column;
     }
 
-    /* .dialog-content is the direct light-DOM child slotted into that body —
+    /* The ha-dialog needs the flexcontent attribute: it makes HA's own .body
+       a flex column, so .dialog-content (and the inset) fill the fixed dialog
+       height instead of shrinking to a short tab's content.
+
+       .dialog-content is the direct light-DOM child slotted into that body —
        without its own flex sizing it defaults to its content's natural
        height, which can exceed the body and force the *whole dialog* to
        scroll instead of just .tab-content. Keeping it in the same flex chain

@@ -22,7 +22,9 @@ import './lcards-global-datasources-panel.js';
 import '../../dialogs/lcards-datasource-studio-dialog.js';
 import './lcards-datasource-browser.js';
 import '../shared/lcards-message.js';
-import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
+import { messageStyles } from '../../base/surface-styles.js';
+import { renderLauncher, launcherStyles } from '../shared/launcher.js';
+import { showConfirmDeleteDialog } from '../../../views/layout-edit-dialogs.js';
 
 export class LCARdSDataSourceEditorTab extends LitElement {
   static get properties() {
@@ -54,60 +56,30 @@ export class LCARdSDataSourceEditorTab extends LitElement {
   static get styles() {
     return [
       editorStyles,
+      messageStyles,
+      launcherStyles,
       css`
         :host {
           display: block;
-          padding: 8px 0;
         }
 
-      .tabs-container {
-        display: flex;
-        gap: 0;
-        padding: 0;
-        background: transparent;
-        border-bottom: var(--ha-border-width-md) solid var(--divider-color, #e0e0e0);
-        overflow-x: auto;
-        scrollbar-width: thin;
-      }
+        ha-tab-group {
+          display: block;
+          margin-top: var(--ha-space-4);
+        }
 
-      .tabs-container::-webkit-scrollbar {
-        height: 4px;
-      }
+        ha-tab-group-tab ha-icon {
+          --mdc-icon-size: 18px;
+          margin-right: var(--ha-space-2);
+        }
 
-      .tabs-container::-webkit-scrollbar-thumb {
-        background: var(--primary-color, #03a9f4);
-        border-radius: 2px;
-      }
-
-      /* HA native tab styling (Issue #82) */
-      ha-tab-group {
-        display: block;
-        margin-bottom: 12px;
-      }
-
-      .card-sources-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-      }
-
-      .header-actions {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-      }
-
-      .add-source-button {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        cursor: pointer;
-      }
-
-      mwc-button {
-        cursor: pointer;
-      }
+        .card-sources-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: var(--ha-space-3);
+          margin: var(--ha-space-3) 0;
+        }
       `
     ];
   }
@@ -122,46 +94,31 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     const globalSourceCount = dsManager?.sources?.size || 0;
 
     return html`
-      <!-- Launcher Card (above tabs) -->
-      <div class="info-card">
-        <div class="info-card-content">
-          <h3>📊 Data Sources Browser</h3>
-          <p>
-            <strong>${cardSourceCount} card sources</strong> configured
-            <br />
-            <strong>${globalSourceCount} global sources</strong> active
-          </p>
-          <p style="font-size: 13px; color: var(--secondary-text-color);">
-            Browse and manage data sources. View entity subscriptions, transformations, and real-time data.
-          </p>
-        </div>
-        <div class="info-card-actions">
-          <ha-button
-            @click=${this._openBrowser}>
-            <ha-icon icon="mdi:database-search" slot="start"></ha-icon>
-            Browse Sources
-          </ha-button>
-        </div>
-      </div>
+      ${renderLauncher({
+        icon: 'mdi:database-search',
+        title: 'Data sources',
+        description: 'Live state of every data source on this page: values, buffers and processors.',
+        stats: [
+          { value: cardSourceCount, label: cardSourceCount === 1 ? 'card source' : 'card sources' },
+          { value: globalSourceCount, label: 'running on this page' },
+        ],
+        actions: [{ label: 'Browse sources', icon: 'mdi:database-search', onClick: () => this._openBrowser() }],
+      })}
 
-      <!-- Tabbed Section -->
-      <div style="margin-top: 16px;">
-        <ha-tab-group @wa-tab-show=${this._handleTabChange}>
-          <ha-tab-group-tab value="card" ?active=${this._activeSubTab === 'card'}>
-            Card Sources
-          </ha-tab-group-tab>
-          <ha-tab-group-tab value="global" ?active=${this._activeSubTab === 'global'}>
-            Global Sources
-          </ha-tab-group-tab>
+      <ha-tab-group @wa-tab-show=${this._handleTabChange}>
+        <ha-tab-group-tab value="card" ?active=${this._activeSubTab === 'card'}>
+          <ha-icon icon="mdi:card-outline"></ha-icon>
+          This card
+        </ha-tab-group-tab>
+        <ha-tab-group-tab value="global" ?active=${this._activeSubTab === 'global'}>
+          <ha-icon icon="mdi:earth"></ha-icon>
+          All on this page
+        </ha-tab-group-tab>
 
-          <div class="tab-panel" ?hidden=${this._activeSubTab !== 'card'}>
-            ${this._activeSubTab === 'card' ? this._renderCardSources() : ''}
-          </div>
-          <div class="tab-panel" ?hidden=${this._activeSubTab !== 'global'}>
-            ${this._activeSubTab === 'global' ? this._renderGlobalSources() : ''}
-          </div>
-        </ha-tab-group>
-      </div>
+        <div class="tab-panel">
+          ${this._activeSubTab === 'global' ? this._renderGlobalSources() : this._renderCardSources()}
+        </div>
+      </ha-tab-group>
 
       <lcards-datasource-studio-dialog
         .hass=${this.hass}
@@ -188,17 +145,11 @@ export class LCARdSDataSourceEditorTab extends LitElement {
   _renderCardSources() {
     return html`
       <div class="card-sources-header">
-        <div></div>
-        <div class="header-actions">
-          <ha-button
-            class="add-source-button"
-            variant="brand"
-            appearance="accent"
-            @click=${this._handleAddSource}>
-            <ha-icon slot="start" icon="mdi:plus"></ha-icon>
-            Add Source
-          </ha-button>
-        </div>
+        <span class="hint">Data sources defined in this card's config.</span>
+        <ha-button variant="brand" appearance="accent" @click=${this._handleAddSource}>
+          <ha-icon slot="start" icon="mdi:plus"></ha-icon>
+          Add source
+        </ha-button>
       </div>
 
       <lcards-card-datasources-list
@@ -357,7 +308,9 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     // @ts-ignore - TS2339: auto-suppressed
     this.editor.requestUpdate();
     this.requestUpdate();
-  }  _handleDialogSave(event) {
+  }
+
+  _handleDialogSave(event) {
     const { name, config } = event.detail;
 
     // Update config via editor - read from editor.config to get the latest state
@@ -400,79 +353,15 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     this.requestUpdate();
   }
 
+  /**
+   * Confirm deleting a source other cards use (they break until reconfigured).
+   * @returns {Promise<boolean>}
+   */
   _showDependencyWarningDialog(sourceName, dependents) {
-    return new Promise((resolve) => {
-      const dialog = document.createElement('ha-dialog');
-      // @ts-ignore - TS2339: auto-suppressed
-      dialog.headerTitle = 'Destructive Action';
-      dialog.setAttribute('prevent-scrim-close', '');
-
-      // Create content div (light DOM, no slot)
-      const content = document.createElement('div');
-      content.style.padding = '0 24px 8px';
-      content.innerHTML = `
-        <ha-alert alert-type="error" style="margin-bottom: 12px;">
-          <strong>⚠️ Warning: This will break other cards!</strong>
-        </ha-alert>
-
-        <p>Deleting datasource <strong>"${sourceName}"</strong> will:</p>
-        <ol style="margin: 8px 0;">
-          <li>Remove it from THIS card's configuration</li>
-          <li>Destroy the global DataSource singleton on page reload</li>
-        </ol>
-
-        <p><strong>The following cards depend on this datasource:</strong></p>
-        <ul style="margin: 8px 0;">
-          ${dependents.map(id => `<li><code>${id}</code></li>`).join('')}
-        </ul>
-
-        <p style="color: var(--error-color); font-weight: 500; margin-top: 16px;">
-          ⚠️ These cards WILL ERROR until you update their configurations.
-          This action cannot be undone.
-        </p>
-      `;
-
-      dialog.appendChild(content);
-
-      // Cancel button (secondary action - plain appearance)
-      const cancelButton = document.createElement('ha-button');
-      cancelButton.setAttribute('slot', 'footer');
-      cancelButton.setAttribute('appearance', 'plain');
-      cancelButton.textContent = 'Cancel';
-      cancelButton.addEventListener('click', () => {
-        lcardsLog.trace('[LCARdS] Delete dialog: Cancel clicked');
-        // @ts-ignore - TS2551: auto-suppressed
-        dialog.close();
-        resolve(false);
-      });
-
-      // Delete button (primary action - warning/destructive style)
-      const deleteButton = document.createElement('ha-button');
-      deleteButton.setAttribute('slot', 'footer');
-      deleteButton.setAttribute('variant', 'warning');
-      deleteButton.setAttribute('appearance', 'accent');
-      deleteButton.textContent = 'Delete and Break Dependencies';
-      deleteButton.addEventListener('click', () => {
-        lcardsLog.trace('[LCARdS] Delete dialog: Delete clicked');
-        // @ts-ignore - TS2551: auto-suppressed
-        dialog.close();
-        resolve(true);
-      });
-
-      dialog.appendChild(cancelButton);
-      dialog.appendChild(deleteButton);
-
-      mountDialogNearHomeAssistant(dialog, this);
-
-      // Small delay to ensure dialog is in DOM before opening
-      setTimeout(() => {
-        // @ts-ignore - TS2339: auto-suppressed
-        dialog.open = true;
-      }, 0);
-
-      dialog.addEventListener('closed', () => {
-        dialog.remove();
-      }, { once: true });
+    return showConfirmDeleteDialog({
+      title: `Delete ${sourceName}?`,
+      message: `Other cards use it: ${dependents.join(', ')}. They show errors until their configs stop referring to it. This can't be undone.`,
+      confirmText: 'Delete anyway',
     });
   }
 }

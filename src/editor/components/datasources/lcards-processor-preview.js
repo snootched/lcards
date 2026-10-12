@@ -156,7 +156,7 @@ export class LCARdSProcessorPreview extends LitElement {
       </div>
       <div class="panel">
         <div class="chart"></div>
-        ${this._status === 'empty' ? html`<div class="overlay">Choose an entity on the Basic tab to preview its history.</div>` : nothing}
+        ${this._status === 'empty' ? html`<div class="overlay">Choose an entity on the Source tab to preview its history.</div>` : nothing}
         ${this._status === 'loading' ? html`<div class="overlay"><ha-spinner size="small"></ha-spinner>Loading history...</div>` : nothing}
         ${this._status === 'ready' && !h?.points.length ? html`<div class="overlay">${this._noPointsText()}</div>` : nothing}
       </div>
