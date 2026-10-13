@@ -32,6 +32,7 @@ jobs:
 
   validate-css-vars:
     name: Validate CSS Variables
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -51,6 +52,7 @@ jobs:
 
   validate-doc-examples:
     name: Validate Documentation Examples
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -71,17 +73,12 @@ jobs:
       - name: Docs em-dash check
         run: node scripts/check-doc-em-dashes.js
 
-      - name: Build docs site and check every #anchor link
-        run: npm run docs:build
-
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Docs site tests (live card demos and playgrounds)
-        run: npm run test:docs
+      # The docs site build, its #anchor check and the live-demo tests run in the
+      # Docs workflow (before it deploys), not here.
 
   test:
     name: Tests and Typecheck
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -115,6 +112,7 @@ jobs:
 
   validate-build:
     name: Validate Build
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
     needs:
       - test
@@ -172,6 +170,7 @@ jobs:
 
   validate-version:
     name: Validate Version Format
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -194,6 +193,7 @@ jobs:
 
   validate-structure:
     name: Validate Project Structure
+    if: github.event_name != 'schedule'   # the daily run is HACS + Hassfest only
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

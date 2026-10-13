@@ -5,12 +5,28 @@ on:
     branches: ["main", "dev"]
     paths:
       - "doc/**"
-      - "docs/**"
+      - "src/**"                   # live demos run the current card bundle
+      - "scripts/**"               # docs build steps, validators, release pages
+      - "tests/docs/**"
+      - "tests/helpers/card-env.js"
+      - "playwright.docs.config.js"
+      - "vite.config.js"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/docs.yml"
   pull_request:
     branches: ["main", "dev"]
     paths:
       - "doc/**"
-      - "docs/**"
+      - "src/**"                   # live demos run the current card bundle
+      - "scripts/**"               # docs build steps, validators, release pages
+      - "tests/docs/**"
+      - "tests/helpers/card-env.js"
+      - "playwright.docs.config.js"
+      - "vite.config.js"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
@@ -42,8 +58,16 @@ jobs:
       - name: Configure GitHub Pages base URL
         uses: actions/configure-pages@v6
 
-      - name: Build docs
+      - name: Build docs (dead links and #anchors fail the build)
         run: npm run docs:build
+
+      # Live card demos, galleries, playgrounds and processor labs: a failure
+      # stops the deploy below, so broken demos never go live.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Docs site tests
+        run: npm run test:docs
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'

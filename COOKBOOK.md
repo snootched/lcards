@@ -122,15 +122,15 @@ All in `.github/workflows/`.
 
 | Workflow | Runs on | What it does |
 |---|---|---|
-| **Validate** (`validate-integration.yml`) | push and PR to `main`/`dev`, nightly, manual, and as the Release gate | See the job list below. |
-| **Docs** (`docs.yml`) | push to `main`/`dev` touching `doc/**`; PRs (build only); manual | `npm run docs:build` and deploy to GitHub Pages (`lcards.unimatrix01.ca`). Both branches deploy to the same site: **the last push wins**, so the site can show `dev` docs. |
+| **Validate** (`validate-integration.yml`) | push and PR to `main`/`dev`, manual, and as the Release gate; **nightly: HACS + Hassfest only** | See the job list below. |
+| **Docs** (`docs.yml`) | push to `main`/`dev` touching `doc/**`, `src/**`, `scripts/**`, the docs tests or the build config; PRs (no deploy); manual | `npm run docs:build` (dead links, anchors), `npm run test:docs` (live demos, galleries, playgrounds, labs), then deploy to GitHub Pages (`lcards.unimatrix01.ca`). A failing test stops the deploy. Both branches deploy to the same site: **the last push wins**, so the site can show `dev` docs. About 5 minutes. |
 | **Release** (`release.yml`) | manual only (Run workflow, pick the branch) | Validate gate, read the version from `package.json`, pre-release if the suffix is `-dev` or the branch isn't `main`, export the release page, tag, stamp `manifest.json`/`const.py`, `build:integration`, verify the output, zip, publish with the page as the body plus GitHub's commit list. |
 | **Issue template check** (`issue-template-check.yml`) | issues opened, edited or reopened | Issues that skip the forms get a `needs-template` label and one comment. Owners and collaborators are exempt; it never closes anything. |
 
-**Validate jobs:**
-- Hassfest and HACS validation.
+**Validate jobs** (all except the first two are skipped on the nightly schedule):
+- Hassfest and HACS validation (the routine HACS check; these run nightly).
 - CSS variable lint.
-- Docs: doc examples (strict), em-dash check, `docs:build` (dead links and anchors), `test:docs`.
+- Docs examples (strict) and the em-dash check: seconds. The docs site build and its tests are in the Docs workflow.
 - **Tests and Typecheck:** `npm test`, `typecheck:check`, `build:integration`, `test:browser`.
 - Version format (`YYYY.MM.SEQ[-suffix]`).
 - Required files present.
