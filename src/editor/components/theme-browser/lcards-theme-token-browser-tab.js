@@ -263,7 +263,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
         ha-tab-group-tab ha-icon {
           --mdc-icon-size: 18px;
-          margin-right: 8px;
+          margin-right: var(--ha-space-2);
         }
 
       .dialog-content {
@@ -296,29 +296,29 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       /* HA native tab styling (Issue #82) */
       ha-tab-group {
         display: block;
-        margin-bottom: 12px;
+        margin-bottom: var(--ha-space-3);
         padding: 0;
       }
 
       .theme-info {
         display: flex;
-        gap: 12px;
-        padding: 12px 24px;
+        gap: var(--ha-space-3);
+        padding: var(--ha-space-3) var(--ha-space-6);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
       }
 
       .theme-info-badge {
-        padding: 8px 16px;
+        padding: var(--ha-space-2) var(--ha-space-4);
         background: var(--secondary-background-color);
         border: var(--ha-border-width-sm) solid var(--divider-color);
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         font-size: 13px;
         font-weight: 500;
         color: var(--primary-text-color);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2);
       }
 
       .theme-info-badge strong {
@@ -332,10 +332,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .search-container {
-        padding: 12px 24px;
+        padding: var(--ha-space-3) var(--ha-space-6);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         display: flex;
-        gap: 12px;
+        gap: var(--ha-space-3);
         align-items: center;
       }
 
@@ -361,14 +361,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         color: var(--secondary-text-color);
         font-size: 13px;
         white-space: nowrap;
-        padding: 0 8px;
+        padding: 0 var(--ha-space-2);
       }
 
       .category-filters {
         display: flex;
-        gap: 8px;
+        gap: var(--ha-space-2);
         flex-wrap: wrap;
-        padding: 16px 24px;
+        padding: var(--ha-space-4) var(--ha-space-6);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
@@ -377,11 +377,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         border: var(--ha-border-width-sm) solid var(--divider-color);
         background: var(--secondary-background-color);
         color: var(--primary-text-color);
-        padding: 6px 12px;
-        border-radius: 16px;
+        padding: 6px var(--ha-space-3);
+        border-radius: var(--ha-border-radius-xl);
         font-size: 13px;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all var(--ha-animation-duration-normal, 0.2s);
       }
 
       .category-chip:hover {
@@ -400,10 +400,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         display: inline-block;
         width: 9px;
         height: 9px;
-        border-radius: 50%;
+        border-radius: var(--ha-border-radius-circle);
         margin-right: 6px;
         vertical-align: middle;
-        border: var(--ha-border-width-sm) solid rgba(0, 0, 0, 0.15);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .dialog-body {
@@ -439,7 +439,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         position: sticky;
         top: 0;
         background: var(--primary-background-color);
-        padding: 16px 24px 8px;
+        padding: var(--ha-space-4) var(--ha-space-6) var(--ha-space-2);
         margin: 0;
         color: var(--primary-text-color);
         border-bottom: var(--ha-border-width-md) solid var(--divider-color);
@@ -462,7 +462,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .token-table th {
         text-align: left;
-        padding: 12px 16px;
+        padding: var(--ha-space-3) var(--ha-space-4);
         font-weight: 600;
         color: var(--primary-text-color);
         border-bottom: var(--ha-border-width-md) solid var(--divider-color);
@@ -475,13 +475,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .token-table th .sort-indicator {
-        margin-left: 4px;
+        margin-left: var(--ha-space-1);
         font-size: 10px;
         color: var(--secondary-text-color);
       }
 
       .token-table td {
-        padding: 12px 16px;
+        padding: var(--ha-space-3) var(--ha-space-4);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         vertical-align: middle;
       }
@@ -509,7 +509,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .token-resolution {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--ha-space-1);
       }
 
       .raw-value {
@@ -539,10 +539,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .color-preview {
         width: 32px;
         height: 32px;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         border: var(--ha-border-width-md) solid var(--divider-color);
         display: inline-block;
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+        box-shadow: inset 0 0 0 var(--ha-border-width-sm) var(--divider-color);
       }
 
       /* Alert mode preview swatches */
@@ -561,7 +561,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         border: var(--ha-border-width-sm) solid var(--divider-color);
         cursor: pointer;
         transition: transform 0.1s ease;
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+        box-shadow: inset 0 0 0 var(--ha-border-width-sm) var(--divider-color);
         position: relative;
         flex-shrink: 0;
       }
@@ -573,20 +573,20 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .alert-swatch.active-mode {
         border: var(--ha-border-width-md) solid var(--primary-color);
-        box-shadow: 0 0 0 2px rgba(var(--rgb-primary-color), 0.3);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 30%, transparent);
       }
 
       /* Alert mode toggle button in header */
       .alert-mode-toggle {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
+        gap: var(--ha-space-2);
+        padding: var(--ha-space-2) var(--ha-space-4);
         background: var(--secondary-background-color);
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         cursor: pointer;
         user-select: none;
-        transition: background 0.2s ease;
+        transition: background var(--ha-animation-duration-normal, 0.2s) ease;
       }
 
       .alert-mode-toggle:hover {
@@ -610,23 +610,23 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .alert-mode-info {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--ha-space-3);
         flex-wrap: wrap;
       }
 
       .hsl-formula-info {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 6px 12px;
+        gap: var(--ha-space-2);
+        padding: 6px var(--ha-space-3);
         background: var(--secondary-background-color);
         border-radius: 6px;
       }
 
       /* HSL Formula Table */
       .hsl-formula-table {
-        margin-top: 12px;
-        border-radius: 8px;
+        margin-top: var(--ha-space-3);
+        border-radius: var(--ha-border-radius-md);
         overflow: hidden;
         border: var(--ha-border-width-sm) solid var(--divider-color);
       }
@@ -638,7 +638,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .hsl-formula-table th,
       .hsl-formula-table td {
-        padding: 8px 12px;
+        padding: var(--ha-space-2) var(--ha-space-3);
         text-align: left;
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         font-size: 13px;
@@ -718,7 +718,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .token-actions {
         display: flex;
-        gap: 4px;
+        gap: var(--ha-space-1);
         justify-content: flex-end;
       }
 
@@ -737,29 +737,29 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         font-size: var(--token-font-size, 14px);
         font-weight: var(--token-font-weight, normal);
         line-height: 1.5;
-        padding: 4px 8px;
+        padding: var(--ha-space-1) var(--ha-space-2);
         background: var(--secondary-background-color);
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         display: inline-block;
       }
 
       .empty-state {
         text-align: center;
-        padding: 48px 24px;
+        padding: var(--ha-space-12) var(--ha-space-6);
         color: var(--secondary-text-color);
       }
 
       .loading-state {
         text-align: center;
-        padding: 48px 24px;
+        padding: var(--ha-space-12) var(--ha-space-6);
       }
 
       /* Alert Mode Lab Styles */
       .alert-lab-container {
-        padding: 20px;
+        padding: var(--ha-space-5);
         display: grid;
         grid-template-columns: 450px 1fr;
-        gap: 32px;
+        gap: var(--ha-space-8);
         min-height: 0;
         flex: 1;
       }
@@ -773,7 +773,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .alert-lab-left-column {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
         align-self: start;
         overflow-y: auto;
         overflow-x: hidden;
@@ -791,7 +791,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       /* Alert Lab: HA native tab styling for visualization tabs (Issue #82) */
       .alert-lab-right-column ha-tab-group {
         display: block;
-        margin-bottom: 12px;
+        margin-bottom: var(--ha-space-3);
         flex-shrink: 0;
       }
 
@@ -808,7 +808,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .preview-section,
       .visualization-section,
       .comparison-section {
-        padding: 16px;
+        padding: var(--ha-space-4);
       }
 
       .preview-section h4,
@@ -819,15 +819,15 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .alert-lab-header {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding-bottom: 16px;
+        gap: var(--ha-space-3);
+        padding-bottom: var(--ha-space-4);
         border-bottom: var(--ha-border-width-md) solid var(--divider-color);
       }
 
       .mode-selection-controls {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
 
@@ -839,7 +839,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .live-preview-toggle label {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2);
         cursor: pointer;
         color: var(--secondary-text-color);
         font-size: 13px;
@@ -852,15 +852,15 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .parameter-controls {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        margin-bottom: 12px;
+        gap: var(--ha-space-3);
+        margin-bottom: var(--ha-space-3);
       }
 
       .slider-control {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 12px 0;
+        gap: var(--ha-space-2);
+        padding: var(--ha-space-3) 0;
       }
 
       .slider-label-row {
@@ -899,7 +899,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         appearance: none;
         width: 18px;
         height: 18px;
-        border-radius: 50%;
+        border-radius: var(--ha-border-radius-circle);
         background: var(--primary-color);
         cursor: pointer;
         box-shadow: var(--ha-box-shadow-s);
@@ -908,7 +908,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .parameter-slider::-moz-range-thumb {
         width: 18px;
         height: 18px;
-        border-radius: 50%;
+        border-radius: var(--ha-border-radius-circle);
         background: var(--primary-color);
         cursor: pointer;
         border: none;
@@ -916,17 +916,17 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .parameter-slider:focus::-webkit-slider-thumb {
-        box-shadow: 0 0 0 3px rgba(var(--rgb-primary-color), 0.2);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
       }
 
       .parameter-slider:focus::-moz-range-thumb {
-        box-shadow: 0 0 0 3px rgba(var(--rgb-primary-color), 0.2);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
       }
 
       .alert-lab-actions {
         display: flex;
-        gap: 12px;
-        margin-bottom: 12px;
+        gap: var(--ha-space-3);
+        margin-bottom: var(--ha-space-3);
         flex-wrap: wrap;
       }
 
@@ -939,18 +939,18 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
-        padding: 20px;
+        padding: var(--ha-space-5);
       }
 
       .preview-section h4 {
-        margin: 0 0 8px 0;
+        margin: 0 0 var(--ha-space-2) 0;
         color: var(--primary-text-color);
         font-size: 16px;
         font-weight: 500;
       }
 
       .preview-hint {
-        margin: 0 0 16px 0;
+        margin: 0 0 var(--ha-space-4) 0;
         color: var(--secondary-text-color);
         font-size: 13px;
       }
@@ -958,13 +958,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .preview-swatches-container {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .preview-swatch-group {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .swatch-group-title {
@@ -972,30 +972,30 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         font-size: 14px;
         font-weight: 600;
         color: var(--primary-text-color);
-        padding-bottom: 8px;
+        padding-bottom: var(--ha-space-2);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .preview-swatches-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .preview-swatch-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2);
       }
 
       .preview-swatch {
         width: 60px;
         height: 60px;
-        border-radius: 8px;
+        border-radius: var(--ha-border-radius-md);
         border: var(--ha-border-width-md) solid var(--divider-color);
         box-shadow: var(--ha-box-shadow-s);
-        transition: transform 0.2s;
+        transition: transform var(--ha-animation-duration-normal, 0.2s);
       }
 
       .preview-swatch:hover {
@@ -1013,15 +1013,15 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         display: flex;
         flex-direction: column;
         border: var(--ha-border-width-sm) solid var(--divider-color);
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         overflow: auto;
       }
 
       .comparison-grid-header {
         display: grid;
         grid-template-columns: 200px 1fr 1fr;
-        gap: 12px;
-        padding: 12px 16px;
+        gap: var(--ha-space-3);
+        padding: var(--ha-space-3) var(--ha-space-4);
         border-bottom: var(--ha-border-width-md) solid var(--divider-color);
         font-weight: 600;
         font-size: 13px;
@@ -1039,10 +1039,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .comparison-row {
         display: grid;
         grid-template-columns: 200px 1fr 1fr;
-        gap: 12px;
-        padding: 12px 16px;
+        gap: var(--ha-space-3);
+        padding: var(--ha-space-3) var(--ha-space-4);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
-        transition: background-color 0.2s;
+        transition: background-color var(--ha-animation-duration-normal, 0.2s);
       }
 
       .comparison-row:hover {
@@ -1063,13 +1063,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .comparison-color-cell {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .comparison-swatch {
         width: 40px;
         height: 40px;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm);
         border: var(--ha-border-width-sm) solid var(--divider-color);
         flex-shrink: 0;
       }
@@ -1082,20 +1082,20 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       /* Color Wheel Visualization Styles */
       .visualization-section {
-        padding: 20px;
+        padding: var(--ha-space-5);
         border-radius: var(--ha-card-border-radius, 12px);
         background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
       .visualization-section h4 {
-        margin: 0 0 8px 0;
+        margin: 0 0 var(--ha-space-2) 0;
         font-size: 16px;
         font-weight: 600;
       }
 
       .visualization-section .preview-hint {
-        margin: 0 0 16px 0;
+        margin: 0 0 var(--ha-space-4) 0;
         font-size: 13px;
         color: var(--secondary-text-color);
       }
@@ -1103,7 +1103,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .color-wheel-layout {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 32px;
+        gap: var(--ha-space-8);
         align-items: start;
       }
 
@@ -1116,7 +1116,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .color-wheel-explanation {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .color-wheel-explanation h5 {
@@ -1127,17 +1127,17 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .color-wheel-explanation h6 {
-        margin: 0 0 8px 0;
+        margin: 0 0 var(--ha-space-2) 0;
         font-size: 14px;
         font-weight: 600;
         color: var(--primary-text-color);
       }
 
       .explanation-section {
-        padding: 12px 16px;
+        padding: var(--ha-space-3) var(--ha-space-4);
         background: var(--secondary-background-color);
-        border-radius: 4px;
-        border-left: 3px solid var(--primary-color);
+        border-radius: var(--ha-border-radius-sm);
+        border-left: var(--ha-border-width-lg) solid var(--primary-color);
       }
 
       .explanation-section p {
@@ -1148,8 +1148,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .explanation-section ul {
-        margin: 8px 0 0 0;
-        padding-left: 20px;
+        margin: var(--ha-space-2) 0 0 0;
+        padding-left: var(--ha-space-5);
         font-size: 13px;
         line-height: 1.6;
       }
@@ -1160,10 +1160,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .explanation-tip {
-        padding: 12px 16px;
-        background: rgba(33, 150, 243, 0.1);
-        border-radius: 4px;
-        border-left: 3px solid var(--info-color, #2196f3);
+        padding: var(--ha-space-3) var(--ha-space-4);
+        background: color-mix(in srgb, var(--info-color) 10%, transparent);
+        border-radius: var(--ha-border-radius-sm);
+        border-left: var(--ha-border-width-lg) solid var(--info-color);
         font-size: 13px;
         line-height: 1.5;
         color: var(--secondary-text-color);
@@ -1180,15 +1180,15 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .overrides-view {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 12px 0;
+        gap: var(--ha-space-3);
+        padding: var(--ha-space-3) 0;
       }
 
       .overrides-toolbar {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 0 16px;
+        gap: var(--ha-space-3);
+        padding: 0 var(--ha-space-4);
       }
 
       .overrides-filter-wrapper {
@@ -1202,12 +1202,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .overrides-load-hint {
-        padding: 0 16px;
+        padding: 0 var(--ha-space-4);
       }
 
       .overrides-table-wrapper {
         overflow-x: auto;
-        padding: 0 16px 16px;
+        padding: 0 var(--ha-space-4) var(--ha-space-4);
       }
 
       .overrides-table {
@@ -1215,11 +1215,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .override-token-row.has-override {
-        background: rgba(var(--rgb-accent-color, 3, 155, 229), 0.06);
+        background: color-mix(in srgb, var(--accent-color) 6%, transparent);
       }
 
       .override-token-row.is-editing {
-        background: rgba(var(--rgb-accent-color, 3, 155, 229), 0.12);
+        background: color-mix(in srgb, var(--accent-color) 12%, transparent);
       }
 
       .override-path-cell {
@@ -1235,9 +1235,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         display: inline-block;
         margin-left: 6px;
         padding: 1px 6px;
-        border-radius: 10px;
-        background: var(--accent-color, #039be5);
-        color: #fff;
+        border-radius: var(--ha-border-radius-pill);
+        background: var(--accent-color);
+        color: var(--text-accent-color, var(--text-primary-color));
         font-size: 10px;
         font-weight: 600;
         vertical-align: middle;
@@ -1254,9 +1254,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         width: 14px;
         height: 14px;
         border-radius: 3px;
-        border: var(--ha-border-width-sm) solid var(--divider-color, #ccc);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         vertical-align: middle;
-        margin-right: 4px;
+        margin-right: var(--ha-space-1);
       }
 
       .override-value-text {
@@ -1271,12 +1271,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .override-value-active {
-        color: var(--accent-color, #039be5);
+        color: var(--accent-color);
         font-weight: 600;
       }
 
       .override-value-empty {
-        color: var(--disabled-text-color, #888);
+        color: var(--disabled-text-color);
       }
 
       .override-actions-cell {
@@ -1295,20 +1295,20 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .override-edit-panel {
-        margin: 4px 8px 12px;
-        padding: 16px;
-        border: var(--ha-border-width-sm) solid var(--accent-color, #039be5);
+        margin: var(--ha-space-1) var(--ha-space-2) var(--ha-space-3);
+        padding: var(--ha-space-4);
+        border: var(--ha-border-width-sm) solid var(--accent-color);
         border-radius: 6px;
         background: var(--card-background-color);
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .override-edit-panel-header {
         display: flex;
         align-items: baseline;
-        gap: 16px;
+        gap: var(--ha-space-4);
         flex-wrap: wrap;
       }
 
@@ -1333,7 +1333,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .override-edit-actions {
         display: flex;
-        gap: 8px;
+        gap: var(--ha-space-2);
       }
       `
     ];
@@ -3256,7 +3256,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show success feedback
       button.icon = 'mdi:check';
-      button.style.color = 'var(--success-color, #4caf50)';
+      button.style.color = 'var(--success-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3267,7 +3267,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show error feedback
       button.icon = 'mdi:alert-circle';
-      button.style.color = 'var(--error-color, #f44336)';
+      button.style.color = 'var(--error-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3293,7 +3293,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show success feedback
       button.icon = 'mdi:check';
-      button.style.color = 'var(--success-color, #4caf50)';
+      button.style.color = 'var(--success-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3304,7 +3304,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show error feedback
       button.icon = 'mdi:alert-circle';
-      button.style.color = 'var(--error-color, #f44336)';
+      button.style.color = 'var(--error-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3416,7 +3416,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show success feedback
       button.icon = 'mdi:check';
-      button.style.color = 'var(--success-color, #4caf50)';
+      button.style.color = 'var(--success-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3427,7 +3427,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show error feedback
       button.icon = 'mdi:alert-circle';
-      button.style.color = 'var(--error-color, #f44336)';
+      button.style.color = 'var(--error-color)';
 
       setTimeout(() => {
         button.icon = originalIcon;
@@ -3449,8 +3449,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show success feedback on the preview
       const originalBorder = preview.style.border;
-      preview.style.border = '3px solid var(--success-color, #4caf50)';
-      preview.style.boxShadow = '0 0 8px var(--success-color, #4caf50)';
+      preview.style.border = 'var(--ha-border-width-lg) solid var(--success-color)';
+      preview.style.boxShadow = '0 0 8px var(--success-color)';
 
       setTimeout(() => {
         preview.style.border = originalBorder;
@@ -3461,7 +3461,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       // Show error feedback
       const originalBorder = preview.style.border;
-      preview.style.border = '3px solid var(--error-color, #f44336)';
+      preview.style.border = 'var(--ha-border-width-lg) solid var(--error-color)';
 
       setTimeout(() => {
         preview.style.border = originalBorder;
