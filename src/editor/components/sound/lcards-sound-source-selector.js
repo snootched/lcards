@@ -99,8 +99,8 @@ export class LCARdSSoundSourceSelector extends LitElement {
             custom_value: (3 + this.audioAssets.length) >= 10,
             options: [
               { value: '__scheme__', label: this.schemeLabel },
-              { value: '__mute__',   label: '🔇 Mute this event' },
-              { value: MEDIA_MODE,   label: '🌐 Browse HA Media…' },
+              { value: '__mute__',   label: 'Mute this event' },
+              { value: MEDIA_MODE,   label: 'Browse HA Media…' },
               ...this.audioAssets.map(a => ({ value: a.key, label: `${a.key} (${a.pack})` }))
             ]
           }}}

@@ -27,6 +27,7 @@ import { LCARdSFormFieldHelper as FormField } from './shared/lcards-form-field.j
 import { ANIMATION_PRESET_PARAMS_SCHEMAS, _CANONICAL_REDECLARED } from '../../cards/schemas/animation-preset-params-schemas.js';
 import { ANIMATION_PRESET_DOCS_URL } from './shared/docs-links.js';
 import { infoGuideStyles } from './shared/info-guide-styles.js';
+import { renderInfoGuide } from './shared/info-guide.js';
 import { searchableSelectStyles } from './shared/searchable-select-styles.js';
 import { getAttributeOptions } from '../../utils/attribute-options.js';
 
@@ -219,7 +220,6 @@ export class LCARdSAnimationEditor extends LitElement {
       _workingAnimations: { state: true }, // Internal editing state — never overwritten by parent re-renders
       _expandedIndex: { type: Number },
       _pendingDeleteIndex: { type: Number },
-      _expandedGuideIndices: { state: true } // Set<number> — which animations' "How this preset works" info guide is open
     };
   }
 
@@ -612,7 +612,6 @@ export class LCARdSAnimationEditor extends LitElement {
     this.systemAnimationIds = [];
     this._expandedIndex = null;
     this._pendingDeleteIndex = null;
-    this._expandedGuideIndices = new Set();
     this._targetRediscoveryTimer = null;
     this._targetRediscoveryAttempts = 0;
   }
@@ -666,7 +665,7 @@ export class LCARdSAnimationEditor extends LitElement {
             <div class="animation-id-row">
               ${hasId
                 ? html`<span class="animation-id">${anim.id}</span>`
-                : html`<span class="animation-unnamed">⚠ Unnamed animation</span>`
+                : html`<span class="animation-unnamed">Unnamed animation</span>`
               }
             </div>
             <div class="animation-chips">
@@ -1367,16 +1366,16 @@ export class LCARdSAnimationEditor extends LitElement {
                 { value: 'outInCirc', label: 'Circ - Out/In' },
 
                 // Back (parametric: overshoot = 1.70158 by default)
-                { value: 'inBack', label: 'Back - In ↩️' },
-                { value: 'outBack', label: 'Back - Out ↩️' },
-                { value: 'inOutBack', label: 'Back - In/Out ↩️' },
-                { value: 'outInBack', label: 'Back - Out/In ↩️' },
+                { value: 'inBack', label: 'Back - In' },
+                { value: 'outBack', label: 'Back - Out' },
+                { value: 'inOutBack', label: 'Back - In/Out' },
+                { value: 'outInBack', label: 'Back - Out/In' },
 
                 // Elastic (parametric: amplitude = 1, period = 0.3 by default)
-                { value: 'inElastic', label: 'Elastic - In 🎯' },
-                { value: 'outElastic', label: 'Elastic - Out 🎯' },
-                { value: 'inOutElastic', label: 'Elastic - In/Out 🎯' },
-                { value: 'outInElastic', label: 'Elastic - Out/In 🎯' },
+                { value: 'inElastic', label: 'Elastic - In' },
+                { value: 'outElastic', label: 'Elastic - Out' },
+                { value: 'inOutElastic', label: 'Elastic - In/Out' },
+                { value: 'outInElastic', label: 'Elastic - Out/In' },
 
                 // Bounce
                 { value: 'inBounce', label: 'Bounce - In' },
@@ -1385,12 +1384,12 @@ export class LCARdSAnimationEditor extends LitElement {
                 { value: 'outInBounce', label: 'Bounce - Out/In' },
 
                 // Advanced Easings (require custom parameters)
-                { value: 'cubicBezier', label: '🔧 Cubic Bézier - Custom curve' },
-                { value: 'spring', label: '🔧 Spring - Physics-based' },
-                { value: 'steps', label: '🔧 Steps - Frame-by-frame' },
-                { value: 'linear', label: '🔧 Linear - Custom linear points' },
-                { value: 'irregular', label: '🔧 Irregular - Randomized' },
-                { value: 'custom', label: '🔧 Custom - anime.js string' }
+                { value: 'cubicBezier', label: 'Cubic Bézier - Custom curve' },
+                { value: 'spring', label: 'Spring - Physics-based' },
+                { value: 'steps', label: 'Steps - Frame-by-frame' },
+                { value: 'linear', label: 'Linear - Custom linear points' },
+                { value: 'irregular', label: 'Irregular - Randomized' },
+                { value: 'custom', label: 'Custom - anime.js string' }
               ]
             }
           }}
@@ -1760,7 +1759,7 @@ export class LCARdSAnimationEditor extends LitElement {
           style="width: 100%; margin-bottom: 12px;">
         </ha-selector>
 
-        <lcards-message type="warning" .message=${'\u26a0\ufe0f from_state and to_state are fire-and-forget gates: they control when an animation starts but will NOT stop a looping animation. To automatically stop a loop when a condition clears, add a While Condition below.'}></lcards-message>
+        <lcards-message type="warning" .message=${'From and To state only decide when an animation starts; they never stop a loop. To stop a loop when a condition clears, add a While Condition below.'}></lcards-message>
 
         <ha-input
           label="From State (optional)"
@@ -2015,20 +2014,20 @@ export class LCARdSAnimationEditor extends LitElement {
       { value: 'physics-spring', label: 'Physics Spring - Spring physics simulation' },
 
       // Text Animations (NEW - PR#234)
-      { value: 'text-reveal', label: '✨ Text Reveal - Character-by-character reveal' },
-      { value: 'text-typewriter', label: '✨ Text Typewriter - Typing effect' },
-      { value: 'text-scramble', label: '✨ Text Scramble - Matrix-style scramble' },
-      { value: 'text-glitch', label: '✨ Text Glitch - Rapid jitter' },
+      { value: 'text-reveal', label: 'Text Reveal - Character-by-character reveal' },
+      { value: 'text-typewriter', label: 'Text Typewriter - Typing effect' },
+      { value: 'text-scramble', label: 'Text Scramble - Matrix-style scramble' },
+      { value: 'text-glitch', label: 'Text Glitch - Rapid jitter' },
 
       // Stagger Animations (NEW - PR#233)
-      { value: 'stagger-flash', label: '⚡ Stagger Flash - LCARS chasing bar effect' },
-      { value: 'stagger-grid', label: '⚡ Stagger Grid - Grid-based stagger' },
-      { value: 'stagger-wave', label: '⚡ Stagger Wave - Wave pattern' },
-      { value: 'stagger-radial', label: '⚡ Stagger Radial - Radial burst' },
+      { value: 'stagger-flash', label: 'Stagger Flash - LCARS chasing bar effect' },
+      { value: 'stagger-grid', label: 'Stagger Grid - Grid-based stagger' },
+      { value: 'stagger-wave', label: 'Stagger Wave - Wave pattern' },
+      { value: 'stagger-radial', label: 'Stagger Radial - Radial burst' },
 
       // Timeline Animations (NEW - PR#233)
-      { value: 'timeline-cascade', label: '🎬 Timeline Cascade - Sequential steps' },
-      { value: 'timeline-attention', label: '🎬 Timeline Attention - Attention-getter' },
+      { value: 'timeline-cascade', label: 'Timeline Cascade - Sequential steps' },
+      { value: 'timeline-attention', label: 'Timeline Attention - Attention-getter' },
 
       // Utility
       { value: 'set', label: 'Set - Immediate property change' }
@@ -2101,7 +2100,6 @@ export class LCARdSAnimationEditor extends LitElement {
     const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[preset];
     if (!presetSchema) return '';
 
-    const expanded = this._expandedGuideIndices.has(index);
     const CANONICAL_KEYS = new Set(['duration', 'ease', 'loop', 'alternate', 'delay']);
     // See needsOwnCanonicalField()'s doc comment — a preset-redeclared canonical
     // key (e.g. stagger-flash's duration/delay/loop) belongs in the example YAML
@@ -2115,18 +2113,10 @@ export class LCARdSAnimationEditor extends LitElement {
     const { yaml: exampleYaml, missingFields } = this._buildExampleYaml(preset, presetSchema, paramEntries);
 
     return html`
-      <div class="preset-info-guide">
-        <div class="preset-info-guide-header"
-             @click=${() => this._toggleGuideExpanded(index)}>
-          <ha-icon icon="mdi:information-outline"></ha-icon>
-          <span>How ${preset} works</span>
-          <ha-icon
-            icon="mdi:chevron-down"
-            class="guide-chevron ${expanded ? 'expanded' : ''}">
-          </ha-icon>
-        </div>
-        ${expanded ? html`
-          <div class="preset-info-guide-body">
+      ${renderInfoGuide({
+        header: `How ${preset} works`,
+        icon: 'mdi:information-outline',
+        body: html`
             ${this._splitIntoSentences(presetSchema.description).map(sentence => html`<p>${sentence}</p>`)}
             ${paramEntries.length ? html`
               <strong>Params:</strong>
@@ -2140,20 +2130,19 @@ export class LCARdSAnimationEditor extends LitElement {
               </ul>
             ` : ''}
             <strong>Example:</strong>
-            <pre class="preset-info-guide-example">${exampleYaml}</pre>
+            <pre class="info-guide-example">${exampleYaml}</pre>
             ${missingFields.length ? html`
-              <p class="preset-info-guide-missing-note">
+              <p class="info-guide-note">
                 No known default to show for: ${missingFields.map(f => html`<code>${f}</code>`)}. Add these yourself before using this example.
               </p>
             ` : ''}
             ${this._renderMapRangeNote()}
-            <div class="preset-info-guide-links">
+            <div class="info-guide-links">
               <a href=${docsUrl} target="_blank" rel="noopener noreferrer">View full docs →</a>
               ${animejsUrl ? html`<a href=${animejsUrl} target="_blank" rel="noopener noreferrer">anime.js reference →</a>` : ''}
             </div>
-          </div>
-        ` : ''}
-      </div>
+          `,
+      })}
     `;
   }
 
@@ -2173,22 +2162,11 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _renderMapRangeNote() {
     return html`
-      <lcards-message type="info">
-        <strong>Entity-reactive parameters:</strong> <code>duration</code>, <code>delay</code>, and any preset param above can live-track an entity's value instead of a fixed number. Edit this animation's YAML directly to use it:<br><br>
-        <code>speed: { map_range: { entity: sensor.grid_power, input: [0, 5000], output: [8, 0.5] } }</code><br><br>
-        <code>output</code> can also be a two-color pair (<code>['#00ff88', '#ff4400']</code>) to interpolate color instead of a number.
-      </lcards-message>
+      <p class="info-guide-tip"><strong>Follow an entity:</strong> <code>duration</code>, <code>delay</code> and any param above
+        can track an entity's value instead of a fixed number (in this animation's YAML). <code>output</code> can also be two
+        colours, to blend between them.</p>
+      <pre class="info-guide-example">speed: { map_range: { entity: sensor.grid_power, input: [0, 5000], output: [8, 0.5] } }</pre>
     `;
-  }
-
-  _toggleGuideExpanded(index) {
-    const updated = new Set(this._expandedGuideIndices);
-    if (updated.has(index)) {
-      updated.delete(index);
-    } else {
-      updated.add(index);
-    }
-    this._expandedGuideIndices = updated;
   }
 
   _isPlaceholderPreset(preset) {

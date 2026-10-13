@@ -9,6 +9,7 @@ import { LitElement, html, css } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
 import { editorStyles } from './editor-styles.js';
 import { messageStyles } from './surface-styles.js';
+import { renderInfoGuide } from '../components/shared/info-guide.js';
 import { configToYaml, yamlToConfig, validateYaml } from '../utils/yaml-utils.js';
 import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -17,6 +18,7 @@ import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-
 import '../components/sound/lcards-card-sound-tab.js';
 import '../components/lcards-zone-list-editor.js';
 import '../components/shared/lcards-form-section.js';
+import '../components/theme-browser/lcards-card-theme-tab.js';
 
 export class LCARdSBaseEditor extends LitElement {
 
@@ -1242,23 +1244,22 @@ export class LCARdSBaseEditor extends LitElement {
      */
     _renderLayoutCardHint() {
         return html`
-            <lcards-message type="info" style="margin-top:4px;">
-                <strong>Inside a <code>custom:layout-card</code>?</strong><br>
-                Cards may collapse to minimum height in a layout-card grid.
-                Add this <code>card_mod</code> to the <strong>layout-card itself</strong>
-                to restore full-height sizing:
-                <pre style="margin:6px 0 0;padding:6px 8px;background:rgba(0,0,0,0.15);border-radius:3px;font-size:12px;white-space:pre;font-family:monospace;">card_mod:
+            ${renderInfoGuide({
+                header: 'Inside a custom:layout-card?',
+                icon: 'mdi:view-grid-outline',
+                body: html`
+                    <p>Cards can collapse to their minimum height in a layout-card grid. Add this to the
+                        <strong>layout-card itself</strong> for full height:</p>
+                    <pre class="info-guide-example">card_mod:
   style: |
     grid-layout {
       --layout-height: 100% !important;
     }</pre>
-                <div style="margin-top:6px;">
-                    <a href="http://lcards.unimatrix01.ca/cards/common.html#sizing-inside-custom-layout-card"
-                       target="_blank" rel="noopener noreferrer" style="font-size:12px;">
-                        Documentation ↗
-                    </a>
-                </div>
-            </lcards-message>
+                    <div class="info-guide-links">
+                        <a href="https://lcards.unimatrix01.ca/cards/common.html#sizing-inside-custom-layout-card" target="_blank" rel="noopener noreferrer">Documentation</a>
+                    </div>
+                `,
+            })}
         `;
     }
 
@@ -1308,17 +1309,16 @@ export class LCARdSBaseEditor extends LitElement {
     }
 
     /**
-     * Render Theme Token Browser tab
+     * Render the card's Theme tab (its tokens; links to the panel's Theme Studio)
      * @returns {TemplateResult}
      * @protected
      */
     _renderThemeTokensTab() {
         return html`
-            <lcards-theme-token-browser-tab
-                .editor=${this}
+            <lcards-card-theme-tab
                 .config=${this.config}
                 .hass=${this.hass}>
-            </lcards-theme-token-browser-tab>
+            </lcards-card-theme-tab>
         `;
     }
 
@@ -1348,7 +1348,7 @@ export class LCARdSBaseEditor extends LitElement {
         const tabs = [
             { icon: 'mdi:database', label: 'Data Sources', render: () => this._renderDataSourcesTab() },
             { icon: 'mdi:format-list-checks', label: 'Rules', render: () => this._renderRulesTab() },
-            { icon: 'mdi:palette-swatch', label: 'Theme Browser', render: () => this._renderThemeTokensTab() },
+            { icon: 'mdi:palette-swatch', label: 'Theme', render: () => this._renderThemeTokensTab() },
             { icon: 'mdi:layers-search', label: 'Provenance', render: () => this._renderProvenanceTab() },
             { icon: 'mdi:code-braces-box', label: 'Templates', render: () => this._renderTemplatesTab() },
         ];

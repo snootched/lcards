@@ -37,7 +37,6 @@ import '../components/dashboard/lcards-rules-dashboard.js';
 import '../components/datasources/lcards-datasource-editor-tab.js';
 // Import template components
 import '../components/templates/lcards-template-evaluation-tab.js';
-import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
 
 // @ts-ignore - TS2417: static side extends - getConfigElement signature
@@ -920,7 +919,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                         </ha-code-editor>
                         <div class="helper-text">
                             ${discoveredIds.length > 0
-                                ? `✓ Found ${discoveredIds.length} segment(s): ${discoveredIds.join(', ')}`
+                                ? `Found ${discoveredIds.length} segment(s): ${discoveredIds.join(', ')}`
                                 : 'No segments found. Add id attributes to your SVG elements.'}
                         </div>
                     </div>
@@ -1214,10 +1213,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                     </lcards-message>
                 ` : html`
                     <lcards-message type="info">
-                        Ranges are evaluated top-to-bottom; the first match wins.
-                        Each row maps a value condition to a component preset.
-                        The attribute used for range comparisons is set in
-                        <strong>Entity Configuration → Range Attribute</strong> above.
+                        Ranges run top to bottom; the first match sets the preset. The value compared is the
+                        <strong>Range Attribute</strong> above.
                     </lcards-message>
 
                     <div style="${sectionStyle}">
@@ -1567,7 +1564,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                             </ha-input>
                             ${isOverride ? html`
                                 <div style="font-size: 11px; color: var(--warning-color, orange); margin-top: 4px;">
-                                    ⚠ Overrides built-in preset <strong>${name}</strong>
+                                    Overrides built-in preset <strong>${name}</strong>
                                 </div>
                             ` : ''}
                         </div>
@@ -1806,16 +1803,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _renderEffectsTab() {
         return html`
             <div class="tab-content-container">
-                <!-- Card-Level Effects Info -->
                 <lcards-message type="info">
-                    <strong>Card-Level Effects:</strong>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                        This tab configures effects for the <strong>entire card</strong>.  You can:
-                        <br/>• Apply <strong>animations</strong> that trigger on card-level events (e.g., on_tap, on_load)
-                        <br/>• Apply <strong>filters</strong> that affect the entire card's appearance.
-                        <br/>• Apply <strong>background animations</strong> that render behind all card content.
-                        <br/>• For <strong>per-segment animations</strong> (e.g., animate only the "up" button), use the <strong>Segments tab</strong> instead
-                    </p>
+                    Effects for the whole card: animations, filters and background animations.
+                    Animations for one segment are on the <strong>Segments</strong> tab.
                 </lcards-message>
 
                 <!-- Animations Section -->

@@ -122,7 +122,7 @@ await window.lcards.alert.config.export();  // Export runtime overrides as JSON
 
 === Config Panel
 
-Click any alert level button in the **Alert Mode Lab** tab of the LCARdS Config Panel.
+Pick a mode in the **LCARdS Alert Mode Lab** (LCARdS Config Panel > Theme Studio) and click **Apply live**.
 
 ::::
 ---

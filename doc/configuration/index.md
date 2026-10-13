@@ -48,13 +48,16 @@ Helpers are standard Home Assistant `input_*` entities and persist across restar
 
 ---
 
-### Alert Mode Lab & Theme Browser
+### Theme Studio
 
-Two tools in one tab:
+The theme tools, one per tab:
 
-**Alert Mode Lab**: customise the colour palette applied per alert level (`red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert`). Adjust hue, saturation, lightness, and anchor parameters, preview changes live across your dashboard, then save to helpers.
+- **LCARdS Alert Mode Lab**: customise the colour palette applied per alert level (`red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert`). Adjust hue, saturation, lightness, and anchor parameters, preview changes live across your dashboard, then save to helpers.
+- **HA-LCARS Theme Lab**: build an HA-LCARS theme from the active palette.
+- **LCARdS Theme Tokens**, **LCARS CSS Variables**, **All CSS Variables**: browse the active theme's tokens and the page's CSS variables. Find the exact `theme:colors.ui.primary` path to use in card config, or which CSS variable controls a colour.
+- **Token Overrides**: change a token's value globally, per user or per device.
 
-**Theme Browser**: browse all active theme tokens and CSS variables. Find the exact `{theme:palette.moonlight}` token path to use in card config, or inspect which CSS variable controls a particular colour.
+A card editor's **Main Engineering > Theme** tab lists the tokens that card uses and links here. The link `/lcards-config?tab=theme` opens this tab directly (other tabs: `helpers`, `connectivity`, `sounds`, `users`, `packs`, `storage`).
 
 → [Alert Mode Lab](alert-mode-lab.md) &nbsp;·&nbsp; [Alert Mode](../core/alert-mode.md) &nbsp;·&nbsp; [Themes](../core/themes/)
 

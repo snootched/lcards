@@ -40,6 +40,7 @@ import './shared/lcards-form-section.js';
 import './shared/lcards-color-picker.js';
 import { FILTER_TYPE_DOCS_URL } from './shared/docs-links.js';
 import { infoGuideStyles } from './shared/info-guide-styles.js';
+import { renderInfoGuide } from './shared/info-guide.js';
 import { searchableSelectStyles } from './shared/searchable-select-styles.js';
 import { FILTER_TYPE_INFO } from './filter-type-info.js';
 
@@ -50,7 +51,6 @@ export class LCARdSFilterEditor extends LitElement {
             hass: { type: Object },
             filters: { type: Array }, // Array of filter objects
             _expandedFilters: { type: Object }, // Track which filters are expanded
-            _expandedGuideIndices: { state: true } // Set<number> — which filters' "How this filter works" info guide is open
         };
     }
 
@@ -60,7 +60,6 @@ export class LCARdSFilterEditor extends LitElement {
         this.hass = undefined;
         this.filters = [];
         this._expandedFilters = {};
-        this._expandedGuideIndices = new Set();
         this._draggedIndex = null;
         lcardsLog.debug('[FilterEditor] Initialized');
     }
@@ -415,18 +414,13 @@ export class LCARdSFilterEditor extends LitElement {
         const info = FILTER_TYPE_INFO[type];
         if (!info) return '';
 
-        const expanded = this._expandedGuideIndices.has(index);
         const docsUrl = `${FILTER_TYPE_DOCS_URL}#${type.toLowerCase()}`;
 
         return html`
-            <div class="preset-info-guide">
-                <div class="preset-info-guide-header" @click=${() => this._toggleGuideExpanded(index)}>
-                    <ha-icon icon="mdi:information-outline"></ha-icon>
-                    <span>How ${this._getFilterDisplayName(type)} works</span>
-                    <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
-                </div>
-                ${expanded ? html`
-                    <div class="preset-info-guide-body">
+            ${renderInfoGuide({
+        header: `How ${this._getFilterDisplayName(type)} works`,
+        icon: 'mdi:information-outline',
+        body: html`
                         ${this._splitIntoSentences(info.description).map(s => html`<p>${s}</p>`)}
                         ${info.params?.length ? html`
                             <strong>Params:</strong>
@@ -440,33 +434,19 @@ export class LCARdSFilterEditor extends LitElement {
                             </ul>
                         ` : ''}
                         <strong>Example:</strong>
-                        <pre class="preset-info-guide-example">${info.example}</pre>
+                        <pre class="info-guide-example">${info.example}</pre>
                         ${info.tip ? html`
-                            <p class="preset-info-guide-tip"><strong>Tip:</strong> ${info.tip}</p>
+                            <p class="info-guide-tip"><strong>Tip:</strong> ${info.tip}</p>
                         ` : ''}
-                        <div class="preset-info-guide-links">
+                        <div class="info-guide-links">
                             <a href=${docsUrl} target="_blank" rel="noopener noreferrer">View full docs →</a>
                         </div>
-                    </div>
-                ` : ''}
-            </div>
+                    `,
+      })}
         `;
     }
 
-    /**
-     * @private
-     */
-    _toggleGuideExpanded(index) {
-        const updated = new Set(this._expandedGuideIndices);
-        if (updated.has(index)) {
-            updated.delete(index);
-        } else {
-            updated.add(index);
-        }
-        this._expandedGuideIndices = updated;
-    }
-
-    /**
+        /**
      * @private
      */
     _splitIntoSentences(text) {

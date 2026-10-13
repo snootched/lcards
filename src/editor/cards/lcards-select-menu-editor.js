@@ -29,7 +29,7 @@ import '../components/editors/lcards-color-section-v2.js';
 // Utility tab components
 import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/templates/lcards-template-evaluation-tab.js';
-import '../components/theme-browser/lcards-theme-token-browser-tab.js';
+import { renderInfoGuide } from '../components/shared/info-guide.js';
 import '../components/provenance/lcards-provenance-tab.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
@@ -446,38 +446,24 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 outlined>
 
                 <lcards-message type=${template ? 'success' : 'info'}>
-                    ${template ? html`
-                        A button template is configured. The settings below describe what
-                        the template controls. Click <strong>Edit Button Style…</strong> to change it.
-                    ` : html`
-                        No template set yet. Click <strong>Configure Button Style…</strong> to open
-                        the full lcards-button editor and define the shared look for every option button.
-                    `}
-                    <ul style="margin:8px 0 0;padding-left:18px;line-height:1.9">
-                        <li>
-                            <strong>style</strong>: fill colour, border, radius per state
-                            (<code>active</code> = selected option, <code>inactive</code> = all others,
-                            <code>hover</code>, <code>pressed</code>…)
-                        </li>
-                        <li>
-                            <strong>text.default</strong>: font size, weight, transform, letter-spacing
-                            for all text layers
-                        </li>
-                        <li>
-                            <strong>text.label</strong>: styling for the button's primary
-                            <em>label</em> layer (centered text), which displays each option's
-                            <strong>Label</strong> field (set per-option on the Options tab).
-                            The label <em>content</em> is always injected from the option;
-                            only style properties (colour, size, weight…) belong here.
-                        </li>
-                        <li><strong>min_height / padding</strong>: button sizing</li>
-                        <li><strong>animations</strong>: entrance/exit effects</li>
-                    </ul>
-                    <div style="margin-top:6px;font-size:12px;color:var(--secondary-text-color)">
-                        Preset is set on the Config tab. Each option's label, icon, and actions
-                        are set on the Options tab and are never part of this template.
-                    </div>
+                    ${template
+                        ? html`A button template is set. <strong>Edit Button Style…</strong> changes it.`
+                        : html`No template yet. <strong>Configure Button Style…</strong> opens the button editor to set the look of every option.`}
                 </lcards-message>
+
+                ${renderInfoGuide({
+                    header: 'What the template covers',
+                    body: html`
+                        <ul>
+                            <li><strong>style</strong>: fill, border and radius per state (<code>active</code> is the selected option, <code>inactive</code> the others, plus <code>hover</code> and <code>pressed</code>).</li>
+                            <li><strong>text.default</strong>: font size, weight, transform and letter-spacing for all text.</li>
+                            <li><strong>text.label</strong>: the style of each option's label (its text always comes from the option).</li>
+                            <li><strong>min_height</strong> / <strong>padding</strong>: button size.</li>
+                            <li><strong>animations</strong>: entrance and exit effects.</li>
+                        </ul>
+                        <p>The preset is on the Config tab; each option's label, icon and actions are on the Options tab, never in the template.</p>
+                    `,
+                })}
 
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
                     <ha-button @click=${() => this._openButtonTemplateEditor()}>
@@ -913,17 +899,22 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
 
     _renderActionsTab() {
         return html`
-            <!-- Priority info first so user understands the model before configuring -->
-            <lcards-message type="info">
-                <strong>How actions work:</strong><br>
-                ① <strong>Per-option tap action</strong> (Options tab): highest priority; overrides the card-level tap action for that specific option only.<br>
-                ② <strong>Card-level Tap Action</strong> (below): applied to all options that have no per-option action set.<br>
-                ③ <strong>Default</strong>: when neither above is set, tapping calls <code>select_option</code> / <code>input_select.select_option</code> automatically.<br>
-                <hr style="border:none;border-top:1px solid var(--divider-color);margin:6px 0">
-                <strong>Hold</strong> and <strong>Double-Tap</strong> default to <em>no action</em>
-                (they will not fall through to the tap action). Set them here as a card-wide default,
-                or override per-option on the Options tab.
-            </lcards-message>
+            ${renderInfoGuide({
+                header: 'How actions work',
+                id: 'select-menu-actions',
+                body: html`
+                    <p>A tap uses the option's own action first, then the Tap Action below, then selects the option.</p>
+                    <ol>
+                        <li><strong>Per-option tap action</strong> (Options tab) wins, for that option only.</li>
+                        <li><strong>Tap Action</strong> (below) applies to every option without its own.</li>
+                        <li>Otherwise the tap selects the option (<code>select_option</code> / <code>input_select.select_option</code>).</li>
+                    </ol>
+                    <lcards-message type="info">
+                        <strong>Hold</strong> and <strong>Double-Tap</strong> do nothing unless set here (for all options)
+                        or per option; they don't fall back to the tap action.
+                    </lcards-message>
+                `,
+            })}
 
             <lcards-form-section
                 header="Tap Action"

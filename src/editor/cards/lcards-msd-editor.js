@@ -89,7 +89,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
             <!-- Studio Launcher Card (Top Priority) -->
             <div class="info-card">
                 <div class="info-card-content">
-                    <h3>🖼️ MSD Configuration Studio</h3>
+                    <h3>MSD Configuration Studio</h3>
                     <p>
                         <strong>Full-screen visual editor</strong> with live preview
                         <br />

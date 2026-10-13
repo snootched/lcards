@@ -18,6 +18,9 @@ export default defineConfig({
     use: {
         baseURL: process.env.HA_URL ?? 'http://localhost:8123',
         viewport: { width: 1400, height: 900 },
+        // HA's frontend reloads the page when its service worker takes control, which
+        // a fresh browser profile does a few seconds into every test: block it.
+        serviceWorkers: 'block',
         // System Chromium locally (no download); CI installs Playwright's own build.
         launchOptions: { executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined) },
     },

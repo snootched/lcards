@@ -181,13 +181,13 @@ export class LCARdSFontSelector extends LitElement {
                         class="toggle-button"
                         @click=${this._toggleMode}
                         ?disabled=${this.disabled}>
-                        ${this._isCustomMode ? '📋 Use Preset' : '🔧 Custom'}
+                        ${this._isCustomMode ? 'Use preset' : 'Custom'}
                     </button>
                 </div>
 
                 ${showMigrationNotice ? html`
                     <div class="migration-notice">
-                        ⚠️ Migrated from legacy name: ${this.value}
+                        Migrated from legacy name: ${this.value}
                     </div>
                 ` : ''}
 

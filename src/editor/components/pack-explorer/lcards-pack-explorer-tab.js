@@ -171,6 +171,12 @@ export class LCARdSPackExplorerTab extends LitElement {
         transform: rotate(0deg);
       }
 
+      .node-icon {
+        --mdc-icon-size: 16px;
+        flex: none;
+        color: var(--secondary-text-color);
+      }
+
       .node-label {
         flex: 1;
         font-size: 14px;
@@ -302,9 +308,8 @@ export class LCARdSPackExplorerTab extends LitElement {
       }
 
       .stat-card .stat-icon {
-        font-size: 18px;
-        line-height: 1;
-        margin-bottom: 4px;
+        --mdc-icon-size: 20px;
+        margin-bottom: var(--ha-space-1);
       }
 
       .stat-value {
@@ -533,7 +538,7 @@ export class LCARdSPackExplorerTab extends LitElement {
         id: `pack_${pack.id}`,
         type: 'pack',
         label: pack.id,
-        icon: '📦',
+        icon: 'mdi:package-variant',
         data: pack,
         children: []
       };
@@ -543,8 +548,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         const themesNode = {
           id: `${packNode.id}_themes`,
           type: 'category',
-          label: `🎨 Themes (${pack.themeCount})`,
-          icon: '🎨',
+          label: `Themes (${pack.themeCount})`,
+          icon: 'mdi:palette',
           data: { category: 'themes', packId: pack.id },
           children: []
         };
@@ -556,7 +561,7 @@ export class LCARdSPackExplorerTab extends LitElement {
             id: `theme_${theme.id}`,
             type: 'theme',
             label: theme.name || theme.id,
-            icon: '🎨',
+            icon: 'mdi:palette',
             data: theme
           });
         });
@@ -569,8 +574,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         const presetsNode = {
           id: `${packNode.id}_presets`,
           type: 'category',
-          label: `🎛️ Presets (${pack.presetCount})`,
-          icon: '🎛️',
+          label: `Presets (${pack.presetCount})`,
+          icon: 'mdi:tune-variant',
           data: { category: 'presets', packId: pack.id },
           children: []
         };
@@ -583,7 +588,7 @@ export class LCARdSPackExplorerTab extends LitElement {
               id: `${packNode.id}_presets_${type}`,
               type: 'preset-type',
               label: `${type} (${presets.length})`,
-              icon: '🎛️',
+              icon: 'mdi:tune-variant',
               data: { presetType: type, packId: pack.id },
               children: []
             };
@@ -593,7 +598,7 @@ export class LCARdSPackExplorerTab extends LitElement {
                 id: `preset_${type}_${preset.id}`,
                 type: 'preset',
                 label: preset.id,
-                icon: '🎛️',
+                icon: 'mdi:tune-variant',
                 data: preset
               });
             });
@@ -611,8 +616,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         const componentsNode = {
           id: `${packNode.id}_components`,
           type: 'category',
-          label: `🧩 Components (${componentsForPack.length})`,
-          icon: '🧩',
+          label: `Components (${componentsForPack.length})`,
+          icon: 'mdi:puzzle',
           data: { category: 'components', packId: pack.id },
           children: []
         };
@@ -626,13 +631,13 @@ export class LCARdSPackExplorerTab extends LitElement {
             id: `component_${comp.name}`,
             type: 'component',
             label: comp.name,
-            icon: '🧩',
+            icon: 'mdi:puzzle',
             data: comp,
             children: componentPresets.map(presetName => ({
               id: `component_${comp.name}_preset_${presetName}`,
               type: 'component-preset',
               label: presetName,
-              icon: '🎛️',
+              icon: 'mdi:tune-variant',
               data: {
                 componentName: comp.name,
                 presetName,
@@ -655,8 +660,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         const animationsNode = {
           id: `${packNode.id}_animations`,
           type: 'category',
-          label: `🎬 Animations (${animsForPack.length})`,
-          icon: '🎬',
+          label: `Animations (${animsForPack.length})`,
+          icon: 'mdi:animation-play',
           data: { category: 'animations', packId: pack.id },
           children: []
         };
@@ -666,7 +671,7 @@ export class LCARdSPackExplorerTab extends LitElement {
             id: `animation_${anim.id}`,
             type: 'animation',
             label: anim.name,
-            icon: '🎬',
+            icon: 'mdi:animation-play',
             data: anim
           });
         });
@@ -680,8 +685,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         const svgNode = {
           id: `${packNode.id}_svg_assets`,
           type: 'category',
-          label: `🖼️ SVG Assets (${svgAssets.length})`,
-          icon: '🖼️',
+          label: `SVG Assets (${svgAssets.length})`,
+          icon: 'mdi:image-outline',
           data: { category: 'svg_assets', packId: pack.id },
           children: []
         };
@@ -691,7 +696,7 @@ export class LCARdSPackExplorerTab extends LitElement {
             id: `svg_${asset.key}`,
             type: 'svg_asset',
             label: asset.key,
-            icon: '🖼️',
+            icon: 'mdi:image-outline',
             data: asset
           });
         });
@@ -705,8 +710,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         const fontNode = {
           id: `${packNode.id}_font_assets`,
           type: 'category',
-          label: `🔤 Font Assets (${fontAssets.length})`,
-          icon: '🔤',
+          label: `Font Assets (${fontAssets.length})`,
+          icon: 'mdi:format-font',
           data: { category: 'font_assets', packId: pack.id },
           children: []
         };
@@ -716,7 +721,7 @@ export class LCARdSPackExplorerTab extends LitElement {
             id: `font_${asset.key}`,
             type: 'font_asset',
             label: asset.key,
-            icon: '🔤',
+            icon: 'mdi:format-font',
             data: asset
           });
         });
@@ -730,8 +735,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         const audioNode = {
           id: `${packNode.id}_audio_assets`,
           type: 'category',
-          label: `🔊 Audio Assets (${audioAssets.length})`,
-          icon: '🔊',
+          label: `Audio Assets (${audioAssets.length})`,
+          icon: 'mdi:volume-high',
           data: { category: 'audio_assets', packId: pack.id },
           children: []
         };
@@ -741,7 +746,7 @@ export class LCARdSPackExplorerTab extends LitElement {
             id: `audio_${asset.key}`,
             type: 'audio_asset',
             label: asset.key,
-            icon: '🔊',
+            icon: 'mdi:volume-high',
             data: asset
           });
         });
@@ -755,8 +760,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         const imageNode = {
           id: `${packNode.id}_image_assets`,
           type: 'category',
-          label: `🖼️ Images (${imageAssets.length})`,
-          icon: '🖼️',
+          label: `Images (${imageAssets.length})`,
+          icon: 'mdi:image-outline',
           data: { category: 'image_assets', packId: pack.id },
           children: []
         };
@@ -766,7 +771,7 @@ export class LCARdSPackExplorerTab extends LitElement {
             id: `image_${asset.key}`,
             type: 'image_asset',
             label: asset.label || asset.key,
-            icon: '🖼️',
+            icon: 'mdi:image-outline',
             data: asset
           });
         });
@@ -780,8 +785,8 @@ export class LCARdSPackExplorerTab extends LitElement {
         const textureNode = {
           id: `${packNode.id}_texture_presets`,
           type: 'category',
-          label: `🎞️ Texture Presets (${textureEntries.length})`,
-          icon: '🎞️',
+          label: `Texture Presets (${textureEntries.length})`,
+          icon: 'mdi:texture-box',
           data: { category: 'texture_presets', packId: pack.id },
           children: []
         };
@@ -791,7 +796,7 @@ export class LCARdSPackExplorerTab extends LitElement {
             id: `texture_${key}`,
             type: 'texture_preset',
             label: preset.name,
-            icon: '🎞️',
+            icon: 'mdi:texture-box',
             data: { key, ...preset }
           });
         });
@@ -909,6 +914,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           <span class="tree-expander ${hasChildren ? (isExpanded ? 'expanded' : '') : 'leaf'}">
             ${hasChildren ? '▶' : ''}
           </span>
+          ${node.icon ? html`<ha-icon class="node-icon" icon=${node.icon}></ha-icon>` : ''}
           <span class="node-label">${node.label}</span>
         </div>
       </div>
@@ -1042,16 +1048,16 @@ export class LCARdSPackExplorerTab extends LitElement {
       <div class="detail-section">
         <h4>Statistics</h4>
         <div class="stats-grid">
-          ${this._renderStatCard('🎨', pack.themeCount || 0, 'Themes')}
-          ${this._renderStatCard('🎛️', pack.presetCount || 0, 'Presets')}
-          ${this._renderStatCard('🧩', this._getComponentsForPack(pack.id).length, 'Components')}
-          ${this._renderStatCard('📋', pack.ruleCount || 0, 'Rules')}
-          ${this._renderStatCard('🎬', this._getAnimationCountForPack(pack.id), 'Animations')}
-          ${this._renderStatCard('🖼️', this._getAssetsForPack('svg', pack.id).length, 'SVG')}
-          ${this._renderStatCard('🔤', this._getAssetsForPack('font', pack.id).length, 'Fonts')}
-          ${this._renderStatCard('🔊', this._getAssetsForPack('audio', pack.id).length, 'Audio')}
-          ${this._renderStatCard('📷', this._getAssetsForPack('image', pack.id).length, 'Images')}
-          ${this._renderStatCard('🎞️', this._getTextureCountForPack(pack.id), 'Textures')}
+          ${this._renderStatCard('mdi:palette', pack.themeCount || 0, 'Themes')}
+          ${this._renderStatCard('mdi:tune-variant', pack.presetCount || 0, 'Presets')}
+          ${this._renderStatCard('mdi:puzzle', this._getComponentsForPack(pack.id).length, 'Components')}
+          ${this._renderStatCard('mdi:format-list-checks', pack.ruleCount || 0, 'Rules')}
+          ${this._renderStatCard('mdi:animation-play', this._getAnimationCountForPack(pack.id), 'Animations')}
+          ${this._renderStatCard('mdi:image-outline', this._getAssetsForPack('svg', pack.id).length, 'SVG')}
+          ${this._renderStatCard('mdi:format-font', this._getAssetsForPack('font', pack.id).length, 'Fonts')}
+          ${this._renderStatCard('mdi:volume-high', this._getAssetsForPack('audio', pack.id).length, 'Audio')}
+          ${this._renderStatCard('mdi:image', this._getAssetsForPack('image', pack.id).length, 'Images')}
+          ${this._renderStatCard('mdi:texture-box', this._getTextureCountForPack(pack.id), 'Textures')}
         </div>
       </div>
     `;
@@ -1065,7 +1071,7 @@ export class LCARdSPackExplorerTab extends LitElement {
   _renderStatCard(icon, count, label) {
     return html`
       <div class="stat-card ${count === 0 ? 'zero' : ''}">
-        <div class="stat-icon">${icon}</div>
+        <ha-icon class="stat-icon" icon=${icon}></ha-icon>
         <div class="stat-value">${count}</div>
         <div class="stat-label">${label}</div>
       </div>
@@ -1764,7 +1770,7 @@ export class LCARdSPackExplorerTab extends LitElement {
         <div class="content-container">
           ${!this._inlineMode ? html`
             <div class="header">
-              <h2>📦 Pack Explorer</h2>
+              <h2>Pack Explorer</h2>
             </div>
           ` : ''}
 

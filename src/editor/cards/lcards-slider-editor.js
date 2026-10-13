@@ -36,7 +36,6 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/templates/lcards-template-evaluation-tab.js';
 
 // Import theme browser
-import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 
 // Import provenance tab
 import '../components/provenance/lcards-provenance-tab.js';
@@ -123,33 +122,17 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _handleRangeChanged(event) {
         const updates = event.detail;
-        const newConfig = { ...this.config };
-
-        // Update control range
-        if ('controlMin' in updates) {
-            if (!newConfig.control) newConfig.control = {};
-            newConfig.control.min = updates.controlMin;
-        }
-        if ('controlMax' in updates) {
-            if (!newConfig.control) newConfig.control = {};
-            newConfig.control.max = updates.controlMax;
-        }
-
-        // Update display range
-        if ('displayMin' in updates) {
-            if (!newConfig.style) newConfig.style = {};
-            if (!newConfig.style.track) newConfig.style.track = {};
-            if (!newConfig.style.track.display) newConfig.style.track.display = {};
-            newConfig.style.track.display.min = updates.displayMin;
-        }
-        if ('displayMax' in updates) {
-            if (!newConfig.style) newConfig.style = {};
-            if (!newConfig.style.track) newConfig.style.track = {};
-            if (!newConfig.style.track.display) newConfig.style.track.display = {};
-            newConfig.style.track.display.max = updates.displayMax;
-        }
-
-        this._updateConfig(newConfig);
+        // Partial updates: _updateConfig deep-merges (configs are frozen; never mutate)
+        const control = {};
+        const display = {};
+        if ('controlMin' in updates) control.min = updates.controlMin;
+        if ('controlMax' in updates) control.max = updates.controlMax;
+        if ('displayMin' in updates) display.min = updates.displayMin;
+        if ('displayMax' in updates) display.max = updates.displayMax;
+        this._updateConfig({
+            ...(Object.keys(control).length ? { control } : {}),
+            ...(Object.keys(display).length ? { style: { track: { display } } } : {}),
+        });
     }
 
     /**
@@ -158,19 +141,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _handleDirectionChanged(event) {
         const { orientation, invertFill, invertValue } = event.detail;
-        const newConfig = { ...this.config };
-
-        // Update orientation
-        if (!newConfig.style) newConfig.style = {};
-        if (!newConfig.style.track) newConfig.style.track = {};
-        newConfig.style.track.orientation = orientation;
-        newConfig.style.track.invert_fill = invertFill;
-
-        // Update value inversion
-        if (!newConfig.control) newConfig.control = {};
-        newConfig.control.invert_value = invertValue;
-
-        this._updateConfig(newConfig);
+        this._updateConfig({
+            style: { track: { orientation, invert_fill: invertFill } },
+            control: { invert_value: invertValue },
+        });
     }
 
     /**
@@ -346,10 +320,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 @value-changed=${(e) => this._setConfigValue('preset', e.detail.value || undefined)}>
             </ha-selector>
             ${isIncompatible ? html`
-                <ha-alert alert-type="warning">
-                    Preset '${currentPreset}' is not compatible with component '${currentComponent}'.
-                    Choose a compatible preset or clear the component field.
-                </ha-alert>
+                <lcards-message type="warning">
+                    Preset '${currentPreset}' doesn't work with component '${currentComponent}'.
+                    Choose a compatible preset, or clear the component.
+                </lcards-message>
             ` : ''}
         `;
     }
@@ -386,7 +360,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             ${!isValidAttribute && currentValue ? html`
                 <lcards-message
                     type="warning"
-                    message="⚠️ Attribute '${currentValue}' does not exist on entity '${entityId}'. The slider will control the entity state instead.">
+                    message="Attribute '${currentValue}' does not exist on entity '${entityId}'. The slider will control the entity state instead.">
                 </lcards-message>
             ` : ''}
         `;
@@ -613,6 +587,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 </lcards-grid-layout>
 
                 <lcards-slider-range-visualizer
+                    .hass=${this.hass}
                     .displayMin=${this.config?.style?.track?.display?.min ?? this.config?.control?.min ?? 0}
                     .displayMax=${this.config?.style?.track?.display?.max ?? this.config?.control?.max ?? 100}
                     .controlMin=${this.config?.control?.min ?? 0}
@@ -837,7 +812,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 <lcards-message
                     type="info"
-                    message="Band ranges colour a fixed zone on the track. Value markers track a live entity attribute (e.g. current temperature), shown as an indicator shape in gauge mode and a highlighted pill in pills mode.">
+                    message="Bands colour a fixed part of the track. Value markers follow a live attribute: an indicator in gauge mode, a pill in pills mode.">
                 </lcards-message>
 
                 <div class="range-list" style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;">
@@ -1803,7 +1778,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 `}
 
                 <lcards-message type="info"
-                    message="These sizes reserve pixel space outside the shape body and automatically create named zones (${isVertical ? 'top / bottom' : 'left / right'}) that text fields are routed to by default. To place a field <em>inside</em> the shape instead, go to the <strong>Text Fields</strong> tab, add the field, and set its zone to <strong>Track (inner)</strong>.">
+                    message="Text fields go in these bands by default. To put one inside the shape, set its zone to Track (inner) on the Text Fields tab.">
                 </lcards-message>
             </lcards-form-section>
         `;
@@ -1961,7 +1936,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 <lcards-message
                     type="info"
-                    message="Clips the entire card with rounded corners via SVG. Supports pixel numbers (12), px/rem strings (12px), CSS variables (var(--ha-card-border-radius)), or per-corner control for LCARS end-cap styling (e.g. round only the free end of a left-bordered slider).">
+                    message="Rounds the whole card: a number (12), a size (12px), a CSS variable, or each corner on its own for LCARS end-caps.">
                 </lcards-message>
 
                 <ha-selector

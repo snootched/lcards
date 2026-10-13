@@ -33,6 +33,9 @@ import './components/lcards-connectivity-tab.js';
 import { surfaceStyles } from '../editor/base/surface-styles.js';
 
 export class LCARdSConfigPanel extends LitElement {
+  /** Tab names for links (?tab=theme); the value is the tab index. */
+  static TAB_NAMES = { welcome: 0, helpers: 1, theme: 2, connectivity: 3, sounds: 4, users: 5, packs: 6, storage: 7, layouts: 8 };
+
   static properties = {
     hass: { type: Object },
     narrow: { type: Boolean },
@@ -51,7 +54,7 @@ export class LCARdSConfigPanel extends LitElement {
     super();
     /** @type {any} */
     this.hass = undefined;
-    this._selectedTab = 0;
+    this._selectedTab = LCARdSConfigPanel.TAB_NAMES[new URLSearchParams(window.location.search).get('tab') ?? ''] ?? 0;
     this._helpers = [];
     this._missingHelpers = [];
     this._createInProgress = false;

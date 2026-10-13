@@ -36,18 +36,13 @@ The [Rules Engine](../core/rules/) from this card's point of view.
 
 ---
 
-### Theme Browser
+### Theme
 
-Explore the active [Theme](../core/themes/) token tree live.
+The [Theme](../core/themes/) tokens this card uses, live: each token's value on the card (with a swatch for colours), the fields using it, and whether a theme override changes it. The copy button copies the `theme:` reference, ready to paste into card config.
 
-- **Browse all tokens**: the full token namespace tree, in categories (colours, typography, spacing, components, etc.)
-- **Current values**: tokens are shown with their resolved values from the active theme
-- **Search**: filter by name or value
-- **Copy**: click any token to copy its reference, ready to paste into card config
+**Open Theme Studio** and **Pack Explorer** open those tabs of the [LCARdS Config Panel](../configuration/index.md#theme-studio) in a new browser tab, so the editor stays open: browse every token and CSS variable there, tune alert modes and set overrides.
 
-::: tip Finding the right token
-Open Theme Browser while editing a card. When you find the colour or size you want, click to copy its path, then paste it directly into your YAML or Config field.
-:::
+The tokens come from the card editor's preview, like [Provenance](#provenance).
 
 ---
 

@@ -82,9 +82,9 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
     _renderConfigurationTab() {
         return html`
             ${this._upgradeNotes.length ? html`
-                <ha-alert alert-type="info" title="Chart format upgraded">
+                <lcards-message type="info" title="Chart format upgraded">
                     This card was upgraded to the current chart format. Save to keep the change.
-                </ha-alert>
+                </lcards-message>
             ` : ''}
 
             <!-- Studio Launcher Card (Top Priority) -->

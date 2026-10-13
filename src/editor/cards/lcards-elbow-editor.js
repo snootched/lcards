@@ -24,6 +24,7 @@ import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
 // Import shared form components
 import '../components/shared/lcards-form-section.js';
+import { renderInfoGuide } from '../components/shared/info-guide.js';
 import '../components/shared/lcards-color-picker.js';
 // Import specialized editor components
 import '../components/editors/lcards-grid-layout.js';
@@ -42,7 +43,6 @@ import '../components/dashboard/lcards-rules-dashboard.js';
 import '../components/datasources/lcards-datasource-editor-tab.js';
 // Import template components
 import '../components/templates/lcards-template-evaluation-tab.js';
-import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 import { showInfoDialog } from '../../views/layout-edit-dialogs.js';
@@ -751,7 +751,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         return html`
             <lcards-message
                 type="info"
-                message="Frame type draws a rectangular border (ring) around the card. Each side can be independently enabled/disabled and sized. Open sides get rounded end-caps via the corner curves.">
+                message="A frame draws a border around the card. Each side can be turned on and sized; open sides get rounded end-caps.">
             </lcards-message>
 
             <!-- Shorthand defaults -->
@@ -1019,6 +1019,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         return html`
             <!-- Static reference diagram -->
             <lcards-form-section
+                variant="guide"
                 header="Elbow Geometry Reference"
                 description="How the four dimensions map to the physical LCARS elbow shape"
                 icon="mdi:ruler-square"
@@ -1163,7 +1164,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             options: [
                                 { value: 'auto',       label: 'auto / arm_width  (bar_width ÷ 2)' },
                                 { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
-                                { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)  ★ paired elbows' },
+                                { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2), for paired elbows' },
                                 { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
                                 { value: 'arm_fill',   label: 'arm_fill  (max arm, full sweep)' },
                                 { value: 'manual',     label: 'manual  (explicit px)' },
@@ -1465,6 +1466,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
             <!-- ── Geometry Reference ──────────────────────────────────────── -->
             <lcards-form-section
+                variant="guide"
                 header="Geometry Reference"
                 description="Fixed-proportion diagram showing the segmented elbow structure"
                 icon="mdi:help-circle-outline"
@@ -1520,7 +1522,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     ${this._isCssExpr(outerSegment.bar_width) ? html`
                         <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
-                            .helper=${'📐 CSS expression active'}
+                            .helper=${'CSS expression active'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
@@ -1531,7 +1533,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         ${this._renderCssField('Bar Width', outerSegment.bar_width, 'elbow.segments.outer_segment.bar_width', 90)}
                     ` : html`
                         <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
+                            .helper=${'Static: fixed pixel value'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
@@ -1548,7 +1550,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     ${this._isCssExpr(outerSegment.bar_height) ? html`
                         <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
-                            .helper=${'📐 CSS expression active'}
+                            .helper=${'CSS expression active'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
@@ -1559,7 +1561,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         ${this._renderCssField('Bar Height', outerSegment.bar_height, 'elbow.segments.outer_segment.bar_height', 90)}
                     ` : html`
                         <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
+                            .helper=${'Static: fixed pixel value'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
@@ -1578,8 +1580,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         <ha-selector .hass=${this.hass}
                             .label=${'Diagonal Angle Mode'}
                             .helper=${outerSegment.diagonal_angle === 'theme'
-                                ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
-                                : '📏 Static: Fixed angle value'}
+                                ? 'Dynamic: follows the input_number.lcars_elbow_angle helper'
+                                : 'Static: fixed angle value'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
@@ -1630,7 +1632,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     ${this._isCssExpr(innerSegment.bar_width) ? html`
                         <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
-                            .helper=${'📐 CSS expression active'}
+                            .helper=${'CSS expression active'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
@@ -1641,7 +1643,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         ${this._renderCssField('Bar Width', innerSegment.bar_width, 'elbow.segments.inner_segment.bar_width', 60)}
                     ` : html`
                         <ha-selector .hass=${this.hass} .label=${'Bar Width Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
+                            .helper=${'Static: fixed pixel value'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
@@ -1658,7 +1660,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
                     ${this._isCssExpr(innerSegment.bar_height) ? html`
                         <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
-                            .helper=${'📐 CSS expression active'}
+                            .helper=${'CSS expression active'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
@@ -1669,7 +1671,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         ${this._renderCssField('Bar Height', innerSegment.bar_height, 'elbow.segments.inner_segment.bar_height', 60)}
                     ` : html`
                         <ha-selector .hass=${this.hass} .label=${'Bar Height Mode'}
-                            .helper=${'📏 Static: Fixed pixel value'}
+                            .helper=${'Static: fixed pixel value'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'css', label: 'CSS Expression (vw/vh/clamp/calc)' }
@@ -1688,8 +1690,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         <ha-selector .hass=${this.hass}
                             .label=${'Diagonal Angle Mode'}
                             .helper=${innerSegment.diagonal_angle === 'theme'
-                                ? '🎨 Dynamic: Binds to input_number.lcars_elbow_angle helper'
-                                : '📏 Static: Fixed angle value'}
+                                ? 'Dynamic: follows the input_number.lcars_elbow_angle helper'
+                                : 'Static: fixed angle value'}
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'static', label: 'Static Value' },
                                 { value: 'theme', label: 'Theme Binding (input_number.lcars_elbow_angle)' }
@@ -1747,7 +1749,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         .selector=${{ select: { mode: 'dropdown', options: [
                             { value: 'auto',       label: 'auto / arm_width  (bar_width ÷ 2)' },
                             { value: 'arm_height', label: 'arm_height  (bar_height ÷ 2)' },
-                            { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2)  ★ paired elbows' },
+                            { value: 'arm_max',    label: 'arm_max  (max arm ÷ 2), for paired elbows' },
                             { value: 'arm_min',    label: 'arm_min  (min arm ÷ 2)' },
                             { value: 'arm_fill',   label: 'arm_fill  (max arm, full sweep)' },
                             { value: 'manual',     label: 'manual  (explicit px)' },
@@ -1900,16 +1902,16 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
         return html`
             <div class="tab-content-container">
-                <lcards-message type="info">
-                    <strong>Symbiont Card</strong>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                        Embed any Home Assistant card inside the elbow’s content area.
-                        Enable <strong>Imprint</strong> to inject background color, text color, and font
-                        directly into the child card’s shadow root, no card-mod required.
-                        If the embedded card config includes a <code>card_mod</code> block and
-                        card-mod is installed, LCARdS will defer to card-mod instead.
-                    </p>
-                </lcards-message>
+                ${renderInfoGuide({
+                    header: 'How the symbiont card works',
+                    body: html`
+                        <p>Any Home Assistant card can sit inside the elbow's content area.</p>
+                        <ul>
+                            <li><strong>Imprint</strong> gives it the elbow's background colour, text colour and font, without card-mod.</li>
+                            <li>If the embedded card has a <code>card_mod</code> block and card-mod is installed, card-mod styles it instead.</li>
+                        </ul>
+                    `,
+                })}
 
                 <!-- Master Enable -->
                 <lcards-form-section
@@ -2254,7 +2256,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         ?expanded=${false}
                         ?outlined=${true}>
 
-                        <lcards-message type="info" message="Raw CSS injected into the embedded card&#39;s shadow root after imprint styles. Works without card-mod. If the card config includes a card_mod block and card-mod is installed, native injection is skipped automatically.">
+                        <lcards-message type="info" message="Raw CSS for the embedded card, applied after the imprint styles. Skipped when its config has a card_mod block and card-mod is installed.">
                         </lcards-message>
 
                         <ha-code-editor
@@ -3390,16 +3392,18 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     _renderEffectsTab() {
         return html`
             <div class="tab-content-container">
-                <!-- Info Message -->
-                <lcards-message type="info">
-                    <strong>Combining Effects:</strong>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                        Animations and filters work together. For example:
-                        <br/>• Add a <strong>glow filter</strong> with a <strong>pulse animation</strong> for breathing light effects
-                        <br/>• Use <strong>blur + brightness filters</strong> with <strong>hover animations</strong> for depth effects
-                        <br/>• Apply <strong>SVG filters</strong> for advanced effects like displacement maps or morphology
-                    </p>
-                </lcards-message>
+                ${renderInfoGuide({
+                    header: 'Combining effects',
+                    icon: 'mdi:lightbulb-outline',
+                    body: html`
+                        <p>Animations and filters work together. A few ideas:</p>
+                        <ul>
+                            <li>A <strong>glow</strong> filter with a <strong>pulse</strong> animation, for a breathing light.</li>
+                            <li><strong>Blur</strong> and <strong>brightness</strong> filters with <strong>hover</strong> animations, for depth.</li>
+                            <li><strong>SVG filters</strong> for displacement maps, morphology and more.</li>
+                        </ul>
+                    `,
+                })}
 
                 <!-- Animations Section -->
                 <lcards-form-section

@@ -84,6 +84,9 @@ test('more-info tap opens HA\'s more-info dialog', async ({ page }) => {
 test('lcards.red_alert / clear_alert services switch the alert mode on the page', async ({ page }) => {
     await openDashboard(page, 'cards');
     const mode = () => page.evaluate(() => window.lcards.core.themeManager.getAlertMode());
+    // The page follows the helper only once the helper manager has seen it (its first
+    // hass snapshot): a change before that is the page's starting state, not a change.
+    await page.waitForFunction(() => window.lcards.core.helperManager?._valueCache?.get('alert_mode') === 'green_alert', null, { timeout: 15_000 });
     // The mode updates after the alert transition plays, which can take several seconds.
     await client.callService('lcards', 'red_alert');
     await expect.poll(mode, { timeout: 15_000 }).toBe('red_alert');
@@ -588,7 +591,7 @@ test('Main Engineering: every sub-tab renders its tool', async ({ page }) => {
     const editor = await openMainEngineering(page, { type: 'custom:lcards-button', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge' });
     for (const [tab, tag] of [
         ['Data Sources', 'lcards-datasource-editor-tab'], ['Rules', 'lcards-rules-dashboard'],
-        ['Theme Browser', 'lcards-theme-token-browser-tab'], ['Provenance', 'lcards-provenance-tab'],
+        ['Theme', 'lcards-card-theme-tab'], ['Provenance', 'lcards-provenance-tab'],
         ['Templates', 'lcards-template-evaluation-tab'],
     ]) {
         await editor.getByRole('tab', { name: tab, exact: true }).dispatchEvent('click');
@@ -1061,6 +1064,88 @@ test('Provenance inspector: live follows the card (a rule applying); paused hold
     await dialog.getByRole('button', { name: 'Refresh' }).click();
     await expect(heightRow).toHaveCount(0);
     await removePreview(page);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+/**
+ * Theme (UI consistency B5b): a card editor's Theme tab lists that card's tokens
+ * and opens the config panel's Theme Studio / Pack Explorer in a new browser tab;
+ * the panel opens on the tab a ?tab= link names.
+ */
+test("Theme tab: the card's tokens with their values; links open the panel's Theme Studio and Pack Explorer", async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    const config = { type: 'custom:lcards-button', id: 'theme_tab', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge',
+        style: { card: { color: { background: { active: 'theme:colors.ui.primary', inactive: '#333366' } } } } };
+    const editor = await openMainEngineering(page, config);
+    await mountPreview(page, config);
+    await editor.getByRole('tab', { name: 'Theme', exact: true }).dispatchEvent('click');
+    const tab = editor.locator('lcards-card-theme-tab');
+    const row = tab.locator('.token[data-path="colors.ui.primary"]');
+    await expect(row).toContainText('theme:colors.ui.primary');
+    await expect(row).toContainText('style.card.color.background.active');
+    await expect(row.locator('.swatch')).toHaveCount(1);
+    // The full browser is no longer embedded in the editor
+    await expect(editor.locator('lcards-theme-token-browser-tab')).toHaveCount(0);
+    await page.evaluate(() => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return null; }; });
+    await tab.getByRole('button', { name: 'Open Theme Studio' }).click();
+    await tab.getByRole('button', { name: 'Pack Explorer' }).click();
+    expect(await page.evaluate(() => window.__opened)).toEqual(['/lcards-config?tab=theme', '/lcards-config?tab=packs']);
+    await removePreview(page);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Config panel: ?tab= opens that tab (theme, packs)', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    for (const [name, label, tag] of [['theme', 'Theme Studio', 'lcards-theme-token-browser-tab'], ['packs', 'Pack Explorer', 'lcards-pack-explorer-tab']]) {
+        await page.goto(`/lcards-config?tab=${name}`);
+        const panel = page.locator('lcards-config-panel-impl');
+        await expect(panel.locator(tag)).toBeAttached({ timeout: 20_000 });
+        await expect(panel.getByRole('tab', { name: label })).toHaveAttribute('aria-selected', 'true');
+        await settle(page, 800);
+        await expect(panel.getByRole('tab', { name: label })).toHaveAttribute('aria-selected', 'true');
+    }
+    expect(errors).toEqual([]);
+});
+
+test('Theme Studio: alert lab mode is an ha-selector (no raw select); picking a mode shows its parameters', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await page.goto('/lcards-config?tab=theme');
+    const studio = page.locator('lcards-config-panel-impl lcards-theme-token-browser-tab');
+    await expect(studio.locator('ha-selector').first()).toBeAttached({ timeout: 20_000 });
+    expect(await studio.evaluate(el => el.shadowRoot.querySelectorAll('select').length)).toBe(0);
+    await expect(studio.getByRole('tab', { name: 'LCARdS Alert Mode Lab' })).toHaveAttribute('aria-selected', 'true');
+    // Green is the baseline: no parameters; red has them
+    await studio.evaluate(el => el.shadowRoot.querySelector('ha-selector').dispatchEvent(
+        new CustomEvent('value-changed', { detail: { value: 'green_alert' } })));
+    await expect(studio.locator('.parameter-controls lcards-message')).toHaveCount(1);
+    await studio.evaluate(el => el.shadowRoot.querySelector('ha-selector').dispatchEvent(
+        new CustomEvent('value-changed', { detail: { value: 'red_alert' } })));
+    await expect(studio.locator('.parameter-controls lcards-form-section').first()).toHaveJSProperty('header', 'Core Transform Parameters');
+    // No emoji left in the studio's text
+    const text = await studio.evaluate(el => el.shadowRoot.textContent);
+    expect(text).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+    await page.evaluate(() => window.lcards.setAlertMode?.('green_alert'));
+    expect(errors).toEqual([]);
+});
+
+test('Slider editor: direction buttons write the config; range presets are HA buttons', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await mountEditor(page, 'lcards-slider', { type: 'custom:lcards-slider', entity: 'input_number.lcards_test_value' });
+    const editor = page.locator('#lcards-test-editor');
+    await editor.getByRole('tab', { name: 'Slider Track' }).dispatchEvent('click');
+    const vis = editor.locator('lcards-slider-range-visualizer');
+    await expect(vis).toBeAttached();
+    await vis.evaluate(el => { el.closest('lcards-form-section').expanded = true; });
+    expect(await vis.evaluate(el => el.shadowRoot.querySelectorAll('input, select, .preset-buttons button').length)).toBe(0);
+    await vis.evaluate(el => el.scrollIntoView({ block: 'center' }));
+    await vis.locator('.direction-button', { hasText: 'Top→Bottom' }).click();
+    await expect.poll(() => page.evaluate(() => {
+        const c = document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-editor').config;
+        return [c.style?.track?.orientation, c.style?.track?.invert_fill];
+    })).toEqual(['vertical', true]);
+    await vis.getByRole('button', { name: 'Match ranges' }).click();
     await removeEditor(page);
     expect(errors).toEqual([]);
 });

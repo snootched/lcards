@@ -29,6 +29,7 @@ import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
 import { BACKGROUND_PRESET_DOCS_URL } from './shared/docs-links.js';
 import { infoGuideStyles } from './shared/info-guide-styles.js';
+import { renderInfoGuide } from './shared/info-guide.js';
 import { searchableSelectStyles } from './shared/searchable-select-styles.js';
 
 export class LCARdSBackgroundAnimationEditor extends LitElement {
@@ -41,7 +42,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       _expandedEffects: { type: Object },
       _imageSrcModes:  { type: Object, state: true },
       _insetEnabled: { type: Boolean, state: true },
-      _expandedGuideIndices: { state: true } // Set<number> — which effects' "How this effect works" info guide is open
     };
   }
 
@@ -266,7 +266,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     this._expandedEffects = {};
     this._imageSrcModes   = {};
     this._insetEnabled = false;
-    this._expandedGuideIndices = new Set();
   }
 
   /**
@@ -525,19 +524,14 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     const presetInfo = BACKGROUND_PRESETS[preset];
     if (!presetInfo?.guide) return '';
 
-    const expanded = this._expandedGuideIndices.has(index);
     const docsUrl = `${BACKGROUND_PRESET_DOCS_URL}#${preset}`;
     const guide = presetInfo.guide;
 
     return html`
-      <div class="preset-info-guide">
-        <div class="preset-info-guide-header" @click=${() => this._toggleGuideExpanded(index)}>
-          <ha-icon icon="mdi:information-outline"></ha-icon>
-          <span>How ${presetInfo.name} works</span>
-          <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
-        </div>
-        ${expanded ? html`
-          <div class="preset-info-guide-body">
+      ${renderInfoGuide({
+        header: `How ${presetInfo.name} works`,
+        icon: 'mdi:information-outline',
+        body: html`
             ${this._splitIntoSentences(guide.summary).map(s => html`<p>${s}</p>`)}
             ${guide.params?.length ? html`
               <strong>Params:</strong>
@@ -551,34 +545,20 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
               </ul>
             ` : ''}
             <strong>Example:</strong>
-            <pre class="preset-info-guide-example">${guide.example}</pre>
+            <pre class="info-guide-example">${guide.example}</pre>
             ${guide.tip ? html`
-              <p class="preset-info-guide-tip"><strong>Tip:</strong> ${guide.tip}</p>
+              <p class="info-guide-tip"><strong>Tip:</strong> ${guide.tip}</p>
             ` : ''}
             ${this._renderEntityBindingNote()}
-            <div class="preset-info-guide-links">
+            <div class="info-guide-links">
               <a href=${docsUrl} target="_blank" rel="noopener noreferrer">View full docs →</a>
             </div>
-          </div>
-        ` : ''}
-      </div>
+          `,
+      })}
     `;
   }
 
-  /**
-   * @private
-   */
-  _toggleGuideExpanded(index) {
-    const updated = new Set(this._expandedGuideIndices);
-    if (updated.has(index)) {
-      updated.delete(index);
-    } else {
-      updated.add(index);
-    }
-    this._expandedGuideIndices = updated;
-  }
-
-  /**
+    /**
    * @private
    */
   _splitIntoSentences(text) {
@@ -1406,13 +1386,10 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
 
   _renderEntityBindingNote() {
     return html`
-      <lcards-message type="info">
-        <strong>Entity Binding:</strong> To reactively tie any parameter to an entity (e.g. speed to brightness), edit this card’s YAML directly.<br><br>
-        <strong>map_range</strong> (recommended):<br>
-        <code>scroll_speed_x: { map_range: { attribute: brightness, input: [0,255], output: [-200,200] } }</code><br><br>
-        <strong>Template</strong> (advanced):<br>
-        <code>fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</code>
-      </lcards-message>
+      <p class="info-guide-tip"><strong>Follow an entity:</strong> any parameter can track an entity (speed to brightness,
+        say), in this card's YAML. <code>map_range</code> is the usual way; a template is the advanced one.</p>
+      <pre class="info-guide-example">scroll_speed_x: { map_range: { attribute: brightness, input: [0, 255], output: [-200, 200] } }
+fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</pre>
     `;
   }
 

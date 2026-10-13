@@ -4,6 +4,10 @@
  * Collapsible section component for organizing form fields into logical groups.
  * Uses Home Assistant's ha-expansion-panel component.
  *
+ * variant="guide": the editors' explainer (renderInfoGuide in info-guide.js):
+ * the same section, dark, with the theme's primary colour on the border and
+ * header, so it reads apart from settings sections.
+ *
  * @example
  * <lcards-form-section
  *   header="Color Settings"
@@ -30,7 +34,8 @@ export class LCARdSFormSection extends LitElement {
             secondary: { type: String },      // Secondary text for header
             noCollapse: { type: Boolean },    // Disable collapsing
             compact: { type: Boolean },       // Use compact spacing
-            nested: { type: Boolean }         // Use nested spacing
+            nested: { type: Boolean },        // Use nested spacing
+            variant: { type: String, reflect: true } // '' (settings) | 'guide' (explainer)
         };
     }
 
@@ -47,6 +52,7 @@ export class LCARdSFormSection extends LitElement {
         this.noCollapse = false;
         this.compact = false;
         this.nested = false;
+        this.variant = '';
     }
 
     static get styles() {
@@ -116,6 +122,24 @@ export class LCARdSFormSection extends LitElement {
             /* Add spacing between ha-selector elements to prevent cramping when helper text is present */
             ::slotted(ha-selector) {
                 margin-bottom: var(--ha-space-4);
+            }
+
+            /* Explainer (variant="guide"): dark, primary colour on border and header,
+               staying dark when open or focused */
+            :host([variant="guide"]) ha-expansion-panel,
+            :host([variant="guide"]) ha-expansion-panel[expanded],
+            :host([variant="guide"]) ha-expansion-panel:focus-within,
+            :host([variant="guide"]) ha-expansion-panel.focused {
+                background-color: var(--primary-background-color);
+            }
+
+            :host([variant="guide"]) ha-expansion-panel[outlined] {
+                border-color: color-mix(in srgb, var(--primary-color) 50%, transparent);
+            }
+
+            :host([variant="guide"]) [slot="header"] {
+                color: var(--primary-color);
+                font-weight: 600;
             }
 
             /* Icon spacing in headers */

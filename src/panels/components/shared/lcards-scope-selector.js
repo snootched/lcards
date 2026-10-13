@@ -288,7 +288,7 @@ export class LCARdSScopeSelector extends LitElement {
               options: [
                 {
                   value: '__own__',
-                  label: scope === 'user' ? '👤 My User (own)' : '💻 This Device (own)',
+                  label: scope === 'user' ? 'My user (own)' : 'This device (own)',
                 },
                 ...(scope === 'user'
                   ? this._adminUserList.map(u => ({ value: u.id, label: u.name || u.id }))

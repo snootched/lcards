@@ -20,6 +20,7 @@ import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
 
 import '../components/shared/lcards-message.js';
 import '../components/shared/lcards-form-section.js';
+import { renderInfoGuide } from '../components/shared/info-guide.js';
 import '../components/yaml/lcards-yaml-editor.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../components/shared/lcards-color-picker.js';
@@ -204,13 +205,8 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
             <div class="tab-content-container">
 
                 <lcards-message type="info">
-                    <strong>Alert Overlay</strong>
-                    <p style="margin:8px 0 0 0; font-size:13px; line-height:1.4;">
-                        This card renders a full-screen backdrop + content card whenever
-                        <code>input_select.lcards_alert_mode</code> is set to an active alert state
-                        (red / yellow / blue / black / gray).
-                        Add one overlay card per dashboard view.
-                    </p>
+                    Shows a full-screen backdrop and alert card while <code>input_select.lcards_alert_mode</code>
+                    is an alert (red, yellow, blue, black or gray). Add one per dashboard view.
                 </lcards-message>
 
                 <!-- Dismiss Behaviour -->
@@ -336,17 +332,17 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         return html`
             <div class="tab-content-container">
 
-                <lcards-message type="info">
-                    <strong>Per-condition overrides</strong>
-                    <p style="margin:8px 0 0 0; font-size:13px; line-height:1.4;">
-                        Each section below lets you customise what is shown when that alert mode
-                        is active. <strong>Alert Button Overrides</strong>: patch the default LCARdS alert button
-                        text and colours without replacing the full card. <em>Content card</em>: replace the default
-                        entirely with any HA card. All other settings
-                        override the global defaults from the <strong>Config</strong> and
-                        <strong>Backdrop</strong> tabs.
-                    </p>
-                </lcards-message>
+                ${renderInfoGuide({
+                    header: 'How condition overrides work',
+                    body: html`
+                        <p>Each section below sets what shows while that alert mode is active.</p>
+                        <ul>
+                            <li><strong>Alert button overrides</strong> change the default alert button's text and colours.</li>
+                            <li><strong>Content card</strong> replaces the default with any HA card.</li>
+                            <li>Everything else overrides the defaults on the <strong>Config</strong> and <strong>Backdrop</strong> tabs.</li>
+                        </ul>
+                    `,
+                })}
 
                 ${ALERT_CONDITIONS.map(c => this._renderConditionSection(c))}
 
@@ -580,7 +576,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
 
                 <lcards-message
                     type="info"
-                    message="These overrides are applied on top of the built-in default alert button. Only specify the fields you want to change; type, component, and preset are inherited automatically. Has no effect when a custom Content Card is set above.">
+                    message="Set only what you want to change; the rest comes from the default alert button. No effect when a Content Card is set above.">
                 </lcards-message>
 
                 <!-- Alert label -->

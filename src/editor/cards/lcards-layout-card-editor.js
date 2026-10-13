@@ -40,7 +40,7 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
         return html`
             <div class="info-card">
                 <div class="info-card-content">
-                    <h3>🔲 Layout Studio</h3>
+                    <h3>Layout Studio</h3>
                     <p>
                         <strong>Full-screen grid workspace</strong> with live preview
                         <br />

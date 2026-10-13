@@ -31,7 +31,7 @@ style:
 
 ## Token Namespaces
 
-Tokens are organized into namespaces. Browse all available tokens in the [Config Panel](../../configuration/index.md) Theme Browser tab.
+Tokens are organized into namespaces. Browse all available tokens in the [Config Panel](../../configuration/index.md#theme-studio) Theme Studio; a card editor's Main Engineering > Theme tab lists the ones that card uses.
 
 ### Example: `colors.ui.*`
 

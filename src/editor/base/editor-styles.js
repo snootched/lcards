@@ -5,6 +5,7 @@
  */
 
 import { css } from 'lit';
+import { infoGuideStyles } from '../components/shared/info-guide-styles.js';
 
 export const editorStyles = css`
     :host {
@@ -298,4 +299,7 @@ export const editorStyles = css`
             grid-template-columns: 1fr;
         }
     }
+
+
+    ${infoGuideStyles}
 `;

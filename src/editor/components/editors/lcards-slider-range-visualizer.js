@@ -15,6 +15,8 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 export class LCARdSSliderRangeVisualizer extends LitElement {
     static get properties() {
         return {
+            hass: { type: Object },
+
             // Range values
             displayMin: { type: Number },
             displayMax: { type: Number },
@@ -177,29 +179,8 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                 margin-top: 8px;
             }
 
-            .preset-button {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 6px;
-                padding: 8px 12px;
-                background: var(--secondary-background-color);
-                border: var(--ha-border-width-md) solid var(--divider-color);
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.2s;
-                font-size: 12px;
-                font-weight: 600;
-            }
-
-            .preset-button:hover {
-                background: var(--primary-color);
-                color: white;
-                border-color: var(--primary-color);
-            }
-
-            .preset-button ha-icon {
-                --mdc-icon-size: 18px;
+            .preset-buttons ha-button {
+                width: 100%;
             }
 
             /* Direction Presets */
@@ -347,6 +328,8 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
 
     constructor() {
         super();
+        /** @type {any} */
+        this.hass = undefined;
 
         // Default values
         this.displayMin = 0;
@@ -596,14 +579,14 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
 
         switch(relationship) {
             case 'simple':
-                relationshipText = '✓ Standard: Control and display ranges match';
+                relationshipText = 'Control and display ranges match.';
                 break;
             case 'clamped':
-                relationshipText = '🔒 Clamped Range: Control range limits prevent extreme values';
+                relationshipText = 'Clamped: the control range stops short of the display range.';
                 relationshipClass = 'clamped';
                 break;
             case 'extended':
-                relationshipText = '📊 Extended View: Display shows wider context than settable range';
+                relationshipText = 'Extended: the display shows more than the settable range.';
                 relationshipClass = 'extended';
                 break;
         }
@@ -678,21 +661,21 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
 
                 <!-- Preset Buttons -->
                 <div class="preset-buttons">
-                    <button
-                        class="preset-button"
+                    <ha-button
+                        appearance="filled"
                         @click="${() => this._applyPreset('simple')}"
                         ?disabled="${this.disabled}">
-                        <ha-icon icon="mdi:equal"></ha-icon>
-                        <span>Match Ranges</span>
-                    </button>
+                        <ha-icon icon="mdi:equal" slot="start"></ha-icon>
+                        Match ranges
+                    </ha-button>
 
-                    <button
-                        class="preset-button"
+                    <ha-button
+                        appearance="filled"
                         @click="${() => this._applyPreset('reset')}"
                         ?disabled="${this.disabled}">
-                        <ha-icon icon="mdi:restore"></ha-icon>
-                        <span>Reset Ranges</span>
-                    </button>
+                        <ha-icon icon="mdi:restore" slot="start"></ha-icon>
+                        Reset ranges
+                    </ha-button>
                 </div>
 
                 <!-- Manual Inputs -->
@@ -869,14 +852,13 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
                     (${Math.round(valuePercent)}%)
                 </div>
 
-                <input
-                    type="range"
-                    min="${String(this.controlMin)}"
-                    max="${String(this.controlMax)}"
-                    .value="${String(this._previewValue)}"
-                    @input="${(e) => { this._previewValue = parseFloat(e.target.value); }}"
-                    style="width: 100%; margin-top: 8px;"
-                    ?disabled="${this.disabled}">
+                <ha-selector
+                    .hass=${this.hass}
+                    .value=${this._previewValue}
+                    .disabled=${this.disabled}
+                    .selector=${{ number: { min: this.controlMin, max: this.controlMax, step: 'any', mode: 'slider' } }}
+                    @value-changed=${(e) => { this._previewValue = parseFloat(e.detail.value); }}>
+                </ha-selector>
             </div>
         `;
     }

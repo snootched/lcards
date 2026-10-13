@@ -20,6 +20,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { styleMap } from 'lit/directives/style-map.js';
 import { editorStyles } from '../../base/editor-styles.js';
 import { infoGuideStyles } from '../shared/info-guide-styles.js';
+import { renderInfoGuide } from '../shared/info-guide.js';
 import { searchableSelectStyles } from '../shared/searchable-select-styles.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
@@ -345,7 +346,6 @@ export class LCARdSThemeGeneratorView extends LitElement {
       _copyFeedback: { state: true },
       _rawFilterText: { state: true },
       _selectedLibraryTheme: { state: true },
-      _expandedGuideIds: { state: true },
       _startMode: { state: true },
       _legacySearchText: { state: true },
       _legacyActiveCategory: { state: true },
@@ -365,7 +365,6 @@ export class LCARdSThemeGeneratorView extends LitElement {
     this._previewMode = 'dark';
     this._copyFeedback = false;
     this._rawFilterText = '';
-    this._expandedGuideIds = new Set();
     this._legacySearchText = '';
     this._legacyActiveCategory = 'all';
     this._expandedLegacyGroups = new Set(['LCARS UI']);
@@ -802,25 +801,15 @@ export class LCARdSThemeGeneratorView extends LitElement {
     this._legacySearchText = '';
   }
 
-  // ─── Collapsible info-guide helper (preset-info-guide pattern) ─────────
-
-  _toggleGuide(id) {
-    const updated = new Set(this._expandedGuideIds);
-    if (updated.has(id)) updated.delete(id); else updated.add(id);
-    this._expandedGuideIds = updated;
-  }
+  // ─── Collapsible info guide (renderInfoGuide) ─────────
 
   _renderInfoGuide(id, icon, title, bodyTemplate) {
-    const expanded = this._expandedGuideIds.has(id);
     return html`
-      <div class="preset-info-guide">
-        <div class="preset-info-guide-header" @click=${() => this._toggleGuide(id)}>
-          <ha-icon icon="${icon}"></ha-icon>
-          <span>${title}</span>
-          <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
-        </div>
-        ${expanded ? html`<div class="preset-info-guide-body">${bodyTemplate}</div>` : nothing}
-      </div>
+      ${renderInfoGuide({
+        header: `${title}`,
+        icon: icon,
+        body: html`${bodyTemplate}`,
+      })}
     `;
   }
 
@@ -1402,7 +1391,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
             <li><strong>Domain &amp; State Colours</strong>: configure common/per domain state-specific colour overrides.</li>
             <li><strong>Advanced / Raw Overrides</strong>: for any var name without dedicated UI.</li>
           </ul>
-          <p class="preset-info-guide-tip">A Palette Seed role left as <strong>None</strong> is left out of the export, so HA's own default palette applies instead. Dashed badge
+          <p class="info-guide-tip">A Palette Seed role left as <strong>None</strong> is left out of the export, so HA's own default palette applies instead. Dashed badge
             <span class="gen-fallback-badge">HA-LCARS Default</span> appears for values that are the HA-LCARS theme defaults; and <span class="gen-fallback-badge">HA Default</span>
             for values from HA defaults.</p>
           <p>Most fields support separate light/dark values. Switch to <strong>Preview &amp; Export</strong> mode at any time to see the current state and generated YAML.</p>
@@ -1482,7 +1471,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
               <li><strong>Installed on this HA</strong>: themes currently loaded on this Home Assistant instance.</li>
               <li><strong>Bundled reference</strong>: a snapshot shipped with LCARdS, shown only when that theme isn't installed here.</li>
             </ul>
-            <p class="preset-info-guide-tip">A Palette Seed role switches to "Imported" when the loaded theme defines its own <code>ha-color-&lt;role&gt;-*</code> ramp. Otherwise it's set to "None".</p>
+            <p class="info-guide-tip">A Palette Seed role switches to "Imported" when the loaded theme defines its own <code>ha-color-&lt;role&gt;-*</code> ramp. Otherwise it's set to "None".</p>
           `)}
         ` : nothing}
 
@@ -1506,7 +1495,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
               <li>Complete <code>ha-color-&lt;role&gt;-*</code> ramps: promoted to Palette Seed as "Imported"</li>
             </ul>
             <p>Everything else lands in Advanced / Raw Overrides.</p>
-            <p class="preset-info-guide-missing-note">YAML anchor merge keys (<code>&lt;&lt;: *anchor</code>) can't be
+            <p class="info-guide-note">YAML anchor merge keys (<code>&lt;&lt;: *anchor</code>) can't be
               resolved from a standalone paste and are skipped.</p>
           `)}
         ` : nothing}
@@ -1535,8 +1524,8 @@ export class LCARdSThemeGeneratorView extends LitElement {
     return html`
       ${this._renderInfoGuide('tier-legend', 'mdi:information-outline', 'The A/F/T/O badges', html`
         <p>Home Assistant's <code>ha-button</code> (now built with WebAwesome) doesn't read a Palette Seed tone itself, but rather each tone below feeds one of HA's own fixed semantic tokens.  HA then aliases to the semantic tokens with generic names <code>ha-button</code> actually consumes. Each badge marks which tone makes that whole hop, for a given <code>appearance</code></p>
-        <p class="preset-info-guide-missing-note">Shown for Primary/"brand" as an example: each role follows the same 3-hop chain via its own family name (neutral/danger/warning/success)</p>
-        <pre class="preset-info-guide-example">--ha-color-primary-40                    Palette Seed tone (the swatch itself)
+        <p class="info-guide-note">Shown for Primary/"brand" as an example: each role follows the same 3-hop chain via its own family name (neutral/danger/warning/success)</p>
+        <pre class="info-guide-example">--ha-color-primary-40                    Palette Seed tone (the swatch itself)
       │
       ▼
 --ha-color-fill-primary-loud-resting     HA's semantic tier  ← the "A" badge marks this
@@ -1552,9 +1541,9 @@ export class LCARdSThemeGeneratorView extends LitElement {
           <li><span class="gen-tier-badge">T</span>: text tone shared by <code>appearance="filled"</code> and <code>appearance="plain"</code></li>
           <li><span class="gen-tier-badge">O</span>: text tone for <code>appearance="outlined"</code></li>
         </ul>
-        <p class="preset-info-guide-tip">A swatch with no badges isn't unused: it's just not the fixed landing tone for any button appearance.</p>
-        <p class="preset-info-guide-missing-note">A "T" or "O" badge can be genuinely, correctly missing even where you'd expect one: LCARdS applies a WCAG contrast correction on export that can shift that button's actual text colour off this role's scale entirely (to black/white, or a different stop). See the contrast note under each role below when that happens.</p>
-        <div class="preset-info-guide-links">
+        <p class="info-guide-tip">A swatch with no badges isn't unused: it's just not the fixed landing tone for any button appearance.</p>
+        <p class="info-guide-note">A "T" or "O" badge can be genuinely, correctly missing even where you'd expect one: LCARdS applies a WCAG contrast correction on export that can shift that button's actual text colour off this role's scale entirely (to black/white, or a different stop). See the contrast note under each role below when that happens.</p>
+        <div class="info-guide-links">
           <a href="https://design.home-assistant.io/#components/ha-button" target="_blank" rel="noopener">ha-button component reference →</a>
         </div>
       `)}
@@ -1865,7 +1854,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
       <lcards-form-section header="Domain &amp; State Colours" icon="mdi:state-machine" ?expanded=${false} ?outlined=${true}>
         ${this._renderInfoGuide('domain', 'mdi:information-outline', 'How domain & state colours work', html`
           <p>HA colours an entity's state icon by walking a fallback chain, top to bottom, until it finds a var that's defined:</p>
-          <pre class="preset-info-guide-example">--state-&lt;domain&gt;-&lt;device_class&gt;-&lt;state&gt;-color             only for entities with a device_class
+          <pre class="info-guide-example">--state-&lt;domain&gt;-&lt;device_class&gt;-&lt;state&gt;-color             only for entities with a device_class
       │
       ▼
 --state-&lt;domain&gt;-&lt;state&gt;-color                            the rows below, e.g. --state-light-on-color
@@ -1877,7 +1866,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
 Global Fallback: --state-active-color / -inactive-color   the final floor (plus unavailable/unknown/default-icon)</pre>
           <p>An <code>unavailable</code> entity skips straight to Global Fallback's
             <code>--state-unavailable-color</code>.</p>
-          <p class="preset-info-guide-tip">Rows only hold a real value once set. <code>lock</code> and most of
+          <p class="info-guide-tip">Rows only hold a real value once set. <code>lock</code> and most of
             <code>climate</code> come pre-set from HA-LCARS's own shared defaults. Every other row starts unset and
             just previews a static default (badged HA-LCARS Default / HA Default / Global Default). Leaving
             everything unset and only setting Global Fallback is a perfectly complete theme.</p>
@@ -2045,10 +2034,10 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
           ${this._renderInfoGuide('domain-demo', 'mdi:information-outline', 'What these tiles are, and what they can\'t show', html`
             <p>Each tile is a real <code>hui-card</code> pointed at a fake entity, created only for this preview.
               Tapping a tile does nothing; the entity isn't real.</p>
-            <p class="preset-info-guide-tip"><strong>Person and device tracker are missing on purpose:</strong> HA's
+            <p class="info-guide-tip"><strong>Person and device tracker are missing on purpose:</strong> HA's
               tile card doesn't colour those from a CSS var; their colour comes from a badge instead. Still
               editable as swatches in <strong>Domain &amp; State Colours</strong> above.</p>
-            <p class="preset-info-guide-missing-note">A tile badged <strong>HA-LCARS Default</strong> or
+            <p class="info-guide-note">A tile badged <strong>HA-LCARS Default</strong> or
               <strong>HA Default</strong> is showing this section's static default, not whatever theme is active on
               this browser tab. Real device-classed entities (e.g. an actual <code>binary_sensor.smoke</code>) may
               still show HA's own baked-in colour, since this generator only sets the generic per-state var, not
@@ -2089,7 +2078,7 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
               <li>Your currently active HA theme must be an HA-LCARS theme. The class definitions live in that
                 theme's own <code>card-mod-card-yaml</code>, not in the theme you're editing here.</li>
             </ul>
-            <p class="preset-info-guide-tip">The <em>colours</em> those classes use (<code>--lcars-card-top-color</code>
+            <p class="info-guide-tip">The <em>colours</em> those classes use (<code>--lcars-card-top-color</code>
               and friends) do come from the theme you're editing, live. Only the class definitions depend on what's
               active.</p>
           `)}
@@ -2103,10 +2092,10 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
               <code>ha-alert</code> elements, wrapped in this theme's computed CSS. Nothing outside this box is
               affected, and nothing here is written to the export. Unlike the card_mod examples above, these always
               render.</p>
-            <p class="preset-info-guide-tip">The alert stack exercises the legacy
+            <p class="info-guide-tip">The alert stack exercises the legacy
               <code>info/success/warning/error-color</code> vars: see <strong>Colour Reference</strong> above for
               every other field, as swatches.</p>
-            <p class="preset-info-guide-tip">Each variant shows all 4 of <code>ha-button</code>'s real
+            <p class="info-guide-tip">Each variant shows all 4 of <code>ha-button</code>'s real
               <code>appearance</code> values (<code>frontend/src/components/ha-button.ts</code>'s own type: this
               isn't a curated subset), labelled by that real attribute name. Confirmed directly against the real
               <code>@home-assistant/webawesome</code> package and ha-button.ts's own overrides: <strong>Accent</strong>
@@ -2124,10 +2113,10 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
               actually manages (Family/Custom/Imported). That correction is this generator's own, applied on
               export, not something HA/"None" roles ever get. To change any of these, edit the tagged stop's colour
               in Palette Seed; the tone each tag points to isn't itself editable.</p>
-            <p class="preset-info-guide-tip">Toggle the switch/checkbox yourself to see both on and off colours.</p>
-            <p class="preset-info-guide-tip"><strong>Roles left "None" in Palette Seed</strong> render using whatever
+            <p class="info-guide-tip">Toggle the switch/checkbox yourself to see both on and off colours.</p>
+            <p class="info-guide-tip"><strong>Roles left "None" in Palette Seed</strong> render using whatever
               HA (or your active theme) falls back to right now.</p>
-            <p class="preset-info-guide-missing-note">Not your actual dashboard: a real view adds its own layout and
+            <p class="info-guide-note">Not your actual dashboard: a real view adds its own layout and
               HA-LCARS chrome (see <strong>LCARS UI Chrome</strong> above). This box only proves the theme's colours
               resolve correctly.</p>
           `)}

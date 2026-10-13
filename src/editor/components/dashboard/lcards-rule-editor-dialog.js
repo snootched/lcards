@@ -17,6 +17,7 @@
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import '../shared/lcards-form-section.js';
+import '../shared/lcards-message.js';
 import './lcards-condition-group-editor.js';
 import './lcards-rule-apply-editor.js';
 
@@ -94,7 +95,7 @@ export class LCARdSRuleEditorDialog extends LitElement {
                 margin-bottom: var(--ha-space-1);
             }
 
-            ha-alert {
+            lcards-message {
                 display: block;
                 margin-bottom: var(--ha-space-2);
             }
@@ -370,10 +371,9 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     ?outlined=${false}>
 
                     ${this._applyWarning ? html`
-                        <ha-alert alert-type="warning">
-                            The Apply section is empty; this rule will fire but do nothing.
-                            Add at least one overlay target or tag target.
-                        </ha-alert>
+                        <lcards-message type="warning">
+                            Apply is empty: the rule will match but change nothing. Add at least one target.
+                        </lcards-message>
                     ` : ''}
 
                     <lcards-rule-apply-editor

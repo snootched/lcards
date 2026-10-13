@@ -1586,13 +1586,13 @@ export class LCARdSColorPicker extends LitElement {
     _getDropdownOptions() {
         const options = [
             { value: '', label: '-- Select Variable --' },
-            { value: 'transparent', label: '🔲 Transparent' }
+            { value: 'transparent', label: 'Transparent' }
         ];
 
         if (this.allowMatchLight) {
             options.push({
                 value: 'match-light',
-                label: '💡 Match Light Colour'
+                label: 'Match light colour'
             });
         }
 

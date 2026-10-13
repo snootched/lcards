@@ -107,16 +107,26 @@ The studios (chart, data grid, layout, MSD, data source) and the config panel ar
 
 **Surfaces.** Group fields in `lcards-form-section` (the inset section card). Panel tabs use `surfaceStyles` from `src/editor/base/surface-styles.js` (the inset area `.studio-layout` / `.inset-surface` and its `.scrollable-body` / `.scroll-body`); never copy that CSS into a tab. Studio dialogs import `messageStyles` instead, because their own `.studio-layout` is the split grid.
 
-**Messages.**
-- Prefer a form section's `description` or a `.hint` line (`messageStyles`) over an info box.
-- `lcards-message` is for state the user must act on (error, warning) or one short note. One or two sentences plus a docs link; no headings, lists, emoji or paragraphs of prose in the UI (that belongs in `doc/`).
-- `.banner` (`messageStyles`: `info`, `warning`, `error`, `success`) is for a status bar at the top of a panel tab.
+**Messages and explainers.** One way for each kind of help (guarded by `tests/editor/editor-guards.test.js`):
+
+| Need | Use |
+|---|---|
+| How something works, a reference, tips, examples | **Info guide**: `renderInfoGuide({ header, icon, body })` (`components/shared/info-guide.js`), an `lcards-form-section variant="guide"`: the section's shape, dark, primary colour on border and header, closed by default. Body classes: `.info-guide-example` (code), `.info-guide-tip`, `.info-guide-note`, `.info-guide-links`. A section that is itself an explainer (a reference diagram) takes `variant="guide"` directly. |
+| One line about a section | the section's `description` |
+| One line about a field | the field's `helper` / `.hint` (`messageStyles`) |
+| Something to notice now (warning, error, "has no effect while...") | `lcards-message` warning or error, one or two sentences |
+| A short contextual note | `lcards-message` info, at most 200 characters (the guard's limit); anything longer is an info guide |
+| A status bar at the top of a panel tab | `.banner` (`messageStyles`: `info`, `warning`, `error`, `success`) |
+
+No headings, bullet characters, emoji or inline styles inside messages; lists and examples belong in an info guide. `ha-alert` directly only in the `lcards-message` wrapper, developer errors in shared components, and the theme lab's previews of HA's alerts.
 
 **Code.** Code or config text always goes in a code editor: `lcards-yaml-editor` / `lcards-studio-yaml-tab` for LCARdS YAML (schema completion), `ha-code-editor` for other text (`mode="yaml"` also suits JSON; `jinja2` for templates). Never `ha-textarea` or `<textarea>` for code.
 
 **Plain dialogs.** Use `ha-dialog` with `header-title` (there is no LCARdS wrapper). Stop its `closed` event (`e.stopPropagation()`) so it doesn't close the editor around it, and act only when `e.target === e.currentTarget`: pickers inside fire their own `closed`. Footer: Cancel / Close `appearance="plain"`, then the main action `variant="brand"`.
 
 **No native dialogs.** Never `confirm()`, `alert()` or `prompt()`. Use `showConfirmDeleteDialog`, `showInfoDialog` and `showPromptDialog` from `src/views/layout-edit-dialogs.js` (HA dialogs, mounted near `home-assistant`).
+
+**HA controls, no emoji.** A choice is an `ha-selector` (`select` selector: `mode: 'dropdown'`, `'list'` or `'box'` for tiles with a description), never a raw `<select>`; a number slider is an `ha-selector` `number` selector with `mode: 'slider'`. Labels, headings, options and messages carry no emoji: use an `ha-icon` (mdi) beside the text, or nothing. The one exception is the 🖖 on the Main Engineering tab; log messages may keep theirs.
 
 ---
 

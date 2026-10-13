@@ -13,7 +13,7 @@ LCARdS Alert Mode shifts card colours across your entire dashboard when an alert
 ## Accessing the Lab
 
 1. Open the **LCARdS Config Panel** (sidebar entry in Home Assistant)
-2. Navigate to the **Alert Mode Lab** tab
+2. Open the **Theme Studio** tab; the **LCARdS Alert Mode Lab** is its first tab
 
 ::: tip Prerequisites
 [Persistent helpers](persistent-helpers.md) must exist before saving Lab settings. Run **Create All Helpers** from the Helpers tab first.

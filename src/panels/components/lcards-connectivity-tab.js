@@ -64,7 +64,7 @@ import { surfaceStyles } from '../../editor/base/surface-styles.js';
 const MODE_OPTIONS = [
     { value: 'text', label: 'Simple text' },
     { value: 'card', label: 'Custom card (YAML)' },
-    { value: 'borg', label: '👽 Resistance is Futile' },
+    { value: 'borg', label: 'Resistance is Futile' },
 ];
 
 const TRANSFORM_OPTIONS = [
@@ -879,15 +879,8 @@ export class LCARdSConnectivityTab extends LitElement {
 
             <!-- ── Feature overview ──────────────────────────────────── -->
             <lcards-message type="info">
-              <strong>Connection Overlay</strong>
-              <p style="margin:8px 0 4px 0; font-size:13px; line-height:1.5;">
-                Displays a full-screen overlay whenever your browser loses its connection to Home Assistant,
-                useful for kiosk displays so you always know when the dashboard is offline.
-              </p>
-              <p style="margin:0; font-size:13px; line-height:1.5;">
-                Adjust the settings below, then use <em>Simulate Disconnect</em> at the bottom to preview
-                how the overlay will look before saving your changes.  Settings are scoped per-device, per-user, or globally, so you can customize the experience for each display.
-              </p>
+              Shows a full-screen overlay when the browser loses its connection to Home Assistant (useful for kiosks).
+              Preview it with <em>Simulate Disconnect</em> at the bottom.
             </lcards-message>
 
             <!-- ── Scope selector ────────────────────────────────────── -->
@@ -970,12 +963,8 @@ export class LCARdSConnectivityTab extends LitElement {
               ${messageMode === 'borg' ? html`
 
                 <lcards-message type="info">
-                  <strong>Borg Assimilation Mode</strong>
-                  <p style="margin:8px 0 0 0; font-size:13px; line-height:1.4;">
-                    On disconnect, the full Borg assimilation sequence will run instead of the standard overlay.
-                    On reconnect, deassimilation is triggered automatically.
-                    Text messages and custom cards are not used in this mode.
-                  </p>
+                  On disconnect the Borg assimilation sequence runs instead of the overlay, and reverses on reconnect.
+                  Messages and custom cards aren't used.
                 </lcards-message>
 
                 ${this._renderSlotPanel('canvas',   'Canvas Effect',   'mdi:monitor-shimmer', 'message.borgLayers', { lockPreset: true })}
@@ -1095,10 +1084,7 @@ export class LCARdSConnectivityTab extends LitElement {
                     </lcards-position-picker>
                   </div>
                   <lcards-message type="info">
-                    <strong>Card Sizing</strong>
-                    <p style="margin:8px 0 0 0; font-size:13px; line-height:1.4;">
-                      You may need to specify sizing for the card(s) rendering area in order for them to properly display.  Especially true for dimensionless cards like grids, stacks, and other layout cards. Use CSS units (e.g. 400px, 30vw, auto) to set the width and height of the area the card can use within the overlay.
-                    </p>
+                    Layout cards (grids, stacks) may need a size here: CSS units such as 400px, 30vw or auto.
                   </lcards-message>
                   <div class="control-row">
                     <ha-selector

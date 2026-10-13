@@ -538,11 +538,8 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
 
                 ${hasComponentAnimations ? html`
                     <lcards-message type="warning">
-                        <p style="margin: 0; font-size: 13px; line-height: 1.4;">
-                            This component has <strong>card-level animations</strong> defined (visible in the <strong>Effects tab</strong>).
-                            Segment animations are independent and work best for interaction triggers like <em>on_tap</em> or <em>on_hover</em>.
-                            Avoid redefining the same preset here; it will run in parallel, not replace the card-level animation.
-                        </p>
+                        This component has card-level animations (Effects tab). Segment animations run alongside them,
+                        so don't repeat a preset here.
                     </lcards-message>
                 ` : html`
                     <lcards-message type="info">

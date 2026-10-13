@@ -8,7 +8,7 @@ All editors extend `LCARdSBaseEditor`, which provides:
 
 - Tab system (`ha-tab-group` / `ha-tab-panel`)
 - Declarative config-form renderer
-- Free utility tabs: YAML, plus a single "🖖 Main Engineering" (Developer) tab with Data Sources / Rules / Theme Browser / Provenance / Templates as sub-tabs
+- Free utility tabs: YAML, plus a single "🖖 Main Engineering" (Developer) tab with Data Sources / Rules / Theme / Provenance / Templates as sub-tabs
 - Config change dispatch (`config-changed` event)
 - Built-in YAML validation against registered schemas
 

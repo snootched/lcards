@@ -1,12 +1,12 @@
 /**
- * @fileoverview LCARdS Theme Token Browser Tab
+ * @fileoverview LCARdS Theme Studio (config panel > Theme Studio)
  *
- * Browse and search the full active theme's token tree, cross-reference usage,
- * and enable quick copy/insertion with proper LCARdS token syntax.
+ * The alert mode lab, the HA-LCARS theme lab, the active theme's token tree,
+ * the LCARS and all CSS variables, and token overrides per scope. A card
+ * editor's Theme tab (lcards-card-theme-tab) shows only that card's tokens and
+ * links here.
  *
  * @element lcards-theme-token-browser-tab
- * @property {Object} editor - Parent card editor instance
- * @property {Object} config - Full card configuration
  * @property {Object} hass - Home Assistant instance
  */
 
@@ -23,20 +23,29 @@ import {
   setAlertModeTransformParameter,
   resetAlertModeTransform
 } from '../../../core/themes/alertModeTransform.js';
-import '../shared/lcards-collapsible-section.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-message.js';
 import '../shared/lcards-color-picker.js';
 import './alert-mode-color-wheel.js';
-import '../../dialogs/pack-explorer/lcards-pack-explorer-dialog.js';
 import '../../../panels/components/shared/lcards-scope-selector.js';
 import { STORAGE_KEY_THEME_OVERRIDES } from '../../../core/services/ScopedSettingsConstants.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 import { activeHaThemeName } from '../../../utils/support-info.js';
 import { LEGACY_FIELD_DEFS } from './theme-legacy-fields.js';
 import { surfaceStyles } from '../../base/surface-styles.js';
+import { renderInfoGuide } from '../shared/info-guide.js';
 
 const LEGACY_KEY_SET = new Set(LEGACY_FIELD_DEFS.map(f => f.key));
+
+/** Alert modes in menu order, with a dot colour for tables and a short label for swatch legends. */
+const ALERT_MODES = [
+  { value: 'green_alert', label: 'Green alert (normal)', short: 'GRN', dot: 'var(--success-color)' },
+  { value: 'red_alert', label: 'Red alert', short: 'RED', dot: 'var(--error-color)' },
+  { value: 'blue_alert', label: 'Blue alert', short: 'BLU', dot: 'var(--info-color)' },
+  { value: 'yellow_alert', label: 'Yellow alert', short: 'YEL', dot: 'var(--warning-color)' },
+  { value: 'gray_alert', label: 'Gray alert', short: 'GRY', dot: 'var(--disabled-color)' },
+  { value: 'black_alert', label: 'Black alert', short: 'BLK', dot: 'var(--primary-background-color)' },
+];
 
 // Curated "major colours" for the Alert Mode Lab's Live Preview swatches and HSL Wheel — keys
 // are cross-checked against LEGACY_FIELD_DEFS (the same canonical catalog the HA-LCARS Theme
@@ -101,17 +110,13 @@ function getAlertLabColorGroups() {
 export class LCARdSThemeTokenBrowserTab extends LitElement {
   static get properties() {
     return {
-      editor: { type: Object },
-      config: { type: Object },
       hass: { type: Object },
-      _inlineMode: { type: Boolean }, // When true, render content directly without dialog wrapper
       _tokens: { type: Array, state: true },
       _filteredTokens: { type: Array, state: true },
       _searchQuery: { type: String, state: true },
       _selectedCategory: { type: String, state: true },
       _isLoading: { type: Boolean, state: true },
       _activeTheme: { type: Object, state: true },
-      _dialogOpen: { type: Boolean, state: true },
       _sortColumn: { type: String, state: true },
       _sortDirection: { type: String, state: true },
       _activeView: { type: String, state: true }, // 'tokens', 'css-vars', or 'all-vars'
@@ -132,7 +137,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       _originalLcarsColors: { type: Object, state: true }, // Store baseline colors
       _showFullPreview: { type: Boolean, state: true }, // Toggle for full color grid
       _activeVizTab: { type: String, state: true }, // Active visualization tab (preview/wheel/comparison)
-      _packExplorerOpen: { type: Boolean, state: true }, // Pack Explorer dialog state
       _helperSaveMessage: { type: Object, state: true }, // Message for helper save operations
       // Overrides view state
       _overridesScopeInfo: { type: Object, state: true },  // { scope, userId, deviceId, isAdminTarget }
@@ -155,7 +159,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._isLoading = false;
     this._selectedFamily = 'all';
     this._activeTheme = null;
-    this._dialogOpen = false;
     this._sortColumn = 'path';
     this._sortDirection = 'asc';
     this._cssVarSortColumn = 'hue';
@@ -174,10 +177,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._selectedAlertMode = 'red_alert';
     this._alertLabParams = {};
     this._livePreviewEnabled = false; // User controls when to apply changes
-    this._originalLcarsColors = null; // Will be captured when dialog opens
+    this._originalLcarsColors = null; // Captured when connected
     this._showFullPreview = false; // Full color grid collapsed by default
     this._activeVizTab = 'preview'; // Default to live preview tab
-    this._packExplorerOpen = false; // Pack Explorer closed by default
     this._helperSaveMessage = null; // No message by default
     // Overrides view state
     this._overridesScopeInfo = { scope: 'user', userId: null, deviceId: null, isAdminTarget: false };
@@ -194,15 +196,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     // Use capture phase to intercept before browser's find
     document.addEventListener('keydown', this._handleKeydown, true);
 
-    // If in inline mode, initialize immediately
-    // @ts-ignore - TS2339: auto-suppressed
-    if (this._inlineMode) {
-      this._initializeInlineMode();
-    }
+    this._initialize();
   }
 
-  _initializeInlineMode() {
-    lcardsLog.debug('[ThemeTokenBrowser] Initializing inline mode');
+  _initialize() {
+    lcardsLog.debug('[ThemeTokenBrowser] Initializing');
     this._scanCssVariables();
     this._scanAllCssVariables();
     this._detectHaTheme();
@@ -216,6 +214,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       this._selectedAlertMode = window.lcards.getAlertMode();
       lcardsLog.debug('[AlertLab] Initialized with current mode:', this._selectedAlertMode);
     }
+
+    // Load helper values if available
+    this._loadAlertLabFromHelpers();
   }
 
   disconnectedCallback() {
@@ -224,9 +225,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   _handleKeydown(e) {
-    // Only handle keyboard shortcuts when dialog is open
-    if (!this._dialogOpen) return;
-
     // Ctrl/Cmd+F to focus search - must prevent BEFORE browser sees it
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
       e.preventDefault();
@@ -239,13 +237,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       return;
     }
 
-    // ESC to close dialog
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      this._closeDialog();
-      return;
-    }
   }
 
   static get styles() {
@@ -673,8 +664,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         font-family: inherit;
       }
 
-      .hsl-formula-table .mode-icon {
+      .hsl-formula-table .mode-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
         margin-right: 6px;
+        border-radius: var(--ha-border-radius-circle);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
+        vertical-align: middle;
       }
 
       /* Alert mode swatch legend */
@@ -833,33 +830,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         gap: 12px;
       }
 
-      .mode-selector-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        width: 100%;
-      }
-
-      .mode-selector-row label {
-        font-weight: 500;
-        color: var(--primary-text-color);
-      }
-
-      .alert-mode-select {
-        padding: 8px 12px;
-        border: var(--ha-border-width-sm) solid var(--divider-color);
-        border-radius: 4px;
-        background: var(--secondary-background-color);
-        color: var(--primary-text-color);
-        font-size: 14px;
-        flex: 1;
-        cursor: pointer;
-      }
-
-      .alert-mode-select:focus {
-        outline: 2px solid var(--primary-color);
-        outline-offset: 2px;
-      }
 
       .live-preview-toggle {
         display: flex;
@@ -1108,12 +1078,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         font-size: 12px;
         color: var(--secondary-text-color);
         font-family: monospace;
-      }
-
-      .comparison-grid-empty {
-        padding: 24px;
-        text-align: center;
-        color: var(--secondary-text-color);
       }
 
       /* Color Wheel Visualization Styles */
@@ -1380,25 +1344,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   render() {
-    // If in inline mode, render dialog content directly without ha-dialog wrapper
-    // @ts-ignore - TS2339: auto-suppressed
-    if (this._inlineMode) {
-      return html`
-        ${this._renderInlineContent()}
-        ${this._renderPackExplorer()}
-      `;
-    }
-
-    return html`
-      ${this._renderTabContent()}
-      ${this._renderDialog()}
-      ${this._renderPackExplorer()}
-    `;
-  }
-
-  _renderInlineContent() {
-    lcardsLog.debug('[ThemeTokenBrowser] Rendering inline content');
-
     return html`
       <div class="studio-layout">
         <div class="dialog-content">
@@ -1411,77 +1356,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         </div>
       </div>
     `;
-  }
-
-  _renderTabContent() {
-    if (this._isLoading) {
-      return html`
-        <div class="loading-state">
-          <ha-spinner size="small"></ha-spinner>
-          <p>Loading theme browser...</p>
-        </div>
-      `;
-    }
-
-    return html`
-      <div class="tab-content">
-        <div class="info-card">
-          <div class="info-card-content">
-            <h3>Theme Browser</h3>
-            <p>
-              <strong>${this._activeTheme?.name || 'Active Theme'}</strong>
-              <br />
-              ${this._tokens.length} tokens available
-            </p>
-            <p style="font-size: 13px; color: var(--secondary-text-color);">
-              Browse and copy theme tokens for <strong>style configuration</strong>: <code>theme:token.path</code>
-            </p>
-          </div>
-          <div class="info-card-actions">
-            <ha-button
-              class="open-browser-button"
-              @click=${this._openDialog}>
-              <ha-icon icon="mdi:palette" slot="start"></ha-icon>
-              Open Theme Browser
-            </ha-button>
-            <ha-button
-              class="open-pack-explorer-button"
-              @click=${this._openPackExplorer}>
-              <ha-icon icon="mdi:package-variant" slot="start"></ha-icon>
-              Browse All Packs
-            </ha-button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  _renderDialog() {
-    if (!this._dialogOpen) return '';
-
-    lcardsLog.debug('[ThemeTokenBrowser] Rendering dialog');
-
-    return html`
-      <ha-dialog
-        open
-        @closed=${(e) => { e.stopPropagation(); this._closeDialog(); }}
-        .headerTitle=${this._renderDialogTitle()}>
-        ${this._renderInlineContent()}
-        <div slot="footer">
-          <ha-button
-            variant="brand"
-            appearance="accent"
-            @click=${this._closeDialog}
-            data-dialog="close">
-            Close
-          </ha-button>
-        </div>
-      </ha-dialog>
-    `;
-  }
-
-  _renderDialogTitle() {
-    return `Theme Browser  •  HA: ${this._haThemeName}  •  LCARdS: ${this._activeTheme?.name || 'Unknown'}`;
   }
 
   _renderDialogHeader() {
@@ -1529,12 +1403,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                   </tr>
                 </thead>
                 <tbody>
-                  ${this._renderAlertModeConfigRow('green_alert', '🟢', 'Green (Normal)')}
-                  ${this._renderAlertModeConfigRow('red_alert', '🔴', 'Red Alert')}
-                  ${this._renderAlertModeConfigRow('blue_alert', '🔵', 'Blue Alert')}
-                  ${this._renderAlertModeConfigRow('yellow_alert', '🟡', 'Yellow Alert')}
-                  ${this._renderAlertModeConfigRow('gray_alert', '⚫', 'Gray Alert')}
-                  ${this._renderAlertModeConfigRow('black_alert', '⚪', 'Black Alert')}
+                  ${ALERT_MODES.map(mode => this._renderAlertModeConfigRow(mode))}
                 </tbody>
               </table>
             </div>
@@ -1739,12 +1608,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           ${Object.entries(groupedTokens).map(([category, tokens]) => {
             const isExpanded = this._expandedTokenCategories.has(`token-${category}`);
             return html`
-              <lcards-collapsible-section
-                .title=${this._formatCategoryName(category)}
-                .count=${tokens.length}
-                .countLabel=${'tokens'}
+              <lcards-form-section
+                .header=${this._formatCategoryName(category)}
+                .secondary=${`${tokens.length} tokens`}
                 ?expanded=${isExpanded}
-                @toggle=${() => this._toggleTokenCategory(category)}>
+                @expanded-changed=${() => this._toggleTokenCategory(category)}>
                 <table class="token-table">
                   <thead>
                     <tr>
@@ -1764,7 +1632,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                     ${tokens.map(token => this._renderTokenRow(token))}
                   </tbody>
                 </table>
-              </lcards-collapsible-section>
+              </lcards-form-section>
             `;
           })}
         </div>
@@ -1895,14 +1763,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * @param {boolean} isCssVar - Whether this is a CSS variable (true) or token (false)
    */
   _renderAlertModeSwatches(baseColor, pathOrVarName, isCssVar = false) {
-    const alertModes = [
-      { name: 'green_alert', label: 'Green', icon: '🟢', shortLabel: 'GRN' },
-      { name: 'red_alert', label: 'Red', icon: '🔴', shortLabel: 'RED' },
-      { name: 'blue_alert', label: 'Blue', icon: '🔵', shortLabel: 'BLU' },
-      { name: 'yellow_alert', label: 'Yellow', icon: '🟡', shortLabel: 'YEL' },
-      { name: 'gray_alert', label: 'Gray', icon: '⚫', shortLabel: 'GRY' },
-      { name: 'black_alert', label: 'Black', icon: '⚪', shortLabel: 'BLK' }
-    ];
+    const alertModes = ALERT_MODES.map(m => ({ name: m.value, label: m.label, shortLabel: m.short }));
 
     const currentMode = this._getCurrentAlertMode();
 
@@ -2117,12 +1978,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           if (!cat || cat.vars.length === 0) return '';
           const isExpanded = this._expandedCategories.has(key);
           return html`
-            <lcards-collapsible-section
-              .title=${cat.title}
-              .count=${cat.vars.length}
-              .countLabel=${'variables'}
+            <lcards-form-section
+              .header=${cat.title}
+              .secondary=${`${cat.vars.length} variables`}
               ?expanded=${isExpanded}
-              @toggle=${() => this._toggleCategory(key)}>
+              @expanded-changed=${() => this._toggleCategory(key)}>
               <table class="token-table">
                 <thead>
                   <tr>
@@ -2136,7 +1996,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                   ${cat.vars.map(v => this._renderCssVarRow(v))}
                 </tbody>
               </table>
-            </lcards-collapsible-section>
+            </lcards-form-section>
           `;
         })}
       </div>
@@ -2221,31 +2081,23 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         <div class="alert-lab-left-column">
           <!-- Mode Selection Section -->
           <lcards-form-section
-            .header=${'Alert Mode Selection'}
-            .description=${'Choose mode and control settings'}
+            .header=${'Alert mode'}
+            .description=${'The mode to tune, and whether choosing it applies it'}
             ?expanded=${true}
-            .collapsible=${false}
+            noCollapse
           >
             <div class="mode-selection-controls">
-              <div class="mode-selector-row">
-                <label>Alert Mode:</label>
-                <select
-                  .value="${this._selectedAlertMode}"
-                  @change="${this._handleModeChange}"
-                  class="alert-mode-select"
-                >
-                  <option value="green_alert">🟢 Green Alert (Normal)</option>
-                  <option value="red_alert">🔴 Red Alert</option>
-                  <option value="blue_alert">🔵 Blue Alert</option>
-                  <option value="yellow_alert">🟡 Yellow Alert</option>
-                  <option value="gray_alert">⚪ Gray Alert</option>
-                  <option value="black_alert">⚫ Black Alert</option>
-                </select>
-              </div>
+              <ha-selector
+                .hass=${this.hass}
+                .label=${'Alert mode'}
+                .value=${this._selectedAlertMode}
+                .selector=${{ select: { mode: 'dropdown', options: ALERT_MODES.map(m => ({ value: m.value, label: m.label })) } }}
+                @value-changed=${this._handleModeChange}
+              ></ha-selector>
 
               <ha-selector
                 .hass="${this.hass}"
-                .label="${'Auto-apply ALERT mode on selection'}"
+                .label="${'Apply the mode when selected'}"
                 .value="${this._livePreviewEnabled}"
                 .selector=${{
                   boolean: {}
@@ -2295,9 +2147,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
             </div>
           ` : html`
             <div class="parameter-controls">
-              <p style="padding: 20px; text-align: center; color: var(--secondary-text-color);">
-                Green Alert is the baseline state. Parameters cannot be edited.
-              </p>
+              <lcards-message type="info" message="Green alert is the baseline: the theme's own colours. Pick another mode to tune it."></lcards-message>
             </div>
           `}
 
@@ -2309,11 +2159,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
             </ha-button>
             <ha-button @click="${this._resetToDefaults}">
               <ha-icon icon="mdi:restore" slot="start"></ha-icon>
-              Reset to Defaults
+              Reset
             </ha-button>
             <ha-button @click="${this._saveToHelpers}">
               <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
-              Save to Helpers
+              Save to helpers
             </ha-button>
           </div>
 
@@ -2357,11 +2207,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
             ${this._activeVizTab === 'wheel' ? html`
               <div class="visualization-section">
-                <h4>🎨 HSL Color Wheel Transformation</h4>
-                <p class="preview-hint">Visual representation of how colors shift in HSL space.</p>
-                <p class="preview-hint" style="font-size: 12px; margin-top: -8px; color: var(--secondary-text-color);">
-                  <em>Showing the same 12 variables as above. Click legend items to toggle visibility.</em>
-                </p>
+                <h4>HSL colour wheel</h4>
+                <p class="preview-hint">How the Live Preview colours move in HSL space. Click a legend item to hide or show it.</p>
                 ${this._renderColorWheel()}
               </div>
             ` : ''}
@@ -2446,9 +2293,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _renderColorComparisonGrid() {
     if (!this._originalLcarsColors || Object.keys(this._originalLcarsColors).length === 0) {
       return html`
-        <div class="comparison-grid-empty">
-          <p>⚠️ Original colors not captured. Close and reopen dialog to enable comparison view.</p>
-        </div>
+        <lcards-message type="warning" message="The theme's original colours weren't captured. Reload the page to compare."></lcards-message>
       `;
     }
 
@@ -2494,9 +2339,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _renderColorWheel() {
     if (!this._originalLcarsColors || Object.keys(this._originalLcarsColors).length === 0) {
       return html`
-        <div class="comparison-grid-empty">
-          <p>⚠️ Original colors not captured. Close and reopen dialog to enable color wheel.</p>
-        </div>
+        <lcards-message type="warning" message="The theme's original colours weren't captured. Reload the page to see the wheel."></lcards-message>
       `;
     }
 
@@ -2532,47 +2375,23 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         </div>
 
         <div class="color-wheel-explanation">
-          <h5>📖 Understanding the Visualization</h5>
-
-          <div class="explanation-tip">
-            <h6>What You're Seeing:</h6>
-            <ul>
-              <li><strong>⭕ Circles (black border):</strong> Original colors from Green Alert baseline</li>
-              <li><strong>◼️ Squares (white border):</strong> Transformed colors in ${this._getModeName(this._selectedAlertMode)}</li>
-              <li><strong>🎨 Filled with actual colors:</strong> See the real color values at each position</li>
-              <li><strong>🔍 Hover to zoom:</strong> Mouse over any shape to enlarge it for better visibility</li>
-              <li><strong>➡️ Gray arrows:</strong> Show how each color shifts from source to target</li>
-              <li><strong>📏 Radial position:</strong> Saturation level (center = gray, edge = vibrant)</li>
-              <li><strong>🔄 Angular position:</strong> Hue angle (0° = red, 120° = green, 240° = blue)</li>
-            </ul>
-          </div>
-
-          ${transform.hueAnchor ? html`
-            <div class="explanation-tip">
-              <h6>🎯 Hue Anchor:</h6>
-              <p>The <strong>shaded arc</strong> shows the target hue range (${transform.hueAnchor.centerHue - transform.hueAnchor.range}° - ${transform.hueAnchor.centerHue + transform.hueAnchor.range}°). Colors are "pulled" toward this range with ${Math.round(transform.hueAnchor.strength * 100)}% strength.</p>
-            </div>
-          ` : ''}
-
-          ${transform.hueShift !== undefined ? html`
-            <div class="explanation-tip">
-              <h6>🎨 Hue Shift:</h6>
-              <p>Primary target: <strong>${transform.hueShift}°</strong> (${this._getHueName(transform.hueShift)})</p>
-              <p>Colors shift toward this hue with ${Math.round(transform.hueStrength * 100)}% strength.</p>
-            </div>
-          ` : ''}
-
-          <div class="explanation-tip">
-            <h6>💡 Transform Parameters:</h6>
-            <ul>
-              <li><strong>Saturation:</strong> ${transform.saturationMultiplier}× (${transform.saturationMultiplier > 1 ? 'more vivid' : 'more muted'})</li>
-              <li><strong>Lightness:</strong> ${transform.lightnessMultiplier}× (${transform.lightnessMultiplier > 1 ? 'brighter' : 'darker'})</li>
-            </ul>
-          </div>
-
-          <div class="explanation-tip">
-            <strong>💡 Tip:</strong> Adjust the sliders above and watch the blue dots move in real-time to see how parameters affect the transformation!
-          </div>
+          ${renderInfoGuide({
+            header: 'Reading the wheel',
+            icon: 'mdi:help-circle-outline',
+            open: true,
+            body: html`
+              <ul>
+                <li><strong>Circles</strong> (black border): the theme's colours in green alert.</li>
+                <li><strong>Squares</strong> (white border): the same colours in ${this._getModeName(this._selectedAlertMode)}.</li>
+                <li><strong>Arrows</strong>: how each colour moves. Hover a shape to enlarge it.</li>
+                <li><strong>Distance from the centre</strong> is saturation (grey in the middle, vivid at the edge); <strong>angle</strong> is hue (0° red, 120° green, 240° blue).</li>
+              </ul>
+              ${transform.hueAnchor ? html`<p><strong>Hue anchor:</strong> the shaded arc is the target range (${transform.hueAnchor.centerHue - transform.hueAnchor.range}° to ${transform.hueAnchor.centerHue + transform.hueAnchor.range}°); colours are pulled toward it at ${Math.round(transform.hueAnchor.strength * 100)}% strength.</p>` : ''}
+              ${transform.hueShift !== undefined ? html`<p><strong>Hue shift:</strong> toward ${transform.hueShift}° (${this._getHueName(transform.hueShift)}) at ${Math.round(transform.hueStrength * 100)}% strength.</p>` : ''}
+              <p><strong>Saturation</strong> ${transform.saturationMultiplier}× (${transform.saturationMultiplier > 1 ? 'more vivid' : 'more muted'}), <strong>lightness</strong> ${transform.lightnessMultiplier}× (${transform.lightnessMultiplier > 1 ? 'brighter' : 'darker'}).</p>
+              <p class="info-guide-tip">Move the sliders and watch the squares follow.</p>
+            `,
+          })}
         </div>
       </div>
     `;
@@ -2608,31 +2427,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   // Dialog control methods
-  _openDialog() {
-    lcardsLog.debug('[ThemeTokenBrowser] Opening dialog', {
-      tokensCount: this._tokens.length,
-      filteredCount: this._filteredTokens.length
-    });
-    this._dialogOpen = true;
-    this._scanCssVariables(); // Scan CSS variables when opening
-    this._scanAllCssVariables(); // Scan all CSS variables
-    this._detectHaTheme(); // Detect active HA theme
-    this._applyFilters(); // Apply initial filters when opening
-
-    // Capture original LCARS colors for side-by-side comparison
-    this._originalLcarsColors = captureOriginalColors(document.documentElement);
-    lcardsLog.debug('[AlertLab] Captured original colors:', Object.keys(this._originalLcarsColors || {}).length);
-
-    // Initialize Alert Lab with current running alert mode
-    if (window.lcards?.getAlertMode) {
-      this._selectedAlertMode = window.lcards.getAlertMode();
-      lcardsLog.debug('[AlertLab] Initialized with current mode:', this._selectedAlertMode);
-    }
-
-    // Load helper values if available
-    this._loadAlertLabFromHelpers();
-  }
-
   /**
    * Load Alert Lab parameters from helpers (if they exist)
    * @private
@@ -2718,29 +2512,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     });
 
     this.requestUpdate();
-  }
-
-  _closeDialog() {
-    lcardsLog.debug('[ThemeTokenBrowser] Closing dialog');
-    this._dialogOpen = false;
-  }
-
-  /**
-   * Open Pack Explorer dialog
-   * @private
-   */
-  _openPackExplorer() {
-    lcardsLog.debug('[ThemeTokenBrowser] Opening Pack Explorer');
-    this._packExplorerOpen = true;
-  }
-
-  /**
-   * Close Pack Explorer dialog
-   * @private
-   */
-  _closePackExplorer() {
-    lcardsLog.debug('[ThemeTokenBrowser] Closing Pack Explorer');
-    this._packExplorerOpen = false;
   }
 
   /**
@@ -3236,11 +3007,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       // Extract tokens - use the correct API: activeTheme.tokens
       const tokens = this._extractTokensFromObject(activeTheme.tokens);
 
-      // Find usage in current config
-      tokens.forEach(token => {
-        token.usage = this._findTokenUsage(token.path);
-      });
-
       this._tokens = tokens;
       this._filteredTokens = tokens;
 
@@ -3321,7 +3087,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       return {
         finalValue: rawValue,
         resolvedFrom: null,
-        chain: [...chain, `⚠️ circular/max-depth`],
+        chain: [...chain, 'circular reference or too deep'],
         error: 'Circular reference or max recursion depth'
       };
     }
@@ -3374,7 +3140,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           return {
             finalValue: rawValue,
             resolvedFrom: rawValue,
-            chain: [...chain, `❌ not found`],
+            chain: [...chain, 'not found'],
             error: `Token reference not found: ${rawValue}`
           };
         }
@@ -3405,7 +3171,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       return {
         finalValue: rawValue,
         resolvedFrom: null,
-        chain: [...chain, `⚠️ error`],
+        chain: [...chain, 'error'],
         error: error.message
       };
     }
@@ -3463,36 +3229,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'shade', 'tint'];
     return computedFunctions.some(fn => value.includes(`${fn}(`));
-  }  /**
-   * Find where a token is used in the current config
-   */
-  _findTokenUsage(tokenPath) {
-    const usage = [];
-    const tokenSyntax = `theme:${tokenPath}`;
-
-    // @ts-ignore - TS2339: auto-suppressed
-    this._findTokenUsageRecursive(this.config, '', tokenSyntax, usage);
-
-    return usage;
-  }
-
-  /**
-   * Recursively search config for token usage
-   */
-  _findTokenUsageRecursive(obj, path, tokenSyntax, usage) {
-    if (!obj || typeof obj !== 'object') {
-      return;
-    }
-
-    for (const [key, value] of Object.entries(obj)) {
-      const currentPath = path ? `${path}.${key}` : key;
-
-      if (typeof value === 'string' && value.includes(tokenSyntax)) {
-        usage.push(currentPath);
-      } else if (typeof value === 'object' && value !== null) {
-        this._findTokenUsageRecursive(value, currentPath, tokenSyntax, usage);
-      }
-    }
   }
 
   /**
@@ -3594,10 +3330,10 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   /**
    * Render a single alert mode configuration row with actual values from getAlertModeTransform
    */
-  _renderAlertModeConfigRow(mode, icon, label) {
+  _renderAlertModeConfigRow({ value: mode, label, dot }) {
     const transform = getAlertModeTransform(mode);
     if (!transform) {
-      return html`<tr><td colspan="6">Error: Unknown mode ${mode}</td></tr>`;
+      return html`<tr><td colspan="6">Unknown mode ${mode}</td></tr>`;
     }
 
     // Format additional settings for black_alert and hue anchor modes
@@ -3629,7 +3365,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     return html`
       <tr>
-        <td><span class="mode-icon">${icon}</span><span class="mode-name">${label}</span></td>
+        <td><span class="mode-dot" style="background: ${dot}"></span><span class="mode-name">${label}</span></td>
         <td>${transform.hueShift}°</td>
         <td>${transform.hueStrength}</td>
         <td>${transform.saturationMultiplier}</td>
@@ -3765,7 +3501,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    */
 
   async _handleModeChange(e) {
-    this._selectedAlertMode = e.target.value;
+    if (!e.detail?.value || e.detail.value === this._selectedAlertMode) return;
+    this._selectedAlertMode = e.detail.value;
     lcardsLog.debug('[AlertLab] Mode changed to:', this._selectedAlertMode);
 
     // If auto-apply is enabled, switch to the new alert mode immediately
@@ -4319,17 +4056,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    * Render Pack Explorer dialog
    * @private
    */
-  _renderPackExplorer() {
-    if (!this._packExplorerOpen) return '';
-
-    return html`
-      <lcards-pack-explorer-dialog
-        .hass=${this.hass}
-        .open=${this._packExplorerOpen}
-        @closed=${this._closePackExplorer}>
-      </lcards-pack-explorer-dialog>
-    `;
-  }
 }
 
 if (!customElements.get('lcards-theme-token-browser-tab')) customElements.define('lcards-theme-token-browser-tab', LCARdSThemeTokenBrowserTab);

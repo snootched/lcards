@@ -32,7 +32,6 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/templates/lcards-template-evaluation-tab.js';
 
 // Import theme browser
-import '../components/theme-browser/lcards-theme-token-browser-tab.js';
 
 // Import provenance tab
 import '../components/provenance/lcards-provenance-tab.js';
@@ -105,10 +104,10 @@ export class LCARdSDataGridEditor extends LCARdSBaseEditor {
     _renderConfigurationTab() {
         return html`
             ${this._upgradeNotes.length ? html`
-                <ha-alert alert-type="info" title="Data grid format upgraded">
+                <lcards-message type="info" title="Data grid format upgraded">
                     This card was upgraded to the current data grid format
                     (${this._upgradeNotes.join('; ')}). Save to keep the change.
-                </ha-alert>
+                </lcards-message>
             ` : ''}
 
             <!-- Studio Launcher Card (Top Priority) -->

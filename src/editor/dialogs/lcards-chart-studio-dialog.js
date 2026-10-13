@@ -40,6 +40,7 @@ import { getChartSchema } from '../../cards/schemas/chart-schema.js';
 import '../components/shared/lcards-color-picker.js';
 import '../components/shared/lcards-color-list.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { renderInfoGuide } from '../components/shared/info-guide.js';
 import { migrateChartConfig } from '../../charts/chart-config-migration.js';
 import { normalizeChartSources } from '../../charts/chart-sources.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
@@ -1140,7 +1141,7 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _renderDataSourceHelp() {
         return html`
-            <lcards-form-section header="Help" icon="mdi:help-circle" ?expanded=${false}>
+            <lcards-form-section variant="guide" header="Chart sources: help" icon="mdi:help-circle" ?expanded=${false} outlined>
                 <div class="help-text">
                     <h4>Entity history</h4>
                     <p>Plots an entity's recorded history for the chart's time span, then follows live changes.</p>
@@ -1351,9 +1352,7 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         return html`
             <lcards-message type="info">
-                <strong>🎨 Color System</strong><br>
-                Colors use CSS variables (e.g., <code>var(--lcars-blue)</code>) or hex codes.
-                Array colors cycle through series - add more colors to create variety!
+                Colours are CSS variables (<code>var(--lcars-blue)</code>) or hex codes; a list cycles through the series.
             </lcards-message>
 
             <!-- Series Colors (Primary) -->
@@ -1486,7 +1485,7 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         return html`
             <lcards-message type="info">
-                <strong>📍 Chart Elements</strong><br>
+                <strong>Chart elements</strong><br>
                 Configure markers (data points), grid lines, axes, and legends.
                 Most settings are optional - use defaults for clean charts.
             </lcards-message>
@@ -1669,7 +1668,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 ?expanded=${true}>
 
                 <lcards-message type="info">
-                    <strong>🎨 Theme vs Colors</strong><br>
+                    <strong>Theme vs colours</strong><br>
                     Theme mode sets the overall look. Use Appearance tab for detailed color control.
                 </lcards-message>
 
@@ -1739,16 +1738,18 @@ export class LCARdSChartStudioDialog extends LitElement {
                     label: 'Animation Preset'
                 })}
 
-                <lcards-message type="info">
-                    <strong>Animation Presets:</strong>
-                    <ul style="margin: 8px 0; padding-left: 20px;">
-                        <li><strong>lcars_standard:</strong> Balanced speed and smoothness</li>
-                        <li><strong>lcars_dramatic:</strong> Slower, more cinematic</li>
-                        <li><strong>lcars_minimal:</strong> Fast, subtle transitions</li>
-                        <li><strong>lcars_realtime:</strong> No animation for live data</li>
-                        <li><strong>none:</strong> Disable all animations</li>
-                    </ul>
-                </lcards-message>
+                ${renderInfoGuide({
+                    header: 'Animation presets',
+                    body: html`
+                        <ul>
+                            <li><strong>lcars_standard</strong>: balanced speed and smoothness.</li>
+                            <li><strong>lcars_dramatic</strong>: slower, more cinematic.</li>
+                            <li><strong>lcars_minimal</strong>: fast, subtle transitions.</li>
+                            <li><strong>lcars_realtime</strong>: no animation, for live data.</li>
+                            <li><strong>none</strong>: no animations at all.</li>
+                        </ul>
+                    `,
+                })}
             </lcards-form-section>
         `;
     }

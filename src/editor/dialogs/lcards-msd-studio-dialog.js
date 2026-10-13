@@ -40,6 +40,7 @@ import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
 import '../components/shared/lcards-shield-bubble-diagram.js';
 import { infoGuideStyles } from '../components/shared/info-guide-styles.js';
+import { renderInfoGuide } from '../components/shared/info-guide.js';
 import { ROUTING_CONCEPTS_DOCS_URL } from '../components/shared/docs-links.js';
 import '../components/editors/lcards-position-picker.js';
 import '../components/lcards-msd-live-preview.js';
@@ -446,7 +447,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // _handlePreviewMouseDown/_handlePreviewMouseMove/_handleDragEnd).
         this._shapeDrawDragCandidate = null;
         this._shieldBubbleState = this._defaultShieldBubbleState();
-        this._routingCheatSheetExpanded = false;
 
         // Shape edit-mode state
         this._selectedShapeId = null;
@@ -1912,7 +1912,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             font-weight: 600;
                             letter-spacing: 0.5px;
                         ">
-                            ✨ ${metadata.variant}
+                            ${metadata.variant}
                         </div>
                     ` : ''}
                 </div>
@@ -1955,7 +1955,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
 
                     <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--divider-color); font-size: 11px; opacity: 0.7;">
-                        💡 External SVGs don't have embedded metadata. The file will be loaded from the specified path when the card renders.
+                        External SVGs don't have embedded metadata. The file will be loaded from the specified path when the card renders.
                     </div>
                 </div>
             `;
@@ -1963,14 +1963,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Show general helper for custom SVG paths
         return html`
-            <ha-alert alert-type="info">
-                <strong>Custom SVG Paths:</strong><br>
-                • /local/my-ship.svg (from www/ folder)<br>
-                • /lcards/ships/custom.svg<br>
-                • https://example.com/my-ship.svg<br>
-                <br>
-                <em>Provide a valid URL or local path to your custom SVG file.</em>
-            </ha-alert>
+            <lcards-message type="info">
+                A URL or local path to your SVG: <code>/local/my-ship.svg</code> (from the www folder),
+                <code>/lcards/ships/custom.svg</code> or <code>https://…/my-ship.svg</code>.
+            </lcards-message>
         `;
     }
 
@@ -1981,11 +1977,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _renderViewBoxHelper() {
         return html`
-            <ha-alert alert-type="info">
-                ViewBox defines the coordinate system for your MSD display.<br>
-                <strong>Auto:</strong> Extract from SVG (recommended)<br>
-                <strong>Custom:</strong> Define [minX, minY, width, height] manually
-            </ha-alert>
+            <lcards-message type="info">
+                The viewBox is the MSD's coordinate system. <strong>Auto</strong> takes it from the SVG (recommended);
+                <strong>Custom</strong> sets [minX, minY, width, height].
+            </lcards-message>
         `;
     }
 
@@ -2329,10 +2324,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 @value-changed=${(e) => this._handleSvgSourceChange(e.detail.value?.media_content_id ?? '')}>
                             </ha-selector>
                         ` : html`
-                            <ha-alert alert-type="info">
-                                No base SVG will be rendered. Overlays will be drawn on a transparent canvas using the viewBox coordinates below.
-                                <strong>ViewBox must be configured manually.</strong>
-                            </ha-alert>
+                            <lcards-message type="info">
+                                No base SVG: overlays draw on a transparent canvas, so set the viewBox below by hand.
+                            </lcards-message>
                         `}
                         ${this._renderSvgSourceHelper(baseSvg.source)}
                     </div>
@@ -2505,15 +2499,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     }}>
 
                     <lcards-message type="warning">
-                        Discouraged — bypasses the per-control update optimization for every
-                        control on this card, refreshing all of them on every Home Assistant
-                        state change. This also means any animations configured on those controls
-                        (e.g. on_entity_change triggers) get re-evaluated far more often than
-                        intended — for state that isn't actually relevant to them — which can
-                        show up as animations flickering, restarting, or resetting to their
-                        starting state unexpectedly. Prefer the "Update Behavior" option on the
-                        individual control that needs it (Controls tab); use this only as a last
-                        resort or a quick diagnostic.
+                        Not recommended: every control here then refreshes on every state change, which can make their
+                        animations restart. Prefer Update Behavior on the one control that needs it (Controls tab).
                     </lcards-message>
 
                     <ha-selector
@@ -2659,9 +2646,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         ?expanded=${false}
                         style="margin-bottom: 16px;">
                         <lcards-message type="info" style="margin-bottom: 12px;">
-                            These anchors come from named <code>&lt;circle&gt;</code>/<code>&lt;ellipse&gt;</code>/<code>&lt;text&gt;</code>/<code>&lt;rect&gt;</code>/<code>&lt;g&gt;</code>
-                            elements in your base SVG file - ids may be tool-generated and not very meaningful (e.g. "g293").
-                            <strong>Define a custom anchor with the same name to override, or use Promote to copy one (and rename it) into User Anchors.</strong>
+                            Anchors from named elements in your base SVG (ids may be tool-generated, like g293).
+                            Define an anchor with the same name to override one, or Promote it into User Anchors to rename it.
                         </lcards-message>
                         <div style="display: flex; margin-bottom: 12px;">
                             <ha-button @click=${() => this._promoteAllAnchors(filteredHarvestedEntries)}>
@@ -10490,15 +10476,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _renderControlHelp() {
         return html`
-            <lcards-message type="info" style="margin-top: 16px;">
-                <strong>About Control Overlays:</strong>
-                <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
-                    <li>Control overlays are HA cards (buttons, entities, custom cards) positioned on your MSD</li>
-                    <li>Use anchors or coordinates to position controls</li>
-                    <li>Controls can be connected with lines for visual flow</li>
-                    <li>Example: Button card at anchor "warp_drive" showing power status</li>
-                </ul>
-            </lcards-message>
+            ${renderInfoGuide({
+                header: 'About control overlays',
+                body: html`
+                    <ul>
+                        <li>Control overlays are HA cards (buttons, entities, custom cards) placed on the MSD.</li>
+                        <li>Place them by anchor or by coordinates.</li>
+                        <li>Lines can connect them, for visual flow.</li>
+                        <li>For example: a button card at anchor <code>warp_drive</code> showing its power state.</li>
+                    </ul>
+                `,
+            })}
         `;
     }
 
@@ -11022,11 +11010,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     }}>
 
                     <lcards-message type="info">
-                        LCARdS already auto-detects most entities this card's config depends on.
-                        Only needed when the embedded card references an entity in a way that
-                        can't be statically detected (e.g. a dynamically-computed key, or a card
-                        that matches entities by wildcard/device class at runtime); otherwise the
-                        card would stop updating after its first render.
+                        Most entities are detected automatically. List them here only when the card finds entities
+                        at runtime (computed keys, wildcards, device classes).
                     </lcards-message>
 
                     <ha-radio-group
@@ -11057,10 +11042,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ha-selector>
                     ` : html`
                         <lcards-message type="warning" style="margin-top: 12px;">
-                            This control refreshes on every Home Assistant state change,
-                            bypassing the per-control optimization. Only use this if the embedded
-                            card's dependencies genuinely can't be enumerated: prefer "Specific
-                            entities" whenever possible.
+                            This control refreshes on every state change. Use it only when the card's entities can't be
+                            listed; prefer "Specific entities".
                         </lcards-message>
                     `}
                 </lcards-form-section>
@@ -12420,16 +12403,18 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _renderShapeHelp() {
         return html`
-            <lcards-message type="info" style="margin-top: 16px;">
-                <strong>About Shape Overlays:</strong>
-                <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
-                    <li>Shapes draw freeform geometry on your MSD: polylines (walls, connectors), rectangles and circles (rooms, zones)</li>
-                    <li>Use the Draw Polyline/Rectangle/Circle buttons on the canvas toolbar for click-to-place drawing with live preview</li>
-                    <li>Select a shape to drag its points (polyline) or resize handles (rectangle/circle) directly on the canvas</li>
-                    <li>Full style parity with lines: dashed/gradient strokes, state-based fill, animations, and rules reactivity</li>
-                    <li>Lines can attach to a shape's corners (rectangle/circle) or vertices (polyline) just like they attach to controls</li>
-                </ul>
-            </lcards-message>
+            ${renderInfoGuide({
+                header: 'About shape overlays',
+                body: html`
+                    <ul>
+                        <li>Shapes draw free geometry on the MSD: polylines (walls, connectors), rectangles and circles (rooms, zones).</li>
+                        <li>Draw them with the Polyline, Rectangle and Circle buttons on the canvas toolbar.</li>
+                        <li>Select a shape to drag its points or resize handles on the canvas.</li>
+                        <li>They style like lines: dashed or gradient strokes, state-based fill, animations and rules.</li>
+                        <li>Lines can attach to a shape's corners or vertices, as they do to controls.</li>
+                    </ul>
+                `,
+            })}
         `;
     }
 
@@ -12469,8 +12454,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             rawH: 0,
             rawViewBox: null,
             points: null,
-            error: null,
-            guideExpanded: false
+            error: null
         };
     }
 
@@ -12829,37 +12813,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Toggle the routing "Quick Tips" cheat sheet open/closed. Same
-     * plain-boolean pattern as _toggleShieldBubbleGuide — exactly one
-     * non-repeating panel, no per-item expand state needed.
-     * @private
-     */
-    _toggleRoutingCheatSheet() {
-        this._routingCheatSheetExpanded = !this._routingCheatSheetExpanded;
-        this.requestUpdate();
-    }
-
-    /**
      * Collapsible "Quick Tips: common routing goals" cheat sheet — plain
      * goal-to-setting tips (not a diagram; the Routing Modes Reference
      * accordion above already has inline SVGs, and routing-concepts.md has
      * the Mermaid decision-flow, so this deliberately doesn't add a third
-     * visual representation). Reuses the same preset-info-guide markup as
-     * _renderShieldBubbleGuide/the animation/filter editors' own guides.
-     * @returns {TemplateResult}
+     * visual representation). An info guide (renderInfoGuide).
+     * @returns {import('lit').TemplateResult}
      * @private
      */
     _renderRoutingCheatSheet() {
-        const expanded = this._routingCheatSheetExpanded;
-        return html`
-            <div class="preset-info-guide">
-                <div class="preset-info-guide-header" @click=${() => this._toggleRoutingCheatSheet()}>
-                    <ha-icon icon="mdi:lightbulb-outline"></ha-icon>
-                    <span>Quick Tips: common routing goals</span>
-                    <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
-                </div>
-                ${expanded ? html`
-                    <div class="preset-info-guide-body">
+        return renderInfoGuide({
+            header: 'Quick Tips: common routing goals',
+            icon: 'mdi:lightbulb-outline',
+            id: 'msd-routing-tips',
+            body: html`
                         <ul>
                             <li><strong>Bundle two or more lines to run together:</strong> point them at the same channel and leave "Discoverable by nearby lines" on: no need to list it in every line's <code>route_channels</code>.</li>
                             <li><strong>A channel must always be used, no matter the cost:</strong> set its mode to <code>force</code>.</li>
@@ -12876,52 +12843,31 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             For the full mental model (a decision-flow diagram of how routing modes interact), see the
                             <a href="${ROUTING_CONCEPTS_DOCS_URL}" target="_blank" rel="noopener">Routing Concepts</a> guide.
                         </p>
-                    </div>
-                ` : ''}
-            </div>
-        `;
+            `,
+        });
     }
 
-    /**
-     * Toggle the "How shield bubble generation works" info guide open/closed.
-     * A plain boolean (not a Set-indexed pattern like the animation/filter
-     * editors' per-index guides) since there's exactly one non-repeating
-     * shield-bubble panel, not a list of items each needing independent
-     * expand state.
-     * @private
-     */
-    _toggleShieldBubbleGuide() {
-        this._shieldBubbleState = { ...this._shieldBubbleState, guideExpanded: !this._shieldBubbleState.guideExpanded };
-        this.requestUpdate();
-    }
-
-    /**
+        /**
      * Collapsible "How shield bubble generation works" guide, explaining
      * dilate radius / simplify tolerance / roundness with an illustrative
-     * diagram. Reuses the same preset-info-guide markup/classes as
+     * diagram. An info guide (renderInfoGuide), like
      * lcards-animation-editor.js's _renderPresetInfoGuide and
      * lcards-filter-editor.js's equivalent.
      * @returns {TemplateResult}
      * @private
      */
     _renderShieldBubbleGuide() {
-        const expanded = this._shieldBubbleState.guideExpanded;
         return html`
-            <div class="preset-info-guide">
-                <div class="preset-info-guide-header" @click=${() => this._toggleShieldBubbleGuide()}>
-                    <ha-icon icon="mdi:information-outline"></ha-icon>
-                    <span>How shield bubble generation works</span>
-                    <ha-icon icon="mdi:chevron-down" class="guide-chevron ${expanded ? 'expanded' : ''}"></ha-icon>
-                </div>
-                ${expanded ? html`
-                    <div class="preset-info-guide-body">
+            ${renderInfoGuide({
+            header: `How shield bubble generation works`,
+            icon: 'mdi:information-outline',
+            body: html`
                         <p><strong>Dilate radius</strong> offsets the traced boundary outward from the ship's own silhouette by this many pixels before tracing. This is the expensive step - it only re-runs when you click Preview.</p>
                         <p><strong>Simplify tolerance</strong> reduces the point count by dropping points that don't meaningfully change the outline's shape (corner-preserving simplification) - higher values mean fewer points but a coarser silhouette. Updates live as you drag.</p>
                         <p><strong>Roundness</strong> blends the traced outline toward a smooth best-fit oval, from 0% (exact traced shape) to 100% (pure ellipse) - useful for a cleaner, more stylized shield-bubble look instead of a literal hull outline. Updates live as you drag.</p>
                         <lcards-shield-bubble-diagram></lcards-shield-bubble-diagram>
-                    </div>
-                ` : ''}
-            </div>
+                    `,
+        })}
         `;
     }
 
@@ -13715,15 +13661,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _renderLineHelp() {
         return html`
-            <lcards-message type="info" style="margin-top: 16px;">
-                <strong>About Line Overlays:</strong>
-                <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
-                    <li>Lines connect anchors and controls to show relationships or data flow</li>
-                    <li>Use "Enter Connect Mode" to click source → target for easy line creation</li>
-                    <li>Routing modes: direct (straight), manhattan (90° angles), bezier (curved), etc.</li>
-                    <li>Customize line style: color, width, dash pattern, markers, animations</li>
-                </ul>
-            </lcards-message>
+            ${renderInfoGuide({
+                header: 'About line overlays',
+                body: html`
+                    <ul>
+                        <li>Lines connect anchors and controls to show relationships or data flow.</li>
+                        <li>"Enter Connect Mode" lets you click a source, then a target, to draw one.</li>
+                        <li>Routing modes: direct (straight), manhattan (right angles), bezier (curved) and more.</li>
+                        <li>Style: colour, width, dash pattern, markers and animations.</li>
+                    </ul>
+                `,
+            })}
         `;
     }
 
@@ -13763,6 +13711,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <!-- Routing Modes Reference -->
                 <lcards-form-section
+                    variant="guide"
                     header="Routing Modes Reference"
                     description="Quick reference for routing behavior"
                     icon="mdi:book-open-variant"
@@ -13808,19 +13757,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     <!-- Channels List -->
                     ${channelCount === 0 ? html`
-                        <lcards-message type="info">
-                            <strong>No routing channels defined.</strong>
-                            <p style="margin: 8px 0; font-size: 13px;">
-                                Channels are rectangular corridors that guide line routing:
-                                <br/>• <strong>Prefer</strong>: Lines are rewarded for traveling through, and bundle into evenly-spaced lanes
-                                <br/>• <strong>Avoid</strong>: Lines are penalized for entering
-                                <br/>• <strong>Force</strong>: Lines referencing the channel must route through it
-                                <br/><br/>Lines opt in with <code>route_channels: [channel_id]</code>. Separately,
-                                any line routing nearby can also discover and bundle with a channel automatically,
-                                whether or not it lists it in <code>route_channels</code>. Turn off "Discoverable by
-                                nearby lines" on a channel to scope it to only the lines that explicitly reference it.
-                            </p>
-                        </lcards-message>
+                        <lcards-message type="info">No routing channels yet.</lcards-message>
+                        ${renderInfoGuide({
+                            header: 'How routing channels work',
+                            body: html`
+                                <p>Channels are rectangular corridors that guide line routing:</p>
+                                <ul>
+                                    <li><strong>Prefer</strong>: lines are rewarded for running through, and bundle into evenly spaced lanes.</li>
+                                    <li><strong>Avoid</strong>: lines are penalised for entering.</li>
+                                    <li><strong>Force</strong>: lines that reference the channel must route through it.</li>
+                                </ul>
+                                <p>Lines opt in with <code>route_channels: [channel_id]</code>. Lines routing nearby can also find
+                                    and bundle with a channel on their own; turn off "Discoverable by nearby lines" to limit a
+                                    channel to the lines that reference it.</p>
+                            `,
+                        })}
                     ` : html`
                         <div class="channel-list">
                             ${Object.entries(channels).map(([id, channel]) =>
@@ -13839,14 +13790,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     style="margin-bottom: 16px;">
 
                     <lcards-message type="info" style="margin-bottom: 16px;">
-                        <strong>Applies to <code>auto</code> (default), <code>smart</code>, and <code>grid</code> lines</strong>
-                        <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                            <code>route: auto</code> always does full pathfinding, so these apply to it too, not
-                            just an explicit <code>smart</code>/<code>grid</code>. Only <code>manhattan</code> and
-                            <code>direct</code>/<code>manual</code> opt out. Separate from the canvas's own
-                            drawing/snap grid, which only affects the Studio's visual editing surface, not the
-                            routing engine.
-                        </p>
+                        Applies to <code>route: auto</code> (the default), <code>smart</code> and <code>grid</code> lines, not
+                        manhattan, direct or manual. Separate from the canvas snap grid, which only affects editing here.
                     </lcards-message>
 
                     <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
@@ -13902,13 +13847,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     style="margin-bottom: 16px;">
 
                     <lcards-message type="info" style="margin-bottom: 16px;">
-                        <p style="margin: 0; font-size: 13px; line-height: 1.4;">
-                            Tunables for the automatic bundling and crossing-avoidance behavior every
-                            <code>route: auto</code> line gets by default. See the <strong>Bundling</strong> and
-                            <strong>Crossing Avoidance</strong> topics in Routing Modes Reference above for how it
-                            works. Only <code>route: manhattan</code> and <code>route: direct</code>/<code>manual</code>
-                            opt out. Declaration order in YAML never changes the outcome.
-                        </p>
+                        Tunables for the bundling and crossing avoidance every <code>route: auto</code> line gets. See Bundling
+                        and Crossing Avoidance in the Routing Modes Reference above. YAML order never changes the result.
                     </lcards-message>
 
                     <ha-selector
@@ -13974,69 +13914,51 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                     <!-- Help Text -->
                     <lcards-message type="info" style="margin-bottom: 16px;">
-                        <strong>When These Settings Apply</strong>
-                        <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.4;">
-                            These parameters affect any line that does full pathfinding (<code>route: auto</code>
-                            (the default), <code>smart</code>, or <code>grid</code>), regardless of whether
-                            obstacles or channels are present.
-                            <br/><br/>Lines with <code>route: manhattan</code>, <code>direct</code>, or
-                            <code>manual</code> are not affected by these settings; they never pathfind.
-                        </p>
-                        <div style="margin-top: 8px;">
-                            <a href="https://lcards.unimatrix01.ca/cards/msd/routing.html"
-                               target="_blank" rel="noopener noreferrer" style="font-size: 12px;">
-                                Routing Documentation ↗
-                            </a>
-                        </div>
+                        These affect every line that pathfinds (<code>route: auto</code>, <code>smart</code> or <code>grid</code>),
+                        with or without obstacles and channels; manhattan, direct and manual lines never do.
+                        <a href="https://lcards.unimatrix01.ca/cards/msd/routing.html" target="_blank" rel="noopener noreferrer">Routing documentation</a>
                     </lcards-message>
 
                     <!-- Parameter Explanations -->
-                    <lcards-message type="tip" style="margin-bottom: 16px;">
-                        <strong>Parameter Guide</strong>
-                        <div style="margin: 8px 0 0 0; font-size: 12px; line-height: 1.6;">
-                            <div style="margin-bottom: 6px;">
-                                <strong>Grid Resolution, Min Stub Length Factor, Corner Room Weight, Turn Penalty, and Clearance</strong> are common tunables: see
-                                the Common Routing Options section above. Corner Room Weight is one of the two primary levers for corner appearance (the other, <code>corner_radius</code>, is per-line). It's grouped with the general tunables here rather than under Pathfinding Refinement below because of how often it actually matters in practice.
-                            </div>
-
-                            <div style="margin-bottom: 6px;"><strong>Path Smoothing</strong></div>
-                            <div style="margin-left: 12px; margin-bottom: 8px;">
-                                • <strong>Chaikin smoothing</strong>: Rounds sharp corners using subdivision algorithm<br/>
-                                • <strong>Iterations</strong>: More iterations = smoother curves but less grid-aligned<br/>
-                                • <strong>Max Points</strong>: Limits path complexity to prevent performance issues
-                            </div>
-
-                            <div style="margin-bottom: 6px;"><strong>Pathfinding Refinement</strong></div>
-                            <div style="margin-left: 12px; margin-bottom: 8px;">
-                                • <strong>Proximity Band</strong>: Extra avoidance distance from obstacles (0 disables this trigger)<br/>
-                                • <strong>Detour Span</strong>: How far the algorithm looks ahead for better paths<br/>
-                                • <strong>Max Extra Bends</strong>: Maximum additional turns allowed for optimization<br/>
-                                • <strong>Max Detours</strong>: How many alternate routes to consider per segment<br/>
-                                <em>Refinement runs whenever EITHER Proximity Band here OR Corner Room Weight (Common Routing Options above) is above 0.</em>
-                            </div>
-
-                            <div style="margin-bottom: 6px;"><strong>Channel Routing</strong></div>
-                            <div style="margin-left: 12px; margin-bottom: 8px;">
-                                • <strong>Force Penalty</strong>: Cost when failing to use a forced channel<br/>
-                                • <strong>Avoid Multiplier</strong>: How strongly to avoid "avoid" channels<br/>
-                                • <strong>Prefer / Avoid Bias</strong>: Per-cell A* discount/penalty inside prefer/avoid channels
-                            </div>
-
-                            <div style="margin-bottom: 6px;"><strong>Bundling &amp; Crossing Internals</strong></div>
-                            <div style="margin-left: 12px; margin-bottom: 8px;">
-                                • <strong>Min Trunk Length / Overlap</strong>: How long a straight run must be to bundle with, and how much shared travel makes joining worthwhile<br/>
-                                • <strong>Max Join Candidates</strong>: How many nearby trunks one line will consider chaining through<br/>
-                                • <strong>Discovery Passes</strong>: Safety cap on pre-render routing passes (order independence)<br/>
-                                • <strong>Min Crossing Length</strong>: Shortest line segment other lines will still avoid crossing
-                            </div>
-
-                            <div style="margin-bottom: 6px;"><strong>Cost Function Weights</strong></div>
-                            <div style="margin-left: 12px;">
-                                • <strong>Bend / Proximity Cost</strong>: Per-bend and per-obstacle-proximity cost terms in the pathfinding cost formula<br/>
-                                • <strong>Hint Penalty</strong>: Cost for a first/last move disagreeing with route_hint (soft: obstacles still win)
-                            </div>
-                        </div>
-                    </lcards-message>
+                    ${renderInfoGuide({
+                        header: 'Parameter guide',
+                        body: html`
+                            <p><strong>Grid Resolution, Min Stub Length Factor, Corner Room Weight, Turn Penalty and Clearance</strong>
+                                are common tunables: see Common Routing Options above. Corner Room Weight is one of the two main levers
+                                for corner appearance (the other is each line's <code>corner_radius</code>).</p>
+                            <p><strong>Path smoothing</strong></p>
+                            <ul>
+                                <li><strong>Chaikin smoothing</strong> rounds sharp corners by subdivision.</li>
+                                <li><strong>Iterations</strong>: more is smoother but less grid-aligned.</li>
+                                <li><strong>Max Points</strong> limits path complexity, for performance.</li>
+                            </ul>
+                            <p><strong>Pathfinding refinement</strong> (runs when Proximity Band here or Corner Room Weight above is above 0)</p>
+                            <ul>
+                                <li><strong>Proximity Band</strong>: extra distance from obstacles (0 turns this trigger off).</li>
+                                <li><strong>Detour Span</strong>: how far ahead it looks for better paths.</li>
+                                <li><strong>Max Extra Bends</strong>: extra turns allowed for a better path.</li>
+                                <li><strong>Max Detours</strong>: alternate routes considered per segment.</li>
+                            </ul>
+                            <p><strong>Channel routing</strong></p>
+                            <ul>
+                                <li><strong>Force Penalty</strong>: the cost of not using a forced channel.</li>
+                                <li><strong>Avoid Multiplier</strong>: how strongly "avoid" channels repel.</li>
+                                <li><strong>Prefer / Avoid Bias</strong>: per-cell discount or penalty inside those channels.</li>
+                            </ul>
+                            <p><strong>Bundling and crossing internals</strong></p>
+                            <ul>
+                                <li><strong>Min Trunk Length / Overlap</strong>: how long a straight run must be to bundle with, and how much shared travel makes joining worth it.</li>
+                                <li><strong>Max Join Candidates</strong>: nearby trunks one line considers chaining through.</li>
+                                <li><strong>Discovery Passes</strong>: a cap on pre-render routing passes (order independence).</li>
+                                <li><strong>Min Crossing Length</strong>: the shortest segment other lines still avoid crossing.</li>
+                            </ul>
+                            <p><strong>Cost function weights</strong></p>
+                            <ul>
+                                <li><strong>Bend / Proximity Cost</strong>: per-bend and per-obstacle-proximity costs.</li>
+                                <li><strong>Hint Penalty</strong>: the cost of a first or last move against <code>route_hint</code> (soft: obstacles still win).</li>
+                            </ul>
+                        `,
+                    })}
 
                     <!-- Path Smoothing -->
                     <div style="margin-bottom: 16px;">
@@ -15442,12 +15364,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-form-section header="Points" description="Ordered vertex list, in viewBox units" icon="mdi:vector-point" ?expanded=${true}>
                         ${(this._shapeFormData.points || []).length > MAX_INLINE_EDITABLE_SHAPE_POINTS ? html`
                             <lcards-message type="info">
-                                <strong>${(this._shapeFormData.points || []).length} points: too many to edit individually here.</strong>
-                                <p style="margin: 8px 0; font-size: 13px;">
-                                    Rendering one row per point (X/Y fields) for a shape this large freezes the
-                                    browser. Drag points directly on the canvas, or edit the raw
-                                    coordinates in the YAML tab instead.
-                                </p>
+                                ${(this._shapeFormData.points || []).length} points: too many to edit here. Drag them on the canvas,
+                                or edit them on the YAML tab.
                                 <ha-button
                                     @click=${() => {
                                         this._closeShapeForm();
@@ -18060,7 +17978,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <!-- Advanced Stroke Properties (Full Width) -->
                 <lcards-form-section
-                    header="⚙️ Advanced Stroke Properties"
+                    header="Advanced stroke properties"
                     description="Fine-tune SVG stroke rendering (for advanced users)"
                     icon="mdi:cog"
                     ?expanded=${false}>

@@ -843,7 +843,7 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
                     ${showHttpWarning ? html`
                         <div class="row" style="padding:6px 8px;border-radius:4px;background:rgba(255,193,7,0.15);color:#ffa000;font-size:12px;line-height:1.4;">
-                            ⚠ http:// URLs will be blocked as mixed content when Home Assistant is served over HTTPS.
+                            http:// URLs will be blocked as mixed content when Home Assistant is served over HTTPS.
                             Use an https:// URL or a /local/ path instead.
                         </div>
                     ` : ''}

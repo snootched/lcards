@@ -920,7 +920,7 @@ export class LCARdSSoundConfigTab extends LitElement {
         <!-- ── BROWSER AUTOPLAY NOTICE ── -->
         <lcards-message
           type="info"
-          .message=${'<strong>Browser audio policy:</strong> Most sounds play after the first user interaction (tap or click). The <em>System Ready</em> startup sound plays on page load. For it to work your browser must allow audio autoplay for this URL. <a href="https://lcards.unimatrix01.ca/configuration/sounds#browser-audio-policy" target="_blank" rel="noopener noreferrer">Browser setup instructions →</a>'}
+          .message=${'Most sounds play after your first tap. <em>System Ready</em> plays on page load only if the browser allows autoplay here. <a href="https://lcards.unimatrix01.ca/configuration/sounds#browser-audio-policy" target="_blank" rel="noopener noreferrer">Browser setup</a>'}
         ></lcards-message>
 
         <!-- ── GLOBAL SETTINGS GROUP ── -->
@@ -1024,7 +1024,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                 .selector=${{ select: {
                   options: this._schemeNames.map(s => ({
                     value: s,
-                    label: s === 'none' ? 'None (silent)' : (s.startsWith('custom:') ? `🛠️ ${s.slice(7)} (custom)` : s)
+                    label: s === 'none' ? 'None (silent)' : (s.startsWith('custom:') ? `${s.slice(7)} (custom)` : s)
                   })),
                   mode: 'dropdown'
                 }}}
@@ -1509,7 +1509,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                             .hass=${this.hass}
                             .value=${scopedVal}
                             .audioAssets=${this._audioAssets}
-                            .schemeLabel=${'🎵 Use scheme default'}
+                            .schemeLabel=${'Use scheme default'}
                             ?disabled=${!masterEnabled}
                             @value-changed=${(e) => this._setScopedOverride(evt.key, e.detail.value, scope)}
                           ></lcards-sound-source-selector>

@@ -19,6 +19,7 @@ import { toNumericValue } from '../../core/data-sources/ha-history-utils.js';
 import { arrayChartProblem, normalizeChartSources } from '../../charts/chart-sources.js';
 import { migrateChartConfig } from '../../charts/chart-config-migration.js';
 import './shared/lcards-form-section.js';
+import './shared/lcards-message.js';
 import './shared/lcards-color-picker.js';
 
 const SOURCE_KINDS = [
@@ -338,7 +339,7 @@ export class LCARdSChartSeriesListEditor extends LitElement {
           <ha-icon icon="mdi:delete"></ha-icon>
         </ha-icon-button>
 
-        ${this._warnings(series).map(w => html`<ha-alert alert-type="warning">${w}</ha-alert>`)}
+        ${this._warnings(series).map(w => html`<lcards-message type="warning">${w}</lcards-message>`)}
 
         <div class="grid">
           <div class="full">
