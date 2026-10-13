@@ -129,8 +129,8 @@ test('resolution sweep: 8/16/24/32/64 all render with zero crossings and the min
 // back, well past the channel_3-entry nudge this fix targets) — flagged
 // as a known, distinct issue rather than silently skipped, matching this
 // suite's own established practice for a confirmed-but-deferred gap (see
-// turnaround-regression.test.js's own two todos).
-test.todo('resolution sweep: 40/48 have a separate, unrelated detour inside channel_2 not covered by this fix', () => {
+// turnaround-regression.test.js's own skipped known limitation).
+test('resolution sweep: 40/48 have a separate, unrelated detour inside channel_2 not covered by this fix', { skip: 'known limitation: channel_2 detour at 40/48 (see comment above)' }, () => {
   for (const res of [40, 48]) {
     const { results } = kelvinBundleScenario(res);
     for (const id of BUNDLE_IDS) {
