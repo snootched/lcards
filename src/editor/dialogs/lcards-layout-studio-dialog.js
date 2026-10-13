@@ -17,6 +17,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
+import { messageStyles } from '../base/surface-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import {
     parseLayoutConfig,
@@ -29,6 +30,10 @@ import { showConfirmDeleteDialog, showInfoDialog } from '../../views/layout-edit
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-color-picker.js';
 import '../components/yaml/lcards-studio-yaml-tab.js';
+// The canvas tools (tracks, areas, cards). A lazy chunk shared with the layout
+// view's edit mode: import it here, or the studio's preview stays empty unless
+// a layout view was edited earlier on the page.
+import '../../views/lcards-grid-edit-overlay.js';
 import { layoutCardSchema } from '../../cards/schemas/layout-card-schema.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
@@ -302,6 +307,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
             <ha-dialog
                 open
                 @closed=${(e) => { e.stopPropagation(); this._handleCancel(); }}
+                flexcontent
                 header-title="Layout Studio">
 
                 <div class="dialog-content">
@@ -717,12 +723,10 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         return [
             editorStyles,
             studioDialogStyles,
+            messageStyles,
             css`
                 :host { display: block; }
 
-                /* Fixed dialog height set on first paint so it doesn't grow as tabs
-                   get taller — content scrolls inside each panel instead. */
-                .dialog-content { height: 80vh; max-height: 80vh; min-height: 0; display: flex; flex-direction: column; }
                 /* Left config pane ~1/3, preview ~2/3. Explicit row so panels take the
                    full height and scroll internally rather than sizing to content. */
                 .studio-layout {
@@ -760,7 +764,6 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                 .layout-tab { display: flex; flex-direction: column; gap: 12px; }
                 .yaml-tab { display: flex; flex-direction: column; height: 100%; }
                 .yaml-tab lcards-studio-yaml-tab { flex: 1; min-height: 0; }
-                .hint { font-size: 13px; color: var(--secondary-text-color); line-height: 1.5; }
 
                 .card-tab { display: flex; flex-direction: column; gap: 14px; }
                 .grid2 { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 8px 10px; }

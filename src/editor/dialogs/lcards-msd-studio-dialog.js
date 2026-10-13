@@ -32,6 +32,7 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
+import { messageStyles } from '../base/surface-styles.js';
 import { OverlayUtils } from '../../msd/renderer/OverlayUtils.js';
 import { RouterCore } from '../../msd/routing/RouterCore.js';
 import { LineOverlay } from '../../msd/overlays/LineOverlay.js';
@@ -1073,7 +1074,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Order matters: msdStudioStyles must come after studioDialogStyles so
         // its intentional overrides (33.3/66.6 split, .preview-panel overflow,
         // tab-group spacing, zoom-controls tint) win the cascade.
-        return [editorStyles, studioDialogStyles, msdStudioStyles, studioSubformDialogStyles, searchableSelectStyles, infoGuideStyles];
+        return [editorStyles, studioDialogStyles, messageStyles, msdStudioStyles, studioSubformDialogStyles, searchableSelectStyles, infoGuideStyles];
     }
 
     /**
@@ -16729,7 +16730,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <ha-icon icon="mdi:content-save-edit" slot="start"></ha-icon>
                             Freeze to Manual Mode
                         </ha-button>
-                        <div class="helper-text">
+                        <div class="hint">
                             Convert current auto-routed path to manual waypoints
                         </div>
                     ` : ''}
@@ -18667,20 +18668,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 header-title="MSD Configuration Studio">
 
                 <div slot="footer">
-                    <ha-button @click=${() => window.open('https://lcards.unimatrix01.ca/cards/msd/', '_blank')} appearance="plain">
-                        <ha-icon icon="mdi:book-open-variant" slot="start"></ha-icon>
-                        Documentation
-                    </ha-button>
-                    <ha-button @click=${this._handleReset} appearance="plain" variant="warning">
-                        <ha-icon icon="mdi:restore" slot="start"></ha-icon>
-                        Reset
-                    </ha-button>
-                    <ha-button @click=${this._handleCancel} appearance="plain">
-                        <ha-icon icon="mdi:close" slot="start"></ha-icon>
-                        Cancel
-                    </ha-button>
-                    <ha-button @click=${this._handleSave}>
-                        <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
+                    <div class="footer-start">
+                        <ha-button @click=${() => window.open('https://lcards.unimatrix01.ca/cards/msd/', '_blank')} appearance="plain">
+                            <ha-icon icon="mdi:book-open-variant" slot="start"></ha-icon>
+                            Documentation
+                        </ha-button>
+                        <ha-button @click=${this._handleReset} appearance="plain" variant="warning">
+                            <ha-icon icon="mdi:restore" slot="start"></ha-icon>
+                            Reset
+                        </ha-button>
+                    </div>
+                    <ha-button @click=${this._handleCancel} appearance="plain">Cancel</ha-button>
+                    <ha-button variant="brand" @click=${this._handleSave}>
+                        <ha-icon icon="mdi:check" slot="start"></ha-icon>
                         Save
                     </ha-button>
                 </div>
@@ -18688,7 +18688,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <div class="dialog-content">
                     <!-- Split Panel Layout -->
                     <div class="studio-layout">
-                        <!-- Configuration Panel (60%) -->
+                        <!-- Configuration Panel (50%) -->
                         <div class="config-panel">
                             ${this._renderTabNav()}
                             <div class="tab-content">
@@ -18696,7 +18696,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             </div>
                         </div>
 
-                        <!-- Preview Panel (40%) -->
+                        <!-- Preview Panel (50%) -->
                         <div class="preview-panel mode-${this._activeMode}">
 
                             <!-- Scrollable content container -->

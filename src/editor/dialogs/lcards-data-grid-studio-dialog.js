@@ -21,6 +21,7 @@ import { LitElement, html, css } from 'lit';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
+import { messageStyles } from '../base/surface-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import { migrateDataGridConfig } from '../../data-grid/data-grid-config-migration.js';
 import {
@@ -487,16 +488,10 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         return [
             editorStyles,
             studioDialogStyles,
+            messageStyles,
             css`
             :host {
                 display: block;
-            }
-
-            .dialog-content {
-                display: flex;
-                flex-direction: column;
-                min-height: 70vh;
-                max-height: 80vh;
             }
 
             .tab-content {
@@ -683,12 +678,6 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                 color: var(--primary-text-color);
             }
 
-            .hint {
-                font-size: 12px;
-                color: var(--secondary-text-color);
-                margin-top: var(--ha-space-1);
-            }
-
             details.overrides {
                 margin-top: var(--ha-space-4);
             }
@@ -741,7 +730,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             { id: 'yaml', label: 'YAML', icon: 'mdi:code-braces' }
         ];
         return html`
-            <ha-dialog open @closed=${this._onDialogClosed} header-title="Data Grid Studio">
+            <ha-dialog open flexcontent @closed=${this._onDialogClosed} header-title="Data Grid Studio">
                 <div class="dialog-content">
                     <div class="studio-layout">
                         <div class="config-panel">

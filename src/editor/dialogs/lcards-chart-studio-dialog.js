@@ -29,6 +29,7 @@ import { createRef, ref } from 'lit/directives/ref.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { haFormatState, haFormatEntityName } from '../../utils/ha-entity-display.js';
 import { editorStyles } from '../base/editor-styles.js';
+import { messageStyles } from '../base/surface-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-form-section.js';
@@ -224,6 +225,7 @@ export class LCARdSChartStudioDialog extends LitElement {
         return [
             editorStyles,
             studioDialogStyles,
+            messageStyles,
             css`
             :host {
                 display: block;
@@ -233,28 +235,12 @@ export class LCARdSChartStudioDialog extends LitElement {
             .studio-layout {
                 grid-template-columns: 40% 60%;
                 gap: 24px;
-                align-items: start; /* Align to top for sticky to work */
             }
 
             /* Config panel - scrollable */
             .config-panel {
                 display: flex;
                 flex-direction: column;
-            }
-
-            /* Tab content wrapper - scrollable area */
-            .tab-content {
-                max-height: 70vh;
-                overflow-y: auto;
-                padding-right: 8px; /* Space for scrollbar */
-            }
-
-            /* Preview panel - sticky positioning */
-            .preview-panel {
-                position: sticky;
-                top: 0;
-                height: fit-content;
-                max-height: 85vh; /* Prevent overflow */
             }
 
             /* Chart preview container - dark background for charts */
@@ -315,20 +301,10 @@ export class LCARdSChartStudioDialog extends LitElement {
                 align-items: center;
                 margin-bottom: var(--ha-space-2);
             }
-            .hint {
-                color: var(--secondary-text-color);
-                margin: var(--ha-space-1) 0 var(--ha-space-2);
-            }
-
             .data-actions {
                 display: flex;
                 justify-content: flex-end;
                 margin: var(--ha-space-2) 0 var(--ha-space-4);
-            }
-
-            .help-text {
-                font-size: 14px;
-                line-height: 1.6;
             }
 
             /* Data Sources Tab Styles */
@@ -384,12 +360,6 @@ export class LCARdSChartStudioDialog extends LitElement {
                 font-weight: 500;
                 margin-bottom: 8px;
                 font-size: 14px;
-            }
-
-            .form-helper {
-                font-size: 12px;
-                color: var(--secondary-text-color);
-                margin-top: 4px;
             }
 
             .entity-preview {
@@ -1142,7 +1112,7 @@ export class LCARdSChartStudioDialog extends LitElement {
     _renderDataSourceHelp() {
         return html`
             <lcards-form-section variant="guide" header="Chart sources: help" icon="mdi:help-circle" ?expanded=${false} outlined>
-                <div class="help-text">
+                <div class="info-guide-body">
                     <h4>Entity history</h4>
                     <p>Plots an entity's recorded history for the chart's time span, then follows live changes.</p>
 
@@ -1282,7 +1252,7 @@ export class LCARdSChartStudioDialog extends LitElement {
         return html`
             <div style="margin-bottom: 12px;">
                 <label class="field-label">${label}</label>
-                ${helper ? html`<div class="helper-text">${helper}</div>` : ''}
+                ${helper ? html`<div class="hint">${helper}</div>` : ''}
                 <lcards-color-picker
                     .hass=${this.hass}
                     .value=${value}
@@ -1847,6 +1817,7 @@ yaxis:
             <ha-dialog
                 open
                 @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
+                flexcontent
                 header-title="Chart Studio">
 
                 <div class="dialog-content">

@@ -39,6 +39,16 @@ export const studioDialogStyles = css`
         flex-direction: column;
     }
 
+    /* Footer: HA lays it out as a flex row aligned to the end (Cancel, then
+       the brand Save). Secondary actions (Documentation, Reset) go in a
+       .footer-start group, which sits at the left. */
+    .footer-start {
+        display: flex;
+        align-items: center;
+        gap: var(--ha-space-3);
+        margin-inline-end: auto;
+    }
+
     /* The ha-dialog needs the flexcontent attribute: it makes HA's own .body
        a flex column, so .dialog-content (and the inset) fill the fixed dialog
        height instead of shrinking to a short tab's content.

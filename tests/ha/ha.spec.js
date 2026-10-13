@@ -293,6 +293,23 @@ test('rules: entity_attr condition follows the attribute (S2 fix)', async ({ pag
     expect(errors).toEqual([]);
 });
 
+test('rules: a card moved in the DOM (disconnect, reconnect) still follows its rules', async ({ page }) => {
+    const errors = await openDashboard(page, 'rules');
+    await expect.poll(() => buttonFill(page, 'ATTR RULE')).toBe('rgb(51, 51, 102)');
+    // HA moves cards between columns while laying out a view: the disconnect
+    // unregistered the card from the rules engine and nothing registered it again.
+    await page.locator('lcards-button', { hasText: 'ATTR RULE' }).evaluate((card) => {
+        const parent = card.parentNode, next = card.nextSibling;
+        card.remove();
+        parent.insertBefore(card, next);
+    });
+    await setInputNumberMax(client, 'lcards_test_value', 200);
+    await expect.poll(() => buttonFill(page, 'ATTR RULE'), { timeout: 10_000 }).toBe('rgb(204, 0, 0)');
+    await setInputNumberMax(client, 'lcards_test_value', 100);
+    await expect.poll(() => buttonFill(page, 'ATTR RULE'), { timeout: 10_000 }).toBe('rgb(51, 51, 102)');
+    expect(errors).toEqual([]);
+});
+
 test('rules: `condition: |` block-scalar JavaScript rule matches (S2 fix)', async ({ page }) => {
     const errors = await openDashboard(page, 'rules');
     await expect.poll(() => buttonFill(page, 'JS RULE')).toBe('rgb(51, 51, 102)');
@@ -1146,6 +1163,111 @@ test('Slider editor: direction buttons write the config; range presets are HA bu
         return [c.style?.track?.orientation, c.style?.track?.invert_fill];
     })).toEqual(['vertical', true]);
     await vis.getByRole('button', { name: 'Match ranges' }).click();
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+/**
+ * Studios (UI consistency B6): each studio's inset keeps one height on every tab
+ * (flexcontent; no per-studio heights), and the footers match.
+ */
+const STUDIOS = [
+    ['MSD', 'lcards-msd-card', EDITORS[5][1], '_openMsdStudio', 'lcards-msd-studio-dialog'],
+    ['Chart', 'lcards-chart', EDITORS[3][1], '_openChartStudio', 'lcards-chart-studio-dialog'],
+    ['Data Grid', 'lcards-data-grid', EDITORS[4][1], '_openConfigurationStudio', 'lcards-data-grid-studio-dialog-v4'],
+    ['Layout', 'lcards-layout-card', { type: 'custom:lcards-layout-card', cards: [] }, '_openStudio', 'lcards-layout-studio-dialog'],
+];
+
+async function openCardStudio(page, tag, config, method, dialogTag) {
+    await mountEditor(page, tag, config);
+    await page.evaluate(async (method) => {
+        const editor = document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-editor');
+        await editor.updateComplete;
+        await editor[method]();
+    }, method);
+    const dialog = page.locator(dialogTag);
+    await expect(dialog.locator('.studio-layout').first()).toBeVisible({ timeout: 20_000 });
+    return dialog;
+}
+const removeStudio = (page, dialogTag) => page.evaluate((t) => {
+    const ha = document.querySelector('home-assistant').shadowRoot;
+    ha.querySelectorAll(t).forEach(d => d.remove());
+}, dialogTag);
+
+for (const [name, tag, config, method, dialogTag] of STUDIOS) {
+    test(`${name} studio: the inset keeps one height on every tab; footer Cancel then brand Save`, async ({ page }) => {
+        const errors = await openDashboard(page, 'cards');
+        const dialog = await openCardStudio(page, tag, config, method, dialogTag);
+        await expect(dialog.locator('ha-dialog').first()).toHaveAttribute('flexcontent', '');
+        const tabs = dialog.locator('.config-panel ha-tab-group').first().locator('ha-tab-group-tab');
+        const heights = [];
+        for (let i = 0; i < await tabs.count(); i++) {
+            await tabs.nth(i).dispatchEvent('click');
+            await settle(page, 500);
+            heights.push(Math.round((await dialog.locator('.studio-layout').first().boundingBox()).height));
+        }
+        expect(new Set(heights).size, `heights ${heights}`).toBe(1);
+        // Footer: the last two buttons are Cancel (plain) and Save (brand)
+        const buttons = dialog.locator('ha-dialog').first().locator(':scope > [slot="footer"] > ha-button'); // not the .footer-start group
+        const n = await buttons.count();
+        await expect(buttons.nth(n - 2)).toHaveText('Cancel');
+        await expect(buttons.nth(n - 1)).toHaveAttribute('variant', 'brand');
+        await expect(buttons.nth(n - 1).locator('ha-icon')).toHaveAttribute('icon', 'mdi:check');
+        await removeStudio(page, dialogTag);
+        await removeEditor(page);
+        expect(errors).toEqual([]);
+    });
+}
+
+test('MSD studio: Documentation and Reset sit at the start of the footer', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    const [, tag, config, method, dialogTag] = STUDIOS[0];
+    const dialog = await openCardStudio(page, tag, config, method, dialogTag);
+    const footer = dialog.locator('ha-dialog').first().locator(':scope > [slot="footer"]');
+    const box = async (name) => (await footer.getByRole('button', { name }).boundingBox());
+    const [docs, reset, cancel] = [await box('Documentation'), await box('Reset'), await box('Cancel')];
+    const footerBox = await footer.boundingBox();
+    expect(docs.x - footerBox.x).toBeLessThan(40);
+    // A gap between the start group (Documentation, Reset) and Cancel
+    expect(cancel.x - (reset.x + reset.width)).toBeGreaterThan(100);
+    await removeStudio(page, dialogTag);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
+test('Config panel: the selected tab sticks (click right after load, set from code, Welcome links)', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await page.goto('/lcards-config');
+    const panel = page.locator('lcards-config-panel-impl');
+    await panel.waitFor({ state: 'attached', timeout: 20_000 });
+    const selected = () => panel.evaluate(el => [...el.shadowRoot.querySelectorAll('ha-tab-group-tab')]
+        .find(t => t.getAttribute('aria-selected') === 'true')?.getAttribute('value'));
+    await panel.getByRole('tab', { name: /Sounds/ }).click();
+    await settle(page);
+    expect(await selected()).toBe('4');
+    await panel.evaluate(el => { el._selectedTab = 3; });
+    await settle(page);
+    expect(await selected()).toBe('3');
+    await panel.evaluate(el => { el._selectedTab = 0; });
+    await settle(page, 800);
+    await panel.evaluate(el => el.shadowRoot.querySelector('lcards-about-tab').dispatchEvent(
+        new CustomEvent('lcards-navigate-tab', { detail: { tab: 1 }, bubbles: true, composed: true })));
+    await settle(page);
+    expect(await selected()).toBe('1');
+    expect(errors).toEqual([]);
+});
+
+test('Layout studio: a new layout card shows the grid tools on a fresh page (overlay chunk loaded)', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    // A fresh page: no layout view has been edited, so only the studio can load the overlay.
+    expect(await page.evaluate(() => !!customElements.get('lcards-grid-edit-overlay'))).toBe(false);
+    const [, tag, , method, dialogTag] = STUDIOS[3];
+    const stub = { type: 'custom:lcards-layout-card', layout: { 'grid-template-columns': '1fr 1fr', 'grid-template-rows': 'auto' }, cards: [] };
+    const dialog = await openCardStudio(page, tag, stub, method, dialogTag);
+    expect(await page.evaluate(() => !!customElements.get('lcards-grid-edit-overlay'))).toBe(true);
+    const overlay = dialog.locator('.canvas lcards-grid-edit-overlay');
+    await expect.poll(() => overlay.evaluate(el => el.shadowRoot?.querySelectorAll('*').length ?? 0)).toBeGreaterThan(5);
+    await removeStudio(page, dialogTag);
     await removeEditor(page);
     expect(errors).toEqual([]);
 });

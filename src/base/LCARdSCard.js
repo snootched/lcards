@@ -252,6 +252,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         this._lastRulePatches = null;     // Cache of last applied patches
         this._baseConfig = null;          // Snapshot of config before first patch (for revert)
         this._overlayRegistered = false;  // Track if overlay is registered
+        this._rulesRegistration = null;   // Last _registerOverlayForRules() args, for re-registering on reconnect
         this._hasRulesToLoad = false;     // Flag to defer rule loading until singletons are ready
         this._hassMonitoringSetup = false; // Flag to prevent duplicate monitoring setup
 
@@ -912,6 +913,15 @@ export class LCARdSCard extends LCARdSNativeCard {
             }
         }
 
+        // Reconnected (HA moves cards between columns while laying out a view, edit
+        // mode, navigation): the disconnect unregistered the card from the rules
+        // engine, so register again, or it would ignore rule changes until a reload.
+        if (this._initialized && this._rulesRegistration && !this._overlayRegistered) {
+            const { overlayId, type, tags } = this._rulesRegistration;
+            lcardsLog.debug(`[LCARdSCard] Re-registering for rules after reconnect: ${this._getDisplayId()}`);
+            this._registerOverlayForRules(overlayId, type, tags);
+        }
+
         lcardsLog.trace(`[LCARdSCard] Connected: ${this._getDisplayId()}`);
     }
 
@@ -1450,6 +1460,10 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @protected
      */
     _registerOverlayForRules(overlayId, type, tags = []) {
+        // Remembered so _onConnected can register again: a disconnect unregisters
+        // the card, and the first update (where cards call this) never runs again.
+        this._rulesRegistration = { overlayId, type, tags };
+
         if (!this._singletons?.rulesEngine || !this._singletons?.systemsManager) {
             lcardsLog.debug('[LCARdSCard] Rules or SystemsManager not available, skipping overlay registration');
             return;
