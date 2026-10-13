@@ -66,22 +66,11 @@ jobs:
 
       # ── Resolve version ────────────────────────────────────────────────────
       # Version is always read from package.json on the checked-out branch.
-      # A tag is created and pushed so the GitHub release has a proper ref.
       - name: Resolve version
         id: version
         run: |
           VERSION=$(jq -r '.version' package.json)
           echo "📌 package.json version: ${VERSION}"
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Only create tag if it doesn't already exist
-          if git rev-parse "${VERSION}" >/dev/null 2>&1; then
-            echo "🏷️  Tag ${VERSION} already exists — skipping creation"
-          else
-            git tag "${VERSION}"
-            git push origin "${VERSION}"
-            echo "🏷️  Created tag ${VERSION}"
-          fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       # ── Resolve prerelease flag ────────────────────────────────────────────
@@ -107,6 +96,44 @@ jobs:
             echo "📌 Pre-release: true (branch=${BRANCH} is not main)"
           fi
           echo "is_prerelease=${IS_PRERELEASE}" >> $GITHUB_OUTPUT
+
+      # ── Release notes ─────────────────────────────────────────────────────
+      # The notes are the docs page doc/releases/<version>.md (the source of truth),
+      # exported as GitHub markdown; GitHub appends its own commit list below.
+      # A stable release needs that page with status: released (exit 3 if it is
+      # still in testing). A pre-release without a page gets GitHub's notes only.
+      # Runs before tagging, so a failed check leaves no tag behind.
+      - name: Release notes from the docs page
+        id: notes
+        run: |
+          set +e
+          node scripts/release-notes.mjs export "${{ steps.version.outputs.version }}" --out release-body.md
+          CODE=$?
+          set -e
+          if [ $CODE -eq 0 ]; then
+            echo "body=release-body.md" >> $GITHUB_OUTPUT
+          elif [ $CODE -eq 2 ] && [ "${{ steps.prerelease.outputs.is_prerelease }}" = "true" ]; then
+            echo "::notice::No docs release page for this pre-release; GitHub's generated notes only"
+          else
+            echo "::error::Release notes check failed (see above). Add or finish doc/releases/<version>.md."
+            exit 1
+          fi
+
+      # ── Tag ────────────────────────────────────────────────────────────────
+      # A tag is created and pushed so the GitHub release has a proper ref.
+      - name: Create tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Only create tag if it doesn't already exist
+          if git rev-parse "${VERSION}" >/dev/null 2>&1; then
+            echo "🏷️  Tag ${VERSION} already exists, skipping creation"
+          else
+            git tag "${VERSION}"
+            git push origin "${VERSION}"
+            echo "🏷️  Created tag ${VERSION}"
+          fi
 
       # ── Stamp version ─────────────────────────────────────────────────────
       # manifest.json requires HA CalVer: no leading zeros, no pre-release suffix.
@@ -205,6 +232,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
+          name: LCARdS ${{ steps.version.outputs.version }}
           files: lcards.zip
           prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
+          # The docs page's notes (empty when a pre-release has none), then GitHub's commit list.
+          body_path: ${{ steps.notes.outputs.body }}
           generate_release_notes: true

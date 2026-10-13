@@ -10,6 +10,8 @@ import DataGridDemo from './DataGridDemo.vue'
 import CardDemo from './CardDemo.vue'
 import CardGallery from './CardGallery.vue'
 import ProcessorLab from './ProcessorLab.vue'
+import ReleaseList from './ReleaseList.vue'
+import ReleaseMeta from './ReleaseMeta.vue'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -81,6 +83,9 @@ export default {
     app.component('CardGallery', CardGallery)
     // ```yaml lab blocks on the processor reference page.
     app.component('ProcessorLab', ProcessorLab)
+    // Releases section: the index cards and the line under each release page's title.
+    app.component('ReleaseList', ReleaseList)
+    app.component('ReleaseMeta', ReleaseMeta)
   },
 
   Layout() {

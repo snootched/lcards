@@ -21,6 +21,9 @@ mono_crash.*
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
+# ...but not the docs Releases section (pages and their pictures)
+!doc/releases/
+!doc/public/releases/
 x64/
 x86/
 [Ww][Ii][Nn]32/

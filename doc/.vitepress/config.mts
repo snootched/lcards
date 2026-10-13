@@ -3,9 +3,32 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
 import { readFileSync, existsSync, statSync, createReadStream } from 'node:fs'
 import { resolve, extname, sep } from 'node:path'
+import { listReleases } from '../../scripts/release-lib.mjs'
 
 const SITE_URL = 'https://lcards.unimatrix01.ca'
 const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'))
+
+// Release pages (doc/releases/<tag>.md): in testing first, then newest first.
+const releases = listReleases()
+const latestRelease = releases.find(r => r.status === 'released')
+
+/**
+ * Release pages: put <ReleaseMeta /> (date, status, GitHub link) right under the
+ * page's # title, so the markdown itself stays plain enough to export to GitHub.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function releaseMetaRule(md: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  md.core.ruler.push('release_meta', (state: any) => {
+    const path: string = state.env?.relativePath ?? ''
+    if (!/^releases\/(?!index\.md$)[^/]+\.md$/.test(path)) return
+    const close = state.tokens.findIndex((t: any) => t.type === 'heading_close' && t.tag === 'h1')
+    if (close === -1) return
+    const meta = new state.Token('html_block', '', 0)
+    meta.content = '<ReleaseMeta />\n'
+    state.tokens.splice(close + 1, 0, meta)
+  })
+}
 
 /**
  * markdown-it core rule: wrap {{ ... }} in <span v-pre> so Vue's
@@ -166,6 +189,21 @@ export default withMermaid(defineConfig({
     ]
   ],
 
+  // Release pages take their description from the summary; the home page gets a
+  // "What's new" hero action for the newest released version.
+  transformPageData(pageData) {
+    const path = pageData.relativePath
+    if (/^releases\/(?!index\.md$)/.test(path) && pageData.frontmatter.summary) {
+      pageData.description = pageData.frontmatter.summary
+    }
+    if (path === 'index.md' && latestRelease && pageData.frontmatter.hero?.actions) {
+      pageData.frontmatter.hero.actions = [
+        ...pageData.frontmatter.hero.actions,
+        { theme: 'alt', text: `What's new in ${latestRelease.version}`, link: latestRelease.link },
+      ]
+    }
+  },
+
   // ── Mermaid config ────────────────────────────────────────────────────────
   mermaid: {
     // theme is controlled via CSS variables in the custom theme
@@ -177,6 +215,7 @@ export default withMermaid(defineConfig({
       tabsMarkdownPlugin(md)
       vPreBracesRule(md)
       liveDemoFence(md)
+      releaseMetaRule(md)
     },
   },
 
@@ -363,10 +402,22 @@ export default withMermaid(defineConfig({
           },
         ],
       },
+      { text: 'Releases', link: '/releases/', activeMatch: '/releases/' },
       { text: 'About', link: '/credits' },
     ],
 
     sidebar: {
+      '/releases/': [
+        { text: 'Releases', items: [{ text: 'All releases', link: '/releases/' }] },
+        ...releases.some(r => r.status === 'testing') ? [{
+          text: 'In testing',
+          items: releases.filter(r => r.status === 'testing').map(r => ({ text: `${r.version} (dev builds)`, link: r.link })),
+        }] : [],
+        {
+          text: 'Released',
+          items: releases.filter(r => r.status === 'released').map(r => ({ text: r.version, link: r.link })),
+        },
+      ],
       '/getting-started/': [
         {
           text: 'Getting Started',

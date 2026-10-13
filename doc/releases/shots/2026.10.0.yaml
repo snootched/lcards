@@ -1,0 +1,171 @@
+# Pictures for doc/releases/2026.10.0.md: node scripts/release-shots.mjs 2026.10.0
+# The dev HA's own sensors carry personal names (city, utility): use the desk sensor in
+# anything that shows entity ids, and charts show the others only by `name:`.
+
+- name: chart
+  card:
+    type: custom:lcards-chart
+    chart_type: area
+    height: 300
+    graph_span: 24h
+    sources:
+      - entity: sensor.toronto_temperature
+        name: Outside
+      - entity: sensor.desk_sensor_temperature
+        name: Inside
+  size: [760, 300]
+  selector: '#lcards-release-card'
+
+- name: chart-studio
+  card:
+    type: custom:lcards-chart
+    chart_type: line
+    height: 300
+    graph_span: 24h
+    sources:
+      - entity: sensor.desk_sensor_temperature
+        name: Bridge
+  editor: true
+  open: _openChartStudio
+  settle: 4000
+  selector: 'lcards-chart-studio-dialog wa-dialog [part~="dialog"]'
+
+- name: data-grid
+  card:
+    type: custom:lcards-data-grid
+    data_mode: data
+    rows:
+      - values: [System, Status]
+        header: true
+      - - Test value
+        - value: input_number.lcards_test_value
+          style:
+            color:
+              default: var(--lcars-green)
+              above:50: var(--lcars-yellow)
+              above:80: var(--lcars-red)
+      - - Toggle
+        - value: input_boolean.lcards_test_toggle
+          style:
+            background:
+              default: transparent
+              'on': var(--lcars-orange)
+      - - Mode
+        - value: input_select.lcards_test_mode
+    grid:
+      grid-template-columns: 1fr 1fr
+    style:
+      font_size: 22px
+  steps:
+    - service: [input_number, set_value, { entity_id: input_number.lcards_test_value, value: 64 }]
+    - service: [input_boolean, turn_on, { entity_id: input_boolean.lcards_test_toggle }]
+    - wait: 1500
+  size: [600, 0]
+  selector: '#lcards-release-card'
+  padding: 16
+
+- name: processor-preview
+  card: { type: custom:lcards-elbow, elbow: { type: header-left } }
+  editor: true
+  steps:
+    - eval: |
+        (async () => {
+          await customElements.whenDefined('lcards-datasource-studio-dialog');
+          const ha = document.querySelector('home-assistant');
+          const dialog = document.createElement('lcards-datasource-studio-dialog');
+          dialog.hass = ha.hass;
+          dialog.mode = 'edit';
+          dialog.sourceName = 'bridge';
+          dialog.sourceConfig = {
+            entity: 'sensor.desk_sensor_temperature',
+            history: { hours: 48 },
+            processing: {
+              average: { type: 'smooth', method: 'moving_average', window: 12 },
+              exponential: { type: 'smooth', method: 'exponential', alpha: 0.1 },
+            },
+          };
+          ha.shadowRoot.appendChild(dialog);
+          dialog.open = true;
+          await dialog.updateComplete;
+        })()
+    - wait: 1500
+    - click: 'lcards-datasource-studio-dialog ha-tab-group-tab:has-text("Processing")'
+    - wait: 5000
+  selector: 'lcards-datasource-studio-dialog wa-dialog [part~="dialog"]'
+
+- name: provenance
+  card:
+    type: custom:lcards-button
+    id: warp_core
+    entity: input_boolean.lcards_test_toggle
+    preset: lozenge
+    style: { card: { color: { background: { active: 'theme:colors.ui.primary', inactive: '#333366' } } } }
+  editor: true
+  steps:
+    - eval: |
+        (() => {
+          const ha = document.querySelector('home-assistant');
+          const card = document.createElement('lcards-button');
+          card.setConfig({ type: 'custom:lcards-button', id: 'warp_core', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge',
+            style: { card: { color: { background: { active: 'theme:colors.ui.primary', inactive: '#333366' } } } } });
+          card.hass = ha.hass;
+          card.style.cssText = 'position:fixed;left:-2000px;width:300px';
+          ha.shadowRoot.appendChild(card);
+        })()
+    - click: 'role=tab[name=/Main Engineering/]'
+    - wait: 800
+    - click: '#lcards-release-editor >> role=tab[name="Provenance"]'
+    - wait: 1500
+    - click: 'lcards-provenance-tab >> role=button[name="Open inspector"]'
+    - wait: 1500
+    - type: ['lcards-provenance-tab ha-dialog ha-input.search input', 'background.active']
+    - wait: 600
+    - click: 'lcards-provenance-tab ha-dialog .field-row[data-path="style.card.color.background.active"]'
+    - wait: 1200
+  selector: 'lcards-provenance-tab ha-dialog wa-dialog [part~="dialog"]'
+
+- name: template-sandbox
+  card:
+    type: custom:lcards-button
+    entity: input_number.lcards_test_value
+    preset: lozenge
+    text:
+      label: { content: 'Power {{ states("input_number.lcards_test_value") | int * 12 }} kW', show: true }
+  editor: true
+  steps:
+    - click: 'role=tab[name=/Main Engineering/]'
+    - wait: 800
+    - click: '#lcards-release-editor >> role=tab[name="Templates"]'
+    - wait: 1500
+    - click: 'lcards-template-evaluation-tab >> role=button[name="Open in sandbox"]'
+    - wait: 2500
+  selector: 'lcards-template-sandbox ha-dialog wa-dialog [part~="dialog"]'
+
+- name: health-check
+  path: /lcards-config
+  settle: 5000
+  viewport: [1400, 1200]
+  selector: 'lcards-about-tab .section:has-text("Support & system info")'
+
+- name: slider-drag-badge
+  kind: video
+  card:
+    type: custom:lcards-slider
+    entity: input_number.lcards_test_value
+    preset: pills-basic
+    drag_badge:
+      enabled: true
+      format: { decimals: 0 }
+  steps:
+    - service: [input_number, set_value, { entity_id: input_number.lcards_test_value, value: 20 }]
+    - wait: 1500
+  video_steps:
+    - wait: 500
+    - drag: ['#lcards-release-card', 0.2, 0.75, 1800]
+    - wait: 600
+    - drag: ['#lcards-release-card', 0.75, 0.4, 1200]
+  duration: 1500
+  size: [600, 64]
+  viewport: [900, 400]
+  selector: '#lcards-release-card'
+  padding: 48
