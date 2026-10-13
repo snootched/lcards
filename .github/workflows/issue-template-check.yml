@@ -19,7 +19,7 @@ jobs:
       github.event.issue.pull_request == null &&
       !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         with:
           script: |
             const LABEL = 'needs-template';

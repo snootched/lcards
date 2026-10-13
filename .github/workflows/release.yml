@@ -44,19 +44,17 @@ jobs:
     name: Build and Release
     runs-on: ubuntu-latest
     needs: validate
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       # ── Checkout ─────────────────────────────────────────────────────────────
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0   # needed for tag creation and release notes
 
       # ── Node ─────────────────────────────────────────────────────────────────
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: "npm"
@@ -229,7 +227,7 @@ jobs:
 
       # ── Release ───────────────────────────────────────────────────────────────
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: LCARdS ${{ steps.version.outputs.version }}

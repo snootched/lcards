@@ -203,9 +203,12 @@ test('release pages and pictures are not gitignored (a stray Releases/ rule once
     assert.equal(ignored.stdout.trim(), '');
 });
 
-test('commits CLI lists what the notes do not cover yet, from notes_through to HEAD', () => {
-    const base = spawnSync('git', ['rev-parse', 'HEAD~3'], { cwd: ROOT, encoding: 'utf8' }).stdout.trim();
-    if (!base) return; // shallow clone
+// CI checks out one commit (shallow), so HEAD~3 may not exist there.
+const threeBack = spawnSync('git', ['rev-parse', '--verify', '--quiet', 'HEAD~3^{commit}'], { cwd: ROOT, encoding: 'utf8' });
+const historyMissing = threeBack.status !== 0 && 'needs 3 commits of history (shallow clone)';
+
+test('commits CLI lists what the notes do not cover yet, from notes_through to HEAD', { skip: historyMissing }, () => {
+    const base = threeBack.stdout.trim();
     const { dir, rel } = fixture({
         '2026.09.0': page({ version: '2026.09.0' }),
         '2026.11.0': page({ status: 'testing', date: null }).replace('breaking: false', `breaking: false\nnotes_through: "${base.slice(0, 12)}"`),

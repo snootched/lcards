@@ -251,4 +251,7 @@ Run one node test file: `node --import ./tests/setup/browser-shims.js --import .
 - **Docs deploy from both branches:** whichever was pushed last is live.
 - **Personal data in pictures:** the dev HA's entities and dashboards carry real names. Shots use `lcards_test_*` helpers; check every image before committing.
 - **No em dashes** anywhere (docs, UI strings, commit messages).
+- **CI checks out one commit** (shallow) except in Release (`fetch-depth: 0`). Tests that need git history must skip themselves when it's missing (see the `release:commits` test).
+- **GitHub Actions versions:** every action runs on Node 24 (checkout v7, setup-node v7, github-script v9, action-gh-release v3, Pages actions v5/v6, as of 2026-10). When GitHub warns that an action targets a deprecated Node runtime, move to its next major after reading that major's breaking changes; don't force the old one with `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`. Our own code is tested on Node 24 (`node-version: '24'`).
+- **`ubuntu-latest`** moves to Ubuntu 26 from 2026-10-19. If Playwright's `install --with-deps` breaks there, pin `runs-on: ubuntu-24.04` until Playwright supports it.
 - **`.gitignore`** has Visual Studio boilerplate (`[Rr]elease/`, `[Bb]in/`, ...); new folders with those names need a `!` exception.
