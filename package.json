@@ -60,7 +60,8 @@
     "test:docs": "playwright test -c playwright.docs.config.js",
     "release:notes": "node scripts/release-notes.mjs export",
     "release:check": "node scripts/release-notes.mjs check",
-    "release:shots": "node scripts/release-shots.mjs"
+    "release:shots": "node scripts/release-shots.mjs",
+    "release:commits": "node scripts/release-notes.mjs commits"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",

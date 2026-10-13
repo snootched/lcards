@@ -316,6 +316,7 @@ export function listReleases(dir = RELEASES_DIR) {
                 date: data.date ? String(data.date) : null,
                 status: data.status ?? 'released',
                 summary: data.summary ?? '',
+                notesThrough: data.notes_through ? String(data.notes_through) : null,
                 breaking: data.breaking === true,
                 link: releaseLink(tag),
                 github: `${REPO_URL}/releases/tag/${tag}`,
@@ -351,6 +352,9 @@ export function checkReleases({ dir = RELEASES_DIR, publicDir = join(PUBLIC_DIR,
         if (r.status === 'released' && !/^\d{4}-\d{2}-\d{2}$/.test(r.date ?? '')) errors.push(`${where}: released pages need date: YYYY-MM-DD`);
         if (!r.summary || /\bTODO\b/.test(r.summary)) errors.push(`${where}: summary is missing`);
         if (typeof data.breaking !== 'boolean') errors.push(`${where}: breaking must be true or false`);
+        if (data.notes_through !== undefined && !/^[0-9a-f]{7,40}$/.test(String(data.notes_through))) {
+            errors.push(`${where}: notes_through must be a commit sha`);
+        }
         if (!/^#\s/m.test(body)) errors.push(`${where}: needs a "# " title`);
         mapProse(body, (t) => {
             const comp = /<([A-Z][A-Za-z]+)[\s/>]/.exec(t);

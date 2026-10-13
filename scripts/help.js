@@ -33,9 +33,11 @@ const CATEGORIES = [
   {
     name: 'Build',
     scripts: {
-      build: { when: 'every build', desc: 'Full validated build — doc/CSS-var validation, version sync, Vite integration build, asset copy. Use for ALL dev/test builds.' },
+      build: { when: 'every build', desc: 'Full validated build: doc examples (strict), docs em-dash check, CSS vars, HA compat, version sync, Vite integration build (minified, .br/.gz), asset copy. Use for ALL dev/test builds.' },
       'build:integration': { when: 'CI/release', desc: 'Vite build + asset copy only, skips validation/version-sync. CI/release only — never for dev.' },
-      typecheck: { when: 'as needed', desc: 'TypeScript checks across the whole src/ tree.' },
+      typecheck: { when: 'as needed', desc: 'TypeScript checks across the whole src/ tree (full sorted list).' },
+      'typecheck:check': { when: 'CI/release', desc: 'Fails only on TypeScript errors not in scripts/tsc-baseline.txt (the CI gate). After fixing baseline errors: node scripts/check-typecheck-baseline.js --update.' },
+      'generate:llm-schema': { when: 'as needed', desc: 'Regenerates doc/public/lcards-schema.json (the LLM schema bundle) from src/cards/schemas/. Runs inside docs:build.' },
     },
   },
   {
@@ -68,16 +70,32 @@ const CATEGORIES = [
     scripts: {
       'test': { when: 'before commit', desc: 'Runs every node:test suite under tests/ (routing, layout-view row logic, HA compat lint rules). Card rendering is still tested manually in HA Lovelace.' },
       'test:routing': { when: 'as needed', desc: 'Runs only the MSD routing test suite.' },
+      'test:data-grid': { when: 'as needed', desc: 'Runs only the data grid test suite.' },
+      'test:browser': { when: 'before commit', desc: 'Layer A (Playwright, CI): cards from tests/browser/fixtures/*.yaml on the built bundle against a fake hass. Run npm run build first.' },
+      'test:visual': { when: 'as needed', desc: 'Layer B (local only): screenshot baselines. Add -- --update-snapshots after an intended visual change.' },
+      'test:ha': { when: 'as needed', desc: 'Layer C (local only): smoke tests against the dev HA. Needs a token in $HA_TOKEN or .ha-token, and npm run build first.' },
+      'test:docs': { when: 'CI/release', desc: 'Docs site tests: live card demos, galleries, playgrounds and processor labs on the built site and the dev server. Run npm run docs:build first.' },
     },
   },
   {
     name: 'Docs (VitePress)',
     scripts: {
-      'docs:build': { when: 'as needed', desc: 'Builds the VitePress documentation site.' },
+      'docs:build': { when: 'as needed', desc: 'Builds the docs site: LLM schema, production bundle copy for live demos, VitePress (fails on dead links), then the #anchor check.' },
+      'docs:bundle': { when: 'as needed', desc: 'Builds the card bundle and copies it into doc/public/lcards/ for the live demos. Runs inside docs:build.' },
+      'docs:check-anchors': { when: 'as needed', desc: 'Fails on any docs link to a missing #anchor (needs a built site). Runs inside docs:build.' },
       'docs:serve': { when: 'as needed', desc: 'Local VitePress dev server with hot reload.' },
       'docs:serve:network': { when: 'as needed', desc: 'Same, bound to 0.0.0.0 — for viewing docs from another device on the LAN.' },
       'docs:preview': { when: 'as needed', desc: 'Serves the already-built doc/ output, to sanity-check a production doc build locally.' },
       'docs:routing-diagrams': { when: 'as needed', desc: 'Regenerates the routing scenario diagrams embedded in the routing docs.' },
+    },
+  },
+  {
+    name: 'Releases',
+    scripts: {
+      'release:commits': { when: 'as needed', desc: 'Commits the release notes do not cover yet (from the in-testing page\'s notes_through, or the last release), with messages and areas. Input for drafting doc/releases/<version>.md.' },
+      'release:check': { when: 'as needed', desc: 'Checks every release page: frontmatter, images exist and are used, nothing that cannot export to GitHub. Also runs in npm test.' },
+      'release:notes': { when: 'CI/release', desc: 'Prints the GitHub release body for a version (npm run release:notes -- 2026.11.0). The Release workflow runs it with --out.' },
+      'release:shots': { when: 'as needed', desc: 'Captures release pictures from the dev HA per doc/releases/shots/<version>.yaml (npm run release:shots -- <version> [name ...] [--gif]).' },
     },
   },
   {
@@ -97,7 +115,7 @@ const CATEGORIES = [
     name: 'Dev Tools',
     scripts: {
       'create-editor': { when: 'dev tool', desc: 'Scaffolds a new card editor file from the standard template.' },
-      'generate-brand-icon': { when: 'dev tool', desc: 'Regenerates the HA brand/integration icon assets.' },
+      'generate-brand-icon': { when: 'dev tool', desc: 'Regenerates the HA brand/integration icon assets. BROKEN: scripts/generate-brand-icon.js does not exist.' },
       help: { when: 'dev tool', desc: 'This screen.' },
     },
   },

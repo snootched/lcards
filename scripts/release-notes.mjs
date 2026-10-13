@@ -7,6 +7,11 @@
  *       Exit 2: no page. Exit 3: a stable version whose page is still status: testing.
  *   node scripts/release-notes.mjs check
  *       Validate every release page (frontmatter, images, no demo components).
+ *   node scripts/release-notes.mjs commits [--brief]
+ *       The commits the release notes don't cover yet, oldest first, with their
+ *       messages and the areas they touch: from the in-testing page's notes_through
+ *       (or, without one, the last released version's tag) to HEAD. Input for
+ *       drafting the notes; afterwards set notes_through to the sha it prints.
  *   node scripts/release-notes.mjs import [--from <tag>] [--only <tag>] [--force]
  *       Backfill pages from the published GitHub releases (stable only). Downloads
  *       the attached images to doc/public/releases/<tag>/ as WebP (needs `magick`).
@@ -20,7 +25,7 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import {
     ROOT, RELEASES_DIR, PUBLIC_DIR, REPO_URL, baseVersion, compareVersions,
-    toGithubMarkdown, importGithubBody, checkReleases, splitFrontmatter,
+    toGithubMarkdown, importGithubBody, checkReleases, splitFrontmatter, listReleases,
 } from './release-lib.mjs';
 
 const [cmd, ...rest] = process.argv.slice(2);
@@ -86,6 +91,47 @@ function fetchImage(url, sitePath) {
     }
 }
 
+const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' }).trim();
+const hasCommit = (ref) => { try { git('rev-parse', '--verify', '--quiet', `${ref}^{commit}`); return true; } catch { return false; } };
+
+function cmdCommits() {
+    const releases = listReleases();
+    const testing = releases.find(r => r.status === 'testing');
+    const released = releases.find(r => r.status === 'released');
+    let from = testing?.notesThrough;
+    let why = from ? `notes_through of doc/releases/${testing.file}` : null;
+    if (!from) {
+        if (!released) throw new Error('no released page to start from');
+        from = released.tag;
+        why = `the last released version (${released.tag})`;
+        if (!hasCommit(from)) {
+            try { git('fetch', '--tags', '--quiet'); } catch { /* offline: reported below */ }
+        }
+    }
+    if (!hasCommit(from)) {
+        console.error(`Can't find ${from} (${why}) in this clone. Run \`git fetch --tags\`, or fix notes_through.`);
+        process.exit(1);
+    }
+    const head = git('rev-parse', 'HEAD');
+    const shas = git('rev-list', '--reverse', '--no-merges', `${from}..HEAD`).split('\n').filter(Boolean);
+    console.log(`# Commits since ${why}: ${from.slice(0, 12)}..${head.slice(0, 12)} (${shas.length})`);
+    console.log(`# Release page: ${testing ? `doc/releases/${testing.file} (in testing)` : 'none in testing yet: create doc/releases/<next version>.md'}`);
+    console.log(`# package.json: ${pkg.version}`);
+    console.log(`# When the notes cover these, set  notes_through: "${head.slice(0, 12)}"\n`);
+    for (const sha of shas) {
+        const [subject, date] = git('show', '-s', '--format=%s%n%ad', '--date=short', sha).split('\n');
+        const files = git('show', '--format=', '--name-only', sha).split('\n').filter(Boolean);
+        const areas = [...new Set(files.map(f => f.split('/').slice(0, f.startsWith('src/') || f.startsWith('doc/') ? 2 : 1).join('/')))];
+        console.log(`## ${sha.slice(0, 12)} ${date} ${subject}`);
+        console.log(`Areas: ${areas.join(', ')}`);
+        if (!flag('brief')) {
+            const body = git('show', '-s', '--format=%b', sha);
+            if (body) console.log(`\n${body}`);
+        }
+        console.log('');
+    }
+}
+
 async function cmdImport() {
     const from = flag('from');
     const only = flag('only');
@@ -144,8 +190,9 @@ async function cmdImport() {
 switch (cmd) {
     case 'export': cmdExport(); break;
     case 'check': cmdCheck(); break;
+    case 'commits': cmdCommits(); break;
     case 'import': await cmdImport(); break;
     default:
-        console.error('usage: release-notes.mjs export <version> [--out file] | check | import [--from tag] [--only tag] [--force]');
+        console.error('usage: release-notes.mjs export <version> [--out file] | check | commits [--brief] | import [--from tag] [--only tag] [--force]');
         process.exit(1);
 }

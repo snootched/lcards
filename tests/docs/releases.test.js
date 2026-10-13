@@ -202,3 +202,21 @@ test('release pages and pictures are not gitignored (a stray Releases/ rule once
     if (ignored.error) return; // no git (e.g. a source tarball)
     assert.equal(ignored.stdout.trim(), '');
 });
+
+test('commits CLI lists what the notes do not cover yet, from notes_through to HEAD', () => {
+    const base = spawnSync('git', ['rev-parse', 'HEAD~3'], { cwd: ROOT, encoding: 'utf8' }).stdout.trim();
+    if (!base) return; // shallow clone
+    const { dir, rel } = fixture({
+        '2026.09.0': page({ version: '2026.09.0' }),
+        '2026.11.0': page({ status: 'testing', date: null }).replace('breaking: false', `breaking: false\nnotes_through: "${base.slice(0, 12)}"`),
+    });
+    const run = spawnSync(process.execPath, [join(ROOT, 'scripts/release-notes.mjs'), 'commits', '--brief'], {
+        encoding: 'utf8', env: { ...process.env, LCARDS_RELEASES_DIR: rel, LCARDS_PUBLIC_DIR: join(dir, 'public') },
+    });
+    assert.equal(run.status, 0, run.stderr);
+    assert.match(run.stdout, /^# Commits since notes_through of doc\/releases\/2026\.11\.0\.md: \w+\.\.\w+ \(\d+\)/);
+    const listed = run.stdout.match(/^## [0-9a-f]{12} /gm) ?? [];
+    const expected = spawnSync('git', ['rev-list', '--count', '--no-merges', `${base}..HEAD`], { cwd: ROOT, encoding: 'utf8' }).stdout.trim();
+    assert.equal(listed.length, Number(expected));
+    assert.match(run.stdout, /set {2}notes_through: "[0-9a-f]{12}"/);
+});

@@ -14,6 +14,8 @@ Each release has one page on the docs site, `doc/releases/<tag>.md`. That page i
 
 Only one page may be in testing at a time, and its version must not be older than `package.json`.
 
+`notes_through` (a commit sha) records the last commit the notes cover; `npm run release:commits` lists the commits after it. The step-by-step procedure (for Claude) is the `lcards-release-notes` skill in `.claude/skills/`; the maintainer's side (bumps, commits, workflow runs) is `COOKBOOK.md` § Releases.
+
 ## Frontmatter
 
 ```yaml no-validate
@@ -23,6 +25,7 @@ date: 2026-11-04          # released pages only
 status: released          # released | testing
 summary: "One line for the release list and the page description."
 breaking: true            # shows the Breaking changes badge
+notes_through: "3f70b3007746"   # optional: last commit the notes cover
 ---
 
 # LCARdS 2026.11.0
@@ -76,6 +79,7 @@ Files live in `doc/public/releases/<version>/`, named by feature (`chart-studio.
 ## Commands
 
 ```bash
+npm run release:commits                   # commits the notes don't cover yet
 npm run release:check                     # every page: frontmatter, images, no components
 npm run release:notes -- 2026.11.0        # print the GitHub body (as the workflow makes it)
 npm run release:shots -- 2026.11.0 --gif  # capture the pictures
