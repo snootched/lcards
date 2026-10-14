@@ -8,6 +8,7 @@
  */
 
 import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { parseColor } from '../../../themes/color-syntax.js';
 
 // ---------------------------------------------------------------------------
 // fBm value-noise (hash-based, no look-up table required)
@@ -54,7 +55,7 @@ export function _fbm(x, y, octaves) {
  * Resolve any color expression (CSS var, hex, rgb, rgba, named) to {r,g,b,a}.
  *
  * Expands `var(--token)` via ColorUtils.resolveCssVariable, then parses the
- * concrete value with ColorUtils._parseColor.  Returns the fallback color on
+ * concrete value with color-syntax parseColor().  Returns the fallback color on
  * any parse failure.
  *
  * Used by pixel-level effects (Fluid, Plasma) that write raw RGBA bytes into
@@ -66,17 +67,13 @@ export function _fbm(x, y, octaves) {
  * @returns {{ r: number, g: number, b: number, a: number }}
  */
 export function parseColorToRgba(str, defaultColor) {
+    const toRgba = (value) => {
+        const parsed = parseColor(value);
+        if (parsed) return parsed;
+        // Colours only the browser can normalise (lab(), color(), concrete color-mix())
+        const rgb = /** @type {any} */ (ColorUtils)._parseColor(value);
+        return rgb ? { r: rgb[0], g: rgb[1], b: rgb[2], a: 1 } : null;
+    };
     const resolved = ColorUtils.resolveCssVariable(str ?? defaultColor, defaultColor);
-    const rgb = /** @type {any} */ (ColorUtils)._parseColor(resolved);
-    if (!rgb) {
-        // Parse the default directly so callers don't need a separate fallback value
-        const defRgb = /** @type {any} */ (ColorUtils)._parseColor(defaultColor);
-        if (defRgb) {
-            const am = defaultColor.match(/rgba?\([^,]+,[^,]+,[^,]+,\s*([\d.]+)/);
-            return { r: defRgb[0], g: defRgb[1], b: defRgb[2], a: am ? +am[1] : 1 };
-        }
-        return { r: 0, g: 0, b: 0, a: 1 };
-    }
-    const am = resolved.match(/rgba?\([^,]+,[^,]+,[^,]+,\s*([\d.]+)/);
-    return { r: rgb[0], g: rgb[1], b: rgb[2], a: am ? +am[1] : 1 };
+    return toRgba(resolved) ?? toRgba(defaultColor) ?? { r: 0, g: 0, b: 0, a: 1 };
 }

@@ -129,6 +129,11 @@ export function stateKeyFor({ actualState, classifiedState, colorConfig, numeric
  * @param {string} options.classifiedState - The classified/mapped state (e.g., "active", "inactive", "unavailable")
  * @param {Object|string} options.colorConfig - The color configuration (can be object with state keys or string)
  * @param {string|number|null} [options.fallback] - Optional fallback value
+ * @param {number} [options.numericState] - Value for zero/range/non_zero keys (from ranges_attribute)
+ * @param {*} [options.attributeState] - Exact-match key source (from state_attribute)
+ * @param {boolean} [options.resolveTokens=true] - Run the selected value through the theme
+ *   resolver (CSS target). False returns it as configured, for callers that resolve it
+ *   themselves (LCARdSCard._resolveColorValue's concrete path).
  * @returns {string|number|null} The resolved color value or null if not found
  *
  * @example
@@ -167,23 +172,25 @@ export function stateKeyFor({ actualState, classifiedState, colorConfig, numeric
  * });
  * // Returns: '#FF9900'
  */
-export function resolveStateColor({ actualState, classifiedState, colorConfig, fallback = null, numericState = undefined, attributeState = undefined }) {
+export function resolveStateColor({ actualState, classifiedState, colorConfig, fallback = null, numericState = undefined, attributeState = undefined, resolveTokens = true }) {
+    // A plain value, a state map's selected value and the fallback all resolve
+    // the same way, so `color: 'alpha(#f90, 0.5)'` works with or without a state map.
+    let resolved;
     if (!colorConfig) {
-        return fallback;
+        resolved = fallback;
+    } else if (typeof colorConfig !== 'object') {
+        resolved = colorConfig;
+    } else {
+        const key = stateKeyFor({ actualState, classifiedState, colorConfig, numericState, attributeState });
+        resolved = key !== null ? colorConfig[key] : fallback;
     }
 
-    if (typeof colorConfig !== 'object') {
-        return colorConfig;
-    }
-
-    const key = stateKeyFor({ actualState, classifiedState, colorConfig, numericState, attributeState });
-    let resolved = key !== null ? colorConfig[key] : fallback;
-
-    if (resolved && window.lcards?.core?.themeManager?.resolver &&
-        !String(resolved).includes('match-light') && !String(resolved).includes('match-brightness')) {
-        const resolverInstance = window.lcards.core.themeManager.resolver;
-        const tokenPath = String(resolved).startsWith('theme:') ? String(resolved).slice(6) : resolved;
-        resolved = resolverInstance.resolve(tokenPath, resolved);
+    // Theme tokens and computed functions; match-light/match-brightness are
+    // per-card and substituted later by LCARdSCard._resolveMatchLightColor().
+    const resolver = window.lcards?.core?.themeManager?.resolver;
+    if (resolveTokens && typeof resolved === 'string' && resolver &&
+        !resolved.includes('match-light') && !resolved.includes('match-brightness')) {
+        resolved = resolver.resolve(resolved, resolved);
     }
 
     return resolved;

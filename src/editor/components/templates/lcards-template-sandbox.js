@@ -36,6 +36,7 @@ import {
 import { configToYaml } from '../../utils/yaml-utils.js';
 import '../shared/lcards-form-section.js';
 import './lcards-template-editor.js';
+import { isCssColor } from '../../../core/themes/color-syntax.js';
 
 const TEMPLATES_DOCS_URL = `${DOCS_BASE_URL}/core/templates/`;
 
@@ -723,7 +724,6 @@ export class LCARdSTemplateSandbox extends LitElement {
     _renderUsed() {
         const used = this._result?.used ?? [];
         if (!used.length) return nothing;
-        const looksLikeColour = (v) => /^(#[0-9a-f]{3,8}|rgba?\(|hsla?\(|var\(--)/i.test(v);
         return html`
             <lcards-form-section header="What it used" icon="mdi:link-variant" ?expanded=${true}>
                 <table class="used">
@@ -732,7 +732,7 @@ export class LCARdSTemplateSandbox extends LitElement {
                             <td><ha-icon icon=${u.icon}></ha-icon></td>
                             <td class="name">${u.name}</td>
                             <td class="val">
-                                ${u.kind === 'theme' && looksLikeColour(u.value) ? html`<span class="swatch" style=${styleMap({ background: u.value })}></span>` : nothing}
+                                ${u.kind === 'theme' && isCssColor(u.value) ? html`<span class="swatch" style=${styleMap({ background: u.value })}></span>` : nothing}
                                 ${u.value || '-'}
                             </td>
                             <td><span class="src ${u.source === 'card' || u.source === 'theme' ? 'live' : u.source}">${u.source}</span></td>

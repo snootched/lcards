@@ -1,6 +1,6 @@
 import { BaseEffect } from './BaseEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 /**
  * GridEffect - Highly configurable scrolling LCARS-style grid background effect
@@ -81,14 +81,10 @@ export class GridEffect extends BaseEffect {
     this.numCols = config.numCols !== undefined ? Math.max(1, config.numCols) : undefined;
     this.lineSpacing = Math.max(1, config.lineSpacing ?? 40);
 
-    // Line styling (resolve CSS colors using ColorUtils)
+    // Line styling (concrete colours for Canvas2D)
     this.lineWidthMinor = config.lineWidthMinor ?? config.line_width ?? 1; // Support legacy naming
     this.lineWidthMajor = config.lineWidthMajor ?? config.lineWidthMinor ?? 2;
-    // Two-step resolution: resolver handles theme: tokens and computed expressions
-    // (alpha/darken/…); resolveCssVariable materialises remaining var() refs.
-    const _gResolver = window.lcards?.core?.themeManager?.resolver;
-    const _gResolve = (c) => ColorUtils.resolveCssVariable(
-        (_gResolver ? _gResolver.resolve(c, c) : c), c);
+    const _gResolve = (c) => resolveColor(c, { concrete: true });
 
     this.color = _gResolve(config.color ?? 'rgba(255, 153, 102, 0.3)'); // LCARS orange
     this.colorMajor = config.colorMajor ? _gResolve(config.colorMajor) : this.color;

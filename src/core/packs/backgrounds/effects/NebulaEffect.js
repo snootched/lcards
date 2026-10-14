@@ -8,8 +8,8 @@
  */
 
 import { BaseEffect } from './BaseEffect.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 /**
  * NebulaEffect - Layered nebula clouds with Perlin noise turbulence
@@ -61,8 +61,7 @@ export class NebulaEffect extends BaseEffect {
     this.colors = Array.isArray(colorInput) ? colorInput : [colorInput];
 
     // Resolve colour expressions (CSS vars + computed functions like darken/lighten/alpha)
-    const _resolver = window.lcards?.core?.themeManager?.resolver;
-    const _resolve = (c) => ColorUtils.resolveCssVariable((_resolver ? _resolver.resolve(c, c) : c), c);
+    const _resolve = (c) => resolveColor(c, { concrete: true });
     this.resolvedColors = this.colors.map(_resolve);
 
     // Turbulence config

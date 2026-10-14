@@ -21,6 +21,8 @@ import { deepMerge } from '../utils/deepMerge.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { haFormatNumber } from '../utils/ha-entity-display.js';
 import { BUILTIN_THEMES_PACK } from '../core/packs/builtin-themes.js';
+import { resolveColor } from '../core/themes/resolve-color.js';
+import { isComputedColor } from '../core/themes/color-syntax.js';
 
 /** Series colours used when a series sets its own colour and no palette is configured. */
 const DEFAULT_SERIES_COLORS = [
@@ -940,18 +942,15 @@ export class ApexChartsAdapter {
       return resolved;
     }
 
-    // Handle strings - resolve if CSS variable or computed expression (darken/lighten/alpha/etc.)
+    // Strings: colour expressions (theme: tokens, computed functions, CSS
+    // variables) become concrete colours ApexCharts can shade; other strings
+    // (series names, labels, font stacks) only get their var() materialised.
     if (typeof obj === 'string') {
-      const original = obj;
-      const resolver = window.lcards?.core?.themeManager?.resolver;
-      const afterResolver = resolver ? resolver.resolve(obj, obj) : obj;
-      // ColorUtils.resolveCssVariable now does in-place per-var substitution so
-      // multi-value strings (font-family stacks, etc.) are fully preserved.
-      const resolved = typeof afterResolver === 'string' && afterResolver.includes('var(')
-        ? ColorUtils.resolveCssVariable(afterResolver)
-        : afterResolver;
-      if (original !== resolved) {
-        lcardsLog.debug(`[ApexChartsAdapter] 🎨 Resolved CSS variable: ${original} → ${resolved}`);
+      if (!(obj.startsWith('theme:') || isComputedColor(obj) || obj.includes('var('))) return obj;
+      const color = resolveColor(obj, { concrete: true, fallback: null });
+      const resolved = color ?? (obj.includes('var(') ? ColorUtils.resolveCssVariable(obj) : obj);
+      if (resolved !== obj) {
+        lcardsLog.debug(`[ApexChartsAdapter] 🎨 Resolved colour: ${obj} → ${resolved}`);
       }
       return resolved;
     }

@@ -141,11 +141,10 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 lcardsLog.debug('[MyClass] message', { data });
 ```
 
-### Color resolution — two forms, context-dependent
+### Color resolution — one grammar, one resolver
 
-In Lit/CSS: `resolver.resolve(value, fallback)` is sufficient.
-In Canvas2D/SVG/anime.js: always two-step — `resolver.resolve()` then `ColorUtils.resolveCssVariable()`.
-See `state-color.instructions.md` for the full pattern and anti-patterns.
+Colour syntax (schema pattern, detection, parsing) lives only in `src/core/themes/color-syntax.js`. Resolve with `resolveColor(value)` for Lit/CSS (CSS variables stay live, so alert modes recolour without a re-render) or `resolveColor(value, { concrete: true, element })` for Canvas2D/SVG attributes/anime.js (`src/core/themes/resolve-color.js`). In cards use `_resolveColorValue()` (concrete) / `_resolveEntityStateColor()` (CSS). Guard tests fail on local colour lists, regexes, parsers or resolve-then-`resolveCssVariable` lambdas.
+See `state-color.instructions.md` and `doc/development/colour-resolution.md`.
 
 ### Theme tokens — always via singleton, never module import
 

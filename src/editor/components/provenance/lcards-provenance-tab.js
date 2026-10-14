@@ -27,6 +27,7 @@ import { studioDialogStyles } from '../../dialogs/studio-dialog-styles.js';
 import { messageStyles } from '../../base/surface-styles.js';
 import { renderLauncher, launcherStyles } from '../shared/launcher.js';
 import { pathSegments } from '../templates/template-context.js';
+import { isCssColor } from '../../../core/themes/color-syntax.js';
 
 /** Config merge layers with display names and icons. */
 const CONFIG_LAYERS = {
@@ -104,7 +105,7 @@ function show(value) {
     return String(value);
 }
 
-const looksLikeColour = (v) => typeof v === 'string' && /^(#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|var\(--|color-mix\()/i.test(v.trim());
+const looksLikeColour = isCssColor;
 
 /** A field path (not a label like 'style (chart defaults)'). */
 const isFieldPath = (s) => /^[\w[\].-]+$/.test(s);

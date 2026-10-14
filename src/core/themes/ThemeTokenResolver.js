@@ -15,6 +15,7 @@
 import { ColorUtils } from './ColorUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { getBaselineColors, GREEN_ALERT_PALETTE } from './paletteInjector.js';
+import { isComputedColor, isCssColor } from './color-syntax.js';
 
 /**
  * ThemeTokenResolver - Resolves design tokens to values
@@ -64,6 +65,9 @@ export class ThemeTokenResolver {
   resolve(path, fallback = null, context = {}) {
     // Handle null/undefined paths
     if (!path) return fallback;
+
+    // Config values carry a `theme:` prefix; the token tree does not.
+    if (typeof path === 'string' && path.startsWith('theme:')) path = path.slice(6);
 
     // Handle direct values (not token references)
     if (this._isDirectValue(path)) {
@@ -191,6 +195,7 @@ export class ThemeTokenResolver {
    * @returns {string}
    */
   componentPath(componentName, path) {
+    if (typeof path !== 'string' || isComputedColor(path) || isCssColor(path)) return path;
     const shared = ['colors.', 'typography.', 'spacing.', 'borders.', 'effects.', 'animations.', `components.${componentName}.`];
     return shared.some(prefix => path.startsWith(prefix)) ? path : `components.${componentName}.${path}`;
   }
@@ -342,19 +347,12 @@ export class ThemeTokenResolver {
     if (typeof value !== 'string') return true;
 
     // Check for computed tokens first (they may contain var() but need processing)
-    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
-    if (computedFunctions.some(fn => value.startsWith(`${fn}(`))) {
+    if (isComputedColor(value)) {
       return false; // Not a direct value - needs computed token processing
     }
 
-    // CSS variables are direct values
-    if (value.includes('var(')) return true;
-
-    // Hex colors are direct values
-    if (value.startsWith('#')) return true;
-
-    // RGB/RGBA colors are direct values
-    if (value.startsWith('rgb')) return true;
+    // CSS variables (anywhere in the value) and any CSS colour syntax
+    if (value.includes('var(') || isCssColor(value)) return true;
 
     // Numbers as strings are direct values
     if (!isNaN(Number(value))) return true;
@@ -385,8 +383,7 @@ export class ThemeTokenResolver {
    */
   _isComputedToken(value) {
     // Computed tokens look like: 'darken(colors.accent.primary, 0.2)'
-    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
-    return computedFunctions.some(fn => value.startsWith(`${fn}(`));
+    return isComputedColor(value);
   }
 
   /**
@@ -405,7 +402,9 @@ export class ThemeTokenResolver {
     // Also disable caching when an element context is provided: different card
     // elements may be in different HA sections/views with different section-scoped
     // theme vars, so the result is context-dependent and must not be shared.
-    const isCacheable = !expression.includes('var(') && !context?.element;
+    // base() reads the alert baseline snapshot, which is captured after the
+    // theme loads, so it is never cached either.
+    const isCacheable = !expression.includes('var(') && !expression.includes('base(') && !context?.element && !context?.materialize;
 
     if (isCacheable && this.computedCache.has(expression)) {
       return this.computedCache.get(expression);
@@ -428,7 +427,7 @@ export class ThemeTokenResolver {
       // live (potentially mutated) DOM value instead of the captured snapshot.
       // -----------------------------------------------------------------------
       if (functionName === 'base') {
-        const arg = argsStr.trim();
+        const arg = argsStr.trim().replace(/^theme:/, '');
         let cssVarName = null;
 
         if (this._isTokenReference(arg)) {
@@ -461,31 +460,43 @@ export class ThemeTokenResolver {
 
         // Fallback: materialise via live DOM (better than returning the expression literal).
         lcardsLog.debug(`[ThemeTokenResolver] base(): no baseline snapshot found for '${arg}' — falling back to live DOM value`);
-        const fallbackArg = arg.includes('var(') ? arg : (arg.startsWith('--') ? `var(${arg})` : arg);
-        return ColorUtils.resolveCssVariable(fallbackArg, fallbackArg);
+        const fallbackArg = this._isTokenReference(arg) ? this.resolve(arg, arg, context)
+          : arg.startsWith('--') ? `var(${arg})` : arg;
+        return ColorUtils.resolveCssVariable(fallbackArg, fallbackArg, context?.element || null);
       }
 
       // Parse arguments (handle nested parentheses for token references)
       const args = this._parseComputedArgs(argsStr);
 
       // Resolve each argument
-      const resolvedArgs = args.map(arg => {
-        // If argument is a theme: token reference, resolve it
+      // CSS variables stay live by default: ColorUtils then emits color-mix(),
+      // which the browser re-evaluates when the variable changes (alert modes
+      // rewrite the palette variables without re-rendering cards). Callers that
+      // need a concrete colour (Canvas2D, anime.js, ApexCharts) pass
+      // context.materialize (see resolveColor()). saturate/desaturate have no
+      // color-mix() equivalent, so they always read the current value.
+      const materialize = !!context?.materialize || functionName === 'saturate' || functionName === 'desaturate';
+      const concrete = (value) => (materialize && typeof value === 'string' && value.includes('var(')
+        ? ColorUtils.resolveCssVariable(value, value, context?.element || null)
+        : value);
+
+      const resolvedArgs = args.map(rawArg => {
+        const arg = typeof rawArg === 'string' && rawArg.startsWith('theme:') ? rawArg.slice(6) : rawArg;
+        // Nested computed expression: alpha(base(colors.ui.primary), 0.5), darken(lighten(#f00, .2), .2)
+        if (isComputedColor(arg)) {
+          return concrete(this._resolveComputedToken(arg, context));
+        }
+        // If argument is a token reference, resolve it
         if (this._isTokenReference(arg)) {
           const resolved = this.resolve(arg, arg, context);
           // Warn if token reference didn't resolve (returned unchanged)
           if (resolved === arg) {
             lcardsLog.warn(`[ThemeTokenResolver] Token reference in computed expression not found: '${arg}' in '${expression}'`);
           }
-          return resolved;
+          return concrete(resolved);
         }
-        // If argument is a CSS variable, resolve it to a concrete value so
-        // that ColorUtils receives a hex/rgb string rather than var(--name).
-        // e.g. lighten(var(--lcards-green), 0.3) — Canvas / anime.js cannot
-        // use color-mix() output, so we must materialise the value here.
-        // Pass element from context so section-scoped theme vars are visible.
         if (typeof arg === 'string' && arg.includes('var(')) {
-          return ColorUtils.resolveCssVariable(arg, arg, context?.element || null);
+          return concrete(arg);
         }
         // If argument is a number string (possibly with %), parse it
         const trimmedArg = typeof arg === 'string' ? arg.trim() : arg;

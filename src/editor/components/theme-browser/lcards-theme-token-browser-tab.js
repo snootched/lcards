@@ -15,7 +15,8 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { resolveThemeTokensRecursive } from '../../../utils/lcards-theme.js';
 import { captureOriginalColors } from '../../../core/themes/paletteInjector.js';
 import { getColorSortKey, compareColorSortKeys, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
-import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
+import { getCssVarCategory } from '../../../core/themes/CssVarCategory.js';
+import { isCssColor, isComputedColor } from '../../../core/themes/color-syntax.js';
 import { editorStyles } from '../../base/editor-styles.js';
 import {
   transformColorToAlertMode,
@@ -34,6 +35,7 @@ import { activeHaThemeName } from '../../../utils/support-info.js';
 import { LEGACY_FIELD_DEFS } from './theme-legacy-fields.js';
 import { surfaceStyles } from '../../base/surface-styles.js';
 import { renderInfoGuide } from '../shared/info-guide.js';
+import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 
 const LEGACY_KEY_SET = new Set(LEGACY_FIELD_DEFS.map(f => f.key));
 
@@ -3221,22 +3223,20 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   /**
-   * Check if a value looks like a computed token
-   * (kept for potential future use, but resolution now handled by resolveThemeTokensRecursive)
+   * Check if a value is a computed colour expression (`theme:` prefix allowed).
    */
   _looksLikeComputedToken(value) {
     if (typeof value !== 'string') return false;
 
-    const computedFunctions = ['darken', 'lighten', 'alpha', 'saturate', 'desaturate', 'mix', 'shade', 'tint'];
-    return computedFunctions.some(fn => value.includes(`${fn}(`));
+    return isComputedColor(value.replace(/^theme:/, ''));
   }
 
   /**
    * Check if a value looks like a color. Delegates to the shared
-   * CssVarCategory.isColorValue() so the picker reuses the same logic.
+   * color-syntax.js isCssColor() so the picker reuses the same logic.
    */
   _isColorValue(value) {
-    return isColorValue(value);
+    return isCssColor(value);
   }
 
   /**
@@ -3470,30 +3470,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   }
 
   _getHexColor(colorValue) {
-    // If it's already a hex color, return it
-    if (/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/.test(colorValue)) {
-      return colorValue;
-    }
-
-    // Create a temporary element to let the browser compute the color
-    const temp = document.createElement('div');
-    temp.style.color = colorValue;
-    document.body.appendChild(temp);
-
-    const computed = window.getComputedStyle(temp).color;
-    document.body.removeChild(temp);
-
-    // Convert rgb/rgba to hex
-    const match = computed.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)$/);
-    if (match) {
-      const r = parseInt(match[1]).toString(16).padStart(2, '0');
-      const g = parseInt(match[2]).toString(16).padStart(2, '0');
-      const b = parseInt(match[3]).toString(16).padStart(2, '0');
-      return `#${r}${g}${b}`;
-    }
-
-    // Fallback to original value if conversion fails
-    return colorValue;
+    // Hex literals (incl. #RRGGBBAA) pass through; anything else is computed.
+    if (/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/.test(colorValue)) return colorValue;
+    return ColorUtils.toHex(colorValue) ?? colorValue;
   }
 
   /**

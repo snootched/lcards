@@ -77,9 +77,11 @@ if (!customElements.get('hex-input')) {
 }
 import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 import { getColorFamily, getColorSortKey, compareColorSortKeys, FAMILY_ORDER, FAMILY_LABELS, FAMILY_HUE_RANGES, FAMILY_SWATCH_COLORS } from '../../../core/themes/ColorFamily.js';
-import { getCssVarCategory, isColorValue } from '../../../core/themes/CssVarCategory.js';
+import { getCssVarCategory } from '../../../core/themes/CssVarCategory.js';
+import { isCssColor, isComputedColor, parseColor, COMPUTED_COLOR_FUNCTIONS } from '../../../core/themes/color-syntax.js';
 import { getKnownVariableCatalog } from '../../../core/themes/knownThemeVariables.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
+import { resolveColor } from '../../../core/themes/resolve-color.js';
 
 /** Catalog categories that are colors (excludes lcars-structural: radius/border-width/font-family vars). */
 const KNOWN_COLOR_CATALOG_CATEGORIES = new Set(['lcards-palette', 'lcars-semantic', 'lcars-named', 'msd', 'ha-palette', 'ha-semantic', 'ha-legacy']);
@@ -764,7 +766,7 @@ export class LCARdSColorPicker extends LitElement {
             if (!prop.startsWith('--')) continue;
 
             const value = styles.getPropertyValue(prop).trim();
-            if (!value || !isColorValue(value)) continue;
+            if (!value || !isCssColor(value)) continue;
 
             seenNames.add(prop);
             variables.push({
@@ -1272,10 +1274,7 @@ export class LCARdSColorPicker extends LitElement {
         colorValue = this._resolveMatchLightForPreview(colorValue);
 
         // Check if it's a computed token
-        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
-        const isComputedToken = validFunctions.some(fn => colorValue.startsWith(`${fn}(`));
-
-        if (isComputedToken) {
+        if (isComputedColor(colorValue)) {
             return this._approximateComputedColor(colorValue);
         }
 
@@ -1287,14 +1286,14 @@ export class LCARdSColorPicker extends LitElement {
             // alone would silently resolve against whatever theme IS currently live instead.
             colorValue = this._substituteThemeContextVars(colorValue);
             // Only skip the DOM round-trip below when colorValue is already something
-            // ColorUtils._parseColor can read directly (plain hex or rgb()/rgba()) — a value like
+            // parseColor() can read directly (hex, named, rgb()/hsl()) — a value like
             // `color-mix(in oklch, var(--x) 8%, white)` still has a color-mix() wrapper around the
             // now-substituted var() that only the browser's own CSS engine can evaluate down to a
             // real colour. Used to return early the instant every var() was gone, handing back
             // that still-unevaluated color-mix() string as if it were a finished colour, which
             // every downstream consumer (contrast-colour luminance, the hex readout) then silently
             // mis-parsed.
-            if (/^#[0-9a-f]{3,8}$/i.test(colorValue) || /^rgba?\(/i.test(colorValue)) return colorValue;
+            if (parseColor(colorValue)) return colorValue;
             try {
                 const temp = document.createElement('div');
                 temp.style.color = colorValue;
@@ -1908,28 +1907,11 @@ export class LCARdSColorPicker extends LitElement {
      * @private
      */
     _valueToHex() {
-        // If value is already a hex literal, round-trip it directly with alpha preserved
-        const raw = (this.value || '').trim().toLowerCase();
-        if (/^#[0-9a-f]{8}$/.test(raw)) return raw;
-        if (/^#[0-9a-f]{6}$/.test(raw)) return raw + 'ff';
-        if (/^#[0-9a-f]{4}$/.test(raw)) {
-            const [r, g, b, a] = raw.slice(1).split('');
-            return `#${r}${r}${g}${g}${b}${b}${a}${a}`;
-        }
-        if (/^#[0-9a-f]{3}$/.test(raw)) {
-            const [r, g, b] = raw.slice(1).split('');
-            return `#${r}${r}${g}${g}${b}${b}ff`;
-        }
-        // Fall back to computed color (handles CSS vars, token values, named colors)
-        const rgba = this._computedColor?.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-        if (!rgba) return '#000000ff';
-        const r = parseInt(rgba[1]).toString(16).padStart(2, '0');
-        const g = parseInt(rgba[2]).toString(16).padStart(2, '0');
-        const b = parseInt(rgba[3]).toString(16).padStart(2, '0');
-        const a = rgba[4] !== undefined
-            ? Math.round(parseFloat(rgba[4]) * 255).toString(16).padStart(2, '0')
-            : 'ff';
-        return `#${r}${g}${b}${a}`;
+        // Hex literals round-trip directly with alpha preserved; anything else
+        // (CSS vars, token values, named colours) via the computed colour.
+        return ColorUtils.toHex((this.value || '').trim(), { withAlpha: true })
+            ?? ColorUtils.toHex(this._computedColor, { withAlpha: true })
+            ?? '#000000ff';
     }
 
     /**
@@ -2002,8 +1984,7 @@ export class LCARdSColorPicker extends LitElement {
         const minArgs = funcName === 'base' ? 1 : 2;
         if (!args || args.length < minArgs) return null;
 
-        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
-        if (!validFunctions.includes(funcName)) return null;
+        if (!COMPUTED_COLOR_FUNCTIONS.includes(funcName)) return null;
 
         // Parse based on function type
         if (funcName === 'base') {
@@ -2097,10 +2078,7 @@ export class LCARdSColorPicker extends LitElement {
     _validateExpression(expression) {
         if (!expression) return false;
 
-        const validFunctions = ['lighten', 'darken', 'alpha', 'saturate', 'desaturate', 'mix', 'base'];
-        const regex = new RegExp(`^(${validFunctions.join('|')})\\(.+\\)$`);
-
-        if (!regex.test(expression)) return false;
+        if (!isComputedColor(expression) || !expression.trim().endsWith(')')) return false;
 
         // Try to parse
         const parsed = this._parseComputedToken(expression);
@@ -2247,58 +2225,15 @@ export class LCARdSColorPicker extends LitElement {
     }
 
     /**
-     * Approximate computed color result for preview
-     * Uses ColorUtils for accurate color computation
+     * Preview colour for a computed expression: the editor's theme context
+     * and match-light preview applied, then evaluated by the theme resolver.
      * @param {string} expression - Computed token expression
-     * @returns {string} Approximated RGB color
+     * @returns {string} Concrete colour, or '' when it cannot be evaluated
      * @private
      */
     _approximateComputedColor(expression) {
-        const parsed = this._parseComputedToken(expression);
-        if (!parsed) return '';
-
-        // Resolve base color (handle CSS variables)
-        const baseColor = this._computeColor(parsed.baseColor);
-        if (!baseColor) return '';
-
-        const amount = parsed.amount / 100;
-
-        try {
-            switch (parsed.function) {
-                case 'lighten':
-                    return ColorUtils.lighten(baseColor, amount);
-                case 'darken':
-                    return ColorUtils.darken(baseColor, amount);
-                case 'alpha':
-                    return ColorUtils.alpha(baseColor, amount);
-                case 'saturate':
-                    return ColorUtils.saturate(baseColor, amount);
-                case 'desaturate':
-                    return ColorUtils.desaturate(baseColor, amount);
-                case 'mix': {
-                    if (!parsed.baseColor2) return '';
-                    const color2 = this._computeColor(parsed.baseColor2);
-                    if (!color2) return '';
-                    return ColorUtils.mix(baseColor, color2, amount);
-                }
-                case 'base': {
-                    // Resolve via the ThemeTokenResolver baseline snapshot (same logic as ThemeTokenResolver._resolveComputedToken).
-                    // Fall back to the live-DOM resolved colour if the snapshot isn’t available yet.
-                    const resolver = window.lcards?.core?.themeManager?.resolver;
-                    if (resolver) {
-                        const resolved = resolver.resolve(`base(${parsed.baseColor})`, null);
-                        if (resolved && resolved !== `base(${parsed.baseColor})`) return resolved;
-                    }
-                    // Fallback: materialise via live DOM (will be the mutated value, but better than nothing)
-                    return baseColor;
-                }
-                default:
-                    return '';
-            }
-        } catch (error) {
-            console.warn('[ColorPicker] Failed to compute color:', error);
-            return '';
-        }
+        const prepared = this._substituteThemeContextVars(this._resolveMatchLightForPreview(expression));
+        return resolveColor(prepared, { concrete: true, element: this, fallback: '' });
     }
 }
 

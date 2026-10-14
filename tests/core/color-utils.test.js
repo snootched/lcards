@@ -9,35 +9,43 @@ import { ColorUtils as C } from '../../src/core/themes/ColorUtils.js';
 const near = (actual, expected, eps, msg) =>
     assert.ok(Math.abs(actual - expected) <= eps, `${msg ?? ''} ${actual} !~ ${expected}`);
 
-test('parseColor: hex (3/6/8), rgb(a), oklch; hsl and names need a DOM', () => {
+test('parseColor: hex, rgb(a), hsl, oklch and names, without a DOM (alpha dropped)', () => {
     const cases = [
         ['#f90', [255, 153, 0]],
         ['#ff9900', [255, 153, 0]],
         ['#FF9900', [255, 153, 0]],
-        ['#ff990080', [255, 153, 0]], // alpha dropped
+        ['#ff990080', [255, 153, 0]],
         ['rgb(255, 153, 0)', [255, 153, 0]],
         ['rgba(255,153,0,0.5)', [255, 153, 0]],
+        ['rgb(255 153 0)', [255, 153, 0]],
         ['oklch(0.75 0.17 60)', [250, 143, 25]],
         ['oklch(75% 0.17 60deg / 0.5)', [250, 143, 25]],
-        ['hsl(36, 100%, 50%)', null],
-        ['red', null],
-        ['transparent', null],
+        ['hsl(36, 100%, 50%)', [255, 153, 0]],
+        ['red', [255, 0, 0]],
+        ['transparent', [0, 0, 0]],
         ['garbage', null],
         [null, null],
     ];
     for (const [input, expected] of cases) assert.deepEqual(C.parseColor(input), expected, String(input));
 });
 
-test('_parseColorAlpha reads rgba alpha only (current behaviour)', () => {
+test('_parseColorAlpha reads any alpha channel; opaque is null', () => {
     assert.equal(C._parseColorAlpha('rgba(1,2,3,.5)'), 0.5);
-    assert.equal(C._parseColorAlpha('#ff990080'), null);
-    assert.equal(C._parseColorAlpha('oklch(0.7 0.1 30 / 50%)'), null);
+    assert.equal(C._parseColorAlpha('#ff990080'), 0.502);
+    assert.equal(C._parseColorAlpha('oklch(0.7 0.1 30 / 50%)'), 0.5);
+    assert.equal(C._parseColorAlpha('#ff9900'), null);
+});
+
+test('toHex: parsed directly without a DOM', () => {
+    assert.equal(C.toHex('rebeccapurple'), '#663399');
+    assert.equal(C.toHex('rgba(255, 153, 0, 0.5)', { withAlpha: true }), '#ff990080');
+    assert.equal(C.toHex('hsl(36, 100%, 50%)'), '#ff9900');
 });
 
 test('darken / lighten', () => {
     assert.equal(C.darken('#ff9900', 0.2), '#cc7a00');
     assert.equal(C.darken('rgb(255,0,0)', 0), '#ff0000');
-    assert.equal(C.lighten('#336699', 0.2), '#5b84ad');
+    assert.equal(C.lighten('#336699', 0.2), '#5c85ad');
     assert.equal(C.lighten('#000', 1), '#ffffff');
     // CSS variables become color-mix(); unparseable input passes through.
     assert.equal(C.darken('var(--x)', 0.2), 'color-mix(in srgb, var(--x) 80%, black 20%)');
@@ -55,7 +63,7 @@ test('saturate / desaturate / mix', () => {
     assert.equal(C.saturate('#996633', 0.2), '#ad661f');
     assert.equal(C.saturate('#808080', 0.5), '#c04141');
     assert.equal(C.desaturate('#ff0000', 1), '#808080');
-    assert.equal(C.mix('#ff0000', '#0000ff'), '#7f007f');
+    assert.equal(C.mix('#ff0000', '#0000ff'), '#800080');
     assert.equal(C.mix('#000', '#fff', 0.25), '#bfbfbf');
 });
 

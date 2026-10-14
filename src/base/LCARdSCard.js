@@ -38,6 +38,8 @@ import {
     haFormatAttrValue,
     haFormatAttrName
 } from '../utils/ha-entity-display.js';
+import { isComputedColor } from '../core/themes/color-syntax.js';
+import { resolveColor } from '../core/themes/resolve-color.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -857,6 +859,9 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._updateLightColorVariable();
         }
 
+        // Theme override / alert-mode subscriptions are dropped in _onDisconnected
+        this._subscribeThemeChanges();
+
         // Re-establish ResizeObserver + window listener if auto-sizing was enabled
         // but the observer was cleaned up during a previous disconnect.
         // (Lit's firstUpdated only fires once, so _setupAutoSizing won't be called
@@ -926,6 +931,66 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
+     * Subscribe (idempotently) to theme token override changes and alert-mode
+     * palette changes. Colours resolved to concrete values (SVG attributes,
+     * Canvas2D, charts) cannot follow a CSS variable change on their own.
+     * @protected
+     */
+    _subscribeThemeChanges() {
+        if (!this._themeOverridesChangedHandler) {
+            this._themeOverridesChangedHandler = () => this._reprocessForThemeChange();
+            window.addEventListener('lcards:theme-overrides-changed', this._themeOverridesChangedHandler);
+        }
+        const themeManager = window.lcards?.core?.themeManager;
+        if (!this._alertModeSubscription && themeManager?.subscribeToAlertMode) {
+            this._alertModeSubscription = themeManager.subscribeToAlertMode((mode) => this._onAlertModeChanged(mode));
+        }
+    }
+
+    /**
+     * Re-run processConfig and re-render: processConfig bakes resolved theme:
+     * token values into this.config, so a plain requestUpdate would re-render
+     * with stale values.
+     * @protected
+     */
+    _reprocessForThemeChange() {
+        if (this._rawConfig) {
+            // Supersede any in-flight config run before launching a new one.
+            // _processConfigAsync increments _configRunId on entry, but preemptively
+            // bumping it here means an already-running run will see a mismatch
+            // at its next await checkpoint and abort before we even start.
+            this._configRunId++;
+            this._processConfigAsync(this._rawConfig).catch(err => {
+                lcardsLog.warn('[LCARdSCard] Theme change re-process failed:', err);
+            });
+        } else {
+            this.requestUpdate();
+        }
+    }
+
+    /**
+     * An alert mode has rewritten the palette. Called by ThemeManager the moment
+     * the CSS variables are written (while a transition still hides the swap),
+     * after the token cache is cleared. Default: re-process and re-render.
+     * Subclasses with a cheaper repaint override this.
+     * @param {string} _mode - New alert mode
+     * @protected
+     */
+    _onAlertModeChanged(_mode) {
+        this._reprocessForThemeChange();
+        this._refreshBackgroundAnimationColors();
+    }
+
+    /**
+     * Rebuild a background animation (if the card has one) so its Canvas2D
+     * colours follow a palette change.
+     * @protected
+     */
+    _refreshBackgroundAnimationColors() {
+        /** @type {any} */ (this)._backgroundRenderer?.refreshColors?.(this.hass, this._entity, this.config);
+    }
+
+    /**
      * Called on first update
      * @protected
      */
@@ -935,26 +1000,9 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Mark as initialized
         this._initialized = true;
 
-        // Subscribe to theme token override changes so the card re-renders when
-        // an admin or user applies/removes a global/user/device token override.
-        // Must re-run processConfig (not just requestUpdate) because processConfig
-        // bakes resolved theme: token values into this.config — a plain requestUpdate
-        // would re-render with the already-resolved (now-stale) cached values.
-        this._themeOverridesChangedHandler = () => {
-            if (this._rawConfig) {
-                // Supersede any in-flight config run before launching a new one.
-                // _processConfigAsync increments _configRunId on entry, but preemptively
-                // bumping it here means an already-running run will see a mismatch
-                // at its next await checkpoint and abort before we even start.
-                this._configRunId++;
-                this._processConfigAsync(this._rawConfig).catch(err => {
-                    lcardsLog.warn('[LCARdSCard] Theme override re-process failed:', err);
-                });
-            } else {
-                this.requestUpdate();
-            }
-        };
-        window.addEventListener('lcards:theme-overrides-changed', this._themeOverridesChangedHandler);
+        // Theme override and alert-mode subscriptions (also re-made on every
+        // reconnect in _onConnected; core may not have been ready at first connect)
+        this._subscribeThemeChanges();
 
         // NOTE: Do NOT register rules callback here - subclasses should call
         // _registerOverlayForRules() in their own _handleFirstUpdate() hook
@@ -2989,9 +3037,11 @@ export class LCARdSCard extends LCARdSNativeCard {
     // ============================================================================
 
     /**
-     * Resolve state-based color with entity context
-     * Wrapper around resolveStateColor utility that automatically provides
-     * entity state and classification
+     * Resolve state-based color with entity context, for Lit/CSS contexts:
+     * state selection, theme tokens and computed functions, then match-light.
+     * CSS variables stay live (var() / color-mix(var())), so alert-mode palette
+     * changes apply without a re-render. For SVG attributes and Canvas2D use
+     * _resolveColorValue(), which returns concrete colours.
      *
      * @param {Object|string} colorConfig - Color config (state object or plain string)
      * @param {string} fallback - Fallback color if not resolved
@@ -3006,31 +3056,27 @@ export class LCARdSCard extends LCARdSNativeCard {
      * );
      */
     _resolveEntityStateColor(colorConfig, fallback = null) {
-        return this._resolveStateValue({
+        return this._resolveMatchLightColor(this._resolveStateValue({
             actualState: this._entity?.state,
             classifiedState: this._classifyEntityState(),
             colorConfig: colorConfig,
             fallback: fallback
-        });
+        }));
     }
 
     /**
-     * Full color-resolution pipeline — accepts raw config (state-object or string) and
-     * returns a concrete color value safe for SVG presentation attributes, Canvas2D, and
-     * CSS property contexts alike.
+     * Full colour pipeline for SVG attributes, Canvas2D and anime.js targets:
+     * accepts raw config (state map or string) and returns a concrete colour
+     * (`#rrggbb` / `rgba()`, no var()).
      *
-     * Pipeline (in order):
-     *   1. _resolveEntityStateColor()  — state-object unwrap, theme: strip, computed-token
-     *      resolution (darken/lighten/alpha/…), and _resolveTemplateValue() on the result.
-     *   2. _resolveMatchLightColor()   — match-light / match-brightness substitution.
-     *   3. theme: safety net          — strips any surviving theme: prefix and calls
-     *      resolver.resolve() again (handles edge cases where a template emits theme: strings
-     *      that the utility's one-time pass didn't see).
-     *   4. CSS var resolution         — resolves bare var(…) references for contexts that
-     *      cannot use CSS variables natively (SVG/Canvas2D). No-op in CSS contexts.
+     * Pipeline:
+     *   1. State selection (state map, ranges, state_attribute, templates), unresolved.
+     *   2. _resolveMatchLightColor(): match-light / match-brightness substitution.
+     *   3. resolveColor(..., { concrete: true }): theme: tokens, computed functions
+     *      (nested), CSS variables read from this card's element (section-scoped vars).
      *
-     * Subclasses may override to add context-specific steps (e.g. lcards-slider adds a
-     * Canvas2D-specific concrete-value substitution for the --lcards-light-color-* var).
+     * For Lit/CSS contexts, where var() should stay live, use _resolveEntityStateColor().
+     * Subclasses may override to add context-specific steps.
      *
      * @param {Object|string|null} rawConfig - Raw color config: state-object or string
      * @param {string} [fallback=''] - Returned when rawConfig is falsy or resolution yields nothing
@@ -3040,33 +3086,17 @@ export class LCARdSCard extends LCARdSNativeCard {
     _resolveColorValue(rawConfig, fallback = '') {
         if (!rawConfig) return fallback;
 
-        // Step 1: state-object unwrap + theme: strip + computed-token resolution + template eval
-        let value = this._resolveEntityStateColor(rawConfig, fallback);
-        if (!value) return fallback;
+        const selected = this._resolveStateValue({
+            actualState: this._entity?.state,
+            classifiedState: this._classifyEntityState(),
+            colorConfig: rawConfig,
+            fallback,
+            resolveTokens: false
+        });
+        if (!selected) return fallback;
+        if (typeof selected !== 'string') return /** @type {any} */ (selected);
 
-        // Step 2: match-light / match-brightness substitution
-        value = this._resolveMatchLightColor(value);
-
-        // Step 3: theme: prefix safety net for render-time template outputs.
-        // Pass `this` as element context so that _resolveComputedToken() can read
-        // CSS vars from the card's inherited scope (picks up section-scoped theme vars).
-        const resolver = window.lcards?.core?.themeManager?.resolver;
-        if (resolver) {
-            const tokenPath = typeof value === 'string' && value.startsWith('theme:')
-                ? value.slice(6) : value;
-            value = resolver.resolve(tokenPath, value, { element: this });
-        }
-
-        // Step 4: CSS variable resolution for SVG/Canvas2D contexts.
-        // Only applied to bare var() strings — color-mix() and similar functions are
-        // handled natively by the browser and must not be unwrapped here.
-        // Pass `this` as element so that section-scoped CSS vars are visible via
-        // CSS custom property inheritance from the view/section container.
-        if (typeof value === 'string' && value.trim().startsWith('var(')) {
-            return ColorUtils.resolveCssVariable(value, fallback, this) || fallback;
-        }
-
-        return value || fallback;
+        return resolveColor(this._resolveMatchLightColor(selected), { concrete: true, element: this, fallback });
     }
 
     /**
@@ -3781,11 +3811,13 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._windowResizeHandler = null;
         }
 
-        // --- Theme overrides changed handler ---
+        // --- Theme overrides / alert mode subscriptions ---
         if (this._themeOverridesChangedHandler) {
             window.removeEventListener('lcards:theme-overrides-changed', this._themeOverridesChangedHandler);
             this._themeOverridesChangedHandler = null;
         }
+        this._alertModeSubscription?.();
+        this._alertModeSubscription = null;
 
         // --- Core unregister (handles _cardInstances, _cardLoadOrder, SystemsManager) ---
         const core = window.lcards?.core;
@@ -3962,7 +3994,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         // resolve it now to a valid CSS value via ThemeTokenResolver.
         // Since match-light/brightness are replaced with concrete values, the resulting
         // expression is stable and ThemeTokenResolver caching is safe.
-        if (/^(alpha|darken|lighten|saturate|desaturate|mix)\(/.test(result)) {
+        if (isComputedColor(result)) {
             const resolver = window.lcards?.core?.themeManager?.resolver;
             if (resolver) {
                 const resolved = resolver.resolve(result, result);

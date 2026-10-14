@@ -102,24 +102,13 @@ import { getSliderSchema } from './schemas/slider-schema.js';
 /**
  * COLOR RESOLUTION PATTERNS:
  *
- * This card uses three different color resolution methods depending on the use case:
+ * Colours go through the LCARdSCard helpers (doc/development/colour-resolution.md),
+ * which accept a plain colour or a state map alike:
  *
- * 1. resolveStateColor() - For state-aware colors
- *    - Use when color should change based on entity state (on/off/unavailable)
- *    - Examples: tick colors, label colors, borders with state variants
- *    - Takes: {actualState, classifiedState, colorConfig, fallback}
- *    - Config structure: { default: '#color', active: '#color', inactive: '#color', unavailable: '#color' }
- *
- * 2. ColorUtils.resolveCssVariable() - For static colors
- *    - Use when color is single value, no state awareness needed
- *    - Examples: progress bars, range backgrounds, indicators
- *    - Takes: string (CSS variable or hex color)
- *    - Resolves CSS variables to actual color values
- *
- * 3. _resolveStateBorderColor() - Convenience wrapper for borders
- *    - Wraps resolveStateColor() with border-specific defaults
- *    - Use for all border color resolution (consistent fallback)
- *    - Automatically uses current entity state
+ * 1. _resolveColorValue() - concrete colour for SVG attributes (fills, strokes, borders
+ *    via _resolveBorderFill()) and Canvas2D; resolves var() against this card's element
+ * 2. _resolveEntityStateColor() - for HTML/CSS (inline styles), where var() stays live
+ * 3. _resolveStateBorderColor() - _resolveEntityStateColor() with the slider's border default
  */
 
 export class LCARdSSlider extends LCARdSButton {
@@ -347,7 +336,6 @@ export class LCARdSSlider extends LCARdSButton {
         this._memoizedGaugeConfig = null;
 
         // Alert mode subscription
-        this._alertModeUnsubscribe = null;
 
         // Resolved numeric values for value-based (marker) range entries
         this._resolvedMarkerValues = [];
@@ -845,9 +833,6 @@ export class LCARdSSlider extends LCARdSButton {
         } else {
             this._registerOverlayForRules(`slider-${this._cardGuid}`, 'slider', ['slider']);
         }
-
-        // Subscribe to alert mode changes so hue-shifts bust the memoization cache
-        this._subscribeToAlertMode();
     }
 
     /**
@@ -1534,6 +1519,16 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Concrete fill for a border rect (an SVG attribute cannot hold var()).
+     * @param {Object|string} colorConfig - State map or colour
+     * @returns {string}
+     * @private
+     */
+    _resolveBorderFill(colorConfig) {
+        return this._resolveColorValue(colorConfig || 'theme:components.slider.border.color.default', '#000000') || '#000000';
+    }
+
+    /**
      * Inject borders into an SVG element (works for both _componentSvg and component-based rendering)
      * @param {Element} svgElement - The SVG/HTML element to inject borders into
      * @param {number} width - Container width
@@ -1591,10 +1586,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', '0');
             rect.setAttribute('width', String(leftSize));
             rect.setAttribute('height', String(height));
-            const leftColor = this._resolveStateBorderColor(borderConfig.left.color);
-            const resolvedColor = ColorUtils.resolveCssVariable(String(leftColor ?? ''), '#000000', this);
-            // Ensure color is valid before setting (never empty/null)
-            rect.setAttribute('fill', String(resolvedColor || '#000000'));
+            rect.setAttribute('fill', this._resolveBorderFill(borderConfig.left.color));
             fragment.appendChild(rect);
         }
 
@@ -1607,10 +1599,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', '0');
             rect.setAttribute('width', String(width));
             rect.setAttribute('height', String(topSize));
-            const topColor = this._resolveStateBorderColor(borderConfig.top.color);
-            const resolvedColor = ColorUtils.resolveCssVariable(String(topColor ?? ''), '#000000', this);
-            // Ensure color is valid before setting (never empty/null)
-            rect.setAttribute('fill', String(resolvedColor || '#000000'));
+            rect.setAttribute('fill', this._resolveBorderFill(borderConfig.top.color));
             fragment.appendChild(rect);
         }
 
@@ -1623,8 +1612,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', '0');
             rect.setAttribute('width', String(rightSize));
             rect.setAttribute('height', String(height));
-            const rightColor = this._resolveStateBorderColor(borderConfig.right.color);
-            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(rightColor ?? ''), '#000000', this) || '#000000'));
+            rect.setAttribute('fill', this._resolveBorderFill(borderConfig.right.color));
             fragment.appendChild(rect);
         }
 
@@ -1637,8 +1625,7 @@ export class LCARdSSlider extends LCARdSButton {
             rect.setAttribute('y', String(height - bottomSize));
             rect.setAttribute('width', String(width));
             rect.setAttribute('height', String(bottomSize));
-            const bottomColor = this._resolveStateBorderColor(borderConfig.bottom.color);
-            rect.setAttribute('fill', String(ColorUtils.resolveCssVariable(String(bottomColor ?? ''), '#000000', this) || '#000000'));
+            rect.setAttribute('fill', this._resolveBorderFill(borderConfig.bottom.color));
             fragment.appendChild(rect);
         }
 
@@ -3410,55 +3397,17 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
-     * Subscribe to alert mode changes via ThemeManager.
-     *
-     * ThemeManager fires its subscribers AFTER CSS variables have been written,
-     * the token resolver cache has been cleared, and currentAlertMode has been
-     * updated — so it is safe to call requestUpdate() immediately from the
-     * callback without any animation-frame deferral.
-     *
-     * Previous approach subscribed to the HelperManager's alert_mode helper
-     * state change, which fired BEFORE CSS variables were committed, causing
-     * the slider to re-render with stale resolved colours ("one mode behind").
-     * @private
-     */
-    _subscribeToAlertMode() {
-        this._alertModeUnsubscribe?.();
-        this._alertModeUnsubscribe = null;
-
-        const themeManager = window.lcards?.core?.themeManager;
-        if (themeManager?.subscribeToAlertMode) {
-            this._alertModeUnsubscribe = themeManager.subscribeToAlertMode(
-                this._handleAlertModeChange.bind(this)
-            );
-            lcardsLog.debug('[LCARdSSlider] Subscribed to ThemeManager alert mode changes');
-        } else {
-            lcardsLog.warn('[LCARdSSlider] ThemeManager.subscribeToAlertMode not available — alert mode subscription skipped');
-        }
-    }
-
-    /**
-     * Called when alert mode changes (red/yellow/blue/green/gray).
-     * Busts the memoization cache and triggers a full re-render so all
-     * baked-in resolved colours (pills gradient, gauge ticks, etc.) are
-     * recomputed from the updated CSS variables.
-     *
-     * This callback is invoked by ThemeManager AFTER:
-     *   - CSS variables (`--lcars-*` and `--lcards-*`) have been written
-     *   - `currentAlertMode` has been updated
-     *   - the ThemeTokenResolver cache has been cleared
-     *
-     * Because all state is already consistent when we are called, it is
-     * correct (and optimal) to call requestUpdate() immediately — no
-     * animation-frame deferral is required.
-     *
+     * Alert mode changed the palette (LCARdSCard subscribes; called as soon as
+     * the CSS variables are written). Busts the memoization cache and re-renders
+     * so baked-in resolved colours (pills gradient, gauge ticks, borders) are
+     * recomputed; cheaper than the default config re-process.
      * @param {string} newMode
-     * @private
+     * @protected
      */
-    _handleAlertModeChange(newMode) {
+    _onAlertModeChanged(newMode) {
         lcardsLog.debug(`[LCARdSSlider] Alert mode changed to ${newMode} — invalidating memoization cache`);
         this._invalidateMemoization();
-        this.requestUpdate();
+        super._onAlertModeChanged(newMode);
     }
 
     /**
@@ -5243,8 +5192,6 @@ export class LCARdSSlider extends LCARdSButton {
         this._valueTween = null;
 
         // Unsubscribe from alert mode changes
-        this._alertModeUnsubscribe?.();
-        this._alertModeUnsubscribe = null;
 
         // Clear any pending hover restore timer
         if (this._borderHoverRestoreTimer) {

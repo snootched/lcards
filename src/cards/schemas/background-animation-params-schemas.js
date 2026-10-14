@@ -17,19 +17,19 @@
  * @module cards/schemas/background-animation-params-schemas
  */
 
+import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
+
 /**
- * Local copy of common-schemas.js's simpleColorSchema, extended with the
- * computed-color-expression forms (`alpha(...)`, `lighten(...)`, `darken(...)`)
- * that BackgroundAnimationRenderer._resolveConfigColors() resolves and which
- * several presets' real shipped defaults actually use (e.g. contour-field's
- * default `colors` array) — the animation system's copy doesn't need these.
- * Cannot import the original directly: common-schemas.js needs to import
- * BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE from this file, which
- * would create a circular import.
+ * Local copy of common-schemas.js's simpleColorSchema: it cannot be imported
+ * from there, because common-schemas.js imports
+ * BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE from this file. The
+ * pattern is shared via core/themes/color-syntax.js and covers the alpha()/lighten()/
+ * darken() forms that several presets' shipped defaults use (e.g.
+ * contour-field's default `colors` array).
  */
 const simpleColorSchema = {
   type: 'string',
-  pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--|alpha\\(|lighten\\(|darken\\()',
+  pattern: COLOR_VALUE_PATTERN,
   description: 'Colour value (hex, rgb, theme token, CSS variable, or a computed alpha()/lighten()/darken() expression).',
   'x-ui-hints': { widget: 'lcards-color-picker' }
 };

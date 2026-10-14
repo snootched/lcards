@@ -8,6 +8,7 @@
  * Editor UI is defined separately in lcards-button-editor.js config.
  */
 
+import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
 import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema, cardLevelProperties } from './common-schemas.js';
 
 /**
@@ -240,7 +241,7 @@ export function getButtonSchema(options = {}) {
                     },
                     color: {
                         type: 'string',
-                        pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|rgb\\(|rgba\\(|var\\(--)',
+                        pattern: COLOR_VALUE_PATTERN,
                         description: 'Divider colour',
                         examples: ['#FF9900', 'rgba(255, 153, 0, 0.5)']
                     }

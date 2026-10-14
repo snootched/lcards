@@ -5,6 +5,8 @@
   <title>LCARdS test harness</title>
   <style>
     html, body { margin: 0; background: #000; color: #fff; font-family: sans-serif; }
+    /* Colour fixtures (colours.spec.js) reference a CSS variable from first render */
+    :root { --test-orange: #ff9900; }
     #mount { width: 480px; padding: 16px; }
     /* Layer B: ?freeze=1 removes transitions. CSS animations are left running:
        toHaveScreenshot's animations: 'disabled' fast-forwards finite ones to their

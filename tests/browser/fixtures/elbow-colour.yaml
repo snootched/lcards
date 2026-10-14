@@ -1,0 +1,9 @@
+# Colour forms (colours.spec.js): nested computed function over a CSS variable,
+# written as a plain value; --test-orange is defined by the harness page
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  segment:
+    bar_width: 90
+    bar_height: 20
+    color: alpha(darken(var(--test-orange), 0.2), 0.5)

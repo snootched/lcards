@@ -1,4 +1,5 @@
 import { lcardsLog } from './lcards-logging.js';
+import { isComputedColor } from '../core/themes/color-syntax.js';
 
 /**
  * Dynamically loads a LCARdS font based on font-family name.
@@ -94,7 +95,7 @@ export function resolveThemeTokensRecursive(obj, themeManager) {
         } else {
           lcardsLog.warn(`[resolveThemeTokensRecursive] Theme token not found: '${value}' - using as literal value`);
         }
-      } else if (value.includes('(') && /^(alpha|darken|lighten|saturate|desaturate|mix)\(/.test(value)) {
+      } else if (isComputedColor(value)) {
         // Skip computed tokens that reference match-light or match-brightness — these are
         // per-card runtime tokens resolved at render time by _resolveMatchLightColor().
         // Eagerly evaluating them here would corrupt the stored value (ColorUtils functions

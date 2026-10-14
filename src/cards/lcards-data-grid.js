@@ -408,6 +408,18 @@ export class LCARdSDataGrid extends LCARdSCard {
     this._bindCellActions();
   }
 
+  /**
+   * Alert mode changed the palette (LCARdSCard subscribes; called as soon as
+   * the CSS variables are written). Cell colours are CSS and follow on their
+   * own; the cascade animation holds concrete colours for anime.js, so effects
+   * restart. The grid data is kept (a config re-process would regenerate it).
+   * @param {string} _mode
+   * @protected
+   */
+  _onAlertModeChanged(_mode) {
+    this._restartEffects();
+  }
+
   // ============================================================================
   // ANIMATIONS
   // ============================================================================
@@ -680,6 +692,9 @@ export class LCARdSDataGrid extends LCARdSCard {
 
   /**
    * Resolve state-map colours against the cell's entity (static cells use `default`).
+   * Calls resolveStateColor() directly: the card helpers (_resolveStateValue and
+   * friends) read the card's own entity and ranges_attribute, not the cell's.
+   * Output is for CSS, so var() stays live.
    * @param {Object} style
    * @param {*} cell
    * @returns {Object}

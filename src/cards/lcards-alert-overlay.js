@@ -18,6 +18,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { HATemplateEvaluator } from '../core/templates/HATemplateEvaluator.js';
 import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js';
+import { parseColor } from '../core/themes/color-syntax.js';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -505,13 +506,8 @@ export class LCARdSAlertOverlay extends LitElement {
      * @private
      */
     _promoteColorWithOpacity(color, opacity) {
-        const m = color.match(
-            /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/
-        );
-        if (m) {
-            const a = parseFloat(m[4] ?? '1') * opacity;
-            return `rgba(${m[1]},${m[2]},${m[3]},${Math.min(1, a).toFixed(2)})`;
-        }
+        const c = parseColor(color);
+        if (c) return `rgba(${c.r},${c.g},${c.b},${Math.min(1, c.a * opacity).toFixed(2)})`;
         return color;
     }
 

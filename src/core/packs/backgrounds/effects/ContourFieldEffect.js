@@ -17,6 +17,7 @@
 import { BaseEffect } from './BaseEffect.js';
 import { _fbm, parseColorToRgba } from '../../textures/effects/noise-helpers.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 /**
  * ContourFieldEffect - Topographic-style banded noise field
@@ -81,17 +82,14 @@ export class ContourFieldEffect extends BaseEffect {
     const colorInput = (config.colors && config.colors.length) ? config.colors : (config.color ? [config.color] : DEFAULT_COLORS);
     const colors = Array.isArray(colorInput) ? colorInput : [colorInput];
 
-    // Two-step colour resolution for Canvas2D: theme token resolver, then CSS-var/format parsing
-    const resolver = window.lcards?.core?.themeManager?.resolver;
-    const resolveColor = (c) => (resolver ? resolver.resolve(c, c) : c);
-    this._stops = colors.map((c) => parseColorToRgba(resolveColor(c), c));
+    // Concrete colours for Canvas2D, then RGBA bytes
+    const concrete = (c) => resolveColor(c, { concrete: true });
+    this._stops = colors.map((c) => parseColorToRgba(concrete(c), c));
     if (this._stops.length === 1) this._stops.push(this._stops[0]);
 
     // null = literal transparency below fillLevel (default); set only when the
-    // user explicitly configures a fillColor, so we never coerce an unparseable
-    // value (e.g. the CSS keyword 'transparent', which parseColorToRgba can't
-    // read) into opaque black.
-    this._fillColor = config.fillColor ? parseColorToRgba(resolveColor(config.fillColor), config.fillColor) : null;
+    // user explicitly configures a fillColor.
+    this._fillColor = config.fillColor ? parseColorToRgba(concrete(config.fillColor), config.fillColor) : null;
 
     // Seed a starting sample offset (the shared _fbm hash itself isn't seeded)
     let s = (this.seed >>> 0) || 1;

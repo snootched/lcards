@@ -15,7 +15,7 @@
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor as resolveConfiguredColor } from '../../../themes/resolve-color.js';
 
 /**
  * Tracks the currently-active WAAPI Animation created by 'stagger-flash' for
@@ -260,36 +260,9 @@ export const STAGGER_PRESETS = {
     const trailOpacity = p.trail_opacity !== undefined ? p.trail_opacity : 0.25;
     const loop         = p.loop !== undefined ? p.loop : true;
 
-    // Resolve theme: tokens, computed colour expressions (including those with var() args),
-    // and plain CSS variables at registration time so WAAPI gets concrete hex/rgb values.
-    // Delegates to ThemeTokenResolver (the canonical resolution path) which handles
-    // theme: tokens and computed expressions; falls back to resolveCssVariable for plain var().
-    const resolveColor = (c) => {
-      if (typeof c !== 'string') return c;
-      const resolver = window.lcards?.core?.themeManager?.resolver;
-      if (resolver) {
-        // resolver.resolve() expects the token path WITHOUT the 'theme:' prefix
-        // (it recognises bare 'base(...)'/'darken(...)'/etc. — a still-prefixed
-        // string like 'theme:base(...)' matches none of its checks and falls
-        // through to a token-tree lookup that can't find it, silently returning
-        // the fallback unchanged).
-        const tokenPath = c.startsWith('theme:') ? c.slice(6) : c;
-        const out = resolver.resolve(tokenPath, c);
-        if (out !== c) {
-          // WAAPI keyframes need concrete values — materialise any bare var(...)
-          // the resolver left behind (same requirement as SVG setAttribute()).
-          if (typeof out === 'string' && out.includes('var(')) {
-            return ColorUtils.resolveCssVariable(out, out);
-          }
-          return out;
-        }
-      }
-      // Plain CSS variable (resolver doesn't handle bare var() strings)
-      if (c.includes('var(')) {
-        return ColorUtils.resolveCssVariable(c, c);
-      }
-      return c;
-    };
+    // WAAPI keyframes need concrete colours (theme: tokens, computed
+    // expressions and CSS variables all resolved at registration time).
+    const resolveColor = (c) => resolveConfiguredColor(c, { concrete: true });
 
     const rLead  = resolveColor(leadColor);
     const rTrail = resolveColor(trailColor);

@@ -19,6 +19,7 @@ import { initMsdPipeline } from '../msd/index.js';
 import { getMsdSchema } from './schemas/msd-schema.js';
 import { resolveEffectiveViewBox } from '../utils/lcards-anchor-helpers.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
+import { resolveColor } from '../core/themes/resolve-color.js';
 
 
 /**
@@ -2093,11 +2094,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             const svgAttr = styleMapping[configKey];
 
             if (svgAttr && value !== null && value !== undefined) {
-                // Resolve computed expressions and CSS variables.
                 // SVG setAttribute does not support var() natively — materialise to concrete value.
-                const _res = window.lcards?.core?.themeManager?.resolver;
-                const afterResolver = (typeof value === 'string' && _res) ? _res.resolve(value, value) : value;
-                const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
+                const resolvedValue = this._svgStyleValue(svgAttr, value);
 
                 // Apply to all target elements (group children or the element itself)
                 targetElements.forEach(el => {
@@ -2105,6 +2103,37 @@ export class LCARdSMSDCard extends LCARdSCard {
                 });
             }
         }
+    }
+
+    /**
+     * Value for an SVG presentation attribute from a style patch: colours
+     * (stroke/fill) resolved to concrete values, anything else with its CSS
+     * variables materialised.
+     * @param {string} svgAttr
+     * @param {*} value
+     * @returns {*}
+     * @private
+     */
+    _svgStyleValue(svgAttr, value) {
+        if (typeof value !== 'string') return value;
+        if ((svgAttr === 'stroke' || svgAttr === 'fill') && value !== 'none') {
+            return resolveColor(value, { concrete: true, element: this });
+        }
+        return ColorUtils.resolveCssVariable(value, value, this);
+    }
+
+    /**
+     * Alert mode changed the palette (LCARdSCard subscribes; called as soon as
+     * the CSS variables are written). Line and shape colours are concrete SVG
+     * attributes, so every one is re-resolved in place (no re-render: running
+     * animations are not disturbed); a background animation is rebuilt.
+     * @param {string} _mode
+     * @protected
+     */
+    _onAlertModeChanged(_mode) {
+        this._refreshBackgroundAnimationColors();
+        const hass = this.hass ?? this._msdPipeline?.coordinator?.hass;
+        this._msdPipeline?.coordinator?.renderer?.updateLineEntityColors?.(hass, { all: true });
     }
 
     /**
@@ -2140,9 +2169,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             const svgAttr = styleMapping[configKey];
 
             if (svgAttr && value !== null && value !== undefined) {
-                const _res = window.lcards?.core?.themeManager?.resolver;
-                const afterResolver = (typeof value === 'string' && _res) ? _res.resolve(value, value) : value;
-                const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
+                const resolvedValue = this._svgStyleValue(svgAttr, value);
 
                 targetElements.forEach(el => {
                     el.setAttribute(svgAttr, resolvedValue);
@@ -2158,12 +2185,10 @@ export class LCARdSMSDCard extends LCARdSCard {
      * @private
      */
     _applyControlStyleToDOM(controlEl, style) {
-        // Apply style properties to control container
-        const _resMSD = window.lcards?.core?.themeManager?.resolver;
+        // Apply style properties to control container (inline CSS: var() stays live)
         for (const [key, value] of Object.entries(style)) {
             if (value !== null && value !== undefined) {
-                const afterResolver = (typeof value === 'string' && _resMSD) ? _resMSD.resolve(value, value) : value;
-                const resolvedValue = ColorUtils.resolveCssVariable(afterResolver);
+                const resolvedValue = typeof value === 'string' ? resolveColor(value) : value;
                 controlEl.style[key] = resolvedValue;
                 lcardsLog.trace(`[LCARdSMSDCard]   Set style.${key}=${resolvedValue}`);            }
         }

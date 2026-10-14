@@ -92,15 +92,20 @@ test('numeric parsing uses parseFloat, so a leading number counts (current behav
     assert.equal(resolve('unavailable', { 'above:10': 'hi', non_zero: 'nz', default: 'd' }), 'd');
 });
 
-test('resolved values go through the theme resolver, theme: prefix stripped', () => {
+test('selected value, plain string and fallback all go through the theme resolver', () => {
     const seen = [];
     globalThis.lcards = { core: { themeManager: { resolver: { resolve: (path, fb) => { seen.push(path); return `R(${path})`; } } } } };
-    assert.equal(resolve('on', { on: 'theme:colors.ui.primary' }), 'R(colors.ui.primary)');
+    // The resolver strips the theme: prefix itself
+    assert.equal(resolve('on', { on: 'theme:colors.ui.primary' }), 'R(theme:colors.ui.primary)');
     assert.equal(resolve('on', { on: 'darken(var(--x), 0.2)' }), 'R(darken(var(--x), 0.2))');
+    // Regression: a plain string config skipped resolution, so `alpha(#f90, .5)`
+    // worked inside a state map but reached the DOM unevaluated on its own.
+    assert.equal(resolve('on', 'alpha(#f90, 0.5)'), 'R(alpha(#f90, 0.5))');
+    assert.equal(resolveStateColor({ actualState: 'on', classifiedState: 'active', colorConfig: undefined, fallback: 'theme:x.y' }), 'R(theme:x.y)');
     // match-light / match-brightness placeholders are left for the card.
     assert.equal(resolve('on', { on: 'match-light' }), 'match-light');
-    assert.equal(resolve('on', { on: 'match-brightness' }), 'match-brightness');
-    assert.deepEqual(seen, ['colors.ui.primary', 'darken(var(--x), 0.2)']);
+    assert.equal(resolve('on', 'alpha(match-light, match-brightness)'), 'alpha(match-light, match-brightness)');
+    assert.deepEqual(seen, ['theme:colors.ui.primary', 'darken(var(--x), 0.2)', 'alpha(#f90, 0.5)', 'theme:x.y']);
 });
 
 test('resolveNestedStateColor passes through to resolveStateColor', () => {

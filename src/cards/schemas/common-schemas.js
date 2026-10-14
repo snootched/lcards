@@ -9,23 +9,11 @@
 import { ANIMATION_PRESET_PARAMS_SCHEMAS, ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE } from './animation-preset-params-schemas.js';
 import { BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE } from './background-animation-params-schemas.js';
 import { FILTER_PARAMS_SCHEMAS } from './filter-params-schemas.js';
+import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
 
 // ============================================================================
 // COLOR VALUE PRIMITIVES
 // ============================================================================
-
-/**
- * Regex pattern that matches every string the LCARdS colour resolution pipeline accepts:
- *   - Hex:      #RGB · #RGBA · #RRGGBB · #RRGGBBAA
- *   - CSS:      rgb( · rgba( · hsl( · hsla(
- *   - Variable: var(--name)
- *   - Keywords: transparent · match-light
- *   - Token:    theme:path  (includes theme:expr(…))
- *   - Computed: alpha( · darken( · lighten( · saturate( · desaturate( · base(
- *               (functions accepted by ThemeTokenResolver / ColorUtils)
- */
-const COLOR_VALUE_PATTERN =
-    '^(#[0-9A-Fa-f]{3,8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|hsla\\(|var\\(--|alpha\\(|darken\\(|lighten\\(|saturate\\(|desaturate\\(|base\\()';
 
 /**
  * Reusable schema for a single colour value string.
@@ -530,8 +518,8 @@ export const filterSchema = {
  */
 export const simpleColorSchema = {
     type: 'string',
-    pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-    description: 'Colour value (hex, rgb, theme token, or CSS variable)',
+    pattern: COLOR_VALUE_PATTERN,
+    description: 'Colour value (hex, rgb, named colour, theme token, or CSS variable)',
     examples: ['#FF9900', 'transparent', 'theme:colors.text.onDark', 'rgb(255, 153, 0)', 'var(--lcars-orange)']
 };
 

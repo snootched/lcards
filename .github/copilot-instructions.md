@@ -316,54 +316,20 @@ Every card **must** declare `static CARD_TYPE = 'my-card'` (matches CoreConfigMa
 
 ## 🎨 Color Resolution
 
-**The most commonly missed pattern.** LCARdS supports three color expression forms:
-- Concrete: `#93e1ff`, `rgba(255,153,0,0.5)`
-- CSS variable: `var(--lcars-blue, #93e1ff)`
-- Computed: `darken(var(--lcars-blue), 0.3)`, `alpha(#ff9900, 0.5)`
-- Alert-immune baseline: `base(colors.ui.primary)` — always resolves to the pre-alert (green_alert) snapshot value, immune to alert-mode hue mutation. Composable: `alpha(base(colors.ui.primary), 0.5)`
-
-### Always use the two-step pattern for Canvas2D contexts
-
-`ThemeTokenResolver` handles computed expressions but outputs `var()` strings. Canvas2D cannot use `var()` — `resolveCssVariable` materialises them.
+One grammar (`src/core/themes/color-syntax.js`: hex, named, every CSS colour function, `var()`, `theme:` tokens, nested computed functions `alpha darken lighten saturate desaturate mix base`, `match-light`) and one resolver:
 
 ```javascript
-// ✅ CORRECT — works for all three expression forms
-const _resolver = window.lcards?.core?.themeManager?.resolver;
-const _resolve = (c) => ColorUtils.resolveCssVariable(
-  (_resolver ? _resolver.resolve(c, c) : c), c
-);
-this.resolvedColor = _resolve(config.color);
-this.resolvedColors = this.colors.map(_resolve); // for arrays
+import { resolveColor } from '../core/themes/resolve-color.js';
+
+resolveColor(value);                                    // Lit/CSS: var() stays live for alert modes
+resolveColor(value, { concrete: true, element: this }); // Canvas2D, SVG attributes, anime.js, ApexCharts
 ```
 
-### In cards / CSS / Lit contexts
+In cards: `this._resolveColorValue(config, fallback)` (concrete) and `this._resolveEntityStateColor(config, fallback)` (CSS); both accept a plain colour or a state map.
 
-`resolver.resolve()` alone is enough — the browser handles `var()` natively.
+❌ A local list/regex of computed functions, a hand-written hex/rgb parser, a colour `pattern` in a schema, or `ColorUtils.resolveCssVariable(resolver.resolve(c, c))`: use `isComputedColor`, `parseColor`, `COLOR_VALUE_PATTERN` and `resolveColor` (guard tests enforce this).
 
-```javascript
-const resolver = window.lcards?.core?.themeManager?.resolver;
-const color = resolver ? resolver.resolve(rawValue, rawValue) : rawValue;
-```
-
-### In `updateConfig()` methods
-
-Live config updates bypass the `_resolveConfigColors` preprocessing pipeline — apply the two-step pattern here too.
-
-```javascript
-// ✅ CORRECT in updateConfig
-const _res = window.lcards?.core?.themeManager?.resolver;
-this._color = ColorUtils.resolveCssVariable(
-  _res ? _res.resolve(cfg.color, cfg.color) : cfg.color, fallback
-);
-```
-
-### Anti-patterns
-
-❌ `ColorUtils.resolveCssVariable(config.color)` alone — silently ignores `darken/lighten/alpha` expressions
-❌ `resolver.resolve(config.color)` alone for canvas — `var()` strings break `fillStyle`
-❌ Writing a config preprocessor that only iterates top-level keys — always recurse into nested objects and arrays
-
-> Full reference: `doc/development/color-resolution.md`
+> Full reference: `doc/development/colour-resolution.md`
 
 ---
 
@@ -636,7 +602,7 @@ $0._singletons.rulesManager  // From any card element
 ❌ **Don't** run heavy init in preview contexts — check `this._isPreviewMode` first (MSD cards only: `this.isPreviewMode() === 'picker'`)
 ❌ **Don't** inject `<style>` tags inside `_renderCard()` — use `static get styles()` with `css` template
 ❌ **Don't** update editor config with direct assignment — use `this._updateConfig(partial)` in editors
-❌ **Don't** call `ColorUtils.resolveCssVariable()` alone on color values — use the two-step resolver pattern for Canvas2D/SVG/anime.js contexts
+❌ **Don't** call `ColorUtils.resolveCssVariable()` alone on color values — use `resolveColor(value, { concrete: true })` for Canvas2D/SVG/anime.js contexts
 ❌ **Don't** use bare `customElements.define('name', Class)` — always guard with `if (!customElements.get('name'))` to prevent double-registration errors when the module is evaluated more than once (e.g. HMR, panel re-mount)
 ❌ **Don't** `import { themeTokenResolver } from '...ThemeTokenResolver.js'` — that module-level instance has no token tree and silently returns all fallbacks; always use `window.lcards.core.themeManager.resolver`
 ❌ **Don't** write computed token expressions in presets/config without the `theme:` prefix — `'lighten(colors.x, 0.2)'` is treated as a literal string, not a token expression

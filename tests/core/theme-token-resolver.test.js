@@ -51,14 +51,13 @@ test('computed tokens: functions over token paths and literals', () => {
     assert.equal(r.resolve('colors.ui.dim'), '#cc7a00');
     assert.equal(r.resolve('darken(colors.accent.primary, 0.2)'), '#cc7a00');
     assert.equal(r.resolve('darken(#ff9900, 20%)'), '#cc7a00'); // percent args become fractions
-    assert.equal(r.resolve('lighten(#336699, 0.2)'), '#5b84ad');
+    assert.equal(r.resolve('lighten(#336699, 0.2)'), '#5c85ad');
     assert.equal(r.resolve('alpha(colors.accent.primary, 0.5)'), 'rgba(255, 153, 0, 0.5)');
     assert.equal(r.resolve('mix(#000, #fff, 0.25)'), '#bfbfbf');
     assert.equal(r.resolve('saturate(#996633, 0.2)'), '#ad661f');
     assert.equal(r.resolve('desaturate(#ff0000, 1)'), '#808080');
-    // Nested computed arguments are not evaluated (current behaviour): the inner
-    // call reaches ColorUtils as a string and passes through unchanged.
-    assert.equal(r.resolve('darken(lighten(#ff0000, 0.2), 0.1)'), 'lighten(#ff0000, 0.2)');
+    // Nested computed arguments are evaluated inside out (lighten -> #ff3333, then darken)
+    assert.equal(r.resolve('darken(lighten(#ff0000, 0.2), 0.1)'), '#e62e2e');
 });
 
 test('_parseComputedArgs splits on top-level commas only', () => {

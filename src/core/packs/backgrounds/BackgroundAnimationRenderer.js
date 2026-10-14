@@ -13,6 +13,9 @@ import { Canvas2DRenderer } from './renderers/Canvas2DRenderer.js';
 import { BACKGROUND_PRESETS } from './presets/index.js';
 import { ZoomEffect } from './effects/ZoomEffect.js';
 import { ColorUtils } from '../../themes/ColorUtils.js';
+import { resolveColor } from '../../themes/resolve-color.js';
+import { isComputedColor } from '../../themes/color-syntax.js';
+import { isTemplateString } from '../../../utils/template-string.js';
 import { LCARdSCardTemplateEvaluator } from '../../templates/LCARdSCardTemplateEvaluator.js';
 import { TemplateDetector } from '../../templates/TemplateDetector.js';
 import { linearMap } from '../../../utils/linearMap.js';
@@ -293,70 +296,33 @@ export class BackgroundAnimationRenderer {
   }
 
   /**
-   * Resolve any CSS custom property strings (var(--token)) and computed colour
-   * expressions (lighten/darken/alpha/saturate/desaturate) in a config object to
-   * concrete colour values so Canvas2D APIs (gradients, fillStyle) receive valid
-   * input.  Recurses into nested plain objects so sub-configs like
-   * `{ colors: { start, text, end } }` are also fully resolved.
+   * Resolve every colour-like string in a config object (`theme:` tokens,
+   * computed expressions, var() references) to a concrete value via
+   * resolveColor(), so Canvas2D APIs (gradients, fillStyle) receive valid
+   * input. Recurses into nested objects and arrays (e.g. `colors: [...]`,
+   * `{ colors: { start, text, end } }`); other strings pass through.
    *
    * @private
    * @param {Object} config - Raw effect config
-   * @returns {Object} New config object with var() strings and computed expressions resolved
+   * @returns {Object} New config object with colour values resolved
    */
   _resolveConfigColors(config) {
     if (!config || typeof config !== 'object') return config;
+    const element = this.cardInstance instanceof Element ? this.cardInstance : null;
 
-    const resolved = { ...config };
-    for (const [key, val] of Object.entries(resolved)) {
-      // Recurse into nested plain objects (e.g. config.colors = { start, text, end })
-      if (val && typeof val === 'object' && !Array.isArray(val)) {
-        resolved[key] = this._resolveConfigColors(val);
-        continue;
-      }
+    const resolveValue = (val) => {
+      if (Array.isArray(val)) return val.map(resolveValue);
+      if (val && typeof val === 'object') return this._resolveConfigColors(val);
+      if (typeof val !== 'string' || isTemplateString(val)) return val;
+      if (!(val.startsWith('theme:') || isComputedColor(val) || val.includes('var('))) return val;
+      const color = resolveColor(val, { concrete: true, element, fallback: null });
+      if (color !== null) return color;
+      // Not a colour (a var() font stack, say): materialise its variables only
+      return val.includes('var(') ? ColorUtils.resolveCssVariable(val, val, element) : val;
+    };
 
-      // Resolve string elements in arrays (e.g. colors: ['darken(var(--x), 0.3)', '#ff0'])
-      if (Array.isArray(val)) {
-        resolved[key] = val.map(item => (typeof item === 'string' ? this._resolveConfigColors({ _: item })._ : item));
-        continue;
-      }
-
-      if (typeof val !== 'string') continue;
-
-      // Plain CSS variable — resolve directly
-      if (val.includes('var(') && !BackgroundAnimationRenderer._COMPUTED_COLOR_RE.test(val)) {
-        resolved[key] = ColorUtils.resolveCssVariable(val, val);
-        continue;
-      }
-
-      // Computed color function: lighten/darken/alpha/etc. — resolve any inner var() first,
-      // then evaluate the function against the concrete colour value.
-      // e.g. "lighten(var(--lcars-green), 0.5)" → ColorUtils.lighten('#23c45e', 0.5)
-      if (BackgroundAnimationRenderer._COMPUTED_COLOR_RE.test(val)) {
-        const concreteExpr = val.replace(/var\([^)]+\)/g, match =>
-          /** @type {string} */ (ColorUtils.resolveCssVariable(match, match))
-        );
-        const m = concreteExpr.match(/^(\w+)\((.+),\s*([\d.]+)\s*\)$/);
-        if (m) {
-          const [, fn, colorArg, numArg] = m;
-          const num = parseFloat(numArg);
-          switch (fn) {
-            case 'lighten':    resolved[key] = ColorUtils.lighten(colorArg.trim(), num); break;
-            case 'darken':     resolved[key] = ColorUtils.darken(colorArg.trim(), num); break;
-            case 'alpha':      resolved[key] = ColorUtils.alpha(colorArg.trim(), num); break;
-            case 'saturate':   resolved[key] = ColorUtils.saturate?.(colorArg.trim(), num) ?? val; break;
-            case 'desaturate': resolved[key] = ColorUtils.desaturate?.(colorArg.trim(), num) ?? val; break;
-            default:           resolved[key] = val;
-          }
-        } else {
-          resolved[key] = val;
-        }
-      }
-    }
-    return resolved;
+    return Object.fromEntries(Object.entries(config).map(([key, val]) => [key, resolveValue(val)]));
   }
-
-  // Regex matching the supported computed colour functions
-  static _COMPUTED_COLOR_RE = /^(lighten|darken|alpha|saturate|desaturate|mix)\s*\(/;
 
   /**
    * Load effects from preset or direct config
@@ -397,26 +363,12 @@ export class BackgroundAnimationRenderer {
         // Preset will provide effect factory functions
         if (preset.createEffects) {
           // Pass nested config object to preset factory:
-          // 1. Resolve theme tokens and computed colour functions (lighten/darken/alpha/etc.)
-          // 2. Resolve remaining CSS var() strings to concrete colour values
-          // 3. Strip template-valued keys so constructors receive only concrete
+          // 1. Resolve colours (theme tokens, computed functions, CSS vars) to concrete values
+          // 2. Strip template-valued keys so constructors receive only concrete
           //    values; updateHass() will push evaluated values on first hass tick.
-          const themeManager = this.cardInstance?._singletons?.themeManager
-            ?? window.lcards?.core?.themeManager
-            ?? null;
           const rawEffectConfig = effectConfig.config || {};
-          // Resolve theme: token strings to concrete values using themeManager.getToken()
-          // (avoids resolveThemeTokensRecursive which produces color-mix() CSS that Canvas2D can't use)
-          const themeResolved = themeManager
-            ? Object.fromEntries(Object.entries(rawEffectConfig).map(([k, v]) => [
-                k,
-                (typeof v === 'string' && v.startsWith('theme:'))
-                  ? (themeManager.getToken(v.slice(6)) ?? v)
-                  : v
-              ]))
-            : rawEffectConfig;
           const config = this._stripTemplateValues(
-            this._resolveConfigColors(themeResolved)
+            this._resolveConfigColors(rawEffectConfig)
           );
 
           // Check if zoom wrapper should be applied
@@ -638,6 +590,25 @@ export class BackgroundAnimationRenderer {
   /**
    * Clean up resources
    */
+  /**
+   * Rebuild the effects with the current palette. Effects hold colours
+   * resolved to concrete values at creation (Canvas2D cannot use var()), so
+   * an alert-mode palette change needs a rebuild; cheap, and the alert
+   * transition hides it.
+   *
+   * @param {Object} [hass] - Pushed again so templated params are re-applied
+   * @param {Object} [entity]
+   * @param {Object} [cardConfig]
+   * @returns {boolean} True when the renderer restarted
+   */
+  refreshColors(hass, entity, cardConfig) {
+    if (!this.canvas) return false;
+    this.destroy();
+    const ok = this.init();
+    if (ok && hass) this.updateHass(hass, entity, cardConfig);
+    return ok;
+  }
+
   destroy() {
     if (this._intersectionObserver) {
       this._intersectionObserver.disconnect();

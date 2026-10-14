@@ -16,17 +16,18 @@
  * @module cards/schemas/animation-preset-params-schemas
  */
 
+import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
+
 /**
- * Local copy of common-schemas.js's simpleColorSchema — cannot import it
- * directly: common-schemas.js needs to import ANIMATION_PRESET_PARAMS_SCHEMAS
- * from this file (for animationSchema's discriminatedBy), which would create
- * a circular import. Keep this pattern in sync with simpleColorSchema if that
- * one changes.
+ * Local copy of common-schemas.js's simpleColorSchema: it cannot be imported
+ * from there, because common-schemas.js imports ANIMATION_PRESET_PARAMS_SCHEMAS
+ * from this file (for animationSchema's discriminatedBy). The pattern itself is
+ * shared via core/themes/color-syntax.js.
  */
 const simpleColorSchema = {
   type: 'string',
-  pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
-  description: 'Colour value (hex, rgb, theme token, or CSS variable)',
+  pattern: COLOR_VALUE_PATTERN,
+  description: 'Colour value (hex, rgb, named colour, theme token, or CSS variable)',
   'x-ui-hints': { widget: 'lcards-color-picker' }
 };
 

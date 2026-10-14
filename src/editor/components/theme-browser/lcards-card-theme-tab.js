@@ -18,11 +18,12 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 import { messageStyles } from '../../base/surface-styles.js';
 import { renderLauncher, launcherStyles } from '../shared/launcher.js';
+import { isCssColor } from '../../../core/themes/color-syntax.js';
 
 /** The LCARdS config panel (custom_components/lcards/__init__.py frontend_url_path). */
 export const CONFIG_PANEL_PATH = '/lcards-config';
 
-const looksLikeColour = (v) => typeof v === 'string' && /^(#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|var\(--|color-mix\()/i.test(v.trim());
+const looksLikeColour = isCssColor;
 
 /** A token's final value as the card sees it (the resolution chain's last value). */
 export function tokenValue(token) {

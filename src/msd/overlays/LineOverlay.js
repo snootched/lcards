@@ -20,7 +20,7 @@
 import { OverlayBase } from './OverlayBase.js';
 import { OverlayUtils } from '../renderer/OverlayUtils.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { ColorUtils } from '../../core/themes/ColorUtils.js';
+import { resolveColor } from '../../core/themes/resolve-color.js';
 
 /**
  * LineOverlay - Instance-based line overlay
@@ -533,39 +533,14 @@ export class LineOverlay extends OverlayBase {
   }
 
   /**
-   * Final materialization pass after _resolveLineColor, covering two gaps in
-   * the pipeline it delegates to (cardInstance._resolveColorValue):
-   *
-   * 1. A computed expression (alpha()/darken()/etc) that, for whatever reason,
-   *    reached here still unevaluated — e.g. state-color-resolver.js's and
-   *    _resolveColorValue's own computed-token passes both gate on
-   *    `window.lcards.core.themeManager.resolver` being set, and this is the
-   *    last point before the value is baked into a markup *string* (this runs
-   *    before the element exists in the DOM). Retried here with an explicit
-   *    element context.
-   * 2. A resolved value like `color-mix(in srgb, var(--x) 50%, transparent)`
-   *    still containing a *nested* var() — _resolveColorValue's own
-   *    materialization step only unwraps a value that IS (starts with) a bare
-   *    var(...), not one containing one elsewhere in the string.
-   *
-   * Without this, e.g. `alpha(var(--lcars-black-cherry), 0.5)` reaches the SVG
-   * fill attribute still wrapped in the unevaluated `alpha(...)` call — invalid
-   * paint syntax the browser can't parse, silently rendering opaque black
-   * instead of the intended translucent fill.
+   * Concrete colour for an SVG attribute baked into markup: `theme:` tokens,
+   * computed expressions and every var() (including ones nested in
+   * color-mix()) resolved against the card's element. `none` passes through.
    * @private
    */
   _materializeColor(value, fallback, cardInstance) {
-    if (typeof value !== 'string') return value;
-
-    const resolver = window.lcards?.core?.themeManager?.resolver;
-    if (resolver && typeof resolver.resolve === 'function') {
-      value = resolver.resolve(value, value, { element: cardInstance });
-    } else if (/^(darken|lighten|alpha|saturate|desaturate|mix|base)\(/.test(value)) {
-      lcardsLog.warn('[LineOverlay] Computed color expression left unresolved — themeManager.resolver unavailable at render time:', value);
-    }
-
-    if (typeof value !== 'string' || !value.includes('var(')) return value;
-    return ColorUtils.resolveCssVariable(value, fallback, cardInstance) || fallback;
+    if (typeof value !== 'string' || value === 'none') return value;
+    return resolveColor(value, { concrete: true, element: cardInstance ?? null, fallback });
   }
 
   /**

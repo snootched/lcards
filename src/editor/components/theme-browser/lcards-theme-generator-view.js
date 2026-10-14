@@ -30,7 +30,7 @@ import { getKnownVariableCatalog } from '../../../core/themes/knownThemeVariable
 import { createHuiCardWrapper, applyHassToCard, isCardModAvailable } from '../../../utils/ha-card-factory.js';
 import {
   TONE_ORDER, HA_PALETTE_ROLES, ROLE_TO_SLOT, SEMANTIC_ROLES, BORDER_ROLES, SEMANTIC_TIERS, SURFACE, FILL, ON,
-  toneKey, lcardsToneVarName, computeFullScale, computeHaDefaultScale, rgbToHex, hexToRgb, lerpOklch,
+  toneKey, lcardsToneVarName, computeFullScale, computeHaDefaultScale, hexToRgb, lerpOklch,
   resolveOnEntry, resolveFillEntry, resolveBorderEntry, resolveSurfaceEntry, resolveFormBackgroundEntry,
   DOMAIN_STATES, formatThemeYaml, WA_COLOR_ALIAS_VARS, HA_CORE_DEFAULTS,
 } from '../../../core/themes/themeGeneratorCore.js';
@@ -41,6 +41,7 @@ import '../shared/lcards-collapsible-section.js';
 import '../shared/lcards-color-picker.js';
 import '../yaml/lcards-yaml-editor.js';
 import { LEGACY_FIELD_DEFS } from './theme-legacy-fields.js';
+import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 
 const LCARDS_FAMILIES = ['orange', 'gray', 'blue', 'green', 'yellow'];
 const ANCHOR_TONES = ['05', '20', '30', '40', '70', '80', '90'];
@@ -1095,17 +1096,8 @@ export class LCARdSThemeGeneratorView extends LitElement {
     const FALLBACK = '#888888';
     if (!value) return FALLBACK;
     if (/^#[0-9a-fA-F]{6}$/.test(value)) return value;
-    try {
-      const temp = document.createElement('div');
-      temp.style.color = value;
-      document.body.appendChild(temp);
-      const computed = getComputedStyle(temp).color;
-      document.body.removeChild(temp);
-      const m = computed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-      if (m) return rgbToHex(Number(m[1]), Number(m[2]), Number(m[3]));
-    } catch (err) {
-      lcardsLog.warn('[ThemeGeneratorView] Could not resolve color to hex', value, err);
-    }
+    const hex = ColorUtils.toHex(value);
+    if (hex) return hex;
     lcardsLog.warn('[ThemeGeneratorView] Unresolvable color, using neutral gray fallback', value);
     return FALLBACK;
   }

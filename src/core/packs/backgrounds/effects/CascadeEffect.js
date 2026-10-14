@@ -14,6 +14,7 @@
 import { BaseEffect } from './BaseEffect.js';
 import { ColorUtils } from '../../../themes/ColorUtils.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 /**
  * CascadeEffect - LCARS data-waterfall colour-cycling background animation
@@ -380,15 +381,8 @@ export class CascadeEffect extends BaseEffect {
 
     if (!this._cellData || this._computedRows === 0 || this._computedCols === 0) return;
 
-    // Resolve colour values once per frame.
-    // Step 1: ThemeTokenResolver handles computed expressions like darken(var(--x), 0.3)
-    //         and token references — mirrors the pattern in state-color-resolver.js.
-    // Step 2: resolveCssVariable materialises any remaining var() to a concrete hex/rgb
-    //         value that Canvas2D fillStyle can accept.
-    const _resolver = window.lcards?.core?.themeManager?.resolver;
-    const _resolve = (c) => ColorUtils.resolveCssVariable(
-      (_resolver ? _resolver.resolve(c, c) : c), c
-    );
+    // Resolve colour values once per frame (concrete: Canvas2D fillStyle).
+    const _resolve = (c) => resolveColor(c, { concrete: true });
     this._resolvedStart = _resolve(this.colorStart);
     this._resolvedText  = _resolve(this.colorText);
     this._resolvedEnd   = _resolve(this.colorEnd);

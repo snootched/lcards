@@ -10,7 +10,7 @@
 
 import { lcardsLog } from './lcards-logging.js';
 import { getAnimationPreset } from '../core/animation/presets.js';
-import { ColorUtils } from '../core/themes/ColorUtils.js';
+import { resolveColor } from '../core/themes/resolve-color.js';
 
 /**
  * LCARdS-internal animation meta-params that must NOT be passed to anime.animate().
@@ -77,24 +77,8 @@ function resolveAnimationCssVariables(params) {
   // Properties that commonly contain color values for anime.js
   const colorProperties = ['fill', 'stroke', 'background', 'backgroundColor', 'color', 'borderColor'];
 
-  // Helper: resolve a single color string.
-  // Delegates the full chain (theme: token → computed expression with var()/theme: args → CSS var)
-  // to ThemeTokenResolver via the themeManager singleton — the canonical resolution path.
-  const resolveColorValue = (value) => {
-    if (typeof value !== 'string') return value;
-    const resolver = window.lcards?.core?.themeManager?.resolver;
-    if (resolver) {
-      const out = resolver.resolve(value, value);
-      // resolver.resolve returns the input unchanged for plain var() strings
-      // (those aren't token/computed expressions), so fall through to resolveCssVariable.
-      if (out !== value) return out;
-    }
-    // Plain CSS variable — resolve via getComputedStyle
-    if (value.includes('var(')) {
-      return ColorUtils.resolveCssVariable(value);
-    }
-    return value;
-  };
+  // anime.js interpolates numbers, so colours must be concrete
+  const resolveColorValue = (value) => resolveColor(value, { concrete: true });
 
   colorProperties.forEach(prop => {
     if (resolved[prop]) {

@@ -1,5 +1,4 @@
 src/base/LCARdSActionHandler.js: error TS2339: Property 'getHass' does not exist on type '{ animationManager: any; elementId: string; animations: any[]; getAnimationSetup: Function; getAnimationManager?: Function; shadowRoot: any; entity: string; soundOverride?: any; disableHover?: boolean; }'.
-src/base/LCARdSCard.js: error TS2322: Type 'string | number' is not assignable to type 'string'.
 src/cards/lcards-chart.js: error TS2415: Class 'LCARdSChart' incorrectly extends base class 'LCARdSCard'.
 src/cards/lcards-elbow.js: error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
 src/cards/lcards-layout-card.js: error TS2339: Property 'config' does not exist on type 'HTMLElement'.
@@ -111,9 +110,6 @@ src/utils/lcards-anim-helpers.js: error TS2345: Argument of type 'Element' is no
 src/utils/lcards-anim-helpers.js: error TS2551: Property '_speed' does not exist on type '{ completed: boolean; speed: number; revert: Function; pause: Function; }'. Did you mean 'speed'?
 src/utils/lcards-anim-helpers.js: error TS2551: Property '_speed' does not exist on type '{ completed: boolean; speed: number; revert: Function; pause: Function; }'. Did you mean 'speed'?
 src/utils/lcards-anim-helpers.js: error TS2561: Object literal may only specify known properties, but '_speed' does not exist in type '{ completed: boolean; speed: number; revert: Function; pause: Function; }'. Did you mean to write 'speed'?
-src/utils/state-color-resolver.js: error TS2339: Property 'attributeState' does not exist on type '{ actualState: string; classifiedState: string; colorConfig: any; fallback?: string | number; }'.
 src/utils/state-color-resolver.js: error TS2339: Property 'attributeState' does not exist on type '{ actualState: string; classifiedState: string; configPath: any; fallback?: string | number; }'.
-src/utils/state-color-resolver.js: error TS2339: Property 'numericState' does not exist on type '{ actualState: string; classifiedState: string; colorConfig: any; fallback?: string | number; }'.
 src/utils/state-color-resolver.js: error TS2339: Property 'numericState' does not exist on type '{ actualState: string; classifiedState: string; configPath: any; fallback?: string | number; }'.
-src/utils/state-color-resolver.js: error TS2353: Object literal may only specify known properties, and 'numericState' does not exist in type '{ actualState: string; classifiedState: string; colorConfig: any; fallback?: string | number; }'.
 src/views/layout-grid-utils.js: error TS1127: Invalid character.

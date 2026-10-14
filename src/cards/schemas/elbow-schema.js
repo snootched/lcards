@@ -12,6 +12,7 @@
  */
 
 import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema, cardLevelProperties } from './common-schemas.js';
+import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
 import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
 /**
@@ -602,7 +603,7 @@ export function getElbowSchema(options = {}) {
                         properties: {
                             background: {
                                 type: 'string',
-                                pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|match-light|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+                                pattern: COLOR_VALUE_PATTERN,
                                 description: 'Background colour override (deprecated - use segment.color instead)'
                             }
                         }

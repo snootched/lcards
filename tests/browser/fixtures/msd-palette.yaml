@@ -1,0 +1,16 @@
+# MSD line over a palette variable (alert-palette.spec.js)
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 600, 300]
+  anchors:
+    a_start: [50, 100]
+    a_end: [550, 100]
+  overlays:
+    - id: line_a
+      type: line
+      anchor: a_start
+      attach_to: a_end
+      style:
+        color: var(--lcards-orange)

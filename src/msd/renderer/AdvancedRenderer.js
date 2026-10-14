@@ -7,7 +7,6 @@
 import { RendererUtils } from './RendererUtils.js';
 import { OverlayUtils } from './OverlayUtils.js';
 import { AttachmentPointManager } from './AttachmentPointManager.js';
-import { ColorUtils } from '../../core/themes/ColorUtils.js';
 
 import { MsdControlsRenderer } from '../controls/MsdControlsRenderer.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -16,6 +15,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { OverlayBase } from '../overlays/OverlayBase.js';
 import { LineOverlay } from '../overlays/LineOverlay.js';
 import { ShapeOverlay } from '../overlays/ShapeOverlay.js';
+import { resolveColor } from '../../core/themes/resolve-color.js';
 
 export class AdvancedRenderer {
   constructor(mountEl, routerCore, coordinator = null) {
@@ -1560,9 +1560,14 @@ export class AdvancedRenderer {
    * — deliberately avoided here so running animations on unrelated overlays are
    * never disturbed by a color-only update).
    *
+   * With `all`, every line and shape is re-resolved (alert-mode palette
+   * change: plain colours were resolved to concrete values at paint time).
+   *
    * @param {Object} hass - Current Home Assistant state object
+   * @param {Object} [options]
+   * @param {boolean} [options.all=false] - Include overlays with no entity or template
    */
-  updateLineEntityColors(hass) {
+  updateLineEntityColors(hass, { all = false } = {}) {
     const overlays = this.lastRenderArgs?.overlays;
     if (!hass || !overlays) return;
 
@@ -1575,7 +1580,7 @@ export class AdvancedRenderer {
       const styleValue = overlay.finalStyle?.color ?? overlay.style?.color;
       const isTemplateLiteral = typeof styleValue === 'string' &&
         (styleValue.includes('{{') || styleValue.includes('{%') || styleValue.includes('[[['));
-      if (!overlay.entity && !isTemplateLiteral) continue;
+      if (!all && !overlay.entity && !isTemplateLiteral) continue;
 
       const el = this.overlayElementCache.get(overlay.id);
       if (!el) continue;
@@ -1593,12 +1598,9 @@ export class AdvancedRenderer {
         cardInstance,
         'var(--lcars-orange, var(--lcards-orange-medium, #ff7700))'
       );
-      // Full pipeline required: setAttribute() cannot handle var() —
-      // _resolveLineColor()/_resolveShapeColor() only performs token/state
-      // resolution for literal string colors, so materialize any remaining
-      // var(...) here before writing it to the DOM. `el` scopes the lookup so
-      // inherited/section-scoped CSS vars resolve correctly.
-      const newColor = ColorUtils.resolveCssVariable(rawColor, '#ff7700', el);
+      // setAttribute() cannot handle var(): materialise to a concrete colour.
+      // `el` scopes the lookup so inherited/section-scoped CSS vars resolve.
+      const newColor = resolveColor(rawColor, { concrete: true, element: el, fallback: '#ff7700' });
 
       // Class-name selector (not tag-based) so this matches shape's <rect>/
       // <ellipse> main elements (kind: rect/circle) as well as <path> (line, and
@@ -1628,7 +1630,7 @@ export class AdvancedRenderer {
           undefined,
           'defaultFillColor'
         );
-        const newFill = ColorUtils.resolveCssVariable(rawFill, 'none', el);
+        const newFill = rawFill === 'none' ? 'none' : resolveColor(rawFill, { concrete: true, element: el, fallback: 'none' });
         el.querySelectorAll('.line-path, .shape-path').forEach(p => p.setAttribute('fill', newFill));
       }
 

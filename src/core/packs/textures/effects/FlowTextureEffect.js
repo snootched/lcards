@@ -8,7 +8,7 @@
  */
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 /**
  * FlowTextureEffect - Animated flow streaks
@@ -31,7 +31,7 @@ export class FlowTextureEffect extends BaseTextureEffect {
      */
     constructor(config = {}) {
         super(/** @type {any} */ (config));
-        this._color        = ColorUtils.resolveCssVariable(config.color ?? 'rgba(0,200,255,0.7)', 'rgba(0,200,255,0.7)');
+        this._color        = resolveColor(config.color, { concrete: true, fallback: 'rgba(0,200,255,0.7)' });
         this._waveScale    = config.wave_scale       ?? 8;
         this._scrollSpeedX = config.scroll_speed_x  ?? 50;
         this._scrollSpeedY = config.scroll_speed_y  ?? 0;
@@ -126,8 +126,7 @@ export class FlowTextureEffect extends BaseTextureEffect {
     updateConfig(cfg) {
         super.updateConfig(cfg);
         if (cfg.color          !== undefined) {
-            const _res = window.lcards?.core?.themeManager?.resolver;
-            this._color = ColorUtils.resolveCssVariable(_res ? _res.resolve(cfg.color, cfg.color) : cfg.color, 'rgba(0,200,255,0.7)');
+            this._color = resolveColor(cfg.color, { concrete: true, fallback: 'rgba(0,200,255,0.7)' });
         }
         if (cfg.wave_scale     !== undefined) this._waveScale    = cfg.wave_scale;
         if (cfg.scroll_speed_x !== undefined) this._scrollSpeedX = cfg.scroll_speed_x;

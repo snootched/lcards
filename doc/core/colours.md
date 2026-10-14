@@ -14,11 +14,14 @@ CSS colour vars (`--lcars-*` and `--lcards-*`) are automatically shifted by the 
 |--------|---------|-------|
 | CSS variable | `var(--lcards-orange)` | Any `--lcards-*` or HA CSS variable |
 | Theme token path | `theme:colors.ui.primary` | Resolved from active theme |
-| Computed token | `darken(var(--lcards-orange), 0.2)` | Computed by ThemeTokenResolver |
-| Hex 6-digit | `#FF9900` | Standard RGB hex |
-| Hex 8-digit | `#FF990080` | Last two digits are alpha (00–FF) |
-| RGB | `rgb(255, 153, 0)` | Standard CSS rgb() |
-| RGBA | `rgba(255, 153, 0, 0.5)` | CSS rgba() with 0–1 alpha |
+| Computed colour | `darken(var(--lcards-orange), 0.2)` | See [Computed Colour Tokens](#computed-colour-tokens) |
+| Hex | `#F90`, `#FF9900`, `#FF990080` | 3, 4, 6 or 8 digits; the last pair (or digit) is alpha |
+| Named colour | `black`, `orange`, `transparent` | Any CSS colour name |
+| RGB / HSL | `rgba(255, 153, 0, 0.5)`, `hsl(36 100% 50%)` | Comma or space syntax, optional `/ alpha` |
+| Other CSS colours | `oklch(0.75 0.17 60)`, `color-mix(in srgb, red 25%, blue)` | `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()`, `color-mix()` |
+| Match light | `match-light` | The bound light's current colour; see [Slider Card](../cards/slider-card/) |
+
+Every format works in every colour field of every card, as a plain value or inside a [state map](#state-based-colour-maps). Colours built from CSS variables stay live: when an alert mode shifts the palette, they follow without a refresh.
 
 ### CSS Variables
 
@@ -52,12 +55,24 @@ See [Themes](themes/) for available token paths.
 
 ### Computed Colour Tokens
 
-The ThemeTokenResolver supports derived colours:
+LCARdS derives colours with these functions. The first argument is any colour format above (a token path such as `colors.ui.primary` works without the `theme:` prefix); amounts are 0–1 or a percentage.
+
+| Function | Example | Result |
+|----------|---------|--------|
+| `darken(colour, amount)` | `darken(var(--lcards-orange), 0.2)` | 20% towards black |
+| `lighten(colour, amount)` | `lighten(var(--lcards-blue), 15%)` | 15% towards white |
+| `alpha(colour, opacity)` | `alpha(var(--lcards-orange), 0.6)` | Opacity set to 60% |
+| `saturate(colour, amount)` | `saturate(#996633, 0.2)` | More vivid |
+| `desaturate(colour, amount)` | `desaturate(#ff0000, 0.5)` | Closer to grey |
+| `mix(colour1, colour2, weight)` | `mix(#ff0000, #0000ff, 0.25)` | 25% of the first colour; the same as `color-mix(in srgb, #ff0000 25%, #0000ff)` |
+| `base(colour)` | `base(var(--lcards-blue))` | Alert-mode-immune; see below |
+
+Functions nest, and a token can stand in for any colour argument:
 
 ```yaml alternatives
-color: "darken(var(--lcards-orange), 0.2)"    # Darken by 20%
-color: "lighten(var(--lcards-blue), 0.15)"    # Lighten by 15%
-color: "alpha(var(--lcards-orange), 0.6)"     # Set opacity to 60%
+color: "alpha(darken(var(--lcards-orange), 0.2), 0.5)"
+color: "theme:alpha(colors.ui.primary, 0.4)"
+color: "alpha(base(colors.ui.primary), 0.5)"
 ```
 
 #### `base()`: Alert-Mode-Immune Colours
@@ -72,7 +87,7 @@ color: "base(--lcards-blue-lightest)"
 `base()` looks up the green-alert snapshot captured at theme load time for `--lcars-*` variables, and uses the `GREEN_ALERT_PALETTE` for `--lcards-*` variables. If the snapshot has not been captured yet it falls back to the live DOM value.
 
 :::info
-`base()` only protects values going through `ThemeTokenResolver` (style fields, token config values). Animation params that are bare `var()` strings (e.g. `lead_color` / `trail_color` in stagger-flash) read the live CSS variable directly; use a hard-coded hex for those if alert-mode immunity is required.
+`base()` works in every colour field, including animation and effect params. A bare `var()` there still reads the live, alert-shifted value; wrap it in `base()` for immunity.
 :::
 
 ---

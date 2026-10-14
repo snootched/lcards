@@ -18,7 +18,7 @@
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
 import { _fbm, parseColorToRgba } from './noise-helpers.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 // ---------------------------------------------------------------------------
 
@@ -50,8 +50,7 @@ export class FluidTextureEffect extends BaseTextureEffect {
      */
     constructor(config = {}) {
         super(/** @type {any} */ (config));
-        const _r = window.lcards?.core?.themeManager?.resolver;
-        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        const _resolve = (c) => resolveColor(c, { concrete: true });
         this._color    = parseColorToRgba(_resolve(config.color ?? 'rgba(100,180,255,0.8)'), 'rgba(100,180,255,0.8)');
         this._freq     = config.base_frequency   ?? 0.010;
         this._octaves  = Math.max(1, Math.min(8, config.num_octaves ?? 4));
@@ -261,8 +260,7 @@ export class FluidTextureEffect extends BaseTextureEffect {
 
     updateConfig(cfg) {
         super.updateConfig(cfg);
-        const _r = window.lcards?.core?.themeManager?.resolver;
-        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        const _resolve = (c) => resolveColor(c, { concrete: true });
 
         // Fields that change the BAKED appearance require a re-bake to take
         // effect immediately rather than waiting for the next scroll-drift

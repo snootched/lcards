@@ -299,7 +299,7 @@ export class LCARdSElbow extends LCARdSButton {
         let trackedCount = 0;
 
         // Track segment colors
-        if (this._elbowConfig.segment?.color) {
+        if (this._elbowConfig.segment?.color && typeof this._elbowConfig.segment.color === 'object') {
             Object.entries(this._elbowConfig.segment.color).forEach(([colorKey, tokenValue]) => {
                 const fieldPath = `elbow.segment.color.${colorKey}`;
 
@@ -317,7 +317,7 @@ export class LCARdSElbow extends LCARdSButton {
         // Track segmented mode colors
         if (this._elbowConfig.style === 'segmented' && this._elbowConfig.segments) {
             // Outer segment
-            if (this._elbowConfig.segments.outer_segment?.color) {
+            if (this._elbowConfig.segments.outer_segment?.color && typeof this._elbowConfig.segments.outer_segment.color === 'object') {
                 Object.entries(this._elbowConfig.segments.outer_segment.color).forEach(([colorKey, tokenValue]) => {
                     const fieldPath = `elbow.segments.outer_segment.color.${colorKey}`;
                     if (!this._provenance.field_sources[fieldPath]) {
@@ -331,7 +331,7 @@ export class LCARdSElbow extends LCARdSButton {
             }
 
             // Inner segment
-            if (this._elbowConfig.segments.inner_segment?.color) {
+            if (this._elbowConfig.segments.inner_segment?.color && typeof this._elbowConfig.segments.inner_segment.color === 'object') {
                 Object.entries(this._elbowConfig.segments.inner_segment.color).forEach(([colorKey, tokenValue]) => {
                     const fieldPath = `elbow.segments.inner_segment.color.${colorKey}`;
                     if (!this._provenance.field_sources[fieldPath]) {
@@ -421,15 +421,13 @@ export class LCARdSElbow extends LCARdSButton {
             pressed: `${tokenBase}.pressed`
         };
 
-        // Track which colors exist before we add defaults
-        const existingSegmentColors = this._elbowConfig.segment.color || {};
+        // Merge defaults with user config (user values override defaults).
+        // A plain colour string applies to every state and is kept as-is
+        // (spreading it would turn 'alpha(...)' into per-character keys).
+        // New objects avoid frozen object errors from HA config.
+        const withDefaults = (existing) => (typeof existing === 'string' ? existing : { ...colorDefaults, ...(existing || {}) });
 
-        // Merge defaults with user config (user values override defaults)
-        // Create new object to avoid frozen object errors from HA config
-        this._elbowConfig.segment.color = {
-            ...colorDefaults,
-            ...existingSegmentColors
-        };
+        this._elbowConfig.segment.color = withDefaults(this._elbowConfig.segment.color);
 
         // For segmented mode, also set into segments.outer_segment and segments.inner_segment
         if (this._elbowConfig.style === 'segmented') {
@@ -437,19 +435,11 @@ export class LCARdSElbow extends LCARdSButton {
 
             // Outer segment
             if (!this._elbowConfig.segments.outer_segment) this._elbowConfig.segments.outer_segment = {};
-            const existingOuterColors = this._elbowConfig.segments.outer_segment.color || {};
-            this._elbowConfig.segments.outer_segment.color = {
-                ...colorDefaults,
-                ...existingOuterColors
-            };
+            this._elbowConfig.segments.outer_segment.color = withDefaults(this._elbowConfig.segments.outer_segment.color);
 
             // Inner segment
             if (!this._elbowConfig.segments.inner_segment) this._elbowConfig.segments.inner_segment = {};
-            const existingInnerColors = this._elbowConfig.segments.inner_segment.color || {};
-            this._elbowConfig.segments.inner_segment.color = {
-                ...colorDefaults,
-                ...existingInnerColors
-            };
+            this._elbowConfig.segments.inner_segment.color = withDefaults(this._elbowConfig.segments.inner_segment.color);
         }
 
         // For frame mode, also set inner frame segment color (segmented frames)

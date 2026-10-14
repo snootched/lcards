@@ -9,6 +9,8 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { parseColor as parseCssColor, isCssColor } from './color-syntax.js';
+import { oklchToRgb } from './themeGeneratorCore.js';
 
 /**
  * ColorUtils - Utilities for color manipulation
@@ -29,8 +31,8 @@ export class ColorUtils {
    * ColorUtils.darken('var(--lcars-orange)', 0.3) // Returns 'color-mix(in srgb, var(--lcars-orange) 70%, black 30%)'
    */
   static darken(color, percent = 0.2) {
-    // Handle CSS variables with color-mix() for runtime computation
-    if (this._isCssVariable(color)) {
+    // CSS variables (and colours only the browser can read) use color-mix() for runtime computation
+    if (this._needsColorMix(color)) {
       const percentage = Math.round(percent * 100);
       return `color-mix(in srgb, ${color} ${100 - percentage}%, black ${percentage}%)`;
     }
@@ -45,8 +47,8 @@ export class ColorUtils {
       return color;
     }
 
-    const darkened = rgb.map(val => Math.max(0, Math.floor(val * (1 - percent))));
-    return this._rgbToHex(darkened[0], darkened[1], darkened[2]);
+    const darkened = rgb.map(val => Math.max(0, Math.round(val * (1 - percent))));
+    return this._formatRgb(darkened, this._parseColorAlpha(color));
   }
 
   /**
@@ -61,8 +63,8 @@ export class ColorUtils {
    * ColorUtils.lighten('var(--lcars-orange)', 0.2) // Returns 'color-mix(in srgb, var(--lcars-orange) 80%, white 20%)'
    */
   static lighten(color, percent = 0.2) {
-    // Handle CSS variables with color-mix()
-    if (this._isCssVariable(color)) {
+    // CSS variables (and colours only the browser can read) use color-mix()
+    if (this._needsColorMix(color)) {
       const percentage = Math.round(percent * 100);
       const result = `color-mix(in srgb, ${color} ${100 - percentage}%, white ${percentage}%)`;
       return result;
@@ -79,8 +81,8 @@ export class ColorUtils {
       return color;
     }
 
-    const lightened = rgb.map(val => Math.min(255, Math.floor(val + (255 - val) * percent)));
-    return this._rgbToHex(lightened[0], lightened[1], lightened[2]);
+    const lightened = rgb.map(val => Math.min(255, Math.round(val + (255 - val) * percent)));
+    return this._formatRgb(lightened, this._parseColorAlpha(color));
   }
 
   /**
@@ -95,8 +97,8 @@ export class ColorUtils {
    * ColorUtils.alpha('var(--lcars-orange)', 0.5) // Returns 'color-mix(in srgb, var(--lcars-orange) 50%, transparent)'
    */
   static alpha(color, alpha = 1.0) {
-    // Handle CSS variables with color-mix()
-    if (this._isCssVariable(color)) {
+    // CSS variables (and colours only the browser can read) use color-mix()
+    if (this._needsColorMix(color)) {
       const percentage = Math.round(alpha * 100);
       return `color-mix(in srgb, ${color} ${percentage}%, transparent)`;
     }
@@ -135,7 +137,7 @@ export class ColorUtils {
     if (!hsl) return color;
 
     hsl[1] = Math.min(100, hsl[1] + (percent * 100));
-    return this._hslToRgbHex(hsl);
+    return this._withAlpha(this._hslToRgbHex(hsl), this._parseColorAlpha(color));
   }
 
   /**
@@ -159,11 +161,12 @@ export class ColorUtils {
     if (!hsl) return color;
 
     hsl[1] = Math.max(0, hsl[1] - (percent * 100));
-    return this._hslToRgbHex(hsl);
+    return this._withAlpha(this._hslToRgbHex(hsl), this._parseColorAlpha(color));
   }
 
   /**
-   * Mix two colors
+   * Mix two colors: the same result as CSS `color-mix(in srgb, color1 weight%, color2)`
+   * (channels rounded like the browser), so live and concrete paths agree.
    *
    * @param {string} color1 - First color
    * @param {string} color2 - Second color
@@ -176,8 +179,8 @@ export class ColorUtils {
    * ColorUtils.mix('rgba(0,0,128,0.18)', '#ff0000', 0.5) // Preserves interpolated alpha
    */
   static mix(color1, color2, weight = 0.5) {
-    // Handle CSS variables with color-mix()
-    if (this._isCssVariable(color1) || this._isCssVariable(color2)) {
+    // CSS variables (and colours only the browser can read) use color-mix()
+    if (this._needsColorMix(color1) || this._needsColorMix(color2)) {
       const percentage1 = Math.round(weight * 100);
       const percentage2 = 100 - percentage1;
       return `color-mix(in srgb, ${color1} ${percentage1}%, ${color2} ${percentage2}%)`;
@@ -189,7 +192,7 @@ export class ColorUtils {
     if (!rgb1 || !rgb2) return color1;
 
     const mixed = rgb1.map((val, i) =>
-      Math.floor(val * weight + rgb2[i] * (1 - weight))
+      Math.round(val * weight + rgb2[i] * (1 - weight))
     );
 
     // Preserve alpha channel if either input carries one (from rgba() values).
@@ -205,7 +208,7 @@ export class ColorUtils {
   }
 
   /**
-   * Extract the alpha value from an rgba() color string.
+   * Extract the alpha value of a colour (rgba(), hsla(), #RRGGBBAA, ...).
    * Returns null for fully-opaque or non-rgba inputs so callers can
    * distinguish "no alpha specified" from "alpha = 1".
    *
@@ -214,12 +217,9 @@ export class ColorUtils {
    * @returns {number|null} Alpha (0–1) or null when absent / fully opaque
    */
   static _parseColorAlpha(color) {
-    if (!color || typeof color !== 'string') return null;
-    const match = color.match(/rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)/);
-    if (!match) return null;
-    const a = parseFloat(match[1]);
+    const a = parseCssColor(color)?.a;
     // Treat alpha=1 as "no alpha info" so we don't output redundant rgba() for opaque colors
-    return a < 1 ? a : null;
+    return a !== undefined && a < 1 ? a : null;
   }
 
   /**
@@ -388,6 +388,34 @@ export class ColorUtils {
   }
 
   /**
+   * Hex form of any CSS colour. Parsed directly when possible; otherwise
+   * (var(), color-mix(), lab(), ...) the browser computes it on a probe element.
+   *
+   * @param {string} color - Concrete CSS colour or var() expression
+   * @param {Object} [options]
+   * @param {boolean} [options.withAlpha=false] - Return #rrggbbaa
+   * @param {Element|null} [options.element=null] - Parent for the probe, so section-scoped vars apply
+   * @returns {string|null} '#rrggbb' / '#rrggbbaa', or null when the browser cannot read it either
+   */
+  static toHex(color, { withAlpha = false, element = null } = {}) {
+    let c = parseCssColor(color);
+    if (!c && typeof color === 'string' && typeof document !== 'undefined') {
+      const probe = document.createElement('div');
+      probe.style.color = color;
+      if (probe.style.color) {
+        // Inside a shadow host only the shadow root renders (unslotted light
+        // children get no computed style); it still inherits the host's vars.
+        (element?.shadowRoot ?? element ?? document.body).appendChild(probe);
+        c = parseCssColor(getComputedStyle(probe).color);
+        probe.remove();
+      }
+    }
+    if (!c) return null;
+    const h = (n) => Math.round(n).toString(16).padStart(2, '0');
+    return `#${h(c.r)}${h(c.g)}${h(c.b)}${withAlpha ? h(c.a * 255) : ''}`;
+  }
+
+  /**
    * Convert RGB values to hex string
    *
    * @param {number} r - Red (0-255)
@@ -483,28 +511,7 @@ export class ColorUtils {
    * ColorUtils.oklchToRgb(0.75, 0.17, 55) // Returns approximately [255, 153, 0]
    */
   static oklchToRgb(L, C, H) {
-    const hRad = H * Math.PI / 180;
-    const a = C * Math.cos(hRad);
-    const bLab = C * Math.sin(hRad);
-
-    const l_ = L + 0.3963377774 * a + 0.2158037573 * bLab;
-    const m_ = L - 0.1055613458 * a - 0.0638541728 * bLab;
-    const s_ = L - 0.0894841775 * a - 1.2914855480 * bLab;
-
-    const l = l_ * l_ * l_;
-    const m = m_ * m_ * m_;
-    const s = s_ * s_ * s_;
-
-    const lr = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-    const lg = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-    const lb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
-
-    const toSrgb = (c) => {
-      c = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
-      return Math.round(Math.max(0, Math.min(1, c)) * 255);
-    };
-
-    return [toSrgb(lr), toSrgb(lg), toSrgb(lb)];
+    return oklchToRgb(L, C, H).map(Math.round);
   }
 
   /**
@@ -667,92 +674,55 @@ export class ColorUtils {
   }
 
   /**
+   * True when a colour must be manipulated with CSS color-mix() at render time
+   * rather than computed here: CSS variables, and valid CSS colours this class
+   * cannot parse (a concrete color-mix(), lab(), color(display-p3 ...)).
+   *
+   * @private
+   * @param {string} value
+   * @returns {boolean}
+   */
+  static _needsColorMix(value) {
+    return this._isCssVariable(value) || (isCssColor(value) && !this._parseColor(value));
+  }
+
+  /**
+   * `#rrggbb`, or `rgba()` when the source colour had an alpha channel.
+   * @private
+   * @param {number[]} rgb
+   * @param {number|null} alpha - From _parseColorAlpha (null when opaque)
+   * @returns {string}
+   */
+  static _formatRgb(rgb, alpha) {
+    return alpha !== null ? `rgba(${rgb.join(', ')}, ${alpha})` : this._rgbToHex(rgb[0], rgb[1], rgb[2]);
+  }
+
+  /** @private Re-apply a source alpha to a hex result. */
+  static _withAlpha(hex, alpha) {
+    return alpha !== null ? this._formatRgb(this._parseColor(hex), alpha) : hex;
+  }
+
+  /**
    * Parse color string to RGB array
    *
-   * Supports:
-   * - Hex: #RRGGBB or #RGB
-   * - RGB: rgb(r, g, b)
-   * - RGBA: rgba(r, g, b, a)
+   * Everything color-syntax.js parseColor() reads (hex, named, rgb/hsl in
+   * comma or space syntax, oklch), then any other CSS colour the browser can
+   * normalise through a canvas (lab(), color(), concrete color-mix()).
    *
    * @private
    * @param {string} color - Color string
    * @returns {Array<number>|null} [r, g, b] or null if unparseable
    */
   static _parseColor(color) {
-    if (!color) return null;
-
-    // Remove whitespace
+    if (!color || typeof color !== 'string') return null;
     color = color.trim();
 
-    // Hex format: #RRGGBB, #RRGGBBAA, #RGB, or #RGBA
-    if (color.startsWith('#')) {
-      const hex = color.slice(1);
-
-      // #RGB format
-      if (hex.length === 3) {
-        return [
-          parseInt(hex[0] + hex[0], 16),
-          parseInt(hex[1] + hex[1], 16),
-          parseInt(hex[2] + hex[2], 16)
-        ];
-      }
-
-      // #RGBA format (4 chars)
-      if (hex.length === 4) {
-        return [
-          parseInt(hex[0] + hex[0], 16),
-          parseInt(hex[1] + hex[1], 16),
-          parseInt(hex[2] + hex[2], 16)
-        ];
-        // Alpha channel (hex[3]) is ignored for HSL transformation
-      }
-
-      // #RRGGBB format
-      if (hex.length === 6) {
-        return [
-          parseInt(hex.slice(0, 2), 16),
-          parseInt(hex.slice(2, 4), 16),
-          parseInt(hex.slice(4, 6), 16)
-        ];
-      }
-
-      // #RRGGBBAA format (8 chars) - ignore alpha channel
-      if (hex.length === 8) {
-        return [
-          parseInt(hex.slice(0, 2), 16),
-          parseInt(hex.slice(2, 4), 16),
-          parseInt(hex.slice(4, 6), 16)
-        ];
-        // Alpha channel (hex.slice(6, 8)) is ignored for HSL transformation
-      }
-    }
-
-    // RGB/RGBA format: rgb(r, g, b) or rgba(r, g, b, a)
-    const rgbMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    if (rgbMatch) {
-      return [
-        parseInt(rgbMatch[1]),
-        parseInt(rgbMatch[2]),
-        parseInt(rgbMatch[3])
-      ];
-    }
-
-    // oklch(L C H) / oklch(L C H / A) — getComputedStyle() serializes a color-mix() result in
-    // whichever space its `in <space>` argument named, not always sRGB rgb(); ha-lcars's own
-    // boilerplate leans on `color-mix(in oklch, ...)` throughout (e.g. --lcars-secondary-text),
-    // so this is a routine value here, not an edge case. Parsed via the same pure-math
-    // oklchToRgb() this class already uses for palette generation, rather than the canvas
-    // fallback below — canvas fillStyle parsing of oklch() isn't reliably supported the way the
-    // CSS engine's own color-mix() evaluation is, so a value serialized this way could otherwise
-    // reach the fallback, fail to parse, and silently read as black (confirmed: this was the
-    // root cause of contrast text always coming out white for these values).
-    const oklchMatch = color.match(/^oklch\(\s*([\d.]+)(%)?\s+([\d.]+)(%)?\s+([\d.]+)(?:deg)?\s*(?:\/[^)]*)?\)$/i);
-    if (oklchMatch) {
-      const L = oklchMatch[2] ? parseFloat(oklchMatch[1]) / 100 : parseFloat(oklchMatch[1]);
-      const C = oklchMatch[4] ? (parseFloat(oklchMatch[3]) / 100) * 0.4 : parseFloat(oklchMatch[3]);
-      const H = parseFloat(oklchMatch[5]);
-      return this.oklchToRgb(L, C, H);
-    }
+    // Hex, named colours, rgb()/hsl() (comma or space syntax) and oklch():
+    // parsed without a DOM by the shared colour grammar. oklch() matters here:
+    // getComputedStyle() serializes a color-mix() result in whichever space its
+    // `in <space>` argument named, and ha-lcars uses `color-mix(in oklch, ...)`.
+    const parsed = parseCssColor(color);
+    if (parsed) return [parsed.r, parsed.g, parsed.b];
 
     // Fallback — let the browser resolve named colors (and any other valid
     // CSS color syntax) via a throwaway canvas; ctx.fillStyle normalizes

@@ -4,36 +4,21 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { ColorUtils } from '../../core/themes/ColorUtils.js';
+import { resolveColor } from '../../core/themes/resolve-color.js';
 
 // Counter for unique filter IDs
 let filterIdCounter = 0;
 
 /**
- * Resolve a color value (literal, theme: token, var(), or computed token like
- * alpha(var(--x), 0.5)) down to a concrete color usable in a raw SVG attribute.
- * Mirrors the theme:-strip + resolver.resolve + bare-var() cleanup steps in
- * LCARdSCard._resolveColorValue() — SVG attributes set via setAttribute() don't
- * get browser var() resolution the way CSS/Lit-bound values do.
+ * Concrete colour for a raw SVG attribute (setAttribute() gets no var()
+ * resolution): theme: tokens, computed expressions and CSS variables.
  * @param {string} rawColor
  * @param {Element} [element] - Context element for CSS custom property scoping
  * @returns {string}
  */
 function resolveFilterColor(rawColor, element) {
   if (typeof rawColor !== 'string' || !rawColor) return rawColor;
-
-  let value = rawColor;
-  const resolver = window.lcards?.core?.themeManager?.resolver;
-  if (resolver) {
-    const tokenPath = value.startsWith('theme:') ? value.slice(6) : value;
-    value = resolver.resolve(tokenPath, value, { element });
-  }
-
-  if (typeof value === 'string' && value.trim().startsWith('var(')) {
-    return ColorUtils.resolveCssVariable(value, rawColor, element) || rawColor;
-  }
-
-  return value || rawColor;
+  return resolveColor(rawColor, { concrete: true, element: element ?? null });
 }
 
 /**

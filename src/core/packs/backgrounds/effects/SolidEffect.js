@@ -8,8 +8,8 @@
  */
 
 import { BaseEffect } from './BaseEffect.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 /**
  * Draws a single flat-colour rectangle across the full background canvas.
@@ -36,9 +36,7 @@ export class SolidEffect extends BaseEffect {
     // Two-step colour resolution — mandatory for Canvas2D fillStyle since raw
     // config values may be theme: tokens, var() refs, or computed expressions
     // like alpha(var(--x), 0.N).
-    const _resolver = window.lcards?.core?.themeManager?.resolver;
-    const _resolve = (c) => ColorUtils.resolveCssVariable(
-        (_resolver ? _resolver.resolve(c, c) : c), c);
+    const _resolve = (c) => resolveColor(c, { concrete: true });
 
     this.color = _resolve(config.color ?? 'rgba(0, 0, 0, 0.4)');
 

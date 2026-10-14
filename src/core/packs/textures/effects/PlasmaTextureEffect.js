@@ -25,7 +25,7 @@
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
 import { _fbm, parseColorToRgba } from './noise-helpers.js';
-import { ColorUtils } from '../../../themes/ColorUtils.js';
+import { resolveColor } from '../../../themes/resolve-color.js';
 
 /**
  * PlasmaTextureEffect - Vivid alternating two-colour plasma bands
@@ -56,8 +56,7 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
      */
     constructor(config = {}) {
         super(/** @type {any} */ (config));
-        const _r = window.lcards?.core?.themeManager?.resolver;
-        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        const _resolve = (c) => resolveColor(c, { concrete: true });
         this._colorA  = parseColorToRgba(_resolve(config.color_a ?? 'rgba(80,0,255,0.9)'),  'rgba(80,0,255,0.9)');
         this._colorB  = parseColorToRgba(_resolve(config.color_b ?? 'rgba(255,40,120,0.9)'), 'rgba(255,40,120,0.9)');
         this._freq    = config.base_frequency ?? 0.012;
@@ -262,8 +261,7 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
 
     updateConfig(cfg) {
         super.updateConfig(cfg);
-        const _r = window.lcards?.core?.themeManager?.resolver;
-        const _resolve = (c) => ColorUtils.resolveCssVariable(_r ? _r.resolve(c, c) : c, c);
+        const _resolve = (c) => resolveColor(c, { concrete: true });
 
         // Fields that change the BAKED appearance require a re-bake to take
         // effect immediately rather than waiting for the next scroll-drift

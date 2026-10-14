@@ -26,6 +26,7 @@ import '../components/editors/lcards-grid-layout.js';
 import '../components/shared/lcards-color-picker.js';
 import '../components/provenance/lcards-provenance-tab.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { parseColor } from '../../core/themes/color-syntax.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -945,13 +946,8 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
      * @returns {string}
      */
     _promotedColor(color, opacity) {
-        const m = color.match(
-            /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/
-        );
-        if (m) {
-            const a = parseFloat(m[4] ?? '1') * opacity;
-            return `rgba(${m[1]},${m[2]},${m[3]},${Math.min(1, a).toFixed(2)})`;
-        }
+        const c = parseColor(color);
+        if (c) return `rgba(${c.r},${c.g},${c.b},${Math.min(1, c.a * opacity).toFixed(2)})`;
         return color;
     }
 

@@ -1,5 +1,5 @@
 ---
-applyTo: "src/cards/**, src/editor/**"
+applyTo: "src/cards/**, src/editor/**, src/core/**, src/msd/**, src/charts/**, src/base/**"
 ---
 
 # LCARdS State-Based Color & Token Resolution Rules
@@ -8,111 +8,57 @@ These rules apply to all card and editor source files. Color resolution has mult
 
 ---
 
-## Three Color Expression Forms
+## One Grammar, One Resolver
 
-LCARdS supports three color expression forms in config:
+`src/core/themes/color-syntax.js` defines every accepted colour value (hex, named, all CSS colour functions, `var()`, `theme:` tokens, the computed functions `alpha darken lighten saturate desaturate mix base` with nesting, and `match-light`). Use its exports; never write a local list, regex or parser:
 
-| Form | Example |
-|------|---------|
-| Concrete | `#93e1ff`, `rgba(255,153,0,0.5)` |
-| CSS variable | `var(--lcars-blue, #93e1ff)` |
-| Computed token | `darken(var(--lcars-blue), 0.3)`, `alpha(#ff9900, 0.5)` |
+- `COLOR_VALUE_PATTERN`: the schema `pattern` for every colour field
+- `isColorValue` / `isCssColor` / `isComputedColor`: detection
+- `parseColor`: `{ r, g, b, a }` without a DOM (incl. `color-mix(in srgb, ...)`)
 
-`ThemeTokenResolver` implements 7 computed functions: `darken`, `lighten`, `alpha`, `saturate`, `desaturate`, `mix`, and `base`. `base()` is distinct from the others — see "Alert-immune baseline: `base()`" below.
-
----
-
-## Color Resolution Patterns
-
-### Pattern A — Lit/CSS/HTML contexts (browser handles `var()` natively)
-
-`resolver.resolve()` alone is sufficient:
+`src/core/themes/resolve-color.js` `resolveColor(value, { concrete, element, fallback })` is the only way to resolve a colour outside the card helpers:
 
 ```javascript
-const resolver = window.lcards?.core?.themeManager?.resolver;
-const color = resolver ? resolver.resolve(rawValue, rawValue) : rawValue;
+import { resolveColor } from '../../core/themes/resolve-color.js';
+
+resolveColor(value);                                     // CSS target: Lit, inline styles
+resolveColor(value, { concrete: true, element: this });  // Canvas2D, SVG attributes, anime.js, ApexCharts
 ```
 
-### Pattern B — Canvas2D / SVG attribute / anime.js targets (REQUIRED two-step)
+- **CSS target** keeps CSS variables live (computed functions become `color-mix(var(...))`). Alert modes rewrite palette variables without re-rendering cards, so this is what makes colours follow an alert.
+- **Concrete target** returns `#rrggbb` / `rgba()`, read at call time from `element` (section-scoped vars). SVG presentation attributes cannot hold `var()`; a `color-mix(var())` there renders black.
+- Apply it in effect constructors **and** `updateConfig()`; `_resolveConfigColors()` (BackgroundAnimationRenderer) already runs it over preset configs.
 
-`resolver.resolve()` outputs `var(--x)` strings that Canvas2D cannot use. Always apply `ColorUtils.resolveCssVariable()` as a second step:
+`mix(a, b, w)` equals `color-mix(in srgb, a w%, b)`. `base(x)` resolves to the green-alert baseline. `resolver.resolve()` strips `theme:` itself.
 
-```javascript
-import { ColorUtils } from '../../utils/color-utils.js';
-
-const _resolver = window.lcards?.core?.themeManager?.resolver;
-const _resolve = (c) => ColorUtils.resolveCssVariable(
-  (_resolver ? _resolver.resolve(c, c) : c),
-  c
-);
-
-// Scalars
-this.resolvedColor = _resolve(config.color);
-
-// Arrays
-this.resolvedColors = this.colors.map(_resolve);
-```
-
-Also apply the two-step in `updateConfig()` — live config updates bypass the config preprocessing pipeline:
+### ❌ Anti-patterns (guard tests fail on these)
 
 ```javascript
-updateConfig(cfg) {
-  const _res = window.lcards?.core?.themeManager?.resolver;
-  this._color = ColorUtils.resolveCssVariable(
-    _res ? _res.resolve(cfg.color, cfg.color) : cfg.color,
-    fallback
-  );
-}
-```
-
-### ❌ Anti-patterns
-
-```javascript
-// WRONG — misses computed darken/alpha expressions
-ColorUtils.resolveCssVariable(config.color)
-
-// WRONG — var() strings break Canvas2D fillStyle
-resolver.resolve(config.color)
-
-// WRONG — only iterates top-level keys; always recurse nested objects/arrays
-Object.keys(config).forEach(k => resolve(config[k]))
+ColorUtils.resolveCssVariable(resolver.resolve(c, c), c);   // use resolveColor(c, { concrete: true })
+/^(alpha|darken|lighten)\(/.test(value);                  // use isComputedColor(value)
+value.match(/rgba?\((\d+)/);                              // use parseColor(value)
+{ type: 'string', pattern: '^(#[0-9A-Fa-f]{6}|var\\(--)' } // use COLOR_VALUE_PATTERN
 ```
 
 ---
 
 ## State-Based Color Resolution
 
-Use the card's built-in wrapper methods — **never** call `resolveStateColor()` directly from subclasses.
+Use the card's built-in wrapper methods. They accept a plain colour or a state map alike (a plain `'alpha(#f90, .5)'` and the same value inside `{ default: ... }` resolve identically).
 
-### `this._resolveColorValue(rawConfig, fallback?)` ← full pipeline, prefer this
+| Method | Target | Use for |
+|--------|--------|---------|
+| `this._resolveColorValue(config, fallback)` | Concrete | SVG attributes, Canvas2D, anime.js |
+| `this._resolveEntityStateColor(config, fallback)` | CSS | Lit templates, inline styles (includes match-light) |
+| `this._resolveStateValue(options)` | CSS | A state driven by another entity, or non-colour state values |
 
-Runs the complete resolution pipeline: state-object unwrap → `theme:` token resolution → computed-function resolution (`darken`/`lighten`/`alpha`/`saturate`/`desaturate`/`mix`/`base`) → `match-light`/`match-brightness` substitution → CSS variable resolution. Safe for all contexts including SVG presentation attributes and Canvas2D.
+`_resolveColorValue` selects the state value unresolved, substitutes match-light, then makes one `resolveColor(..., { concrete: true, element: this })` call (no DOM probe for LCARdS's own forms).
 
-Use whenever a resolved color will be placed in an SVG attribute, Canvas2D `fillStyle`/`strokeStyle`, or any context that cannot use `var()` natively:
-
-```javascript
-// Resolves state-objects, theme: tokens, var(), and match-light in one call
-const fill = this._resolveColorValue(this.config.style.color, '#888888');
-```
-
-`lcards-slider` overrides this to add a Canvas2D-specific optimisation for the `--lcards-light-color-*` variable. Other cards inherit the base-class implementation.
-
-### `this._resolveEntityStateColor(colorConfig, fallback?)`
-
-Resolves a color config against the card's own entity state. Returns the state-selected value after `theme:` + computed-token resolution and template evaluation, but does **not** resolve remaining `var()` references or `match-light` tokens. Use in CSS / Lit template contexts where `var()` is handled natively and `match-light` is not needed:
+Call `resolveStateColor()` directly only when the entity is not the card's own (data-grid cells). Pass `resolveTokens: false` to get the selected value as configured.
 
 ```javascript
-const bgColor = this._resolveEntityStateColor(
-  this._buttonStyle?.card?.color?.background,
-  'var(--lcars-orange, #FF9900)'
-);
-```
-
-### `this._resolveStateValue(options)`
-
-Drop-in wrapper for `resolveStateColor()` that automatically injects `numericState` from `config.ranges_attribute`. Use when you need to specify a different `actualState` or `classifiedState` than the card's own entity (e.g. when a colour is driven by a secondary entity). Result does not include `match-light` substitution or CSS var resolution — pass through `_resolveColorValue()` afterward if needed for SVG/Canvas2D:
-
-```javascript
+const fill = this._resolveColorValue(this.config.style.color, '#888888');      // SVG attribute
+const bg = this._resolveEntityStateColor(this._buttonStyle?.card?.color?.background, 'var(--lcars-orange, #FF9900)'); // CSS
 const color = this._resolveStateValue({
   actualState: this._entity?.state,
   classifiedState: this._classifyEntityState(),

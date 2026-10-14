@@ -12,6 +12,8 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { ColorUtils } from './ColorUtils.js';
+import { isCssColor } from './color-syntax.js';
 
 /**
  * Alert mode color palettes
@@ -258,6 +260,24 @@ export function getBaselineColors() {
 }
 
 /**
+ * A theme variable's value as a fixed baseline colour, or null when it is not
+ * a colour. var() references are materialised so the snapshot cannot follow
+ * a later (alert-mode) change; named colours and color-mix(in oklch, ...)
+ * values, which ha-lcars uses, count as colours.
+ *
+ * @param {string} value - Raw custom-property value
+ * @param {Element} element - Element the value was read from
+ * @returns {string|null}
+ */
+function baselineColor(value, element) {
+  if (!value) return null;
+  const MISSING = '\u0000';
+  const concrete = value.includes('var(') ? ColorUtils.resolveCssVariable(value, MISSING, element) : value;
+  if (concrete.includes(MISSING) || concrete.includes('var(')) return null;
+  return isCssColor(concrete) ? concrete : null;
+}
+
+/**
  * Capture and store original --lcars-* color values from current theme
  * Should be called after theme is loaded to capture baseline colors
  *
@@ -278,8 +298,9 @@ export function captureOriginalColors(root = null) {
       const value = computedStyle.getPropertyValue(varName).trim();
 
       // Only store color values (skip dimensions, etc.)
-      if (value && value.match(/^#|^rgb|^hsl/i)) {
-        colors[varName] = value;
+      const baseline = baselineColor(value, element);
+      if (baseline) {
+        colors[varName] = baseline;
         colorCount++;
       }
     }
@@ -294,8 +315,9 @@ export function captureOriginalColors(root = null) {
   ];
   for (const varName of stateColors) {
     const value = computedStyle.getPropertyValue(varName).trim();
-    if (value && value.match(/^#|^rgb|^hsl/i)) {
-      colors[varName] = value;
+    const baseline = baselineColor(value, element);
+    if (baseline) {
+      colors[varName] = baseline;
       colorCount++;
     }
   }
@@ -321,11 +343,15 @@ export function captureOriginalColors(root = null) {
  * @param {string} mode - Alert mode ('green_alert', 'red_alert', etc.)
  * @param {Object} hass - Home Assistant instance (required for theme reload)
  * @param {Element} [rootElement] - Target element (default: document.documentElement)
+ * @param {Object} [opts]
+ * @param {string} [opts.transitionStyle='off'] - Transition effect
+ * @param {Function|null} [opts.onApplied] - Called (and awaited) as soon as the palette
+ *   variables are written, mid-transition; ThemeManager notifies cards from it
  * @returns {Promise<void>}
  */
 export async function setAlertMode(mode, hass, rootElement = null, opts = {}) {
   const root = rootElement || document.documentElement;
-  const { transitionStyle = 'off' } = opts;
+  const { transitionStyle = 'off', onApplied = null } = opts;
 
   // Validate mode
   if (!isKnownAlertMode(mode)) {
@@ -369,6 +395,9 @@ export async function setAlertMode(mode, hass, rootElement = null, opts = {}) {
       // Transform LCARdS fallback variables (--lcards-*) from green_alert baseline
       injectTransformedPalette(mode, root);
     }
+    // Cards repaint now, while the transition still hides the swap (colours
+    // resolved to concrete values cannot follow a CSS variable change alone).
+    await onApplied?.();
     // Wait one frame to ensure styles are applied before transition reveals them
     await new Promise(resolve => requestAnimationFrame(resolve));
   };

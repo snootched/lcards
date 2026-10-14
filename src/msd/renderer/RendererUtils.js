@@ -1,5 +1,4 @@
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { ColorUtils } from '../../core/themes/ColorUtils.js';
 
 // Module-scoped text measurement state (private implementation detail)
 let _textMeasureCanvas = null;
@@ -1240,94 +1239,6 @@ export class RendererUtils {
   }
 
   /**
-   * Parse CSS color values and convert to various formats
-   * @param {string} color - CSS color value
-   * @returns {object} Color information
-   */
-  static parseColor(color) {
-    // Create a temporary element to leverage browser's color parsing
-    const tempElement = document.createElement('div');
-    tempElement.style.color = color;
-    document.body.appendChild(tempElement);
-
-    const computedColor = getComputedStyle(tempElement).color;
-    document.body.removeChild(tempElement);
-
-    // Parse RGB values
-    const rgbMatch = computedColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-    if (rgbMatch) {
-      const r = parseInt(rgbMatch[1]);
-      const g = parseInt(rgbMatch[2]);
-      const b = parseInt(rgbMatch[3]);
-
-      return {
-        rgb: [r, g, b],
-        hex: this.rgbToHex(r, g, b),
-        hsl: this.rgbToHsl(r, g, b),
-        original: color,
-        computed: computedColor
-      };
-    }
-
-    return {
-      original: color,
-      computed: computedColor
-    };
-  }
-
-  /**
-   * Convert RGB to HEX
-   * @private
-   */
-  static rgbToHex(r, g, b) {
-    return ColorUtils.rgbToHex(r, g, b);
-  }
-
-  /**
-   * Convert RGB to HSL
-   * @private
-   */
-  static rgbToHsl(r, g, b) {
-    const [h, s, l] = ColorUtils.rgbToHsl(r, g, b);
-    return [Math.round(h), Math.round(s), Math.round(l)];
-  }
-
-  /**
-   * Calculate optimal text contrast color
-   * @param {string} backgroundColor - Background color
-   * @returns {string} Optimal text color (black or white)
-   */
-  static getContrastColor(backgroundColor) {
-    const color = this.parseColor(backgroundColor);
-    if (!color.rgb) return '#ffffff';
-
-    const [r, g, b] = color.rgb;
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-    return luminance > 0.5 ? '#000000' : '#ffffff';
-  }
-
-  /**
-   * Interpolate between two colors
-   * @param {string} color1 - Start color
-   * @param {string} color2 - End color
-   * @param {number} factor - Interpolation factor (0-1)
-   * @returns {string} Interpolated color
-   */
-  static interpolateColor(color1, color2, factor) {
-    const c1 = this.parseColor(color1);
-    const c2 = this.parseColor(color2);
-
-    if (!c1.rgb || !c2.rgb) return color1;
-
-    const r = Math.round(c1.rgb[0] + (c2.rgb[0] - c1.rgb[0]) * factor);
-    const g = Math.round(c1.rgb[1] + (c2.rgb[1] - c1.rgb[1]) * factor);
-    const b = Math.round(c1.rgb[2] + (c2.rgb[2] - c1.rgb[2]) * factor);
-
-    return `rgb(${r}, ${g}, ${b})`;
-  }
-
-  /**
    * Create animation-ready attributes for future anime.js integration
    * @param {object} animationConfig - Animation configuration
    * @returns {array} Array of attribute strings
@@ -1352,78 +1263,6 @@ export class RendererUtils {
     // animation_ref removed - animations now defined directly on overlays
 
     return attributes;
-  }
-
-  /**
-   * Validate and sanitize style values
-   * @param {object} styles - Style object to validate
-   * @returns {object} Sanitized styles
-   */
-  static sanitizeStyles(styles) {
-    const sanitized = {};
-
-    // Define allowed properties and their validation functions
-    const validators = {
-      color: (value) => this.isValidColor(value),
-      opacity: (value) => this.isValidOpacity(value),
-      width: (value) => this.isValidNumber(value),
-      height: (value) => this.isValidNumber(value),
-      stroke: (value) => this.isValidColor(value),
-      fill: (value) => this.isValidColor(value) || value === 'none',
-      fontSize: (value) => this.isValidNumber(value),
-      fontFamily: (value) => this.isValidString(value)
-    };
-
-    Object.keys(styles).forEach(key => {
-      const validator = validators[key] || validators[this.camelToKebab(key)];
-      if (validator && validator(styles[key])) {
-        sanitized[key] = styles[key];
-      }
-    });
-
-    return sanitized;
-  }
-
-  /**
-   * Check if value is a valid color
-   * @private
-   */
-  static isValidColor(value) {
-    if (typeof value !== 'string') return false;
-    return /^(#[0-9a-f]{3,8}|rgb\(|rgba\(|hsl\(|hsla\(|var\(--|\w+)/.test(value.toLowerCase());
-  }
-
-  /**
-   * Check if value is a valid opacity
-   * @private
-   */
-  static isValidOpacity(value) {
-    const num = Number(value);
-    return !isNaN(num) && num >= 0 && num <= 1;
-  }
-
-  /**
-   * Check if value is a valid number
-   * @private
-   */
-  static isValidNumber(value) {
-    return !isNaN(Number(value)) && isFinite(Number(value));
-  }
-
-  /**
-   * Check if value is a valid string
-   * @private
-   */
-  static isValidString(value) {
-    return typeof value === 'string' && value.length > 0;
-  }
-
-  /**
-   * Convert camelCase to kebab-case
-   * @private
-   */
-  static camelToKebab(str) {
-    return str.replace(/([A-Z])/g, '-$1').toLowerCase();
   }
 
   /**

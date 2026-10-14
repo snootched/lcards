@@ -20,6 +20,10 @@ import { DataSourceValidator } from './DataSourceValidator.js';
 import { ErrorFormatter } from './ErrorFormatter.js';
 import { isTemplateString } from '../../utils/template-string.js';
 
+/** Config keys whose value is an entity ID, or a list of them. */
+const ENTITY_KEYS = new Set(['entity', 'entity_id', 'entities']);
+const ENTITY_ID_RE = /^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z0-9_]+$/;
+
 /**
  * Legacy CoreSchemaRegistry for backward compatibility
  * Holds common card-config validation schemas
@@ -799,23 +803,25 @@ export class CoreValidationService {
       return;
     }
 
-    if (typeof obj === 'string') {
-      // Check if it looks like an entity ID
-      if (/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z0-9_]+$/.test(obj)) {
-        this._validateEntity(obj, path, result);
-      }
-    } else if (obj && typeof obj === 'object') {
-      for (const [key, value] of Object.entries(obj)) {
-        const fieldPath = path ? `${path}.${key}` : key;
+    // Only known entity fields are checked. Any other string that merely looks
+    // like `domain.object` (a series name such as `statistics.min`, a buffer
+    // key, a dotted label) is not an entity reference.
+    if (!obj || typeof obj !== 'object') return;
 
-        // Special handling for known entity fields
-        if (key === 'entity' || key === 'entity_id') {
-          if (typeof value === 'string') {
-            this._validateEntity(value, fieldPath, result);
+    for (const [key, value] of Object.entries(obj)) {
+      const fieldPath = path ? `${path}.${key}` : key;
+
+      if (ENTITY_KEYS.has(key) && (typeof value === 'string' || Array.isArray(value))) {
+        const ids = typeof value === 'string' ? [[value, fieldPath]] : value.map((v, i) => [v, `${fieldPath}.${i}`]);
+        for (const [id, idPath] of ids) {
+          if (typeof id === 'string' && ENTITY_ID_RE.test(id)) {
+            this._validateEntity(id, idPath, result);
+          } else if (id && typeof id === 'object') {
+            this._findEntityReferences(id, idPath, result);
           }
-        } else {
-          this._findEntityReferences(value, fieldPath, result);
         }
+      } else {
+        this._findEntityReferences(value, fieldPath, result);
       }
     }
   }

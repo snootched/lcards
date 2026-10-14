@@ -29,6 +29,8 @@
  * @module cards/schemas/filter-params-schemas
  */
 
+import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
+
 // ============================================================================
 // CSS FILTERS — simple string/number `value`
 // ============================================================================
@@ -230,7 +232,7 @@ export const tintParamsSchema = {
   properties: {
     color: {
       type: 'string', default: 'rgba(0,0,0,0.4)',
-      pattern: '^(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}|transparent|theme:|rgb\\(|rgba\\(|hsl\\(|var\\(--)',
+      pattern: COLOR_VALUE_PATTERN,
       description: 'Tint color: the alpha channel controls how much content shows through.',
       'x-ui-hints': { widget: 'lcards-color-picker', label: 'Tint Color' }
     }

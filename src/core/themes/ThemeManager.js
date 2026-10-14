@@ -582,33 +582,38 @@ export class ThemeManager extends BaseService {
       loadAlertTransformsFromHelpers(window.lcards?.core?.helperManager);
     }
 
-    // Apply alert mode — opts.transitionStyle selects the visual transition effect
-    await injectAlertMode(mode, hass, undefined, opts);
+    // Everything that depends on the new palette happens as soon as it is
+    // written (mid-transition), not after the transition finishes: otherwise
+    // the reveal shows cards still painted in the old palette.
+    let applied = false;
+    const onApplied = () => {
+      applied = true;
+      this.currentAlertMode = mode;
 
-    // Update state
-    this.currentAlertMode = mode;
+      // Clear token cache (colors have changed)
+      if (this.resolver) {
+        this.resolver.clearCache();
+      }
 
-    // Clear token cache (colors have changed)
-    if (this.resolver) {
-      this.resolver.clearCache();
-    }
+      // Invalidate LCARdSColorPicker CSS variable cache so freshly-opened
+      // picker instances show the transformed swatch colours.
+      try {
+        const LCARdSColorPicker = /** @type {any} */ (customElements.get('lcards-color-picker'));
+        if (LCARdSColorPicker?.invalidateCache) LCARdSColorPicker.invalidateCache();
+      } catch (_) { /* safe to ignore */ }
 
-    // Invalidate LCARdSColorPicker CSS variable cache so freshly-opened
-    // picker instances show the transformed swatch colours.
-    try {
-      const LCARdSColorPicker = /** @type {any} */ (customElements.get('lcards-color-picker'));
-      if (LCARdSColorPicker?.invalidateCache) LCARdSColorPicker.invalidateCache();
-    } catch (_) { /* safe to ignore */ }
-
-    // Notify subscribers — everything is ready: CSS vars written, cache cleared,
-    // currentAlertMode updated.  Safe for components to re-render immediately.
-    if (this._alertModeSubscribers.size > 0) {
+      // Notify subscribers — CSS vars written, cache cleared, currentAlertMode
+      // updated. Safe for components to re-render immediately.
       this._alertModeSubscribers.forEach(cb => {
         try { cb(mode); } catch (e) {
           lcardsLog.warn('[ThemeManager] Alert mode subscriber threw:', e);
         }
       });
-    }
+    };
+
+    // Apply alert mode — opts.transitionStyle selects the visual transition effect
+    await injectAlertMode(mode, hass, undefined, { ...opts, onApplied });
+    if (!applied) onApplied();
 
     lcardsLog.info(`[ThemeManager] ✅ Alert mode: ${mode}`);
   }
@@ -616,10 +621,10 @@ export class ThemeManager extends BaseService {
   /**
    * Subscribe to alert mode changes.
    *
-   * The callback is fired AFTER CSS variables have been written, the token
-   * resolver cache has been cleared, and currentAlertMode has been updated.
-   * This makes it safe to call requestUpdate() directly from the callback
-   * without any additional deferral.
+   * The callback is fired as soon as the CSS variables have been written
+   * (mid-transition, while the swap is still hidden), after the token
+   * resolver cache has been cleared and currentAlertMode updated. Safe to
+   * call requestUpdate() directly from the callback.
    *
    * @param {Function} callback - Called with (newMode: string)
    * @returns {Function} Unsubscribe function

@@ -126,7 +126,7 @@ window.lcards.alert.off();    // clear
 
 MSD alert animation presets live in `src/msd/presets/alert-mode/`. Cards that need custom alert behavior should register an animation with the `alert_red` / `alert_yellow` trigger (if defined) rather than listening for the raw event.
 
-This is distinct from repainting **static resolved colors** that reference an alert-mode CSS var (e.g. a state color map using `var(--lcars-alert-red)`) — those aren't animations, so they don't go through AnimationManager's distribution. For that case, subscribe directly via `themeManager.subscribeToAlertMode(cb)` (see [Theme System](../../doc/architecture/subsystems/theme-system.md#alert-mode-integration); `LCARdSButton._subscribeToAlertMode()` is a reference implementation) — this is not a "duplicate alert listener" in the sense the anti-pattern below warns against, since it doesn't re-implement animation distribution.
+This is distinct from repainting **static resolved colors** that reference an alert-mode CSS var (e.g. a state color map using `var(--lcars-alert-red)`) — those aren't animations, so they don't go through AnimationManager's distribution. For that case, cards override `_onAlertModeChanged(mode)` (LCARdSCard subscribes via `themeManager.subscribeToAlertMode()`; see [Theme System](../../doc/architecture/subsystems/theme-system.md#alert-mode-integration)); non-card code subscribes directly — this is not a "duplicate alert listener" in the sense the anti-pattern below warns against, since it doesn't re-implement animation distribution.
 
 ---
 

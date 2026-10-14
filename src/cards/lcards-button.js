@@ -2219,53 +2219,22 @@ export class LCARdSButton extends LCARdSCard {
             });
         }
 
-        // Subscribe to alert mode changes so colors resolved from live CSS vars
-        // (e.g. var(--lcars-alert-red), which the alert-mode "wash" rewrites)
-        // repaint once the new values are actually committed — see
-        // _handleAlertModeChange for why this can't rely on the entity-state
-        // hass update alone.
-        this._subscribeToAlertMode();
     }
 
     /**
-     * Subscribe to alert mode changes via ThemeManager.
+     * Alert mode changed the palette (LCARdSCard subscribes; called as soon as
+     * the CSS variables are written, mid-transition). Colours resolved during
+     * render (SVG attributes, shape texture) only need a re-render, cheaper than
+     * the default config re-process; a background animation is rebuilt.
      *
-     * Some color configs (e.g. explicit `var(--lcars-alert-red)` state maps)
-     * resolve via a live getComputedStyle() read of a CSS custom property that
-     * the alert-mode "wash" (paletteInjector.transformAndApplyAlertMode())
-     * rewrites asynchronously, gated behind a requestAnimationFrame. The
-     * entity-state hass update that drives this card's own range/preset
-     * switch fires synchronously and renders on the next microtask — faster
-     * than that rAF-gated write — so a render triggered only by the hass
-     * update can capture the PREVIOUS mode's CSS var value, one mode behind.
-     *
-     * ThemeManager fires this subscription AFTER the CSS variables are
-     * confirmed written, so requestUpdate() here is guaranteed to re-resolve
-     * against the settled values. Mirrors LCARdSSlider._subscribeToAlertMode().
-     * @private
-     */
-    _subscribeToAlertMode() {
-        this._alertModeUnsubscribe?.();
-        this._alertModeUnsubscribe = null;
-
-        const themeManager = window.lcards?.core?.themeManager;
-        if (themeManager?.subscribeToAlertMode) {
-            this._alertModeUnsubscribe = themeManager.subscribeToAlertMode(
-                this._handleAlertModeChange.bind(this)
-            );
-            lcardsLog.debug('[LCARdSButton] Subscribed to ThemeManager alert mode changes');
-        } else {
-            lcardsLog.warn('[LCARdSButton] ThemeManager.subscribeToAlertMode not available — alert mode subscription skipped');
-        }
-    }
-
-    /**
-     * Called when alert mode changes (red/yellow/blue/green/gray).
+     * Not left to the entity-state hass update: that renders before the
+     * palette write, which made colours lag one mode behind.
      * @param {string} newMode
-     * @private
+     * @protected
      */
-    _handleAlertModeChange(newMode) {
+    _onAlertModeChanged(newMode) {
         lcardsLog.debug(`[LCARdSButton] Alert mode changed to ${newMode} — requesting update`);
+        this._refreshBackgroundAnimationColors();
         this.requestUpdate();
     }
 
@@ -4258,18 +4227,6 @@ export class LCARdSButton extends LCARdSCard {
             resolvedConfig = resolveThemeTokensRecursive(rawConfig, themeManager);
         }
 
-        // Resolve any remaining CSS variables in color fields so presets always receive a
-        // concrete color string — Canvas2D cannot resolve var() or color-mix() at paint time.
-        // Computed colour expressions (lighten/darken/alpha/etc.) are already resolved above
-        // by resolveThemeTokensRecursive, which now handles var() args via ThemeTokenResolver.
-        // edge_glow_color must also be included: strokeStyle/shadowColor silently fail with var().
-        const colorKeys = ['color', 'color_a', 'color_b', 'edge_glow_color'];
-        for (const key of colorKeys) {
-            if (resolvedConfig[key] && typeof resolvedConfig[key] === 'string') {
-                resolvedConfig = { ...resolvedConfig, [key]: ColorUtils.resolveCssVariable(resolvedConfig[key], resolvedConfig[key]) };
-            }
-        }
-
         // Template evaluation pass: evaluate JS/token templates in all config string values.
         // Uses synchronous evaluation only (JS + tokens) since this runs on every render.
         // This enables e.g. color: "[[[return entity.state === 'on' ? 'green' : 'red']]]"
@@ -4318,14 +4275,16 @@ export class LCARdSButton extends LCARdSCard {
         }
         resolvedConfig = evaluatedConfig;
 
-        // Resolve state-based color on the 'color' field.
-        // Must go through the full pipeline (state-object → match-light → CSS var)
-        // because Canvas2D cannot handle var() or match-light strings.
-        if (resolvedConfig.color && typeof resolvedConfig.color === 'object') {
-            resolvedConfig = {
-                ...resolvedConfig,
-                color: this._resolveColorValue(resolvedConfig.color, 'rgba(255,255,255,0.2)')
-            };
+        // Colour fields last (after templates, so a template may return any colour
+        // form): state maps, match-light, tokens and computed functions, resolved to
+        // concrete values. Canvas2D fillStyle/strokeStyle/shadowColor ignore var().
+        const colorKeys = ['color', 'color_a', 'color_b', 'edge_glow_color'];
+        for (const key of colorKeys) {
+            const value = resolvedConfig[key];
+            if (value && (typeof value === 'string' || typeof value === 'object')) {
+                const fallback = key === 'color' ? 'rgba(255,255,255,0.2)' : (presetDef.defaults?.[key] ?? '');
+                resolvedConfig = { ...resolvedConfig, [key]: this._resolveColorValue(value, fallback) };
+            }
         }
 
         // Resolve state-based opacity
@@ -6831,9 +6790,6 @@ export class LCARdSButton extends LCARdSCard {
      * Cleanup on disconnect
      */
     disconnectedCallback() {
-        this._alertModeUnsubscribe?.();
-        this._alertModeUnsubscribe = null;
-
         // Clean up action listeners
         if (this._actionCleanup) {
             this._actionCleanup();

@@ -102,9 +102,20 @@ DEFAULT_ALERT_MODE_TRANSFORMS['red_alert'] = {
 }
 ```
 
-Cards using theme tokens in CSS see the change immediately; no re-render needed for CSS-driven styles.
+Colours that stay `var()` in CSS follow the change by themselves. Colours a card resolved to concrete values (SVG attributes, Canvas2D, anime.js, ApexCharts) need a repaint, so `ThemeManager` notifies `subscribeToAlertMode()` subscribers **as soon as the variables are written**, while an alert transition still hides the swap (not after the transition finishes, which showed the old palette during the reveal). The token cache is cleared and `getAlertMode()` updated first.
 
-To react to alert mode changes in a card:
+Every `LCARdSCard` subscribes (re-made on reconnect) and calls `_onAlertModeChanged(mode)`. The default re-processes the config and rebuilds a background animation; cards override it with a cheaper repaint:
+
+| Card | `_onAlertModeChanged` |
+|------|-----------------------|
+| Default (select menu, …) | Config re-process, background animation rebuilt |
+| Button, elbow | Re-render, background animation rebuilt |
+| Slider | Memoised track/gauge cleared, then as button |
+| Chart | Chart options rebuilt |
+| Data grid | Effects restarted (cascade colours), grid data kept |
+| MSD | Every line and shape colour re-resolved in place; background animation rebuilt |
+
+Outside cards:
 
 ```javascript
 const tm = window.lcards.core.themeManager;
