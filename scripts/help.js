@@ -33,11 +33,11 @@ const CATEGORIES = [
   {
     name: 'Build',
     scripts: {
-      build: { when: 'every build', desc: 'Full validated build: doc examples (strict), docs em-dash check, CSS vars, HA compat, version sync, Vite integration build (minified, .br/.gz), asset copy. Use for ALL dev/test builds.' },
+      build: { when: 'every build', desc: 'Full validated build: doc examples (strict), schema descriptions, docs em-dash check, CSS vars, HA compat, version sync, Vite integration build (minified, .br/.gz), asset copy. Use for ALL dev/test builds.' },
       'build:integration': { when: 'CI/release', desc: 'Vite build + asset copy only, skips validation/version-sync. CI/release only — never for dev.' },
       typecheck: { when: 'as needed', desc: 'TypeScript checks across the whole src/ tree (full sorted list).' },
       'typecheck:check': { when: 'CI/release', desc: 'Fails only on TypeScript errors not in scripts/tsc-baseline.txt (the CI gate). After fixing baseline errors: node scripts/check-typecheck-baseline.js --update.' },
-      'generate:llm-schema': { when: 'as needed', desc: 'Regenerates doc/public/lcards-schema.json (the LLM schema bundle) from src/cards/schemas/. Runs inside docs:build.' },
+      'generate:llm-schema': { when: 'as needed', desc: 'Regenerates doc/public/lcards-schema.json (the LLM schema bundle: cards, layout view, shell strategy) from scripts/lib/card-schemas.js. Runs inside docs:build.' },
     },
   },
   {
@@ -48,6 +48,8 @@ const CATEGORIES = [
       'validate:ha-compat': { when: 'every build', desc: 'Fails on HA elements/attributes/CSS hooks/imports known to be removed or dead in the minimum supported HA (mwc-*, ha-formfield, ha-icon-button icon=, --mdc-theme-primary, voluptuous, …). Runs inside `build`.' },
       'validate:doc-examples': { when: 'as needed', desc: 'Validates YAML code examples embedded in doc/ against the real config schema.' },
       'validate:doc-examples:strict': { when: 'every build', desc: 'Same, but fails on any violation. Runs inside `build`.' },
+      'validate:schema-descriptions': { when: 'every build', desc: 'Fails on schema properties added without a description (backlog: scripts/schema-description-baseline.txt). Runs inside `build`.' },
+      'validate:schema-descriptions:update': { when: 'as needed', desc: 'Rewrites the description baseline after you fill gaps (or after an intentional undescribed key).' },
     },
   },
   {

@@ -36,13 +36,17 @@ import {
  */
 export function getMsdSchema() {
   // Define the MSD configuration object schema
+  // No `required`: an MSD needs base_svg.source OR a view_box (a blank canvas;
+  // lcards-msd.js treats a view_box without base_svg as `source: none`).
+  // JSON Schema `anyOf` can't express that here without CoreValidationService
+  // dropping the property checks, so scripts/validate-doc-examples.js enforces it.
   const msdConfigSchema = {
     type: 'object',
-    required: ['base_svg'],
     properties: {
       base_svg: {
         type: 'object',
         title: 'Base SVG Configuration',
+        description: 'Background SVG the overlays draw on. Optional when view_box is set (a blank canvas).',
         required: ['source'],
         'x-ui': {
           control: 'object',
@@ -166,6 +170,11 @@ export function getMsdSchema() {
             id: {
               type: 'string',
               description: 'Unique identifier for this overlay'
+            },
+            tags: {
+              ...tagsSchema,
+              optional: true,
+              description: 'Tags for rule targeting: a rule selector `tag:<name>` matches every overlay carrying that tag.'
             },
             type: {
               type: 'string',

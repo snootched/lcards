@@ -10,8 +10,9 @@ schema up front fixes that.
 **1. The schema bundle (required)**: [`lcards-schema.json`](/lcards-schema.json).
 This is the exact JSON Schema LCARdS itself validates config against for
 `button`, `chart`, `elbow`, `slider`, `data-grid`, `select-menu`, `alert-overlay`,
-and `layout-card`, generated straight from the source, so it can't drift out of
-date. Attach the whole file as-is (some parts are shared across cards via
+and `layout-card` (under `cards`), the [Layout View](layout-view/) (under `views`)
+and the LCARS shell dashboard strategy (under `strategies`), generated straight
+from the source, so it can't drift out of date. Attach the whole file as-is (some parts are shared across cards via
 `$defs`/`$ref`, so it isn't meant to be split up).
 
 **2. [Common Properties](common) (recommended)**: covers things the raw schema's

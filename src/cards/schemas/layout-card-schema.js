@@ -7,8 +7,11 @@
  * required per card). Editing is handled by the Layout Studio, not schema-driven
  * forms, so there are no x-ui-hints here.
  *
+ * `layoutViewSchema` (below) is the matching schema for the
+ * `custom:lcards-layout-view` view type: same `layout` block and `cards[]`.
+ *
  * @see src/cards/lcards-layout-card.js
- * @see src/views/lcards-layout-view.js (same layout/view_layout schema)
+ * @see src/views/lcards-layout-view.js
  */
 
 const trackString = { type: 'string' };
@@ -76,6 +79,20 @@ const layoutSchema = {
     },
 };
 
+const childCardsSchema = {
+    type: 'array',
+    description: 'Cards placed in the grid. Each is any HA card config; `view_layout` places it in a grid area.',
+    items: {
+        type: 'object',
+        required: ['type'],
+        additionalProperties: true,
+        properties: {
+            type: { type: 'string' },
+            view_layout: viewLayoutSchema,
+        },
+    },
+};
+
 export const layoutCardSchema = {
     type: 'object',
     required: ['type'],
@@ -89,17 +106,27 @@ export const layoutCardSchema = {
         layout: layoutSchema,
         // The card itself may carry view_layout when placed inside a layout view.
         view_layout: viewLayoutSchema,
-        cards: {
-            type: 'array',
-            items: {
-                type: 'object',
-                required: ['type'],
-                additionalProperties: true,
-                properties: {
-                    type: { type: 'string' },
-                    view_layout: viewLayoutSchema,
-                },
-            },
+        cards: childCardsSchema,
+    },
+};
+
+/**
+ * `custom:lcards-layout-view`: one entry under a dashboard's `views:`. Standard
+ * HA view keys (title, path, icon, theme, background, visible, subview, ...)
+ * pass through, so the schema stays open.
+ */
+export const layoutViewSchema = {
+    type: 'object',
+    title: 'LCARdS Layout View',
+    description: 'Dashboard view type whose whole view is a CSS grid. Uses the lovelace-layout-card grid-layout schema: a `layout` block plus `cards` placed by `view_layout.grid-area`.',
+    required: ['type'],
+    additionalProperties: true,
+    properties: {
+        type: {
+            type: 'string',
+            const: 'custom:lcards-layout-view',
         },
+        layout: layoutSchema,
+        cards: childCardsSchema,
     },
 };

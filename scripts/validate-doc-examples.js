@@ -14,10 +14,10 @@
  *      'lcards-…', …)` calls — no parallel/invented schema.
  *   3. For blocks that parse successfully AND whose top-level (or nested)
  *      `type:` maps to a known card, the parsed config is validated against
- *      the card's real JSON Schema (from `src/cards/schemas/*.js`). Schema
- *      issues are reported separately from parse issues (see output sections).
- *      lcards-msd-card and lcards-config-panel are excluded (no Node-importable
- *      schema or schema excluded from v1).
+ *      the card's real JSON Schema (from `src/cards/schemas/*.js`, listed in
+ *      `scripts/lib/card-schemas.js`; MSD and the layout card/view included).
+ *      Schema issues are reported separately from parse issues (see output
+ *      sections). lcards-config-panel has no schema and is skipped.
  *   4. The validator recognises two opt-out meta hints on the opening fence:
  *
  *      • ` ```yaml no-validate `  — skip the block entirely (YAML parse AND
@@ -36,6 +36,7 @@
  *   node scripts/validate-doc-examples.js --verbose    # list every block
  *   node scripts/validate-doc-examples.js --quiet      # only print summary / errors
  *   node scripts/validate-doc-examples.js --strict     # parse errors are fatal too
+ *   node scripts/validate-doc-examples.js --docs=<dir> # scan another folder (tests)
  *
  * Default mode: any block whose `type:` references an unknown LCARdS custom
  * element fails the build (these are real bugs that would break the user's
@@ -52,17 +53,10 @@
  *   ❌  N error(s)            — unknown card types (always fatal)
  */
 
-// ── Schema factory imports (Node-compatible; no browser deps) ─────────────────
-// These are imported at the module level so Node resolves the ESM graph once.
-import { getButtonSchema }       from '../src/cards/schemas/button-schema.js';
-import { getSliderSchema }       from '../src/cards/schemas/slider-schema.js';
-import { getElbowSchema }        from '../src/cards/schemas/elbow-schema.js';
-import { getChartSchema }        from '../src/cards/schemas/chart-schema.js';
+// ── Schema imports (Node-compatible; no browser deps) ────────────────────────
+import { getSchemaEntries }      from './lib/card-schemas.js';
 import { migrateChartConfig }    from '../src/charts/chart-config-migration.js';
-import { dataGridSchema }        from '../src/cards/schemas/data-grid-schema.js';
 import { migrateDataGridConfig } from '../src/data-grid/data-grid-config-migration.js';
-import { getAlertOverlaySchema } from '../src/cards/schemas/lcards-alert-overlay-schema.js';
-import { getSelectMenuSchema }   from '../src/cards/schemas/select-menu-schema.js';
 import Ajv                       from 'ajv';
 import { isTemplateString }      from '../src/utils/template-string.js';
 
@@ -74,10 +68,12 @@ import yaml from 'js-yaml';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 const REPO_ROOT  = path.resolve(__dirname, '..');
-const DOC_ROOT   = path.join(REPO_ROOT, 'doc');
+const argv       = process.argv.slice(2);
+const docsArg    = argv.find(a => a.startsWith('--docs='));
+const DOC_ROOT   = docsArg ? path.resolve(docsArg.slice('--docs='.length)) : path.join(REPO_ROOT, 'doc');
 const SRC_ROOT   = path.join(REPO_ROOT, 'src');
 
-const args = new Set(process.argv.slice(2));
+const args = new Set(argv);
 const VERBOSE = args.has('--verbose');
 const QUIET   = args.has('--quiet');
 const STRICT  = args.has('--strict');
@@ -162,15 +158,11 @@ function buildCardValidators() {
     schemaType: 'string',
     validate: (pattern, data) => isTemplateString(data) || new RegExp(pattern, 'u').test(data),
   });
-  const rawSchemas = [
-    ['lcards-button',        getButtonSchema({})],
-    ['lcards-slider',        getSliderSchema({})],
-    ['lcards-elbow',         getElbowSchema({})],
-    ['lcards-chart',         getChartSchema({})],
-    ['lcards-data-grid',     dataGridSchema],
-    ['lcards-alert-overlay', getAlertOverlaySchema()],
-    ['lcards-select-menu',   getSelectMenuSchema({})],
-  ];
+  // Cards and views appear in YAML as `type: custom:lcards-*`; the strategy
+  // lives in a dashboard `strategy:` block, which doc examples don't contain.
+  const rawSchemas = getSchemaEntries()
+    .filter(e => e.kind !== 'strategy')
+    .map(e => [e.tag, e.schema]);
   const validators = new Map();
   for (const [tag, schema] of rawSchemas) {
     rawCardSchemas.set(tag, schema);
@@ -418,7 +410,7 @@ function main() {
         }
 
         const validate = cardValidators.get(tag);
-        if (!validate) continue; // msd-card, config-panel, or unknown — skip
+        if (!validate) continue; // config-panel or unknown: skip
         totalSchemaChecked++;
 
         // Chart and data grid examples must use the current format: legacy keys

@@ -130,7 +130,7 @@ All in `.github/workflows/`.
 **Validate jobs** (all except the first two are skipped on the nightly schedule):
 - Hassfest and HACS validation (the routine HACS check; these run nightly).
 - CSS variable lint.
-- Docs examples (strict) and the em-dash check: seconds. The docs site build and its tests are in the Docs workflow.
+- Docs examples (strict), the schema description check and the em-dash check: seconds. The docs site build and its tests are in the Docs workflow.
 - **Tests and Typecheck:** `npm test`, `typecheck:check`, `build:integration`, `test:browser`.
 - Version format (`YYYY.MM.SEQ[-suffix]`).
 - Required files present.
@@ -148,7 +148,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 
 | Script | When | What |
 |---|---|---|
-| `build` | every build | Doc examples (strict), docs em dashes, CSS vars, HA compat, version sync, Vite build (minified, `.br`/`.gz`), asset copy. |
+| `build` | every build | Doc examples (strict), schema descriptions, docs em dashes, CSS vars, HA compat, version sync, Vite build (minified, `.br`/`.gz`), asset copy. |
 | `build:integration` | CI/release | Vite build and asset copy only. Never for dev. |
 | `set-version` | inside build | `package.json` version into `manifest.json` (HA CalVer, no suffix) and `const.py`. |
 | `bump-version` | releasing | Strip `-dev.N` (promote), or advance SEQ (reset on a new month). |
@@ -160,7 +160,8 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 
 | Script | What |
 |---|---|
-| `validate:doc-examples` / `:strict` | YAML examples in `doc/` against the card schemas; strict also fails on unknown keys. |
+| `validate:doc-examples` / `:strict` | YAML examples in `doc/` against the card, view and MSD schemas (the list is `scripts/lib/card-schemas.js`); strict also fails on unknown keys. |
+| `validate:schema-descriptions` | Fails on schema properties added without a `description`; the known backlog is `scripts/schema-description-baseline.txt`. After filling some: `npm run validate:schema-descriptions:update`. |
 | `validate:css-vars` / `:verbose` | Every `--lcars-*`, `--lcards-*` and `theme:` reference is registered. |
 | `validate:ha-compat` | No HA elements, attributes, CSS hooks or imports that are dead in the minimum HA. |
 
@@ -185,7 +186,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | `docs:bundle` | Build and copy the card bundle into `doc/public/lcards/` (inside `docs:build`). |
 | `docs:check-anchors` | Links to missing `#anchors` (inside `docs:build`). |
 | `docs:routing-diagrams` | Regenerate the MSD routing diagrams. |
-| `generate:llm-schema` | Regenerate `doc/public/lcards-schema.json` from the card schemas (inside `docs:build`). |
+| `generate:llm-schema` | Regenerate `doc/public/lcards-schema.json` (cards, the layout view, the shell strategy; MSD not yet) from `scripts/lib/card-schemas.js` (inside `docs:build`). |
 
 **Releases:** see [Release commands](#release-commands).
 

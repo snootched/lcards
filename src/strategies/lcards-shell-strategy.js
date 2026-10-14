@@ -15,43 +15,15 @@
 
 import { LitElement, html } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { shellStrategyEditorSchema } from '../cards/schemas/shell-strategy-schema.js';
 
 // ============================================================================
 // STRATEGY EDITOR
 // ============================================================================
 
-const _EDITOR_SCHEMA = [
-    // ── Room controller ──────────────────────────────────────────────────────
-    {
-        name: 'room_selector_entity',
-        label: 'Room Controller Entity',
-        description: 'Controls the room light controller. '
-            + 'input_select or select: its options become the room list (entity mode). '
-            + 'input_text: room list is built from your HA area registry automatically; '
-            + 'the selected area is stored in this entity (auto-areas mode). '
-            + 'Leave blank to show a placeholder.',
-        selector: { entity: { domain: ['input_select', 'select', 'input_text'] } },
-    },
-    // ── Shell controls ───────────────────────────────────────────────────────
-    {
-        name: 'page_selector_entity',
-        label: 'Page Selector Entity',
-        description: 'input_select entity used for sidebar page/section navigation',
-        selector: { entity: { domain: ['input_select', 'select'] } },
-    },
-    {
-        name: 'top_bar_entity',
-        label: 'Top Bar Toggle',
-        description: 'input_boolean that shows/hides the top header bar (also bound to the first header-left button)',
-        selector: { entity: { domain: ['input_boolean'] } },
-    },
-    {
-        name: 'right_sidebar_entity',
-        label: 'Right Sidebar Toggle',
-        description: 'input_boolean that shows/hides the right sidebar (also bound to the second header-left button)',
-        selector: { entity: { domain: ['input_boolean'] } },
-    },
-];
+// The configure-dialog form comes from the strategy's JSON Schema, so the form
+// and the published schema share one list of fields.
+const _EDITOR_SCHEMA = shellStrategyEditorSchema();
 
 export class LCARdSShellStrategyEditor extends LitElement {
     static properties = {

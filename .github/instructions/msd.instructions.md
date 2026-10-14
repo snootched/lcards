@@ -45,6 +45,10 @@ Each stage produces an immutable model that the next stage consumes. Don't mutat
 
 ---
 
+## Schema
+
+`src/cards/schemas/msd-schema.js` is checked like every other card schema: doc examples are validated against it in strict mode (unknown keys fail), every new property needs a `description` (`npm run validate:schema-descriptions`), and it is listed in `scripts/lib/card-schemas.js`. Every runtime key must be declared there, or doc examples using it fail (overlay `tags`, read by the rules engine's `tag:` selector, was missing until 2026-10). `msd` has no `required`: a `view_box` alone is a blank canvas, and `validate-doc-examples.js` enforces "base_svg.source or view_box" instead, because a top-level `anyOf` would make CoreValidationService skip the property checks. The schema's `validators: [...]` functions are not run by CoreValidationService; don't rely on them.
+
 ## Overlay Architecture
 
 There are exactly **three overlay types**: `line`, `control`, and `shape`. Anything else (buttons, charts, labels) is a regular LCARdS card embedded *inside* a `control` overlay's `card:` config — MSD does not define its own widget types for those.

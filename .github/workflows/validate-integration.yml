@@ -70,6 +70,9 @@ jobs:
       - name: Run documentation YAML validator
         run: npm run validate:doc-examples:strict
 
+      - name: Schema description check
+        run: npm run validate:schema-descriptions
+
       - name: Docs em-dash check
         run: node scripts/check-doc-em-dashes.js
 
