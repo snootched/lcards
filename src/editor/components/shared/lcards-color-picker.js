@@ -537,12 +537,12 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             .preview-value {
-                font-size: 13px;
+                font-size: var(--ha-font-size-m);
                 font-family: monospace;
             }
 
             .preview-computed {
-                font-size: 13px;
+                font-size: var(--ha-font-size-m);
                 opacity: 0.7;
             }
 
@@ -595,7 +595,7 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             .builder-row label {
-                font-size: 13px;
+                font-size: var(--ha-font-size-m);
                 font-weight: 500;
                 color: var(--primary-text-color);
             }
@@ -609,7 +609,7 @@ export class LCARdSColorPicker extends LitElement {
 
             .builder-result code {
                 font-family: 'Courier New', monospace;
-                font-size: 13px;
+                font-size: var(--ha-font-size-m);
                 color: var(--primary-text-color);
                 word-break: break-all;
             }
@@ -652,7 +652,7 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             .preview-swatch-label {
-                font-size: 13px;
+                font-size: var(--ha-font-size-m);
                 font-weight: 500;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
@@ -660,7 +660,7 @@ export class LCARdSColorPicker extends LitElement {
             }
 
             .preview-swatch-value {
-                font-size: 13px;
+                font-size: var(--ha-font-size-m);
                 font-family: monospace;
                 opacity: 0.7;
             }
@@ -1532,7 +1532,7 @@ export class LCARdSColorPicker extends LitElement {
                     </ha-selector>
                 </div>
                 ` : html`
-                <div class="builder-row" style="font-size:12px; color: var(--secondary-text-color); padding: 4px 0;">
+                <div class="builder-row" style="font-size: var(--ha-font-size-s); color: var(--secondary-text-color); padding: 4px 0;">
                     Returns the colour’s pre-alert, green-alert baseline value, immune to alert-mode hue shifts.
                 </div>
                 `}

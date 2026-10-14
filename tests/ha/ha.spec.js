@@ -8,6 +8,8 @@ import { readFileSync } from 'node:fs';
 import { HAClient, HA_URL, TEST_DASHBOARD, readToken, ensureHelpers, ensureDashboard, setInputNumberMax } from './ha-client.mjs';
 
 const TOKEN = readToken();
+/** The fixed LCARdS device id the tests' browser uses (see openDashboard). */
+const TEST_DEVICE_ID = '1c4d5e57-0000-4000-8000-00000000c0de';
 const PKG_VERSION = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version;
 
 test.skip(!TOKEN, 'HA_TOKEN (or .ha-token) not set: skipping real-HA smoke tests');
@@ -30,12 +32,14 @@ async function openDashboard(page, path, dashboard = TEST_DASHBOARD) {
     page.on('console', (m) => {
         if (m.type() === 'error' && /lcards/i.test(`${m.text()} ${m.location()?.url ?? ''}`)) errors.push(m.text().slice(0, 500));
     });
-    await page.addInitScript(({ token, hassUrl }) => {
+    await page.addInitScript(({ token, hassUrl, deviceId }) => {
         localStorage.setItem('hassTokens', JSON.stringify({
             access_token: token, token_type: 'Bearer', expires_in: 1e9, hassUrl,
             clientId: `${hassUrl}/`, expires: Date.now() + 1e12, refresh_token: '',
         }));
-    }, { token: TOKEN, hassUrl: HA_URL });
+        // One device for every run: a fresh profile would register a new _device_* storage key each time.
+        localStorage.setItem('lcards_device_id', deviceId);
+    }, { token: TOKEN, hassUrl: HA_URL, deviceId: TEST_DEVICE_ID });
     await page.goto(`/${dashboard}/${path}`);
     // HA shell rendered with live hass, and the LCARdS core up.
     await page.waitForFunction(() => {
@@ -1235,6 +1239,86 @@ test('MSD studio: Documentation and Reset sit at the start of the footer', async
     expect(errors).toEqual([]);
 });
 
+test('Config panel: every tab\'s text uses the panel font (the theme\'s body font), not the page\'s Roboto', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    for (const [name, tag] of [
+        ['helpers', 'lcards-form-section'], ['connectivity', 'lcards-connectivity-tab'], ['sounds', 'lcards-sound-config-tab'],
+        ['users', 'lcards-users-devices-tab'], ['packs', 'lcards-pack-explorer-tab'], ['storage', 'lcards-storage-explorer-tab'],
+    ]) {
+        await page.goto(`/lcards-config?tab=${name}`);
+        const panel = page.locator('lcards-config-panel-impl');
+        await expect(panel.locator(tag).first()).toBeAttached({ timeout: 20_000 });
+        await settle(page);
+        const { host, off } = await panel.evaluate((el) => {
+            const first = (node) => getComputedStyle(node).fontFamily.split(',')[0].replace(/["']/g, '').trim();
+            const host = first(el);
+            const code = first(document.body.appendChild(Object.assign(document.createElement('code'), { style: 'font-family: var(--ha-font-family-code)' })));
+            // Text that sets its own font on purpose: the LCARS banner, font previews, code
+            const SKIP = '.banner-title, .banner-version, .preview, .font-sample, ha-code-editor, .mono, .entity-id, .helper-entity-id, .field-value';
+            const off = [];
+            const walk = (root) => {
+                for (const node of root.children) {
+                    if (node.matches(SKIP)) continue;
+                    const text = [...node.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent.trim()).join('').trim();
+                    const rect = node.getBoundingClientRect();
+                    if (text && rect.width && rect.height) {
+                        const f = first(node);
+                        if (f !== host && f !== code && f !== 'monospace') off.push(`${node.tagName.toLowerCase()}.${node.className}: ${text.slice(0, 30)} (${f})`);
+                    }
+                    if (node.shadowRoot) walk(node.shadowRoot);
+                    walk(node);
+                }
+            };
+            walk(el.shadowRoot);
+            return { host, off: off.slice(0, 10) };
+        });
+        expect(off, `${name}: text not in the panel font (${host})`).toEqual([]);
+    }
+    expect(errors).toEqual([]);
+});
+
+test('Config panel: Storage lists its keys on a fresh load; a key opens to its JSON; device keys stay collapsed', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await page.goto('/lcards-config?tab=storage');
+    const storage = page.locator('lcards-config-panel-impl lcards-storage-explorer-tab');
+    const settings = storage.locator('lcards-form-section').first();
+    await expect(settings).toHaveJSProperty('header', 'Settings', { timeout: 20_000 });
+    await expect(storage.getByText('Integration not available')).toHaveCount(0);
+    const rows = settings.locator('ha-expansion-panel.key-panel');
+    await expect(rows.first()).toBeVisible();
+    // Opening a key shows its value (expanded-changed carries detail.expanded)
+    await rows.first().click({ position: { x: 80, y: 20 } });
+    await expect(rows.first().locator('ha-code-editor')).toHaveCount(1);
+    // Group rows render only while open (there can be thousands of _device_* keys)
+    expect(await storage.evaluate(el => [...el.shadowRoot.querySelectorAll('lcards-form-section')]
+        .filter(s => s.header !== 'Settings' && !s.expanded)
+        .every(s => s.querySelectorAll('ha-expansion-panel').length === 0))).toBe(true);
+    expect(errors).toEqual([]);
+});
+
+test('Config panel: Pack Explorer previews render real cards (preset, component, texture)', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await page.goto('/lcards-config?tab=packs');
+    const explorer = page.locator('lcards-config-panel-impl lcards-pack-explorer-tab');
+    await expect(explorer.locator('.tree-node').first()).toBeAttached({ timeout: 20_000 });
+    for (const type of ['preset', 'component', 'component-preset', 'texture_preset']) {
+        const size = await explorer.evaluate(async (el, type) => {
+            const find = (ns) => { for (const n of ns) { if (n.type === type) return n; const f = n.children && find(n.children); if (f) return f; } };
+            el._handleNodeClick(find(el._treeData));
+            await el.updateComplete;
+            await new Promise(r => setTimeout(r, 800));
+            const card = el.shadowRoot.querySelector('.preset-preview-frame > *');
+            const r = card?.getBoundingClientRect();
+            return card ? { w: r.width, h: r.height, rendered: (card.shadowRoot?.innerHTML.length ?? 0) > 200 } : null;
+        }, type);
+        expect(size, `${type}: preview card`).not.toBeNull();
+        expect(size.w, `${type}: preview width`).toBeGreaterThan(50);
+        expect(size.h, `${type}: preview height`).toBeGreaterThan(20);
+        expect(size.rendered, `${type}: card rendered`).toBe(true);
+    }
+    expect(errors).toEqual([]);
+});
+
 test('Config panel: the selected tab sticks (click right after load, set from code, Welcome links)', async ({ page }) => {
     const errors = await openDashboard(page, 'cards');
     await page.goto('/lcards-config');
@@ -1270,4 +1354,13 @@ test('Layout studio: a new layout card shows the grid tools on a fresh page (ove
     await removeStudio(page, dialogTag);
     await removeEditor(page);
     expect(errors).toEqual([]);
+});
+
+test('storage/delete_many removes the given keys with one call and leaves the rest', async () => {
+    await client.call({ type: 'lcards/storage/set', data: { lcards_test_bulk_a: 1, lcards_test_bulk_b: 2, lcards_test_bulk_keep: 3 } });
+    const result = await client.call({ type: 'lcards/storage/delete_many', keys: ['lcards_test_bulk_a', 'lcards_test_bulk_b', 'lcards_test_bulk_missing'] });
+    expect(result).toEqual({ ok: true, removed: 2 });
+    const { value } = await client.call({ type: 'lcards/storage/get' });
+    expect(Object.keys(value).filter(k => k.startsWith('lcards_test_bulk_'))).toEqual(['lcards_test_bulk_keep']);
+    await client.call({ type: 'lcards/storage/delete', key: 'lcards_test_bulk_keep' });
 });

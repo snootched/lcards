@@ -23,7 +23,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import '../editor/components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../editor/components/pack-explorer/lcards-pack-explorer-tab.js';
-import '../editor/components/shared/lcards-collapsible-section.js';
+import '../editor/components/shared/lcards-form-section.js';
 import './components/lcards-sound-config-tab.js';
 import './components/lcards-storage-explorer-tab.js';
 import './components/lcards-about-tab.js';
@@ -31,6 +31,14 @@ import './components/lcards-users-devices-tab.js';
 import './components/lcards-layouts-tab.js';
 import './components/lcards-connectivity-tab.js';
 import { surfaceStyles } from '../editor/base/surface-styles.js';
+import { renderFilterChips } from '../editor/components/shared/filter-chips.js';
+
+/** Section icons for the Helpers tab's categories. */
+const CATEGORY_ICONS = {
+  alert_system: 'mdi:alert-octagon-outline',
+  ha_lcars_theme: 'mdi:palette-outline',
+  sound: 'mdi:volume-high',
+};
 
 export class LCARdSConfigPanel extends LitElement {
   /** Tab names for links (?tab=theme); the value is the tab index. */
@@ -105,6 +113,14 @@ export class LCARdSConfigPanel extends LitElement {
       height: 100vh;
       background: var(--primary-background-color);
       overflow: hidden;
+      /* HA's panel typography (haStyle): without it text inherits the page's
+         hardcoded Roboto while HA controls follow the theme font. */
+      font-family: var(--ha-font-family-body);
+      -webkit-font-smoothing: var(--ha-font-smoothing);
+      -moz-osx-font-smoothing: var(--ha-moz-osx-font-smoothing);
+      font-size: var(--ha-font-size-m);
+      font-weight: var(--ha-font-weight-normal);
+      line-height: var(--ha-line-height-normal);
     }
 
     .panel-container {
@@ -113,27 +129,6 @@ export class LCARdSConfigPanel extends LitElement {
       height: 100%;
       margin: 0 auto;
       background-color: var(--lcars-ui-primary, var(--card-background-color, #1b4f8a));
-    }
-
-    /* Helpers tab container */
-
-    /* Helpers tab layout (used only in Helpers tab) */
-    .dialog-content {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .dialog-header {
-      flex-shrink: 0;
-    }
-
-    .dialog-body {
-      flex: 1;
-      overflow: auto;
-      padding: 0;
     }
 
     .header {
@@ -201,105 +196,51 @@ export class LCARdSConfigPanel extends LitElement {
       margin-right: 8px;
     }
 
-    .tab {
-      background: transparent;
-      border: none;
-      border-bottom: 3px solid transparent;
-      color: var(--secondary-text-color);
-      font-size: 1em;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .tab:hover {
-      color: var(--primary-text-color);
-      background: var(--secondary-background-color);
-    }
-
-    .tab.active {
-      color: var(--primary-color);
-      border-bottom-color: var(--primary-color);
-    }
-
     .tab-content {
       flex: 1;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      padding: 8px;
+      padding: var(--ha-space-2);
       min-height: 0;
       background: var(--secondary-background-color);
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .card {
-      background: color-mix(in srgb, var(--secondary-background-color) 70%, transparent);
-      border-radius: var(--ha-card-border-radius, 12px);
-      padding: 20px;
-      margin-bottom: 16px;
-      box-shadow: var(--ha-box-shadow-m);
-      border: 1px solid var(--divider-color);
-    }
-
-    .card h2 {
-      margin: 0 0 16px 0;
-      font-size: 1.2em;
-      color: var(--primary-text-color);
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .card h2 ha-icon {
-      --mdc-icon-size: 20px;
-      color: var(--primary-color);
     }
 
     .helper-table {
       width: 100%;
       border-collapse: collapse;
-      background: var(--primary-background-color);
     }
 
     .helper-table th,
     .helper-table td {
-      padding: 8px;
+      padding: var(--ha-space-2);
       text-align: left;
-      border-bottom: 1px solid var(--divider-color);
+      border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
+      color: var(--primary-text-color);
     }
 
     .helper-table th {
-      font-weight: 600;
-      color: var(--primary-text-color);
-      background: var(--primary-background-color);
-      position: sticky;
-      top: 0;
-      z-index: 1;
+      font-weight: var(--ha-font-weight-bold, 600);
     }
 
-    .helper-table td {
-      color: var(--primary-text-color);
+    .helper-table tr:hover td {
+      background: color-mix(in srgb, var(--secondary-background-color) 50%, transparent);
     }
 
-    .helper-table tr:hover {
-      background: var(--secondary-background-color);
+    .col-icon { width: 40px; }
+    .col-status { width: 120px; }
+    .col-actions { width: 100px; }
+
+    .helper-icon {
+      color: var(--primary-color);
     }
 
     .helper-name {
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-weight: var(--ha-font-weight-medium, 500);
     }
 
     .helper-entity-id {
-      font-family: 'Courier New', monospace;
+      font-family: var(--ha-font-family-code);
       font-size: 0.9em;
       color: var(--secondary-text-color);
     }
@@ -307,164 +248,68 @@ export class LCARdSConfigPanel extends LitElement {
     .helper-description {
       color: var(--secondary-text-color);
       font-size: 0.9em;
-      margin-top: 4px;
+      margin-top: var(--ha-space-1);
     }
 
-    /* Rotating animation for loading icon */
-    @keyframes rotate {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    .rotating {
-      animation: rotate 2s linear infinite;
+    .manual-setup {
+      font-size: var(--ha-font-size-s);
+      color: var(--secondary-text-color);
+      font-style: italic;
     }
 
     .helper-value {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--ha-space-2);
     }
 
-    .action-button {
-      padding: 8px 16px;
-      background: var(--primary-color);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.9em;
-      font-weight: 500;
-      transition: all 0.2s;
+    /* Helpers tab: missing-helpers banner, search, category chips */
+    .studio-layout > .banner {
+      margin-bottom: var(--ha-space-3);
     }
 
-    .action-button:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
+    .banner-text {
+      flex: 1;
     }
 
-    .action-button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .action-button.secondary {
-      background: var(--secondary-color, #666);
-    }
-
-    .create-all-button {
+    .search-container {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 12px 24px;
-      font-size: 1em;
-      margin-bottom: 16px;
+      gap: var(--ha-space-3);
+      margin-bottom: var(--ha-space-3);
     }
 
-    /* Empty State */
+    .search-container ha-input-search {
+      flex: 1;
+    }
+
+    .category-filters {
+      margin-bottom: var(--ha-space-3);
+    }
+
+    .category-actions {
+      display: flex;
+      justify-content: flex-end;
+      padding-bottom: var(--ha-space-2);
+    }
+
     .empty-state {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 48px 24px;
+      gap: var(--ha-space-2);
+      padding: var(--ha-space-12) var(--ha-space-6);
       text-align: center;
       color: var(--secondary-text-color);
     }
 
     .empty-state ha-icon {
-      --mdc-icon-size: 64px;
-      margin-bottom: 16px;
+      --mdc-icon-size: 48px;
       opacity: 0.5;
     }
 
     .empty-state p {
       margin: 0;
-      font-size: 1.1em;
-    }
-
-    /* Search container */
-    .search-container {
-      padding: 12px 24px;
-      border-bottom: 1px solid var(--divider-color);
-      display: flex;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .search-wrapper {
-      flex: 1;
-      position: relative;
-      min-width: 400px;
-    }
-
-    .search-clear {
-      position: absolute;
-      right: 8px;
-      top: 50%;
-      transform: translateY(-50%);
-      --ha-icon-button-size: 32px;
-    }
-
-    .search-result-count {
-      color: var(--secondary-text-color);
-      font-size: 13px;
-      white-space: nowrap;
-      padding: 0 8px;
-    }
-
-    /* Category filter chips (matching theme browser style) */
-    .category-filters {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--divider-color);
-    }
-
-    .category-chip {
-      appearance: none;
-      border: 1px solid var(--divider-color);
-      background: var(--secondary-background-color);
-      color: var(--primary-text-color);
-      padding: 6px 12px;
-      border-radius: 16px;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .category-chip:hover {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-
-    .category-chip.selected {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-
-    .copy-button {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .spinner {
-      border: 3px solid rgba(255,255,255,0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      width: 16px;
-      height: 16px;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
     }
   `];
 
@@ -915,74 +760,58 @@ export class LCARdSConfigPanel extends LitElement {
 
     return html`
       <div class="studio-layout">
-        <div class="dialog-content">
-          <div class="dialog-header">
-            ${this._missingHelpers.length > 0 ? html`
-              <div class="card" style="margin: 12px;">
-                <h2>
-                  <ha-icon icon="mdi:alert-circle"></ha-icon>
-                  Missing Helpers (${this._missingHelpers.length})
-                </h2>
-                <p style="color: var(--secondary-text-color); margin-bottom: 12px;">
-                  Not all helpers currently exist in Home Assistant. Click below to create them all - or create individually using the buttons in the table.
-                </p>
-                <ha-button
-                  @click=${this._createAllHelpers}
-                  ?disabled=${this._createInProgress}>
-                  ${this._createInProgress ? html`<span class="spinner"></span>` : ''}
-                  <ha-icon slot="start" icon="mdi:plus-circle"></ha-icon>
-                  Create All Missing Helpers
-                </ha-button>
-              </div>
-            ` : ''}
+        ${this._missingHelpers.length > 0 ? html`
+          <div class="banner warning">
+            <ha-icon icon="mdi:alert-circle"></ha-icon>
+            <span class="banner-text">
+              ${this._missingHelpers.length} helper${this._missingHelpers.length > 1 ? 's are' : ' is'} missing in Home Assistant.
+              Create them all here, or one at a time from the tables below.
+            </span>
+            <ha-button
+              @click=${this._createAllHelpers}
+              ?disabled=${this._createInProgress}>
+              ${this._createInProgress
+                ? html`<ha-spinner slot="start" size="small"></ha-spinner>`
+                : html`<ha-icon slot="start" icon="mdi:plus-circle"></ha-icon>`}
+              Create All
+            </ha-button>
           </div>
+        ` : ''}
 
-          <div class="dialog-body">
-            <div class="search-container">
-              <div class="search-wrapper">
-                <ha-input
-                  style="width: 100%;"
-                  .value=${this._filterText}
-                  @input=${(e) => { this._filterText = e.target.value; this.requestUpdate(); }}
-                  placeholder="Search helpers... (Ctrl+F)"
-                  .label=${'Search'}>
-                  <ha-icon slot="leadingIcon" icon="mdi:magnify"></ha-icon>
-                </ha-input>
-                ${this._filterText ? html`
-                  <ha-icon-button
-                    class="search-clear"
-                    @click=${this._clearSearch}
-                    .label=${'Clear search'}
-                    .path=${"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"}>
-                  </ha-icon-button>
-                ` : ''}
-              </div>
-              ${this._filterText ? html`
-                <div class="search-result-count">
-                  Showing ${filteredHelpers.length} of ${this._helpers.length}
-                </div>
-              ` : ''}
-            </div>
+        <div class="search-container">
+          <ha-input-search
+            appearance="outlined"
+            placeholder="Search helpers"
+            .value=${this._filterText}
+            @input=${(e) => { this._filterText = e.target.value ?? ''; }}
+            @wa-clear=${() => { this._filterText = ''; }}>
+          </ha-input-search>
+          ${this._filterText ? html`
+            <span class="hint">Showing ${filteredHelpers.length} of ${this._helpers.length}</span>
+          ` : ''}
+        </div>
 
-            ${this._renderCategoryFilters()}
+        ${this._renderCategoryFilters()}
 
+        <div class="scrollable-body">
         ${Object.entries(groupedHelpers).length > 0 ? Object.entries(groupedHelpers).map(([category, helpers]) => {
-          const isExpanded = this._expandedCategories.has(category);
-          // Calculate total helpers in this category (from full list, not filtered)
+          // Counts over the full list, not the filtered one
           const allCategoryHelpers = this._helpers.filter(h => (h.category || 'other') === category);
           const configuredCount = allCategoryHelpers.filter(h => h.exists).length;
           const totalCount = allCategoryHelpers.length;
 
           return html`
-            <lcards-collapsible-section
-              .title=${categoryLabels[category] || category}
-              .count=${configuredCount}
-              .totalCount=${totalCount}
-              ?expanded=${isExpanded}
-              @toggle=${() => this._toggleCategory(category)}>
-              <div class="category-actions" style="display: flex; justify-content: flex-end; padding: 4px 0 8px;">
+            <lcards-form-section
+              header=${categoryLabels[category] || category}
+              icon=${CATEGORY_ICONS[category] || 'mdi:cog'}
+              secondary=${`${configuredCount} / ${totalCount} created`}
+              ?expanded=${this._expandedCategories.has(category)}
+              ?outlined=${true}
+              @expanded-changed=${(e) => this._setCategoryExpanded(category, e.detail.expanded)}>
+              <div class="category-actions">
                 <ha-button
-                  @click=${(e) => { e.stopPropagation(); this._resetCategoryToDefaults(category); }}
+                  appearance="plain"
+                  @click=${() => this._resetCategoryToDefaults(category)}
                   title="Reset all helpers in this section to their registry default values">
                   <ha-icon slot="start" icon="mdi:restore"></ha-icon>
                   Reset to Defaults
@@ -991,115 +820,77 @@ export class LCARdSConfigPanel extends LitElement {
               <table class="helper-table">
                 <thead>
                   <tr>
-                    <th style="width: 40px;">Icon</th>
-                    <th>Helper Name</th>
+                    <th class="col-icon"></th>
+                    <th>Helper</th>
                     <th>Entity ID</th>
-                    <th style="width: 120px;">Status</th>
+                    <th class="col-status">Status</th>
                     <th>Value</th>
-                    <th style="width: 100px;">Actions</th>
+                    <th class="col-actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${helpers.map(helper => this._renderHelperRow(helper))}
                 </tbody>
               </table>
-            </lcards-collapsible-section>
+            </lcards-form-section>
           `;
         }) : ''}
 
         ${filteredHelpers.length === 0 && this._filterText ? html`
-          <div class="card" style="margin: 16px;">
-            <div class="empty-state">
-              <ha-icon icon="mdi:filter-off"></ha-icon>
-              <p>No helpers match your filter "${this._filterText}"</p>
-              <p style="font-size: 13px; color: var(--secondary-text-color);">
-                Try a different search term or category filter.
-              </p>
-            </div>
+          <div class="empty-state">
+            <ha-icon icon="mdi:filter-off"></ha-icon>
+            <p>No helpers match "${this._filterText}"</p>
+            <p class="hint">Try a different search term or category.</p>
           </div>
         ` : ''}
 
         ${this._helpers.length === 0 && !this._filterText ? html`
-          <div class="card" style="margin: 16px;">
-            <div class="empty-state">
-              <ha-icon icon="mdi:loading" class="rotating"></ha-icon>
-              <p>Loading helpers...</p>
-            </div>
+          <div class="empty-state">
+            <ha-spinner size="small"></ha-spinner>
+            <p>Loading helpers</p>
           </div>
         ` : ''}
-          </div>
         </div>
       </div>
     `;
   }
 
   /**
-   * Render category filter chips
+   * Category filter chips (a radio group: one category, or All).
    */
   _renderCategoryFilters() {
-    // Count helpers by category
     const categoryCounts = this._helpers.reduce((acc, helper) => {
       const category = helper.category || 'other';
       acc[category] = (acc[category] || 0) + 1;
       return acc;
     }, {});
 
-    const totalCount = this._helpers.length;
-
     const categories = [
-      { id: 'all', label: 'All', count: totalCount },
+      { id: 'all', label: 'All', count: this._helpers.length },
       { id: 'alert_system', label: 'Alert Lab', count: categoryCounts.alert_system || 0 },
       { id: 'ha_lcars_theme', label: 'HA-LCARS Theme', count: categoryCounts.ha_lcars_theme || 0 },
       { id: 'sound', label: 'Sounds', count: categoryCounts.sound || 0 }
     ];
 
-    return html`
-      <div class="category-filters">
-        ${categories.map(cat => html`
-          <button
-            class="category-chip ${this._selectedCategory === cat.id ? 'selected' : ''}"
-            @click=${() => this._selectCategory(cat.id)}
-          >
-            ${cat.label} (${cat.count})
-          </button>
-        `)}
-      </div>
-    `;
+    return renderFilterChips({
+      className: 'category-filters',
+      options: categories.map(cat => ({ value: cat.id, label: `${cat.label} (${cat.count})` })),
+      selected: this._selectedCategory,
+      onSelect: (value) => { this._selectedCategory = value; },
+    });
   }
 
-  /**
-   * Select a category filter
-   */
-  _selectCategory(category) {
-    this._selectedCategory = category;
-    this.requestUpdate();
-  }
-
-  /**
-   * Toggle category section expanded state
-   */
-  _toggleCategory(category) {
-    if (this._expandedCategories.has(category)) {
-      this._expandedCategories.delete(category);
-    } else {
-      this._expandedCategories.add(category);
-    }
-    this.requestUpdate();
-  }
-
-  /**
-   * Clear search filter
-   */
-  _clearSearch() {
-    this._filterText = '';
-    this.requestUpdate();
+  _setCategoryExpanded(category, expanded) {
+    const next = new Set(this._expandedCategories);
+    if (expanded) next.add(category); else next.delete(category);
+    this._expandedCategories = next;
   }
 
   _renderHelperRow(helper) {
     return html`
       <tr>
         <td>
-          <ha-icon icon="${helper.icon || 'mdi:cog'}" style="color: var(--primary-color);"></ha-icon>
+          <ha-icon class="helper-icon" icon="${helper.icon || 'mdi:cog'}"></ha-icon>
         </td>
         <td>
           <div class="helper-name">${helper.name}</div>
@@ -1141,7 +932,7 @@ export class LCARdSConfigPanel extends LitElement {
               Create
             </ha-button>
           ` : html`
-            <span style="font-size: 12px; color: var(--secondary-text-color); font-style: italic;">Manual setup required</span>
+            <span class="manual-setup">Manual setup required</span>
           `}
         </td>
       </tr>
@@ -1208,11 +999,9 @@ export class LCARdSConfigPanel extends LitElement {
 
   _renderSoundTab() {
     return html`
-      <div class="studio-layout">
-        <lcards-sound-config-tab
-          .hass=${this.hass}
-        ></lcards-sound-config-tab>
-      </div>
+      <lcards-sound-config-tab
+        .hass=${this.hass}
+      ></lcards-sound-config-tab>
     `;
   }
 
@@ -1244,11 +1033,9 @@ export class LCARdSConfigPanel extends LitElement {
   }
 
   _renderPackExplorerTab() {
-    // Embed Pack Explorer with inline mode
     return html`
       <lcards-pack-explorer-tab
         .hass=${this.hass}
-        ._inlineMode=${true}
       ></lcards-pack-explorer-tab>
     `;
   }

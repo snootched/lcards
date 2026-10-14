@@ -38,6 +38,14 @@ test('catches ha-button raised (MWC attribute)', () => {
     assert.deepEqual(ids('<ha-button appearance=${on ? "accent" : "plain"}>'), []);
 });
 
+test('catches ha-button sizes it does not have (ha-spinner\'s "small" is fine)', () => {
+    assert.deepEqual(ids('<ha-button size="small" @click=${f}>'), ['ha-button-size']);
+    assert.deepEqual(ids('<ha-button\n  appearance="plain"\n  size="medium">'), ['ha-button-size']);
+    assert.deepEqual(ids('<ha-button size="s" @click=${f}>'), []);
+    assert.deepEqual(ids('<ha-button size="xl">'), []);
+    assert.deepEqual(ids('<ha-spinner size="small"></ha-spinner>'), []);
+});
+
 test('allows the corrected element forms', () => {
     assert.deepEqual(ids('<ha-icon-button .label=${"Up"}><ha-icon icon="mdi:arrow-up"></ha-icon></ha-icon-button>'), []);
     assert.deepEqual(ids('<ha-switch .checked=${on}>Invert Fill</ha-switch>'), []);

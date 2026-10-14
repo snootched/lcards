@@ -176,6 +176,16 @@ class LCARdSStorage:
         _LOGGER.debug("LCARdS: storage deleted key %r", key)
         return True
 
+    async def async_delete_many(self, keys: list[str]) -> int:
+        """Delete every key in *keys* with a single save. Returns how many existed."""
+        removed = [key for key in keys if key in self._data]
+        for key in removed:
+            del self._data[key]
+        if removed:
+            await self._async_save()
+        _LOGGER.debug("LCARdS: storage deleted %d key(s)", len(removed))
+        return len(removed)
+
     async def async_reset(self) -> None:
         """Wipe the entire data store and persist."""
         count = len(self._data)

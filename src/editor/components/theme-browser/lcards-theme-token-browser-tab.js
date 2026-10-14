@@ -35,6 +35,7 @@ import { activeHaThemeName } from '../../../utils/support-info.js';
 import { LEGACY_FIELD_DEFS } from './theme-legacy-fields.js';
 import { surfaceStyles } from '../../base/surface-styles.js';
 import { renderInfoGuide } from '../shared/info-guide.js';
+import { renderFilterChips } from '../shared/filter-chips.js';
 import { ColorUtils } from '../../../core/themes/ColorUtils.js';
 
 const LEGACY_KEY_SET = new Set(LEGACY_FIELD_DEFS.map(f => f.key));
@@ -315,7 +316,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         background: var(--secondary-background-color);
         border: var(--ha-border-width-sm) solid var(--divider-color);
         border-radius: var(--ha-border-radius-sm);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         font-weight: 500;
         color: var(--primary-text-color);
         display: flex;
@@ -361,7 +362,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .search-result-count {
         color: var(--secondary-text-color);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         white-space: nowrap;
         padding: 0 var(--ha-space-2);
       }
@@ -374,37 +375,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
-      .category-chip {
-        appearance: none;
-        border: var(--ha-border-width-sm) solid var(--divider-color);
-        background: var(--secondary-background-color);
-        color: var(--primary-text-color);
-        padding: 6px var(--ha-space-3);
-        border-radius: var(--ha-border-radius-xl);
-        font-size: 13px;
-        cursor: pointer;
-        transition: all var(--ha-animation-duration-normal, 0.2s);
-      }
-
-      .category-chip:hover {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-      }
-
-      .category-chip.selected {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-      }
-
       .chip-swatch {
         display: inline-block;
-        width: 9px;
-        height: 9px;
+        width: 10px;
+        height: 10px;
         border-radius: var(--ha-border-radius-circle);
-        margin-right: 6px;
-        vertical-align: middle;
         border: var(--ha-border-width-sm) solid var(--divider-color);
       }
 
@@ -478,7 +453,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .token-table th .sort-indicator {
         margin-left: var(--ha-space-1);
-        font-size: 10px;
+        font-size: var(--ha-font-size-xs);
         color: var(--secondary-text-color);
       }
 
@@ -494,7 +469,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .token-path-cell {
         font-family: 'Courier New', monospace;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--primary-color);
         word-break: break-all;
         max-width: 300px;
@@ -502,7 +477,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .token-value-cell {
         font-family: 'Courier New', monospace;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         word-break: break-all;
         max-width: 300px;
@@ -516,13 +491,13 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .raw-value {
         color: var(--secondary-text-color);
-        font-size: 11px;
+        font-size: var(--ha-font-size-s);
         opacity: 0.8;
       }
 
       .resolution-arrow {
         color: var(--primary-color);
-        font-size: 10px;
+        font-size: var(--ha-font-size-xs);
         font-weight: bold;
         padding: 2px 0;
       }
@@ -530,7 +505,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .resolved-value {
         color: var(--primary-text-color);
         font-weight: 500;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
       }
 
       .token-preview-cell {
@@ -605,7 +580,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .alert-mode-toggle-label {
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         font-weight: 500;
       }
 
@@ -643,7 +618,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         padding: var(--ha-space-2) var(--ha-space-3);
         text-align: left;
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
       }
 
       .hsl-formula-table th {
@@ -695,7 +670,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         flex-shrink: 0;
         line-height: 12px;
         font-weight: 600;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         border: var(--ha-border-width-sm) solid var(--divider-color);
       }
@@ -705,7 +680,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         padding: 2px 6px;
         border-radius: 3px;
         font-family: 'Roboto Mono', monospace;
-        font-size: 11px;
+        font-size: var(--ha-font-size-s);
         color: var(--primary-text-color);
       }
 
@@ -844,7 +819,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         gap: var(--ha-space-2);
         cursor: pointer;
         color: var(--secondary-text-color);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
       }
 
       .live-preview-toggle input[type="checkbox"] {
@@ -878,7 +853,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .slider-value {
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         color: var(--primary-color);
         font-weight: 600;
         font-family: 'Roboto Mono', monospace;
@@ -954,7 +929,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .preview-hint {
         margin: 0 0 var(--ha-space-4) 0;
         color: var(--secondary-text-color);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
       }
 
       .preview-swatches-container {
@@ -1005,7 +980,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .swatch-label {
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         text-align: center;
       }
@@ -1026,7 +1001,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         padding: var(--ha-space-3) var(--ha-space-4);
         border-bottom: var(--ha-border-width-md) solid var(--divider-color);
         font-weight: 600;
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
       }
 
       .comparison-column-label {
@@ -1057,7 +1032,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .comparison-var-name code {
-        font-size: 11px;
+        font-size: var(--ha-font-size-s);
         color: var(--primary-color);
         word-break: break-all;
       }
@@ -1077,7 +1052,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .comparison-hex {
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         font-family: monospace;
       }
@@ -1098,7 +1073,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .visualization-section .preview-hint {
         margin: 0 0 var(--ha-space-4) 0;
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         color: var(--secondary-text-color);
       }
 
@@ -1144,7 +1119,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .explanation-section p {
         margin: 0;
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         line-height: 1.5;
         color: var(--secondary-text-color);
       }
@@ -1152,7 +1127,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       .explanation-section ul {
         margin: var(--ha-space-2) 0 0 0;
         padding-left: var(--ha-space-5);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         line-height: 1.6;
       }
 
@@ -1166,7 +1141,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         background: color-mix(in srgb, var(--info-color) 10%, transparent);
         border-radius: var(--ha-border-radius-sm);
         border-left: var(--ha-border-width-lg) solid var(--info-color);
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         line-height: 1.5;
         color: var(--secondary-text-color);
       }
@@ -1198,7 +1173,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       }
 
       .overrides-summary {
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         color: var(--secondary-text-color);
         white-space: nowrap;
       }
@@ -1230,7 +1205,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .override-token-path {
         font-family: monospace;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
       }
 
       .override-origin-badge {
@@ -1240,7 +1215,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         border-radius: var(--ha-border-radius-pill);
         background: var(--accent-color);
         color: var(--text-accent-color, var(--text-primary-color));
-        font-size: 10px;
+        font-size: var(--ha-font-size-xs);
         font-weight: 600;
         vertical-align: middle;
       }
@@ -1263,7 +1238,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .override-value-text {
         font-family: monospace;
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         vertical-align: middle;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1316,12 +1291,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
       .override-edit-token-path {
         font-family: monospace;
-        font-size: 13px;
+        font-size: var(--ha-font-size-m);
         font-weight: 600;
       }
 
       .override-edit-default {
-        font-size: 12px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
       }
 
@@ -1488,17 +1463,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       ...categories
     ];
 
-    return html`
-      <div class="category-filters">
-        ${filters.map(filter => html`
-          <button
-            class="category-chip ${this._selectedCategory === filter.value ? 'selected' : ''}"
-            @click=${() => this._selectCategory(filter.value)}>
-            ${filter.label} (${filter.count})
-          </button>
-        `)}
-      </div>
-    `;
+    return renderFilterChips({
+      className: 'category-filters',
+      options: filters.map(f => ({ value: f.value, label: `${f.label} (${f.count})` })),
+      selected: this._selectedCategory,
+      onSelect: (value) => this._selectCategory(value),
+    });
   }
 
   _renderAllVarsCategoryFilters() {
@@ -1537,17 +1507,12 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         .map(([key, data]) => ({ label: data.label, value: key, count: data.count }))
     ];
 
-    return html`
-      <div class="category-filters">
-        ${filters.map(filter => html`
-          <button
-            class="category-chip ${this._selectedAllVarsCategory === filter.value ? 'selected' : ''}"
-            @click=${() => this._selectAllVarsCategory(filter.value)}>
-            ${filter.label} (${filter.count})
-          </button>
-        `)}
-      </div>
-    `;
+    return renderFilterChips({
+      className: 'category-filters',
+      options: filters.map(f => ({ value: f.value, label: `${f.label} (${f.count})` })),
+      selected: this._selectedAllVarsCategory,
+      onSelect: (value) => this._selectAllVarsCategory(value),
+    });
   }
 
   _renderDialogBody() {
@@ -1591,7 +1556,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           <div class="empty-state">
             <ha-icon icon="mdi:${this._searchQuery ? 'magnify-remove-outline' : 'palette'}"></ha-icon>
             <p>${this._searchQuery ? `No tokens found matching "${this._searchQuery}"` : 'No tokens found'}</p>
-            <p style="font-size: 13px; color: var(--secondary-text-color); max-width: 400px;">
+            <p style="font-size: var(--ha-font-size-m); color: var(--secondary-text-color); max-width: 400px;">
               ${this._searchQuery
                 ? 'Try a different search term, or clear the search to see all tokens.'
                 : this._selectedCategory !== 'all'
@@ -1645,7 +1610,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
         <div class="empty-state">
           <ha-icon icon="mdi:alert-circle"></ha-icon>
           <p>Error loading tokens</p>
-          <p style="font-size: 12px;">Check console for details</p>
+          <p style="font-size: var(--ha-font-size-s);">Check console for details</p>
         </div>
       `;
     }
@@ -2635,19 +2600,17 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
   _renderFamilyFilters(vars) {
     const filters = this._buildFamilyFilters(vars);
 
-    return html`
-      <div class="category-filters color-family-filters">
-        ${filters.map(filter => html`
-          <button
-            class="category-chip ${this._selectedFamily === filter.value ? 'selected' : ''}"
-            title=${FAMILY_HUE_RANGES[filter.value] || ''}
-            @click=${() => this._selectFamily(filter.value)}>
-            ${filter.value !== 'all' ? html`<span class="chip-swatch" style="background-color: ${FAMILY_SWATCH_COLORS[filter.value]}"></span>` : ''}
-            ${filter.label} (${filter.count})
-          </button>
-        `)}
-      </div>
-    `;
+    return renderFilterChips({
+      className: 'category-filters color-family-filters',
+      options: filters.map(f => ({
+        value: f.value,
+        label: `${f.label} (${f.count})`,
+        title: FAMILY_HUE_RANGES[f.value] || '',
+        swatch: f.value !== 'all' ? FAMILY_SWATCH_COLORS[f.value] : undefined,
+      })),
+      selected: this._selectedFamily,
+      onSelect: (value) => this._selectFamily(value),
+    });
   }
 
   _sortBy(column) {

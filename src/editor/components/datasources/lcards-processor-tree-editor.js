@@ -217,7 +217,7 @@ export class LCARdSProcessorTreeEditor extends LitElement {
           <div class="tree-head">
             <span>${this.label} (${keys.length})</span>
             ${this._adding ? nothing : html`
-              <ha-button appearance="filled" variant="brand" size="small" @click=${this._startAdd}>
+              <ha-button appearance="filled" variant="brand" size="s" @click=${this._startAdd}>
                 <ha-icon icon="mdi:plus" slot="start"></ha-icon>
                 Add
               </ha-button>
@@ -308,8 +308,8 @@ export class LCARdSProcessorTreeEditor extends LitElement {
         ${nameError ? html`<div class="add-help" style="color: var(--error-color)">${nameError}</div>`
           : html`<div class="add-help">It starts on the raw entity value; pick another processor as its Input to chain them.</div>`}
         <div class="add-actions">
-          <ha-button appearance="plain" size="small" @click=${() => { this._adding = false; }}>Cancel</ha-button>
-          <ha-button variant="brand" size="small" .disabled=${!!nameError} @click=${() => this._add(name)}>Create</ha-button>
+          <ha-button appearance="plain" size="s" @click=${() => { this._adding = false; }}>Cancel</ha-button>
+          <ha-button variant="brand" size="s" .disabled=${!!nameError} @click=${() => this._add(name)}>Create</ha-button>
         </div>
       </div>
     `;

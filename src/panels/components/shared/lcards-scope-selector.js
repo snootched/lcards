@@ -16,6 +16,7 @@
 
 import { LitElement, html, css, nothing } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { renderFilterChips } from '../../../editor/components/shared/filter-chips.js';
 
 export class LCARdSScopeSelector extends LitElement {
   // --------------------------------------------------------------------------
@@ -195,10 +196,7 @@ export class LCARdSScopeSelector extends LitElement {
       :host { display: block; }
 
       .scope-tabs {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 8px;
-        flex-wrap: wrap;
+        margin-bottom: var(--ha-space-2);
       }
 
       .admin-selector-row {
@@ -208,7 +206,7 @@ export class LCARdSScopeSelector extends LitElement {
         margin-bottom: 8px;
       }
       .admin-selector-label {
-        font-size: 13px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         white-space: nowrap;
       }
@@ -223,7 +221,7 @@ export class LCARdSScopeSelector extends LitElement {
         gap: 8px;
         padding: 8px 12px;
         border-radius: 6px;
-        font-size: 13px;
+        font-size: var(--ha-font-size-s);
         background: color-mix(in srgb, var(--info-color, #03a9f4) 12%, transparent);
         border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 30%, transparent);
         margin-bottom: 8px;
@@ -247,34 +245,17 @@ export class LCARdSScopeSelector extends LitElement {
 
     return html`
       <!-- ── SCOPE PILL SWITCHER ── -->
-      <div class="scope-tabs">
-        ${this.showGlobal ? html`
-          <ha-button
-            appearance=${scope === 'global' ? 'filled' : 'plain'}
-            ?disabled=${this.disabled}
-            @click=${() => this._onTabClick('global')}
-          >
-            <ha-icon icon="mdi:earth" style="--mdc-icon-size:18px;margin-right:4px;vertical-align:middle;"></ha-icon>
-            Global
-          </ha-button>
-        ` : nothing}
-        <ha-button
-          appearance=${scope === 'user' ? 'filled' : 'plain'}
-          ?disabled=${this.disabled}
-          @click=${() => this._onTabClick('user')}
-        >
-          <ha-icon icon="mdi:account" style="--mdc-icon-size:18px;margin-right:4px;vertical-align:middle;"></ha-icon>
-          User
-        </ha-button>
-        <ha-button
-          appearance=${scope === 'device' ? 'filled' : 'plain'}
-          ?disabled=${this.disabled}
-          @click=${() => this._onTabClick('device')}
-        >
-          <ha-icon icon="mdi:laptop" style="--mdc-icon-size:18px;margin-right:4px;vertical-align:middle;"></ha-icon>
-          Device
-        </ha-button>
-      </div>
+      ${renderFilterChips({
+        className: 'scope-tabs',
+        options: [
+          ...(this.showGlobal ? [{ value: 'global', label: 'Global', icon: 'mdi:earth' }] : []),
+          { value: 'user', label: 'User', icon: 'mdi:account' },
+          { value: 'device', label: 'Device', icon: 'mdi:laptop' },
+        ],
+        selected: scope,
+        disabled: this.disabled,
+        onSelect: (value) => this._onTabClick(value),
+      })}
 
       <!-- ── ADMIN SUBJECT SELECTOR (non-Global scopes only) ── -->
       ${isAdminUser && this._adminListsLoaded && scope !== 'global' ? html`

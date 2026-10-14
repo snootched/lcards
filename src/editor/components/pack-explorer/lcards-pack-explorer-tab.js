@@ -1,18 +1,15 @@
 /**
  * @fileoverview LCARdS Pack Explorer Tab Component
  *
- * Reusable component for browsing and inspecting loaded packs.
- * Can be used standalone in a dialog or embedded in the config panel.
+ * Browses and inspects the loaded packs (the config panel's Pack Explorer tab).
  *
  * Features:
  * - Tree view: Packs → Asset Types → Individual Assets
  * - Detail pane: Metadata, live previews, copy-to-clipboard actions
- * - Inline mode support for panel embedding
  *
  * @element lcards-pack-explorer-tab
  *
  * @property {Object} hass - Home Assistant instance
- * @property {Boolean} _inlineMode - Set to true when embedded in panel (hides dialog wrapper)
  */
 
 import { LitElement, html, css } from 'lit';
@@ -24,12 +21,12 @@ import {
 } from '../../dialogs/pack-explorer/renderers/asset-renderers.js';
 import { CANVAS_TEXTURE_PRESETS } from '../../../core/packs/textures/presets/index.js';
 import { surfaceStyles } from '../../base/surface-styles.js';
+import '../shared/lcards-form-section.js';
 
 export class LCARdSPackExplorerTab extends LitElement {
   static get properties() {
     return {
       hass: { type: Object },
-      _inlineMode: { type: Boolean, state: true },
       _selectedNode: { type: Object, state: true },
       _expandedNodes: { state: true, attribute: false },
       _treeData: { type: Array, state: true },
@@ -40,12 +37,13 @@ export class LCARdSPackExplorerTab extends LitElement {
 
   constructor() {
     super();
-    this._inlineMode = false;
     this._selectedNode = null;
     this._expandedNodes = new Set();
     this._treeData = [];
     this._loadingSvg = false;
     this._svgContent = null;
+    /** @type {Map<string, HTMLElement>} preview cards by cache key (see _renderCardPreview) */
+    this._cardPreviews = new Map();
   }
 
   static get styles() {
@@ -59,116 +57,105 @@ export class LCARdSPackExplorerTab extends LitElement {
         flex-direction: column;
         min-height: 0;
         overflow: hidden;
+        font-family: var(--ha-font-family-body);
       }
 
-      /* Studio Layout Container */
-
-      .content-container {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        flex: 1;
-        min-height: 0;
-        overflow: hidden;
-      }
-
-      .header {
-        flex-shrink: 0;
-        padding-bottom: 12px;
-        border-bottom: var(--ha-border-width-md) solid var(--divider-color);
-      }
-
-      .header h2 {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 600;
-        color: var(--primary-text-color);
-      }
-
-      /* Split pane layout */
+      /* Split pane: tree | detail */
       .split-pane-container {
         display: grid;
-        grid-template-columns: 35% 65%;
+        grid-template-columns: minmax(240px, 35%) 1fr;
         grid-template-rows: minmax(0, 1fr);
-        gap: 12px;
+        gap: var(--ha-space-4);
         flex: 1;
         min-height: 0;
         overflow: hidden;
       }
 
-      /* Tree pane */
+      /* Tree pane: a section card on the inset, like lcards-form-section */
       .tree-pane {
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        border-right: var(--ha-border-width-sm) solid var(--divider-color);
         min-height: 0;
+        border: var(--ha-border-width-md) solid var(--chip-background-color);
+        border-radius: var(--ha-card-border-radius, var(--ha-border-radius-lg));
+        background-color: color-mix(
+          in srgb,
+          var(--secondary-background-color) 30%,
+          color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+        );
       }
 
       .tree-pane-header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 14px 24px;
+        gap: var(--ha-space-2);
+        padding: var(--ha-space-3) var(--ha-space-4);
         border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
-        background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
         flex-shrink: 0;
-        border-top-left-radius: var(--ha-card-border-radius, 12px);
+        font-weight: 600;
+        font-size: var(--ha-font-size-m);
+        color: var(--primary-text-color);
       }
 
-      .tree-pane-header span {
-        font-weight: 500;
-        font-size: 18px;
-        color: var(--primary-text-color);
+      .tree-pane-header ha-icon {
+        --mdc-icon-size: 20px;
+      }
+
+      .tree-count {
+        margin-left: auto;
+        font-weight: var(--ha-font-weight-normal, 400);
+        color: var(--secondary-text-color);
       }
 
       .tree-container {
         flex: 1;
         overflow-y: auto;
-        padding: 12px;
-        background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
-        border-bottom-left-radius: var(--ha-card-border-radius, 12px);
+        padding: var(--ha-space-2);
       }
 
       /* Tree nodes */
       .tree-node {
-        margin-left: calc(var(--node-level, 0) * 16px);
-        margin-bottom: 4px;
+        margin-left: calc(var(--node-level, 0) * var(--ha-space-4));
+        margin-bottom: 2px;
       }
 
       .tree-node-content {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px;
-        border-radius: 6px;
+        gap: var(--ha-space-2);
+        padding: 6px var(--ha-space-2);
+        border-radius: var(--ha-border-radius-md);
         cursor: pointer;
-        transition: all 0.15s;
+        transition: background var(--ha-animation-duration-fast, 0.15s);
         user-select: none;
       }
 
       .tree-node-content:hover {
-        background: var(--secondary-background-color);
+        background: color-mix(in srgb, var(--secondary-background-color) 70%, transparent);
       }
 
       .tree-node-content.selected {
         background: var(--primary-color);
-        color: var(--text-primary-color, white);
+        color: var(--text-primary-color);
+      }
+
+      .tree-node-content.selected .node-icon {
+        color: inherit;
       }
 
       .tree-expander {
-        width: 16px;
-        text-align: center;
-        font-size: 12px;
-        transition: transform 0.2s;
+        --mdc-icon-size: 18px;
+        flex: none;
+        transition: transform var(--ha-animation-duration-fast, 0.15s);
       }
 
       .tree-expander.leaf {
-        opacity: 0;
+        visibility: hidden;
       }
 
       .tree-expander.expanded {
-        transform: rotate(0deg);
+        transform: rotate(90deg);
       }
 
       .node-icon {
@@ -179,22 +166,15 @@ export class LCARdSPackExplorerTab extends LitElement {
 
       .node-label {
         flex: 1;
-        font-size: 14px;
-      }
-
-      /* Detail pane */
-      .detail-pane {
-        display: flex;
-        flex-direction: column;
+        min-width: 0;
         overflow: hidden;
-        min-height: 0;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      .detail-pane-content {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-        padding-left: 8px;
+      /* Detail pane: the inset's scrolling column (scroll-body) of form sections */
+      .detail-pane {
+        min-height: 0;
       }
 
       .detail-panel-empty {
@@ -204,86 +184,85 @@ export class LCARdSPackExplorerTab extends LitElement {
         justify-content: center;
         height: 100%;
         color: var(--secondary-text-color);
-        gap: 12px;
+        gap: var(--ha-space-3);
       }
 
       .detail-panel-empty ha-icon {
-        --mdc-icon-size: 64px;
-        opacity: 0.3;
+        --mdc-icon-size: 48px;
+        opacity: 0.5;
       }
 
       .detail-panel {
-        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: var(--ha-space-4);
+        /* lcards-form-section's own margin is replaced by the gap */
+        --lcards-section-spacing: 0;
       }
 
       .detail-header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 16px;
-        margin-bottom: 12px;
+        gap: var(--ha-space-3);
       }
 
       .detail-header h3 {
         margin: 0;
         flex: 1;
-        font-size: 18px;
+        min-width: 0;
+        font-size: var(--ha-font-size-xl, 20px);
+        font-weight: var(--ha-font-weight-medium, 500);
+        overflow-wrap: anywhere;
       }
 
-      .detail-type {
-        padding: 4px 12px;
-        background: var(--primary-color);
-        color: var(--text-primary-color, white);
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 500;
-        text-transform: uppercase;
+      .type-chip {
+        --ha-assist-chip-filled-container-color:
+          color-mix(in srgb, var(--primary-color) 18%, transparent);
+        --md-assist-chip-label-text-color: var(--primary-color);
+        --md-sys-color-on-surface: var(--primary-color);
+        flex-shrink: 0;
       }
 
       .detail-content {
-        padding: 0 16px;
-      }
-
-      .detail-section {
-        margin-bottom: 8px;
-      }
-
-      .detail-section h4 {
-        margin: 0 0 8px 0;
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--primary-text-color);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        display: flex;
+        flex-direction: column;
+        gap: var(--ha-space-4);
       }
 
       .detail-grid {
         display: grid;
-        gap: 6px;
+        gap: var(--ha-space-1);
       }
 
+      /* Key/value rows (the Users tab's field rows) */
       .detail-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 4px 10px;
+        display: grid;
+        grid-template-columns: minmax(120px, 30%) 1fr;
+        gap: var(--ha-space-3);
+        align-items: baseline;
+        padding: var(--ha-space-1) 0;
       }
 
       .detail-label {
-        font-weight: 500;
         color: var(--secondary-text-color);
       }
 
       .detail-value {
-        font-family: 'Courier New', monospace;
         color: var(--primary-text-color);
-        text-align: right;
+        overflow-wrap: anywhere;
       }
 
       .empty-state {
-        padding: 48px 16px;
+        padding: var(--ha-space-12) var(--ha-space-4);
         text-align: center;
         color: var(--secondary-text-color);
+      }
+
+      ha-code-editor {
+        display: block;
+        border: var(--ha-border-width-sm) solid var(--divider-color);
+        border-radius: var(--ha-border-radius-md);
+        overflow: hidden;
       }
 
       .stats-grid {
@@ -294,13 +273,16 @@ export class LCARdSPackExplorerTab extends LitElement {
       }
 
       .stat-card {
-        background: var(--primary-color);
-        padding: 10px 8px;
-        border-radius: 6px;
+        background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+        border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--primary-color) 35%, transparent);
+        padding: 10px var(--ha-space-2);
+        border-radius: var(--ha-border-radius-md);
         text-align: center;
-        color: var(--primary-text-color, white);
-        opacity: 0.9;
-        transition: opacity 0.15s;
+        color: var(--primary-text-color);
+      }
+
+      .stat-card .stat-icon {
+        color: var(--primary-color);
       }
 
       .stat-card.zero {
@@ -313,13 +295,13 @@ export class LCARdSPackExplorerTab extends LitElement {
       }
 
       .stat-value {
-        font-size: 22px;
+        font-size: var(--ha-font-size-2xl);
         font-weight: 600;
         line-height: 1;
       }
 
       .stat-label {
-        font-size: 11px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         margin-top: 4px;
         white-space: nowrap;
@@ -354,58 +336,29 @@ export class LCARdSPackExplorerTab extends LitElement {
         gap: 12px;
       }
 
-      .loading-spinner {
-        width: 40px;
-        height: 40px;
-        border: 4px solid var(--divider-color);
-        border-top-color: var(--primary-color);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-      }
-
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-
       .preview-placeholder {
         background: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent));
-        border: 2px dashed var(--divider-color);
+        border: var(--ha-border-width-md) dashed var(--divider-color);
         border-radius: var(--ha-card-border-radius, 12px);
         padding: 24px;
         text-align: center;
       }
 
       .preview-note {
-        font-size: 13px;
+        font-size: var(--ha-font-size-s);
         color: var(--secondary-text-color);
         margin-top: 8px;
-      }
-
-      .load-preview-button {
-        padding: 10px 20px;
-        background: var(--primary-color);
-        color: var(--text-primary-color, white);
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: opacity 0.2s;
-      }
-
-      .load-preview-button:hover {
-        opacity: 0.9;
       }
 
       .font-preview-container {
         background: var(--card-background-color);
         border: var(--ha-border-width-sm) solid var(--divider-color);
-        border-radius: 8px;
-        padding: 24px;
+        border-radius: var(--ha-border-radius-md);
+        padding: var(--ha-space-6);
       }
 
       .font-sample {
-        font-size: 16px;
+        font-size: var(--ha-font-size-l);
         line-height: 1.8;
         color: var(--primary-text-color);
         margin: 0;
@@ -442,32 +395,25 @@ export class LCARdSPackExplorerTab extends LitElement {
         object-fit: contain;
       }
 
-      .texture-preset-defaults {
-        background: rgba(0,0,0,0.3);
-        border-radius: 6px;
-        padding: 10px 14px;
-        font-family: 'Courier New', monospace;
-        font-size: 12px;
-        color: var(--secondary-text-color);
-        white-space: pre-wrap;
-        overflow: auto;
-        max-height: 200px;
-      }
-
       .texture-swatch {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-family: 'Courier New', monospace;
-        font-size: 12px;
+        font-family: var(--ha-font-family-code);
+        font-size: var(--ha-font-size-s);
       }
 
       .texture-swatch-dot {
         width: 14px;
         height: 14px;
         border-radius: 50%;
-        border: var(--ha-border-width-sm) solid rgba(255,255,255,0.2);
+        border: var(--ha-border-width-sm) solid var(--divider-color);
         flex-shrink: 0;
+      }
+
+      .preset-preview-frame > * {
+        width: 100%;
+        height: 100%;
       }
 
       .preset-preview-container {
@@ -484,17 +430,11 @@ export class LCARdSPackExplorerTab extends LitElement {
       @media (max-width: 768px) {
         .split-pane-container {
           grid-template-columns: 1fr;
-          height: auto;
+          grid-template-rows: auto minmax(0, 1fr);
         }
 
         .tree-pane {
-          border-right: none;
-          border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
           max-height: 300px;
-        }
-
-        .detail-pane {
-          padding-left: 0;
         }
       }
     `
@@ -911,9 +851,9 @@ export class LCARdSPackExplorerTab extends LitElement {
         <div
           class="tree-node-content ${isSelected ? 'selected' : ''}"
           @click=${() => this._handleNodeClick(node)}>
-          <span class="tree-expander ${hasChildren ? (isExpanded ? 'expanded' : '') : 'leaf'}">
-            ${hasChildren ? '▶' : ''}
-          </span>
+          <ha-icon
+            class="tree-expander ${hasChildren ? (isExpanded ? 'expanded' : '') : 'leaf'}"
+            icon="mdi:chevron-right"></ha-icon>
           ${node.icon ? html`<ha-icon class="node-icon" icon=${node.icon}></ha-icon>` : ''}
           <span class="node-label">${node.label}</span>
         </div>
@@ -922,6 +862,23 @@ export class LCARdSPackExplorerTab extends LitElement {
         ? node.children.map(child => this._renderTreeNode(child, level + 1))
         : ''}
     `;
+  }
+
+  /**
+   * Items under a category, as its tree label counts them ("Presets (26)"):
+   * preset-type groups are looked through, everything else counts once.
+   * @private
+   */
+  _countItems(node) {
+    return (node.children ?? []).reduce((n, c) => n + (c.type === 'preset-type' ? this._countItems(c) : 1), 0);
+  }
+
+  /**
+   * A read-only code snippet (usage YAML, default config).
+   * @private
+   */
+  _renderCode(text) {
+    return html`<ha-code-editor mode="yaml" read-only .value=${text}></ha-code-editor>`;
   }
 
   /**
@@ -952,7 +909,11 @@ export class LCARdSPackExplorerTab extends LitElement {
       <div class="detail-panel">
         <div class="detail-header">
           <h3>${node.label}</h3>
-          <span class="detail-type">${node.type}</span>
+          <ha-assist-chip
+            class="type-chip"
+            .filled=${true}
+            .label=${String(node.type).replace(/[_-]/g, ' ')}
+          ></ha-assist-chip>
         </div>
         <div class="detail-content">
           ${this._renderDetailContent(node)}
@@ -990,63 +951,60 @@ export class LCARdSPackExplorerTab extends LitElement {
       case 'texture_preset':
         return this._renderTexturePresetDetail(node.data);
       case 'category':
+      case 'preset-type':
         return this._renderCategoryDetail(node);
       default:
         return html`
-          <div class="detail-section">
-            <h4>Information</h4>
+          <lcards-form-section header="Information" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
             <div class="detail-grid">
               <div class="detail-item">
-                <span class="detail-label">Type:</span>
+                <span class="detail-label">Type</span>
                 <span class="detail-value">${node.type}</span>
               </div>
             </div>
-          </div>
+          </lcards-form-section>
         `;
     }
   }
 
   _renderCategoryDetail(node) {
-    const childCount = node.children?.length || 0;
+    const childCount = this._countItems(node);
     return html`
-      <div class="detail-section">
-        <h4>Category Information</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">Category:</span>
-            <span class="detail-value">${node.data?.category || 'Unknown'}</span>
+            <span class="detail-label">Category</span>
+            <span class="detail-value">${node.data?.category || node.data?.presetType || 'Unknown'}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Items:</span>
+            <span class="detail-label">Items</span>
             <span class="detail-value">${childCount}</span>
           </div>
         </div>
-      </div>
+      </lcards-form-section>
     `;
   }
 
   _renderPackDetail(pack) {
     return html`
-      <div class="detail-section">
-        <h4>Pack Information</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">ID:</span>
+            <span class="detail-label">ID</span>
             <span class="detail-value">${pack.id}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Description:</span>
+            <span class="detail-label">Description</span>
             <span class="detail-value">${pack.description || 'No description available'}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Version:</span>
+            <span class="detail-label">Version</span>
             <span class="detail-value">${pack.version || 'Unknown'}</span>
           </div>
         </div>
-      </div>
+      </lcards-form-section>
 
-      <div class="detail-section">
-        <h4>Statistics</h4>
+      <lcards-form-section header="Statistics" icon="mdi:chart-box-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="stats-grid">
           ${this._renderStatCard('mdi:palette', pack.themeCount || 0, 'Themes')}
           ${this._renderStatCard('mdi:tune-variant', pack.presetCount || 0, 'Presets')}
@@ -1059,7 +1017,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           ${this._renderStatCard('mdi:image', this._getAssetsForPack('image', pack.id).length, 'Images')}
           ${this._renderStatCard('mdi:texture-box', this._getTextureCountForPack(pack.id), 'Textures')}
         </div>
-      </div>
+      </lcards-form-section>
     `;
   }
 
@@ -1098,152 +1056,153 @@ export class LCARdSPackExplorerTab extends LitElement {
 
   _renderThemeDetail(theme) {
     return html`
-      <div class="detail-section">
-        <h4>Theme Information</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">ID:</span>
+            <span class="detail-label">ID</span>
             <span class="detail-value">${theme.id}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Name:</span>
+            <span class="detail-label">Name</span>
             <span class="detail-value">${theme.name || theme.id}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Description:</span>
+            <span class="detail-label">Description</span>
             <span class="detail-value">${theme.description || 'No description available'}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Pack:</span>
+            <span class="detail-label">Pack</span>
             <span class="detail-value">${theme.pack || 'unknown'}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Version:</span>
+            <span class="detail-label">Version</span>
             <span class="detail-value">${theme.version || 'Unknown'}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Token Count:</span>
+            <span class="detail-label">Token Count</span>
             <span class="detail-value">${theme.tokenCount || 0}</span>
           </div>
         </div>
-      </div>
+      </lcards-form-section>
 
-      <div class="detail-section">
-        <h4>Preview</h4>
+      <lcards-form-section header="Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         ${renderThemePreview(theme)}
-      </div>
+      </lcards-form-section>
     `;
   }
 
   _renderPresetDetail(preset) {
     return html`
-      <div class="detail-section">
-        <h4>Preset Information</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">ID:</span>
+            <span class="detail-label">ID</span>
             <span class="detail-value">${preset.id}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Description:</span>
+            <span class="detail-label">Description</span>
             <span class="detail-value">${preset.description || 'No description available'}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Type:</span>
+            <span class="detail-label">Type</span>
             <span class="detail-value">${preset.presetType || preset.type}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Pack:</span>
+            <span class="detail-label">Pack</span>
             <span class="detail-value">${preset.pack || 'unknown'}</span>
           </div>
           ${preset.extends ? html`
             <div class="detail-item">
-              <span class="detail-label">Extends:</span>
+              <span class="detail-label">Extends</span>
               <span class="detail-value">${preset.extends}</span>
             </div>
           ` : ''}
         </div>
-      </div>
+      </lcards-form-section>
 
-      <div class="detail-section">
-        <h4>Live Preview</h4>
+      <lcards-form-section header="Live Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         ${this._renderPresetLivePreview(preset)}
-      </div>
+      </lcards-form-section>
     `;
   }
 
   _renderPresetLivePreview(preset) {
     const presetType = preset.presetType || preset.type;
 
-    let cardType, defaultEntity;
+    // Same shapes as the docs preset galleries (doc/.vitepress/theme/card-demo-galleries.js).
+    const id = preset.id;
+    let cardType, size, config;
     if (presetType === 'button' || presetType?.includes('button')) {
       cardType = 'lcards-button';
-      defaultEntity = 'light.demo';
+      if (id.startsWith('bar-label')) {
+        size = 'width: 100%; max-width: 520px; height: 48px;';
+        config = { preset: id, interactive: false, text: { label: { content: 'ENGINEERING' } } };
+      } else if (id.startsWith('panel-')) {
+        size = 'width: 240px; height: 120px;';
+        config = { preset: id };
+      } else {
+        size = 'width: 240px; height: 60px;';
+        config = { preset: id, icon: 'mdi:lightbulb', ...(id === 'icon' ? {} : { text: { label: { content: 'MAIN LIGHTS', show: true } } }) };
+      }
     } else if (presetType === 'slider' || presetType?.includes('slider')) {
       cardType = 'lcards-slider';
-      defaultEntity = 'sensor.demo';
+      const vertical = id.includes('vertical');
+      size = vertical ? 'width: 160px; height: 320px;' : 'width: 100%; max-width: 360px; height: 80px;';
+      config = { preset: id, ...(id === 'picard-gauge-vertical' ? { component: 'picard' } : {}) };
     } else {
       return html`<div class="preview-placeholder">Preview not available for this preset type</div>`;
     }
 
-    const config = {
-      type: `custom:${cardType}`,
-      entity: defaultEntity,
-      preset: preset.id,
-      label: { content: 'Preview' },
-      show_icon: true,
-      icon: defaultEntity === 'light.demo' ? 'mdi:lightbulb' : 'mdi:thermometer',
-    };
+    return this._renderCardPreview(`preset:${cardType}:${id}`, cardType, config, size);
+  }
 
-    const cardElement = document.createElement(cardType);
-    // @ts-ignore - TS2339: auto-suppressed
-    cardElement.hass = this._createMockHass();
-
-    try {
-      // @ts-ignore - TS2339: auto-suppressed
-      cardElement.setConfig(config);
-    } catch (err) {
-      lcardsLog.error('[PackExplorer] Failed to set config on preview card:', err);
-      return html`<div class="preview-placeholder">Error creating preview: ${err.message}</div>`;
+  /**
+   * A real LCARdS card as a preview. Cards are cached per key (a new element on
+   * every render would remount the card) and get the panel's hass, so they have a
+   * live connection; configs carry no entity, so they show their default look.
+   * The card manages its own style attribute, so the size goes on a frame it fills.
+   * @private
+   */
+  _renderCardPreview(cacheKey, cardType, config, size) {
+    let card = this._cardPreviews.get(cacheKey);
+    if (!card) {
+      card = document.createElement(cardType);
+      try {
+        // @ts-ignore - card API
+        card.setConfig({ type: `custom:${cardType}`, ...config });
+      } catch (err) {
+        lcardsLog.error('[PackExplorer] Failed to set config on preview card:', err);
+        return html`<div class="preview-placeholder">Error creating preview: ${err.message}</div>`;
+      }
+      this._cardPreviews.set(cacheKey, card);
     }
-
+    // @ts-ignore - card API
+    card.hass = this.hass;
     return html`
       <div class="preset-preview-container">
-        ${cardElement}
+        <div class="preset-preview-frame" style=${size}>${card}</div>
       </div>
     `;
   }
 
-  _createMockHass() {
-    return {
-      states: {
-        'sensor.demo': {
-          entity_id: 'sensor.demo',
-          state: '42',
-          attributes: {
-            friendly_name: 'Demo Sensor',
-            unit_of_measurement: '°C'
-          },
-          last_changed: new Date().toISOString()
-        },
-        'light.demo': {
-          entity_id: 'light.demo',
-          state: 'on',
-          attributes: {
-            friendly_name: 'Demo Light',
-            brightness: 128
-          },
-          last_changed: new Date().toISOString()
-        }
-      },
-      config: { unit_system: { temperature: '°C' } },
-      language: 'en',
-      themes: { default_theme: 'default' },
-      selectedTheme: null,
-      user: { name: 'Demo User' },
-      callService: () => Promise.resolve(),
-      callWS: () => Promise.resolve()
-    };
+  /**
+   * The card that shows a component, by the pack it comes from; null when there is none.
+   * @private
+   */
+  _componentPreview(name, pack, orientation) {
+    if (pack === 'lcards_buttons') {
+      return { cardType: 'lcards-button', config: { component: name }, size: 'width: 220px; height: 220px;' };
+    }
+    if (pack === 'lcards_sliders') {
+      const vertical = orientation === 'vertical';
+      return { cardType: 'lcards-slider', config: { component: name },
+        size: vertical ? 'width: 160px; height: 320px;' : 'width: 100%; max-width: 360px; height: 80px;' };
+    }
+    if (pack === 'lcards_elbows') {
+      return { cardType: 'lcards-elbow', config: { elbow: { type: name, segment: { bar_width: 90, bar_height: 20 } } },
+        size: 'width: 100%; max-width: 360px; height: 140px;' };
+    }
+    return null;
   }
 
   _renderComponentDetail(component) {
@@ -1252,43 +1211,55 @@ export class LCARdSPackExplorerTab extends LitElement {
     const hasFeatures = definition.features && definition.features.length > 0;
 
     return html`
-      <div class="detail-section">
-        <h4>Component Information</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">Name:</span>
+            <span class="detail-label">Name</span>
             <span class="detail-value">${component.name}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Pack:</span>
+            <span class="detail-label">Pack</span>
             <span class="detail-value">${component.pack || 'unknown'}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Orientation:</span>
-            <span class="detail-value">${definition.orientation || 'auto'}</span>
+            <span class="detail-label">Orientation</span>
+            <span class="detail-value">${definition.orientation || definition.metadata?.orientation || 'auto'}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">SVG Size:</span>
+            <span class="detail-label">SVG Size</span>
             <span class="detail-value">${svgLength} characters</span>
           </div>
           ${hasFeatures ? html`
             <div class="detail-item">
-              <span class="detail-label">Features:</span>
+              <span class="detail-label">Features</span>
               <span class="detail-value">${definition.features.join(', ')}</span>
             </div>
           ` : ''}
         </div>
-      </div>
+      </lcards-form-section>
 
-      ${definition.svg ? html`
-        <div class="detail-section">
-          <h4>SVG Preview</h4>
-          <div class="svg-preview-container">
-            ${unsafeHTML(definition.svg)}
-          </div>
-        </div>
-      ` : ''}
+      ${this._renderComponentPreviewSection(component.name, component.pack, definition)}
     `;
+  }
+
+  /** Live card preview for a component (or its raw SVG when no card shows it). @private */
+  _renderComponentPreviewSection(name, pack, definition) {
+    const orientation = definition?.orientation ?? definition?.metadata?.orientation;
+    const card = this._componentPreview(name, pack, orientation);
+    if (card) {
+      return html`
+        <lcards-form-section header="Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
+          ${this._renderCardPreview(`component:${pack}:${name}`, card.cardType, card.config, card.size)}
+        </lcards-form-section>
+      `;
+    }
+    return definition?.svg ? html`
+      <lcards-form-section header="SVG Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
+        <div class="svg-preview-container">
+          ${unsafeHTML(definition.svg)}
+        </div>
+      </lcards-form-section>
+    ` : '';
   }
 
   _renderComponentPresetDetail(data) {
@@ -1298,184 +1269,178 @@ export class LCARdSPackExplorerTab extends LitElement {
     const hasAnimations = preset?.animations && preset.animations.length > 0;
 
     return html`
-      <div class="detail-section">
-        <h4>Component Preset</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">Preset:</span>
+            <span class="detail-label">Preset</span>
             <span class="detail-value">${presetName}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Component:</span>
+            <span class="detail-label">Component</span>
             <span class="detail-value">${componentName}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Pack:</span>
+            <span class="detail-label">Pack</span>
             <span class="detail-value">${pack}</span>
           </div>
           ${segments.length ? html`
             <div class="detail-item">
-              <span class="detail-label">Segments:</span>
+              <span class="detail-label">Segments</span>
               <span class="detail-value">${segments.join(', ')}</span>
             </div>
           ` : ''}
           ${hasAnimations ? html`
             <div class="detail-item">
-              <span class="detail-label">Animations:</span>
+              <span class="detail-label">Animations</span>
               <span class="detail-value">${preset.animations.map(a => a.id).join(', ')}</span>
             </div>
           ` : ''}
           ${hasText ? html`
             <div class="detail-item">
-              <span class="detail-label">Text overrides:</span>
+              <span class="detail-label">Text overrides</span>
               <span class="detail-value">${Object.keys(preset.text).join(', ')}</span>
             </div>
           ` : ''}
         </div>
-      </div>
+      </lcards-form-section>
 
-      <div class="detail-section">
-        <h4>Usage</h4>
-        <div class="code-block">component: ${componentName}\npreset: ${presetName}</div>
-      </div>
+      ${this._renderComponentPreviewSection(componentName, pack, null)}
+
+      <lcards-form-section header="Usage" icon="mdi:code-braces" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
+        ${this._renderCode(`component: ${componentName}\npreset: ${presetName}`)}
+      </lcards-form-section>
     `;
   }
 
   _renderAnimationDetail(animation) {
     return html`
-      <div class="detail-section">
-        <h4>Animation Information</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">Name:</span>
+            <span class="detail-label">Name</span>
             <span class="detail-value">${animation.name}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">ID:</span>
+            <span class="detail-label">ID</span>
             <span class="detail-value">${animation.id}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Pack:</span>
+            <span class="detail-label">Pack</span>
             <span class="detail-value">${animation.pack || 'core'}</span>
           </div>
           ${animation.preset ? html`
             <div class="detail-item">
-              <span class="detail-label">Preset:</span>
+              <span class="detail-label">Preset</span>
               <span class="detail-value">${animation.preset}</span>
             </div>
           ` : ''}
           ${animation.duration ? html`
             <div class="detail-item">
-              <span class="detail-label">Duration:</span>
+              <span class="detail-label">Duration</span>
               <span class="detail-value">${animation.duration}ms</span>
             </div>
           ` : ''}
           ${animation.ease ? html`
             <div class="detail-item">
-              <span class="detail-label">Ease:</span>
+              <span class="detail-label">Ease</span>
               <span class="detail-value">${animation.ease}</span>
             </div>
           ` : ''}
           ${animation.loop !== undefined ? html`
             <div class="detail-item">
-              <span class="detail-label">Loop:</span>
+              <span class="detail-label">Loop</span>
               <span class="detail-value">${animation.loop ? 'Yes' : 'No'}</span>
             </div>
           ` : ''}
         </div>
-      </div>
+      </lcards-form-section>
 
       ${animation.description ? html`
-        <div class="detail-section">
-          <h4>Description</h4>
+        <lcards-form-section header="Description" icon="mdi:text" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
           <p>${animation.description}</p>
-        </div>
+        </lcards-form-section>
       ` : ''}
     `;
   }
 
   _renderSvgAssetDetail(asset) {
     return html`
-      <div class="detail-section">
-        <h4>SVG Asset Information</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">Key:</span>
+            <span class="detail-label">Key</span>
             <span class="detail-value">${asset.key}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Loaded:</span>
+            <span class="detail-label">Loaded</span>
             <span class="detail-value">${asset.hasContent ? 'Yes' : 'Not yet'}</span>
           </div>
           ${asset.url ? html`
             <div class="detail-item">
-              <span class="detail-label">URL:</span>
+              <span class="detail-label">URL</span>
               <span class="detail-value">${asset.url}</span>
             </div>
           ` : ''}
           ${asset.ship ? html`
             <div class="detail-item">
-              <span class="detail-label">Ship:</span>
+              <span class="detail-label">Ship</span>
               <span class="detail-value">${asset.ship}</span>
             </div>
           ` : ''}
           ${asset.registry ? html`
             <div class="detail-item">
-              <span class="detail-label">Registry:</span>
+              <span class="detail-label">Registry</span>
               <span class="detail-value">${asset.registry}</span>
             </div>
           ` : ''}
           ${asset.class ? html`
             <div class="detail-item">
-              <span class="detail-label">Class:</span>
+              <span class="detail-label">Class</span>
               <span class="detail-value">${asset.class}</span>
             </div>
           ` : ''}
           ${asset.era ? html`
             <div class="detail-item">
-              <span class="detail-label">Era:</span>
+              <span class="detail-label">Era</span>
               <span class="detail-value">${asset.era}</span>
             </div>
           ` : ''}
           ${asset.approximate_size ? html`
             <div class="detail-item">
-              <span class="detail-label">Size:</span>
+              <span class="detail-label">Size</span>
               <span class="detail-value">${asset.approximate_size}</span>
             </div>
           ` : ''}
         </div>
-      </div>
+      </lcards-form-section>
 
       ${asset.description ? html`
-        <div class="detail-section">
-          <h4>Description</h4>
+        <lcards-form-section header="Description" icon="mdi:text" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
           <p>${asset.description}</p>
-        </div>
+        </lcards-form-section>
       ` : ''}
 
-      <div class="detail-section">
-        <h4>Preview</h4>
+      <lcards-form-section header="Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         ${this._renderSvgPreview(asset)}
-      </div>
+      </lcards-form-section>
 
       ${asset.author || asset.license ? html`
-        <div class="detail-section">
-          <h4>Attribution</h4>
+        <lcards-form-section header="Attribution" icon="mdi:copyright" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
           <div class="detail-grid">
             ${asset.author ? html`
               <div class="detail-item">
-                <span class="detail-label">Author:</span>
+                <span class="detail-label">Author</span>
                 <span class="detail-value">${asset.author}</span>
               </div>
             ` : ''}
             ${asset.license ? html`
               <div class="detail-item">
-                <span class="detail-label">License:</span>
+                <span class="detail-label">License</span>
                 <span class="detail-value">${asset.license}</span>
               </div>
             ` : ''}
           </div>
-        </div>
+        </lcards-form-section>
       ` : ''}
     `;
   }
@@ -1501,8 +1466,8 @@ export class LCARdSPackExplorerTab extends LitElement {
     if (this._loadingSvg) {
       return html`
         <div class="preview-loading">
-          <div class="loading-spinner"></div>
-          <p>Loading SVG preview...</p>
+          <ha-spinner size="small"></ha-spinner>
+          <p>Loading SVG preview</p>
         </div>
       `;
     }
@@ -1518,9 +1483,10 @@ export class LCARdSPackExplorerTab extends LitElement {
     if (asset.url) {
       return html`
         <div class="preview-placeholder">
-          <button class="load-preview-button" @click=${() => this._loadSvgPreview(asset)}>
+          <ha-button @click=${() => this._loadSvgPreview(asset)}>
+            <ha-icon slot="start" icon="mdi:eye-outline"></ha-icon>
             Load Preview
-          </button>
+          </ha-button>
           <p class="preview-note">Click to load ${asset.approximate_size || 'SVG'}</p>
         </div>
       `;
@@ -1553,100 +1519,103 @@ export class LCARdSPackExplorerTab extends LitElement {
     }
   }
 
+  /** Fonts that don't auto-load are only fetched when used; fetch this one for its preview. @private */
+  _loadPreviewFont(key) {
+    if (key) window.lcards?.core?.assetManager?.loadFont?.(key)?.catch?.(() => undefined);
+    return '';
+  }
+
   _renderFontAssetDetail(asset) {
     return html`
-      <div class="detail-section">
-        <h4>Font Asset Information</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">Key:</span>
+            <span class="detail-label">Key</span>
             <span class="detail-value">${asset.key}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Loaded:</span>
+            <span class="detail-label">Loaded</span>
             <span class="detail-value">${asset.hasContent ? 'Yes' : 'Not yet'}</span>
           </div>
           ${asset.url ? html`
             <div class="detail-item">
-              <span class="detail-label">URL:</span>
+              <span class="detail-label">URL</span>
               <span class="detail-value">${asset.url}</span>
             </div>
           ` : ''}
           ${asset.family ? html`
             <div class="detail-item">
-              <span class="detail-label">Family:</span>
+              <span class="detail-label">Family</span>
               <span class="detail-value">${asset.family}</span>
             </div>
           ` : ''}
           ${asset.weight ? html`
             <div class="detail-item">
-              <span class="detail-label">Weight:</span>
+              <span class="detail-label">Weight</span>
               <span class="detail-value">${asset.weight}</span>
             </div>
           ` : ''}
           ${asset.style ? html`
             <div class="detail-item">
-              <span class="detail-label">Style:</span>
+              <span class="detail-label">Style</span>
               <span class="detail-value">${asset.style}</span>
             </div>
           ` : ''}
         </div>
-      </div>
+      </lcards-form-section>
 
-      ${asset.family ? html`
-        <div class="detail-section">
-          <h4>Preview</h4>
+      ${this._loadPreviewFont(asset.key)}
+      ${asset.key ? html`
+        <lcards-form-section header="Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
           <div class="font-preview-container">
-            <p class="font-sample" style="font-family: '${asset.family}', sans-serif;">
+            <p class="font-sample" style="font-family: '${asset.family || asset.key}', sans-serif;">
               ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>
               abcdefghijklmnopqrstuvwxyz<br>
               0123456789
             </p>
           </div>
-        </div>
+        </lcards-form-section>
       ` : ''}
     `;
   }
 
   _renderImageAssetDetail(asset) {
     return html`
-      <div class="detail-section">
-        <h4>Image Asset</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">Key:</span>
+            <span class="detail-label">Key</span>
             <span class="detail-value">${asset.key}</span>
           </div>
           ${asset.label ? html`
             <div class="detail-item">
-              <span class="detail-label">Label:</span>
+              <span class="detail-label">Label</span>
               <span class="detail-value">${asset.label}</span>
             </div>
           ` : ''}
           ${asset.category ? html`
             <div class="detail-item">
-              <span class="detail-label">Category:</span>
+              <span class="detail-label">Category</span>
               <span class="detail-value">${asset.category}</span>
             </div>
           ` : ''}
           ${asset.url ? html`
             <div class="detail-item">
-              <span class="detail-label">URL:</span>
+              <span class="detail-label">URL</span>
               <span class="detail-value" style="word-break:break-all">${asset.url}</span>
             </div>
           ` : ''}
           ${asset.description ? html`
             <div class="detail-item">
-              <span class="detail-label">Description:</span>
+              <span class="detail-label">Description</span>
               <span class="detail-value">${asset.description}</span>
             </div>
           ` : ''}
         </div>
-      </div>
+      </lcards-form-section>
 
       ${asset.url ? html`
-        <div class="detail-section">
-          <h4>Preview</h4>
+        <lcards-form-section header="Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
           <div class="image-preview-container">
             <img
               src="${asset.url}"
@@ -1654,11 +1623,10 @@ export class LCARdSPackExplorerTab extends LitElement {
               @error=${(e) => { e.target.style.display='none'; e.target.insertAdjacentHTML('afterend', '<span style="color:var(--secondary-text-color)">Image not found</span>'); }}
             />
           </div>
-        </div>
-        <div class="detail-section">
-          <h4>Usage</h4>
-          <div class="texture-preset-defaults">source: builtin:${asset.key}</div>
-        </div>
+        </lcards-form-section>
+        <lcards-form-section header="Usage" icon="mdi:code-braces" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
+          ${this._renderCode(`source: builtin:${asset.key}`)}
+        </lcards-form-section>
       ` : ''}
     `;
   }
@@ -1672,29 +1640,27 @@ export class LCARdSPackExplorerTab extends LitElement {
       null, 2
     );
     return html`
-      <div class="detail-section">
-        <h4>Texture Preset</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">Key:</span>
+            <span class="detail-label">Key</span>
             <span class="detail-value">${key}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Name:</span>
+            <span class="detail-label">Name</span>
             <span class="detail-value">${name}</span>
           </div>
           ${description ? html`
             <div class="detail-item">
-              <span class="detail-label">Description:</span>
+              <span class="detail-label">Description</span>
               <span class="detail-value">${description}</span>
             </div>
           ` : ''}
         </div>
-      </div>
+      </lcards-form-section>
 
       ${colorKeys.length > 0 ? html`
-        <div class="detail-section">
-          <h4>Default Colours</h4>
+        <lcards-form-section header="Default Colours" icon="mdi:palette-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
           <div class="detail-grid">
             ${colorKeys.map(([k, v]) => html`
               <div class="detail-item">
@@ -1706,60 +1672,60 @@ export class LCARdSPackExplorerTab extends LitElement {
               </div>
             `)}
           </div>
-        </div>
+        </lcards-form-section>
       ` : ''}
 
-      <div class="detail-section">
-        <h4>Default Config</h4>
-        <div class="texture-preset-defaults">${defaultsText}</div>
-      </div>
+      <lcards-form-section header="Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
+        ${this._renderCardPreview(`texture:${key}`, 'lcards-button',
+          { preset: 'lozenge', shape_texture: { preset: key }, text: { label: { content: name || key, show: true } } },
+          'width: 100%; max-width: 360px; height: 80px;')}
+      </lcards-form-section>
 
-      <div class="detail-section">
-        <h4>Usage</h4>
-        <div class="texture-preset-defaults">shape_texture:
-  preset: ${key}</div>
-      </div>
+      <lcards-form-section header="Default Config" icon="mdi:cog-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
+        ${this._renderCode(defaultsText)}
+      </lcards-form-section>
+
+      <lcards-form-section header="Usage" icon="mdi:code-braces" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
+        ${this._renderCode(`shape_texture:\n  preset: ${key}`)}
+      </lcards-form-section>
     `;
   }
 
   _renderAudioAssetDetail(asset) {
     return html`
-      <div class="detail-section">
-        <h4>Audio Asset Information</h4>
+      <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
-            <span class="detail-label">Key:</span>
+            <span class="detail-label">Key</span>
             <span class="detail-value">${asset.key}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Loaded:</span>
+            <span class="detail-label">Loaded</span>
             <span class="detail-value">${asset.hasContent ? 'Yes' : 'Not yet'}</span>
           </div>
           ${asset.url ? html`
             <div class="detail-item">
-              <span class="detail-label">URL:</span>
+              <span class="detail-label">URL</span>
               <span class="detail-value">${asset.url}</span>
             </div>
           ` : ''}
         </div>
-      </div>
+      </lcards-form-section>
 
       ${asset.description ? html`
-        <div class="detail-section">
-          <h4>Description</h4>
+        <lcards-form-section header="Description" icon="mdi:text" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
           <p>${asset.description}</p>
-        </div>
+        </lcards-form-section>
       ` : ''}
 
       ${asset.url ? html`
-        <div class="detail-section">
-          <h4>Preview</h4>
+        <lcards-form-section header="Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
           <div class="audio-preview-container">
             <audio controls src="${asset.url}">
               Your browser does not support the audio element.
             </audio>
           </div>
-        </div>
+        </lcards-form-section>
       ` : ''}
     `;
   }
@@ -1767,32 +1733,24 @@ export class LCARdSPackExplorerTab extends LitElement {
   render() {
     return html`
       <div class="studio-layout">
-        <div class="content-container">
-          ${!this._inlineMode ? html`
-            <div class="header">
-              <h2>Pack Explorer</h2>
+        <div class="split-pane-container">
+          <!-- Left pane: tree -->
+          <div class="tree-pane">
+            <div class="tree-pane-header">
+              <ha-icon icon="mdi:package-variant"></ha-icon>
+              <span>Packs</span>
+              <span class="tree-count">${this._treeData.length}</span>
             </div>
-          ` : ''}
+            <div class="tree-container">
+              ${this._treeData.length === 0
+                ? html`<p class="empty-state">No packs loaded</p>`
+                : this._renderTreeNodes(this._treeData)}
+            </div>
+          </div>
 
-          <div class="split-pane-container">
-            <!-- Left Pane: Tree View -->
-            <div class="tree-pane">
-              <div class="tree-pane-header">
-                <span>Packs (${this._treeData.length})</span>
-              </div>
-              <div class="tree-container">
-                ${this._treeData.length === 0
-                  ? html`<p class="empty-state">No packs loaded</p>`
-                  : this._renderTreeNodes(this._treeData)}
-              </div>
-            </div>
-
-            <!-- Right Pane: Detail View -->
-            <div class="detail-pane">
-              <div class="detail-pane-content">
-                ${this._renderDetailPanel()}
-              </div>
-            </div>
+          <!-- Right pane: detail -->
+          <div class="detail-pane scroll-body">
+            ${this._renderDetailPanel()}
           </div>
         </div>
       </div>

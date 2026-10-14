@@ -108,6 +108,14 @@ export class LCARdSFormSection extends LitElement {
                 padding: var(--ha-space-2);
             }
 
+            /* Secondary text beside the header (a count, an entity id) */
+            .header-secondary {
+                margin-left: var(--ha-space-2);
+                font-weight: var(--ha-font-weight-normal, 400);
+                font-size: 0.9em;
+                color: var(--secondary-text-color);
+            }
+
             .section-description {
                 font-size: var(--ha-font-size-m);
                 color: var(--secondary-text-color, #727272);
@@ -174,7 +182,7 @@ export class LCARdSFormSection extends LitElement {
                     <div slot="header">
                         ${this.icon ? html`<ha-icon icon="${this.icon}"></ha-icon>` : ''}
                         <span>${this.header}</span>
-                        ${this.secondary ? html`<span slot="secondary">${this.secondary}</span>` : ''}
+                        ${this.secondary ? html`<span class="header-secondary">${this.secondary}</span>` : ''}
                     </div>
                 ` : ''}
                 <slot name="header-icons" slot="icons"></slot>

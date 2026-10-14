@@ -6,6 +6,7 @@ Provides the lcards/* WebSocket command namespace:
   lcards/storage/get          — read one key (or all)
   lcards/storage/set          — shallow-merge one or many keys
   lcards/storage/delete       — remove one key
+  lcards/storage/delete_many  - remove many keys with one save
   lcards/storage/reset        — wipe entire store
   lcards/storage/dump         — return full store (debug)
 
@@ -96,6 +97,7 @@ def async_setup_ws(hass: HomeAssistant) -> None:
         ws_storage_get,
         ws_storage_set,
         ws_storage_delete,
+        ws_storage_delete_many,
         ws_storage_reset,
         ws_storage_dump,
         # Push channel
@@ -273,6 +275,32 @@ async def ws_storage_delete(
         return
     existed = await storage.async_delete(msg["key"])
     connection.send_result(msg["id"], {"ok": True, "existed": existed})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/storage/delete_many",
+        vol.Required("keys"): [str],
+    }
+)
+@websocket_api.async_response
+async def ws_storage_delete_many(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Handle lcards/storage/delete_many.
+
+    Deletes every key in *keys* with one save (the per-key delete writes the
+    whole store each time). Admin only. Responds with the number of keys that existed.
+    """
+    if not _require_admin(connection, msg):
+        return
+    storage = _check_storage(hass, connection, msg)
+    if storage is None:
+        return
+    removed = await storage.async_delete_many(msg["keys"])
+    connection.send_result(msg["id"], {"ok": True, "removed": removed})
 
 
 @websocket_api.websocket_command(

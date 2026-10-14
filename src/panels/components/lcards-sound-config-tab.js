@@ -22,6 +22,7 @@ import '../../editor/components/shared/lcards-message.js';
 import '../../editor/components/sound/lcards-sound-source-selector.js';
 import './shared/lcards-scope-selector.js';
 import { surfaceStyles } from '../../editor/base/surface-styles.js';
+import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 
 const CATEGORY_LABELS = {
   cards:  'Card Interactions',
@@ -67,7 +68,6 @@ export class LCARdSSoundConfigTab extends LitElement {
     _adminScopeDeviceId:{ type: String,   state: true },
     /** Admin: basic settings (volume/scheme/enabled) for the currently-viewed admin target; null = own */
     _adminTargetBasic:  { type: Object,   state: true },
-    _confirmResetOverrides: { type: Boolean, state: true },
     /** True while the "Save as new scheme" inline form is open */
     _savingScheme:      { type: Boolean,  state: true },
     /** Draft name typed into the "Save as new scheme" form */
@@ -75,7 +75,6 @@ export class LCARdSSoundConfigTab extends LitElement {
     /** Validation/backend error from the last save attempt, if any */
     _saveSchemeError:   { type: String,   state: true },
     /** True while the "delete this custom scheme" inline confirm is open */
-    _confirmDeleteScheme: { type: Boolean, state: true },
     /** True when the Per-Event Overrides table has staged (unsaved) edits —
      * global or the active custom scheme's own mapping, see _setOverride() */
     _overridesDirty:    { type: Boolean,  state: true },
@@ -108,11 +107,9 @@ export class LCARdSSoundConfigTab extends LitElement {
     this._adminScopeDeviceId = null;
     /** @type {Object|null} Basic settings for admin-selected target; null = own */
     this._adminTargetBasic = null;
-    this._confirmResetOverrides = false;
     this._savingScheme    = false;
     this._newSchemeName   = '';
     this._saveSchemeError = null;
-    this._confirmDeleteScheme = false;
     this._overridesDirty = false;
   }
 
@@ -746,14 +743,14 @@ export class LCARdSSoundConfigTab extends LitElement {
     this.requestUpdate();
   }
 
-  _askResetOverrides() {
-    this._confirmResetOverrides = true;
-    this.requestUpdate();
-  }
-
-  _cancelResetOverrides() {
-    this._confirmResetOverrides = false;
-    this.requestUpdate();
+  async _askResetOverrides() {
+    const n = Object.keys(this._overrides).length;
+    const confirmed = await showConfirmDeleteDialog({
+      title: 'Reset to scheme defaults?',
+      message: `This clears all ${n} event override${n !== 1 ? 's' : ''} and restores the scheme's own sounds.`,
+      confirmText: 'Reset all',
+    });
+    if (confirmed) await this._resetOverrides();
   }
 
   /**
@@ -768,7 +765,6 @@ export class LCARdSSoundConfigTab extends LitElement {
     await sm.clearAllOverrides('global');
     this._overrides = sm.getOverrides('global');
     this._overridesDirty = false;
-    this._confirmResetOverrides = false;
     this.requestUpdate();
   }
 
@@ -847,21 +843,19 @@ export class LCARdSSoundConfigTab extends LitElement {
     this.requestUpdate();
   }
 
-  _askDeleteScheme() {
-    this._confirmDeleteScheme = true;
-    this.requestUpdate();
-  }
-
-  _cancelDeleteScheme() {
-    this._confirmDeleteScheme = false;
-    this.requestUpdate();
+  async _askDeleteScheme() {
+    const schemeName = this._getHelperValue('sound_scheme');
+    const confirmed = await showConfirmDeleteDialog({
+      title: 'Delete custom scheme?',
+      message: `Permanently delete the custom scheme "${String(schemeName).slice(7)}"? This cannot be undone.`,
+    });
+    if (confirmed) await this._deleteScheme(schemeName);
   }
 
   async _deleteScheme(schemeName) {
     const sm = window.lcards?.core?.soundManager;
     if (!sm) return;
     const result = await sm.deleteCustomScheme(schemeName);
-    this._confirmDeleteScheme = false;
     if (!result.ok) {
       lcardsLog.error('[SoundConfigTab] Failed to delete custom scheme:', result.error);
       this.requestUpdate();
@@ -939,13 +933,11 @@ export class LCARdSSoundConfigTab extends LitElement {
           ?expanded=${true}
           ?outlined=${true}>
 
-          <div class="control-row prominent">
-            <div class="control-label">
-              <strong>Sound Effects Enabled</strong>
-              <span class="hint">Master on/off for all LCARdS sounds</span>
-            </div>
+          <div class="control-row">
             <ha-selector
               .hass=${this.hass}
+              .label=${'Sound effects enabled'}
+              .helper=${'Master on/off for all LCARdS sounds'}
               .selector=${{ boolean: {} }}
               .value=${masterEnabled}
               ?disabled=${!this._helperExists('sound_enabled')}
@@ -954,12 +946,10 @@ export class LCARdSSoundConfigTab extends LitElement {
           </div>
 
           <div class="control-row ${!masterEnabled ? 'dimmed' : ''}">
-            <div class="control-label">
-              Volume
-              <span class="hint">Master volume for all sound effects</span>
-            </div>
             <ha-selector
               .hass=${this.hass}
+              .label=${'Volume'}
+              .helper=${'Master volume for all sound effects'}
               .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
               .value=${volumeValue}
               ?disabled=${!this._helperExists('sound_volume') || !masterEnabled}
@@ -977,18 +967,15 @@ export class LCARdSSoundConfigTab extends LitElement {
           class="${!masterEnabled ? 'dimmed' : ''}">
 
           ${[
-            { key: 'sound_cards_enabled',  icon: 'mdi:gesture-tap',  label: 'Card Interaction Sounds',   hint: 'Button taps, holds, sliders, toggles' },
-            { key: 'sound_ui_enabled',     icon: 'mdi:navigation',   label: 'UI Navigation Sounds',      hint: 'Sidebar, page transitions, menus' },
-            { key: 'sound_alerts_enabled', icon: 'mdi:alert-circle', label: 'Alert & System Sounds',     hint: 'Alert mode changes, system events' },
+            { key: 'sound_cards_enabled',  label: 'Card interaction sounds', hint: 'Button taps, holds, sliders, toggles' },
+            { key: 'sound_ui_enabled',     label: 'UI navigation sounds',    hint: 'Sidebar, page transitions, menus' },
+            { key: 'sound_alerts_enabled', label: 'Alert and system sounds', hint: 'Alert mode changes, system events' },
           ].map(cat => html`
             <div class="control-row">
-              <div class="control-label">
-                <ha-icon icon="${cat.icon}"></ha-icon>
-                ${cat.label}
-                <span class="hint">${cat.hint}</span>
-              </div>
               <ha-selector
                 .hass=${this.hass}
+                .label=${cat.label}
+                .helper=${cat.hint}
                 .selector=${{ boolean: {} }}
                 .value=${this._getHelperValue(cat.key) !== 'off' && this._getHelperValue(cat.key) !== false}
                 ?disabled=${!this._helperExists(cat.key) || !masterEnabled}
@@ -1014,13 +1001,11 @@ export class LCARdSSoundConfigTab extends LitElement {
           ` : ''}
 
           <div class="control-row">
-            <div class="control-label">
-              Active Scheme
-              <span class="hint">"None (silent)" plays nothing by default: per-event overrides below still apply on top of it</span>
-            </div>
             <div class="scheme-row">
               <ha-selector
                 .hass=${this.hass}
+                .label=${'Active scheme'}
+                .helper=${'"None (silent)" plays nothing by default; per-event overrides below still apply on top of it'}
                 .selector=${{ select: {
                   options: this._schemeNames.map(s => ({
                     value: s,
@@ -1053,16 +1038,6 @@ export class LCARdSSoundConfigTab extends LitElement {
               ` : ''}
             </div>
           </div>
-          ${this._confirmDeleteScheme ? html`
-            <div class="banner warning">
-              <ha-icon icon="mdi:alert"></ha-icon>
-              <span>Permanently delete the custom scheme <strong>${schemeValue.slice(7)}</strong>? This cannot be undone.</span>
-              <div class="confirm-actions">
-                <ha-button class="danger-btn" variant="danger" @click=${() => this._deleteScheme(schemeValue)}>Yes, delete</ha-button>
-                <ha-button @click=${this._cancelDeleteScheme}>Cancel</ha-button>
-              </div>
-            </div>
-          ` : ''}
 
           <!-- ── PER-EVENT OVERRIDES (subsection — reflects whichever scheme is selected above;
                global overrides still apply on top of 'none', which is a genuine empty scheme) ── -->
@@ -1109,15 +1084,6 @@ export class LCARdSSoundConfigTab extends LitElement {
                     <div class="confirm-actions">
                       <ha-button @click=${this._confirmSaveScheme}>Save</ha-button>
                       <ha-button @click=${this._cancelSaveScheme}>Cancel</ha-button>
-                    </div>
-                  </div>
-                ` : this._confirmResetOverrides ? html`
-                  <div class="banner warning">
-                    <ha-icon icon="mdi:alert"></ha-icon>
-                    <span>This will <strong>clear all ${Object.keys(this._overrides).length} event${Object.keys(this._overrides).length !== 1 ? 's' : ''}</strong> and restore scheme defaults. Are you sure?</span>
-                    <div class="confirm-actions">
-                      <ha-button class="danger-btn" variant="danger" @click=${this._resetOverrides}>Yes, reset all</ha-button>
-                      <ha-button @click=${this._cancelResetOverrides}>Cancel</ha-button>
                     </div>
                   </div>
                 ` : (this._overridesDirty || Object.keys(this._overrides).length > 0) ? html`
@@ -1460,7 +1426,7 @@ export class LCARdSSoundConfigTab extends LitElement {
           <div class="scoped-overrides-header">
             <ha-icon icon="mdi:tune"></ha-icon>
             <span>Per-Event Overrides
-              <span class="hint">&nbsp;Â·&nbsp;override individual events at the ${scope} level</span>
+              <span class="hint">&nbsp;·&nbsp;override individual events at the ${scope} level</span>
             </span>
             ${hasAnyScopedOverride ? html`
               <ha-button
@@ -1551,19 +1517,6 @@ export class LCARdSSoundConfigTab extends LitElement {
 
 
 
-    .banner {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border-radius: var(--ha-border-radius-md);
-      font-size: 0.9em;
-    }
-    .banner.info {
-      background: color-mix(in srgb, var(--info-color, #03a9f4) 15%, transparent);
-      border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--info-color, #03a9f4) 40%, transparent);
-      color: var(--primary-text-color);
-    }
     .banner ha-button {
       margin-left: auto;
     }
@@ -1605,29 +1558,13 @@ export class LCARdSSoundConfigTab extends LitElement {
       border-bottom: var(--ha-border-width-sm) solid color-mix(in srgb, var(--divider-color) 50%, transparent);
     }
     .control-row:last-child { border-bottom: none; }
-    .control-row.prominent { font-size: 1.05em; }
-
-    .control-label {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-width: 0;
-      gap: 2px;
-      font-size: 0.9em;
-    }
-    .control-label ha-icon {
-      margin-right: 6px;
-      color: var(--primary-color);
-    }
-    .hint {
-      font-size: 0.8em;
-      color: var(--secondary-text-color);
-    }
+    .control-row > ha-selector { flex: 1; min-width: 0; }
 
     .scheme-row {
+      flex: 1;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--ha-space-2);
       min-width: 280px;
     }
     .scheme-row ha-selector {

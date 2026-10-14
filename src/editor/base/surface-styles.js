@@ -48,7 +48,7 @@ export const messageStyles = css`
 
   /* Helper text under a field or a section. */
   .hint {
-    font-size: 12px;
+    font-size: var(--ha-font-size-s);
     line-height: 1.4;
     color: var(--secondary-text-color);
   }

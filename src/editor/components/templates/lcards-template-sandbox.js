@@ -642,7 +642,7 @@ export class LCARdSTemplateSandbox extends LitElement {
             <div class="inserts">
                 <span class="hint">Insert</span>
                 ${INSERTS.map(i => html`
-                    <ha-button size="small" appearance="outlined" variant="brand" @click=${() => this._insert(i.text, i.caret ?? 0)}>${i.label}</ha-button>
+                    <ha-button size="s" appearance="outlined" variant="brand" @click=${() => this._insert(i.text, i.caret ?? 0)}>${i.label}</ha-button>
                 `)}
             </div>
             <div class="examples">

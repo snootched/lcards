@@ -244,7 +244,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
             ${!this._yamlText.trim() ? html`
                 <div class="starter">
                     <span class="hint">Type an overlay ID, or start with this card. Ctrl+Space lists what can go next.</span>
-                    <ha-button appearance="outlined" variant="brand" size="small" @click=${() => this._startWithCard()}>
+                    <ha-button appearance="outlined" variant="brand" size="s" @click=${() => this._startWithCard()}>
                         <ha-icon icon="mdi:target" slot="start"></ha-icon>
                         ${cardId ? `Start with ${cardId}` : 'Start with this card'}
                     </ha-button>

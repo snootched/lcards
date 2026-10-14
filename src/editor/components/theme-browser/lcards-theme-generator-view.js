@@ -21,6 +21,7 @@ import { styleMap } from 'lit/directives/style-map.js';
 import { editorStyles } from '../../base/editor-styles.js';
 import { infoGuideStyles } from '../shared/info-guide-styles.js';
 import { renderInfoGuide } from '../shared/info-guide.js';
+import { renderFilterChips } from '../shared/filter-chips.js';
 import { searchableSelectStyles } from '../shared/searchable-select-styles.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
@@ -487,14 +488,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
         .gen-search-wrapper { flex: 1; position: relative; min-width: 200px; max-width: 400px; }
         .gen-legacy-search { width: 100%; }
         .gen-search-clear { position: absolute; right: var(--ha-space-1); top: 50%; transform: translateY(-50%); --ha-icon-button-size: 32px; }
-        .gen-category-filters { display: flex; gap: var(--ha-space-2); flex-wrap: wrap; margin-bottom: var(--ha-space-3); }
-        .gen-category-chip {
-          appearance: none; border: var(--ha-border-width-sm) solid var(--divider-color); background: var(--secondary-background-color);
-          color: var(--primary-text-color); padding: var(--ha-space-1) var(--ha-space-3); border-radius: var(--ha-border-radius-pill);
-          font-size: var(--ha-font-size-s); cursor: pointer; transition: all 0.15s ease;
-        }
-        .gen-category-chip:hover { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
-        .gen-category-chip.selected { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+        .gen-category-filters { margin-bottom: var(--ha-space-3); }
         .gen-dark-toggle { display: flex; align-items: center; gap: var(--ha-space-1); flex-shrink: 0; }
         .gen-dark-toggle-label { font-size: var(--ha-font-size-s); color: var(--secondary-text-color); white-space: nowrap; }
         .gen-dark-empty { font-size: var(--ha-font-size-s); color: var(--secondary-text-color); opacity: 0.6; font-style: italic; }
@@ -1750,14 +1744,16 @@ export class LCARdSThemeGeneratorView extends LitElement {
             ` : nothing}
           </div>
         </div>
-        <div class="gen-category-filters">
-          <button class="gen-category-chip ${this._legacyActiveCategory === 'all' ? 'selected' : ''}"
-            @click=${() => this._setLegacyActiveCategory('all')}>All (${counts.all})</button>
-          ${LEGACY_GROUP_ORDER.filter(g => counts[g] > 0 || this._legacyActiveCategory === g).map(g => html`
-            <button class="gen-category-chip ${this._legacyActiveCategory === g ? 'selected' : ''}"
-              @click=${() => this._setLegacyActiveCategory(g)}>${g} (${counts[g]})</button>
-          `)}
-        </div>
+        ${renderFilterChips({
+          className: 'gen-category-filters',
+          options: [
+            { value: 'all', label: `All (${counts.all})` },
+            ...LEGACY_GROUP_ORDER.filter(g => counts[g] > 0 || this._legacyActiveCategory === g)
+              .map(g => ({ value: g, label: `${g} (${counts[g]})` })),
+          ],
+          selected: this._legacyActiveCategory,
+          onSelect: (value) => this._setLegacyActiveCategory(value),
+        })}
         <div class="gen-row-header">
           <div></div><div>Light</div><div></div><div>Dark</div><div></div>
         </div>

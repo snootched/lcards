@@ -267,7 +267,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                     <div class="chart-yaml-body">
                         <div class="hint">An lcards-chart card that plots this data source the way the preview does.</div>
                         <div class="chart-yaml-actions">
-                            <ha-button size="small" @click=${() => this._copyChart(chartYaml)}>
+                            <ha-button size="s" @click=${() => this._copyChart(chartYaml)}>
                                 <ha-icon icon=${this._copied ? 'mdi:check' : 'mdi:content-copy'} slot="start"></ha-icon>
                                 ${this._copied ? 'Copied' : 'Copy chart YAML'}
                             </ha-button>

@@ -1168,7 +1168,7 @@ export class LCARdSConnectivityTab extends LitElement {
               ?outlined=${true}>
               <lcards-message type="info">
                 <strong>Screen Effect Layers</strong>
-                <p style="margin:8px 0 0 0; font-size:13px; line-height:1.4;">
+                <p style="margin:8px 0 0 0; font-size: var(--ha-font-size-s); line-height:1.4;">
                   Configure the full-screen effect composition applied during disconnection.
                   Presets and parameters are loaded from the registered SEM catalog.
                 </p>
@@ -1343,7 +1343,7 @@ export class LCARdSConnectivityTab extends LitElement {
                   @value-changed=${(e) => onChange(e.detail.value || undefined)}>
                 </lcards-color-picker>
                 ${spec.helper ? html`
-                  <div style="font-size:11px;color:var(--secondary-text-color);margin-top:2px;">
+                  <div style="font-size: var(--ha-font-size-s);color:var(--secondary-text-color);margin-top:2px;">
                     ${spec.helper}
                   </div>` : ''}
               </div>
@@ -1551,7 +1551,7 @@ export class LCARdSConnectivityTab extends LitElement {
             .typo-row:last-child { border-bottom: none; }
 
             .field-label {
-                font-size: 12px;
+                font-size: var(--ha-font-size-s);
                 font-weight: 500;
                 color: var(--secondary-text-color);
                 margin-bottom: 4px;

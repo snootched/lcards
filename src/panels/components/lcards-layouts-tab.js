@@ -678,12 +678,10 @@ export class LCARdSLayoutsTab extends LitElement {
 
           ${(template.inputs ?? []).map(p => html`
             <div class="control-row">
-              <div class="control-label">
-                ${p.label}
-                <span class="hint">${p.hint}</span>
-              </div>
               <ha-selector
                 .hass=${this.hass}
+                .label=${p.label}
+                .helper=${p.hint}
                 .selector=${p.selector}
                 .value=${this._params[p.key]}
                 @value-changed=${e => this._handleParamChange(p.key, e)}
@@ -814,17 +812,7 @@ export class LCARdSLayoutsTab extends LitElement {
       }
       .control-row:last-child { border-bottom: none; }
 
-      .control-label {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        min-width: 0;
-        gap: 2px;
-        font-size: 0.9em;
-      }
-      .hint { font-size: 0.8em; color: var(--secondary-text-color); line-height: 1.4; }
-
-      ha-selector { min-width: 200px; }
+      .control-row > ha-selector { flex: 1; min-width: 200px; }
 
       .generate-row { display: flex; justify-content: flex-end; padding-top: 12px; }
 

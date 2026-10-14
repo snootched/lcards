@@ -661,7 +661,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         align-items: center;
         gap: 6px;
         min-width: 150px;
-        font-size: 0.8rem;
+        font-size: 0.8em;
         color: var(--secondary-text-color);
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -675,7 +675,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
 
       .field-value {
         flex: 1;
-        font-size: 0.9rem;
+        font-size: 0.9em;
         color: var(--primary-text-color);
         word-break: break-all;
       }
@@ -697,7 +697,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
         border-radius: var(--ha-border-radius-sm);
         color: var(--primary-text-color);
         padding: 5px 8px;
-        font-size: 0.9rem;
+        font-size: 0.9em;
         outline: none;
       }
       .inline-input:focus {
@@ -712,13 +712,13 @@ export class LCARdsUsersDevicesTab extends LitElement {
       .data-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 0.85rem;
+        font-size: 0.85em;
       }
 
       .data-table th {
         text-align: left;
         padding: 6px 8px;
-        font-size: 0.75rem;
+        font-size: 0.85em;
         text-transform: uppercase;
         letter-spacing: 0.04em;
         color: var(--secondary-text-color);
@@ -813,7 +813,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
 
       /* ── Utilities ── */
       .mono { font-family: monospace; }
-      .small { font-size: 0.75rem; }
+      .small { font-size: 0.75em; }
       .muted { color: var(--secondary-text-color); font-style: italic; }
     `];
   }

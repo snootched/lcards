@@ -93,3 +93,25 @@ test('no emoji in the UI except the 🖖 on Main Engineering (log messages may k
     }
     assert.deepEqual(hits, []);
 });
+
+/** Config panel tabs (and the shared font selector they use): HA controls, labelled by the control itself. */
+const PANEL_TABS = (path) =>
+    path.startsWith('src/panels/') ||
+    path.startsWith('src/editor/components/pack-explorer/') ||
+    path.startsWith('src/editor/components/theme-browser/') ||
+    path === 'src/editor/components/editors/lcards-font-selector.js';
+
+test('config panel tabs: no raw <button> (ha-button / renderFilterChips); the LCARS ripple demo is the one exception', () => {
+    const hits = SOURCES.filter(({ path }) => PANEL_TABS(path)).flatMap(({ path, text }) =>
+        [...code(text).matchAll(/<button\b(?![^>]*gen-lcars-ripple-demo)/g)].map(() => path));
+    assert.deepEqual(hits, []);
+});
+
+test('config panel tabs: no hand-built label divs beside a label-less control (ha-selector label / helper)', () => {
+    assert.deepEqual(SOURCES.filter(({ path, text }) => PANEL_TABS(path) && /class="control-label"/.test(code(text))).map(s => s.path), []);
+});
+
+test('the config panel host sets HA\'s body font (otherwise text falls back to the page\'s Roboto while HA controls follow the theme)', () => {
+    const panel = SOURCES.find(s => s.path === 'src/panels/lcards-config-panel.js');
+    assert.match(code(panel.text), /:host\s*\{[^}]*font-family:\s*var\(--ha-font-family-body\)/);
+});
