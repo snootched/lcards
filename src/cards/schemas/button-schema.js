@@ -572,7 +572,7 @@ export function getButtonSchema(options = {}) {
                         description: 'Texture opacity (0-1). Supports state-based object.',
                         oneOf: [
                             { type: 'number', minimum: 0, maximum: 1 },
-                            { '$ref': '#/$defs/stateColorSchema' }
+                            { type: 'object', description: 'State-based values: keys are states (default, active, inactive, unavailable, ...), values are numbers' }
                         ]
                     },
                     speed: {

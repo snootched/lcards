@@ -43,4 +43,5 @@ These run in CI and are safe to run locally before opening a PR:
 | `npm run validate:schema-descriptions` | Fails when a schema property is added without a `description` (descriptions are published in `lcards-schema.json`). The existing backlog is listed in `scripts/schema-description-baseline.txt`; after filling some, run `npm run validate:schema-descriptions:update`. Gates `npm run build`. |
 | `npm run typecheck` | Runs `tsc` against the JSDoc-typed sources. |
 | `npm run docs:build` | Builds the VitePress site. |
+| `npm run generate:llm-schema` | Writes the published JSON Schemas: `lcards-schema.json` (everything) and `schema/` (an index, one file per card, view and strategy, and `shared/` for the big subsystems), into `doc/public/` (gitignored). Runs inside `docs:build` and `docs:serve`. |
 

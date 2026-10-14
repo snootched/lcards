@@ -97,6 +97,7 @@ import { haFormatStateParts, extractUnit, haFormatNumber } from '../utils/ha-ent
 
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
+import { TEXT_POSITIONS } from './schemas/schema-options.js';
 
 
 /**
@@ -5334,14 +5335,7 @@ export class LCARdSSlider extends LCARdSButton {
         const availableComponents = componentManager ?
             componentManager.getComponentsByType('slider') : [];
 
-        // Position options with proper labels
-        const positionEnum = [
-            'top-left', 'top-center', 'top-right',
-            'center-left', 'center', 'center-right',
-            'bottom-left', 'bottom-center', 'bottom-right',
-            'top', 'bottom', 'left', 'right',
-            'left-center', 'right-center',              // accepted aliases (deprecated)
-        ];
+        const positionEnum = [...TEXT_POSITIONS];
 
         lcardsLog.debug('[LCARdSSlider] Registering schema with presets:', availablePresets);
 

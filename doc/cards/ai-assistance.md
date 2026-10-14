@@ -7,13 +7,24 @@ schema up front fixes that.
 
 ## What to attach
 
-**1. The schema bundle (required)**: [`lcards-schema.json`](/lcards-schema.json).
-This is the exact JSON Schema LCARdS itself validates config against for
-`button`, `chart`, `elbow`, `slider`, `data-grid`, `select-menu`, `alert-overlay`,
-and `layout-card` (under `cards`), the [Layout View](layout-view/) (under `views`)
-and the LCARS shell dashboard strategy (under `strategies`), generated straight
-from the source, so it can't drift out of date. Attach the whole file as-is (some parts are shared across cards via
-`$defs`/`$ref`, so it isn't meant to be split up).
+**1. The schema for your card (required).** LCARdS publishes the exact JSON Schemas
+it validates config against, generated straight from the source so they can't drift
+out of date. Pick one of:
+
+- **One card at a time (smallest):** the card's file from
+  [`schema/index.json`](/schema/index.json), e.g.
+  [`schema/cards/lcards-button.json`](/schema/cards/lcards-button.json) or
+  [`schema/cards/lcards-msd-card.json`](/schema/cards/lcards-msd-card.json), plus the
+  shared files its index entry lists under `uses` (rules, animations, background
+  animations, state colours, filters). Card files are 2 to 75 KB; attach only the
+  shared files your request touches.
+- **Everything in one file:** [`lcards-schema.json`](/lcards-schema.json): every card
+  (`cards`, including MSD), the [Layout View](layout-view/) (`views`) and the LCARS
+  shell dashboard strategy (`strategies`). About 460 KB, so it suits tools with large
+  context windows.
+
+Each GitHub release also carries both as assets (`lcards-schema.json`,
+`lcards-schema.zip`), matching that release's options exactly.
 
 **2. [Common Properties](common) (recommended)**: covers things the raw schema's
 types don't fully explain in prose: entity reference patterns, the `theme:`
@@ -29,10 +40,11 @@ attached:
 
 ```
 I'm writing YAML configuration for LCARdS, a custom Home Assistant Lovelace
-card system. I've attached its JSON Schema (https://lcards.unimatrix01.ca/lcards-schema.json) and reference
-docs. Rules:
+card system. I've attached its JSON Schema (from https://lcards.unimatrix01.ca/schema/index.json)
+and reference docs. Rules:
 - Only use properties that appear in the schema for the card type I'm using
-  (resolve any "$ref" against the top-level "$defs").
+  (resolve "#/$defs/..." refs within the file, and "../shared/<name>.json" refs
+  against the shared files I attached).
 - Do not invent properties. If something I ask for isn't in the schema, tell
   me instead of guessing at a plausible-sounding key.
 - Colour values must match the schema's colour pattern: hex, rgb()/rgba()/
@@ -41,13 +53,14 @@ docs. Rules:
 
 Then describe the card you want.
 
-## MSD isn't included yet
+## MSD
 
-`custom:lcards-msd` has its own, much deeper config surface (
-routing, overlays, filters, animation triggers) and isn't in the schema bundle
-yet. For MSD, attach the relevant page(s) from the [MSD docs](msd/) instead
-(start with [Quick Start](msd/quick-start) or [Routing Concepts](msd/routing-concepts)
-depending on what you're building), and expect to iterate more by hand.
+The MSD schema (`custom:lcards-msd-card`) is large and deeply nested (routing,
+overlays, filters, animation triggers). Attach
+[`schema/cards/lcards-msd-card.json`](/schema/cards/lcards-msd-card.json) with the
+shared files it uses, plus the relevant page(s) from the [MSD docs](msd/) (start
+with [Quick Start](msd/quick-start) or [Routing Concepts](msd/routing-concepts)),
+and expect to iterate more than with a single button.
 
 ## If it still invents a key
 

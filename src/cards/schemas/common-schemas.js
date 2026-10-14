@@ -326,7 +326,8 @@ export const animationSchema = {
         trigger: {
             type: 'string',
             enum: ['on_load', 'on_tap', 'on_hold', 'on_hover', 'on_leave', 'on_entity_change'],
-            description: 'When to trigger the animation',
+            default: 'on_load',
+            description: 'When to trigger the animation (default: on_load)',
             enumDescriptions: [
                 'When card is loaded/rendered',
                 'When card is tapped/clicked',
@@ -454,7 +455,8 @@ export const animationSchema = {
     // must never itself block a card from initializing — same reasoning as the
     // per-preset params schemas (see animation-preset-params-schemas.js).
     additionalProperties: 'warn',
-    required: ['trigger', 'preset']
+    // trigger defaults to on_load (AnimationConfigProcessor, AnimationManager)
+    required: ['preset']
 };
 
 // ============================================================================

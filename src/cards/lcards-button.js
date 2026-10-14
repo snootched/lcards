@@ -71,6 +71,7 @@ import { CanvasTextureRenderer } from '../core/packs/textures/CanvasTextureRende
 
 // Import unified schema
 import { getButtonSchema } from './schemas/button-schema.js';
+import { TEXT_POSITIONS } from './schemas/schema-options.js';
 
 
 export class LCARdSButton extends LCARdSCard {
@@ -6933,14 +6934,7 @@ export class LCARdSButton extends LCARdSCard {
 
         lcardsLog.debug('[LCARdSButton] Registering schema with presets:', availablePresets);
 
-        // Position options with proper labels
-        const positionEnum = [
-            'top-left', 'top-center', 'top-right',
-            'center-left', 'center', 'center-right',
-            'bottom-left', 'bottom-center', 'bottom-right',
-            'top', 'bottom', 'left', 'right',
-            'left-center', 'right-center',              // accepted aliases (deprecated)
-        ];
+        const positionEnum = [...TEXT_POSITIONS];
 
         // Build simplified schema (no $ref resolution needed)
         const buttonSchema = getButtonSchema({

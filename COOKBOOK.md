@@ -124,7 +124,7 @@ All in `.github/workflows/`.
 |---|---|---|
 | **Validate** (`validate-integration.yml`) | push and PR to `main`/`dev`, manual, and as the Release gate; **nightly: HACS + Hassfest only** | See the job list below. |
 | **Docs** (`docs.yml`) | push to `main`/`dev` touching `doc/**`, `src/**`, `scripts/**`, the docs tests or the build config; PRs (no deploy); manual | `npm run docs:build` (dead links, anchors), `npm run test:docs` (live demos, galleries, playgrounds, labs), then deploy to GitHub Pages (`lcards.unimatrix01.ca`). A failing test stops the deploy. Both branches deploy to the same site: **the last push wins**, so the site can show `dev` docs. About 5 minutes. |
-| **Release** (`release.yml`) | manual only (Run workflow, pick the branch) | Validate gate, read the version from `package.json`, pre-release if the suffix is `-dev` or the branch isn't `main`, export the release page, tag, stamp `manifest.json`/`const.py`, `build:integration`, verify the output, zip, publish with the page as the body plus GitHub's commit list. |
+| **Release** (`release.yml`) | manual only (Run workflow, pick the branch) | Validate gate, read the version from `package.json`, pre-release if the suffix is `-dev` or the branch isn't `main`, export the release page, tag, stamp `manifest.json`/`const.py`, `build:integration`, verify the output, zip, package the JSON Schemas (`lcards-schema.json`, `lcards-schema.zip`), publish with the page as the body (plus a line linking those schema assets) and GitHub's commit list. |
 | **Issue template check** (`issue-template-check.yml`) | issues opened, edited or reopened | Issues that skip the forms get a `needs-template` label and one comment. Owners and collaborators are exempt; it never closes anything. |
 
 **Validate jobs** (all except the first two are skipped on the nightly schedule):
@@ -181,12 +181,12 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | Script | What |
 |---|---|
 | `docs:build` | LLM schema, bundle copy for demos, VitePress build (fails on dead links), anchor check. |
-| `docs:serve` / `docs:serve:network` | Dev server (`--host` for other devices on the LAN). |
+| `docs:serve` / `docs:serve:network` | Regenerate the schemas, then the dev server (`--host` for other devices on the LAN). |
 | `docs:preview` | Serve the built site. |
 | `docs:bundle` | Build and copy the card bundle into `doc/public/lcards/` (inside `docs:build`). |
 | `docs:check-anchors` | Links to missing `#anchors` (inside `docs:build`). |
 | `docs:routing-diagrams` | Regenerate the MSD routing diagrams. |
-| `generate:llm-schema` | Regenerate `doc/public/lcards-schema.json` (cards, the layout view, the shell strategy; MSD not yet) from `scripts/lib/card-schemas.js` (inside `docs:build`). |
+| `generate:llm-schema` | Regenerate the published schemas (gitignored): `doc/public/lcards-schema.json` (everything, MSD included) and `doc/public/schema/` (`index.json`, one file per card/view/strategy, `shared/` for rules, animations, background animations, state colours, filters). Inside `docs:build` and `docs:serve`; the Release workflow attaches them as `lcards-schema.json` and `lcards-schema.zip`. |
 
 **Releases:** see [Release commands](#release-commands).
 

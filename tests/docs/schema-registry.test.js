@@ -1,17 +1,21 @@
 /**
  * Published schemas (scripts/lib/card-schemas.js and its consumers): every registered
  * card and view has a schema, the doc-example validator really checks MSD and layout
- * views, the description lint catches new gaps, and the LLM bundle has the documented
- * sections.
+ * views, the description lint catches new gaps, and the published option lists match
+ * the runtime. The published schema files themselves: schema-publish.test.js.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { getSchemaEntries } from '../../scripts/lib/card-schemas.js';
+import { getSchemaEntries, BUILTIN_OPTIONS } from '../../scripts/lib/card-schemas.js';
+import { StylePresetManager } from '../../src/core/presets/StylePresetManager.js';
+import { ComponentManager } from '../../src/core/components/ComponentManager.js';
+import { loadBuiltinPacks } from '../../src/core/packs/loadBuiltinPacks.js';
+import { TEXT_POSITIONS } from '../../src/cards/schemas/schema-options.js';
 import { missingDescriptions, currentGaps } from '../../scripts/check-schema-descriptions.js';
 import { getMsdSchema } from '../../src/cards/schemas/msd-schema.js';
 import { shellStrategySchema, shellStrategyEditorSchema } from '../../src/cards/schemas/shell-strategy-schema.js';
@@ -42,6 +46,35 @@ test('the shell strategy form is derived from its schema, in order, with every c
     const strategySrc = readFileSync(join(ROOT, 'src/strategies/lcards-shell-strategy.js'), 'utf8');
     const read = [...strategySrc.matchAll(/config\?\.([a-z_]+)/g)].map(m => m[1]);
     assert.deepEqual([...new Set(read)].sort(), form.map(f => f.name).sort());
+});
+
+test('published option lists match what the real preset and component managers give the cards at runtime', async () => {
+    // Same pack list as src/core/lcards-core.js.
+    const core = readFileSync(join(ROOT, 'src/core/lcards-core.js'), 'utf8');
+    const ids = JSON.parse(core.match(/packManager\.loadBuiltinPacks\((\[[^\]]*\])\)/)[1].replace(/'/g, '"'));
+    const packs = loadBuiltinPacks(ids);
+    const spm = new StylePresetManager();
+    for (const pack of packs) spm.registerPresetsFromPack(pack);
+    const cm = new ComponentManager();
+    await cm.initialize();
+    for (const pack of packs) cm.registerComponentsFromPack(pack);
+    const sorted = (list) => [...list].sort();
+    assert.deepEqual(sorted(BUILTIN_OPTIONS.buttonPresets), sorted(spm.getAvailablePresets('button')));
+    assert.deepEqual(sorted(BUILTIN_OPTIONS.sliderPresets), sorted(spm.getAvailablePresets('slider')));
+    assert.deepEqual(sorted(BUILTIN_OPTIONS.sliderComponents), sorted(cm.getComponentsByType('slider')));
+});
+
+test('published schemas carry real enums: positions and presets are never empty lists', () => {
+    const empty = [];
+    const walk = (node, path) => {
+        if (!node || typeof node !== 'object') return;
+        if (Array.isArray(node.enum) && node.enum.length === 0) empty.push(path);
+        for (const [k, v] of Object.entries(node)) walk(v, `${path}.${k}`);
+    };
+    for (const { tag, schema } of getSchemaEntries()) walk(schema, tag);
+    assert.deepEqual(empty, []);
+    const button = getSchemaEntries().find(e => e.tag === 'lcards-button').schema;
+    assert.deepEqual(button.properties.text.properties.default.properties.position.enum, [...TEXT_POSITIONS]);
 });
 
 test('MSD schema: overlay tags are declared and base_svg is not hard-required (view_box alone is a blank canvas)', () => {
@@ -143,23 +176,4 @@ test('description lint: the committed baseline has no new gaps (npm run validate
     const baseline = new Set(readFileSync(join(ROOT, 'scripts/schema-description-baseline.txt'), 'utf8').split(/\r?\n/).filter(Boolean));
     const added = currentGaps().filter(line => !baseline.has(line));
     assert.deepEqual(added, [], 'add descriptions, or run npm run validate:schema-descriptions:update if intentional');
-});
-
-test('LLM bundle: cards, views and strategies sections; MSD not yet included', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lcards-llm-'));
-    mkdirSync(dir, { recursive: true });
-    const out = join(dir, 'schema.json');
-    const r = spawnSync(process.execPath, [join(ROOT, 'scripts/generate-llm-schema.js'), `--out=${out}`], { encoding: 'utf8' });
-    assert.equal(r.status, 0, r.stderr);
-    const bundle = JSON.parse(readFileSync(out, 'utf8'));
-    assert.ok(bundle.cards['lcards-button'] && bundle.cards['lcards-layout-card']);
-    assert.ok(!bundle.cards['lcards-msd-card']);
-    assert.deepEqual(Object.keys(bundle.views), ['lcards-layout-view']);
-    assert.deepEqual(Object.keys(bundle.strategies), ['lcars-shell']);
-    // Every $ref resolves.
-    const refs = JSON.stringify(bundle).match(/"\$ref":"#\/\$defs\/[^"]+"/g) ?? [];
-    for (const ref of new Set(refs)) {
-        const name = ref.slice('"$ref":"#/$defs/'.length, -1);
-        assert.ok(bundle.$defs[name], `dangling ${ref}`);
-    }
 });

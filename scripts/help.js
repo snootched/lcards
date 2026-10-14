@@ -37,7 +37,7 @@ const CATEGORIES = [
       'build:integration': { when: 'CI/release', desc: 'Vite build + asset copy only, skips validation/version-sync. CI/release only — never for dev.' },
       typecheck: { when: 'as needed', desc: 'TypeScript checks across the whole src/ tree (full sorted list).' },
       'typecheck:check': { when: 'CI/release', desc: 'Fails only on TypeScript errors not in scripts/tsc-baseline.txt (the CI gate). After fixing baseline errors: node scripts/check-typecheck-baseline.js --update.' },
-      'generate:llm-schema': { when: 'as needed', desc: 'Regenerates doc/public/lcards-schema.json (the LLM schema bundle: cards, layout view, shell strategy) from scripts/lib/card-schemas.js. Runs inside docs:build.' },
+      'generate:llm-schema': { when: 'as needed', desc: 'Regenerates the published JSON Schemas (gitignored): doc/public/lcards-schema.json (everything) and doc/public/schema/ (index, per-card files, shared/). Runs inside docs:build and docs:serve.' },
     },
   },
   {
@@ -85,7 +85,7 @@ const CATEGORIES = [
       'docs:build': { when: 'as needed', desc: 'Builds the docs site: LLM schema, production bundle copy for live demos, VitePress (fails on dead links), then the #anchor check.' },
       'docs:bundle': { when: 'as needed', desc: 'Builds the card bundle and copies it into doc/public/lcards/ for the live demos. Runs inside docs:build.' },
       'docs:check-anchors': { when: 'as needed', desc: 'Fails on any docs link to a missing #anchor (needs a built site). Runs inside docs:build.' },
-      'docs:serve': { when: 'as needed', desc: 'Local VitePress dev server with hot reload.' },
+      'docs:serve': { when: 'as needed', desc: 'Regenerates the published schemas, then the local VitePress dev server with hot reload.' },
       'docs:serve:network': { when: 'as needed', desc: 'Same, bound to 0.0.0.0 — for viewing docs from another device on the LAN.' },
       'docs:preview': { when: 'as needed', desc: 'Serves the already-built doc/ output, to sanity-check a production doc build locally.' },
       'docs:routing-diagrams': { when: 'as needed', desc: 'Regenerates the routing scenario diagrams embedded in the routing docs.' },

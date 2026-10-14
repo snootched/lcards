@@ -109,6 +109,9 @@ jobs:
           CODE=$?
           set -e
           if [ $CODE -eq 0 ]; then
+            # Point at this release's JSON Schemas (attached below) so tools can pin them.
+            DL="https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}"
+            printf '\n**JSON Schema for this release:** [lcards-schema.json](%s/lcards-schema.json) (everything in one file) · [lcards-schema.zip](%s/lcards-schema.zip) (one file per card, with schema/index.json)\n' "$DL" "$DL" >> release-body.md
             echo "body=release-body.md" >> $GITHUB_OUTPUT
           elif [ $CODE -eq 2 ] && [ "${{ steps.prerelease.outputs.is_prerelease }}" = "true" ]; then
             echo "::notice::No docs release page for this pre-release; GitHub's generated notes only"
@@ -225,13 +228,26 @@ jobs:
           echo "📦 Package contents:"
           unzip -l ../../lcards.zip
 
+      # ── JSON Schemas ──────────────────────────────────────────────────────────
+      # The same files the docs site serves (/lcards-schema.json, /schema/), for
+      # this version, attached so tools and the user-facing skill can pin a release.
+      - name: Package JSON Schemas
+        run: |
+          node scripts/generate-llm-schema.js --out-dir=schema-out
+          cp schema-out/lcards-schema.json lcards-schema.json
+          (cd schema-out && zip -r ../lcards-schema.zip schema)
+          unzip -l lcards-schema.zip | tail -1
+
       # ── Release ───────────────────────────────────────────────────────────────
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: LCARdS ${{ steps.version.outputs.version }}
-          files: lcards.zip
+          files: |
+            lcards.zip
+            lcards-schema.json
+            lcards-schema.zip
           prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
           # The docs page's notes (empty when a pre-release has none), then GitHub's commit list.
           body_path: ${{ steps.notes.outputs.body }}

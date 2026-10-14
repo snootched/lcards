@@ -3,6 +3,6 @@ type: custom:lcards-button
 entity: light.demo
 preset: lozenge
 background_animation:
-  preset: grid
-  config:
-    color: var(--lcards-orange)
+  - preset: grid
+    config:
+      color: var(--lcards-orange)

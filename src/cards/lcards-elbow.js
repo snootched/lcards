@@ -68,6 +68,7 @@ import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { isCssLengthString, measureCssLength } from '../utils/css-length-utils.js';
 import { getElbowSchema } from './schemas/elbow-schema.js';
+import { TEXT_POSITIONS } from './schemas/schema-options.js';
 import {
     normalizeHACardType,
     createCardElement,
@@ -3388,13 +3389,7 @@ export class LCARdSElbow extends LCARdSButton {
         lcardsLog.debug('[LCARdSElbow] Registering schema with presets:', availablePresets);
 
         // Position options with proper labels (same as button)
-        const positionEnum = [
-            'top-left', 'top-center', 'top-right',
-            'center-left', 'center', 'center-right',
-            'bottom-left', 'bottom-center', 'bottom-right',
-            'top', 'bottom', 'left', 'right',
-            'left-center', 'right-center',              // accepted aliases (deprecated)
-        ];
+        const positionEnum = [...TEXT_POSITIONS];
 
         // Build complete schema using schema factory function
         const elbowSchema = getElbowSchema({
