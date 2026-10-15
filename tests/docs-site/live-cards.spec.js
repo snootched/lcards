@@ -120,21 +120,24 @@ test('a slider drag sets the sample light and the slider keeps the new value', a
 // Cards drawn to their cell height (D-pad, alert, shaped, Picard) collapsed to a
 // thin strip or a tiny icon when the demo gave them only the 1 row they report.
 test('cards drawn to their cell height render at a usable size', async ({ page }) => {
+    // Two of the heaviest demo pages: each is loaded once (it used to be twice, which
+    // ran past the default 60 s on CI runners).
+    test.setTimeout(120_000);
     const drawnHeights = (tag, component) => page.locator(`.card-demo-mount > ${tag}`).evaluateAll((els, component) => els
         .filter(el => el.config?.component === component)
         .map(el => Math.max(0, ...[...el.shadowRoot.querySelectorAll('svg')].map(s => s.getBoundingClientRect().height))), component);
-    for (const [url, tag, component, min] of [
-        ['/cards/button/', 'lcards-button', 'dpad', 250],
-        ['/cards/button/', 'lcards-button', 'alert', 180],
-        ['/cards/slider-card/', 'lcards-slider', 'shaped', 150],
-        ['/cards/slider-card/', 'lcards-slider', 'picard', 350],
+    for (const [url, tag, checks] of [
+        ['/cards/button/', 'lcards-button', [['dpad', 250], ['alert', 180]]],
+        ['/cards/slider-card/', 'lcards-slider', [['shaped', 150], ['picard', 350]]],
     ]) {
         await page.goto(url);
         await waitForDemos(page, PAGES.find(([u]) => u === url)[1].length);
         await page.waitForTimeout(500);
-        const heights = await drawnHeights(tag, component);
-        expect(heights.length, `${component} demos on ${url}`).toBeGreaterThan(0);
-        for (const h of heights) expect(h, `${component} drawn height`).toBeGreaterThanOrEqual(min);
+        for (const [component, min] of checks) {
+            const heights = await drawnHeights(tag, component);
+            expect(heights.length, `${component} demos on ${url}`).toBeGreaterThan(0);
+            for (const h of heights) expect(h, `${component} drawn height`).toBeGreaterThanOrEqual(min);
+        }
     }
 });
 
