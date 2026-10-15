@@ -57,8 +57,8 @@ const frameRingProperties = (defaultBarWidth) => ({
 const frameSchema = {
     type: 'object',
     // Colour: the outer ring is painted with elbow.segment.color like every elbow;
-    // lcards-elbow.js parses frame.color and per-side colours but never uses them,
-    // so they are not offered here. The inner ring has its own colour (inner_frame.color).
+    // the inner ring has its own colour (inner_frame.color). There is no frame-level
+    // or per-side colour.
     description: 'Frame elbow (elbow.type: frame): a 2 to 4 sided rectangular border with per-side thickness and per-corner curves. Its colour is elbow.segment.color.',
     properties: {
         ...frameRingProperties(90),

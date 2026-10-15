@@ -1104,8 +1104,7 @@ export class LCARdSElbow extends LCARdSButton {
                     defaultT;
                 return {
                     thickness,
-                    enabled: raw.enabled !== false,
-                    color: raw.color ?? null
+                    enabled: raw.enabled !== false
                 };
             };
 
@@ -1129,8 +1128,9 @@ export class LCARdSElbow extends LCARdSButton {
                     top_right:    parseCorner('top_right'),
                     bottom_left:  parseCorner('bottom_left'),
                     bottom_right: parseCorner('bottom_right')
-                },
-                color: fc.color ?? null
+                }
+                // No frame-level or per-side colour: the outer ring is painted with
+                // elbow.segment.color, the inner ring with segments.inner_frame.color.
             };
 
             // Segmented (double-ring) mode: frame.segments.inner_frame
@@ -1152,7 +1152,7 @@ export class LCARdSElbow extends LCARdSButton {
                         raw.bar_height !== undefined ? this._parseUnit(raw.bar_height) :
                         raw.thickness  !== undefined ? this._parseUnit(raw.thickness)  :
                         defaultT;
-                    return { thickness, enabled: raw.enabled !== false, color: raw.color ?? null };
+                    return { thickness, enabled: raw.enabled !== false };
                 };
 
                 const parseInnerCorner = (ck) => {
@@ -1617,8 +1617,7 @@ export class LCARdSElbow extends LCARdSButton {
         const geom = {
             type:    'frame',
             sides:   fc.sides,
-            corners: fc.corners,
-            color:   fc.color
+            corners: fc.corners
         };
 
         // Segmented (double-ring) — mirrors _calculateSegmentedGeometry's .outer/.inner/.gap
