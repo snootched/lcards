@@ -53,7 +53,7 @@ doc/releases/<version>.md  ──►  docs site /releases/        (Docs workflow
 
 ### Recipe: a dev release
 
-1. **Bump:** `npm run bump-version:dev`. It gives `2026.11.0-dev.1`, then `-dev.2` and so on. On a stable version it starts `-dev.1` on the next base. (An old-style suffix like `-dev3` becomes `-dev.1`.)
+1. **Bump, then build:** `npm run bump-version:dev`, then `npm run build`. The bump gives `2026.11.0-dev.1`, then `-dev.2` and so on. On a stable version it starts `-dev.1` on the next base. (An old-style suffix like `-dev3` becomes `-dev.1`.) The bump changes only `package.json`; the build copies the version into `custom_components/lcards/const.py` (`DOMAIN_VERSION`, full string) and `manifest.json` (HA CalVer without the suffix, so it only changes on a new base or a stable bump), and updates the bundle your dev HA loads.
 2. **Notes:** ask Claude to "update the release notes for the dev build". Claude:
    - runs `npm run release:commits`;
    - creates the page (first dev build) or updates it;
@@ -63,8 +63,8 @@ doc/releases/<version>.md  ──►  docs site /releases/        (Docs workflow
    - runs the checks and reports what to hand-tune, with a commit message.
 3. **Review:** read the page (`npm run docs:serve`, then `/releases/`) and every new picture. Optionally preview the GitHub body: `npm run release:notes -- 2026.11.0-dev.1`.
 4. **Check:** `npm run build` and `npm test`.
-5. **Commit and push `dev`.**
-6. **Wait for the Docs workflow** (Actions, then Docs) to finish. The GitHub body links pictures on `lcards.unimatrix01.ca`, so they must be live first.
+5. **Commit and push `dev`:** one commit with `package.json`, `custom_components/lcards/const.py` (and `manifest.json` if it changed), the release page, and its pictures and shot list. The built bundle (`lcards.js`, `chunks/`) is gitignored and never committed.
+6. **Wait for the Docs workflow** (Actions, then Docs) to finish. The GitHub body links pictures at `lcards.unimatrix01.ca/releases/<version>/`; a `dev` deploy publishes those picture folders at the site root too (`scripts/docs-deploy.mjs`), so they must be live first.
 7. **Publish:** Actions, then Release, then Run workflow, branch **dev**. It:
    - runs the Validate workflow as a gate;
    - detects a pre-release from the `-dev` suffix;
@@ -85,8 +85,8 @@ A dev build with no page at all still publishes, with GitHub's generated notes o
    - runs `npm run bump-version` (which strips `-dev.N`: `2026.11.0-dev.4` becomes `2026.11.0`);
    - runs the checks.
 2. **A different version number:** say so (for example "ship it as 2026.12.0"). The page, its picture folder and the shot list are renamed to match; the tests fail until the file name, `version:` and image paths agree.
-3. **Review**, then `npm run build` and `npm test`.
-4. **Commit on `dev`, push, open a PR from `dev` to `main`, merge.**
+3. **Review**, then `npm run build` (copies the new version into `const.py` and `manifest.json`) and `npm test`.
+4. **Commit on `dev`** (`package.json`, `const.py`, `manifest.json`, the release page and pictures), **push, open a PR from `dev` to `main`, merge.**
 5. **Wait for the Docs workflow on `main`.**
 6. **Publish:** Actions, then Release, then Run workflow, branch **main**. It stops before tagging if the page is missing (exit 2) or still `status: testing` (exit 3).
 7. **Check the release on GitHub,** including the commit list's "Full Changelog" range. GitHub picks the previous tag itself and may compare against the last dev tag.
@@ -123,7 +123,7 @@ All in `.github/workflows/`.
 | Workflow | Runs on | What it does |
 |---|---|---|
 | **Validate** (`validate-integration.yml`) | push and PR to `main`/`dev`, manual, and as the Release gate; **nightly: HACS + Hassfest only** | See the job list below. |
-| **Docs** (`docs.yml`) | push to `main`/`dev` touching `doc/**`, `src/**`, `scripts/**`, the docs tests or the build config; PRs (no deploy); manual (optionally `archive_tag`); called by Release | Versioned site on `lcards.unimatrix01.ca`: `main` builds the root `/` (stable line), `dev` builds `/dev/`, a stable release builds `/v/<version>/` once (frozen). Each is `npm run docs:build` + `npm run test:docs` with its own `DOCS_BASE` (dead links, anchors, links escaping the base, live demos); a failing test stops the deploy. The deploy merges the build into the `gh-pages` branch (storage, one force-pushed commit) with `scripts/docs-deploy.mjs` (keeps the other channels, keeps root `/lcards/` card assets as a union, writes `versions.json`, prunes `/v/` to 8 versions), then publishes the whole tree. Pages source stays "GitHub Actions". Bootstrap: until a root exists on `gh-pages`, a `dev` push builds the root. About 5 minutes. |
+| **Docs** (`docs.yml`) | push to `main`/`dev` touching `doc/**`, `src/**`, `scripts/**`, the docs tests or the build config; PRs (no deploy); manual (optionally `archive_tag`); called by Release | Versioned site on `lcards.unimatrix01.ca`: `main` builds the root `/` (stable line), `dev` builds `/dev/`, a stable release builds `/v/<version>/` once (frozen). Each is `npm run docs:build` + `npm run test:docs` with its own `DOCS_BASE` (dead links, anchors, links escaping the base, live demos); a failing test stops the deploy. The deploy merges the build into the `gh-pages` branch (storage, one force-pushed commit) with `scripts/docs-deploy.mjs` (keeps the other channels, keeps root `/lcards/` card assets and `/releases/<version>/` pictures as a union (GitHub release bodies link pictures at the root), writes `versions.json`, prunes `/v/` to 8 versions), then publishes the whole tree. Pages source stays "GitHub Actions". Bootstrap: until a root exists on `gh-pages`, a `dev` push builds the root. About 5 minutes. |
 | **Release** (`release.yml`) | manual only (Run workflow, pick the branch) | Validate gate, read the version from `package.json`, pre-release if the suffix is `-dev` or the branch isn't `main`, export the release page, tag, stamp `manifest.json`/`const.py`, `build:integration`, verify the output, zip, package the JSON Schemas (`lcards-schema.json`, `lcards-schema.zip`) the standalone config checker (`lcards-validate.mjs`) and the Claude skill (`lcards-skill.zip`), publish with the page as the body (plus a line linking those schema assets) and GitHub's commit list. A stable release then calls the Docs workflow to archive its docs at `/v/<version>/`. |
 | **Issue template check** (`issue-template-check.yml`) | issues opened, edited or reopened | Issues that skip the forms get a `needs-template` label and one comment. Owners and collaborators are exempt; it never closes anything. |
 

@@ -15,10 +15,13 @@
  *   archive  v/<version>/ (refuses to overwrite one that exists), then prunes v/ to
  *            the newest --keep versions
  *
- * Card assets: the LCARdS bundle loads MSD SVGs, sounds, fonts and images from the
- * root-absolute /lcards/ path (where HA serves them), so every channel's demos read
- * the root's copy. Root lcards/{msd,sounds,fonts,images} is therefore kept as the
- * union of every channel's files: a deploy adds what's missing and never deletes.
+ * Shared files at the root, kept as the union of every channel's (a deploy adds what's
+ * missing and never deletes):
+ *   - card assets: the LCARdS bundle loads MSD SVGs, sounds, fonts and images from the
+ *     root-absolute /lcards/ path (where HA serves them), so every channel's demos read
+ *     the root's lcards/{msd,sounds,fonts,images};
+ *   - release pictures: a GitHub release body links /releases/<version>/<picture> at
+ *     the site root, also for a dev pre-release whose docs live under /dev/.
  *
  * /versions.json (read by the docs' VersionSwitcher/VersionBanner):
  *   { "latest": "<root version>", "dev": "<dev version>", "versions": [newest first] }
@@ -37,6 +40,18 @@ import { compareVersions } from './release-lib.mjs';
 const KEEP_AT_ROOT = new Set(['v', 'dev', 'versions.json', '.git']);
 /** Asset folders under lcards/ that are kept as a union across channels. */
 export const SHARED_ASSET_DIRS = ['msd', 'sounds', 'fonts', 'images'];
+
+/** Root-relative folders kept as a union: card assets, and each release's picture folder. */
+export function sharedDirs(root) {
+  const dirs = SHARED_ASSET_DIRS.map(d => join('lcards', d));
+  const releases = join(root, 'releases');
+  if (existsSync(releases)) {
+    for (const ent of readdirSync(releases, { withFileTypes: true })) {
+      if (ent.isDirectory()) dirs.push(join('releases', ent.name));
+    }
+  }
+  return dirs;
+}
 export const DEFAULT_KEEP = 8;
 
 const isStable = (v) => /^\d{4}\.\d{2}\.\d+$/.test(v) || /^\d{4}\.\d{2}\.\d{2}\.\d+$/.test(v);
@@ -59,10 +74,10 @@ export function copyMissing(src, dest) {
   return added;
 }
 
-/** Add a build's card assets to the root lcards/ folder (never removes any). */
-function unionAssets(fromLcards, site) {
+/** Add a build's shared files (card assets, release pictures) to the root (never removes any). */
+function unionShared(build, site) {
   let added = 0;
-  for (const dir of SHARED_ASSET_DIRS) added += copyMissing(join(fromLcards, dir), join(site, 'lcards', dir));
+  for (const dir of sharedDirs(build)) added += copyMissing(join(build, dir), join(site, dir));
   return added;
 }
 
@@ -92,10 +107,11 @@ export function deploy({ site, build, channel, version, keep = DEFAULT_KEEP, for
   let assetsAdded = 0;
   let pruned = [];
   if (channel === 'latest') {
-    // Keep the other channels' extra assets: stash root lcards/ assets, replace the root, merge back.
-    const stash = mkdtempSync(join(tmpdir(), 'lcards-assets-'));
-    for (const dir of SHARED_ASSET_DIRS) {
-      const from = join(site, 'lcards', dir);
+    // Keep the other channels' shared files: stash them, replace the root, merge back.
+    const stash = mkdtempSync(join(tmpdir(), 'lcards-shared-'));
+    const stashed = sharedDirs(site);
+    for (const dir of stashed) {
+      const from = join(site, dir);
       if (existsSync(from)) cpSync(from, join(stash, dir), { recursive: true });
     }
     for (const name of readdirSync(site)) {
@@ -105,19 +121,19 @@ export function deploy({ site, build, channel, version, keep = DEFAULT_KEEP, for
       if (KEEP_AT_ROOT.has(name)) throw new Error(`The root build contains reserved path ${name}/`);
       cpSync(join(build, name), join(site, name), { recursive: true });
     }
-    for (const dir of SHARED_ASSET_DIRS) assetsAdded += copyMissing(join(stash, dir), join(site, 'lcards', dir));
+    for (const dir of stashed) assetsAdded += copyMissing(join(stash, dir), join(site, dir));
     rmSync(stash, { recursive: true, force: true });
   } else if (channel === 'dev') {
     rmSync(join(site, 'dev'), { recursive: true, force: true });
     cpSync(build, join(site, 'dev'), { recursive: true });
-    assetsAdded = unionAssets(join(build, 'lcards'), site);
+    assetsAdded = unionShared(build, site);
   } else if (channel === 'archive') {
     if (!isStable(version)) throw new Error(`Only stable releases are archived (got ${version})`);
     const dest = join(site, 'v', version);
     if (existsSync(dest) && !force) throw new Error(`v/${version}/ is already published and frozen (pass --force to replace it)`);
     rmSync(dest, { recursive: true, force: true });
     cpSync(build, dest, { recursive: true });
-    assetsAdded = unionAssets(join(build, 'lcards'), site);
+    assetsAdded = unionShared(build, site);
     pruned = archivedVersions(site).slice(keep);
     for (const v of pruned) rmSync(join(site, 'v', v), { recursive: true, force: true });
   } else {
@@ -151,7 +167,7 @@ function main() {
     });
     const where = { latest: '/', dev: '/dev/', archive: `/v/${args.version}/` }[args.channel];
     console.log(`Deployed ${args.version} to ${where}; versions.json: ${JSON.stringify(versions)}`);
-    if (assetsAdded) console.log(`Root lcards/ assets: ${assetsAdded} file(s) added for other channels`);
+    if (assetsAdded) console.log(`Root shared files (card assets, release pictures): ${assetsAdded} added for other channels`);
     if (pruned.length) console.log(`Pruned archived versions: ${pruned.join(', ')}`);
   } catch (e) {
     console.error(`docs-deploy: ${e.message}`);

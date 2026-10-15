@@ -72,6 +72,26 @@ test('root lcards/ assets are the union of every channel and survive a root rede
     assert.equal(read(site, 'lcards/lcards.js'), 'bundle stable2', 'the root bundle itself is replaced, not merged');
 });
 
+test('release pictures from a dev build are published at the root (GitHub release bodies link there) and survive a root redeploy', () => {
+    const site = tmp('site');
+    const stable = build('stable');
+    put(stable, 'releases/2026.09.0/old.webp', 'old picture');
+    put(stable, 'releases/2026.09.0.html', 'old page');
+    deploy({ site, build: stable, channel: 'latest', version: '2026.09.0' });
+
+    const dev = build('dev');
+    put(dev, 'releases/2026.10.0/chart.webp', 'dev picture');
+    put(dev, 'releases/2026.10.0.html', 'dev page');
+    deploy({ site, build: dev, channel: 'dev', version: '2026.10.0-dev.2' });
+    assert.equal(read(site, 'releases/2026.10.0/chart.webp'), 'dev picture', 'dev picture at the root');
+    assert.equal(read(site, 'dev/releases/2026.10.0/chart.webp'), 'dev picture');
+    assert.ok(!existsSync(join(site, 'releases/2026.10.0.html')), 'only pictures are shared, not the dev page');
+
+    deploy({ site, build: build('stable2'), channel: 'latest', version: '2026.09.1' });
+    assert.equal(read(site, 'releases/2026.10.0/chart.webp'), 'dev picture', 'kept after a root redeploy');
+    assert.equal(read(site, 'releases/2026.09.0/old.webp'), 'old picture', 'published pictures never disappear');
+});
+
 test('archives are frozen, stable-only, and pruned to the newest versions', () => {
     const site = tmp('site');
     deploy({ site, build: build('root'), channel: 'latest', version: '2026.10.0' });
