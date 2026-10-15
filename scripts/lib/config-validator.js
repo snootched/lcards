@@ -253,6 +253,10 @@ export function createConfigValidator({ entries, registries = null }) {
     if (tag === 'lcards-msd-card' && !node.msd?.base_svg?.source && !Array.isArray(node.msd?.view_box)) {
       add('error', 'msd-canvas', 'msd', 'MSD has neither msd.base_svg.source nor a view_box [x, y, w, h]');
     }
+    // A blank canvas has no size of its own: anchors and overlays need a view_box.
+    if (tag === 'lcards-msd-card' && node.msd?.base_svg?.source === 'none' && !Array.isArray(node.msd?.view_box)) {
+      add('error', 'msd-canvas', 'msd.view_box', 'base_svg.source "none" needs a view_box [x, y, w, h]');
+    }
     const validate = compiled.get(tag);
     if (!validate) return issues;
 

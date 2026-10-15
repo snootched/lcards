@@ -110,6 +110,9 @@ test('MSD without a canvas is an error; legacy chart format a warning', () => {
         { type: 'custom:lcards-chart', source: 'sensor.temp' },
     ]));
     assert.ok(m.some(x => x.startsWith('error [0].msd: MSD has neither')), m.join('\n'));
+    const none = messages(check({ type: 'custom:lcards-msd-card', msd: { base_svg: { source: 'none' } } }));
+    assert.ok(none.includes('error msd.view_box: base_svg.source "none" needs a view_box [x, y, w, h]'), none.join('\n'));
+    assert.deepEqual(messages(check({ type: 'custom:lcards-msd-card', msd: { base_svg: { source: 'none' }, view_box: [0, 0, 400, 200] } })), []);
     assert.ok(m.some(x => x.startsWith('warning [1]: legacy chart format')), m.join('\n'));
 });
 

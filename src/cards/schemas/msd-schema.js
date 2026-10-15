@@ -39,7 +39,8 @@ export function getMsdSchema() {
   // No `required`: an MSD needs base_svg.source OR a view_box (a blank canvas;
   // lcards-msd.js treats a view_box without base_svg as `source: none`).
   // JSON Schema `anyOf` can't express that here without CoreValidationService
-  // dropping the property checks, so scripts/validate-doc-examples.js enforces it.
+  // dropping the property checks, so the config checker enforces it (and that
+  // source "none" has a view_box): scripts/lib/config-validator.js.
   const msdConfigSchema = {
     type: 'object',
     properties: {
@@ -901,59 +902,7 @@ export function getMsdSchema() {
 
       // NOTE: 'theme' field removed - theme is now global via ThemeManager singleton
       // Per-card theme configuration is no longer supported
-    },
-
-    validators: [
-      // Warn about deprecated fields at msd config level
-      (config, context) => {
-        if (config.use_packs) {
-          return {
-            valid: true,
-            warnings: [{
-              field: 'use_packs',
-              type: 'deprecated_field',
-              message: 'Field "use_packs" is deprecated (v1.22+). Packs loaded globally by PackManager.',
-              severity: 'warning',
-              suggestion: 'Remove "use_packs" from config'
-            }]
-          };
-        }
-        return { valid: true };
-      },
-
-      (config, context) => {
-        if (config.version) {
-          return {
-            valid: true,
-            warnings: [{
-              field: 'version',
-              type: 'deprecated_field',
-              message: 'Field "version" is no longer required (v1.22+).',
-              severity: 'warning',
-              suggestion: 'Remove "version" from config'
-            }]
-          };
-        }
-        return { valid: true };
-      },
-
-      // Validate view_box requirement when base_svg.source is "none"
-      (config, context) => {
-        if (config.base_svg?.source === 'none' && (!config.view_box || config.view_box === 'auto')) {
-          return {
-            valid: false,
-            errors: [{
-              field: 'view_box',
-              type: 'required_field',
-              message: 'view_box must be explicitly specified when base_svg.source is "none"',
-              severity: 'error',
-              suggestion: 'Add view_box: [minX, minY, width, height]'
-            }]
-          };
-        }
-        return { valid: true };
-      }
-    ]
+    }
   };
 
   // Return the top-level card schema with nested msd configuration
@@ -1040,26 +989,7 @@ export function getMsdSchema() {
       // Root-level properties (shared across cards)
       data_sources: dataSourcesSchema,
       rules: rulesSchema
-    },
-
-    validators: [
-      // Warn if msd.version is present (nested structure)
-      (config, context) => {
-        if (config.msd?.version) {
-          return {
-            valid: true,
-            warnings: [{
-              field: 'msd.version',
-              type: 'deprecated_field',
-              message: 'Field "msd.version" is no longer required (v1.22+).',
-              severity: 'warning',
-              suggestion: 'Remove "version" from msd configuration'
-            }]
-          };
-        }
-        return { valid: true };
-      }
-    ]
+    }
   };
 }
 
