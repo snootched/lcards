@@ -2,10 +2,9 @@
  * Live card examples (```yaml live) on the card reference pages render the real
  * card from the published /lcards/ bundle, with no errors.
  */
-import { test, expect } from '@playwright/test';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { watchErrors, waitForDemos, demoState } from './support.js';
+import { test, expect, watchErrors, waitForDemos, demoState, DOCS_BASE } from './support.js';
 
 // Card types rendered by CardDemo (chart and data grid have their own demos).
 const CARD_DEMO_TYPES = new Set(['lcards-button', 'lcards-elbow', 'lcards-slider', 'lcards-select-menu', 'lcards-msd-card']);
@@ -71,6 +70,15 @@ test('a toggle tap switches the sample entity and the card follows', async ({ pa
     await expect.poll(fill).not.toBe(before);
     await bg.click();
     await expect.poll(fill).toBe(before);
+});
+
+test('live cards load the bundle from this docs channel (its own base), not the site root', async ({ page }) => {
+    const bundle = [];
+    page.on('request', r => { if (/\/lcards\/lcards\.js/.test(r.url())) bundle.push(new URL(r.url()).pathname); });
+    await page.goto('/cards/button/');
+    await waitForDemos(page, PAGES.find(([u]) => u === '/cards/button/')[1].length);
+    expect(bundle.length).toBeGreaterThan(0);
+    for (const path of bundle) expect(path).toBe(`${DOCS_BASE}lcards/lcards.js`);
 });
 
 test('pages without live cards do not load the LCARdS bundle', async ({ page }) => {

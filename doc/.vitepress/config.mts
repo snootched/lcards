@@ -5,8 +5,15 @@ import { readFileSync, existsSync, statSync, createReadStream } from 'node:fs'
 import { resolve, extname, sep } from 'node:path'
 import { listReleases } from '../../scripts/release-lib.mjs'
 
-const SITE_URL = 'https://lcards.unimatrix01.ca'
 const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'))
+
+// Docs channels (.github/workflows/docs.yml, scripts/docs-deploy.mjs): the site root
+// is the stable line (main), /dev/ the dev branch, /v/<version>/ a frozen stable
+// release. DOCS_BASE picks the channel at build time; a local build is the root.
+const BASE = process.env.DOCS_BASE ?? '/'
+if (!/^\/(?:dev\/|v\/[0-9][^/]*\/)?$/.test(BASE)) throw new Error(`DOCS_BASE must be /, /dev/ or /v/<version>/ (got ${BASE})`)
+const CHANNEL = BASE === '/' ? 'latest' : BASE === '/dev/' ? 'dev' : 'archive'
+const SITE_ROOT = 'https://lcards.unimatrix01.ca'
 
 // Release pages (doc/releases/<tag>.md): in testing first, then newest first.
 const releases = listReleases()
@@ -130,7 +137,7 @@ function devBundlePlugin() {
     name: 'lcards-dev-bundle',
     apply: 'serve' as const,
     configureServer(server) {
-      server.middlewares.use('/lcards', (req, res, next) => {
+      server.middlewares.use(`${BASE}lcards`, (req, res, next) => {
         const path = decodeURIComponent((req.url ?? '/').split('?')[0])
         const file = resolve(BUNDLE_DIR, '.' + path)
         if (!file.startsWith(BUNDLE_DIR + sep) || !existsSync(file) || !statSync(file).isFile()) return next()
@@ -145,8 +152,8 @@ function devBundlePlugin() {
 export default withMermaid(defineConfig({
   title: 'LCARdS',
   description: 'LCARS-inspired card components for Home Assistant',
-  // Custom domain (lcards.unimatrix01.ca): GitHub Pages serves from root, no subpath needed
-  base: '/',
+  // Custom domain (lcards.unimatrix01.ca); the channel's folder on it (see BASE above)
+  base: BASE,
 
   ignoreDeadLinks: false,
 
@@ -155,11 +162,11 @@ export default withMermaid(defineConfig({
 
   // Output goes to doc/.vitepress/dist (VitePress default: consistent across environments)
 
-  sitemap: {
-    hostname: SITE_URL,
-  },
+  // Only the stable root is indexed: /dev/ and /v/* are noindex and have no sitemap.
+  ...(CHANNEL === 'latest' ? { sitemap: { hostname: SITE_ROOT } } : {}),
 
   head: [
+    ...(CHANNEL === 'latest' ? [] : [['meta', { name: 'robots', content: 'noindex' }] as [string, Record<string, string>]]),
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', {
       rel: 'stylesheet',
@@ -246,6 +253,10 @@ export default withMermaid(defineConfig({
 
   themeConfig: {
     siteTitle: 'LCARdS',
+
+    // Read by VersionSwitcher.vue / VersionBanner.vue (theme/): which channel this
+    // build is, and its LCARdS version. The list of channels comes from /versions.json.
+    docsChannel: { channel: CHANNEL, version: pkg.version, base: BASE },
 
     nav: [
       {
@@ -746,8 +757,8 @@ export default withMermaid(defineConfig({
     },
 
     footer: {
-      message: 'Released under the MIT License. | <a href="/credits">License &amp; Disclaimer</a>',
-      copyright: '© 2026 snootched | LCARdS | <a href="/credits">About &amp; Credits</a>',
+      message: `Released under the MIT License. | <a href="${BASE}credits">License &amp; Disclaimer</a>`,
+      copyright: `© 2026 snootched | LCARdS | <a href="${BASE}credits">About &amp; Credits</a>`,
     },
 
     search: {

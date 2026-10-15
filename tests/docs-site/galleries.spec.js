@@ -2,10 +2,9 @@
  * Card galleries (<CardGallery set="..." />) render a real card in every tile,
  * with a usable height and no errors.
  */
-import { test, expect } from '@playwright/test';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { watchErrors } from './support.js';
+import { test, expect, watchErrors } from './support.js';
 
 /** Every docs page using CardGallery, with the gallery set names in page order. */
 function galleryPages() {

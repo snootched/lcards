@@ -1,5 +1,14 @@
 name: Docs
 
+# Versioned docs site (reports/ai-readiness-plan.md, step 3). Channels:
+#   push to main      -> site root /          (stable line; doc fixes go live between releases)
+#   push to dev       -> /dev/                (dev branch; noindex, banner)
+#   stable release    -> /v/<version>/        (built once from the tag, then frozen)
+# Every channel is a separate VitePress build with its own base (DOCS_BASE) and its
+# own card bundle. The published tree is stored on the `gh-pages` branch (one commit,
+# force-pushed); scripts/docs-deploy.mjs replaces only the deploying channel's part,
+# then the whole tree goes to GitHub Pages. Pages source stays "GitHub Actions".
+
 on:
   push:
     branches: ["main", "dev"]
@@ -8,6 +17,7 @@ on:
       - "src/**"                   # live demos run the current card bundle
       - "scripts/**"               # docs build steps, validators, release pages
       - "tests/docs/**"
+      - "tests/docs-site/**"
       - "tests/helpers/card-env.js"
       - "playwright.docs.config.js"
       - "vite.config.js"
@@ -18,9 +28,10 @@ on:
     branches: ["main", "dev"]
     paths:
       - "doc/**"
-      - "src/**"                   # live demos run the current card bundle
-      - "scripts/**"               # docs build steps, validators, release pages
+      - "src/**"
+      - "scripts/**"
       - "tests/docs/**"
+      - "tests/docs-site/**"
       - "tests/helpers/card-env.js"
       - "playwright.docs.config.js"
       - "vite.config.js"
@@ -28,24 +39,70 @@ on:
       - "package-lock.json"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
+    inputs:
+      archive_tag:
+        description: "Archive a stable release tag into /v/<version>/ (empty: build this branch's channel)"
+        required: false
+        default: ""
+  # The Release workflow archives each stable release.
+  workflow_call:
+    inputs:
+      archive_tag:
+        description: "Stable release tag to archive into /v/<version>/"
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write                  # push the gh-pages storage branch
   pages: write
   id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
 
 jobs:
   build:
     name: Build Docs
     runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.channel.outputs.channel }}
+      base: ${{ steps.channel.outputs.base }}
+      version: ${{ steps.channel.outputs.version }}
+      ref: ${{ steps.channel.outputs.ref }}
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.archive_tag || github.ref }}
           fetch-depth: 0
+
+      # Which channel this run builds, and its base path.
+      # Until the site has a root published by this workflow (no versions.json with
+      # "latest" on gh-pages), a dev push builds the root instead, as before.
+      - name: Resolve channel
+        id: channel
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          ARCHIVE_TAG="${{ inputs.archive_tag }}"
+          if [ -n "$ARCHIVE_TAG" ]; then
+            CHANNEL=archive; BASE="/v/${VERSION}/"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANNEL=none; BASE="/"
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            CHANNEL=latest; BASE="/"
+          elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            if git fetch --depth=1 origin gh-pages 2>/dev/null \
+               && git show FETCH_HEAD:versions.json 2>/dev/null | node -e "process.exit(JSON.parse(require('fs').readFileSync(0,'utf8')).latest ? 0 : 1)"; then
+              CHANNEL=dev; BASE="/dev/"
+            else
+              echo "::notice::No published root yet: this dev build goes to the root (bootstrap)."
+              CHANNEL=latest; BASE="/"
+            fi
+          else
+            echo "::error::Docs deploy only from main, dev or an archive tag (got ${{ github.ref }})"
+            exit 1
+          fi
+          echo "channel=${CHANNEL}" >> $GITHUB_OUTPUT
+          echo "base=${BASE}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "ref=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "📌 ${CHANNEL} ${VERSION} at ${BASE}"
 
       - uses: actions/setup-node@v7
         with:
@@ -55,35 +112,106 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Configure GitHub Pages base URL
-        uses: actions/configure-pages@v6
-
-      - name: Build docs (dead links and #anchors fail the build)
+      - name: Build docs (dead links, #anchors and base escapes fail the build)
+        env:
+          DOCS_BASE: ${{ steps.channel.outputs.base }}
         run: npm run docs:build
 
-      # Live card demos, galleries, playgrounds and processor labs: a failure
-      # stops the deploy below, so broken demos never go live.
+      # A tag from before versioned docs ignores DOCS_BASE and would publish a
+      # root-based build under /v/: refuse it.
+      - name: Check the build used the channel base
+        run: |
+          BASE="${{ steps.channel.outputs.base }}"
+          if ! grep -q "${BASE}assets/" doc/.vitepress/dist/index.html; then
+            echo "::error::This revision's docs build ignores DOCS_BASE (${BASE}); it predates versioned docs and cannot be published there."
+            exit 1
+          fi
+
+      # Live card demos, galleries, playgrounds and processor labs, on this
+      # channel's base: a failure stops the deploy below.
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
       - name: Docs site tests
+        env:
+          DOCS_BASE: ${{ steps.channel.outputs.base }}
         run: npm run test:docs
 
-      - name: Upload Pages artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v5
+      - name: Keep the build for the deploy job
+        if: steps.channel.outputs.channel != 'none'
+        uses: actions/upload-artifact@v7
         with:
+          name: docs-build
           path: doc/.vitepress/dist
+          retention-days: 1
 
   deploy:
     name: Deploy to GitHub Pages
     needs: build
-    if: github.event_name != 'pull_request'
+    if: needs.build.outputs.channel != 'none'
     runs-on: ubuntu-latest
+    # One deploy at a time: each merges into the latest gh-pages tree.
+    concurrency:
+      group: docs-pages-deploy
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Checkout the built revision (deploy script)
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.build.outputs.ref }}
+          path: src
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src
+        run: npm ci --ignore-scripts
+
+      - name: Download the build
+        uses: actions/download-artifact@v8
+        with:
+          name: docs-build
+          path: dist
+
+      - name: Check out the published tree (gh-pages)
+        run: |
+          if git ls-remote --exit-code --heads "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages >/dev/null; then
+            git clone --depth=1 --branch gh-pages "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" site
+          else
+            echo "::notice::No gh-pages branch yet; starting the published tree"
+            mkdir site && git -C site init -q && git -C site remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          fi
+
+      - name: Merge this channel into the tree
+        run: node src/scripts/docs-deploy.mjs --site=site --build=dist --channel=${{ needs.build.outputs.channel }} --version=${{ needs.build.outputs.version }}
+
+      # A single force-pushed commit: the branch is storage, not history, so it
+      # doesn't grow by a full site per deploy.
+      - name: Store the tree on gh-pages
+        working-directory: site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan published
+          git add -A
+          git commit -q -m "docs: ${{ needs.build.outputs.channel }} ${{ needs.build.outputs.version }} (${{ needs.build.outputs.ref }})"
+          git push -q -f origin published:gh-pages
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

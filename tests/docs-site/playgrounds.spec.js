@@ -2,8 +2,7 @@
  * Card playgrounds: quick settings, schema completion, Insert and Copy YAML all
  * drive the real card.
  */
-import { test, expect } from '@playwright/test';
-import { watchErrors, waitForDemos, demoState } from './support.js';
+import { test, expect, watchErrors, waitForDemos, demoState } from './support.js';
 
 const PLAYGROUNDS = [
     // [url, card tag, quick-setting label, value to pick]

@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(root, 'doc/.vitepress/dist');
+const SITE_BASE = process.env.DOCS_BASE ?? '/';
 
 if (!existsSync(DIST)) {
     console.error('doc/.vitepress/dist not found: run `npm run docs:build` first.');
@@ -41,7 +42,9 @@ function pages(dir, out = []) {
 /** Resolve a link path to a built page, or null when there is no such page. */
 function resolvePage(fromPage, linkPath) {
     if (!linkPath) return fromPage;
-    const clean = linkPath.split('?')[0];
+    let clean = linkPath.split('?')[0];
+    // A /dev/ or /v/<version>/ build (DOCS_BASE) prefixes every site link with its base.
+    if (SITE_BASE !== '/' && clean.startsWith(SITE_BASE)) clean = '/' + clean.slice(SITE_BASE.length);
     const base = clean.startsWith('/') ? join(DIST, clean) : resolve(dirname(fromPage), clean);
     for (const candidate of [base, `${base}.html`, join(base, 'index.html'), base.replace(/\.html$/, '/index.html')]) {
         if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;

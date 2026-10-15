@@ -13,9 +13,11 @@ export function loadBundle() {
   globalThis.__lcardsDocsBundle ??= new Promise((resolve, reject) => {
     const script = document.createElement('script')
     script.type = 'module'
-    script.src = '/lcards/lcards.js?v=docs'
+    // Under the site's base (/, /dev/, /v/<version>/): each docs channel runs its own bundle.
+    const src = `${import.meta.env?.BASE_URL ?? '/'}lcards/lcards.js`
+    script.src = `${src}?v=docs`
     script.onload = resolve
-    script.onerror = () => reject(new Error('could not load /lcards/lcards.js (run npm run build; for the built site, npm run docs:build)'))
+    script.onerror = () => reject(new Error(`could not load ${src} (run npm run build; for the built site, npm run docs:build)`))
     document.head.appendChild(script)
   })
   return globalThis.__lcardsDocsBundle

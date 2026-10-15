@@ -12,6 +12,8 @@ import CardGallery from './CardGallery.vue'
 import ProcessorLab from './ProcessorLab.vue'
 import ReleaseList from './ReleaseList.vue'
 import ReleaseMeta from './ReleaseMeta.vue'
+import VersionSwitcher from './VersionSwitcher.vue'
+import VersionBanner from './VersionBanner.vue'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -90,6 +92,10 @@ export default {
 
   Layout() {
     return h(DefaultTheme.Layout, null, {
+      // Docs channels: the "not the latest docs" banner on /dev/ and /v/<version>/
+      // builds, and the version switcher next to the site title (theme/docs-versions.js).
+      'layout-top': () => h(VersionBanner),
+      'nav-bar-title-after': () => h(VersionSwitcher),
       'home-hero-actions-after': () => h(HomeBadges),
     })
   },

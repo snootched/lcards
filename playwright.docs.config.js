@@ -12,6 +12,9 @@ import { defineConfig } from '@playwright/test';
  */
 const BUILT = Number(process.env.LCARDS_DOCS_PORT ?? 4871);
 const DEV = BUILT + 1;
+// The docs channel's base (DOCS_BASE, e.g. /dev/): both servers serve the site under it,
+// and tests/docs-site/support.js puts every spec path under it.
+const BASE = process.env.DOCS_BASE ?? '/';
 const chromium = process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
 
 export default defineConfig({
@@ -29,12 +32,12 @@ export default defineConfig({
     webServer: [
         {
             command: `npx vitepress preview doc --host 127.0.0.1 --port ${BUILT}`,
-            url: `http://127.0.0.1:${BUILT}/`,
+            url: `http://127.0.0.1:${BUILT}${BASE}`,
             reuseExistingServer: !process.env.CI,
         },
         {
             command: `node scripts/copy-docs-bundle.js && npx vitepress dev doc --host 127.0.0.1 --port ${DEV} --strictPort`,
-            url: `http://127.0.0.1:${DEV}/`,
+            url: `http://127.0.0.1:${DEV}${BASE}`,
             reuseExistingServer: !process.env.CI,
             timeout: 120_000,
         },

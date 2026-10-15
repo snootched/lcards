@@ -8,9 +8,9 @@ Each release has one page on the docs site, `doc/releases/<tag>.md`. That page i
 
 ## Lifecycle
 
-1. **First dev build of a new version:** create `doc/releases/<next version>.md` with `status: testing` and no `date`. The docs site (which deploys from `dev` too) shows it at the top of `/releases/` as "In testing", and each `-dev.N` GitHub pre-release carries it with a "dev build" note.
+1. **First dev build of a new version:** create `doc/releases/<next version>.md` with `status: testing` and no `date`. The dev docs (`/dev/` on the docs site) show it at the top of `/releases/` as "In testing", and each `-dev.N` GitHub pre-release carries it with a "dev build" note.
 2. **Every dev build:** add what changed to that page, in the house style below.
-3. **Stable release:** set `status: released` and `date: YYYY-MM-DD` before merging `dev` into `main`. The `Release` workflow fails a stable release whose page is missing or still in testing, before it tags anything.
+3. **Stable release:** set `status: released` and `date: YYYY-MM-DD` before merging `dev` into `main`. The `Release` workflow fails a stable release whose page is missing or still in testing, before it tags anything. After publishing, it archives that version's docs at `/v/<version>/` (frozen; the version switcher lists it), and the root `/` follows `main`.
 
 Only one page may be in testing at a time, and its version must not be older than `package.json`.
 

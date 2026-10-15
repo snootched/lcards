@@ -3,9 +3,8 @@
  * processors over sample history and charts raw against processed values; editing
  * the YAML re-runs it; bad configs show an error; Reset restores the example.
  */
-import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { watchErrors } from './support.js';
+import { test, expect, watchErrors } from './support.js';
 
 const URL = '/core/datasources/processor-reference';
 const LAB_COUNT = (readFileSync('doc/core/datasources/processor-reference.md', 'utf8').match(/^```ya?ml lab$/gm) ?? []).length;

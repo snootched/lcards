@@ -3,8 +3,7 @@
  * Regression: CardDemo used import('/lcards/lcards.js'), which Vite's dev server
  * rejects for files in public/ ("can only be referenced via HTML tags").
  */
-import { test, expect } from '@playwright/test';
-import { watchErrors, waitForDemos, demoState } from './support.js';
+import { test, expect, watchErrors, waitForDemos, demoState } from './support.js';
 
 test('dev server: live examples and a playground render real cards', async ({ page }) => {
     test.setTimeout(120_000); // the first dev-server page load compiles the theme
