@@ -6,7 +6,7 @@ LCARdS is a Star Trek LCARS-style card system for Home Assistant. It ships as a 
 
 ## Maintainer cookbook
 
-`COOKBOOK.md` (repo root) is the runbook for CI workflows, every npm script, test layers and the release process. Keep it current when scripts or workflows change (and `scripts/help.js`, which `npm run help` prints). Release notes are drafted with the `lcards-release-notes` project skill (`.claude/skills/`). Adding, changing, renaming or removing a config option (a YAML key) follows the `lcards-card-option` skill: schema, runtime, editor, docs example, registries and tests together.
+`COOKBOOK.md` (repo root) is the runbook for CI workflows, every npm script, test layers and the release process. Keep it current when scripts or workflows change (and `scripts/help.js`, which `npm run help` prints). Release notes are drafted with the `lcards-release-notes` project skill (`.claude/skills/`). Adding, changing, renaming or removing a config option (a YAML key) follows the `lcards-card-option` skill: schema, runtime, editor, docs example, registries and tests together. The user-facing skill is `skills/lcards/SKILL.md` (not a project skill): `npm run build:skill` packages it with generated references as `lcards-skill.zip` (docs site and releases); keep its instructions in step with the docs.
 
 ---
 

@@ -38,6 +38,7 @@ const CATEGORIES = [
       typecheck: { when: 'as needed', desc: 'TypeScript checks across the whole src/ tree (full sorted list).' },
       'typecheck:check': { when: 'CI/release', desc: 'Fails only on TypeScript errors not in scripts/tsc-baseline.txt (the CI gate). After fixing baseline errors: node scripts/check-typecheck-baseline.js --update.' },
       'build:validator': { when: 'as needed', desc: 'Bundle the config checker into one standalone file (doc/public/tools/lcards-validate.mjs; --out=<file>). Runs inside docs:build; the Release workflow attaches it.' },
+      'build:skill': { when: 'as needed', desc: 'Package the user-facing Claude skill (skills/lcards/SKILL.md + schemas, registries, user docs, gallery, checker) as doc/public/tools/lcards-skill.zip (--out=<file>). Runs inside docs:build; the Release workflow attaches it.' },
       'generate:llm-schema': { when: 'as needed', desc: 'Regenerates the published JSON Schemas (gitignored): doc/public/lcards-schema.json (everything) and doc/public/schema/ (index, per-card files, shared/). Runs inside docs:build and docs:serve.' },
     },
   },

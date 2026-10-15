@@ -113,6 +113,7 @@ export function buildLlmsTxt({ base = '/', version }) {
     `- [Built-in names](${SITE_ROOT}${base}schema/registries.json): presets, components, animation and background presets, filters, sound assets, MSD backgrounds and theme tokens that values must match`,
     `- [Config checker](${SITE_ROOT}${base}tools/lcards-validate.mjs): \`node lcards-validate.mjs dashboard.yaml\` checks a card, view or whole dashboard (Node 20+, one file)`,
     `- [All user docs in one file](${SITE_ROOT}${base}llms-full.txt): getting started, configuration, cards and core as markdown`,
+    `- [LCARdS skill for Claude](${SITE_ROOT}${base}tools/lcards-skill.zip): instructions plus all of the above in one package (Claude Code, claude.ai)`,
     `- [Getting AI help](${pageUrl('cards/ai-assistance.md', base)}): what to attach and a prompt template`,
     '',
   ];

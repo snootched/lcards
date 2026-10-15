@@ -23,6 +23,9 @@ test('schemas, registries and the config checker are published', async ({ reques
     const tool = await request.get('/tools/lcards-validate.mjs');
     expect(tool.ok()).toBe(true);
     expect((await tool.text()).startsWith('#!/usr/bin/env node')).toBe(true);
+    const skill = await request.get('/tools/lcards-skill.zip');
+    expect(skill.ok()).toBe(true);
+    expect((await skill.body()).subarray(0, 2).toString()).toBe('PK');
 });
 
 test('llms.txt and llms-full.txt are published and point at this channel', async ({ request }) => {

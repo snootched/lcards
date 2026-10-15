@@ -114,7 +114,7 @@ jobs:
           if [ $CODE -eq 0 ]; then
             # Point at this release's JSON Schemas (attached below) so tools can pin them.
             DL="https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}"
-            printf '\n**JSON Schema for this release:** [lcards-schema.json](%s/lcards-schema.json) (everything in one file) · [lcards-schema.zip](%s/lcards-schema.zip) (one file per card, with schema/index.json) · [lcards-validate.mjs](%s/lcards-validate.mjs) (check a dashboard: node lcards-validate.mjs dashboard.yaml)\n' "$DL" "$DL" "$DL" >> release-body.md
+            printf '\n**JSON Schema for this release:** [lcards-schema.json](%s/lcards-schema.json) (everything in one file) · [lcards-schema.zip](%s/lcards-schema.zip) (one file per card, with schema/index.json) · [lcards-validate.mjs](%s/lcards-validate.mjs) (check a dashboard: node lcards-validate.mjs dashboard.yaml) · [lcards-skill.zip](%s/lcards-skill.zip) (the LCARdS skill for Claude)\n' "$DL" "$DL" "$DL" "$DL" >> release-body.md
             echo "body=release-body.md" >> $GITHUB_OUTPUT
           elif [ $CODE -eq 2 ] && [ "${{ steps.prerelease.outputs.is_prerelease }}" = "true" ]; then
             echo "::notice::No docs release page for this pre-release; GitHub's generated notes only"
@@ -243,6 +243,8 @@ jobs:
           # The standalone config checker (node lcards-validate.mjs <dashboard.yaml>)
           node scripts/build-validator.js --out=lcards-validate.mjs
           node lcards-validate.mjs --version
+          # The user-facing Claude skill (schemas, docs, gallery and the checker)
+          node scripts/build-user-skill.js --out=lcards-skill.zip
 
       # ── Release ───────────────────────────────────────────────────────────────
       - name: Create GitHub release
@@ -255,6 +257,7 @@ jobs:
             lcards-schema.json
             lcards-schema.zip
             lcards-validate.mjs
+            lcards-skill.zip
           prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
           # The docs page's notes (empty when a pre-release has none), then GitHub's commit list.
           body_path: ${{ steps.notes.outputs.body }}

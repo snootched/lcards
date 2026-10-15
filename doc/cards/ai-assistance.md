@@ -1,11 +1,32 @@
 # Getting AI Help Writing LCARdS Config
 
-You can use ChatGPT, Claude, or any other LLM to help write LCARdS YAML. Left to
+You can use Claude, ChatGPT or any other LLM to help write LCARdS YAML. Left to
 itself, though, an LLM has never seen LCARdS's actual config schema; it will
 happily invent plausible-looking properties that don't exist. Giving it the real
 schema up front fixes that.
 
-## What to attach
+## Use the LCARdS skill (Claude)
+
+The quickest route with Claude is the LCARdS skill: one download that teaches Claude
+how to write LCARdS config and carries everything it needs for this LCARdS version:
+the JSON Schemas, the built-in names (presets, animations, sounds, theme tokens), the
+user docs, the [Dashboard Gallery](../getting-started/dashboard-gallery) and the config
+checker. Claude loads only the parts a request needs, and checks its own YAML before
+handing it over when it can run code.
+
+Download [`lcards-skill.zip`](/tools/lcards-skill.zip) (each GitHub release also
+carries the copy that matches it), then:
+
+- **Claude Code:** unzip it into your skills folder, so you have
+  `~/.claude/skills/lcards/SKILL.md` (or `.claude/skills/lcards/` inside a project).
+- **claude.ai and the Claude apps:** upload the zip as a custom skill in Settings
+  (skills need code execution turned on).
+
+Then just ask, for example "make me an LCARdS button for `light.kitchen` that turns
+red when it's on", or "build an engineering dashboard with my `sensor.power_*`
+entities". It asks for your entity ids rather than inventing them.
+
+## Other assistants: what to attach
 
 **1. The schema for your card (required).** LCARdS publishes the exact JSON Schemas
 it validates config against, generated straight from the source so they can't drift

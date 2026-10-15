@@ -292,8 +292,6 @@ lcards-layout-card: cards[].type
 lcards-layout-card: cards[].view_layout
 lcards-layout-card: cards[].view_layout.align-self
 lcards-layout-card: cards[].view_layout.grid-area
-lcards-layout-card: cards[].view_layout.grid-column
-lcards-layout-card: cards[].view_layout.grid-row
 lcards-layout-card: cards[].view_layout.justify-self
 lcards-layout-card: cards[].view_layout.margin
 lcards-layout-card: cards[].view_layout.overflow
@@ -331,8 +329,6 @@ lcards-layout-card: type
 lcards-layout-card: view_layout
 lcards-layout-card: view_layout.align-self
 lcards-layout-card: view_layout.grid-area
-lcards-layout-card: view_layout.grid-column
-lcards-layout-card: view_layout.grid-row
 lcards-layout-card: view_layout.justify-self
 lcards-layout-card: view_layout.margin
 lcards-layout-card: view_layout.overflow
@@ -342,8 +338,6 @@ lcards-layout-view: cards[].type
 lcards-layout-view: cards[].view_layout
 lcards-layout-view: cards[].view_layout.align-self
 lcards-layout-view: cards[].view_layout.grid-area
-lcards-layout-view: cards[].view_layout.grid-column
-lcards-layout-view: cards[].view_layout.grid-row
 lcards-layout-view: cards[].view_layout.justify-self
 lcards-layout-view: cards[].view_layout.margin
 lcards-layout-view: cards[].view_layout.overflow
