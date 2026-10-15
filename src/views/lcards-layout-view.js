@@ -723,10 +723,13 @@ export class LCARdSLayoutView extends LitElement {
             overrideHeight: '100%',  // #grid-root fills the host; host carries the actual height
         });
         const hasAreas  = getAreaNames(this._areas).length > 0;
+        // The hint is for a blank view only: cards placed by grid-row/grid-column or
+        // auto-flow need no named areas, and the hint would sit over them.
+        const isBlank   = !hasAreas && !(this.cards?.length || this._config?.cards?.length);
 
         return html`
             <div id="grid-root" style="${gridStyle}"></div>
-            ${!hasAreas && !this._editMode ? html`
+            ${isBlank && !this._editMode ? html`
                 <div class="empty-state">
                     <ha-icon icon="mdi:grid-large"></ha-icon>
                     <p>Enter edit mode to build your layout</p>

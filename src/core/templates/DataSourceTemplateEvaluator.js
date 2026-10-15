@@ -126,7 +126,8 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
 
     // Parse reference: name[.path][:format]
     const parsed = TemplateParser.parseMSDReference(reference);
-    const { source, path, format } = parsed;
+    const { source, format } = parsed;
+    let { path } = parsed;
 
     lcardsLog.trace(`[DataSourceTemplateEvaluator] Parsed: source=${source}, path=${JSON.stringify(path)}, format=${format}`);
 
@@ -145,6 +146,13 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
     }
 
     lcardsLog.trace(`[DataSourceTemplateEvaluator] currentData:`, currentData);
+
+    // `name.processor` (the documented short form) means that processor's output,
+    // the same as `name.processing.processor`.
+    if (path?.length && !['processing', 'transformations', 'aggregations'].includes(path[0])
+        && currentData.processing && path[0] in currentData.processing) {
+      path = ['processing', ...path];
+    }
 
     // Check if accessing processor output (don't append original entity unit)
     const isProcessorOutput = path && path.length > 0 && path[0] === 'processing';

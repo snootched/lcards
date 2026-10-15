@@ -47,8 +47,8 @@ const viewLayoutSchema = {
     additionalProperties: true,
     properties: {
         'grid-area':    { type: 'string' },
-        'grid-column':  { type: 'string' },
-        'grid-row':     { type: 'string' },
+        'grid-column':  { type: ['string', 'number'], description: 'CSS grid-column: a line number (2), a span ("span 2") or a range ("1 / 3").' },
+        'grid-row':     { type: ['string', 'number'], description: 'CSS grid-row: a line number (3), a span ("span 2") or a range ("2 / 4").' },
         'place-self':   { type: 'string' },
         'align-self':   { type: 'string' },
         'justify-self': { type: 'string' },
