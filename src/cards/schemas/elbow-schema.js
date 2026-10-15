@@ -567,10 +567,11 @@ export function getElbowSchema(options = {}) {
                                     },
                                     bar_height: {
                                         oneOf: [
-                                            { type: 'number', minimum: 1, maximum: 500 },
+                                            // Any positive thickness: the shell strategy uses 0.01 to leave the bar out.
+                                            { type: 'number', exclusiveMinimum: 0, maximum: 500 },
                                             { type: 'string', description: 'CSS length expression (e.g. \'clamp(20px, 4vh, 60px)\')' }
                                         ],
-                                        description: 'Horizontal bar thickness (pixels or CSS length, defaults to bar_width)',
+                                        description: 'Horizontal bar thickness (pixels or CSS length, defaults to bar_width). A value near 0 (e.g. 0.01) leaves the horizontal bar out.',
                                         examples: [20, 90, 150, 'clamp(20px, 4vh, 60px)']
                                     },
                                     outer_curve: {
@@ -628,10 +629,11 @@ export function getElbowSchema(options = {}) {
                                     },
                                     bar_height: {
                                         oneOf: [
-                                            { type: 'number', minimum: 1, maximum: 500 },
+                                            // Any positive thickness: the shell strategy uses 0.01 to leave the bar out.
+                                            { type: 'number', exclusiveMinimum: 0, maximum: 500 },
                                             { type: 'string', description: 'CSS length expression (e.g. \'clamp(20px, 4vh, 60px)\')' }
                                         ],
-                                        description: 'Horizontal bar thickness (pixels or CSS length, defaults to bar_width)',
+                                        description: 'Horizontal bar thickness (pixels or CSS length, defaults to bar_width). A value near 0 (e.g. 0.01) leaves the horizontal bar out.',
                                         examples: [20, 60, 100, 'clamp(20px, 4vh, 60px)']
                                     },
                                     outer_curve: {

@@ -103,7 +103,7 @@ function _roomLightControllerCard(roomEntity) {
             {
                 type: 'custom:lcards-elbow',
                 min_height: '60px',
-                elbow: { segment: { bar_width: 180, bar_height: 'theme', inner_curve: 30, outer_curve: 60 } },
+                elbow: { type: 'header-left', segment: { bar_width: 180, bar_height: 'theme', inner_curve: 30, outer_curve: 60 } },
                 view_layout: { 'grid-area': 'header' },
             },
             // Selector column: room select-menu at natural height, filler button takes the rest
@@ -298,7 +298,7 @@ function _autoAreasRoomCard(areas, stateEntity) {
             {
                 type: 'custom:lcards-elbow',
                 min_height: '60px',
-                elbow: { segment: { bar_width: 180, bar_height: 'theme', inner_curve: 30, outer_curve: 60 } },
+                elbow: { type: 'header-left', segment: { bar_width: 180, bar_height: 'theme', inner_curve: 30, outer_curve: 60 } },
                 view_layout: { 'grid-area': 'header' },
             },
             {
@@ -397,7 +397,6 @@ function _buildShellView(contentCard, { pageEntity, topBarEntity, rightSidebarEn
                 type: 'custom:lcards-elbow',
                 elbow: {
                     type: 'footer-left',
-                    radius: { outer: 'auto' },
                     style: 'segmented',
                     segments: {
                         gap: 5,
