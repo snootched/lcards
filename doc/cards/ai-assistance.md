@@ -26,6 +26,10 @@ out of date. Pick one of:
 Each GitHub release also carries both as assets (`lcards-schema.json`,
 `lcards-schema.zip`), matching that release's options exactly.
 
+Tools that look for [`llms.txt`](/llms.txt) find all of this from there: links to every
+page, the schemas and the checker. [`llms-full.txt`](/llms-full.txt) is the user docs in
+one file.
+
 **2. [Common Properties](common) (recommended)**: covers things the raw schema's
 types don't fully explain in prose: entity reference patterns, the `theme:`
 prefix required for theme tokens, `{{ }}` template syntax, and action config.

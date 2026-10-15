@@ -145,3 +145,11 @@ test('docs.yml and config agree on the channel bases', () => {
     assert.match(theme, /'layout-top': \(\) => h\(VersionBanner\)/);
     assert.match(theme, /'nav-bar-title-after': \(\) => h\(VersionSwitcher\)/);
 });
+
+test('no docs pages live under the channel paths (doc/dev/, doc/v/): they would collide with /dev/ and /v/', () => {
+    for (const reserved of ['dev', 'v']) {
+        const dir = new URL(`../../doc/${reserved}/`, import.meta.url);
+        const pages = existsSync(dir) ? readdirSync(dir, { recursive: true }).filter(f => String(f).endsWith('.md')) : [];
+        assert.deepEqual(pages, [], `doc/${reserved}/ is reserved for the docs channels`);
+    }
+});

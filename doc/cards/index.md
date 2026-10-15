@@ -1,3 +1,7 @@
+---
+description: "Every LCARdS card at a glance (button, elbow, slider, chart, data grid, select menu, layout card, alert overlay, MSD) with links to each card's reference."
+---
+
 # The Fleet
 
 :::: tabs

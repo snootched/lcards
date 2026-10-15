@@ -1,3 +1,7 @@
+---
+description: "What LCARdS is: LCARS-style cards, a layout view and a shell dashboard for Home Assistant, with themes, rules, data sources, animations, sounds and alert modes."
+---
+
 ::: warning ⚠️ Work in Progress
 LCARdS is a **hobby** project, not a fully commissioned Starfleet product; expect the occasional tribble.
 

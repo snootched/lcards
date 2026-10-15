@@ -88,6 +88,7 @@ const CATEGORIES = [
       'docs:bundle': { when: 'as needed', desc: 'Builds the card bundle and copies it into doc/public/lcards/ for the live demos. Runs inside docs:build.' },
       'docs:check-anchors': { when: 'as needed', desc: 'Fails on any docs link to a missing #anchor (needs a built site). Runs inside docs:build.' },
       'docs:check-base': { when: 'as needed', desc: 'Fails when a /dev/ or /v/<version>/ docs build (DOCS_BASE) links outside its base. Runs inside docs:build.' },
+      'docs:llms-txt': { when: 'as needed', desc: 'Write llms.txt (links to every page + the schemas and checker) and llms-full.txt (user docs in one file) into the built site, under DOCS_BASE. Runs inside docs:build.' },
       'docs:serve': { when: 'as needed', desc: 'Regenerates the published schemas, then the local VitePress dev server with hot reload.' },
       'docs:serve:network': { when: 'as needed', desc: 'Same, bound to 0.0.0.0 — for viewing docs from another device on the LAN.' },
       'docs:preview': { when: 'as needed', desc: 'Serves the already-built doc/ output, to sanity-check a production doc build locally.' },

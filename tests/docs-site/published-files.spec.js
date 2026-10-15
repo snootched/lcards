@@ -1,8 +1,8 @@
 /**
  * The machine-readable files the docs site publishes for LLMs and tools are
  * reachable on the built site (under the channel's base): the schema bundle,
- * the split schemas and their index, the registries, and the standalone
- * config checker.
+ * the split schemas and their index, the registries, the standalone config
+ * checker, and llms.txt / llms-full.txt.
  */
 import { test, expect } from './support.js';
 
@@ -23,4 +23,14 @@ test('schemas, registries and the config checker are published', async ({ reques
     const tool = await request.get('/tools/lcards-validate.mjs');
     expect(tool.ok()).toBe(true);
     expect((await tool.text()).startsWith('#!/usr/bin/env node')).toBe(true);
+});
+
+test('llms.txt and llms-full.txt are published and point at this channel', async ({ request }) => {
+    const { DOCS_BASE } = await import('./support.js');
+    const txt = await (await request.get('/llms.txt')).text();
+    expect(txt.startsWith('# LCARdS')).toBe(true);
+    expect(txt).toContain(`https://lcards.unimatrix01.ca${DOCS_BASE}schema/index.json`);
+    const full = await request.get('/llms-full.txt');
+    expect(full.ok()).toBe(true);
+    expect(await full.text()).toContain('# Button Card');
 });

@@ -1,3 +1,7 @@
+---
+description: "Install LCARdS from HACS, add the integration (Home Assistant 2026.10 or newer) and set it up from the LCARdS Config Panel."
+---
+
 # Installation
 
 ## Requirements

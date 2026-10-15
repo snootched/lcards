@@ -573,6 +573,16 @@ automation:
 
 ---
 
+## From AI agents
+
+An AI agent connected to Home Assistant (through the Model Context Protocol server, a voice assistant, or the REST/WebSocket API) can drive LCARdS with the same actions: they are ordinary `lcards.*` services, so anything that can call a Home Assistant service can raise an alert, run a screen effect, play a sound or show a portal card.
+
+- Every action and its fields is listed above; `services.yaml` in the integration carries the same descriptions, so agents that read the service list see them too.
+- Actions with [targeting](#targeting) fields act on every connected browser when the fields are omitted. Agents should target a device or user when the request is about one screen.
+- To change what a dashboard looks like (rather than trigger something on it), an agent edits dashboard YAML instead. Point it at the [JSON Schemas and the config checker](/cards/ai-assistance) so it only writes keys LCARdS has.
+
+---
+
 ## Related
 
 - [Borg Assimilation](/core/borg): full console API, layer params, and sequence documentation

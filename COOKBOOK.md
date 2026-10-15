@@ -185,6 +185,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | `docs:serve` / `docs:serve:network` | Regenerate the schemas, then the dev server (`--host` for other devices on the LAN). |
 | `docs:preview` | Serve the built site. |
 | `docs:bundle` | Build and copy the card bundle into `doc/public/lcards/` (inside `docs:build`). |
+| `docs:llms-txt` | Writes `llms.txt` (links to every page plus the schemas and checker) and `llms-full.txt` (user docs in one file) into the built site under `DOCS_BASE` (inside `docs:build`). A page whose summary reads badly there gets a frontmatter `description:`. |
 | `docs:check-anchors` | Links to missing `#anchors` (inside `docs:build`). |
 | `docs:routing-diagrams` | Regenerate the MSD routing diagrams. |
 | `build:validator` | Bundle that checker into one standalone file anyone can run with Node 20+ (`doc/public/tools/lcards-validate.mjs`, served at `/tools/`; inside `docs:build`). The Release workflow attaches it as `lcards-validate.mjs`. |
