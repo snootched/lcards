@@ -37,6 +37,17 @@ test('slider: templated text fields are evaluated on the first render (shaped pr
     await expectNoErrors(page);
 });
 
+test('select menu: its option buttons\' on/off view of the entity never reaches the shared core', async ({ page }) => {
+    // The options colour themselves from a synthetic hass (entity state rewritten to
+    // on/off); forwarded to the core it showed 'off' in every other card using it.
+    await mountCase(page, 'select-menu');
+    await expect.poll(() => page.locator('lcards-select-menu').evaluate(el => el.shadowRoot.querySelectorAll('lcards-button').length)).toBeGreaterThan(1);
+    await page.waitForTimeout(500);
+    const coreState = await page.evaluate(() => window.lcards.core._currentHass?.states?.['input_select.demo_mode']?.state);
+    expect(coreState).toBe('Auto');
+    await expectNoErrors(page);
+});
+
 test('invalid config: validation error is logged, card still renders its placeholder', async ({ page }) => {
     await mountCase(page, 'chart-invalid', { height: '300' });
     // Regression: the startup theme-override load re-processed every card's config,

@@ -40,6 +40,7 @@ import {
 } from '../utils/ha-entity-display.js';
 import { isComputedColor } from '../core/themes/color-syntax.js';
 import { resolveColor } from '../core/themes/resolve-color.js';
+import { isSyntheticHass } from '../utils/synthetic-hass.js';
 
 /**
  * Base class for simple LCARdS cards
@@ -794,8 +795,12 @@ export class LCARdSCard extends LCARdSNativeCard {
         }
 
         // Forward HASS to core singleton ONLY if relevant entities changed
-        // This prevents unnecessary subsystem updates when unrelated entities change
-        if (window.lcards?.core) {
+        // This prevents unnecessary subsystem updates when unrelated entities change.
+        // A synthetic copy (a parent card's rewritten view, e.g. select menu options)
+        // is for this card only and never reaches the shared core.
+        if (isSyntheticHass(newHass)) {
+            lcardsLog.trace(`[LCARdSCard] Synthetic HASS not forwarded to core for ${this._cardGuid}`);
+        } else if (window.lcards?.core) {
             // Check if this card's entity or any rule-dependent entities changed
             const cardEntityChanged = this.config?.entity &&
                 oldHass?.states?.[this.config.entity] !== newHass?.states?.[this.config.entity];

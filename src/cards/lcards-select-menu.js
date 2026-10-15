@@ -33,6 +33,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { getSelectMenuSchema } from './schemas/select-menu-schema.js';
+import { markSyntheticHass } from '../utils/synthetic-hass.js';
 
 
 export class LCARdSSelectMenu extends LCARdSCard {
@@ -693,7 +694,9 @@ export class LCARdSSelectMenu extends LCARdSCard {
         // correctly applies active / inactive preset colours.
         let buttonHass = this.hass;
         if (this.hass && entityId) {
-            buttonHass = {
+            // Marked synthetic: the option buttons must not forward it to the shared
+            // core, or every card reading this entity would see 'on'/'off'.
+            buttonHass = markSyntheticHass({
                 ...this.hass,
                 states: {
                     ...this.hass.states,
@@ -702,7 +705,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
                         state: isUnavailable ? 'unavailable' : (isSelected ? 'on' : 'off'),
                     },
                 },
-            };
+            });
         }
 
         // Tap action: per-option → card-level override → built-in select_option

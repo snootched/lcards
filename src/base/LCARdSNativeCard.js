@@ -9,6 +9,7 @@
 
 import { LitElement, html, css, unsafeCSS } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { isSyntheticHass } from '../utils/synthetic-hass.js';
 
 /**
  * Normalise a config height/width value to a valid CSS length string.
@@ -204,8 +205,9 @@ export class LCARdSNativeCard extends LitElement {
         if (hass && oldHass !== hass) {
             lcardsLog.debug(`[LCARdSNativeCard] HASS object changed for ${this._cardGuid} - calling _onHassChanged`);
 
-            // Propagate HASS to HelperManager (ensures auto-switch works on any page with cards)
-            if (window.lcards?.core?.helperManager) {
+            // Propagate HASS to HelperManager (ensures auto-switch works on any page with cards);
+            // never a synthetic copy (see utils/synthetic-hass.js)
+            if (window.lcards?.core?.helperManager && !isSyntheticHass(hass)) {
                 window.lcards.core.helperManager.ingestHass(hass);
             }
 
