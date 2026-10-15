@@ -9,7 +9,7 @@ DOMAIN = "lcards"
 MIN_HA_VERSION = (2026, 10)
 
 FRONTEND_SCRIPT_URL = "lcards.js"
-DOMAIN_VERSION = "2026.10.0-dev.1"
+DOMAIN_VERSION = "2026.10.0-dev.2"
 
 # Options
 CONF_SHOW_PANEL = "show_panel"
