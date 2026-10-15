@@ -111,11 +111,37 @@ export const TEST_HELPERS = {
     },
 };
 
+/**
+ * Extra lcards_test_* helpers the dashboard gallery (doc/gallery/) uses, so its
+ * examples have something to show without touching the dev HA's real entities.
+ */
+export const GALLERY_HELPERS = {
+    'input_number.lcards_test_power': { type: 'input_number/create', name: 'LCARdS Test Power', min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: '%' },
+    'input_number.lcards_test_shields': { type: 'input_number/create', name: 'LCARdS Test Shields', min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: '%' },
+    'input_number.lcards_test_temperature': { type: 'input_number/create', name: 'LCARdS Test Temperature', min: 10, max: 35, step: 0.5, mode: 'slider', unit_of_measurement: '°C' },
+    'input_number.lcards_test_humidity': { type: 'input_number/create', name: 'LCARdS Test Humidity', min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: '%' },
+    'input_boolean.lcards_test_lights': { type: 'input_boolean/create', name: 'LCARdS Test Lights' },
+    'input_boolean.lcards_test_doors': { type: 'input_boolean/create', name: 'LCARdS Test Doors' },
+};
+
+/** Sample states the gallery shots are taken with: [domain, service, data]. */
+export const GALLERY_STATES = [
+    ['input_number', 'set_value', { entity_id: 'input_number.lcards_test_power', value: 82 }],
+    ['input_number', 'set_value', { entity_id: 'input_number.lcards_test_shields', value: 64 }],
+    ['input_number', 'set_value', { entity_id: 'input_number.lcards_test_temperature', value: 21.5 }],
+    ['input_number', 'set_value', { entity_id: 'input_number.lcards_test_humidity', value: 46 }],
+    ['input_number', 'set_value', { entity_id: 'input_number.lcards_test_value', value: 40 }],
+    ['input_boolean', 'turn_on', { entity_id: 'input_boolean.lcards_test_lights' }],
+    ['input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_doors' }],
+    ['input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' }],
+    ['input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option: 'beta' }],
+];
+
 /** Create any missing lcards_test_* helpers. Returns the ids it created. */
-export async function ensureHelpers(client) {
+export async function ensureHelpers(client, helpers = TEST_HELPERS) {
     const existing = new Set((await client.call({ type: 'get_states' })).map(s => s.entity_id));
     const created = [];
-    for (const [entityId, command] of Object.entries(TEST_HELPERS)) {
+    for (const [entityId, command] of Object.entries(helpers)) {
         if (existing.has(entityId)) continue;
         await client.call(command);
         created.push(entityId);

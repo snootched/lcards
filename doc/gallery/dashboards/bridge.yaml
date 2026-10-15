@@ -1,0 +1,152 @@
+# Bridge: an LCARS frame (header and footer elbows, a sidebar of buttons) around a
+# main panel with a status grid, controls and a chart. Uses lcards_test_* helpers
+# and a temperature sensor; swap in your own entities. Best with an HA-LCARS theme.
+title: Bridge
+views:
+  - title: Bridge
+    path: bridge
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 6px
+      grid-template-columns: 170px 1fr 1fr 1fr
+      grid-template-rows: 64px 54px 54px 54px 54px 54px 1fr 64px
+      grid-template-areas: |
+        "header  header  header  header"
+        "nav1    status  status  status"
+        "nav2    status  status  status"
+        "nav3    status  status  status"
+        "nav4    power   shields lights"
+        "nav5    power   shields lights"
+        "filler  chart   chart   chart"
+        "footer  footer  footer  footer"
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 170
+            bar_height: 22
+        text:
+          title:
+            content: BRIDGE OPERATIONS
+            position: bottom-right
+            font_size: 24
+            color: var(--lcards-orange)
+        view_layout:
+          grid-area: header
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_toggle
+        text:
+          label:
+            content: RED ALERT
+            show: true
+        tap_action:
+          action: toggle
+        view_layout:
+          grid-area: nav1
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_lights
+        text:
+          label:
+            content: LIGHTS
+            show: true
+        tap_action:
+          action: toggle
+        view_layout:
+          grid-area: nav2
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_doors
+        text:
+          label:
+            content: DOORS
+            show: true
+        tap_action:
+          action: toggle
+        view_layout:
+          grid-area: nav3
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_select.lcards_test_mode
+        text:
+          label:
+            content: MODE
+            show: true
+        tap_action:
+          action: more-info
+        view_layout:
+          grid-area: nav4
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_number.lcards_test_shields
+        text:
+          label:
+            content: SHIELDS
+            show: true
+        tap_action:
+          action: more-info
+        view_layout:
+          grid-area: nav5
+      - type: custom:lcards-button
+        preset: panel-dark
+        view_layout:
+          grid-area: filler
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [SYSTEM, STATUS, LEVEL]
+            header: true
+          - [WARP CORE, "{{ 'ONLINE' if states('input_number.lcards_test_power') | float > 0 else 'OFFLINE' }}", "{{ states('input_number.lcards_test_power') | int }} %"]
+          - [SHIELDS, "{{ 'RAISED' if states('input_number.lcards_test_shields') | float > 50 else 'LOW' }}", "{{ states('input_number.lcards_test_shields') | int }} %"]
+          - [CABIN TEMP, NOMINAL, "{{ states('input_number.lcards_test_temperature') }} °C"]
+        grid:
+          grid-template-columns: 1fr 1fr 1fr
+          gap: 4px
+        style:
+          font_size: 18px
+        columns:
+          - style:
+              align: left
+              color: var(--lcars-orange)
+        view_layout:
+          grid-area: status
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: pills-basic
+        view_layout:
+          grid-area: power
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: gauge-basic
+        view_layout:
+          grid-area: shields
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_lights
+        icon: mdi:lightbulb-group
+        text:
+          label:
+            content: MAIN LIGHTS
+            show: true
+        tap_action:
+          action: toggle
+        view_layout:
+          grid-area: lights
+      - type: custom:lcards-chart
+        sources:
+          - entity: sensor.desk_sensor_temperature
+            name: Deck temperature
+        view_layout:
+          grid-area: chart
+      - type: custom:lcards-elbow
+        elbow:
+          type: footer-left
+          segment:
+            bar_width: 170
+            bar_height: 22
+        view_layout:
+          grid-area: footer

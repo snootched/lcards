@@ -1,0 +1,120 @@
+# Engineering: a Master Systems Display (the built-in NCC-1701-A blueprint) with
+# control overlays wired to the ship by routed lines, beside a power column.
+# Uses lcards_test_* helpers; swap in your own entities.
+title: Engineering
+views:
+  - title: Engineering
+    path: engineering
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 6px
+      grid-template-columns: minmax(0, 1fr) 300px
+      grid-template-rows: 64px 1fr 1fr 1fr 64px
+      grid-template-areas: |
+        "header header"
+        "msd    power"
+        "msd    shields"
+        "msd    status"
+        "footer footer"
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-right
+          segment:
+            bar_width: 300
+            bar_height: 22
+        text:
+          title:
+            content: ENGINEERING
+            position: bottom-left
+            font_size: 24
+            color: var(--lcards-orange)
+        view_layout:
+          grid-area: header
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:ncc-1701-a-blue
+          overlays:
+            - id: bridge-ctl
+              type: control
+              position: [60, 60]
+              size: [300, 80]
+              card:
+                type: custom:lcards-button
+                preset: lozenge
+                entity: input_boolean.lcards_test_lights
+                text:
+                  label:
+                    content: BRIDGE LIGHTS
+                    show: true
+                tap_action:
+                  action: toggle
+            - id: core-ctl
+              type: control
+              position: [60, 1040]
+              size: [300, 80]
+              card:
+                type: custom:lcards-button
+                preset: lozenge
+                entity: input_boolean.lcards_test_toggle
+                text:
+                  label:
+                    content: WARP CORE
+                    show: true
+                tap_action:
+                  action: toggle
+            - id: bridge-line
+              type: line
+              anchor: bridge-ctl
+              attach_to: br        # the blueprint's own bridge marker (harvested from the SVG)
+              route: auto
+              corner_style: round
+            - id: core-line
+              type: line
+              anchor: core-ctl
+              attach_to: wc        # the warp core marker
+              route: auto
+              corner_style: round
+        view_layout:
+          grid-area: msd
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: picard-gauge-vertical
+        component: picard
+        view_layout:
+          grid-area: power
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: pills-basic
+        view_layout:
+          grid-area: shields
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [SYSTEM, LEVEL]
+            header: true
+          - [CORE OUTPUT, "{{ states('input_number.lcards_test_power') | int }} %"]
+          - [SHIELDS, "{{ states('input_number.lcards_test_shields') | int }} %"]
+          - [MODE, input_select.lcards_test_mode]
+        grid:
+          grid-template-columns: 1fr 1fr
+          gap: 4px
+        style:
+          font_size: 18px
+        columns:
+          - style:
+              align: left
+              color: var(--lcars-orange)
+        view_layout:
+          grid-area: status
+      - type: custom:lcards-elbow
+        elbow:
+          type: footer-right
+          segment:
+            bar_width: 300
+            bar_height: 22
+        view_layout:
+          grid-area: footer

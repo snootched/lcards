@@ -29,6 +29,7 @@
     "check:ha-impact:quick": "node scripts/check-ha-impact.js --quick",
     "generate:llm-schema": "node scripts/generate-llm-schema.js",
     "validate:config": "node scripts/lcards-validate.mjs",
+    "gallery:shots": "node scripts/dashboard-shots.mjs doc/gallery/dashboards/*.yaml",
     "build:validator": "node scripts/build-validator.js",
     "validate:schema-descriptions": "node scripts/check-schema-descriptions.js",
     "validate:schema-descriptions:update": "node scripts/check-schema-descriptions.js --update",

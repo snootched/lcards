@@ -50,6 +50,7 @@ const CATEGORIES = [
       'validate:doc-examples': { when: 'as needed', desc: 'Validates YAML code examples embedded in doc/ against the real config schema.' },
       'validate:doc-examples:strict': { when: 'every build', desc: 'Same, but fails on any violation. Runs inside `build`.' },
       'validate:config': { when: 'as needed', desc: 'Check a card, view or whole dashboard YAML (or HA .storage JSON): schemas, unknown keys, built-in names. npm run validate:config -- <file> [--strict] [--json].' },
+      'gallery:shots': { when: 'as needed', desc: 'Screenshot every doc/gallery/dashboards/*.yaml on the dev HA into doc/public/gallery/ (validates, pushes to a hidden lcards-gallery dashboard). Any file: node scripts/dashboard-shots.mjs <file.yaml> --out=<dir> [--keep]. Needs .ha-token.' },
       'validate:schema-descriptions': { when: 'every build', desc: 'Fails on schema properties added without a description (backlog: scripts/schema-description-baseline.txt). Runs inside `build`.' },
       'validate:schema-descriptions:update': { when: 'as needed', desc: 'Rewrites the description baseline after you fill gaps (or after an intentional undescribed key).' },
     },

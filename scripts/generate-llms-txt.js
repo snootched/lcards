@@ -56,6 +56,13 @@ export function pageUrl(rel, base = '/') {
 export function cleanMarkdown(text) {
   return text
     .replace(/^---\n[\s\S]*?\n---\n/, '')
+    // VitePress file includes (<<< @/path) become the file's content.
+    .replace(/^<<< @\/(\S+)[ \t]*$/gm, (line, rel) => {
+      const file = join(DOC, rel);
+      if (!existsSync(file)) return line;
+      const lang = rel.split('.').pop() === 'yml' ? 'yaml' : rel.split('.').pop();
+      return '```' + lang + '\n' + readFileSync(file, 'utf8').trimEnd() + '\n```';
+    })
     .replace(/^[ \t]*<[A-Z][A-Za-z]+\b[^>]*\/>[ \t]*$/gm, '')
     .replace(/^(#{1,6} .*?)[ \t]*\{#[^}]+\}[ \t]*$/gm, '$1')
     .replace(/\n{3,}/g, '\n\n')

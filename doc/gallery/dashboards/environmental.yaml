@@ -1,0 +1,85 @@
+# Environmental: a shaped temperature slider, a humidity gauge, a status grid and
+# a temperature history chart. Uses lcards_test_* helpers and a
+# temperature sensor; swap in your own entities.
+title: Environmental
+views:
+  - title: Environmental
+    path: environmental
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 6px
+      grid-template-columns: 170px minmax(0, 1fr) minmax(0, 1fr)
+      grid-template-rows: 64px 140px 140px minmax(0, 1fr) 64px
+      grid-template-areas: |
+        "header header header"
+        "side   temp   humid"
+        "side   grid   grid"
+        "side   chart  chart"
+        "footer footer footer"
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 170
+            bar_height: 22
+        text:
+          title:
+            content: ENVIRONMENTAL CONTROL
+            position: bottom-right
+            font_size: 24
+            color: var(--lcards-orange)
+        view_layout:
+          grid-area: header
+      - type: custom:lcards-button
+        preset: panel-dark
+        view_layout:
+          grid-area: side
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_temperature
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name:
+            content: DECK 1
+        view_layout:
+          grid-area: temp
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_humidity
+        preset: gauge-basic
+        view_layout:
+          grid-area: humid
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [SECTION, TEMPERATURE, HUMIDITY, AIR]
+            header: true
+          - [DECK 1, "{{ states('input_number.lcards_test_temperature') }} °C", "{{ states('input_number.lcards_test_humidity') | int }} %", NOMINAL]
+          - [DECK 2, "{{ states('sensor.desk_sensor_temperature') }} °C", "{{ states('input_number.lcards_test_humidity') | int }} %", NOMINAL]
+        grid:
+          grid-template-columns: 1fr 1fr 1fr 1fr
+          gap: 4px
+        style:
+          font_size: 18px
+        columns:
+          - style:
+              align: left
+              color: var(--lcars-orange)
+        view_layout:
+          grid-area: grid
+      - type: custom:lcards-chart
+        sources:
+          - entity: sensor.desk_sensor_temperature
+            name: Deck 2 temperature
+        view_layout:
+          grid-area: chart
+      - type: custom:lcards-elbow
+        elbow:
+          type: footer-left
+          segment:
+            bar_width: 170
+            bar_height: 22
+        view_layout:
+          grid-area: footer
