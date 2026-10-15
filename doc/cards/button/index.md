@@ -510,7 +510,7 @@ behavior explicitly (see the example below).
 ```yaml live
 type: custom:lcards-button
 component: alert
-preset: default          # default, red, yellow, blue, green, grey, black
+preset: default          # default, condition_red, condition_yellow, condition_blue, condition_green, condition_gray, condition_black
 grid_options:
   rows: 4            # draws to its cell height: give it rows in a sections view
 

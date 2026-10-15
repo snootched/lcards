@@ -62,6 +62,25 @@ shared files it uses, plus the relevant page(s) from the [MSD docs](msd/) (start
 with [Quick Start](msd/quick-start) or [Routing Concepts](msd/routing-concepts)),
 and expect to iterate more than with a single button.
 
+## Check what it wrote
+
+Run the result through the LCARdS config checker before pasting it into a
+dashboard. It takes a single card, a view or a whole dashboard (raw configuration
+YAML), finds every LCARdS card at any depth, and reports problems at their exact
+path:
+
+```bash
+node lcards-validate.mjs my-dashboard.yaml
+```
+
+Download [`lcards-validate.mjs`](/tools/lcards-validate.mjs) (one file, needs only
+[Node.js](https://nodejs.org/) 20 or newer; each GitHub release also carries the
+copy that matches it). Errors are things LCARdS will reject or ignore: invalid
+values and keys that don't exist. Warnings are names that aren't built in (a preset,
+animation, sound or theme token), each with a "did you mean" suggestion when one is
+close; a pack you installed may add names, so check those yourself. Paste the
+output back to the LLM and ask it to fix exactly those lines.
+
 ## If it still invents a key
 
 Paste the error (or the YAML that didn't work) back to the LLM along with a

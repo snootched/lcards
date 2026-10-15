@@ -1661,8 +1661,8 @@ export const cardHeightSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
-            description: 'Card height with CSS unit (e.g. 200px, 50vh, 10em)'
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
+            description: 'Card height with CSS unit (e.g. 200px, 50vh, 10em) or a CSS function: calc(), min(), max(), clamp(), var()'
         }
     ],
     description: 'Card height override. Bare integer = px (e.g. 200 = 200px). CSS units accepted: 200px, 50vh, 10em.',
@@ -1682,8 +1682,8 @@ export const cardWidthSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
-            description: 'Card width with CSS unit (e.g. 400px, 50vw, 10em)'
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
+            description: 'Card width with CSS unit (e.g. 400px, 50vw, 10em) or a CSS function: calc(), min(), max(), clamp(), var()'
         }
     ],
     description: 'Card width override. Bare integer = px (e.g. 400 = 400px). CSS units accepted: 400px, 50vw, 10em.',
@@ -1703,7 +1703,7 @@ export const cardMinHeightSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
             description: 'Minimum card height with CSS unit (e.g. 40px, 10vh)'
         }
     ],
@@ -1767,7 +1767,7 @@ export const cardMinWidthSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
             description: 'Minimum card width with CSS unit (e.g. 80px, 10vw)'
         }
     ],
@@ -1788,7 +1788,7 @@ export const cardMaxHeightSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
             description: 'Maximum card height with CSS unit (e.g. 400px, 80vh, 20em)'
         }
     ],
@@ -1809,7 +1809,7 @@ export const cardMaxWidthSchema = {
         },
         {
             type: 'string',
-            pattern: '^[\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?$',
+            pattern: '^([\\d.]+(\\s*(px|vh|vw|%|em|rem|vmin|vmax))?|(calc|min|max|clamp|var)\\(.+\\))$',
             description: 'Maximum card width with CSS unit (e.g. 600px, 80vw, 20em)'
         }
     ],

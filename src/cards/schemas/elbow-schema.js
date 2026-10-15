@@ -15,6 +15,67 @@ import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateCo
 import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
 import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
+// ── Frame type (elbow.type: frame) ─────────────────────────────────────────────
+// A 2 to 4 sided rectangular border. Mirrors lcards-elbow.js _validateElbowConfig
+// (type === 'frame'): shorthand sizes for every side/corner, per-side and per-corner
+// overrides, and an inner ring for style: segmented. Lengths go through _parseUnit:
+// a number is px, a string a CSS length.
+const frameLength = (description) => ({ type: ['number', 'string'], description });
+const frameSideSchema = (side, defaultFrom) => ({
+    type: 'object',
+    description: `The ${side} side.`,
+    properties: {
+        enabled: { type: 'boolean', default: true, description: `Draw the ${side} side (false leaves it open).` },
+        bar_width: frameLength(`Thickness of the ${side} side (default: ${defaultFrom}).`),
+        bar_height: frameLength(`Thickness of the ${side} side (same as bar_width).`),
+        thickness: frameLength(`Thickness of the ${side} side (same as bar_width).`),
+        color: { ...stateColorSchema, description: `Colour of the ${side} side (default: the frame colour).` }
+    }
+});
+const frameCornersSchema = (defaults) => ({
+    type: 'object',
+    description: 'Per-corner curves.',
+    properties: Object.fromEntries(['top_left', 'top_right', 'bottom_left', 'bottom_right'].map(corner => [corner, {
+        type: 'object',
+        description: `The ${corner.replace('_', '-')} corner.`,
+        properties: {
+            outer_curve: frameLength(`Outer radius (default: ${defaults}).`),
+            inner_curve: frameLength('Inner radius (default: half the outer curve).')
+        }
+    }]))
+});
+const frameRingProperties = (defaultBarWidth) => ({
+    bar_width: frameLength(`Thickness of the left and right sides (default: ${defaultBarWidth}).`),
+    bar_height: frameLength('Thickness of the top and bottom sides (default: bar_width).'),
+    outer_curve: frameLength('Outer radius of every corner (default: half of bar_width).'),
+    inner_curve: frameLength('Inner radius of every corner (default: half of outer_curve).'),
+    color: { ...stateColorSchema, description: 'Colour of the whole frame.' },
+    top: frameSideSchema('top', 'bar_height'),
+    bottom: frameSideSchema('bottom', 'bar_height'),
+    left: frameSideSchema('left', 'bar_width'),
+    right: frameSideSchema('right', 'bar_width'),
+    corners: frameCornersSchema('outer_curve')
+});
+const frameSchema = {
+    type: 'object',
+    description: 'Frame elbow (elbow.type: frame): a 2 to 4 sided rectangular border with per-side thickness and per-corner curves.',
+    properties: {
+        ...frameRingProperties(90),
+        segments: {
+            type: 'object',
+            description: 'style: segmented only: a second, inner ring inside the frame.',
+            properties: {
+                gap: frameLength('Space between the outer and inner ring (default: 4).'),
+                inner_frame: {
+                    type: 'object',
+                    description: 'The inner ring: the same keys as the frame itself.',
+                    properties: frameRingProperties(28)
+                }
+            }
+        }
+    }
+};
+
 /**
  * Get complete elbow card schema
  * @param {Object} [options] - Schema options
@@ -595,6 +656,8 @@ export function getElbowSchema(options = {}) {
                         }
                     },
 
+                    frame: frameSchema,
+
                     colors: {
                         type: 'object',
                         description: 'Legacy colour override (use segment.color or segments.*.color instead)',
@@ -761,6 +824,20 @@ export function getElbowSchema(options = {}) {
                             right: { type: 'number', default: 10 },
                             bottom: { type: 'number', default: 0 }
                         }
+                    },
+                    size: {
+                        type: 'object',
+                        description: 'Constrain the embedded card to an explicit size within the content area (placed by `anchor`). Omit for the full content area.',
+                        properties: {
+                            width: { type: ['number', 'string'], description: 'Width: a number is px; a string is any CSS length (e.g. 50%, 12rem).' },
+                            height: { type: ['number', 'string'], description: 'Height: a number is px; a string is any CSS length.' }
+                        }
+                    },
+                    anchor: {
+                        type: 'string',
+                        enum: ['top-left', 'top-center', 'top-right', 'middle-left', 'center', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'],
+                        default: 'top-left',
+                        description: 'Where a sized embedded card (`size`) sits within the content area.'
                     },
                     imprint: {
                         type: 'object',

@@ -22,6 +22,7 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
 import { join, resolve, relative, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { flattenKeys, THEME_PATH_ALLOWED_PREFIXES, THEME_PATH_EXEMPTIONS } from './lib/theme-token-rules.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -107,19 +108,6 @@ function buildLcardsAllowlist() {
  * @param {string} [prefix='']
  * @returns {Set<string>}
  */
-function flattenKeys(obj, prefix = '') {
-  const result = new Set();
-  for (const [k, v] of Object.entries(obj)) {
-    const path = prefix ? `${prefix}.${k}` : k;
-    if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
-      for (const sub of flattenKeys(v, path)) result.add(sub);
-    } else {
-      result.add(path);
-    }
-  }
-  return result;
-}
-
 /**
  * Build the theme: token path allowlist from lcardsDefaultTokens.js.
  * @returns {Set<string>|null}
@@ -213,30 +201,6 @@ const LCARDS_COMPONENT_VARS = new Set([
   'lcards-header-opacity',
 ]);
 
-/**
- * theme: path prefixes that are component-internal or user-space namespaces.
- * Paths starting with any of these strings are silently allowed.
- */
-const THEME_PATH_ALLOWED_PREFIXES = [
-  'components.',       // component pack internal defaults
-  'colors.grid.',      // data-grid pack colour namespace
-  'colors.lcars.',     // card-specific lcars colour overrides
-  'palette.',          // example pack / user palette overrides
-  'colors.ui.',     // planned UI state colour namespace (active/inactive/default/unavailable)
-];
-
-/**
- * theme: paths that are colour-function calls or documentation placeholders —
- * never actual token lookups.
- */
-const THEME_PATH_EXEMPTIONS = new Set([
-  'lighten',    // theme:lighten(path, amount) colour function
-  'darken',     // theme:darken(path, amount) colour function
-  'alpha',      // theme:alpha(path, amount) colour function
-  'mix',        // theme:mix(path1, path2, ratio)
-  'base',       // theme:base(path) — resolve to pre-alert-mutation baseline value
-  'token',      // theme:token.path documentation placeholder
-]);
 
 
 

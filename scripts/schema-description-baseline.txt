@@ -314,7 +314,6 @@ lcards-layout-card: layout.areas.*.margin
 lcards-layout-card: layout.areas.*.overflow
 lcards-layout-card: layout.areas.*.place-self
 lcards-layout-card: layout.areas.*.z-index
-lcards-layout-card: layout.card_margin
 lcards-layout-card: layout.card_overflow
 lcards-layout-card: layout.gap
 lcards-layout-card: layout.grid-auto-columns
@@ -325,9 +324,7 @@ lcards-layout-card: layout.grid-template-areas
 lcards-layout-card: layout.grid-template-columns
 lcards-layout-card: layout.grid-template-rows
 lcards-layout-card: layout.height
-lcards-layout-card: layout.margin
 lcards-layout-card: layout.mediaquery
-lcards-layout-card: layout.padding
 lcards-layout-card: layout.place-content
 lcards-layout-card: layout.place-items
 lcards-layout-card: type
@@ -367,7 +364,6 @@ lcards-layout-view: layout.areas.*.margin
 lcards-layout-view: layout.areas.*.overflow
 lcards-layout-view: layout.areas.*.place-self
 lcards-layout-view: layout.areas.*.z-index
-lcards-layout-view: layout.card_margin
 lcards-layout-view: layout.card_overflow
 lcards-layout-view: layout.gap
 lcards-layout-view: layout.grid-auto-columns
@@ -378,9 +374,7 @@ lcards-layout-view: layout.grid-template-areas
 lcards-layout-view: layout.grid-template-columns
 lcards-layout-view: layout.grid-template-rows
 lcards-layout-view: layout.height
-lcards-layout-view: layout.margin
 lcards-layout-view: layout.mediaquery
-lcards-layout-view: layout.padding
 lcards-layout-view: layout.place-content
 lcards-layout-view: layout.place-items
 lcards-layout-view: type

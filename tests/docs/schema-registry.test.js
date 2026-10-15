@@ -130,7 +130,7 @@ msd:
       colour_typo: red
 `);
     assert.ok(!r.ok);
-    assert.match(r.out, /\[lcards-msd-card\] unknown key: msd\.overlays\[0\]\.colour_typo/);
+    assert.match(r.out, /\[lcards-msd-card\] msd\.overlays\[0\]\.colour_typo: unknown key/);
 });
 
 test('doc validator: layout views are schema-checked, standard view keys pass', () => {
@@ -153,7 +153,7 @@ views:
     layout: 5
 `);
     assert.ok(!bad.ok);
-    assert.match(bad.out, /\[lcards-layout-view\] \/layout: must be object/);
+    assert.match(bad.out, /\[lcards-layout-view\] views\[0\]\.layout: must be object/);
 });
 
 test('description lint: lists undescribed properties with paths through items, branches and patterns', () => {

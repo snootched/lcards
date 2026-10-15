@@ -37,7 +37,7 @@ Use an asset key string to replace the sound, or `null` to silence that event on
 
 ```yaml
 sounds:
-  card_tap: "lcards_default:nav_forward"   # play a different sound on tap
+  card_tap: "lcards_default_nav"   # play a different sound on tap
   card_hold: null                           # silence hold, leave others alone
 ```
 
@@ -57,7 +57,7 @@ sounds:
 | `slider_drag_end` | string \| null | Asset key for slider release. |
 
 ::: info Asset keys
-Asset keys are strings in the form `scheme:event` (e.g. `lcards_default:card_tap`) or a bare key registered by a sound pack. The built-in scheme is `lcards_default`. See [Sound Configuration](../configuration/sounds.md) for available events and installed packs.
+An asset key is the name a sound pack registers its sound under, e.g. `lcards_default_tap`, `lcards_default_nav` or `computer_activate` (no `scheme:` prefix), or a `media-source://` ID picked from the HA media library. `schema/registries.json` on this site lists every built-in key under `sound_assets`. See [Sound Configuration](../configuration/sounds.md) for available events and installed packs.
 :::
 
 ---
@@ -96,7 +96,7 @@ sounds:
 type: custom:lcards-button
 entity: light.desk
 sounds:
-  card_tap: "lcards_default:nav_forward"
+  card_tap: "lcards_default_nav"
   card_hold: null
 ```
 
@@ -106,8 +106,8 @@ sounds:
 type: custom:lcards-slider
 entity: light.desk
 sounds:
-  slider_drag_start: "lcards_default:slider_start"
-  slider_drag_end: "lcards_default:slider_end"
+  slider_drag_start: "lcards_default_slider_grab"
+  slider_drag_end: "lcards_default_slider_release"
   slider_change: null    # silence the per-tick sound
 ```
 

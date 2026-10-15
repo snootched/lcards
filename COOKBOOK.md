@@ -124,7 +124,7 @@ All in `.github/workflows/`.
 |---|---|---|
 | **Validate** (`validate-integration.yml`) | push and PR to `main`/`dev`, manual, and as the Release gate; **nightly: HACS + Hassfest only** | See the job list below. |
 | **Docs** (`docs.yml`) | push to `main`/`dev` touching `doc/**`, `src/**`, `scripts/**`, the docs tests or the build config; PRs (no deploy); manual (optionally `archive_tag`); called by Release | Versioned site on `lcards.unimatrix01.ca`: `main` builds the root `/` (stable line), `dev` builds `/dev/`, a stable release builds `/v/<version>/` once (frozen). Each is `npm run docs:build` + `npm run test:docs` with its own `DOCS_BASE` (dead links, anchors, links escaping the base, live demos); a failing test stops the deploy. The deploy merges the build into the `gh-pages` branch (storage, one force-pushed commit) with `scripts/docs-deploy.mjs` (keeps the other channels, keeps root `/lcards/` card assets as a union, writes `versions.json`, prunes `/v/` to 8 versions), then publishes the whole tree. Pages source stays "GitHub Actions". Bootstrap: until a root exists on `gh-pages`, a `dev` push builds the root. About 5 minutes. |
-| **Release** (`release.yml`) | manual only (Run workflow, pick the branch) | Validate gate, read the version from `package.json`, pre-release if the suffix is `-dev` or the branch isn't `main`, export the release page, tag, stamp `manifest.json`/`const.py`, `build:integration`, verify the output, zip, package the JSON Schemas (`lcards-schema.json`, `lcards-schema.zip`), publish with the page as the body (plus a line linking those schema assets) and GitHub's commit list. A stable release then calls the Docs workflow to archive its docs at `/v/<version>/`. |
+| **Release** (`release.yml`) | manual only (Run workflow, pick the branch) | Validate gate, read the version from `package.json`, pre-release if the suffix is `-dev` or the branch isn't `main`, export the release page, tag, stamp `manifest.json`/`const.py`, `build:integration`, verify the output, zip, package the JSON Schemas (`lcards-schema.json`, `lcards-schema.zip`) and the standalone config checker (`lcards-validate.mjs`), publish with the page as the body (plus a line linking those schema assets) and GitHub's commit list. A stable release then calls the Docs workflow to archive its docs at `/v/<version>/`. |
 | **Issue template check** (`issue-template-check.yml`) | issues opened, edited or reopened | Issues that skip the forms get a `needs-template` label and one comment. Owners and collaborators are exempt; it never closes anything. |
 
 **Validate jobs** (all except the first two are skipped on the nightly schedule):
@@ -161,6 +161,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | Script | What |
 |---|---|
 | `validate:doc-examples` / `:strict` | YAML examples in `doc/` against the card, view and MSD schemas (the list is `scripts/lib/card-schemas.js`); strict also fails on unknown keys. |
+| `validate:config` | Check any LCARdS YAML (a card, a view, a whole dashboard, HA `.storage/lovelace*` JSON): `npm run validate:config -- <file> [--strict] [--json]`. Errors: schema, unknown keys, MSD without a canvas. Warnings: names that aren't built in (presets, animations, sounds, theme tokens...), legacy chart/data-grid format. Same checker as the doc examples (`scripts/lib/config-validator.js`). |
 | `validate:schema-descriptions` | Fails on schema properties added without a `description`; the known backlog is `scripts/schema-description-baseline.txt`. After filling some: `npm run validate:schema-descriptions:update`. |
 | `validate:css-vars` / `:verbose` | Every `--lcars-*`, `--lcards-*` and `theme:` reference is registered. |
 | `validate:ha-compat` | No HA elements, attributes, CSS hooks or imports that are dead in the minimum HA. |
@@ -186,6 +187,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | `docs:bundle` | Build and copy the card bundle into `doc/public/lcards/` (inside `docs:build`). |
 | `docs:check-anchors` | Links to missing `#anchors` (inside `docs:build`). |
 | `docs:routing-diagrams` | Regenerate the MSD routing diagrams. |
+| `build:validator` | Bundle that checker into one standalone file anyone can run with Node 20+ (`doc/public/tools/lcards-validate.mjs`, served at `/tools/`; inside `docs:build`). The Release workflow attaches it as `lcards-validate.mjs`. |
 | `generate:llm-schema` | Regenerate the published schemas (gitignored): `doc/public/lcards-schema.json` (everything, MSD included) and `doc/public/schema/` (`index.json`, one file per card/view/strategy, `shared/` for rules, animations, background animations, state colours, filters). Inside `docs:build` and `docs:serve`; the Release workflow attaches them as `lcards-schema.json` and `lcards-schema.zip`. |
 
 **Releases:** see [Release commands](#release-commands).

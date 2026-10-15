@@ -209,7 +209,8 @@ export function buildSchemaSet(entries, meta) {
     generated_at: generatedAt,
     usage: 'Load the file for the card, view or strategy you are writing YAML for, plus the shared files it lists ' +
       'under "uses" (it references them as {"$ref": "../shared/<name>.json"}). Only use properties a schema declares; do not invent keys. ' +
-      'lcards-schema.json at the site root holds everything in one file.',
+      'lcards-schema.json at the site root holds everything in one file. registries.json lists the built-in names ' +
+      '(presets, components, animation and background presets, filters, sound assets, MSD backgrounds, theme tokens) a value must match.',
     cards: {}, views: {}, strategies: {}, shared: {},
   };
   for (const { kind, tag, schema } of stripped) {

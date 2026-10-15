@@ -448,3 +448,5 @@ doc/public/lcards/
 # docs:serve, the Release workflow)
 doc/public/lcards-schema.json
 doc/public/schema/
+# Standalone config validator, built by scripts/build-validator.js (docs:build, Release)
+doc/public/tools/

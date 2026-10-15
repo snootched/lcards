@@ -18,6 +18,8 @@
  *   schema/views/<tag>.json            view types (lcards-layout-view)
  *   schema/strategies/<tag>.json       dashboard strategies (lcars-shell)
  *   schema/shared/<name>.json          rules, animation, background-animation, state-color, filter
+ *   schema/registries.json             built-in names: presets, components, animation/background
+ *                                      presets, filters, sound assets, MSD backgrounds, theme tokens
  *
  * Usage:
  *   node scripts/generate-llm-schema.js
@@ -26,6 +28,7 @@
 
 import { getSchemaEntries } from './lib/card-schemas.js';
 import { buildSchemaSet }   from './lib/schema-publish.js';
+import { buildRegistries }  from './lib/registries.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,6 +43,10 @@ const BUNDLE     = path.join(OUT_DIR, 'lcards-schema.json');
 
 const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
 const { files, bundle, index } = buildSchemaSet(getSchemaEntries(), { version: pkg.version });
+// Names that pass the schema but must also exist (scripts/lib/config-validator.js checks them).
+const registries = await buildRegistries();
+files.set('registries.json', registries);
+index.registries = { file: 'registries.json', bytes: Buffer.byteLength(JSON.stringify(registries)) };
 
 // Compact (no indentation): these files are for LLMs and tools to ingest; pretty-
 // printing roughly triples their size (and token cost). Use `jq` to read one.

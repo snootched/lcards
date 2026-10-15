@@ -15,6 +15,12 @@
  */
 
 const trackString = { type: 'string' };
+// Written straight into CSS (layout-render.js): a CSS length string, or 0 (the one
+// bare number CSS accepts; the shell strategy generates `padding: 0`).
+const spacing = (what) => ({
+    description: `${what}: a CSS length (e.g. 8px, 1rem 0) or 0`,
+    oneOf: [{ type: 'string' }, { type: 'number', enum: [0] }],
+});
 
 const areaSettingsSchema = {
     type: 'object',
@@ -62,9 +68,9 @@ const layoutSchema = {
         'grid-gap':              trackString,
         'gap':                   trackString,
         'height':                trackString,
-        'margin':                trackString,
-        'padding':               trackString,
-        'card_margin':           trackString,
+        'margin':                spacing('Margin around the grid'),
+        'padding':               spacing('Padding inside the grid'),
+        'card_margin':           spacing('Margin around each card in the grid'),
         'card_overflow':         trackString,
         'place-items':           trackString,
         'place-content':         trackString,

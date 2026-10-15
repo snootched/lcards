@@ -53,12 +53,10 @@
  *   ❌  N error(s)            — unknown card types (always fatal)
  */
 
-// ── Schema imports (Node-compatible; no browser deps) ────────────────────────
+// ── Schemas, registries and the shared config checker ─────────────────────────
 import { getSchemaEntries }      from './lib/card-schemas.js';
-import { migrateChartConfig }    from '../src/charts/chart-config-migration.js';
-import { migrateDataGridConfig } from '../src/data-grid/data-grid-config-migration.js';
-import Ajv                       from 'ajv';
-import { isTemplateString }      from '../src/utils/template-string.js';
+import { buildRegistries }       from './lib/registries.js';
+import { createConfigValidator, collectLcardsNodes } from './lib/config-validator.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -104,144 +102,6 @@ function walkDocs(dir, out = []) {
     } else if (ent.isFile() && /\.mdx?$/.test(ent.name)) {
       out.push(p);
     }
-  }
-  return out;
-}
-
-// ── Build compiled card schema validators ────────────────────────────────────
-// Strip `additionalProperties: false` and the LCARdS-specific `'warn'` value
-// (to avoid noise from partial examples; ajv@8 only accepts boolean/schema-object,
-// so `'warn'` — a valid CoreValidationService value, not standard JSON Schema —
-// would otherwise fail schema compilation entirely) and any dangling `$ref` nodes
-// (button + elbow have an unresolvable
-// `$ref: '#/$defs/stateColorSchema'` — ajv@8 would throw on it).
-// Also strip empty `enum: []` arrays — these arise when schema factories are
-// called without preset options, and ajv@8 rejects them as invalid schemas.
-//
-// Special case for oneOf/anyOf/allOf: when stripping a `$ref` leaves an item
-// that is an empty object `{}`, that item is removed from the combination array.
-// An empty `{}` schema matches everything and would make `oneOf` always fail
-// for values that also satisfy the sibling branch.
-function stripSchemaRestrictions(node) {
-  if (Array.isArray(node)) return node.map(stripSchemaRestrictions);
-  if (node && typeof node === 'object') {
-    const out = {};
-    for (const [k, v] of Object.entries(node)) {
-      if (k === 'additionalProperties' && (v === false || v === 'warn')) continue;
-      if (k === '$ref') continue;
-      if (k === 'enum' && Array.isArray(v) && v.length === 0) continue;
-      if ((k === 'oneOf' || k === 'anyOf' || k === 'allOf') && Array.isArray(v)) {
-        // After stripping, remove any items that became empty objects (were $ref-only).
-        const stripped = v
-          .map(stripSchemaRestrictions)
-          .filter(item => !(item && typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length === 0));
-        if (stripped.length > 0) out[k] = stripped;
-        continue;
-      }
-      out[k] = stripSchemaRestrictions(v);
-    }
-    return out;
-  }
-  return node;
-}
-
-function buildCardValidators() {
-  // validateFormats: false — silences warnings about HA-specific formats
-  // (entity, font-family, color) that ajv does not know about.
-  const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
-  // Same rule as CoreValidationService: template strings are evaluated at render
-  // time, so `pattern` only applies to literal values.
-  ajv.removeKeyword('pattern');
-  ajv.addKeyword({
-    keyword: 'pattern',
-    type: 'string',
-    schemaType: 'string',
-    validate: (pattern, data) => isTemplateString(data) || new RegExp(pattern, 'u').test(data),
-  });
-  // Cards and views appear in YAML as `type: custom:lcards-*`; the strategy
-  // lives in a dashboard `strategy:` block, which doc examples don't contain.
-  const rawSchemas = getSchemaEntries()
-    .filter(e => e.kind !== 'strategy')
-    .map(e => [e.tag, e.schema]);
-  const validators = new Map();
-  for (const [tag, schema] of rawSchemas) {
-    rawCardSchemas.set(tag, schema);
-    try {
-      const stripped = stripSchemaRestrictions(schema);
-      validators.set(tag, ajv.compile(stripped));
-    } catch (e) {
-      // Non-fatal: skip this card's schema validation and warn at startup
-      console.warn(`⚠️  Could not compile schema for ${tag}: ${e.message}`);
-    }
-  }
-  return validators;
-}
-
-// ── Unknown-key check ────────────────────────────────────────────────────────
-// Most card schemas are open (no top-level additionalProperties), so ajv accepts
-// misspelled or invented keys (`text_fields`, `style.width`) and they slip into the
-// docs. This pass walks a config against the raw schema and reports keys that no
-// schema branch declares: a key is known when any branch lists it in `properties`,
-// matches `patternProperties`, or allows it through `additionalProperties`
-// (true or a schema). Schemas that declare no properties at all are open.
-const rawCardSchemas = new Map();
-
-// Keys every card accepts that card schemas don't list (HA / layout plumbing).
-const CARD_PLUMBING_KEYS = new Set(['type', 'grid_options', 'view_layout', 'visibility', 'layout_options', 'card_mod']);
-
-/** Sub-schema for `key` in `schema`, `undefined` if open/unconstrained, or `false` if unknown. */
-function schemaForKey(schema, key) {
-  if (!schema || typeof schema !== 'object') return undefined;
-  const branches = [schema, ...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.allOf ?? [])]
-    .filter(b => b && typeof b === 'object');
-  let declaresProperties = false;
-  for (const b of branches) {
-    if (b !== schema && (b.anyOf || b.oneOf || b.allOf)) {
-      const nested = schemaForKey(b, key);
-      if (nested !== false) return nested;
-      declaresProperties = true;
-      continue;
-    }
-    if (b.properties && Object.prototype.hasOwnProperty.call(b.properties, key)) return b.properties[key];
-    for (const [pattern, sub] of Object.entries(b.patternProperties ?? {})) {
-      if (new RegExp(pattern).test(key)) return sub;
-    }
-    if (b.additionalProperties === true) return undefined;
-    if (b.additionalProperties && typeof b.additionalProperties === 'object') return b.additionalProperties;
-    if (b.properties || b.patternProperties) declaresProperties = true;
-  }
-  return declaresProperties ? false : undefined;
-}
-
-/** Collect `path` strings of keys the schema does not declare. */
-function unknownKeys(value, schema, pathPrefix, out, isCardRoot = false) {
-  if (!value || typeof value !== 'object' || !schema) return out;
-  if (Array.isArray(value)) {
-    const items = schema.items ?? [schema, ...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].find(b => b?.items)?.items;
-    value.forEach((v, i) => unknownKeys(v, items, `${pathPrefix}[${i}]`, out));
-    return out;
-  }
-  for (const [key, v] of Object.entries(value)) {
-    if (isCardRoot && CARD_PLUMBING_KEYS.has(key)) continue;
-    const sub = schemaForKey(schema, key);
-    const p = pathPrefix ? `${pathPrefix}.${key}` : key;
-    if (sub === false) { out.push(p); continue; }
-    if (sub) unknownKeys(v, sub, p, out);
-  }
-  return out;
-}
-
-// ── Collect card nodes from parsed YAML for schema validation ─────────────────
-// Recursively finds every object that has a `type: custom:lcards-*` key,
-// including cards nested inside `cards:` arrays.
-function collectCardNodes(node, out = []) {
-  if (Array.isArray(node)) {
-    for (const item of node) collectCardNodes(item, out);
-  } else if (node && typeof node === 'object') {
-    if (typeof node.type === 'string' && node.type.startsWith('custom:lcards-')) {
-      out.push(node);
-    }
-    for (const v of Object.values(node)) collectCardNodes(v, out);
   }
   return out;
 }
@@ -295,20 +155,25 @@ function collectTypes(node, out) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-function main() {
+async function main() {
   const registered = discoverRegisteredElements();
   if (registered.size === 0) {
     console.error('❌ Could not discover any registered LCARdS custom elements in src/lcards-main.js, aborting.');
     process.exit(2);
   }
 
-  const cardValidators = buildCardValidators();
+  // Cards and views appear in YAML as `type: custom:lcards-*`; the strategy only in a
+  // dashboard `strategy:` block, which doc examples don't contain.
+  const checker = createConfigValidator({
+    entries: getSchemaEntries().filter(e => e.kind !== 'strategy'),
+    registries: await buildRegistries(),
+  });
 
   if (!QUIET) {
     console.log('🔍 LCARdS Documentation YAML Validator');
     console.log(`   docs: ${path.relative(REPO_ROOT, DOC_ROOT)}`);
     console.log(`   registered LCARdS elements: ${[...registered].sort().join(', ')}`);
-    console.log(`   schema validators loaded: ${[...cardValidators.keys()].sort().join(', ')}`);
+    console.log(`   schema validators loaded: ${[...checker.tags].sort().join(', ')}`);
     console.log('');
   }
 
@@ -393,65 +258,17 @@ function main() {
         });
       }
 
-      // ── Schema validation ─────────────────────────────────────────────────
-      // Find every card node (top-level or nested) and validate against its
-      // JSON Schema if we have a compiled validator for that card type.
-      const cardNodes = collectCardNodes(parsed);
-      let blockSchemaIssues = 0;
-      for (const cardNode of cardNodes) {
-        const tag = cardNode.type.slice('custom:'.length); // e.g. 'lcards-button'
-
-        // An MSD needs something to draw on: a base_svg source, or an explicit
-        // view_box (a blank canvas). Without either it can't initialise.
-        if (tag === 'lcards-msd-card' && !cardNode.msd?.base_svg?.source && !Array.isArray(cardNode.msd?.view_box)) {
-          const entry = { file: rel, line: b.line, msg: 'MSD example has neither msd.base_svg.source nor a view_box [x, y, w, h]' };
-          if (STRICT) errors.push(entry); else schemaWarnings.push(entry);
-          blockSchemaIssues++;
-        }
-
-        const validate = cardValidators.get(tag);
-        if (!validate) continue; // config-panel or unknown: skip
-        totalSchemaChecked++;
-
-        // Chart and data grid examples must use the current format: legacy keys
-        // still work for users but docs should only teach the canonical form.
-        // Upgrading pages mark legacy YAML `no-validate`.
-        const migrator = { 'lcards-chart': migrateChartConfig, 'lcards-data-grid': migrateDataGridConfig }[tag];
-        if (migrator) {
-          const { changed, notes } = migrator(cardNode);
-          if (changed) {
-            const entry = {
-              file: rel, line: b.line,
-              msg: `${tag === 'lcards-chart' ? 'Chart' : 'Data grid'} example uses the legacy format (${notes.join('; ') || 'legacy keys'})`,
-            };
-            if (STRICT) errors.push(entry); else schemaWarnings.push(entry);
-            blockSchemaIssues++;
-          }
-        }
-
-        for (const key of unknownKeys(cardNode, rawCardSchemas.get(tag), '', [], true)) {
-          const entry = { file: rel, line: b.line, msg: `Schema [${tag}] unknown key: ${key}` };
-          if (STRICT) errors.push(entry); else schemaWarnings.push(entry);
-          blockSchemaIssues++;
-        }
-
-        const valid = validate(cardNode);
-        if (!valid) {
-          for (const err of (validate.errors || [])) {
-            const loc = err.instancePath ? err.instancePath : '(root)';
-            const entry = {
-              file: rel, line: b.line,
-              msg: `Schema [${tag}] ${loc}: ${err.message}`,
-            };
-            if (STRICT) {
-              errors.push(entry);
-            } else {
-              schemaWarnings.push(entry);
-            }
-            blockSchemaIssues++;
-          }
-        }
+      // ── Schema, unknown keys, MSD canvas, legacy format, registry names ─────
+      // (scripts/lib/config-validator.js, shared with the lcards-validate CLI).
+      // Docs teach only the current form with built-in names, so every issue counts.
+      const cardNodes = collectLcardsNodes(parsed);
+      totalSchemaChecked += cardNodes.filter(n => checker.tags.includes(n.tag)).length;
+      const issues = checker.validateConfig(parsed);
+      for (const issue of issues) {
+        const entry = { file: rel, line: b.line, msg: `Schema [${issue.tag}] ${issue.path}: ${issue.message}` };
+        if (STRICT) errors.push(entry); else schemaWarnings.push(entry);
       }
+      const blockSchemaIssues = issues.length;
 
       if (VERBOSE) {
         const schemaNote = cardNodes.length
@@ -501,4 +318,4 @@ function main() {
   }
 }
 
-main();
+main().catch((e) => { console.error(e); process.exit(2); });
