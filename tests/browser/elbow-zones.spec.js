@@ -28,9 +28,9 @@ for (const [name, config] of CASES) {
     test(`elbow editor zones match the card's zones: ${name}`, async ({ page }) => {
         await mountCase(page, 'elbow-frame');
         await reconfigure(page, config);
-        // 'full' is on every card; left_bar/right_bar beside vertical_bar are aliases the editor doesn't repeat.
+        // left_bar/right_bar beside vertical_bar are aliases the editor doesn't repeat.
         const cardZones = () => page.locator('lcards-elbow').evaluate(el => {
-            const names = [...(el._zones?.keys() ?? [])].filter(z => z !== 'full');
+            const names = [...(el._zones?.keys() ?? [])];
             return names.filter(z => !(names.includes('vertical_bar') && (z === 'left_bar' || z === 'right_bar'))).sort();
         });
         await expect.poll(cardZones).not.toEqual([]);
@@ -39,7 +39,15 @@ for (const [name, config] of CASES) {
     });
 }
 
-test('a frame offers its side zones, so the editor shows the zone dropdown', () => {
-    expect(Object.keys(elbowEditorZones({ type: 'frame', frame: {} }))).toEqual(['top', 'bottom', 'left', 'right', 'body']);
-    expect(Object.keys(elbowEditorZones({ type: 'frame', frame: { left: { enabled: false } } }))).toEqual(['top', 'bottom', 'right', 'body']);
+test('a frame offers body, full and its side zones; body first (where unzoned text goes)', () => {
+    expect(Object.keys(elbowEditorZones({ type: 'frame', frame: {} }))).toEqual(['body', 'full', 'top', 'bottom', 'left', 'right']);
+    expect(Object.keys(elbowEditorZones({ type: 'frame', frame: { left: { enabled: false } } }))).toEqual(['body', 'full', 'top', 'bottom', 'right']);
+    expect(Object.keys(elbowEditorZones({ type: 'header-left' }))[0]).toBe('body');
+});
+
+test('a text field with no zone lands in body on the card', async ({ page }) => {
+    await mountCase(page, 'elbow-frame');
+    await reconfigure(page, { ...frame({ bar_width: 30 }), text: { probe: { content: 'PROBE', show: true } } });
+    await expect.poll(() => page.locator('lcards-elbow').evaluate(el =>
+        el.shadowRoot.querySelector('.lcards-text-area[data-zone]')?.getAttribute('data-zone') ?? null)).toBe('body');
 });

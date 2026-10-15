@@ -421,7 +421,12 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
             ${this.availableZones && Object.keys(this.availableZones).length > 1 ? html`
                 <ha-selector
                     .hass=${this.editor?.hass}
-                    .selector=${{ select: { mode: 'dropdown', options: Object.keys(this.availableZones).map(k => ({ value: k, label: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) })) } }}
+                    .selector=${{ select: { mode: 'dropdown', options: Object.entries(this.availableZones).map(([k, label]) => ({
+                        value: k,
+                        // The editor's own label ("Body (interior)"); component zone maps carry
+                        // bounds objects instead, so fall back to the key.
+                        label: typeof label === 'string' && label ? label : k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                    })) } }}
                     .value=${this.editor?.config?.text?.[fieldName]?.zone || Object.keys(this.availableZones)[0]}
                     .label=${'Zone'}
                     .helper=${'Which named layout zone this text field is routed to'}

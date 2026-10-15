@@ -11,9 +11,21 @@ const FRAME_SIDES = [['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['r
 
 /**
  * @param {Object} elbowCfg - the card config's `elbow` block
- * @returns {Object.<string, string>} zone name -> label
+ * @returns {Object.<string, string>} zone name -> label. `body` comes first: it is
+ *   where the card puts a text field with no `zone` (lcards-elbow.js _injectZoneText),
+ *   and the editor shows the first entry for an unset field. `full` (the whole card)
+ *   exists on every elbow.
  */
 export function elbowEditorZones(elbowCfg = {}) {
+    return {
+        body: elbowCfg.type === 'frame' ? 'Body (interior)' : 'Body (open area)',
+        full: 'Full (entire card)',
+        ...shapeZones(elbowCfg),
+    };
+}
+
+/** The bar and side zones for the elbow's shape. */
+function shapeZones(elbowCfg) {
     const type  = elbowCfg.type  || 'header-left';
     const style = elbowCfg.style || 'simple';
 
@@ -30,7 +42,6 @@ export function elbowEditorZones(elbowCfg = {}) {
             if (cfg.enabled === false || thickness === 0) continue;
             zones[side] = label;
         }
-        zones.body = 'Body (interior)';
         return zones;
     }
 
@@ -40,29 +51,26 @@ export function elbowEditorZones(elbowCfg = {}) {
             outer_vertical_bar:   'Outer Vertical Bar',
             inner_vertical_bar:   'Inner Vertical Bar',
             outer_horizontal_bar: 'Outer Horizontal Bar',
-            inner_horizontal_bar: 'Inner Horizontal Bar',
-            body:                 'Body (open area)'
+            inner_horizontal_bar: 'Inner Horizontal Bar'
         };
     }
 
     // Simple elbows, by the type's layout side (elbow component `layout.side`):
     // open types have no vertical bar; contained types have one at each end.
     if (type.endsWith('-open')) {
-        return { horizontal_bar: 'Horizontal Bar', body: 'Body (open area)' };
+        return { horizontal_bar: 'Horizontal Bar' };
     }
     if (type.endsWith('-contained')) {
         return {
             left_bar:       'Left Bar',
             right_bar:      'Right Bar',
-            horizontal_bar: 'Horizontal Bar',
-            body:           'Body (open area)'
+            horizontal_bar: 'Horizontal Bar'
         };
     }
     // L-shaped (left/right corners, diagonal caps). The card also names the vertical
     // bar left_bar / right_bar; that alias isn't offered twice.
     return {
         vertical_bar:   'Vertical Bar',
-        horizontal_bar: 'Horizontal Bar',
-        body:           'Body (open area)'
+        horizontal_bar: 'Horizontal Bar'
     };
 }
