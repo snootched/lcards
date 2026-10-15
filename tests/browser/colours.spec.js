@@ -70,6 +70,13 @@ test('elbow segment colour: nested computed function over a CSS variable', async
     await expectNoErrors(page);
 });
 
+test('frame elbow: the outer ring takes elbow.segment.color, the inner ring its own inner_frame.color', async ({ page }) => {
+    await mountCase(page, 'elbow-frame');
+    await expect.poll(() => rgb(page, page.locator('lcards-elbow path.elbow-bg'), 'fill')).toBe('rgb(255, 153, 0)');
+    await expect.poll(() => rgb(page, page.locator('lcards-elbow path.elbow-frame-inner'), 'fill')).toBe('rgb(153, 204, 255)');
+    await expectNoErrors(page);
+});
+
 test('chart series colour: a computed colour over a CSS variable in sources[] reaches ApexCharts concrete', async ({ page }) => {
     await mountCase(page, 'chart-line', { height: '300' });
     await reconfigure(page, {

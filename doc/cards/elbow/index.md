@@ -286,6 +286,62 @@ Both `outer_segment` and `inner_segment` share the same schema:
 
 ---
 
+## Frame Type
+
+`type: frame` draws a rectangular border around the card instead of an L-shape. Each side can be switched off (an open side ends in rounded caps) or given its own thickness, and each corner its own curves. Set the sizes under `elbow.frame`; the colour comes from `elbow.segment.color`, as for every elbow.
+
+```yaml live
+type: custom:lcards-elbow
+grid_options:
+  rows: 4
+elbow:
+  type: frame
+  segment:
+    color: "var(--lcards-orange)"
+  frame:
+    bar_width: 40       # left and right sides
+    bar_height: 16      # top and bottom
+    right:
+      enabled: false    # open on the right
+    corners:
+      top_left:
+        outer_curve: 40
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `bar_width` | number / string | `90` | Thickness of the left and right sides (a number is px) |
+| `bar_height` | number / string | `bar_width` | Thickness of the top and bottom sides |
+| `outer_curve` | number / string | half of `bar_width` | Outer radius of every corner |
+| `inner_curve` | number / string | half of `outer_curve` | Inner radius of every corner |
+| `top`, `bottom`, `left`, `right` | object | - | One side: `enabled` (default `true`), and a thickness as `bar_width`, `bar_height` or `thickness` |
+| `corners` | object | - | One corner each (`top_left`, `top_right`, `bottom_left`, `bottom_right`): `outer_curve`, `inner_curve` |
+| `segments` | object | - | `style: segmented` only: a second ring inside the first, see below |
+
+### Segmented frame
+
+With `style: segmented`, `frame.segments` adds an inner ring: `gap` is the space between the rings (default `4`), and `inner_frame` takes the same keys as `frame` (its `bar_width` defaults to `28`) plus its own `color` (default: the outer ring's colour; state maps work).
+
+```yaml live
+type: custom:lcards-elbow
+grid_options:
+  rows: 4
+elbow:
+  type: frame
+  style: segmented
+  segment:
+    color: "var(--lcards-orange)"
+  frame:
+    bar_width: 30
+    segments:
+      gap: 6
+      inner_frame:
+        bar_width: 10
+        color: "var(--lcards-moonlight)"
+```
+
+---
+
 ## HA-LCARS Theme Binding
 
 If you use the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars), bind bar dimensions to the theme helpers to keep all elbows synchronised:

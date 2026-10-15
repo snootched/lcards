@@ -28,8 +28,7 @@ const frameSideSchema = (side, defaultFrom) => ({
         enabled: { type: 'boolean', default: true, description: `Draw the ${side} side (false leaves it open).` },
         bar_width: frameLength(`Thickness of the ${side} side (default: ${defaultFrom}).`),
         bar_height: frameLength(`Thickness of the ${side} side (same as bar_width).`),
-        thickness: frameLength(`Thickness of the ${side} side (same as bar_width).`),
-        color: { ...stateColorSchema, description: `Colour of the ${side} side (default: the frame colour).` }
+        thickness: frameLength(`Thickness of the ${side} side (same as bar_width).`)
     }
 });
 const frameCornersSchema = (defaults) => ({
@@ -49,7 +48,6 @@ const frameRingProperties = (defaultBarWidth) => ({
     bar_height: frameLength('Thickness of the top and bottom sides (default: bar_width).'),
     outer_curve: frameLength('Outer radius of every corner (default: half of bar_width).'),
     inner_curve: frameLength('Inner radius of every corner (default: half of outer_curve).'),
-    color: { ...stateColorSchema, description: 'Colour of the whole frame.' },
     top: frameSideSchema('top', 'bar_height'),
     bottom: frameSideSchema('bottom', 'bar_height'),
     left: frameSideSchema('left', 'bar_width'),
@@ -58,7 +56,10 @@ const frameRingProperties = (defaultBarWidth) => ({
 });
 const frameSchema = {
     type: 'object',
-    description: 'Frame elbow (elbow.type: frame): a 2 to 4 sided rectangular border with per-side thickness and per-corner curves.',
+    // Colour: the outer ring is painted with elbow.segment.color like every elbow;
+    // lcards-elbow.js parses frame.color and per-side colours but never uses them,
+    // so they are not offered here. The inner ring has its own colour (inner_frame.color).
+    description: 'Frame elbow (elbow.type: frame): a 2 to 4 sided rectangular border with per-side thickness and per-corner curves. Its colour is elbow.segment.color.',
     properties: {
         ...frameRingProperties(90),
         segments: {
@@ -68,8 +69,11 @@ const frameSchema = {
                 gap: frameLength('Space between the outer and inner ring (default: 4).'),
                 inner_frame: {
                     type: 'object',
-                    description: 'The inner ring: the same keys as the frame itself.',
-                    properties: frameRingProperties(28)
+                    description: 'The inner ring: the same keys as the frame itself, plus its own colour.',
+                    properties: {
+                        ...frameRingProperties(28),
+                        color: { ...stateColorSchema, description: 'Colour of the inner ring (default: the outer ring colour, elbow.segment.color). State maps supported.' }
+                    }
                 }
             }
         }

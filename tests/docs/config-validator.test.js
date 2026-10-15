@@ -113,8 +113,8 @@ test('schema fixes found by checking real configs: CSS functions for sizes, 0 sp
           symbiont: { enabled: true, size: { width: 200, height: '50%' }, anchor: 'center' } },
         { type: 'custom:lcards-layout-card', layout: { margin: 0, padding: '8px', card_margin: 0 } },
         { type: 'custom:lcards-elbow', elbow: { type: 'frame', style: 'segmented', frame: {
-            bar_width: 40, color: 'theme:colors.ui.primary', left: { enabled: false }, top: { bar_height: '20px' },
-            corners: { top_left: { outer_curve: 30 } }, segments: { gap: 6, inner_frame: { bar_width: 12, right: { color: '#ff9900' } } },
+            bar_width: 40, left: { enabled: false }, top: { bar_height: '20px' },
+            corners: { top_left: { outer_curve: 30 } }, segments: { gap: 6, inner_frame: { bar_width: 12, color: 'theme:colors.ui.primary', right: { enabled: false } } },
         } } },
     ])), []);
     assert.ok(messages(check({ type: 'custom:lcards-layout-card', layout: { margin: 10 } })).length > 0, 'a bare number other than 0 is not CSS');
