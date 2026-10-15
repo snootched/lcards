@@ -27,6 +27,16 @@ for (const name of FIXTURES) {
     });
 }
 
+test('slider: templated text fields are evaluated on the first render (shaped preset name/state)', async ({ page }) => {
+    await mountCase(page, 'slider-shaped');
+    const texts = () => page.locator('lcards-slider').evaluate(el => [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent.trim()).filter(Boolean));
+    await expect.poll(texts).not.toEqual([]);
+    const shown = await texts();
+    expect(shown.join(' ')).not.toContain('[[[');
+    expect(shown.join(' ')).toMatch(/DEMO/i);
+    await expectNoErrors(page);
+});
+
 test('invalid config: validation error is logged, card still renders its placeholder', async ({ page }) => {
     await mountCase(page, 'chart-invalid', { height: '300' });
     // Regression: the startup theme-override load re-processed every card's config,

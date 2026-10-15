@@ -517,9 +517,9 @@ grid_options:
 # State-driven preset switching
 entity: sensor.threat_level
 ranges:
-  - preset: red
+  - preset: condition_red
     at_least: 80          # value >= 80
-  - preset: yellow
+  - preset: condition_yellow
     at_least: 50
     below: 80              # 50 <= value < 80 - tiles with no gap against red/default
   - preset: default

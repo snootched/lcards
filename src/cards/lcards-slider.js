@@ -486,6 +486,12 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Re-update entity context (now reads the correct style.track.type from merged preset)
         this._updateEntityContext();
+
+        // Evaluate templates against the merged config: preset text fields (a preset's
+        // name/state) only arrive here. LCARdSButton._onConfigUpdated does the same.
+        if (this._initialized) {
+            this._scheduleTemplateUpdate();
+        }
     }
 
     /**
@@ -803,8 +809,17 @@ export class LCARdSSlider extends LCARdSButton {
      * @protected
      */
     _handleFirstUpdate(changedProperties) {
-        // NOTE: Do NOT call super._handleFirstUpdate() - it doesn't exist
-        // This is an optional hook called by parent's _onFirstUpdated()
+        // NOTE: Do NOT call super._handleFirstUpdate(): the button's version sets up
+        // button actions and sizing the slider does differently. It also runs the
+        // first template pass, so that part is repeated here.
+
+        // Templates (text fields, including a preset's name/state, and style values)
+        // whose config arrived before the first render: evaluate them now. Without this
+        // they stayed raw ("[[[return ...]]]" on screen) until the entity next changed.
+        if (this._needsInitialTemplateProcessing) {
+            this._needsInitialTemplateProcessing = false;
+            this._scheduleTemplateUpdate();
+        }
 
         // Setup auto-sizing
         this._setupAutoSizing((width, height) => {

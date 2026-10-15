@@ -90,12 +90,18 @@ test('names that are valid are not flagged: component presets, media-source soun
     const issues = check([
         { type: 'custom:lcards-button', component: 'alert', preset: 'condition_red' },
         { type: 'custom:lcards-button', component: 'dpad', preset: 'lozenge' },
+        { type: 'custom:lcards-button', component: 'alert', ranges: [{ preset: 'condition_red', above: 80 }, { preset: 'mine', below: 10 }], alert: { custom_presets: { mine: {} } } },
         { type: 'custom:lcards-button', preset: '{{ states("input_select.preset") }}', sounds: { card_tap: 'media-source://media_source/local/beep.mp3' } },
         { type: 'custom:lcards-button', style: { card: { color: { background: { default: 'theme:alpha(colors.ui.primary, 0.5)' } } } } },
         { type: 'custom:lcards-elbow', elbow: { type: 'header-left' }, background_animation: { inset: 'auto', effects: [{ preset: 'grid' }] } },
         { type: 'custom:lcards-msd-card', msd: { base_svg: { source: '/local/my-ship.svg' } } },
     ]);
     assert.deepEqual(messages(issues), []);
+});
+
+test('range presets on a component must be that component\'s presets', () => {
+    const m = messages(check({ type: 'custom:lcards-button', component: 'alert', ranges: [{ preset: 'red', above: 80 }] }));
+    assert.ok(m.includes('warning ranges[0].preset: unknown alert component preset "red"'), m.join('\n'));
 });
 
 test('MSD without a canvas is an error; legacy chart format a warning', () => {

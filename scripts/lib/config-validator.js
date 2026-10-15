@@ -146,9 +146,16 @@ export function registryIssues(node, tag, reg) {
   // Card-level preset / component. Like CoreConfigManager: a style preset first; with
   // a component set, an unknown style preset is that component's own preset
   // (e.g. alert: condition_red).
-  const componentPresets = isLiteral(node.component) ? reg.component_presets?.[node.component] : null;
+  // A component's own presets include the user's `<component>.custom_presets`.
+  const componentPresets = isLiteral(node.component) && reg.component_presets?.[node.component]
+    ? [...reg.component_presets[node.component], ...Object.keys(node[node.component]?.custom_presets ?? {})]
+    : null;
   if (componentPresets) check('preset', node.preset, [...componentPresets, ...reg.button_presets], `${node.component} component preset or button preset`);
   else if (['lcards-button', 'lcards-elbow', 'lcards-select-menu'].includes(tag)) check('preset', node.preset, reg.button_presets, 'button preset');
+  // Range-driven presets switch between the component's own presets (no style-preset fallback).
+  if (componentPresets && Array.isArray(node.ranges)) {
+    node.ranges.forEach((range, i) => check(`ranges[${i}].preset`, range?.preset, componentPresets, `${node.component} component preset`));
+  }
   if (tag === 'lcards-slider') {
     check('preset', node.preset, reg.slider_presets, 'slider preset');
     check('component', node.component, reg.components.slider ?? [], 'slider component');
