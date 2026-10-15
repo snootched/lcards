@@ -46,6 +46,7 @@ import '../components/templates/lcards-template-evaluation-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 import { showInfoDialog } from '../../views/layout-edit-dialogs.js';
+import { elbowEditorZones } from './elbow-editor-zones.js';
 
 // @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSElbowEditor extends LCARdSBaseEditor {
@@ -2285,38 +2286,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
      * @private
      */
     _buildAvailableZones(elbowCfg) {
-        const type  = elbowCfg.type  || 'header-left';
-        const style = elbowCfg.style || 'simple';
-
-        // Frame — sides present in config
-        if (type === 'frame') {
-            const sides = elbowCfg.frame?.sides || {};
-            const zones = {};
-            if (sides.top?.enabled)    zones.top    = 'Top';
-            if (sides.bottom?.enabled) zones.bottom = 'Bottom';
-            if (sides.left?.enabled)   zones.left   = 'Left';
-            if (sides.right?.enabled)  zones.right  = 'Right';
-            zones.body = 'Body (interior)';
-            return zones;
-        }
-
-        // Segmented (Picard-style double elbow)
-        if (style === 'segmented') {
-            return {
-                outer_vertical_bar:   'Outer Vertical Bar',
-                inner_vertical_bar:   'Inner Vertical Bar',
-                outer_horizontal_bar: 'Outer Horizontal Bar',
-                inner_horizontal_bar: 'Inner Horizontal Bar',
-                body:                 'Body (open area)'
-            };
-        }
-
-        // Simple L-shaped elbow (default)
-        return {
-            vertical_bar:   'Vertical Bar',
-            horizontal_bar: 'Horizontal Bar',
-            body:           'Body (open area)'
-        };
+        return elbowEditorZones(elbowCfg);
     }
 
     /**
