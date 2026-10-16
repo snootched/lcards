@@ -33,7 +33,7 @@ const reattach = (page) => page.evaluate(() => {
     return new Promise(r => setTimeout(() => { mount.appendChild(card); r(); }, 100));
 });
 
-for (const name of ['button-on-show', 'elbow-on-show', 'data-grid-on-show', 'msd-on-show']) {
+for (const name of ['button-on-show', 'elbow-on-show', 'slider-on-show', 'data-grid-on-show', 'msd-on-show']) {
     test(`${name}: plays when attached, again when re-attached, not on state changes`, async ({ page }) => {
         await countOnShow(page);
         await mountCase(page, name);
@@ -74,4 +74,25 @@ test('button-on-show: the entrance is visible (starts transparent, ends opaque)'
     expect(Math.min(...samples)).toBeLessThan(0.9);
     await page.waitForTimeout(500);
     expect(await opacity()).toBeGreaterThan(0.95);
+});
+
+test('slider-gauge-on-load: card-level animations run on a slider without actions', async ({ page }) => {
+    await page.addInitScript(() => {
+        window.__onLoadPlays = 0;
+        const hook = setInterval(() => {
+            const am = window.lcards?.core?.animationManager;
+            if (!am) return;
+            clearInterval(hook);
+            const play = am.playAnimation.bind(am);
+            am.playAnimation = (scopeId, animDef, ...rest) => {
+                if (animDef?.trigger === 'on_load') window.__onLoadPlays++;
+                return play(scopeId, animDef, ...rest);
+            };
+        }, 5);
+    });
+    await mountCase(page, 'slider-gauge-on-load');
+    await expect.poll(() => page.evaluate(() => window.__onLoadPlays)).toBe(1);
+    await page.waitForTimeout(600);
+    expect(await page.evaluate(() => window.__onLoadPlays), 'once, not once per border').toBe(1);
+    await expectNoErrors(page);
 });

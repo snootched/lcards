@@ -1,0 +1,10 @@
+# on_show on a slider without actions: card-level animations run on the slider container (on-show.spec.js)
+type: custom:lcards-slider
+entity: light.demo
+preset: pills-basic
+control:
+  attribute: brightness
+animations:
+  - trigger: on_show
+    preset: fade
+    params: {from: 0, to: 1, duration: 300}

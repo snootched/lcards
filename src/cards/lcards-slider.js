@@ -99,6 +99,9 @@ import { haFormatStateParts, extractUnit, haFormatNumber } from '../utils/ha-ent
 import { getSliderSchema } from './schemas/slider-schema.js';
 import { TEXT_POSITIONS } from './schemas/schema-options.js';
 
+/** Animation triggers the border action handlers fire; every other trigger runs on the card scope. */
+const INTERACTIVE_TRIGGERS = new Set(['on_tap', 'on_hold', 'on_double_tap', 'on_hover', 'on_leave']);
+
 
 /**
  * COLOR RESOLUTION PATTERNS:
@@ -5131,6 +5134,8 @@ export class LCARdSSlider extends LCARdSButton {
         }
         // Note: Gauge mode uses full re-render, no incremental updates needed
 
+        this._setupCardAnimationScope();
+
         // Only setup border interactivity for Default component
         // Advanced components (Gauge, Pills) have complex custom rendering
         const componentName = this.config.component || 'default';
@@ -5184,7 +5189,8 @@ export class LCARdSSlider extends LCARdSButton {
                     getAnimationManager,
                     elementId: `slider-${this._cardGuid}-border-${side}`,
                     entity: this.config.entity,
-                    animations: this.config.animations
+                    // The interactive ones; the rest run on the card scope (_setupCardAnimationScope)
+                    animations: (this.config.animations || []).filter(a => INTERACTIVE_TRIGGERS.has(a?.trigger))
                 }
             );
 
@@ -5197,11 +5203,34 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Card-level animations (on_load, on_show, on_entity_change, ...) on the slider
+     * container, for every component. Tap/hold/hover animations stay on the borders,
+     * which carry the actions. Re-registers when the container or the config changes.
+     * @private
+     */
+    _setupCardAnimationScope() {
+        const animationManager = this._singletons?.animationManager;
+        const container = this.shadowRoot?.querySelector('.slider-container');
+        // Not before the component has rendered (the loading placeholder has no svg)
+        if (!animationManager || !container?.querySelector('svg')) return;
+        if (container === this._animationContainer && this.config === this._animationConfig) return;
+        this._animationContainer = container;
+        this._animationConfig = this.config;
+
+        const { overlayId } = this._getAnimationSetup();
+        const animations = (this.config.animations || []).filter(a => !INTERACTIVE_TRIGGERS.has(a?.trigger));
+        animationManager.onOverlayRendered(overlayId, container, { animations }).catch(error => {
+            lcardsLog.error('[LCARdSSlider] Failed to initialize animation scope:', error);
+        });
+    }
+
+    /**
      * Cleanup on card removal
      * @override
      */
     disconnectedCallback() {
         super.disconnectedCallback();
+        this._animationContainer = null;
 
         // Cancel any in-flight value_tween animation
         this._valueTween?.revert();
