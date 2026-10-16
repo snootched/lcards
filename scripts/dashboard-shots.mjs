@@ -7,6 +7,7 @@
  *
  *   node scripts/dashboard-shots.mjs <file.yaml ...> [--out=<dir>] [--view=<n>]
  *        [--size=1600x1000] [--force] [--keep] [--headed]
+ *        [--action=lcards.red_alert] [--name=<out name>] [--video] [--motion=<file>]
  *
  * For each file:
  *   1. Check it with the config checker (scripts/lib/config-validator.js); stop on
@@ -17,6 +18,14 @@
  *      0) logged in with the token, sidebar hidden, wait for the LCARdS cards to
  *      settle, and save <out>/<file name>.webp (default doc/public/gallery/) at 2x,
  *      cropped to the view (no HA toolbar).
+ * --action runs a Home Assistant action (domain.service) once the view has settled and
+ * captures the whole viewport after it (e.g. an alert mode with its overlay); alert
+ * modes are cleared afterwards. --name sets the output file name (one file).
+ * --video also records a looping WebM (<out>/<name>.webm, 1x, real time) of the view
+ * while the motion file's steps run: doc/gallery/motion/<file name>.yaml by default,
+ * or --motion=<file>. A motion file is { steps: [...], tail: ms, clip: view|viewport }
+ * with the steps of scripts/lib/shot-video.mjs (service calls, waits, eval, goto).
+ * The helpers go back to their sample values (and alert modes are cleared) afterwards.
  * With --keep the dashboard keeps the last file's config (open /lcards-gallery to
  * look around); otherwise it is reset to an empty view.
  *
@@ -32,6 +41,8 @@ import { execFileSync } from 'node:child_process';
 import { chromium } from '@playwright/test';
 import { HAClient, HA_URL, readToken, ensureHelpers, TEST_HELPERS, GALLERY_HELPERS, GALLERY_STATES } from '../tests/ha/ha-client.mjs';
 import { validateTexts, parseConfig } from './lcards-validate.mjs';
+import yaml from 'js-yaml';
+import { runSteps, recordScreencast, encodeFrames } from './lib/shot-video.mjs';
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
 export const GALLERY_DASHBOARD = 'lcards-gallery';
@@ -42,6 +53,8 @@ const files = args.filter(a => !a.startsWith('--'));
 const outDir = resolve(opt('out', join(ROOT, 'doc/public/gallery')));
 const viewIndex = Number(opt('view', '0'));
 const [width, height] = opt('size', '1600x1000').split('x').map(Number);
+const action = opt('action', null);
+const outName = opt('name', null);
 
 if (!files.length) {
     console.error('usage: dashboard-shots.mjs <file.yaml ...> [--out=<dir>] [--view=<n>] [--size=WxH] [--force] [--keep] [--headed]');
@@ -71,9 +84,58 @@ const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),
 });
 
+/** Log in with the token, sidebar hidden. */
+async function newContext(scale) {
+    const context = await browser.newContext({ baseURL: HA_URL, viewport: { width, height }, deviceScaleFactor: scale, serviceWorkers: 'block' });
+    await context.addInitScript(({ token, hassUrl }) => {
+        localStorage.setItem('hassTokens', JSON.stringify({
+            access_token: token, token_type: 'Bearer', expires_in: 1e9, hassUrl,
+            clientId: `${hassUrl}/`, expires: Date.now() + 1e12, refresh_token: '',
+        }));
+        localStorage.setItem('dockedSidebar', JSON.stringify('always_hidden'));
+    }, { token, hassUrl: HA_URL });
+    return context;
+}
+
+/** Open a gallery view and wait for the LCARdS cards to settle. */
+async function openView(page, viewPath) {
+    await page.goto(`/${GALLERY_DASHBOARD}/${viewPath}`);
+    await page.waitForFunction(() => !!window.lcards?.core?.themeManager, null, { timeout: 30_000 });
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForTimeout(3000);
+}
+
+/** Record the motion file's steps as <outDir>/<name>.webm. */
+async function recordMotion(motionFile, viewPath, name) {
+    const motion = yaml.load(readFileSync(motionFile, 'utf8')) ?? {};
+    const context = await newContext(1);
+    const page = await context.newPage();
+    try {
+        await openView(page, viewPath);
+        await runSteps(page, client, motion.before ?? []);
+        const view = page.locator('hui-view').first();
+        const box = motion.clip === 'viewport' || !(await view.count()) ? null : await view.boundingBox();
+        const clip = box
+            ? { x: Math.floor(box.x), y: Math.floor(box.y), width: Math.floor(box.width), height: Math.floor(Math.min(box.height, height - box.y)) }
+            : { x: 0, y: 0, width, height };
+        const frames = await recordScreencast(page, clip, async () => {
+            await runSteps(page, client, motion.steps ?? []);
+            await page.waitForTimeout(motion.tail ?? 1500);
+        });
+        const out = join(outDir, `${name}.webm`);
+        encodeFrames(frames, out, clip);
+        console.log(`${name}: ${out.startsWith(ROOT) ? out.slice(ROOT.length + 1) : out} (${frames.length} frames)`);
+    } finally {
+        await context.close().catch(() => {});
+        // Back to the sample values the stills use.
+        await client.callService('lcards', 'clear_alert', {}).catch(() => {});
+        for (const [domain, service, data] of GALLERY_STATES) await client.callService(domain, service, data);
+    }
+}
+
 let failed = 0;
 for (const file of files) {
-    const name = basename(file).replace(/\.ya?ml$/, '');
+    const name = outName ?? basename(file).replace(/\.ya?ml$/, '');
     const text = readFileSync(file, 'utf8');
     const issues = await validateTexts([{ name: file, text }]);
     for (const i of issues) console.log(`  ${i.severity} ${i.path}${i.tag ? ` [${i.tag}]` : ''} ${i.message}`);
@@ -85,14 +147,7 @@ for (const file of files) {
     const config = parseConfig(text);
     await client.call({ type: 'lovelace/config/save', url_path: GALLERY_DASHBOARD, config });
 
-    const context = await browser.newContext({ baseURL: HA_URL, viewport: { width, height }, deviceScaleFactor: 2, serviceWorkers: 'block' });
-    await context.addInitScript(({ token, hassUrl }) => {
-        localStorage.setItem('hassTokens', JSON.stringify({
-            access_token: token, token_type: 'Bearer', expires_in: 1e9, hassUrl,
-            clientId: `${hassUrl}/`, expires: Date.now() + 1e12, refresh_token: '',
-        }));
-        localStorage.setItem('dockedSidebar', JSON.stringify('always_hidden'));
-    }, { token, hassUrl: HA_URL });
+    const context = await newContext(2);
     const page = await context.newPage();
     const errors = [];
     // LCARdS errors only (message plus the top stack frames, enough to find the card).
@@ -104,14 +159,17 @@ for (const file of files) {
     page.on('console', m => { if (m.type() === 'error' && /lcards/i.test(m.text())) errors.push(m.text().slice(0, 200)); });
     try {
         const viewPath = config.views?.[viewIndex]?.path ?? String(viewIndex);
-        await page.goto(`/${GALLERY_DASHBOARD}/${viewPath}`);
-        await page.waitForFunction(() => !!window.lcards?.core?.themeManager, null, { timeout: 30_000 });
-        await page.waitForLoadState('networkidle').catch(() => {});
-        await page.waitForTimeout(3000); // animations, charts and MSD routing settle
+        await openView(page, viewPath); // animations, charts and MSD routing settle
         // The view itself, below HA's toolbar (whose title and clock aren't the example's).
         const view = page.locator('hui-view').first();
         const box = (await view.count()) ? await view.boundingBox() : null;
-        const clip = box ? { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, height - box.y) } : undefined;
+        let clip = box ? { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, height - box.y) } : undefined;
+        if (action) {
+            const [domain, service] = action.split('.');
+            await client.callService(domain, service, {});
+            await page.waitForTimeout(4000);
+            clip = undefined; // overlays cover the whole viewport
+        }
         const png = join(tmpdir(), `lcards-gallery-${process.pid}-${name}.png`);
         await page.screenshot({ path: png, clip });
         const out = join(outDir, `${name}.webp`);
@@ -119,6 +177,11 @@ for (const file of files) {
         rmSync(png, { force: true });
         console.log(`${name}: ${out.startsWith(ROOT) ? out.slice(ROOT.length + 1) : out}${errors.length ? `  (${errors.length} page error(s))` : ''}`);
         for (const e of errors.slice(0, 5)) console.log(`  page error: ${e}`);
+        if (args.includes('--video')) {
+            const motionFile = opt('motion', null) ?? join(ROOT, 'doc/gallery/motion', `${basename(file).replace(/\.ya?ml$/, '')}.yaml`);
+            if (existsSync(motionFile)) await recordMotion(motionFile, viewPath, name);
+            else console.log(`  no motion file ${motionFile.slice(ROOT.length + 1)}: still only`);
+        }
     } catch (err) {
         failed++;
         console.error(`${name}: ${err.message.split('\n')[0]}`);
@@ -127,6 +190,7 @@ for (const file of files) {
     }
 }
 
+if (action?.startsWith('lcards.')) await client.callService('lcards', 'clear_alert', {}).catch(() => {});
 if (!args.includes('--keep')) {
     await client.call({ type: 'lovelace/config/save', url_path: GALLERY_DASHBOARD, config: { title: 'LCARdS Gallery', views: [{ title: 'Empty', cards: [] }] } });
 }

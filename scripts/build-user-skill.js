@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { getSchemaEntries } from './lib/card-schemas.js';
 import { buildSchemaSet } from './lib/schema-publish.js';
 import { buildRegistries } from './lib/registries.js';
-import { SECTIONS, cleanMarkdown } from './generate-llms-txt.js';
+import { SECTIONS, cleanMarkdown, isRedirectStub } from './generate-llms-txt.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outArg = process.argv.slice(2).find(a => a.startsWith('--out='));
@@ -57,6 +57,7 @@ const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap(e => e.i
 for (const [folder, , inFull] of SECTIONS) {
   if (!inFull) continue;
   for (const file of walk(join(ROOT, 'doc', folder))) {
+    if (isRedirectStub(readFileSync(file, 'utf8'))) continue;
     write(`references/docs/${relative(join(ROOT, 'doc'), file)}`, cleanMarkdown(readFileSync(file, 'utf8')) + '\n');
     pages++;
   }

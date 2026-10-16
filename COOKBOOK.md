@@ -111,7 +111,7 @@ A dev build with no page at all still publishes, with GitHub's generated notes o
 | `npm run release:commits` | Commits the notes don't cover yet, with messages and areas (`-- --brief` for subjects only). |
 | `npm run release:check` | Every page: frontmatter, images exist and are used, nothing that can't export. Also in `npm test`. |
 | `npm run release:notes -- <version>` | Prints the GitHub body exactly as the workflow makes it. |
-| `npm run release:shots -- <version> [name ...] [--gif]` | Captures pictures from the dev HA per the shot list. `--gif` adds GitHub GIFs for videos. |
+| `npm run release:shots -- <version> [name ...] [--gif]` | Captures pictures from the dev HA per the shot list. `--gif` adds GitHub GIFs for videos. Other shot lists: `--list <file> --out <dir>` (the card overview pictures: `doc/cards/shots/cards.yaml` into `doc/public/img/cards`). |
 | `node scripts/release-notes.mjs import` | One-off backfill from GitHub (done 2026-10-12). Don't re-run with `--force`: it overwrites hand edits. |
 
 ---
@@ -162,7 +162,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 |---|---|
 | `validate:doc-examples` / `:strict` | YAML examples in `doc/` against the card, view and MSD schemas (the list is `scripts/lib/card-schemas.js`); strict also fails on unknown keys. |
 | `validate:config` | Check any LCARdS YAML (a card, a view, a whole dashboard, HA `.storage/lovelace*` JSON): `npm run validate:config -- <file> [--strict] [--json]`. Errors: schema, unknown keys, MSD without a canvas. Warnings: names that aren't built in (presets, animations, sounds, theme tokens...), legacy chart/data-grid format. Same checker as the doc examples (`scripts/lib/config-validator.js`). |
-| `gallery:shots` | Screenshot every `doc/gallery/dashboards/*.yaml` on the dev HA into `doc/public/gallery/` (checks each file, writes it to the hidden `lcards-gallery` dashboard, sets the `lcards_test_*` helpers to sample values, crops to the view). Any file: `node scripts/dashboard-shots.mjs <file.yaml> --out=<dir> [--keep]`, the loop for building a dashboard and seeing it. Needs `.ha-token` and a current build; look at every image before committing it. |
+| `gallery:shots` | Record every `doc/gallery/dashboards/*.yaml` on the dev HA into `doc/public/gallery/`: a still (`.webp`, the video's poster) and, with `--video`, a looping `.webm` of the state changes listed in `doc/gallery/motion/<name>.yaml` (`--motion=<file>` for another list; `tests/docs/dashboard-gallery.test.js` keeps them to `lcards_test_*` helpers). Each run checks the file, writes it to the hidden `lcards-gallery` dashboard, sets the `lcards_test_*` helpers to sample values and crops to the view. Any file: `node scripts/dashboard-shots.mjs <file.yaml> --out=<dir> [--keep]`, the loop for building a dashboard and seeing it. `--action=lcards.red_alert` runs an action before the shot and captures the whole viewport (alert overlay picture: `doc/cards/shots/alert-overlay-dashboard.yaml`), `--name=<out>` names the file. Needs `.ha-token` and a current build; look at every image before committing it. |
 | `validate:schema-descriptions` | Fails on schema properties added without a `description`; the known backlog is `scripts/schema-description-baseline.txt`. After filling some: `npm run validate:schema-descriptions:update`. |
 | `validate:css-vars` / `:verbose` | Every `--lcars-*`, `--lcards-*` and `theme:` reference is registered. |
 | `validate:ha-compat` | No HA elements, attributes, CSS hooks or imports that are dead in the minimum HA. |

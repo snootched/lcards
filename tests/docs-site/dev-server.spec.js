@@ -58,3 +58,14 @@ test('dev server: a processor lab runs and charts', async ({ page }) => {
     await expect(lab.locator('.processor-lab-table tbody tr').first()).toBeVisible();
     expect(errors).toEqual([]);
 });
+
+// Regression: llms.txt and llms-full.txt are written into the built site only, so the
+// dev server answered 404; it now makes them on request.
+test('dev server: llms.txt and llms-full.txt are served', async ({ request }) => {
+    for (const file of ['llms.txt', 'llms-full.txt']) {
+        const res = await request.get(`/${file}`);
+        expect(res.status(), file).toBe(200);
+        expect(res.headers()['content-type']).toContain('text/plain');
+        expect(await res.text()).toMatch(/^# LCARdS/);
+    }
+});

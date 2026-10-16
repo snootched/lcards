@@ -51,7 +51,7 @@ const CATEGORIES = [
       'validate:doc-examples': { when: 'as needed', desc: 'Validates YAML code examples embedded in doc/ against the real config schema.' },
       'validate:doc-examples:strict': { when: 'every build', desc: 'Same, but fails on any violation. Runs inside `build`.' },
       'validate:config': { when: 'as needed', desc: 'Check a card, view or whole dashboard YAML (or HA .storage JSON): schemas, unknown keys, built-in names. npm run validate:config -- <file> [--strict] [--json].' },
-      'gallery:shots': { when: 'as needed', desc: 'Screenshot every doc/gallery/dashboards/*.yaml on the dev HA into doc/public/gallery/ (validates, pushes to a hidden lcards-gallery dashboard). Any file: node scripts/dashboard-shots.mjs <file.yaml> --out=<dir> [--keep]. Needs .ha-token.' },
+      'gallery:shots': { when: 'as needed', desc: 'Record every doc/gallery/dashboards/*.yaml on the dev HA into doc/public/gallery/: a still (.webp, the poster) and a looping video (.webm) of the state changes in doc/gallery/motion/<name>.yaml. Any file: node scripts/dashboard-shots.mjs <file.yaml> --out=<dir> [--keep] [--video] [--motion=<file>] [--action=lcards.red_alert] [--name=<out>]. Needs .ha-token.' },
       'validate:schema-descriptions': { when: 'every build', desc: 'Fails on schema properties added without a description (backlog: scripts/schema-description-baseline.txt). Runs inside `build`.' },
       'validate:schema-descriptions:update': { when: 'as needed', desc: 'Rewrites the description baseline after you fill gaps (or after an intentional undescribed key).' },
     },
@@ -103,7 +103,7 @@ const CATEGORIES = [
       'release:commits': { when: 'as needed', desc: 'Commits the release notes do not cover yet (from the in-testing page\'s notes_through, or the last release), with messages and areas. Input for drafting doc/releases/<version>.md.' },
       'release:check': { when: 'as needed', desc: 'Checks every release page: frontmatter, images exist and are used, nothing that cannot export to GitHub. Also runs in npm test.' },
       'release:notes': { when: 'CI/release', desc: 'Prints the GitHub release body for a version (npm run release:notes -- 2026.11.0). The Release workflow runs it with --out.' },
-      'release:shots': { when: 'as needed', desc: 'Captures release pictures from the dev HA per doc/releases/shots/<version>.yaml (npm run release:shots -- <version> [name ...] [--gif]).' },
+      'release:shots': { when: 'as needed', desc: 'Captures release pictures from the dev HA per doc/releases/shots/<version>.yaml (npm run release:shots -- <version> [name ...] [--gif]); other shot lists with --list <file> --out <dir> (card overview: doc/cards/shots/cards.yaml).' },
     },
   },
   {

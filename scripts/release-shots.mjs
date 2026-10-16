@@ -3,6 +3,8 @@
  * release-shots.mjs - capture the pictures for a release page from the dev HA.
  *
  *   node scripts/release-shots.mjs <version> [name ...] [--gif] [--headed]
+ *   node scripts/release-shots.mjs --list <file.yaml> --out <dir> [name ...] [--gif]   (any other shot
+ *       list, e.g. doc/cards/shots.yaml -> doc/public/img/cards for the card overview)
  *
  * Reads doc/releases/shots/<version>.yaml and writes doc/public/releases/<version>/<name>.webp
  * (stills) or <name>.webm (+ <name>.gif with --gif, for the GitHub export). Videos are
@@ -42,20 +44,27 @@ import yaml from 'js-yaml';
 import { chromium } from '@playwright/test';
 import { HAClient, HA_URL, readToken, ensureHelpers } from '../tests/ha/ha-client.mjs';
 import { ROOT, PUBLIC_DIR } from './release-lib.mjs';
+import { runSteps, recordScreencast, encodeFrames, webmToGif } from './lib/shot-video.mjs';
 
-const args = process.argv.slice(2);
-const version = args.find(a => !a.startsWith('--'));
-const only = new Set(args.filter(a => !a.startsWith('--')).slice(1));
+const argv = process.argv.slice(2);
+const optValue = (flag) => { const i = argv.indexOf(flag); return i === -1 ? null : argv[i + 1]; };
+const listArg = optValue('--list');
+const outArg = optValue('--out');
+// Positional args, without the values of --list / --out.
+const args = argv.filter((a, i) => !['--list', '--out'].includes(argv[i - 1]));
+const positional = args.filter(a => !a.startsWith('--'));
+const version = listArg ? null : positional[0];
+const only = new Set(listArg ? positional : positional.slice(1));
 const wantGif = args.includes('--gif');
 const headed = args.includes('--headed');
 
-if (!version) {
-    console.error('usage: release-shots.mjs <version> [name ...] [--gif] [--headed]');
+if (!version && !(listArg && outArg)) {
+    console.error('usage: release-shots.mjs <version> [name ...] [--gif] [--headed]\n       release-shots.mjs --list <file.yaml> --out <dir> [name ...] [--gif] [--headed]');
     process.exit(1);
 }
-const listFile = join(ROOT, 'doc', 'releases', 'shots', `${version}.yaml`);
+const listFile = listArg ? join(ROOT, listArg) : join(ROOT, 'doc', 'releases', 'shots', `${version}.yaml`);
 if (!existsSync(listFile)) {
-    console.error(`No shot list doc/releases/shots/${version}.yaml`);
+    console.error(`No shot list ${listFile}`);
     process.exit(1);
 }
 const token = readToken();
@@ -65,34 +74,8 @@ if (!token) {
 }
 
 const shots = (yaml.load(readFileSync(listFile, 'utf8')) ?? []).filter(s => !only.size || only.has(s.name));
-const outDir = join(PUBLIC_DIR, 'releases', version);
+const outDir = outArg ? join(ROOT, outArg) : join(PUBLIC_DIR, 'releases', version);
 mkdirSync(outDir, { recursive: true });
-
-async function runSteps(page, client, steps = []) {
-    for (const step of steps) {
-        if (step.click) await page.locator(step.click).first().dispatchEvent('click');
-        else if (step.hover) await page.locator(step.hover).first().hover();
-        else if (step.wait) await page.waitForTimeout(step.wait);
-        else if (step.eval) await page.evaluate(step.eval);
-        else if (step.service) await client.callService(...step.service);
-        else if (step.type) await page.locator(step.type[0]).first().pressSequentially(step.type[1], { delay: 40 });
-        else if (step.drag) {
-            const [selector, from, to, ms = 1000] = step.drag;
-            const box = await page.locator(selector).first().boundingBox();
-            const y = box.y + box.height / 2;
-            const frames = Math.max(2, Math.round(ms / 40));
-            await page.mouse.move(box.x + box.width * from, y);
-            await page.mouse.down();
-            for (let i = 1; i <= frames; i++) {
-                await page.mouse.move(box.x + box.width * (from + (to - from) * (i / frames)), y);
-                await page.waitForTimeout(40);
-            }
-            await page.waitForTimeout(600);
-            await page.mouse.up();
-        }
-        else throw new Error(`unknown step ${JSON.stringify(step)}`);
-    }
-}
 
 /** Element box (plus padding) clamped to the viewport, or the whole viewport. */
 async function cropBox(page, shot, viewport) {
@@ -158,47 +141,6 @@ async function openShot(page, shot) {
     await page.waitForTimeout(shot.settle ?? 2000);
 }
 
-/**
- * Record the page in real time with the DevTools screencast while `during` runs.
- * Frames arrive only when the page changes; each keeps its timestamp.
- */
-async function recordScreencast(page, clip, during) {
-    const cdp = await page.context().newCDPSession(page);
-    const frames = [];
-    cdp.on('Page.screencastFrame', (f) => {
-        frames.push({ data: f.data, t: f.metadata.timestamp });
-        cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
-    });
-    await cdp.send('Page.startScreencast', { format: 'png', everyNthFrame: 1 });
-    const start = Date.now() / 1000;
-    await during();
-    await cdp.send('Page.stopScreencast');
-    // A last frame at the end so the final state holds for its time.
-    if (frames.length) frames.push({ data: frames.at(-1).data, t: Date.now() / 1000 });
-    if (frames.length && frames[0].t > start) frames.unshift({ data: frames[0].data, t: start });
-    return frames;
-}
-
-/** Frames (with timestamps) -> cropped VP9 WebM at their real timing. */
-function encodeFrames(frames, out, clip) {
-    if (frames.length < 2) throw new Error('no screencast frames');
-    const dir = join(tmpdir(), `lcards-frames-${process.pid}-${Date.now()}`);
-    mkdirSync(dir, { recursive: true });
-    const list = [];
-    frames.forEach((f, i) => {
-        const file = join(dir, `${String(i).padStart(5, '0')}.png`);
-        writeFileSync(file, Buffer.from(f.data, 'base64'));
-        list.push(`file '${file}'`);
-        if (i < frames.length - 1) list.push(`duration ${Math.max(0.001, frames[i + 1].t - f.t).toFixed(3)}`);
-    });
-    writeFileSync(join(dir, 'list.txt'), list.join('\n') + '\n');
-    const crop = `crop=${clip.width - (clip.width % 2)}:${clip.height - (clip.height % 2)}:${clip.x}:${clip.y}`;
-    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', join(dir, 'list.txt'),
-        '-vf', `${crop},fps=30,scale='trunc(min(1600,iw)/2)*2':-2`,
-        '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '34', '-pix_fmt', 'yuv420p', '-an', out]);
-    rmSync(dir, { recursive: true, force: true });
-}
-
 const client = await HAClient.connect(token);
 await ensureHelpers(client);
 const browser = await chromium.launch({
@@ -240,11 +182,7 @@ for (const shot of shots) {
             });
             const webm = join(outDir, `${shot.name}.webm`);
             encodeFrames(frames, webm, clip);
-            if (wantGif) {
-                execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', webm, '-vf',
-                    "fps=15,scale='min(800,iw)':-2:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4",
-                    join(outDir, `${shot.name}.gif`)]);
-            }
+            if (wantGif) webmToGif(webm, join(outDir, `${shot.name}.gif`));
             console.log(`${shot.name}.webm${wantGif ? ' + .gif' : ''}  ${clip.width}x${clip.height}, ${frames.length} frames`);
         }
     } catch (err) {
@@ -259,5 +197,5 @@ for (const shot of shots) {
 }
 await browser.close();
 client.close();
-console.log(`\n${shots.length - failed}/${shots.length} shot(s) in doc/public/releases/${version}/. Check each for personal names before committing.`);
+console.log(`\n${shots.length - failed}/${shots.length} shot(s) in ${outDir.replace(ROOT + "/", "")}/. Check each for personal names before committing.`);
 process.exit(failed ? 1 : 0);

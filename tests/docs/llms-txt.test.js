@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildLlmsTxt, buildLlmsFull, pageUrl, pageInfo, cleanMarkdown, SECTIONS } from '../../scripts/generate-llms-txt.js';
+import { buildLlmsTxt, buildLlmsFull, pageUrl, pageInfo, cleanMarkdown, SECTIONS, isRedirectStub } from '../../scripts/generate-llms-txt.js';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -31,7 +31,9 @@ test('every docs page in a listed section appears once, with a summary of real t
         for (const file of walk(join(ROOT, 'doc', folder))) {
             const url = pageUrl(file.slice(join(ROOT, 'doc').length + 1));
             const hits = txt.split('\n').filter(l => l.includes(`](${url})`));
-            assert.equal(hits.length, 1, `${url} listed ${hits.length} times`);
+            // A moved page's stub (frontmatter `redirect:`) is left out.
+            const expected = isRedirectStub(readFileSync(file, 'utf8')) ? 0 : 1;
+            assert.equal(hits.length, expected, `${url} listed ${hits.length} times`);
         }
     }
     const thin = txt.split('\n').filter(l => /^- \[/.test(l) && !/\): .{20,}/.test(l));
