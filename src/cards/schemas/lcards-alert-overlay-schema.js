@@ -106,15 +106,14 @@ export const alertOverlaySchema = {
         },
         width: {
             type: 'string',
-            description: 'Global content card width (CSS value)',
-            default: 'auto',
-            examples: ['auto', '400px', '50%'],
+            description: 'Content card width (CSS value). Percentages are of the screen. Default 60%.',
+            default: '60%',
+            examples: ['60%', '400px', '50vw'],
         },
         height: {
             type: 'string',
-            description: 'Global content card height (CSS value)',
-            default: 'auto',
-            examples: ['auto', '300px', '40%'],
+            description: 'Content card height (CSS value). Percentages are of the screen. Default: 50% for the built-in alert symbol when no width is set either; otherwise the content sizes itself (auto).',
+            examples: ['50%', '300px', 'auto'],
         },
         conditions: {
             type: 'object',
@@ -182,8 +181,8 @@ export const alertOverlaySchema = {
                             'bottom-left', 'bottom', 'bottom-center', 'bottom-right',
                         ],
                     },
-                    width:  { type: 'string', description: 'Per-condition content card width' },
-                    height: { type: 'string', description: 'Per-condition content card height' },
+                    width:  { type: 'string', description: 'Content card width for this condition (CSS value); falls back to the card width' },
+                    height: { type: 'string', description: 'Content card height for this condition (CSS value); falls back to the card height' },
                     auto_dismiss_seconds: {
                         type: 'number',
                         minimum: 1,

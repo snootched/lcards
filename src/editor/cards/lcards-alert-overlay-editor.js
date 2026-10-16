@@ -270,7 +270,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Width'}
-                            .helper=${'CSS width for the content card (e.g. 400px, 50%, auto)'}
+                            .helper=${'CSS width for the content card, e.g. 400px or 50% (of the screen). Blank = 60%'}
                             .selector=${{ text: {} }}
                             .value=${width}
                             @value-changed=${(e) => this._setConfigValue('width', e.detail.value || undefined)}>
@@ -279,7 +279,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Height'}
-                            .helper=${'CSS height for the content card (e.g. 300px, auto)'}
+                            .helper=${'CSS height for the content card, e.g. 300px or 40%. Blank = 50% for the alert symbol (auto when a width is set)'}
                             .selector=${{ text: {} }}
                             .value=${height}
                             @value-changed=${(e) => this._setConfigValue('height', e.detail.value || undefined)}>

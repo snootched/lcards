@@ -48,6 +48,31 @@ const CONDITION_DEFAULTS = {
     gray_alert:   { preset: 'condition_gray',   alertText: 'ALERT', subText: 'CONDITION: GRAY' },
 };
 
+// Content size when the config sets none: a share of the screen (the overlay covers
+// the whole viewport, so % is of its width and height). The built-in alert symbol
+// gets a box it scales to fit; a custom content card keeps its own height.
+export const DEFAULT_CONTENT_WIDTH  = '60%';
+export const DEFAULT_SYMBOL_HEIGHT  = '50%';
+
+/**
+ * The overlay content's size for a condition: per-condition values, then the
+ * card's, then the defaults above. A width set without a height leaves the height
+ * to the content (the alert symbol keeps its aspect ratio from the width).
+ * @param {Object} config - Card config
+ * @param {string} condition - Active condition, e.g. 'red_alert'
+ * @returns {{width: string, height: string}}
+ */
+export function overlayContentSize(config, condition) {
+    const perCond = config?.conditions?.[condition];
+    const width  = perCond?.width  ?? config?.width;
+    const height = perCond?.height ?? config?.height;
+    const customContent = !!perCond?.content;
+    return {
+        width:  width ?? DEFAULT_CONTENT_WIDTH,
+        height: height ?? (width || customContent ? 'auto' : DEFAULT_SYMBOL_HEIGHT),
+    };
+}
+
 export class LCARdSAlertOverlay extends LitElement {
 
     // -------------------------------------------------------------------------
@@ -512,11 +537,7 @@ export class LCARdSAlertOverlay extends LitElement {
     }
 
     _getEffectiveSize() {
-        const perCond = this.config?.conditions?.[this._activeCondition];
-        return {
-            width:  perCond?.width  ?? this.config?.width  ?? 'auto',
-            height: perCond?.height ?? this.config?.height ?? 'auto',
-        };
+        return overlayContentSize(this.config, this._activeCondition);
     }
 
     // -------------------------------------------------------------------------
