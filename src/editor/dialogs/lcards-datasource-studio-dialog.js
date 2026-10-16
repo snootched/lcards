@@ -32,8 +32,7 @@ import { historySettings, withHistorySettings, HISTORY_DEFAULT_HOURS } from '../
 import { dataSourceBufferSize } from '../../core/data-sources/DataSource.js';
 import { processorChartYaml } from '../../core/data-sources/processor-chart-config.js';
 import { copyTextToClipboard } from '../../utils/clipboard-utils.js';
-
-const DOCS = 'https://lcards.unimatrix01.ca/core/datasources/';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
 
 const TABS = [
     { id: 'basic', icon: 'mdi:database', label: 'Source' },
@@ -380,7 +379,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
         return html`
             <p class="hint tab-hint">
                 Smooth, convert or analyse the values. Chain processors by picking another one as a processor's Input.
-                <a href="${DOCS}processor-reference.html" target="_blank" rel="noreferrer">Processor reference</a>
+                <a href=${docsUrl(DOCS.processors)} target="_blank" rel="noreferrer">Processor reference</a>
             </p>
             <lcards-processor-tree-editor
                 .value=${this._workingConfig.processing || {}}

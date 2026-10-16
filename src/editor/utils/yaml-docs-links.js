@@ -1,21 +1,24 @@
 /**
- * Docs pages for card options, used by the "Options here" panel in the card
- * editor's YAML tab and in the docs playgrounds. Pure, no imports.
+ * Every link from LCARdS to its docs site: pages for card options (the "Options
+ * here" panel in the card editor's YAML tab and the docs playgrounds), a page per
+ * editor tab, plus the named links and docsUrl() from utils/docs-url.js. Pure.
  *
- * Paths are site-relative docs links (as written in the docs). Use docsUrl()
- * for an absolute link to the published site.
+ * Paths are site-relative docs links (as written in the docs). tests/docs/docs-links.test.js
+ * checks every one against the built site (listDocsLinks()).
  *
  * @module editor/utils/yaml-docs-links
  */
 
-export const DOCS_SITE = 'https://lcards.unimatrix01.ca';
+import { DOCS, PANEL_TAB_DOCS } from '../../utils/docs-url.js';
+
+export { DOCS_SITE, docsBase, docsUrl, DOCS, PANEL_TAB_DOCS } from '../../utils/docs-url.js';
 
 const SIZING = '/cards/common#sizing-height-width-min-height-min-width-max-height-max-width';
 
 // A data source's processing pipeline: processor names are free-form map keys, so
 // any path through `processing` links to the processor reference (cards' data_sources,
 // the docs processor lab).
-const PROCESSORS = '/core/datasources/processor-reference';
+const PROCESSORS = DOCS.processors;
 
 /** Detailed maps: dotted key path (list indices dropped) to docs link. */
 const DETAILED = {
@@ -154,7 +157,7 @@ const CARD_PAGES = {
   msd: '/cards/msd/',
   'select-menu': '/cards/select-menu/',
   'alert-overlay': '/cards/alert-overlay/',
-  'layout-card': '/cards/layout-view/'
+  'layout-card': '/cards/layout-card/'
 };
 
 /** Options shared by every card. */
@@ -197,12 +200,64 @@ export function docsFor(cardType, path) {
   return map[''] || CARD_PAGES[type];
 }
 
+// ── Editor tabs ────────────────────────────────────────────────────────────────
+/** Docs page per card editor tab: card type (editor cardType) -> tab label -> link. */
+const EDITOR_TABS = {
+  button: {
+    Config: '/cards/button/#card-options',
+    'Card & Border': '/cards/button/#style-card',
+    Icon: '/cards/button/#icon-style-object',
+    Segments: '/cards/button/#component-mode-d-pad',
+  },
+  elbow: {
+    Config: '/cards/elbow/#card-options',
+    'Elbow Design': '/cards/elbow/#elbow-types',
+    Symbiont: '/cards/elbow/#symbiont',
+  },
+  slider: {
+    Config: '/cards/slider-card/#card-options',
+    'Component Options': '/cards/slider-card/#presets',
+    'Slider Track': '/cards/slider-card/#style-track',
+    Borders: '/cards/slider-card/#style-border',
+  },
+  'select-menu': {
+    Config: '/cards/select-menu/#card-options',
+    Grid: '/cards/select-menu/#grid-object',
+    Style: '/cards/select-menu/#style-object',
+    Options: '/cards/select-menu/#options',
+    Actions: '/cards/select-menu/#actions',
+  },
+  'alert-overlay': {
+    Config: '/cards/alert-overlay/#card-options',
+    Backdrop: '/cards/alert-overlay/#layers',
+    Conditions: '/cards/alert-overlay/#conditions',
+  },
+  chart: { Configuration: '/cards/chart/' },
+  'data-grid': { Configuration: '/cards/data-grid/' },
+  msd: { Configuration: '/cards/msd/' },
+  'layout-card': { Configuration: '/cards/layout-card/' },
+};
+
+/** Tabs most card editors share. */
+const EDITOR_TABS_COMMON = {
+  Zones: '/core/text-fields#zones',
+  Text: '/core/text-fields',
+  'Text Fields': '/core/text-fields',
+  Actions: '/core/actions',
+  Effects: '/core/animations',
+  Sound: '/core/sounds',
+  '🖖 Main Engineering': '/cards/main-engineering',
+  YAML: '/getting-started/config-checker',
+};
+
 /**
- * Absolute URL on the published docs site (pages are .html files there).
- * @param {string} link - site-relative link from docsFor()
+ * Docs link for a card editor tab.
+ * @param {string} cardType - the editor's cardType ('button', 'msd', ...)
+ * @param {string} label - the tab's label
+ * @returns {string|undefined} site-relative link
  */
-export function docsUrl(link) {
-  return DOCS_SITE + link.replace(/^([^#]*[^/#])(#|$)/, '$1.html$2');
+export function editorTabDocs(cardType, label) {
+  return EDITOR_TABS[normalizeCardType(cardType)]?.[label] ?? EDITOR_TABS_COMMON[label];
 }
 
 /** Every site-relative link the maps above can return (tests check each one exists). */
@@ -211,6 +266,10 @@ export function listDocsLinks() {
     ...Object.values(DETAILED).flatMap(map => Object.values(map)),
     ...Object.values(CARD_PAGES),
     ...Object.values(COMMON),
+    ...Object.values(EDITOR_TABS).flatMap(map => Object.values(map)),
+    ...Object.values(EDITOR_TABS_COMMON),
+    ...Object.values(DOCS),
+    ...PANEL_TAB_DOCS,
     PROCESSORS,
   ])];
 }

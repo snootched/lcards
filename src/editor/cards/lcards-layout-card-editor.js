@@ -17,6 +17,7 @@ import { parseLayoutConfig, getAreaNames } from '../../views/layout-grid-utils.j
 // Side-effect import: registers <lcards-layout-studio-dialog>.
 import '../dialogs/lcards-layout-studio-dialog.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
 
 export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
 
@@ -53,6 +54,10 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
                     </div>
                 </div>
                 <div class="info-card-actions">
+                    <ha-button appearance="plain" @click=${() => window.open(docsUrl(DOCS.layoutCard), "_blank", "noopener")}>
+                        Docs
+                        <ha-icon icon="mdi:open-in-new" slot="end"></ha-icon>
+                    </ha-button>
                     <ha-button @click=${this._openStudio}>
                         <ha-icon icon="mdi:view-grid-plus" slot="start"></ha-icon>
                         Open Layout Studio

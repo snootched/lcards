@@ -23,6 +23,7 @@ import '../../editor/components/sound/lcards-sound-source-selector.js';
 import './shared/lcards-scope-selector.js';
 import { surfaceStyles } from '../../editor/base/surface-styles.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
 
 const CATEGORY_LABELS = {
   cards:  'Card Interactions',
@@ -914,7 +915,7 @@ export class LCARdSSoundConfigTab extends LitElement {
         <!-- ── BROWSER AUTOPLAY NOTICE ── -->
         <lcards-message
           type="info"
-          .message=${'Most sounds play after your first tap. <em>System Ready</em> plays on page load only if the browser allows autoplay here. <a href="https://lcards.unimatrix01.ca/configuration/sounds#browser-audio-policy" target="_blank" rel="noopener noreferrer">Browser setup</a>'}
+          .message=${`Most sounds play after your first tap. <em>System Ready</em> plays on page load only if the browser allows autoplay here. <a href="${docsUrl(DOCS.soundAutoplay)}" target="_blank" rel="noopener noreferrer">Browser setup</a>`}
         ></lcards-message>
 
         <!-- ── GLOBAL SETTINGS GROUP ── -->

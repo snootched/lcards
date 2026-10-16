@@ -28,7 +28,7 @@ import { haFormatState } from '../../../utils/ha-entity-display.js';
 import { copyTextToClipboard } from '../../../utils/clipboard-utils.js';
 import { studioDialogStyles } from '../../dialogs/studio-dialog-styles.js';
 import { messageStyles } from '../../base/surface-styles.js';
-import { DOCS_BASE_URL } from '../shared/docs-links.js';
+import { docsUrl, DOCS } from '../../../utils/docs-url.js';
 import { EXAMPLE_TEMPLATES, getExampleIds } from './template-examples.js';
 import {
     templateContext, templateRefs, templateKinds, parseTestValues, withTestValues, unresolvedParts,
@@ -38,7 +38,7 @@ import '../shared/lcards-form-section.js';
 import './lcards-template-editor.js';
 import { isCssColor } from '../../../core/themes/color-syntax.js';
 
-const TEMPLATES_DOCS_URL = `${DOCS_BASE_URL}/core/templates/`;
+const TEMPLATES_DOCS_URL = docsUrl(DOCS.templates);
 
 /** Starters for the Insert chips: text, then completion opens. */
 const INSERTS = [

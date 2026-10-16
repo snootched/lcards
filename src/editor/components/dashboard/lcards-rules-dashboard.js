@@ -24,9 +24,9 @@ import { ruleSchema, pageSchemaOptions, cardTypeOf } from './rule-apply-schema.j
 import { messageStyles } from '../../base/surface-styles.js';
 import { renderLauncher, launcherStyles } from '../shared/launcher.js';
 import { showConfirmDeleteDialog } from '../../../views/layout-edit-dialogs.js';
-import { DOCS_BASE_URL } from '../shared/docs-links.js';
+import { docsUrl, DOCS } from '../../../utils/docs-url.js';
 
-const RULES_DOCS_URL = `${DOCS_BASE_URL}/core/rules/`;
+const RULES_DOCS_URL = docsUrl(DOCS.rules);
 
 /** Sortable table columns: [key, heading] (null key: not sortable). */
 /** What a pending rule waits for, shown in its Status cell. */

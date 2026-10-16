@@ -32,6 +32,7 @@ import './components/lcards-layouts-tab.js';
 import './components/lcards-connectivity-tab.js';
 import { surfaceStyles } from '../editor/base/surface-styles.js';
 import { renderFilterChips } from '../editor/components/shared/filter-chips.js';
+import { docsUrl, PANEL_TAB_DOCS } from '../utils/docs-url.js';
 
 /** Section icons for the Helpers tab's categories. */
 const CATEGORY_ICONS = {
@@ -191,6 +192,31 @@ export class LCARdSConfigPanel extends LitElement {
       border-top-left-radius: 17px;
     }
 
+    /* "Docs" link at the top of each tab: opens the page in a new tab */
+    .tab-docs {
+        display: flex;
+        justify-content: flex-end;
+        margin: var(--ha-space-3) 0 var(--ha-space-3);
+    }
+    .tab-docs a {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--ha-space-1);
+        padding: var(--ha-space-1) var(--ha-space-3);
+        background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
+        border-radius: var(--ha-border-radius-pill);
+        color: var(--primary-text-color);
+        font-size: var(--ha-font-size-m, 14px);
+        font-weight: var(--ha-font-weight-medium, 500);
+        line-height: 1.4;
+        text-decoration: none;
+    }
+    .tab-docs a:hover {
+        background: color-mix(in srgb, var(--primary-text-color) 20%, transparent);
+    }
+    .tab-docs ha-icon {
+        --mdc-icon-size: 18px;
+    }
     ha-tab-group-tab ha-icon {
       --mdc-icon-size: 18px;
       margin-right: 8px;
@@ -649,6 +675,13 @@ export class LCARdSConfigPanel extends LitElement {
         </ha-tab-group>
 
         <div class="tab-content">
+          ${PANEL_TAB_DOCS[this._selectedTab] ? html`
+            <div class="tab-docs">
+              <a href=${docsUrl(PANEL_TAB_DOCS[this._selectedTab])} target="_blank" rel="noopener noreferrer">
+                Docs<ha-icon icon="mdi:open-in-new"></ha-icon>
+              </a>
+            </div>
+          ` : ''}
           ${this._renderTabContent()}
         </div>
       </div>

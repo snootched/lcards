@@ -15,6 +15,7 @@
  */
 
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { docsUrl, DOCS } from '../utils/docs-url.js';
 
 const VIEW_TYPE_OPTION = {
     value: 'custom:lcards-layout-view',
@@ -63,7 +64,7 @@ customElements.whenDefined('hui-view-editor').then(() => {
             help.innerHTML = `
                 You have <b>LCARdS</b> installed, which adds the <b>LCARdS Layout</b> view type.
                 See the
-                <a href="https://lcards.unimatrix01.ca/cards/layout-view/" target="_blank" rel="noreferrer">LCARdS Layout documentation</a>
+                <a href="${docsUrl(DOCS.layoutView)}" target="_blank" rel="noreferrer">LCARdS Layout documentation</a>
                 for usage instructions.
                 <style>
                     .lcards-view-editor-help { padding: 16px 0 0; margin-bottom: 0; }

@@ -2114,7 +2114,7 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
         <div class="gen-preview-box gen-export-box">
           <div class="gen-preview-heading">Generated Theme YAML</div>
           <div class="info-card">
-            <p>Paste this into your existing HA-LCARS <code>themes.yaml</code>, alongside its other themes. It
+            <p>Paste this at the end of HA-LCARS's theme file (<code>lcars.yaml</code>), after its other themes. It
               references the shared <code>&amp;lcars-variables</code>/<code>&amp;base</code>/<code>&amp;card-mod-css</code>
               anchors for sidebar chrome, fonts, and card-mod styling this generator doesn't reproduce: everything
               listed below overrides them.</p>

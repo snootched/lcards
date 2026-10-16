@@ -405,6 +405,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             if (metadata?.configurableOptions?.length > 0) {
                 baseTabs.push({
                     label: 'Component Options',
+                    docs: componentName === 'picard' ? '/cards/slider-card/#picard-component' : '/cards/slider-card/#shaped-component',
                     content: () => this._renderComponentOptionsTab()
                 });
             }

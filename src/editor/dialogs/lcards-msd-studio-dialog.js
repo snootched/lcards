@@ -68,6 +68,7 @@ import { MSDCardPickerManager } from './msd-studio/msd-card-picker-manager.js';
 import { MSDEventInterceptor } from './msd-studio/msd-event-interceptor.js';
 import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 import { normalizeHACardType, isBuiltinCardType } from '../../utils/ha-card-factory.js';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
 
 // Mode constants
 const MODES = {
@@ -13917,7 +13918,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <lcards-message type="info" style="margin-bottom: 16px;">
                         These affect every line that pathfinds (<code>route: auto</code>, <code>smart</code> or <code>grid</code>),
                         with or without obstacles and channels; manhattan, direct and manual lines never do.
-                        <a href="https://lcards.unimatrix01.ca/cards/msd/routing.html" target="_blank" rel="noopener noreferrer">Routing documentation</a>
+                        <a href=${docsUrl(DOCS.msdRouting)} target="_blank" rel="noopener noreferrer">Routing documentation</a>
                     </lcards-message>
 
                     <!-- Parameter Explanations -->
@@ -18669,7 +18670,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 <div slot="footer">
                     <div class="footer-start">
-                        <ha-button @click=${() => window.open('https://lcards.unimatrix01.ca/cards/msd/', '_blank')} appearance="plain">
+                        <ha-button @click=${() => window.open(docsUrl(DOCS.msd), '_blank', 'noopener')} appearance="plain">
                             <ha-icon icon="mdi:book-open-variant" slot="start"></ha-icon>
                             Documentation
                         </ha-button>

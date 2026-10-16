@@ -16,6 +16,7 @@ import { copyTextToClipboard } from '../../utils/clipboard-utils.js';
 import { buildSupportReport, openIssueForReport } from '../../utils/support-info.js';
 import '../../editor/components/shared/lcards-message.js';
 import { surfaceStyles } from '../../editor/base/surface-styles.js';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
 
 export class LCARdSAboutTab extends LitElement {
   static properties = {
@@ -218,9 +219,9 @@ export class LCARdSAboutTab extends LitElement {
   static get _RESOURCE_LINKS() {
     return [
       { icon: 'mdi:book-open-variant', title: 'Documentation', caption: 'lcards.unimatrix01.ca',
-        href: 'https://lcards.unimatrix01.ca' },
+        href: docsUrl(DOCS.home) },
       { icon: 'mdi:lifebuoy', title: 'Getting Help', caption: 'Troubleshooting & reporting problems',
-        href: 'https://lcards.unimatrix01.ca/getting-started/getting-help' },
+        href: docsUrl(DOCS.gettingHelp) },
       { icon: 'mdi:forum-outline', title: 'Discussions', caption: 'Questions, config help & showcase',
         href: 'https://github.com/snootched/LCARdS/discussions' },
       { icon: 'mdi:github', title: 'GitHub Repository', caption: 'github.com/snootched/LCARdS',
@@ -384,7 +385,7 @@ export class LCARdSAboutTab extends LitElement {
       <!-- ── Legal / attribution ───────────────────────────────── -->
       <div class="footer">
         LCARdS is licensed <a href="https://github.com/snootched/lcards/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
-        · LCARS aesthetics inspired by Star Trek <a href="https://lcards.unimatrix01.ca/credits.html" target="_blank" rel="noopener">[disclaimer]</a>
+        · LCARS aesthetics inspired by Star Trek <a href=${docsUrl(DOCS.credits)} target="_blank" rel="noopener">[disclaimer]</a>
       </div>
 
       </div>

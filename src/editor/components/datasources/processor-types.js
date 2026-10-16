@@ -8,9 +8,10 @@
  */
 
 import { ConvertUnitProcessor } from '../../../core/data-sources/processors/ConvertUnitProcessor.js';
+import { docsUrl, DOCS } from '../../../utils/docs-url.js';
 
 /** Processor reference page; each type has a section anchor (#scale, #convert-unit, ...). */
-export const PROCESSOR_DOCS = 'https://lcards.unimatrix01.ca/core/datasources/processor-reference.html';
+export const PROCESSOR_DOCS = docsUrl(DOCS.processors);
 
 /** @type {Array<{type: string, label: string, description: string, defaults: Object}>} */
 export const PROCESSOR_TYPES = [

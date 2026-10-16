@@ -19,6 +19,8 @@ import '../components/sound/lcards-card-sound-tab.js';
 import '../components/lcards-zone-list-editor.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/theme-browser/lcards-card-theme-tab.js';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
+import { editorTabDocs } from '../utils/yaml-docs-links.js';
 
 export class LCARdSBaseEditor extends LitElement {
 
@@ -63,6 +65,31 @@ export class LCARdSBaseEditor extends LitElement {
             ha-tab-group-tab ha-icon {
                 --mdc-icon-size: 18px;
                 margin-right: var(--ha-space-2);
+            }
+            /* "Docs" link at the top of each tab: opens the page in a new tab */
+            .tab-docs {
+                display: flex;
+                justify-content: flex-end;
+                margin: var(--ha-space-3) 0 var(--ha-space-3);
+            }
+            .tab-docs a {
+                display: inline-flex;
+                align-items: center;
+                gap: var(--ha-space-1);
+                padding: var(--ha-space-1) var(--ha-space-3);
+                background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
+                border-radius: var(--ha-border-radius-pill);
+                color: var(--primary-text-color);
+                font-size: var(--ha-font-size-m, 14px);
+                font-weight: var(--ha-font-weight-medium, 500);
+                line-height: 1.4;
+                text-decoration: none;
+            }
+            .tab-docs a:hover {
+                background: color-mix(in srgb, var(--primary-text-color) 20%, transparent);
+            }
+            .tab-docs ha-icon {
+                --mdc-icon-size: 18px;
             }
         `];
     }
@@ -148,7 +175,7 @@ export class LCARdSBaseEditor extends LitElement {
                             <code>core.configManager.registerCardSchema('${this.cardType}', schema)</code>
                         </p>
                         <p>
-                            See the <a href="https://github.com/snootched/LCARdS#schema-registration" target="_blank">documentation</a>
+                            See <a href=${docsUrl(DOCS.buildingAnEditor)} target="_blank" rel="noopener">Building an Editor</a>
                             for more information on schema registration.
                         </p>
                     </ha-alert>
@@ -185,7 +212,18 @@ export class LCARdSBaseEditor extends LitElement {
             return html`<div>No content available</div>`;
         }
 
-        return tab.content();
+        // A tab may name its own page (`docs:`); otherwise the card's tab map.
+        const docs = tab.docs ?? editorTabDocs(this.cardType, tab.label);
+        return html`
+            ${docs ? html`
+                <div class="tab-docs">
+                    <a href=${docsUrl(docs)} target="_blank" rel="noopener noreferrer">
+                        Docs<ha-icon icon="mdi:open-in-new"></ha-icon>
+                    </a>
+                </div>
+            ` : ''}
+            ${tab.content()}
+        `;
     }
 
     /**
@@ -1232,9 +1270,9 @@ export class LCARdSBaseEditor extends LitElement {
      */
 
     /**
-     * Render a compact info hint for the Sizing section explaining the
-     * card-mod workaround required when this card lives inside a
-     * `custom:layout-card` grid with `layout-height: auto` (the default).
+     * Render a compact info hint for the Sizing section, shown only when
+     * lovelace-layout-card (`custom:layout-card`) is installed: LCARdS cards
+     * collapse inside its grid, so it points at `custom:lcards-layout-card`.
      *
      * Called as the last child of every card's Sizing section so users
      * see it without needing to open docs.
@@ -1243,20 +1281,19 @@ export class LCARdSBaseEditor extends LitElement {
      * @protected
      */
     _renderLayoutCardHint() {
+        // Only when lovelace-layout-card is installed: otherwise there is nothing to warn about.
+        if (!customElements.get('layout-card')) return html``;
         return html`
             ${renderInfoGuide({
                 header: 'Inside a custom:layout-card?',
                 icon: 'mdi:view-grid-outline',
                 body: html`
-                    <p>Cards can collapse to their minimum height in a layout-card grid. Add this to the
-                        <strong>layout-card itself</strong> for full height:</p>
-                    <pre class="info-guide-example">card_mod:
-  style: |
-    grid-layout {
-      --layout-height: 100% !important;
-    }</pre>
+                    <p>Cards can collapse to their minimum height in a <code>custom:layout-card</code> grid, and its
+                        <code>card_margin</code> is ignored. Use LCARdS's own <strong>Layout Card</strong> instead:
+                        change <code>type</code> to <code>custom:lcards-layout-card</code> and remove
+                        <code>layout_type</code>. Your <code>layout</code> and <code>view_layout</code> keys stay the same.</p>
                     <div class="info-guide-links">
-                        <a href="https://lcards.unimatrix01.ca/cards/common.html#sizing-inside-custom-layout-card" target="_blank" rel="noopener noreferrer">Documentation</a>
+                        <a href=${docsUrl(DOCS.sizingInLayoutCard)} target="_blank" rel="noopener noreferrer">Documentation</a>
                     </div>
                 `,
             })}

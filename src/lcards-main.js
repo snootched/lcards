@@ -58,6 +58,7 @@ import { LCARdSSelectMenu } from './cards/lcards-select-menu.js';
 import { LCARdSLayoutCard } from './cards/lcards-layout-card.js';
 // Config panel: a small shell; the panel itself loads when it is opened.
 import './panels/lcards-config-panel-shell.js';
+import { docsUrl, DOCS } from './utils/docs-url.js';
 
 
 // Ensure global namespace
@@ -361,7 +362,7 @@ const LCARdSCardClasses = [
         name: 'LCARdS Button',
         preview: true,
         description: 'Modern LCARS button with multi-text labels and flexible positioning',
-        documentationURL: "https://lcards.unimatrix01.ca/cards/button/",
+        documentationURL: docsUrl(DOCS.button),
         getEntitySuggestion: (_hass, entityId) => ({
             config: { ...LCARdSButton.getStubConfig(), entity: entityId },
         }),
@@ -371,14 +372,14 @@ const LCARdSCardClasses = [
         name: 'LCARdS Elbow',
         preview: true,
         description: 'LCARS button with elbow/corner cap treatment for header and footer styles',
-        documentationURL: "https://lcards.unimatrix01.ca/cards/elbow/",
+        documentationURL: docsUrl(DOCS.elbow),
     },
     {
         type: 'lcards-chart',
         name: 'LCARdS Chart',
         preview: true,
         description: 'Data visualization chart powered by ApexCharts',
-        documentationURL: "https://lcards.unimatrix01.ca/cards/chart/",
+        documentationURL: docsUrl(DOCS.chart),
         getEntitySuggestion: (_hass, entityId) => {
             const domain = entityId.split('.')[0];
             if (!['sensor', 'input_number', 'number', 'weather'].includes(domain)) return null;
@@ -390,7 +391,7 @@ const LCARdSCardClasses = [
         name: 'LCARdS Slider',
         preview: true,
         description: 'Interactive slider/gauge for lights, covers, fans, and sensors with LCARS styling',
-        documentationURL: "https://lcards.unimatrix01.ca/cards/slider-card/",
+        documentationURL: docsUrl(DOCS.slider),
         getEntitySuggestion: (_hass, entityId) => {
             const domain = entityId.split('.')[0];
             if (!['light', 'fan', 'cover', 'input_number', 'number', 'climate', 'media_player', 'humidifier', 'water_heater', 'valve'].includes(domain)) return null;
@@ -402,21 +403,21 @@ const LCARdSCardClasses = [
         name: 'LCARdS Data Grid',
         preview: true,
         description: 'LCARS cascade text grid with random, template, or datasource data modes',
-        documentationURL: "https://lcards.unimatrix01.ca/cards/data-grid/",
+        documentationURL: docsUrl(DOCS.dataGrid),
     },
     {
         type: 'lcards-msd-card',
         name: 'LCARdS MSD',
         preview: true,
         description: 'LCARdS Master Systems Display (MSD) card',
-        documentationURL: "https://lcards.unimatrix01.ca/cards/msd/",
+        documentationURL: docsUrl(DOCS.msd),
     },
     {
         type: 'lcards-select-menu',
         name: 'LCARdS Select Menu',
         preview: true,
         description: 'Renders an input_select entity as a grid of LCARS-styled option buttons',
-        documentationURL: 'https://lcards.unimatrix01.ca/cards/select-menu/',
+        documentationURL: docsUrl(DOCS.selectMenu),
         getEntitySuggestion: (_hass, entityId) => {
             const domain = entityId.split('.')[0];
             if (domain !== 'input_select' && domain !== 'select') return null;
@@ -428,14 +429,14 @@ const LCARdSCardClasses = [
         name: 'LCARdS Alert Overlay',
         preview: false,
         description: 'Full-screen alert overlay that reacts to lcards_alert_mode with backdrop and content card',
-        documentationURL: "https://lcards.unimatrix01.ca/cards/alert-overlay/",
+        documentationURL: docsUrl(DOCS.alertOverlay),
     },
     {
         type: 'lcards-layout-card',
         name: 'LCARdS Layout Card',
         preview: false,
         description: 'CSS Grid container card with a visual editor. Build sub-grids and place cards into named areas',
-        documentationURL: "https://lcards.unimatrix01.ca/cards/layout-view/#layout-card",
+        documentationURL: docsUrl(DOCS.layoutCard),
     }
 ];
 
@@ -473,7 +474,7 @@ if (!window.customStrategies.some(s => s.type === 'lcars-shell')) {
     strategyType: 'dashboard',
     name: 'LCARS Dashboard',
     description: 'Star Trek LCARS-style full-screen shell with sidebar nav, header/footer chrome, and room light controller. Includes a WYSIWYG CSS Grid layout editor.',
-    documentationURL: 'https://lcards.unimatrix01.ca/',
+    documentationURL: docsUrl(DOCS.home),
   });
 }
 
