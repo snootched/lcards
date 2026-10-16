@@ -43,7 +43,7 @@
 
 ## Install
 
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snootched&repository=LCARdS&category=integration)
+[![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=snootched&repository=lcards&category=integrations)
 
 1. In **HACS**, search for **LCARdS** under **Integrations** and download it.
 2. Restart Home Assistant.
