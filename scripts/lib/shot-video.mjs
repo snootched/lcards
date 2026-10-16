@@ -6,6 +6,7 @@
  *   | { eval: 'js' } | { service: [domain, service, data] }
  *   | { type: [selector, text] } | { drag: [selector, from, to, ms] }
  *   | { goto: '/path' }  (dashboard-shots only cares that the page settles again)
+ *   | { press: 'Control+Space' }  a key or chord on the focused element
  *   | { state: [entity_id, state, attributes?] }  a fake state in HA's state machine
  *       (HAClient.setState: never reaches a device); restoreStates() puts the real
  *       ones back afterwards
@@ -28,6 +29,7 @@ export async function runSteps(page, client, steps = [], marks = null) {
             client._fakeStates ??= new Map();
             client._fakeStates.set(entityId, String(state));
         }
+        else if (step.press) await page.keyboard.press(step.press);
         else if (step.click) await page.locator(step.click).first().dispatchEvent('click');
         else if (step.hover) await page.locator(step.hover).first().hover();
         else if (step.wait) await page.waitForTimeout(step.wait);

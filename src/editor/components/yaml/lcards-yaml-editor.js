@@ -24,7 +24,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, placeholder, highlightTrailingWhitespace } from '@codemirror/view';
+import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, placeholder, highlightTrailingWhitespace, tooltips } from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { yaml } from '@codemirror/lang-yaml';
@@ -103,6 +103,7 @@ export class LCARdSYamlEditor extends LitElement {
                 display: flex;
                 flex-direction: column;
                 height: 100%;
+                position: relative; /* completion and hover popups are placed in it */
             }
 
             .toolbar {
@@ -831,6 +832,12 @@ export class LCARdSYamlEditor extends LitElement {
 
             // Highlight trailing whitespace (YAML is picky!)
             highlightTrailingWhitespace(),
+
+            // Popups (completion, hover) positioned inside the editor's wrapper: the
+            // default position: fixed lands offset inside HA dialogs (a transformed or
+            // positioned dialog becomes the fixed containing block). The wrapper, not
+            // the clipped code area, so they can reach past it.
+            tooltips({ position: 'absolute', parent: this.shadowRoot?.querySelector('.editor-wrapper') ?? undefined }),
 
             // Keymaps
             keymap.of([

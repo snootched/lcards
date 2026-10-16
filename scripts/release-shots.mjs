@@ -27,6 +27,7 @@
  *       - eval: 'window.scrollTo(0, 0)'                  # JS in the page
  *       - service: [input_number, set_value, { entity_id: input_number.lcards_test_value, value: 40 }]
  *       - drag: [lcards-slider, 0.2, 0.8, 1500]   # press at 20% of its width, move to 80% over 1.5 s, hold, release
+ *       - press: Control+Space    # a key or chord on the focused element
  *     selector: lcards-chart-studio-dialog ha-dialog     # crop to this element (default: whole viewport)
  *     padding: 16                   # px around the crop
  *     viewport: [1400, 900]

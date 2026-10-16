@@ -169,3 +169,94 @@
   viewport: [900, 400]
   selector: '#lcards-release-card'
   padding: 48
+
+# The card editor's YAML tab: completion for the key being typed and the "Options here"
+# panel.
+- name: yaml-editor
+  card:
+    type: custom:lcards-button
+    entity: input_boolean.lcards_test_toggle
+    preset: filled
+    text:
+      name:
+        content: Warp Core
+  editor: true
+  steps:
+    - wait: 1000
+    - click: '#lcards-release-editor >> role=tab[name="YAML"]'
+    - wait: 2000
+    - eval: |
+        (async () => {
+          const find = (r) => { for (const n of r.querySelectorAll('*')) { if (n.tagName === 'LCARDS-YAML-EDITOR') return n; const x = n.shadowRoot && find(n.shadowRoot); if (x) return x; } return null; };
+          const el = find(document);
+          const view = el._editorView;
+          view.focus();
+          // Start typing a new top-level key at the end (the doc ends with a newline).
+          const text = view.state.doc.toString().replace(/\n+$/, '\n');
+          view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+          const at = view.state.doc.length;
+          view.dispatch({ changes: { from: at, insert: 'anim' }, selection: { anchor: at + 4 }, userEvent: 'input.type' });
+        })()
+    - wait: 2500
+  selector: '#lcards-release-editor'
+  padding: 8
+
+# A rule's Apply section edited as YAML in context: completion in warp_core's patch lists
+# the button's own options; the Options here panel shows where the cursor is.
+- name: rule-apply
+  card:
+    type: custom:lcards-button
+    id: warp_core
+    entity: input_boolean.lcards_test_toggle
+    preset: filled
+  editor: true
+  steps:
+    - eval: |
+        (async () => {
+          const ha = document.querySelector('home-assistant');
+          // Cards on the page, so the Apply schema has targets.
+          for (const [id, name] of [['warp_core', 'Warp Core'], ['shields', 'Shields']]) {
+            const card = document.createElement('lcards-button');
+            card.setConfig({ type: 'custom:lcards-button', id, entity: 'input_boolean.lcards_test_toggle', preset: 'filled', tags: ['engineering'], text: { name: { content: name } } });
+            card.hass = ha.hass;
+            card.style.cssText = 'position:fixed;left:-2000px;width:300px';
+            ha.shadowRoot.appendChild(card);
+          }
+          await customElements.whenDefined('lcards-rule-editor-dialog');
+          const find = (r, tag) => { for (const n of r.querySelectorAll('*')) { if (n.tagName === tag) return n; const x = n.shadowRoot && find(n.shadowRoot, tag); if (x) return x; } return null; };
+          const dialog = document.createElement('lcards-rule-editor-dialog');
+          dialog.hass = ha.hass;
+          dialog.mode = 'edit';
+          dialog.editor = find(document, 'LCARDS-BUTTON-EDITOR');
+          dialog.rule = {
+            id: 'warp_core_online', name: 'Warp core online',
+            when: { entity: 'input_boolean.lcards_test_toggle', state: 'on' },
+            apply: { overlays: { warp_core: { style: { card: { color: { background: 'var(--lcards-orange)' } } } } } },
+          };
+          ha.shadowRoot.appendChild(dialog);
+          dialog.open = true;
+          await dialog.updateComplete;
+        })()
+    - wait: 2500
+    - eval: |
+        (async () => {
+          const find = (r, tag) => { for (const n of r.querySelectorAll('*')) { if (n.tagName === tag) return n; const x = n.shadowRoot && find(n.shadowRoot, tag); if (x) return x; } return null; };
+          const apply = find(document, 'LCARDS-RULE-APPLY-EDITOR');
+          const yamlEditor = find(apply.shadowRoot, 'LCARDS-YAML-EDITOR');
+          const view = yamlEditor._editorView;
+          // The new line's indent is trailing whitespace; its marker would read as an error here.
+          const quiet = document.createElement('style');
+          quiet.textContent = '.cm-trailingSpace { background: none !important; }';
+          yamlEditor.shadowRoot.appendChild(quiet);
+          view.focus();
+          // The cursor on a new line in warp_core's patch (Ctrl+Space then lists the
+          // button's own options; an empty line keeps the YAML valid).
+          const text = view.state.doc.toString().replace(/\n+$/, '') + '\n    ';
+          view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, selection: { anchor: text.length } });
+        })()
+    - wait: 800
+    - press: Control+Space
+    - wait: 2000
+  viewport: [1400, 1500]
+  selector: 'lcards-rule-apply-editor'
+  padding: 12
