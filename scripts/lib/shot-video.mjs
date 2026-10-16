@@ -55,6 +55,31 @@ export async function runSteps(page, client, steps = [], marks = null) {
 
 
 /**
+ * Square off the top-left of a view crop. The HA-LCARS theme draws an elbow curve
+ * under HA's toolbar (hui-root's .toolbar::before, a grey box-shadow) that hangs into
+ * the top of the view, so a picture cropped to the view shows a grey corner. Only for
+ * view crops: full-viewport pictures keep the theme's toolbar as it is.
+ */
+export async function hideToolbarElbow(page) {
+    await page.evaluate(() => {
+        const find = (r) => {
+            for (const n of r.querySelectorAll('*')) {
+                if (n.tagName === 'HUI-ROOT') return n;
+                const inner = n.shadowRoot && find(n.shadowRoot);
+                if (inner) return inner;
+            }
+            return null;
+        };
+        const root = find(document)?.shadowRoot;
+        if (!root || root.querySelector('#lcards-shot-no-elbow')) return;
+        const style = document.createElement('style');
+        style.id = 'lcards-shot-no-elbow';
+        style.textContent = '.toolbar::before { display: none !important; }';
+        root.appendChild(style);
+    });
+}
+
+/**
  * Put back the real states that `state` steps replaced, unless a real update has
  * already replaced the fake one.
  */

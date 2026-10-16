@@ -18,6 +18,8 @@
  *      0) logged in with the token, sidebar hidden, wait for the LCARdS cards to
  *      settle, and save <out>/<file name>.webp (default doc/public/gallery/) at 2x,
  *      cropped to the view (no HA toolbar).
+ * View crops hide the HA-LCARS theme's toolbar elbow, whose curve hangs into the top-left
+ * of the view (shot-video.mjs hideToolbarElbow).
  * --action runs a Home Assistant action (domain.service) once the view has settled and
  * captures the whole viewport after it (e.g. an alert mode with its overlay); alert
  * modes are cleared afterwards. --name sets the output file name (one file).
@@ -45,7 +47,7 @@ import { chromium } from '@playwright/test';
 import { HAClient, HA_URL, readToken, ensureHelpers, TEST_HELPERS, GALLERY_HELPERS, GALLERY_STATES } from '../tests/ha/ha-client.mjs';
 import { validateTexts, parseConfig } from './lcards-validate.mjs';
 import yaml from 'js-yaml';
-import { runSteps, restoreStates, recordScreencast, encodeFrames } from './lib/shot-video.mjs';
+import { runSteps, restoreStates, recordScreencast, encodeFrames, hideToolbarElbow } from './lib/shot-video.mjs';
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
 export const GALLERY_DASHBOARD = 'lcards-gallery';
@@ -121,6 +123,7 @@ async function recordMotion(motionFile, viewPath, name) {
         const clip = box
             ? { x: Math.floor(box.x), y: Math.floor(box.y), width: Math.floor(box.width), height: Math.floor(Math.min(box.height, height - box.y)) }
             : { x: 0, y: 0, width, height };
+        if (box) await hideToolbarElbow(page);
         const marks = { start: 0, list: [] };
         const frames = await recordScreencast(page, clip, async () => {
             marks.start = Date.now();
@@ -171,6 +174,7 @@ for (const file of files) {
         const view = page.locator('hui-view').first();
         const box = (await view.count()) ? await view.boundingBox() : null;
         let clip = box ? { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, height - box.y) } : undefined;
+        if (clip && !action) await hideToolbarElbow(page);
         if (action) {
             const [domain, service] = action.split('.');
             await client.callService(domain, service, {});
