@@ -116,6 +116,14 @@ export function evaluateSupportChecks(info) {
             fix: 'Remove the card-mod line from configuration.yaml (frontend → extra_module_url) and restart.' });
     }
 
+    // ── custom:layout-card (lovelace-layout-card) ──────────────────────────
+    const layoutCardResource = (bd?.resources?.entries ?? []).some(e => /layout-card/i.test(e?.url ?? '') && !/lcards/i.test(e?.url ?? ''));
+    if (styling.layoutCard?.present || layoutCardResource) {
+        checks.push({ id: 'layout_card', status: 'info', title: 'custom:layout-card is installed',
+            detail: 'LCARdS cards inside custom:layout-card can shrink to their minimum height, and its card_margin is ignored.',
+            fix: 'Use the LCARdS Layout Card instead: change type to custom:lcards-layout-card and remove layout_type; layout and view_layout stay the same.' });
+    }
+
     // ── Lovelace resources ─────────────────────────────────────────────────
     const res = bd?.resources;
     if (res) {

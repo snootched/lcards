@@ -40,6 +40,8 @@ function detectStyling(hass) {
     return {
         uix: { installed: uixInstalled, version: firstPatchVersion(w.uix_patch_state) },
         cardMod: { present: cardModPresent, version: firstPatchVersion(w.card_mod_patch_state) },
+        // thomasloven's lovelace-layout-card: LCARdS cards collapse inside it (lcards-layout-card replaces it).
+        layoutCard: { present: !!customElements.get('layout-card') },
     };
 }
 

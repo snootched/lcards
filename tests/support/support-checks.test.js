@@ -120,3 +120,18 @@ test('an empty snapshot does not throw', () => {
     assert.doesNotThrow(() => evaluateSupportChecks({}));
     assert.doesNotThrow(() => evaluateSupportChecks(undefined));
 });
+
+test('custom:layout-card installed: an info check pointing at the LCARdS Layout Card', () => {
+    assert.equal(byId(evaluateSupportChecks(healthy()), 'layout_card'), undefined);
+    const fromFrontend = healthy();
+    fromFrontend.styling.layoutCard = { present: true };
+    const check = byId(evaluateSupportChecks(fromFrontend), 'layout_card');
+    assert.equal(check.status, 'info');
+    assert.match(check.fix, /custom:lcards-layout-card/);
+    const fromResources = healthy();
+    fromResources.backend.data.resources.entries = [{ url: '/hacsfiles/lovelace-layout-card/layout-card.js' }];
+    assert.ok(byId(evaluateSupportChecks(fromResources), 'layout_card'));
+    const lcardsOnly = healthy();
+    lcardsOnly.backend.data.resources.entries = [{ url: '/lcards/lcards-layout-card.js' }];
+    assert.equal(byId(evaluateSupportChecks(lcardsOnly), 'layout_card'), undefined);
+});
