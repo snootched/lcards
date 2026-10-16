@@ -318,7 +318,7 @@ views:
       # Stage 4: real room temperatures from the last hours.
       - type: custom:lcards-chart
         chart_type: area
-        graph_span: 2h
+        graph_span: 3h
         sources:
           - entity: sensor.office_sensor_temperature
             name: Office

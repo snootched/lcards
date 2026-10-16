@@ -1,0 +1,9 @@
+# Two history series (cards.spec.js: the first draw waits for both)
+type: custom:lcards-chart
+chart_type: area
+graph_span: 6h
+sources:
+  - entity: sensor.demo_temperature
+    name: Inside
+  - entity: sensor.demo_outdoor_temperature
+    name: Outside

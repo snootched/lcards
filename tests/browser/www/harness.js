@@ -5,6 +5,7 @@
  * with the docs site: tests/helpers/card-env.js.
  *
  * URL: /harness.html?case=<fixture>[&freeze=1][&width=480][&height=300][&now=<ms>][&seed=<n>][&log=<level>][&connectFirst=1]
+ *      [&historyDelay=<entity_id>:<ms>]  (answer that entity's history late)
  *
  * Exposes for Playwright:
  *   window.__ready      true once the card rendered and fonts loaded (or 'error')
@@ -45,6 +46,7 @@ defineHaStubs();
 const env = createDemoEnv({
     sample: { SAMPLE_ENTITIES, samplePoints, sampleStatistics },
     now: Number(params.get('now')) || Date.now(),
+    historyDelay: Object.fromEntries(params.getAll('historyDelay').map(v => { const [id, ms] = v.split(':'); return [id, Number(ms)]; })),
 });
 Object.defineProperty(window, '__hass', { get: () => env.hass, configurable: true });
 

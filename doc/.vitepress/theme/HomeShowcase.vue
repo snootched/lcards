@@ -1,16 +1,31 @@
 <script setup>
-// The showcase recording (scripts/marketing-video.mjs), full width under the home hero.
+// The showcase recording (scripts/marketing-video.mjs) in the home hero, in place of
+// the logo. WebM first, MP4 for browsers without VP9 (Safari). Muted before it loads
+// and started from onMounted too: browsers only autoplay muted video, and a video
+// Vue creates in the browser (dev server, arriving by a link) can miss `autoplay`.
+import { ref, onMounted } from 'vue'
 import { withBase } from 'vitepress'
+
+const video = ref(null)
+onMounted(() => {
+  const el = video.value
+  if (!el) return
+  el.muted = true
+  el.play()?.catch(() => { /* blocked by the browser: the poster stays */ })
+})
 </script>
 
 <template>
   <div class="home-showcase">
     <video
-      :src="withBase('/gallery/showcase.webm')"
+      ref="video"
+      muted autoplay loop playsinline preload="auto"
       :poster="withBase('/gallery/showcase.webp')"
       title="An empty LCARS view builds itself into a full dashboard, comes alive with a home's sensors and lights, then goes to red alert"
-      autoplay loop muted playsinline
-    ></video>
+    >
+      <source :src="withBase('/gallery/showcase.webm')" type="video/webm" />
+      <source :src="withBase('/gallery/showcase.mp4')" type="video/mp4" />
+    </video>
   </div>
 </template>
 

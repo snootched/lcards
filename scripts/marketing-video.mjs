@@ -12,7 +12,7 @@
  *
  * Then cuts, with LCARS title, caption and end cards rendered in Chromium (Antonio
  * from the bundle) and put together by ffmpeg:
- *   doc/public/gallery/showcase.webm + .mp4 + .webp   docs hero: the take, no captions
+ *   doc/public/gallery/showcase.webm + .mp4 + .webp   docs hero: the take from the first stage, no captions
  *   tmp/marketing/showcase-social.mp4                  1080p: title, captioned take, end card
  *   tmp/marketing/showcase-release.mp4                 1280 wide: the captioned take
  *
@@ -23,6 +23,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { chromium } from '@playwright/test';
+import { VIDEO_COLOUR } from './lib/shot-video.mjs';
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
 const OUT = join(ROOT, 'tmp/marketing');
@@ -155,8 +156,10 @@ await browser.close();
 
 // ── Cuts ────────────────────────────────────────────────────────────────────
 const ff = (...a) => execFileSync('ffmpeg', ['-loglevel', 'error', '-y', ...a], { stdio: 'inherit' });
-const H264 = ['-c:v', 'libx264', '-crf', '18', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an'];
-const FIT = `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,fps=30,setsar=1`;
+const H264 = ['-c:v', 'libx264', '-crf', '18', '-preset', 'slow', '-pix_fmt', 'yuv420p', ...VIDEO_COLOUR, '-movflags', '+faststart', '-an'];
+/** Scale to a width in standard range (a take recorded before the range fix is full range). */
+const TV = (w) => `scale=${w}:-2:out_range=tv:out_color_matrix=bt709,format=yuv420p`;
+const FIT = `scale=${W}:${H}:force_original_aspect_ratio=decrease:out_range=tv:out_color_matrix=bt709,format=yuv420p,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,fps=30,setsar=1`;
 
 /** The take at 1920x1080 with the captions faded in and out at their cues. */
 function captioned(out) {
@@ -186,11 +189,13 @@ ff('-i', titleMp4, '-i', captionedTake, '-i', endMp4, '-filter_complex',
     '-map', '[v]', ...H264, join(OUT, 'showcase-social.mp4'));
 
 // Release notes: the captioned take, 1280 wide.
-ff('-i', captionedTake, '-vf', 'scale=1280:-2', ...H264.map(a => (a === '18' ? '22' : a)), join(OUT, 'showcase-release.mp4'));
+ff('-i', captionedTake, '-vf', TV(1280), ...H264.map(a => (a === '18' ? '22' : a)), join(OUT, 'showcase-release.mp4'));
 
-// Docs hero: the take without captions (VP9 for the site, H.264 for everything else).
-ff('-i', TAKE, '-vf', 'scale=1600:-2', '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '34', '-pix_fmt', 'yuv420p', '-an', join(GALLERY, 'showcase.webm'));
-ff('-i', TAKE, '-vf', 'scale=1600:-2', ...H264.map(a => (a === '18' ? '24' : a)), join(GALLERY, 'showcase.mp4'));
+// Docs hero: the take without captions (VP9 for the site, H.264 for everything else),
+// from just before the frame slides in (the empty view is only worth its caption).
+const heroStart = Math.max(0, (marks[1]?.t ?? 0) / 1000 - 0.3).toFixed(2);
+ff('-ss', heroStart, '-i', TAKE, '-vf', TV(1600), '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '34', '-pix_fmt', 'yuv420p', ...VIDEO_COLOUR, '-an', join(GALLERY, 'showcase.webm'));
+ff('-ss', heroStart, '-i', TAKE, '-vf', TV(1600), ...H264.map(a => (a === '18' ? '24' : a)), join(GALLERY, 'showcase.mp4'));
 execFileSync('magick', [join(OUT, 'showcase.webp'), '-resize', '1600x>', '-quality', '85', join(GALLERY, 'showcase.webp')]);
 
 for (const f of ['tmp/marketing/showcase-social.mp4', 'tmp/marketing/showcase-release.mp4', 'doc/public/gallery/showcase.webm', 'doc/public/gallery/showcase.mp4', 'doc/public/gallery/showcase.webp']) {

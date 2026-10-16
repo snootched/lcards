@@ -62,8 +62,9 @@ const ENTITY_ID = /^(light|switch|sensor|binary_sensor|input_boolean|input_numbe
  * @param {number} [opts.now] - pin the sample data (values follow the time of day)
  * @param {boolean} [opts.simulateServices] - toggle/turn_on/turn_off change the fake state
  * @param {Record<string, object>} [opts.extraStates]
+ * @param {Record<string, number>} [opts.historyDelay] - entity id -> ms before its history/stream answer
  */
-export function createDemoEnv({ sample, now = Date.now(), simulateServices = false, extraStates = {} }) {
+export function createDemoEnv({ sample, now = Date.now(), simulateServices = false, extraStates = {}, historyDelay = {} }) {
     const { SAMPLE_ENTITIES, samplePoints, sampleStatistics } = sample;
     const historyRows = (id, start, end) => samplePoints(id, start, end).map(p => ({ s: String(p.v), lu: p.t / 1000 }));
 
@@ -122,7 +123,9 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
         onSubscribe: (msg, push) => {
             if (msg.type === 'history/stream') {
                 const end = msg.end_time ? Date.parse(msg.end_time) : now;
-                push({ states: Object.fromEntries(msg.entity_ids.map(id => [id, historyRows(id, Date.parse(msg.start_time), end)])) });
+                const answer = () => push({ states: Object.fromEntries(msg.entity_ids.map(id => [id, historyRows(id, Date.parse(msg.start_time), end)])) });
+                const delay = Math.max(0, ...msg.entity_ids.map(id => historyDelay[id] ?? 0));
+                if (delay) setTimeout(answer, delay); else answer();
             }
         },
     });

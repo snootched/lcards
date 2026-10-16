@@ -179,3 +179,21 @@ test('rules: a plain-string condition never applies its patch and logs a warning
     expect(await bgFill(page)).toBe('rgb(51, 51, 102)');
     expect(warnings.some(w => w.includes('Plain string condition not supported'))).toBe(true);
 });
+
+test('chart: the first draw waits for every series (a late one does not rescale it mid-animation)', async ({ page }) => {
+    // The second series' history arrives 1.2 s after the first.
+    await mountCase(page, 'chart-two-series', { height: '300', historyDelay: 'sensor.demo_outdoor_temperature:1200' });
+    const chart = page.locator('lcards-chart');
+    await expect.poll(() => chart.evaluate(el => !!el._chart), { timeout: 10_000 }).toBe(true);
+    const lengths = await chart.evaluate(el => el._seriesPoints.map(p => p?.length ?? 0));
+    expect(lengths).toHaveLength(2);
+    expect(Math.min(...lengths)).toBeGreaterThan(0);
+    await expectNoErrors(page);
+});
+
+test('chart: a series that never answers does not hold the chart back', async ({ page }) => {
+    await mountCase(page, 'chart-two-series', { height: '300', historyDelay: 'sensor.demo_outdoor_temperature:60000' });
+    const chart = page.locator('lcards-chart');
+    await expect.poll(() => chart.evaluate(el => !!el._chart), { timeout: 6_000 }).toBe(true);
+    await expectNoErrors(page);
+});

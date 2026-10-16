@@ -103,7 +103,8 @@ export async function recordScreencast(page, clip, during) {
         frames.push({ data: f.data, t: f.metadata.timestamp });
         cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
     });
-    await cdp.send('Page.startScreencast', { format: 'png', everyNthFrame: 1 });
+    // JPEG, not PNG: a 1080p PNG per frame is slow enough to drop frames under load.
+    await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, everyNthFrame: 1 });
     const start = Date.now() / 1000;
     await during();
     await cdp.send('Page.stopScreencast');
@@ -112,6 +113,9 @@ export async function recordScreencast(page, clip, during) {
     if (frames.length && frames[0].t > start) frames.unshift({ data: frames[0].data, t: start });
     return frames;
 }
+
+/** Colour tags for every video we write (standard range BT.709). */
+export const VIDEO_COLOUR = ['-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709'];
 
 /**
  * Frames (with timestamps) -> cropped video at their real timing: VP9 WebM, or H.264
@@ -123,7 +127,7 @@ export function encodeFrames(frames, out, clip, { maxWidth = 1600 } = {}) {
     mkdirSync(dir, { recursive: true });
     const list = [];
     frames.forEach((f, i) => {
-        const file = join(dir, `${String(i).padStart(5, '0')}.png`);
+        const file = join(dir, `${String(i).padStart(5, '0')}.jpg`);
         writeFileSync(file, Buffer.from(f.data, 'base64'));
         list.push(`file '${file}'`);
         if (i < frames.length - 1) list.push(`duration ${Math.max(0.001, frames[i + 1].t - f.t).toFixed(3)}`);
@@ -131,7 +135,10 @@ export function encodeFrames(frames, out, clip, { maxWidth = 1600 } = {}) {
     writeFileSync(join(dir, 'list.txt'), list.join('\n') + '\n');
     const crop = `crop=${clip.width - (clip.width % 2)}:${clip.height - (clip.height % 2)}:${clip.x}:${clip.y}`;
     execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', join(dir, 'list.txt'),
-        '-vf', `${crop},fps=30,scale='trunc(min(${maxWidth},iw)/2)*2':-2`,
+        // Standard (TV) range BT.709: JPEG frames are full range, which Chrome's
+        // hardware decoders show as a black, stalled video.
+        '-vf', `${crop},fps=30,scale='trunc(min(${maxWidth},iw)/2)*2':-2:out_range=tv:out_color_matrix=bt709,format=yuv420p`,
+        ...VIDEO_COLOUR,
         ...(out.endsWith('.mp4')
             ? ['-c:v', 'libx264', '-crf', '18', '-preset', 'slow', '-movflags', '+faststart']
             : ['-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '34']),

@@ -48,6 +48,9 @@ import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { getChartSchema } from './schemas/chart-schema.js';
 
+/** How long the first draw waits for every series' initial data (ms). */
+const FIRST_DATA_WAIT_MS = 2500;
+
 /** @type {Promise<any>|null} */
 let apexChartsPromise = null;
 
@@ -226,6 +229,8 @@ export class LCARdSChart extends LCARdSCard {
     this._stopLoading();
     this._series = normalizeChartSources(this.config);
     this._seriesPoints = [];
+    this._seriesLoaded = new Set();
+    this._firstDataWaitOver = false;
     this._dataArrived = false;
     this._error = null;
 
@@ -247,6 +252,12 @@ export class LCARdSChart extends LCARdSCard {
       logId: this.config?.id || this._cardGuid
     });
     this._fetcher.start(this._series, { graph_span: this.config.graph_span, span: this.config.span });
+    // Draw once every series has its first data, or after FIRST_DATA_WAIT_MS with
+    // whatever has arrived (a series with no data must not hold the chart back).
+    this._firstDataTimer = setTimeout(() => {
+      this._firstDataWaitOver = true;
+      if (this._seriesLoaded.size) this._markDataArrived();
+    }, FIRST_DATA_WAIT_MS);
     this.requestUpdate();
   }
 
@@ -254,6 +265,18 @@ export class LCARdSChart extends LCARdSCard {
   _stopLoading() {
     this._fetcher?.stop();
     this._fetcher = null;
+    clearTimeout(this._firstDataTimer);
+  }
+
+  /**
+   * First data is in: render the container; updated() initialises the chart.
+   * @private
+   */
+  _markDataArrived() {
+    if (this._dataArrived || !this._fetcher) return;
+    clearTimeout(this._firstDataTimer);
+    this._dataArrived = true;
+    this.requestUpdate();
   }
 
   /**
@@ -265,8 +288,10 @@ export class LCARdSChart extends LCARdSCard {
   _onSeriesUpdate(index, points) {
     this._seriesPoints[index] = points;
     if (!this._dataArrived) {
-      this._dataArrived = true;
-      this.requestUpdate(); // render the container; updated() initialises the chart
+      // Drawing with the first series alone and adding the rest as they arrive
+      // rescales the axis mid-animation: the chart visibly jumps.
+      this._seriesLoaded.add(index);
+      if (this._firstDataWaitOver || this._seriesLoaded.size >= this._series.length) this._markDataArrived();
       return;
     }
     if (!this._chart || !this._chartReady) return;
