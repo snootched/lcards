@@ -61,7 +61,7 @@ test('finds LCARdS nodes at any depth: views, stacks, conditional cards, MSD ove
 test('schema errors and unknown keys are reported at their full path', () => {
     const issues = check({ views: [{ cards: [{ type: 'custom:lcards-button', text: { name: { colour: 'red' } }, height: 'tall' }] }] });
     const m = messages(issues);
-    assert.ok(m.includes('error views[0].cards[0].text.name.colour: unknown key (not in the schema)'), m.join('\n'));
+    assert.ok(m.includes('error views[0].cards[0].text.name.colour: unknown key (not in the schema) (did you mean "color"?)'), m.join('\n'));
     assert.ok(m.some(x => x.startsWith('error views[0].cards[0].height:')), m.join('\n'));
 });
 

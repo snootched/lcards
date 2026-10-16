@@ -78,20 +78,38 @@ function schemaForKey(schema, key) {
   return declaresProperties ? false : undefined;
 }
 
-/** Collect `path` strings of keys the schema does not declare. */
-export function unknownKeys(value, schema, pathPrefix = '', out = [], isCardRoot = false) {
+/** Keys a schema node declares by name (all branches), for "did you mean" hints. */
+function declaredKeys(schema, out = new Set()) {
+  if (!schema || typeof schema !== 'object') return out;
+  for (const k of Object.keys(schema.properties ?? {})) out.add(k);
+  for (const b of [...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.allOf ?? [])]) declaredKeys(b, out);
+  return out;
+}
+
+/**
+ * Collect `path` strings of keys the schema does not declare. With `hints` (a Map),
+ * also records path -> the closest declared key, when one is close.
+ */
+export function unknownKeys(value, schema, pathPrefix = '', out = [], isCardRoot = false, hints = null) {
   if (!value || typeof value !== 'object' || !schema) return out;
   if (Array.isArray(value)) {
     const items = schema.items ?? [schema, ...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].find(b => b?.items)?.items;
-    value.forEach((v, i) => unknownKeys(v, items, `${pathPrefix}[${i}]`, out));
+    value.forEach((v, i) => unknownKeys(v, items, `${pathPrefix}[${i}]`, out, false, hints));
     return out;
   }
   for (const [key, v] of Object.entries(value)) {
     if (isCardRoot && CARD_PLUMBING_KEYS.has(key)) continue;
     const sub = schemaForKey(schema, key);
     const p = pathPrefix ? `${pathPrefix}.${key}` : key;
-    if (sub === false) { out.push(p); continue; }
-    if (sub) unknownKeys(v, sub, p, out);
+    if (sub === false) {
+      out.push(p);
+      if (hints) {
+        const hint = closest(key, [...declaredKeys(schema)]);
+        if (hint) hints.set(p, hint);
+      }
+      continue;
+    }
+    if (sub) unknownKeys(v, sub, p, out, false, hints);
   }
   return out;
 }
@@ -166,7 +184,7 @@ export function registryIssues(node, tag, reg) {
   walk(node, '', (value, path) => {
     if (typeof value === 'string') {
       for (const m of value.matchAll(/theme:([a-zA-Z][a-zA-Z0-9._-]*)/g)) {
-        if (classifyThemePath(m[1], tokenSet) === 'unknown') out.push({ path, message: `unknown theme token "theme:${m[1]}"${suggest(m[1], reg.theme_tokens)}` });
+        if (classifyThemePath(m[1], tokenSet) === 'unknown') out.push({ path, message: `unknown theme token "theme:${m[1]}"${suggest(m[1], reg.theme_tokens).replace('"', '"theme:')}` });
       }
       return;
     }
@@ -193,13 +211,19 @@ function builtinOnly(source) {
 
 /** ` (did you mean "x"?)` for a close match, else ''. */
 function suggest(value, list) {
+  const best = closest(value, list);
+  return best ? ` (did you mean "${best}"?)` : '';
+}
+
+/** The entry of `list` closest to `value`, when it is close enough to be a typo; else null. */
+function closest(value, list) {
   let best = null;
   let bestScore = Infinity;
   for (const candidate of list) {
     const d = distance(value.toLowerCase(), candidate.toLowerCase());
     if (d < bestScore) { bestScore = d; best = candidate; }
   }
-  return best && bestScore <= Math.max(2, Math.floor(value.length / 4)) ? ` (did you mean "${best}"?)` : '';
+  return best && bestScore <= Math.max(2, Math.floor(value.length / 4)) ? best : null;
 }
 
 function distance(a, b) {
@@ -265,7 +289,10 @@ export function createConfigValidator({ entries, registries = null }) {
       const { changed, notes } = migrator(node);
       if (changed) add('warning', 'legacy-format', '', `legacy ${tag === 'lcards-chart' ? 'chart' : 'data grid'} format (still works; ${notes.join('; ') || 'legacy keys'})`);
     }
-    for (const key of unknownKeys(node, raw.get(tag), '', [], true)) add('error', 'unknown-key', key, 'unknown key (not in the schema)');
+    const hints = new Map();
+    for (const key of unknownKeys(node, raw.get(tag), '', [], true, hints)) {
+      add('error', 'unknown-key', key, `unknown key (not in the schema)${hints.has(key) ? ` (did you mean "${hints.get(key)}"?)` : ''}`);
+    }
     if (!validate(node)) {
       for (const err of validate.errors ?? []) {
         const p = err.instancePath.replace(/^\//, '').replace(/\/(\d+)(?=\/|$)/g, '[$1]').replace(/\//g, '.');
