@@ -30,6 +30,7 @@
     "generate:llm-schema": "node scripts/generate-llm-schema.js",
     "validate:config": "node scripts/lcards-validate.mjs",
     "gallery:shots": "node scripts/dashboard-shots.mjs doc/gallery/dashboards/*.yaml --video",
+    "video:showcase": "node scripts/marketing-video.mjs --record",
     "build:validator": "node scripts/build-validator.js",
     "build:skill": "node scripts/build-user-skill.js",
     "validate:schema-descriptions": "node scripts/check-schema-descriptions.js",

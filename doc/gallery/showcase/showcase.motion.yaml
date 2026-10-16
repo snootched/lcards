@@ -1,0 +1,66 @@
+# Motion for showcase.yaml: the view builds itself stage by stage, comes alive, then
+# a red alert. `mark` steps are the caption cues for the social cut; `state` steps are
+# fake states (never sent to a device) and are put back after recording.
+# npm run video:showcase
+before:
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_stage, value: 0}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 90}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 82}]
+- state: [light.living_room_overhead, "off"]
+- state: [light.kitchen_overhead, "off"]
+- state: [light.desk, "off"]
+- state: [light.front_door, "off"]
+- state: [binary_sensor.back_door_contact, "off"]
+- state: [binary_sensor.entryway_motion, "off"]
+- {wait: 1500}
+steps:
+- {mark: Start with an empty view}
+- {wait: 3000}
+- {mark: Frame it}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_stage, value: 1}]
+- {wait: 3200}
+- {mark: Add controls}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_stage, value: 2}]
+- {wait: 3400}
+- {mark: A Master Systems Display}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_stage, value: 3}]
+- {wait: 4000}
+- {mark: Charts from your history}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_stage, value: 4}]
+- {wait: 3400}
+- {mark: Live data grids}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_stage, value: 5}]
+- {wait: 3200}
+- {mark: Gauges and sliders}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_stage, value: 6}]
+- {wait: 3400}
+- {mark: Alive with your home}
+- state: [light.living_room_overhead, "on"]
+- {wait: 500}
+- state: [light.kitchen_overhead, "on"]
+- {wait: 500}
+- state: [light.desk, "on"]
+- {wait: 500}
+- state: [light.front_door, "on"]
+- {wait: 800}
+- state: [binary_sensor.entryway_motion, "on"]
+- state: [binary_sensor.back_door_contact, "on"]
+- {wait: 1200}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 45}]
+- {wait: 1400}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 38}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 14}]
+- {wait: 1600}
+- {mark: Red alert}
+- service: [lcards, red_alert, {}]
+- {wait: 4500}
+- service: [lcards, clear_alert, {}]
+- {wait: 600}
+- {mark: All clear}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 90}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 82}]
+- state: [binary_sensor.back_door_contact, "off"]
+- state: [binary_sensor.entryway_motion, "off"]
+- {wait: 1200}
+tail: 1500

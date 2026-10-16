@@ -15,6 +15,8 @@
 
 ### [Documentation](https://lcards.unimatrix01.ca) · [Dashboard Gallery](https://lcards.unimatrix01.ca/getting-started/dashboard-gallery) · [AI help](https://lcards.unimatrix01.ca/getting-started/ai-assistance) · [Getting help](https://lcards.unimatrix01.ca/getting-started/getting-help)
 
+[![An empty LCARS view builds itself into a full dashboard (watch the video on the docs home page)](doc/public/gallery/showcase.webp)](https://lcards.unimatrix01.ca)
+
 <br>
 
 <table>

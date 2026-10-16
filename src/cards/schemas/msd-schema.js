@@ -220,6 +220,12 @@ export function getMsdSchema() {
               optional: true,
               description: 'Line overlays: attribute value compared against above:/below:/between: keys in style.color; mirrors the button card\'s ranges_attribute, scoped per-line'
             },
+            animations: {
+              type: 'array',
+              optional: true,
+              description: 'Line and shape overlays: animations on this overlay (same syntax as card animations; e.g. trigger: on_show with preset: draw to draw the line in each time the card appears)',
+              items: animationSchema
+            },
             style: {
               type: 'object',
               optional: true,

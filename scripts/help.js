@@ -52,6 +52,7 @@ const CATEGORIES = [
       'validate:doc-examples:strict': { when: 'every build', desc: 'Same, but fails on any violation. Runs inside `build`.' },
       'validate:config': { when: 'as needed', desc: 'Check a card, view or whole dashboard YAML (or HA .storage JSON): schemas, unknown keys, built-in names. npm run validate:config -- <file> [--strict] [--json].' },
       'gallery:shots': { when: 'as needed', desc: 'Record every doc/gallery/dashboards/*.yaml on the dev HA into doc/public/gallery/: a still (.webp, the poster) and a looping video (.webm) of the state changes in doc/gallery/motion/<name>.yaml. Any file: node scripts/dashboard-shots.mjs <file.yaml> --out=<dir> [--keep] [--video] [--motion=<file>] [--action=lcards.red_alert] [--name=<out>]. Needs .ha-token.' },
+      'video:showcase': { when: 'as needed', desc: 'Record the showcase video (doc/gallery/showcase/) on the dev HA and cut it: docs hero (doc/public/gallery/showcase.*), a captioned 1080p social cut and a release clip (tmp/marketing/). Re-cut without recording: node scripts/marketing-video.mjs. Needs .ha-token.' },
       'validate:schema-descriptions': { when: 'every build', desc: 'Fails on schema properties added without a description (backlog: scripts/schema-description-baseline.txt). Runs inside `build`.' },
       'validate:schema-descriptions:update': { when: 'as needed', desc: 'Rewrites the description baseline after you fill gaps (or after an intentional undescribed key).' },
     },

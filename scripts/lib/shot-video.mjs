@@ -6,15 +6,29 @@
  *   | { eval: 'js' } | { service: [domain, service, data] }
  *   | { type: [selector, text] } | { drag: [selector, from, to, ms] }
  *   | { goto: '/path' }  (dashboard-shots only cares that the page settles again)
+ *   | { state: [entity_id, state, attributes?] }  a fake state in HA's state machine
+ *       (HAClient.setState: never reaches a device); restoreStates() puts the real
+ *       ones back afterwards
+ *   | { mark: 'label' }  records the time (ms since `marks.start`) in `marks.list`,
+ *       e.g. for captions
  */
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 
-export async function runSteps(page, client, steps = []) {
+export async function runSteps(page, client, steps = [], marks = null) {
     for (const step of steps) {
-        if (step.click) await page.locator(step.click).first().dispatchEvent('click');
+        if (step.mark !== undefined) marks?.list.push({ label: step.mark, t: Date.now() - marks.start });
+        else if (step.state) {
+            const [entityId, state, attributes] = step.state;
+            client._realStates ??= new Map();
+            if (!client._realStates.has(entityId)) client._realStates.set(entityId, await client.getState(entityId));
+            await client.setState(entityId, state, attributes);
+            client._fakeStates ??= new Map();
+            client._fakeStates.set(entityId, String(state));
+        }
+        else if (step.click) await page.locator(step.click).first().dispatchEvent('click');
         else if (step.hover) await page.locator(step.hover).first().hover();
         else if (step.wait) await page.waitForTimeout(step.wait);
         else if (step.eval) await page.evaluate(step.eval);
@@ -41,6 +55,19 @@ export async function runSteps(page, client, steps = []) {
 
 
 /**
+ * Put back the real states that `state` steps replaced, unless a real update has
+ * already replaced the fake one.
+ */
+export async function restoreStates(client) {
+    for (const [entityId, real] of client._realStates ?? []) {
+        const now = await client.getState(entityId);
+        if (real && now?.state === client._fakeStates?.get(entityId)) await client.setState(entityId, real.state, real.attributes);
+    }
+    client._realStates?.clear();
+    client._fakeStates?.clear();
+}
+
+/**
  * Record the page in real time with the DevTools screencast while `during` runs.
  * Frames arrive only when the page changes; each keeps its timestamp.
  */
@@ -61,8 +88,11 @@ export async function recordScreencast(page, clip, during) {
     return frames;
 }
 
-/** Frames (with timestamps) -> cropped VP9 WebM at their real timing. */
-export function encodeFrames(frames, out, clip) {
+/**
+ * Frames (with timestamps) -> cropped video at their real timing: VP9 WebM, or H.264
+ * MP4 when `out` ends in .mp4. `maxWidth` caps the output width (default 1600).
+ */
+export function encodeFrames(frames, out, clip, { maxWidth = 1600 } = {}) {
     if (frames.length < 2) throw new Error('no screencast frames');
     const dir = join(tmpdir(), `lcards-frames-${process.pid}-${Date.now()}`);
     mkdirSync(dir, { recursive: true });
@@ -76,8 +106,11 @@ export function encodeFrames(frames, out, clip) {
     writeFileSync(join(dir, 'list.txt'), list.join('\n') + '\n');
     const crop = `crop=${clip.width - (clip.width % 2)}:${clip.height - (clip.height % 2)}:${clip.x}:${clip.y}`;
     execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', join(dir, 'list.txt'),
-        '-vf', `${crop},fps=30,scale='trunc(min(1600,iw)/2)*2':-2`,
-        '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '34', '-pix_fmt', 'yuv420p', '-an', out]);
+        '-vf', `${crop},fps=30,scale='trunc(min(${maxWidth},iw)/2)*2':-2`,
+        ...(out.endsWith('.mp4')
+            ? ['-c:v', 'libx264', '-crf', '18', '-preset', 'slow', '-movflags', '+faststart']
+            : ['-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '34']),
+        '-pix_fmt', 'yuv420p', '-an', out]);
     rmSync(dir, { recursive: true, force: true });
 }
 

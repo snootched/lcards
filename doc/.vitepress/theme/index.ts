@@ -3,6 +3,7 @@ import { enhanceAppWithTabs } from 'vitepress-plugin-tabs/client'
 import { onMounted, onUnmounted, h, watch, defineAsyncComponent } from 'vue'
 import { useData, useRouter, withBase } from 'vitepress'
 import HomeBadges from './HomeBadges.vue'
+import HomeShowcase from './HomeShowcase.vue'
 import AnimationPlayground from './AnimationPlayground.vue'
 import FilterPlayground from './FilterPlayground.vue'
 import EffectPlayground from './EffectPlayground.vue'
@@ -118,6 +119,7 @@ export default {
       'layout-top': () => h(VersionBanner),
       'nav-bar-title-after': () => h(VersionSwitcher),
       'home-hero-actions-after': () => h(HomeBadges),
+      'home-hero-image': () => h(HomeShowcase),
     })
   },
 

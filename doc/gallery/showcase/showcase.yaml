@@ -1,0 +1,452 @@
+# Showcase: the marketing video's dashboard. Every piece waits behind a visibility
+# condition on input_number.lcards_test_stage and plays an on_show entrance when the
+# motion file (showcase.motion.yaml) counts the stage up, so the view builds itself
+# from nothing; then live data and a red alert. Reads real sensors of the dev HA
+# (only those in tests/docs/showcase.test.js) and never acts on them: the video's
+# changes are fake states in HA's state machine.
+# npm run video:showcase
+title: Showcase
+views:
+  - title: Showcase
+    path: showcase
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 6px
+      grid-template-columns: 220px minmax(0, 1.2fr) minmax(0, 1fr) 300px
+      grid-template-rows: 80px minmax(0, 1.25fr) minmax(0, 1fr) 44px 80px
+      grid-template-areas: |
+        "header header header header"
+        "side   msd    msd    right"
+        "side   chart  grid   right"
+        "side   band   band   right"
+        "footer footer footer footer"
+    cards:
+      # Stage 1: the frame.
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-left
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment:
+              bar_width: 220
+              bar_height: 24
+              color: var(--lcards-gray-medium)
+            inner_segment:
+              bar_width: 52
+              bar_height: 8
+              color: var(--lcards-orange-medium)
+        text:
+          title:
+            content: LCARDS · HOME SYSTEMS
+            position: bottom-right
+            font_size: 28
+            color: var(--lcards-orange)
+        visibility:
+          - condition: numeric_state
+            entity: input_number.lcards_test_stage
+            above: 0.5
+        animations:
+          - trigger: on_show
+            preset: slide
+            params: { from: left, distance: 300, duration: 700, ease: outExpo }
+          - trigger: on_show
+            preset: fade
+            params: { from: 0, to: 1, duration: 500 }
+        view_layout:
+          grid-area: header
+      - type: custom:lcards-elbow
+        elbow:
+          type: footer-left
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment:
+              bar_width: 220
+              bar_height: 24
+              color: var(--lcards-gray-medium)
+            inner_segment:
+              bar_width: 52
+              bar_height: 8
+              color: var(--lcards-orange-medium)
+        visibility:
+          - condition: numeric_state
+            entity: input_number.lcards_test_stage
+            above: 0.5
+        animations:
+          - trigger: on_show
+            preset: slide
+            params: { from: left, distance: 300, duration: 700, delay: 150, ease: outExpo }
+          - trigger: on_show
+            preset: fade
+            params: { from: 0, to: 1, duration: 500, delay: 150 }
+        view_layout:
+          grid-area: footer
+
+      # Stage 2: the sidebar, one button after another.
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: repeat(6, 56px) minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: filled
+            entity: light.living_room_overhead
+            text: { name: { content: LIVING ROOM } }
+            tap_action: { action: more-info }
+            animations:
+              - { trigger: on_show, preset: slide, params: { from: left, distance: 120, duration: 450 } }
+              - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 450 } }
+          - type: custom:lcards-button
+            preset: filled
+            entity: light.kitchen_overhead
+            text: { name: { content: KITCHEN } }
+            tap_action: { action: more-info }
+            animations:
+              - { trigger: on_show, preset: slide, params: { from: left, distance: 120, duration: 450, delay: 90 } }
+              - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 450, delay: 90 } }
+          - type: custom:lcards-button
+            preset: filled
+            entity: light.desk
+            text: { name: { content: DESK } }
+            tap_action: { action: more-info }
+            animations:
+              - { trigger: on_show, preset: slide, params: { from: left, distance: 120, duration: 450, delay: 180 } }
+              - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 450, delay: 180 } }
+          - type: custom:lcards-button
+            preset: filled
+            entity: light.front_door
+            text: { name: { content: PORCH } }
+            tap_action: { action: more-info }
+            animations:
+              - { trigger: on_show, preset: slide, params: { from: left, distance: 120, duration: 450, delay: 270 } }
+              - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 450, delay: 270 } }
+          - type: custom:lcards-button
+            preset: filled
+            entity: binary_sensor.back_door_contact
+            text: { name: { content: BACK DOOR } }
+            tap_action: { action: more-info }
+            animations:
+              - { trigger: on_show, preset: slide, params: { from: left, distance: 120, duration: 450, delay: 360 } }
+              - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 450, delay: 360 } }
+          - type: custom:lcards-button
+            preset: filled
+            entity: binary_sensor.entryway_motion
+            text: { name: { content: ENTRY MOTION } }
+            tap_action: { action: more-info }
+            animations:
+              - { trigger: on_show, preset: slide, params: { from: left, distance: 120, duration: 450, delay: 450 } }
+              - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 450, delay: 450 } }
+          - type: custom:lcards-button
+            preset: panel-dark
+            animations:
+              - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 600, delay: 540 } }
+        visibility:
+          - condition: numeric_state
+            entity: input_number.lcards_test_stage
+            above: 1.5
+        view_layout:
+          grid-area: side
+
+      # Stage 3: the Master Systems Display; its lines draw themselves in.
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment:
+            color: var(--lcards-gray-medium-dark)
+          frame:
+            bar_width: 3
+            bar_height: 3
+            outer_curve: 18
+        visibility:
+          - condition: numeric_state
+            entity: input_number.lcards_test_stage
+            above: 2.5
+        animations:
+          - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 600 } }
+        view_layout:
+          grid-area: msd
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:ncc-1701-a-blue
+          view_box: [180, 270, 1600, 720]
+          overlays:
+            - id: shield_fore
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[1526, 431], [1553, 450], [1577, 470], [1598, 491], [1616, 512], [1631, 534], [1643, 556], [1651, 579], [1656, 602], [1658, 625], [1656, 648], [1651, 671], [1643, 694], [1631, 716], [1616, 738], [1598, 759], [1577, 780], [1553, 800], [1526, 819]]
+              style:
+                width: 6
+                line_cap: round
+                color:
+                  default: "var(--lcards-blue-light)"
+                  below:50: "var(--lcards-orange)"
+                  below:20: "var(--lcars-alert-red, #cc0000)"
+              animations:
+                - { trigger: on_show, preset: draw, params: { duration: 900, delay: 300 } }
+            - id: shield_starboard
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[1374, 892], [1334, 905], [1292, 916], [1249, 926], [1204, 935], [1158, 942], [1111, 948], [1064, 952], [1016, 954], [968, 955], [920, 954], [872, 952], [825, 948], [778, 942], [732, 935], [687, 926], [644, 916], [602, 905], [562, 892]]
+              style:
+                width: 6
+                line_cap: round
+                color:
+                  default: "var(--lcards-blue-light)"
+                  below:50: "var(--lcards-orange)"
+                  below:20: "var(--lcars-alert-red, #cc0000)"
+              animations:
+                - { trigger: on_show, preset: draw, params: { duration: 900, delay: 300 } }
+            - id: shield_aft
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[410, 819], [383, 800], [359, 780], [338, 759], [320, 738], [305, 716], [293, 694], [285, 671], [280, 648], [278, 625], [280, 602], [285, 579], [293, 556], [305, 534], [320, 512], [338, 491], [359, 470], [383, 450], [410, 431]]
+              style:
+                width: 6
+                line_cap: round
+                color:
+                  default: "var(--lcards-blue-light)"
+                  below:50: "var(--lcards-orange)"
+                  below:20: "var(--lcars-alert-red, #cc0000)"
+              animations:
+                - { trigger: on_show, preset: draw, params: { duration: 900, delay: 300 } }
+            - id: shield_port
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[562, 358], [602, 345], [644, 334], [687, 324], [732, 315], [778, 308], [825, 302], [872, 298], [920, 296], [968, 295], [1016, 296], [1064, 298], [1111, 302], [1158, 308], [1204, 315], [1249, 324], [1292, 334], [1334, 345], [1374, 358]]
+              style:
+                width: 6
+                line_cap: round
+                color:
+                  default: "var(--lcards-blue-light)"
+                  below:50: "var(--lcards-orange)"
+                  below:20: "var(--lcars-alert-red, #cc0000)"
+              animations:
+                - { trigger: on_show, preset: draw, params: { duration: 900, delay: 300 } }
+            - id: bridge-ctl
+              type: control
+              attachment: top-left
+              position: [190, 278]
+              size: [340, 96]
+              card:
+                type: custom:lcards-button
+                preset: filled
+                entity: input_boolean.lcards_test_lights
+                text:
+                  name:
+                    content: BRIDGE
+                    font_size: 30
+            - id: core-ctl
+              type: control
+              attachment: top-left
+              position: [190, 886]
+              size: [340, 96]
+              card:
+                type: custom:lcards-button
+                preset: filled
+                entity: input_boolean.lcards_test_toggle
+                text:
+                  name:
+                    content: WARP CORE
+                    font_size: 30
+            - id: shuttle-ctl
+              type: control
+              attachment: top-left
+              position: [1430, 886]
+              size: [340, 96]
+              card:
+                type: custom:lcards-button
+                preset: filled
+                entity: input_boolean.lcards_test_doors
+                text:
+                  name:
+                    content: SHUTTLE BAY
+                    font_size: 30
+            - id: bridge-line
+              type: line
+              anchor: bridge-ctl
+              attach_to: br
+              route: auto
+              corner_style: round
+              style:
+                color: var(--lcards-gray-medium-light)
+                width: 3
+              animations:
+                - { trigger: on_show, preset: draw, params: { duration: 800, delay: 900 } }
+            - id: core-line
+              type: line
+              anchor: core-ctl
+              attach_to: wc
+              route: auto
+              corner_style: round
+              style:
+                color: var(--lcards-gray-medium-light)
+                width: 3
+              animations:
+                - { trigger: on_show, preset: draw, params: { duration: 800, delay: 900 } }
+            - id: shuttle-line
+              type: line
+              anchor: shuttle-ctl
+              attach_to: sb
+              route: auto
+              corner_style: round
+              style:
+                color: var(--lcards-gray-medium-light)
+                width: 3
+              animations:
+                - { trigger: on_show, preset: draw, params: { duration: 800, delay: 900 } }
+        visibility:
+          - condition: numeric_state
+            entity: input_number.lcards_test_stage
+            above: 2.5
+        view_layout:
+          grid-area: msd
+          margin: 10px
+
+      # Stage 4: real room temperatures from the last hours.
+      - type: custom:lcards-chart
+        chart_type: area
+        graph_span: 2h
+        sources:
+          - entity: sensor.office_sensor_temperature
+            name: Office
+          - entity: sensor.living_room_sensor_temperature
+            name: Living room
+          - entity: sensor.bedroom_sensor_temperature
+            name: Bedroom
+          - entity: sensor.patio_sensor_temperature
+            name: Outside
+        style:
+          colors:
+            series:
+              - var(--lcards-orange-medium)
+              - var(--lcards-blue-light)
+              - var(--lcards-moonlight)
+              - var(--lcards-blue-medium)
+          fill:
+            type: gradient
+            gradient:
+              opacityFrom: 0.35
+              opacityTo: 0.02
+          legend:
+            show: true
+        visibility:
+          - condition: numeric_state
+            entity: input_number.lcards_test_stage
+            above: 3.5
+        view_layout:
+          grid-area: chart
+
+      # Stage 5: an environmental table, live from the sensors.
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [ROOM, TEMP, HUMIDITY]
+            header: true
+          - [OFFICE, "{{ states('sensor.office_sensor_temperature') | float(0) | round(1) }} °C", "{{ states('sensor.office_sensor_humidity') | float(0) | round(0) | int }} %"]
+          - [LIVING ROOM, "{{ states('sensor.living_room_sensor_temperature') | float(0) | round(1) }} °C", "{{ states('sensor.living_room_sensor_humidity') | float(0) | round(0) | int }} %"]
+          - [BEDROOM, "{{ states('sensor.bedroom_sensor_temperature') | float(0) | round(1) }} °C", "{{ states('sensor.bedroom_sensor_humidity') | float(0) | round(0) | int }} %"]
+          - [BATHROOM, "{{ states('sensor.bathroom_sensor_temperature') | float(0) | round(1) }} °C", "{{ states('sensor.bathroom_sensor_humidity') | float(0) | round(0) | int }} %"]
+          - [OUTSIDE, "{{ states('sensor.patio_sensor_temperature') | float(0) | round(1) }} °C", "{{ states('sensor.patio_sensor_humidity') | float(0) | round(0) | int }} %"]
+        grid:
+          grid-template-columns: 2fr 1fr 1fr
+          grid-template-rows: repeat(6, min-content)
+          gap: 6px
+        style:
+          font_size: 20px
+          color: var(--lcards-blue-light)
+        columns:
+          - style:
+              align: left
+              color: var(--lcards-orange)
+          - style:
+              align: right
+          - style:
+              align: right
+        highlight_changes:
+          preset: glow
+        visibility:
+          - condition: numeric_state
+            entity: input_number.lcards_test_stage
+            above: 4.5
+        animations:
+          - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 600 } }
+        view_layout:
+          grid-area: grid
+
+      # Stage 6: power and shields on Picard gauges, a tick band, a data cascade.
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: pills-basic
+        visibility:
+          - condition: numeric_state
+            entity: input_number.lcards_test_stage
+            above: 5.5
+        animations:
+          - { trigger: on_show, preset: slide, params: { from: left, distance: 400, duration: 700, ease: outExpo } }
+          - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 500 } }
+        view_layout:
+          grid-area: band
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)
+          grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr)
+          grid-template-areas: |
+            "power shields"
+            "data  data"
+        cards:
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_power
+            preset: picard-gauge-vertical
+            component: picard
+            animations:
+              - { trigger: on_show, preset: slide, params: { from: bottom, distance: 200, duration: 700, ease: outExpo } }
+              - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 500 } }
+            view_layout: { grid-area: power }
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_shields
+            preset: picard-gauge-vertical
+            component: picard
+            animations:
+              - { trigger: on_show, preset: slide, params: { from: bottom, distance: 200, duration: 700, delay: 150, ease: outExpo } }
+              - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 500, delay: 150 } }
+            view_layout: { grid-area: shields }
+          - type: custom:lcards-data-grid
+            data_mode: decorative
+            format: digit
+            refresh_interval: 2000
+            refresh_cells: 0.2
+            grid:
+              grid-template-rows: repeat(6, auto)
+              grid-template-columns: repeat(4, 1fr)
+              gap: 0px
+            style:
+              font_size: 18px
+              color: var(--lcards-gray-medium-light)
+            animations:
+              - { trigger: on_show, preset: fade, params: { from: 0, to: 1, duration: 600, delay: 300 } }
+            view_layout: { grid-area: data }
+        visibility:
+          - condition: numeric_state
+            entity: input_number.lcards_test_stage
+            above: 5.5
+        view_layout:
+          grid-area: right
+
+      # Shown over the view while an alert is active.
+      - type: custom:lcards-alert-overlay
+        view_layout:
+          grid-area: grid

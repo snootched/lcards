@@ -40,6 +40,7 @@ export class HAClient {
     }
 
     async _open(token) {
+        this._token = token;
         const ws = new WebSocket(`${HA_URL.replace(/^http/, 'ws')}/api/websocket`);
         this._ws = ws;
         await new Promise((resolveAuth, rejectAuth) => {
@@ -92,6 +93,22 @@ export class HAClient {
         return states.find(s => s.entity_id === entityId) ?? null;
     }
 
+    /**
+     * Write an entity's state in HA's state machine (REST POST /api/states), keeping its
+     * attributes unless given. Nothing reaches the device or integration behind the
+     * entity: its next real update replaces the value. The recorder does store it.
+     */
+    async setState(entityId, state, attributes) {
+        const current = attributes ? null : await this.getState(entityId);
+        const res = await fetch(`${HA_URL}/api/states/${entityId}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${this._token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state: String(state), attributes: attributes ?? current?.attributes ?? {} }),
+        });
+        if (!res.ok) throw new Error(`setState ${entityId}: HTTP ${res.status}`);
+        return res.json();
+    }
+
     close() {
         this._ws?.close();
     }
@@ -122,6 +139,8 @@ export const GALLERY_HELPERS = {
     'input_number.lcards_test_humidity': { type: 'input_number/create', name: 'LCARdS Test Humidity', min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: '%' },
     'input_boolean.lcards_test_lights': { type: 'input_boolean/create', name: 'LCARdS Test Lights' },
     'input_boolean.lcards_test_doors': { type: 'input_boolean/create', name: 'LCARdS Test Doors' },
+    // Staged reveals: cards with a visibility condition on it appear as it counts up.
+    'input_number.lcards_test_stage': { type: 'input_number/create', name: 'LCARdS Test Stage', min: 0, max: 20, step: 1, mode: 'box' },
 };
 
 /** Sample states the gallery shots are taken with: [domain, service, data]. */
@@ -135,6 +154,7 @@ export const GALLERY_STATES = [
     ['input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_doors' }],
     ['input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' }],
     ['input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option: 'beta' }],
+    ['input_number', 'set_value', { entity_id: 'input_number.lcards_test_stage', value: 20 }],
 ];
 
 /** Create any missing lcards_test_* helpers. Returns the ids it created. */
