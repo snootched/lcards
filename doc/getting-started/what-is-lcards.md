@@ -1,40 +1,37 @@
 ---
-description: "What LCARdS is: LCARS-style cards, a layout view and a shell dashboard for Home Assistant, with themes, rules, data sources, animations, sounds and alert modes."
+description: "What LCARdS is: LCARS-style cards, a layout view and a shell dashboard for Home Assistant, with themes, rules, data sources, animations, sounds and alert modes, and how the pieces fit together."
 ---
-
-::: warning ⚠️ Work in Progress
-LCARdS is a **hobby** project, not a fully commissioned Starfleet product; expect the occasional tribble.
-
-Documentation is under continuous revision - it may not be fully complete and/or accurate to the current build of the project.  Please open an issue if you find any issues.
-
-:::
 
 # What is LCARdS?
 
 ![LCARdS Banner](/img/lcards-banner.gif)
 
-**Build Star Trek LCARS-style dashboards in Home Assistant**
-LCARdS brings many LCARS-style controls that can you can use to create interesting and interactive dashboards.
+**Build Star Trek LCARS-style dashboards in Home Assistant.**
 
-LCARdS originates from, and supersedes, the [CB-LCARS](https://github.com/snootched/cb-lcars) project. It is designed to accompany the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars).
+LCARdS is a set of LCARS cards (buttons, elbows, sliders, charts, data grids, ship displays and more) that work together as one system. It is designed to pair with the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars).
 
+## How it works
 
-## What Makes It Different
+Three layers, plus a small integration running inside Home Assistant.
 
-[LCARdS Cards](../cards/) share a common set of core features, allowing for consistent features and interactivity across the system.
+<HowItWorks />
 
-**State-aware styling**: cards change colour and style in response to HA entity state, individually or in coordinated groups via the [Rules Engine](../core/rules/).
+## What that gives you
 
-**Templates everywhere**: many configuration fields accept entity state, attributes, theme tokens, data source values, JavaScript expressions, or Jinja2. [Learn more →](../core/templates/)
+- **Colours that follow state:** a button lights up when its light is on, a reading turns red past a threshold. No automations needed.
+- **One look everywhere:** every card takes its colours, fonts and sizes from the same theme, so the whole screen matches.
+- **Screen-wide reactions:** [rules](../core/rules/) restyle many cards at once, and [alert mode](../core/alert-mode) repaints the whole dashboard.
+- **Live values anywhere:** put a sensor value, a smoothed reading or a [template](../core/templates/) in any label.
+- **Motion and sound:** [animations](../core/animations) and LCARS [sounds](../core/sounds) on taps and state changes.
+- **Control from automations:** [actions](../configuration/ha-actions) like `lcards.red_alert` work from scripts, automations and voice.
 
-**Alert Mode**: respond to alert conditions by shifting the entire dashboard colour palette, play sounds, and activate an overlay card. [Learn more →](../core/alert-mode.md)
+## Next steps
 
-**Animations**: Anime.js v4 is built in; animate any element in response to interactions or entity state changes. [Learn more →](../core/animations.md)
+1. **[Install LCARdS](installation)**: through HACS, in a few minutes.
+2. **[Build a dashboard](building-dashboards)**: pick cards and lay out a screen.
+3. **[Browse the gallery](dashboard-gallery)**: copy a complete dashboard and make it yours.
+4. **[Get AI help](ai-assistance)**: let an assistant write the YAML for you.
 
-**Data Sources**: subscribe to entities, buffer history, run processing pipelines (moving averages, min/max), and use the results in any card field or chart. [Learn more →](../core/datasources/)
-
-## Next Steps
-
-→ **[Installation](installation.md)**: install via HACS in under a minute
-
-→ **[Coming from CB-LCARS?](cb-lcars-migration.md)**: feature mapping table
+::: info A hobby project
+LCARdS is a fan-made hobby project, not a fully commissioned Starfleet product: expect the occasional tribble. If something in these docs doesn't match what you see, please [open an issue](https://github.com/snootched/lcards/issues).
+:::

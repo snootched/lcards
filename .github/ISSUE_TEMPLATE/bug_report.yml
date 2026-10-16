@@ -7,9 +7,22 @@ body:
       value: |
         Thanks for taking the time to report a bug!
 
-        **Fastest way:** in Home Assistant open the **LCARdS** sidebar panel → **Welcome** → **Support & system info** → **Report an issue**. It opens this form with your versions and system info already filled in (and runs a health check first — it may point out the fix, e.g. a stale browser cache or card-mod still installed).
+        **Before you start, two quick checks that solve many problems:**
+        1. Paste your card YAML into **[Check Your Config](https://lcards.unimatrix01.ca/getting-started/config-checker)**. It finds misspelt options and names (`colour` for `color`, a preset that doesn't exist) in a few seconds.
+        2. Run the health check in Home Assistant: **LCARdS** sidebar panel → **Welcome** → **Support & system info**. It spots a stale browser cache, card-mod still installed, and more.
+
+        **Fastest way to report:** in that same section, **Report an issue** opens this form with your versions and system info already filled in.
 
         Then describe the problem, the steps to reproduce, and your card YAML below.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Quick checks
+      description: Not required, but they save everyone time.
+      options:
+        - label: "My YAML passes [Check Your Config](https://lcards.unimatrix01.ca/getting-started/config-checker) (or I've noted what it reports below)."
+        - label: "I ran the health check in the LCARdS panel (Welcome → Support & system info)."
 
   - type: dropdown
     id: card_type
@@ -57,7 +70,7 @@ body:
       description: >-
         Filled in automatically by **Report an issue**. Otherwise open the LCARdS panel → Welcome →
         Support & system info → **Copy support info** and paste it here (or run
-        `await window.lcards.support.copy()` in the browser console). Review it before submitting —
+        `await window.lcards.support.copy()` in the browser console). Review it before submitting:
         it holds versions, environment details and recent LCARdS warnings (which may mention
         entity names); data-source entity IDs are only included if you opted in.
       placeholder: Paste the copied support info here
@@ -68,7 +81,7 @@ body:
     id: browser
     attributes:
       label: Browser
-      description: Optional — already included in the support info.
+      description: Optional (already included in the support info).
       options:
         - Chrome / Chromium
         - Firefox
@@ -107,16 +120,17 @@ body:
     attributes:
       label: Card YAML Configuration
       description: >-
-        Paste your raw YAML config here — **do not wrap it in triple backticks**, it will be
-        syntax-highlighted and formatted automatically. Remove any sensitive values (tokens,
-        passwords, etc.).
+        Paste your raw YAML config here (**no triple backticks**: it is formatted automatically).
+        Remove any sensitive values (tokens, passwords, etc.).
       render: yaml
       placeholder: |
         type: custom:lcards-button
-        entity_id: light.kitchen
-        name: Kitchen
-        style:
-          background: "{theme:palette.moonlight}"
+        entity: light.kitchen
+        preset: lozenge
+        text:
+          label:
+            content: Kitchen
+            show: true
     validations:
       required: true
 
@@ -125,7 +139,7 @@ body:
     attributes:
       label: Browser Console Output
       description: |
-        Optional. Recent LCARdS warnings/errors are already in the support info — paste anything else from the browser console (F12 → Console) that looks related, especially red errors.
+        Optional. Recent LCARdS warnings/errors are already in the support info. Paste anything else from the browser console (F12 → Console) that looks related, especially red errors.
       render: shell
       placeholder: Paste console output here
 

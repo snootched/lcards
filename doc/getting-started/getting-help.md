@@ -1,8 +1,14 @@
 # Getting Help
 
-Something not working? LCARdS can check your setup and gather everything needed to diagnose a problem.
+Something not working? Work through these in order: most problems are a config typo or a setup issue, and both are quick to rule out.
 
-## 1. Run the health check
+## 1. Check your config
+
+Paste your card YAML (or the whole dashboard) into **[Check Your Config](config-checker)**. It finds options that don't exist, misspelt preset, animation and colour names, and values of the wrong kind, each with the line and a suggestion. Fix what it reports first: a config LCARdS doesn't understand is silently ignored, which often looks like a bug.
+
+Using Claude with the [LCARdS skill](ai-assistance#with-claude-easiest)? Paste the YAML and ask it to check and fix it.
+
+## 2. Run the health check
 
 Open the **LCARdS** sidebar panel → **Welcome** tab → **Support & system info**.
 
@@ -14,12 +20,20 @@ The checklist covers the most common causes of problems:
 | **Frontend = integration version** | If these differ, your browser is running a cached copy of an older LCARdS. Hard-refresh (Ctrl+Shift+R / Cmd+Shift+R), or clear the companion app's frontend cache. If you just updated, restart Home Assistant. |
 | **UI eXtension (UIX) / card-mod** | HA-LCARS styles Home Assistant through [UIX](https://github.com/Lint-Free-Technology/uix). **card-mod** no longer works with current Home Assistant and conflicts with UIX. Uninstall it in HACS and remove its `extra_module_url` line from `configuration.yaml`. |
 | **card-mod in `extra_module_url`** | A leftover `frontend: extra_module_url` entry still loads card-mod. Remove it and restart. |
+| **custom:layout-card** | Shown when `custom:layout-card` is installed. LCARdS cards can shrink inside it; switch to the LCARdS [Layout Card](../cards/layout-card/). |
 | **Lovelace resources** | LCARdS loads itself through the integration. An old manually added resource (e.g. `/hacsfiles/lcards/lcards.js`) or a duplicate loads it twice. Remove extras under **Settings → Dashboards → ⋮ → Resources**. |
 | **HA-LCARS theme** | Shows whether an HA-LCARS theme is active. LCARdS works without it, but it is designed to pair with it. |
 
 Resource and `extra_module_url` checks need an **admin** user.
 
-## 2. Report an issue
+## 3. Common problems
+
+- **Cards collapse or margins look wrong inside `custom:layout-card`:** use LCARdS's own [Layout Card](../cards/layout-card/) instead. Change the `type` to `custom:lcards-layout-card` and remove `layout_type`; the rest of the config stays the same. See [Sizing inside `custom:layout-card`](../cards/common#sizing-inside-custom-layout-card).
+- **Cards look out of date after an update:** hard-refresh the page (Ctrl+Shift+R / Cmd+Shift+R) or clear the companion app's frontend cache.
+- **Styling from card-mod stops working:** card-mod no longer works with current Home Assistant; HA-LCARS uses [UIX](https://github.com/Lint-Free-Technology/uix) instead. Remove card-mod.
+- **Moving over from CB-LCARS?** See [Coming from CB-LCARS](cb-lcars-migration) for the equivalent of each card.
+
+## 4. Report an issue
 
 Still stuck? In the same section:
 

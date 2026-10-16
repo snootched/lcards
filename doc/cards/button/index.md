@@ -412,7 +412,7 @@ text:
     font_weight: bold
     color:
       default: "var(--lcards-moonlight)"
-      unavailable: "var(--lcards-alert-red)"
+      unavailable: "var(--lcars-alert-red)"
 ```
 
 ---

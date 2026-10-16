@@ -127,6 +127,7 @@
    Mermaid SVG lightbox (native <dialog>)
    -------------------------------------------------------------------------- */
 .vp-doc .mermaid          { cursor: zoom-in; }
+.vp-doc img.zoomable      { cursor: zoom-in; }
 .vp-doc .mermaid svg      { transition: opacity 0.15s; }
 .vp-doc .mermaid:hover svg { opacity: 0.85; }
 
@@ -444,4 +445,13 @@ dialog.mz-svg-lightbox .mz-svg-inner {
   display: block;
   margin-top: 4px;
   color: var(--vp-c-text-1);
+}
+
+/* Looping recordings (gallery dashboards, card pages): sized like a picture */
+.vp-doc .doc-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 16px 0;
+  border-radius: 8px;
 }

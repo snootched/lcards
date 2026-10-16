@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Check Your Config
+    url: https://lcards.unimatrix01.ca/getting-started/config-checker
+    about: Paste your YAML to find misspelt options and names before reporting a bug.
   - name: Documentation
     url: https://lcards.unimatrix01.ca
-    about: Check the docs first — configuration reference, card guides, and troubleshooting tips.
+    about: "Check the docs first: configuration reference, card guides, and troubleshooting tips."
   - name: Discussions (Q&A / Configuration Help)
     url: https://github.com/snootched/LCARdS/discussions
     about: Not a bug? Use Discussions for configuration questions, showcase posts, and general help.

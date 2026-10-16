@@ -34,8 +34,8 @@ var(--lcards-blue)
 var(--lcards-blue-light)
 var(--lcards-moonlight)        # Near-white; default text and label colour
 var(--lcards-gray)             # Standby / inactive state colour
-var(--lcards-alert-red)
-var(--lcards-alert-yellow)
+var(--lcars-alert-red)
+var(--lcars-alert-yellow)
 ```
 
 See [LCARdS CSS Colour Palette](themes/#lcards-css-colour-palette) for the full palette reference.
@@ -103,8 +103,8 @@ style:
       default: "var(--lcards-gray)"
       active: "var(--lcards-orange)"
       inactive: "var(--lcards-gray)"
-      unavailable: "var(--lcards-alert-red)"
-      heat: "var(--lcards-alert-red)"       # Custom state - exact match
+      unavailable: "var(--lcars-alert-red)"
+      heat: "var(--lcars-alert-red)"       # Custom state - exact match
       cool: "var(--lcards-blue)"            # Custom state - exact match
 ```
 
@@ -187,12 +187,12 @@ text:
     color:
       default: "var(--lcards-moonlight)"
       active: "var(--lcards-orange)"
-      unavailable: "var(--lcards-alert-red)"
+      unavailable: "var(--lcars-alert-red)"
   state:
     content: "{entity.state}"
     position: center
     color:
-      heat: "var(--lcards-alert-red)"
+      heat: "var(--lcars-alert-red)"
       cool: "var(--lcards-blue)"
       auto: "var(--lcards-orange)"
       default: "var(--lcards-moonlight)"
@@ -206,9 +206,9 @@ style:
     color:
       default: "var(--lcards-gray)"
       active: "var(--lcards-orange)"
-      heat: "var(--lcards-alert-red)"
+      heat: "var(--lcars-alert-red)"
       cool: "var(--lcards-blue)"
-      unavailable: "var(--lcards-alert-red)"
+      unavailable: "var(--lcars-alert-red)"
     width: 2
 ```
 
@@ -223,9 +223,9 @@ style:
   card:
     color:
       background:
-        zero: "var(--lcards-alert-red)"        # exactly 0 %
-        below:20: "var(--lcards-alert-red)"    # critical - checked after zero
-        below:50: "var(--lcards-alert-yellow)" # low
+        zero: "var(--lcars-alert-red)"        # exactly 0 %
+        below:20: "var(--lcars-alert-red)"    # critical - checked after zero
+        below:50: "var(--lcars-alert-yellow)" # low
         non_zero: "var(--lcards-green)"        # any positive level, no range matched
         default: "var(--lcards-gray)"
 ```
@@ -303,12 +303,12 @@ entity: climate.living_room
 state_attribute: hvac_action
 icon_style:
   color:
-    heating: "var(--lcards-alert-red)"
+    heating: "var(--lcars-alert-red)"
     cooling: "var(--lcards-blue)"
     idle: "var(--lcards-gray)"
     "off": "var(--lcards-gray)"
 icon_area_background:
-  heating: "alpha(var(--lcards-alert-red), 0.15)"
+  heating: "alpha(var(--lcars-alert-red), 0.15)"
   cooling: "alpha(var(--lcards-blue), 0.15)"
   idle: transparent
 ```
@@ -471,8 +471,8 @@ Any colour field also accepts a **Jinja2 / JS template string**. The template is
 type: custom:lcards-button
 entity: climate.living_room
 icon_style:
-  color: "{{ 'var(--lcards-alert-red)' if state_attr('climate.living_room', 'hvac_action') == 'heating' else 'var(--lcards-blue)' }}"
-icon_area_background: "{{ 'alpha(var(--lcards-alert-red), 0.15)' if is_state('climate.living_room', 'heat') else 'transparent' }}"
+  color: "{{ 'var(--lcars-alert-red)' if state_attr('climate.living_room', 'hvac_action') == 'heating' else 'var(--lcards-blue)' }}"
+icon_area_background: "{{ 'alpha(var(--lcars-alert-red), 0.15)' if is_state('climate.living_room', 'heat') else 'transparent' }}"
 ```
 
 The template must evaluate to a valid colour string: a hex value, CSS variable, `theme:` token, or computed token. Setting the **entire field** to a template is the primary use case; per-key values inside a state map were already resolved.

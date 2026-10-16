@@ -1,15 +1,15 @@
 ---
-title: Core Concepts
-description: The systems that power every LCARdS card (templates, data sources, rules engine, themes, and more).
+title: Features
+description: What every LCARdS card can do (actions, colours, text, animations, sounds) and the shared services behind them (themes, rules, data sources, templates, alert mode).
 ---
 
-# Core Concepts
+# Features
 
-LCARdS cards are driven by a set of shared singleton services, and a set of per-card configuration options shared across all card types. This section covers both.
+Every LCARdS card shares two things: options you set on each card (actions, colours, text) and services that work across all cards at once (themes, rules, data sources). This section covers both. New here? [How LCARdS works](../getting-started/what-is-lcards#how-it-works) shows how they fit together.
 
-## Per-Card Options
+## On Every Card
 
-Options you configure directly in individual card YAML:
+Options you set on each card:
 
 | Option | Description |
 |---|---|
@@ -20,9 +20,9 @@ Options you configure directly in individual card YAML:
 | [Styles](styles.md) | The `style:` block: card background, border, icon, and dimension overrides |
 | [Text Fields](text-fields.md) | Label and value field templating reference |
 
-## Core Services
+## Shared Services
 
-Shared singleton systems that all cards tap into:
+Services every card on the screen shares, so they work across cards at once:
 
 | Service | Description |
 |---|---|

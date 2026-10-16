@@ -4,6 +4,10 @@ LCARdS configuration is managed through the **LCARdS Config Panel**, a dedicated
 
 The panel is registered automatically when the LCARdS integration is installed.
 
+::: tip New install?
+Start with [First setup](../getting-started/installation#_3-first-setup): create the helpers, then tune alert modes and sounds.
+:::
+
 ---
 
 ## Accessing the Panel
@@ -53,7 +57,7 @@ Helpers are standard Home Assistant `input_*` entities and persist across restar
 The theme tools, one per tab:
 
 - **LCARdS Alert Mode Lab**: customise the colour palette applied per alert level (`red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert`). Adjust hue, saturation, lightness, and anchor parameters, preview changes live across your dashboard, then save to helpers.
-- **HA-LCARS Theme Lab**: build an HA-LCARS theme from the active palette.
+- **HA-LCARS Theme Lab**: build your own HA-LCARS theme profile, with full palettes, LCARS chrome and state colours. See [HA-LCARS Theme Lab](ha-lcars-theme-lab).
 - **LCARdS Theme Tokens**, **LCARS CSS Variables**, **All CSS Variables**: browse the active theme's tokens and the page's CSS variables. Find the exact `theme:colors.ui.primary` path to use in card config, or which CSS variable controls a colour.
 - **Token Overrides**: change a token's value globally, per user or per device.
 
@@ -136,9 +140,7 @@ Typical use cases: debugging unexpected behaviour, recovering from a corrupt con
 
 ## HA-LCARS Theme Profiles
 
-LCARdS ships custom theme profiles designed to extend [HA-LCARS](https://github.com/th3jesta/ha-lcars).  They map the LCARdS colour palette to both the HA-LCARS chrome variables and the core HA colour token scale, so stock HA components, LCARdS cards, and the HA-LCARS chrome all share the same palette, including alert-mode hue rotations.
-
-The profiles are appended to the end of your existing HA-LCARS `themes.yaml`.
+[HA-LCARS](https://github.com/th3jesta/ha-lcars) includes two LCARdS theme profiles. They map the LCARdS colour palette to both the HA-LCARS chrome variables and the core HA colour token scale, so stock HA components, LCARdS cards, and the HA-LCARS chrome all share the same palette, including alert-mode hue rotations. Pick one as your Home Assistant theme; there is nothing to install separately.
 
 → [HA-LCARS Theme Profiles](ha-lcars-theme-profiles.md)
 

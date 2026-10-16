@@ -46,7 +46,7 @@ overlays:
 | `rect` | `position`, `size` | `<rect>` |
 | `circle` | `position`, `size` | `<ellipse>`: `rx = size[0]/2`, `ry = size[1]/2` (use equal width/height for a true circle) |
 
-`rect`/`circle` reuse the exact `position` + `size` convention as [control overlays](./control-overlay.md); `position` is the top-left corner, in viewBox units.
+`rect`/`circle` take `position` + `size` like [control overlays](./control-overlay.md), with one difference: a shape's `position` is always its top-left corner, in viewBox units, while a control's `position` is its centre unless you set its `attachment` (for example `attachment: top-left`).
 
 ---
 
@@ -130,7 +130,7 @@ overlays:
       color: var(--lcars-orange)
       width: 2
       fill:
-        active: var(--lcards-alert-red)
+        active: "var(--lcars-alert-red)"
         inactive: alpha(var(--lcars-green), 0.2)
 ```
 

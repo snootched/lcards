@@ -2,6 +2,8 @@
 
 `custom:lcards-msd-card`
 
+<video class="doc-video" src="/img/cards/msd-motion.webm" poster="/img/cards/msd.webp" title="MSD card: a starship blueprint inside shield arcs that turn orange, then red, as shield strength drops, with three controls joined to the ship by routed lines" autoplay loop muted playsinline></video>
+
 Master Systems Display: a zoomable SVG canvas on which you position any Home Assistant card as an overlay. Lines (routes) connect anchors across the canvas, and shapes (polylines, rectangles, circles) add freeform decorative or structural geometry: rooms, zones, conduits. Supports rules-based automation of overlay styles and base SVG filters.
 
 ::: tip New to MSD?
@@ -12,28 +14,56 @@ This page is the config reference. For a UI-only walkthrough of building your fi
 
 ## Minimal Example
 
+A blueprint, two controls in its empty corners, and a line from each to a point on the ship:
+
+- `br` and `wc` are markers built into the blueprint (its bridge and warp core): see [Automatic Anchors](#automatic-anchors).
+- `attachment: top-left` makes `position` the control's top-left corner. Without it, `position` is the control's centre.
+- `route: auto` draws each line around the ship, not through it.
+
 ```yaml live
 type: custom:lcards-msd-card
 msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
-  anchors:
-    bridge: [520, 380]
-    engineering: [620, 520]
   overlays:
-    - id: bridge-status
+    - id: bridge-ctl
       type: control
-      anchor: bridge
-      size: [180, 80]
+      attachment: top-left
+      position: [60, 60]
+      size: [360, 100]
       card:
         type: custom:lcards-button
         entity: light.bridge
         preset: lozenge
-    - id: engineering-line
+        text:
+          label:
+            content: BRIDGE
+            show: true
+            font_size: 30
+    - id: core-ctl
+      type: control
+      attachment: top-left
+      position: [60, 1040]
+      size: [360, 100]
+      card:
+        type: custom:lcards-button
+        entity: switch.warp_core
+        preset: lozenge
+        text:
+          label:
+            content: WARP CORE
+            show: true
+            font_size: 30
+    - id: bridge-line
       type: line
+      anchor: bridge-ctl
+      attach_to: br
       route: auto
-      anchor: bridge
-      attach_to: engineering
+    - id: core-line
+      type: line
+      anchor: core-ctl
+      attach_to: wc
+      route: auto
 ```
 
 ---
@@ -347,7 +377,7 @@ rules:
       overlays:
         engine-status:
           style:
-            color: "var(--lcards-alert-red)"
+            color: "var(--lcars-alert-red)"
       animations:
         - overlay: engine-status
           preset: pulse
@@ -424,7 +454,7 @@ rules:
       overlays:
         bridge-card:
           style:
-            color: "var(--lcards-alert-red)"
+            color: "var(--lcars-alert-red)"
       animations:
         - tag: status-displays
           preset: pulse

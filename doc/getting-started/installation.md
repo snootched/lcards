@@ -12,14 +12,14 @@ Something not working after installing? See [Getting Help](getting-help.md); the
 
 ## Quick Start
 
-1. Install from HACS
-2. Add LCARdS integration to HA
-3. Initialize and Configure LCARdS from LCARdS Config Panel
+1. [Install from HACS](#_1-install-via-hacs)
+2. [Add the LCARdS integration](#_2-add-the-integration)
+3. [First setup in the LCARdS panel](#_3-first-setup): create the helpers, then tune alert modes and sounds
 
 :::tip HA-LCARS Theme Integration
 LCARdS supports and integrates well with [**HA-LCARS themes**](https://github.com/th3jesta/ha-lcars).  Use these two together for the best experience.
 
-Once HA-LCARS is installed, append the **LCARdS theme profiles** to your `themes.yaml` to map the full LCARdS colour palette to the HA-LCARS chrome and HA core colour tokens in one step; see [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles.md).
+HA-LCARS includes LCARdS theme profiles (**LCARS Picard [LCARdS Red Accent]** and **[LCARdS Blue Accent]**): choose one as your Home Assistant theme and HA's own screens match your LCARdS cards. See [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles.md).
 :::
 
 ## 1. Install via HACS
@@ -29,13 +29,7 @@ Once HA-LCARS is installed, append the **LCARdS theme profiles** to your `themes
 1. Open **HACS** in Home Assistant
 2. Go to **Integrations** and search for **LCARdS**
 3. Click **Download** and confirm
-4. **Restart Home Assistant**
-5. Go to **Settings → Integrations → Add Integration** and search for **LCARdS**
-6. Click through the setup (configuration options below)
-
-LCARdS is now active. It automatically:
-- Module `lcards.js` is available on page load and across every Home Assistant page
-- Registers the **LCARdS Config** sidebar panel
+4. **Restart Home Assistant**, then [add the integration](#_2-add-the-integration).
 
 ### Manual Installation
 
@@ -44,44 +38,47 @@ LCARdS is now active. It automatically:
 1. Download `lcards.zip` from the [latest GitHub release](https://github.com/snootched/lcards/releases/latest)
 2. Extract the contents into `config/custom_components/lcards/`
    (the directory should contain `manifest.json` and `__init__.py` directly, not a nested `lcards/lcards/` folder)
-3. **Restart Home Assistant**
-4. Go to **Settings → Integrations → Add Integration → LCARdS**
+3. **Restart Home Assistant**, then [add the integration](#_2-add-the-integration).
 
 </details>
 
-::: info `lovelace-layout-card` compatibility
-LCARdS works well with [`lovelace-layout-card`](https://github.com/thomasloven/lovelace-layout-card)
-There are some quirks to be aware of when using `grid-layout` - we have a patched version that fixes the margin issue and will remain available until fixed upstream.
-
-Please see [Sizing Inside Custom Layout](../cards/common.md#sizing-inside-custom-layout-card) for details.
+::: info Using `custom:layout-card`?
+LCARdS has its own [Layout Card](../cards/layout-card/), which fixes the sizing and margin problems LCARdS cards have inside `custom:layout-card` and adds a visual editor. Moving over is a one-line change: see [Sizing inside `custom:layout-card`](../cards/common#sizing-inside-custom-layout-card).
 :::
 
-## 2. Configuration (Integration)
+## 2. Add the integration
 
-After installation, LCARdS integration options can be configured from the integration configuration:
+Go to **Settings > Devices & services > Add integration** and pick **LCARdS**. The integration adds the **LCARdS Config** panel to the sidebar and loads the cards on every dashboard. Its options are listed under [Integration options](#integration-options).
 
-**Settings → Integrations → LCARdS → Configure**
+## 3. First setup
+
+Open **LCARdS Config** in the sidebar. The **Welcome** tab walks you through the same steps:
+
+1. **Create the helpers.** In the **Helpers** tab, click **Create All Helpers**. LCARdS keeps alert mode, sound and sizing settings in Home Assistant helpers, and several features (alert mode, the alert overlay, sounds) need them. Do this first.
+2. **Pick your alert colours** (optional). The **Alert Mode Lab** in **Theme Studio** sets how each alert mode recolours your dashboards. See [Alert Mode Lab](../configuration/alert-mode-lab).
+3. **Set up sounds** (optional). The **Sounds** tab turns sounds on, picks a sound scheme and sets volumes. See [Sound Configuration](../configuration/sounds).
+4. **Choose your HA-LCARS theme** (recommended), ideally one of the LCARdS profiles HA-LCARS includes. See [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles).
+
+Then check the setup: **Welcome > Support & system info** runs a health check (versions, browser cache, card-mod leftovers).
+
+The [Configuration](../configuration/) section covers every panel tab in detail.
+
+## Next steps
+
+- **[Build a dashboard](building-dashboards)**: pick cards and lay out your first LCARS screen.
+- **[Browse the gallery](dashboard-gallery)**: start from a complete dashboard.
+- Stuck? See **[Getting Help](getting-help)**.
+
+## Integration options
+
+**Settings > Devices & services > LCARdS > Configure**. Changes take effect immediately; no restart needed.
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | Show sidebar panel | On | Display the LCARdS Config entry in the Home Assistant sidebar. Disable if you prefer a cleaner sidebar; the integration stays active and all cards continue to work. |
 | Sidebar Title | LCARdS Config | Customizable title for the sidebar entry. |
 | Sidebar Icon | `mdi:space-invaders` | Customizable icon for the sidebar entry. |
-| Log Level | `warn` | Default logging level for all cards. `debug`, `trace` are excessively versbose - only used for deep troubleshooting. |
+| Log Level | `warn` | Default logging level for all cards. `debug`, `trace` are very verbose: only use them for deep troubleshooting. |
 | Enable Preview Features | `false` | Unlocks features that are still under active development. These may change during development - Please provide your feedback, discuss or get help on GitHub Issues and Discussions. |
 
-Changes take effect immediately; no restart required.
-
-## 3. LCARdS Configuarion - Config Panel
-
-The [**LCARdS Config Panel**](../configuration/) is registered automatically by the integration.
-Access it via the **LCARdS Config** entry in the Home Assistant sidebar.
-
-Follow the setup flow in the Config Panel, and explore other options like:
-- **Create all required helpers** in one click (alert mode, sounds, sizing)
-- Customise Alert Mode colour palettes
-- Configure sound schemes and overrides
-
-After setup, if you don't want it visible all the time, toggle **Show sidebar panel** off in the integration options; it can be re-enabled at any time.
-
-See [Configuration overview](../configuration/) for full details.
+If you don't want the panel in the sidebar all the time, turn **Show sidebar panel** off; it can be turned back on at any time.

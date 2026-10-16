@@ -215,50 +215,36 @@ In most dashboard layouts you only need `grid_options`. Use the sizing propertie
 
 ## Sizing inside `custom:layout-card`
 
-[`custom:layout-card`](https://github.com/thomasloven/lovelace-layout-card) arranges cards in a CSS Grid, Masonry, or other layout. By default it sets `--layout-height: auto` on the grid container, so grid rows size to their content rather than stretching to fill the allocated height. LCARdS cards rely on `height: 100%` to fill the row; this collapses the card with `auto` height rows. There is also a known upstream bug where `card_margin` is ignored and hard-coded margins are applied instead.
+Use LCARdS's own [Layout Card](layout-card/) (`custom:lcards-layout-card`) instead of [`custom:layout-card`](https://github.com/thomasloven/lovelace-layout-card). Inside `custom:layout-card`'s grid, LCARdS cards shrink to their minimum height (its grid rows default to `auto` height) and `card_margin` is ignored (the margins are hard-coded). The LCARdS Layout Card has neither problem, and adds the Layout Studio visual editor.
 
-### 1. Symptom
+Moving over is a one-line change: set `type: custom:lcards-layout-card` and remove `layout_type`. The `layout` keys and each card's `view_layout` stay the same.
 
-Cards inside a `custom:layout-card` grid shrink to their minimum height instead of filling the row.
+```yaml
+type: custom:lcards-layout-card
+layout:
+  grid-template-columns: repeat(3, 1fr)
+  grid-template-rows: 1fr
+  height: 300px
+cards:
+  - type: custom:lcards-button
+    preset: lozenge
+```
 
-### Fix
-
-Add a `card_mod` entry to the **layout-card itself** (not the LCARdS card) to override the layout height variable:
+::: details Staying on custom:layout-card?
+Add this to the **layout-card itself** (not the LCARdS card) so its rows fill their height:
 
 ```yaml
 type: custom:layout-card
 layout_type: custom:grid-layout
-layout:
-  grid-template-columns: repeat(3, 1fr)
-  grid-template-rows: 1fr
 card_mod:
   style: |
     grid-layout {
       --layout-height: 100% !important;
     }
-cards:
-  - type: custom:lcards-button
-    # ...
 ```
 
-This forces the grid-layout shadow host to stretch its items to fill the row height rather than collapsing to content size.
-
-> **Note**: `card_mod` must target the `grid-layout` element, which is the shadow root of layout-card's internal renderer. The selector `grid-layout { ... }` is the correct target regardless of which `layout_type` you use with grid-based layouts.
-
-
-### 2. Symptom
-
-Cards inside `custom:layout-card` that uses `grid-layout` - `card_margin` option is broken due to hard-coded margins applied.
-
-### Fix
-
-Until bug is resolved upstream, you can use a patched version of `custom:layout-card` from this repo: [patched custom-layout-card](https://github.com/snootched/lovelace-layout-card)
-1. Uninstall the official `custom-layout-card`
-2. If exists: remove the cached gzip file from the original install `www/community/lovelace-layout-card/layout-card.js.gz`
-3. Add as a custom repo in HACS: `https://github.com/snootched/lovelace-layout-card`
-4. Install the patched version per normal.
-
-This will be maintained until the upstream project resolves the issue.
+`card_margin` stays broken there; the LCARdS Layout Card is the fix.
+:::
 
 ---
 

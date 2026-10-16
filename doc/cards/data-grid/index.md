@@ -2,6 +2,8 @@
 
 `custom:lcards-data-grid`
 
+![Data grid card: LCARS data cascade](/img/lcards-data-grid.gif)
+
 A grid of cells in the LCARS style. Use it two ways:
 
 - **Decorative:** columns of generated numbers and codes, often with the classic LCARS colour cascade rolling down the rows. No entities needed.

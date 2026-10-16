@@ -1,67 +1,99 @@
-# Getting AI Help Writing LCARdS Config
+---
+description: "Get Claude, ChatGPT or another AI assistant to write LCARdS YAML that works: the LCARdS skill for Claude, what to give other assistants, and how to check the result."
+---
 
-You can use Claude, ChatGPT or any other LLM to help write LCARdS YAML. Left to
-itself, though, an LLM has never seen LCARdS's actual config schema; it will
-happily invent plausible-looking properties that don't exist. Giving it the real
-schema up front fixes that.
+# Getting AI Help
 
-## Use the LCARdS skill (Claude)
+An AI assistant can write LCARdS cards and whole dashboards for you. It just needs to know LCARdS first.
 
-The quickest route with Claude is the LCARdS skill: one download that teaches Claude
-how to write LCARdS config and carries everything it needs for this LCARdS version:
-the JSON Schemas, the built-in names (presets, animations, sounds, theme tokens), the
-user docs, the [Dashboard Gallery](../getting-started/dashboard-gallery) and the config
-checker. Claude loads only the parts a request needs, and checks its own YAML before
-handing it over when it can run code.
+- Out of the box, a chatbot has never seen LCARdS. It guesses, and guessed options are silently ignored.
+- Give it the real list of LCARdS options and it stops guessing.
+- Check what it wrote before you paste it into Home Assistant.
 
-Download [`lcards-skill.zip`](/tools/lcards-skill.zip) (each GitHub release also
-carries the copy that matches it), then:
+## With Claude (easiest)
 
-- **Claude Code:** unzip it into your skills folder, so you have
-  `~/.claude/skills/lcards/SKILL.md` (or `.claude/skills/lcards/` inside a project).
-- **claude.ai and the Claude apps:** upload the zip as a custom skill in Settings
-  (skills need code execution turned on).
+The **LCARdS skill** teaches Claude everything for your LCARdS version: every option, every built-in preset and colour, the docs, the gallery dashboards and the config checker.
 
-Then just ask, for example "make me an LCARdS button for `light.kitchen` that turns
-red when it's on", or "build an engineering dashboard with my `sensor.power_*`
-entities". It asks for your entity ids rather than inventing them.
+1. Download [`lcards-skill.zip`](/tools/lcards-skill.zip).
+2. Add it to Claude:
+   - **claude.ai or the Claude apps:** upload the zip as a custom skill in **Settings** (needs code execution turned on).
+   - **Claude Code:** unzip it into `~/.claude/skills/`, so you have `~/.claude/skills/lcards/SKILL.md`.
+3. Ask. For example:
+   - "Make me an LCARdS button for `light.kitchen` that turns red when it's on."
+   - "Build an engineering dashboard with my `sensor.power_*` entities."
 
-## Other assistants: what to attach
+Claude asks for your real entity ids instead of inventing them, and checks its own YAML before handing it over.
 
-**1. The schema for your card (required).** LCARdS publishes the exact JSON Schemas
-it validates config against, generated straight from the source so they can't drift
-out of date. Pick one of:
+::: info Other tools that support skills
+The LCARdS skill follows the open [Agent Skills](https://agentskills.io) standard, so any tool that supports Agent Skills can load the same zip. We build and test it with Claude.
+:::
 
-- **One card at a time (smallest):** the card's file from
-  [`schema/index.json`](/schema/index.json), e.g.
-  [`schema/cards/lcards-button.json`](/schema/cards/lcards-button.json) or
-  [`schema/cards/lcards-msd-card.json`](/schema/cards/lcards-msd-card.json), plus the
-  shared files its index entry lists under `uses` (rules, animations, background
-  animations, state colours, filters). Card files are 2 to 75 KB; attach only the
-  shared files your request touches.
-- **Everything in one file:** [`lcards-schema.json`](/lcards-schema.json): every card
-  (`cards`, including MSD), the [Layout View](layout-view/) (`views`) and the LCARS
-  shell dashboard strategy (`strategies`). About 460 KB, so it suits tools with large
-  context windows.
+::: tip Claude can check YAML too
+Already have a config, from you or from another tool? Paste it into Claude with the skill loaded and ask *"check this LCARdS config and fix it"*. Claude runs the same checker as the [Check Your Config](config-checker) page and explains each problem.
+:::
 
-Each GitHub release also carries both as assets (`lcards-schema.json`,
-`lcards-schema.zip`), matching that release's options exactly.
+## Give Claude your home's context (ha-mcp)
 
-Tools that look for [`llms.txt`](/llms.txt) find all of this from there: links to every
-page, the schemas and the checker. [`llms-full.txt`](/llms-full.txt) is the user docs in
-one file.
+On its own, Claude doesn't know your Home Assistant: you tell it your entity ids. The community [**ha-mcp**](https://github.com/homeassistant-ai/ha-mcp) server connects Claude to your Home Assistant, so together with the LCARdS skill Claude can look things up for itself:
 
-**2. [Common Properties](common) (recommended)**: covers things the raw schema's
-types don't fully explain in prose: entity reference patterns, the `theme:`
-prefix required for theme tokens, `{{ }}` template syntax, and action config.
+- your **areas and floors**, to group a dashboard by room;
+- your **entities** and their current **states**, so it uses your real entity ids;
+- which devices are lights, sensors, switches and so on, to pick the right card for each.
 
-**3. The specific card's reference page (optional)**: e.g. [Button](button/),
-[Chart](chart/), for real worked YAML examples in context, not just a type list.
+Then ask, for example: *"Build an LCARdS engineering dashboard for the devices in my garage"* or *"Make a bridge view with a button for every light on the ground floor."*
 
-## Prompt template
+::: warning ha-mcp is not part of LCARdS
+ha-mcp is a separate community project; we don't make, support or take responsibility for it. It can also change your Home Assistant (automations, dashboards, settings and more). If you only want Claude to read your setup, turn on its **Read Only Mode**, or connect with its read-only URL (append `/readonly` to the server address). Install and set it up by following [its own instructions](https://github.com/homeassistant-ai/ha-mcp).
+:::
 
-Paste this ahead of your actual request, with the schema file and doc pages
-attached:
+## With other assistants
+
+If your assistant supports Agent Skills, use the skill above. Otherwise:
+
+1. **Download the option list for your card**, for example [`lcards-button.json`](/schema/cards/lcards-button.json). Every card is listed in [`schema/index.json`](/schema/index.json).
+2. **Attach it** to your chat and paste this first:
+
+   ```
+   I'm writing YAML for LCARdS, a custom Home Assistant card system. The
+   attached JSON Schema lists every option. Only use options from the schema.
+   If something I ask for isn't there, tell me instead of inventing a key.
+   Theme colours need the theme: prefix, e.g. theme:colors.ui.primary.
+   ```
+
+3. **Describe the card you want.**
+
+## Check what it wrote
+
+- Paste the YAML into [Check Your Config](config-checker). It runs in your browser and points at each problem.
+- Or ask Claude with the skill to check it (see the tip above).
+- Prefer the command line? Download [`lcards-validate.mjs`](/tools/lcards-validate.mjs) and run `node lcards-validate.mjs my-dashboard.yaml` (Node.js 20 or newer).
+
+## If it still makes things up
+
+- Paste the checker's output back into the chat and ask it to fix exactly those lines.
+- Remind it to re-read the attached schema and not to guess. Most assistants correct themselves once told.
+
+## Details for power users
+
+::: details What else you can attach
+
+**Schemas**
+
+- **One card at a time (smallest):** the card's file from [`schema/index.json`](/schema/index.json), plus the shared files its entry lists under `uses` (rules, animations, background animations, state colours, filters). Card files are 2 to 75 KB; attach only the shared files your request touches.
+- **Everything in one file:** [`lcards-schema.json`](/lcards-schema.json) holds every card, the [Layout View](../cards/layout-view/) and the LCARS shell strategy. It is about 460 KB, so it suits tools with large context windows.
+- Each GitHub release carries both (`lcards-schema.json`, `lcards-schema.zip`), plus the skill and the checker, matching that release exactly.
+
+**Docs pages**
+
+- [Common Properties](../cards/common) explains what the schema can't: entity references, the `theme:` prefix, `{{ }}` templates and actions.
+- The card's own page (for example [Button](../cards/button/) or [Chart](../cards/chart/)) has worked examples.
+- Tools that read [`llms.txt`](/llms.txt) find everything from there. [`llms-full.txt`](/llms-full.txt) is all the user docs in one file.
+
+**MSD**
+
+The MSD schema (`custom:lcards-msd-card`) is large and deeply nested. Attach [`lcards-msd-card.json`](/schema/cards/lcards-msd-card.json) with the shared files it uses, plus the [MSD Quick Start](../cards/msd/quick-start) or [Routing Concepts](../cards/msd/routing-concepts) page, and expect a few more rounds than for a single button.
+
+**Longer prompt template**
 
 ```
 I'm writing YAML configuration for LCARdS, a custom Home Assistant Lovelace
@@ -76,38 +108,4 @@ and reference docs. Rules:
   hsl()/hsla(), var(--name), or a theme:path token (e.g. theme:colors.ui.primary).
 ```
 
-Then describe the card you want.
-
-## MSD
-
-The MSD schema (`custom:lcards-msd-card`) is large and deeply nested (routing,
-overlays, filters, animation triggers). Attach
-[`schema/cards/lcards-msd-card.json`](/schema/cards/lcards-msd-card.json) with the
-shared files it uses, plus the relevant page(s) from the [MSD docs](msd/) (start
-with [Quick Start](msd/quick-start) or [Routing Concepts](msd/routing-concepts)),
-and expect to iterate more than with a single button.
-
-## Check what it wrote
-
-Run the result through the LCARdS config checker before pasting it into a
-dashboard. It takes a single card, a view or a whole dashboard (raw configuration
-YAML), finds every LCARdS card at any depth, and reports problems at their exact
-path:
-
-```bash
-node lcards-validate.mjs my-dashboard.yaml
-```
-
-Download [`lcards-validate.mjs`](/tools/lcards-validate.mjs) (one file, needs only
-[Node.js](https://nodejs.org/) 20 or newer; each GitHub release also carries the
-copy that matches it). Errors are things LCARdS will reject or ignore: invalid
-values and keys that don't exist. Warnings are names that aren't built in (a preset,
-animation, sound or theme token), each with a "did you mean" suggestion when one is
-close; a pack you installed may add names, so check those yourself. Paste the
-output back to the LLM and ask it to fix exactly those lines.
-
-## If it still invents a key
-
-Paste the error (or the YAML that didn't work) back to the LLM along with a
-reminder to re-check the attached schema before answering; most models will
-correct themselves once told explicitly not to guess.
+:::

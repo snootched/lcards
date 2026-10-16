@@ -11,93 +11,77 @@
 [![Last commit](https://img.shields.io/github/last-commit/snootched/LCARdS?style=default&logo=git&logoColor=white&color=37a6d1)](https://github.com/snootched/LCARdS/commits/main)
 [![GitHub Repo stars](https://img.shields.io/github/stars/snootched/lcards?style=flat&logo=stardock&logoColor=37a6d1&color=37a6d1)](https://github.com/snootched/lcards/stargazers)
 
+<br>
+
+### [Documentation](https://lcards.unimatrix01.ca) · [Dashboard Gallery](https://lcards.unimatrix01.ca/getting-started/dashboard-gallery) · [AI help](https://lcards.unimatrix01.ca/getting-started/ai-assistance) · [Getting help](https://lcards.unimatrix01.ca/getting-started/getting-help)
 
 <br>
 
-> [!IMPORTANT]
-> ## 📖 Full Documentation at [lcards.unimatrix01.ca](https://lcards.unimatrix01.ca)
->
-> Configuration references, card guides, core systems, tutorials, and API docs are all in the full documentation site.
->
-> **[➜ lcards.unimatrix01.ca](https://lcards.unimatrix01.ca)**
+<table>
+  <tr>
+    <td><img src="doc/public/gallery/titan-operations.webp" alt="Operations dashboard: double elbows, buttons, a data cascade and Picard sliders" /></td>
+    <td><img src="doc/public/gallery/engineering.webp" alt="Engineering dashboard: a ship blueprint with controls joined by routed lines" /></td>
+  </tr>
+  <tr>
+    <td><img src="doc/public/gallery/sciences.webp" alt="Sciences dashboard: framed history chart, radial gauges and a sensor table" /></td>
+    <td><img src="doc/public/gallery/bridge.webp" alt="Bridge dashboard: sidebar buttons, a status grid, sliders and a chart" /></td>
+  </tr>
+</table>
 
-<br>
+<sub>Every dashboard above is in the <a href="https://lcards.unimatrix01.ca/getting-started/dashboard-gallery">gallery</a>, with its YAML to copy.</sub>
 
+## What you get
 
-> [!NOTE]
-> **LCARdS** is a work in progress and not a fully commissioned Starfleet product — expect some tribbles!
->
-> This is a **hobby** project with great community support and contribution. It is not professional software and should be used for personal use only.
->
-> AI coding tools have been leveraged in this project — see the [AI Usage](#ai-usage) section below for details.
+- **LCARS cards that work together:** buttons, elbows, sliders, charts, data grids, select menus and full ship displays, all sharing one look.
+- **Colours that follow state:** cards light up, dim and change colour with your entities, no automations needed.
+- **Alert modes:** red, yellow or blue alert repaints the whole dashboard, with sounds and a full-screen overlay.
+- **Live data:** history, smoothing and statistics from data sources, in charts and in any label.
+- **Animations and sounds:** LCARS beeps, pulses, cascades and line draws.
+- **Visual editors:** every card has a full editor, plus studios for layouts, charts and ship displays.
 
-<br>
-
-## What is LCARdS?
-
-LCARdS is the evolution of dedicated LCARS-inspired cards for Home Assistant.
-It originates from, and supersedes, the [CB-LCARS](https://github.com/snootched/cb-lcars) project. LCARdS is designed to accompany and complement the [**HA-LCARS theme**](https://github.com/th3jesta/ha-lcars).
-
-Each card shares a set of common core services — a unified rules engine, DataSource pipelines, theme tokens, coordinated animations, sounds, and more — providing a cohesive LCARS-like dashboard experience rather than a collection of isolated components.
-
-**Cards included:**
-| Card | Description |
-|------|-------------|
-| `lcards-button` | All standard LCARS buttons plus advanced multi-segment component mode (D-pad, Alert, custom shapes) |
-| `lcards-elbow` | LCARS corner designs — simple and Picard-style segmented double elbows |
-| `lcards-slider` | Interactive sliders for sensors and controllable entities — pills and gauge styles |
-| `lcards-select-menu` | Grid of option buttons built from `input_select`/`select` entities or custom options |
-| `lcards-data-grid` | LCARS tabular grids with real entity data and cascade animation |
-| `lcards-chart` | ApexCharts-powered charting with full DataSource pipeline integration |
-| `lcards-alert-overlay` | Full-screen dashboard alert backdrop reacting to `input_select.lcards_alert_mode` |
-| `lcards-msd` | Master Systems Display — embed any HA cards on a routed, drawable SVG blueprint canvas (lines, shapes, live-updating overlays) |
-| `lcards-layout-card` | CSS Grid container card with a built-in visual layout editor — nest a grid of cards anywhere |
-| `lcards-layout-view` | Dashboard view type bringing that same visual grid editor to a whole view, HA Sections-style |
-
-→ **[Full card documentation](https://lcards.unimatrix01.ca/cards/)**
-
-<br>
-
-## Coming from CB-LCARS
-
-LCARdS supersedes CB-LCARS. You can run both side-by-side while transitioning — all new features and fixes are in LCARdS only.
-
-→ **[CB-LCARS migration guide](https://lcards.unimatrix01.ca/getting-started/cb-lcars-migration)**
-
-<br>
-
-## Installation
+## Install
 
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snootched&repository=LCARdS&category=integration)
 
-1. Open **HACS** → search for **LCARdS** under **Integrations** → Download
-2. Restart Home Assistant
-3. Go to **Settings → Integrations → Add Integration → LCARdS**
+1. In **HACS**, search for **LCARdS** under **Integrations** and download it.
+2. Restart Home Assistant.
+3. Go to **Settings > Devices & services > Add integration > LCARdS**.
 
-Requires **Home Assistant 2026.10 or newer**. There are no external dependencies — use with [**HA-LCARS themes**](https://github.com/th3jesta/ha-lcars) for the full experience.
+Requires **Home Assistant 2026.10 or newer**, and nothing else. Pair it with an [HA-LCARS theme](https://github.com/th3jesta/ha-lcars) for the full experience. See the [installation guide](https://lcards.unimatrix01.ca/getting-started/installation) for details.
 
+## The cards
 
-→ **[Full installation guide](https://lcards.unimatrix01.ca/getting-started/installation)**
+| Card | What it does |
+|------|-------------|
+| `lcards-button` | LCARS buttons and labels, plus multi-part controls (D-pad, alert symbol, custom shapes) |
+| `lcards-elbow` | LCARS corners and frames, including Picard-style double elbows |
+| `lcards-slider` | Bars and gauges to show or set a value |
+| `lcards-select-menu` | A grid of buttons for an `input_select` or `select` entity |
+| `lcards-data-grid` | Tables of live values, or decorative data cascades |
+| `lcards-chart` | Charts of history, statistics and data sources (ApexCharts) |
+| `lcards-alert-overlay` | The full-screen overlay shown during an alert mode |
+| `lcards-msd-card` | Master Systems Display: a ship blueprint with cards joined by routed lines |
+| `lcards-layout-card` | A grid of cards inside one card, with a visual Layout Studio |
+| `lcards-layout-view` | A dashboard view type with the same visual grid editor |
 
-**Need help?** Open the LCARdS panel → **Welcome** → **Support & system info** for a health check and a one-click, pre-filled bug report — see **[Getting Help](https://lcards.unimatrix01.ca/getting-started/getting-help)**.
+[Browse the cards](https://lcards.unimatrix01.ca/cards/) on the docs site, with live demos.
 
-<br>
+<sub>Coming from the older CB-LCARS cards? See [Coming from CB-LCARS](https://lcards.unimatrix01.ca/getting-started/cb-lcars-migration).</sub>
+
+## Support & community
+
+LCARdS is a hobby and passion project. If you find it useful (or just cool):
+
+- ⭐ **Star the repo**: it helps other people find the project.
+- **[Report issues](https://github.com/snootched/lcards/issues)**: open the LCARdS panel, **Welcome > Support & system info**, for a health check and a pre-filled bug report.
+- **[Join discussions](https://github.com/snootched/lcards/discussions)**: questions, ideas, and showing off what you've built are all welcome.
+
+> [!NOTE]
+> LCARdS is a hobby project, not a fully commissioned Starfleet product: expect the occasional tribble. It is for personal use, and AI coding tools are used in its development (see [AI usage](#ai-usage)).
 
 ---
 
-## Support & Community
-
-LCARdS is a hobby and passion project.  If you find it useful (or just cool), the ways to support it are:
-
-- ⭐ **Star the repo** — it genuinely helps other people find the project
-- 🐛 **[Report issues](https://github.com/snootched/lcards/issues)** — bug reports and reproduction steps help more than almost anything else
-- 💬 **[Join discussions](https://github.com/snootched/lcards/discussions)** — questions, ideas, and showing off what you've built are all welcome
-
-<br>
-
----
-
-## AI Usage
+## AI usage
 
 <details>
 <summary>AI-Assisted Development Notice (AIG‑2)</summary>
@@ -109,37 +93,31 @@ LCARdS is a hobby and passion project.  If you find it useful (or just cool), th
 This is a human-directed, AI-assisted project. AI acts as an implementation accelerator; humans remain responsible for decisions, testing for quality control, and final output.</i>
 </details>
 
-<br>
-
 ---
 
-## Acknowledgements & Thanks
+## Acknowledgements & thanks
 
 A very sincere thanks to these projects and their authors, contributors and communities:
 
-[**ha-lcars theme**](https://github.com/th3jesta/ha-lcars) — the definitive LCARS theme for Home Assistant
+[**ha-lcars theme**](https://github.com/th3jesta/ha-lcars): the definitive LCARS theme for Home Assistant
 
 [LCARSlad London](https://twitter.com/lcarslad) for excellent LCARS images and diagrams for reference.
 
-[meWho Titan.DS](https://www.mewho.com/titan) for such a cool interactive design demo and colour reference.  Such a cool UI to aspire to!
+[meWho Titan.DS](https://www.mewho.com/titan) for such a cool interactive design demo and colour reference. Such a cool UI to aspire to!
 
-[TheLCARS.com](https://www.thelcars.com) — a great LCARS design reference, and the original base reference for colours, Data Cascade and Pulsewave animations.
+[TheLCARS.com](https://www.thelcars.com): a great LCARS design reference, and the original base reference for colours, Data Cascade and Pulsewave animations.
 
 [lcars](https://github.com/joernweissenborn/lcars) for the SVG used inline in the D-pad control.
 
 [**lovelace-layout-card**](https://github.com/thomasloven/lovelace-layout-card) · [**lovelace-card-mod**](https://github.com/thomasloven/lovelace-card-mod)
 
-**All Star Trek & LCARS fans** — your passion drives this project 🖖
-
-<br>
+**All Star Trek & LCARS fans**: your passion drives this project 🖖
 
 ---
 
-## License & Disclaimers
+## License & disclaimers
 
 This project is released under the [MIT License](LICENSE).
-
----
 
 **A STAR TREK FAN PRODUCTION**
 

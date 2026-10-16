@@ -191,6 +191,6 @@ color: var(--lcards-orange-medium, #ff6753);
 
 ## HA-LCARS Theme Profiles
 
-LCARdS ships ready-made theme profiles that extend HA-LCARS using the `--lcards-*` palette as the single source of truth. They remap both the HA-LCARS chrome variables and the HA core colour tokens (`--ha-color-*`) so that stock HA components, LCARdS cards, and the HA-LCARS chrome all share the same palette, including alert-mode hue rotations.
+HA-LCARS includes two LCARdS theme profiles that use the `--lcards-*` palette as the single source of truth. They remap both the HA-LCARS chrome variables and the HA core colour tokens (`--ha-color-*`) so that stock HA components, LCARdS cards, and the HA-LCARS chrome all share the same palette, including alert-mode hue rotations.
 
 → [HA-LCARS Theme Profiles](../../configuration/ha-lcars-theme-profiles.md)

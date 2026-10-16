@@ -79,13 +79,14 @@ LCARS data grids with cascade animations.
 
 === Chart
 
-**`lcards-chart`**
+#### **`lcards-chart`**
 LCARdS integrated charting via ApexCharts.
 
+![Chart card: a 24-hour temperature history as an orange area with a gradient fill, a blue smoothed line from a data source, and a dashed comfort threshold](/img/cards/chart.webp)
 
 - 15+ chart types: line, area, bar, pie, scatter, heatmap, radar, and more
-- Single entity, multi-entity, or data source with processor buffers
-- Moving averages, min/max, rolling statistics from data source integration
+- Entities, long-term statistics or data sources, with smoothing, min/max and rolling statistics
+- Threshold lines, gradient fills and theme colours that follow alert modes
 
 [Chart Documentation](chart/)
 
@@ -94,8 +95,9 @@ LCARdS integrated charting via ApexCharts.
 #### **`lcards-alert-overlay`**
 Full-screen dashboard overlay reacting to alert state.
 
+<video class="doc-video" src="/gallery/alert.webm" poster="/img/cards/alert-overlay.webp" title="Alert overlay: red alert covers a dashboard with a blurred backdrop and the red alert symbol, then yellow alert" autoplay loop muted playsinline></video>
 
-- Can configure to activate automatically on `input_select.lcards_alert_mode` change
+- Activates automatically when `input_select.lcards_alert_mode` changes (for example from `lcards.red_alert`)
 - Full-screen backdrop with blur + tint layers
 - Configurable per-condition content card, position, and size
 - Content is interactive, with tap outside to dismiss
@@ -104,9 +106,10 @@ Full-screen dashboard overlay reacting to alert state.
 
 === MSD
 
-#### **`lcards-msd`**
-Create your own Master Systems Display with controls and routable lines
+#### **`lcards-msd-card`**
+Create your own Master Systems Display with controls and routable lines.
 
+<video class="doc-video" src="/img/cards/msd-motion.webm" poster="/img/cards/msd.webp" title="MSD card: shield arcs around a starship blueprint turn orange, then red, as shields drop, with three controls joined to the ship by routed lines" autoplay loop muted playsinline></video>
 
 - Embed any HA card as a positioned **control overlay**
 - **Line overlays**: SVG lines with smart routing and avoid-obstacle algorithms
@@ -114,6 +117,20 @@ Create your own Master Systems Display with controls and routable lines
 - Animate lines independently with rules
 
 [MSD Documentation](msd/)
+
+=== Layout Card
+
+#### **`lcards-layout-card`**
+A grid of cards inside one card: build a sub-grid anywhere.
+
+![Layout card: an LCARS frame of header and footer elbows around three buttons, a block of data cascade numbers and a vertical Picard-style slider](/img/cards/layout-card.webp)
+
+- CSS Grid with named areas: place each card by area, like the Layout View
+- **Layout Studio**: a full-screen visual editor to draw areas and place cards
+- Nest layout cards for deeper sub-grids
+- Child cards keep Home Assistant's own visibility conditions
+
+[Layout Card Documentation](layout-card/)
 
 ::::
 

@@ -1,6 +1,6 @@
 # LCARdS Theme Profiles for HA-LCARS
 
-LCARdS ships a set of ready-made theme profiles designed to be used alongside the [**HA-LCARS**](https://github.com/th3jesta/ha-lcars) community theme.
+[**HA-LCARS**](https://github.com/th3jesta/ha-lcars) includes two themes made for LCARdS: **LCARS Picard [LCARdS Red Accent]** and **LCARS Picard [LCARdS Blue Accent]**. Pick one and Home Assistant's own screens, the HA-LCARS chrome and your LCARdS cards all share one palette.
 
 - Uses the **LCARdS colour palette** (`--lcards-*` variables) that are provided automatically by the integration.
 - The **HA core colour tokens** (`--ha-color-*`) which are used by stock Home Assistant components are remapped to LCARdS palette entries.  This helps bring more theme consistency across across the UI.
@@ -8,17 +8,14 @@ LCARdS ships a set of ready-made theme profiles designed to be used alongside th
 
 ---
 
-## Prerequisites
+## Using a profile
 
-You need **HA-LCARS** installed before applying these profiles.  Follow the installation guide on the [HA-LCARS repository](https://github.com/th3jesta/ha-lcars) first.
+1. Install or update [HA-LCARS](https://github.com/th3jesta/ha-lcars) (the LCARdS profiles are part of its theme file; update if you don't see them).
+2. In Home Assistant, open your **Profile** and pick **LCARS Picard [LCARdS Red Accent]** or **LCARS Picard [LCARdS Blue Accent]** as the theme.
 
----
+That's all: there is nothing to copy into `themes.yaml`.
 
-## Profile YAML
-
-Download or copy from the file below and paste at the end of your `themes.yaml`:
-
-→ **[ha-lcars-lcards-themes.yaml](https://github.com/snootched/lcards/tree/main/yaml/theme/ha-lcars-lcards-themes.yaml)**
+To make your own profile, use the [HA-LCARS Theme Lab](ha-lcars-theme-lab) in the LCARdS panel: start from one of these profiles, change its palettes, and add the result to HA-LCARS.
 
 ---
 
@@ -30,18 +27,6 @@ Download or copy from the file below and paste at the end of your `themes.yaml`:
 | `LCARS Picard [LCARdS Blue Accent]` | Blue (`--lcards-blue-*`) | Primary accent mapped to the LCARdS blue family |
 
 Both profiles include independent **light** and **dark** mode sections and cover the full 11-shade HA core colour token range, plus HA's `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer (the vars behind buttons, chips, form fields, and dialogs).
-
----
-
-## Installation
-
-The profiles are appended to the end of your existing HA-LCARS `themes.yaml` file.  This is the standard HA-LCARS extension pattern; no existing theme entries are modified.
-
-1. Open your HA-LCARS `themes.yaml` file (typically `config/themes/ha-lcars/themes.yaml`).
-2. Scroll to the **very end** of the file.
-3. Copy the entire contents of the profile YAML file linked below and paste it after the last line.
-4. Reload themes in Home Assistant:  **Developer Tools → YAML → Reload Themes**, or call the `frontend.reload_themes` service.
-5. Select the profile in **Profile → Theme** in the HA frontend.
 
 ---
 

@@ -2,14 +2,14 @@
 
 LCARdS originates from, and supersedes, the [CB-LCARS](https://github.com/snootched/cb-lcars) project.
 
-CB-LCARS was based on [Custom Button Card](https://github.com/custom-cards/button-card) but LCARdS uses native LIT and other libraries.
+CB-LCARS was based on [Custom Button Card](https://github.com/custom-cards/button-card); LCARdS is built from scratch with Lit and needs no other custom cards.
 
-Most features have been ported to LCARdS, see the table to quickly find the LCARdS equivalent for each CB-LCARS card or feature.
+Most features have been ported to LCARdS. Use the table to find the LCARdS equivalent of each CB-LCARS card or feature.
 
 ::: tip You can run both simultaneously
 CB-LCARS and LCARdS can coexist while you transition. All new features and fixes will be made in LCARdS only going forward.
 
-Configuration schemas are different between the two, there is no direct port of card config at this time.
+The configuration formats differ, so card configs don't carry over directly.
 :::
 
 
@@ -28,6 +28,11 @@ Configuration schemas are different between the two, there is no direct port of 
 | Double Elbows | ✅ `cb-lcars-double-elbow-card` | ✅ `lcards-elbow` | Double Elbow functionality is now consolidated into a single unified `lcards-elbow` card. |
 | Sliders | ✅ `cb-lcars-multimeter-card` | ✅ `lcards-slider` | Completely replacing the former multimeter card. Vastly improved: configurable direction, inversion, display min/max, control min/max, and more. |
 | Cascade Data Grid | ⚠️ background animation | ✅ `lcards-data-grid` | CB-LCARS provided a decorative-only version as a background animation. `lcards-data-grid` is a full-featured grid that can show real entity data, text, etc. Decorative mode is still available. |
+| Text | ✅ `cb-lcars-text-card` | ✅ `lcards-button` | Text-only button presets, or text fields on any card. |
+| Picard-style controls | ✅ `cb-lcars-picard-card` | ✅ `lcards-elbow`, `lcards-slider` | Segmented (double) elbows and frames on `lcards-elbow`; the `picard` slider component with the `picard-gauge-vertical` preset; `filled` and `outline` button presets. |
+| Layouts | ⚠️ `custom:layout-card` (separate install) | ✅ `lcards-layout-card`, `lcards-layout-view` | LCARdS has its own grid layouts with visual editors. Replace `custom:layout-card` with `lcards-layout-card`: change the `type` and remove `layout_type`; the `layout` and `view_layout` keys stay the same. See [Layout Card](../cards/layout-card/). |
+| Select menu | ❌ | ✅ `lcards-select-menu` | A grid of buttons for an `input_select` or `select` entity. |
+| card-mod | ⚠️ required | ✅ not needed | LCARdS needs no other custom cards or card-mod. |
 | Charts / Graphs | ❌ | ✅ `lcards-chart` | Embedded ApexCharts library providing 15+ chart types to plot entity/data. |
 | MSD (Master Systems Display) | ❌ | ✅ `lcards-msd` | Full MSD system in a card. Embed controls, connect routing lines, add animations to reflect statuses. |
 | Background Animations | ✅ GRID, ALERT, GEO Array, Pulsewave | ⚠️ ✅ | Background animations split into stackable layers: mix and match building blocks. ✅ GRID (enhanced), ✅ ALERT (button component), ✅ Starfield & Nebula (enhanced). ⚠️ GEO Array, Pulsewave (pending). |

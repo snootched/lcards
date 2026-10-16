@@ -579,7 +579,7 @@ An AI agent connected to Home Assistant (through the Model Context Protocol serv
 
 - Every action and its fields is listed above; `services.yaml` in the integration carries the same descriptions, so agents that read the service list see them too.
 - Actions with [targeting](#targeting) fields act on every connected browser when the fields are omitted. Agents should target a device or user when the request is about one screen.
-- To change what a dashboard looks like (rather than trigger something on it), an agent edits dashboard YAML instead. Point it at the [JSON Schemas and the config checker](/cards/ai-assistance) so it only writes keys LCARdS has.
+- To change what a dashboard looks like (rather than trigger something on it), an agent edits dashboard YAML instead. Point it at the [JSON Schemas and the config checker](/getting-started/ai-assistance) so it only writes keys LCARdS has.
 
 ---
 

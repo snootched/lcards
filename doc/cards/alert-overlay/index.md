@@ -2,6 +2,8 @@
 
 `custom:lcards-alert-overlay`
 
+<video class="doc-video" src="/gallery/alert.webm" poster="/img/cards/alert-overlay.webp" title="Alert overlay: red alert covers a dashboard with a blurred backdrop and the red alert symbol, then yellow alert with the yellow one" autoplay loop muted playsinline></video>
+
 The Alert Overlay card reacts to the `input_select.lcards_alert_mode` helper and displays a full-screen backdrop and content card whenever the system enters an alert state. It is a **singleton infrastructure card**: add one instance to every dashboard that should show overlays.  You can place it out of the way in the view - in normal dashboard mode it has no visual presence.  In edit mode it will show an info box so you can identify it in the editor.
 
 ---
@@ -21,7 +23,7 @@ Optionally, create the `input_select.lcards_alert_transition_style` helper to en
 type: custom:lcards-alert-overlay
 ```
 
-The built-in defaults display an LCARS shield symbol styled for the active condition with appropriate colours and animations.
+The built-in defaults display an LCARS shield symbol styled for the active condition with appropriate colours and animations, sized to fit 60% of the screen's width and 50% of its height.
 
 ---
 
@@ -62,8 +64,8 @@ auto_dismiss_seconds: 30        # seconds; required for auto-dismiss / auto-rese
 # ── Content position & size ────────────────────────────────────────────────────
 position: center                # center | top | bottom | top-left | top-right
                                 # bottom-left | bottom-right | left | right
-width: 400px                    # content card width (any CSS value)
-height: auto                    # content card height; usually omit - SVG cards self-size from width
+width: 60%                      # content card width (any CSS value; % is of the screen). Default 60%
+height: 50%                     # content card height; default 50% for the alert symbol, auto otherwise
 
 # ── Screen effects ─────────────────────────────────────────────────────────────
 layers:
@@ -110,8 +112,8 @@ conditions:
 | `dismiss_mode` | string | `dismiss` | What happens when the user taps the backdrop; see [Dismiss](#dismiss) |
 | `auto_dismiss_seconds` | number | - | Seconds before the overlay auto-dismisses. Required when `dismiss_mode` is `auto-dismiss` or `auto-reset`. Min: 1. Can be overridden per condition. |
 | `position` | string | `center` | Where to place the content card within the overlay; see [Position](#position) |
-| `width` | string | `auto` | Global content card width (CSS value, e.g. `400px`, `50vw`). For the default alert button and other SVG component cards, width alone is sufficient; height is computed automatically from the SVG's aspect ratio. |
-| `height` | string | `auto` | Global content card height (CSS value). Only needed when the content card cannot determine its own height from width (e.g. custom cards that don't embed a component SVG). |
+| `width` | string | `60%` | Content card width (CSS value, e.g. `400px`, `50%`). Percentages are of the screen. For the default alert symbol and other SVG component cards, a width alone is enough: the height follows from the SVG's aspect ratio. |
+| `height` | string | see note | Content card height (CSS value). With neither `width` nor `height` set, the built-in alert symbol gets `50%` of the screen's height and scales to fit, so it suits wide, tall and phone screens alike. Otherwise the content sizes itself (`auto`); set a height for custom cards that can't size themselves from their width. |
 | `layers` | object | - | Per-slot screen effect configuration: see [Layers](#layers) |
 | `conditions` | object | - | Per-condition overrides: see [Conditions](#conditions) |
 

@@ -4,7 +4,7 @@ description: "How to compose an LCARS dashboard from LCARdS cards: which card fo
 
 # Building a Dashboard
 
-How to go from single cards to a whole LCARS screen. The [Dashboard Gallery](dashboard-gallery) shows five finished examples built this way; this page explains the choices behind them.
+How to go from single cards to a whole LCARS screen. The [Dashboard Gallery](dashboard-gallery) shows finished examples built this way; this page explains the choices behind them.
 
 ## Pick the cards
 
@@ -18,7 +18,7 @@ How to go from single cards to a whole LCARS screen. The [Dashboard Gallery](das
 | History | [Chart](../cards/chart/) | Entity history, statistics or data sources |
 | A ship or floor plan with live controls | [MSD](../cards/msd/) | Cards placed on an SVG, wired with routed lines |
 | A full-screen alert | [Alert Overlay](../cards/alert-overlay/) | Shows over the view while an alert mode is active |
-| The screen itself | [Layout View](../cards/layout-view/) | A CSS grid for the whole view; [Layout Card](../cards/layout-view/#layout-card) for a grid inside one area |
+| The screen itself | [Layout View](../cards/layout-view/) | A CSS grid for the whole view; [Layout Card](../cards/layout-card/) for a grid inside one area |
 
 ## Lay out the screen
 
@@ -184,4 +184,6 @@ Automations can react to the alert level too: `input_select.lcards_alert_mode` a
 
 ## Check it
 
-Before saving a dashboard, run it through the [config checker](../cards/ai-assistance#check-what-it-wrote): `node lcards-validate.mjs my-dashboard.yaml` reports keys LCARdS doesn't have and names that don't exist (a misspelt preset, animation or theme token), each at its path in the YAML.
+Before saving a dashboard, paste it into [Check Your Config](config-checker). It reports keys LCARdS doesn't have and names that don't exist (a misspelt preset, animation or theme token), each at its path in the YAML.
+
+Want help writing it? [Getting AI Help](ai-assistance) shows how to have Claude or another assistant write the YAML for you.

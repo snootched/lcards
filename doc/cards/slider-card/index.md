@@ -672,7 +672,7 @@ style:
     progress_bar:
       color:
         default: "var(--lcards-blue)"
-        heat: "var(--lcards-alert-red)"
+        heat: "var(--lcars-alert-red)"
         cool: "var(--lcards-blue)"
       layer: background
       radius: 3

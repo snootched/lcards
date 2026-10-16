@@ -1,6 +1,7 @@
 import DefaultTheme from 'vitepress/theme'
 import { enhanceAppWithTabs } from 'vitepress-plugin-tabs/client'
-import { onMounted, onUnmounted, h } from 'vue'
+import { onMounted, onUnmounted, h, watch, defineAsyncComponent } from 'vue'
+import { useData, useRouter, withBase } from 'vitepress'
 import HomeBadges from './HomeBadges.vue'
 import AnimationPlayground from './AnimationPlayground.vue'
 import FilterPlayground from './FilterPlayground.vue'
@@ -14,6 +15,7 @@ import ReleaseList from './ReleaseList.vue'
 import ReleaseMeta from './ReleaseMeta.vue'
 import VersionSwitcher from './VersionSwitcher.vue'
 import VersionBanner from './VersionBanner.vue'
+import HowItWorks from './HowItWorks.vue'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -34,6 +36,21 @@ function getLightbox(): HTMLDialogElement {
   })
   return lightboxEl
 }
+
+// Screenshots (gallery, card overview, release pages): click to see them full size
+// in the same lightbox. Images inside links, and small ones, are left alone.
+function openImageLightbox(img: HTMLImageElement) {
+  const lb    = getLightbox()
+  const inner = lb.querySelector('.mz-svg-inner')!
+  const clone = document.createElement('img')
+  clone.src = img.currentSrc || img.src
+  clone.alt = img.alt
+  clone.style.cssText = 'display:block;max-width:100%;max-height:85vh;margin:auto;object-fit:contain;'
+  inner.innerHTML = ''
+  inner.appendChild(clone)
+  lb.showModal()
+}
+const zoomable = (img: HTMLImageElement) => !img.closest('a') && img.naturalWidth >= 480
 
 function openSvgLightbox(svgEl: SVGSVGElement) {
   const lb    = getLightbox()
@@ -88,6 +105,10 @@ export default {
     // Releases section: the index cards and the line under each release page's title.
     app.component('ReleaseList', ReleaseList)
     app.component('ReleaseMeta', ReleaseMeta)
+    // "How LCARdS works": the layers and examples (What is LCARdS, the home page).
+    app.component('HowItWorks', HowItWorks)
+    // The Check Your Config page (ajv, the schemas): its own chunk, loaded on that page only.
+    app.component('ConfigChecker', defineAsyncComponent(() => import('./ConfigChecker.vue')))
   },
 
   Layout() {
@@ -102,6 +123,14 @@ export default {
 
 
   setup() {
+    // Moved pages: a stub with frontmatter `redirect: /new/path` sends readers on
+    // (the stub still shows a link, for builds without JavaScript).
+    const { frontmatter } = useData()
+    const router = useRouter()
+    watch(() => frontmatter.value.redirect, (to) => {
+      if (typeof window !== 'undefined' && typeof to === 'string') router.go(withBase(to))
+    }, { immediate: true })
+
     // Delegated click for mermaid diagrams: no timing issues
     const handleMermaidClick = (e: MouseEvent) => {
       const mermaidDiv = (e.target as Element).closest?.('.vp-doc .mermaid')
@@ -110,8 +139,27 @@ export default {
       if (svg) openSvgLightbox(svg as SVGSVGElement)
     }
 
-    onMounted(() => document.addEventListener('click', handleMermaidClick))
-    onUnmounted(() => document.removeEventListener('click', handleMermaidClick))
+    const handleImageClick = (e: MouseEvent) => {
+      const img = (e.target as Element).closest?.('.vp-doc img') as HTMLImageElement | null
+      if (img && zoomable(img)) openImageLightbox(img)
+    }
+    // A zoom-in cursor on the images the lightbox opens.
+    const markZoomable = (e: Event) => {
+      const img = e.target as HTMLImageElement
+      if (img?.tagName === 'IMG' && img.closest('.vp-doc') && zoomable(img)) img.classList.add('zoomable')
+    }
+
+    onMounted(() => {
+      document.addEventListener('click', handleMermaidClick)
+      document.addEventListener('click', handleImageClick)
+      document.addEventListener('load', markZoomable, true)
+      document.querySelectorAll<HTMLImageElement>('.vp-doc img').forEach(img => img.complete && markZoomable({ target: img } as unknown as Event))
+    })
+    onUnmounted(() => {
+      document.removeEventListener('click', handleMermaidClick)
+      document.removeEventListener('click', handleImageClick)
+      document.removeEventListener('load', markZoomable, true)
+    })
   },
 }
 

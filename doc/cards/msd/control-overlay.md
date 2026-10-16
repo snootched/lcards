@@ -196,7 +196,7 @@ rules:
       overlays:
         warp_core:
           style:
-            color: "var(--lcards-alert-red)"
+            color: "var(--lcars-alert-red)"
 ```
 
 See [Rules Engine](../../core/rules/) for targeting multiple overlays at once with `tag:`, `type:`, `pattern:`, and `all:` selectors.

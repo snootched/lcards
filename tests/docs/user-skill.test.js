@@ -35,6 +35,23 @@ test('SKILL.md has the frontmatter a skill needs and names the version it was bu
     assert.ok(!/—/.test(md));
 });
 
+// The Agent Skills open standard (agentskills.io/specification): any tool that supports
+// it can load the zip, so the frontmatter must keep to its rules.
+test('SKILL.md follows the Agent Skills specification', () => {
+    const md = readFileSync(join(skill, 'SKILL.md'), 'utf8');
+    const fm = /^---\n([\s\S]*?)\n---/.exec(md)?.[1] ?? '';
+    const fields = Object.fromEntries(fm.split('\n').map(l => /^([a-z-]+): (.*)$/.exec(l)).filter(Boolean).map(m => [m[1], m[2]]));
+    const allowed = ['name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'];
+    assert.deepEqual(Object.keys(fields).filter(k => !allowed.includes(k)), [], 'only spec fields');
+    assert.match(fields.name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
+    assert.ok(fields.name.length <= 64);
+    assert.equal(fields.name, 'lcards', 'name matches the folder in the zip');
+    assert.ok(existsSync(join(dir, fields.name, 'SKILL.md')));
+    assert.ok(fields.description.length >= 1 && fields.description.length <= 1024);
+    if (fields.compatibility) assert.ok(fields.compatibility.length <= 500);
+    assert.ok(md.split('\n').length < 500, 'SKILL.md under 500 lines');
+});
+
 test('every path SKILL.md mentions exists in the package', () => {
     const md = readFileSync(join(skill, 'SKILL.md'), 'utf8');
     const paths = [...md.matchAll(/`((?:references|scripts)\/[^`<>*\s]+)`/g)].map(m => m[1].replace(/\/$/, ''));

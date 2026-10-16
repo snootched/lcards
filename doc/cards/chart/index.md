@@ -2,6 +2,8 @@
 
 `custom:lcards-chart`
 
+![Chart card: a 24-hour temperature history as an orange area with a gradient fill, a blue smoothed line from a data source, and a dashed comfort threshold](/img/cards/chart.webp)
+
 Plots your Home Assistant sensors over time: lines, areas, columns, gauges, range bands, candlesticks and more. Charts pick up your LCARS theme colours and fonts automatically, so most charts need nothing more than a list of entities.
 
 The card is built on [ApexCharts](https://apexcharts.com/), a very capable charting library. You don't need to know ApexCharts to use it: these pages cover everything LCARdS sets up for you.

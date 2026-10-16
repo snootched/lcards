@@ -4,6 +4,7 @@ import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
 import { readFileSync, existsSync, statSync, createReadStream } from 'node:fs'
 import { resolve, extname, sep } from 'node:path'
 import { listReleases } from '../../scripts/release-lib.mjs'
+import { buildLlmsTxt, buildLlmsFull } from '../../scripts/lib/llms-txt.js'
 
 const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'))
 
@@ -145,6 +146,18 @@ function devBundlePlugin() {
         res.setHeader('Cache-Control', 'no-cache')
         createReadStream(file).pipe(res)
       })
+      // llms.txt / llms-full.txt are written into the built site by docs:build
+      // (scripts/generate-llms-txt.js); the dev server makes them on each request
+      // (scripts/lib/llms-txt.js).
+      const LLMS: Record<string, typeof buildLlmsTxt> = { 'llms.txt': buildLlmsTxt, 'llms-full.txt': buildLlmsFull }
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? '').split('?')[0]
+        const build = path.startsWith(BASE) ? LLMS[path.slice(BASE.length)] : undefined
+        if (!build) return next()
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-cache')
+        res.end(build({ base: BASE, version: pkg.version }) + '\n')
+      })
     },
   }
 }
@@ -156,6 +169,9 @@ export default withMermaid(defineConfig({
   base: BASE,
 
   ignoreDeadLinks: false,
+
+  // "Last updated" date at the foot of each page (from git).
+  lastUpdated: true,
 
   // Default to dark mode (matches LCARS aesthetic)
   appearance: 'dark',
@@ -265,9 +281,10 @@ export default withMermaid(defineConfig({
         items: [
           { text: 'What is LCARdS?',      link: '/getting-started/what-is-lcards' },
           { text: 'Installation',          link: '/getting-started/installation' },
-          { text: 'Coming from CB-LCARS', link: '/getting-started/cb-lcars-migration' },
           { text: 'Building a Dashboard', link: '/getting-started/building-dashboards' },
           { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
+          { text: 'Getting AI Help',      link: '/getting-started/ai-assistance' },
+          { text: 'Check Your Config',    link: '/getting-started/config-checker' },
           { text: 'Getting Help',         link: '/getting-started/getting-help' },
         ],
       },
@@ -275,15 +292,31 @@ export default withMermaid(defineConfig({
         text: 'Configuration',
         activeMatch: '/configuration/',
         items: [
-          { text: 'Overview & Setup',  link: '/configuration/' },
-          { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
-          { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
-          { text: 'Connectivity',      link: '/configuration/connectivity' },
-          { text: 'Helpers',           link: '/configuration/persistent-helpers' },
-          { text: 'Sound Configuration',            link: '/configuration/sounds' },
-          { text: 'Users & Devices',   link: '/configuration/users-devices' },
-          { text: 'HA Actions',         link: '/configuration/ha-actions' },
-          { text: 'Using browser_mod', link: '/configuration/browser-mod' },
+          {
+            text: 'Setup',
+            items: [
+              { text: 'Overview & Setup',  link: '/configuration/' },
+              { text: 'Helpers',           link: '/configuration/persistent-helpers' },
+              { text: 'Users & Devices',   link: '/configuration/users-devices' },
+            ],
+          },
+          {
+            text: 'Look & Sound',
+            items: [
+              { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
+              { text: 'HA-LCARS Theme Lab', link: '/configuration/ha-lcars-theme-lab' },
+              { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
+              { text: 'Sound Configuration', link: '/configuration/sounds' },
+            ],
+          },
+          {
+            text: 'Integrations',
+            items: [
+              { text: 'HA Actions',        link: '/configuration/ha-actions' },
+              { text: 'Using browser_mod', link: '/configuration/browser-mod' },
+              { text: 'Connectivity',      link: '/configuration/connectivity' },
+            ],
+          },
         ],
       },
       {
@@ -296,7 +329,7 @@ export default withMermaid(defineConfig({
               { text: 'Overview',          link: '/cards/' },
               { text: 'Common Properties', link: '/cards/common' },
               { text: 'Main Engineering',  link: '/cards/main-engineering' },
-              { text: 'Getting AI Help',   link: '/cards/ai-assistance' },
+              { text: 'Card Features →',   link: '/core/' },
             ],
           },
           {
@@ -307,35 +340,21 @@ export default withMermaid(defineConfig({
               { text: 'Chart',         link: '/cards/chart/' },
               { text: 'Data Grid',     link: '/cards/data-grid/' },
               { text: 'Elbow',         link: '/cards/elbow/' },
+              { text: 'Layout Card',   link: '/cards/layout-card/' },
               { text: 'Layout View',   link: '/cards/layout-view/' },
               { text: 'MSD',           link: '/cards/msd/' },
               { text: 'Select Menu',   link: '/cards/select-menu/' },
               { text: 'Slider',        link: '/cards/slider-card/' },
             ],
           },
-          {
-            text: 'Card Features',
-            items: [
-              { text: 'Actions',           link: '/core/actions' },
-              { text: 'Animations',        link: '/core/animations' },
-              { text: 'Colours',           link: '/core/colours' },
-              { text: 'Data Sources',      link: '/core/datasources/' },
-              { text: 'Presets',           link: '/core/presets' },
-              { text: 'Rules Engine',      link: '/core/rules/' },
-              { text: 'Card Sounds',            link: '/core/sounds' },
-              { text: 'Styles',            link: '/core/styles' },
-              { text: 'Templates',         link: '/core/templates/' },
-              { text: 'Text Fields',       link: '/core/text-fields' },
-            ],
-          },
         ],
       },
       {
-        text: 'Core',
+        text: 'Features',
         activeMatch: '/core/',
         items: [
           {
-            text: 'Per-Card Options',
+            text: 'On Every Card',
             items: [
               { text: 'Overview',    link: '/core/' },
               { text: 'Actions',     link: '/core/actions' },
@@ -347,7 +366,7 @@ export default withMermaid(defineConfig({
             ],
           },
           {
-            text: 'Core Services',
+            text: 'Shared Services',
             items: [
               { text: 'Data Sources', link: '/core/datasources/' },
               { text: 'Rules Engine', link: '/core/rules/' },
@@ -369,24 +388,23 @@ export default withMermaid(defineConfig({
         ],
       },
       {
-        text: 'Architecture',
-        activeMatch: '/architecture/',
+        text: 'Developers',
+        activeMatch: '/(architecture|development)/',
         items: [
-          { text: 'Systems Overview',   link: '/architecture/systems-arch' },
-          { text: 'HA Integration',     link: '/architecture/ha-integration' },
-          { text: 'Card Foundation',    link: '/architecture/cards/lcards-card-foundation' },
-          { text: 'Layout View',        link: '/architecture/layout-view' },
-          { text: 'MSD Pipeline',       link: '/architecture/msd/' },
-          { text: 'Routing Engine (RouterCore)', link: '/architecture/msd/routing' },
-          { text: 'Animation Architecture', link: '/architecture/animations/' },
-          { text: 'Core Subsystems →',       link: '/architecture/subsystems/' },
-          { text: 'Internals →',             link: '/architecture/internals/' },
-        ],
-      },
-      {
-        text: 'Developer',
-        activeMatch: '/development/',
-        items: [
+          {
+            text: 'Architecture',
+            items: [
+              { text: 'Systems Overview',   link: '/architecture/systems-arch' },
+              { text: 'HA Integration',     link: '/architecture/ha-integration' },
+              { text: 'Card Foundation',    link: '/architecture/cards/lcards-card-foundation' },
+              { text: 'Layout View',        link: '/architecture/layout-view' },
+              { text: 'MSD Pipeline',       link: '/architecture/msd/' },
+              { text: 'Routing Engine (RouterCore)', link: '/architecture/msd/routing' },
+              { text: 'Animation Architecture', link: '/architecture/animations/' },
+              { text: 'Core Subsystems →',       link: '/architecture/subsystems/' },
+              { text: 'Internals →',             link: '/architecture/internals/' },
+            ],
+          },
           {
             text: 'Guide',
             items: [
@@ -437,10 +455,18 @@ export default withMermaid(defineConfig({
           items: [
             { text: 'What is LCARdS?',           link: '/getting-started/what-is-lcards' },
             { text: 'Installation',               link: '/getting-started/installation' },
-            { text: 'Coming from CB-LCARS',    link: '/getting-started/cb-lcars-migration' },
             { text: 'Building a Dashboard',    link: '/getting-started/building-dashboards' },
             { text: 'Dashboard Gallery',       link: '/getting-started/dashboard-gallery' },
+            { text: 'Getting AI Help',         link: '/getting-started/ai-assistance' },
+            { text: 'Check Your Config',       link: '/getting-started/config-checker' },
             { text: 'Getting Help',            link: '/getting-started/getting-help' },
+          ],
+        },
+        {
+          text: 'More',
+          collapsed: true,
+          items: [
+            { text: 'Coming from CB-LCARS',    link: '/getting-started/cb-lcars-migration' },
           ],
         },
       ],
@@ -452,7 +478,6 @@ export default withMermaid(defineConfig({
             { text: 'Overview',          link: '/cards/' },
             { text: 'Common Properties', link: '/cards/common' },
             { text: 'Main Engineering',  link: '/cards/main-engineering' },
-            { text: 'Getting AI Help',   link: '/cards/ai-assistance' },
           ],
         },
         {
@@ -505,6 +530,7 @@ export default withMermaid(defineConfig({
                 { text: 'Upgrading',           link: '/cards/data-grid/upgrading' },
               ],
             },
+            { text: 'Layout Card',    link: '/cards/layout-card/' },
             { text: 'Layout View',    link: '/cards/layout-view/' },
             {
               text: 'MSD',
@@ -533,53 +559,46 @@ export default withMermaid(defineConfig({
           ],
         },
         {
-          text: 'Card Features',
-          collapsed: false,
-          items: [
-            { text: 'Actions',               link: '/core/actions' },
-            { text: 'Animations',             link: '/core/animations' },
-            { text: 'Background Animations',  link: '/core/effects/background-animations' },
-            { text: 'Screen Effects',         link: '/core/effects/screen-effects' },
-            { text: 'Colours',               link: '/core/colours' },
-            { text: 'Data Sources',          link: '/core/datasources/' },
-            { text: 'Presets',               link: '/core/presets' },
-            { text: 'Rules Engine',          link: '/core/rules/' },
-            { text: 'Card Sounds',                link: '/core/sounds' },
-            { text: 'Styles',                link: '/core/styles' },
-            { text: 'Templates',             link: '/core/templates/' },
-            { text: 'Text Fields',           link: '/core/text-fields' },
-          ],
+          text: 'Card Features →',
+          link: '/core/',
         },
       ],
 
       '/configuration/': [
         {
-          text: 'Configuration',
+          text: 'Setup',
           items: [
             { text: 'Overview & Setup',  link: '/configuration/' },
-            { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
-            { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
-            { text: 'Connectivity',      link: '/configuration/connectivity' },
             { text: 'Helpers',           link: '/configuration/persistent-helpers' },
-            { text: 'Sound Configuration',            link: '/configuration/sounds' },
             { text: 'Users & Devices',   link: '/configuration/users-devices' },
-            { text: 'HA Actions',         link: '/configuration/ha-actions' },
+          ],
+        },
+        {
+          text: 'Look & Sound',
+          items: [
+            { text: 'HA-LCARS Theme Profiles', link: '/configuration/ha-lcars-theme-profiles' },
+            { text: 'HA-LCARS Theme Lab', link: '/configuration/ha-lcars-theme-lab' },
+            { text: 'Alert Mode Lab',    link: '/configuration/alert-mode-lab' },
+            { text: 'Sound Configuration', link: '/configuration/sounds' },
+          ],
+        },
+        {
+          text: 'Integrations',
+          items: [
+            { text: 'HA Actions',        link: '/configuration/ha-actions' },
             { text: 'Using browser_mod', link: '/configuration/browser-mod' },
+            { text: 'Connectivity',      link: '/configuration/connectivity' },
           ],
         },
       ],
 
       '/core/': [
         {
-          text: '← Back to Cards',
-          link: '/cards/',
-        },
-        {
-          text: 'Overview',
+          text: 'Features',
           link: '/core/',
         },
         {
-          text: 'Per-Card Options',
+          text: 'On Every Card',
           items: [
             { text: 'Actions',     link: '/core/actions' },
             { text: 'Colours',     link: '/core/colours' },
@@ -590,7 +609,7 @@ export default withMermaid(defineConfig({
           ],
         },
         {
-          text: 'Core Services',
+          text: 'Shared Services',
           collapsed: false,
           items: [
             {
@@ -683,7 +702,7 @@ export default withMermaid(defineConfig({
         },
         {
           text: 'Core Subsystems',
-          collapsed: false,
+          collapsed: true,
           items: [
             { text: 'Animation Manager',    link: '/architecture/subsystems/animation-manager' },
             { text: 'Asset Manager',        link: '/architecture/subsystems/asset-manager' },
@@ -707,7 +726,7 @@ export default withMermaid(defineConfig({
         },
         {
           text: 'Internals',
-          collapsed: false,
+          collapsed: true,
           items: [
             { text: 'Background Animations',  link: '/architecture/internals/background-animation-system' },
             { text: 'DataSource Buffers',     link: '/architecture/internals/datasource-buffers' },
