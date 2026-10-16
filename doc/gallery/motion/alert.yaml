@@ -1,0 +1,24 @@
+# Gallery video for alert.yaml: Red alert with its overlay, stand down, then yellow alert.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/alert.yaml --video
+steps:
+- {wait: 1000}
+- service:
+  - lcards
+  - red_alert
+  - {}
+- {wait: 4000}
+- service:
+  - lcards
+  - clear_alert
+  - {}
+- {wait: 1500}
+- service:
+  - lcards
+  - yellow_alert
+  - {}
+- {wait: 3500}
+- service:
+  - lcards
+  - clear_alert
+  - {}
+tail: 1500

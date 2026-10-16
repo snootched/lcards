@@ -1,6 +1,6 @@
-# Alert mode: the alert symbol, buttons that raise and clear LCARdS alert modes
-# (the lcards.* actions recolour every LCARdS dashboard), and the alert overlay
-# that shows over the view while an alert is active.
+# Alert mode: buttons that raise and clear LCARdS alert modes (the lcards.* actions
+# recolour every LCARdS dashboard) beside an everyday systems screen, and the alert
+# overlay that covers the view while an alert is active.
 title: Alert Mode
 views:
   - title: Alert
@@ -10,16 +10,16 @@ views:
       height: calc(100dvh - var(--header-height, 56px))
       padding: 12px
       grid-gap: 6px
-      grid-template-columns: 170px minmax(0, 1fr)
+      grid-template-columns: 170px minmax(0, 1fr) minmax(0, 1fr)
       grid-template-rows: 64px 70px 70px 70px 70px minmax(0, 1fr) 64px
       grid-template-areas: |
-        "header header"
-        "red    symbol"
-        "yellow symbol"
-        "blue   symbol"
-        "clear  symbol"
-        "filler symbol"
-        "footer footer"
+        "header header header"
+        "red    status status"
+        "yellow status status"
+        "blue   status status"
+        "clear  status status"
+        "filler grid   chart"
+        "footer footer footer"
     cards:
       - type: custom:lcards-elbow
         elbow:
@@ -35,69 +35,107 @@ views:
             color: var(--lcards-orange)
         view_layout:
           grid-area: header
+      # Shown over the view while an alert is active (no size: 60% x 50% of the screen).
       - type: custom:lcards-alert-overlay
         view_layout:
-          grid-area: symbol
-      - type: custom:lcards-button
-        component: alert
-        preset: condition_red
+          grid-area: status
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [SYSTEM, STATUS, LEVEL]
+            header: true
+          - [MAIN POWER, "{{ 'ONLINE' if states('input_number.lcards_test_power') | int > 20 else 'LOW' }}", "{{ states('input_number.lcards_test_power') | int }} %"]
+          - [SHIELDS, "{{ 'RAISED' if states('input_number.lcards_test_shields') | int > 0 else 'DOWN' }}", "{{ states('input_number.lcards_test_shields') | int }} %"]
+          - [DOORS, "{{ 'OPEN' if is_state('input_boolean.lcards_test_doors', 'on') else 'SECURED' }}", ""]
+          - [MODE, input_select.lcards_test_mode, ""]
+        grid:
+          grid-template-columns: 2fr 1fr 1fr
+          grid-template-rows: repeat(5, min-content)
+          gap: 6px
+        style:
+          font_size: 22px
+        columns:
+          - style:
+              align: left
+              color: var(--lcars-orange)
+          - style:
+              align: right
+          - style:
+              align: right
         view_layout:
-          grid-area: symbol
-          justify-self: center
+          grid-area: status
+      - type: custom:lcards-data-grid
+        data_mode: decorative
+        format: digit
+        refresh_interval: 1500
+        refresh_cells: 0.2
+        grid:
+          grid-template-rows: repeat(6, auto)
+          grid-template-columns: repeat(6, 1fr)
+          gap: 0px
+        style:
+          font_size: 20px
+          color: var(--lcars-blue)
+        view_layout:
+          grid-area: grid
+      - type: custom:lcards-chart
+        chart_type: line
+        graph_span: 12h
+        sources:
+          - entity: sensor.desk_sensor_temperature
+            name: Deck 4
+        view_layout:
+          grid-area: chart
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         style:
           card:
             color:
               background:
                 default: var(--lcars-alert-red, #cc0000)
         text:
-          label:
+          name:
             content: RED ALERT
-            show: true
         tap_action:
           action: perform-action
           service: lcards.red_alert
         view_layout:
           grid-area: red
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         style:
           card:
             color:
               background:
                 default: var(--lcars-alert-yellow, #ffcc00)
         text:
-          label:
+          name:
             content: YELLOW ALERT
-            show: true
         tap_action:
           action: perform-action
           service: lcards.yellow_alert
         view_layout:
           grid-area: yellow
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         style:
           card:
             color:
               background:
                 default: var(--lcars-alert-blue, #3366ff)
         text:
-          label:
+          name:
             content: BLUE ALERT
-            show: true
         tap_action:
           action: perform-action
           service: lcards.blue_alert
         view_layout:
           grid-area: blue
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         text:
-          label:
+          name:
             content: STAND DOWN
-            show: true
         tap_action:
           action: perform-action
           service: lcards.clear_alert

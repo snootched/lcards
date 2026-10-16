@@ -1,0 +1,176 @@
+# Titan Operations: the Picard-era look (segmented double elbows, square-ended
+# filled and outline buttons, Picard sliders, blue data cascades with orange accents).
+# Uses lcards_test_* helpers and a temperature sensor; swap in your own entities.
+title: Titan Operations
+views:
+  - title: Operations
+    path: operations
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 6px
+      grid-template-columns: 210px minmax(0, 1fr) minmax(0, 1fr) 130px 130px
+      grid-template-rows: 80px 52px 52px 52px 52px 140px minmax(0, 1fr) 80px
+      grid-template-areas: |
+        "header  header  header  header  header"
+        "b1      cascade cascade power   shields"
+        "b2      cascade cascade power   shields"
+        "menu    cascade cascade power   shields"
+        "menu    status  status  power   shields"
+        "menu    status  status  power   shields"
+        "chart   chart   chart   chart   chart"
+        "footer  footer  footer  footer  footer"
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-left
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment:
+              bar_width: 210
+              bar_height: 24
+              color: var(--lcards-gray-medium)
+            inner_segment:
+              bar_width: 48
+              bar_height: 8
+              color: var(--lcards-orange-medium)
+        text:
+          title:
+            content: OPERATIONS · DECK 4
+            position: bottom-right
+            font_size: 26
+            color: var(--lcards-blue-light)
+        view_layout:
+          grid-area: header
+      - type: custom:lcards-button
+        preset: filled
+        entity: input_boolean.lcards_test_lights
+        style:
+          card:
+            color:
+              background:
+                active: var(--lcards-orange)
+                inactive: var(--lcards-gray-medium-dark)
+        text:
+          name:
+            content: LIGHTS
+        tap_action:
+          action: toggle
+        view_layout:
+          grid-area: b1
+      - type: custom:lcards-button
+        preset: filled
+        entity: input_boolean.lcards_test_doors
+        style:
+          card:
+            color:
+              background:
+                active: var(--lcards-orange)
+                inactive: var(--lcards-gray-medium-dark)
+        text:
+          name:
+            content: DOORS
+        tap_action:
+          action: toggle
+        view_layout:
+          grid-area: b2
+      - type: custom:lcards-data-grid
+        data_mode: decorative
+        format: hex
+        refresh_interval: 1500
+        refresh_cells: 0.15
+        grid:
+          grid-template-rows: repeat(4, auto)
+          grid-template-columns: repeat(8, 1fr)
+          gap: 0px
+        columns:
+          - format: digit
+          - format: digit
+        style:
+          font_size: 22px
+          color: var(--lcards-blue-light)
+        highlight_changes:
+          preset: pulse
+          duration: 400
+        view_layout:
+          grid-area: cascade
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [SYSTEM, STATUS, LEVEL]
+            header: true
+          - [MAIN POWER, "{{ 'ONLINE' if states('input_number.lcards_test_power') | int > 20 else 'LOW' }}", "{{ states('input_number.lcards_test_power') | int }} %"]
+          - [SHIELDS, "{{ 'RAISED' if states('input_number.lcards_test_shields') | int > 0 else 'DOWN' }}", "{{ states('input_number.lcards_test_shields') | int }} %"]
+          - [MODE, input_select.lcards_test_mode, ""]
+        grid:
+          grid-template-columns: 2fr 1fr 1fr
+          grid-template-rows: repeat(4, min-content)
+          gap: 4px
+        style:
+          font_size: 18px
+          color: var(--lcards-blue-light)
+        columns:
+          - style:
+              align: left
+              color: var(--lcards-orange)
+          - style:
+              align: right
+          - style:
+              align: right
+        view_layout:
+          grid-area: status
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: picard-gauge-vertical
+        component: picard
+        view_layout:
+          grid-area: power
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: picard-gauge-vertical
+        component: picard
+        view_layout:
+          grid-area: shields
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_mode
+        preset: outline
+        grid:
+          columns: 1
+          gap: 6px
+        view_layout:
+          grid-area: menu
+      - type: custom:lcards-chart
+        chart_type: area
+        graph_span: 24h
+        sources:
+          - entity: sensor.desk_sensor_temperature
+            name: Deck 4
+        style:
+          colors:
+            series:
+              - var(--lcards-blue-light)
+          fill:
+            type: gradient
+            gradient:
+              opacityFrom: 0.45
+              opacityTo: 0.02
+        view_layout:
+          grid-area: chart
+      - type: custom:lcards-elbow
+        elbow:
+          type: footer-left
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment:
+              bar_width: 210
+              bar_height: 24
+              color: var(--lcards-gray-medium)
+            inner_segment:
+              bar_width: 48
+              bar_height: 8
+              color: var(--lcards-orange-medium)
+        view_layout:
+          grid-area: footer

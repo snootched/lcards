@@ -1,0 +1,25 @@
+# Layout View editing on the Bridge dashboard: the normal view, Layout mode (areas and
+# track bands), Card mode, then back to the normal view. Used on the Layout View page:
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/bridge.yaml --video \
+#   --motion=doc/gallery/motion/layout-editing.yaml --name=layout-editing --out=doc/public/img/cards
+before:
+  - eval: |
+      (() => {
+        const find = (tag) => { let hit = null; const walk = (n) => { for (const e of n.querySelectorAll('*')) { if (e.tagName === tag) hit = e; if (e.shadowRoot && !hit) walk(e.shadowRoot); } }; walk(document); return hit; };
+        window.__lcardsShot = {
+          edit: (on) => find('HUI-ROOT').lovelace.setEditMode(on),
+          sub: (mode) => { find('LCARDS-LAYOUT-VIEW')._editSubMode = mode; },
+        };
+      })()
+steps:
+  - wait: 1800
+  - eval: window.__lcardsShot.edit(true)
+  - wait: 900
+  - eval: window.__lcardsShot.sub('grid')
+  - wait: 3000
+  - eval: window.__lcardsShot.sub('cards')
+  - wait: 3000
+  - eval: window.__lcardsShot.sub('grid')
+  - wait: 1500
+  - eval: window.__lcardsShot.edit(false)
+tail: 2000

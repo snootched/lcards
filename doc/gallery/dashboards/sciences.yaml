@@ -1,0 +1,200 @@
+# Sciences: Picard-era readouts. Segmented frames around a history chart and a set of
+# radial gauges, a sensor table and hourly averages, in cool blues and greys with
+# orange accents. Uses lcards_test_* helpers and a temperature sensor.
+title: Sciences
+views:
+  - title: Sciences
+    path: sciences
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 8px
+      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr)
+      grid-template-rows: 80px minmax(0, 1.3fr) minmax(0, 1fr) 70px
+      grid-template-areas: |
+        "header  header"
+        "history gauges"
+        "table   bars"
+        "footer  footer"
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-right
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment:
+              bar_width: 160
+              bar_height: 24
+              color: var(--lcards-blue-medium-light)
+            inner_segment:
+              bar_width: 40
+              bar_height: 8
+              color: var(--lcards-orange-medium)
+        text:
+          title:
+            content: SCIENCES · SENSOR ANALYSIS
+            position: bottom-left
+            font_size: 26
+            color: var(--lcards-blue-lightest)
+        view_layout:
+          grid-area: header
+
+      # History: a segmented frame with the chart inside it.
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          style: segmented
+          segment:
+            color: var(--lcards-gray-medium)
+          frame:
+            bar_width: 14
+            bar_height: 10
+            segments:
+              gap: 5
+              inner_frame:
+                bar_width: 4
+                color: var(--lcards-blue-medium-light)
+        view_layout:
+          grid-area: history
+      - type: custom:lcards-chart
+        chart_type: area
+        graph_span: 24h
+        data_sources:
+          deck_temp:
+            entity: sensor.desk_sensor_temperature
+            history:
+              hours: 24
+            processing:
+              smoothed:
+                type: smooth
+                method: exponential
+                alpha: 0.15
+        sources:
+          - datasource: deck_temp
+            name: Deck 4
+          - datasource: deck_temp
+            buffer: smoothed
+            name: Trend
+        style:
+          colors:
+            series:
+              - var(--lcards-blue-light)
+              - var(--lcards-orange-medium)
+          fill:
+            type: gradient
+            gradient:
+              opacityFrom: 0.4
+              opacityTo: 0.02
+          legend:
+            show: true
+        view_layout:
+          grid-area: history
+          margin: 30px 34px
+
+      # Gauges: radial bars for the live levels, in a matching frame.
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          style: segmented
+          segment:
+            color: var(--lcards-gray-medium)
+          frame:
+            bar_width: 14
+            bar_height: 10
+            segments:
+              gap: 5
+              inner_frame:
+                bar_width: 4
+                color: var(--lcards-orange-medium)
+        view_layout:
+          grid-area: gauges
+      - type: custom:lcards-chart
+        chart_type: radialBar
+        sources:
+          - entity: input_number.lcards_test_power
+            name: Power
+          - entity: input_number.lcards_test_shields
+            name: Shields
+          - entity: input_number.lcards_test_humidity
+            name: Humidity
+        style:
+          colors:
+            series:
+              - var(--lcards-orange-medium)
+              - var(--lcards-blue-light)
+              - var(--lcards-blue-medium-light)
+          legend:
+            show: true
+          chart_options:
+            plotOptions:
+              radialBar:
+                startAngle: -135
+                endAngle: 135
+                hollow:
+                  size: 35%
+        view_layout:
+          grid-area: gauges
+          margin: 30px 34px
+
+      - type: custom:lcards-data-grid
+        data_mode: data
+        rows:
+          - values: [SENSOR, READING, STATUS]
+            header: true
+          - [DECK 4 TEMP, sensor.desk_sensor_temperature, NOMINAL]
+          - [CABIN TEMP, input_number.lcards_test_temperature, NOMINAL]
+          - [HUMIDITY, input_number.lcards_test_humidity, "{{ 'HIGH' if states('input_number.lcards_test_humidity') | int > 60 else 'NOMINAL' }}"]
+          - [POWER, input_number.lcards_test_power, "{{ 'ONLINE' if states('input_number.lcards_test_power') | int > 20 else 'LOW' }}"]
+        grid:
+          grid-template-columns: 2fr 1fr 1fr
+          grid-template-rows: repeat(5, min-content)
+          gap: 6px
+        style:
+          font_size: 20px
+          color: var(--lcards-blue-lightest)
+        columns:
+          - style:
+              align: left
+              color: var(--lcards-orange-medium)
+          - style:
+              align: right
+          - style:
+              align: right
+              color: var(--lcards-blue-light)
+        view_layout:
+          grid-area: table
+
+      - type: custom:lcards-chart
+        chart_type: column
+        graph_span: 12h
+        sources:
+          - entity: sensor.desk_sensor_temperature
+            name: Hourly average
+            group_by:
+              func: avg
+              duration: 1h
+        style:
+          colors:
+            series:
+              - var(--lcards-blue-medium-light)
+        view_layout:
+          grid-area: bars
+
+      - type: custom:lcards-elbow
+        elbow:
+          type: footer-right
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment:
+              bar_width: 160
+              bar_height: 24
+              color: var(--lcards-blue-medium-light)
+            inner_segment:
+              bar_width: 40
+              bar_height: 8
+              color: var(--lcards-orange-medium)
+        view_layout:
+          grid-area: footer

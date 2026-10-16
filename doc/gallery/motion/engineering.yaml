@@ -1,0 +1,43 @@
+# Gallery video for engineering.yaml: Warp core online, shields drop through orange to red and recover, power dips and returns.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/engineering.yaml --video
+steps:
+- {wait: 800}
+- service:
+  - input_boolean
+  - turn_on
+  - {entity_id: input_boolean.lcards_test_toggle}
+- {wait: 1400}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 40}
+- {wait: 1600}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 12}
+- {wait: 1600}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 35}
+- {wait: 1400}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 90}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 82}
+- {wait: 1400}
+- service:
+  - input_boolean
+  - turn_off
+  - {entity_id: input_boolean.lcards_test_lights}
+- {wait: 1000}
+- service:
+  - input_boolean
+  - turn_on
+  - {entity_id: input_boolean.lcards_test_lights}
+tail: 1500

@@ -37,56 +37,51 @@ views:
         view_layout:
           grid-area: header
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         entity: input_boolean.lcards_test_toggle
         text:
-          label:
+          name:
             content: RED ALERT
-            show: true
         tap_action:
           action: toggle
         view_layout:
           grid-area: nav1
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         entity: input_boolean.lcards_test_lights
         text:
-          label:
+          name:
             content: LIGHTS
-            show: true
         tap_action:
           action: toggle
         view_layout:
           grid-area: nav2
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         entity: input_boolean.lcards_test_doors
         text:
-          label:
+          name:
             content: DOORS
-            show: true
         tap_action:
           action: toggle
         view_layout:
           grid-area: nav3
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         entity: input_select.lcards_test_mode
         text:
-          label:
+          name:
             content: MODE
-            show: true
         tap_action:
           action: more-info
         view_layout:
           grid-area: nav4
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         entity: input_number.lcards_test_shields
         text:
-          label:
+          name:
             content: SHIELDS
-            show: true
         tap_action:
           action: more-info
         view_layout:

@@ -36,41 +36,38 @@ views:
         view_layout:
           grid-area: header
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         entity: input_boolean.lcards_test_doors
         text:
-          label:
+          name:
             content: "{{ 'DOORS OPEN' if is_state('input_boolean.lcards_test_doors', 'on') else 'DOORS SECURED' }}"
-            show: true
         tap_action:
           action: toggle
         view_layout:
           grid-area: nav1
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         entity: input_boolean.lcards_test_lights
         text:
-          label:
+          name:
             content: EXTERIOR LIGHTS
-            show: true
         tap_action:
           action: toggle
         view_layout:
           grid-area: nav2
       - type: custom:lcards-button
-        preset: lozenge
+        preset: filled
         entity: input_boolean.lcards_test_toggle
         text:
-          label:
+          name:
             content: INTRUDER ALERT
-            show: true
         tap_action:
           action: toggle
         view_layout:
           grid-area: nav3
       - type: custom:lcards-select-menu
         entity: input_select.lcards_test_mode
-        preset: lozenge
+        preset: filled
         view_layout:
           grid-area: mode
       - type: custom:lcards-data-grid

@@ -1,0 +1,42 @@
+# Gallery video for titan-operations.yaml: Doors open and close, power and shields change on the Picard sliders, the mode changes.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/titan-operations.yaml --video
+steps:
+- {wait: 800}
+- service:
+  - input_boolean
+  - turn_on
+  - {entity_id: input_boolean.lcards_test_doors}
+- {wait: 1200}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 40}
+- {wait: 1200}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 20}
+- {wait: 1200}
+- service:
+  - input_select
+  - select_option
+  - {entity_id: input_select.lcards_test_mode, option: alpha}
+- {wait: 1200}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 82}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 64}
+- {wait: 1000}
+- service:
+  - input_boolean
+  - turn_off
+  - {entity_id: input_boolean.lcards_test_doors}
+- service:
+  - input_select
+  - select_option
+  - {entity_id: input_select.lcards_test_mode, option: beta}
+tail: 1500

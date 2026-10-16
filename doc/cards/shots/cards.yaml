@@ -1,0 +1,350 @@
+# Pictures for the card overview tabs (doc/cards/index.md):
+#   node scripts/release-shots.mjs --list doc/cards/shots/cards.yaml --out doc/public/img/cards [name ...]
+# The alert overlay needs a real dashboard behind it (alert-overlay-dashboard.yaml):
+#   node scripts/dashboard-shots.mjs doc/cards/shots/alert-overlay-dashboard.yaml --out=doc/public/img/cards \
+#     --name=alert-overlay --action=lcards.red_alert --size=1400x900
+# Uses only lcards_test_* helpers and the desk sensor (no personal names in any shot).
+
+- name: chart
+  card:
+    type: custom:lcards-chart
+    chart_type: area
+    height: 320
+    data_sources:
+      deck_temp:
+        entity: sensor.desk_sensor_temperature
+        history: {hours: 24}
+        processing:
+          smoothed: {type: smooth, method: exponential, alpha: 0.15}
+    sources:
+    - {datasource: deck_temp, name: Raw}
+    - {datasource: deck_temp, buffer: smoothed, name: Smoothed}
+    style:
+      colors:
+        series: [var(--lcars-orange), var(--lcars-blue)]
+      fill:
+        type: gradient
+        gradient: {opacityFrom: 0.5, opacityTo: 0.05}
+      thresholds:
+      - {value: 19.5, label: Comfort, color: var(--lcars-yellow), dash: true}
+      legend: {show: true}
+  size: [760, 320]
+  settle: 5000
+  selector: '#lcards-release-card'
+  padding: 12
+- name: msd
+  card: &id001
+    type: custom:lcards-msd-card
+    msd:
+      base_svg: {source: 'builtin:ncc-1701-a-blue'}
+      view_box: [180, 270, 1600, 720]
+      overlays:
+      - id: shield_fore
+        type: shape
+        kind: polyline
+        entity: input_number.lcards_test_shields
+        corner_style: miter
+        points:
+        - [1526, 431]
+        - [1553, 450]
+        - [1577, 470]
+        - [1598, 491]
+        - [1616, 512]
+        - [1631, 534]
+        - [1643, 556]
+        - [1651, 579]
+        - [1656, 602]
+        - [1658, 625]
+        - [1656, 648]
+        - [1651, 671]
+        - [1643, 694]
+        - [1631, 716]
+        - [1616, 738]
+        - [1598, 759]
+        - [1577, 780]
+        - [1553, 800]
+        - [1526, 819]
+        style:
+          width: 6
+          line_cap: round
+          color: {default: var(--lcards-blue-light), 'below:50': var(--lcards-orange), 'below:20': 'var(--lcars-alert-red, #cc0000)'}
+      - id: shield_starboard
+        type: shape
+        kind: polyline
+        entity: input_number.lcards_test_shields
+        corner_style: miter
+        points:
+        - [1374, 892]
+        - [1334, 905]
+        - [1292, 916]
+        - [1249, 926]
+        - [1204, 935]
+        - [1158, 942]
+        - [1111, 948]
+        - [1064, 952]
+        - [1016, 954]
+        - [968, 955]
+        - [920, 954]
+        - [872, 952]
+        - [825, 948]
+        - [778, 942]
+        - [732, 935]
+        - [687, 926]
+        - [644, 916]
+        - [602, 905]
+        - [562, 892]
+        style:
+          width: 6
+          line_cap: round
+          color: {default: var(--lcards-blue-light), 'below:50': var(--lcards-orange), 'below:20': 'var(--lcars-alert-red, #cc0000)'}
+      - id: shield_aft
+        type: shape
+        kind: polyline
+        entity: input_number.lcards_test_shields
+        corner_style: miter
+        points:
+        - [410, 819]
+        - [383, 800]
+        - [359, 780]
+        - [338, 759]
+        - [320, 738]
+        - [305, 716]
+        - [293, 694]
+        - [285, 671]
+        - [280, 648]
+        - [278, 625]
+        - [280, 602]
+        - [285, 579]
+        - [293, 556]
+        - [305, 534]
+        - [320, 512]
+        - [338, 491]
+        - [359, 470]
+        - [383, 450]
+        - [410, 431]
+        style:
+          width: 6
+          line_cap: round
+          color: {default: var(--lcards-blue-light), 'below:50': var(--lcards-orange), 'below:20': 'var(--lcars-alert-red, #cc0000)'}
+      - id: shield_port
+        type: shape
+        kind: polyline
+        entity: input_number.lcards_test_shields
+        corner_style: miter
+        points:
+        - [562, 358]
+        - [602, 345]
+        - [644, 334]
+        - [687, 324]
+        - [732, 315]
+        - [778, 308]
+        - [825, 302]
+        - [872, 298]
+        - [920, 296]
+        - [968, 295]
+        - [1016, 296]
+        - [1064, 298]
+        - [1111, 302]
+        - [1158, 308]
+        - [1204, 315]
+        - [1249, 324]
+        - [1292, 334]
+        - [1334, 345]
+        - [1374, 358]
+        style:
+          width: 6
+          line_cap: round
+          color: {default: var(--lcards-blue-light), 'below:50': var(--lcards-orange), 'below:20': 'var(--lcars-alert-red, #cc0000)'}
+      - id: bridge-ctl
+        type: control
+        attachment: top-left
+        position: [190, 278]
+        size: [340, 96]
+        card:
+          type: custom:lcards-button
+          preset: filled
+          entity: input_boolean.lcards_test_lights
+          text:
+            name: {content: BRIDGE, font_size: 30}
+          tap_action: {action: toggle}
+      - id: core-ctl
+        type: control
+        attachment: top-left
+        position: [190, 886]
+        size: [340, 96]
+        card:
+          type: custom:lcards-button
+          preset: filled
+          entity: input_boolean.lcards_test_toggle
+          text:
+            name: {content: WARP CORE, font_size: 30}
+          tap_action: {action: toggle}
+      - id: shuttle-ctl
+        type: control
+        attachment: top-left
+        position: [1430, 886]
+        size: [340, 96]
+        card:
+          type: custom:lcards-button
+          preset: filled
+          text:
+            name: {content: SHUTTLE BAY, font_size: 30}
+      - id: bridge-line
+        type: line
+        anchor: bridge-ctl
+        attach_to: br
+        route: auto
+        corner_style: round
+        style: {color: var(--lcards-gray-medium-light), width: 3}
+      - id: core-line
+        type: line
+        anchor: core-ctl
+        attach_to: wc
+        route: auto
+        corner_style: round
+        style: {color: var(--lcards-gray-medium-light), width: 3}
+      - id: shuttle-line
+        type: line
+        anchor: shuttle-ctl
+        attach_to: sb
+        route: auto
+        corner_style: round
+        style: {color: var(--lcards-gray-medium-light), width: 3}
+  steps:
+  - service:
+    - input_boolean
+    - turn_on
+    - {entity_id: input_boolean.lcards_test_lights}
+  - service:
+    - input_boolean
+    - turn_off
+    - {entity_id: input_boolean.lcards_test_toggle}
+  - service:
+    - input_number
+    - set_value
+    - {entity_id: input_number.lcards_test_shields, value: 64}
+  size: &id002 [1000, 450]
+  settle: 5000
+  selector: '#lcards-release-card'
+  padding: 8
+- name: msd-motion
+  card: *id001
+  steps:
+  - service:
+    - input_number
+    - set_value
+    - {entity_id: input_number.lcards_test_shields, value: 64}
+  - {wait: 1500}
+  size: *id002
+  settle: 5000
+  selector: '#lcards-release-card'
+  padding: 8
+  kind: video
+  video_steps:
+  - {wait: 900}
+  - service:
+    - input_number
+    - set_value
+    - {entity_id: input_number.lcards_test_shields, value: 40}
+  - {wait: 1600}
+  - service:
+    - input_number
+    - set_value
+    - {entity_id: input_number.lcards_test_shields, value: 12}
+  - {wait: 1600}
+  - service:
+    - input_boolean
+    - turn_off
+    - {entity_id: input_boolean.lcards_test_lights}
+  - {wait: 1200}
+  - service:
+    - input_number
+    - set_value
+    - {entity_id: input_number.lcards_test_shields, value: 90}
+  - service:
+    - input_boolean
+    - turn_on
+    - {entity_id: input_boolean.lcards_test_lights}
+  duration: 1800
+- name: layout-card
+  card: &id003
+    type: custom:lcards-layout-card
+    layout: {height: 420px, grid-gap: 6px, grid-template-columns: '180px minmax(0, 1fr) 120px', grid-template-rows: 60px 1fr 1fr 1fr 60px, grid-template-areas: '"header header header"
+
+        "b1     grid   power"
+
+        "b2     grid   power"
+
+        "b3     grid   power"
+
+        "footer footer footer"
+
+        '}
+    cards:
+    - type: custom:lcards-elbow
+      elbow:
+        type: header-left
+        style: segmented
+        segments:
+          gap: 5
+          outer_segment: {bar_width: 180, bar_height: 20, color: var(--lcards-gray-medium)}
+          inner_segment: {bar_width: 46, bar_height: 7, color: var(--lcards-orange-medium)}
+      text:
+        title: {content: OPERATIONS, position: bottom-right, font_size: 22, color: var(--lcards-orange)}
+      view_layout: {grid-area: header}
+    - type: custom:lcards-button
+      preset: filled
+      entity: input_boolean.lcards_test_lights
+      text:
+        name: {content: LIGHTS}
+      view_layout: {grid-area: b1}
+    - type: custom:lcards-button
+      preset: filled
+      entity: input_boolean.lcards_test_toggle
+      text:
+        name: {content: SHIELDS}
+      view_layout: {grid-area: b2}
+    - type: custom:lcards-button
+      preset: filled
+      text:
+        name: {content: SENSORS}
+      view_layout: {grid-area: b3}
+    - type: custom:lcards-data-grid
+      data_mode: decorative
+      format: hex
+      grid: {grid-template-rows: 'repeat(5, auto)', grid-template-columns: 'repeat(8, 1fr)', gap: 0px}
+      style: {font_size: 20px, color: var(--lcards-blue-light)}
+      view_layout: {grid-area: grid}
+    - type: custom:lcards-slider
+      entity: input_number.lcards_test_power
+      preset: picard-gauge-vertical
+      component: picard
+      view_layout: {grid-area: power}
+    - type: custom:lcards-elbow
+      elbow:
+        type: footer-left
+        style: segmented
+        segments:
+          gap: 5
+          outer_segment: {bar_width: 180, bar_height: 20, color: var(--lcards-gray-medium)}
+          inner_segment: {bar_width: 46, bar_height: 7, color: var(--lcards-orange-medium)}
+      view_layout: {grid-area: footer}
+  steps:
+  - service:
+    - input_boolean
+    - turn_on
+    - {entity_id: input_boolean.lcards_test_lights}
+  - service:
+    - input_number
+    - set_value
+    - {entity_id: input_number.lcards_test_power, value: 70}
+  size: [900, 420]
+  settle: 4000
+  selector: '#lcards-release-card'
+  padding: 12
+- name: layout-studio
+  card: *id003
+  editor: true
+  open: _openStudio
+  settle: 9000
+  viewport: [1400, 900]

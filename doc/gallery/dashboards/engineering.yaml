@@ -1,6 +1,8 @@
-# Engineering: a Master Systems Display (the built-in NCC-1701-A blueprint) with
-# control overlays wired to the ship by routed lines, beside a power column.
-# Uses lcards_test_* helpers; swap in your own entities.
+# Engineering: a Master Systems Display of the built-in NCC-1701-A blueprint inside a
+# Picard-era frame. Shield arcs around the ship change colour with shield strength
+# (the shield_* naming MSD Studio's Suggest Shield Bubble uses); controls are joined
+# to the ship's own markers by routed lines. Square sidebar buttons, a tick band, a
+# systems table and Picard sliders around it. Uses lcards_test_* helpers.
 title: Engineering
 views:
   - title: Engineering
@@ -10,111 +12,309 @@ views:
       height: calc(100dvh - var(--header-height, 56px))
       padding: 12px
       grid-gap: 6px
-      grid-template-columns: minmax(0, 1fr) 300px
-      grid-template-rows: 64px 1fr 1fr 1fr 64px
+      grid-template-columns: 200px minmax(0, 1fr) 280px
+      grid-template-rows: 80px minmax(0, 1fr) 44px 180px 80px
       grid-template-areas: |
-        "header header"
-        "msd    power"
-        "msd    shields"
-        "msd    status"
-        "footer footer"
+        "header header header"
+        "side   msd    right"
+        "side   band   right"
+        "side   lower  right"
+        "footer footer footer"
     cards:
       - type: custom:lcards-elbow
         elbow:
-          type: header-right
-          segment:
-            bar_width: 300
-            bar_height: 22
+          type: header-left
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment:
+              bar_width: 200
+              bar_height: 24
+              color: var(--lcards-gray-medium)
+            inner_segment:
+              bar_width: 52
+              bar_height: 8
+              color: var(--lcards-orange-medium)
         text:
           title:
-            content: ENGINEERING
-            position: bottom-left
-            font_size: 24
+            content: ENGINEERING · MAIN SYSTEMS
+            position: bottom-right
+            font_size: 26
             color: var(--lcards-orange)
         view_layout:
           grid-area: header
+
+      # Sidebar: a stack of square buttons over a filler block.
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: repeat(5, 56px) minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: filled
+            entity: input_boolean.lcards_test_toggle
+            text:
+              name:
+                content: WARP CORE
+            tap_action:
+              action: toggle
+          - type: custom:lcards-button
+            preset: filled
+            entity: input_boolean.lcards_test_lights
+            text:
+              name:
+                content: MAIN LIGHTS
+            tap_action:
+              action: toggle
+          - type: custom:lcards-button
+            preset: filled
+            entity: input_boolean.lcards_test_doors
+            text:
+              name:
+                content: DOORS
+            tap_action:
+              action: toggle
+          - type: custom:lcards-button
+            preset: filled
+            text:
+              name:
+                content: SENSORS
+          - type: custom:lcards-button
+            preset: filled
+            text:
+              name:
+                content: LIFE SUPPORT
+          - type: custom:lcards-button
+            preset: panel-dark
+        view_layout:
+          grid-area: side
+
+      # The ship, framed by a thin line.
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment:
+            color: var(--lcards-gray-medium-dark)
+          frame:
+            bar_width: 3
+            bar_height: 3
+            outer_curve: 18
+        view_layout:
+          grid-area: msd
       - type: custom:lcards-msd-card
         msd:
           base_svg:
             source: builtin:ncc-1701-a-blue
+          view_box: [180, 270, 1600, 720]
           overlays:
+            - id: shield_fore
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[1526, 431], [1553, 450], [1577, 470], [1598, 491], [1616, 512], [1631, 534], [1643, 556], [1651, 579], [1656, 602], [1658, 625], [1656, 648], [1651, 671], [1643, 694], [1631, 716], [1616, 738], [1598, 759], [1577, 780], [1553, 800], [1526, 819]]
+              style:
+                width: 6
+                line_cap: round
+                color:
+                  default: "var(--lcards-blue-light)"
+                  below:50: "var(--lcards-orange)"
+                  below:20: "var(--lcars-alert-red, #cc0000)"
+            - id: shield_starboard
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[1374, 892], [1334, 905], [1292, 916], [1249, 926], [1204, 935], [1158, 942], [1111, 948], [1064, 952], [1016, 954], [968, 955], [920, 954], [872, 952], [825, 948], [778, 942], [732, 935], [687, 926], [644, 916], [602, 905], [562, 892]]
+              style:
+                width: 6
+                line_cap: round
+                color:
+                  default: "var(--lcards-blue-light)"
+                  below:50: "var(--lcards-orange)"
+                  below:20: "var(--lcars-alert-red, #cc0000)"
+            - id: shield_aft
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[410, 819], [383, 800], [359, 780], [338, 759], [320, 738], [305, 716], [293, 694], [285, 671], [280, 648], [278, 625], [280, 602], [285, 579], [293, 556], [305, 534], [320, 512], [338, 491], [359, 470], [383, 450], [410, 431]]
+              style:
+                width: 6
+                line_cap: round
+                color:
+                  default: "var(--lcards-blue-light)"
+                  below:50: "var(--lcards-orange)"
+                  below:20: "var(--lcars-alert-red, #cc0000)"
+            - id: shield_port
+              type: shape
+              kind: polyline
+              entity: input_number.lcards_test_shields
+              corner_style: miter
+              points: [[562, 358], [602, 345], [644, 334], [687, 324], [732, 315], [778, 308], [825, 302], [872, 298], [920, 296], [968, 295], [1016, 296], [1064, 298], [1111, 302], [1158, 308], [1204, 315], [1249, 324], [1292, 334], [1334, 345], [1374, 358]]
+              style:
+                width: 6
+                line_cap: round
+                color:
+                  default: "var(--lcards-blue-light)"
+                  below:50: "var(--lcards-orange)"
+                  below:20: "var(--lcars-alert-red, #cc0000)"
             - id: bridge-ctl
               type: control
-              position: [60, 60]
-              size: [300, 80]
+              attachment: top-left
+              position: [190, 278]
+              size: [340, 96]
               card:
                 type: custom:lcards-button
-                preset: lozenge
+                preset: filled
                 entity: input_boolean.lcards_test_lights
                 text:
-                  label:
-                    content: BRIDGE LIGHTS
-                    show: true
+                  name:
+                    content: BRIDGE
+                    font_size: 30
                 tap_action:
                   action: toggle
             - id: core-ctl
               type: control
-              position: [60, 1040]
-              size: [300, 80]
+              attachment: top-left
+              position: [190, 886]
+              size: [340, 96]
               card:
                 type: custom:lcards-button
-                preset: lozenge
+                preset: filled
                 entity: input_boolean.lcards_test_toggle
                 text:
-                  label:
+                  name:
                     content: WARP CORE
-                    show: true
+                    font_size: 30
                 tap_action:
                   action: toggle
+            - id: shuttle-ctl
+              type: control
+              attachment: top-left
+              position: [1430, 886]
+              size: [340, 96]
+              card:
+                type: custom:lcards-button
+                preset: filled
+                text:
+                  name:
+                    content: SHUTTLE BAY
+                    font_size: 30
             - id: bridge-line
               type: line
               anchor: bridge-ctl
-              attach_to: br        # the blueprint's own bridge marker (harvested from the SVG)
+              attach_to: br
               route: auto
               corner_style: round
+              style:
+                color: var(--lcards-gray-medium-light)
+                width: 3
             - id: core-line
               type: line
               anchor: core-ctl
-              attach_to: wc        # the warp core marker
+              attach_to: wc
               route: auto
               corner_style: round
+              style:
+                color: var(--lcards-gray-medium-light)
+                width: 3
+            - id: shuttle-line
+              type: line
+              anchor: shuttle-ctl
+              attach_to: sb
+              route: auto
+              corner_style: round
+              style:
+                color: var(--lcards-gray-medium-light)
+                width: 3
         view_layout:
           grid-area: msd
+          margin: 10px
+
+      # A band of ticks (a pill slider) under the display.
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
-        preset: picard-gauge-vertical
-        component: picard
-        view_layout:
-          grid-area: power
-      - type: custom:lcards-slider
-        entity: input_number.lcards_test_shields
         preset: pills-basic
         view_layout:
-          grid-area: shields
+          grid-area: band
+
       - type: custom:lcards-data-grid
         data_mode: data
         rows:
-          - values: [SYSTEM, LEVEL]
+          - values: [SYSTEM, STATUS, LEVEL]
             header: true
-          - [CORE OUTPUT, "{{ states('input_number.lcards_test_power') | int }} %"]
-          - [SHIELDS, "{{ states('input_number.lcards_test_shields') | int }} %"]
-          - [MODE, input_select.lcards_test_mode]
+          - [WARP CORE, "{{ 'ONLINE' if is_state('input_boolean.lcards_test_toggle', 'on') else 'STANDBY' }}", "{{ states('input_number.lcards_test_power') | int }} %"]
+          - [SHIELDS, "{{ 'RAISED' if states('input_number.lcards_test_shields') | int > 0 else 'DOWN' }}", "{{ states('input_number.lcards_test_shields') | int }} %"]
+          - [MODE, input_select.lcards_test_mode, ""]
         grid:
-          grid-template-columns: 1fr 1fr
-          gap: 4px
+          grid-template-columns: 2fr 1fr 1fr
+          grid-template-rows: repeat(4, min-content)
+          gap: 6px
         style:
-          font_size: 18px
+          font_size: 20px
+          color: var(--lcards-blue-light)
         columns:
           - style:
               align: left
-              color: var(--lcars-orange)
+              color: var(--lcards-orange)
+          - style:
+              align: right
+          - style:
+              align: right
         view_layout:
-          grid-area: status
+          grid-area: lower
+
+      # Right: power and shields on Picard sliders, over a data cascade.
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)
+          grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr)
+          grid-template-areas: |
+            "power shields"
+            "data  data"
+        cards:
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_power
+            preset: picard-gauge-vertical
+            component: picard
+            view_layout: { grid-area: power }
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_shields
+            preset: picard-gauge-vertical
+            component: picard
+            view_layout: { grid-area: shields }
+          - type: custom:lcards-data-grid
+            data_mode: decorative
+            format: digit
+            refresh_interval: 2000
+            refresh_cells: 0.2
+            grid:
+              grid-template-rows: repeat(6, auto)
+              grid-template-columns: repeat(4, 1fr)
+              gap: 0px
+            style:
+              font_size: 18px
+              color: var(--lcards-gray-medium-light)
+            view_layout: { grid-area: data }
+        view_layout:
+          grid-area: right
+
       - type: custom:lcards-elbow
         elbow:
-          type: footer-right
-          segment:
-            bar_width: 300
-            bar_height: 22
+          type: footer-left
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment:
+              bar_width: 200
+              bar_height: 24
+              color: var(--lcards-gray-medium)
+            inner_segment:
+              bar_width: 52
+              bar_height: 8
+              color: var(--lcards-orange-medium)
         view_layout:
           grid-area: footer

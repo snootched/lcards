@@ -1,0 +1,42 @@
+# Gallery video for bridge.yaml: Lights and red alert buttons toggle, power and shields change, the mode changes.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/bridge.yaml --video
+steps:
+- {wait: 800}
+- service:
+  - input_boolean
+  - turn_off
+  - {entity_id: input_boolean.lcards_test_lights}
+- {wait: 1000}
+- service:
+  - input_boolean
+  - turn_on
+  - {entity_id: input_boolean.lcards_test_toggle}
+- {wait: 1200}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 45}
+- {wait: 1200}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 25}
+- {wait: 1400}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 82}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 64}
+- {wait: 1000}
+- service:
+  - input_boolean
+  - turn_off
+  - {entity_id: input_boolean.lcards_test_toggle}
+- service:
+  - input_boolean
+  - turn_on
+  - {entity_id: input_boolean.lcards_test_lights}
+tail: 1500

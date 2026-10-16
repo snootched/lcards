@@ -1,0 +1,42 @@
+# Gallery video for security.yaml: Doors open, lights go off, the mode changes and the camera pans.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/security.yaml --video
+steps:
+- {wait: 800}
+- service:
+  - input_boolean
+  - turn_on
+  - {entity_id: input_boolean.lcards_test_doors}
+- {wait: 1200}
+- service:
+  - input_boolean
+  - turn_off
+  - {entity_id: input_boolean.lcards_test_lights}
+- {wait: 1200}
+- service:
+  - input_select
+  - select_option
+  - {entity_id: input_select.lcards_test_mode, option: gamma}
+- {wait: 1200}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_value, value: 75}
+- {wait: 1200}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_value, value: 20}
+- {wait: 1000}
+- service:
+  - input_boolean
+  - turn_off
+  - {entity_id: input_boolean.lcards_test_doors}
+- service:
+  - input_boolean
+  - turn_on
+  - {entity_id: input_boolean.lcards_test_lights}
+- service:
+  - input_select
+  - select_option
+  - {entity_id: input_select.lcards_test_mode, option: beta}
+tail: 1500

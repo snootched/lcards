@@ -1,0 +1,33 @@
+# Gallery video for environmental.yaml: Temperature climbs and falls, humidity follows.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/environmental.yaml --video
+steps:
+- {wait: 800}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_temperature, value: 26}
+- {wait: 1400}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_humidity, value: 68}
+- {wait: 1400}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_temperature, value: 17}
+- {wait: 1400}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_humidity, value: 35}
+- {wait: 1400}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_temperature, value: 21.5}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_humidity, value: 46}
+tail: 1500

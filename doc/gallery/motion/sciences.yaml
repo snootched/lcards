@@ -1,0 +1,32 @@
+# Gallery video for sciences.yaml: Power, shields and humidity change on the radial gauges.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/sciences.yaml --video
+steps:
+- {wait: 800}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 40}
+- {wait: 1400}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 90}
+- {wait: 1400}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_humidity, value: 75}
+- {wait: 1400}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 82}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 64}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_humidity, value: 46}
+tail: 1500
