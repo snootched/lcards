@@ -57,11 +57,46 @@ animations:
 | `on_hold` | Long-press on the card |
 | `on_hover` | Mouse enters the card |
 | `on_leave` | Mouse leaves the card |
-| `on_load` | Card is rendered on page load |
+| `on_load` | Once, when the card first renders |
+| `on_show` | Every time the card appears: when its view opens, when a [visibility condition](#entrance-animations-with-on-show) shows it, or when you come back from another view |
 | `on_entity_change` | A watched entity changes state |
 | `on_datasource_change` | A configured [DataSource](../architecture/internals/datasource-buffers.md) value changes; requires a `datasource` property alongside the trigger |
 
 `on_state_change`, `on_redraw` and `on_exit` are accepted in configs but not implemented yet: they never fire. Use `on_entity_change` for state changes.
+
+### Entrance animations with `on_show`
+
+`on_load` plays once per card. Home Assistant keeps a card hidden by a `visibility` condition and attaches it when the condition is met, so an `on_load` animation has already run (out of sight) by the time it appears. Use `on_show` for entrance animations: it plays each time the card is attached to the page, and not again while it stays there (state changes and re-renders don't replay it).
+
+This button slides and fades in whenever the alarm is armed:
+
+```yaml
+type: custom:lcards-button
+entity: alarm_control_panel.home
+preset: filled
+text:
+  name:
+    content: Perimeter Armed
+visibility:
+  - condition: state
+    entity: alarm_control_panel.home
+    state: armed_away
+animations:
+  - trigger: on_show
+    preset: slide
+    params:
+      from: left
+      distance: 120
+      duration: 600
+  - trigger: on_show
+    preset: fade
+    params:
+      from: 0
+      to: 1
+      duration: 600
+```
+
+Give several cards the same `on_show` animation with increasing `delay` values to build a view up piece by piece when it opens.
 
 ---
 

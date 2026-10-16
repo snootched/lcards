@@ -90,6 +90,7 @@ The LCARdS animation system consists of several integrated components:
 | Trigger | Handler | Scope | Use Case |
 |---------|---------|-------|----------|
 | `on_load` | TriggerManager | Single overlay | Initial render animations |
+| `on_show` | AnimationManager | Single overlay | Each time the card is attached (view opened, visibility condition met) |
 | `on_tap` | LCARdSActionHandler | Single overlay | User tap interactions |
 | `on_hold` | LCARdSActionHandler | Single overlay | User hold interactions |
 | `on_hover` | LCARdSActionHandler | Single overlay | Mouse hover effects |

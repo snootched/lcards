@@ -325,16 +325,19 @@ export const animationSchema = {
     properties: {
         trigger: {
             type: 'string',
-            enum: ['on_load', 'on_tap', 'on_hold', 'on_hover', 'on_leave', 'on_entity_change'],
+            enum: ['on_load', 'on_show', 'on_tap', 'on_double_tap', 'on_hold', 'on_hover', 'on_leave', 'on_entity_change', 'on_datasource_change'],
             default: 'on_load',
             description: 'When to trigger the animation (default: on_load)',
             enumDescriptions: [
-                'When card is loaded/rendered',
+                'Once, when the card first renders',
+                'Every time the card appears: when the view opens, a visibility condition shows it, or you come back from another view',
                 'When card is tapped/clicked',
+                'When card is double-tapped',
                 'When card is held (long press)',
                 'When mouse enters card',
                 'When mouse leaves card',
-                'When associated entity state changes'
+                'When associated entity state changes',
+                'When the DataSource named in `datasource` changes'
             ]
         },
         preset: {

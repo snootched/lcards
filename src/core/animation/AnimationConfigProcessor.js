@@ -203,6 +203,7 @@ function processOverlayAnimations(overlayId, animations, customPresets, issues =
     // Validate trigger
     const validTriggers = [
       'on_load',
+      'on_show',
       'on_tap',
       'on_hover',
       'on_leave',

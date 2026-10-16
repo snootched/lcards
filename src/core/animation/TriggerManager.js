@@ -13,6 +13,7 @@
  *
  * Supported Triggers:
  * - on_load: Execute when overlay is first rendered (Phase 1) ✅
+ * - on_show: Execute each time the card is attached to the page (AnimationManager)
  * - on_datasource_change: Execute when datasource value changes (Phase 2) 🔮
  * - on_state_change: Execute when HA entity state changes (Phase 2) 🔮
  * - on_redraw: Execute when overlay re-renders (Future) 🔮
@@ -125,6 +126,10 @@ export class TriggerManager {
     }
 
     switch(trigger) {
+      case 'on_show':
+        // Fired by AnimationManager each time the card is attached (_maybeFireOnShow)
+        break;
+
       case 'on_datasource_change':
         // Handled by AnimationManager via DataSourceManager subscriptions
         lcardsLog.debug(`[TriggerManager] on_datasource_change will be handled by AnimationManager`);

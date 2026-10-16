@@ -1,0 +1,11 @@
+# on_show on an elbow (on-show.spec.js)
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  segment:
+    bar_width: 60
+    bar_height: 20
+animations:
+  - trigger: on_show
+    preset: slide
+    params: {from: left, distance: 40, duration: 300}

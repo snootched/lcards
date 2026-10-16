@@ -786,9 +786,12 @@ export class LCARdSAnimationEditor extends LitElement {
               mode: 'dropdown',
               options: [
                 { value: 'on_load', label: 'On Load' },
+                { value: 'on_show', label: 'On Show (Each Time It Appears)' },
                 { value: 'on_hover', label: 'On Hover' },
                 { value: 'on_leave', label: 'On Leave (Exit Hover)' },
                 { value: 'on_tap', label: 'On Tap' },
+                { value: 'on_double_tap', label: 'On Double Tap' },
+                { value: 'on_hold', label: 'On Hold' },
                 { value: 'on_datasource_change', label: 'On Data Change' },
                 { value: 'on_entity_change', label: 'On Entity Change' }
               ]
@@ -1690,9 +1693,12 @@ export class LCARdSAnimationEditor extends LitElement {
   _formatTrigger(trigger) {
     const map = {
       'on_load': 'Load',
+      'on_show': 'Show',
       'on_hover': 'Hover',
       'on_leave': 'Leave',
       'on_tap': 'Tap',
+      'on_double_tap': 'Double Tap',
+      'on_hold': 'Hold',
       'on_datasource_change': 'Data Change',
       'on_entity_change': 'Entity Change'
     };
@@ -1702,9 +1708,12 @@ export class LCARdSAnimationEditor extends LitElement {
   _getTriggerIcon(trigger) {
     const icons = {
       'on_load': 'mdi:loading',
+      'on_show': 'mdi:eye-outline',
       'on_hover': 'mdi:cursor-default-click',
       'on_leave': 'mdi:cursor-default-outline',
       'on_tap': 'mdi:gesture-tap',
+      'on_double_tap': 'mdi:gesture-double-tap',
+      'on_hold': 'mdi:gesture-tap-hold',
       'on_datasource_change': 'mdi:database-sync',
       'on_entity_change': 'mdi:state-machine'
     };
@@ -1713,10 +1722,13 @@ export class LCARdSAnimationEditor extends LitElement {
 
   _getTriggerHelp(trigger) {
     const help = {
-      'on_load': 'Executes when the card loads or updates',
+      'on_load': 'Executes once, when the card first renders',
+      'on_show': 'Executes every time the card appears: when the view opens, when a visibility condition shows it, or when you come back from another view. Use it for entrance animations.',
       'on_hover': 'Executes when mouse enters the element',
       'on_leave': 'Executes when mouse leaves the element (use for exit animations)',
       'on_tap': 'Executes when the element is clicked/tapped',
+      'on_double_tap': 'Executes when the element is double-tapped',
+      'on_hold': 'Executes when the element is held (long press)',
       'on_datasource_change': 'Executes when associated data source value changes',
       'on_entity_change': 'Triggers when a monitored entity (or attribute) changes. Use from_state/to_state as fire-and-forget gates, and while to auto-stop a looping animation when a condition clears.'
     };

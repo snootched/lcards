@@ -43,6 +43,8 @@ AnimationManager
 | Trigger | When fires |
 |---|---|
 | `on_load` | Once on card initialisation |
+| `on_show` | Each time the card is attached to the page; once per connection (`_lcardsShown` on the card, reset in `connectedCallback`) |
+| `on_double_tap` | When the card is double-tapped |
 | `on_tap` | When the card is tapped/clicked |
 | `on_hold` | When the card is held (long press) |
 | `on_hover` | When the mouse enters the card |

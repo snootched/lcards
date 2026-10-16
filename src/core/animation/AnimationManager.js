@@ -329,6 +329,12 @@ export class AnimationManager extends BaseService {
         // DOM element was replaced — without this guard the re-seed would fire even
         // on the first page load where no animation was ever running.
         previouslyActiveWhileAnims = existingScope.triggerManager?._whileActiveAnims?.size > 0;
+        // An on_show entrance cut short by this rebuild (the card re-renders right
+        // after it is attached) plays again on the new scope.
+        if (existingScope.runningInstances.get('on_show')?.some(i => i && !i.completed)) {
+          this._findShowHost(element)?._lcardsShown.delete(overlayId);
+          existingScope.shownOnce = false;
+        }
         existingScope.runningInstances.forEach((instances) => {
           instances.forEach(instance => {
             try { if (instance && !instance.completed) instance.revert?.(); } catch (e) {}
@@ -377,6 +383,8 @@ export class AnimationManager extends BaseService {
         // Track whether on_load animations have already fired
         // Preserve the flag if scope is being recreated (e.g., on element changes)
         onLoadFired: preserveOnLoadFlag,
+        // on_show outside an LCARdS card: plays once per scope id (see _maybeFireOnShow)
+        shownOnce: existingScope?.shownOnce ?? false,
         // Track when scope was created to distinguish initial setup from state changes
         createdAt: existingScope?.createdAt || now
       });
@@ -412,6 +420,8 @@ export class AnimationManager extends BaseService {
         const sd = this.scopes.get(overlayId);
         if (sd) sd.onLoadFired = true;
       }
+
+      this._maybeFireOnShow(overlayId);
 
       lcardsLog.debug(`[AnimationManager] ✅ Initialized ${animations.length} animations for overlay: ${overlayId}`);
 
@@ -575,6 +585,60 @@ export class AnimationManager extends BaseService {
    * @param {string} overlayId - Overlay identifier
    * @param {string} trigger - Trigger type (on_tap, on_hold, on_hover, etc.)
    */
+  /**
+   * Play a scope's on_show animations once per connection of the card it lives in.
+   * HA attaches a card each time it appears (view opened, visibility condition met,
+   * back from another view), and LCARdSNativeCard resets `_lcardsShown` on every
+   * connect; a scope rebuilt during the same connection (re-render, effects restart)
+   * doesn't replay. Scopes outside any LCARdS card play once.
+   *
+   * @param {string} scopeId - Scope key (overlay id or segment scope key)
+   */
+  _maybeFireOnShow(scopeId) {
+    const scopeData = this.scopes.get(scopeId);
+    if (!scopeData?.element?.isConnected) return;
+    if (!scopeData.triggerManager?.registrations.get('on_show')?.length) return;
+
+    const host = this._findShowHost(scopeData.element);
+    if (host) {
+      if (host._lcardsShown.has(scopeId)) return;
+      host._lcardsShown.add(scopeId);
+    } else {
+      if (scopeData.shownOnce) return;
+      scopeData.shownOnce = true;
+    }
+    lcardsLog.debug(`[AnimationManager] Executing on_show animations for ${scopeId}`);
+    this.triggerAnimations(scopeId, 'on_show');
+  }
+
+  /**
+   * The nearest LCARdS card (shadow host carrying `_lcardsShown`) around an element.
+   * @param {Element} element
+   * @returns {any|null}
+   * @private
+   */
+  _findShowHost(element) {
+    let node = /** @type {any} */ (element);
+    while (node) {
+      if (node._lcardsShown instanceof Set) return node;
+      const root = /** @type {any} */ (node.getRootNode?.());
+      node = root && root !== node ? (root.host ?? null) : null;
+    }
+    return null;
+  }
+
+  /**
+   * A card was attached to the page: play on_show for every scope inside it that
+   * hasn't played for this connection (scopes that weren't rebuilt on reconnect).
+   * Called by LCARdSNativeCard after its first render following each connect.
+   * @param {Element} card
+   */
+  onCardShown(card) {
+    for (const [scopeId, scopeData] of this.scopes) {
+      if (scopeData.element && this._findShowHost(scopeData.element) === card) this._maybeFireOnShow(scopeId);
+    }
+  }
+
   async triggerAnimations(overlayId, trigger) {
     const scopeData = this.scopes.get(overlayId);
 
@@ -1607,6 +1671,8 @@ export class AnimationManager extends BaseService {
 
       // Same rationale as onOverlayRendered() — must run after the full batch (#386).
       scopeData.triggerManager.finalizeRegistrations();
+
+      this._maybeFireOnShow(scopeKey);
 
       lcardsLog.debug(`[AnimationManager] ✅ Registered ${animations.length} animations for segment: ${scopeKey}`);
 

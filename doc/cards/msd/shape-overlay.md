@@ -205,7 +205,7 @@ overlays:
 
     # Animations
     animations:
-      - trigger: string             # on_load | on_tap | on_hold | on_hover | on_leave | on_entity_change
+      - trigger: string             # on_load | on_show | on_tap | on_double_tap | on_hold | on_hover | on_leave | on_entity_change | on_datasource_change
         preset: string
         # ...see the Animation Preset Reference
 ```

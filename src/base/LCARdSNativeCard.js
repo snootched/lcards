@@ -280,6 +280,14 @@ export class LCARdSNativeCard extends LitElement {
         // Resolve mount element
         this._resolveMountElement();
 
+        // on_show animations play once per connection: AnimationManager records the
+        // scopes that played in this set. Scopes rebuilt by the next render play from
+        // onOverlayRendered(); onCardShown() covers the ones that weren't rebuilt.
+        this._lcardsShown = new Set();
+        this.updateComplete.then(() => requestAnimationFrame(() => {
+            if (this.isConnected) window.lcards?.core?.animationManager?.onCardShown?.(this);
+        }));
+
         // Notify subclasses
         this._onConnected();
     }
