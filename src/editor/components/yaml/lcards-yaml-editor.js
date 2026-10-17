@@ -106,6 +106,24 @@ export class LCARdSYamlEditor extends LitElement {
                 position: relative; /* completion and hover popups are placed in it */
             }
 
+            /* Holds CodeMirror's popup container: zero-size and out of the flow,
+               with popups overflowing from it (see tooltips() in _initializeEditor). */
+            .tooltip-host {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 0;
+                overflow: visible;
+                z-index: 10;
+            }
+
+            .tooltip-host > * {
+                height: 0 !important;
+                max-height: 0 !important;
+                overflow: visible !important;
+            }
+
             .toolbar {
                 display: flex;
                 justify-content: flex-end;
@@ -518,6 +536,7 @@ export class LCARdSYamlEditor extends LitElement {
                         </div>
                     </div>
                 </div>
+                <div class="tooltip-host"></div>
             </div>
             ${this._showHelp ? this._renderHelpDialog() : ''}
         `;
@@ -837,7 +856,10 @@ export class LCARdSYamlEditor extends LitElement {
             // default position: fixed lands offset inside HA dialogs (a transformed or
             // positioned dialog becomes the fixed containing block). The wrapper, not
             // the clipped code area, so they can reach past it.
-            tooltips({ position: 'absolute', parent: this.shadowRoot?.querySelector('.editor-wrapper') ?? undefined }),
+            // Their container goes in .tooltip-host, out of the layout flow: CodeMirror
+            // gives it the editor's theme class, so in the flex column it took the
+            // theme's height (up to 600px) and squeezed the code area.
+            tooltips({ position: 'absolute', parent: this.shadowRoot?.querySelector('.tooltip-host') ?? undefined }),
 
             // Keymaps
             keymap.of([
