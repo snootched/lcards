@@ -669,7 +669,7 @@ registerAnimationPreset('cascade', (def) => {
  *       colors:
  *         start: var(--lcars-blue)
  *         text: var(--lcars-dark-blue)
- *         end: var(--lcars-moonlight)
+ *         end: var(--lcards-moonlight)
  * ```
  */
 registerAnimationPreset('cascade-color', (def) => {

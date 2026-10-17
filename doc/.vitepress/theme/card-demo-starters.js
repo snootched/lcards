@@ -114,7 +114,7 @@ elbow:
       color: var(--lcars-orange)
     inner_segment:
       bar_width: 30
-      color: var(--lcars-moonlight)
+      color: var(--lcards-moonlight)
 ` },
   ],
 

@@ -494,7 +494,7 @@ config:
   colors:
     start: "var(--lcars-blue, #2266ff)"           # Bright dominant hold (0–75%)
     text:  "var(--lcards-blue-darkest, #112244)"  # Dark navy snap (75–90%)
-    end:   "var(--lcars-moonlight, #e7f3f7)"      # Pale fade-out (90–100%)
+    end:   "var(--lcards-moonlight, #e7f3f7)"      # Pale fade-out (90–100%)
 
   # Timing
   pattern: default           # default | niagara | fast | custom
@@ -515,7 +515,7 @@ config:
 | `font_family` | `"'Antonio', monospace"` | CSS font-family |
 | `colors.start` | `var(--lcars-blue)` | Colour at cycle start (hold 0–75%) |
 | `colors.text` | `var(--lcards-blue-darkest)` | Colour at mid-cycle snap (75–90%) |
-| `colors.end` | `var(--lcars-moonlight)` | Colour at cycle end (90–100%) |
+| `colors.end` | `var(--lcards-moonlight)` | Colour at cycle end (90–100%) |
 | `pattern` | `'default'` | `default` (authentic LCARS rhythm), `niagara` (uniform waterfall), `fast`, `custom` |
 | `timing` | - | Custom array of `{ duration, delay }`, one per row (applied round-robin if there are more rows than entries), used when `pattern: custom`. **`duration` is milliseconds, `delay` is seconds**, easy to mix up since only one of the two is ms. |
 | `speed_multiplier` | 1.0 | Multiplier applied to all row durations |
@@ -552,7 +552,7 @@ config:
     colors:
       start: "var(--lcars-blue-lightest)"
       text: "var(--lcars-dark-blue)"
-      end: "var(--lcars-moonlight)"
+      end: "var(--lcards-moonlight)"
     opacity: 0.7
 
 # Cascade behind a grid overlay
@@ -563,7 +563,7 @@ config:
     colors:
       start: "var(--lcars-blue, #2266ff)"
       text: "var(--lcards-blue-darkest, #112244)"
-      end: "var(--lcars-moonlight, #e7f3f7)"
+      end: "var(--lcards-moonlight, #e7f3f7)"
     opacity: 0.5
 - preset: grid
   config:
@@ -595,7 +595,7 @@ config:
     colors:
       start: "var(--lcars-blue)"
       text: "var(--lcards-blue-darkest)"
-      end: "var(--lcars-moonlight)"
+      end: "var(--lcards-moonlight)"
     opacity: 0.6
 ```
 

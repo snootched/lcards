@@ -147,7 +147,7 @@ elbow:
     inner_segment:
       bar_width: 30
       bar_height: 10
-      color: var(--lcars-moonlight)
+      color: var(--lcards-moonlight)
 `,
       },
     ],

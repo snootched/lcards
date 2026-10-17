@@ -86,7 +86,7 @@ test('unknown names are warnings with a suggestion', () => {
     assert.ok(!m.some(x => x.includes('colors.ui.primary')), 'colors.ui.* is an open namespace');
 });
 
-test('names that are valid are not flagged: component presets, media-source sounds, theme functions, templates, envelope effects', () => {
+test('names that are valid are not flagged: component presets, media-source sounds, theme functions, templates, envelope effects, uix/card_mod styling', () => {
     const issues = check([
         { type: 'custom:lcards-button', component: 'alert', preset: 'condition_red' },
         { type: 'custom:lcards-button', component: 'dpad', preset: 'lozenge' },
@@ -95,8 +95,29 @@ test('names that are valid are not flagged: component presets, media-source soun
         { type: 'custom:lcards-button', style: { card: { color: { background: { default: 'theme:alpha(colors.ui.primary, 0.5)' } } } } },
         { type: 'custom:lcards-elbow', elbow: { type: 'header-left' }, background_animation: { inset: 'auto', effects: [{ preset: 'grid' }] } },
         { type: 'custom:lcards-msd-card', msd: { base_svg: { source: '/local/my-ship.svg' } } },
+        { type: 'custom:lcards-button', uix: { style: ':host { opacity: 0.5; }' }, card_mod: { class: 'header-left' } },
     ]);
     assert.deepEqual(messages(issues), []);
+});
+
+test('CSS variables: HA-LCARS and LCARdS palette near-misses and prefix mix-ups warn; real and user-theme names pass', () => {
+    assert.ok(registries.ha_lcars_vars.includes('lcars-ui-primary'));
+    assert.ok(registries.ha_lcars_vars.includes('lcars-card-top-color'));
+    const m = messages(check({
+        type: 'custom:lcards-button',
+        style: { card: { color: { background: {
+            default: 'var(--lcars-ui-primery)',
+            active: 'alpha(var(--lcars-card-top-color), 0.5)',
+            inactive: 'var(--lcars-my-own-theme-colour, #333)',
+            unavailable: 'var(--lcards-moonlight)',
+        } } } },
+        text: { name: { color: { default: 'var(--lcars-moonlight)', active: 'var(--lcards-orange-meduim)' } } },
+    }));
+    assert.deepEqual(m, [
+        'warning style.card.color.background.default: unknown HA-LCARS variable "--lcars-ui-primery" (did you mean "--lcars-ui-primary"?)',
+        'warning text.name.color.default: unknown HA-LCARS variable "--lcars-moonlight" (did you mean "--lcards-moonlight"?)',
+        'warning text.name.color.active: unknown LCARdS palette variable "--lcards-orange-meduim" (did you mean "--lcards-orange-medium"?)',
+    ]);
 });
 
 test('range presets on a component must be that component\'s presets', () => {

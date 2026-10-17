@@ -115,7 +115,7 @@ style:
   text:
     default:
       color:                 # string or state-based object
-        default: "var(--lcars-moonlight)"
+        default: "var(--lcards-moonlight)"
         active: "var(--lcars-black)"
       font_size: 11
       text_transform: uppercase

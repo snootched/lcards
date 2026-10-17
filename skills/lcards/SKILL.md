@@ -1,6 +1,6 @@
 ---
 name: lcards
-description: Write, fix and explain LCARdS configuration for Home Assistant (Star Trek LCARS-style cards and dashboards). Use when the user wants an LCARdS card, view or dashboard (custom:lcards-button, elbow, slider, chart, data-grid, select-menu, msd-card, layout-card, alert-overlay, lcards-layout-view, the lcars-shell strategy), asks why their LCARdS YAML doesn't work, or wants to drive LCARdS from automations (lcards.* actions such as red_alert).
+description: Write, fix and explain LCARdS configuration for Home Assistant (Star Trek LCARS-style cards and dashboards). Use when the user wants an LCARdS card, view or dashboard (custom:lcards-button, elbow, slider, chart, data-grid, select-menu, msd-card, layout-card, alert-overlay, lcards-layout-view, the lcars-shell strategy), asks why their LCARdS YAML doesn't work, wants to drive LCARdS from automations (lcards.* actions such as red_alert), or asks about a Star Trek / LCARS dashboard, the HA-LCARS theme (its --lcars-* colour variables, themes, uix classes such as header-left) or UIX styling alongside LCARdS.
 license: MIT
 compatibility: Agent Skills format (agentskills.io). The config checker in scripts/ needs code execution and Node.js 20 or newer; without it, check keys against the schemas in references/.
 ---
@@ -22,12 +22,27 @@ LCARdS is a Home Assistant integration of LCARS-style cards, a grid view type an
 
 When the user pastes LCARdS YAML (theirs, or written by another tool) and asks why it doesn't work or to check it: save it to a file and run the checker on it, then explain each error and warning in plain words at its path, and give the corrected YAML. Run the checker again on your fix. Without code execution, compare each key with the card's schema and each name with `registries.json`.
 
+## HA-LCARS and UIX
+
+Many LCARdS users also run **HA-LCARS**, the LCARS theme for all of Home Assistant, which styles stock cards through **UIX** (UI eXtension, the successor to card-mod). Three layers, each with its own vocabulary:
+
+| Layer | Configured with | Reference |
+|---|---|---|
+| LCARdS cards | the card's own keys (`style:`, `preset:`, `text:`, ...) | `references/schema/`, `references/docs/` |
+| HA-LCARS theme | the selected theme; `--lcars-*` CSS variables; `uix: { class: header-left }` on **stock** cards | `references/ha-lcars/` |
+| UIX | `uix: { style: ... }` CSS on any card, UIX theme keys | `references/uix/` |
+
+- Ask whether the user runs HA-LCARS (and which theme) before choosing colours. With HA-LCARS, colour LCARdS cards with its role variables (`var(--lcars-card-button-color)`, `var(--lcars-ui-tertiary)`; `references/ha-lcars/variables.md`) so they follow theme switches; use palette variables (`var(--lcars-orange)`) only for a colour that must stay fixed. Without HA-LCARS, `--lcars-*` variables don't exist: use LCARdS theme tokens or `--lcards-*` palette colours instead.
+- HA-LCARS classes (`header-left`, `middle-right`, `button-lozenge-left`, `entity-bullet-right`, ...) style stock cards: markdown, heading, button, entities (`references/ha-lcars/guide.md`). LCARdS cards draw their own LCARS shapes, so reach for an LCARdS card (an elbow for a header bar, a lozenge button) rather than a class. Never invent a class or a variable: only the names in these references exist.
+- `uix:` (and the older `card_mod:`) are accepted on any card, LCARdS cards included. Prefer an LCARdS option when one exists: the checker checks it, and it keeps working when LCARdS changes its internal markup. Use `uix: style:` only for what no option covers. card-mod itself no longer works with current Home Assistant: tell users who still have it to replace it with UIX (`references/uix/faq.md`).
+- HA-LCARS needs UIX, its fonts, `lcars.js` and a few helper entities (`references/ha-lcars/themes.md`). When a screen depends on them, say so in the hand-over.
+
 ## Rules
 
 - Card types are `type: custom:<tag>`: `custom:lcards-button`, `custom:lcards-msd-card`, ... Views: `type: custom:lcards-layout-view`. Strategy: `strategy: { type: custom:lcars-shell }`.
 - Only keys the schema declares. If something the user wants has no key, say so instead of inventing one.
 - Names must exist: presets, components, animation and background presets, filters, sound assets, MSD backgrounds (`builtin:<name>`) and theme tokens are listed in `references/schema/registries.json`.
-- Theme tokens need the `theme:` prefix: `theme:colors.ui.primary`. Colours may be hex, `rgb()`, `var(--name)`, a token or a colour function (`alpha(var(--lcars-orange), 0.5)`).
+- Theme tokens need the `theme:` prefix: `theme:colors.ui.primary`. Colours may be hex, `rgb()`, `var(--name)`, a token or a colour function (`alpha(var(--lcars-orange), 0.5)`). HA-LCARS variables are `var(--lcars-...)`, never `theme:lcars-...`.
 - Templates: Jinja2 `{{ states('sensor.x') }}`, JavaScript `[[[ return entity.state ]]]`, LCARdS tokens `{entity.state}`, data sources `{ds:name}` / `{ds:name.processor:.1f}`.
 - Rules live in a card's `rules:` list; a rule targets cards and MSD overlays by `id` or `tag:<tag>` under `apply.overlays`.
 - Layout views: columns and rows that hold charts, MSDs or grids use `minmax(0, 1fr)`; a lozenge button shows its label only with `text.<field>.show: true`.
@@ -38,4 +53,6 @@ When the user pastes LCARdS YAML (theirs, or written by another tool) and asks w
 - `references/schema/`: `index.json`; `cards/`, `views/`, `strategies/` (one JSON Schema each); `shared/`; `registries.json` (built-in names).
 - `references/docs/`: the user docs as markdown, by section (`getting-started/`, `configuration/`, `cards/`, `core/`).
 - `references/gallery/`: complete example dashboards (they use `lcards_test_*` placeholder helpers).
-- `scripts/lcards-validate.mjs`: the config checker (`--json` for machine-readable output, `--strict` to fail on warnings).
+- `references/ha-lcars/`: `variables.md` (every `--lcars-*` variable, what it colours, its default), `themes.md` (each theme's colours, selecting a theme, helper entities), `guide.md` (HA-LCARS install, classes, layout tips). Generated from HA-LCARS at the commit named in each file.
+- `references/uix/`: the UIX styling docs (`quick-start.md`, `faq.md`, `using/cards.md`, `using/templates.md`, `using/themes.md`, `concepts/dom.md`, ...). For UIX Forge and Broker, see the UIX site.
+- `scripts/lcards-validate.mjs`: the config checker (`--json` for machine-readable output, `--strict` to fail on warnings). It also warns on a misspelt `var(--lcars-...)`. In the Claude Code plugin it runs by itself on every LCARdS YAML file you write; read and fix what it reports.

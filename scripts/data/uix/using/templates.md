@@ -1,0 +1,288 @@
+# Templates
+
+All styles may contain [Jinja2 templates](https://www.home-assistant.io/docs/configuration/templating/) that will be processed by the Home Assistant backend.
+
+UI eXtension also makes the following variables available for templates:
+
+- `config` - The entire configuration of the card, entity or badge - (`config.entity` may be of special interest)
+- `user` - The name of the currently logged in user
+- `browser` - The `browser_id` of your browser, if you have [browser_mod](https://github.com/thomasloven/hass-browser_mod) installed
+- `hash` - Whatever comes after `#` in the current URL. UIX watches for location changes through `location-changed` and `popstate` events so templates will be rebound with the updated `hash` (this can be disabled in Integration Options → Performance settings via **Disable hash template variable and updates**, which also makes `hash` unavailable)
+- `panel` - various information about the panel in view, be it a lovelace dashboard or another panel view. `panel` is a dictionary containing the following panel attributes with example values shown.
+  - `panel.fullUrlPath`: "uix/another-test-view"
+  - `panel.panelComponentName`: "lovelace"
+  - `panel.panelIcon`: "mdi:card-bulleted-outline"
+  - `panel.panelNarrow`: true
+  - `panel.panelRequireAdmin`: false
+  - `panel.panelTitle`: "UIX"
+  - `panel.panelUrlPath`: "uix"
+  - `panel.viewNarrow`: true
+  - `panel.viewTitle`: "Test View"
+  - `panel.viewUrlPath`: "another-test-view"
+  - `panel.globalTheme`: "Red theme"
+  - `panel.theme`: "Blue theme"
+
+**Panel theme variables:**
+
+`panel.theme` is set when the dashboard view has a theme set directly, otherwise is `None`. `panel.globalTheme` is the global Home Assistant theme currently applied. The effective UIX theme is not part of the `panel` dictionary.
+
+  You can debug UIX Jinja2 templates by placing the comment `{# uix.debug #}` anywhere in your template. You will see debug messages on template binding, value updated, reuse, unbinding and final unsubscribing. Any template is kept subscribed in cache for a 20s cooldown period to assist with template application, which can bring a slight speed improvement when switching back and forth to views, or using the same template on cards on different views.
+
+## Macros
+
+UI eXtension supports reusable [Jinja2 macros](https://jinja.palletsprojects.com/en/stable/templates/#macros) that can be defined at card level or via a theme, and are prepended to every template in the card.
+
+### Defining macros on a card
+
+Macros are defined under `uix.macros` in the card configuration. A macro without `returns` renders its template inline as a string: use this when you want to substitute a text value (such as a CSS color or icon name) directly into the template:
+
+```yaml
+type: tile
+entity: light.living_room
+uix:
+  macros:
+    state_color:
+      params:
+        - entity_id
+        - name: color_on
+          default: "'yellow'"
+        - name: color_off
+          default: "'gray'"
+      template: "{{ color_on if is_state(entity_id, 'on') else color_off }}"
+  style: |
+    ha-card {
+      background: {{ state_color(config.entity) }};
+    }
+```
+
+Each macro entry supports the following keys:
+
+| Key | Required | Description |
+| --- | -------- | ----------- |
+| `template` | Yes | The Jinja2 template body of the macro. |
+| `params` | No | A list of parameters the macro accepts. Each entry is either a plain string (parameter name) or a mapping with `name` and `default` keys (see below). |
+| `returns` | No | Set to `true` to make the macro callable as a function using Home Assistant's `as_function` filter. When `true`, use `{%- do returns(<value>) -%}` inside the template to return a typed value (boolean, number, etc.). |
+
+Each item in `params` can be either:
+
+- A **plain string**: just the parameter name: `- entity_id`
+- A **mapping** with `name` and `default`: the parameter name and its Jinja2 default expression:
+
+```yaml
+params:
+  - entity_id
+  - name: color_on
+    default: "'yellow'"
+  - name: color_off
+    default: "'gray'"
+```
+
+This generates the following Jinja2 macro signature:
+
+```jinja
+{% macro state_color(entity_id, color_on = 'yellow', color_off = 'gray') %}
+{{ color_on if is_state(entity_id, 'on') else color_off }}
+{% endmacro %}
+```
+
+The `default` value is injected verbatim as a Jinja2 expression. Quote string values with single quotes inside the YAML string (e.g. `"'yellow'"`).
+
+### Macros with `returns`
+
+When a macro renders inline (no `returns`), its output is always a string: even `{{ is_state(entity_id, "on") }}` produces the string `"True"` or `"False"`, and any non-empty string is truthy in Jinja2. To return an actual boolean or numeric value that behaves correctly in conditionals and comparisons, use `returns: true`.
+
+When `returns: true`, the macro follows Home Assistant's [`as_function`](https://www.home-assistant.io/docs/configuration/templating/#as_function) convention: the macro is internally named `macro_<name>` with `returns` added as its last parameter, then exposed as `<name>` via the `as_function` filter. The `returns` callable is injected automatically when the macro is invoked as a function:
+
+```yaml
+type: tile
+entity: light.living_room
+uix:
+  macros:
+    is_on:
+      params:
+        - entity_id
+      returns: true
+      template: "{%- do returns(is_state(entity_id, 'on')) -%}"
+  style: |
+    ha-card {
+      --tile-color: {{ 'yellow' if is_on(config.entity) else 'gray' }} !important;
+    }
+```
+
+This generates the following Jinja2 block that is prepended to every template:
+
+```jinja
+{% macro macro_is_on(entity_id, returns) %}
+{%- do returns(is_state(entity_id, 'on')) -%}
+{% endmacro %}
+{% set is_on = macro_is_on | as_function %}
+```
+
+### Composing macros
+
+Macros can call other macros defined in the same card. UIX automatically detects these dependencies and includes all required macros in the output, even if only the outermost macro is referenced in the main template.
+
+```yaml
+type: tile
+entity: light.living_room
+uix:
+  macros:
+    color_for_state:
+      params:
+        - entity_id
+      template: "{{ 'green' if is_state(entity_id, 'on') else 'red' }}"
+    border_style:
+      params:
+        - entity_id
+      template: "2px solid {{ color_for_state(entity_id) }}"
+  style: |
+    ha-card {
+      border: {{ border_style(config.entity) }};
+    }
+```
+
+Even though only `border_style` is used in the style template, `color_for_state` is also included because `border_style` references it. This generates the following Jinja2 block prepended to every template:
+
+```jinja
+{% macro color_for_state(entity_id) %}
+{{ 'green' if is_state(entity_id, 'on') else 'red' }}
+{% endmacro %}
+{% macro border_style(entity_id) %}
+2px solid {{ color_for_state(entity_id) }}
+{% endmacro %}
+```
+
+### Importing macros from custom template files
+
+In addition to defining macros inline, you can import macros from [Home Assistant reusable templates](https://www.home-assistant.io/docs/configuration/templating/#reusing-templates) stored in `/config/custom_templates/*.jinja`. To do this, set the macro entry's value to the filename (a plain string) instead of a macro definition object:
+
+```yaml
+type: tile
+entity: light.living_room
+uix:
+  macros:
+    state_color: "my_macros.jinja"
+  style: |
+    ha-card {
+      background: {{ state_color(config.entity) }};
+    }
+```
+
+This generates the following import statement that is prepended to every template:
+
+```jinja
+{% from 'my_macros.jinja' import state_color %}
+```
+
+The macro `state_color` must be defined in `/config/custom_templates/my_macros.jinja`. Each entry in `macros` imports its own named macro, so you can import multiple macros from the same or different files:
+
+```yaml
+uix:
+  macros:
+    state_color: "my_macros.jinja"
+    is_on: "my_macros.jinja"
+    format_date: "utils.jinja"
+```
+
+**Using template file macros:**
+
+All template files must have the .jinja extension and be less than 5MiB. Templates in the `/config/custom_template` folder will be loaded at Home Assistant startup. To reload the templates without restarting Home Assistant, invoke the `homeassistant.reload_custom_templates` action.
+
+Inline and file-import macros can be freely mixed within the same card.
+
+### Theme macros
+
+Macros can also be defined in a theme so they are available to all cards that use it. See [Themes - Macros](themes.md#macros) for details.
+
+Card-level macros take precedence over theme macros of the same name, allowing individual cards to override theme-defined macros.
+
+## Billets
+
+Billets are named YAML values that become plain template constants: usable **without parentheses**, unlike macros. They are available in both UIX Styling and UIX Forge templates. Billet string values may reference other billets via `{name}` substitution: declaration order does not matter.
+
+### Billets in UIX Styling
+
+Define billets under `uix.billets` on a card. Each billet is injected as a `{%- set name = value -%}` statement ahead of every style template on that card:
+
+#### Billet interpolation
+
+String billet values may reference other billets using `{name}` syntax: a simple substitution performed before the billets are turned into Jinja2 variables. Use `{name[N]}` to reference element `N` (0-indexed) from a list billet:
+
+```yaml
+uix:
+  billets:
+    room: "bed"                         # plain string
+    entity_id: "light.{room}_light"     # → "light.bed_light"
+    scenes:
+      - bright
+      - dim
+    default_scene: "{scenes[0]}"        # → "bright"
+  style: |
+    ha-card { content: "{{ entity_id }} / {{ default_scene }}"; }
+```
+
+Billet references are resolved in dependency order, so declaration order does not matter:
+
+```yaml
+billets:
+  entity: "light.{room}_light" # → "light.bedroom_light"  (resolved after room)
+  room: "{base}room"           # → "bedroom"  (resolved after base)
+  base: "bed"
+```
+
+**Circular references:**
+
+If billets reference each other in a cycle (directly or through a chain), none of the cycle members can be resolved. UIX logs an error for each and leaves their values unchanged.
+
+```yaml
+type: custom:uix-forge
+entity: light.bed_light
+forge:
+  mold: card
+  grid_options:
+    columns: 7
+  billets:
+    my_color: teal
+    max_brightness: 255
+    tags:
+      - living_room
+      - ambient
+element:
+  type: tile
+  entity: "{{ config.entity }}"
+  name: "{{ my_color | capitalize }} light"
+  tap_action:
+    action: perform-action
+    perform_action: light.turn_on
+    target:
+      entity_id: "{{ config.entity }}"
+    data:
+      brightness: "{{ max_brightness }}"
+  uix:
+    style: |
+      ha-card {
+        --tile-color: {{ my_color }} !important;
+      }
+      ha-tile-info span:nth-of-type(2):after {
+      {%- if is_state_attr(config.entity, 'brightness', max_brightness) -%}
+        content: ' - {{ tags | join(', ') }} - MAX';
+        font-weight: 900;
+      {%- else -%}
+        content: ' - {{ tags | join(', ') }}';
+      {% endif -%}
+      }
+```
+
+In templates, billets are used as plain constants:
+
+```jinja
+{{ accent_color }}         {# teal #}
+{{ max_level + 1 }}        {# 101 #}
+{{ tags | join(', ') }}    {# living_room, ambient #}
+```
+
+### Billets in UIX Forge
+
+When using [UIX Forge](https://uix.lf.technology/forge/), billets defined under `forge.billets` are available in all forge templates **and** in any `uix:` style on the forge card or the forged element. Forge billets are merged with any billets defined directly in the `uix:` config, with the local `uix:` billets taking precedence.
+
+See [UIX Forge: Billets](https://uix.lf.technology/forge/forge#billets) for the full reference including supported types and foundry override behaviour.

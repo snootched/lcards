@@ -11,7 +11,8 @@
  *   - MSD: a base_svg.source or a view_box
  *   - charts and data grids: the legacy (pre-sources[]) format
  *   - names that pass the schema but don't exist: presets, components, animation
- *     and background presets, filters, sound assets, MSD backgrounds, theme tokens
+ *     and background presets, filters, sound assets, MSD backgrounds, theme tokens,
+ *     near-miss `var(--lcars-*)` (HA-LCARS) and `var(--lcards-*)` (LCARdS palette) names
  *     (scripts/lib/registries.js). User packs can add names, so these are warnings.
  */
 
@@ -21,8 +22,11 @@ import { migrateChartConfig } from '../../src/charts/chart-config-migration.js';
 import { migrateDataGridConfig } from '../../src/data-grid/data-grid-config-migration.js';
 import { classifyThemePath } from './theme-token-rules.js';
 
-/** Keys every card accepts that card schemas don't list (HA / layout plumbing). */
-const CARD_PLUMBING_KEYS = new Set(['type', 'grid_options', 'view_layout', 'visibility', 'layout_options', 'card_mod']);
+/**
+ * Keys every card accepts that card schemas don't list (HA / layout plumbing, and the
+ * styling keys of UIX and its predecessor card-mod, which work on any card in a hui-card).
+ */
+const CARD_PLUMBING_KEYS = new Set(['type', 'grid_options', 'view_layout', 'visibility', 'layout_options', 'card_mod', 'uix']);
 
 // ── Schema preparation ─────────────────────────────────────────────────────────
 // Strip `additionalProperties: false` / 'warn' (partial examples would fail it;
@@ -158,6 +162,8 @@ function walk(value, path, visit, isRoot = true) {
 export function registryIssues(node, tag, reg) {
   const out = [];
   const tokenSet = new Set(reg.theme_tokens);
+  const lcarsVars = reg.ha_lcars_vars ? new Set(reg.ha_lcars_vars) : null;
+  const lcardsVars = reg.lcards_palette_vars ? new Set(reg.lcards_palette_vars) : null;
   const check = (path, value, list, what) => {
     if (isLiteral(value) && !list.includes(value)) out.push({ path, message: `unknown ${what} "${value}"${suggest(value, list)}` });
   };
@@ -185,6 +191,19 @@ export function registryIssues(node, tag, reg) {
     if (typeof value === 'string') {
       for (const m of value.matchAll(/theme:([a-zA-Z][a-zA-Z0-9._-]*)/g)) {
         if (classifyThemePath(m[1], tokenSet) === 'unknown') out.push({ path, message: `unknown theme token "theme:${m[1]}"${suggest(m[1], reg.theme_tokens).replace('"', '"theme:')}` });
+      }
+      // CSS variables: HA-LCARS `--lcars-*` and the LCARdS palette `--lcards-*`. A user
+      // theme can add more, so only near-misses are reported (`--lcars-ui-primery`), and
+      // a palette name under the other prefix (`--lcars-moonlight` for `--lcards-moonlight`).
+      for (const m of value.matchAll(/var\(\s*--((lcars|lcards)-([a-z0-9-]+))/g)) {
+        const [, name, prefix, rest] = m;
+        const own = prefix === 'lcars' ? lcarsVars : lcardsVars;
+        const other = prefix === 'lcars' ? lcardsVars : lcarsVars;
+        if (!own || own.has(name)) continue;
+        const swapped = `${prefix === 'lcars' ? 'lcards' : 'lcars'}-${rest}`;
+        const best = other?.has(swapped) ? swapped : closest(name, prefix === 'lcars' ? reg.ha_lcars_vars : reg.lcards_palette_vars);
+        const what = prefix === 'lcars' ? 'HA-LCARS variable' : 'LCARdS palette variable';
+        if (best) out.push({ path, message: `unknown ${what} "--${name}" (did you mean "--${best}"?)` });
       }
       return;
     }

@@ -1,7 +1,7 @@
 /**
  * @fileoverview The built-in names a config can refer to: presets, components,
  * animation and background presets, filters, sound events, MSD backgrounds,
- * theme tokens. Published as `schema/registries.json` (scripts/generate-llm-schema.js)
+ * theme tokens, the HA-LCARS `--lcars-*` and LCARdS palette `--lcards-*` variables. Published as `schema/registries.json` (scripts/generate-llm-schema.js)
  * and used by scripts/lib/config-validator.js to catch values that pass the JSON
  * Schema but don't exist (`preset: lozange`, `theme:colors.ui.primry`).
  *
@@ -18,6 +18,8 @@ import { BUILTIN_OPTIONS } from './card-schemas.js';
 import { flattenKeys, THEME_PATH_ALLOWED_PREFIXES } from './theme-token-rules.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+// The HA-LCARS snapshot (scripts/sync-ha-lcars.js), committed so this stays offline.
+const haLcars = JSON.parse(readFileSync(new URL('../data/ha-lcars/snapshot.json', import.meta.url), 'utf8'));
 
 /** @returns {Promise<object>} registries, every list sorted */
 export async function buildRegistries() {
@@ -32,7 +34,7 @@ export async function buildRegistries() {
 
   const src = (p) => new URL(`../../src/${p}`, import.meta.url).href;
   const [{ components }, { BACKGROUND_PRESETS }, { listAnimationPresets }, animations,
-    { FILTER_PARAMS_SCHEMAS }, { BUILTIN_SOUNDS_PACK }, { BUILTIN_MSD_SVG_PACK }, { lcardsDefaultTokens }, ...soundPacks] = await Promise.all([
+    { FILTER_PARAMS_SCHEMAS }, { BUILTIN_SOUNDS_PACK }, { BUILTIN_MSD_SVG_PACK }, { lcardsDefaultTokens }, { GREEN_ALERT_PALETTE }, ...soundPacks] = await Promise.all([
     import(src('core/packs/components/index.js')),
     import(src('core/packs/backgrounds/presets/index.js')),
     import(src('core/animation/presets.js')),
@@ -41,6 +43,7 @@ export async function buildRegistries() {
     import(src('core/packs/lcards-default-sound-scheme.js')),
     import(src('core/packs/builtin-msd.js')),
     import(src('core/packs/themes/tokens/lcardsDefaultTokens.js')),
+    import(src('core/themes/paletteInjector.js')),
     // Every built-in pack that ships audio assets (their keys are what `sounds:` takes).
     import(src('core/packs/lcards-beeps-pack.js')),
     import(src('core/packs/lcards-alerts-pack.js')),
@@ -78,5 +81,10 @@ export async function buildRegistries() {
     text_positions: [...BUILTIN_OPTIONS.positionEnum],
     theme_tokens: sorted(flattenKeys(lcardsDefaultTokens)),
     theme_token_open_prefixes: [...THEME_PATH_ALLOWED_PREFIXES],
+    // CSS variables the HA-LCARS theme defines, without `--` (for `var(--lcars-...)`).
+    ha_lcars_vars: haLcars.vars,
+    ha_lcars_commit: haLcars.source.commit,
+    // The LCARdS palette the integration injects as `--lcards-<name>` on every page.
+    lcards_palette_vars: sorted(Object.keys(GREEN_ALERT_PALETTE).map(k => `lcards-${k}`)),
   };
 }

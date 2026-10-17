@@ -95,7 +95,7 @@ style:
           default: "var(--lcars-orange)"
           inactive: "alpha(var(--lcars-orange), 0.3)"
         end:                 # string or state-based object
-          default: "var(--lcars-moonlight)"
+          default: "var(--lcards-moonlight)"
   gauge:
     progress_bar:
       color:                 # string or state-based object (gauge fill)
@@ -316,7 +316,7 @@ style:
       align: middle
       radius: 4
       background:
-        color: "var(--lcards-black-medium)"
+        color: "var(--lcards-gray-darkest)"
     scale:
       tick_marks:
         major:
@@ -512,7 +512,7 @@ style:
     fill:
       color: "var(--lcards-blue)"
     track:
-      background: "var(--lcards-black-medium)"
+      background: "var(--lcards-gray-darkest)"
     text_bands:
       top:
         size: 36

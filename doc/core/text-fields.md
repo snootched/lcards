@@ -10,7 +10,7 @@ Most LCARdS cards support a `text` object that lets you place any number of labe
 text:
   default:              ← Shared styles - never rendered itself
   │  font_size: 12
-  │  color: "var(--lcars-moonlight)"
+  │  color: "var(--lcards-moonlight)"
   │
   label:                ← Named field (name is arbitrary) - rendered as text
   │  content: "Temperature"
@@ -122,7 +122,7 @@ text:
     font_size: 28          # overrides default
     font_weight: bold
     color:                 # state-reactive colour overrides default plain string
-      default: "var(--lcars-moonlight)"
+      default: "var(--lcards-moonlight)"
       active: "var(--lcars-orange)"
 ```
 
@@ -138,7 +138,7 @@ preset: lozenge
 text:
   default:
     font_family: "Antonio, sans-serif"
-    color: "var(--lcars-moonlight)"
+    color: "var(--lcards-moonlight)"
 
   label:
     content: "Outdoor"
@@ -152,7 +152,7 @@ text:
     font_size: 32
     font_weight: bold
     color:
-      default: "var(--lcars-moonlight)"
+      default: "var(--lcards-moonlight)"
       unavailable: "var(--lcars-alert-red)"
 ```
 
@@ -211,7 +211,7 @@ text:
   status:
     content: "{entity.state}"
     color:
-      default: "var(--lcars-moonlight)"
+      default: "var(--lcards-moonlight)"
       active: "var(--lcars-orange)"
       inactive: "var(--lcars-gray)"
       unavailable: "var(--lcars-alert-red)"

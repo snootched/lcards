@@ -94,7 +94,7 @@ style:
   text:
     default:
       color:                    # string or state-based object
-        default: "var(--lcars-moonlight)"
+        default: "var(--lcards-moonlight)"
 shape_texture:
   preset: fluid
 filters: []
@@ -135,7 +135,7 @@ dpad:
 alert:
   color:                        # fill/stroke shorthand - plain strings, not state-based
     shape: "var(--lcars-orange)"    # fill colour for the shield shape
-    bars: "var(--lcars-moonlight)"  # stroke colour for the bar lines
+    bars: "var(--lcards-moonlight)"  # stroke colour for the bar lines
 ranges: []
 ranges_attribute: ""
 

@@ -12,7 +12,7 @@ An AI assistant can write LCARdS cards and whole dashboards for you. It just nee
 
 ## With Claude (easiest)
 
-The **LCARdS skill** teaches Claude everything for your LCARdS version: every option, every built-in preset and colour, the docs, the gallery dashboards and the config checker.
+The **LCARdS skill** teaches Claude everything for your LCARdS version: every option, every built-in preset and colour, the docs, the gallery dashboards and the config checker. It also knows [HA-LCARS](https://github.com/th3jesta/ha-lcars): its themes, its `--lcars-*` colour variables and its classes for stock cards. It also knows the [UIX](https://github.com/Lint-Free-Technology/uix) styling HA-LCARS runs on, so it can tell you which job belongs to an LCARdS option, the theme or UIX.
 
 1. Add the skill to Claude:
    - **Claude Code:** install the LCARdS plugin. In a Claude Code session, run:
@@ -27,7 +27,13 @@ The **LCARdS skill** teaches Claude everything for your LCARdS version: every op
    - "Make me an LCARdS button for `light.kitchen` that turns red when it's on."
    - "Build an engineering dashboard with my `sensor.power_*` entities."
 
-Claude asks for your real entity ids instead of inventing them, and checks its own YAML before handing it over.
+Claude asks for your real entity ids instead of inventing them, and checks its own YAML before handing it over. Running HA-LCARS? Say which theme, and Claude colours the cards with the theme's own variables so they follow when you switch themes.
+
+In Claude Code the plugin goes further:
+
+- The config checker **runs by itself** every time Claude writes a YAML file with LCARdS cards in it, and Claude fixes whatever it reports before handing the file over.
+- **`/lcards:check`** followed by a file or pasted YAML checks it and explains each problem.
+- **`/lcards:dashboard`** builds a whole dashboard with you, one question at a time.
 
 ::: details Keeping the Claude Code plugin up to date
 Each LCARdS release comes with a new version of the plugin. To get it, run `/plugin marketplace update lcards`, or open `/plugin`, go to **Marketplaces**, select **lcards** and turn on **Enable auto-update**. Run `/reload-plugins` (or start a new session) to load the new version.
