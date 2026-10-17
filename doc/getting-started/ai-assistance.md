@@ -14,15 +14,29 @@ An AI assistant can write LCARdS cards and whole dashboards for you. It just nee
 
 The **LCARdS skill** teaches Claude everything for your LCARdS version: every option, every built-in preset and colour, the docs, the gallery dashboards and the config checker.
 
-1. Download [`lcards-skill.zip`](/tools/lcards-skill.zip).
-2. Add it to Claude:
-   - **claude.ai or the Claude apps:** upload the zip as a custom skill in **Settings** (needs code execution turned on).
-   - **Claude Code:** unzip it into `~/.claude/skills/`, so you have `~/.claude/skills/lcards/SKILL.md`.
-3. Ask. For example:
+1. Add the skill to Claude:
+   - **Claude Code:** install the LCARdS plugin. In a Claude Code session, run:
+
+     ```
+     /plugin marketplace add https://lcards.unimatrix01.ca/marketplace.json
+     /plugin install lcards@lcards
+     ```
+
+   - **claude.ai or the Claude apps:** download [`lcards-skill.zip`](/tools/lcards-skill.zip) and upload it as a custom skill in **Settings** (needs code execution turned on).
+2. Ask. For example:
    - "Make me an LCARdS button for `light.kitchen` that turns red when it's on."
    - "Build an engineering dashboard with my `sensor.power_*` entities."
 
 Claude asks for your real entity ids instead of inventing them, and checks its own YAML before handing it over.
+
+::: details Keeping the Claude Code plugin up to date
+Each LCARdS release comes with a new version of the plugin. To get it, run `/plugin marketplace update lcards`, or open `/plugin`, go to **Marketplaces**, select **lcards** and turn on **Enable auto-update**. Run `/reload-plugins` (or start a new session) to load the new version.
+
+- **Running a dev build of LCARdS?** Use the dev channel instead, which follows the [dev docs](https://lcards.unimatrix01.ca/dev/): `/plugin marketplace add https://lcards.unimatrix01.ca/dev/marketplace.json`, then `/plugin install lcards@lcards-dev`. Install one channel, not both.
+- **Installed the skill by hand before?** Delete `~/.claude/skills/lcards/` first, so only the plugin copy loads.
+- **Prefer a manual install?** Unzip [`lcards-skill.zip`](/tools/lcards-skill.zip) into `~/.claude/skills/`, so you have `~/.claude/skills/lcards/SKILL.md`. It won't update itself.
+- The plugin needs Claude Code 2.1.224 or newer.
+:::
 
 ::: info Other tools that support skills
 The LCARdS skill follows the open [Agent Skills](https://agentskills.io) standard, so any tool that supports Agent Skills can load the same zip. We build and test it with Claude.

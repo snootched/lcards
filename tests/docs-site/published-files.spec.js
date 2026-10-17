@@ -26,6 +26,17 @@ test('schemas, registries and the config checker are published', async ({ reques
     const skill = await request.get('/tools/lcards-skill.zip');
     expect(skill.ok()).toBe(true);
     expect((await skill.body()).subarray(0, 2).toString()).toBe('PK');
+    const plugin = await request.get('/tools/lcards-plugin.zip');
+    expect(plugin.ok()).toBe(true);
+    expect((await plugin.body()).subarray(0, 2).toString()).toBe('PK');
+});
+
+test('the Claude Code marketplace is published and points at this channel\'s plugin zip', async ({ request }) => {
+    const { DOCS_BASE } = await import('./support.js');
+    const res = await request.get('/marketplace.json');
+    expect(res.ok()).toBe(true);
+    const marketplace = await res.json();
+    expect(marketplace.plugins[0].source).toEqual({ source: 'archive', url: `https://lcards.unimatrix01.ca${DOCS_BASE}tools/lcards-plugin.zip` });
 });
 
 test('llms.txt and llms-full.txt are published and point at this channel', async ({ request }) => {

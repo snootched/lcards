@@ -108,6 +108,7 @@ export function buildLlmsTxt({ base = '/', version }) {
     `- [Config checker](${SITE_ROOT}${base}tools/lcards-validate.mjs): \`node lcards-validate.mjs dashboard.yaml\` checks a card, view or whole dashboard (Node 20+, one file)`,
     `- [All user docs in one file](${SITE_ROOT}${base}llms-full.txt): getting started, configuration, cards and core as markdown`,
     `- [LCARdS skill](${SITE_ROOT}${base}tools/lcards-skill.zip): instructions plus all of the above in one package (Agent Skills format: Claude Code, claude.ai and other compatible tools)`,
+    `- [Claude Code marketplace](${SITE_ROOT}${base}marketplace.json): the same skill as a Claude Code plugin (\`/plugin marketplace add ${SITE_ROOT}${base}marketplace.json\`, then \`/plugin install lcards@<marketplace name>\`)`,
     `- [Getting AI help](${pageUrl('getting-started/ai-assistance.md', base)}): what to attach and a prompt template`,
     '',
   ];

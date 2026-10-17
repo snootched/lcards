@@ -1,7 +1,9 @@
 /**
  * The user-facing skill (skills/lcards/SKILL.md, scripts/build-user-skill.js): the zip
  * has valid skill frontmatter, every path SKILL.md points at exists in the package, the
- * schemas cover every card, and the bundled checker runs.
+ * schemas cover every card, and the bundled checker runs. The Claude Code plugin zip
+ * carries the same skill with a plugin.json for this version, and the marketplace file
+ * points each docs channel at its own plugin zip.
  */
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,15 +15,33 @@ import { fileURLToPath } from 'node:url';
 import { getSchemaEntries } from '../../scripts/lib/card-schemas.js';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
+const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 let dir;
 let skill;
+let plugin;
+
+/** Run the build for one docs channel into `out`; returns the marketplace file. */
+function build(out, docsBase) {
+    const env = { ...process.env };
+    if (docsBase) env.DOCS_BASE = docsBase; else delete env.DOCS_BASE;
+    const r = spawnSync(process.execPath, [join(ROOT, 'scripts/build-user-skill.js'),
+        `--out=${join(out, 'lcards-skill.zip')}`, `--plugin-out=${join(out, 'lcards-plugin.zip')}`,
+        `--marketplace-out=${join(out, 'marketplace.json')}`], { encoding: 'utf8', env });
+    assert.equal(r.status, 0, r.stderr);
+    return JSON.parse(readFileSync(join(out, 'marketplace.json'), 'utf8'));
+}
+
+/** Every file under `root`, relative, sorted. */
+const listFiles = (root, sub = '') => readdirSync(join(root, sub), { withFileTypes: true })
+    .flatMap(e => e.isDirectory() ? listFiles(root, join(sub, e.name)) : [join(sub, e.name)]).sort();
 
 before(() => {
     dir = mkdtempSync(join(tmpdir(), 'lcards-skill-test-'));
-    const r = spawnSync(process.execPath, [join(ROOT, 'scripts/build-user-skill.js'), `--out=${join(dir, 'lcards-skill.zip')}`], { encoding: 'utf8' });
-    assert.equal(r.status, 0, r.stderr);
+    build(dir);
     execFileSync('python3', ['-m', 'zipfile', '-e', join(dir, 'lcards-skill.zip'), dir]);
     skill = join(dir, 'lcards');
+    plugin = join(dir, 'plugin');
+    execFileSync('python3', ['-m', 'zipfile', '-e', join(dir, 'lcards-plugin.zip'), plugin]);
 });
 
 test('SKILL.md has the frontmatter a skill needs and names the version it was built for', () => {
@@ -30,7 +50,6 @@ test('SKILL.md has the frontmatter a skill needs and names the version it was bu
     assert.match(fm, /^name: lcards$/m);
     const description = /^description: (.+)$/m.exec(fm)?.[1] ?? '';
     assert.ok(description.length > 100 && description.length < 1024, 'description sized for triggering');
-    const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
     assert.ok(md.includes(`Built for LCARdS ${version}`));
     assert.ok(!/—/.test(md));
 });
@@ -73,4 +92,32 @@ test('the bundled checker runs on the bundled gallery', () => {
     const gallery = readdirSync(join(skill, 'references/gallery')).map(f => join(skill, 'references/gallery', f));
     const r = spawnSync(process.execPath, [join(skill, 'scripts/lcards-validate.mjs'), '--strict', ...gallery], { encoding: 'utf8' });
     assert.equal(r.status, 0, r.stdout + r.stderr);
+});
+
+test('the plugin zip is the same skill with a plugin.json for this version', () => {
+    const manifest = JSON.parse(readFileSync(join(plugin, '.claude-plugin/plugin.json'), 'utf8'));
+    assert.equal(manifest.name, 'lcards');
+    assert.equal(manifest.version, version, 'plugin.json version drives Claude Code updates');
+    assert.ok(manifest.description && !/—/.test(manifest.description));
+    const skillFiles = listFiles(skill);
+    assert.deepEqual(listFiles(join(plugin, 'skills/lcards')), skillFiles);
+    for (const f of ['SKILL.md', 'scripts/lcards-validate.mjs', 'references/schema/index.json']) {
+        assert.equal(readFileSync(join(plugin, 'skills/lcards', f), 'utf8'), readFileSync(join(skill, f), 'utf8'), f);
+    }
+});
+
+test('each docs channel gets its own marketplace pointing at its own plugin zip', () => {
+    const channels = [['', 'lcards', '/'], ['/dev/', 'lcards-dev', '/dev/'], [`/v/${version}/`, `lcards-${version}`, `/v/${version}/`]];
+    for (const [docsBase, name, base] of channels) {
+        const out = mkdtempSync(join(tmpdir(), 'lcards-marketplace-test-'));
+        const m = docsBase ? build(out, docsBase) : JSON.parse(readFileSync(join(dir, 'marketplace.json'), 'utf8'));
+        assert.equal(m.name, name);
+        assert.match(m.name, /^[A-Za-z0-9][A-Za-z0-9._-]*$/, 'valid marketplace name');
+        assert.ok(m.owner?.name && m.description && !/—/.test(m.description));
+        assert.equal(m.plugins.length, 1);
+        const [entry] = m.plugins;
+        assert.equal(entry.name, 'lcards', 'entry name = plugin.json name');
+        assert.equal(entry.version, undefined, 'plugin.json owns the version');
+        assert.deepEqual(entry.source, { source: 'archive', url: `https://lcards.unimatrix01.ca${base}tools/lcards-plugin.zip` });
+    }
 });
