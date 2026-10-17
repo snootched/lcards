@@ -171,7 +171,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
     if (format) {
       // Explicit format spec: caller owns the output — number only, no auto-unit.
       // Analogous to {{states('sensor.temp')}} in HA Jinja2 — raw value, you control the suffix.
-      value = this._applyFormat(value, format);
+      value = this._applyFormat(value, format, currentData.metadata);
     } else if (!isProcessorOutput) {
       // No format spec: HA-native display — locale-formatted number + unit from entity metadata.
       // Analogous to haFormatEntityState() — consistent with how HA itself displays the value.
@@ -330,7 +330,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
    * @param {Object} metadata - DataSource metadata (for units)
    * @returns {string} Formatted value
    */
-  _applyFormat(value, formatSpec) {
+  _applyFormat(value, formatSpec, metadata) {
     if (typeof value !== 'number') {
       return String(value);
     }

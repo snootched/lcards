@@ -33,3 +33,14 @@ test('unknown sources, processors and paths stay as written', () => {
     assert.equal(evaluate('{ds:nope}'), '{ds:nope}');
     assert.equal(evaluate('{ds:temp.nope}'), '{ds:temp.nope}');
 });
+
+// The percent format read the source's unit from a `metadata` variable that was never
+// passed in, so every {ds:x:.1f%} threw "metadata is not defined" (found by the typecheck).
+test('percent format: a fraction is scaled, a value already in % is not', () => {
+    const percent = (v, unit) => new DataSourceTemplateEvaluator({
+        getSource: () => ({ getCurrentData: () => ({ v, metadata: { unit_of_measurement: unit } }) }),
+        hass: null,
+    }).evaluate('{ds:x:.1f%}');
+    assert.equal(percent(0.42, ''), '42.0%');
+    assert.equal(percent(42, '%'), '42.0%');
+});
