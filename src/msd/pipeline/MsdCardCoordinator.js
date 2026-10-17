@@ -399,44 +399,6 @@ export class MsdCardCoordinator extends BaseService {
   }
 
   // Public API methods - now exclusively using DataSourceManager
-  // @ts-ignore - TS2393: duplicate ingestHass; second definition is the live one
-  ingestHass(hass) {
-    lcardsLog.debug('[MsdCardCoordinator] ingestHass called with:', {
-      hasHass: !!hass,
-      hasStates: !!hass?.states,
-      entityCount: hass?.states ? Object.keys(hass.states).length : 0,
-      hasLightDesk: !!hass?.states?.['light.desk'],
-      lightDeskState: hass?.states?.['light.desk']?.state,
-      timestamp: new Date().toISOString(),
-      manualHassForwarding: this.controlsRenderer?._manualHassForwarding
-    });
-
-    if (!hass || !hass.states) {
-      lcardsLog.warn('[MsdCardCoordinator] ingestHass called without valid hass.states');
-      return;
-    }
-
-    // Update single source of truth
-    this._hass = hass;
-
-    lcardsLog.debug('[MsdCardCoordinator] Updated _hass with fresh data');
-
-    // ⚠️ FEATURE FLAG: Manual HASS Forwarding
-    // Pass HASS to controls renderer - behavior depends on feature flag
-    if (this.controlsRenderer) {
-      const mode = this.controlsRenderer._manualHassForwarding ? 'MANUAL' : 'AUTOMATIC';
-      lcardsLog.info(`[MsdCardCoordinator] 📡 HASS propagation mode: ${mode}`);
-      lcardsLog.debug('[MsdCardCoordinator] Calling controlsRenderer.setHass() - see MsdControlsRenderer logs for distribution details');
-      this.controlsRenderer.setHass(hass);
-    } else {
-      lcardsLog.warn('[MsdCardCoordinator] No controls renderer available for HASS update');
-    }
-
-    // DataSources handle HASS updates automatically via their subscriptions
-    // No manual ingestion needed - handled by individual data sources
-    lcardsLog.debug('[MsdCardCoordinator] HASS ingestion complete - data sources handle updates via subscriptions');
-  }
-
   updateEntities(map) {
     if (!map || typeof map !== 'object') return;
 
@@ -629,7 +591,6 @@ export class MsdCardCoordinator extends BaseService {
    * Single source of truth for HASS within the MSD pipeline.
    * @param {Object} hass - Home Assistant state object
    */
-  // @ts-ignore - TS2393: duplicate ingestHass; this is the canonical implementation
   ingestHass(hass) {
     if (!hass || !hass.states) {
       lcardsLog.warn('[MsdCardCoordinator] ingestHass: Invalid HASS provided');

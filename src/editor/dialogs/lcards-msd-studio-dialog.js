@@ -1384,8 +1384,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * Handle reset button click.
      * @private
      */
-    _handleReset() {
-        if (!this._confirmAction('Reset to initial configuration? All changes will be lost.')) {
+    async _handleReset() {
+        if (!await this._confirmAction('Reset to initial configuration? All changes will be lost.')) {
             return;
         }
         lcardsLog.debug('[MSDStudio] Resetting to initial config');
