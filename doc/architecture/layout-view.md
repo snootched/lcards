@@ -8,6 +8,7 @@ All code lives in `src/views/`:
 |------|------|
 | `lcards-layout-view.js` | The view element: renders the grid, mounts HA-provided cards, owns config + persistence, manages the editor overlay. |
 | `lcards-grid-edit-overlay.js` | The in-view editor chrome (Layout mode): track handles, headers, area overlays, toolbars, settings panels. |
+| `layout-edit-chrome.js` | Shared edit-mode chrome for the view and the overlay: mdi icon paths, the toolbar strip and panel styles, the Layout / Cards toggle. |
 | `layout-grid-utils.js` | Pure, DOM-free functions: track-list parsing, 2D area manipulation, area-settings reconciliation. |
 | `layout-render.js` | Shared render helpers (`buildGridStyle`, `applyCardPlacement`, `renderAreaSurfaces`, `resolveColorValue`) used by both the view and the card. |
 | `layout-edit-dialogs.js` | Shared `ha-dialog` confirmation helper (destructive actions). |
@@ -70,11 +71,29 @@ This avoids the offset bug that occurs when header/ruler tracks consume grid spa
 
 ### Header gutter
 
-`GRID_EDIT_GUTTER` (28px, from `layout-grid-utils.js`) does **not** pad `#grid-root`; both the view and the card call `buildGridStyle(..., { withGutter: false })`, so the grid keeps its natural size in Layout mode. The overlay imports the same constant as `HEADER_OVERLAP` and instead sizes/positions its column/row headers, add-row/add-col buttons, and corner controls to float over the first `HEADER_OVERLAP`px of the real grid. `buildGridStyle`'s `withGutter` option still exists (reserves `padding-top`/`padding-left`) but neither call site passes `true` today.
+In edit mode the grid reserves room for the editor chrome so it never covers cards: `buildGridStyle(..., { editMode })` pads `#grid-root` by `editReserve(mode)` (`layout-grid-utils.js`): `EDIT_BAR_HEIGHT` (48px) on top for the toolbar strip in both modes, plus `GRID_EDIT_GUTTER` (28px) on top and left in Layout mode for the column/row headers. The view passes its edit sub-mode; the layout card passes `'grid'` while the Layout Studio sets `editing`. `_applyVisibilityRowHeights()` subtracts the grid's padding before sizing `fr` rows.
+
+The overlay's ghost grid starts where the real grid's first cell starts: the parent calls `measureGridFrame(grid, overlay)` (`layout-render.js`), which returns the resolved px tracks (`measureColumns` / `measureRows`) and the first cell's offset (`measureOffset`, covering the reserve, `padding`, `margin` and border). Headers are positioned in the gutter (`cell.top - GUTTER`), so they cannot overlap area controls.
+
+### Stacking order and hit targets
+
+The overlay keeps one z-index scale (`Z` at the top of the file): cell targets < area tiles < resize segments < headers < gutter resize segment < area grips < selection / area preview < toolbar < dock and popups < drag chip. Resize handles are split into one segment per cell along a boundary plus one in the gutter (inserting a track is in the track menu, so nothing covers the handle); a segment whose two cells belong to the same area is hidden, so the middle of a spanning area stays the area. Menus (`ha-dropdown`) render in the top layer, so the host's `overflow: hidden` never clips them; `ha-dropdown` is `display: contents`, so the trigger `ha-icon-button` is what gets positioned.
+
+### Docked inspector
+
+Grid settings, a track's settings and an area's settings share one `.edit-dock` (`editDockStyles` in `layout-edit-chrome.js`): `_openDock({ settings | track | area })` shows one subject and replaces any other; while it shows an area it follows `_selectArea()`. The overlay fires `dock-changed` (`{ open }`) when it opens or closes. The view sets its `dock-open` attribute (`:host([dock-open])` pads the host by `EDIT_DOCK_WIDTH`, so `#grid-root` narrows) and the layout studio toggles `.dock-open` on its canvas; below `DOCK_SHEET_BREAKPOINT` the dock is a bottom sheet over the grid instead. In card mode the view shows a card's placement in its own dock (`_renderPlacementPanel`). The overlay's ResizeObserver re-measures when the grid narrows.
+
+### Area move and resize
+
+The selected area gets four edge grips (`_renderAreaGrips`), and its name chip is a move handle. `_areaDragStart/Move/End` hit-test cells with `_cellAtPoint`, build the target bounds (edges clamp to at least one cell; a move clamps to the grid) and validate them with `setAreaBounds()` (`layout-grid-utils.js`: frees the area's own cells, refuses overlaps with other areas). `.area-preview` shows the target, `.blocked` in the error colour. Only a drag that ends on a valid target commits (`grid-state-changed`); cards and `layout.areas` refer to the area by name, so they follow it unchanged.
+
+### Stacked cards (card mode)
+
+When several cards share a `grid-area`, `_placeCards()` adds a `.stack-picker` (one pill per card) to that area. The picked card (`_stackFocus[area]`, default the top one) gets a z-index above the stack's own and the others `pointer-events: none`, so its edit controls can be reached.
 
 ### Unified pointer dispatch
 
-`connectedCallback` binds a single `pointermove`/`pointerup` pair to the overlay element (not `document`; shadow-DOM boundaries and `setPointerCapture` on cells both break there). `_onAnyPointerMove`/`_onAnyPointerUp` route to whichever drag is active: track resize, header reorder, rubber-band area selection, toolbar drag, or the area-settings-panel drag.
+`connectedCallback` binds `pointermove` / `pointerup` / `pointercancel` to the overlay element (not `document`, because of shadow-DOM boundaries). Every drag captures its pointer (`setPointerCapture`), so a release outside the view still arrives and ends the drag; `pointercancel` ends any drag (a resize keeps the size reached). `_onAnyPointerMove`/`_onAnyPointerUp`/`_onAnyPointerCancel` route to whichever drag is active: track resize, header reorder, rubber-band area selection, or an area move / resize. The rubber-band hit-tests the measured cell rects (`_cellAtPoint`), so capturing on the first cell is safe; a click without a drag on an empty cell creates a one-cell area (handled in `_selUp`, since the captured pointer sends the click to the cell).
 
 ---
 
@@ -87,7 +106,11 @@ This avoids the offset bug that occurs when header/ruler tracks consume grid spa
 
 **Precedence:** global (`card_margin` / `card_overflow`) → per-area (`layout.areas[name]`) → per-card (`view_layout`). Grid placement and alignment land on the *grid item* (the card, or its edit-mode wrapper); `overflow` lands on the card so content clips regardless of the wrapper.
 
-In Card mode each card is wrapped in a `.card-edit-wrap` (the grid item) carrying edit / placement / remove handles; empty areas get an **Add card** placeholder.
+In edit mode every card element is `inert` (as HA does in its own views), so a click never runs a card's tap action. In Card mode each card is wrapped in a `.card-edit-wrap` (the grid item, `isolation: isolate`) with HA's `hui-card-edit-mode` controls rendered by `_renderCardControls()`: the whole card is the edit target (scrim + pencil, `ll-edit-card`), and a ⋮ `ha-dropdown` offers Edit, Placement & spacing and Delete (`ll-delete-card`, so HA shows its *Undo* toast). Controls show on hover, focus, or a first tap on touch screens (`_onDocPointerDown`). Empty areas get an **Add card** placeholder.
+
+Every edit is a `lovelace.saveConfig`, and HA's `hui-root` commits each config change to its undo stack, so the dashboard toolbar's Undo / Redo covers the view's edits. Multi-key changes (alignment, overflow, per-area settings) are sent as one patch, so each is one save and one undo step.
+
+Saves are serialized by `_saveViewConfig()`, which also waits for the previous config change's `lovelace_updated` event before saving (`_waitForSaveEvent()`, 2s fallback) and merges saves requested in the same tick. HA's panel ignores only **one** update event per `saveConfig` (a boolean flag); two saves before the first event arrives make the second event look external, and HA shows "Dashboard updated in another session". The classic trigger is saving from the `lovelace` setter right after HA saved a card (adding `grid-area` to a new card, restoring a stripped `view_layout`).
 
 Cards are **always placed**; per-card visibility is not the view's concern. HA hands the view `hui-card` wrappers, which evaluate each card's native **Visibility** conditions and hide themselves reactively. The view therefore implements no `view_layout.show` handling (unlike upstream layout-card, whose card mode bypasses the `hui-card` wrapper).
 

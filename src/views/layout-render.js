@@ -8,7 +8,7 @@
  * Theme-token resolution reaches the global singleton, matching project rules.
  */
 
-import { getAreaNames, GRID_EDIT_GUTTER } from './layout-grid-utils.js';
+import { getAreaNames, editReserve } from './layout-grid-utils.js';
 
 // Per-card view_layout keys applied to the GRID ITEM (the card, or its wrapper).
 // 'overflow' is handled separately (applied to the card element). Grid placement
@@ -26,7 +26,7 @@ export const CARD_ITEM_STYLE_KEYS = new Set([
  * @param {string[][]} areas   2D area matrix
  * @param {string}   gap       grid gap
  * @param {object}   [opts]
- * @param {boolean}  [opts.withGutter=false]    reserve the top/left editor gutter
+ * @param {'grid'|'cards'|null} [opts.editMode] reserve space for the editor chrome (see editReserve)
  * @param {string}   [opts.defaultHeight]       height when `layout.height` is unset
  * @param {string}   [opts.overrideHeight]      unconditional height override (ignores layout.height)
  * @param {string}   [opts.overflowY]           overflow-y value (default 'auto')
@@ -34,7 +34,7 @@ export const CARD_ITEM_STYLE_KEYS = new Set([
  */
 export function buildGridStyle(layout = {}, columns, rows, areas, gap, opts = {}) {
     const {
-        withGutter = false,
+        editMode = null,
         defaultHeight = 'calc(100dvh - var(--header-height, 56px))',
         // Unconditional height override. The view passes '100%' here so that #grid-root fills
         // the host element, which carries the actual height value. This way the CSS Grid engine
@@ -53,12 +53,11 @@ export function buildGridStyle(layout = {}, columns, rows, areas, gap, opts = {}
     if (layout.margin != null)  parts.push(`margin: ${layout.margin}`);
     if (layout.padding != null) parts.push(`padding: ${layout.padding}`);
 
-    // Editor gutter so the overlay's row/column headers don't cover the first
-    // row/column. Longhand after `padding` so it overrides only top/left.
-    if (withGutter) {
-        parts.push(`padding-top: ${GRID_EDIT_GUTTER}px`);
-        parts.push(`padding-left: ${GRID_EDIT_GUTTER}px`);
-    }
+    // Editor chrome (toolbar strip, row/column header gutter) so it never covers
+    // cards. Longhand after `padding` so it overrides only top/left.
+    const reserve = editReserve(editMode);
+    if (reserve.top)  parts.push(`padding-top: ${reserve.top}px`);
+    if (reserve.left) parts.push(`padding-left: ${reserve.left}px`);
 
     parts.push(`grid-template-columns: ${columns.join(' ')}`);
     parts.push(`grid-template-rows: ${rows.join(' ')}`);
@@ -76,6 +75,38 @@ export function buildGridStyle(layout = {}, columns, rows, areas, gap, opts = {}
     }
 
     return parts.join('; ');
+}
+
+/**
+ * Measure the real grid for the grid edit overlay: its resolved px tracks (so
+ * the overlay's empty ghost grid matches content-sized tracks like `auto`) and
+ * where its first cell starts relative to the overlay (edit reserve, padding,
+ * margin and border included), in the overlay's own CSS pixels.
+ *
+ * @param {HTMLElement} grid     the real #grid-root
+ * @param {HTMLElement} overlay  the lcards-grid-edit-overlay positioned over it
+ * @returns {{measureColumns?: string[], measureRows?: string[], measureOffset: {top: number, left: number}}}
+ */
+export function measureGridFrame(grid, overlay) {
+    const cs = getComputedStyle(grid);
+    const g = grid.getBoundingClientRect();
+    const o = overlay.getBoundingClientRect();
+    // Undo any ancestor scale (e.g. a dialog's open animation): the overlay lays
+    // its chrome out in its own CSS pixels.
+    const sx = overlay.offsetWidth  ? (o.width  / overlay.offsetWidth)  || 1 : 1;
+    const sy = overlay.offsetHeight ? (o.height / overlay.offsetHeight) || 1 : 1;
+    /** @type {{measureColumns?: string[], measureRows?: string[], measureOffset: {top: number, left: number}}} */
+    const frame = {
+        measureOffset: {
+            top:  (g.top  - o.top)  / sy + (parseFloat(cs.borderTopWidth)  || 0) + (parseFloat(cs.paddingTop)  || 0),
+            left: (g.left - o.left) / sx + (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.paddingLeft) || 0),
+        },
+    };
+    const cols = cs.gridTemplateColumns;
+    const rows = cs.gridTemplateRows;
+    if (cols && cols !== 'none') frame.measureColumns = cols.trim().split(/\s+/);
+    if (rows && rows !== 'none') frame.measureRows = rows.trim().split(/\s+/);
+    return frame;
 }
 
 /**

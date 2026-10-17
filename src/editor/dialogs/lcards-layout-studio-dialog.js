@@ -27,6 +27,8 @@ import {
     pruneAreaSettings,
 } from '../../views/layout-grid-utils.js';
 import { showConfirmDeleteDialog, showInfoDialog } from '../../views/layout-edit-dialogs.js';
+import { measureGridFrame } from '../../views/layout-render.js';
+import { EDIT_DOCK_WIDTH, DOCK_SHEET_BREAKPOINT } from '../../views/layout-edit-chrome.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-color-picker.js';
 import '../components/yaml/lcards-studio-yaml-tab.js';
@@ -172,6 +174,10 @@ export class LCARdSLayoutStudioDialog extends LitElement {
             el.addEventListener('layout-settings-changed', (e) => this._onLayoutSettingsChanged(e));
             el.addEventListener('area-cards-changed',      (e) => this._onAreaCardsChanged(e));
             el.addEventListener('add-card-to-area',        (e) => this._onAddCardToArea(e));
+            // The overlay's dock narrows the preview while open (never covers it).
+            el.addEventListener('dock-changed', (e) => {
+                canvas.classList.toggle('dock-open', !!(/** @type {CustomEvent} */ (e)).detail?.open);
+            });
             canvas.appendChild(el);
             this._overlayEl = el;
             // The dialog open animation can leave the first measurement stale (cells
@@ -194,13 +200,9 @@ export class LCARdSLayoutStudioDialog extends LitElement {
     /** Feed the overlay the real grid's resolved px track sizes so its ghost grid
      *  matches content-sized tracks (auto / min-content). */
     _syncMeasureTracks() {
-        const realGrid = this._previewEl?.renderRoot?.querySelector('#grid-root');
+        const realGrid = /** @type {HTMLElement|null|undefined} */ (this._previewEl?.renderRoot?.querySelector('#grid-root'));
         if (!realGrid || !this._overlayEl) return;
-        const cs = getComputedStyle(realGrid);
-        const cols = cs.gridTemplateColumns;
-        const rows = cs.gridTemplateRows;
-        if (cols && cols !== 'none') this._overlayEl.measureColumns = cols.trim().split(/\s+/);
-        if (rows && rows !== 'none') this._overlayEl.measureRows = rows.trim().split(/\s+/);
+        Object.assign(this._overlayEl, measureGridFrame(realGrid, this._overlayEl));
         this._overlayEl.refresh?.();
     }
 
@@ -264,9 +266,9 @@ export class LCARdSLayoutStudioDialog extends LitElement {
 
     _onAreaSettingsChanged(ev) {
         ev.stopPropagation();
-        const { name, key, value } = ev.detail ?? {};
-        if (!name || !key) return;
-        this._setAreaSetting(name, key, value);
+        const { name, patch } = ev.detail ?? {};
+        if (!name || !patch) return;
+        for (const [key, value] of Object.entries(patch)) this._setAreaSetting(name, key, value);
     }
 
     /** Merge one per-area surface setting (empty value removes the key / area). */
@@ -753,6 +755,10 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                     overflow: hidden;
                 }
                 .canvas lcards-layout-card { display: block; width: 100%; height: 100%; }
+                .canvas.dock-open { padding-right: ${EDIT_DOCK_WIDTH}px; }
+                @media (max-width: ${DOCK_SHEET_BREAKPOINT}px) {
+                    .canvas.dock-open { padding-right: 0; }
+                }
 
                 .layout-tab { display: flex; flex-direction: column; gap: 12px; }
                 .yaml-tab { display: flex; flex-direction: column; height: 100%; }

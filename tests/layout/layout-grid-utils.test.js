@@ -213,6 +213,26 @@ test('serializeLayoutConfig writes CSS keys, drops legacy keys, keeps the rest',
     assert.deepEqual([back.columns, back.rows, back.areas, back.gap], [['1fr', '2fr'], ['auto'], [['a', 'b']], '4px']);
 });
 
+test('setAreaBounds: move and resize an area; blocked by other areas and the grid edge', () => {
+    const g = grid('"a a ." "b . ." ". . ."');
+    // Grow a to the right and down over free cells and its own old cells.
+    const grown = L.setAreaBounds(g, 'a', { r1: 0, c1: 0, r2: 1, c2: 3 });
+    assert.ok(grown.ok);
+    assert.equal(L.areasToString(/** @type {any} */ (grown).grid2d), '"a a a"\n"b . ."\n". . ."');
+    // Move a down-right: its old cells are freed.
+    const moved = L.setAreaBounds(g, 'a', { r1: 1, c1: 1, r2: 2, c2: 3 });
+    assert.ok(moved.ok);
+    assert.equal(L.areasToString(/** @type {any} */ (moved).grid2d), '". . ."\n"b a a"\n". . ."');
+    // Overlapping b is refused; so are empty / out-of-grid / non-integer bounds and unknown areas.
+    assert.deepEqual(L.setAreaBounds(g, 'a', { r1: 0, c1: 0, r2: 2, c2: 2 }), { ok: false, error: 'Overlaps existing area "b"' });
+    for (const b of [{ r1: 0, c1: 0, r2: 0, c2: 2 }, { r1: 0, c1: 2, r2: 1, c2: 4 }, { r1: -1, c1: 0, r2: 1, c2: 1 }, { r1: 0, c1: 0.5, r2: 1, c2: 2 }]) {
+        assert.equal(L.setAreaBounds(g, 'a', b).ok, false);
+    }
+    assert.equal(L.setAreaBounds(g, 'zz', { r1: 0, c1: 0, r2: 1, c2: 1 }).ok, false);
+    // The input grid is not mutated.
+    assert.equal(L.areasToString(g), '"a a ."\n"b . ."\n". . ."');
+});
+
 // ── buildGridStyle ─────────────────────────────────────────────────────
 
 test('buildGridStyle: default height, overrides, gutter, areas, pass-through keys', () => {
@@ -228,9 +248,21 @@ test('buildGridStyle: default height, overrides, gutter, areas, pass-through key
         'grid-auto-flow: dense',
     ]);
     const custom = buildGridStyle({ height: '500px', margin: '0', padding: '4px' }, ['1fr'], ['1fr'], [['.']], '0',
-        { withGutter: true, overflowY: 'hidden' });
-    assert.ok(custom.startsWith('height: 500px; overflow-y: hidden; margin: 0; padding: 4px; padding-top: 28px; padding-left: 28px'));
+        { editMode: 'grid', overflowY: 'hidden' });
+    // Grid editing reserves the toolbar strip + header gutter on top, the gutter on the left.
+    assert.ok(custom.startsWith('height: 500px; overflow-y: hidden; margin: 0; padding: 4px; padding-top: 76px; padding-left: 28px'));
     assert.ok(!custom.includes('grid-template-areas')); // no named areas
     assert.ok(buildGridStyle({ height: '500px' }, ['1fr'], ['1fr'], [['.']], '0', { overrideHeight: '100%' }).startsWith('height: 100%;'));
     assert.ok(!buildGridStyle({ height: 'auto' }, ['1fr'], ['1fr'], [['.']], '0').includes('overflow-y'));
+    // Card mode reserves only the toolbar strip; no edit mode reserves nothing.
+    const cards = buildGridStyle({}, ['1fr'], ['1fr'], [['.']], '0', { editMode: 'cards' });
+    assert.ok(cards.includes('padding-top: 48px') && !cards.includes('padding-left'));
+    assert.ok(!buildGridStyle({}, ['1fr'], ['1fr'], [['.']], '0', { editMode: null }).includes('padding'));
+});
+
+test('editReserve: room for the edit toolbar strip and header gutter, by mode', () => {
+    assert.deepEqual(L.editReserve('grid'),  { top: L.EDIT_BAR_HEIGHT + L.GRID_EDIT_GUTTER, left: L.GRID_EDIT_GUTTER });
+    assert.deepEqual(L.editReserve('cards'), { top: L.EDIT_BAR_HEIGHT, left: 0 });
+    assert.deepEqual(L.editReserve(null),    { top: 0, left: 0 });
+    assert.deepEqual(L.editReserve(undefined), { top: 0, left: 0 });
 });

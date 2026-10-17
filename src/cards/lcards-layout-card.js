@@ -211,7 +211,8 @@ export class LCARdSLayoutCard extends LitElement {
     render() {
         const layout = this._config?.layout ?? {};
         const gridStyle = buildGridStyle(layout, this._columns, this._rows, this._areas, this._gap, {
-            withGutter: false,
+            // The layout studio sets `editing` while its grid editor is on the canvas.
+            editMode: this.editing ? 'grid' : null,
             defaultHeight: '100%',
         });
         return html`<div id="grid-root" style="${gridStyle}"></div>`;

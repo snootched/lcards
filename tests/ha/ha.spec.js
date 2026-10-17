@@ -1356,6 +1356,81 @@ test('Layout studio: a new layout card shows the grid tools on a fresh page (ove
     expect(errors).toEqual([]);
 });
 
+// HA ignores ONE lovelace_updated event per save. Adding a card through HA saves once,
+// then the view saves again to give the card its grid-area: before the view waited
+// for HA's event, the second event showed "Dashboard updated in another session".
+test('layout view: adding a card to an area saves without the "another session" toast', async ({ page }) => {
+    await page.addInitScript(() => {
+        window.__toasts = [];
+        document.addEventListener('hass-notification', (e) => window.__toasts.push(e.detail?.message ?? ''), true);
+    });
+    const errors = await openDashboard(page, 'layout');
+    await page.goto(`/${TEST_DASHBOARD}/layout?edit=1`);
+    await expect(page.locator('lcards-grid-edit-overlay')).toBeAttached({ timeout: 20_000 });
+    await settle(page);
+    const MARK = 'lcards add-card save test';
+    const last = await page.evaluate(async (mark) => {
+        const find = (root) => {
+            for (const el of root.querySelectorAll('*')) {
+                if (el.localName === 'lcards-layout-view') return el;
+                if (el.shadowRoot) { const f = find(el.shadowRoot); if (f) return f; }
+            }
+            return null;
+        };
+        const v = find(document);
+        const view = v.lovelace.config.views[v.index];
+        const views = [...v.lovelace.config.views];
+        views[v.index] = { ...view, cards: [...view.cards, { type: 'markdown', content: mark }] };
+        v._pendingAddArea = 'main'; // what the area's "Add card" sets before HA's card picker saves
+        await v.lovelace.saveConfig({ ...v.lovelace.config, views });
+        await new Promise(r => setTimeout(r, 3000));
+        const cards = v.lovelace.config.views[v.index].cards;
+        const result = cards[cards.length - 1];
+        // Clean up.
+        const cleaned = [...v.lovelace.config.views];
+        cleaned[v.index] = { ...cleaned[v.index], cards: cards.filter(c => c.content !== mark) };
+        await v.lovelace.saveConfig({ ...v.lovelace.config, views: cleaned });
+        return result;
+    }, MARK);
+    expect(last).toEqual({ type: 'markdown', content: MARK, view_layout: { 'grid-area': 'main' } });
+    await settle(page);
+    expect(await page.evaluate(() => window.__toasts.filter(t => /another session/i.test(t)))).toEqual([]);
+    expect(errors).toEqual([]);
+});
+
+test('Layout studio: grid headers and toolbar sit outside the cells (reserved edit gutter)', async ({ page }, testInfo) => {
+    const errors = await openDashboard(page, 'cards');
+    const [, tag, , method, dialogTag] = STUDIOS[3];
+    const stub = {
+        type: 'custom:lcards-layout-card',
+        layout: { 'grid-template-columns': '1fr 1fr', 'grid-template-rows': '80px 1fr', 'grid-template-areas': '"top top" "left right"' },
+        cards: [],
+    };
+    const dialog = await openCardStudio(page, tag, stub, method, dialogTag);
+    const overlay = dialog.locator('.canvas lcards-grid-edit-overlay');
+    await expect.poll(() => overlay.evaluate(el => el.shadowRoot?.querySelectorAll('.area-overlay').length ?? 0)).toBe(3);
+    await settle(page, 800);
+    const geo = await overlay.evaluate((el) => {
+        const r = (/** @type {Element} */ e) => e.getBoundingClientRect();
+        const root = el.shadowRoot;
+        const areas = [...root.querySelectorAll('.area-overlay')].map(r);
+        return {
+            areaTop: Math.min(...areas.map(a => a.top)),
+            areaLeft: Math.min(...areas.map(a => a.left)),
+            colHeaderBottom: Math.max(...[...root.querySelectorAll('.col-header')].map(e => r(e).bottom)),
+            rowHeaderRight: Math.max(...[...root.querySelectorAll('.row-header')].map(e => r(e).right)),
+            barBottom: r(root.querySelector('.edit-bar')).bottom,
+        };
+    });
+    expect(geo.colHeaderBottom).toBeLessThanOrEqual(geo.areaTop);
+    expect(geo.rowHeaderRight).toBeLessThanOrEqual(geo.areaLeft);
+    expect(geo.barBottom).toBeLessThanOrEqual(geo.areaTop);
+    await page.screenshot({ path: testInfo.outputPath('layout-studio.png') });
+    await removeStudio(page, dialogTag);
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
 test('storage/delete_many removes the given keys with one call and leaves the rest', async () => {
     await client.call({ type: 'lcards/storage/set', data: { lcards_test_bulk_a: 1, lcards_test_bulk_b: 2, lcards_test_bulk_keep: 3 } });
     const result = await client.call({ type: 'lcards/storage/delete_many', keys: ['lcards_test_bulk_a', 'lcards_test_bulk_b', 'lcards_test_bulk_missing'] });

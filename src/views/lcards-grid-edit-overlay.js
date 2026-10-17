@@ -27,12 +27,24 @@ import {
     cellsToAreaName,
     removeArea,
     renameArea,
+    setAreaBounds,
     removeTrack,
     insertTrack,
     reorderTrack,
     GRID_EDIT_GUTTER,
+    EDIT_BAR_HEIGHT,
+    editReserve,
 } from './layout-grid-utils.js';
 import { showConfirmDeleteDialog } from './layout-edit-dialogs.js';
+import {
+    ICON,
+    editBarStyles,
+    editPanelStyles,
+    editDockStyles,
+    renderModeToggle,
+    renderBarHint,
+    renderPanelHeader,
+} from './layout-edit-chrome.js';
 // Side-effect imports: registers components used by the area settings panel.
 import '../editor/components/shared/lcards-color-picker.js';
 import '../editor/components/shared/lcards-form-section.js';
@@ -98,13 +110,43 @@ function areaColor(name) {
     return AREA_COLORS[Math.abs(h) % AREA_COLORS.length];
 }
 
+// ─── Area tint (toolbar slider) ────────────────────────────────────────────
+// Sticky: kept at module level so it survives switching between Layout and Cards
+// (the overlay is recreated each time), and in localStorage across reloads.
+const AREA_TINT_DEFAULT = 60;
+const AREA_TINT_KEY = 'lcards-layout-area-tint';
+let areaTint = (() => {
+    try {
+        const v = Number(localStorage.getItem(AREA_TINT_KEY));
+        return localStorage.getItem(AREA_TINT_KEY) != null && Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : AREA_TINT_DEFAULT;
+    } catch { return AREA_TINT_DEFAULT; }
+})();
+function setStickyAreaTint(/** @type {number} */ v) {
+    areaTint = v;
+    try { localStorage.setItem(AREA_TINT_KEY, String(v)); } catch { /* storage unavailable */ }
+}
+
 // ─── Dimension constants ───────────────────────────────────────────────────
-// Header bar height/width. Headers float over the first 28px of the first
-// row (col headers) and first column (row headers) at low opacity; they
-// brighten on hover. No gutter is reserved in the grid itself.
-const HEADER_OVERLAP = GRID_EDIT_GUTTER;
-const HANDLE_SIZE    = 10;   // px — resize/reorder handle thickness
-const MIN_TRACK_PX   = 20;   // px — minimum track size during resize
+// Column/row headers live in the gutter the grid reserves above / left of
+// itself in edit mode (editReserve('grid')), inset so neighbours don't touch.
+const GUTTER       = GRID_EDIT_GUTTER;
+const HEADER_INSET = 3;    // px between a header and the gutter edges
+const HANDLE_SIZE  = 10;   // px — resize handle thickness
+
+// Stacking order of the editor chrome (one scale, low to high). Panels and
+// the toolbar sit above everything on the grid; dropdown menus use the top layer.
+const Z = {
+    cell: 10,          // empty-cell targets (create area / rubber-band)
+    area: 20,          // area tiles
+    handle: 30,        // resize handle segments between cells
+    header: 40,        // column/row headers in the gutter
+    gutterHandle: 45,  // resize handle segment in the gutter
+    areaGrip: 48,      // move / resize grips on the selected area
+    selection: 50,     // rubber-band rect
+    bar: 60,           // toolbar strip
+    panel: 70,         // floating panels
+    chip: 80,          // reorder drag chip
+};
 
 export class LCARdSGridEditOverlay extends LitElement {
 
@@ -120,6 +162,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         gap:         { attribute: false },
         measureColumns: { attribute: false }, // resolved px tracks for the ghost grid (optional)
         measureRows:    { attribute: false }, // resolved px tracks for the ghost grid (optional)
+        measureOffset:  { attribute: false }, // {top, left} px of the real grid's first cell (optional)
         cardConfigs: { attribute: false },
         layout:      { attribute: false }, // full layout object for settings panel
         hideCardMode: { attribute: false }, // hide the "Edit Cards" toolbar toggle (card editor uses a list instead)
@@ -132,13 +175,12 @@ export class LCARdSGridEditOverlay extends LitElement {
         _selEnd:         { state: true },
         _selectionName:  { state: true },
         _showNameInput:  { state: true },
+        _nameError:      { state: true }, // validation message in the name popup
         _showSettings:   { state: true }, // layout settings panel open
         _reorderPreview: { state: true }, // { axis, from, to } | null
-        _toolbarPos:     { state: true }, // { top, left } | null — moved toolbar position
         _areaSettings:   { state: true }, // area name whose settings panel is open | null
-        _areaPanelPos:   { state: true }, // { top, left } | null — dragged area panel position
-        _overlayOpacity: { state: true }, // area overlay color-mix % (0–100)
-        _headerOpacity:  { state: true }, // col/row header idle opacity % (0–100)
+        _areaDragPreview: { state: true }, // { bounds, ok } | null — area move/resize target
+        _areaTint:       { state: true }, // area tint % (0–100), the toolbar slider
     };
 
     constructor() {
@@ -152,6 +194,8 @@ export class LCARdSGridEditOverlay extends LitElement {
         this.layout         = {};
         this.measureColumns = undefined;
         this.measureRows    = undefined;
+        /** @type {{top: number, left: number} | undefined} */
+        this.measureOffset  = undefined;
         this.hideCardMode   = false;
         this.hideSettings   = false;
 
@@ -166,13 +210,14 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._selEnd         = null;
         this._selectionName  = '';
         this._showNameInput  = false;
+        this._nameError      = '';
         this._reorderPreview = null;
         this._areaSettings   = null;
-        this._areaPanelPos   = null;
-        this._areaPanelAnchor = null;
-        this._areaPanelDrag  = null;
-        this._overlayOpacity = 50;
-        this._headerOpacity  = 20;
+        this._dockWasOpen    = false;
+        this._areaTint       = areaTint;
+        /** @type {{name: string, mode: string, orig: {r1:number,c1:number,r2:number,c2:number}, anchor: {r:number,c:number}|null, target: {r1:number,c1:number,r2:number,c2:number}|null, ok: boolean, moved: boolean} | null} */
+        this._areaDrag       = null;
+        this._areaDragPreview = null;
 
         // Measurement cache: _cells[r][c] = DOMRect relative to overlay
         this._cells = [];
@@ -185,14 +230,14 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._reorderDrag = null;
         this._selDrag     = false;
         this._selMoved    = false;
-        this._toolbarPos  = null;
-        this._toolbarDrag = null;
 
-        // Single unified pointer listener pair bound to the overlay element itself
-        // (not document). Shadow DOM events are captured here; the dispatcher routes
-        // to the active drag (resize / reorder / selection / toolbar).
-        this._boundPointerMove = this._onAnyPointerMove.bind(this);
-        this._boundPointerUp   = this._onAnyPointerUp.bind(this);
+        // Single unified pointer listener set bound to the overlay element itself
+        // (not document). Every drag captures its pointer, so move/up/cancel arrive
+        // here even when the pointer leaves the view; the dispatcher routes to the
+        // active drag (resize / reorder / selection / area panel).
+        this._boundPointerMove   = this._onAnyPointerMove.bind(this);
+        this._boundPointerUp     = this._onAnyPointerUp.bind(this);
+        this._boundPointerCancel = this._onAnyPointerCancel.bind(this);
         this._boundKeydown     = this._onDocKeydown.bind(this);
     }
 
@@ -200,19 +245,19 @@ export class LCARdSGridEditOverlay extends LitElement {
     // Styles
     // ──────────────────────────────────────────────────────────────────────
 
-    static styles = css`
+    static styles = [editBarStyles, editPanelStyles, editDockStyles, css`
         :host {
             display: block;
             position: absolute;
             inset: 0;
             pointer-events: none;
             z-index: 100;
+            font-family: var(--ha-font-family-body);
         }
 
         /* ─── Ghost grid (measurement only) ──────────────────────────────── */
-        /* Top/left padding reserves a gutter for the column/row headers so the
-           ghost cells line up with the real #grid-root cells (which the view
-           pads by the same amount during grid editing). */
+        /* Padded (inline style) by the real grid's content offset, so ghost
+           cells line up with the real #grid-root cells. */
         #ghost-grid {
             position: absolute;
             inset: 0;
@@ -220,431 +265,222 @@ export class LCARdSGridEditOverlay extends LitElement {
             opacity: 0;
             pointer-events: none;
             box-sizing: border-box;
-            padding: 0;
         }
         .gc { min-width: 0; min-height: 0; }
 
-        /* ─── Toolbar (floating, draggable) ───────────────────────────────── */
-        .toolbar {
-            position: absolute;
-            top: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 200;
-            pointer-events: auto;
+        .edit-bar { z-index: ${Z.bar}; }
+
+        .t-tint {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 14px;
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.6)) 88%, transparent);
-            backdrop-filter: blur(12px) saturate(1.1);
-            border: var(--ha-border-width-sm, 1px) solid color-mix(in oklab, var(--divider-color, rgba(255,255,255,.1)) 60%, transparent);
-            border-radius: var(--ha-border-radius-pill, 9999px);
-            box-shadow: 0 4px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07);
-            white-space: nowrap;
-        }
-        .toolbar.dragging { transition: none; cursor: grabbing; }
-        .drag-grip {
-            display: flex;
-            align-items: center;
-            cursor: grab;
+            gap: var(--ha-space-1);
             color: var(--secondary-text-color);
             --mdc-icon-size: 18px;
-            padding: 0 2px;
-            opacity: 0.6;
         }
-        .drag-grip:hover { opacity: 1; }
-        .toolbar-label {
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--primary-text-color);
-            padding: 0 2px;
-        }
-        .t-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 36px;
-            min-width: 36px;
-            padding: 0 12px;
-            gap: 5px;
-            border: none;
-            border-radius: var(--ha-border-radius-pill, 9999px);
+        .t-tint input[type=range] {
+            width: 90px;
+            accent-color: var(--primary-color);
             cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            background: rgba(255,255,255,.08);
-            color: var(--primary-text-color);
-            transition: background var(--ha-animation-duration-fast,.15s), transform .08s ease;
-            pointer-events: auto;
-        }
-        .t-btn:hover { background: rgba(255,255,255,.14); transform: translateY(-1px); }
-        .t-btn ha-icon { --mdc-icon-size: 16px; }
-        .t-btn.primary {
-            background: var(--lcars-ui-primary, var(--primary-color));
-            color: var(--text-primary-color, #fff);
-        }
-        .t-btn.primary:hover { filter: brightness(1.1); }
-        .t-sep {
-            width: 1px;
-            height: 20px;
-            background: var(--divider-color, rgba(255,255,255,.12));
-            margin: 0 2px;
-        }
-        /* Opacity slider — sits in the toolbar next to the Areas/Cells toggle */
-        .t-opacity {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 0 4px;
-            color: var(--secondary-text-color);
-            --mdc-icon-size: 15px;
-        }
-        .t-opacity ha-icon { opacity: 0.7; flex-shrink: 0; }
-        .t-opacity input[type=range] {
-            width: 72px;
-            height: 4px;
-            cursor: pointer;
-            appearance: none;
-            -webkit-appearance: none;
-            background: linear-gradient(
-                to right,
-                var(--lcars-ui-primary, var(--primary-color)) 0%,
-                var(--lcars-ui-primary, var(--primary-color)) var(--pct, 50%),
-                rgba(255,255,255,.18) var(--pct, 50%)
-            );
-            border-radius: 2px;
-            outline: none;
-        }
-        .t-opacity input[type=range]::-webkit-slider-thumb {
-            appearance: none;
-            -webkit-appearance: none;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: var(--lcars-ui-primary, var(--primary-color));
-            border: 2px solid var(--card-background-color, #111);
-            box-shadow: 0 1px 4px rgba(0,0,0,.4);
-        }
-        .t-opacity input[type=range]::-moz-range-thumb {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: var(--lcars-ui-primary, var(--primary-color));
-            border: 2px solid var(--card-background-color, #111);
         }
 
-        /* ─── Column headers ──────────────────────────────────────────────── */
-        .col-header {
-            position: absolute;
-            height: ${HEADER_OVERLAP}px;
-            top: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
-            cursor: grab;
-            user-select: none;
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.5)) 75%, transparent);
-            backdrop-filter: blur(8px);
-            border: var(--ha-border-width-sm, 1px) solid color-mix(in oklab, var(--divider-color) 50%, transparent);
-            border-radius: var(--ha-border-radius-sm, 4px) var(--ha-border-radius-sm, 4px) 0 0;
-            box-sizing: border-box;
-            overflow: hidden;
-            opacity: var(--lcards-header-opacity, 0.2);
-            transition: background var(--ha-animation-duration-fast,.15s), opacity var(--ha-animation-duration-fast,.15s), transform var(--ha-animation-duration-fast,.15s);
-            transform-origin: center top;
-            z-index: 30;
-        }
-        .col-header:hover { opacity: 1; transform: scaleX(1.25) scaleY(1.1); z-index: 40; background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 20%, var(--card-background-color, rgba(0,0,0,.5))); }
-        .col-header.edge-start { transform-origin: left top; }
-        .col-header.edge-end   { transform-origin: right top; }
-        .col-header.dragging { opacity: 0.5; cursor: grabbing; }
-        .col-header.drop-target { opacity: 1; background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 35%, transparent); }
-
-        /* ─── Row headers ─────────────────────────────────────────────────── */
+        /* ─── Column / row headers (live in the reserved gutter) ──────────── */
+        .col-header,
         .row-header {
             position: absolute;
-            width: ${HEADER_OVERLAP}px;
-            left: 0;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-sizing: border-box;
+            overflow: hidden;
             pointer-events: auto;
             cursor: grab;
             user-select: none;
-            writing-mode: vertical-rl;
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.5)) 75%, transparent);
-            backdrop-filter: blur(8px);
-            border: var(--ha-border-width-sm, 1px) solid color-mix(in oklab, var(--divider-color) 50%, transparent);
-            border-radius: var(--ha-border-radius-sm, 4px) 0 0 var(--ha-border-radius-sm, 4px);
-            box-sizing: border-box;
-            overflow: hidden;
-            opacity: var(--lcards-header-opacity, 0.2);
-            transition: background var(--ha-animation-duration-fast,.15s), opacity var(--ha-animation-duration-fast,.15s), transform var(--ha-animation-duration-fast,.15s);
-            transform-origin: left center;
-            z-index: 30;
+            touch-action: none;
+            background: var(--secondary-background-color);
+            border: var(--ha-border-width-sm) solid var(--divider-color);
+            border-radius: var(--ha-border-radius-sm);
+            color: var(--secondary-text-color);
+            z-index: ${Z.header};
+            transition: background var(--ha-animation-duration-fast, 150ms), color var(--ha-animation-duration-fast, 150ms), border-color var(--ha-animation-duration-fast, 150ms);
         }
-        .row-header:hover { opacity: 1; transform: scaleX(1.1) scaleY(1.25); z-index: 40; background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 20%, var(--card-background-color, rgba(0,0,0,.5))); }
-        .row-header.edge-start { transform-origin: left top; }
-        .row-header.edge-end   { transform-origin: left bottom; }
-        .row-header.dragging { opacity: 0.5; cursor: grabbing; }
-        .row-header.drop-target { opacity: 1; background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 35%, transparent); }
-
-        /* ─── Track size label ────────────────────────────────────────────── */
+        .row-header { writing-mode: vertical-rl; }
+        .col-header:hover, .row-header:hover,
+        .col-header.open, .row-header.open {
+            background: color-mix(in srgb, var(--primary-color) 18%, var(--secondary-background-color));
+            border-color: var(--primary-color);
+            color: var(--primary-text-color);
+        }
+        .col-header.dragging, .row-header.dragging { opacity: 0.5; cursor: grabbing; }
+        .col-header.drop-target, .row-header.drop-target {
+            background: color-mix(in srgb, var(--primary-color) 35%, var(--secondary-background-color));
+            border-color: var(--primary-color);
+        }
         .track-label {
             font-size: 11px;
-            font-weight: 600;
-            color: var(--primary-text-color);
-            text-align: center;
+            font-weight: var(--ha-font-weight-medium, 500);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            padding: 0 4px;
-            max-width: calc(100% - 36px);
-        }
-        /* Row headers use vertical writing-mode, so the inline axis is the
-           HEIGHT. The default max-width (cross axis = 28px header width) would
-           collapse to 0 and hide the label — constrain max-height instead so the
-           track size is always visible without having to click the header. */
-        .row-header .track-label {
-            writing-mode: vertical-rl;
-            max-width: none;
-            max-height: calc(100% - 24px);
-            padding: 4px 0;
-        }
-        .track-edit-input {
-            font-size: 11px;
-            width: 72px;
-            background: rgba(255,255,255,.12);
-            border: var(--ha-border-width-sm,1px) solid var(--primary-color);
-            border-radius: 4px;
-            color: var(--primary-text-color);
-            padding: 2px 4px;
-            outline: none;
+            padding: 0 var(--ha-space-1);
+            max-width: 100%;
         }
 
-        /* ─── Delete track button ─────────────────────────────────────────── */
-        .del-btn {
+        /* ─── Resize handles ──────────────────────────────────────────────── */
+        /* One segment per row (column boundaries) or column (row boundaries),
+           plus one in the header gutter. Segments inside an area that spans the
+           boundary are hidden, so the middle of a spanning area stays the area. */
+        .rh-seg {
             position: absolute;
-            right: 2px;
-            top: 50%;
-            transform: translateY(-50%);
             display: none;
             align-items: center;
             justify-content: center;
-            width: 18px;
-            height: 18px;
-            background: linear-gradient(135deg, rgba(236,72,72,.9), rgba(255,85,85,1));
-            border-radius: 4px;
-            cursor: pointer;
             pointer-events: auto;
-            --mdc-icon-size: 12px;
-            color: #fff;
-            /* Row headers use vertical-rl writing-mode; reset it here so the icon
-               glyph is centered in the button (matches the column header). */
-            writing-mode: horizontal-tb;
-            line-height: 0;
+            touch-action: none;
+            z-index: ${Z.handle};
         }
-        .col-header:hover .del-btn,
-        .row-header:hover .del-btn { display: flex; }
-        .row-header .del-btn { right: auto; bottom: 2px; top: auto; transform: none; }
-
-        /* ─── Add track buttons ───────────────────────────────────────────── */
-        .add-btn {
-            position: absolute;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
-            cursor: pointer;
-            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 20%, transparent);
-            border: var(--ha-border-width-sm,1px) dashed var(--lcars-ui-primary, var(--primary-color));
-            color: var(--lcars-ui-primary, var(--primary-color));
-            border-radius: var(--ha-border-radius-sm,4px);
-            font-size: 18px;
-            font-weight: 300;
-            line-height: 1;
-            transition: background var(--ha-animation-duration-fast,.15s);
-            z-index: 30;
-        }
-        .add-btn:hover { background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 35%, transparent); }
-        .add-col-btn { width: ${HEADER_OVERLAP}px; height: ${HEADER_OVERLAP}px; top: 0; }
-        .add-row-btn { width: ${HEADER_OVERLAP}px; height: ${HEADER_OVERLAP}px; left: 0; }
-
-        /* ─── Resize handles ──────────────────────────────────────────────── */
-        .resize-handle {
-            position: absolute;
-            pointer-events: auto;
-            z-index: 40;
-            transition: background var(--ha-animation-duration-fast,.15s), opacity var(--ha-animation-duration-fast,.15s);
-        }
-        .rh-col {
-            cursor: col-resize;
-            width: ${HANDLE_SIZE}px;
-            top: 0;
-        }
-        .rh-row {
-            cursor: row-resize;
-            height: ${HANDLE_SIZE}px;
-            left: 0;
-        }
-        .resize-handle::after {
+        .rh-seg.col { cursor: col-resize; }
+        .rh-seg.row { cursor: row-resize; }
+        .rh-seg.disabled { cursor: not-allowed; }
+        .rh-seg::after {
             content: '';
             position: absolute;
-            background: var(--lcars-ui-primary, var(--primary-color));
-            border-radius: 2px;
+            background: var(--primary-color);
+            border-radius: var(--ha-border-radius-pill);
             opacity: 0;
-            transition: opacity .15s;
+            transition: opacity var(--ha-animation-duration-fast, 150ms);
         }
-        .rh-col::after  { top: 20%; bottom: 20%; left: 50%; width: 3px; transform: translateX(-50%); }
-        .rh-row::after  { left: 20%; right: 20%; top: 50%; height: 3px; transform: translateY(-50%); }
-        .resize-handle:hover::after { opacity: 1; }
-        .resize-handle.active::after { opacity: 1; background: var(--lcars-ui-primary, var(--primary-color)); }
-        .resize-handle.disabled { cursor: not-allowed; }
-        .resize-handle { display: flex; align-items: center; justify-content: center; }
-        .insert-btn {
-            opacity: 0;
-            width: 22px;
-            height: 22px;
-            flex-shrink: 0;
-            border-radius: var(--ha-border-radius-circle, 50%);
-            border: var(--ha-border-width-sm,1px) solid var(--lcars-ui-primary, var(--primary-color));
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.8)) 80%, transparent);
-            color: var(--lcars-ui-primary, var(--primary-color));
-            font-size: 15px;
-            line-height: 1;
-            cursor: pointer;
-            pointer-events: auto;
-            transition: opacity .12s, background .12s, transform .08s;
-            z-index: 45;
-        }
-        .resize-handle:hover .insert-btn { opacity: 1; }
-        .insert-btn:hover { background: var(--lcars-ui-primary, var(--primary-color)); color: var(--text-primary-color, #fff); transform: scale(1.1); }
-
+        .rh-seg.col::after { top: 4px; bottom: 4px; left: 50%; width: 3px; transform: translateX(-50%); }
+        .rh-seg.row::after { left: 4px; right: 4px; top: 50%; height: 3px; transform: translateY(-50%); }
+        .rh-seg:not(.disabled):hover::after,
+        .rh-seg.active::after { opacity: 1; }
+        .rh-seg.gutter { z-index: ${Z.gutterHandle}; }
         /* ─── Area overlays ───────────────────────────────────────────────── */
+        /* Outline areas: a coloured outline and a light tint (--area-color, set
+           per area), so the real cards stay readable while laying out. */
         .area-overlay {
             position: absolute;
             pointer-events: auto;
             box-sizing: border-box;
-            border-radius: var(--ha-border-radius-sm, 4px);
+            border: var(--ha-border-width-md) solid color-mix(in srgb, var(--area-color) 75%, transparent);
+            border-radius: var(--ha-border-radius-md);
+            background: color-mix(in srgb, var(--area-color) var(--area-tint, 60%), transparent);
             cursor: pointer;
-            transition: filter var(--ha-animation-duration-fast,.15s), outline var(--ha-animation-duration-fast,.15s);
-            z-index: 20;
+            z-index: ${Z.area};
+            transition: background var(--ha-animation-duration-fast, 150ms);
         }
-        .area-overlay:hover { filter: brightness(1.15); }
+        .area-overlay:hover { background: color-mix(in srgb, var(--area-color) min(100%, calc(var(--area-tint, 60%) + 10%)), transparent); }
         .area-overlay.selected {
-            outline: 3px solid var(--lcars-ui-primary, var(--primary-color));
-            outline-offset: -2px;
-            /* Raise above col/row headers (z-index 30) so rename input and
-               toolbar are never clipped under a header when the area abuts an edge. */
-            z-index: 35;
+            border-color: var(--primary-color);
+            box-shadow: inset 0 0 0 var(--ha-border-width-sm) var(--primary-color);
+            background: color-mix(in srgb, var(--area-color) min(100%, calc(var(--area-tint, 60%) + 10%)), transparent);
         }
-
-        /* Label centered in cell body — never reaches the top-right toolbar corner. */
+        .area-overlay.dragging { opacity: 0.4; }
         .area-label {
             position: absolute;
             top: 50%;
-            left: 8px;
-            right: 8px;
+            left: var(--ha-space-2);
+            right: var(--ha-space-2);
             transform: translateY(-50%);
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-shadow: 0 1px 3px rgba(0,0,0,.6);
-            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
             pointer-events: none;
             text-align: center;
+        }
+        /* Area chips: the name (with the area's colour bar) and its card(s), on
+           an HA card surface so they read over any card behind them. */
+        .area-name, .area-cards {
+            max-width: 100%;
+            box-sizing: border-box;
+            padding: var(--ha-space-1) var(--ha-space-3);
+            border-radius: var(--ha-border-radius-md);
+            background: var(--card-background-color, var(--primary-background-color));
+            border: var(--ha-border-width-sm) solid var(--divider-color);
+            box-shadow: var(--ha-box-shadow-s);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            line-height: 1.3;
         }
-        /* ─── Area action bar ─────────────────────────────────────────────────
-           Positioned inside the area overlay at the top-right corner, inset
-           from the edge so gutters never clip it. Appears on hover or select. */
-        .area-action-bar {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            display: flex;
-            align-items: center;
-            gap: 2px;
-            background: color-mix(in oklab, var(--card-background-color, #1c1c28) 85%, rgba(0,0,0,.3));
-            backdrop-filter: blur(10px);
-            border: var(--ha-border-width-sm,1px) solid rgba(255,255,255,.14);
-            border-radius: var(--ha-border-radius-md, 8px);
-            padding: 4px;
-            box-shadow: var(--ha-box-shadow-m, 0 4px 16px rgba(0,0,0,.5));
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity var(--ha-animation-duration-fast,.15s) ease;
-            white-space: nowrap;
-            z-index: 50;
-        }
-        /* Bar shows on hover, click (selected), or while renaming */
-        .area-overlay:hover .area-action-bar,
-        .area-overlay.selected .area-action-bar,
-        .area-overlay.renaming .area-action-bar {
-            opacity: 1;
+        .area-name {
             pointer-events: auto;
+            cursor: move;
+            touch-action: none;
+            border-left: 4px solid var(--area-color);
+            font-size: var(--ha-font-size-l, 16px);
+            font-weight: var(--ha-font-weight-bold, 700);
+            color: var(--primary-text-color);
         }
-
-        /* Individual action buttons in the bar */
-        .aab-btn {
+        .area-cards {
+            font-size: var(--ha-font-size-m, 14px);
+            color: var(--secondary-text-color);
+        }
+        .area-label { gap: var(--ha-space-1); }
+        /* The ⋮ area menu (HA's card edit-mode pattern). Always shown at reduced
+           opacity so it can be found (and tapped on touch screens). */
+        /* ha-dropdown is display: contents, so the trigger button is what gets
+           positioned (as in hui-card-edit-mode). */
+        .area-menu ha-icon-button {
+            position: absolute;
+            top: var(--ha-space-1);
+            right: var(--ha-space-1);
+            z-index: 1;
+            --ha-icon-button-size: 32px;
+            --mdc-icon-size: 20px;
+            border-radius: var(--ha-border-radius-circle);
+            background: var(--secondary-background-color);
+            color: var(--primary-text-color);
+            opacity: 0.75;
+            transition: opacity var(--ha-animation-duration-fast, 150ms);
+        }
+        .area-overlay:hover .area-menu ha-icon-button,
+        .area-overlay.selected .area-menu ha-icon-button,
+        .area-menu ha-icon-button:focus-visible { opacity: 1; }
+        .menu-sep {
+            height: var(--ha-border-width-sm);
+            margin: var(--ha-space-1) 0;
+            background: var(--divider-color);
+        }
+        .area-rename {
+            position: absolute;
+            top: var(--ha-space-1);
+            right: var(--ha-space-1);
+            left: var(--ha-space-1);
+            z-index: 1;
             display: flex;
             align-items: center;
-            justify-content: center;
-            width: var(--ha-card-border-radius, 34px);
-            height: var(--ha-card-border-radius, 34px);
-            border: none;
-            background: transparent;
-            color: rgba(255,255,255,.82);
-            cursor: pointer;
-            border-radius: var(--ha-border-radius-sm, 4px);
-            padding: 0;
-            flex-shrink: 0;
-            transition: background var(--ha-animation-duration-fast,.15s), color var(--ha-animation-duration-fast,.15s);
+            justify-content: flex-end;
+            gap: 2px;
         }
-        .aab-btn:hover { background: rgba(255,255,255,.12); color: white; }
-        .aab-btn.danger:hover { background: color-mix(in oklab, var(--error-color, #ef4444) 18%, transparent); color: var(--error-color, #ef4444); }
-        .aab-btn svg { pointer-events: none; }
-        /* Thin separator between button groups */
-        .aab-sep {
-            width: var(--ha-border-width-sm, 1px);
-            height: 20px;
-            background: rgba(255,255,255,.15);
-            flex-shrink: 0;
-            margin: 0 2px;
-        }
-
-        /* Rename input inside the bar (replaces buttons in-place) */
-        .aab-rename-input {
+        .area-rename input {
             flex: 1;
-            min-width: 120px;
+            min-width: 0;
             max-width: 200px;
+            font: inherit;
             font-size: 13px;
-            font-weight: 600;
-            padding: 5px var(--ha-space-2, 8px);
-            border: var(--ha-border-width-sm,1px) solid var(--primary-color);
-            border-radius: var(--ha-border-radius-sm, 4px);
-            background: rgba(255,255,255,.1);
-            color: white;
+            padding: var(--ha-space-1) var(--ha-space-2);
+            border: var(--ha-border-width-sm) solid var(--primary-color);
+            border-radius: var(--ha-border-radius-sm);
+            background: var(--card-background-color, var(--primary-background-color));
+            color: var(--primary-text-color);
             outline: none;
         }
-        .aab-rename-input::placeholder { color: rgba(255,255,255,.4); }
-        .aab-rename-confirm { color: var(--success-color, #4ade80) !important; }
-        .aab-rename-confirm:hover { background: color-mix(in oklab, var(--success-color, #4ade80) 18%, transparent) !important; }
+        .area-rename ha-icon-button {
+            --ha-icon-button-size: 32px;
+            border-radius: var(--ha-border-radius-circle);
+            background: var(--secondary-background-color);
+            color: var(--primary-text-color);
+        }
 
-        /* ─── Cell selection targets (unoccupied cells for rubber-band) ───── */
+        /* ─── Empty cells (click: create area; drag: rubber-band) ─────────── */
         .cell-target {
             position: absolute;
             pointer-events: auto;
             cursor: crosshair;
             box-sizing: border-box;
-            border-radius: var(--ha-card-border-radius, 34px);
             touch-action: none;
+            z-index: ${Z.cell};
         }
         .cell-add-btn {
             position: absolute;
@@ -654,267 +490,106 @@ export class LCARdSGridEditOverlay extends LitElement {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: var(--ha-space-1, 4px);
-            border-radius: var(--ha-card-border-radius, 34px);
-            border: var(--ha-border-width-md, 2px) dashed var(--primary-color, var(--lcars-ui-primary));
-            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 6%, transparent);
-            color: var(--primary-text-color, #fff);
+            gap: var(--ha-space-1);
+            border-radius: var(--ha-border-radius-md);
+            border: var(--ha-border-width-md) dashed var(--primary-color);
+            background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+            color: var(--primary-text-color);
+            font: inherit;
             font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.04em;
+            font-weight: var(--ha-font-weight-medium, 500);
             cursor: crosshair;
-            pointer-events: auto;
-            transition: opacity .12s, background .12s;
+            pointer-events: none;
+            transition: opacity var(--ha-animation-duration-fast, 150ms);
+            --mdc-icon-size: 22px;
         }
-        .cell-target:hover .cell-add-btn { opacity: 1; }
-        .cell-add-btn:hover {
-            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 16%, transparent);
-        }
+        .cell-target:hover .cell-add-btn,
+        .cell-add-btn:focus-visible { opacity: 1; }
         .cell-target.in-sel .cell-add-btn {
             opacity: 1;
-            background: color-mix(in oklab, var(--primary-color) 18%, transparent);
-            border-color: var(--primary-color);
+            background: color-mix(in srgb, var(--primary-color) 20%, transparent);
         }
 
         /* ─── Rubber-band selection rect ──────────────────────────────────── */
         .sel-rect {
             position: absolute;
             pointer-events: none;
-            z-index: 60;
-            border: 2px dashed color-mix(in oklab, var(--primary-color) 80%, rgba(147,197,253,.8));
-            border-radius: var(--ha-border-radius-sm,4px);
-            background: color-mix(in oklab, var(--primary-color) 15%, transparent);
-            box-shadow:
-                inset 0 0 0 1px rgba(224,242,254,.35),
-                inset 0 0 20px color-mix(in oklab, var(--primary-color) 8%, transparent);
+            z-index: ${Z.selection};
+            border: var(--ha-border-width-md) dashed var(--primary-color);
+            border-radius: var(--ha-border-radius-md);
+            background: color-mix(in srgb, var(--primary-color) 15%, transparent);
         }
 
-        /* ─── Name input popup ────────────────────────────────────────────── */
-        .name-popup {
-            position: absolute;
-            z-index: 70;
-            pointer-events: auto;
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.7)) 90%, transparent);
-            backdrop-filter: blur(12px);
-            border: var(--ha-border-width-sm,1px) solid var(--divider-color);
-            border-radius: var(--ha-border-radius-md, 8px);
-            padding: 10px 14px;
-            min-width: 200px;
-            box-shadow: 0 4px 20px rgba(0,0,0,.4);
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .name-popup-title {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--secondary-text-color);
-        }
-        .name-popup ha-input { width: 100%; }
-        .name-popup-actions { display: flex; gap: 6px; justify-content: flex-end; }
-
-        /* ─── Settings panel ─────────────────────────────────────────────── */
-        /* top/left are set imperatively in _positionSettingsPanel() so the panel
-           tracks the floating toolbar wherever it is dragged. */
-        .settings-panel {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 210;
-            pointer-events: auto;
-            width: 280px;
-            min-width: 220px;
-            overflow: auto;
-            resize: both;
-            box-sizing: border-box;
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.85)) 92%, transparent);
-            backdrop-filter: blur(12px);
-            border: var(--ha-border-width-sm,1px) solid var(--divider-color);
-            border-radius: var(--ha-border-radius-md, 8px);
-            padding: 10px 14px;
-            box-shadow: 0 4px 20px rgba(0,0,0,.4);
-        }
-        .settings-title {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--secondary-text-color);
-            margin-bottom: 8px;
-        }
-        .settings-panel ha-input {
-            display: block;
-            width: 100%;
-            margin-bottom: 8px;
-        }
+        /* ─── Floating panels ─────────────────────────────────────────────── */
+        .edit-panel { z-index: ${Z.panel}; }
+        .edit-dock { z-index: ${Z.panel}; }
+        .name-popup { width: 240px; }
+        .edit-dock ha-input, .name-popup ha-input { display: block; width: 100%; }
         .settings-hint {
-            font-size: 11px;
-            color: var(--secondary-text-color);
-            margin-bottom: 8px;
-            font-style: italic;
-            opacity: 0.85;
-        }
-        .settings-actions {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: var(--ha-border-width-sm,1px) solid var(--divider-color);
-        }
-
-        /* ─── Track size popover ──────────────────────────────────────────── */
-        .track-popover {
-            position: absolute;
-            z-index: 220;
-            pointer-events: auto;
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.9)) 93%, transparent);
-            backdrop-filter: blur(12px);
-            border: var(--ha-border-width-sm,1px) solid var(--divider-color);
-            border-radius: var(--ha-border-radius-md, 8px);
-            padding: 10px 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,.5);
-            min-width: 200px;
-        }
-        .tp-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-        .tp-title {
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.07em;
-            text-transform: uppercase;
+            font-size: 12px;
             color: var(--secondary-text-color);
         }
-        .tp-close {
-            flex-shrink: 0;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: none;
-            background: transparent;
-            color: var(--secondary-text-color);
-            cursor: pointer;
-            border-radius: var(--ha-border-radius-sm, 4px);
-            padding: 0;
-            font-size: 16px;
-            line-height: 1;
-            margin: -2px -4px -2px 4px;
-        }
-        .tp-close:hover { background: rgba(255,255,255,.1); color: var(--primary-text-color); }
         .tp-presets {
             display: flex;
             flex-wrap: wrap;
-            gap: 4px;
-            margin-bottom: 8px;
+            gap: var(--ha-space-1);
         }
         .tp-preset {
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 500;
+            padding: 2px var(--ha-space-2);
+            border-radius: var(--ha-border-radius-pill);
+            font: inherit;
+            font-size: 12px;
             cursor: pointer;
-            background: rgba(255,255,255,.08);
+            background: var(--secondary-background-color);
             color: var(--primary-text-color);
-            border: var(--ha-border-width-sm,1px) solid rgba(255,255,255,.1);
-            transition: background .1s;
+            border: var(--ha-border-width-sm) solid var(--divider-color);
         }
-        .tp-preset:hover { background: rgba(255,255,255,.18); }
-        .tp-custom {
-            border-top: var(--ha-border-width-sm,1px) solid var(--divider-color);
-            padding-top: 8px;
+        .tp-preset:hover { border-color: var(--primary-color); }
+        .tp-preset.current {
+            background: color-mix(in srgb, var(--primary-color) 20%, var(--secondary-background-color));
+            border-color: var(--primary-color);
         }
-        .tp-custom ha-input { display: block; width: 100%; }
 
-        /* ─── Per-area settings panel ─────────────────────────────────────── */
-        .area-panel {
+        /* Area move / resize: grips on the selected area's edges, and a preview
+           of the target cells while dragging (red when it would overlap). */
+        .area-grip {
             position: absolute;
-            z-index: 230;
+            display: none;
+            box-sizing: border-box;
             pointer-events: auto;
-            width: 460px;
-            min-width: 300px;
-            max-width: min(600px, calc(100vw - 24px));
-            max-height: calc(100% - 24px);
-            overflow: auto;
-            resize: both;
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.9)) 95%, transparent);
-            backdrop-filter: blur(12px);
-            border: var(--ha-border-width-sm,1px) solid var(--divider-color);
-            border-radius: var(--ha-border-radius-md, 8px);
-            box-shadow: 0 4px 24px rgba(0,0,0,.5);
-        }
-        .area-panel.dragging { cursor: grabbing; }
-        .ap-header {
-            position: sticky;
-            top: 0;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 10px 8px 10px 12px;
-            background: var(--card-background-color, #1c1c1c);
-            border-bottom: var(--ha-border-width-sm,1px) solid var(--divider-color);
-            z-index: 1;
-        }
-        .ap-header .drag-grip {
-            display: flex;
-            align-items: center;
-            cursor: grab;
-            color: var(--secondary-text-color);
-            --mdc-icon-size: 18px;
-            opacity: 0.6;
             touch-action: none;
+            z-index: ${Z.areaGrip};
+            background: var(--primary-color);
+            border: var(--ha-border-width-md) solid var(--card-background-color, var(--primary-background-color));
+            border-radius: var(--ha-border-radius-pill);
+            box-shadow: var(--ha-box-shadow-s);
         }
-        .ap-header .drag-grip:hover { opacity: 1; }
-        .ap-title {
-            flex: 1;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--secondary-text-color);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .area-grip.n, .area-grip.s { cursor: ns-resize; }
+        .area-grip.e, .area-grip.w { cursor: ew-resize; }
+        .area-preview {
+            position: absolute;
+            pointer-events: none;
+            box-sizing: border-box;
+            z-index: ${Z.selection};
+            border: var(--ha-border-width-md) dashed var(--primary-color);
+            border-radius: var(--ha-border-radius-md);
+            background: color-mix(in srgb, var(--primary-color) 18%, transparent);
         }
-        .ap-close {
-            flex-shrink: 0;
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: none;
-            background: transparent;
-            color: var(--secondary-text-color);
-            cursor: pointer;
-            border-radius: var(--ha-border-radius-sm, 4px);
-            padding: 0;
-            font-size: 18px;
-            line-height: 1;
+        .area-preview.blocked {
+            border-color: var(--error-color);
+            background: color-mix(in srgb, var(--error-color) 18%, transparent);
         }
-        .ap-close:hover { background: rgba(255,255,255,.1); color: var(--primary-text-color); }
-        .ap-body { padding: var(--ha-space-2, 8px); display: flex; flex-direction: column; }
-        .ap-actions {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 6px;
-            padding-top: 8px;
-            border-top: var(--ha-border-width-sm, 1px) solid var(--divider-color);
-        }
-        /* Each setting is its own row with a faint accent rule, so complex
-           controls (e.g. the color picker's buttons + input) read as one unit. */
+
+        /* Per-area settings in the dock */
+        .area-body { display: flex; flex-direction: column; gap: var(--ha-space-2); }
+        /* Each setting is its own row with a faint rule, so complex controls
+           (e.g. the color picker's buttons + input) read as one unit. */
         .ap-field {
             display: flex;
             align-items: center;
             gap: 12px;
             padding: 12px 0;
-            border-bottom: var(--ha-border-width-sm,1px) solid color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 22%, transparent);
+            border-bottom: var(--ha-border-width-sm) solid var(--divider-color);
         }
         .ap-field:last-child { border-bottom: none; padding-bottom: 2px; }
         .ap-field > label {
@@ -934,19 +609,18 @@ export class LCARdSGridEditOverlay extends LitElement {
         .drag-chip {
             position: absolute;
             display: none;
-            z-index: 250;
+            z-index: ${Z.chip};
             pointer-events: none;
-            padding: 4px 9px;
-            border-radius: var(--ha-border-radius-pill, 9999px);
+            padding: var(--ha-space-1) var(--ha-space-2);
+            border-radius: var(--ha-border-radius-pill);
             font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.03em;
-            background: var(--lcars-ui-primary, var(--primary-color));
-            color: var(--text-primary-color, #fff);
-            box-shadow: 0 2px 8px rgba(0,0,0,.4);
+            font-weight: var(--ha-font-weight-bold, 700);
+            background: var(--primary-color);
+            color: var(--text-primary-color);
+            box-shadow: var(--ha-box-shadow-m);
             white-space: nowrap;
         }
-    `;
+    `];
 
     // ──────────────────────────────────────────────────────────────────────
     /** Typed querySelector — returns HTMLElement so callers can access .style/.focus. */
@@ -962,8 +636,9 @@ export class LCARdSGridEditOverlay extends LitElement {
         super.connectedCallback();
         // Use the overlay element as the listener target for drag events.
         // This avoids shadow DOM boundary issues that affect document-level listeners.
-        this.addEventListener('pointermove', this._boundPointerMove);
-        this.addEventListener('pointerup',   this._boundPointerUp);
+        this.addEventListener('pointermove',   this._boundPointerMove);
+        this.addEventListener('pointerup',     this._boundPointerUp);
+        this.addEventListener('pointercancel', this._boundPointerCancel);
         document.addEventListener('keydown', this._boundKeydown, true);
 
         // Re-measure whenever the overlay changes size — e.g. the HA sidebar is
@@ -976,74 +651,54 @@ export class LCARdSGridEditOverlay extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        this.removeEventListener('pointermove', this._boundPointerMove);
-        this.removeEventListener('pointerup',   this._boundPointerUp);
+        this.removeEventListener('pointermove',   this._boundPointerMove);
+        this.removeEventListener('pointerup',     this._boundPointerUp);
+        this.removeEventListener('pointercancel', this._boundPointerCancel);
         document.removeEventListener('keydown', this._boundKeydown, true);
         this._resizeObserver?.disconnect();
         this._resizeObserver = null;
     }
 
+    /** Escape closes the innermost open editor UI (rename, menu, popup, panel). */
     _onDocKeydown(e) {
         if (e.key !== 'Escape') return;
-        if (this._renaming) {
+        let handled = true;
+        if (this._renaming)           this._renaming = null;
+        else if (this._trackPopover)  this._trackPopover = null;
+        else if (this._showNameInput) this._cancelSelection();
+        else if (this._areaSettings)  this._areaSettings = null;
+        else if (this._showSettings)  this._showSettings = false;
+        else handled = false;
+        if (handled) {
             e.stopImmediatePropagation();
             e.preventDefault();
-            this._renaming = null;
-        } else if (this._trackPopover) {
-            e.stopImmediatePropagation();
-            e.preventDefault();
-            this._trackPopover = null;
         }
     }
 
-    // Unified pointer move/up dispatcher — routes to the active drag handler
+    // Unified pointer move/up/cancel dispatcher — routes to the active drag handler
     _onAnyPointerMove(e) {
         if (this._resizeDrag)    this._resizeMove(e);
         if (this._reorderDrag)   this._reorderMove(e);
         if (this._selDrag)       this._selMove(e);
-        if (this._toolbarDrag)   this._toolbarDragMove(e);
-        if (this._areaPanelDrag) this._areaPanelDragMove(e);
+        if (this._areaDrag)      this._areaDragMove(e);
     }
     _onAnyPointerUp(e) {
         if (this._resizeDrag)    this._resizeUp(e);
         if (this._reorderDrag)   this._reorderUp(e);
         if (this._selDrag)       this._selUp(e);
-        if (this._toolbarDrag)   this._toolbarDragEnd(e);
-        if (this._areaPanelDrag) this._areaPanelDragEnd(e);
+        if (this._areaDrag)      this._areaDragEnd(e, true);
     }
-
-    _toolbarDragStart(e) {
-        e.stopPropagation();
-        const toolbar = this._qh('#toolbar');
-        const rect = toolbar?.getBoundingClientRect();
-        const oRect = this.getBoundingClientRect();
-        this._toolbarDrag = {
-            offsetX: e.clientX - (rect?.left ?? 0),
-            offsetY: e.clientY - (rect?.top ?? 0),
-            oLeft: oRect.left,
-            oTop: oRect.top,
-        };
-        toolbar?.classList.add('dragging');
-    }
-    _toolbarDragMove(e) {
-        if (!this._toolbarDrag) return;
-        const { offsetX, offsetY, oLeft, oTop } = this._toolbarDrag;
-        this._toolbarPos = {
-            left: e.clientX - oLeft - offsetX,
-            top:  e.clientY - oTop  - offsetY,
-        };
-    }
-    _toolbarDragEnd(_e) {
-        this._toolbarDrag = null;
-        this._qh('#toolbar')?.classList.remove('dragging');
+    /** The browser took the pointer (scroll, system gesture): end every drag. */
+    _onAnyPointerCancel(e) {
+        if (this._resizeDrag)    this._resizeUp(e);   // keep the size reached so far
+        if (this._reorderDrag)   this._cancelReorder();
+        if (this._selDrag)       { this._selDrag = false; this._cancelSelection(); }
+        if (this._areaDrag)      this._areaDragEnd(e, false);
     }
 
     /** Hit-test which cell (r,c) the pointer is over, using measured cell rects. */
     _cellAtPoint(clientX, clientY) {
-        const oLeft = this._overlayRect?.left ?? 0;
-        const oTop  = this._overlayRect?.top  ?? 0;
-        const x = clientX - oLeft;
-        const y = clientY - oTop;
+        const { x, y } = this._toLocal(clientX, clientY);
         for (let r = 0; r < this._cells.length; r++) {
             for (let c = 0; c < (this._cells[r]?.length ?? 0); c++) {
                 const cell = this._cells[r][c];
@@ -1056,10 +711,14 @@ export class LCARdSGridEditOverlay extends LitElement {
         return null;
     }
 
-    updated(changed) {
+    updated() {
+        this.style.setProperty('--area-tint', `${this._areaTint}%`);
         this._scheduleMeasure();
-        if (changed.has('_headerOpacity')) {
-            this.style.setProperty('--lcards-header-opacity', String(this._headerOpacity / 100));
+        // Tell the host when the dock opens or closes, so it can narrow the grid.
+        const open = this._dockOpen;
+        if (open !== this._dockWasOpen) {
+            this._dockWasOpen = open;
+            this.dispatchEvent(new CustomEvent('dock-changed', { detail: { open }, bubbles: false }));
         }
     }
 
@@ -1080,12 +739,33 @@ export class LCARdSGridEditOverlay extends LitElement {
         });
     }
 
+    /**
+     * The overlay's on-screen scale (x, y): 1 normally, less while an ancestor is
+     * transformed (e.g. the layout studio dialog's open animation). Measurements
+     * and pointer positions are divided by it, so the chrome is laid out in the
+     * overlay's own CSS pixels and a measurement taken mid-animation stays right.
+     */
+    _scale() {
+        const r = this.getBoundingClientRect();
+        return {
+            r,
+            sx: this.offsetWidth  ? (r.width  / this.offsetWidth)  || 1 : 1,
+            sy: this.offsetHeight ? (r.height / this.offsetHeight) || 1 : 1,
+        };
+    }
+
+    /** A viewport point in overlay-local CSS px. */
+    _toLocal(/** @type {number} */ clientX, /** @type {number} */ clientY) {
+        const { r, sx, sy } = this._scale();
+        return { x: (clientX - r.left) / sx, y: (clientY - r.top) / sy };
+    }
+
     _measure() {
         const ghost = this._qh('#ghost-grid');
         if (!ghost) return;
 
-        const overlayRect = this.getBoundingClientRect();
-        this._overlayRect = overlayRect;
+        const { r: overlayRect, sx, sy } = this._scale();
+        this._overlayRect = { left: 0, top: 0, width: this.offsetWidth, height: this.offsetHeight };
 
         /** @type {any[][]} */
         const newCells = [];
@@ -1098,12 +778,12 @@ export class LCARdSGridEditOverlay extends LitElement {
                 if (cell) {
                     const rect = cell.getBoundingClientRect();
                     newCells[r][c] = {
-                        left:   rect.left   - overlayRect.left,
-                        top:    rect.top    - overlayRect.top,
-                        right:  rect.right  - overlayRect.left,
-                        bottom: rect.bottom - overlayRect.top,
-                        width:  rect.width,
-                        height: rect.height,
+                        left:   (rect.left   - overlayRect.left) / sx,
+                        top:    (rect.top    - overlayRect.top)  / sy,
+                        right:  (rect.right  - overlayRect.left) / sx,
+                        bottom: (rect.bottom - overlayRect.top)  / sy,
+                        width:  rect.width  / sx,
+                        height: rect.height / sy,
                     };
                 }
             }
@@ -1121,7 +801,8 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._positionCellTargets();
         this._positionSelectionRect();
         this._positionNamePopup();
-        this._positionSettingsPanel();
+        this._positionAreaGrips();
+        this._positionAreaPreview();
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -1138,9 +819,10 @@ export class LCARdSGridEditOverlay extends LitElement {
             ${this._renderCellTargets()}
             ${this._selStart && this._selEnd ? html`<div class="sel-rect" id="sel-rect"></div>` : nothing}
             ${this._showNameInput ? this._renderNamePopup() : nothing}
-            ${this._trackPopover ? this._renderTrackPopover() : nothing}
-            ${this._areaSettings ? this._renderAreaSettingsPanel() : nothing}
+            ${this._renderAreaGrips()}
+            ${this._areaDragPreview ? html`<div class="area-preview ${this._areaDragPreview.ok ? 'ok' : 'blocked'}" id="area-preview"></div>` : nothing}
             ${this._renderToolbar()}
+            ${this._renderDock()}
             <div class="drag-chip" id="drag-chip"></div>
         `;
     }
@@ -1151,7 +833,11 @@ export class LCARdSGridEditOverlay extends LitElement {
         // Falls back to the declared tracks when no measurement is supplied.
         const measureCols = this.measureColumns?.length ? this.measureColumns : this.columns;
         const measureRows = this.measureRows?.length ? this.measureRows : this.rows;
+        // Start where the real grid's first cell starts (its edit reserve, padding
+        // and margin); before the first measurement, assume the grid edit reserve.
+        const offset = this.measureOffset ?? editReserve('grid');
         const style = [
+            `padding: ${offset.top}px 0 0 ${offset.left}px`,
             `grid-template-columns: ${measureCols.join(' ')}`,
             `grid-template-rows: ${measureRows.join(' ')}`,
             `gap: ${this.gap}`,
@@ -1166,176 +852,177 @@ export class LCARdSGridEditOverlay extends LitElement {
     }
 
     _renderToolbar() {
+        const hint = this._selectedArea
+            ? `Area "${this._selectedArea}": drag its edges to resize, its name to move · ⋮ for more`
+            : 'Click or drag across empty cells to create an area · click a column or row header for its size';
         return html`
-            <div class="toolbar" id="toolbar" style=${this._toolbarPos ? `top:${this._toolbarPos.top}px; left:${this._toolbarPos.left}px; transform:none;` : ''}>
-                <div class="drag-grip" @pointerdown=${this._toolbarDragStart} title="Drag to move">
-                    <ha-icon icon="mdi:drag"></ha-icon>
-                </div>
-                <span class="toolbar-label">Layout Mode</span>
-                <div class="t-sep"></div>
-                <button class="t-btn" title="Add column" @click=${() => this._addTrack('col')}>
-                    <ha-icon icon="mdi:table-column-plus-after"></ha-icon>
-                    <span>+ Col</span>
-                </button>
-                <button class="t-btn" title="Add row" @click=${() => this._addTrack('row')}>
-                    <ha-icon icon="mdi:table-row-plus-after"></ha-icon>
-                    <span>+ Row</span>
-                </button>
-                <div class="t-sep"></div>
-                <div class="t-opacity" title="Area overlay opacity">
-                    <ha-icon icon="mdi:opacity"></ha-icon>
-                    <input type="range" min="0" max="100" step="5"
-                        .value=${String(this._overlayOpacity)}
-                        style="--pct:${this._overlayOpacity}%"
-                        @input=${(e) => {
-                            this._overlayOpacity = Number(e.target.value);
-                            e.target.style.setProperty('--pct', `${this._overlayOpacity}%`);
-                        }}
-                    >
-                </div>
-                <div class="t-opacity" title="Track header opacity">
-                    <ha-icon icon="mdi:table-headers-eye"></ha-icon>
-                    <input type="range" min="0" max="100" step="5"
-                        .value=${String(this._headerOpacity)}
-                        style="--pct:${this._headerOpacity}%"
-                        @input=${(e) => {
-                            this._headerOpacity = Number(e.target.value);
-                            e.target.style.setProperty('--pct', `${this._headerOpacity}%`);
-                            this.style.setProperty('--lcards-header-opacity', String(this._headerOpacity / 100));
-                        }}
-                    >
-                </div>
-                ${this.hideSettings ? nothing : html`
-                    <div class="t-sep"></div>
-                    <button
-                        class="t-btn ${this._showSettings ? 'primary' : ''}"
-                        title="Layout settings (gap, margins)"
-                        @click=${() => { this._showSettings = !this._showSettings; }}
-                    >
-                        <ha-icon icon="mdi:tune-variant"></ha-icon>
-                    </button>
-                `}
+            <div class="edit-bar" id="toolbar" role="toolbar" aria-label="Layout editor">
                 ${this.hideCardMode ? nothing : html`
-                    <div class="t-sep"></div>
-                    <button
-                        class="t-btn primary"
-                        title="Switch to card editing mode"
-                        @click=${() => this.dispatchEvent(new CustomEvent('switch-to-cards-mode', { bubbles: false }))}
-                    >
-                        <ha-icon icon="mdi:card-multiple-outline"></ha-icon>
-                        <span>Switch to Edit Cards</span>
-                    </button>
+                    ${renderModeToggle('grid', () => this.dispatchEvent(new CustomEvent('switch-to-cards-mode', { bubbles: false })))}
+                    <div class="edit-bar-sep"></div>
                 `}
+                <ha-button appearance="plain" size="s" @click=${() => this._addTrack('col')}>
+                    <ha-svg-icon slot="start" .path=${ICON.colAfter}></ha-svg-icon>
+                    Column
+                </ha-button>
+                <ha-button appearance="plain" size="s" @click=${() => this._addTrack('row')}>
+                    <ha-svg-icon slot="start" .path=${ICON.rowAfter}></ha-svg-icon>
+                    Row
+                </ha-button>
+                <div class="edit-bar-sep"></div>
+                <label class="t-tint" title="Area tint: raise it when an area's colour is close to its cards">
+                    <ha-svg-icon .path=${ICON.opacity}></ha-svg-icon>
+                    <input type="range" min="0" max="100" step="5" aria-label="Area tint"
+                        .value=${String(this._areaTint)}
+                        @input=${(/** @type {Event} */ e) => {
+                            this._areaTint = Number(/** @type {HTMLInputElement} */ (e.target).value);
+                            setStickyAreaTint(this._areaTint);
+                        }}
+                    >
+                </label>
+                ${this.hideSettings ? nothing : html`
+                    <div class="edit-bar-sep"></div>
+                    <ha-icon-button
+                        class=${this._showSettings ? 'active' : ''}
+                        .path=${ICON.tune}
+                        .label=${'Grid settings (gap, height, margins)'}
+                        title="Grid settings (gap, height, margins)"
+                        @click=${() => this._openDock(this._showSettings ? null : { settings: true })}
+                    ></ha-icon-button>
+                `}
+                ${renderBarHint(hint)}
             </div>
-            ${this._showSettings ? this._renderSettingsPanel() : nothing}
         `;
     }
 
-    _renderSettingsPanel() {
+    // ──────────────────────────────────────────────────────────────────────
+    // Docked inspector: grid settings, a track, or an area's settings
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Show one thing in the dock (or close it with null). The dock holds one
+     * subject at a time; opening another replaces it.
+     * @param {{settings?: boolean, track?: {axis: string, index: number}, area?: string} | null} what
+     */
+    _openDock(what) {
+        this._showSettings = !!what?.settings && !this.hideSettings;
+        this._trackPopover = what?.track ?? null;
+        this._areaSettings = what?.area ?? null;
+        if (what?.area) this._selectedArea = what.area;
+    }
+
+    get _dockOpen() {
+        return !!(this._areaSettings || this._trackPopover || (this._showSettings && !this.hideSettings));
+    }
+
+    _renderDock() {
+        /** @type {string} */ let title;
+        let body;
+        if (this._areaSettings) {
+            title = `Area: ${this._areaSettings}`;
+            body = this._renderAreaSettingsBody();
+        } else if (this._trackPopover) {
+            const { axis, index } = this._trackPopover;
+            title = `${axis === 'col' ? 'Column' : 'Row'} ${index + 1}`;
+            body = this._renderTrackBody();
+        } else if (this._showSettings && !this.hideSettings) {
+            title = 'Grid settings';
+            body = this._renderSettingsBody();
+        } else {
+            return nothing;
+        }
+        return html`
+            <aside class="edit-dock" id="dock" aria-label="${title}"
+                @click=${(e) => e.stopPropagation()}
+                @keydown=${(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}>
+                ${renderPanelHeader(title, () => this._openDock(null))}
+                <div class="edit-dock-body">${body}</div>
+            </aside>
+        `;
+    }
+
+    _renderSettingsBody() {
         const layout = this.layout ?? {};
         return html`
-            <div class="settings-panel">
-                <div class="settings-title">Grid Settings</div>
-                <div class="settings-hint">Press Enter or click away to apply each value.</div>
-                <ha-input
-                    label="Gap"
-                    .value=${this.gap ?? ''}
-                    title="Space between grid cells (e.g. 5px, 8px)"
-                    @change=${(e) => this._emitGridState(this.columns, this.rows, this.areas, e.target.value)}
-                ></ha-input>
-                <ha-input
-                    label="Height"
-                    .value=${layout.height ?? 'calc(100dvh - var(--header-height, 56px))'}
-                    title="View height (e.g. calc(100dvh - 56px), 800px)"
-                    @change=${(e) => this._emitLayoutProp('height', e.target.value)}
-                ></ha-input>
-                <ha-input
-                    label="Card margin"
-                    .value=${layout.card_margin ?? ''}
-                    placeholder="4px"
-                    title="Margin around each card (e.g. 4px, 0)"
-                    @change=${(e) => this._emitLayoutProp('card_margin', e.target.value || undefined)}
-                ></ha-input>
-                <ha-input
-                    label="Padding"
-                    .value=${layout.padding ?? ''}
-                    placeholder="none"
-                    title="Inner padding of the grid container"
-                    @change=${(e) => this._emitLayoutProp('padding', e.target.value || undefined)}
-                ></ha-input>
-                <div class="settings-actions">
-                    <ha-button @click=${() => { this._showSettings = false; }}>Done</ha-button>
-                </div>
-            </div>
+            <div class="settings-hint">Press Enter or click away to apply each value.</div>
+            <ha-input
+                label="Gap"
+                .value=${this.gap ?? ''}
+                title="Space between grid cells (e.g. 5px, 8px)"
+                @change=${(e) => this._emitGridState(this.columns, this.rows, this.areas, e.target.value)}
+            ></ha-input>
+            <ha-input
+                label="Height"
+                .value=${layout.height ?? 'calc(100dvh - var(--header-height, 56px))'}
+                title="View height (e.g. calc(100dvh - 56px), 800px)"
+                @change=${(e) => this._emitLayoutProp('height', e.target.value)}
+            ></ha-input>
+            <ha-input
+                label="Card margin"
+                .value=${layout.card_margin ?? ''}
+                placeholder="4px"
+                title="Margin around each card (e.g. 4px, 0)"
+                @change=${(e) => this._emitLayoutProp('card_margin', e.target.value || undefined)}
+            ></ha-input>
+            <ha-input
+                label="Padding"
+                .value=${layout.padding ?? ''}
+                placeholder="none"
+                title="Inner padding of the grid container"
+                @change=${(e) => this._emitLayoutProp('padding', e.target.value || undefined)}
+            ></ha-input>
         `;
     }
 
-    _renderTrackPopover() {
+    /** A track in the dock: size presets, custom size, insert before/after, delete. */
+    _renderTrackBody() {
         if (!this._trackPopover) return nothing;
         const { axis, index } = this._trackPopover;
-        const current = axis === 'col' ? this.columns[index] : this.rows[index];
-        const label = axis === 'col' ? `Column ${index + 1}` : `Row ${index + 1}`;
-        const presets = axis === 'col'
+        const isCol   = axis === 'col';
+        const current = isCol ? this.columns[index] : this.rows[index];
+        const count   = isCol ? this.columns.length : this.rows.length;
+        const presets = isCol
             ? ['1fr', '2fr', '3fr', 'auto', '100px', '200px', '300px', '50%', 'clamp(100px,12vw,200px)']
             : ['1fr', '2fr', 'auto', '60px', '80px', '120px', '50%', 'clamp(40px,8vh,100px)'];
+        const resizable = isResizableTrack(parseTrackValue(current ?? ''));
 
-        const closePopover = (e) => { e.stopPropagation(); this._trackPopover = null; };
         return html`
-            <div class="track-popover" id="track-popover"
-                @click=${(e) => e.stopPropagation()}
-                @keydown=${(e) => { if (e.key === 'Escape') { closePopover(e); } else { e.stopPropagation(); } }}>
-                <div class="tp-header">
-                    <span class="tp-title">${label} size</span>
-                    <button class="tp-close" title="Close" @click=${closePopover}>×</button>
-                </div>
-                <div class="tp-presets">
-                    ${presets.map(p => html`
-                        <button
-                            class="tp-preset"
-                            @click=${() => { this._commitTrack(axis, index, p); this._trackPopover = null; }}
-                        >${p}</button>
-                    `)}
-                </div>
-                <div class="tp-custom">
-                    <ha-input
-                        label="Custom size"
-                        .value=${current}
-                        placeholder="e.g. 1fr, 200px, 25%"
-                        @keydown=${(e) => {
-                            e.stopPropagation();
-                            if (e.key === 'Enter')  { this._commitTrack(axis, index, e.target.value); this._trackPopover = null; }
-                            if (e.key === 'Escape') { this._trackPopover = null; }
-                        }}
-                    ></ha-input>
-                </div>
+            <div class="settings-hint">Size of this ${isCol ? 'column' : 'row'}${resizable ? '' : ' (not resizable by dragging: set it here)'}.</div>
+            <div class="tp-presets">
+                ${presets.map(p => html`
+                    <button class="tp-preset ${p === current ? 'current' : ''}"
+                        @click=${() => this._commitTrack(axis, index, p)}
+                    >${p}</button>
+                `)}
+            </div>
+            <ha-input
+                id="track-size"
+                label="Custom size"
+                .value=${current}
+                placeholder="e.g. 1fr, 200px, 25%"
+                @keydown=${(e) => { if (e.key === 'Enter') this._commitTrack(axis, index, e.target.value); }}
+                @change=${(e) => this._commitTrack(axis, index, e.target.value)}
+            ></ha-input>
+            <div class="edit-panel-actions">
+                <ha-button appearance="plain" size="s" @click=${() => this._insertTrackAt(axis, index)}>
+                    <ha-svg-icon slot="start" .path=${isCol ? ICON.colBefore : ICON.rowBefore}></ha-svg-icon>
+                    ${isCol ? 'Insert left' : 'Insert above'}
+                </ha-button>
+                <ha-button appearance="plain" size="s" @click=${() => this._insertTrackAt(axis, index + 1)}>
+                    <ha-svg-icon slot="start" .path=${isCol ? ICON.colAfter : ICON.rowAfter}></ha-svg-icon>
+                    ${isCol ? 'Insert right' : 'Insert below'}
+                </ha-button>
+                <ha-button appearance="plain" variant="danger" size="s" ?disabled=${count <= 1}
+                    @click=${() => { this._openDock(null); this._deleteTrack(axis, index); }}>
+                    <ha-svg-icon slot="start" .path=${ICON.delete}></ha-svg-icon>
+                    Delete
+                </ha-button>
             </div>
         `;
     }
 
-    _openTrackPopover(axis, index, e) {
-        this._trackPopover = { axis, index };
-        this.updateComplete.then(() => {
-            const popover = this._qh('#track-popover');
-            if (!popover) return;
-            const headerId = axis === 'col' ? `ch-${index}` : `rh-${index}`;
-            const header   = this._qh(`#${headerId}`);
-            if (!header) return;
-            const hRect  = header.getBoundingClientRect();
-            const oRect  = this.getBoundingClientRect();
-            const popH   = /** @type {HTMLElement} */ (popover).offsetHeight;
-            const popW   = 210;
-            // Horizontal: align to header left, clamp to overlay width
-            const rawLeft    = hRect.left - oRect.left;
-            const clampedLeft = Math.max(0, Math.min(rawLeft, oRect.width - popW - 4));
-            // Vertical: prefer below the header; flip above if it would overflow the overlay bottom
-            const belowTop = hRect.bottom - oRect.top + 4;
-            const aboveTop = hRect.top - oRect.top - popH - 4;
-            const top = (belowTop + popH > oRect.height && aboveTop >= 0) ? aboveTop : belowTop;
-            popover.style.left   = `${clampedLeft}px`;
-            popover.style.top    = `${Math.max(0, top)}px`;
-            popover.style.bottom = 'auto';
-            (/** @type {HTMLElement|null} */ (popover.querySelector('ha-input')))?.focus();
-        });
+    _openTrackPopover(axis, index) {
+        this._openDock({ track: { axis, index } });
     }
 
     _emitLayoutProp(key, value) {
@@ -1349,109 +1036,62 @@ export class LCARdSGridEditOverlay extends LitElement {
     }
 
     _renderColumnHeaders() {
-        return this.columns.map((size, i) => {
-            const isEditing = this._editingTrack?.axis === 'col' && this._editingTrack?.index === i;
-            const isDragging = this._reorderDrag?.axis === 'col' && this._reorderDrag?.fromIndex === i;
-            const isTarget   = this._reorderPreview?.axis === 'col' && this._reorderPreview?.to === i;
-            return html`
-                <div
-                    class="col-header ${isDragging ? 'dragging' : ''} ${isTarget ? 'drop-target' : ''}"
-                    id="ch-${i}"
-                    @pointerdown=${(e) => this._headerPointerDown(e, 'col', i)}
-                    @click=${(e) => { e.stopPropagation(); if (this._consumeReorderClick()) return; this._openTrackPopover('col', i, e); }}
-                >
-                    ${isEditing
-                        ? html`<input
-                            class="track-edit-input"
-                            .value=${size}
-                            @keydown=${(e) => this._trackInputKeydown(e, 'col', i)}
-                            @blur=${(e) => this._commitTrack('col', i, e.target.value)}
-                            @click=${(e) => e.stopPropagation()}
-                          />`
-                        : html`<span class="track-label">${size}</span>`
-                    }
-                    <div
-                        class="del-btn"
-                        @click=${(e) => { e.stopPropagation(); this._deleteTrack('col', i); }}
-                        title="Delete column"
-                    >
-                        <ha-icon icon="mdi:close"></ha-icon>
-                    </div>
-                </div>
-            `;
-        });
+        return this.columns.map((size, i) => this._renderTrackHeader('col', i, size));
     }
 
     _renderRowHeaders() {
-        return this.rows.map((size, i) => {
-            const isEditing  = this._editingTrack?.axis === 'row' && this._editingTrack?.index === i;
-            const isDragging = this._reorderDrag?.axis === 'row' && this._reorderDrag?.fromIndex === i;
-            const isTarget   = this._reorderPreview?.axis === 'row' && this._reorderPreview?.to === i;
-            return html`
-                <div
-                    class="row-header ${isDragging ? 'dragging' : ''} ${isTarget ? 'drop-target' : ''}"
-                    id="rh-${i}"
-                    @pointerdown=${(e) => this._headerPointerDown(e, 'row', i)}
-                    @click=${(e) => { e.stopPropagation(); if (this._consumeReorderClick()) return; this._openTrackPopover('row', i, e); }}
-                >
-                    ${isEditing
-                        ? html`<input
-                            class="track-edit-input"
-                            .value=${size}
-                            @keydown=${(e) => this._trackInputKeydown(e, 'row', i)}
-                            @blur=${(e) => this._commitTrack('row', i, e.target.value)}
-                            @click=${(e) => e.stopPropagation()}
-                          />`
-                        : html`<span class="track-label">${size}</span>`
-                    }
-                    <div
-                        class="del-btn"
-                        @click=${(e) => { e.stopPropagation(); this._deleteTrack('row', i); }}
-                        title="Delete row"
-                    >
-                        <ha-icon icon="mdi:close"></ha-icon>
-                    </div>
-                </div>
-            `;
-        });
+        return this.rows.map((size, i) => this._renderTrackHeader('row', i, size));
     }
 
+    /** A column/row header in the gutter: click opens the track menu, drag reorders. */
+    _renderTrackHeader(/** @type {'col'|'row'} */ axis, /** @type {number} */ i, /** @type {string} */ size) {
+        const isDragging = this._reorderDrag?.axis === axis && this._reorderDrag?.fromIndex === i;
+        const isTarget   = this._reorderPreview?.axis === axis && this._reorderPreview?.to === i;
+        const isOpen     = this._trackPopover?.axis === axis && this._trackPopover?.index === i;
+        const name = `${axis === 'col' ? 'Column' : 'Row'} ${i + 1}`;
+        return html`
+            <div
+                class="${axis}-header ${isDragging ? 'dragging' : ''} ${isTarget ? 'drop-target' : ''} ${isOpen ? 'open' : ''}"
+                id="${axis === 'col' ? 'ch' : 'rh'}-${i}"
+                role="button"
+                tabindex="0"
+                aria-label="${name}: ${size}. Click for size options, drag to reorder."
+                title="${name}: ${size} · click for options, drag to reorder"
+                @pointerdown=${(e) => this._headerPointerDown(e, axis, i)}
+                @click=${(e) => { e.stopPropagation(); if (this._consumeReorderClick()) return; this._openTrackPopover(axis, i); }}
+                @keydown=${(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._openTrackPopover(axis, i); } }}
+            >
+                <span class="track-label">${size}</span>
+            </div>
+        `;
+    }
+
+    /**
+     * Resize handles: for each boundary between two tracks, one segment in the
+     * header gutter and one per cell along it. Segments
+     * whose two cells belong to the same area are hidden in _positionResizeHandles,
+     * so a spanning area keeps its middle.
+     */
     _renderResizeHandles() {
-        const colHandles = this.columns.slice(0, -1).map((t, i) => {
-            const resizable = isResizableTrack(parseTrackValue(this.columns[i])) &&
-                              isResizableTrack(parseTrackValue(this.columns[i + 1]));
-            return html`
-                <div
-                    class="resize-handle rh-col ${resizable ? '' : 'disabled'}"
-                    id="rhc-${i}"
-                    @pointerdown=${resizable ? (e) => this._resizePointerDown(e, 'col', i) : nothing}
-                    title="${resizable ? 'Drag to resize' : 'Non-resizable track (clamp/minmax)'}"
-                >
-                    <button class="insert-btn" title="Insert column here"
-                        @pointerdown=${(e) => e.stopPropagation()}
-                        @click=${(e) => { e.stopPropagation(); this._insertTrackAt('col', i + 1); }}
-                    >+</button>
-                </div>
-            `;
-        });
-        const rowHandles = this.rows.slice(0, -1).map((t, i) => {
-            const resizable = isResizableTrack(parseTrackValue(this.rows[i])) &&
-                              isResizableTrack(parseTrackValue(this.rows[i + 1]));
-            return html`
-                <div
-                    class="resize-handle rh-row ${resizable ? '' : 'disabled'}"
-                    id="rhr-${i}"
-                    @pointerdown=${resizable ? (e) => this._resizePointerDown(e, 'row', i) : nothing}
-                    title="${resizable ? 'Drag to resize' : 'Non-resizable track'}"
-                >
-                    <button class="insert-btn" title="Insert row here"
-                        @pointerdown=${(e) => e.stopPropagation()}
-                        @click=${(e) => { e.stopPropagation(); this._insertTrackAt('row', i + 1); }}
-                    >+</button>
-                </div>
-            `;
-        });
-        return [...colHandles, ...rowHandles];
+        const handles = [];
+        for (const axis of /** @type {const} */ (['col', 'row'])) {
+            const tracks = axis === 'col' ? this.columns : this.rows;
+            const cross  = axis === 'col' ? this.rows.length : this.columns.length;
+            for (let i = 0; i < tracks.length - 1; i++) {
+                const resizable = isResizableTrack(parseTrackValue(tracks[i])) &&
+                                  isResizableTrack(parseTrackValue(tracks[i + 1]));
+                const down = resizable ? (e) => this._resizePointerDown(e, axis, i) : nothing;
+                const title = resizable ? 'Drag to resize' : 'Not resizable by dragging (clamp/minmax/auto track)';
+                const cls = `rh-seg ${axis} ${resizable ? '' : 'disabled'}`;
+                // Inserting a track is in the track menu (header click) and on the
+                // toolbar; a button here would cover the handle.
+                handles.push(html`<div class="${cls} gutter" id="rh-${axis}-${i}-g" data-b="${axis}-${i}" title=${title} @pointerdown=${down}></div>`);
+                for (let k = 0; k < cross; k++) {
+                    handles.push(html`<div class="${cls}" id="rh-${axis}-${i}-${k}" data-b="${axis}-${i}" title=${title} @pointerdown=${down}></div>`);
+                }
+            }
+        }
+        return handles;
     }
 
     _insertTrackAt(axis, index) {
@@ -1462,76 +1102,91 @@ export class LCARdSGridEditOverlay extends LitElement {
     }
 
     _renderAreaOverlays() {
-        const areaNames = getAreaNames(this.areas);
-
-        // Inline SVG helper — no WA shadow-DOM sizing; exact pixel control
-        const ico = (d, sz = 18) => html`<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="currentColor" aria-hidden="true"><path d="${d}"/></svg>`;
-        const ICO_PENCIL = 'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z';
-        const ICO_PLUS   = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
-        const ICO_TUNE   = 'M8 13C6.14 13 4.59 14.28 4.14 16H2V18H4.14C4.59 19.72 6.14 21 8 21S11.41 19.72 11.86 18H22V16H11.86C11.41 14.28 9.86 13 8 13M8 19C6.9 19 6 18.1 6 17C6 15.9 6.9 15 8 15S10 15.9 10 17C10 18.1 9.1 19 8 19M19.86 6C19.41 4.28 17.86 3 16 3S12.59 4.28 12.14 6H2V8H12.14C12.59 9.72 14.14 11 16 11S19.41 9.72 19.86 8H22V6H19.86M16 9C14.9 9 14 8.1 14 7C14 5.9 14.9 5 16 5S18 5.9 18 7C18 8.1 17.1 9 16 9Z';
-        const ICO_DELETE = 'M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19M8,9H16V19H8V9M15.5,4L14.5,3H9.5L8.5,4H5V6H19V4H15.5Z';
-        const ICO_CHECK  = 'M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z';
-        const ICO_CLOSE  = 'M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z';
-
-        return areaNames.map(name => {
+        return getAreaNames(this.areas).map(name => {
             const isSelected = this._selectedArea === name;
             const isRenaming = this._renaming === name;
             const { bg } = areaColor(name);
+            const cardTypes = (this.cardConfigs ?? [])
+                .filter(c => c?.view_layout?.['grid-area'] === name)
+                .map(c => String(c?.type ?? 'card').replace('custom:', ''));
+            const cardsLabel = cardTypes.length > 1
+                ? `${cardTypes.length} cards (stacked)`
+                : cardTypes[0] ?? 'empty';
 
-            const barContent = isRenaming
+            const controls = isRenaming
                 ? html`
-                    <input class="aab-rename-input"
-                        .value=${name}
-                        placeholder="area-name"
-                        @keydown=${(/** @type {KeyboardEvent} */ e) => {
-                            e.stopPropagation();
-                            if (e.key === 'Enter')  { this._commitRenameFromBar(name, /** @type {HTMLInputElement} */ (e.target).value); }
-                            if (e.key === 'Escape') { this._renaming = null; }
-                        }}
-                        @blur=${(/** @type {FocusEvent} */ e) => {
-                            if (this._renaming === name) this._commitRenameFromBar(name, /** @type {HTMLInputElement} */ (e.target).value);
-                        }}
-                    >
-                    <button class="aab-btn aab-rename-confirm" title="Confirm rename"
-                        @click=${(/** @type {MouseEvent} */ e) => {
-                            e.stopPropagation();
-                            const input = /** @type {HTMLInputElement|null} */ ((/** @type {HTMLElement} */ (e.currentTarget)).previousElementSibling);
-                            if (input) this._commitRenameFromBar(name, input.value);
-                        }}>${ico(ICO_CHECK, 16)}</button>
-                    <button class="aab-btn" title="Cancel rename"
-                        @click=${(/** @type {MouseEvent} */ e) => { e.stopPropagation(); this._renaming = null; }}
-                    >${ico(ICO_CLOSE, 16)}</button>
-                  `
+                    <div class="area-rename" @click=${(e) => e.stopPropagation()}>
+                        <input
+                            .value=${name}
+                            placeholder="area-name"
+                            aria-label="Area name"
+                            @keydown=${(/** @type {KeyboardEvent} */ e) => {
+                                e.stopPropagation();
+                                if (e.key === 'Enter')  { this._commitRenameFromBar(name, /** @type {HTMLInputElement} */ (e.target).value); }
+                                if (e.key === 'Escape') { this._renaming = null; }
+                            }}
+                            @blur=${(/** @type {FocusEvent} */ e) => {
+                                if (this._renaming === name) this._commitRenameFromBar(name, /** @type {HTMLInputElement} */ (e.target).value);
+                            }}
+                        >
+                        <ha-icon-button .path=${ICON.check} .label=${'Confirm rename'}
+                            @pointerdown=${(e) => e.preventDefault() /* keep the input focused */}
+                            @click=${(/** @type {MouseEvent} */ e) => {
+                                const input = /** @type {HTMLInputElement|null} */ (this._qh(`#ao-${name} .area-rename input`));
+                                if (input) this._commitRenameFromBar(name, input.value);
+                            }}></ha-icon-button>
+                        <ha-icon-button .path=${ICON.close} .label=${'Cancel rename'}
+                            @pointerdown=${(e) => e.preventDefault()}
+                            @click=${() => { this._renaming = null; }}></ha-icon-button>
+                    </div>`
                 : html`
-                    <button class="aab-btn" title="Rename area"
-                        @click=${(/** @type {MouseEvent} */ e) => { e.stopPropagation(); this._startBarRename(name); }}
-                    >${ico(ICO_PENCIL)}</button>
-                    <button class="aab-btn" title="Add card to area"
-                        @click=${(/** @type {MouseEvent} */ e) => { e.stopPropagation(); this._addCardToArea(name); }}
-                    >${ico(ICO_PLUS)}</button>
-                    <div class="aab-sep"></div>
-                    <button class="aab-btn" title="Area background, border &amp; spacing"
-                        @click=${(/** @type {MouseEvent} */ e) => { e.stopPropagation(); this._openAreaSettings(name); }}
-                    >${ico(ICO_TUNE)}</button>
-                    <button class="aab-btn danger" title="Delete area (and its cards)"
-                        @click=${(/** @type {MouseEvent} */ e) => { e.stopPropagation(); this._deleteArea(name); }}
-                    >${ico(ICO_DELETE)}</button>
-                  `;
+                    <ha-dropdown class="area-menu" placement="bottom-end"
+                        @click=${(e) => e.stopPropagation()}
+                        @wa-select=${(e) => this._onAreaMenuSelect(name, e.detail?.item?.value)}>
+                        <ha-icon-button slot="trigger" .path=${ICON.dotsVertical} .label=${`Area ${name} options`}></ha-icon-button>
+                        <ha-dropdown-item value="rename">
+                            <ha-svg-icon slot="icon" .path=${ICON.rename}></ha-svg-icon>
+                            Rename
+                        </ha-dropdown-item>
+                        <ha-dropdown-item value="add">
+                            <ha-svg-icon slot="icon" .path=${ICON.plus}></ha-svg-icon>
+                            ${cardTypes.length ? 'Add another card' : 'Add card'}
+                        </ha-dropdown-item>
+                        <ha-dropdown-item value="settings">
+                            <ha-svg-icon slot="icon" .path=${ICON.tune}></ha-svg-icon>
+                            Area settings
+                        </ha-dropdown-item>
+                        <div class="menu-sep" role="separator"></div>
+                        <ha-dropdown-item value="delete" variant="danger">
+                            <ha-svg-icon slot="icon" .path=${ICON.delete}></ha-svg-icon>
+                            Delete area
+                        </ha-dropdown-item>
+                    </ha-dropdown>`;
 
             return html`
                 <div
-                    class="area-overlay ${isSelected ? 'selected' : ''} ${isRenaming ? 'renaming' : ''}"
+                    class="area-overlay ${isSelected ? 'selected' : ''} ${isRenaming ? 'renaming' : ''} ${this._areaDrag?.name === name && this._areaDrag.moved ? 'dragging' : ''}"
                     id="ao-${name}"
-                    style="display:none; background: color-mix(in oklab, ${bg} ${this._overlayOpacity}%, transparent);"
-                    @click=${(e) => { e.stopPropagation(); this._selectArea(name); }}
+                    style="display:none; --area-color: ${bg};"
+                    @click=${(e) => { e.stopPropagation(); if (this._consumeReorderClick()) return; this._selectArea(name); }}
                 >
-                    <div class="area-label">${name}</div>
-                    <div class="area-action-bar" @click=${(e) => e.stopPropagation()}>
-                        ${barContent}
+                    <div class="area-label">
+                        <span class="area-name" title="Drag to move the area"
+                            @pointerdown=${(e) => this._areaDragStart(e, name, 'move')}>${name}</span>
+                        <span class="area-cards">${cardsLabel}</span>
                     </div>
+                    ${controls}
                 </div>
             `;
         });
+    }
+
+    _onAreaMenuSelect(/** @type {string} */ name, /** @type {string|undefined} */ action) {
+        this._selectedArea = name;
+        if (action === 'rename')   this._startBarRename(name);
+        if (action === 'add')      this._addCardToArea(name);
+        if (action === 'settings') this._openAreaSettings(name);
+        if (action === 'delete')   this._deleteArea(name);
     }
 
     _renderCellTargets() {
@@ -1541,6 +1196,10 @@ export class LCARdSGridEditOverlay extends LitElement {
                 const occupied = this.areas[r]?.[c] !== '.';
                 if (occupied) continue;
                 const inSel = this._isCellInSel(r, c);
+                // A click (no drag) on an empty cell creates a one-cell area, a drag
+                // across cells creates a bigger one (both handled in _selUp, since the
+                // captured pointer sends the click to the cell, not the button). The
+                // button is the keyboard path.
                 targets.push(html`
                     <div
                         class="cell-target ${inSel ? 'in-sel' : ''}"
@@ -1551,10 +1210,10 @@ export class LCARdSGridEditOverlay extends LitElement {
                     >
                         <button
                             class="cell-add-btn"
-                            title="Create area here"
-                            @click=${(e) => { e.stopPropagation(); this._createSingleCellArea(r, c); }}
+                            title="Create area here (or drag across cells)"
+                            @click=${(e) => { e.stopPropagation(); if (e.detail === 0) this._createSingleCellArea(r, c); }}
                         >
-                            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+                            <ha-svg-icon .path=${ICON.plus}></ha-svg-icon>
                             <span>Create area</span>
                         </button>
                     </div>
@@ -1566,18 +1225,23 @@ export class LCARdSGridEditOverlay extends LitElement {
 
     _renderNamePopup() {
         return html`
-            <div class="name-popup" id="name-popup" style="display:none;">
-                <div class="name-popup-title">Name this area</div>
-                <ha-input
-                    .value=${this._selectionName}
-                    placeholder="area-name"
-                    @input=${(e) => { this._selectionName = e.target.value; }}
-                    @keydown=${this._nameInputKeydown}
-                    autofocus
-                ></ha-input>
-                <div class="name-popup-actions">
-                    <ha-button @click=${this._cancelSelection}>Cancel</ha-button>
-                    <ha-button unelevated @click=${this._confirmSelection}>Create</ha-button>
+            <div class="edit-panel name-popup" id="name-popup" style="display:none;">
+                ${renderPanelHeader('Name this area', () => this._cancelSelection())}
+                <div class="edit-panel-body">
+                    <ha-input
+                        .value=${this._selectionName}
+                        placeholder="area-name"
+                        hint="Letters, numbers, - and _"
+                        ?invalid=${!!this._nameError}
+                        validation-message=${this._nameError || ''}
+                        @input=${(e) => { this._selectionName = e.target.value; this._nameError = ''; }}
+                        @keydown=${this._nameInputKeydown}
+                        autofocus
+                    ></ha-input>
+                    <div class="edit-panel-actions">
+                        <ha-button appearance="plain" @click=${this._cancelSelection}>Cancel</ha-button>
+                        <ha-button variant="brand" @click=${this._confirmSelection}>Create</ha-button>
+                    </div>
                 </div>
             </div>
         `;
@@ -1590,100 +1254,78 @@ export class LCARdSGridEditOverlay extends LitElement {
     _positionColumnHeaders() {
         const cells = this._cells;
         if (!cells.length || !cells[0]?.length) return;
-
         for (let i = 0; i < this.columns.length; i++) {
             const el = this._qh(`#ch-${i}`);
-            if (!el) continue;
             const cell = cells[0]?.[i];
-            if (!cell) continue;
-            el.style.left   = `${cell.left}px`;
-            el.style.width  = `${cell.width}px`;
-            el.style.height = `${HEADER_OVERLAP}px`;
-            el.style.top    = `${cell.top}px`;  // floats over top of cell
-            el.classList.toggle('edge-start', i === 0);
-            el.classList.toggle('edge-end',  i === this.columns.length - 1);
-        }
-
-        // Add-col button: after last column
-        const lastCell = cells[0]?.[this.columns.length - 1];
-        if (lastCell) {
-            const addBtn = this._qh('.add-col-btn');
-            if (addBtn) {
-                addBtn.style.left = `${lastCell.right + 4}px`;
-                addBtn.style.top  = `${lastCell.top}px`;
-            }
+            if (!el || !cell) continue;
+            // In the gutter above the first row.
+            el.style.left   = `${cell.left + HEADER_INSET}px`;
+            el.style.width  = `${Math.max(0, cell.width - 2 * HEADER_INSET)}px`;
+            el.style.top    = `${cell.top - GUTTER + HEADER_INSET}px`;
+            el.style.height = `${GUTTER - 2 * HEADER_INSET}px`;
         }
     }
 
     _positionRowHeaders() {
         const cells = this._cells;
         if (!cells.length) return;
-
         for (let i = 0; i < this.rows.length; i++) {
             const el = this._qh(`#rh-${i}`);
-            if (!el) continue;
             const cell = cells[i]?.[0];
-            if (!cell) continue;
-            el.style.top    = `${cell.top}px`;
-            el.style.height = `${cell.height}px`;
-            el.style.width  = `${HEADER_OVERLAP}px`;
-            el.style.left   = `${cell.left}px`;  // floats over left of cell
-            el.classList.toggle('edge-start', i === 0);
-            el.classList.toggle('edge-end',  i === this.rows.length - 1);
-        }
-
-        // Add-row button: below last row
-        const lastCell = cells[this.rows.length - 1]?.[0];
-        if (lastCell) {
-            const addBtn = this._qh('.add-row-btn');
-            if (addBtn) {
-                addBtn.style.top  = `${lastCell.bottom + 4}px`;
-                addBtn.style.left = `${lastCell.left}px`;
-            }
+            if (!el || !cell) continue;
+            // In the gutter left of the first column.
+            el.style.top    = `${cell.top + HEADER_INSET}px`;
+            el.style.height = `${Math.max(0, cell.height - 2 * HEADER_INSET)}px`;
+            el.style.left   = `${cell.left - GUTTER + HEADER_INSET}px`;
+            el.style.width  = `${GUTTER - 2 * HEADER_INSET}px`;
         }
     }
 
     _positionResizeHandles() {
         const cells = this._cells;
         if (!cells.length) return;
-        const lastRow = this.rows.length - 1;
-        const lastCol = this.columns.length - 1;
-        const topCell    = cells[0]?.[0];
-        const bottomCell = cells[lastRow]?.[0];
-        const leftCell   = cells[0]?.[0];
-        const rightCell  = cells[0]?.[lastCol];
-
-        const gridTop    = topCell?.top    ?? 0;
-        const gridBottom = bottomCell?.bottom ?? 0;
-        const gridLeft   = leftCell?.left  ?? 0;
-        const gridRight  = rightCell?.right ?? 0;
+        /** @param {HTMLElement|null} el @param {number} left @param {number} top @param {number} width @param {number} height */
+        const place = (el, left, top, width, height) => {
+            if (!el) return;
+            el.style.display = 'flex';
+            el.style.left   = `${left}px`;
+            el.style.top    = `${top}px`;
+            el.style.width  = `${width}px`;
+            el.style.height = `${height}px`;
+        };
+        const sameArea = (/** @type {string|undefined} */ a, /** @type {string|undefined} */ b) => a != null && a !== '.' && a === b;
 
         for (let i = 0; i < this.columns.length - 1; i++) {
-            const el = this._qh(`#rhc-${i}`);
-            if (!el) continue;
             const a = cells[0]?.[i];
             const b = cells[0]?.[i + 1];
             if (!a || !b) continue;
             const x = (a.right + b.left) / 2 - HANDLE_SIZE / 2;
-            el.style.display = 'block';
-            el.style.left    = `${x}px`;
-            el.style.width   = `${HANDLE_SIZE}px`;
-            el.style.top     = `${gridTop}px`;
-            el.style.bottom  = `${(this._overlayRect?.height ?? NaN) - gridBottom}px`; // unset: NaNpx, ignored as before
+            place(this._qh(`#rh-col-${i}-g`), x, a.top - GUTTER, HANDLE_SIZE, GUTTER);
+            for (let r = 0; r < this.rows.length; r++) {
+                const el = this._qh(`#rh-col-${i}-${r}`);
+                const cell = cells[r]?.[i];
+                if (!el || !cell) continue;
+                if (sameArea(this.areas[r]?.[i], this.areas[r]?.[i + 1])) { el.style.display = 'none'; continue; }
+                // Extend through the row gap below so the segments join up.
+                const next = cells[r + 1]?.[i];
+                place(el, x, cell.top, HANDLE_SIZE, (next ? next.top : cell.bottom) - cell.top);
+            }
         }
 
         for (let i = 0; i < this.rows.length - 1; i++) {
-            const el = this._qh(`#rhr-${i}`);
-            if (!el) continue;
             const a = cells[i]?.[0];
             const b = cells[i + 1]?.[0];
             if (!a || !b) continue;
             const y = (a.bottom + b.top) / 2 - HANDLE_SIZE / 2;
-            el.style.display = 'block';
-            el.style.top     = `${y}px`;
-            el.style.height  = `${HANDLE_SIZE}px`;
-            el.style.left    = `${gridLeft}px`;
-            el.style.right   = `${(this._overlayRect?.width ?? NaN) - gridRight}px`;
+            place(this._qh(`#rh-row-${i}-g`), a.left - GUTTER, y, GUTTER, HANDLE_SIZE);
+            for (let c = 0; c < this.columns.length; c++) {
+                const el = this._qh(`#rh-row-${i}-${c}`);
+                const cell = cells[i]?.[c];
+                if (!el || !cell) continue;
+                if (sameArea(this.areas[i]?.[c], this.areas[i + 1]?.[c])) { el.style.display = 'none'; continue; }
+                const next = cells[i]?.[c + 1];
+                place(el, cell.left, y, (next ? next.left : cell.right) - cell.left, HANDLE_SIZE);
+            }
         }
     }
 
@@ -1758,56 +1400,25 @@ export class LCARdSGridEditOverlay extends LitElement {
         if (!tl || !br) return;
         const popup = this._qh('#name-popup');
         if (!popup) return;
-        popup.style.display = 'flex';
+        popup.style.display = 'block';
         const cx = tl.left + (br.right  - tl.left) / 2;
         const cy = tl.top  + (br.bottom - tl.top)  / 2;
-        const popupW = 220, popupH = 130;
-        popup.style.left = `${Math.max(4, Math.min(cx - popupW / 2, (this._overlayRect?.width ?? 800) - popupW - 4))}px`;
-        popup.style.top  = `${Math.max(4, Math.min(cy - popupH / 2, (this._overlayRect?.height ?? 600) - popupH - 4))}px`;
-        // Focus the input
-        requestAnimationFrame(() => (/** @type {HTMLElement|null} */ (popup.querySelector('ha-input')))?.focus());
-    }
-
-    /** Anchor the settings panel just below the (possibly dragged) toolbar. */
-    _positionSettingsPanel() {
-        if (!this._showSettings) return;
-        const panel = this._qh('.settings-panel');
-        const toolbar = this._qh('#toolbar');
-        if (!panel || !toolbar) return;
-        const tRect = toolbar.getBoundingClientRect();
-        const oRect = this._overlayRect ?? this.getBoundingClientRect();
-        const panelW = panel.offsetWidth || 240;
-        let left = tRect.left - oRect.left;
-        let top  = tRect.bottom - oRect.top + 8;
-        // Keep the panel within the overlay bounds.
-        left = Math.max(4, Math.min(left, (oRect.width ?? 800) - panelW - 4));
-        top  = Math.max(4, top);
-        panel.style.left   = `${left}px`;
-        panel.style.top    = `${top}px`;
-        panel.style.right  = 'auto';
-        panel.style.bottom = 'auto';
+        const popupW = popup.offsetWidth, popupH = popup.offsetHeight;
+        const oW = this._overlayRect?.width ?? 800, oH = this._overlayRect?.height ?? 600;
+        popup.style.left = `${Math.max(4, Math.min(cx - popupW / 2, oW - popupW - 4))}px`;
+        popup.style.top  = `${Math.max(EDIT_BAR_HEIGHT + 4, Math.min(cy - popupH / 2, oH - popupH - 4))}px`;
+        // Focus the input once, when the popup opens (not on every re-measure).
+        if (!popup.dataset.focused) {
+            popup.dataset.focused = '1';
+            requestAnimationFrame(() => (/** @type {HTMLElement|null} */ (popup.querySelector('ha-input')))?.focus());
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────
     // Track interactions
     // ──────────────────────────────────────────────────────────────────────
 
-    _editTrack(axis, index) {
-        this._editingTrack = { axis, index };
-        // Focus the input after render
-        this.updateComplete.then(() => {
-            const sel = axis === 'col' ? `#ch-${index} input` : `#rh-${index} input`;
-            this._qh(sel)?.focus();
-        });
-    }
-
-    _trackInputKeydown(e, axis, index) {
-        if (e.key === 'Enter') { e.target.blur(); }
-        if (e.key === 'Escape') { this._editingTrack = null; }
-    }
-
     _commitTrack(axis, index, value) {
-        this._editingTrack = null;
         const trimmed = value?.trim();
         if (!trimmed) return;
         const newTracks = axis === 'col' ? [...this.columns] : [...this.rows];
@@ -1836,8 +1447,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         const confirmed = await showConfirmDeleteDialog({
             title: `Delete ${label}?`,
             message: `Removing this ${axis === 'col' ? 'column' : 'row'} will resize the grid and `
-                + `delete any areas (and the cards inside them) that fit only within it. `
-                + `This cannot be undone.`,
+                + `delete any areas (and the cards inside them) that fit only within it.`,
         });
         if (!confirmed) return;
 
@@ -1852,7 +1462,7 @@ export class LCARdSGridEditOverlay extends LitElement {
     // ──────────────────────────────────────────────────────────────────────
 
     _headerPointerDown(e, axis, index) {
-        if (e.target.tagName === 'INPUT' || e.target.closest('.del-btn')) return;
+        if (e.button !== 0) return;
         e.stopPropagation();
         e.currentTarget.setPointerCapture(e.pointerId);
         // pointermove/up are handled by the unified listener in connectedCallback
@@ -1878,9 +1488,9 @@ export class LCARdSGridEditOverlay extends LitElement {
         chip.textContent = currentIndex !== fromIndex
             ? `${label} ${fromIndex + 1} → ${currentIndex + 1}`
             : `${label} ${fromIndex + 1}`;
-        const oRect = this._overlayRect ?? this.getBoundingClientRect();
-        chip.style.left = `${clientX - oRect.left + 14}px`;
-        chip.style.top  = `${clientY - oRect.top + 14}px`;
+        const { x, y } = this._toLocal(clientX, clientY);
+        chip.style.left = `${x + 14}px`;
+        chip.style.top  = `${y + 14}px`;
         chip.style.display = 'block';
     }
 
@@ -1905,9 +1515,8 @@ export class LCARdSGridEditOverlay extends LitElement {
 
         // document.elementFromPoint returns the shadow host in shadow DOM — unusable.
         // Use cell position measurements to determine which track the pointer is over.
-        const overlayLeft = this._overlayRect?.left ?? 0;
-        const overlayTop  = this._overlayRect?.top  ?? 0;
-        const pos = axis === 'col' ? (e.clientX - overlayLeft) : (e.clientY - overlayTop);
+        const local = this._toLocal(e.clientX, e.clientY);
+        const pos = axis === 'col' ? local.x : local.y;
 
         const count = axis === 'col' ? this.columns.length : this.rows.length;
         let targetIndex = this._reorderDrag.currentIndex;
@@ -1926,6 +1535,15 @@ export class LCARdSGridEditOverlay extends LitElement {
             this.requestUpdate();
         }
         this._updateDragChip(e.clientX, e.clientY);
+    }
+
+    /** Drop a reorder drag without applying it (pointercancel). */
+    _cancelReorder() {
+        this._reorderDrag    = null;
+        this._reorderPreview = null;
+        this._reorderMoved   = false;
+        this._hideDragChip();
+        this.requestUpdate();
     }
 
     _reorderUp(_e) {
@@ -1963,10 +1581,17 @@ export class LCARdSGridEditOverlay extends LitElement {
     // Track resize (handle drag)
     // ──────────────────────────────────────────────────────────────────────
 
+    /** Highlight every segment of one resize boundary (the drag spans them all). */
+    _setBoundaryActive(axis, index, on) {
+        this.renderRoot?.querySelectorAll(`[data-b="${axis}-${index}"]`)
+            .forEach(el => el.classList.toggle('active', on));
+    }
+
     _resizePointerDown(e, axis, index) {
+        if (e.button !== 0) return;
         e.stopPropagation();
         e.currentTarget.setPointerCapture(e.pointerId);
-        e.currentTarget.classList.add('active');
+        this._setBoundaryActive(axis, index, true);
 
         const ghost    = this._qh('#ghost-grid');
         const container = axis === 'col' ? (ghost?.clientWidth ?? 800) : (ghost?.clientHeight ?? 600);
@@ -1974,9 +1599,9 @@ export class LCARdSGridEditOverlay extends LitElement {
         this._resizeDrag = {
             axis, index,
             startPos: axis === 'col' ? e.clientX : e.clientY,
+            scale: axis === 'col' ? this._scale().sx : this._scale().sy,
             origTracks: axis === 'col' ? [...this.columns] : [...this.rows],
             containerPx: container,
-            el: e.currentTarget,
         };
 
         // pointermove/up are handled by the unified listener in connectedCallback
@@ -1984,8 +1609,8 @@ export class LCARdSGridEditOverlay extends LitElement {
 
     _resizeMove(e) {
         if (!this._resizeDrag) return;
-        const { axis, index, startPos, origTracks, containerPx } = this._resizeDrag;
-        const delta = (axis === 'col' ? e.clientX : e.clientY) - startPos;
+        const { axis, index, startPos, origTracks, containerPx, scale } = this._resizeDrag;
+        const delta = ((axis === 'col' ? e.clientX : e.clientY) - startPos) / (scale || 1);
         const newTracks = resizeAdjacentTracks(origTracks, index, delta, containerPx, this.gap);
         this._resizeDrag._pendingTracks = newTracks;
 
@@ -2012,9 +1637,9 @@ export class LCARdSGridEditOverlay extends LitElement {
 
     _resizeUp(_e) {
         if (!this._resizeDrag) return;
-        const { axis, _pendingTracks, el } = this._resizeDrag;
+        const { axis, index, _pendingTracks } = this._resizeDrag;
         this._resizeDrag = null;
-        el?.classList.remove('active');
+        this._setBoundaryActive(axis, index, false);
 
         if (!_pendingTracks) return;
 
@@ -2038,7 +1663,121 @@ export class LCARdSGridEditOverlay extends LitElement {
     _selectArea(name) {
         this._selectedArea = name === this._selectedArea ? null : name;
         this._renaming     = null;
-        this._editingTrack = null;
+        // The dock follows the selection while it shows an area.
+        if (this._areaSettings && this._selectedArea) this._areaSettings = this._selectedArea;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Area move / resize (grips on the selected area, drag its name chip)
+    // ──────────────────────────────────────────────────────────────────────
+
+    _renderAreaGrips() {
+        if (!this._selectedArea || this._renaming === this._selectedArea) return nothing;
+        const name = this._selectedArea;
+        const label = { n: 'top', s: 'bottom', e: 'right', w: 'left' };
+        return ['n', 's', 'e', 'w'].map(edge => html`
+            <div class="area-grip ${edge}" id="ag-${edge}" title="Drag to move the ${label[edge]} edge"
+                @pointerdown=${(e) => this._areaDragStart(e, name, edge)}></div>
+        `);
+    }
+
+    _positionAreaGrips() {
+        const name = this._selectedArea;
+        const el = name ? this._qh(`#ao-${name}`) : null;
+        if (!name || !el) return;
+        const left = parseFloat(el.style.left), top = parseFloat(el.style.top);
+        const w = parseFloat(el.style.width), h = parseFloat(el.style.height);
+        if (![left, top, w, h].every(Number.isFinite)) return;
+        const L = Math.min(32, Math.max(16, Math.min(w, h) / 3)); // grip length
+        const T = 8;                                              // grip thickness
+        /** @type {Record<string, number[]>} edge → [left, top, width, height] */
+        const place = {
+            n: [left + w / 2 - L / 2, top - T / 2, L, T],
+            s: [left + w / 2 - L / 2, top + h - T / 2, L, T],
+            w: [left - T / 2, top + h / 2 - L / 2, T, L],
+            e: [left + w - T / 2, top + h / 2 - L / 2, T, L],
+        };
+        for (const [edge, [x, y, gw, gh]] of Object.entries(place)) {
+            const g = this._qh(`#ag-${edge}`);
+            if (!g) continue;
+            Object.assign(g.style, { display: 'block', left: `${x}px`, top: `${y}px`, width: `${gw}px`, height: `${gh}px` });
+        }
+    }
+
+    _positionAreaPreview() {
+        const p = this._areaDragPreview;
+        const el = this._qh('#area-preview');
+        if (!p || !el) return;
+        const tl = this._cells[p.bounds.r1]?.[p.bounds.c1];
+        const br = this._cells[p.bounds.r2 - 1]?.[p.bounds.c2 - 1];
+        if (!tl || !br) return;
+        Object.assign(el.style, {
+            left: `${tl.left}px`, top: `${tl.top}px`,
+            width: `${br.right - tl.left}px`, height: `${br.bottom - tl.top}px`,
+        });
+    }
+
+    /**
+     * Start moving (mode 'move') or resizing one edge ('n'|'s'|'e'|'w') of an area.
+     * @param {PointerEvent} e
+     * @param {string} name
+     * @param {string} mode
+     */
+    _areaDragStart(e, name, mode) {
+        if (e.button !== 0 || this._renaming === name) return;
+        const orig = getAreaBounds(this.areas, name);
+        if (!orig) return;
+        e.stopPropagation();
+        /** @type {HTMLElement} */ (e.currentTarget).setPointerCapture?.(e.pointerId);
+        this._areaDrag = {
+            name, mode, orig,
+            anchor: mode === 'move' ? this._cellAtPoint(e.clientX, e.clientY) : null,
+            target: null, ok: false, moved: false,
+        };
+    }
+
+    _areaDragMove(/** @type {PointerEvent} */ e) {
+        const d = this._areaDrag;
+        if (!d) return;
+        const hit = this._cellAtPoint(e.clientX, e.clientY);
+        if (!hit) return; // over a gap or outside the grid: keep the last target
+        const { r1, c1, r2, c2 } = d.orig;
+        let b = { r1, c1, r2, c2 };
+        if (d.mode === 'move') {
+            if (!d.anchor) { d.anchor = hit; return; }
+            const rows = this.rows.length, cols = this.columns.length;
+            const dr = Math.max(-r1, Math.min(rows - r2, hit.r - d.anchor.r));
+            const dc = Math.max(-c1, Math.min(cols - c2, hit.c - d.anchor.c));
+            b = { r1: r1 + dr, c1: c1 + dc, r2: r2 + dr, c2: c2 + dc };
+        } else if (d.mode === 'n') b.r1 = Math.min(hit.r, r2 - 1);
+        else if (d.mode === 's') b.r2 = Math.max(hit.r + 1, r1 + 1);
+        else if (d.mode === 'w') b.c1 = Math.min(hit.c, c2 - 1);
+        else if (d.mode === 'e') b.c2 = Math.max(hit.c + 1, c1 + 1);
+        const same = b.r1 === r1 && b.c1 === c1 && b.r2 === r2 && b.c2 === c2;
+        if (!same) d.moved = true;
+        if (!d.moved) return;
+        d.target = b;
+        d.ok = !same && setAreaBounds(this.areas, d.name, b).ok;
+        this._areaDragPreview = { bounds: b, ok: d.ok || same };
+        this.updateComplete.then(() => this._positionAreaPreview());
+    }
+
+    /** End an area drag; commit when it ended on a free target (not on cancel). */
+    _areaDragEnd(/** @type {PointerEvent} */ _e, /** @type {boolean} */ commit) {
+        const d = this._areaDrag;
+        this._areaDrag = null;
+        this._areaDragPreview = null;
+        if (!d) return;
+        if (d.moved) {
+            // Swallow the click that follows the pointerup (it would toggle selection).
+            this._suppressClick = true;
+            setTimeout(() => { this._suppressClick = false; }, 0);
+        }
+        if (!commit || !d.moved || !d.ok || !d.target) return;
+        const result = setAreaBounds(this.areas, d.name, d.target);
+        if (!result.ok) return;
+        this._selectedArea = d.name;
+        this._emitGridState(this.columns, this.rows, result.grid2d);
     }
 
     _startBarRename(name) {
@@ -2099,78 +1838,32 @@ export class LCARdSGridEditOverlay extends LitElement {
     // ──────────────────────────────────────────────────────────────────────
 
     _openAreaSettings(name) {
-        this._selectedArea = name;
-        const host = this.getBoundingClientRect();
-        const el = this._qh(`#ao-${name}`);
-        const r = el?.getBoundingClientRect();
-        const panelW = 360;
-        const gap = 10;
-        if (r) {
-            let left = (r.right - host.left) + gap;
-            if (left + panelW > host.width - 4) left = (r.left - host.left) - panelW - gap;
-            left = Math.max(4, Math.min(left, host.width - panelW - 4));
-            const top = Math.max(4, Math.min(r.top - host.top, host.height - 220));
-            this._areaPanelAnchor = { top, left };
-        } else {
-            this._areaPanelAnchor = { top: 60, left: 16 };
-        }
-        this._areaPanelPos = null;
-        this._areaSettings = name;
+        this._openDock({ area: name });
     }
 
-    /** Emit a single per-area setting change (empty value removes the key). */
-    _updateAreaSetting(name, key, value) {
+    /**
+     * Emit a per-area settings change as one patch (one save, one undo step).
+     * An empty / undefined value removes that key.
+     * @param {string} name
+     * @param {Record<string, any>} patch
+     */
+    _updateAreaSettings(name, patch) {
         this.dispatchEvent(new CustomEvent('area-settings-changed', {
-            detail: { name, key, value },
+            detail: { name, patch },
             bubbles: false,
         }));
     }
 
-    _areaPanelDragStart(e) {
-        e.stopPropagation();
-        const panel = this._qh('.area-panel');
-        const rect  = panel?.getBoundingClientRect();
-        const oRect = this.getBoundingClientRect();
-        e.currentTarget.setPointerCapture?.(e.pointerId);
-        this._areaPanelDrag = {
-            offsetX: e.clientX - (rect?.left ?? 0),
-            offsetY: e.clientY - (rect?.top ?? 0),
-            oLeft: oRect.left,
-            oTop: oRect.top,
-        };
-        panel?.classList.add('dragging');
-    }
-    _areaPanelDragMove(e) {
-        if (!this._areaPanelDrag) return;
-        const { offsetX, offsetY, oLeft, oTop } = this._areaPanelDrag;
-        this._areaPanelPos = {
-            left: e.clientX - oLeft - offsetX,
-            top:  e.clientY - oTop  - offsetY,
-        };
-    }
-    _areaPanelDragEnd(_e) {
-        if (!this._areaPanelDrag) return;
-        this._areaPanelDrag = null;
-        this._qh('.area-panel')?.classList.remove('dragging');
-    }
-
-    _renderAreaSettingsPanel() {
+    _renderAreaSettingsBody() {
         const name = this._areaSettings;
+        if (!name) return nothing;
         const s    = this.layout?.areas?.[name] ?? {};
-        const pos  = this._areaPanelPos ?? this._areaPanelAnchor ?? { top: 60, left: 16 };
-        const set  = (key, value) => this._updateAreaSetting(name, key, value);
+        const set  = (/** @type {string} */ key, /** @type {any} */ value) => this._updateAreaSettings(name, { [key]: value });
+        const setMany = (/** @type {Record<string, any>} */ patch) => this._updateAreaSettings(name, patch);
 
         return html`
-            <div class="area-panel" style="top:${pos.top}px; left:${pos.left}px;" @click=${(e) => e.stopPropagation()}>
-                <div class="ap-header">
-                    <div class="drag-grip" @pointerdown=${this._areaPanelDragStart} title="Drag to move">
-                        <ha-icon icon="mdi:drag"></ha-icon>
-                    </div>
-                    <div class="ap-title">Area: ${name}</div>
-                    <button class="ap-close" title="Close" @click=${() => { this._areaSettings = null; }}>×</button>
-                </div>
-                <div class="ap-body">
-                    <lcards-form-section header="Surface" icon="mdi:palette-outline" ?expanded=${false} ?outlined=${true}>
+                <div class="area-body">
+                    <lcards-form-section header="Surface" icon="mdi:palette-outline" ?expanded=${true} ?outlined=${true}>
                         <div class="ap-field">
                             <label>Background</label>
                             <lcards-color-picker
@@ -2266,9 +1959,11 @@ export class LCARdSGridEditOverlay extends LitElement {
                                 @value-changed=${(e) => {
                                     const v = e.detail.value;
                                     const h = s['justify-self'] ?? s['place-self'] ?? 'stretch';
-                                    set('place-self',   undefined);
-                                    set('align-self',   v === 'stretch' ? undefined : v);
-                                    set('justify-self', h === 'stretch' ? undefined : h);
+                                    setMany({
+                                        'place-self': undefined,
+                                        'align-self': v === 'stretch' ? undefined : v,
+                                        'justify-self': h === 'stretch' ? undefined : h,
+                                    });
                                 }}
                             ></ha-selector>
                         </div>
@@ -2281,9 +1976,11 @@ export class LCARdSGridEditOverlay extends LitElement {
                                 @value-changed=${(e) => {
                                     const v = s['align-self'] ?? s['place-self'] ?? 'stretch';
                                     const h = e.detail.value;
-                                    set('place-self',   undefined);
-                                    set('align-self',   v === 'stretch' ? undefined : v);
-                                    set('justify-self', h === 'stretch' ? undefined : h);
+                                    setMany({
+                                        'place-self': undefined,
+                                        'align-self': v === 'stretch' ? undefined : v,
+                                        'justify-self': h === 'stretch' ? undefined : h,
+                                    });
                                 }}
                             ></ha-selector>
                         </div>
@@ -2305,9 +2002,11 @@ export class LCARdSGridEditOverlay extends LitElement {
                                 @value-changed=${(e) => {
                                     const ox = e.detail.value;
                                     const oy = s['overflow-y'] ?? s.overflow ?? 'visible';
-                                    set('overflow',   undefined);
-                                    set('overflow-x', ox === 'visible' ? undefined : ox);
-                                    set('overflow-y', oy === 'visible' ? undefined : oy);
+                                    setMany({
+                                        'overflow': undefined,
+                                        'overflow-x': ox === 'visible' ? undefined : ox,
+                                        'overflow-y': oy === 'visible' ? undefined : oy,
+                                    });
                                 }}
                             ></ha-selector>
                         </div>
@@ -2320,9 +2019,11 @@ export class LCARdSGridEditOverlay extends LitElement {
                                 @value-changed=${(e) => {
                                     const ox = s['overflow-x'] ?? s.overflow ?? 'visible';
                                     const oy = e.detail.value;
-                                    set('overflow',   undefined);
-                                    set('overflow-x', ox === 'visible' ? undefined : ox);
-                                    set('overflow-y', oy === 'visible' ? undefined : oy);
+                                    setMany({
+                                        'overflow': undefined,
+                                        'overflow-x': ox === 'visible' ? undefined : ox,
+                                        'overflow-y': oy === 'visible' ? undefined : oy,
+                                    });
                                 }}
                             ></ha-selector>
                         </div>
@@ -2337,54 +2038,8 @@ export class LCARdSGridEditOverlay extends LitElement {
                             ></ha-input>
                         </div>
                     </lcards-form-section>
-
-                    <div class="ap-actions">
-                        <ha-button @click=${() => { this._areaSettings = null; }}>Done</ha-button>
-                    </div>
                 </div>
-            </div>
         `;
-    }
-
-    _renderAreaCardList(areaName) {
-        const cards = (this.cardConfigs ?? [])
-            .map((c, i) => ({ c, i }))
-            .filter(({ c }) => c?.view_layout?.['grid-area'] === areaName);
-
-        if (!cards.length) return nothing;
-
-        return html`
-            <div class="card-list" @click=${(e) => e.stopPropagation()}>
-                ${cards.map(({ c, i }) => {
-                    const label = (c.type ?? '').replace('custom:', '');
-                    return html`
-                        <div class="card-row">
-                            <span class="card-type" title="${c.type}">${label}</span>
-                            <ha-icon-button
-                                class="danger"
-                                .label=${'Remove card'}
-                                title="Remove card from area"
-                                @click=${(e) => { e.stopPropagation(); this._deleteCardFromArea(i); }}
-                            ><ha-icon icon="mdi:close"></ha-icon></ha-icon-button>
-                        </div>
-                    `;
-                })}
-            </div>
-        `;
-    }
-
-    async _deleteCardFromArea(cardIndex) {
-        const card = (this.cardConfigs ?? [])[cardIndex];
-        const label = (card?.type ?? 'card').replace('custom:', '');
-        const confirmed = await showConfirmDeleteDialog({
-            title: 'Remove card?',
-            message: `Remove the "${label}" card from this area? This cannot be undone.`,
-            confirmText: 'Remove',
-        });
-        if (!confirmed) return;
-        const newCards = [...(this.cardConfigs ?? [])];
-        newCards.splice(cardIndex, 1);
-        this._emitAreaCards(newCards);
     }
 
     _addCardToArea(areaName) {
@@ -2408,10 +2063,11 @@ export class LCARdSGridEditOverlay extends LitElement {
     // ──────────────────────────────────────────────────────────────────────
 
     _cellPointerDown(e, r, c) {
-        if (this._showNameInput) return;
+        if (this._showNameInput || e.button !== 0) return;
         e.stopPropagation();
-        // Do NOT setPointerCapture — that would block hit-testing sibling cells.
-        // The unified overlay pointermove handler tracks the drag instead.
+        // Capture so a release outside the view still ends the drag. Hit-testing
+        // uses the measured cell rects (_cellAtPoint), not the event target.
+        e.currentTarget.setPointerCapture?.(e.pointerId);
         this._selStart  = { r, c };
         this._selEnd    = { r, c };
         this._selDrag   = true;
@@ -2438,21 +2094,21 @@ export class LCARdSGridEditOverlay extends LitElement {
         }
     }
 
-    _selUp(_e) {
+    _selUp(/** @type {PointerEvent} */ _e) {
         if (!this._selDrag) return;
         this._selDrag = false;
-        // Only open the name popup if the user actually dragged across cells.
-        // A bare click (no movement) is ignored to prevent accidental popups —
-        // single-cell areas are created via the hover "+" button instead.
-        if (this._selMoved && this._selStart && this._selEnd) {
+        // A drag across cells or a plain click on one empty cell ("Create area")
+        // both open the name popup for the selected cells. A release outside
+        // every cell (pointer left the grid without dragging) does nothing.
+        const hit = this._cellAtPoint(_e.clientX, _e.clientY);
+        if (this._selStart && this._selEnd && (this._selMoved || hit)) {
             this._showNameInput = true;
             this._selectionName = '';
-            this.requestUpdate();
         } else {
             this._selStart = null;
             this._selEnd   = null;
-            this.requestUpdate();
         }
+        this.requestUpdate();
     }
 
     /** Create a single-cell area immediately (from the hover "+" button). */
@@ -2479,10 +2135,13 @@ export class LCARdSGridEditOverlay extends LitElement {
 
     _confirmSelection() {
         const name = this._selectionName?.trim();
-        if (!name || !/^[a-zA-Z_-][a-zA-Z0-9_-]*$/.test(name)) {
-            this._cancelSelection();
+        // Keep the popup open on a bad name, so the selection isn't lost.
+        if (!name) { this._nameError = 'Enter a name'; return; }
+        if (!/^[a-zA-Z_-][a-zA-Z0-9_-]*$/.test(name)) {
+            this._nameError = 'Use letters, numbers, - and _ (no spaces; not starting with a number)';
             return;
         }
+        if (getAreaNames(this.areas).includes(name)) { this._nameError = `"${name}" is already used`; return; }
         if (!this._selStart || !this._selEnd) return;
         const { r: r1, c: c1 } = this._selStart;
         const { r: r2, c: c2 } = this._selEnd;
@@ -2492,17 +2151,19 @@ export class LCARdSGridEditOverlay extends LitElement {
         };
         const result = cellsToAreaName(this.areas, bounds, name);
         if (!result.ok) {
-            lcardsLog.warn(`[GridEditOverlay] Cannot create area: ${/** @type {any} */ (result).error}`);
+            this._nameError = /** @type {any} */ (result).error ?? 'Cannot create the area here';
             return;
         }
         this._selStart      = null;
         this._selEnd        = null;
         this._showNameInput = false;
+        this._nameError     = '';
         this._selectedArea  = name;
         this._emitGridState(this.columns, this.rows, result.grid2d);
     }
 
     _cancelSelection() {
+        this._nameError     = '';
         this._selStart      = null;
         this._selEnd        = null;
         this._showNameInput = false;

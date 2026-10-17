@@ -14,12 +14,27 @@
 
 /**
  * Gutter (in px) reserved at the top and left of the grid while the grid editor
- * is active, so the column/row headers have somewhere to live without covering
- * the first row / first column cells. Shared by the view (#grid-root padding)
- * and the overlay (#ghost-grid padding + HEADER_OVERLAP) so the editor chrome
- * stays aligned with the real cards. Keep these two in sync.
+ * is active, so the column/row headers live outside the cells and never cover
+ * the first row / first column (or the area controls inside them).
  */
 export const GRID_EDIT_GUTTER = 28;
+
+/**
+ * Height (in px) of the edit toolbar strip reserved above the grid in edit mode
+ * (both the grid editor and card mode), so the toolbar never floats over cards.
+ */
+export const EDIT_BAR_HEIGHT = 48;
+
+/**
+ * Space the grid reserves for the editor chrome, by edit mode.
+ * @param {'grid'|'cards'|null|undefined} mode
+ * @returns {{top: number, left: number}}
+ */
+export function editReserve(mode) {
+    if (mode === 'grid')  return { top: EDIT_BAR_HEIGHT + GRID_EDIT_GUTTER, left: GRID_EDIT_GUTTER };
+    if (mode === 'cards') return { top: EDIT_BAR_HEIGHT, left: 0 };
+    return { top: 0, left: 0 };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Track list parsing
@@ -353,6 +368,28 @@ export function cellsToAreaName(grid2d, bounds, name) {
         }
     }
     return { ok: true, grid2d: result };
+}
+
+/**
+ * Move and/or resize a named area to new rectangular bounds (r1..r2-1, c1..c2-1).
+ * Its old cells are freed first, so the new rect may overlap the area's own old
+ * cells but no other area. Cards and per-area settings refer to the area by name,
+ * so they follow it unchanged.
+ *
+ * @param {string[][]} grid2d
+ * @param {string} name
+ * @param {{ r1: number, c1: number, r2: number, c2: number }} bounds
+ * @returns {{ ok: true, grid2d: string[][] } | { ok: false, error: string }}
+ */
+export function setAreaBounds(grid2d, name, bounds) {
+    const { r1, c1, r2, c2 } = bounds;
+    const rows = grid2d.length;
+    const cols = grid2d[0]?.length ?? 0;
+    if (!getAreaBounds(grid2d, name)) return { ok: false, error: `No area "${name}"` };
+    if (![r1, c1, r2, c2].every(Number.isInteger) || r1 < 0 || c1 < 0 || r2 > rows || c2 > cols || r1 >= r2 || c1 >= c2) {
+        return { ok: false, error: 'Outside the grid' };
+    }
+    return cellsToAreaName(removeArea(grid2d, name), bounds, name);
 }
 
 /**

@@ -50,32 +50,34 @@ views:
 
 ## Editing in the dashboard
 
-Enter HA **edit mode** (top-right pencil) and a floating toolbar appears with two sub-modes:
+Enter HA **edit mode** (top-right pencil). A toolbar strip appears above the grid with a **Layout | Cards** toggle; it sits in its own space, so it never covers your cards. The ⓘ button at its right end shows tips for the current mode. While editing, cards are inactive: a click selects or edits a card and never runs its tap action. Every change can be undone with HA's **Undo** button in the dashboard toolbar.
 
 ### Layout mode (the grid)
 
-Build and shape the grid itself:
+Build and shape the grid itself. Column and row headers sit in a gutter above and left of the grid, showing each track's size. Each area is drawn as a coloured outline with its name and the card placed in it, so the real cards stay visible.
 
-- **Resize tracks**: drag the handle between two columns/rows.
-- **Set a track size**: click a column/row header to open a size popover (presets like `1fr`, `auto`, `200px`, `50%`, or a custom value).
-- **Add / insert tracks**: *Col* / *Row* buttons on the toolbar, or the `+` on a resize divider to insert in the middle.
-- **Reorder tracks**: drag a column/row header.
-- **Delete a track**: the `×` on its header (asks for confirmation).
-- **Create an area**: drag across empty cells, or click the `+` in a single empty cell, then name it.
-- **Rename / delete an area**: select the area, then use its toolbar.
-- **Area settings**: the *tune* button on a selected area opens the [per-area panel](#per-area-settings) (background, border, spacing…).
+Settings open in a **side panel** on the right (a sheet at the bottom on a phone). The grid narrows while it is open, so the panel never covers a card; it shows one thing at a time and follows the area you select.
+
+- **Resize tracks**: drag the line between two columns or rows (in the header gutter, or between two different areas).
+- **Track settings**: click a column or row header to open it in the side panel: size presets (`1fr`, `auto`, `200px`, `50%`, ...), a custom size, **Insert left/right** (or above/below) and **Delete**.
+- **Add tracks**: the *Column* / *Row* buttons on the toolbar add one at the end; **Insert left/right** in a track's settings inserts one next to it.
+- **Reorder tracks**: drag a column or row header.
+- **Create an area**: click an empty cell, or drag across empty cells, then name it.
+- **Resize or move an area**: click an area to select it, then drag one of the grips on its edges, or drag its name to move it. The target cells are previewed; red means another area is in the way, and nothing changes.
+- **Area menu**: every area has a ⋮ button (top right) with **Rename**, **Add card**, **Area settings** (the [per-area settings](#per-area-settings): background, border, spacing...) and **Delete area**.
 - **Grid settings**: the *tune* button on the toolbar sets `grid-gap`, `height`, `card_margin`, `padding`.
-- **Areas / Cells toggle**: the toolbar pill hides the coloured area overlays so you can preview the real cell/area backgrounds while configuring them.
+- **Area tint**: the toolbar slider sets how strongly areas are coloured. Raise it when an area's colour is close to the cards in it; lower it to see the cards and area backgrounds as they are. It starts at 60% and keeps your setting when you switch modes or reload (per browser).
 
 ### Card mode
 
-Place and manage cards inside areas:
+Place and manage cards inside areas. Cards get the same controls as in HA's own views:
 
+- **Edit a card**: hover (or tap) a card and click it: HA's card editor opens.
+- **Card menu**: the ⋮ button (top right) has **Edit**, **Placement & spacing** ([per-card placement](#per-card-placement) in the side panel: alignment, margin, overflow) and **Delete** (asks first; HA's *Undo* toast can still bring the card back).
 - **Add a card**: every empty area shows an **Add card** tile that opens HA's card picker; the new card is placed in that area automatically.
-- **Edit / remove a card**: hover a card for its edit (✎) and remove (🗑) handles.
-- **Placement & spacing**: the *tune* (✎-style) handle on a card opens a [per-card placement panel](#per-card-placement) (alignment, margin, overflow).
+- **Stacked cards**: when several cards share one area (say a frame elbow behind an MSD, plus an alert overlay), the area shows a picker with one button per card. Pick a card to bring its edit controls to the front.
 
-> One card per area. To place several cards in one area, put a `vertical-stack` (or `horizontal-stack`) card there.
+> Cards placed in the same area are layered on top of each other (useful for a frame elbow behind another card). To lay several cards out one after another in an area, put a `vertical-stack` (or `horizontal-stack`) card there instead.
 
 ---
 

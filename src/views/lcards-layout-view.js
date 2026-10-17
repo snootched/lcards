@@ -45,8 +45,9 @@
  * as an absolutely-positioned child.
  */
 
-import { LitElement, html, css, nothing } from 'lit';
+import { LitElement, html, css, nothing, render as renderTemplate } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { showConfirmDeleteDialog } from './layout-edit-dialogs.js';
 import {
     parseLayoutConfig,
     serializeLayoutConfig,
@@ -54,14 +55,26 @@ import {
     renameAreaSettings,
     pruneAreaSettings,
     resolveVisibilityRowTracks,
+    EDIT_BAR_HEIGHT,
 } from './layout-grid-utils.js';
 import {
     buildGridStyle,
+    measureGridFrame,
     applyCardPlacement,
     applyGridItemHeight,
     renderAreaSurfaces,
 } from './layout-render.js';
-import { showConfirmDeleteDialog } from './layout-edit-dialogs.js';
+import {
+    ICON,
+    editBarStyles,
+    editPanelStyles,
+    editDockStyles,
+    EDIT_DOCK_WIDTH,
+    DOCK_SHEET_BREAKPOINT,
+    renderModeToggle,
+    renderBarHint,
+    renderPanelHeader,
+} from './layout-edit-chrome.js';
 
 // Alignment option lists for the per-card Placement editor.
 // align-self = vertical (block axis); justify-self = horizontal (inline axis).
@@ -101,9 +114,8 @@ export class LCARdSLayoutView extends LitElement {
         _config:      { state: true },
         _editMode:    { state: true },
         _editSubMode: { state: true }, // 'grid' | 'cards'
-        _cardBarPos:  { state: true }, // { top, left } | null — dragged card-mode bar position
         _placementEditCard: { state: true }, // { index } | null — open per-card placement panel
-        _placementPos: { state: true },      // { top, left } | null — dragged placement panel position
+        _overlayDockOpen: { state: true },   // the grid overlay's dock is open
         // Parsed layout state (used by the edit overlay)
         _columns:  { state: true },
         _rows:     { state: true },
@@ -116,6 +128,7 @@ export class LCARdSLayoutView extends LitElement {
         this.index        = undefined;
         this._config      = {};
         this._editMode    = false;
+        /** @type {'grid'|'cards'} */
         this._editSubMode = 'grid'; // reset to grid mode each time edit mode activates
         this._columns  = ['1fr', '1fr', '1fr'];
         this._rows     = ['1fr', '1fr', '1fr'];
@@ -129,17 +142,13 @@ export class LCARdSLayoutView extends LitElement {
         this._pendingEditCard = null; // { index, viewLayout } — preserves view_layout through card edit
         /** @type {any} */ this._editOverlayEl = null; // imperatively-created grid edit overlay element
 
-        this._cardBarPos  = null;     // dragged card-mode bar position
-        this._cardBarDrag = null;     // active drag state for the card-mode bar
-        this._placementEditCard = null; // open per-card placement panel { index } | null
-        this._placementAnchor   = null; // { top, left } overlay-relative anchor for the panel
-        this._placementPos      = null; // { top, left } | null — dragged panel position
-        this._placementDrag     = null; // active drag state for the placement panel
-        // Unified pointer listeners (bound to the host) drive the floating drags
-        // (card-mode bar + placement panel). Bound to the host rather than document
-        // to avoid shadow-DOM issues.
-        this._boundHostPointerMove = this._onHostPointerMove.bind(this);
-        this._boundHostPointerUp   = this._onHostPointerUp.bind(this);
+        /** @type {Record<string, number>} area name → card index whose controls are in front (card mode) */
+        this._stackFocus = {};
+        /** @type {{index: number} | null} */
+        this._placementEditCard = null; // card whose placement is in the dock
+        this._overlayDockOpen   = false;
+        // Touch: the first tap on a card shows its edit controls (no hover on touch).
+        this._boundDocPointerDown  = this._onDocPointerDown.bind(this);
         // hui-card fires a bubbling, composed `card-visibility-changed` whenever it
         // hides/shows itself (same signal hui-section listens to).
         this._boundCardVisibilityChanged = () => this._scheduleRowHeights();
@@ -147,13 +156,15 @@ export class LCARdSLayoutView extends LitElement {
 
     connectedCallback() {
         super.connectedCallback();
-        this.addEventListener('pointermove', this._boundHostPointerMove);
-        this.addEventListener('pointerup',   this._boundHostPointerUp);
+        document.addEventListener('pointerdown', this._boundDocPointerDown, true);
         this.addEventListener('card-visibility-changed', this._boundCardVisibilityChanged);
         // Recompute fr row allocations whenever the host changes size (window resize,
         // sidebar toggle that changes our bounding box, devtools open/close).
         this._hostResizeObserver = new ResizeObserver(() => this._scheduleRowHeights());
         this._hostResizeObserver.observe(this);
+        // disconnectedCallback removed the edit overlay; a re-attached view (moved
+        // in the DOM) recreates it in updated() -> _syncEditOverlay().
+        if (this.hasUpdated) this.requestUpdate();
     }
 
     /** rAF-debounced _applyVisibilityRowHeights() (resize + card visibility changes). */
@@ -165,13 +176,14 @@ export class LCARdSLayoutView extends LitElement {
         });
     }
 
-    _onHostPointerMove(e) {
-        if (this._cardBarDrag)   this._cardBarDragMove(e);
-        if (this._placementDrag) this._placementDragMove(e);
-    }
-    _onHostPointerUp(e) {
-        if (this._cardBarDrag)   this._cardBarDragEnd(e);
-        if (this._placementDrag) this._placementDragEnd(e);
+    /** Card mode on touch: a tap on a card reveals its controls; a tap elsewhere hides them. */
+    _onDocPointerDown(/** @type {PointerEvent} */ e) {
+        if (!this._editMode || this._editSubMode !== 'cards') return;
+        const wrap = e.composedPath().find(n => n instanceof HTMLElement && n.classList.contains('card-edit-wrap'));
+        for (const w of this.renderRoot.querySelectorAll('.card-edit-wrap.touched')) {
+            if (w !== wrap) w.classList.remove('touched');
+        }
+        if (wrap && e.pointerType !== 'mouse') /** @type {HTMLElement} */ (wrap).classList.add('touched');
     }
 
     /** Typed querySelector — returns HTMLElement so callers can access .style. */
@@ -199,6 +211,7 @@ export class LCARdSLayoutView extends LitElement {
         // hui-view already sets hass on every card element before the view itself.
         this._hass = hass;
         if (this._editOverlayEl) this._editOverlayEl.hass = hass;
+        if (this._editMode) this._subscribeSaveEvents();
         // No row recompute here: visibility-driven rows follow hui-card's own
         // `card-visibility-changed` event (see connectedCallback), so entity
         // updates don't force a layout read on every state change.
@@ -207,8 +220,13 @@ export class LCARdSLayoutView extends LitElement {
 
     set lovelace(lovelace) {
         const prevCards = this._lovelace?.config?.views?.[this.index]?.cards;
+        // A config change (ours or HA's, e.g. its card editor saving) is followed
+        // by a lovelace_updated event; _waitForSaveEvent() holds our next save
+        // until it arrives (see _saveViewConfig).
+        if (this._lovelace && lovelace?.config !== this._lovelace.config) this._lastConfigChangeAt = performance.now();
         this._lovelace  = lovelace;
         const editMode  = !!(lovelace?.editMode);
+        if (editMode) this._subscribeSaveEvents();
         if (editMode !== this._editMode) {
             this._editMode    = editMode;
             this._editSubMode = 'grid'; // reset to grid editing on each edit session start
@@ -273,11 +291,12 @@ export class LCARdSLayoutView extends LitElement {
     disconnectedCallback() {
         super.disconnectedCallback();
         this._teardownMediaQueries();
-        this.removeEventListener('pointermove', this._boundHostPointerMove);
-        this.removeEventListener('pointerup',   this._boundHostPointerUp);
+        document.removeEventListener('pointerdown', this._boundDocPointerDown, true);
         this.removeEventListener('card-visibility-changed', this._boundCardVisibilityChanged);
         this._hostResizeObserver?.disconnect();
         this._hostResizeObserver = null;
+        this._saveEventsUnsub?.then((/** @type {any} */ unsub) => unsub?.()).catch(() => {});
+        this._saveEventsUnsub = null;
         if (this._resizeRaf) { cancelAnimationFrame(this._resizeRaf); this._resizeRaf = null; }
         this._gridResizeObserver?.disconnect();
         this._gridResizeObserver = null;
@@ -287,71 +306,14 @@ export class LCARdSLayoutView extends LitElement {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Card-mode bar drag (keeps the bar floating, like the grid toolbar)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    _cardBarDragStart(e) {
-        e.stopPropagation();
-        const bar  = this._qh('.card-mode-bar');
-        const rect = bar?.getBoundingClientRect();
-        const oRect = this.getBoundingClientRect();
-        e.currentTarget.setPointerCapture?.(e.pointerId);
-        this._cardBarDrag = {
-            offsetX: e.clientX - (rect?.left ?? 0),
-            offsetY: e.clientY - (rect?.top ?? 0),
-            oLeft: oRect.left,
-            oTop: oRect.top,
-        };
-        bar?.classList.add('dragging');
-    }
-    _cardBarDragMove(e) {
-        if (!this._cardBarDrag) return;
-        const { offsetX, offsetY, oLeft, oTop } = this._cardBarDrag;
-        this._cardBarPos = {
-            left: e.clientX - oLeft - offsetX,
-            top:  e.clientY - oTop  - offsetY,
-        };
-    }
-    _cardBarDragEnd(_e) {
-        if (!this._cardBarDrag) return;
-        this._cardBarDrag = null;
-        this._qh('.card-mode-bar')?.classList.remove('dragging');
-    }
-
-    _placementDragStart(e) {
-        e.stopPropagation();
-        const panel = this._qh('.placement-panel');
-        const rect  = panel?.getBoundingClientRect();
-        const host  = this.getBoundingClientRect();
-        e.currentTarget.setPointerCapture?.(e.pointerId);
-        this._placementDrag = {
-            offsetX: e.clientX - (rect?.left ?? 0),
-            offsetY: e.clientY - (rect?.top ?? 0),
-            oLeft: host.left,
-            oTop: host.top,
-        };
-        panel?.classList.add('dragging');
-    }
-    _placementDragMove(e) {
-        if (!this._placementDrag) return;
-        const { offsetX, offsetY, oLeft, oTop } = this._placementDrag;
-        this._placementPos = {
-            left: e.clientX - oLeft - offsetX,
-            top:  e.clientY - oTop  - offsetY,
-        };
-    }
-    _placementDragEnd(_e) {
-        if (!this._placementDrag) return;
-        this._placementDrag = null;
-        this._qh('.placement-panel')?.classList.remove('dragging');
-    }
-
     updated(changed) {
         if (changed.has('_config') || changed.has('_columns') || changed.has('_rows') || changed.has('_areas') || changed.has('_editSubMode') || changed.has('_editMode')) {
             this._placeCards();
         }
         this._syncEditOverlay();
+        // While a dock is open the grid narrows by its width (see :host([dock-open])).
+        const cards = this._editMode && this._editSubMode === 'cards';
+        this.toggleAttribute('dock-open', this._editMode && (cards ? !!this._placementEditCard : this._overlayDockOpen));
         this._applyVisibilityRowHeights();
     }
 
@@ -370,6 +332,7 @@ export class LCARdSLayoutView extends LitElement {
             if (this._editOverlayEl) {
                 this._editOverlayEl.remove();
                 this._editOverlayEl = null;
+                this._overlayDockOpen = false;
             }
             this._gridResizeObserver?.disconnect();
             this._gridResizeObserver = null;
@@ -392,6 +355,7 @@ export class LCARdSLayoutView extends LitElement {
             el.addEventListener('area-settings-changed',  (e) => this._onAreaSettingsChanged(e));
             el.addEventListener('area-renamed',           (e) => this._onAreaRenamed(e));
             el.addEventListener('switch-to-cards-mode',   () => { this._editSubMode = 'cards'; });
+            el.addEventListener('dock-changed',           (e) => { this._overlayDockOpen = !!(/** @type {CustomEvent} */ (e)).detail?.open; });
             this.renderRoot.appendChild(el);
             this._editOverlayEl = el;
 
@@ -423,11 +387,7 @@ export class LCARdSLayoutView extends LitElement {
         const overlay = this._editOverlayEl;
         const grid = this._qh('#grid-root');
         if (!overlay || !grid) return;
-        const cs = getComputedStyle(grid);
-        const cols = cs.gridTemplateColumns;
-        const rows = cs.gridTemplateRows;
-        if (cols && cols !== 'none') overlay.measureColumns = cols.trim().split(/\s+/);
-        if (rows && rows !== 'none') overlay.measureRows = rows.trim().split(/\s+/);
+        Object.assign(overlay, measureGridFrame(grid, overlay));
         overlay.refresh?.();
     }
 
@@ -435,7 +395,7 @@ export class LCARdSLayoutView extends LitElement {
     // Rendering
     // ─────────────────────────────────────────────────────────────────────────
 
-    static styles = css`
+    static styles = [editBarStyles, editPanelStyles, editDockStyles, css`
         :host {
             display: block;
             position: relative;
@@ -487,82 +447,8 @@ export class LCARdSLayoutView extends LitElement {
             z-index: 100;
         }
 
-        /* Card mode toolbar — floating + draggable (mirrors the grid toolbar). */
-        .card-mode-bar {
-            position: absolute;
-            top: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 110;
-            pointer-events: auto;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 12px;
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.6)) 88%, transparent);
-            backdrop-filter: blur(12px) saturate(1.1);
-            border: var(--ha-border-width-sm, 1px) solid color-mix(in oklab, var(--divider-color, rgba(255,255,255,.1)) 60%, transparent);
-            border-radius: var(--ha-border-radius-pill, 9999px);
-            box-shadow: 0 4px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07);
-            font-size: 12px;
-            color: var(--secondary-text-color);
-            white-space: nowrap;
-        }
-        .card-mode-bar.dragging { cursor: grabbing; }
-        .card-mode-bar .drag-grip {
-            display: flex;
-            align-items: center;
-            cursor: grab;
-            color: var(--secondary-text-color);
-            --mdc-icon-size: 18px;
-            padding: 0 2px;
-            opacity: 0.6;
-            touch-action: none;
-        }
-        .card-mode-bar .drag-grip:hover { opacity: 1; }
-        .card-mode-bar .bar-label {
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--primary-text-color);
-            padding: 0 2px;
-        }
-        .card-mode-bar .bar-hint {
-            font-size: 13px;
-            color: var(--secondary-text-color);
-            padding: 0 2px;
-        }
-        .card-mode-bar .bar-sep {
-            width: 1px;
-            height: 20px;
-            background: var(--divider-color, rgba(255,255,255,.12));
-            margin: 0 2px;
-        }
-        .card-mode-bar .bar-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 36px;
-            min-width: 36px;
-            padding: 0 12px;
-            gap: 5px;
-            border: none;
-            border-radius: var(--ha-border-radius-pill, 9999px);
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            background: rgba(255,255,255,.08);
-            color: var(--primary-text-color);
-            transition: background var(--ha-animation-duration-fast,.15s), transform .08s ease;
-        }
-        .card-mode-bar .bar-btn:hover { background: rgba(255,255,255,.14); transform: translateY(-1px); }
-        .card-mode-bar .bar-btn ha-icon { --mdc-icon-size: 16px; }
-        .card-mode-bar .bar-btn.primary {
-            background: var(--lcars-ui-primary, var(--primary-color));
-            color: var(--text-primary-color, #fff);
-        }
-        .card-mode-bar .bar-btn.primary:hover { filter: brightness(1.1); }
+        /* Card mode toolbar strip (same strip as the grid editor's). */
+        .edit-bar { z-index: 110; }
 
         /* Empty-area "Add card" placeholder (card mode) */
         .card-add-placeholder {
@@ -570,140 +456,176 @@ export class LCARdSLayoutView extends LitElement {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: var(--ha-space-1);
             min-width: 0;
             min-height: 0;
             cursor: pointer;
-            color: var(--primary-text-color, #fff);
-            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 6%, transparent);
-            border: var(--ha-border-width-md, 2px) dashed var(--primary-color, var(--lcars-ui-primary));
-            border-radius: var(--ha-card-border-radius, 34px);
+            font: inherit;
+            color: var(--primary-text-color);
+            background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+            border: var(--ha-border-width-md) dashed var(--primary-color);
+            border-radius: var(--ha-border-radius-lg);
             font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.03em;
-            transition: background var(--ha-animation-duration-fast,.15s);
+            font-weight: var(--ha-font-weight-medium, 500);
+            transition: background var(--ha-animation-duration-fast, 150ms);
         }
         .card-add-placeholder:hover {
-            background: color-mix(in oklab, var(--lcars-ui-primary, var(--primary-color)) 16%, transparent);
+            background: color-mix(in srgb, var(--primary-color) 16%, transparent);
         }
         .card-add-placeholder ha-icon { --mdc-icon-size: 28px; }
 
-        /* Card edit mode: each card slot gets an edit handle on hover */
+        /* Card mode: each card gets HA's edit-mode overlay (hui-card-edit-mode):
+           on hover / focus / tap, a scrim with a pencil (edit) and a ⋮ menu. The
+           card itself is inert, so a tap never runs its action. isolation keeps
+           the controls above anything the card stacks internally. */
         .card-edit-wrap {
             position: relative;
             min-width: 0;
             min-height: 0;
+            isolation: isolate;
         }
-        .card-edit-handle {
+        .card-edit-overlay {
             position: absolute;
-            top: 8px;
-            right: 8px;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            gap: 2px;
+            inset: 0;
+            z-index: 1;
             opacity: 0;
-            visibility: hidden;
-            transition: opacity var(--ha-animation-duration-fast,.15s) ease,
-                        visibility 0s linear .15s;
-            pointer-events: auto;
-            background: color-mix(in oklab, var(--card-background-color, #1c1c28) 85%, rgba(0,0,0,.3));
-            backdrop-filter: blur(10px);
-            border: var(--ha-border-width-sm,1px) solid rgba(255,255,255,.14);
-            border-radius: var(--ha-border-radius-md, 8px);
-            padding: 4px;
-            box-shadow: var(--ha-box-shadow-m, 0 4px 16px rgba(0,0,0,.5));
-            white-space: nowrap;
+            pointer-events: none;
+            transition: opacity var(--ha-animation-duration-normal, 180ms) ease-in-out;
         }
-        .card-edit-wrap:hover .card-edit-handle {
+        .card-edit-wrap:hover > .card-edit-overlay,
+        .card-edit-wrap:focus-within > .card-edit-overlay,
+        .card-edit-wrap.touched > .card-edit-overlay,
+        .card-edit-wrap.menu-open > .card-edit-overlay {
             opacity: 1;
-            visibility: visible;
-            transition-delay: 0s;
+            pointer-events: auto;
         }
-        /* Compact icon buttons inside the card edit handle — matches area-action-bar style */
-        .ceh-btn {
+        .card-edit-control {
+            position: absolute;
+            inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 34px;
-            height: 34px;
-            border: none;
-            background: transparent;
-            color: rgba(255,255,255,.82);
             cursor: pointer;
-            border-radius: var(--ha-border-radius-sm, 4px);
-            padding: 0;
-            flex-shrink: 0;
-            transition: background var(--ha-animation-duration-fast,.15s), color var(--ha-animation-duration-fast,.15s);
+            outline: none;
+            border-radius: var(--ha-card-border-radius, var(--ha-border-radius-lg));
         }
-        .ceh-btn:hover { background: rgba(255,255,255,.12); color: white; }
-        .ceh-btn.danger:hover { background: color-mix(in oklab, var(--error-color, #ef4444) 18%, transparent); color: var(--error-color, #ef4444); }
-        .ceh-btn svg { pointer-events: none; }
-        .card-edit-wrap:hover {
-            outline: 2px dashed color-mix(in oklab, var(--primary-color) 70%, transparent);
-            outline-offset: 2px;
-            border-radius: var(--ha-border-radius-md, 8px);
+        .card-edit-scrim {
+            position: absolute;
+            inset: 0;
+            opacity: 0.8;
+            /* Fallback: some themes (HA-LCARS) define --primary-background-color
+               in terms of itself inside the view, which makes it invalid there. */
+            background-color: var(--primary-background-color, var(--card-background-color, #000));
+            border: var(--ha-border-width-sm) solid var(--divider-color);
+            border-radius: var(--ha-card-border-radius, var(--ha-border-radius-lg));
+        }
+        .card-edit-control:focus-visible .card-edit-scrim { border-color: var(--primary-color); }
+        .card-edit-control ha-svg-icon {
+            position: relative;
+            display: flex;
+            padding: var(--ha-space-2);
+            border-radius: var(--ha-border-radius-circle);
+            background: var(--secondary-background-color);
+            color: var(--primary-text-color);
+            --mdc-icon-size: 20px;
+        }
+        /* Which card this is (type · area), as a chip like the grid editor's. */
+        .card-edit-label {
+            position: absolute;
+            left: var(--ha-space-2);
+            bottom: var(--ha-space-2);
+            max-width: calc(100% - var(--ha-space-4));
+            box-sizing: border-box;
+            padding: var(--ha-space-1) var(--ha-space-3);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: var(--ha-font-size-m, 14px);
+            font-weight: var(--ha-font-weight-medium, 500);
+            line-height: 1.3;
+            color: var(--primary-text-color);
+            background: var(--card-background-color, var(--secondary-background-color));
+            border: var(--ha-border-width-sm) solid var(--divider-color);
+            border-radius: var(--ha-border-radius-md);
+            box-shadow: var(--ha-box-shadow-s);
+        }
+        /* ha-dropdown is display: contents, so the trigger button is what gets
+           positioned (as in hui-card-edit-mode). */
+        .card-edit-menu ha-icon-button {
+            position: absolute;
+            top: var(--ha-space-1);
+            right: var(--ha-space-1);
+            --ha-icon-button-size: 32px;
+            --mdc-icon-size: 20px;
+            border-radius: var(--ha-border-radius-circle);
+            background: var(--secondary-background-color);
+            color: var(--primary-text-color);
+        }
+        .menu-sep {
+            height: var(--ha-border-width-sm);
+            margin: var(--ha-space-1) 0;
+            background: var(--divider-color);
+        }
+
+        /* Stacked cards (several cards in one area): a picker at the area's top
+           left; only the chosen card takes the pointer. */
+        .card-edit-wrap.stack-inactive { pointer-events: none; }
+        .card-edit-wrap.stack-active > .card-edit-overlay .card-edit-scrim { border-color: var(--primary-color); }
+        .stack-picker {
+            position: relative;
+            z-index: 1000;
+            align-self: start;
+            justify-self: start;
+            display: flex;
+            align-items: center;
+            gap: var(--ha-space-2);
+            max-width: calc(100% - 56px);
+            margin: var(--ha-space-1);
+            padding: var(--ha-space-1) var(--ha-space-2);
+            overflow-x: auto;
+            scrollbar-width: thin;
+            background: var(--card-background-color, var(--secondary-background-color));
+            border: var(--ha-border-width-sm) solid var(--divider-color);
+            border-radius: var(--ha-border-radius-pill);
+            box-shadow: var(--ha-box-shadow-m);
+        }
+        .stack-picker-label {
+            flex-shrink: 0;
+            font-size: var(--ha-font-size-m, 14px);
+            color: var(--secondary-text-color);
+            white-space: nowrap;
+        }
+        .stack-picker wa-button-group { flex-shrink: 0; }
+        .stack-picker ha-button::part(base) { border-radius: 0; }
+        .stack-picker ha-button:first-child::part(base) {
+            border-start-start-radius: var(--ha-border-radius-pill);
+            border-end-start-radius: var(--ha-border-radius-pill);
+        }
+        .stack-picker ha-button:last-child::part(base) {
+            border-start-end-radius: var(--ha-border-radius-pill);
+            border-end-end-radius: var(--ha-border-radius-pill);
         }
 
         /* Per-card placement / spacing panel (card mode) */
-        .placement-panel {
-            position: absolute;
-            z-index: 130;
-            pointer-events: auto;
-            background: color-mix(in oklab, var(--card-background-color, rgba(0,0,0,.85)) 94%, transparent);
-            backdrop-filter: blur(12px);
-            border: var(--ha-border-width-sm, 1px) solid var(--divider-color);
-            border-radius: var(--ha-border-radius-md, 8px);
-            padding: 12px 14px;
-            min-width: 240px;
-            box-shadow: 0 4px 20px rgba(0,0,0,.4);
-        }
-        .placement-panel.dragging { cursor: grabbing; }
-        .placement-header {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-        .placement-header .drag-grip {
-            display: flex;
-            align-items: center;
-            cursor: grab;
-            color: var(--secondary-text-color);
-            --mdc-icon-size: 18px;
-            opacity: 0.6;
-            touch-action: none;
-        }
-        .placement-header .drag-grip:hover { opacity: 1; }
-        .placement-title {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--secondary-text-color);
+        .placement-panel { z-index: 130; }
+        :host([dock-open]) { padding-right: ${EDIT_DOCK_WIDTH}px; }
+        @media (max-width: ${DOCK_SHEET_BREAKPOINT}px) {
+            :host([dock-open]) { padding-right: 0; }
         }
         .placement-field {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
+            gap: var(--ha-space-2);
         }
         .placement-field label {
-            font-size: 12px;
+            font-size: 13px;
             color: var(--primary-text-color);
-            width: 64px;
+            width: 72px;
             flex-shrink: 0;
         }
         .placement-field ha-selector,
-        .placement-field ha-input { flex: 1; }
-        .placement-actions {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 6px;
-            padding-top: 8px;
-            border-top: var(--ha-border-width-sm, 1px) solid var(--divider-color);
-        }
-    `;
+        .placement-field ha-input { flex: 1; min-width: 0; }
+    `];
 
     render() {
         const layout = this._config?.layout ?? {};
@@ -718,7 +640,9 @@ export class LCARdSLayoutView extends LitElement {
         this.style.height = hostHeight;
 
         const gridStyle = buildGridStyle(layout, this._columns, this._rows, this._areas, this._gap, {
-            withGutter: false, // Option B: headers float over first 28px of grid, no gutter reserved
+            // Edit mode reserves room for the toolbar strip (and, in grid mode, the
+            // row/column header gutter) so the editor chrome never covers cards.
+            editMode: this._editMode ? this._editSubMode : null,
             overflowY: 'clip',
             overrideHeight: '100%',  // #grid-root fills the host; host carries the actual height
         });
@@ -736,25 +660,9 @@ export class LCARdSLayoutView extends LitElement {
                 </div>
             ` : nothing}
             ${this._editMode && this._editSubMode === 'cards' ? html`
-                <div
-                    class="card-mode-bar"
-                    style=${this._cardBarPos ? `top:${this._cardBarPos.top}px; left:${this._cardBarPos.left}px; right:auto; bottom:auto; transform:none;` : ''}
-                >
-                    <div class="drag-grip" @pointerdown=${this._cardBarDragStart} title="Drag to move">
-                        <ha-icon icon="mdi:drag"></ha-icon>
-                    </div>
-                    <span class="bar-label">Card Mode</span>
-                    <div class="bar-sep"></div>
-                    <span class="bar-hint">Hover over a card to edit · empty areas show “Add card”</span>
-                    <div class="bar-sep"></div>
-                    <button
-                        class="bar-btn primary"
-                        title="Switch to layout editing"
-                        @click=${() => { this._placementEditCard = null; this._editSubMode = 'grid'; }}
-                    >
-                        <ha-icon icon="mdi:grid"></ha-icon>
-                        <span>Switch to Edit Layout</span>
-                    </button>
+                <div class="edit-bar" role="toolbar" aria-label="Card editor">
+                    ${renderModeToggle('cards', () => { this._placementEditCard = null; this._editSubMode = 'grid'; })}
+                    ${renderBarHint('Click a card to edit it · ⋮ for placement and delete · empty areas show "Add card"')}
                 </div>
             ` : nothing}
             ${this._editMode && this._editSubMode === 'cards' && this._placementEditCard
@@ -791,6 +699,18 @@ export class LCARdSLayoutView extends LitElement {
         // cards paint above their own area surface by DOM order.
         renderAreaSurfaces(grid, layout, this._areas);
 
+        // Card mode: areas holding several stacked cards (only the top one would
+        // get the pointer) get a picker that brings one card's controls to the front.
+        /** @type {Map<string, number[]>} */
+        const stacks = new Map();
+        if (cardMode) {
+            (this._cardElements ?? []).forEach((cardEl, i) => {
+                const area = cardEl.config?.view_layout?.['grid-area'];
+                if (area) stacks.set(area, [...(stacks.get(area) ?? []), i]);
+            });
+            for (const [area, list] of stacks) if (list.length < 2) stacks.delete(area);
+        }
+
         (this._cardElements ?? []).forEach((cardEl, cardIndex) => {
             const viewLayout = cardEl.config?.view_layout ?? {};
             // Per-card visibility is handled by HA's hui-card wrapper (the card's
@@ -798,75 +718,35 @@ export class LCARdSLayoutView extends LitElement {
 
             const areaSettings = layout.areas?.[viewLayout['grid-area']] ?? {};
 
+            // In edit mode the card is inert (HA does the same): a click selects or
+            // edits it and never runs its tap action. Restored outside edit mode.
+            cardEl.inert = this._editMode;
+
             if (cardMode) {
-                // In card edit mode, wrap with an edit handle overlay. The wrapper
+                // In card edit mode, wrap with HA's edit-mode overlay. The wrapper
                 // becomes the grid item, so placement (grid-area, alignment, margin,
                 // z-index) is applied to the wrapper; overflow stays on the card.
                 const wrap = document.createElement('div');
                 wrap.className = 'card-edit-wrap';
                 applyCardPlacement(wrap, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
                 applyGridItemHeight(wrap, cardEl.config);
-
-                const handle = document.createElement('div');
-                handle.className = 'card-edit-handle';
-
-                const _ICO_PENCIL = 'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z';
-                const _ICO_TUNE   = 'M8 13C6.14 13 4.59 14.28 4.14 16H2V18H4.14C4.59 19.72 6.14 21 8 21S11.41 19.72 11.86 18H22V16H11.86C11.41 14.28 9.86 13 8 13M8 19C6.9 19 6 18.1 6 17C6 15.9 6.9 15 8 15S10 15.9 10 17C10 18.1 9.1 19 8 19M19.86 6C19.41 4.28 17.86 3 16 3S12.59 4.28 12.14 6H2V8H12.14C12.59 9.72 14.14 11 16 11S19.41 9.72 19.86 8H22V6H19.86M16 9C14.9 9 14 8.1 14 7C14 5.9 14.9 5 16 5S18 5.9 18 7C18 8.1 17.1 9 16 9Z';
-                const _ICO_DELETE = 'M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19M8,9H16V19H8V9M15.5,4L14.5,3H9.5L8.5,4H5V6H19V4H15.5Z';
-                const makeSvgBtn = (path, title, danger = false) => {
-                    const btn = document.createElement('button');
-                    btn.className = 'ceh-btn' + (danger ? ' danger' : '');
-                    btn.title = title;
-                    btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="${path}"/></svg>`;
-                    return btn;
-                };
-                const editBtn   = makeSvgBtn(_ICO_PENCIL, 'Edit card');
-                const placeBtn  = makeSvgBtn(_ICO_TUNE,   'Placement & spacing');
-                const deleteBtn = makeSvgBtn(_ICO_DELETE, 'Delete card', true);
-                editBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    this._editCard(cardIndex);
-                });
-                placeBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    this._openPlacementEditor(cardIndex, wrap);
-                });
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    this._deleteCardByIndex(cardIndex);
-                });
-                handle.appendChild(editBtn);
-                handle.appendChild(placeBtn);
-                handle.appendChild(deleteBtn);
-
-                // Edge avoidance: reposition handle so it doesn't get clipped by the
-                // host's overflow:hidden when the card is near a layout boundary.
-                // Must use 'auto' (not '') when cancelling the opposite CSS property —
-                // clearing to '' reverts to the CSS value, leaving both sides set and
-                // collapsing the element width to containing-block-width minus both offsets.
-                wrap.addEventListener('pointerenter', () => {
-                    const host = this.getBoundingClientRect();
-                    const hr   = handle.getBoundingClientRect();
-                    // Flip left-anchored if handle extends past host's left edge
-                    if (hr.left < host.left + 4) {
-                        handle.style.right = 'auto';
-                        handle.style.left  = '6px';
-                    }
-                    // Flip bottom-anchored if handle extends past host's bottom edge
-                    if (hr.bottom > host.bottom - 4) {
-                        handle.style.top    = 'auto';
-                        handle.style.bottom = '6px';
-                    }
-                });
-                wrap.addEventListener('pointerleave', () => {
-                    handle.style.left = handle.style.right = handle.style.top = handle.style.bottom = '';
-                });
-
                 wrap.appendChild(cardEl);
-                wrap.appendChild(handle);
+                const controls = document.createElement('div');
+                controls.className = 'card-edit-overlay';
+                wrap.appendChild(controls);
+                renderTemplate(this._renderCardControls(cardIndex, cardEl.config, wrap), controls, { host: this });
+                const stack = stacks.get(viewLayout['grid-area']);
+                if (stack) {
+                    const active = this._stackActive(viewLayout['grid-area'], stack);
+                    if (cardIndex === active) {
+                        // In front of the stack's own z-indexes (view_layout / area settings).
+                        const top = Math.max(0, ...stack.map(i => Number(this._cardElements[i]?.config?.view_layout?.['z-index']) || 0));
+                        wrap.style.zIndex = String(top + 1);
+                        wrap.classList.add('stack-active');
+                    } else {
+                        wrap.classList.add('stack-inactive');
+                    }
+                }
                 grid.appendChild(wrap);
             } else {
                 // Outside card mode the card element itself is the grid item.
@@ -875,6 +755,14 @@ export class LCARdSLayoutView extends LitElement {
                 grid.appendChild(cardEl);
             }
         });
+
+        for (const [area, list] of stacks) {
+            const picker = document.createElement('div');
+            picker.className = 'stack-picker';
+            picker.style.gridArea = area;
+            renderTemplate(this._renderStackPicker(area, list), picker, { host: this });
+            grid.appendChild(picker);
+        }
 
         // In card mode, give every named area that has no card an "Add card"
         // placeholder so cards can be added without switching back to grid mode.
@@ -902,6 +790,92 @@ export class LCARdSLayoutView extends LitElement {
 
         this._collectVisibilityRows();
         this._applyVisibilityRowHeights();
+    }
+
+    /** The stacked card whose controls are in front: the picked one, else the top one. */
+    _stackActive(/** @type {string} */ area, /** @type {number[]} */ list) {
+        const picked = this._stackFocus[area];
+        return picked != null && list.includes(picked) ? picked : list[list.length - 1];
+    }
+
+    /**
+     * The picker for an area with stacked cards: one pill per card; the chosen
+     * card's edit controls come to the front (the others ignore the pointer).
+     * @param {string} area
+     * @param {number[]} list  card indexes in the area, bottom to top
+     */
+    _renderStackPicker(area, list) {
+        const active = this._stackActive(area, list);
+        const pick = (/** @type {number} */ i) => {
+            if (i === active) return;
+            this._stackFocus = { ...this._stackFocus, [area]: i };
+            this._placeCards();
+        };
+        return html`
+            <span class="stack-picker-label">${list.length} stacked</span>
+            <wa-button-group childSelector="ha-button" label="Stacked cards in ${area}">
+                ${list.map(i => html`
+                    <ha-button variant="brand" size="s"
+                        .appearance=${i === active ? 'accent' : 'filled'}
+                        aria-pressed=${i === active ? 'true' : 'false'}
+                        title="Edit this card"
+                        @click=${(/** @type {Event} */ e) => { e.stopPropagation(); pick(i); }}>
+                        ${String(this._cardElements[i]?.config?.type ?? 'card').replace('custom:', '').replace(/^lcards-/, '')}
+                    </ha-button>`)}
+            </wa-button-group>
+        `;
+    }
+
+    /**
+     * HA's card edit-mode controls (hui-card-edit-mode): the whole card is the
+     * "edit" target (scrim + pencil), with a ⋮ menu for placement and delete.
+     * @param {number} cardIndex
+     * @param {any} config
+     * @param {HTMLElement} wrap
+     */
+    _renderCardControls(cardIndex, config, wrap) {
+        const type = String(config?.type ?? 'card').replace('custom:', '');
+        const area = config?.view_layout?.['grid-area'];
+        const edit = (/** @type {Event} */ e) => {
+            if (e instanceof KeyboardEvent && e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            e.stopPropagation();
+            this._editCard(cardIndex);
+        };
+        const onSelect = (/** @type {CustomEvent} */ e) => {
+            const action = e.detail?.item?.value;
+            if (action === 'edit')      this._editCard(cardIndex);
+            if (action === 'placement') this._openPlacementEditor(cardIndex);
+            if (action === 'delete')    this._deleteCardByIndex(cardIndex);
+        };
+        return html`
+            <div class="card-edit-control" role="button" tabindex="0"
+                aria-label="Edit ${type}" title="Edit ${type}"
+                @click=${edit} @keydown=${edit}>
+                <div class="card-edit-scrim"></div>
+                <ha-svg-icon .path=${ICON.pencil}></ha-svg-icon>
+                <span class="card-edit-label">${area ? `${type} · ${area}` : type}</span>
+            </div>
+            <ha-dropdown class="card-edit-menu" placement="bottom-end"
+                @wa-show=${() => wrap.classList.add('menu-open')}
+                @wa-after-hide=${() => wrap.classList.remove('menu-open')}
+                @wa-select=${onSelect}>
+                <ha-icon-button slot="trigger" .path=${ICON.dotsVertical} .label=${'Card options'}></ha-icon-button>
+                <ha-dropdown-item value="edit">
+                    <ha-svg-icon slot="icon" .path=${ICON.pencil}></ha-svg-icon>
+                    Edit
+                </ha-dropdown-item>
+                <ha-dropdown-item value="placement">
+                    <ha-svg-icon slot="icon" .path=${ICON.tune}></ha-svg-icon>
+                    Placement & spacing
+                </ha-dropdown-item>
+                <div class="menu-sep" role="separator"></div>
+                <ha-dropdown-item value="delete" variant="danger">
+                    <ha-svg-icon slot="icon" .path=${ICON.delete}></ha-svg-icon>
+                    Delete
+                </ha-dropdown-item>
+            </ha-dropdown>
+        `;
     }
 
     /**
@@ -970,8 +944,14 @@ export class LCARdSLayoutView extends LitElement {
             return;
         }
 
-        // Available height of the host element (provided by HA's parent container).
-        const available = this.getBoundingClientRect().height;
+        // Available height: the host's (provided by HA's parent container) minus the
+        // grid's own padding and border (layout.padding, and the edit-mode reserve
+        // for the toolbar strip / header gutter).
+        const gcs = getComputedStyle(grid);
+        const inset = (parseFloat(gcs.paddingTop) || 0) + (parseFloat(gcs.paddingBottom) || 0)
+            + (parseFloat(gcs.borderTopWidth) || 0) + (parseFloat(gcs.borderBottomWidth) || 0)
+            + (parseFloat(gcs.marginTop) || 0) + (parseFloat(gcs.marginBottom) || 0);
+        const available = this.getBoundingClientRect().height - inset;
         if (available <= 0) {
             // Host not yet laid out — write rows as-is and retry after render.
             grid.style.gridTemplateRows = rows.join(' ');
@@ -991,7 +971,7 @@ export class LCARdSLayoutView extends LitElement {
         rows.forEach((r, i) => {
             if (!/^[0-9.]+fr$/.test(String(r))) fixedTotal += computedPx[i] ?? 0;
         });
-        const gap = parseFloat(getComputedStyle(grid).rowGap) || 0;
+        const gap = parseFloat(gcs.rowGap) || 0;
         const gapTotal = (rows.length - 1) * gap;
 
         const frSpace = Math.max(0, available - fixedTotal - gapTotal);
@@ -1004,53 +984,40 @@ export class LCARdSLayoutView extends LitElement {
         grid.style.gridTemplateRows = rows.join(' ');
     }
 
-    /**
-     * Open the per-card placement panel. Defaults to one side of the card (right,
-     * flipping to the left if there's no room) so it doesn't cover the card being
-     * edited; from there it's freely draggable via its grip.
-     */
-    _openPlacementEditor(cardIndex, anchorEl) {
-        const host = this.getBoundingClientRect();
-        const r = anchorEl?.getBoundingClientRect();
-        const panelW = 260;
-        const gap = 8;
-        if (r) {
-            // Prefer the right side of the card; flip left if it would overflow.
-            let left = (r.right - host.left) + gap;
-            if (left + panelW > host.width - 4) {
-                left = (r.left - host.left) - panelW - gap;
-            }
-            left = Math.max(4, Math.min(left, host.width - panelW - 4));
-            const top = Math.max(4, Math.min(r.top - host.top, host.height - 180));
-            this._placementAnchor = { top, left };
-        } else {
-            this._placementAnchor = { top: 60, left: 16 };
-        }
-        this._placementPos = null; // start from the anchor; user can drag from there
+    /** Show a card's placement in the dock (it replaces whatever card was there). */
+    _openPlacementEditor(/** @type {number} */ cardIndex) {
         this._placementEditCard = { index: cardIndex };
     }
 
     /** Write align-self + justify-self for a card, using place-self shorthand when both axes match. */
     _setAlignment(cardIndex, v, h) {
-        if (v === h) {
-            this._updateCardViewLayout(cardIndex, 'place-self',   v === 'stretch' ? undefined : v);
-            this._updateCardViewLayout(cardIndex, 'align-self',   undefined);
-            this._updateCardViewLayout(cardIndex, 'justify-self', undefined);
-        } else {
-            this._updateCardViewLayout(cardIndex, 'place-self',   undefined);
-            this._updateCardViewLayout(cardIndex, 'align-self',   v === 'stretch' ? undefined : v);
-            this._updateCardViewLayout(cardIndex, 'justify-self', h === 'stretch' ? undefined : h);
-        }
+        this._updateCardViewLayout(cardIndex, v === h
+            ? { 'place-self': v === 'stretch' ? undefined : v, 'align-self': undefined, 'justify-self': undefined }
+            : { 'place-self': undefined, 'align-self': v === 'stretch' ? undefined : v, 'justify-self': h === 'stretch' ? undefined : h });
     }
 
-    /** Commit a single view_layout key for a card (empty/undefined removes it). */
-    _updateCardViewLayout(cardIndex, key, value) {
+    /** Write overflow-x + overflow-y for a card, using the overflow shorthand when both axes match. */
+    _setOverflow(cardIndex, x, y) {
+        this._updateCardViewLayout(cardIndex, x === y
+            ? { overflow: x === 'visible' ? undefined : x, 'overflow-x': undefined, 'overflow-y': undefined }
+            : { overflow: undefined, 'overflow-x': x === 'visible' ? undefined : x, 'overflow-y': y === 'visible' ? undefined : y });
+    }
+
+    /**
+     * Commit view_layout keys for a card in one save (one undo step). An empty /
+     * undefined value removes that key.
+     * @param {number} cardIndex
+     * @param {Record<string, any>} patch
+     */
+    _updateCardViewLayout(cardIndex, patch) {
         const cards = [...(this._config?.cards ?? [])];
         const card = cards[cardIndex];
         if (!card) return;
         const vl = { ...(card.view_layout ?? {}) };
-        if (value == null || value === '') delete vl[key];
-        else vl[key] = value;
+        for (const [key, value] of Object.entries(patch)) {
+            if (value == null || value === '') delete vl[key];
+            else vl[key] = value;
+        }
         cards[cardIndex] = { ...card, view_layout: vl };
         this._config = { ...this._config, cards };
         this._saveConfig();
@@ -1058,21 +1025,17 @@ export class LCARdSLayoutView extends LitElement {
 
     _renderPlacementPanel() {
         const idx  = this._placementEditCard?.index;
+        if (idx == null) return nothing;
         const card = this._config?.cards?.[idx];
         if (card == null) return nothing;
         const vl    = card.view_layout ?? {};
         const label = (card.type ?? 'card').replace('custom:', '');
-        const pos   = this._placementPos ?? this._placementAnchor ?? { top: 60, left: 16 };
         const defaultMargin = this._config?.layout?.card_margin ?? 'inherit';
 
         return html`
-            <div class="placement-panel" style="top:${pos.top}px; left:${pos.left}px;">
-                <div class="placement-header">
-                    <div class="drag-grip" @pointerdown=${this._placementDragStart} title="Drag to move">
-                        <ha-icon icon="mdi:drag"></ha-icon>
-                    </div>
-                    <div class="placement-title">Placement: ${label}</div>
-                </div>
+            <aside class="edit-dock placement-panel" aria-label="Placement: ${label}">
+                ${renderPanelHeader(`Placement: ${label}`, () => { this._placementEditCard = null; })}
+                <div class="edit-dock-body">
                 <div class="placement-field">
                     <label>Align ↕</label>
                     <ha-selector
@@ -1105,7 +1068,7 @@ export class LCARdSLayoutView extends LitElement {
                         .value=${vl.margin ?? ''}
                         placeholder=${defaultMargin}
                         title="Space around the card within its area (e.g. 4px, 0)"
-                        @change=${(e) => this._updateCardViewLayout(idx, 'margin', e.target.value || undefined)}
+                        @change=${(e) => this._updateCardViewLayout(idx, { margin: e.target.value || undefined })}
                     ></ha-input>
                 </div>
                 <div class="placement-field">
@@ -1114,20 +1077,7 @@ export class LCARdSLayoutView extends LitElement {
                         .hass=${this._hass}
                         .selector=${{ select: { mode: 'dropdown', options: PLACEMENT_OVERFLOW_OPTIONS } }}
                         .value=${vl['overflow-x'] ?? vl.overflow ?? 'visible'}
-                        @value-changed=${(e) => {
-                            const v = e.detail.value;
-                            const y = this._placementEditCard?.config?.view_layout?.['overflow-y']
-                                   ?? this._placementEditCard?.config?.view_layout?.overflow
-                                   ?? 'visible';
-                            if (v === y) {
-                                this._updateCardViewLayout(idx, 'overflow',   v === 'visible' ? undefined : v);
-                                this._updateCardViewLayout(idx, 'overflow-x', undefined);
-                                this._updateCardViewLayout(idx, 'overflow-y', undefined);
-                            } else {
-                                this._updateCardViewLayout(idx, 'overflow',   undefined);
-                                this._updateCardViewLayout(idx, 'overflow-x', v === 'visible' ? undefined : v);
-                            }
-                        }}
+                        @value-changed=${(e) => this._setOverflow(idx, e.detail.value, vl['overflow-y'] ?? vl.overflow ?? 'visible')}
                     ></ha-selector>
                 </div>
                 <div class="placement-field">
@@ -1136,26 +1086,11 @@ export class LCARdSLayoutView extends LitElement {
                         .hass=${this._hass}
                         .selector=${{ select: { mode: 'dropdown', options: PLACEMENT_OVERFLOW_OPTIONS } }}
                         .value=${vl['overflow-y'] ?? vl.overflow ?? 'visible'}
-                        @value-changed=${(e) => {
-                            const v = e.detail.value;
-                            const x = this._placementEditCard?.config?.view_layout?.['overflow-x']
-                                   ?? this._placementEditCard?.config?.view_layout?.overflow
-                                   ?? 'visible';
-                            if (v === x) {
-                                this._updateCardViewLayout(idx, 'overflow',   v === 'visible' ? undefined : v);
-                                this._updateCardViewLayout(idx, 'overflow-x', undefined);
-                                this._updateCardViewLayout(idx, 'overflow-y', undefined);
-                            } else {
-                                this._updateCardViewLayout(idx, 'overflow',   undefined);
-                                this._updateCardViewLayout(idx, 'overflow-y', v === 'visible' ? undefined : v);
-                            }
-                        }}
+                        @value-changed=${(e) => this._setOverflow(idx, vl['overflow-x'] ?? vl.overflow ?? 'visible', e.detail.value)}
                     ></ha-selector>
                 </div>
-                <div class="placement-actions">
-                    <ha-button @click=${() => { this._placementEditCard = null; }}>Done</ha-button>
                 </div>
-            </div>
+            </aside>
         `;
     }
 
@@ -1173,19 +1108,27 @@ export class LCARdSLayoutView extends LitElement {
         }));
     }
 
+    /**
+     * Delete a card after a confirmation, through HA (ll-delete-card) so its
+     * "Deleted" toast still offers Undo.
+     * @param {number} cardIndex
+     */
     async _deleteCardByIndex(cardIndex) {
-        const card  = this._config?.cards?.[cardIndex];
-        const label = (card?.type ?? 'card').replace('custom:', '');
+        const card = this._config?.cards?.[cardIndex];
+        const type = String(card?.type ?? 'card').replace('custom:', '');
+        const area = card?.view_layout?.['grid-area'];
         const confirmed = await showConfirmDeleteDialog({
-            title: 'Remove card?',
-            message: `Remove the "${label}" card from this layout? This cannot be undone.`,
-            confirmText: 'Remove',
+            title: 'Delete card?',
+            message: `Delete the "${type}" card${area ? ` from area "${area}"` : ''}? You can undo this from the dashboard toolbar.`,
+            confirmText: 'Delete',
         });
         if (!confirmed) return;
-        const cards = [...(this._config?.cards ?? [])];
-        cards.splice(cardIndex, 1);
-        this._config = { ...this._config, cards };
-        this._saveConfig();
+        if (this._placementEditCard?.index === cardIndex) this._placementEditCard = null;
+        this.dispatchEvent(new CustomEvent('ll-delete-card', {
+            bubbles: true,
+            composed: true,
+            detail: { path: [this.index, cardIndex], silent: false },
+        }));
     }
 
     /**
@@ -1361,16 +1304,18 @@ export class LCARdSLayoutView extends LitElement {
         };
     }
 
-    /** Merge one per-area setting (empty value removes the key; empty area removed). */
+    /** Merge a per-area settings patch (empty value removes the key; empty area removed). */
     _onAreaSettingsChanged(ev) {
         ev.stopPropagation();
-        const { name, key, value } = ev.detail ?? {};
-        if (!name || !key) return;
+        const { name, patch } = ev.detail ?? {};
+        if (!name || !patch) return;
         const layout = this._config?.layout ?? {};
         const areas  = { ...(layout.areas ?? {}) };
         const areaSettings = { ...(areas[name] ?? {}) };
-        if (value == null || value === '') delete areaSettings[key];
-        else areaSettings[key] = value;
+        for (const [key, value] of Object.entries(patch)) {
+            if (value == null || value === '') delete areaSettings[key];
+            else areaSettings[key] = value;
+        }
         if (Object.keys(areaSettings).length > 0) areas[name] = areaSettings;
         else delete areas[name];
         this._config = { ...this._config, layout: { ...layout, areas } };
@@ -1432,7 +1377,14 @@ export class LCARdSLayoutView extends LitElement {
         this._saveChain = (async () => {
             try {
                 while (this._pendingViewConfig) {
+                    // Wait for the previous save's lovelace_updated event (this also
+                    // merges saves requested in the same tick, e.g. an area rename's
+                    // grid + cards, into one). HA ignores only ONE update event after
+                    // a save: two saves before the first event arrives make the second
+                    // event look external ("Dashboard updated in another session").
+                    await this._waitForSaveEvent();
                     const cfg = this._pendingViewConfig;
+                    if (!cfg) break;
                     this._pendingViewConfig = null;
                     const base = this._lovelace?.config;
                     if (!base || !this._lovelace?.saveConfig) break;
@@ -1449,6 +1401,38 @@ export class LCARdSLayoutView extends LitElement {
             }
         })();
         return this._saveChain;
+    }
+
+    /** Subscribe (once) to lovelace_updated, the event HA's saves produce. */
+    _subscribeSaveEvents() {
+        if (this._saveEventsUnsub || !this._hass?.connection) return;
+        this._lastSaveEventAt = performance.now();
+        this._saveEventsUnsub = this._hass.connection.subscribeEvents(() => {
+            this._lastSaveEventAt = performance.now();
+            const waiters = this._saveEventWaiters ?? [];
+            this._saveEventWaiters = [];
+            waiters.forEach(resolve => resolve());
+        }, 'lovelace_updated').catch((/** @type {any} */ e) => {
+            lcardsLog.debug('[LCARSLayoutView] lovelace_updated subscription failed', { error: e?.message });
+            this._saveEventsUnsub = null;
+        });
+    }
+
+    /**
+     * Resolve once the last config change's lovelace_updated event has arrived
+     * (or after a timeout, so a missed event can't block saving). Always waits at
+     * least one microtask.
+     * @returns {Promise<void>}
+     */
+    async _waitForSaveEvent() {
+        await Promise.resolve();
+        if (!this._saveEventsUnsub || !((this._lastConfigChangeAt ?? 0) > (this._lastSaveEventAt ?? 0))) return;
+        await new Promise((resolve) => {
+            (this._saveEventWaiters ??= []).push(resolve);
+            setTimeout(resolve, 2000);
+        });
+        // Let HA's own handler (which clears its ignore flag) run first.
+        await new Promise(resolve => setTimeout(resolve, 0));
     }
 
     getCardSize() { return 1; }
