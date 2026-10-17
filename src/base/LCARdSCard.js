@@ -4597,7 +4597,9 @@ export class LCARdSCard extends LCARdSNativeCard {
             // dash/gap lengths also scale with extent so they look consistent
             const dash = maxExtent * 0.025;
             const gap  = maxExtent * 0.03;
-            inner += `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="${strokeWidth}" stroke-dasharray="${dash} ${gap}"/>`;
+            // A zone can be momentarily negative while the card is smaller than its bars
+            // (first layout pass); an SVG rect may not have a negative size.
+            inner += `<rect x="${x}" y="${y}" width="${Math.max(0, width)}" height="${Math.max(0, height)}" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="${strokeWidth}" stroke-dasharray="${dash} ${gap}"/>`;
             inner += `<text x="${x + width / 2}" y="${y + height / 2}" text-anchor="middle" dominant-baseline="central" fill="${color}" font-size="${fontSize}" font-weight="bold" font-family="monospace" paint-order="stroke" stroke="#000" stroke-width="${textStrokeWidth}" stroke-linejoin="round">${name}</text>`;
         }
         return `<g id="lcards-zone-debug" pointer-events="none">${inner}</g>`;
