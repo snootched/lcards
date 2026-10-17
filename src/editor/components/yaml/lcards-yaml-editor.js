@@ -87,16 +87,34 @@ export class LCARdSYamlEditor extends LitElement {
                 position: relative;
             }
 
+            /* Maximized: shown in the top layer (showPopover in _toggleMaximize), so it
+               covers the window even inside a dialog whose transform or containment would
+               otherwise make position: fixed relative to the dialog. */
             :host([maximized]) {
                 position: fixed;
-                top: var(--header-height, 0);
-                left: 0;
-                right: 0;
-                bottom: 0;
+                inset: 0;
+                width: auto;
+                height: auto;
+                max-width: none;
+                max-height: none;
                 z-index: 9999;
                 background: #282c34;
+                color: inherit;
+                border: none;
                 margin: 0;
                 padding: 8px;
+                overflow: hidden;
+                box-sizing: border-box;
+            }
+
+            :host([maximized])::backdrop {
+                background: transparent;
+            }
+
+            /* CodeMirror's theme caps the editor at 600px; maximized fills the window. */
+            :host([maximized]) .cm-editor,
+            :host([maximized]) .cm-scroller {
+                max-height: none;
             }
 
             .editor-wrapper {
@@ -189,149 +207,31 @@ export class LCARdSYamlEditor extends LitElement {
                 height: 100%;
             }
 
-            /* CodeMirror styling overrides */
-            .editor-container :global(.cm-editor) {
-                height: 100%;
-                min-height: 400px;
-                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                font-size: 14px;
-            }
 
-            :host([maximized]) .editor-container :global(.cm-editor) {
-                min-height: 0;
-            }
 
-            .editor-container :global(.cm-scroller) {
-                overflow: auto !important;
-                scrollbar-width: thin;
-                scrollbar-color: #5c6370 #282c34;
-            }
 
-            /* Webkit scrollbar styling */
-            .editor-container :global(.cm-scroller::-webkit-scrollbar) {
-                width: 10px;
-                height: 10px;
-            }
 
-            .editor-container :global(.cm-scroller::-webkit-scrollbar-track) {
-                background: #282c34;
-            }
 
-            .editor-container :global(.cm-scroller::-webkit-scrollbar-thumb) {
-                background: #5c6370;
-                border-radius: 5px;
-            }
 
-            .editor-container :global(.cm-scroller::-webkit-scrollbar-thumb:hover) {
-                background: #6c7380;
-            }
 
-            .editor-container :global(.cm-focused) {
-                outline: none !important;
-            }
 
-            /* Line numbers */
-            .editor-container :global(.cm-lineNumbers) {
-                color: #5c6370;
-                padding-right: 8px;
-            }
 
-            /* Autocomplete popup */
-            .editor-container :global(.cm-tooltip-autocomplete) {
-                background: #282c34;
-                border: var(--ha-border-width-sm) solid #3e4451;
-                border-radius: 4px;
-                box-shadow: var(--ha-box-shadow-m);
-            }
 
-            .editor-container :global(.cm-completionLabel) {
-                color: #abb2bf;
-            }
 
-            .editor-container :global(.cm-completionDetail) {
-                color: #5c6370;
-                font-style: italic;
-            }
 
-            /* Linter/validation styling */
-            .editor-container :global(.cm-diagnostic-error) {
-                border-bottom: 2px wavy #e06c75;
-            }
 
-            .editor-container :global(.cm-diagnostic-warning) {
-                border-bottom: 2px wavy #e5c07b;
-            }
 
-            .editor-container :global(.cm-lintRange-error) {
-                background-color: rgba(224, 108, 117, 0.2);
-            }
 
-            /* Search panel */
-            .editor-container :global(.cm-panel) {
-                background: #21252b;
-                border-bottom: var(--ha-border-width-sm) solid #3e4451;
-                color: #abb2bf;
-            }
 
-            .editor-container :global(.cm-textfield) {
-                background: #282c34;
-                border: var(--ha-border-width-sm) solid #3e4451;
-                color: #abb2bf;
-                padding: 4px 8px;
-                border-radius: 3px;
-            }
 
-            .editor-container :global(.cm-button) {
-                background: #3e4451;
-                border: none;
-                color: #abb2bf;
-                padding: 4px 12px;
-                border-radius: 3px;
-                cursor: pointer;
-            }
 
-            .editor-container :global(.cm-button:hover) {
-                background: #4e545f;
-            }
 
-            /* Bracket matching */
-            .editor-container :global(.cm-matchingBracket) {
-                background-color: rgba(97, 175, 239, 0.3);
-                border: var(--ha-border-width-sm) solid #61afef;
-            }
 
-            /* Selection match highlighting */
-            .editor-container :global(.cm-selectionMatch) {
-                background-color: rgba(152, 195, 121, 0.2);
-            }
 
-            /* Trailing whitespace */
-            .editor-container :global(.cm-trailingWhitespace) {
-                background-color: rgba(224, 108, 117, 0.3);
-            }
 
-            /* Fold markers */
-            .editor-container :global(.cm-foldGutter) {
-                color: #5c6370;
-                padding-left: 4px;
-            }
 
-            /* Indentation markers */
-            .editor-container :global(.cm-indent-markers) {
-                position: absolute;
-                left: 0;
-                right: 0;
-                pointer-events: none;
-            }
 
-            .editor-container :global(.cm-indent-marker) {
-                border-left: var(--ha-border-width-sm) solid rgba(92, 99, 112, 0.3);
-                height: 100%;
-            }
 
-            .editor-container :global(.cm-indent-marker-active) {
-                border-left: var(--ha-border-width-sm) solid rgba(97, 175, 239, 0.4);
-            }
 
             /* Status footer */
             .status-footer {
@@ -800,6 +700,7 @@ export class LCARdSYamlEditor extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
+        if (this._isMaximized) this._toggleMaximize(); // leave the top layer cleanly
         clearTimeout(this._panelTimer ?? undefined);
         if (this._editorView) {
             this._editorView.destroy();
@@ -1092,7 +993,15 @@ export class LCARdSYamlEditor extends LitElement {
 
         if (this._isMaximized) {
             this.setAttribute('maximized', '');
+            // The top layer escapes every ancestor: inside a dialog (transformed or
+            // contained), position: fixed alone only covered the dialog.
+            if (typeof this.showPopover === 'function') {
+                this.popover = 'manual';
+                try { this.showPopover(); } catch { /* not connected: fixed still applies */ }
+            }
         } else {
+            if (this.matches(':popover-open')) this.hidePopover();
+            this.removeAttribute('popover'); // a closed [popover] is display: none
             this.removeAttribute('maximized');
         }
 

@@ -33,3 +33,33 @@ test('the code area gets the editor height; the popup host takes none', async ({
     expect(sizes.body).toBeGreaterThanOrEqual(sizes.code);
     expect(sizes.tooltipHost).toBe(0);
 });
+
+// Maximize covers the window even inside a container that makes position: fixed
+// relative to itself (a transformed dialog: HA's own edit-card dialog, every studio),
+// and the code area is no longer held to its normal 600px cap.
+test('maximize fills the window from inside a transformed container', async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 1000 });
+    await mountCase(page, 'button-lozenge');
+    const sizes = await page.evaluate(async (yaml) => {
+        await customElements.get('lcards-button').getConfigElement();
+        await customElements.whenDefined('lcards-yaml-editor');
+        const box = document.createElement('div');
+        box.style.cssText = 'position: absolute; left: 300px; top: 200px; width: 500px; height: 500px; transform: translateZ(0);';
+        const editor = document.createElement('lcards-yaml-editor');
+        editor.value = yaml;
+        box.appendChild(editor);
+        document.body.appendChild(box);
+        await new Promise(r => setTimeout(r, 800));
+        editor._toggleMaximize();
+        await new Promise(r => setTimeout(r, 400));
+        const r = editor.getBoundingClientRect();
+        const code = editor.shadowRoot.querySelector('.cm-editor').getBoundingClientRect();
+        const result = { box: [r.left, r.top, r.width, r.height], code: code.height };
+        editor._toggleMaximize();
+        result.restored = editor.getBoundingClientRect().width;
+        return result;
+    }, YAML);
+    expect(sizes.box).toEqual([0, 0, 1200, 1000]);
+    expect(sizes.code).toBeGreaterThan(800);
+    expect(sizes.restored).toBe(500); // back inside its container
+});
