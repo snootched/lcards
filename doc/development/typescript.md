@@ -27,7 +27,7 @@ CI runs `npm run typecheck` on every push. There is no baseline: every error is 
 | `allowJs`, `checkJs`, `noEmit` | on | Check our JavaScript, write nothing. |
 | `noImplicitReturns` | on | A function that returns a value on some paths must return on all of them. |
 | `noFallthroughCasesInSwitch` | on | A `case` that falls into the next one is an error. |
-| `strictNullChecks` | off (for now) | Planned next step: flags values that may be `null` or `undefined` where an object is used. |
+| `strictNullChecks` | off (for now) | Core code already passes it; it turns on once the editors do. Flags values that may be `null` or `undefined` where an object is used. |
 | `noImplicitAny` | off, on purpose | It would demand a type on every parameter TypeScript can't infer (about 12,600 places). In a JavaScript codebase that's busywork with little bug-finding value. |
 
 ## Rules for New Code
@@ -80,6 +80,20 @@ const tab = /** @type {HaTabGroupElement} */ (event.target).activeTab;
 ### A render helper returns `''`
 
 A helper documented `@returns {TemplateResult}` that also returns `''` should say so: `@returns {TemplateResult|string}`. (Lit's `nothing` is the idiom for new code, but it is truthy where `''` isn't, so don't swap one for the other in existing code without checking the callers.)
+
+### A field that starts `null` and is filled in later
+
+Null checks (`strictNullChecks`, on for core code) need to know a field's real type. Pick the pattern that matches what the code does:
+
+- **Can genuinely be `null` when used** (torn down, not set up yet): type it `X | null` and guard the use (`if (!this.x) return;` or `this.x?.method()`).
+- **Always set by a setup method before any use** (a canvas created in `_ensureBuffer()`, an RNG seeded in `_initRNG()`): declare the real type in the constructor and initialise with a cast, so every use stays unguarded:
+
+```js
+/** @type {CanvasRenderingContext2D} created by _ensureBuffer() before any use */
+this._offCtx = /** @type {any} */ (null);
+```
+
+- **A parameter with a `= null` default:** say so in its JSDoc (`@param {string|null} [id]`); an undocumented `= null` parameter is typed as only ever `null`.
 
 ### An override is "incorrectly extending" its base class
 
