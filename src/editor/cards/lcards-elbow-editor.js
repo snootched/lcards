@@ -1875,8 +1875,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     body: html`
                         <p>Any Home Assistant card can sit inside the elbow's content area.</p>
                         <ul>
-                            <li><strong>Imprint</strong> gives it the elbow's background colour, text colour and font, without card-mod.</li>
-                            <li>If the embedded card has a <code>card_mod</code> block and card-mod is installed, card-mod styles it instead.</li>
+                            <li><strong>Imprint</strong> gives it the elbow's background colour, text colour and font, without UIX.</li>
+                            <li>A <code>uix</code> block on the embedded card still applies, but where both set the same property, imprint wins. Turn imprint off to let UIX style the card alone.</li>
                         </ul>
                     `,
                 })}
@@ -2098,7 +2098,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Enable Imprint'}
-                            .helper=${'Inject background color, text color, and font into the embedded card (no card-mod required). Automatically defers to card_mod if present in the card config and card-mod is installed.'}
+                            .helper=${'Inject background color, text color, and font into the embedded card (no UIX required). Applied after any uix block on the embedded card, so imprint wins where both set the same property; turn this off to let UIX style the card alone.'}
                             .selector=${{ boolean: {} }}
                             .value=${imprintEnabled}
                             @value-changed=${(e) => this._setConfigValue('symbiont.imprint.enabled', e.detail.value)}>
@@ -2224,7 +2224,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         ?expanded=${false}
                         ?outlined=${true}>
 
-                        <lcards-message type="info" message="Raw CSS for the embedded card, applied after the imprint styles. Skipped when its config has a card_mod block and card-mod is installed.">
+                        <lcards-message type="info" message="Raw CSS for the embedded card, applied after the imprint styles and after any uix block on the embedded card. Off when imprint is off.">
                         </lcards-message>
 
                         <ha-code-editor

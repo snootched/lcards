@@ -68,7 +68,7 @@ elbow:
     inner_segment:
       bar_width: 30
       color:            # string or state-based object
-        default: "var(--lcars-moonlight)"
+        default: "var(--lcards-moonlight)"
 
 # ── Identity & entity ──────────────────────────────────────────────────────────
 entity: light.living_room  # entity for state-based colouring
@@ -187,7 +187,7 @@ elbow:
     inner_segment:
       bar_width: 30
       bar_height: 10
-      color: "var(--lcars-moonlight)"
+      color: "var(--lcards-moonlight)"
 ```
 
 Both styles side by side:
@@ -477,7 +477,7 @@ symbiont:
 | `size.height` | string | - | CSS height |
 | `anchor` | string | `top-left` | Alignment of the sized container within the inset area. Only applies when `size` is set. Options: `top-left`, `top-center`, `top-right`, `middle-left`, `center`, `middle-right`, `bottom-left`, `bottom-center`, `bottom-right` |
 | `imprint` | object | - | Shadow-root style injection: see below |
-| `custom_style` | string | - | Raw CSS appended to the embedded card's shadow root (no card-mod required) |
+| `custom_style` | string | - | Raw CSS appended to the embedded card's shadow root (no UIX required) |
 
 ### Size & Anchor
 
@@ -555,7 +555,7 @@ The legacy shorthand `imprint.border_radius.match_host: true` (default when `bor
 
 ### Custom Style
 
-`custom_style` lets you inject arbitrary CSS into the embedded card's shadow root without card-mod:
+`custom_style` lets you inject arbitrary CSS into the embedded card's shadow root without UIX:
 
 ```yaml
 symbiont:
@@ -567,21 +567,17 @@ symbiont:
   custom_style: |
     ha-card {
       --ha-card-border-radius: 0;
-      --secondary-text-color: var(--lcars-moonlight);
+      --secondary-text-color: var(--lcards-moonlight);
     }
 ```
 
 The custom style is appended **after** imprint styles, so it takes precedence when both set the same property.
 
-### Using card-mod with Symbiont
+### Using UIX with Symbiont
 
-card-mod works with symbiont cards. The `card_mod` block is part of the embedded card's config and is passed straight through to it.
+[UIX](https://github.com/Lint-Free-Technology/uix) (UI eXtension, which HA-LCARS uses) works with symbiont cards. Put the `uix` block in the embedded card's config; LCARdS passes it straight through. An older `card_mod` block is passed through too, and UIX reads it, but card-mod itself no longer works with current Home Assistant.
 
-**Injection order:**
-1. card-mod injects its `<style>` during `setConfig`
-2. LCARdS imprint appends its `<style id="lcards-symbiont-imprint">` after the card is ready
-
-Because imprint is appended later in the shadow root, **imprint wins when both set the same property**. For properties that do not overlap there is no conflict.
+**Order:** the embedded card's UIX styles are applied first, then the LCARdS imprint (and `custom_style`) adds `<style id="lcards-symbiont-imprint">` after them. So **imprint wins when both set the same property**; properties only one of them sets don't conflict. To let UIX style the card on its own, turn imprint off with `imprint.enabled: false` (that also turns off `custom_style`).
 
 ```yaml
 symbiont:
@@ -589,7 +585,7 @@ symbiont:
   card:
     type: alarm-panel
     entity: alarm_control_panel.home
-    card_mod:
+    uix:
       style: |
         ha-card {
           background: transparent !important;
@@ -604,7 +600,7 @@ symbiont:
         active: "var(--lcars-red)"
 ```
 
-> **Note:** `custom_style` injects raw CSS without card-mod. For simple shadow-root overrides prefer `custom_style`; it avoids a card-mod dependency and is handled entirely by LCARdS.
+> **Note:** `custom_style` injects raw CSS without UIX. For simple shadow-root overrides prefer `custom_style`: it needs nothing else installed and is handled entirely by LCARdS.
 
 ### Lazy-Loaded HA Card Types
 

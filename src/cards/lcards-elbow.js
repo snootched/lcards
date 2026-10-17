@@ -254,9 +254,16 @@ export class LCARdSElbow extends LCARdSButton {
                     this._unmountSymbiontCard();
                 }
             } else {
-                // Non-structural change — just update the cached JSON so the next
-                // dirty-check has the right baseline without triggering a remount.
+                // Non-structural change — update the cached JSON so the next
+                // dirty-check has the right baseline without triggering a remount,
+                // and re-apply imprint now: turning it off must remove the injected
+                // styles (nothing else does), and a new colour shouldn't wait for
+                // the next HASS update.
                 this._lastSymbiontConfigJson = JSON.stringify(config.symbiont);
+                if (this._symbiontElement) {
+                    if (config.symbiont?.imprint?.enabled !== false) this._injectSymbiontImprintWithRetry();
+                    else this._removeSymbiontImprint();
+                }
             }
         }
     }
@@ -3102,6 +3109,21 @@ export class LCARdSElbow extends LCARdSButton {
     }
 
     /**
+     * Remove injected imprint styles (imprint turned off on a live card): the
+     * style element in the embedded card and the fallback custom properties on
+     * the container.
+     * @private
+     */
+    _removeSymbiontImprint() {
+        const target = this._symbiontWrapper?._element ?? this._symbiontElement;
+        target?.shadowRoot?.querySelector('#lcards-symbiont-imprint')?.remove();
+        const container = /** @type {HTMLElement|null} */ (this.renderRoot?.querySelector('#lcards-symbiont-host'));
+        container?.style.removeProperty('--ha-card-background');
+        container?.style.removeProperty('--primary-text-color');
+        this._lastImprintCss = null;
+    }
+
+    /**
      * Attach symbiont element to the container div in shadow root
      * Called after each render to ensure the element is in the DOM
      * @private
@@ -3151,8 +3173,13 @@ export class LCARdSElbow extends LCARdSButton {
      * Inject imprint styles into symbiont card's shadowRoot.
      *
      * Returns true if injection succeeded (shadow root was available) or was
-     * skipped legitimately (no CSS, card-mod active, no change). Returns false
+     * skipped legitimately (no CSS, no change). Returns false
      * only when the shadow root is not ready yet — the retry loop uses this.
+     *
+     * There is deliberately no UIX / card-mod check: a `uix:` (or legacy `card_mod:`)
+     * block on the embedded card is passed through and still applies, and this style
+     * element lands after it, so imprint wins where both set a property. Users who want
+     * UIX alone set `symbiont.imprint.enabled: false`.
      *
      * CSS selector targets both `ha-card` (most cards) and `:host` (cards that
      * render directly on the host element) plus `hui-entities-card` for legacy

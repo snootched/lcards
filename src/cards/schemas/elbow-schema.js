@@ -913,11 +913,11 @@ export function getElbowSchema(options = {}) {
                     },
                     custom_style: {
                         type: 'string',
-                        description: 'Raw CSS injected into child card shadowRoot after imprint styles. Does not require card-mod.'
+                        description: 'Raw CSS injected into child card shadowRoot after imprint styles. Does not require UIX. Applied only while imprint is enabled.'
                     },
                     card: {
                         type: 'object',
-                        description: 'Any valid HA card configuration (type + properties). card_mod blocks are passed through as-is.'
+                        description: 'Any valid HA card configuration (type + properties). uix (and legacy card_mod) blocks are passed through as-is; imprint styles apply after them.'
                     }
                 }
             }

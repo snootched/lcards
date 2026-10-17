@@ -197,3 +197,36 @@ test('chart: a series that never answers does not hold the chart back', async ({
     await expect.poll(() => chart.evaluate(el => !!el._chart), { timeout: 6_000 }).toBe(true);
     await expectNoErrors(page);
 });
+
+test('elbow symbiont: a uix block on the embedded card is passed through, and imprint still applies after it (imprint.enabled: false turns both imprint and custom_style off, live)', async ({ page }) => {
+    await mountCase(page, 'elbow-symbiont-uix');
+    const inner = () => page.locator('lcards-elbow').evaluate(el => {
+        const card = el.shadowRoot.querySelector('#lcards-symbiont-host lcards-button');
+        return card && {
+            uix: card.config?.uix?.style ?? card._config?.uix?.style ?? null,
+            imprint: card.shadowRoot?.querySelector('#lcards-symbiont-imprint')?.textContent ?? null,
+        };
+    });
+    await expect.poll(async () => (await inner())?.imprint ?? null).not.toBeNull();
+    const on = await inner();
+    expect(on.uix).toContain('outline');
+    expect(on.imprint).toMatch(/#123456|rgb\(18, 52, 86\)/);
+    expect(on.imprint).toContain('opacity: 0.9');
+
+    await page.evaluate(() => window.__reconfigure({
+        type: 'custom:lcards-elbow', elbow: { type: 'header-left' },
+        symbiont: { enabled: true, card: { type: 'custom:lcards-button', preset: 'lozenge', uix: { style: ':host { outline: 1px solid red; }' } },
+            imprint: { enabled: false, background: '#123456' }, custom_style: ':host { opacity: 0.9; }' },
+    }));
+    await page.waitForTimeout(800);
+    const off = await inner();
+    expect(off?.imprint ?? null).toBeNull();
+
+    // And back on, with a new colour, without waiting for a state change.
+    await page.evaluate(() => window.__reconfigure({
+        type: 'custom:lcards-elbow', elbow: { type: 'header-left' },
+        symbiont: { enabled: true, card: { type: 'custom:lcards-button', preset: 'lozenge' }, imprint: { background: '#654321' } },
+    }));
+    await expect.poll(async () => (await inner())?.imprint ?? '').toMatch(/#654321|rgb\(101, 67, 33\)/);
+    await expectNoErrors(page);
+});
